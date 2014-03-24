@@ -1,4 +1,0 @@
-mainwp-child
-============
-
-MainWP Child
