@@ -76,7 +76,7 @@ class MainWPBackup
             $success = true;
         }
         else if ($this->createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles))
-        {
+        {			
             $success = true;
         }
 
@@ -147,9 +147,8 @@ class MainWPBackup
                 }
                 unset($coreFiles);
             }
-
-            $this->createBackupDB(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');
-            $this->addFileToZip(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql', basename(WP_CONTENT_DIR) . '/' . 'dbBackup.sql');
+            $this->createBackupDB(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');            
+			$this->addFileToZip(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql', basename(WP_CONTENT_DIR) . '/' . 'dbBackup.sql');			
             if (file_exists(ABSPATH . '.htaccess')) $this->addFileToZip(ABSPATH . '.htaccess', 'mainwp-htaccess');
             foreach ($nodes as $node)
             {
@@ -165,7 +164,6 @@ class MainWPBackup
                     }
                 }
             }
-
             if ($addConfig)
             {
                 global $wpdb;
@@ -245,7 +243,7 @@ class MainWPBackup
             unset($coreFiles);
         }
 
-        $this->createBackupDB(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');
+        $this->createBackupDB(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');		
         $error = false;
         if (($rslt = $this->zip->add(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql', PCLZIP_OPT_REMOVE_PATH, dirname($filepath), PCLZIP_OPT_ADD_PATH, basename(WP_CONTENT_DIR))) == 0) $error = true;
 
@@ -326,7 +324,7 @@ class MainWPBackup
 
         //Create DB backup
         $this->createBackupDB($backupFolder . 'dbBackup.sql');
-
+		
         //Copy installation to backup folder
         $nodes = glob(ABSPATH . '*');
         if (!$includeCoreFiles)
@@ -352,9 +350,12 @@ class MainWPBackup
             }
             unset($coreFiles);
         }
-        $this->copy_dir($nodes, $excludes, $backupFolder);
+        $this->copy_dir($nodes, $excludes, $backupFolder);	
+		// to fix bug wrong folder
+		@copy($backupFolder.'dbBackup.sql', $backupFolder . basename(WP_CONTENT_DIR) . '/dbBackup.sql');
+		@unlink($backupFolder.'dbBackup.sql');
         unset($nodes);
-
+		
         //Zip this backup folder..
         require_once ( ABSPATH . 'wp-admin/includes/class-pclzip.php');
         $this->zip = new PclZip($filepath);
