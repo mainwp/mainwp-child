@@ -6,7 +6,7 @@ Author URI: http://mainwp.com
 Plugin URI: http://mainwp.com
 Requires at least: 3.6
 Tested up to: 3.8
-Stable tag: 0.26
+Stable tag: 0.27
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -14,9 +14,11 @@ Allows you to manage multiple blogs from one dashboard by providing a secure con
 
 == Description ==
 
-[MainWP](http://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
+This is the Child plugin for the [MainWP Dashboard] (http://wordpress.org/plugins/mainwp/)
 
-The MainWP Child plugin is used so the installed blog can be securely managed remotely by your Network.
+The MainWP Child plugin is used so the installed blog can be securely managed remotely by your WordPress Network.
+
+[MainWP](http://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
 
 **Features include:**
  
@@ -56,7 +58,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Changelog ==
 
 = 0.27 =
-* Wordpress 3.9 changes
+* Code Changes for WP 3.9 Compatibility
+* Added Select from Server option for larger Backups
+* Added additional hooks for upcoming Extensions
 
 = 0.26 =
 * Minor fix for heatmap extension
