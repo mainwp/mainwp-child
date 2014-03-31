@@ -64,6 +64,7 @@ class MainWPChild
     private $maxHistory = 5;
 
     private $filterFunction = null;
+    private $branding = "MainWP";
 
     public function __construct($plugin_file)
     {			
@@ -153,19 +154,28 @@ class MainWPChild
 
     function admin_menu()
     {
-        add_options_page('MainWPSettings', __('MainWP Settings','mainwp-child'), 'manage_options', 'MainWPSettings', array(&$this, 'settings'));
+         // hide menu    
+        if (get_option('mainwp_branding_child_hide') == 'T') 
+            return;            
+        
+        $branding_header = get_option('mainwp_branding_plugin_header');        
+                
+        if (is_array($branding_header) && !empty($branding_header['name']))
+             $this->branding = $branding_header['name'];
+        
+        add_options_page('MainWPSettings', __($this->branding . ' Settings','mainwp-child'), 'manage_options', 'MainWPSettings', array(&$this, 'settings'));
 
-        $restorePage = add_submenu_page('tools.php', 'MainWP Restore', '<span style="display: hidden"></span>', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
+        $restorePage = add_submenu_page('tools.php', $this->branding . ' Restore', '<span style="display: hidden"></span>', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
         add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
 
         $sitesToClone = get_option('mainwp_child_clone_sites');
         if ($sitesToClone != '0')
         {
-            MainWPClone::init_menu();
+            MainWPClone::init_menu($this->branding);
         }
         else
         {
-            MainWPClone::init_restore_menu();
+            MainWPClone::init_restore_menu($this->branding);
         }
     }
 	
@@ -187,7 +197,7 @@ class MainWPChild
             }
         }
         ?>
-    <div id="icon-options-general" class="icon32"><br></div><h2><?php _e('MainWP Settings','mainwp-child'); ?></h2>
+    <div id="icon-options-general" class="icon32"><br></div><h2><?php _e($this->branding . ' Settings','mainwp-child'); ?></h2>
     <form method="post" action="">
         <br/>
 
