@@ -157,7 +157,7 @@ class MainWPClone
             <?php
             }
 ?>
-    <div id="icon-options-general" class="icon32"><br></div><h2><strong>Option 1: </strong><?php _e('Restore/Clone From Backup','mainwp-child'); ?></h2>
+    <div id="icon-options-general" class="icon32"><br></div><h2><strong><?php _e('Option 1:', 'mainwp-child'); ?></strong> <?php _e('Restore/Clone From Backup','mainwp-child'); ?></h2>
         <br />
     <?php _e('Upload backup in .zip format (Maximum filesize for your server settings: ','mainwp-child'); ?><?php echo $uploadSize; ?>)<br/>
     <i><?php _e('If you have a FULL backup created by your Network dashboard you may restore it by uploading here.','mainwp-child'); ?><br />
@@ -202,7 +202,7 @@ class MainWPClone
         $uploadSize = MainWPHelper::human_filesize($uploadSizeInBytes);
         self::renderHeader();
 
-        ?><div id="icon-options-general" class="icon32"><br></div><h2><?php _e('Restore','mainwp-child'); ?></h2><?php
+        ?><div id="icon-options-general" class="icon32"><br></div><h2><strong><?php _e('Option 1:', 'mainwp-child'); ?></strong> <?php _e('Restore','mainwp-child'); ?></h2><?php
 
         MainWPHelper::getWPFilesystem();
         global $wp_filesystem;
@@ -271,7 +271,7 @@ Author URI: http://dd32.id.au/
                 $current_dir = untrailingslashit($current_dir);
 
         echo "<br /><hr /><br />";
-        echo '<h2 id="title_03"><strong>Option 2: </strong>' . __('Restore/Clone From Server','mainwp-child') . '</h2>';
+        echo '<h2 id="title_03"><strong>' . __('Option 2:', 'mainwp-child') . '</strong> ' . __('Restore/Clone From Server','mainwp-child') . '</h2>';
 		echo __('If you have uploaded a FULL backup to your server (via FTP or other means) you can use this section to locate the zip file and select it.  A database only backup will not work.','mainwp-child'); 
 
         if (!is_readable($current_dir)) {

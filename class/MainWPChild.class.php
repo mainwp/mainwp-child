@@ -154,28 +154,52 @@ class MainWPChild
 
     function admin_menu()
     {
-         // hide menu    
+        if (get_option('mainwp_branding_remove_wp_tools')) {
+            remove_menu_page( 'tools.php' );                            
+            $pos = stripos($_SERVER['REQUEST_URI'], 'tools.php') ||
+                    stripos($_SERVER['REQUEST_URI'], 'import.php') ||
+                    stripos($_SERVER['REQUEST_URI'], 'export.php');
+            if ($pos !== false)
+                wp_redirect(get_option('siteurl') . '/wp-admin/index.php');  
+        }
+        
+        if (get_option('mainwp_branding_remove_wp_setting')) {
+            remove_menu_page( 'options-general.php' );              
+            $pos = stripos($_SERVER['REQUEST_URI'], 'options-general.php') || 
+                    stripos($_SERVER['REQUEST_URI'], 'options-writing.php') || 
+                    stripos($_SERVER['REQUEST_URI'], 'options-reading.php') || 
+                    stripos($_SERVER['REQUEST_URI'], 'options-discussion.php') || 
+                    stripos($_SERVER['REQUEST_URI'], 'options-media.php') || 
+                    stripos($_SERVER['REQUEST_URI'], 'options-permalink.php');
+            if ($pos !== false)
+                wp_redirect(get_option('siteurl') . '/wp-admin/index.php'); 
+        }
+        
+        // hide menu    
         if (get_option('mainwp_branding_child_hide') == 'T') 
             return;            
         
         $branding_header = get_option('mainwp_branding_plugin_header');        
                 
         if (is_array($branding_header) && !empty($branding_header['name']))
-             $this->branding = $branding_header['name'];
+             $this->branding = stripslashes($branding_header['name']);
         
-        add_options_page('MainWPSettings', __($this->branding . ' Settings','mainwp-child'), 'manage_options', 'MainWPSettings', array(&$this, 'settings'));
+        if (!get_option('mainwp_branding_remove_setting'))
+            add_options_page('MainWPSettings', __($this->branding . ' Settings','mainwp-child'), 'manage_options', 'MainWPSettings', array(&$this, 'settings'));
+        
+        if (!get_option('mainwp_branding_remove_restore')) {
+            $restorePage = add_submenu_page('tools.php', $this->branding . ' Restore', '<span style="display: hidden"></span>', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
+            add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
 
-        $restorePage = add_submenu_page('tools.php', $this->branding . ' Restore', '<span style="display: hidden"></span>', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
-        add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
-
-        $sitesToClone = get_option('mainwp_child_clone_sites');
-        if ($sitesToClone != '0')
-        {
-            MainWPClone::init_menu($this->branding);
-        }
-        else
-        {
-            MainWPClone::init_restore_menu($this->branding);
+            $sitesToClone = get_option('mainwp_child_clone_sites');
+            if ($sitesToClone != '0')
+            {
+                MainWPClone::init_menu($this->branding);
+            }
+            else
+            {
+                MainWPClone::init_restore_menu($this->branding);
+            }
         }
     }
 	

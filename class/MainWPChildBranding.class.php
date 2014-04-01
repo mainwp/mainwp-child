@@ -16,20 +16,7 @@ class MainWPChildBranding
 
     public function __construct()
     {
-        $this->child_plugin_dir = dirname(dirname(__FILE__));
-        $default_header = get_option('mainwp_branding_default_header', false);
-        if (empty($default_header))
-        {
-            $info = get_plugin_data($this->child_plugin_dir . '/mainwp-child.php');
-            if (is_array($info))
-            {
-                $default_header = array('name' => $info['Name'],
-                    'description' => $info['Description'],
-                    'authoruri' => $info['AuthorURI'],
-                    'author' => $info['Author']);
-                update_option('mainwp_branding_default_header', $default_header);
-            }
-        }
+        $this->child_plugin_dir = dirname(dirname(__FILE__));        
         add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
     }
 
@@ -50,6 +37,10 @@ class MainWPChildBranding
             'mainwp_branding_show_support',
             'mainwp_branding_support_email',
             'mainwp_branding_support_message',
+            'mainwp_branding_remove_restore',
+            'mainwp_branding_remove_setting',
+            'mainwp_branding_remove_wp_tools',
+            'mainwp_branding_remove_wp_setting',
             'mainwp_branding_plugin_header');
         foreach ($dell_all as $opt)
         {
@@ -85,6 +76,10 @@ class MainWPChildBranding
         update_option('mainwp_branding_plugin_header', $header);
         update_option('mainwp_branding_support_email', $settings['child_support_email']);
         update_option('mainwp_branding_support_message', $settings['child_support_message']);
+        update_option('mainwp_branding_remove_restore', $settings['child_remove_restore']);
+        update_option('mainwp_branding_remove_setting', $settings['child_remove_setting']);
+        update_option('mainwp_branding_remove_wp_tools', $settings['child_remove_wp_tools']);
+        update_option('mainwp_branding_remove_wp_setting', $settings['child_remove_wp_setting']);
 
         if ($settings['child_plugin_hide'])
         {
@@ -119,7 +114,7 @@ class MainWPChildBranding
 
     public function branding_init()
     {
-        add_filter('map_meta_cap', array($this, 'theme_plugin_disable_change'), 10, 5);
+        add_filter('map_meta_cap', array($this, 'branding_map_meta_cap'), 10, 5);        
         add_filter('all_plugins', array($this, 'branding_child_plugin'));
         add_filter('plugin_action_links', array($this, 'plugin_action_links'), 10, 2);
 
@@ -210,7 +205,7 @@ class MainWPChildBranding
         <div style="height: 230px; margin-bottom: 10px; text-align: left">
             <div class="mainwp_info-box-yellow" id="mainwp_branding_contact_ajax_message_zone"
                  style="display: none;"></div>
-            <p><?php echo get_option('mainwp_branding_support_message'); ?></p>
+            <p><?php echo stripslashes(get_option('mainwp_branding_support_message')); ?></p>
             <textarea id="mainwp_branding_contact_message_content" name="mainwp_branding_contact_message_content"
                       cols="69" rows="5" class="text"></textarea>
         </div>
@@ -307,7 +302,7 @@ class MainWPChildBranding
     }
 
 
-    public function theme_plugin_disable_change($caps, $cap, $user_id, $args)
+    public function branding_map_meta_cap($caps, $cap, $user_id, $args)
     {
         if (get_option('mainwp_branding_disable_change') == 'T')
         {
@@ -361,10 +356,10 @@ class MainWPChildBranding
 
         if (!empty($plugin_key))
         {
-            $plugin_data['Name'] = $header['name'];
-            $plugin_data['Description'] = $header['description'];
-            $plugin_data['Author'] = $header['author'];
-            $plugin_data['AuthorURI'] = $header['authoruri'];
+            $plugin_data['Name'] = stripslashes($header['name']);
+            $plugin_data['Description'] = stripslashes($header['description']);
+            $plugin_data['Author'] = stripslashes($header['author']);
+            $plugin_data['AuthorURI'] = stripslashes($header['authoruri']);
             $plugins[$plugin_key] = $plugin_data;
         }
         return $plugins;
