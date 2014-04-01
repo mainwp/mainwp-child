@@ -99,7 +99,9 @@ class MainWPClone
             return;
         }
 
-        if (!is_writable(WP_CONTENT_DIR))
+        MainWPHelper::getWPFilesystem();
+        global $wp_filesystem;
+        if ((!empty($wp_filesystem) && !$wp_filesystem->is_writable(WP_CONTENT_DIR)) || (empty($wp_filesystem) && !is_writable(WP_CONTENT_DIR)))
         {
             echo '<div class="mainwp-child_info-box-red"><strong>' . __('Your content directory is not writable. Please set 0755 permission to ','mainwp-child') . basename(WP_CONTENT_DIR) . '. (' . WP_CONTENT_DIR . ')</strong></div>';
             $error = true;
@@ -202,7 +204,9 @@ class MainWPClone
 
         ?><div id="icon-options-general" class="icon32"><br></div><h2><?php _e('Restore','mainwp-child'); ?></h2><?php
 
-        if (!is_writable(WP_CONTENT_DIR))
+        MainWPHelper::getWPFilesystem();
+        global $wp_filesystem;
+        if ((!empty($wp_filesystem) && !$wp_filesystem->is_writable(WP_CONTENT_DIR)) || (empty($wp_filesystem) && !is_writable(WP_CONTENT_DIR)))
         {
             echo '<div class="mainwp-child_info-box-red"><strong>' . __('Your content directory is not writable. Please set 0755 permission to ','mainwp-child') . basename(WP_CONTENT_DIR) . '. (' . WP_CONTENT_DIR . ')</strong></div>';
             $error = true;
