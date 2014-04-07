@@ -3131,8 +3131,12 @@ class MainWPChild
         MainWPKeywordLinks::Instance()->action();
     }
 	
-	public function branding_child_plugin() {		
+    public function branding_child_plugin() {		
         MainWPChildBranding::Instance()->action();
+    }
+    
+    public function get_plugin_slug(){
+        return $this->plugin_slug;
     }
 }
 

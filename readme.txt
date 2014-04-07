@@ -56,10 +56,8 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
-
 = 0.27.2 =
 * Additional hooks added
-
 
 = 0.27.1 =
 * Incorrect text fixed
