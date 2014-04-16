@@ -5,8 +5,8 @@ Tags: WordPress Management, WordPress Controller, manage, multiple, updates, mai
 Author: mainwp
 Author URI: http://mainwp.com
 Plugin URI: http://mainwp.com
-Requires at least: 3.9
-Tested up to: 3.8
+Requires at least: 3.6
+Tested up to: 3.9
 Stable tag: 0.28
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
