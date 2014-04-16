@@ -30,8 +30,23 @@ class MainWPKeywordLinks
             $this->keyword_links = array();
         $this->siteurl = get_option('siteurl');
 		add_action('permalink_structure_changed', array(&$this, 'permalinkChanged'), 10, 2);
+        add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
     }
     
+    public function child_deactivation()
+    {
+        $dell_all = array('mainwp_keyword_links_htaccess_set',
+                        'mainwp_kwl_options',
+                        'mainwpKeywordLinks',
+                        'mainwp_kwl_keyword_links',
+                        'mainwp_kwl_click_statistic_data',
+                        'mainwp_kwl_enable_statistic',
+                        'mainwp_kwl_keyword_links');
+        foreach ($dell_all as $opt)
+        {
+            delete_option($opt);
+        }
+    }
     public function keywordLinksJS()
     {	
         if (!is_admin() && get_option('mainwp_kwl_enable_statistic'))

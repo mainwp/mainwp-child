@@ -123,13 +123,14 @@ class MainWPChildBranding
     public function branding_init()
     {
         add_filter('map_meta_cap', array($this, 'branding_map_meta_cap'), 10, 5);        
-        add_filter('all_plugins', array($this, 'branding_child_plugin'));                
+        add_filter('all_plugins', array($this, 'branding_child_plugin'));            
+       
         if (get_option('mainwp_branding_show_support') == 'T')
         {
             add_submenu_page( null, $this->settings['contact_support_label'], $this->settings['contact_support_label'] , 'read', "ContactSupport", array($this, "contact_support") ); 
             add_action('admin_bar_menu', array($this, 'add_support_button'), 100);            
-        }
-
+        }        
+        add_filter('update_footer', array(&$this, 'update_footer'), 15);
     }
     
     public function send_support_mail()
@@ -240,7 +241,30 @@ class MainWPChildBranding
         
         $wp_admin_bar->add_node($args);
     }
-
+    
+    function is_branding() {
+        // hide
+        if (get_option('mainwp_branding_child_hide') == 'T')
+            return true;
+        // branding
+        $header = get_option('mainwp_branding_plugin_header');
+        if (is_array($header) && !empty($header['name']))    
+            return true;
+        return false;
+    }
+    
+    function update_footer(){
+        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false && $this->is_branding())
+        {
+            ?>
+           <script>
+                jQuery(document).ready(function(){
+                    jQuery('input[type="checkbox"][value="mainwp-child/mainwp-child.php"]').closest('tr').remove();
+                });        
+            </script>
+           <?php
+        }
+    }
 
     public function branding_map_meta_cap($caps, $cap, $user_id, $args)
     {
@@ -275,7 +299,7 @@ class MainWPChildBranding
         else
             return $plugins;
     }
-   
+    
     public function update_child_header($plugins, $header)
     {
         $plugin_key = "";

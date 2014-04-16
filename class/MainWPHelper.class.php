@@ -381,6 +381,16 @@ class MainWPHelper
             $url = $url . '/';
         }
         return $url;
+    }   
+
+    public static function clean($string) {
+        $string = trim($string);                  
+        $string = htmlentities($string, ENT_QUOTES); 
+        $string = str_replace("\n", "<br>", $string);
+        if (get_magic_quotes_gpc()) {
+                $string = stripslashes($string);
+        } 
+        return $string;
     }
 
     public static function endSession()
