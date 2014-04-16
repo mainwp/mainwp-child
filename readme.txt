@@ -57,7 +57,6 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
-
 = 0.28 =
 * Hooks added for Code Snippets Extensions
 
