@@ -232,7 +232,7 @@ class MainWPChildBranding
             $href = admin_url('admin.php?page=ContactSupport&from_page=' . urlencode($fullurl));
         }
         $args = array(
-            'id' => false,
+            'id' => 999,
             'title' => $this->settings['contact_support_label'],
             'parent' => 'top-secondary',
             'href' => $href,

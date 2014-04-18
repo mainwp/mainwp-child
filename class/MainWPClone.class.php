@@ -98,7 +98,7 @@ class MainWPClone
             echo '<div class="mainwp-child_info-box-red"><strong>' . __('Cloning is currently off - To turn on return to your main dashboard and turn cloning on on the Migrate/Clone page.','mainwp-child') . '</strong></div>';
             return;
         }
-
+        $error = false;
         MainWPHelper::getWPFilesystem();
         global $wp_filesystem;
         if ((!empty($wp_filesystem) && !$wp_filesystem->is_writable(WP_CONTENT_DIR)) || (empty($wp_filesystem) && !is_writable(WP_CONTENT_DIR)))

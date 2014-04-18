@@ -406,7 +406,7 @@ class MainWPKeywordLinks
             $class .= " kwl-regular-link"; 
         }
         
-        return '{MAINWP_LINK HREF="' . ( $this->link_temp->cloak_path ? $this->siteurl . $redirection_folder . '/' . $this->link_temp->cloak_path : $this->link_temp->destination_url) . '" TARGET="' . $target . '" REL="' . $rel . '" LINK-ID="' . $this->link_temp->id . '" CLASS="' . $class . '" TEXT="' . $matches[1] . '"}';
+        return '{MAINWP_LINK HREF="' . ( $this->link_temp->cloak_path ? $this->siteurl . $redirection_folder . '/' . $this->link_temp->cloak_path : $this->link_temp->destination_url) . '" TARGET="' . $target . '" REL="' . $rel . '" LINK-ID="' . (isset($this->link_temp->id) ? $this->link_temp->id : 0) . '" CLASS="' . $class . '" TEXT="' . $matches[1] . '"}';
     }
     
     public function keyword_replace( $matches )
@@ -502,7 +502,7 @@ class MainWPKeywordLinks
             //    $link->destination_url = $result->guid;
             $link->destination_url = get_permalink($result->ID);
             $link->cloak_path = '';
-            $link->keyword = ( $this->get_option('post_match_title') == 1 ? $result->post_title . ',' : '' ) . $result->meta_value;
+            $link->keyword = ( $this->get_option('post_match_title') == 1 ? $result->post_title : '' );
             $link->link_target = '';
             $link->link_rel = '';
             $link->link_class = '';
