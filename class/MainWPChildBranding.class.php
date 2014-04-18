@@ -130,7 +130,7 @@ class MainWPChildBranding
             add_submenu_page( null, $this->settings['contact_support_label'], $this->settings['contact_support_label'] , 'read', "ContactSupport", array($this, "contact_support") ); 
             add_action('admin_bar_menu', array($this, 'add_support_button'), 100);            
         }        
-        add_filter('update_footer', array(&$this, 'update_footer'), 15);
+        add_filter('update_footer', array(&$this, 'update_footer'), 10);
     }
     
     public function send_support_mail()
@@ -253,7 +253,7 @@ class MainWPChildBranding
         return false;
     }
     
-    function update_footer(){
+    function update_footer($text){
         if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false && $this->is_branding())
         {
             ?>
@@ -264,6 +264,8 @@ class MainWPChildBranding
             </script>
            <?php
         }
+
+        return $text;
     }
 
     public function branding_map_meta_cap($caps, $cap, $user_id, $args)
