@@ -7,7 +7,7 @@ Author URI: http://mainwp.com
 Plugin URI: http://mainwp.com
 Requires at least: 3.6
 Tested up to: 3.9
-Stable tag: 0.28.2
+Stable tag: 0.28.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+= 0.28.4 =
+* More Extension Hooks to extend Code Snippet functionality 
+
+= 0.28.3 =
+* Fixed some issues with Code Snippets extension
+
 = 0.28.2 =
 * Fixed update conflict with child plugin installed on dashboard
 * Fixed some warnings with debug enabled

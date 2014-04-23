@@ -177,8 +177,17 @@ class MainWPChild
                     stripos($_SERVER['REQUEST_URI'], 'options-discussion.php') || 
                     stripos($_SERVER['REQUEST_URI'], 'options-media.php') || 
                     stripos($_SERVER['REQUEST_URI'], 'options-permalink.php');
-            if ($pos !== false)
+            if ($pos !== false) {
                 wp_redirect(get_option('siteurl') . '/wp-admin/index.php'); 
+                exit();
+            }
+        } else if (get_option('mainwp_branding_remove_permalink')) {
+            remove_submenu_page('options-general.php', 'options-permalink.php');  
+            $pos = stripos($_SERVER['REQUEST_URI'], 'options-permalink.php');            
+            if ($pos !== false) {
+                wp_redirect(get_option('siteurl') . '/wp-admin/index.php');             
+                exit();
+            }
         }
         
         // hide menu    
@@ -3217,45 +3226,71 @@ class MainWPChild
         }
         $code = stripslashes($_POST['code']);  
         if ($action === 'run_snippet') {            
-            $result = $this->execute_snippet($code);
-            if ($result !== false)
+            $return = $this->execute_snippet($code);
+            if (is_array($return) && isset($return['result']) && $return['result'] === 'SUCCESS')
                 $information['status'] = 'SUCCESS';                
-            $information['result'] = $result;
+            $information['result'] = isset($return['output']) ? $return['output'] : "";
         } else if ($action === 'save_snippet') {
-           $slug = $_POST['slug'];
-           $snippets = get_option('mainwp_ext_code_snippets');
+            $type = $_POST['type'];
+            $slug = $_POST['slug'];
+            $snippets = get_option('mainwp_ext_code_snippets');
            
-           if (!is_array($snippets))
-               $snippets = array();
-           $snippets[$slug] = $code;
-           
-           if (update_option('mainwp_ext_code_snippets', $snippets))
-              $information['status'] = 'SUCCESS';  
+            if (!is_array($snippets))
+                $snippets = array();
+            
+            if ($type === 'C') {// save into wp-config file
+                if (false !== $this->snippetUpdateWPConfig("save", $slug, $code))
+                    $information['status'] = 'SUCCESS';     
+            } else {
+                $snippets[$slug] = $code;
+                if (update_option('mainwp_ext_code_snippets', $snippets)) {               
+                    $information['status'] = 'SUCCESS';  
+                }
+            }
            update_option('mainwp_ext_snippets_enabled', true);           
         } else if ($action === 'delete_snippet') {
-           $slug = $_POST['slug'];
-           $snippets = get_option('mainwp_ext_code_snippets');  
-           
-           if (!is_array($snippets))
-               $snippets = array();
-           
-           if(isset($snippets[$slug])) {
-                unset($snippets[$slug]);           
-                if (update_option('mainwp_ext_code_snippets', $snippets))
-                   $information['status'] = 'SUCCESS';  
-           }
-           else 
-                $information['status'] = 'SUCCESS';             
+            $type = $_POST['type'];
+            $slug = $_POST['slug'];
+            $snippets = get_option('mainwp_ext_code_snippets');  
+            
+            if (!is_array($snippets))
+                $snippets = array();
+            if ($type === "C") {// delete in wp-config file
+                if (false !== $this->snippetUpdateWPConfig("delete", $slug))
+                    $information['status'] = 'SUCCESS';  
+            } else {                
+                if(isset($snippets[$slug])) {                    
+                    unset($snippets[$slug]);           
+                    if (update_option('mainwp_ext_code_snippets', $snippets)) {                    
+                        $information['status'] = 'SUCCESS';  
+                    }
+                }
+                else 
+                    $information['status'] = 'SUCCESS';             
+            }
         }
         MainWPHelper::write($information); 
     }
     
+    public function snippetUpdateWPConfig($action, $slug, $code = "")
+    {
+        $wpConfig = file_get_contents(ABSPATH . 'wp-config.php');        
+        if ($action === "delete") {
+            $wpConfig = preg_replace('/' . PHP_EOL .'{1,2}\/\*\*\*snippet_' . $slug. '\*\*\*\/(.*)\/\*\*\*end_' . $slug . '\*\*\*\/' . PHP_EOL . '/is', '', $wpConfig);
+        } else if ($action === "save") {
+            $wpConfig = preg_replace('/(\$table_prefix *= *[\'"][^\'|^"]*[\'"] *;)/is', '${1}' . PHP_EOL . PHP_EOL . '/***snippet_' . $slug. '***/' . PHP_EOL . $code . PHP_EOL . '/***end_' . $slug . '***/' . PHP_EOL, $wpConfig);
+        }     
+        file_put_contents(ABSPATH . 'wp-config.php', $wpConfig);
+    }
+    
     function run_saved_snippets() { 
-        if (!isset($_POST['action']))
-            return;
-        $action = $_POST['action'];
+        $action = null;        
+        if (isset($_POST['action']))
+            $action = $_POST['action'];
+        
         if ($action === "run_snippet" || $action === "save_snippet" || $action === "delete_snippet")
                 return; // do not run saved snippets if in do action snippet     
+        
         if (get_option('mainwp_ext_snippets_enabled')) {
             $snippets = get_option('mainwp_ext_code_snippets');              
             if (is_array($snippets) && count($snippets) > 0) {
@@ -3270,7 +3305,10 @@ class MainWPChild
         $result = eval($code);        
         $output = ob_get_contents();  
         ob_end_clean();
-        return $result;
+        $return = array('output' => $output);
+        if ($result !== false)
+            $return['result'] = 'SUCCESS';
+        return $return;
     }
     
 }
