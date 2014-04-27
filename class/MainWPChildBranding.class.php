@@ -27,6 +27,7 @@ class MainWPChildBranding
             $label = "Contact Support";
         
         $this->settings['contact_support_label'] = $label;
+        $this->settings['extra_settings'] = get_option('mainwp_branding_extra_settings');
     }
 
     public static function admin_init()
@@ -44,7 +45,15 @@ class MainWPChildBranding
             'mainwp_branding_remove_setting',
             'mainwp_branding_remove_wp_tools',
             'mainwp_branding_remove_wp_setting',
-            'mainwp_branding_plugin_header');
+            'mainwp_branding_remove_permalink',
+            //'mainwp_branding_plugin_header', // don't remove header
+            'mainwp_branding_button_contact_label',
+            'mainwp_branding_send_email_message',
+            'mainwp_branding_message_return_sender',
+            'mainwp_branding_submit_button_title', 
+            'mainwp_branding_extra_settings',
+            'mainwp_branding_ext_enabled',
+            );
         foreach ($dell_all as $opt)
         {
             delete_option($opt);
@@ -70,7 +79,8 @@ class MainWPChildBranding
         $settings = unserialize(base64_decode($_POST['settings']));
         if (!is_array($settings))
             return $information;
-
+        $current_extra_setting = $this->settings['extra_settings'];
+        update_option('mainwp_branding_ext_enabled', "Y");
         $header = array('name' => $settings['child_plugin_name'],
             'description' => $settings['child_plugin_desc'],
             'author' => $settings['child_plugin_author'],
@@ -84,11 +94,84 @@ class MainWPChildBranding
         update_option('mainwp_branding_remove_setting', $settings['child_remove_setting']);
         update_option('mainwp_branding_remove_wp_tools', $settings['child_remove_wp_tools']);
         update_option('mainwp_branding_remove_wp_setting', $settings['child_remove_wp_setting']);
+        update_option('mainwp_branding_remove_permalink', $settings['child_remove_permalink']);
         update_option('mainwp_branding_button_contact_label', $settings['child_button_contact_label']);
         update_option('mainwp_branding_send_email_message', $settings['child_send_email_message']);
         update_option('mainwp_branding_message_return_sender', $settings['child_message_return_sender']);
-        update_option('mainwp_branding_submit_button_title', $settings['child_submit_button_title']);
-
+        update_option('mainwp_branding_submit_button_title', $settings['child_submit_button_title']);       
+         if (isset($settings['child_disable_wp_branding']) && ($settings['child_disable_wp_branding'] === "Y" || $settings['child_disable_wp_branding'] === "N"))
+            update_option('mainwp_branding_disable_wp_branding', $settings['child_disable_wp_branding']);
+       
+        $extra_setting = array('show_button_in' => $settings['child_show_support_button_in'],                                                            
+                                'global_footer' => $settings['child_global_footer'],
+                                'dashboard_footer' => $settings['child_dashboard_footer'],
+                                'remove_widget_welcome' => $settings['child_remove_widget_welcome'],
+                                'remove_widget_glance' => $settings['child_remove_widget_glance'],
+                                'remove_widget_activity' => $settings['child_remove_widget_activity'],
+                                'remove_widget_quick' => $settings['child_remove_widget_quick'],
+                                'remove_widget_news' => $settings['child_remove_widget_news'],
+                                'site_generator' => $settings['child_site_generator'],
+                                'generator_link' => $settings['child_generator_link'],
+                                'admin_css' => $settings['child_admin_css'],
+                                'login_css' => $settings['child_login_css'],
+                                'texts_replace' => $settings['child_texts_replace']                                
+                            );
+        
+        if (isset($settings['child_login_image_url'])) {
+            if (empty($settings['child_login_image_url'])) {
+                $extra_setting['login_image'] = array();
+            } else {
+                try
+                {
+                    $upload = $this->uploadImage($settings['child_login_image_url']); //Upload image to WP
+                    if ($upload != null)
+                    {                    
+                        $extra_setting['login_image'] = array("path" => $upload["path"], "url" => $upload["url"]);                    
+                        if (isset($current_extra_setting['login_image']['path'])) {
+                            $old_file = $current_extra_setting['login_image']['path'];
+                            if (!empty($old_file) && file_exists($old_file))
+                                @unlink ($old_file);
+                        }
+                    }
+                }
+                catch (Exception $e)
+                {
+                    $information['error']['login_image'] = $e->getMessage();
+                }    
+            }
+        } else if (isset($current_extra_setting['login_image'])){
+            $extra_setting['login_image'] = $current_extra_setting['login_image'];
+        }
+        
+        if (isset($settings['child_favico_image_url'])) {
+            if (empty($settings['child_favico_image_url'])) {
+                $extra_setting['favico_image'] = array();
+            } else {
+                try
+                {
+                    $upload = $this->uploadImage($settings['child_favico_image_url']); //Upload image to WP
+                    if ($upload != null)
+                    {                    
+                        $extra_setting['favico_image'] = array("path" => $upload["path"], "url" => $upload["url"]);                    
+                        if (isset($current_extra_setting['favico_image']['path'])) {
+                            $old_file = $current_extra_setting['favico_image']['path'];
+                            if (!empty($old_file) && file_exists($old_file))
+                                @unlink ($old_file);
+                        }
+                    }
+                }
+                catch (Exception $e)
+                {
+                    $information['error']['favico_image'] = $e->getMessage();
+                }    
+            }
+        } else if (isset($current_extra_setting['favico_image'])){
+            $extra_setting['favico_image'] = $current_extra_setting['favico_image'];
+        }
+        
+        
+        update_option('mainwp_branding_extra_settings', $extra_setting); 
+        
         if ($settings['child_plugin_hide'])
         {
             update_option('mainwp_branding_child_hide', 'T');
@@ -119,20 +202,202 @@ class MainWPChildBranding
         return $information;
     }
 
-
-    public function branding_init()
+    static function uploadImage($img_url)
     {
-        add_filter('map_meta_cap', array($this, 'branding_map_meta_cap'), 10, 5);        
-        add_filter('all_plugins', array($this, 'branding_child_plugin'));            
-       
-        if (get_option('mainwp_branding_show_support') == 'T')
+        include_once(ABSPATH . 'wp-admin/includes/file.php'); //Contains download_url
+        //Download $img_url
+        $temporary_file = download_url($img_url);
+
+        if (is_wp_error($temporary_file))
         {
-            add_submenu_page( null, $this->settings['contact_support_label'], $this->settings['contact_support_label'] , 'read', "ContactSupport", array($this, "contact_support") ); 
-            add_action('admin_bar_menu', array($this, 'add_support_button'), 100);            
-        }        
-        add_filter('update_footer', array(&$this, 'update_footer'), 10);
+            throw new Exception('Error: ' . $temporary_file->get_error_message());
+        }
+        else
+        {
+            $upload_dir = wp_upload_dir();
+            $local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename($img_url); //Local name
+            $local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
+            $local_img_url = $upload_dir['url'] . '/' . basename($local_img_path);
+            $moved = @rename($temporary_file, $local_img_path);
+            if ($moved)
+            {                
+                return array('path' => $local_img_path, 'url' => $local_img_url);
+            }
+        }
+        if (file_exists($temporary_file))
+        {
+            unlink($temporary_file);
+        }
+        return null;
     }
     
+
+    public function branding_init()
+    {   
+        // enable branding in case child plugin is deactive
+        add_filter('all_plugins', array($this, 'branding_child_plugin')); 
+        
+        if (get_option('mainwp_branding_ext_enabled') !== "Y")
+            return;
+        
+        add_filter('map_meta_cap', array($this, 'branding_map_meta_cap'), 10, 5);                           
+        $extra_setting = $this->settings['extra_settings'];
+        if (!is_array($extra_setting)) 
+            $extra_setting = array();       
+        if (get_option('mainwp_branding_show_support') == 'T')
+        {          
+            $title = $this->settings['contact_support_label'];            
+            if (isset($extra_setting['show_button_in']) && ($extra_setting['show_button_in'] == 2 || $extra_setting['show_button_in'] == 3)) {                                    
+                $title = $this->settings['contact_support_label'];                  
+                add_menu_page($title, $title, 'read', 'ContactSupport2', array($this, 'contact_support'), "", '2.0001');               
+            } 
+            
+            if (isset($extra_setting['show_button_in']) && ($extra_setting['show_button_in'] == 1 || $extra_setting['show_button_in'] == 3)){                                
+                add_submenu_page( null, $title, $this->settings['contact_support_label'] , 'read', "ContactSupport", array($this, "contact_support") ); 
+                add_action('admin_bar_menu', array($this, 'add_support_button_in_top_admin_bar'), 100);                                        
+            }             
+        }  
+        add_filter('update_footer', array(&$this, 'update_footer'), 15);                
+        if(get_option('mainwp_branding_disable_wp_branding') !== "Y") {            
+            add_filter('wp_footer', array(&$this, 'branding_global_footer'), 15);    
+            add_action('wp_dashboard_setup', array(&$this, 'custom_dashboard_widgets'), 999);
+            // branding site generator
+            $types = array('html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export');
+            foreach ($types as $type)
+              add_filter('get_the_generator_'.$type, array(&$this, 'custom_the_generator'));                  
+            add_action('admin_head', array(&$this, 'custom_admin_css'));
+            add_action( 'login_enqueue_scripts', array(&$this, 'custom_login_css'));
+            add_filter( 'gettext', array(&$this, 'custom_gettext'), 99, 3);     
+            add_action('login_head', array(&$this, 'custom_login_logo'));
+            add_action( 'wp_head', array( &$this, 'custom_favicon_frontend' ) );
+            if (isset($extra_setting['dashboard_footer']) && !empty($extra_setting['dashboard_footer'])) {
+                remove_filter( 'update_footer', 'core_update_footer' );
+                add_filter('update_footer', array(&$this, 'update_admin_footer'), 14);
+            }
+        }   
+    }
+    
+    function update_admin_footer() {
+        $extra_setting = $this->settings['extra_settings'];
+        if (isset($extra_setting['dashboard_footer']) && !empty($extra_setting['dashboard_footer'])) {
+            echo nl2br(stripslashes($extra_setting['dashboard_footer']));
+        }
+    }
+    
+    function custom_favicon_frontend() {
+        $extra_setting = $this->settings['extra_settings'];        
+        if (isset($extra_setting["favico_image"]["url"]) && !empty($extra_setting["favico_image"]["url"])) {
+            $favico = $extra_setting["favico_image"]["url"];            
+            echo '<link rel="shortcut icon" href="'.  esc_url( $favico )  .'"/>'."\n";
+        }
+    }
+    
+    function custom_login_logo() {
+        $extra_setting = $this->settings['extra_settings'];
+        if (isset($extra_setting["login_image"]["url"]) && !empty($extra_setting["login_image"]["url"])) {
+            $login_logo = $extra_setting["login_image"]["url"];            
+            echo '<style type="text/css">
+                    h1 a { background-image: url(\'' . esc_url($login_logo) . '\') !important; height:70px !important; width:310px !important; background-size: auto auto !important; }
+                </style>';
+        }
+    }
+
+    function custom_gettext($translations, $text, $domain = 'default' ) {
+        $extra_setting = $this->settings['extra_settings'];
+        $texts_replace = $extra_setting['texts_replace'];               
+        if (is_array($texts_replace) && count($texts_replace) > 0) {
+            foreach($texts_replace as $text => $replace) {
+                if (!empty($text)) {                
+                    $translations = str_replace($text, $replace, $translations); 
+                }
+            }
+        } 
+        return $translations;
+    }
+    
+    function custom_admin_css() {
+        $extra_setting = $this->settings['extra_settings'];
+        if (is_array($extra_setting) && isset($extra_setting['admin_css']) && !empty($extra_setting['admin_css'])) {
+            echo '<style>' . $extra_setting['admin_css'] . '</style>';
+        }      
+    }
+    
+    function custom_login_css() {
+        $extra_setting = $this->settings['extra_settings'];
+        if (is_array($extra_setting) && isset($extra_setting['login_css']) && !empty($extra_setting['login_css'])) {            
+            echo '<style>' . $extra_setting['login_css'] . '</style>';
+        }      
+    }
+
+    function custom_the_generator($generator, $type = "") {  
+        $extra_setting = $this->settings['extra_settings'];
+        if (isset($extra_setting['site_generator'])) {               
+            if (!empty($extra_setting['site_generator'])) {                  
+                switch ($type):
+                    case "html":                     
+                        $generator = '<meta name="generator" content="' . $extra_setting['site_generator'] . '">'; 
+                        break;
+                    case "xhtml":
+                        $generator = '<meta name="generator" content="' . $extra_setting['site_generator'] . '" />'; 
+                        break;
+                    case "atom":
+                        if (!empty($extra_setting['generator_link'])) {
+                            $generator = '<generator uri="' . $extra_setting['generator_link'] . '" >' . $extra_setting['site_generator'] .'</generator>';
+                        }                    
+                        break;
+                    case "rss2":
+                        if (!empty($extra_setting['generator_link'])) {
+                            $generator = '<generator>' . $extra_setting['generator_link'] . '</generator>';
+                        }
+                        break;
+                    case "rdf":
+                        if (!empty($extra_setting['generator_link'])) {
+                            $generator = '<admin:generatorAgent rdf:resource="' . $extra_setting['generator_link'] .  '" />';
+                        }
+                        break;
+                    case "comment":                    
+                        $generator = '<!-- generator="' . $extra_setting['site_generator'] . '" -->';                    
+                        break;
+                    case "export":
+                        $generator = '<!-- generator="' . $extra_setting['site_generator'] . '" created="'. date('Y-m-d H:i') . '" -->';
+                        break;        
+                    default:
+                        $generator = '<meta name="generator" content="' . $extra_setting['site_generator'] . '">'; 
+                        break;                    
+                endswitch;                
+                return $generator;
+            } 
+        }             
+        return $generator;
+    }
+    
+    function custom_dashboard_widgets() {
+        global $wp_meta_boxes;        
+        $extra_setting = $this->settings['extra_settings'];            
+        if (isset($extra_setting['remove_widget_welcome']) && $extra_setting['remove_widget_welcome']) {
+            remove_action( 'welcome_panel', 'wp_welcome_panel' );    
+        }
+        if (isset($extra_setting['remove_widget_glance']) && $extra_setting['remove_widget_glance']) {
+            unset($wp_meta_boxes['dashboard']['normal']['core']['dashboard_right_now']);                
+        }            
+        if (isset($extra_setting['remove_widget_activity']) && $extra_setting['remove_widget_activity']) {
+            unset($wp_meta_boxes['dashboard']['normal']['core']['dashboard_activity']);                
+        }
+        if (isset($extra_setting['remove_widget_quick']) && $extra_setting['remove_widget_quick']) {                
+            unset($wp_meta_boxes['dashboard']['side']['core']['dashboard_quick_press']);
+        }
+        if (isset($extra_setting['remove_widget_news']) && $extra_setting['remove_widget_news']) {                
+            unset($wp_meta_boxes['dashboard']['side']['core']['dashboard_primary']);                
+        }
+    }
+
+    public function branding_global_footer() {
+        $extra_setting = $this->settings['extra_settings'];           
+        if (isset($extra_setting['global_footer']) && !empty($extra_setting['global_footer'])) {
+            echo nl2br(stripslashes($extra_setting['global_footer']));
+        }
+    }
+            
     public function send_support_mail()
     {
         $email = get_option('mainwp_branding_support_email');
@@ -183,7 +448,15 @@ class MainWPChildBranding
            }
            ?><div class="mainwp_info-box-yellow"><?php echo $send_email_message . "&nbsp;&nbsp" . $back_link; ?></div><?php                
         } else {    
-            $from_page = urldecode($_GET['from_page']); 
+            $from_page = ""; 
+            if (isset($_GET['from_page'])) {
+                $from_page = urldecode($_GET['from_page']); 
+            } else {
+                $protocol = isset($_SERVER['HTTPS']) && strcasecmp($_SERVER['HTTPS'], 'off') ? 'https://' : 'http://';
+                $fullurl = $protocol .$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];     
+                $from_page = urldecode($fullurl);
+            }
+            
             $support_message = get_option('mainwp_branding_support_message');
             $support_message = nl2br(stripslashes($support_message));
             ?>
@@ -222,7 +495,7 @@ class MainWPChildBranding
     /**
      * @param WP_Admin_Bar $wp_admin_bar
      */
-    public function add_support_button($wp_admin_bar)
+    public function add_support_button_in_top_admin_bar($wp_admin_bar)
     {
         if (isset($_GET['from_page']))
             $href = admin_url('admin.php?page=ContactSupport&from_page=' . urlencode ($_GET['from_page']));
@@ -242,7 +515,7 @@ class MainWPChildBranding
         $wp_admin_bar->add_node($args);
     }
     
-    function is_branding() {
+    public static function is_branding() {
         // hide
         if (get_option('mainwp_branding_child_hide') == 'T')
             return true;
@@ -253,8 +526,8 @@ class MainWPChildBranding
         return false;
     }
     
-    function update_footer($text){
-        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false && $this->is_branding())
+    function update_footer($text){        
+        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false && self::is_branding())
         {
             ?>
            <script>

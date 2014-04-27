@@ -446,5 +446,160 @@ class MainWPChildServerInformation
 
      }
 
+
+         /*
+      *Plugin Name: Error Log Dashboard Widget
+      *Plugin URI: http://wordpress.org/extend/plugins/error-log-dashboard-widget/
+      *Description: Robust zero-configuration and low-memory way to keep an eye on error log.
+      *Author: Andrey "Rarst" Savchenko
+      *Author URI: http://www.rarst.net/
+      *Version: 1.0.2
+      *License: GPLv2 or later
+
+      *Includes last_lines() function by phant0m, licensed under cc-wiki and GPLv2+
+    */
+
+     public static function renderErrorLogPage()
+     {
+        ?>
+        <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
+                <thead title="Click to Toggle" style="cursor: pointer;">
+                    <tr>
+                        <th scope="col" class="manage-column column-posts" style="width: 10%"><span><?php _e('Time','mainwp'); ?></span></th>
+                        <th scope="col" class="manage-column column-posts" style=""><span><?php _e('Error','mainwp'); ?></span></th>
+                    </tr>
+                </thead>
+                    <tbody class="list:sites" id="mainwp-error-log-table">
+                        <?php self::renderErrorLog(); ?>
+                    </tbody>
+                </table>
+        <?php
+     }
+
+     public static function renderErrorLog()
+     {
+        $log_errors = ini_get( 'log_errors' );
+        if ( ! $log_errors )
+         echo '<tr><td colspan="2">' . __( 'Error logging disabled.', 'mainwp' ) . '</td></tr>';
+
+        $error_log = ini_get( 'error_log' );
+        $logs      = apply_filters( 'error_log_mainwp_logs', array( $error_log ) );
+        $count     = apply_filters( 'error_log_mainwp_lines', 10 );
+        $lines     = array();
+
+        foreach ( $logs as $log ) {
+
+            if ( is_readable( $log ) )
+                $lines = array_merge( $lines, self::last_lines( $log, $count ) );
+        }
+
+        $lines = array_map( 'trim', $lines );
+        $lines = array_filter( $lines );
+
+        if ( empty( $lines ) ) {
+
+            echo '<tr><td colspan="2">' . __( 'No errors found... Yet.', 'mainwp' ) . '</td></tr>';
+
+            return;
+        }
+
+        foreach ( $lines as $key => $line )
+        {
+
+            if ( false != strpos( $line, ']' ) )
+                list( $time, $error ) = explode( ']', $line, 2 );
+            else
+                list( $time, $error ) = array( '', $line );
+
+            $time        = trim( $time, '[]' );
+            $error       = trim( $error );
+            $lines[$key] = compact( 'time', 'error' );
+        }
+
+        if ( count( $error_log ) > 1 ) {
+
+            uasort( $lines, array( __CLASS__, 'time_compare' ) );
+            $lines = array_slice( $lines, 0, $count );
+        }
+
+        foreach ( $lines as $line ) {
+
+            $error = esc_html( $line['error'] );
+            $time  = esc_html( $line['time'] );
+
+            if ( ! empty( $error ) )
+                echo( "<tr><td>{$time}</td><td>{$error}</td></tr>" );
+        }
+
+     }
+    static function time_compare( $a, $b ) {
+
+       if ( $a == $b )
+           return 0;
+
+       return ( strtotime( $a['time'] ) > strtotime( $b['time'] ) ) ? - 1 : 1;
+   }
+
+   static function last_lines( $path, $line_count, $block_size = 512 ) {
+       $lines = array();
+
+       // we will always have a fragment of a non-complete line
+       // keep this in here till we have our next entire line.
+       $leftover = '';
+
+       $fh = fopen( $path, 'r' );
+       // go to the end of the file
+       fseek( $fh, 0, SEEK_END );
+
+       do {
+           // need to know whether we can actually go back
+           // $block_size bytes
+           $can_read = $block_size;
+
+           if ( ftell( $fh ) <= $block_size )
+               $can_read = ftell( $fh );
+
+           if ( empty( $can_read ) )
+               break;
+
+           // go back as many bytes as we can
+           // read them to $data and then move the file pointer
+           // back to where we were.
+           fseek( $fh, - $can_read, SEEK_CUR );
+           $data  = fread( $fh, $can_read );
+           $data .= $leftover;
+           fseek( $fh, - $can_read, SEEK_CUR );
+
+           // split lines by \n. Then reverse them,
+           // now the last line is most likely not a complete
+           // line which is why we do not directly add it, but
+           // append it to the data read the next time.
+           $split_data = array_reverse( explode( "\n", $data ) );
+           $new_lines  = array_slice( $split_data, 0, - 1 );
+           $lines      = array_merge( $lines, $new_lines );
+           $leftover   = $split_data[count( $split_data ) - 1];
+       } while ( count( $lines ) < $line_count && ftell( $fh ) != 0 );
+
+       if ( ftell( $fh ) == 0 )
+           $lines[] = $leftover;
+
+       fclose( $fh );
+       // Usually, we will read too many lines, correct that here.
+       return array_slice( $lines, 0, $line_count );
+   }
+
+   public static function renderWPConfig()
+   {
+       ?>
+       <div class="postbox" id="mainwp-code-display">
+           <h3 class="hndle" style="padding: 8px 12px; font-size: 14px;"><span>WP-Config.php</span></h3>
+           <div style="padding: 1em;">
+           <?php
+               show_source( ABSPATH . 'wp-config.php');
+           ?>
+           </div>
+       </div>
+       <?php
+   }
 }
 

@@ -64,6 +64,7 @@ class MainWPChild
 
     private $filterFunction = null;
     private $branding = "MainWP";
+    private $branding_robust = "MainWP";
 
     public function __construct($plugin_file)
     {			
@@ -78,7 +79,7 @@ class MainWPChild
 //     add_action('template_redirect', array($this, 'template_redirect'));	
         add_action('init', array(&$this, 'parse_init'));
         add_action('admin_menu', array(&$this, 'admin_menu'));
-		add_action('admin_init', array(&$this, 'admin_init'));
+        add_action('admin_init', array(&$this, 'admin_init'));
         add_action('init', array(&$this, 'localization'));
         $this->checkOtherAuth();
 		
@@ -94,7 +95,10 @@ class MainWPChild
 
             update_option('mainwp_child_legacy', true);
         }
-
+        $branding_header = get_option('mainwp_branding_plugin_header');
+        if (is_array($branding_header) && isset($branding_header['name']) && !empty($branding_header['name'])) {
+            $this->branding_robust = stripslashes($branding_header["name"]);
+        }
         add_action( 'admin_notices', array(&$this, 'admin_notice'));
     }
 
@@ -103,8 +107,9 @@ class MainWPChild
         //Admin Notice...
         if (is_plugin_active('mainwp-child/mainwp-child.php')) {
             if (!get_option('mainwp_child_pubkey')) {
+                $child_name = ($this->branding_robust === "MainWP") ? "MainWP Child" : $this->branding_robust;
                 echo '<div class="error" style="text-align: center;"><p style="color: red; font-size: 16px; font-weight: bold;">Attention!</p>
-                      <p>Please add this site to your MainWP Dashboard now or deactivate the MainWP Child plugin until you are ready to do so to avoid security issues.</p></div>';
+                      <p>Please add this site to your ' . $this->branding_robust . ' Dashboard now or deactivate the ' . $child_name . ' plugin until you are ready to do so to avoid security issues.</p></div>';
             }
         }
     }
@@ -501,13 +506,28 @@ class MainWPChild
          */
         MainWPSecurity::fixAll();
 		
-        if (isset($_GET['test']))
+        if (isset($_GET['mainwptest']))
         {
-//            error_reporting(E_ALL);
-//            ini_set('display_errors', TRUE);
-//            ini_set('display_startup_errors', TRUE);
-//            echo '<pre>';
-//            die('</pre>');
+            error_reporting(E_ALL);
+            ini_set('display_errors', TRUE);
+            ini_set('display_startup_errors', TRUE);
+            echo '<pre>';
+            $excludes = (isset($_POST['exclude']) ? explode(',', $_POST['exclude']) : array());
+            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
+            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
+            if (!ini_get('safe_mode')) set_time_limit(600);
+
+            $file_descriptors = (isset($_POST['file_descriptors']) ? $_POST['file_descriptors'] : 0);
+
+            $newExcludes = array();
+            foreach ($excludes as $exclude)
+            {
+                $newExcludes[] = rtrim($exclude, '/');
+            }
+
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, '', false, false, $file_descriptors);
+            print_r($res);
+            die('</pre>');
         }
 
         //Register does not require auth, so we register here..
@@ -3028,6 +3048,14 @@ class MainWPChild
         @ob_start();
         MainWPChildServerInformation::renderCron();
         $output['cron'] = @ob_get_contents();
+        @ob_end_clean();
+        @ob_start();
+        MainWPChildServerInformation::renderErrorLogPage();
+        $output['error'] = @ob_get_contents();
+        @ob_end_clean();
+        @ob_start();
+        MainWPChildServerInformation::renderWPConfig();
+        $output['wpconfig'] = @ob_get_contents();
         @ob_end_clean();
 
         MainWPHelper::write($output);

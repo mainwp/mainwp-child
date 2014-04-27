@@ -1,9 +1,9 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: MainWP Child v0.19\n"
+"Project-Id-Version: MainWP Child v0.28.4\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: \n"
-"PO-Revision-Date: 2014-01-22 18:14:51+0000\n"
+"PO-Revision-Date: 2014-04-24 07:32:25+0000\n"
 "Last-Translator: JayJay <info@w-d-a.de>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -20,122 +20,116 @@ msgstr ""
 "X-Poedit-SearchPath-0: .\n"
 "X-Textdomain-Support: yes"
 
-#: class/MainWPChild.class.php:137
-#: class/MainWPChild.class.php:163
-#@ mainwp-child
-msgid "MainWP Settings"
-msgstr "MainWP Einstellungen"
-
-#: class/MainWPChild.class.php:167
+#: class/MainWPChild.class.php:243
 #@ mainwp-child
 msgid "Connection Settings"
 msgstr "Verbindungseinstellungen"
 
-#: class/MainWPChild.class.php:175
+#: class/MainWPChild.class.php:251
 #@ mainwp-child
 msgid "Require Unique Security ID"
 msgstr "Eine eindeutige Sicherheits-ID"
 
-#: class/MainWPChild.class.php:178
+#: class/MainWPChild.class.php:254
 #@ mainwp-child
 msgid "Your Unique Security ID is:"
 msgstr "Ihre eindeutige Sicherheits-ID ist:"
 
-#: class/MainWPChild.class.php:182
+#: class/MainWPChild.class.php:258
 #@ mainwp-child
 msgid "The Unique Security ID adds additional protection between the Child plugin and your<br/>Main Dashboard. The Unique Security ID will need to match when being added to <br/>the Main Dashboard. This is additional security and should not be needed in most situations."
 msgstr "Die eindeutige Sicherheits-ID bringt zusätzlichen Schutz zwischen dem Client und Ihrem<br/>MainWP Dashboard. Die eindeutige Sicherheits-ID muß übereinstimmen, wenn sie im MainWP Dashboard aufgenommen wird.<br/> Dies ist eine zusätzliche Sicherheit und ist in den meisten Fällen nicht erforderlich."
 
-#: class/MainWPChild.class.php:188
+#: class/MainWPChild.class.php:264
 #@ mainwp-child
 msgid "Save Changes"
 msgstr "Änderungen speichern"
 
-#: class/MainWPChild.class.php:446
+#: class/MainWPChild.class.php:523
 #@ mainwp-child
 msgid "Authentication failed. Reinstall MainWP plugin please"
 msgstr "Authentifizierung fehlgeschlagen. Installieren Sie bitte das MainWP Plugin erneut."
 
-#: class/MainWPChild.class.php:455
-#: class/MainWPChild.class.php:846
+#: class/MainWPChild.class.php:532
+#: class/MainWPChild.class.php:1095
 #@ mainwp-child
 msgid "No such user"
 msgstr "Keine solche Benutzer"
 
-#: class/MainWPChild.class.php:460
-#: class/MainWPChild.class.php:850
+#: class/MainWPChild.class.php:537
+#: class/MainWPChild.class.php:1099
 #@ mainwp-child
 msgid "User is not an administrator"
 msgstr "Benutzer ist kein Administrator"
 
-#: class/MainWPChild.class.php:550
+#: class/MainWPChild.class.php:650
 #@ mainwp-child
 msgid "Bad request."
 msgstr "Fehlerhafte Anforderung."
 
-#: class/MainWPChild.class.php:757
-#: class/MainWPChild.class.php:762
-#: class/MainWPChild.class.php:795
-#: class/MainWPChild.class.php:800
-#: class/MainWPChild.class.php:805
+#: class/MainWPChild.class.php:876
+#: class/MainWPChild.class.php:901
+#: class/MainWPChild.class.php:954
+#: class/MainWPChild.class.php:980
+#: class/MainWPChild.class.php:987
 #@ mainwp-child
 msgid "Bad request"
 msgstr "Fehlerhafte Anforderung"
 
-#: class/MainWPChild.class.php:820
+#: class/MainWPChild.class.php:1069
 #@ mainwp-child
 msgid "Invalid request"
 msgstr "Ungültige Anforderung"
 
-#: class/MainWPChild.class.php:826
+#: class/MainWPChild.class.php:1075
 #@ mainwp-child
 msgid "Public key already set, reset the MainWP plugin on your site and try again."
 msgstr "Öffentlicher Schlüssel bereits festgelegt, setzen Sie die MainWP Plugin auf Ihrer Website erneut auf und versuchen Sie es noch einmal"
 
-#: class/MainWPChild.class.php:833
+#: class/MainWPChild.class.php:1082
 #@ mainwp-child
 msgid "This Child Site is set to require a Unique Security ID - Please Enter It before connection can be established."
 msgstr "Dieser Client erfordert eine eindeutige Sicherheits-ID. Bitte geben Sie diese ein bevor eine Verbindung hergestellt werden kann."
 
-#: class/MainWPChild.class.php:837
+#: class/MainWPChild.class.php:1086
 #@ mainwp-child
 msgid "The Unique Security ID you have entered does not match Child Security ID - Please Correct It before connection can be established."
 msgstr "Die eindeutige Sicherheits-ID die Sie eingegeben haben, entspricht nicht der Client Security ID. Bitte verbessern Sie dies bevor eine Verbindung hergestellt werden kann."
 
-#: class/MainWPChild.class.php:1102
+#: class/MainWPChild.class.php:1351
 #@ mainwp-child
 msgid "Could not change the admin password."
 msgstr "Das Admin-Passwort kann nicht geändern werden."
 
-#: class/MainWPChild.class.php:1124
+#: class/MainWPChild.class.php:1373
 #@ mainwp-child
 msgid "Undefined error"
 msgstr "Undefinierter Fehler"
 
-#: class/MainWPChild.class.php:1138
+#: class/MainWPChild.class.php:1387
 #, php-format
 #@ default
 msgid "Username: %s"
 msgstr ""
 
-#: class/MainWPChild.class.php:1139
+#: class/MainWPChild.class.php:1388
 #, php-format
 #@ default
 msgid "Password: %s"
 msgstr ""
 
-#: class/MainWPChild.class.php:1142
+#: class/MainWPChild.class.php:1391
 #, php-format
 #@ default
 msgid "[%s] Your username and password"
 msgstr ""
 
-#: class/MainWPChild.class.php:2446
+#: class/MainWPChild.class.php:2820
 #@ mainwp-child
 msgid "This site already contains a link - please disable and enable the MainWP plugin."
 msgstr "Diese Website enthält bereits diesen Link"
 
-#: class/MainWPChild.class.php:2557
+#: class/MainWPChild.class.php:2942
 #@ mainwp-child
 msgid "Wordpress Filesystem error: "
 msgstr "Wordpress-Dateisystem-Fehler:"
@@ -426,269 +420,276 @@ msgstr ""
 msgid "NO"
 msgstr ""
 
-#: class/MainWPClone.class.php:15
-#@ mainwp-child
-msgid "MainWP Clone"
-msgstr "MainWP Klon"
-
-#: class/MainWPClone.class.php:70
+#: class/MainWPClone.class.php:80
+#: class/MainWPClone.class.php:192
 #@ mainwp-child
 msgid "File could not be uploaded."
 msgstr "Datei konnte nicht hochgeladen werden."
 
-#: class/MainWPClone.class.php:75
+#: class/MainWPClone.class.php:85
+#: class/MainWPClone.class.php:197
 #@ mainwp-child
 msgid "File is empty. Please upload something more substantial. This error could also be caused by uploads being disabled in your php.ini or by post_max_size being defined as smaller than upload_max_filesize in php.ini."
 msgstr "Die Datei ist leer. Bitte laden Sie etwas mit Inhalt. Dieser Upload-Fehler könnte auch verursacht werden durhc eine Einstellung in der php.ini oder durch einstellung von post_max_size als kleiner als upload_max_filesize in der php.ini."
 
-#: class/MainWPClone.class.php:84
+#: class/MainWPClone.class.php:94
 #@ mainwp-child
 msgid "Clone or Restore"
 msgstr "Klonen oder wiederherstellen"
 
-#: class/MainWPClone.class.php:88
+#: class/MainWPClone.class.php:98
 #@ mainwp-child
 msgid "Cloning is currently off - To turn on return to your main dashboard and turn cloning on on the Migrate/Clone page."
 msgstr "Klonen ist derzeit aus - Zum aktivieren des Klones, auf der MainWP Dashboards auf Klonen gehen"
 
-#: class/MainWPClone.class.php:94
+#: class/MainWPClone.class.php:106
+#: class/MainWPClone.class.php:211
 #@ mainwp-child
 msgid "Your content directory is not writable. Please set 0755 permission to "
 msgstr "Das Inhalte Verzeichnis ist nicht beschreibbar. Bitte die Berechtigung setzen auf 0755."
 
-#: class/MainWPClone.class.php:98
+#: class/MainWPClone.class.php:110
 #@ mainwp-child
 msgid "Cloning process completed successfully! You will now need to click "
 msgstr "Klonen erfolgreich abgeschlossen! Sie müssen nun Klicken"
 
-#: class/MainWPClone.class.php:98
-#: class/MainWPClone.class.php:1069
-#: class/MainWPClone.class.php:1098
+#: class/MainWPClone.class.php:110
+#: class/MainWPClone.class.php:215
+#: class/MainWPClone.class.php:1333
+#: class/MainWPClone.class.php:1362
 #@ mainwp-child
 msgid "here"
 msgstr "hier"
 
-#: class/MainWPClone.class.php:98
-#: class/MainWPClone.class.php:1098
+#: class/MainWPClone.class.php:110
+#: class/MainWPClone.class.php:215
+#: class/MainWPClone.class.php:1362
 #@ mainwp-child
 msgid " to re-login to the admin and re-save permalinks."
 msgstr "sich erneut anmelden, um den Admin und erneut speichern des Permalinks."
 
-#: class/MainWPClone.class.php:103
+#: class/MainWPClone.class.php:115
+#: class/MainWPClone.class.php:220
 #@ mainwp-child
 msgid "Upload successful."
 msgstr "Hochladen erfolgreich."
 
-#: class/MainWPClone.class.php:103
-#: class/MainWPClone.class.php:153
+#: class/MainWPClone.class.php:115
+#: class/MainWPClone.class.php:165
+#: class/MainWPClone.class.php:390
 #@ mainwp-child
 msgid "Clone/Restore Website"
 msgstr "Klonen / Wiederherstellen Webseite"
 
-#: class/MainWPClone.class.php:114
+#: class/MainWPClone.class.php:126
 #@ mainwp-child
 msgid "Cloning is currently on but no sites have been allowed, to allow sites return to your main dashboard and turn cloning on on the Migrate/Clone page."
 msgstr "Klonen ist derzeit erlaubt, aber keine Seite hat es erlaubt. "
 
-#: class/MainWPClone.class.php:122
+#: class/MainWPClone.class.php:134
 #@ mainwp-child
 msgid "Display by:"
 msgstr "Anzeige von:"
 
-#: class/MainWPClone.class.php:122
+#: class/MainWPClone.class.php:134
 #@ mainwp-child
 msgid "Site Name"
 msgstr "Seitenname"
 
-#: class/MainWPClone.class.php:122
+#: class/MainWPClone.class.php:134
 #@ mainwp-child
 msgid "URL"
 msgstr "URL"
 
-#: class/MainWPClone.class.php:122
+#: class/MainWPClone.class.php:134
 #@ mainwp-child
 msgid "Clone Options"
 msgstr "Einstellung Klonen"
 
-#: class/MainWPClone.class.php:139
+#: class/MainWPClone.class.php:151
 #@ mainwp-child
 msgid "Clone Website"
 msgstr "Webseite Klonen"
 
-#: class/MainWPClone.class.php:148
+#: class/MainWPClone.class.php:160
 #@ mainwp-child
 msgid "Restore/Clone From Backup"
 msgstr "Wiederherstellen/Klonen von Datensicherung"
 
-#: class/MainWPClone.class.php:150
+#: class/MainWPClone.class.php:162
+#: class/MainWPClone.class.php:229
 #@ mainwp-child
 msgid "Upload backup in .zip format (Maximum filesize for your server settings: "
 msgstr "Hochladen der Datensicherungsdatei im .zip Format (Maximale Dateigröße Server-Einstellungen:"
 
-#: class/MainWPClone.class.php:151
+#: class/MainWPClone.class.php:163
+#: class/MainWPClone.class.php:230
 #@ mainwp-child
 msgid "If you have a FULL backup created by your Network dashboard you may restore it by uploading here."
 msgstr "Wenn Sie eine vollständige Sicherung von Ihrem Netzwerk-Dashboard erstellt haben, können Sie es von hier Hochladen um es wiederherzustellen."
 
-#: class/MainWPClone.class.php:152
+#: class/MainWPClone.class.php:164
+#: class/MainWPClone.class.php:231
 #@ mainwp-child
 msgid "A database only backup will not work."
 msgstr "Eine einziges Datenbank-Backup wird nicht funktionieren."
 
-#: class/MainWPClone.class.php:229
+#: class/MainWPClone.class.php:468
 #, php-format
 #@ mainwp-child
 msgid "This is a large site (%dMB), the clone process will more than likely fail."
 msgstr "Dies ist eine große Seite (%dMB), der Klon-Prozess wird mehr als wahrscheinlich scheitern."
 
-#: class/MainWPClone.class.php:230
+#: class/MainWPClone.class.php:469
 #@ mainwp-child
 msgid "Continue Anyway?"
 msgstr "Trotzdem fortfahren?"
 
-#: class/MainWPClone.class.php:231
+#: class/MainWPClone.class.php:470
 #, php-format
 #@ mainwp-child
 msgid "Creating backup on %s expected size: %dMB (estimated time: %d seconds)"
 msgstr "Erstellen von Backup auf %s erwarteten Größe: %dMB (geschätzte Zeit: %d in Sekunden)"
 
-#: class/MainWPClone.class.php:232
+#: class/MainWPClone.class.php:471
 #, php-format
 #@ mainwp-child
 msgid "Backup created on %s total size to download: %dMB"
 msgstr "Backup erstellt auf %s Gesamtgröße zum Download: %dMB"
 
-#: class/MainWPClone.class.php:233
+#: class/MainWPClone.class.php:472
 #@ mainwp-child
 msgid "Downloading backup"
 msgstr "Herunterladen der Datensicherung"
 
-#: class/MainWPClone.class.php:234
+#: class/MainWPClone.class.php:473
 #@ mainwp-child
 msgid "Backup downloaded"
 msgstr "Datensicherung heruntergeladen"
 
-#: class/MainWPClone.class.php:235
+#: class/MainWPClone.class.php:474
 #@ mainwp-child
 msgid "Extracting backup and updating your database, this might take a while. Please be patient."
 msgstr "Auspacken der Datensicherung und Aktualisierung  Ihre Datenbank. Dies könnte eine Weile dauern. Bitte haben Sie Geduld."
 
-#: class/MainWPClone.class.php:236
+#: class/MainWPClone.class.php:475
 #@ mainwp-child
 msgid "Cloning process completed successfully!"
 msgstr "Klonen erfolgreich abgeschlossen!"
 
-#: class/MainWPClone.class.php:755
-#: class/MainWPClone.class.php:792
+#: class/MainWPClone.class.php:1019
+#: class/MainWPClone.class.php:1056
 #@ mainwp-child
 msgid "No site given"
 msgstr "Kein Seite angegeben"
 
-#: class/MainWPClone.class.php:760
-#: class/MainWPClone.class.php:797
+#: class/MainWPClone.class.php:1024
+#: class/MainWPClone.class.php:1061
 #@ mainwp-child
 msgid "Site not found"
 msgstr "Seite nicht gefunden"
 
-#: class/MainWPClone.class.php:772
+#: class/MainWPClone.class.php:1036
 #@ mainwp-child
 msgid "Could not create backupfile on child"
 msgstr "Konnte Datensicherungsdatei nicht auf dem Client erstellen"
 
-#: class/MainWPClone.class.php:808
+#: class/MainWPClone.class.php:1072
 #@ mainwp-child
 msgid "Invalid response"
 msgstr "Ungültige Antwort"
 
-#: class/MainWPClone.class.php:824
+#: class/MainWPClone.class.php:1088
 #@ mainwp-child
 msgid "No download link given"
 msgstr "Keinen Download-Link angegeben"
 
-#: class/MainWPClone.class.php:899
-#: class/MainWPClone.class.php:925
+#: class/MainWPClone.class.php:1163
+#: class/MainWPClone.class.php:1189
 #@ mainwp-child
 msgid "No download file found"
 msgstr "Keine Download-Datei gefunden"
 
-#: class/MainWPClone.class.php:931
+#: class/MainWPClone.class.php:1195
 #@ mainwp-child
 msgid "Backup file not found"
 msgstr "Datensicherungsdatei nicht gefunden"
 
-#: class/MainWPClone.class.php:1069
+#: class/MainWPClone.class.php:1333
 #@ mainwp-child
 msgid "Restore process completed successfully! Check and re-save permalinks "
 msgstr "Wiederherstellungs-Vorgang erfolgreich abgeschlossen! Überprüfen und Permalinks erneut speichern"
 
-#: class/MainWPClone.class.php:1069
+#: class/MainWPClone.class.php:1333
 #@ mainwp-child
 msgid "Cloning process completed successfully! Check and re-save permalinks "
 msgstr "Klonen erfolgreich abgeschlossen! Überprüfen und Permalinks erneut speichern"
 
-#: class/MainWPClone.class.php:1093
+#: class/MainWPClone.class.php:205
+#: class/MainWPClone.class.php:1357
 #@ mainwp-child
 msgid "Restore"
 msgstr "Wiederherstellen"
 
-#: class/MainWPClone.class.php:1095
+#: class/MainWPClone.class.php:1359
 #@ mainwp-child
 msgid "Be sure to use a FULL backup created by your Network dashboard, if critical folders are excluded it may result in a not working installation."
 msgstr "Achten Sie darauf, eine vollständige Sicherung von Ihrem MainWP Dashboard zu erstellen."
 
-#: class/MainWPClone.class.php:1096
+#: class/MainWPClone.class.php:1360
 #@ mainwp-child
 msgid "Start Restore"
 msgstr "Wiederherstellung starten"
 
-#: class/MainWPClone.class.php:1096
+#: class/MainWPClone.class.php:1360
 #@ mainwp-child
 msgid "CAUTION: this will overwrite your existing site."
 msgstr "ACHTUNG: dies wird Ihre bestehende Seite überschreiben."
 
-#: class/MainWPClone.class.php:1098
+#: class/MainWPClone.class.php:215
+#: class/MainWPClone.class.php:1362
 #@ mainwp-child
 msgid "Restore process completed successfully! You will now need to click "
 msgstr "Wiederherstellungsvorgang erfolgreich abgeschlossen! Sie müssen nun klicken"
 
-#: class/MainWPClone.class.php:1102
+#: class/MainWPClone.class.php:1366
 #@ mainwp-child
 msgid "Restore process completed successfully!"
 msgstr "Wiederherstellungsvorgang erfolgreich abgeschlossen!"
 
-#: class/MainWPCloneInstall.class.php:79
-#: class/MainWPCloneInstall.class.php:80
+#: class/MainWPCloneInstall.class.php:84
+#: class/MainWPCloneInstall.class.php:85
 #@ mainwp-child
 msgid "Not a full backup."
 msgstr "Keine gesamte Datensicherung."
 
-#: class/MainWPCloneInstall.class.php:81
+#: class/MainWPCloneInstall.class.php:86
 #@ mainwp-child
 msgid "Database backup not found."
 msgstr "Datenbank-Sicherung nicht gefunden."
 
-#: class/MainWPCloneInstall.class.php:118
+#: class/MainWPCloneInstall.class.php:123
 #@ mainwp-child
 msgid "Cant read configuration file from backup"
 msgstr "Kann Konfigurationsdatei nicht lesen aus der Datensicherung"
 
-#: class/MainWPCloneInstall.class.php:133
+#: class/MainWPCloneInstall.class.php:138
 #@ mainwp-child
 msgid "Invalid database host or user/password."
 msgstr "Ungültige Datenbank-Host oder Benutzer / Passwort."
 
-#: class/MainWPCloneInstall.class.php:136
+#: class/MainWPCloneInstall.class.php:141
 #@ mainwp-child
 msgid "Invalid database name"
 msgstr "Ungültiger Datenbanknamen"
 
-#: class/MainWPCloneInstall.class.php:271
-#: class/MainWPCloneInstall.class.php:370
+#: class/MainWPCloneInstall.class.php:276
+#: class/MainWPCloneInstall.class.php:380
 #@ mainwp-child
 msgid "Error: unexpected end of file for database"
 msgstr "Fehler: unerwartetes Ende der Datei für die Datenbank"
 
-#: class/MainWPCloneInstall.class.php:365
+#: class/MainWPCloneInstall.class.php:375
 #@ mainwp-child
 msgid "Error importing database"
 msgstr "Fehler beim Importieren der Datenbank"
@@ -713,23 +714,115 @@ msgstr ""
 msgid "Blog Home Page"
 msgstr ""
 
-#: class/MainWPHelper.class.php:233
+#: class/MainWPHelper.class.php:258
 #@ mainwp-child
 msgid "Unable to create directory "
 msgstr "Verzeichnis kann nicht erstellt"
 
-#: class/MainWPHelper.class.php:233
+#: class/MainWPHelper.class.php:258
 #@ mainwp-child
 msgid " Is its parent directory writable by the server?"
 msgstr "Ist das übergeordnete Verzeichnis durch den Server beschreibbar?"
 
-#: class/MainWPHelper.class.php:380
+#: class/MainWPHelper.class.php:450
 #@ mainwp-child
 msgid "Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings."
 msgstr "Etwas ist schiefgelaufen, während der Verbindung zum Client. Bitte überprüfen Sie, ob es einen Fehler von der Client Webseite ist."
 
-#: class/MainWPHelper.class.php:384
+#: class/MainWPHelper.class.php:454
 #@ mainwp-child
 msgid "Child plugin is disabled or the security key is incorrect. Please resync with your main installation."
 msgstr "MainWP Clhild Plugin ist deaktiviert oder der Sicherheitsschlüssel ist falsch."
+
+#: class/MainWPChildBranding.class.php:182
+#@ default
+msgid "Error: send mail failed."
+msgstr ""
+
+#: class/MainWPChildBranding.class.php:212
+#@ default
+msgid "Submit"
+msgstr ""
+
+#: class/MainWPClone.class.php:17
+#@ mainwp-child
+msgid " Clone"
+msgstr "Klon"
+
+#: class/MainWPClone.class.php:25
+#@ mainwp-child
+msgid " Restore"
+msgstr " Wiederherstellen"
+
+#: class/MainWPClone.class.php:160
+#: class/MainWPClone.class.php:205
+#@ mainwp-child
+msgid "Option 1:"
+msgstr "Option 1:"
+
+#: class/MainWPClone.class.php:220
+#: class/MainWPClone.class.php:232
+#@ mainwp-child
+msgid "Restore Website"
+msgstr "Wiederherstellen Webseite"
+
+#: class/MainWPClone.class.php:274
+#@ mainwp-child
+msgid "Option 2:"
+msgstr "Option 2:"
+
+#: class/MainWPClone.class.php:274
+#@ mainwp-child
+msgid "Restore/Clone From Server"
+msgstr "Wiederherstellen / Klonen vom Server"
+
+#: class/MainWPClone.class.php:275
+#@ mainwp-child
+msgid "If you have uploaded a FULL backup to your server (via FTP or other means) you can use this section to locate the zip file and select it.  A database only backup will not work."
+msgstr "Wenn Sie eine vollständige Sicherung auf den Server hochgeladen haben (via FTP oder andere Mittel) können Sie diesen Abschnitt verwenden um die ZIP-Datei auszuwählen. Nur ein Datenbank Backup wird nicht funktionieren."
+
+#: class/MainWPClone.class.php:278
+#@ mainwp-child
+msgid "Root directory is not readable. Please contact with site administrator to correct."
+msgstr "Root-Verzeichnis ist nicht lesbar. Bitte Administrator kontaktieren zum korrigieren."
+
+#: class/MainWPClone.class.php:294
+#@ mainwp
+msgid "<strong>Current Directory:</strong> <span></span>"
+msgstr ""
+
+#: class/MainWPClone.class.php:296
+#@ mainwp
+msgid "Site Root"
+msgstr ""
+
+#: class/MainWPClone.class.php:297
+#@ mainwp
+msgid "Backup"
+msgstr ""
+
+#: class/MainWPClone.class.php:299
+#@ mainwp
+msgid "Uploads Folder"
+msgstr ""
+
+#: class/MainWPClone.class.php:300
+#@ mainwp
+msgid "Content Folder"
+msgstr ""
+
+#: class/MainWPClone.class.php:313
+#@ mainwp
+msgid "Quick Jump:"
+msgstr ""
+
+#: class/MainWPClone.class.php:343
+#@ mainwp-child
+msgid "Select File"
+msgstr "Wählen Sie Datei"
+
+#: class/MainWPClone.class.php:348
+#@ mainwp
+msgid "Parent Folder"
+msgstr ""
 
