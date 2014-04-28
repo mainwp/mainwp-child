@@ -57,7 +57,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
-= 0.28.9 =
+= 0.29 =
 * Added ability to view Child site error logs on MainWP Dashboard
 * Added ability to view Child site Wp-Config on MainWP Dashboard
 * Added new Hooks for Branding Extension
