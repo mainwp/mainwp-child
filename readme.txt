@@ -7,7 +7,7 @@ Author URI: http://mainwp.com
 Plugin URI: http://mainwp.com
 Requires at least: 3.6
 Tested up to: 3.9
-Stable tag: 0.28.4
+Stable tag: 0.29
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+= 0.28.9 =
+* Added ability to view Child site error logs on MainWP Dashboard
+* Added ability to view Child site Wp-Config on MainWP Dashboard
+* Added new Hooks for Branding Extension
+* Added tweak for Code Snippet Extension 
+
 = 0.28.4 =
 * More Extension Hooks to extend Code Snippet functionality 
 
