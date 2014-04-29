@@ -27,7 +27,7 @@ class MainWPBackup
      *
      * @return array Array consisting of timestamp and the created file path
      */
-    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0)
+    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false)
     {
         $this->file_descriptors = $file_descriptors;
 
@@ -37,14 +37,22 @@ class MainWPBackup
 
         $timestamp = time();
         if ($filePrefix != '') $filePrefix .= '-';
-        $filepath = $backupdir . 'backup-' . $filePrefix . $timestamp . '.zip';
-        $fileurl = $dirs[1] . 'backup-' . $filePrefix . $timestamp . '.zip';
+        if (($fileSuffix !== false) && !empty($fileSuffix))
+        {
+            $file = $filePrefix . $fileSuffix . '.zip';
+        }
+        else
+        {
+            $file =  'backup-' . $filePrefix . $timestamp . '.zip';
+        }
+        $filepath = $backupdir . $file;
+        $fileurl = $dirs[1] . $file;
 
         if ($dh = opendir($backupdir))
         {
             while (($file = readdir($dh)) !== false)
             {
-                if ($file != '.' && $file != '..' && preg_match('/^backup-(.*).zip/', $file))
+                if ($file != '.' && $file != '..' && preg_match('/(.*).zip/', $file))
                 {
                     @unlink($backupdir . $file);
                 }

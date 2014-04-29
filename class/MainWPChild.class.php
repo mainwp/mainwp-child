@@ -1,5 +1,8 @@
 <?php
 
+ini_set('display_errors', false);
+error_reporting(0);
+
 define('MAINWP_CHILD_NR_OF_COMMENTS', 50);
 define('MAINWP_CHILD_NR_OF_PAGES', 50);
 
@@ -75,8 +78,8 @@ class MainWPChild
         $this->slug = str_replace('.php', '', $t2);
 
         $this->posts_where_suffix = '';
-        $this->comments_and_clauses = '';        
-//     add_action('template_redirect', array($this, 'template_redirect'));	
+        $this->comments_and_clauses = '';
+        add_action('template_redirect', array($this, 'template_redirect'));
         add_action('init', array(&$this, 'parse_init'));
         add_action('admin_menu', array(&$this, 'admin_menu'));
         add_action('admin_init', array(&$this, 'admin_init'));
@@ -157,12 +160,12 @@ class MainWPChild
         return false;
     }
     
-//    function template_redirect(){   
-//        if (get_option('mainwp_maintenance_opt_alert_404') == 1) {                                       
-//            $this->maintenance_alert_404();
-//        }
-//    }
-    
+    function template_redirect(){
+        if (get_option('mainwp_maintenance_opt_alert_404') == 1) {
+            $this->maintenance_alert_404();
+        }
+    }
+
     function admin_menu()
     {
         if (get_option('mainwp_branding_remove_wp_tools')) {
@@ -508,26 +511,11 @@ class MainWPChild
 		
         if (isset($_GET['mainwptest']))
         {
-            error_reporting(E_ALL);
-            ini_set('display_errors', TRUE);
-            ini_set('display_startup_errors', TRUE);
-            echo '<pre>';
-            $excludes = (isset($_POST['exclude']) ? explode(',', $_POST['exclude']) : array());
-            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
-            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
-            if (!ini_get('safe_mode')) set_time_limit(600);
-
-            $file_descriptors = (isset($_POST['file_descriptors']) ? $_POST['file_descriptors'] : 0);
-
-            $newExcludes = array();
-            foreach ($excludes as $exclude)
-            {
-                $newExcludes[] = rtrim($exclude, '/');
-            }
-
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, '', false, false, $file_descriptors);
-            print_r($res);
-            die('</pre>');
+//            error_reporting(E_ALL);
+//            ini_set('display_errors', TRUE);
+//            ini_set('display_startup_errors', TRUE);
+//            echo '<pre>';
+//            die('</pre>');
         }
 
         //Register does not require auth, so we register here..
@@ -1443,7 +1431,7 @@ class MainWPChild
                 $newExcludes[] = rtrim($exclude, '/');
             }
 
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, '', false, false, $file_descriptors);
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, '', false, false, $file_descriptors, (isset($_POST['file']) ? $_POST['file'] : false));
             if (!$res)
             {
                 $information['full'] = false;
@@ -3064,6 +3052,35 @@ class MainWPChild
     function maintenance_site()
     {
         global $wpdb;
+        $information = array();
+        if (isset($_POST['action'])) {
+            if ($_POST['action'] === 'save_settings') {
+
+                if (isset($_POST['enable_alert']) && $_POST['enable_alert'] == 1)
+                {
+                    update_option('mainwp_maintenance_opt_alert_404', 1);
+                } else {
+                    delete_option('mainwp_maintenance_opt_alert_404');
+                }
+
+                if (isset($_POST['email']) && !empty($_POST['email']))
+                {
+                    update_option('mainwp_maintenance_opt_alert_404_email', $_POST['email']);
+                } else {
+                    delete_option('mainwp_maintenance_opt_alert_404_email');
+                }
+                $information['result'] = 'SUCCESS';
+                MainWPHelper::write($information);
+                return;
+            } else if ($_POST['action'] === 'clear_settings') {
+                delete_option('mainwp_maintenance_opt_alert_404');
+                delete_option('mainwp_maintenance_opt_alert_404_email');
+                $information['result'] = 'SUCCESS';
+                MainWPHelper::write($information);
+            }
+            MainWPHelper::write($information);
+        }
+
         $maint_options = $_POST['options'];
         if (!is_array($maint_options))
         {
@@ -3142,13 +3159,6 @@ class MainWPChild
             $this->maintenance_optimize(true);
         }
 
-        if (in_array('alert404', $maint_options))
-        {
-            update_option('mainwp_maintenance_opt_alert_404', 1);            
-        } else {
-            delete_option('mainwp_maintenance_opt_alert_404');
-        }
-        
         if (!isset($information['status'])) $information['status'] = 'SUCCESS';
         MainWPHelper::write($information);
     }
@@ -3173,68 +3183,73 @@ class MainWPChild
 
     function maintenance_alert_404()
     {
-            if (!is_404())
-                return;
-            
-            // set status
-            header("HTTP/1.1 404 Not Found");
-            header("Status: 404 Not Found");
-            
-            // site info
-            $blog  = get_bloginfo('name');
-            $site  = get_bloginfo('url') . '/';
-            $email = get_bloginfo('admin_email');
+        if (!is_404()) {
+            return;
+        }
+        $email = get_option('mainwp_maintenance_opt_alert_404_email');
 
-            // referrer
-            if (isset($_SERVER['HTTP_REFERER'])) {
-                    $referer = MainWPHelper::clean($_SERVER['HTTP_REFERER']);
-            } else {
-                    $referer = "undefined";
-            }
-            $protocol = isset($_SERVER['HTTPS']) && strcasecmp($_SERVER['HTTPS'], 'off') ? 'https://' : 'http://';
-            // request URI
-            if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER["HTTP_HOST"])) {
-                    $request = MainWPHelper::clean($protocol . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"]);
-            } else {
-                    $request = "undefined";
-            }
-            // query string
-            if (isset($_SERVER['QUERY_STRING'])) {
-                    $string = MainWPHelper::clean($_SERVER['QUERY_STRING']);
-            } else {
-                    $string = "undefined";
-            }
-            // IP address
-            if (isset($_SERVER['REMOTE_ADDR'])) {
-                    $address = MainWPHelper::clean($_SERVER['REMOTE_ADDR']);
-            } else {
-                    $address = "undefined";
-            }
-            // user agent
-            if (isset($_SERVER['HTTP_USER_AGENT'])) {
-                    $agent = MainWPHelper::clean($_SERVER['HTTP_USER_AGENT']);
-            } else {
-                    $agent = "undefined";
-            }
-            // identity
-            if (isset($_SERVER['REMOTE_IDENT'])) {
-                    $remote = MainWPHelper::clean($_SERVER['REMOTE_IDENT']);
-            } else {
-                    $remote = "undefined";
-            }
-            // log time
-            $time = MainWPHelper::clean(date("F jS Y, h:ia", time()));
+        if(!preg_match("/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/is", $email))
+          return;
 
-            $message = 
-                    "TIME: "            . $time    . "\n" . 
-                    "*404: "            . $request . "\n" . 
-                    "SITE: "            . $site    . "\n" .                 
-                    "REFERRER: "        . $referer . "\n" . 
-                    "QUERY STRING: "    . $string  . "\n" . 
-                    "REMOTE ADDRESS: "  . $address . "\n" . 
-                    "REMOTE IDENTITY: " . $remote  . "\n" . 
-                    "USER AGENT: "      . $agent   . "\n\n\n";      
-            wp_mail($email, "404 Alert: " . $blog , $message, "From: $email");
+        // set status
+        header("HTTP/1.1 404 Not Found");
+        header("Status: 404 Not Found");
+
+        // site info
+        $blog  = get_bloginfo('name');
+        $site  = get_bloginfo('url') . '/';
+        $from_email = get_bloginfo('admin_email');
+
+        // referrer
+        if (isset($_SERVER['HTTP_REFERER'])) {
+                $referer = MainWPHelper::clean($_SERVER['HTTP_REFERER']);
+        } else {
+                $referer = "undefined";
+        }
+        $protocol = isset($_SERVER['HTTPS']) && strcasecmp($_SERVER['HTTPS'], 'off') ? 'https://' : 'http://';
+        // request URI
+        if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER["HTTP_HOST"])) {
+                $request = MainWPHelper::clean($protocol . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"]);
+        } else {
+                $request = "undefined";
+        }
+        // query string
+        if (isset($_SERVER['QUERY_STRING'])) {
+                $string = MainWPHelper::clean($_SERVER['QUERY_STRING']);
+        } else {
+                $string = "undefined";
+        }
+        // IP address
+        if (isset($_SERVER['REMOTE_ADDR'])) {
+                $address = MainWPHelper::clean($_SERVER['REMOTE_ADDR']);
+        } else {
+                $address = "undefined";
+        }
+        // user agent
+        if (isset($_SERVER['HTTP_USER_AGENT'])) {
+                $agent = MainWPHelper::clean($_SERVER['HTTP_USER_AGENT']);
+        } else {
+                $agent = "undefined";
+        }
+        // identity
+        if (isset($_SERVER['REMOTE_IDENT'])) {
+                $remote = MainWPHelper::clean($_SERVER['REMOTE_IDENT']);
+        } else {
+                $remote = "undefined";
+        }
+        // log time
+        $time = MainWPHelper::clean(date("F jS Y, h:ia", time()));
+
+        $message =
+                "TIME: "            . $time    . "\n" .
+                "*404: "            . $request . "\n" .
+                "SITE: "            . $site    . "\n" .
+                "REFERRER: "        . $referer . "\n" .
+                "QUERY STRING: "    . $string  . "\n" .
+                "REMOTE ADDRESS: "  . $address . "\n" .
+                "REMOTE IDENTITY: " . $remote  . "\n" .
+                "USER AGENT: "      . $agent   . "\n\n\n";
+        wp_mail($email, "404 Alert: " . $blog , $message, "From: $from_email");
     }
     
     public function keyword_links_action() {

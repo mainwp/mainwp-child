@@ -395,8 +395,8 @@ class MainWPHelper
 
     public static function endSession()
     {
-        session_write_close();
-        ob_end_flush();
+        @session_write_close();
+        @ob_end_flush();
     }
 
     static function fetchUrl($url, $postdata)
