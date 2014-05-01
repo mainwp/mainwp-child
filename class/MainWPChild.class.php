@@ -1,7 +1,7 @@
 <?php
 
-ini_set('display_errors', false);
-error_reporting(0);
+@ini_set('display_errors', false);
+@error_reporting(0);
 
 define('MAINWP_CHILD_NR_OF_COMMENTS', 50);
 define('MAINWP_CHILD_NR_OF_PAGES', 50);
@@ -3188,7 +3188,7 @@ class MainWPChild
         }
         $email = get_option('mainwp_maintenance_opt_alert_404_email');
 
-        if(!preg_match("/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/is", $email))
+        if(empty($email) || !preg_match("/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/is", $email))
           return;
 
         // set status
@@ -3198,8 +3198,8 @@ class MainWPChild
         // site info
         $blog  = get_bloginfo('name');
         $site  = get_bloginfo('url') . '/';
-        $from_email = get_bloginfo('admin_email');
-
+        $from_email  = get_bloginfo('admin_email');
+        
         // referrer
         if (isset($_SERVER['HTTP_REFERER'])) {
                 $referer = MainWPHelper::clean($_SERVER['HTTP_REFERER']);
@@ -3240,16 +3240,18 @@ class MainWPChild
         // log time
         $time = MainWPHelper::clean(date("F jS Y, h:ia", time()));
 
-        $message =
-                "TIME: "            . $time    . "\n" .
-                "*404: "            . $request . "\n" .
-                "SITE: "            . $site    . "\n" .
-                "REFERRER: "        . $referer . "\n" .
-                "QUERY STRING: "    . $string  . "\n" .
-                "REMOTE ADDRESS: "  . $address . "\n" .
-                "REMOTE IDENTITY: " . $remote  . "\n" .
-                "USER AGENT: "      . $agent   . "\n\n\n";
-        wp_mail($email, "404 Alert: " . $blog , $message, "From: $from_email");
+        $mail = "<div>" . "TIME: "            . $time    . "</div>" . 
+                "<div>" . "*404: "            . $request . "</div>" . 
+                "<div>" . "SITE: "            . $site    . "</div>" .                 
+                "<div>" . "REFERRER: "        . $referer . "</div>" . 
+                "<div>" . "QUERY STRING: "    . $string  . "</div>" . 
+                "<div>" . "REMOTE ADDRESS: "  . $address . "</div>" . 
+                "<div>" . "REMOTE IDENTITY: " . $remote  . "</div>" . 
+                "<div>" . "USER AGENT: "      . $agent   . "</div>"; 
+        $mail = '<div>404 alert</div>
+                <div></div>' . $mail;              
+        wp_mail($email, 'MainWP - 404 Alert: ' . $blog , MainWPHelper::formatEmail($email, $mail), array('From: "'.$from_email.'" <'.$from_email.'>', 'content-type: text/html'));
+
     }
     
     public function keyword_links_action() {
