@@ -7,7 +7,7 @@ Author URI: http://mainwp.com
 Plugin URI: http://mainwp.com
 Requires at least: 3.6
 Tested up to: 3.9
-Stable tag: 0.29.2
+Stable tag: 0.29.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 0.29.3 =
+* Added new hooks for upcoming extensions
 
 = 0.29.2 =
 * Fix for ini_set warning when this has been disabled on the host
