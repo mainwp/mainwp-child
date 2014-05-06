@@ -49,7 +49,8 @@ class MainWPChild
         'maintenance_site' => 'maintenance_site',
         'keyword_links_action' => 'keyword_links_action',
         'branding_child_plugin' => 'branding_child_plugin',
-        'code_snippet' => 'code_snippet'        
+        'code_snippet' => 'code_snippet',
+        'uploader_action' => 'uploader_action'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -3356,6 +3357,46 @@ class MainWPChild
         return $return;
     }
     
+    function uploader_action() {
+        $file_url = base64_decode($_POST['url']);
+        $path = $_POST['path'];
+        $information = array();
+        
+        if (empty($file_url) || empty($path)) {
+            MainWPHelper::write($information); 
+            return;
+        }
+            
+        if ($path === '/')
+            $dir = ABSPATH;
+        else {
+            $path = str_replace(' ', '-', $path);
+            $path = str_replace('.', '-', $path);            
+            $dir = ABSPATH . $path;
+        }
+        
+        if (!file_exists($dir)) {
+            if (FALSE === @mkdir($dir, 0777, true)) {
+                $information['error'] = 'ERRORCREATEDIR';
+                MainWPHelper::write($information); 
+                return;
+            }                    
+        }
+        
+        try
+        {
+            $upload = MainWPHelper::uploadFile($file_url, $dir);
+            if ($upload != null)
+            {                    
+                $information['success'] = true;
+            }
+        }
+        catch (Exception $e)
+        {
+            $information['error'] = $e->getMessage();            
+        } 
+        MainWPHelper::write($information);
+    }    
 }
 
 ?>

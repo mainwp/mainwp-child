@@ -53,6 +53,34 @@ class MainWPHelper
         return null;
     }
 
+    static function uploadFile($file_url, $path)
+    {
+        include_once(ABSPATH . 'wp-admin/includes/file.php'); //Contains download_url
+        //Download $file_url
+        $temporary_file = download_url($file_url);
+
+        if (is_wp_error($temporary_file))
+        {
+            throw new Exception('Error: ' . $temporary_file->get_error_message());
+        }
+        else
+        {   
+            $file_name = basename($file_url);
+            $file_name = sanitize_file_name($file_name);
+            $local_file_path = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
+            $moved = @rename($temporary_file, $local_file_path);
+            if ($moved)
+            {                
+                return array('path' => $local_file_path);
+            }
+        }
+        if (file_exists($temporary_file))
+        {
+            unlink($temporary_file);
+        }
+        return null;
+    }
+    
     static function createPost($new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags)
     {
         global $current_user;
