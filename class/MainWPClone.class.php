@@ -278,7 +278,7 @@ Author URI: http://dd32.id.au/
                 echo '<div class="mainwp-child_info-box-yellow"><strong>' . __('Root directory is not readable. Please contact with site administrator to correct.','mainwp-child') . '</strong></div>';
                 return;
         }
-        update_option('mainwp_child_clone_from_server_last_folder', rtrim($current_dir,'/'));
+        MainWPHelper::update_option('mainwp_child_clone_from_server_last_folder', rtrim($current_dir,'/'));
 
         $parts = explode('/', ltrim($current_dir, '/'));						
         $dirparts = '';
@@ -1036,8 +1036,8 @@ Author URI: http://dd32.id.au/
             if (!$result['backup']) throw new Exception(__('Could not create backupfile on child','mainwp-child'));
             @session_start();
 
-            update_option('mainwp_temp_clone_plugins', $result['plugins']);
-            update_option('mainwp_temp_clone_themes', $result['themes']);
+            MainWPHelper::update_option('mainwp_temp_clone_plugins', $result['plugins']);
+            MainWPHelper::update_option('mainwp_temp_clone_themes', $result['themes']);
 
             $output = array('url' => $result['backup'], 'size' => round($result['size'] / 1024, 0));
         }
@@ -1232,20 +1232,20 @@ Author URI: http://dd32.id.au/
 //            $cloneInstall->update_option('mainwp_child_nossl_key', $nossl_key);
 //            $cloneInstall->update_option('mainwp_child_clone_sites', $sitesToClone);
 //            $cloneInstall->update_option('mainwp_child_clone_permalink', true);
-            update_option('mainwp_child_pubkey', $pubkey);
-            update_option('mainwp_child_uniqueId', $uniqueId);
-            update_option('mainwp_child_server', $server);
-            update_option('mainwp_child_nonce', $nonce);
-            update_option('mainwp_child_nossl', $nossl);
-            update_option('mainwp_child_nossl_key', $nossl_key);
-            update_option('mainwp_child_clone_sites', $sitesToClone);
+            MainWPHelper::update_option('mainwp_child_pubkey', $pubkey);
+            MainWPHelper::update_option('mainwp_child_uniqueId', $uniqueId);
+            MainWPHelper::update_option('mainwp_child_server', $server);
+            MainWPHelper::update_option('mainwp_child_nonce', $nonce);
+            MainWPHelper::update_option('mainwp_child_nossl', $nossl);
+            MainWPHelper::update_option('mainwp_child_nossl_key', $nossl_key);
+            MainWPHelper::update_option('mainwp_child_clone_sites', $sitesToClone);
             if (!MainWPHelper::startsWith(basename($file), 'download-backup-'))
             {
-                update_option('mainwp_child_restore_permalink', true);
+                MainWPHelper::update_option('mainwp_child_restore_permalink', true);
             }
             else
             {
-                update_option('mainwp_child_clone_permalink', true);
+                MainWPHelper::update_option('mainwp_child_clone_permalink', true);
             }
 			
             $cloneInstall->clean();

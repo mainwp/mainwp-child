@@ -123,8 +123,8 @@ class MainWPCloneInstall
         if ($configContents === FALSE) throw new Exception(__('Cant read configuration file from backup','mainwp-child'));
         $this->config = unserialize(base64_decode($configContents));
 
-        if (isset($this->config['plugins'])) update_option('mainwp_temp_clone_plugins', $this->config['plugins']);
-        if (isset($this->config['themes'])) update_option('mainwp_temp_clone_themes', $this->config['themes']);
+        if (isset($this->config['plugins'])) MainWPHelper::update_option('mainwp_temp_clone_plugins', $this->config['plugins']);
+        if (isset($this->config['themes'])) MainWPHelper::update_option('mainwp_temp_clone_themes', $this->config['themes']);
     }
 
     public function setConfig($key, $val)

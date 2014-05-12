@@ -189,7 +189,7 @@ class MainWPHeatmapTracker
 				);
 			}
 		}
-		update_option('mainwp_child_click_data', $storeData);
+        MainWPHelper::update_option('mainwp_child_click_data', $storeData);
 		// Customize when we need to send the data
 		$this->sendClick();
 		exit;

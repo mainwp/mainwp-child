@@ -131,7 +131,7 @@ class MainWPKeywordLinks
             $rules = explode("\n", '');
             insert_with_markers($htaccess_file, 'MainWP Keyword Links Extension', $rules);
         }
-        update_option('mainwp_keyword_links_htaccess_set', '');
+        MainWPHelper::update_option('mainwp_keyword_links_htaccess_set', '');
     }
     
     public function do_update_htaccess($force_clear = false) {    
@@ -153,7 +153,7 @@ class MainWPKeywordLinks
                 $rules = explode("\n", $rules);
                 insert_with_markers($htaccess_file, 'MainWP Keyword Links Extension', $rules);
             }
-            update_option('mainwp_keyword_links_htaccess_set', 'yes');  
+            MainWPHelper::update_option('mainwp_keyword_links_htaccess_set', 'yes');
             return true;
         } else {
             self::clear_htaccess();
@@ -223,7 +223,7 @@ class MainWPKeywordLinks
     
     public function set_option($key, $value) {
         $this->config[$key] = $value;
-        return update_option('mainwp_kwl_options', $this->config);
+        return MainWPHelper::update_option('mainwp_kwl_options', $this->config);
     }
     
     public function get_link($link_id, $default = '') {
@@ -237,7 +237,7 @@ class MainWPKeywordLinks
             unset($this->keyword_links[$link_id]);
         else
             $this->keyword_links[$link_id] = $link;
-        return update_option('mainwp_kwl_keyword_links', $this->keyword_links);
+        return MainWPHelper::update_option('mainwp_kwl_keyword_links', $this->keyword_links);
     }
        
     
@@ -581,7 +581,7 @@ class MainWPKeywordLinks
                 'ip' => $addr,
                 'referer' => $referer                                            
             );                
-            update_option('mainwp_kwl_click_statistic_data', $storeData);         
+            MainWPHelper::update_option('mainwp_kwl_click_statistic_data', $storeData);
             // Customize when we need to send the data
             $this->sendClick();
         }
@@ -642,7 +642,7 @@ class MainWPKeywordLinks
     {
 		$result = array();
         $enable_stats = intval($_POST['enablestats']);
-        if (update_option('mainwp_kwl_enable_statistic', $enable_stats))
+        if (MainWPHelper::update_option('mainwp_kwl_enable_statistic', $enable_stats))
 			$return['status'] = 'SUCCESS';                      
         return $return;
     }
@@ -651,8 +651,8 @@ class MainWPKeywordLinks
     {
         $result = array();
         if (isset($_POST['clear_all'])) {
-            $cleared1 = update_option('mainwp_kwl_keyword_links', '');   
-            $cleared2 = update_option('mainwp_kwl_options', '');    
+            $cleared1 = MainWPHelper::update_option('mainwp_kwl_keyword_links', '');
+            $cleared2 = MainWPHelper::update_option('mainwp_kwl_options', '');
             if ($cleared1 || $cleared2)
                 $return['status'] = 'SUCCESS';             
         }    
@@ -728,7 +728,7 @@ class MainWPKeywordLinks
                 if ($this->set_link($link->id, $link))
                     $return['status'] = 'SUCCESS';                
             }               
-            update_option('mainwpKeywordLinks', 1); // enable extension functions            
+        MainWPHelper::update_option('mainwpKeywordLinks', 1); // enable extension functions
             return $return;
     }
      
@@ -746,8 +746,8 @@ class MainWPKeywordLinks
                     'enable_post_type' => $_POST['enable_post_type'],
                     'enable_post_type_link' => $_POST['enable_post_type_link']
             );
-            update_option('mainwpKeywordLinks', 1); // enable extension functions            
-            if (update_option('mainwp_kwl_options', $this->config)) {
+        MainWPHelper::update_option('mainwpKeywordLinks', 1); // enable extension functions
+            if (MainWPHelper::update_option('mainwp_kwl_options', $this->config)) {
                 $return['status'] = 'SUCCESS';    
 			}
 			

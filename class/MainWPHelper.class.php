@@ -55,30 +55,34 @@ class MainWPHelper
 
     static function uploadFile($file_url, $path)
     {
-        include_once(ABSPATH . 'wp-admin/includes/file.php'); //Contains download_url
-        //Download $file_url
-        $temporary_file = download_url($file_url);
+        $file_name = basename($file_url);
+        $file_name = sanitize_file_name($file_name);
+        $full_file_name = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
 
-        if (is_wp_error($temporary_file))
-        {
-            throw new Exception('Error: ' . $temporary_file->get_error_message());
+        $response = wp_remote_get($file_url, array( 'timeout' => 600, 'stream' => true, 'filename' => $full_file_name ) );
+
+        if ( is_wp_error( $response ) ) {
+            @unlink( $full_file_name );
+            throw new Exception('Error: ' . $response->get_error_message());
         }
-        else
-        {   
-            $file_name = basename($file_url);
-            $file_name = sanitize_file_name($file_name);
-            $local_file_path = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
-            $moved = @rename($temporary_file, $local_file_path);
-            if ($moved)
-            {                
-                return array('path' => $local_file_path);
+
+        if ( 200 != wp_remote_retrieve_response_code( $response ) ){
+            @unlink( $full_file_name );
+            throw new Exception('Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ));
+        }
+        if (substr($file_name, -12) == ".phpfile.txt") {
+            $new_file_name = substr($file_name, 0, -12) . ".php";
+            $new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
+            $moved = @rename($full_file_name, $new_file_name);
+            if ($moved) {
+                return array('path' => $new_file_name);
+            } else
+            {
+                @unlink( $full_file_name );
+                throw new Exception('Error: Copy file.');
             }
         }
-        if (file_exists($temporary_file))
-        {
-            unlink($temporary_file);
-        }
-        return null;
+        return array('path' => $full_file_name);
     }
     
     static function createPost($new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags)
@@ -630,7 +634,30 @@ class MainWPHelper
 </div>
 <br>';
     }
-    
+
+    static function update_option($option_name, $option_value)
+    {
+        $success = add_option($option_name, $option_value, '', 'no');
+
+         if (!$success)
+         {
+             $success = update_option($option_name, $option_value);
+         }
+
+         return $success;
+    }
+
+    static function fix_option($option_name)
+    {
+        global $wpdb;
+
+        if ( 'yes' == $wpdb->get_var( "SELECT autoload FROM $wpdb->options WHERE option_name = '" . $option_name . "'" ) )
+        {
+            $option_value = get_option( $option_name );
+            delete_option( $option_name );
+            add_option( $option_name, $option_value, null, 'no' );
+        }
+    }
 }
 
 ?>
