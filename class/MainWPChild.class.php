@@ -567,6 +567,8 @@ class MainWPChild
             {
                 MainWPHelper::error(__('User is not an administrator','mainwp-child'));
             }
+
+            $this->login($_REQUEST['user']);
         }
 
         if (isset($_POST['function']) && $_POST['function'] == 'visitPermalink')

@@ -60,6 +60,8 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 = 0.29.4 =
 * Fixed performance issue with autoloaded options
+* File Uploader Extension Bug Fix
+* Added new hooks for upcoming extensions
 
 = 0.29.3 =
 * Added new hooks for upcoming extensions
