@@ -52,7 +52,8 @@ class MainWPChild
         'keyword_links_action' => 'keyword_links_action',
         'branding_child_plugin' => 'branding_child_plugin',
         'code_snippet' => 'code_snippet',
-        'uploader_action' => 'uploader_action'
+        'uploader_action' => 'uploader_action',
+        'wordpress_seo' => 'wordpress_seo'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -73,7 +74,7 @@ class MainWPChild
     private $branding_robust = "MainWP";
 
     public function __construct($plugin_file)
-    {
+    {			
         $this->update();
 
         $this->filterFunction = create_function( '$a', 'if ($a == null) { return false; } return $a;' );
@@ -81,7 +82,7 @@ class MainWPChild
         $this->plugin_slug = plugin_basename($plugin_file);
         list ($t1, $t2) = explode('/', $this->plugin_slug);
         $this->slug = str_replace('.php', '', $t2);
-
+        
         $this->posts_where_suffix = '';
         $this->comments_and_clauses = '';
         add_action('template_redirect', array($this, 'template_redirect'));
@@ -2050,21 +2051,26 @@ class MainWPChild
     }
 
     function get_recent_posts_int($status, $pCount, $type = 'post', &$allPosts, $extra = null)
-    {
+    {        
         $args = array('post_status' => $status,
             'suppress_filters' => false,
             'post_type' => $type);
-
+        
         $tokens = array();
         if (is_array($extra) && isset($extra['tokens'])) {
-            $tokens = $extra['tokens'];
-            $args['post_type'] = array('post', 'page');
-        }
-        $tokens = array_flip($tokens);
-
+            $tokens = $extra['tokens']; 
+            if ($extra['extract_post_type'] == 1)
+                $args['post_type'] = 'post';
+            else if ($extra['extract_post_type'] == 2)
+                $args['post_type'] = 'page';
+            else if ($extra['extract_post_type'] == 3)
+                $args['post_type'] = array('post', 'page');
+        }            
+        $tokens = array_flip($tokens);        
+        
         if ($pCount != 0) $args['numberposts'] = $pCount;
-
-
+        
+        
         $posts = get_posts($args);
         if (is_array($posts))
         {
@@ -2087,7 +2093,7 @@ class MainWPChild
                     $categories .= $cat->name;
                 }
                 $outPost['categories'] = $categories;
-
+                
                 $tagObjects = get_the_tags($post->ID);
                 $tags = "";
                 if (is_array($tagObjects))
@@ -2098,15 +2104,15 @@ class MainWPChild
                         $tags .= $tag->name;
                     }
                 }
-                $outPost['tags'] = $tags;
-
+                $outPost['tags'] = $tags; 
+                
                 if (is_array($tokens)) {
                     if (isset($tokens["[post.url]"]))
-                        $outPost["[post.url]"] = get_permalink( $post->ID );
+                        $outPost["[post.url]"] = get_permalink( $post->ID );                       
                     if (isset($tokens["[post.website.url]"]))
-                        $outPost["[post.website.url]"] = get_site_url();
+                        $outPost["[post.website.url]"] = get_site_url(); 
                     if (isset($tokens["[post.website.name]"]))
-                        $outPost["[post.website.name]"] = get_bloginfo('name');
+                        $outPost["[post.website.name]"] = get_bloginfo('name');                    
                 }
                 $allPosts[] = $outPost;
             }
@@ -2457,12 +2463,13 @@ class MainWPChild
         {
             $maxPages = 99999;
         }
-
+        
         $extra = array();
         if (isset($_POST['extract_tokens'])) {
-            $extra['tokens'] = unserialize(base64_decode($_POST['extract_tokens']));
+            $extra['tokens'] = unserialize(base64_decode($_POST['extract_tokens']));  
+            $extra['extract_post_type'] = $_POST['extract_post_type'];
         }
-
+        
         $rslt = $this->get_recent_posts(explode(',', $_POST['status']), $maxPages, $type, $extra);
         $this->posts_where_suffix = '';
 
@@ -3443,6 +3450,10 @@ class MainWPChild
         } 
         MainWPHelper::write($information);
     }    
+    
+    function wordpress_seo() {        
+        MainWPWordpressSEO::Instance()->action();                
+    }
 }
 
 ?>
