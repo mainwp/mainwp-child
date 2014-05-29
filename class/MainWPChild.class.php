@@ -1165,8 +1165,8 @@ class MainWPChild
         //Read form data
         $new_post = unserialize(base64_decode($_POST['new_post']));
         $post_custom = unserialize(base64_decode($_POST['post_custom']));
-        $post_category = (isset($_POST['post_category']) ? base64_decode($_POST['post_category']) : null);
-        $post_tags = (isset($new_post['post_tags']) ? $new_post['post_tags'] : null);
+        $post_category = rawurldecode(isset($_POST['post_category']) ? base64_decode($_POST['post_category']) : null);
+        $post_tags = rawurldecode(isset($new_post['post_tags']) ? $new_post['post_tags'] : null);
         $post_featured_image = base64_decode($_POST['post_featured_image']);
         $upload_dir = unserialize(base64_decode($_POST['mainwp_upload_dir']));
         $new_post['_ezin_post_category'] = unserialize(base64_decode($_POST['_ezin_post_category']));
