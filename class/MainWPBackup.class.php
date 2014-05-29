@@ -95,6 +95,67 @@ class MainWPBackup
         ) : false;
     }
 
+    public function zipFile($file, $archive)
+    {
+        $time = 300; /*300 seconds = 5 minutes*/
+        $mem =  '512M';
+        @ini_set('memory_limit', $mem);
+        @ini_set('max_execution_time', $time);
+
+        $success = false;
+        if ($this->checkZipSupport() && $this->_zipFile($file, $archive))
+        {
+            $success = true;
+        }
+        else if ($this->checkZipConsole() && $this->_zipFileConsole($file, $archive))
+        {
+            $success = true;
+        }
+        else if ($this->_zipFilePcl($file, $archive))
+        {
+            $success = true;
+        }
+
+        return $success;
+    }
+
+    function _zipFile($file, $archive)
+    {
+        $this->zip = new ZipArchive();
+        $this->zipArchiveFileCount = 0;
+        $this->zipArchiveSizeCount = 0;
+
+        $zipRes = $this->zip->open($archive, ZipArchive::CREATE);
+        if ($zipRes)
+        {
+            $this->addFileToZip($file, basename($file));
+
+            return $this->zip->close();
+        }
+
+        return false;
+    }
+
+    function _zipFileConsole($file, $archive)
+    {
+        return false;
+    }
+
+    public function _zipFilePcl($file, $archive)
+    {
+        //Zip this backup folder..
+        require_once ( ABSPATH . 'wp-admin/includes/class-pclzip.php');
+        $this->zip = new PclZip($archive);
+
+        $error = false;
+        if (($rslt = $this->zip->add($file, PCLZIP_OPT_REMOVE_PATH, dirname($file))) == 0)
+        {
+            $error = true;
+        }
+
+        return !$error;
+    }
+
     /**
      * Check for default PHP zip support
      *
@@ -522,7 +583,7 @@ class MainWPBackup
      *
      * @return string The SQL string
      */
-    public function createBackupDB($filepath)
+    public function createBackupDB($filepath, $zip = false)
     {
         $fh = fopen($filepath, 'w'); //or error;
 
@@ -558,7 +619,17 @@ class MainWPBackup
         }
 
         fclose($fh);
-        return true;
+
+        if ($zip)
+        {
+            $newFilepath = $filepath . '.zip';
+            if ($this->zipFile($filepath, $newFilepath) && file_exists($newFilepath))
+            {
+                @unlink($filepath);
+                $filepath = $newFilepath;
+            }
+        }
+        return array('filepath' => $filepath);
     }
 
     public function createBackupDB_legacy($filepath)

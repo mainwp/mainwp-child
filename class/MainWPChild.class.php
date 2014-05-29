@@ -656,16 +656,26 @@ class MainWPChild
 
         //Logout if required
         if (isset($current_user->user_login))
+        {
+            if ($current_user->user_login == $username)
+            {
+                wp_set_auth_cookie($current_user->ID);
+
+                return true;
+            }
+
             do_action('wp_logout');
+        }
 
         $user = get_user_by('login', $username);
         if ($user)
         { //If user exists, login
-            wp_set_current_user($user->ID, $user->user_login);
-            wp_set_auth_cookie($user->ID);
+//            wp_set_current_user($user->ID, $user->user_login);
+//            wp_set_auth_cookie($user->ID);
 
             wp_set_current_user($user->ID);
             wp_set_auth_cookie($user->ID);
+
             if ($doAction) do_action('wp_login', $user->user_login);
             return (is_user_logged_in() && $current_user->user_login == $username);
         }
@@ -1515,14 +1525,13 @@ class MainWPChild
             @unlink($filepath);
         }
 
+        $result = MainWPBackup::get()->createBackupDB($filepath, true);
 
-        $success = MainWPBackup::get()->createBackupDB($filepath);
-
-        return ($success) ? array(
+        return ($result === false) ? false : array(
             'timestamp' => $timestamp,
-            'file' => $dirs[1] . basename($filepath),
-            'filesize' => filesize($filepath)
-        ) : false;
+            'file' => $dirs[1] . basename($result['filepath']),
+            'filesize' => filesize($result['filepath'])
+        );
     }
 
     function doSecurityFix()
