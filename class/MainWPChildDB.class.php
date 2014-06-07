@@ -116,4 +116,19 @@ class MainWPChildDB
             return is_resource($result);
         }
     }
+
+    static function get_size()
+    {
+        /** @var $wpdb wpdb */
+        global $wpdb;
+
+        $rows   = MainWPChildDB::_query('SHOW table STATUS', $wpdb->dbh);
+        $size = 0;
+        while ($row = MainWPChildDB::fetch_array($rows))
+        {
+            $size += $row['Data_length'];
+        }
+
+        return $size;
+    }
 }

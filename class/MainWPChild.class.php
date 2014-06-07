@@ -54,7 +54,8 @@ class MainWPChild
         'code_snippet' => 'code_snippet',
         'uploader_action' => 'uploader_action',
         'wordpress_seo' => 'wordpress_seo',
-        'client_report' => 'client_report'        
+        'client_report' => 'client_report',
+        'createBackupPoll' => 'backupPoll'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -1451,8 +1452,39 @@ class MainWPChild
         MainWPHelper::write($information);
     }
 
+    function backupPoll()
+    {
+        $fileNameUID = (isset($_POST['fileNameUID']) ? $_POST['fileNameUID'] : '');
+        $fileName = (isset($_POST['fileName']) ? $_POST['fileName'] : '');
+
+        $backupFile = '';
+        if ($_POST['type'] == 'full')
+        {
+            if ($fileName != '')
+            {
+                $backupFile = $fileName . '.zip';
+            }
+            else
+            {
+                $backupFile = 'backup-' . $fileNameUID . '-*.zip';
+            }
+        }
+        else
+        {
+            $backupFile = 'dbBackup-' . $fileNameUID . '-*.sql';
+        }
+
+        $dirs = MainWPHelper::getMainWPDir('backup');
+        $backupdir = $dirs[0];
+        $result = glob($backupdir . $backupFile . '*');
+        if (count($result) == 0) MainWPHelper::write(array());
+
+        MainWPHelper::write(array('size' => filesize($result[0])));
+    }
+
     function backup()
     {
+        $fileName = (isset($_POST['fileUID']) ? $_POST['fileUID'] : '');
         if ($_POST['type'] == 'full')
         {
             $excludes = (isset($_POST['exclude']) ? explode(',', $_POST['exclude']) : array());
@@ -1468,7 +1500,7 @@ class MainWPChild
                 $newExcludes[] = rtrim($exclude, '/');
             }
 
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, '', false, false, $file_descriptors, (isset($_POST['file']) ? $_POST['file'] : false));
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, (isset($_POST['file']) ? $_POST['file'] : false));
             if (!$res)
             {
                 $information['full'] = false;
@@ -1482,7 +1514,7 @@ class MainWPChild
         }
         else if ($_POST['type'] == 'db')
         {
-            $res = $this->backupDB();
+            $res = $this->backupDB($fileName);
             if (!$res)
             {
                 $information['db'] = false;
@@ -1502,18 +1534,19 @@ class MainWPChild
         MainWPHelper::write($information);
     }
 
-    protected function backupDB()
+    protected function backupDB($fileName = '')
     {
         $dirs = MainWPHelper::getMainWPDir('backup');
         $dir = $dirs[0];
         $timestamp = time();
-        $filepath = $dir . 'dbBackup-' . $timestamp . '.sql';
+        if ($fileName != '') $fileName .= '-';
+        $filepath = $dir . 'dbBackup-' . $fileName . $timestamp . '.sql';
 
         if ($dh = opendir($dir))
         {
             while (($file = readdir($dh)) !== false)
             {
-                if ($file != '.' && $file != '..' && preg_match('/dbBackup-(.*).sql$/', $file))
+                if ($file != '.' && $file != '..' && (preg_match('/dbBackup-(.*).sql$/', $file) || preg_match('/dbBackup-(.*).sql.zip$/', $file)))
                 {
                     @unlink($dir . $file);
                 }
@@ -1527,6 +1560,8 @@ class MainWPChild
         }
 
         $result = MainWPBackup::get()->createBackupDB($filepath, true);
+
+        MainWPHelper::update_option('mainwp_child_last_db_backup_size', filesize($result['filepath']));
 
         return ($result === false) ? false : array(
             'timestamp' => $timestamp,
@@ -1939,6 +1974,8 @@ class MainWPChild
         }
         $information['categories'] = $categories;
         $information['totalsize'] = $this->getTotalFileSize();
+        $information['dbsize'] = MainWPChildDB::get_size();
+
         $auths = get_option('mainwp_child_auth');
         $information['extauth'] = ($auths && isset($auths[$this->maxHistory]) ? $auths[$this->maxHistory] : null);
 

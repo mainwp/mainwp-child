@@ -39,7 +39,7 @@ class MainWPBackup
         if ($filePrefix != '') $filePrefix .= '-';
         if (($fileSuffix !== false) && !empty($fileSuffix))
         {
-            $file = $filePrefix . $fileSuffix . '.zip';
+            $file = $fileSuffix . '.zip';
         }
         else
         {
@@ -616,6 +616,7 @@ class MainWPBackup
                     fwrite($fh, "\n" . $query);
                 }
             }
+            fflush($fh);
         }
 
         fclose($fh);
