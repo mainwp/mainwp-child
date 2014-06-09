@@ -2,6 +2,131 @@
 
 class MainWPChildServerInformation
 {
+    public static function showWarnings()
+    {
+        $conflicts = self::getConflicts();
+        $warnings = self::hasWarnings();
+
+        if (!$warnings && count($conflicts) == 0) return;
+
+        ?>
+        <div class="error" style="text-align: center;">
+            <p style="color: red; font-size: 16px; font-weight: bold;">Attention!</p>
+            <?php
+            $warning = '';
+
+            if ($warnings)
+            {
+                $warning .= 'This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=MainWPChildServerInformation">MainWP Server Information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a><br />';
+            }
+
+            if (count($conflicts) > 0) {
+                if ($warning != '') $warning .= '<br />';
+                if (count($conflicts) == 1)
+                {
+                    $warning .= '"' . $conflicts[0] . '" is';
+                }
+                else
+                {
+                    $warning .= '"' . join('", "', $conflicts) . '" are';
+                }
+                $warning .= ' installed on this site. This is known to have a potential conflict with MainWP functions <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a><br />';
+            }
+
+            echo $warning;
+            ?>
+        </div>
+        <?php
+    }
+
+    public static function renderPage()
+    {
+        ?><h2><?php _e('Plugin Conflicts'); ?></h2><?php
+        MainWPChildServerInformation::renderConflicts();
+        ?><h2><?php _e('Server Information'); ?></h2><?php
+        MainWPChildServerInformation::render();
+        ?><h2><?php _e('Cron Schedules'); ?></h2><?php
+        MainWPChildServerInformation::renderCron();
+        ?><h2><?php _e('Error Log'); ?></h2><?php
+        MainWPChildServerInformation::renderErrorLogPage();
+    }
+
+    public static function hasWarnings()
+    {
+        if (!self::check('>=', '3.4', 'getWordpressVersion')) return true;
+        if (!self::check('>=', '5.2.4', 'getPHPVersion')) return true;
+        if (!self::check('>=', '5.0', 'getMySQLVersion')) return true;
+        if (!self::check('>=', '30', 'getMaxExecutionTime', '=', '0')) return true;
+        if (!self::check('>=', '2M', 'getUploadMaxFilesize')) return true;
+        if (!self::check('>=', '2M', 'getPostMaxSize')) return true;
+        if (!self::check('>=', '10000', 'getOutputBufferSize')) return true;
+        if (!self::check('=', true, 'getSSLSupport')) return true;
+
+        if (!self::checkDirectoryMainWPDirectory(false)) return true;
+
+        return false;
+    }
+
+    public static function getConflicts()
+    {
+        global $mainWPChild;
+
+        $pluginConflicts = array('Better WP Security',
+        'iThemes Security',
+        'Secure WordPress',
+        'Wordpress Firewall',
+        'Bad Behavior',
+        'SpyderSpanker'
+        );
+        $conflicts = array();
+        if (count($pluginConflicts) > 0)
+        {
+            $plugins = $mainWPChild->get_all_plugins_int(false);
+            foreach ($plugins as $plugin)
+            {
+                foreach ($pluginConflicts as $pluginConflict)
+                {
+                   if (($plugin['active'] == 1) && (($plugin['name'] == $pluginConflict) || ($plugin['slug'] == $pluginConflict)))
+                   {
+                       $conflicts[] = $plugin['name'];
+                   }
+                }
+            }
+        }
+        return $conflicts;
+    }
+
+    public static function renderConflicts()
+    {
+        $conflicts = self::getConflicts();
+
+        if (count($conflicts) > 0)
+        {
+            $information['pluginConflicts'] = $conflicts;
+            ?>
+        <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
+            <tbody id="the-sites-list" class="list:sites">
+                <tr><td colspan="2"><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found: (<a href="http://docs.mainwp.com/known-plugin-conflicts/" target="_blank">Fix</a>)</td></tr>
+                <?php foreach ($conflicts as $conflict) { ?>
+                <tr><td style="width: 50px"></td><td><?php echo $conflict; ?></td></tr>
+                <?php } ?>
+            </tbody>
+        </table>
+            <?php
+        }
+        else
+        {
+            ?>
+        <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
+            <tbody id="the-sites-list" class="list:sites">
+                <tr><td>No conflicts found.</td></tr>
+            </tbody>
+        </table>
+            <?php
+        }
+        ?><br /><?php
+    }
+
     public static function render()
     {
         ?>
@@ -131,14 +256,18 @@ class MainWPChildServerInformation
         <?php
     }
 
-    protected static function checkDirectoryMainWPDirectory()
+    protected static function checkDirectoryMainWPDirectory($write = true)
     {
         $dirs = MainWPHelper::getMainWPDir();
         $path = $dirs[0];
 
         if (!is_dir(dirname($path)))
         {
-            return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not found', false);
+            if ($write)
+            {
+                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not found', false);
+            }
+            else return false;
         }
 
         $hasWPFileSystem = MainWPHelper::getWPFilesystem();
@@ -148,18 +277,30 @@ class MainWPChildServerInformation
         {
             if (!$wp_filesystem->is_writable($path))
             {
-                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                if ($write)
+                {
+                    return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                }
+                else return false;
             }
         }
         else
         {
             if (!is_writable($path))
             {
-                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                if ($write)
+                {
+                    return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                }
+                else return false;
             }
         }
 
-        return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', '/', true);
+        if ($write)
+        {
+            return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', '/', true);
+        }
+        else return true;
     }
 
     protected static function renderDirectoryRow($pName, $pDirectory, $pCheck, $pResult, $pPassed)
@@ -185,9 +326,16 @@ class MainWPChildServerInformation
         <td><?php echo $pConfig; ?></td>
         <td><?php echo $pCompare; ?>  <?php echo ($pVersion === true ? 'true' : $pVersion) . ' ' . $pExtraText; ?></td>
         <td><?php echo ($currentVersion === true ? 'true' : $currentVersion); ?></td>
-        <td><?php echo (version_compare($currentVersion, $pVersion, $pCompare) || (($pExtraCompare != null) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare)) ? '<span class="mainwp-pass">Pass</span>' : '<span class="mainwp-warning">Warning</span>'); ?></td>
+        <td><?php echo (self::check($pCompare, $pVersion, $pGetter, $pExtraCompare, $pExtraVersion) ? '<span class="mainwp-pass">Pass</span>' : '<span class="mainwp-warning">Warning</span>'); ?></td>
     </tr>
     <?php
+    }
+
+    protected static function check($pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null)
+    {
+        $currentVersion = call_user_func(array('MainWPChildServerInformation', $pGetter));
+
+        return (version_compare($currentVersion, $pVersion, $pCompare) || (($pExtraCompare != null) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare)));
     }
 
     protected static function getWordpressVersion()
@@ -591,15 +739,33 @@ class MainWPChildServerInformation
    public static function renderWPConfig()
    {
        ?>
+       <style>
+           #mainwp-code-display code {
+               background: none !important;
+           }
+       </style>
        <div class="postbox" id="mainwp-code-display">
            <h3 class="hndle" style="padding: 8px 12px; font-size: 14px;"><span>WP-Config.php</span></h3>
            <div style="padding: 1em;">
            <?php
-               show_source( ABSPATH . 'wp-config.php');
+               @show_source( ABSPATH . 'wp-config.php');
            ?>
            </div>
        </div>
        <?php
    }
+
+   public static function renderhtaccess() {
+        ?>
+        <div class="postbox" id="mainwp-code-display">
+            <h3 class="hndle" style="padding: 8px 12px; font-size: 14px;"><span>.htaccess</span></h3>
+            <div style="padding: 1em;">
+            <?php
+                @show_source( ABSPATH . '.htaccess');
+            ?>
+            </div>
+        </div>
+        <?php
+    }
 }
 

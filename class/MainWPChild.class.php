@@ -135,12 +135,15 @@ class MainWPChild
     {
         //Admin Notice...
         if (is_plugin_active('mainwp-child/mainwp-child.php')) {
-            if (!get_option('mainwp_child_pubkey')) {
+            if (!get_option('mainwp_child_pubkey'))
+            {
                 $child_name = ($this->branding_robust === "MainWP") ? "MainWP Child" : $this->branding_robust;
                 echo '<div class="error" style="text-align: center;"><p style="color: red; font-size: 16px; font-weight: bold;">Attention!</p>
                       <p>Please add this site to your ' . $this->branding_robust . ' Dashboard now or deactivate the ' . $child_name . ' plugin until you are ready to do so to avoid security issues.</p></div>';
             }
         }
+
+        MainWPChildServerInformation::showWarnings();
     }
 
     public function localization()
@@ -234,8 +237,11 @@ class MainWPChild
              $this->branding = stripslashes($branding_header['name']);
         
         if (!get_option('mainwp_branding_remove_setting'))
+        {
             add_options_page('MainWPSettings', __($this->branding . ' Settings','mainwp-child'), 'manage_options', 'MainWPSettings', array(&$this, 'settings'));
-        
+            add_options_page('MainWPSettings', __($this->branding . ' Server Information','mainwp-child'), 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
+        }
+
         if (!get_option('mainwp_branding_remove_restore')) {
             $restorePage = add_submenu_page('tools.php', $this->branding . ' Restore', '<span style="display: hidden"></span>', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
             add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
@@ -3145,6 +3151,10 @@ class MainWPChild
         @ob_start();
         MainWPChildServerInformation::renderWPConfig();
         $output['wpconfig'] = @ob_get_contents();
+        @ob_end_clean();
+        @ob_start();
+        MainWPChildServerInformation::renderhtaccess();
+        $output['htaccess'] = @ob_get_contents();
         @ob_end_clean();
 
         MainWPHelper::write($output);
