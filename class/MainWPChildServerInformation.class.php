@@ -10,18 +10,37 @@ class MainWPChildServerInformation
         if (!$warnings && count($conflicts) == 0) return;
 
         ?>
-        <div class="error" style="text-align: center;">
-            <p style="color: red; font-size: 16px; font-weight: bold;">Attention!</p>
+    <style type="text/css">
+    .mainwp-child_info-box-warning {
+    background-color: rgba(187, 114, 57, 0.2) !important;
+    border-bottom: 4px solid #bb7239 !important;
+    border-top: 1px solid #bb7239 !important;
+    border-left: 1px solid #bb7239 !important;
+    border-right: 1px solid #bb7239 !important;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+    padding-left: 4.5em;
+    background-image: url('http://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png') !important;
+    background-position: 1.5em 50% !important;
+    background-repeat: no-repeat !important;
+    background-size: 30px !important;
+    }
+     </style>
+
+            <div><br/>
+                <table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box-warning" cellspacing="0">
+                    <tbody id="the-sites-list" class="list:sites">
             <?php
             $warning = '';
 
             if ($warnings)
             {
-                $warning .= 'This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=MainWPChildServerInformation">MainWP Server Information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a><br />';
+                $warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=MainWPChildServerInformation">MainWP Server Information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a></td></tr>';
             }
 
             if (count($conflicts) > 0) {
-                if ($warning != '') $warning .= '<br />';
+                $warning .= '<tr><td colspan="2">';
                 if (count($conflicts) == 1)
                 {
                     $warning .= '"' . $conflicts[0] . '" is';
@@ -30,11 +49,13 @@ class MainWPChildServerInformation
                 {
                     $warning .= '"' . join('", "', $conflicts) . '" are';
                 }
-                $warning .= ' installed on this site. This is known to have a potential conflict with MainWP functions <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a><br />';
+                $warning .= ' installed on this site. This is known to have a potential conflict with MainWP functions <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td></tr>';
             }
 
             echo $warning;
             ?>
+                </tbody>
+            </table>
         </div>
         <?php
     }
