@@ -4,14 +4,15 @@ class MainWPChildServerInformation
 {
     public static function showWarnings()
     {
+        if (stristr($_SERVER["REQUEST_URI"], 'MainWPChildServerInformation')) return;
+
         $conflicts = self::getConflicts();
         $warnings = self::hasWarnings();
 
         if (!$warnings && count($conflicts) == 0) return;
-
-        ?>
+?>
     <style type="text/css">
-    .mainwp-child_info-box-warning {
+    .mainwp-child_info-box-red-warning {
     background-color: rgba(187, 114, 57, 0.2) !important;
     border-bottom: 4px solid #bb7239 !important;
     border-top: 1px solid #bb7239 !important;
@@ -20,16 +21,25 @@ class MainWPChildServerInformation
     -webkit-border-radius: 3px;
     -moz-border-radius: 3px;
     border-radius: 3px;
-    padding-left: 4.5em;
-    background-image: url('http://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png') !important;
+    margin: 1em 0 !important;
+
+    background-image: url('<?php echo plugins_url('images/mainwp-icon-orange.png', dirname(__FILE__)); ?>') !important;
     background-position: 1.5em 50% !important;
     background-repeat: no-repeat !important;
     background-size: 30px !important;
     }
+    .mainwp-child_info-box-red-warning table {
+        background-color: rgba(187, 114, 57, 0) !important;
+        border: 0px;
+        padding-left: 4.5em;
+        background-position: 1.5em 50% !important;
+        background-repeat: no-repeat !important;
+        background-size: 30px !important;
+    }
      </style>
 
-            <div><br/>
-                <table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box-warning" cellspacing="0">
+        <div class="updated mainwp-child_info-box-red-warning">
+            <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
                     <tbody id="the-sites-list" class="list:sites">
             <?php
             $warning = '';
@@ -56,8 +66,8 @@ class MainWPChildServerInformation
             ?>
                 </tbody>
             </table>
-        </div>
-        <?php
+          </div>
+              <?php
     }
 
     public static function renderPage()
@@ -136,7 +146,7 @@ class MainWPChildServerInformation
             -moz-border-radius: 3px;
             border-radius: 3px;
             padding-left: 4.5em;
-            background-image: url('http://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png') !important;
+            background-image: url('<?php echo plugins_url('images/mainwp-icon-orange.png', dirname(__FILE__)); ?>') !important;
             background-position: 1.5em 50% !important;
             background-repeat: no-repeat !important;
             background-size: 30px !important;
@@ -166,7 +176,7 @@ class MainWPChildServerInformation
             -moz-border-radius: 3px;
             border-radius: 3px;
             padding-left: 4.5em;
-            background-image: url('http://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png') !important;
+            background-image: url('<?php echo plugins_url('images/mainwp-icon.png', dirname(__FILE__)); ?>') !important;
             background-position: 1.5em 50% !important;
             background-repeat: no-repeat !important;
             background-size: 30px !important;
