@@ -104,11 +104,28 @@ class MainWPChildServerInformation
         {
             $information['pluginConflicts'] = $conflicts;
             ?>
-        <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
+            <style type="text/css">
+            .mainwp-child_info-box-warning {
+            background-color: rgba(187, 114, 57, 0.2) !important;
+            border-bottom: 4px solid #bb7239 !important;
+            border-top: 1px solid #bb7239 !important;
+            border-left: 1px solid #bb7239 !important;
+            border-right: 1px solid #bb7239 !important;
+            -webkit-border-radius: 3px;
+            -moz-border-radius: 3px;
+            border-radius: 3px;
+            padding-left: 4.5em;
+            background-image: url('http://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png') !important;
+            background-position: 1.5em 50% !important;
+            background-repeat: no-repeat !important;
+            background-size: 30px !important;
+            }
+             </style>
+        <table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box-warning" cellspacing="0">
             <tbody id="the-sites-list" class="list:sites">
-                <tr><td colspan="2"><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found: (<a href="http://docs.mainwp.com/known-plugin-conflicts/" target="_blank">Fix</a>)</td></tr>
+                <tr><td colspan="2"><strong><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found</strong></td></tr>
                 <?php foreach ($conflicts as $conflict) { ?>
-                <tr><td style="width: 50px"></td><td><?php echo $conflict; ?></td></tr>
+                <tr><td><strong><?php echo $conflict; ?></strong> is installed on this site. This plugin is known to have a potential conflict with MainWP functions. <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td></tr>
                 <?php } ?>
             </tbody>
         </table>
@@ -117,7 +134,24 @@ class MainWPChildServerInformation
         else
         {
             ?>
-        <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
+            <style type="text/css">
+            .mainwp-child_info-box {
+            background-color: rgba(127, 177, 0, 0.2) !important;
+            border-bottom: 4px solid #7fb100 !important;
+            border-top: 1px solid #7fb100 !important;
+            border-left: 1px solid #7fb100 !important;
+            border-right: 1px solid #7fb100 !important;
+            -webkit-border-radius: 3px;
+            -moz-border-radius: 3px;
+            border-radius: 3px;
+            padding-left: 4.5em;
+            background-image: url('http://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png') !important;
+            background-position: 1.5em 50% !important;
+            background-repeat: no-repeat !important;
+            background-size: 30px !important;
+            }
+             </style>
+        <table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box" cellspacing="0">
             <tbody id="the-sites-list" class="list:sites">
                 <tr><td>No conflicts found.</td></tr>
             </tbody>
@@ -265,8 +299,8 @@ class MainWPChildServerInformation
         {
             if ($write)
             {
-                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not found', false);
-            }
+            return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not found', false);
+        }
             else return false;
         }
 
@@ -279,7 +313,7 @@ class MainWPChildServerInformation
             {
                 if ($write)
                 {
-                    return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
                 }
                 else return false;
             }
@@ -290,16 +324,16 @@ class MainWPChildServerInformation
             {
                 if ($write)
                 {
-                    return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
-                }
+                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+            }
                 else return false;
             }
         }
 
         if ($write)
         {
-            return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', '/', true);
-        }
+        return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', '/', true);
+    }
         else return true;
     }
 
