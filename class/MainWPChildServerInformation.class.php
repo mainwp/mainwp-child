@@ -225,7 +225,7 @@ class MainWPChildServerInformation
              </style>
         <table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box-warning" cellspacing="0">
             <tbody id="the-sites-list" class="list:sites">
-                <tr><td colspan="2"><strong><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found</strong></td><td style="text-align: right;"><a href="#" id="mainwp-child-warning-dismiss">Dismiss</a></td></tr>
+                <tr><td colspan="2"><strong><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found</strong></td><td style="text-align: right;"></td></tr>
                 <?php foreach ($conflicts as $conflict) { ?>
                 <tr><td><strong><?php echo $conflict; ?></strong> is installed on this site. This plugin is known to have a potential conflict with MainWP functions. <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td></tr>
                 <?php } ?>
