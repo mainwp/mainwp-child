@@ -58,6 +58,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
+= 0.29.7 =
+* Server Information page added for troubleshooting
+* Added server warning messages when minimum requirements not met
+* Added warning messages when child plugin detects possible conflict plugins
+* Added new hooks for upcoming extensions
+
 = 0.29.6 =
 * Fixed plugin conflict with Maintenance plugin
 * Added zip support to database backups
