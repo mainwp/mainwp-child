@@ -95,6 +95,7 @@ class MainWPChild
         $this->checkOtherAuth();
 		
         MainWPClone::init();
+        MainWPChildServerInformation::init();
         $this->run_saved_snippets();        
         //Clean legacy...
         if (get_option('mainwp_child_legacy') === false)

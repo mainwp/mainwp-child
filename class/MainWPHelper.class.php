@@ -697,6 +697,18 @@ class MainWPHelper
             add_option( $option_name, $option_value, null, 'no' );
         }
     }
+
+    static function containsAll($haystack, $needle)
+    {
+        if (!is_array($haystack) || !is_array($needle)) return false;
+
+        foreach ($needle as $item)
+        {
+            if (!in_array($item, $haystack)) return false;
+        }
+
+        return true;
+    }
 }
 
 ?>

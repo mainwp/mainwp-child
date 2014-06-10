@@ -2,15 +2,84 @@
 
 class MainWPChildServerInformation
 {
+    public static function init()
+    {
+        add_action('wp_ajax_mainwp-child_dismiss_warnings', array('MainWPChildServerInformation', 'dismissWarnings'));
+    }
+
+    public static function dismissWarnings()
+    {
+        if (isset($_POST['what']))
+        {
+            $dismissWarnings = get_option('mainwp_child_dismiss_warnings');
+            if (!is_array($dismissWarnings)) $dismissWarnings = array();
+
+            if ($_POST['what'] == 'conflict')
+            {
+                $dismissWarnings['conflicts'] = self::getConflicts();
+            }
+            else if ($_POST['what'] == 'warning')
+            {
+                $dismissWarnings['warnings'] = self::getWarnings();
+            }
+
+            MainWPHelper::update_option('mainwp_child_dismiss_warnings', $dismissWarnings);
+        }
+    }
+
     public static function showWarnings()
     {
         if (stristr($_SERVER["REQUEST_URI"], 'MainWPChildServerInformation')) return;
 
         $conflicts = self::getConflicts();
-        $warnings = self::hasWarnings();
+        $warnings = self::getWarnings();
 
-        if (!$warnings && count($conflicts) == 0) return;
+        $dismissWarnings = get_option('mainwp_child_dismiss_warnings');
+        if (!is_array($dismissWarnings)) $dismissWarnings = array();
+
+        if (isset($dismissWarnings['warnings']) && $dismissWarnings['warnings'] >= $warnings) $warnings = 0;
+        if (isset($dismissWarnings['conflicts']) && MainWPHelper::containsAll($dismissWarnings['conflicts'], $conflicts)) $conflicts = array();
+
+        if ($warnings == 0 && count($conflicts) == 0) return;
+
+        if ($warnings > 0)
+        {
+            $dismissWarnings['warnings'] = 0;
+        }
+
+        if (count($conflicts) > 0)
+        {
+            $dismissWarnings['conflicts'] = array();
+        }
+        MainWPHelper::update_option('mainwp_child_dismiss_warnings', $dismissWarnings);
 ?>
+    <script language="javascript">
+        dismiss_warnings = function(pElement, pAction) {
+            var table = jQuery(pElement.parents('table')[0]);
+            pElement.parents('tr')[0].remove();
+            if (table.find('tr').length == 0)
+            {
+                jQuery('#mainwp-child_server_warnings').hide();
+            }
+
+            var data = {
+                action:'mainwp-child_dismiss_warnings',
+                what: pAction
+            };
+
+            jQuery.ajax({
+                type:"POST",
+                url: ajaxurl,
+                data: data,
+                success: function(resp) { },
+                error: function() { },
+                dataType: 'json'});
+
+            return false;
+        };
+        jQuery(document).on('click', '#mainwp-child-connect-warning-dismiss', function() { return dismiss_warnings(jQuery(this), 'warning'); });
+        jQuery(document).on('click', '#mainwp-child-all-pages-warning-dismiss', function() { return dismiss_warnings(jQuery(this), 'conflict'); });
+    </script>
     <style type="text/css">
     .mainwp-child_info-box-red-warning {
     background-color: rgba(187, 114, 57, 0.2) !important;
@@ -38,15 +107,15 @@ class MainWPChildServerInformation
     }
      </style>
 
-        <div class="updated mainwp-child_info-box-red-warning">
+        <div class="updated mainwp-child_info-box-red-warning" id="mainwp-child_server_warnings">
             <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
                     <tbody id="the-sites-list" class="list:sites">
             <?php
             $warning = '';
 
-            if ($warnings)
+            if ($warnings > 0)
             {
-                $warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=MainWPChildServerInformation">MainWP Server Information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a></td></tr>';
+                $warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=MainWPChildServerInformation">MainWP Server Information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a></td><td style="text-align: right;"><a href="#" id="mainwp-child-connect-warning-dismiss">Dismiss</a></td></tr>';
             }
 
             if (count($conflicts) > 0) {
@@ -59,7 +128,7 @@ class MainWPChildServerInformation
                 {
                     $warning .= '"' . join('", "', $conflicts) . '" are';
                 }
-                $warning .= ' installed on this site. This is known to have a potential conflict with MainWP functions <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td></tr>';
+                $warning .= ' installed on this site. This is known to have a potential conflict with MainWP functions. <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td><td style="text-align: right;"><a href="#" id="mainwp-child-all-pages-warning-dismiss">Dismiss</a></td></tr>';
             }
 
             echo $warning;
@@ -82,20 +151,22 @@ class MainWPChildServerInformation
         MainWPChildServerInformation::renderErrorLogPage();
     }
 
-    public static function hasWarnings()
+    public static function getWarnings()
     {
-        if (!self::check('>=', '3.4', 'getWordpressVersion')) return true;
-        if (!self::check('>=', '5.2.4', 'getPHPVersion')) return true;
-        if (!self::check('>=', '5.0', 'getMySQLVersion')) return true;
-        if (!self::check('>=', '30', 'getMaxExecutionTime', '=', '0')) return true;
-        if (!self::check('>=', '2M', 'getUploadMaxFilesize')) return true;
-        if (!self::check('>=', '2M', 'getPostMaxSize')) return true;
-        if (!self::check('>=', '10000', 'getOutputBufferSize')) return true;
-        if (!self::check('=', true, 'getSSLSupport')) return true;
+        $i = 0;
 
-        if (!self::checkDirectoryMainWPDirectory(false)) return true;
+        if (!self::check('>=', '3.4', 'getWordpressVersion')) $i++;
+        if (!self::check('>=', '5.2.4', 'getPHPVersion')) $i++;
+        if (!self::check('>=', '5.0', 'getMySQLVersion')) $i++;
+        if (!self::check('>=', '30', 'getMaxExecutionTime', '=', '0')) $i++;
+        if (!self::check('>=', '2M', 'getUploadMaxFilesize')) $i++;
+        if (!self::check('>=', '2M', 'getPostMaxSize')) $i++;
+        if (!self::check('>=', '10000', 'getOutputBufferSize')) $i++;
+        if (!self::check('=', true, 'getSSLSupport')) $i++;
 
-        return false;
+        if (!self::checkDirectoryMainWPDirectory(false)) $i++;
+
+        return $i;
     }
 
     public static function getConflicts()
@@ -154,7 +225,7 @@ class MainWPChildServerInformation
              </style>
         <table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box-warning" cellspacing="0">
             <tbody id="the-sites-list" class="list:sites">
-                <tr><td colspan="2"><strong><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found</strong></td></tr>
+                <tr><td colspan="2"><strong><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found</strong></td><td style="text-align: right;"><a href="#" id="mainwp-child-warning-dismiss">Dismiss</a></td></tr>
                 <?php foreach ($conflicts as $conflict) { ?>
                 <tr><td><strong><?php echo $conflict; ?></strong> is installed on this site. This plugin is known to have a potential conflict with MainWP functions. <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td></tr>
                 <?php } ?>
@@ -184,7 +255,7 @@ class MainWPChildServerInformation
              </style>
         <table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box" cellspacing="0">
             <tbody id="the-sites-list" class="list:sites">
-                <tr><td>No conflicts found.</td></tr>
+                <tr><td>No conflicts found.</td></td><td style="text-align: right;"><a href="#" id="mainwp-child-info-dismiss">Dismiss</a></td></tr>
             </tbody>
         </table>
             <?php
