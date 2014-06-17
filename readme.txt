@@ -59,6 +59,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Changelog ==
 
 = 0.29.8 =
+* Fix for uploads path outside the conventional path for backups
 * Added new hooks for upcoming extensions
 
 = 0.29.7 =
