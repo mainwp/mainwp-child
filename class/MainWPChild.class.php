@@ -428,6 +428,9 @@ class MainWPChild
                 $includeCoreFiles = ($wpversion != $wp_version);
                 $excludes = (isset($_POST['exclude']) ? explode(',', $_POST['exclude']) : array());
                 $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
+                $uploadDir = MainWPHelper::getMainWPDir();
+                $uploadDir = $uploadDir[0];
+                $excludes[] = str_replace(ABSPATH, '', $uploadDir);
                 $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
                 if (!ini_get('safe_mode')) set_time_limit(600);
 
@@ -1497,6 +1500,9 @@ class MainWPChild
         {
             $excludes = (isset($_POST['exclude']) ? explode(',', $_POST['exclude']) : array());
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
+            $uploadDir = MainWPHelper::getMainWPDir();
+            $uploadDir = $uploadDir[0];
+            $excludes[] = str_replace(ABSPATH, '', $uploadDir);
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
             if (!ini_get('safe_mode')) set_time_limit(600);
 
@@ -3067,7 +3073,9 @@ class MainWPChild
     {
         if (MainWPHelper::function_exists('popen'))
         {
-            $popenHandle = @popen('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp"', 'r');
+            $uploadDir = MainWPHelper::getMainWPDir();
+            $uploadDir = $uploadDir[0];
+            $popenHandle = @popen('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
             if (gettype($popenHandle) == 'resource')
             {
                 $size = @fread($popenHandle, 1024);
@@ -3081,7 +3089,9 @@ class MainWPChild
         }
         if (MainWPHelper::function_exists('shell_exec'))
         {
-            $size = @shell_exec('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp"', 'r');
+            $uploadDir = MainWPHelper::getMainWPDir();
+            $uploadDir = $uploadDir[0];
+            $size = @shell_exec('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
             if ($size != NULL)
             {
                 $size = substr($size, 0, strpos($size, "\t"));
@@ -3117,6 +3127,9 @@ class MainWPChild
             {
                 $path = array_shift($dirs);
                 if (stristr($path, WP_CONTENT_DIR . '/uploads/mainwp')) continue;
+                $uploadDir = MainWPHelper::getMainWPDir();
+                $uploadDir = $uploadDir[0];
+                if (stristr($path, $uploadDir)) continue;
                 foreach (glob($path . '/*') AS $next)
                 {
                     if (is_dir($next))
