@@ -149,6 +149,39 @@ class MainWPHelper
             }
         }
         
+        if ($post_plus) {
+            $random_publish_date = isset($post_custom['_saved_draft_random_publish_date']) ? $post_custom['_saved_draft_random_publish_date'] : false;             
+            $random_publish_date = is_array($random_publish_date) ? current($random_publish_date) : null;
+            if (!empty($random_publish_date)) {
+                $random_date_from = isset($post_custom['_saved_draft_publish_date_from']) ? $post_custom['_saved_draft_publish_date_from'] : 0;
+                $random_date_from = is_array($random_date_from) ? current($random_date_from) : 0;            
+                
+                $random_date_to = isset($post_custom['_saved_draft_publish_date_to']) ? $post_custom['_saved_draft_publish_date_to'] : 0;
+                $random_date_to = is_array($random_date_to) ? current($random_date_to) : 0;            
+                
+                $now = current_time('timestamp');
+                
+                if (empty($random_date_from))
+                    $random_date_from = $now;
+                
+                if (empty($random_date_to))
+                    $random_date_to = $now;
+                
+                if ($random_date_from == $now && $random_date_from  == $random_date_to)
+                    $random_date_to = $now + 7 * 24 * 3600;
+                
+                if ($random_date_from > $random_date_to) {
+                    $tmp = $random_date_from;
+                    $random_date_from = $random_date_to;
+                    $random_date_to = $tmp;
+                }  
+                
+                $random_timestamp = rand($random_date_from, $random_date_to);
+                $post_status = ($random_timestamp <= current_time('timestamp')) ? 'publish' : 'future';                                
+                $new_post['post_status'] = $post_status;
+                $new_post['post_date'] = date('Y-m-d H:i:s', $random_timestamp);                
+            }            
+        }
         
         if (isset($post_tags) && $post_tags != '') $new_post['tags_input'] = $post_tags;
                 
@@ -316,37 +349,6 @@ class MainWPHelper
                     $key = array_rand($random_cats);                    
                     wp_set_post_categories($new_post_id, array($random_cats[$key]), false); 
                 }
-            }
-            
-            $random_publish_date = isset($post_custom['_saved_draft_random_publish_date']) ? $post_custom['_saved_draft_random_publish_date'] : false; 
-            $random_publish_date = is_array($random_publish_date) ? current($random_publish_date) : null;
-            if (!empty($random_publish_date)) {
-                $random_date_from = isset($post_custom['_saved_draft_publish_date_from']) ? $post_custom['_saved_draft_publish_date_from'] : 0;
-                $random_date_from = is_array($random_date_from) ? current($random_date_from) : 0;            
-                
-                $random_date_to = isset($post_custom['_saved_draft_publish_date_to']) ? $post_custom['_saved_draft_publish_date_to'] : 0;
-                $random_date_to = is_array($random_date_to) ? current($random_date_to) : 0;            
-                
-                $now = current_time('timestamp');
-                
-                if (empty($random_date_from))
-                    $random_date_from = $now;
-                
-                if (empty($random_date_to))
-                    $random_date_to = $now;
-                
-                if ($random_date_from == $now && $random_date_from  == $random_date_to)
-                    $random_date_to = $now + 7 * 24 * 3600;
-                
-                if ($random_date_from > $random_date_to) {
-                    $tmp = $random_date_from;
-                    $random_date_from = $random_date_to;
-                    $random_date_to = $tmp;
-                }
-                
-                $random_timestamp = rand($random_date_from, $random_date_to);
-                $post_status = ($random_timestamp <= current_time('timestamp')) ? 'publish' : 'future';                
-                wp_update_post(array('ID' => $new_post_id, 'post_date' => date('Y-m-d H:i:s', $random_timestamp), 'post_status' => $post_status));
             }
         }
         // end of post plus

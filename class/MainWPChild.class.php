@@ -55,7 +55,8 @@ class MainWPChild
         'uploader_action' => 'uploader_action',
         'wordpress_seo' => 'wordpress_seo',
         'client_report' => 'client_report',
-        'createBackupPoll' => 'backupPoll'
+        'createBackupPoll' => 'backupPoll',
+        'page_speed' => 'page_speed'        
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -628,6 +629,7 @@ class MainWPChild
         // Branding extension
         MainWPChildBranding::Instance()->branding_init();
         MainWPClientReport::Instance()->creport_init();
+        MainWPChildPagespeed::Instance()->init();
     }
 
     function default_option_active_plugins($default)
@@ -3529,6 +3531,10 @@ class MainWPChild
     
     function client_report() {        
         MainWPClientReport::Instance()->action();                
+    }
+    
+    function page_speed() {        
+        MainWPChildPagespeed::Instance()->action();                
     }
     
 }
