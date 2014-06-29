@@ -3073,82 +3073,89 @@ class MainWPChild
 
     function getTotalFileSize($directory = WP_CONTENT_DIR)
     {
-        if (MainWPHelper::function_exists('popen'))
+        try
         {
-            $uploadDir = MainWPHelper::getMainWPDir();
-            $uploadDir = $uploadDir[0];
-            $popenHandle = @popen('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
-            if (gettype($popenHandle) == 'resource')
+            if (MainWPHelper::function_exists('popen'))
             {
-                $size = @fread($popenHandle, 1024);
-                @pclose($popenHandle);
-                $size = substr($size, 0, strpos($size, "\t"));
-                if (ctype_digit($size))
-                {
-                    return $size / 1024;
-                }
-            }
-        }
-        if (MainWPHelper::function_exists('shell_exec'))
-        {
-            $uploadDir = MainWPHelper::getMainWPDir();
-            $uploadDir = $uploadDir[0];
-            $size = @shell_exec('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
-            if ($size != NULL)
-            {
-                $size = substr($size, 0, strpos($size, "\t"));
-                if (ctype_digit($size))
-                {
-                    return $size / 1024;
-                }
-            }
-        }
-        if (class_exists('COM'))
-        {
-            $obj = new COM('scripting.filesystemobject');
-
-            if (is_object($obj))
-            {
-                $ref = $obj->getfolder($directory);
-
-                $size = $ref->size;
-
-                $obj = null;
-                if (ctype_digit($size))
-                {
-                    return $size / 1024;
-                }
-            }
-        }
-
-        function dirsize($dir)
-        {
-            $dirs = array($dir);
-            $size = 0;
-            while (isset ($dirs[0]))
-            {
-                $path = array_shift($dirs);
-                if (stristr($path, WP_CONTENT_DIR . '/uploads/mainwp')) continue;
                 $uploadDir = MainWPHelper::getMainWPDir();
                 $uploadDir = $uploadDir[0];
-                if (stristr($path, $uploadDir)) continue;
-                foreach (glob($path . '/*') AS $next)
+                $popenHandle = @popen('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
+                if (gettype($popenHandle) == 'resource')
                 {
-                    if (is_dir($next))
+                    $size = @fread($popenHandle, 1024);
+                    @pclose($popenHandle);
+                    $size = substr($size, 0, strpos($size, "\t"));
+                    if (ctype_digit($size))
                     {
-                        $dirs[] = $next;
-                    }
-                    else
-                    {
-                        $fs = filesize($next);
-                        $size += $fs;
+                        return $size / 1024;
                     }
                 }
             }
-            return $size / 1024 / 1024;
-        }
+            if (MainWPHelper::function_exists('shell_exec'))
+            {
+                $uploadDir = MainWPHelper::getMainWPDir();
+                $uploadDir = $uploadDir[0];
+                $size = @shell_exec('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
+                if ($size != NULL)
+                {
+                    $size = substr($size, 0, strpos($size, "\t"));
+                    if (ctype_digit($size))
+                    {
+                        return $size / 1024;
+                    }
+                }
+            }
+            if (class_exists('COM'))
+            {
+                $obj = new COM('scripting.filesystemobject');
 
-        return dirsize($directory);
+                if (is_object($obj))
+                {
+                    $ref = $obj->getfolder($directory);
+
+                    $size = $ref->size;
+
+                    $obj = null;
+                    if (ctype_digit($size))
+                    {
+                        return $size / 1024;
+                    }
+                }
+            }
+
+            function dirsize($dir)
+            {
+                $dirs = array($dir);
+                $size = 0;
+                while (isset ($dirs[0]))
+                {
+                    $path = array_shift($dirs);
+                    if (stristr($path, WP_CONTENT_DIR . '/uploads/mainwp')) continue;
+                    $uploadDir = MainWPHelper::getMainWPDir();
+                    $uploadDir = $uploadDir[0];
+                    if (stristr($path, $uploadDir)) continue;
+                    foreach (glob($path . '/*') AS $next)
+                    {
+                        if (is_dir($next))
+                        {
+                            $dirs[] = $next;
+                        }
+                        else
+                        {
+                            $fs = filesize($next);
+                            $size += $fs;
+                        }
+                    }
+                }
+                return $size / 1024 / 1024;
+            }
+
+            return dirsize($directory);
+        }
+        catch (Exception $e)
+        {
+            return 0;
+        }
     }
 
     function serverInformation()

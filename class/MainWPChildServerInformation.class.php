@@ -394,15 +394,22 @@ class MainWPChildServerInformation
 
     protected static function checkDirectoryMainWPDirectory($write = true)
     {
-        $dirs = MainWPHelper::getMainWPDir();
-        $path = $dirs[0];
+        try
+        {
+            $dirs = MainWPHelper::getMainWPDir(null, false);
+            $path = $dirs[0];
+        }
+        catch (Exception $e)
+        {
+            return self::renderDirectoryRow('MainWP upload directory', '', 'Writable', $e->getMessage(), false);
+        }
 
         if (!is_dir(dirname($path)))
         {
             if ($write)
             {
-            return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not found', false);
-        }
+                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not found', false);
+            }
             else return false;
         }
 
@@ -426,8 +433,8 @@ class MainWPChildServerInformation
             {
                 if ($write)
                 {
-                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
-            }
+                    return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                }
                 else return false;
             }
         }
