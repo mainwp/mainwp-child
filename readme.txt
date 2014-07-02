@@ -64,7 +64,6 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Changes for update to Maintenance Extension
 * Fixed verbiage for restore popup 
 
-
 = 0.29.10 =
 * Fixed: Admin not accessible with invalid upload directory
 * Added new hooks for upcoming extensions
