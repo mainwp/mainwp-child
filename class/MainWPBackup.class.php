@@ -69,7 +69,7 @@ class MainWPBackup
             }
         }
 
-        $time = 300; /*300 seconds = 5 minutes*/
+        $time = 3000; /*300 seconds = 5 minutes*/
         $mem =  '512M';
         @ini_set('memory_limit', $mem);
         @ini_set('max_execution_time', $time);
@@ -97,7 +97,7 @@ class MainWPBackup
 
     public function zipFile($file, $archive)
     {
-        $time = 300; /*300 seconds = 5 minutes*/
+        $time = 3000; /*300 seconds = 5 minutes*/
         $mem =  '512M';
         @ini_set('memory_limit', $mem);
         @ini_set('max_execution_time', $time);

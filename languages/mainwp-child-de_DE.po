@@ -537,7 +537,7 @@ msgstr "Eine einziges Datenbank-Backup wird nicht funktionieren."
 #: class/MainWPClone.class.php:468
 #, php-format
 #@ mainwp-child
-msgid "This is a large site (%dMB), the clone process will more than likely fail."
+msgid "This is a large site (%dMB), the restore process will more than likely fail."
 msgstr "Dies ist eine große Seite (%dMB), der Klon-Prozess wird mehr als wahrscheinlich scheitern."
 
 #: class/MainWPClone.class.php:469

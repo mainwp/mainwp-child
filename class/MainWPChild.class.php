@@ -56,7 +56,8 @@ class MainWPChild
         'wordpress_seo' => 'wordpress_seo',
         'client_report' => 'client_report',
         'createBackupPoll' => 'backupPoll',
-        'page_speed' => 'page_speed'        
+        'page_speed' => 'page_speed',
+        'woo_com_status' => 'woo_com_status'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -629,7 +630,7 @@ class MainWPChild
         // Branding extension
         MainWPChildBranding::Instance()->branding_init();
         MainWPClientReport::Instance()->creport_init();
-        MainWPChildPagespeed::Instance()->init();
+        MainWPChildPagespeed::Instance()->init();        
     }
 
     function default_option_active_plugins($default)
@@ -3075,83 +3076,83 @@ class MainWPChild
     {
         try
         {
-            if (MainWPHelper::function_exists('popen'))
+        if (MainWPHelper::function_exists('popen'))
+        {
+            $uploadDir = MainWPHelper::getMainWPDir();
+            $uploadDir = $uploadDir[0];
+            $popenHandle = @popen('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
+            if (gettype($popenHandle) == 'resource')
             {
-                $uploadDir = MainWPHelper::getMainWPDir();
-                $uploadDir = $uploadDir[0];
-                $popenHandle = @popen('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
-                if (gettype($popenHandle) == 'resource')
+                $size = @fread($popenHandle, 1024);
+                @pclose($popenHandle);
+                $size = substr($size, 0, strpos($size, "\t"));
+                if (ctype_digit($size))
                 {
-                    $size = @fread($popenHandle, 1024);
-                    @pclose($popenHandle);
-                    $size = substr($size, 0, strpos($size, "\t"));
-                    if (ctype_digit($size))
-                    {
-                        return $size / 1024;
-                    }
+                    return $size / 1024;
                 }
             }
-            if (MainWPHelper::function_exists('shell_exec'))
-            {
-                $uploadDir = MainWPHelper::getMainWPDir();
-                $uploadDir = $uploadDir[0];
-                $size = @shell_exec('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
-                if ($size != NULL)
-                {
-                    $size = substr($size, 0, strpos($size, "\t"));
-                    if (ctype_digit($size))
-                    {
-                        return $size / 1024;
-                    }
-                }
-            }
-            if (class_exists('COM'))
-            {
-                $obj = new COM('scripting.filesystemobject');
-
-                if (is_object($obj))
-                {
-                    $ref = $obj->getfolder($directory);
-
-                    $size = $ref->size;
-
-                    $obj = null;
-                    if (ctype_digit($size))
-                    {
-                        return $size / 1024;
-                    }
-                }
-            }
-
-            function dirsize($dir)
-            {
-                $dirs = array($dir);
-                $size = 0;
-                while (isset ($dirs[0]))
-                {
-                    $path = array_shift($dirs);
-                    if (stristr($path, WP_CONTENT_DIR . '/uploads/mainwp')) continue;
-                    $uploadDir = MainWPHelper::getMainWPDir();
-                    $uploadDir = $uploadDir[0];
-                    if (stristr($path, $uploadDir)) continue;
-                    foreach (glob($path . '/*') AS $next)
-                    {
-                        if (is_dir($next))
-                        {
-                            $dirs[] = $next;
-                        }
-                        else
-                        {
-                            $fs = filesize($next);
-                            $size += $fs;
-                        }
-                    }
-                }
-                return $size / 1024 / 1024;
-            }
-
-            return dirsize($directory);
         }
+        if (MainWPHelper::function_exists('shell_exec'))
+        {
+            $uploadDir = MainWPHelper::getMainWPDir();
+            $uploadDir = $uploadDir[0];
+            $size = @shell_exec('du -s ' . $directory . ' --exclude "' . str_replace(ABSPATH, '', $uploadDir) . '"', 'r');
+            if ($size != NULL)
+            {
+                $size = substr($size, 0, strpos($size, "\t"));
+                if (ctype_digit($size))
+                {
+                    return $size / 1024;
+                }
+            }
+        }
+        if (class_exists('COM'))
+        {
+            $obj = new COM('scripting.filesystemobject');
+
+            if (is_object($obj))
+            {
+                $ref = $obj->getfolder($directory);
+
+                $size = $ref->size;
+
+                $obj = null;
+                if (ctype_digit($size))
+                {
+                    return $size / 1024;
+                }
+            }
+        }
+
+        function dirsize($dir)
+        {
+            $dirs = array($dir);
+            $size = 0;
+            while (isset ($dirs[0]))
+            {
+                $path = array_shift($dirs);
+                if (stristr($path, WP_CONTENT_DIR . '/uploads/mainwp')) continue;
+                $uploadDir = MainWPHelper::getMainWPDir();
+                $uploadDir = $uploadDir[0];
+                if (stristr($path, $uploadDir)) continue;
+                foreach (glob($path . '/*') AS $next)
+                {
+                    if (is_dir($next))
+                    {
+                        $dirs[] = $next;
+                    }
+                    else
+                    {
+                        $fs = filesize($next);
+                        $size += $fs;
+                    }
+                }
+            }
+            return $size / 1024 / 1024;
+        }
+
+        return dirsize($directory);
+    }
         catch (Exception $e)
         {
             return 0;
@@ -3543,6 +3544,11 @@ class MainWPChild
     function page_speed() {        
         MainWPChildPagespeed::Instance()->action();                
     }
+      
+    function woo_com_status() {        
+        MainWPChildWooCommerceStatus::Instance()->action();                
+    }
+    
     
 }
 

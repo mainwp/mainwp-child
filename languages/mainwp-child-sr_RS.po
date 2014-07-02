@@ -369,7 +369,7 @@ msgstr "MainWP Kloniranje"
 #: class/MainWPClone.class.php:221
 #, php-format
 #@ mainwp-child
-msgid "This is a large site (%dMB), the clone process will more than likely fail."
+msgid "This is a large site (%dMB), the restore process will more than likely fail."
 msgstr "Ovo je veliki sajt (%dMB), kloniranje verovatno neće uspeti."
 
 #: class/MainWPClone.class.php:222

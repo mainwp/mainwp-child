@@ -401,7 +401,7 @@ Author URI: http://dd32.id.au/
         $uploadSizeInBytes = min(MainWPHelper::return_bytes(ini_get('upload_max_filesize')), MainWPHelper::return_bytes(ini_get('post_max_size')));
         $uploadSize = MainWPHelper::human_filesize($uploadSizeInBytes);
 ?>
-    <div id="mainwp-child_clone_status" title="Clone process"></div>    
+    <div id="mainwp-child_clone_status" title="Restore process"></div>
     <script language="javascript">
         jQuery(document).on('change', '#file', function()
         {
@@ -465,7 +465,7 @@ Author URI: http://dd32.id.au/
         };
 
         var translations = [] ;
-        translations['large_site'] = '<?php _e('This is a large site (%dMB), the clone process will more than likely fail.', 'mainwp-child'); ?>';
+        translations['large_site'] = '<?php _e('This is a large site (%dMB), the restore process will more than likely fail.', 'mainwp-child'); ?>';
         translations['continue_anyway'] = '<?php _e('Continue Anyway?', 'mainwp-child'); ?>';
         translations['creating_backup'] = '<?php _e('Creating backup on %s expected size: %dMB (estimated time: %d seconds)', 'mainwp-child'); ?>';
         translations['backup_created'] = '<?php _e('Backup created on %s total size to download: %dMB', 'mainwp-child'); ?>';

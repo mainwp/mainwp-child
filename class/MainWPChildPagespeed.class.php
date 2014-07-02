@@ -13,7 +13,7 @@ class MainWPChildPagespeed
     }  
     
     public function __construct() {
- 
+        add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
     }
     
     public function action() {   
@@ -38,8 +38,15 @@ class MainWPChildPagespeed
         MainWPHelper::write($information);
     }  
    
+    public function child_deactivation()
+    {
+        if ($sched = wp_next_scheduled('mainwp_child_pagespeed_cron_check')) {
+            wp_unschedule_event($sched, 'mainwp_child_pagespeed_cron_check');
+        }
+    }
+    
     public function init()
-    {  
+    {          
         if (get_option('mainwp_pagespeed_ext_enabled') !== "Y")
             return;
         
@@ -49,8 +56,34 @@ class MainWPChildPagespeed
             //add_action('admin_menu', array($this, 'hide_menu'), 999);
             add_filter('update_footer', array(&$this, 'update_footer'), 15);   
         }
+        $this->init_cron();        
     }        
     
+    public function init_cron() {        
+        add_action('mainwp_child_pagespeed_cron_check', array('MainWPChildPagespeed', 'pagespeed_cron_check'));            
+        if (($sched = wp_next_scheduled('mainwp_child_pagespeed_cron_check')) == false)
+        {            
+            wp_schedule_event(time(), 'daily', 'mainwp_child_pagespeed_cron_check');                            
+        }  
+    }    
+    
+    public static function pagespeed_cron_check() {
+        $count = get_option("mainwp_child_pagespeed_count_checking");
+        if ($count == 7) {
+            $recheck = true;
+            $count = 0;            
+        } else {
+            $recheck = false;
+            $count++;
+        }        
+        update_option("mainwp_child_pagespeed_count_checking", $count);
+        
+        $worker_args = array(
+            array(), false, $recheck
+        );
+        wp_schedule_single_event( time(), 'googlepagespeedinsightschecknow', $worker_args );
+    }
+            
     public function hide_plugin($plugins) {
         foreach ($plugins as $key => $value)
         {
@@ -150,17 +183,19 @@ class MainWPChildPagespeed
         
         $strategy = $current_values['strategy'];
         
-        $sync_data = $this->sync_data($strategy);        
-        $information['data'] = $sync_data['data'];        
+        $information = $this->sync_data($strategy);                    
         return $information;
     }
     
     function sync_data($strategy = "") {
         if (empty($strategy))
             $strategy = "both";
+        $current_values = get_option('gpagespeedi_options');        
+                    
+        if (is_array($current_values) && $current_values['last_run_finished'] == false)
+            return array('result' => 'RUNNING');
         
-        $information = array();
-        $current_values = get_option('gpagespeedi_options');
+        $information = array();        
         $bad_key = ($current_values['bad_api_key'] || empty($current_values['google_developer_key']));
         $data = array('bad_api_key' => $bad_key );   
         
@@ -182,9 +217,11 @@ class MainWPChildPagespeed
     }
     
     static function cal_pagespeed_data($strategy) {
-        global $wpdb;
-        
+        global $wpdb;        
         if ( !defined('GPI_DIRECTORY') )
+            return 0;
+        
+        if ($strategy !== "desktop" && $strategy !== "mobile")
             return 0;
         
         require_once( GPI_DIRECTORY . '/includes/helper.php' );
@@ -280,12 +317,11 @@ class MainWPChildPagespeed
                             WHERE ($reports_typestocheck[0])
                             AND $nullcheck",
                             $reports_typestocheck[1]
-                        ),
+                        ),                    
                         ARRAY_A 
                     );
-        }
-        
-        return array('last_modified' => isset($data['last_modified']) ? $data['last_modified'] : 0, 
+        }                
+        return array('last_modified' => is_array($data[0]) && isset($data[0]['last_modified']) ? $data[0]['last_modified'] : 0, 
                     'average_score' => $average_score,
                     'total_pages' => $total_pages);
     }
