@@ -794,6 +794,54 @@ class MainWPHelper
 
         return true;
     }
+    
+    public static function getRevisions($max_revisions)
+    {
+        global $wpdb;
+        $sql = " SELECT	`post_parent`, COUNT(*) cnt
+                FROM $wpdb->posts 
+                WHERE `post_type` = 'revision'
+                GROUP BY `post_parent`
+                HAVING COUNT(*) > ".$max_revisions;
+        return $wpdb -> get_results($sql);
+    } 
+    
+    public static function deleteRevisions($results, $max_revisions)
+    {
+	global $wpdb;
+        
+        if (!is_array($results) || count($results) == 0)
+            return;
+        $count_deleted = 0;
+	for($i=0; $i<count($results); $i++) {	
+            $number_to_delete = $results[$i]->cnt - $max_revisions;	
+            $count_deleted += $number_to_delete;
+            $sql_get = "
+                    SELECT `ID`, `post_modified`
+                    FROM  $wpdb->posts
+                    WHERE `post_parent`=".$results[$i]->post_parent."
+                    AND `post_type`='revision'
+                    ORDER BY `post_modified` ASC		
+                ";
+            $results_posts = $wpdb -> get_results($sql_get);      
+            
+            $delete_ids = array();
+            if (is_array($results_posts) && count($results_posts) > 0) {
+                for($j=0; $j< $number_to_delete; $j++)
+                    $delete_ids[] = $results_posts[$j]->ID;
+            }
+           
+            if (count($delete_ids) > 0) {
+                $sql_delete = " DELETE FROM $wpdb->posts
+                                WHERE `ID` IN (" . implode(",", $delete_ids) . ")
+                            ";
+                $wpdb -> get_results($sql_delete);
+            } 
+        }
+        
+        return $count_deleted;
+    }
+
 }
 
 ?>

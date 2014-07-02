@@ -325,7 +325,7 @@ class MainWPClientReport
                                 
                 switch ($data) {
                     case "date":
-                        $token_values[$token] = $record->created;                            
+                        $token_values[$token] = MainWPHelper::formatTimestamp(strtotime($record->created));                            
                         break;
                     case "area":                        
                         $data = "sidebar_name";  
