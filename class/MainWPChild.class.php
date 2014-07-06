@@ -437,7 +437,7 @@ class MainWPChild
                 $uploadDir = $uploadDir[0];
                 $excludes[] = str_replace(ABSPATH, '', $uploadDir);
                 $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
-                if (!ini_get('safe_mode')) set_time_limit(600);
+                if (!ini_get('safe_mode')) set_time_limit(6000);
 
                 $newExcludes = array();
                 foreach ($excludes as $exclude)
@@ -1513,7 +1513,7 @@ class MainWPChild
             $uploadDir = $uploadDir[0];
             $excludes[] = str_replace(ABSPATH, '', $uploadDir);
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
-            if (!ini_get('safe_mode')) set_time_limit(600);
+            if (!ini_get('safe_mode')) set_time_limit(6000);
 
             $file_descriptors = (isset($_POST['file_descriptors']) ? $_POST['file_descriptors'] : 0);
 

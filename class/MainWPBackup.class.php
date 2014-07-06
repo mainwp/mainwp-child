@@ -75,17 +75,17 @@ class MainWPBackup
         @ini_set('max_execution_time', $time);
 
         $success = false;
-        if ($this->checkZipSupport() && $this->createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles))
+        if ($this->checkZipSupport())
         {
-            $success = true;
+            $success = $this->createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles);
         }
-        else if ($this->checkZipConsole() && $this->createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles))
+        else if ($this->checkZipConsole())
         {
-            $success = true;
+            $success = $this->createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles);
         }
-        else if ($this->createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles))
+        else
         {			
-            $success = true;
+            $success = $this->createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles);
         }
 
         return ($success) ? array(
@@ -103,17 +103,17 @@ class MainWPBackup
         @ini_set('max_execution_time', $time);
 
         $success = false;
-        if ($this->checkZipSupport() && $this->_zipFile($file, $archive))
+        if ($this->checkZipSupport())
         {
-            $success = true;
+            $success = $this->_zipFile($file, $archive);
         }
-        else if ($this->checkZipConsole() && $this->_zipFileConsole($file, $archive))
+        else if ($this->checkZipConsole())
         {
-            $success = true;
+            $success = $this->_zipFileConsole($file, $archive);
         }
-        else if ($this->_zipFilePcl($file, $archive))
+        else
         {
-            $success = true;
+            $success = $this->_zipFilePcl($file, $archive);
         }
 
         return $success;
@@ -272,8 +272,9 @@ class MainWPBackup
             $return = $this->zip->close();
             @unlink(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');
 
-            return $return;
+            return true;
         }
+
         return false;
     }
 
