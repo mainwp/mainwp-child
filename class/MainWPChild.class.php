@@ -1513,7 +1513,9 @@ class MainWPChild
             $uploadDir = $uploadDir[0];
             $excludes[] = str_replace(ABSPATH, '', $uploadDir);
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
-            if (!ini_get('safe_mode')) set_time_limit(6000);
+            $timeout = 20 * 60 * 60; //20minutes
+            @set_time_limit($timeout);
+            @ini_set('max_execution_time', $timeout);
 
             $file_descriptors = (isset($_POST['file_descriptors']) ? $_POST['file_descriptors'] : 0);
 

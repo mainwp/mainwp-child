@@ -8,6 +8,9 @@ class MainWPBackup
     protected $zipArchiveFileName;
     protected $file_descriptors;
 
+    protected $timeout;
+    protected $lastRun;
+
     protected function __construct()
     {
 
@@ -69,10 +72,11 @@ class MainWPBackup
             }
         }
 
-        $time = 3000; /*300 seconds = 5 minutes*/
+        $this->timeout = 20 * 60 * 60; /*20 minutes*/
         $mem =  '512M';
         @ini_set('memory_limit', $mem);
-        @ini_set('max_execution_time', $time);
+        @set_time_limit($this->timeout);
+        @ini_set('max_execution_time', $this->timeout);
 
         $success = false;
         if ($this->checkZipSupport())
@@ -97,10 +101,11 @@ class MainWPBackup
 
     public function zipFile($file, $archive)
     {
-        $time = 3000; /*300 seconds = 5 minutes*/
+        $this->timeout = 20 * 60 * 60; /*20 minutes*/
         $mem =  '512M';
         @ini_set('memory_limit', $mem);
-        @ini_set('max_execution_time', $time);
+        @set_time_limit($this->timeout);
+        @ini_set('max_execution_time', $this->timeout);
 
         $success = false;
         if ($this->checkZipSupport())
@@ -527,6 +532,11 @@ class MainWPBackup
 
     function addFileToZip($path, $zipEntryName)
     {
+        if (time() - $this->lastRun > 20)
+        {
+            @set_time_limit($this->timeout);
+            $this->lastRun = time();
+        }
         // this would fail with status ZIPARCHIVE::ER_OPEN
         // after certain number of files is added since
         // ZipArchive internally stores the file descriptors of all the
