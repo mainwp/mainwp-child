@@ -27,9 +27,10 @@ class MainWPKeywordLinks
         $this->config = get_option('mainwp_kwl_options', array());
         $this->keyword_links = get_option('mainwp_kwl_keyword_links', array()); 
         if (empty($this->keyword_links))
-            $this->keyword_links = array();
+            $this->keyword_links = array();    
+        //print_r($this->keyword_links);
         $this->siteurl = get_option('siteurl');
-		add_action('permalink_structure_changed', array(&$this, 'permalinkChanged'), 10, 2);
+        add_action('permalink_structure_changed', array(&$this, 'permalinkChanged'), 10, 2);
         add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
     }
     
@@ -462,11 +463,20 @@ class MainWPKeywordLinks
         if ($post && $post->ID > 0) 
             $spec_link_id = get_post_meta($post->ID, '_mainwp_kwl_specific_link_id', true); 
         
-        foreach($this->keyword_links as $link) {            
-            if ($link->type == 1 || $link->type == 3)
-                $links[] = $link;
-            else if ($spec_link_id && $spec_link_id == $link->id){
-                $links[] = $link;
+        $post_timestamp = strtotime($post->post_date);        
+        foreach($this->keyword_links as $link) {              
+            if ($link->type == 1 || $link->type == 3) {                
+                if ($link->check_post_date) {                                     
+                    if ($post_timestamp < $link->check_post_date)
+                        $links[] = $link;
+                } else 
+                    $links[] = $link;
+            } else if ($spec_link_id && $spec_link_id == $link->id){
+                if ($link->check_post_date) {
+                    if ($post_timestamp < $link->check_post_date)
+                        $links[] = $link;
+                } else 
+                    $links[] = $link;
             }
         }        
         return $links;
@@ -515,7 +525,11 @@ class MainWPKeywordLinks
     public function explode_multi($str) {
         $delimiters = array(",", ";", "|");
         $str = str_replace($delimiters, ",", $str);
-        return explode(',', $str);
+        $kws = explode(',', $str);
+        $return = array();
+        foreach ($kws as $kw)             
+            $return[] = trim($kw);
+        return $return;
     }
     
     public function redirect_cloak() {
@@ -606,12 +620,12 @@ class MainWPKeywordLinks
     public function action() {
         $result = array();
         switch ($_POST['action']) {
-			case 'enable_stats':
+            case 'enable_stats':
                 $result = $this->enable_stats();
-			break;
-			case 'refresh_data':
+                break;
+            case 'refresh_data':
                 $result = $this->refresh_data();
-			break;
+                break;
             case 'import_link':
             case 'add_link':
                 $result = $this->edit_link();
@@ -633,21 +647,53 @@ class MainWPKeywordLinks
                 break;        
             case 'donotlink_clear':
                 $result = $this->donotlink_clear();
-                break;        
+                break;  
+            case 'remove_keywords':
+                $result = $this->remove_keywords();
+                break;  
         }        
         MainWPHelper::write($result);
     }
-	
-	public function enable_stats()
+    
+    function remove_keywords() {
+        $result = array();
+        $remove_keywords = $_POST['keywords'];
+        $remove_keywords = unserialize(base64_decode($remove_keywords));
+        $remove_kws = $this->explode_multi($remove_keywords);
+        
+        if (is_array($remove_kws) && is_array($this->keyword_links)) {
+            $new_keyword_links = array();            
+            foreach($this->keyword_links as $link_id => $link) {
+                $lnk_kws = $link->keyword;
+                $lnk_kws= $this->explode_multi($lnk_kws);
+                $diff_kws = array();
+                if (is_array($lnk_kws)) {
+                    $diff_kws = array_diff($lnk_kws, $remove_kws);
+                }
+                if (count($diff_kws) > 0) {
+                    $link->keyword = implode(",", $diff_kws);
+                    $new_keyword_links[$link_id] = $link;
+                }                
+            }            
+            $this->keyword_links = $new_keyword_links;
+            MainWPHelper::update_option('mainwp_kwl_keyword_links', $this->keyword_links);
+            $return['status'] = 'SUCCESS';
+        } else {      
+            $return['status'] = 'NOCHANGE';                      
+        }
+        return $return;   
+    }
+    
+    public function enable_stats()
     {
-		$result = array();
+        $result = array();
         $enable_stats = intval($_POST['enablestats']);
         if (MainWPHelper::update_option('mainwp_kwl_enable_statistic', $enable_stats))
-			$return['status'] = 'SUCCESS';                      
+            $return['status'] = 'SUCCESS';                      
         return $return;
     }
 	
-	public function refresh_data()
+    public function refresh_data()
     {
         $result = array();
         if (isset($_POST['clear_all'])) {
@@ -662,12 +708,18 @@ class MainWPKeywordLinks
     public function delete_link() {
         $result = array();
         if (!empty($_POST['link_id'])) {
-            $del_link = $this->get_link($_POST['link_id'], false);
-            if ($del_link) {
-                if ($del_link->type == 2 || $del_link->type == 3)                     
-                    $deleted = delete_post_meta($del_link->post_id, '_mainwp_kwl_specific_link_id'); 
-                if ($this->set_link($del_link->id, '')) 
-                    $return['status'] = 'SUCCESS';             
+            $current = $this->get_link($_POST['link_id'], false);
+            $delete_permanent = intval($_POST['delete_permanent']);
+            if ($current) {
+                if ($delete_permanent) {
+                    if ($current->type == 2 || $current->type == 3)                     
+                        $deleted = delete_post_meta($current->post_id, '_mainwp_kwl_specific_link_id'); 
+                    if ($this->set_link($current->id, '')) 
+                        $return['status'] = 'SUCCESS';             
+                } else {
+                    $current->check_post_date = time();
+                    $this->set_link($current->id, $current);
+                }
             }
             else 
                 $return['status'] = 'SUCCESS';
@@ -701,14 +753,24 @@ class MainWPKeywordLinks
     public function edit_link() {
         $return = array();
         $link_id = $_POST['id'];
-        if (!empty($link_id)) {   
+        if (!empty($link_id)) {
+            
+                $valid_kws = "";                
+                $chec_kws = $this->check_existed_keywords($link_id, sanitize_text_field($_POST['keyword']));
+                if (is_array($chec_kws['existed']) && count($chec_kws['existed']) > 0) {
+                    $return['existed_keywords'] = $chec_kws['existed'];
+                }                
+                if (is_array($chec_kws['valid']) && count($chec_kws['valid']) > 0) {
+                    $valid_kws = implode(",", $chec_kws['valid']);
+                }
+                
                 $old = $this->get_link($link_id);
                 $link = new stdClass;
                 $link->id = intval($link_id);
                 $link->name = sanitize_text_field($_POST['name']);                
                 $link->destination_url = sanitize_text_field($_POST['destination_url']);
                 $link->cloak_path = sanitize_text_field($_POST['cloak_path']);
-                $link->keyword = sanitize_text_field($_POST['keyword']);
+                $link->keyword = $valid_kws;
                 $link->link_target = $_POST['link_target'];  // number or text
                 $link->link_rel = $_POST['link_rel']; // number or text
                 $link->link_class = sanitize_text_field($_POST['link_class']);
@@ -732,6 +794,27 @@ class MainWPKeywordLinks
             return $return;
     }
      
+    function check_existed_keywords($link_id, $keywords) {
+        $new_kws = $this->explode_multi($keywords);
+        $existed_kws = array();          
+        if (is_array($new_kws) && is_array($this->keyword_links)) {
+            foreach($this->keyword_links as $lnk_id => $kw) {                  
+                if ($link_id != $lnk_id) {                                        
+                    $link_kws = $this->explode_multi($kw->keyword);                    
+                    if (is_array($link_kws)) {                        
+                        foreach($new_kws as $new_kw) {
+                            if (in_array($new_kw, $link_kws) && !in_array($new_kw, $existed_kws))
+                                $existed_kws[] = $new_kw;     
+                        }
+                    } 
+                }
+            }
+        } 
+        
+        return array('existed' => $existed_kws, 
+                    'valid' => array_diff( $new_kws,  $existed_kws));
+    }
+    
     public function update_config() {
             $return = array();
             $this->config = array(

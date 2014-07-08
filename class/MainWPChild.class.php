@@ -58,7 +58,8 @@ class MainWPChild
         'createBackupPoll' => 'backupPoll',
         'page_speed' => 'page_speed',
         'woo_com_status' => 'woo_com_status',
-        'heatmaps' => 'heatmaps'   
+        'heatmaps' => 'heatmaps',
+        'links_checker' => 'links_checker'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -87,7 +88,7 @@ class MainWPChild
         $this->plugin_slug = plugin_basename($plugin_file);
         list ($t1, $t2) = explode('/', $this->plugin_slug);
         $this->slug = str_replace('.php', '', $t2);
-            
+       
         $this->posts_where_suffix = '';
         $this->comments_and_clauses = '';
         add_action('template_redirect', array($this, 'template_redirect'));
@@ -637,6 +638,7 @@ class MainWPChild
         MainWPChildBranding::Instance()->branding_init();
         MainWPClientReport::Instance()->creport_init();
         MainWPChildPagespeed::Instance()->init();        
+        MainWPChildLinksChecker::Instance()->init();
     }
 
     function default_option_active_plugins($default)
@@ -3575,7 +3577,10 @@ class MainWPChild
                 $this->update_htaccess(true);
             }
         }             
-    }    
+    }
+    function links_checker() {        
+        MainWPChildLinksChecker::Instance()->action();                
+    }
 }
 
 ?>
