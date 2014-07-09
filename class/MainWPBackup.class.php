@@ -221,9 +221,11 @@ class MainWPBackup
                 }
                 unset($coreFiles);
             }
-            $this->createBackupDB(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');            
-			$this->addFileToZip(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql', basename(WP_CONTENT_DIR) . '/' . 'dbBackup.sql');			
+
+            $this->createBackupDB(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');
+			$this->addFileToZip(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql', basename(WP_CONTENT_DIR) . '/' . 'dbBackup.sql');
             if (file_exists(ABSPATH . '.htaccess')) $this->addFileToZip(ABSPATH . '.htaccess', 'mainwp-htaccess');
+
             foreach ($nodes as $node)
             {
                 if ($excludes == null || !in_array(str_replace(ABSPATH, '', $node), $excludes))
@@ -238,6 +240,8 @@ class MainWPBackup
                     }
                 }
             }
+
+
             if ($addConfig)
             {
                 global $wpdb;
@@ -545,27 +549,26 @@ class MainWPBackup
         // and: http://pecl.php.net/bugs/bug.php?id=9443
         // return $zip->addFile( $path, $zipEntryName );
 
-        $this->zipArchiveFileCount++;
         $this->zipArchiveSizeCount += filesize($path);
 
-        $added = $this->zip->addFile($path, $zipEntryName);
-//        if (true || filesize($path) > 10485760)
-//        {
-//            echo 'addFile ' . $path . ' : ' . $added . '<br />';
-//        }
-//        else
-//        {
-//            $contents = file_get_contents($path);
-//            if ($contents === false)
-//            {
-//                return false;
-//            }
-//            $added = $this->zip->addFromString($zipEntryName, $contents);
-//        }
+        //5 mb limit!
+        if (filesize($path) > 5 * 1024 * 1024)
+        {
+            $this->zipArchiveFileCount++;
+            $added = $this->zip->addFile($path, $zipEntryName);
+        }
+        else
+        {
+            $contents = file_get_contents($path);
+            if ($contents === false)
+            {
+                return false;
+            }
+            $added = $this->zip->addFromString($zipEntryName, $contents);
+        }
 
-        //Over limits? 30 files or 30MB of files added
-//        if (($this->zipArchiveFileCount >= 254) || ($this->zipArchiveSizeCount >= 31457280))
-        if ((($this->file_descriptors > 0) && ($this->zipArchiveFileCount > $this->file_descriptors)) || $this->zipArchiveSizeCount >= (31457280 * 2))
+        //Over limits?
+        if ((($this->file_descriptors > 0) && ($this->zipArchiveFileCount > $this->file_descriptors))) // || $this->zipArchiveSizeCount >= (31457280 * 2))
         {
             $this->zip->close();
             $this->zip->open($this->zipArchiveFileName);
