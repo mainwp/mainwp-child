@@ -11,6 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
+    private $version = '0.29.14';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -400,14 +401,14 @@ class MainWPChild
         if (isset($_POST['cloneFunc']))
         {
             if (!isset($_POST['key'])) return;
-            if (!isset($_POST['file']) || ($_POST['file'] == '')) return;
+            if (!isset($_POST['f']) || ($_POST['f'] == '')) return;
             if (!$this->isValidAuth($_POST['key'])) return;
 
             if ($_POST['cloneFunc'] == 'deleteCloneBackup')
             {
                 $dirs = MainWPHelper::getMainWPDir('backup');
                 $backupdir = $dirs[0];
-                $result = glob($backupdir . $_POST['file']);
+                $result = glob($backupdir . $_POST['f']);
                 if (count($result) == 0) return;
 
                 @unlink($result[0]);
@@ -417,7 +418,7 @@ class MainWPChild
             {
                 $dirs = MainWPHelper::getMainWPDir('backup');
                 $backupdir = $dirs[0];
-                $result = glob($backupdir . 'backup-'.$_POST['file'].'-*.zip');
+                $result = glob($backupdir . 'backup-'.$_POST['f'].'-*.zip');
                 if (count($result) == 0) return;
 
                 MainWPHelper::write(array('size' => filesize($result[0])));
@@ -446,14 +447,14 @@ class MainWPChild
                     $newExcludes[] = rtrim($exclude, '/');
                 }
 
-                $res = MainWPBackup::get()->createFullBackup($newExcludes, $_POST['file'], true, $includeCoreFiles);
+                $res = MainWPBackup::get()->createFullBackup($newExcludes, $_POST['f'], true, $includeCoreFiles);
                 if (!$res)
                 {
                     $information['backup'] = false;
                 }
                 else
                 {
-                    $information['backup'] = $res['file'];
+                    $information['backup'] = $res['f'];
                     $information['size'] = $res['filesize'];
                 }
 
@@ -517,7 +518,16 @@ class MainWPChild
             {
                 $signature = rawurldecode(isset($_REQUEST['mainwpsignature']) ? $_REQUEST['mainwpsignature'] : '');
 //                $signature = str_replace(' ', '+', $signature);
-                $auth = $this->auth($signature, rawurldecode((isset($_REQUEST['where']) ? $_REQUEST['where'] : (isset($_REQUEST['file']) ? $_REQUEST['file'] : ''))), isset($_REQUEST['nonce']) ? $_REQUEST['nonce'] : '', isset($_REQUEST['nossl']) ? $_REQUEST['nossl'] : 0);
+                $file = '';
+                if (isset($_REQUEST['f']))
+                {
+                    $file = $_REQUEST['f'];
+                }
+                else if (isset($_REQUEST['file']))
+                {
+                    $file = $_REQUEST['file'];
+                }
+                $auth = $this->auth($signature, rawurldecode((isset($_REQUEST['where']) ? $_REQUEST['where'] : $file)), isset($_REQUEST['nonce']) ? $_REQUEST['nonce'] : '', isset($_REQUEST['nossl']) ? $_REQUEST['nossl'] : 0);
                 if (!$auth) return;
                 if (!$this->login($_REQUEST['user']))
                 {
@@ -526,11 +536,21 @@ class MainWPChild
             }
 
             $where = isset($_REQUEST['where']) ? $_REQUEST['where'] : '';
-            if (isset($_POST['file']))
+            if (isset($_POST['f']) || isset($_POST['file']))
             {
+                $file = '';
+                if (isset($_POST['f']))
+                {
+                    $file = $_POST['f'];
+                }
+                else if (isset($_POST['file']))
+                {
+                    $file = $_POST['file'];
+                }
+
                 $where = 'tools.php?page=mainwp-child-restore';
                 if (session_id() == '') session_start();
-                $_SESSION['file'] = $_POST['file'];
+                $_SESSION['file'] = $file;
                 $_SESSION['size'] = $_POST['size'];
             }
 
@@ -1527,7 +1547,16 @@ class MainWPChild
                 $newExcludes[] = rtrim($exclude, '/');
             }
 
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, (isset($_POST['file']) ? $_POST['file'] : false));
+            $file = false;
+            if (isset($_POST['f']))
+            {
+                $file = $_POST['f'];
+            }
+            else if (isset($_POST['file']))
+            {
+                $file = $_POST['file'];
+            }
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file);
             if (!$res)
             {
                 $information['full'] = false;
@@ -1847,6 +1876,7 @@ class MainWPChild
 
         $this->updateExternalSettings();
 
+        $information['version'] = $this->version;
         $information['wpversion'] = $wp_version;
         $information['siteurl'] = get_option('siteurl');
         $information['nossl'] = (get_option('mainwp_child_nossl') == 1 ? 1 : 0);
@@ -2957,6 +2987,7 @@ class MainWPChild
         }
 
         global $wp_version;
+        $information['version'] = $this->version;
         $information['wpversion'] = $wp_version;
         MainWPHelper::write($information);
     }

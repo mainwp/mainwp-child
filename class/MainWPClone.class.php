@@ -615,7 +615,7 @@ Author URI: http://dd32.id.au/
             //Extract & install SQL
             var data = {
                 action:'mainwp-child_clone_backupextract',
-                file: file
+                f: file
             };
 
             jQuery.ajax({
@@ -1031,7 +1031,7 @@ Author URI: http://dd32.id.au/
             MainWPHelper::endSession();
             //Send request to the childsite!
             global $wp_version;
-            $result = MainWPHelper::fetchUrl($url, array('cloneFunc' => 'createCloneBackup', 'key' => $key, 'file' => $rand, 'wpversion' => $wp_version));
+            $result = MainWPHelper::fetchUrl($url, array('cloneFunc' => 'createCloneBackup', 'key' => $key, 'f' => $rand, 'wpversion' => $wp_version));
 
             if (!$result['backup']) throw new Exception(__('Could not create backupfile on child','mainwp-child'));
             @session_start();
@@ -1067,7 +1067,7 @@ Author URI: http://dd32.id.au/
 
             MainWPHelper::endSession();
             //Send request to the childsite!
-            $result = MainWPHelper::fetchUrl($url, array('cloneFunc' => 'createCloneBackupPoll', 'key' => $key, 'file' => $rand));
+            $result = MainWPHelper::fetchUrl($url, array('cloneFunc' => 'createCloneBackupPoll', 'key' => $key, 'f' => $rand));
 
             if (!isset($result['size'])) throw new Exception(__('Invalid response','mainwp-child'));
 
@@ -1133,7 +1133,7 @@ Author URI: http://dd32.id.au/
                     {
                         $siteToClone = $sitesToClone[$siteId];
 
-                        MainWPHelper::fetchUrl($siteToClone['url'], array('cloneFunc' => 'deleteCloneBackup', 'key' => $siteToClone['extauth'], 'file' => basename($url)));
+                        MainWPHelper::fetchUrl($siteToClone['url'], array('cloneFunc' => 'deleteCloneBackup', 'key' => $siteToClone['extauth'], 'f' => basename($url)));
                     }
                 }
             }
@@ -1177,7 +1177,7 @@ Author URI: http://dd32.id.au/
         {
             MainWPHelper::endSession();
 
-            $file = $_POST['file'];
+            $file = $_POST['f'];
             $testFull = false;
             if ($file == '')
             {
