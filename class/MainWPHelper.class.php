@@ -92,7 +92,18 @@ class MainWPHelper
         //Set up a new post (adding addition information)
         $usr = get_user_by('login', $_POST['user']);
         //$new_post['post_author'] = $current_user->ID;
-        $new_post['post_author'] = $usr->ID; // to fix missing post author
+        
+        if (isset($new_post['custom_post_author']) && !empty($new_post['custom_post_author'])) {
+            $_author = get_user_by( 'login', $new_post['custom_post_author'] );
+            if (!empty($_author))
+                $new_post['post_author'] = $_author->ID;
+            else 
+                $new_post['post_author'] = $usr->ID; 
+            unset($new_post['custom_post_author']);
+        } else {
+            $new_post['post_author'] = $usr->ID; // to fix missing post author
+        }
+        
         $ezine_post = !empty($post_custom['_ezine_post_article_source']) ? true : false;
         $terms = $new_post['_ezin_post_category'];
         unset($new_post['_ezin_post_category']);

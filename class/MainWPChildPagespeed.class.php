@@ -69,7 +69,7 @@ class MainWPChildPagespeed
     
     public static function pagespeed_cron_check() {
         $count = get_option("mainwp_child_pagespeed_count_checking");
-        if ($count == 7) {
+        if ($count >= 7) {
             $recheck = true;
             $count = 0;            
         } else {
