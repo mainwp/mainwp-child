@@ -1177,7 +1177,7 @@ Author URI: http://dd32.id.au/
         {
             MainWPHelper::endSession();
 
-            $file = $_POST['f'];
+            $file = (isset($_POST['f']) ? $_POST['f'] : $_POST['file']);
             $testFull = false;
             if ($file == '')
             {

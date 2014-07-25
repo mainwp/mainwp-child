@@ -512,7 +512,7 @@ class MainWPHelper
         return !strncmp($haystack, $needle, strlen($needle));
     }
 
-    function endsWith($haystack, $needle)
+    public static function endsWith($haystack, $needle)
     {
         $length = strlen($needle);
         if ($length == 0) {
@@ -852,7 +852,6 @@ class MainWPHelper
         
         return $count_deleted;
     }
-
 }
 
 ?>

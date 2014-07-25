@@ -447,14 +447,14 @@ class MainWPChild
                     $newExcludes[] = rtrim($exclude, '/');
                 }
 
-                $res = MainWPBackup::get()->createFullBackup($newExcludes, $_POST['f'], true, $includeCoreFiles);
+                $res = MainWPBackup::get()->createFullBackup($newExcludes, (isset($_POST['f']) ? $_POST['f'] : $_POST['file']), true, $includeCoreFiles);
                 if (!$res)
                 {
                     $information['backup'] = false;
                 }
                 else
                 {
-                    $information['backup'] = $res['f'];
+                    $information['backup'] = $res['file'];
                     $information['size'] = $res['filesize'];
                 }
 
@@ -1548,6 +1548,71 @@ class MainWPChild
                 $newExcludes[] = rtrim($exclude, '/');
             }
 
+            $excludebackup = (isset($_POST['excludebackup']) && $_POST['excludebackup'] == 1);
+            $excludecache = (isset($_POST['excludecache']) && $_POST['excludecache'] == 1);
+            $excludezip = (isset($_POST['excludezip']) && $_POST['excludezip'] == 1);
+
+            if ($excludebackup)
+            {
+                //Backup buddy
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/backupbuddy_backups';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/backupbuddy_temp';
+
+                //ManageWP
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/managewp';
+
+                //InfiniteWP
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/infinitewp/backups';
+
+                //WordPress Backup to Dropbox
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/backups';
+
+                //BackUpWordpress
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/backups';
+
+                //BackWPUp
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/backwpup';
+
+                //WP Complete Backup
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/plugins/wp-complete-backup/storage';
+
+                //WordPress EZ Backup
+                //This one may be hard to do since they add random text at the end for example, feel free to skip if you need to
+                ///backup_randomkyfkj where kyfkj is random
+
+                //Online Backup for WordPress
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/backups';
+
+                //XCloner
+                $newExcludes[] = '/administrator/backups';
+            }
+
+            if ($excludecache)
+            {
+                //W3 Total Cache
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/w3tc-cache';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/w3tc';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/config';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/minify';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/page_enhanced';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/tmp';
+
+                //WP Super Cache
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/supercache';
+
+                //Quick Cache
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/quick-cache';
+
+                //Hyper Cache
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/hyper-cache/cache';
+
+                //WP Fastest Cache
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/all';
+
+                //WP-Rocket
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/cache/wp-rocket';
+            }
+
             $file = false;
             if (isset($_POST['f']))
             {
@@ -1557,7 +1622,7 @@ class MainWPChild
             {
                 $file = $_POST['file'];
             }
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file);
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file, $excludezip);
             if (!$res)
             {
                 $information['full'] = false;

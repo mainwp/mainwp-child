@@ -37,6 +37,12 @@ class MainWPChildLinksChecker
                 case "unlink":
                     $information = $this->unlink();                    
                     break; 
+                case "set_dismiss":
+                    $information = $this->set_link_dismissed();                    
+                    break;
+                case "discard":
+                    $information = $this->discard();                    
+                    break;                
             }        
         }
         MainWPHelper::write($information);
@@ -172,9 +178,10 @@ class MainWPChildLinksChecker
                     $container = $instance->get_container(); /** @var blcContainer $container */
                     $lnk->container = $container;
                     
-                    if ( !empty($container) && ($container instanceof blcAnyPostContainer) ) {                        
+                    if ( !empty($container) /* && ($container instanceof blcAnyPostContainer) */ ) {                        
                         $lnk->container_type = $container->container_type;
-                        $lnk->container_id = $container->container_id;
+                        $lnk->container_id = $container->container_id;                          
+                        $lnk->source_data = MainWPChildLinksChecker::Instance()->ui_get_source($container, $instance->container_field);  
                     }
                     
                     $can_edit_text = false;
@@ -329,6 +336,114 @@ class MainWPChildLinksChecker
         }
     }
 
+    private function set_link_dismissed(){
+        $information = array();
+        $dismiss = $_POST['dismiss'];
         
+        if (!current_user_can('edit_others_posts')){
+            $information['error'] = 'NOTALLOW';
+            return $information;  
+        }
+
+        if ( isset($_POST['link_id']) ){
+                //Load the link
+                $link = new blcLink( intval($_POST['link_id']) );
+
+                if ( !$link->valid() ){
+                    $information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link
+                    return $information;
+                }
+
+                $link->dismissed = $dismiss;
+
+                //Save the changes
+                if ( $link->save() ){
+                    $information = 'OK';
+                } else {
+                    $information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link                                  
+                }
+                return $information;   
+        } else {
+            $information['error'] = __("Error : link_id not specified"); 
+            return $information; 
+        }
+    }
+
+     private function discard(){            
+        $information = array();        
+        if (!current_user_can('edit_others_posts')){
+            $information['error'] = 'NOTALLOW';
+            return $information;  
+        }     
+        if ( isset($_POST['link_id']) ){
+            //Load the link
+            $link = new blcLink( intval($_POST['link_id']) );
+
+            if ( !$link->valid() ){
+                $information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link
+                return $information;
+            }
+
+            //Make it appear "not broken"
+            $link->broken = false;  
+            $link->false_positive = true;
+            $link->last_check_attempt = time();
+            $link->log = __("This link was manually marked as working by the user.");
+
+            //Save the changes
+            if ( $link->save() ){
+                $information['status'] = 'OK';
+                $information['last_check_attempt'] = $link->last_check_attempt;                
+            } else {
+                $information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link                                  
+            }
+        } else {
+            $information['error'] = __("Error : link_id not specified"); 
+            return $information; 
+        }
+     }
+        
+    function ui_get_source($container, $container_field = ""){
+        if ($container->container_type == 'comment') {
+            return $this->ui_get_source_comment($container, $container_field);
+        } else if ($container instanceof blcAnyPostContainer) {
+            return $this->ui_get_source_post($container, $container_field);
+        }
+        return array();
+    }
+    
+    function ui_get_source_comment($container, $container_field = ''){
+        //Display a comment icon. 
+        if ( $container_field == 'comment_author_url' ){
+                $image = 'font-awesome/font-awesome-user.png';
+        } else {
+                $image = 'font-awesome/font-awesome-comment-alt.png';
+        }
+
+        $comment = $container->get_wrapped_object();
+
+        //Display a small text sample from the comment
+        $text_sample = strip_tags($comment->comment_content);
+        $text_sample = blcUtility::truncate($text_sample, 65);
+
+        return array(
+                'image' => $image,
+                'text_sample' => $text_sample,
+                'comment_author' => esc_attr($comment->comment_author),
+                'comment_id' => esc_attr($comment->comment_ID),
+                'comment_status' => wp_get_comment_status($comment->comment_ID),
+                'container_post_title' => get_the_title($comment->comment_post_ID),
+                'container_post_status' => get_post_status($comment->comment_post_ID),
+                'container_post_ID' => $comment->comment_post_ID,
+        );		
+    }
+    
+    function ui_get_source_post($container, $container_field = ''){        
+        return array(
+            'post_title' => get_the_title($container->container_id),
+            'post_status' => get_post_status($this->container_id),
+            'container_anypost' => true
+        );
+    }
 }
 

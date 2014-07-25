@@ -2,6 +2,7 @@
 class MainWPBackup
 {
     protected static $instance = null;
+    protected $excludeZip;
     protected $zip;
     protected $zipArchiveFileCount;
     protected $zipArchiveSizeCount;
@@ -27,10 +28,8 @@ class MainWPBackup
 
     /**
      * Create full backup
-     *
-     * @return array Array consisting of timestamp and the created file path
      */
-    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false)
+    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false)
     {
         $this->file_descriptors = $file_descriptors;
 
@@ -81,15 +80,15 @@ class MainWPBackup
         $success = false;
         if ($this->checkZipSupport())
         {
-            $success = $this->createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles);
+            $success = $this->createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip);
         }
         else if ($this->checkZipConsole())
         {
-            $success = $this->createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles);
+            $success = $this->createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip);
         }
         else
         {			
-            $success = $this->createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles);
+            $success = $this->createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip);
         }
 
         return ($success) ? array(
@@ -188,8 +187,9 @@ class MainWPBackup
      * @param string $filepath File path to create
      * @return bool
      */
-    public function createZipFullBackup($filepath, $excludes, $addConfig = false, $includeCoreFiles = false)
+    public function createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip)
     {
+        $this->excludeZip = $excludezip;
         $this->zip = new ZipArchive();
         $this->zipArchiveFileCount = 0;
         $this->zipArchiveSizeCount = 0;
@@ -388,13 +388,15 @@ class MainWPBackup
                 }
                 else if (is_file($node))
                 {
+                    if ($this->excludeZip && MainWPHelper::endsWith($node, '.zip')) continue;
+
                     @copy($node, str_replace(ABSPATH, $backupfolder, $node));
                 }
             }
         }
     }
 
-    public function createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles)
+    public function createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip)
     {
         global $classDir;
         //Create backup folder
@@ -541,6 +543,9 @@ class MainWPBackup
             @set_time_limit($this->timeout);
             $this->lastRun = time();
         }
+
+        if ($this->excludeZip && MainWPHelper::endsWith($path, '.zip')) return false;
+
         // this would fail with status ZIPARCHIVE::ER_OPEN
         // after certain number of files is added since
         // ZipArchive internally stores the file descriptors of all the
@@ -585,7 +590,7 @@ class MainWPBackup
      * @param string $filepath File path to create
      * @return bool
      */
-    public function createZipConsoleFullBackup($filepath, $excludes, $addConfig)
+    public function createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip)
     {
         // @TODO to work with 'zip' from system if PHP Zip library not available
         //system('zip');
