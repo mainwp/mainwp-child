@@ -42,12 +42,19 @@ class MainWPChildLinksChecker
                     break;
                 case "discard":
                     $information = $this->discard();                    
-                    break;                
+                    break;          
+                case "save_settings":
+                    $information = $this->save_settings();                    
+                    break; 
+                case "force_recheck":
+                    $information = $this->force_recheck();                    
+                    break; 
             }        
         }
         MainWPHelper::write($information);
     }  
    
+     
     public function init()
     {          
         if (get_option('mainwp_linkschecker_ext_enabled') !== "Y")
@@ -58,8 +65,79 @@ class MainWPChildLinksChecker
             add_filter('all_plugins', array($this, 'hide_plugin'));               
             add_filter('update_footer', array(&$this, 'update_footer'), 15);   
         }        
-    }        
-            
+    }    
+    
+    public static function hook_trashed_comment($comment_id){
+        if (get_option('mainwp_linkschecker_ext_enabled') !== "Y")
+            return;
+        
+        if (!defined('BLC_ACTIVE')  || !function_exists('blc_init')) 
+            return;        
+        blc_init();               
+        $container = blcContainerHelper::get_container(array('comment', $comment_id));        
+        $container->delete();
+        blc_cleanup_links();
+    }
+        
+    function save_settings() {
+        $information = array();
+        $information['result'] = 'NOTCHANGE';  
+        $new_check_threshold = intval($_POST['check_threshold']);        
+        if( $new_check_threshold > 0 ){
+            $conf = blc_get_configuration();
+            $conf->options['check_threshold'] = $new_check_threshold;
+            if ($conf->save_options())
+                $information['result'] = 'SUCCESS';
+        }             
+        return $information;
+    }
+    
+    function force_recheck() {
+        $this->initiate_recheck();
+        $information = array();
+        $information['result'] = 'SUCCESS';
+        return $information;
+    }
+    
+    function initiate_recheck(){
+    	global $wpdb; /** @var wpdb $wpdb */
+
+    	//Delete all discovered instances
+    	$wpdb->query("TRUNCATE {$wpdb->prefix}blc_instances");
+    	
+    	//Delete all discovered links
+    	$wpdb->query("TRUNCATE {$wpdb->prefix}blc_links");
+    	
+    	//Mark all posts, custom fields and bookmarks for processing.
+    	blc_resynch(true);
+    }
+       
+    
+    public static function hook_post_deleted($post_id){
+        if (get_option('mainwp_linkschecker_ext_enabled') !== "Y")
+            return;
+        
+        if (!defined('BLC_ACTIVE')  || !function_exists('blc_init')) 
+            return;        
+        blc_init();   
+        
+        //Get the container type matching the type of the deleted post
+        $post = get_post($post_id);
+        if ( !$post ){
+                return;
+        }
+        //Get the associated container object
+        $post_container = blcContainerHelper::get_container( array($post->post_type, intval($post_id)) );
+
+        if ( $post_container ){
+                //Delete it
+                $post_container->delete();
+                //Clean up any dangling links
+                blc_cleanup_links();
+        }
+    }
+	
+        
     public function hide_plugin($plugins) {
         foreach ($plugins as $key => $value)
         {
@@ -82,7 +160,7 @@ class MainWPChildLinksChecker
         return $text;
     }
     
-    
+
      function set_showhide() {
         MainWPHelper::update_option('mainwp_linkschecker_ext_enabled', "Y");        
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
@@ -94,32 +172,17 @@ class MainWPChildLinksChecker
     function sync_data($strategy = "") {  
         $information = array();
         $data = array();
-        $data['broken'] = self::sync_counting_data('broken');
-        $data['redirects'] = self::sync_counting_data('redirects');
-        $data['dismissed'] = self::sync_counting_data('dismissed');
-        $data['all'] = self::sync_counting_data('all');  
+        
+        $blc_link_query = blcLinkQuery::getInstance();
+        $data['broken'] = $blc_link_query->get_filter_links('broken', array('count_only' => true));
+        $data['redirects'] = $blc_link_query->get_filter_links('redirects', array('count_only' => true));
+        $data['dismissed'] = $blc_link_query->get_filter_links('dismissed', array('count_only' => true));
+        $data['all'] = $blc_link_query->get_filter_links('all', array('count_only' => true));
         $data['link_data'] = self::sync_link_data();          
         $information['data'] = $data;
         return $information;
     }
-    
-    static function sync_counting_data($filter) {       
-        global $wpdb;
         
-        $all_filters = array(
-            'broken' => '( broken = 1 )',
-            'redirects' => '( redirect_count > 0 )',                
-            'dismissed' => '( dismissed = 1 )',                
-            'all' => '1'
-        );
-        
-        $where = $all_filters[$filter];
-        if (empty($where))
-            return 0;
-        
-        return blc_get_links(array('count_only' => true, 'where_expr' => $where));
-    }
-    
     static function sync_link_data() {        
         $links = blc_get_links(array('load_instances' => true));
         $get_fields = array(
@@ -399,8 +462,8 @@ class MainWPChildLinksChecker
             }
         } else {
             $information['error'] = __("Error : link_id not specified"); 
-            return $information; 
         }
+        return $information; 
      }
         
     function ui_get_source($container, $container_field = ""){
