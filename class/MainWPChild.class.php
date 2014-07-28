@@ -1551,6 +1551,7 @@ class MainWPChild
             $excludebackup = (isset($_POST['excludebackup']) && $_POST['excludebackup'] == 1);
             $excludecache = (isset($_POST['excludecache']) && $_POST['excludecache'] == 1);
             $excludezip = (isset($_POST['excludezip']) && $_POST['excludezip'] == 1);
+            $excludenonwp = (isset($_POST['excludenonwp']) && $_POST['excludenonwp'] == 1);
 
             if ($excludebackup)
             {
@@ -1571,7 +1572,7 @@ class MainWPChild
                 $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/backups';
 
                 //BackWPUp
-                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/backwpup';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/backwpup*';
 
                 //WP Complete Backup
                 $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/plugins/wp-complete-backup/storage';
@@ -1622,7 +1623,7 @@ class MainWPChild
             {
                 $file = $_POST['file'];
             }
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file, $excludezip);
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file, $excludezip, $excludenonwp);
             if (!$res)
             {
                 $information['full'] = false;

@@ -852,6 +852,31 @@ class MainWPHelper
         
         return $count_deleted;
     }
+
+    public static function inExcludes($excludes, $value)
+    {
+        $inExcludes = false;
+        if ($excludes != null)
+        {
+            foreach ($excludes as $exclude)
+            {
+                if (MainWPHelper::endsWith($exclude, '*'))
+                {
+                    if (MainWPHelper::startsWith($value, substr($exclude, 0, strlen($exclude) - 1)))
+                    {
+                        $inExcludes = true;
+                        break;
+                    }
+                }
+                else if ($value == $exclude)
+                {
+                    $inExcludes = true;
+                    break;
+                }
+            }
+        }
+        return $inExcludes;
+    }
 }
 
 ?>

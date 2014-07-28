@@ -29,7 +29,7 @@ class MainWPBackup
     /**
      * Create full backup
      */
-    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false)
+    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false)
     {
         $this->file_descriptors = $file_descriptors;
 
@@ -80,15 +80,15 @@ class MainWPBackup
         $success = false;
         if ($this->checkZipSupport())
         {
-            $success = $this->createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip);
+            $success = $this->createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp);
         }
         else if ($this->checkZipConsole())
         {
-            $success = $this->createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip);
+            $success = $this->createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp);
         }
         else
         {			
-            $success = $this->createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip);
+            $success = $this->createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp);
         }
 
         return ($success) ? array(
@@ -187,7 +187,7 @@ class MainWPBackup
      * @param string $filepath File path to create
      * @return bool
      */
-    public function createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip)
+    public function createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp)
     {
         $this->excludeZip = $excludezip;
         $this->zip = new ZipArchive();
@@ -228,7 +228,12 @@ class MainWPBackup
 
             foreach ($nodes as $node)
             {
-                if ($excludes == null || !in_array(str_replace(ABSPATH, '', $node), $excludes))
+                if ($excludenonwp && is_dir($node))
+                {
+                    if (!MainWPHelper::startsWith($node, WP_CONTENT_DIR) && !MainWPHelper::startsWith($node,  ABSPATH . 'wp-admin') && !MainWPHelper::startsWith($node, ABSPATH . WPINC)) continue;
+                }
+
+                if (!MainWPHelper::inExcludes($excludes, str_replace(ABSPATH, '', $node)))
                 {
                     if (is_dir($node))
                     {
@@ -370,12 +375,17 @@ class MainWPBackup
         return true;
     }
 
-    function copy_dir( $nodes, $excludes, $backupfolder ) {
+    function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp, $root) {
         if (!is_array($nodes)) return;
 
         foreach ($nodes as $node)
         {
-            if ($excludes == null || !in_array(str_replace(ABSPATH, '', $node), $excludes))
+            if ($excludenonwp && is_dir($node))
+            {
+                if (!MainWPHelper::startsWith($node, WP_CONTENT_DIR) && !MainWPHelper::startsWith($node,  ABSPATH . 'wp-admin') && !MainWPHelper::startsWith($node, ABSPATH . WPINC)) continue;
+            }
+
+            if (!MainWPHelper::inExcludes($excludes, str_replace(ABSPATH, '', $node)))
             {
                 if (is_dir($node))
                 {
@@ -383,7 +393,7 @@ class MainWPBackup
                                @mkdir ( str_replace(ABSPATH, $backupfolder, $node) );
 
                     $newnodes = glob($node . DIRECTORY_SEPARATOR . '*');
-                    $this->copy_dir($newnodes, $excludes, $backupfolder);
+                    $this->copy_dir($newnodes, $excludes, $backupfolder, $excludenonwp, false);
                     unset($newnodes);
                 }
                 else if (is_file($node))
@@ -396,7 +406,7 @@ class MainWPBackup
         }
     }
 
-    public function createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip)
+    public function createZipPclFullBackup2($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp)
     {
         global $classDir;
         //Create backup folder
@@ -431,7 +441,7 @@ class MainWPBackup
             }
             unset($coreFiles);
         }
-        $this->copy_dir($nodes, $excludes, $backupFolder);	
+        $this->copy_dir($nodes, $excludes, $backupFolder, $excludenonwp, true);
 		// to fix bug wrong folder
 		@copy($backupFolder.'dbBackup.sql', $backupFolder . basename(WP_CONTENT_DIR) . '/dbBackup.sql');
 		@unlink($backupFolder.'dbBackup.sql');
@@ -468,7 +478,7 @@ class MainWPBackup
 
         foreach ($nodes as $node)
         {
-            if ($excludes == null || !in_array(str_replace(ABSPATH, '', $node), $excludes))
+            if (!MainWPHelper::inExcludes($excludes, str_replace(ABSPATH, '', $node)))
             {
                 if (is_dir($node))
                 {
@@ -590,7 +600,7 @@ class MainWPBackup
      * @param string $filepath File path to create
      * @return bool
      */
-    public function createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip)
+    public function createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp)
     {
         // @TODO to work with 'zip' from system if PHP Zip library not available
         //system('zip');
