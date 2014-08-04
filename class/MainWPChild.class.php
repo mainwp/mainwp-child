@@ -562,7 +562,7 @@ class MainWPChild
 
         remove_action('admin_init', 'send_frame_options_header');
         remove_action('login_init', 'send_frame_options_header');
-        
+
         // Call Heatmap
         if ((get_option('heatMapsIndividualOverrideSetting') != '1' && get_option('heatMapEnabled') !== '0') || 
             (get_option('heatMapsIndividualOverrideSetting') == '1' && get_option('heatMapsIndividualDisable') != '1')
@@ -3246,16 +3246,20 @@ class MainWPChild
                 $uploadDir = MainWPHelper::getMainWPDir();
                 $uploadDir = $uploadDir[0];
                 if (stristr($path, $uploadDir)) continue;
-                foreach (glob($path . '/*') AS $next)
+                $res = @glob($path . '/*');
+                if (is_array($res))
                 {
-                    if (is_dir($next))
+                    foreach ($res AS $next)
                     {
-                        $dirs[] = $next;
-                    }
-                    else
-                    {
-                        $fs = filesize($next);
-                        $size += $fs;
+                        if (is_dir($next))
+                        {
+                            $dirs[] = $next;
+                        }
+                        else
+                        {
+                            $fs = filesize($next);
+                            $size += $fs;
+                        }
                     }
                 }
             }
