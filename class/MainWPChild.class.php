@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '0.29.14';
+    private $version = '1.0.0';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -2168,21 +2168,30 @@ class MainWPChild
     function scanDir($pDir, $pLvl)
     {
         $output = array();
+//        $output = '';
         if (file_exists($pDir) && is_dir($pDir))
         {
             if ($pLvl == 0) return $output;
+//            if ($pLvl == 0) return '[]';
 
             if ($files = @scandir($pDir))
             {
+//                $first = true;
                 foreach ($files as $file)
                 {
                     if (($file == '.') || ($file == '..')) continue;
                     $newDir = $pDir . $file . DIRECTORY_SEPARATOR;
                     if (@is_dir($newDir))
                     {
-                        $output[$file] = $this->scanDir($newDir, $pLvl - 1);
+                        $output[$file] = $this->scanDir($newDir, $pLvl - 1, false);
+//                        if (!$first) $output .= ',';
+//                        else $output .= '{';
+//                        $output .= '"'.$file.'":' . $this->scanDir($newDir, $pLvl - 1);
+//                        $first = false;
                     }
                 }
+//                if ($first) $output .= '[]';
+//                else $output .= '}';
             }
         }
         return $output;
@@ -2258,7 +2267,7 @@ class MainWPChild
                 $outPost['comment_count'] = $post->comment_count;
                 $outPost['dts'] = strtotime($post->post_modified_gmt);
                 $usr = get_user_by('id', $post->post_author);
-                $outPost['author'] = $usr->user_nicename;
+                $outPost['author'] = !empty($usr) ? $usr->user_nicename : 'removed';
                 $categoryObjects = get_the_category($post->ID);
                 $categories = "";
                 foreach ($categoryObjects as $cat)
