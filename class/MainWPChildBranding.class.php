@@ -404,12 +404,13 @@ class MainWPChildBranding
         $content = nl2br(stripslashes($_POST['mainwp_branding_contact_message_content']));        
         if (!empty($_POST['mainwp_branding_contact_message_content']) && !empty($email))
         {
+            global $current_user;            
             $mail = '<p>Support Email from: <a href="' . site_url() . '">' . site_url() . '</a></p>';
             $mail .= '<p>Sent from WordPress page: ' . (!empty($_POST['mainwp_branding_send_from_page']) ? '<a href="' . $_POST['mainwp_branding_send_from_page'] . '">' . $_POST['mainwp_branding_send_from_page'] . '</a></p>' : "");
-            $mail .= '<p>Admin email: ' . get_option('admin_email') . ' </p>';
+            $mail .= '<p>Client Email: ' . $current_user->user_email . ' </p>';
             $mail .= '<p>Support Text:</p>';            
             $mail .= '<p>' . $content . '</p>';
-            if (wp_mail($email, 'MainWP - Support Contact', $mail, array('From: "' . get_option('admin_email') . '" <' . get_option('admin_email') . '>', 'content-type: text/html'))) ;
+            if (wp_mail($email, 'MainWP - Support Contact', $mail, array('From: "' . $current_user->user_email . '" <' . $current_user->user_email . '>', 'content-type: text/html'))) ;
                 return true;
         }
         return false;

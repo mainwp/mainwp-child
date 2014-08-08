@@ -249,11 +249,11 @@ class MainWPHelper
                     
                     if (!$seo_ext_activated) {
                         // if Wordpress SEO plugin is not activated do not save yoast post meta
-                        if(strpos($meta_key, "_yoast_wpseo_") !== false) 
+                        if(strpos($meta_key, "_yoast_wpseo_") === false) 
                             add_post_meta($new_post_id, $meta_key, $meta_value);        
-                    } else {
+                    } else {                        
                         add_post_meta($new_post_id, $meta_key, $meta_value);        
-                    }
+                    }                   
                 }
             }
             else if ($meta_key == '_sticky')
