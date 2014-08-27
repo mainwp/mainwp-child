@@ -162,7 +162,7 @@ class MainWPChildServerInformation
         if (!self::check('>=', '2M', 'getUploadMaxFilesize')) $i++;
         if (!self::check('>=', '2M', 'getPostMaxSize')) $i++;
         if (!self::check('>=', '10000', 'getOutputBufferSize')) $i++;
-        if (!self::check('=', true, 'getSSLSupport')) $i++;
+//        if (!self::check('=', true, 'getSSLSupport')) $i++;
 
         if (!self::checkDirectoryMainWPDirectory(false)) $i++;
 
