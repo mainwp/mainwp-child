@@ -183,7 +183,8 @@ class MainWPChildPagespeed
         
         $strategy = $current_values['strategy'];
         
-        $information = $this->sync_data($strategy);                    
+        $result = $this->sync_data($strategy);        
+        $information['data'] = $result['data'];
         return $information;
     }
     
