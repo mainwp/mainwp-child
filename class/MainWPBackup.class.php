@@ -571,6 +571,8 @@ class MainWPBackup
    		return false;
    	}
 
+    protected $gcCnt = 0;
+
     function addFileToZip($path, $zipEntryName)
     {
         if (time() - $this->lastRun > 20)
@@ -590,6 +592,7 @@ class MainWPBackup
         // return $zip->addFile( $path, $zipEntryName );
 
         $this->zipArchiveSizeCount += filesize($path);
+        $this->gcCnt++;
 
         //5 mb limit!
         if (filesize($path) > 5 * 1024 * 1024)
@@ -607,6 +610,12 @@ class MainWPBackup
             $added = $this->zip->addFromString($zipEntryName, $contents);
 			$contents = null;
 			unset($contents);
+        }
+
+        if ($this->gcCnt > 20)
+        {
+            @gc_collect_cycles();
+            $this->gcCnt = 0;
         }
 
         //Over limits?

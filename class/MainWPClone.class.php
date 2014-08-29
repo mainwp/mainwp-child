@@ -32,7 +32,18 @@ class MainWPClone
         wp_enqueue_script('jquery-ui-autocomplete');
         wp_enqueue_script('jquery-ui-progressbar');
         wp_enqueue_script('jquery-ui-dialog');
-        wp_enqueue_style('jquery-ui-style', plugins_url('/css/jquery-ui-1.10.4.min.css'));
+
+        global $wp_scripts;
+        $ui = $wp_scripts->query('jquery-ui-core');
+        $version = $ui->ver;
+        if (MainWPHelper::startsWith($version, '1.10'))
+        {
+            wp_enqueue_style('jquery-ui-style', plugins_url('/css/1.10.4/jquery-ui.min.css', dirname(__FILE__)));
+        }
+        else
+        {
+            wp_enqueue_style('jquery-ui-style', plugins_url('/css/1.11.1/jquery-ui.min.css', dirname(__FILE__)));
+        }
     }
 
     public static function renderHeader()
