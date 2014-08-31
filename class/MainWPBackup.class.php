@@ -8,6 +8,7 @@ class MainWPBackup
     protected $zipArchiveSizeCount;
     protected $zipArchiveFileName;
     protected $file_descriptors;
+    protected $loadFilesBeforeZip;
 
     protected $timeout;
     protected $lastRun;
@@ -29,9 +30,10 @@ class MainWPBackup
     /**
      * Create full backup
      */
-    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false)
+    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true)
     {
         $this->file_descriptors = $file_descriptors;
+        $this->loadFilesBeforeZip = $loadFilesBeforeZip;
 
         $dirs = MainWPHelper::getMainWPDir('backup');
         $backupdir = $dirs[0];
@@ -572,6 +574,7 @@ class MainWPBackup
    	}
 
     protected $gcCnt = 0;
+    protected $testContent;
 
     function addFileToZip($path, $zipEntryName)
     {
@@ -595,25 +598,27 @@ class MainWPBackup
         $this->gcCnt++;
 
         //5 mb limit!
-        if (filesize($path) > 5 * 1024 * 1024)
+        if (!$this->loadFilesBeforeZip || (filesize($path) > 5 * 1024 * 1024))
         {
             $this->zipArchiveFileCount++;
             $added = $this->zip->addFile($path, $zipEntryName);
         }
         else
         {
-            $contents = file_get_contents($path);
-            if ($contents === false)
+            $this->zipArchiveFileCount++;
+
+            $this->testContent = file_get_contents($path);
+            if ($this->testContent === false)
             {
                 return false;
             }
-            $added = $this->zip->addFromString($zipEntryName, $contents);
-			$contents = null;
-			unset($contents);
+            $added = $this->zip->addFromString($zipEntryName, $this->testContent);
         }
 
         if ($this->gcCnt > 20)
         {
+            echo memory_get_usage(true) . "\n";
+            @gc_enable();
             @gc_collect_cycles();
             $this->gcCnt = 0;
         }
@@ -622,6 +627,11 @@ class MainWPBackup
         if ((($this->file_descriptors > 0) && ($this->zipArchiveFileCount > $this->file_descriptors))) // || $this->zipArchiveSizeCount >= (31457280 * 2))
         {
             $this->zip->close();
+            $this->zip = null;
+            unset($this->zip);
+            @gc_enable();
+            @gc_collect_cycles();
+            $this->zip = new ZipArchive();
             $this->zip->open($this->zipArchiveFileName);
             $this->zipArchiveFileCount = 0;
             $this->zipArchiveSizeCount = 0;

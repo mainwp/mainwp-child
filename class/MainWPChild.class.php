@@ -1534,7 +1534,7 @@ class MainWPChild
         MainWPHelper::write(array('size' => filesize($result[0])));
     }
 
-    function backup()
+    function backup($pWrite = true)
     {
         $timeout = 20 * 60 * 60; //20minutes
         @set_time_limit($timeout);
@@ -1551,6 +1551,7 @@ class MainWPChild
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
 
             $file_descriptors = (isset($_POST['file_descriptors']) ? $_POST['file_descriptors'] : 0);
+            $loadFilesBeforeZip = (isset($_POST['loadFilesBeforeZip']) ? $_POST['loadFilesBeforeZip'] : true);
 
             $newExcludes = array();
             foreach ($excludes as $exclude)
@@ -1633,7 +1634,7 @@ class MainWPChild
             {
                 $file = $_POST['file'];
             }
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file, $excludezip, $excludenonwp);
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip);
             if (!$res)
             {
                 $information['full'] = false;
@@ -1663,8 +1664,11 @@ class MainWPChild
         {
             $information['full'] = false;
             $information['db'] = false;
-        }             
-        MainWPHelper::write($information);
+        }
+
+        if ($pWrite) MainWPHelper::write($information);
+
+        return $information;
     }
 
     protected function backupDB($fileName = '')
