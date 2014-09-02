@@ -49,7 +49,23 @@ class MainWPChildWordfence
             'scansEnabled_scanImages',
             'scansEnabled_themes',
             'scheduledScansEnabled',
-            'securityLevel'
+            'securityLevel',
+            //'scheduleScan' // filtered this
+            'blockFakeBots',
+            'neverBlockBG',
+            'maxGlobalRequests',
+            'maxGlobalRequests_action',     
+            'maxRequestsCrawlers',
+            'maxRequestsCrawlers_action',
+            'max404Crawlers',
+            'max404Crawlers_action',
+            'maxRequestsHumans',
+            'maxRequestsHumans_action',
+            'max404Humans',
+            'max404Humans_action',
+            'maxScanHits',
+            'maxScanHits_action',
+            'blockedTime'       
         );
 
      
@@ -62,12 +78,16 @@ class MainWPChildWordfence
     
     
     public function __construct() {
-        global $wpdb;        
+        add_action('mainwp_child_deactivation', array($this, 'deactivation'));
     }
-        
-    public static function  init() {                
-        
+    
+    public function deactivation()
+    {
+        if ($sched = wp_next_scheduled('mainwp_child_wordfence_cron_scan')) {
+            wp_unschedule_event($sched, 'mainwp_child_wordfence_cron_scan');
+        }
     }
+    
     
     public function action() {   
         $information = array();
@@ -147,12 +167,39 @@ class MainWPChildWordfence
     {  
         if (get_option('mainwp_wordfence_ext_enabled') !== "Y")
             return;
+        
         if (get_option('mainwp_wordfence_hide_plugin') === "hide")
         {
             add_filter('all_plugins', array($this, 'all_plugins'));   
             add_action( 'admin_menu', array($this, 'remove_menu'));
         }
+        $this->init_cron();
+        
     }
+    
+    public function init_cron() {                       
+        $sched = wp_next_scheduled('mainwp_child_wordfence_cron_scan');             
+        $sch = get_option("mainwp_child_wordfence_cron_time");
+        if ($sch == "twicedaily" ||
+            $sch == "daily" ||
+            $sch == "weekly" ||
+            $sch == "monthly") {
+            add_action('mainwp_child_wordfence_cron_scan', array($this, 'wfc_cron_scan'));        
+            if ($sched == false)
+            {   
+                $sched = wp_schedule_event(time(), $sch, 'mainwp_child_wordfence_cron_scan');
+            }  
+        } else {
+            if ($sched != false) {
+                wp_unschedule_event($sched, 'mainwp_child_wordfence_cron_scan');
+            }
+        }
+    }  
+    
+    public function wfc_cron_scan() {        
+        $this->start_scan();
+    }
+    
     public function all_plugins($plugins) {
         foreach ($plugins as $key => $value)
         {
@@ -409,6 +456,15 @@ class MainWPChildWordfence
 		} else if($opts['autoUpdate'] == '0'){
 			wfConfig::disableAutoUpdate();
 		}
+                
+                $sch = isset($opts['scheduleScan']) ? $opts['scheduleScan'] : "";     
+                if ($sch != get_option('mainwp_child_wordfence_cron_time')) {
+                    update_option('mainwp_child_wordfence_cron_time', $sch);
+                    $sched = wp_next_scheduled('mainwp_child_wordfence_cron_scan');
+                    if ($sched != false) {
+                        wp_unschedule_event($sched, 'mainwp_child_wordfence_cron_scan');
+                    }
+                }
                 
 		return array('result' => 'SUCCESS');
             }

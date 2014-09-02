@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '1.0.0';
+    private $version = '1.1';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -982,12 +982,11 @@ class MainWPChild
                         if (strcmp($slug, $premiumPlugin) == 0)
                         {
                             $mwp_premium_updates_todo[$key] = $update;
-                            $mwp_premium_updates_todo_slugs[] = $slug;
+                            $mwp_premium_updates_todo_slugs[] = $premiumPlugin;
                         }
                     }
                 }
                 unset($mwp_premium_updates);
-
                 $premiumUpgrader = new Plugin_Upgrader(new Bulk_Plugin_Upgrader_Skin(compact('nonce', 'url')));
             }
 

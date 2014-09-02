@@ -238,8 +238,10 @@ class MainWPHelper
         $not_allowed[] = '_saved_draft_random_category';
         $not_allowed[] = '_saved_draft_random_publish_date';
         $not_allowed[] = '_saved_draft_publish_date_from';
-        $not_allowed[] = '_saved_draft_publish_date_to';        
-
+        $not_allowed[] = '_saved_draft_publish_date_to';     
+        $not_allowed[] = '_post_to_only_existing_categories';
+        
+        $post_to_only_existing_categories = false;
         foreach ($post_custom as $meta_key => $meta_values)
         {
             if (!in_array($meta_key, $not_allowed))
@@ -265,8 +267,12 @@ class MainWPHelper
                         stick_post($new_post_id);
                     }
                 }
+            } else if ($meta_key == '_post_to_only_existing_categories') {                
+                if (isset($meta_values[0]) && $meta_values[0])
+                    $post_to_only_existing_categories = true;
             }
         }
+        
         // yoast seo extension
         if ($seo_ext_activated) {
             $_seo_opengraph_image = isset($post_custom[WPSEO_Meta::$meta_prefix . 'opengraph-image']) ? $post_custom[WPSEO_Meta::$meta_prefix . 'opengraph-image'] : array();
@@ -302,7 +308,17 @@ class MainWPHelper
             $categories = explode(',', $post_category);
             if (count($categories) > 0)
             {
-                $post_category = wp_create_categories($categories, $new_post_id);
+                if (!$post_to_only_existing_categories)
+                    $post_category = wp_create_categories($categories, $new_post_id);
+                else {
+                    $cat_ids = array ();
+                    foreach($categories as $cat) {
+                        if ($id = category_exists($cat))
+                           $cat_ids[] = $id;                        
+                    }
+                    if (count($cat_ids) > 0)
+                        wp_set_post_categories($new_post_id, $cat_ids);
+                }
             }
         }
 

@@ -617,7 +617,6 @@ class MainWPBackup
 
         if ($this->gcCnt > 20)
         {
-            echo memory_get_usage(true) . "\n";
             @gc_enable();
             @gc_collect_cycles();
             $this->gcCnt = 0;
