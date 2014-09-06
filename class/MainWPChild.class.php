@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '1.1';
+    private $version = '1.2';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -359,12 +359,13 @@ class MainWPChild
             {
                 $rules = explode("\n", $rules);
 
-                $ch = @fopen($htaccess_file,'w');
-                if (@flock($ch, LOCK_EX))
-                {
-                insert_with_markers($htaccess_file, 'MainWP', $rules);
-                }
-                @fclose($ch);
+//                $ch = @fopen($htaccess_file,'w');
+//                if (@flock($ch, LOCK_EX))
+//                {
+                    insert_with_markers($htaccess_file, 'MainWP', $rules);
+//                }
+//                @flock($ch, LOCK_UN);
+//                @fclose($ch);
 
                 if (get_option('mainwp_child_onetime_htaccess') === false)
                 {
@@ -383,12 +384,13 @@ class MainWPChild
             {
                 $rules = explode("\n", '');
 
-                $ch = @fopen($htaccess_file,'w');
-                if (@flock($ch, LOCK_EX))
-                {
-                insert_with_markers($htaccess_file, 'MainWP', $rules);
-                }
-                @fclose($ch);
+//                $ch = @fopen($htaccess_file,'w');
+//                if (@flock($ch, LOCK_EX))
+//                {
+                    insert_with_markers($htaccess_file, 'MainWP', $rules);
+//                }
+//                @flock($ch, LOCK_UN);
+//                @fclose($ch);
 
                 if (get_option('mainwp_child_onetime_htaccess') === false)
                 {
@@ -741,7 +743,7 @@ class MainWPChild
         {
             MainWPHelper::error(__('Bad request.','mainwp-child'));
         }
-        if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
+//        if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
         if (file_exists(ABSPATH . '/wp-admin/includes/screen.php')) include_once(ABSPATH . '/wp-admin/includes/screen.php');
         include_once(ABSPATH . '/wp-admin/includes/template.php');
         include_once(ABSPATH . '/wp-admin/includes/misc.php');
@@ -814,7 +816,7 @@ class MainWPChild
 
         include_once(ABSPATH . '/wp-admin/includes/update.php');
         include_once(ABSPATH . '/wp-admin/includes/class-wp-upgrader.php');
-        if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
+//        if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
         if (file_exists(ABSPATH . '/wp-admin/includes/screen.php')) include_once(ABSPATH . '/wp-admin/includes/screen.php');
         if (file_exists(ABSPATH . '/wp-admin/includes/template.php')) include_once(ABSPATH . '/wp-admin/includes/template.php');
         include_once(ABSPATH . '/wp-admin/includes/file.php');
@@ -910,7 +912,7 @@ class MainWPChild
         $wp_filesystem = $this->getWPFilesystem();
 
         include_once(ABSPATH . '/wp-admin/includes/class-wp-upgrader.php');
-        if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
+//        if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
         if (file_exists(ABSPATH . '/wp-admin/includes/screen.php')) include_once(ABSPATH . '/wp-admin/includes/screen.php');
         if (file_exists(ABSPATH . '/wp-admin/includes/template.php')) include_once(ABSPATH . '/wp-admin/includes/template.php');
         if (file_exists(ABSPATH . '/wp-admin/includes/misc.php')) include_once(ABSPATH . '/wp-admin/includes/misc.php');
@@ -2766,7 +2768,7 @@ class MainWPChild
         else if ($action == 'delete')
         {
             include_once(ABSPATH . '/wp-admin/includes/theme.php');
-            if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
+//            if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
             if (file_exists(ABSPATH . '/wp-admin/includes/screen.php')) include_once(ABSPATH . '/wp-admin/includes/screen.php');
             include_once(ABSPATH . '/wp-admin/includes/file.php');
             include_once(ABSPATH . '/wp-admin/includes/template.php');
@@ -2882,7 +2884,7 @@ class MainWPChild
         else if ($action == 'delete')
         {
             include_once(ABSPATH . '/wp-admin/includes/plugin.php');
-            if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
+//            if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
             if (file_exists(ABSPATH . '/wp-admin/includes/screen.php')) include_once(ABSPATH . '/wp-admin/includes/screen.php');
             include_once(ABSPATH . '/wp-admin/includes/file.php');
             include_once(ABSPATH . '/wp-admin/includes/template.php');
@@ -3139,7 +3141,7 @@ class MainWPChild
         if (empty($wp_filesystem))
         {
             ob_start();
-            if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
+//            if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
             if (file_exists(ABSPATH . '/wp-admin/includes/screen.php')) include_once(ABSPATH . '/wp-admin/includes/screen.php');
             if (file_exists(ABSPATH . '/wp-admin/includes/template.php')) include_once(ABSPATH . '/wp-admin/includes/template.php');
             $creds = request_filesystem_credentials('test', '', false, false, $extra_fields = null);
