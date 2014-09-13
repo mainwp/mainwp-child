@@ -1552,6 +1552,16 @@ class MainWPChild
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
 
             $file_descriptors = (isset($_POST['file_descriptors']) ? $_POST['file_descriptors'] : 0);
+            $file_descriptors_auto = (isset($_POST['file_descriptors_auto']) ? $_POST['file_descriptors_auto'] : 0);
+            if ($file_descriptors_auto == 1)
+            {
+                if (function_exists('posix_getrlimit'))
+                {
+                    $result = @posix_getrlimit();
+                    if (isset($result['soft openfiles'])) $file_descriptors = $result['soft openfiles'];
+                }
+            }
+
             $loadFilesBeforeZip = (isset($_POST['loadFilesBeforeZip']) ? $_POST['loadFilesBeforeZip'] : true);
 
             $newExcludes = array();
@@ -1956,7 +1966,7 @@ class MainWPChild
     {
         global $wp_version;
 
-        $this->updateExternalSettings();
+        if ($exit) $this->updateExternalSettings();
 
         $information['version'] = $this->version;
         $information['wpversion'] = $wp_version;
