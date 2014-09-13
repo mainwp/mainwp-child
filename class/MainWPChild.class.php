@@ -732,6 +732,13 @@ class MainWPChild
         return false;
     }
 
+    function noSSLFilterFunction($r, $url)
+    {
+        $r['sslverify'] = false;
+
+        return $r;
+    }
+
     /**
      * Functions to support core functionality
      */
@@ -767,6 +774,11 @@ class MainWPChild
         {
             $installer = new WP_Upgrader();
             //@see wp-admin/includes/class-wp-upgrader.php
+            if (isset($_POST['sslVerify']) && $_POST['sslVerify'] == 0)
+            {
+                add_filter( 'http_request_args', array(&$this, 'noSSLFilterFunction'), 99, 2);
+            }
+
             $result = $installer->run(array(
                 'package' => $url,
                 'destination' => ($_POST['type'] == 'plugin' ? WP_PLUGIN_DIR
@@ -775,6 +787,11 @@ class MainWPChild
                 'clear_working' => true,
                 'hook_extra' => array()
             ));
+
+            if (isset($_POST['sslVerify']) && $_POST['sslVerify'] == 0)
+            {
+                remove_filter( 'http_request_args', array(&$this, 'noSSLFilterFunction') , 99);
+            }
             if (is_wp_error($result))
             {
                 $error = $result->get_error_codes();
