@@ -7,7 +7,7 @@ Author URI: http://mainwp.com
 Plugin URI: http://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.0
-Stable tag: 1.2
+Stable tag: 1.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 1.3 =
+* Added: Better error reporting on backup fail
+* Added: Future support for the auto detection of file descriptors
+* Added: Support for new Client Report Extension features
+* Added: Support for new Branding Extension features
+* Added: Additional Hooks for new Extensions
+* Fixed: Issue with some hosts not supporting garbage collection functions
 
 = 1.2 =
 * Added Additional tweaks for less Backup timeouts
