@@ -117,7 +117,25 @@ class MainWPChildBranding
                                 'texts_replace' => $settings['child_texts_replace'],
                                 'hide_nag' => $settings['child_hide_nag'],
                                 'hide_screen_opts' => $settings['child_hide_screen_opts'],
-                                'hide_help_box' => $settings['child_hide_help_box']
+                                'hide_help_box' => $settings['child_hide_help_box'],
+                                
+                                'hide_metabox_post_excerpt' => $settings['child_hide_metabox_post_excerpt'],
+                                'hide_metabox_post_slug' => $settings['child_hide_metabox_post_slug'],
+                                'hide_metabox_post_tags' => $settings['child_hide_metabox_post_tags'],
+                                'hide_metabox_post_author' => $settings['child_hide_metabox_post_author'],
+                                'hide_metabox_post_comments' => $settings['child_hide_metabox_post_comments'],
+                                'hide_metabox_post_revisions' => $settings['child_hide_metabox_post_revisions'],
+                                'hide_metabox_post_discussion' => $settings['child_hide_metabox_post_discussion'],
+                                'hide_metabox_post_categories' => $settings['child_hide_metabox_post_categories'],
+                                'hide_metabox_post_custom_fields' => $settings['child_hide_metabox_post_custom_fields'],
+                                'hide_metabox_post_trackbacks' => $settings['child_hide_metabox_post_trackbacks'],
+                                'hide_metabox_page_custom_fields' => $settings['child_hide_metabox_page_custom_fields'],
+                                'hide_metabox_page_author' => $settings['child_hide_metabox_page_author'],
+                                'hide_metabox_page_discussion' => $settings['child_hide_metabox_page_discussion'],
+                                'hide_metabox_page_revisions' => $settings['child_hide_metabox_page_revisions'],
+                                'hide_metabox_page_attributes' => $settings['child_hide_metabox_page_attributes'],                
+                                'hide_metabox_page_slug' => $settings['child_hide_metabox_page_slug'],
+                                'hide_metabox_page_comments' => $settings['hide_metabox_page_comments'],                                
                             );
         
         if (isset($settings['child_login_image_url'])) {
@@ -281,10 +299,109 @@ class MainWPChildBranding
             if (isset($extra_setting['hide_nag']) && !empty($extra_setting['hide_nag']))
             {
                 add_action( 'admin_init', create_function('', 'remove_action( \'admin_notices\', \'update_nag\', 3 );') );
-            }
+
+            }   
+            
+            add_action('admin_menu', array(&$this, 'remove_default_post_metaboxes'));            
+            add_action('admin_menu', array(&$this, 'remove_default_page_metaboxes'));            
         }
     }
 
+    function remove_default_post_metaboxes() {
+        $extra_setting = $this->settings['extra_settings'];
+        if (!is_array($extra_setting)) 
+            $extra_setting = array(); 
+        
+        add_filter('manage_posts_columns', array(&$this, 'custom_post_columns'));
+        add_filter('manage_edit-post_tag_columns', array(&$this, 'manage_my_category_columns'));
+        add_filter('manage_edit-category_columns', array(&$this, 'manage_my_category_columns'));
+                
+        if (isset($extra_setting['hide_metabox_post_custom_fields']) && $extra_setting['hide_metabox_post_custom_fields']) 
+            remove_meta_box( 'postcustom','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_excerpt']) && $extra_setting['hide_metabox_post_excerpt']) 
+            remove_meta_box( 'postexcerpt','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_discussion']) && $extra_setting['hide_metabox_post_discussion']) 
+            remove_meta_box( 'commentstatusdiv','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_trackbacks']) && $extra_setting['hide_metabox_post_trackbacks']) 
+            remove_meta_box( 'trackbacksdiv','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_slug']) && $extra_setting['hide_metabox_post_slug']) 
+            remove_meta_box( 'slugdiv','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_author']) && $extra_setting['hide_metabox_post_author'])  
+            remove_meta_box( 'authordiv','post','normal');
+        if (isset($extra_setting['hide_metabox_post_revisions']) && $extra_setting['hide_metabox_post_revisions']) 
+            remove_meta_box( 'revisionsdiv','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_tags']) && $extra_setting['hide_metabox_post_tags'])  
+            remove_meta_box( 'tagsdiv-post_tag','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_categories']) && $extra_setting['hide_metabox_post_categories'])  
+            remove_meta_box( 'categorydiv','post','normal' );
+        if (isset($extra_setting['hide_metabox_post_comments']) && $extra_setting['hide_metabox_post_comments'])  
+            remove_meta_box( 'commentsdiv','post','normal' );
+    }
+
+
+    function custom_post_columns($defaults) 
+    {
+        $extra_setting = $this->settings['extra_settings'];
+        if (!is_array($extra_setting)) 
+            $extra_setting = array(); 
+        
+        if (isset($extra_setting['hide_metabox_post_comments']) && $extra_setting['hide_metabox_post_comments'])  
+            unset($defaults['comments']);
+        if (isset($extra_setting['hide_metabox_post_author']) && $extra_setting['hide_metabox_post_author'])
+            unset($defaults['author']);
+        if (isset($extra_setting['hide_metabox_post_categories']) && $extra_setting['hide_metabox_post_categories'])  
+            unset($defaults['categories']);
+        return $defaults;
+    }
+
+    function manage_my_category_columns($defaults)
+    {
+        $extra_setting = $this->settings['extra_settings'];
+        if (!is_array($extra_setting)) 
+            $extra_setting = array(); 
+        
+        if (isset($extra_setting['hide_metabox_post_slug']) && $extra_setting['hide_metabox_post_slug']) 
+            unset($defaults['slug']);
+        return $defaults;
+    }
+
+    function remove_default_page_metaboxes() {
+        $extra_setting = $this->settings['extra_settings'];
+        if (!is_array($extra_setting)) 
+            $extra_setting = array(); 
+
+        add_filter('manage_pages_columns', array(&$this, 'custom_pages_columns'));
+
+        if (isset($extra_setting['hide_metabox_page_custom_fields']) && $extra_setting['hide_metabox_page_custom_fields'])  // if (get_option('wlcms_o_page_meta_box_custom'))
+            remove_meta_box( 'postcustom','page','normal' );
+        if (isset($extra_setting['hide_metabox_page_author']) && $extra_setting['hide_metabox_page_author']) 
+            remove_meta_box( 'authordiv','page','normal' );
+        if (isset($extra_setting['hide_metabox_page_discussion']) && $extra_setting['hide_metabox_page_discussion']) 
+            remove_meta_box( 'commentstatusdiv','page','normal' );
+        if (isset($extra_setting['hide_metabox_page_slug']) && $extra_setting['hide_metabox_page_slug']) 
+            remove_meta_box( 'slugdiv','page','normal' );
+        if (isset($extra_setting['hide_metabox_page_revisions']) && $extra_setting['hide_metabox_page_revisions'])  
+            remove_meta_box( 'revisionsdiv','page','normal' );
+        if (isset($extra_setting['hide_metabox_page_attributes']) && $extra_setting['hide_metabox_page_attributes'])  
+            remove_meta_box( 'pageparentdiv','page','normal' );
+        if (isset($extra_setting['hide_metabox_page_comments']) && $extra_setting['hide_metabox_page_comments']) 
+            remove_meta_box( 'commentsdiv','page','normal' );
+    }
+    
+    function custom_pages_columns($defaults) 
+    {
+        $extra_setting = $this->settings['extra_settings'];
+        if (!is_array($extra_setting)) 
+            $extra_setting = array(); 
+        
+        if (isset($extra_setting['hide_metabox_page_comments']) && $extra_setting['hide_metabox_page_comments']) 
+                unset($defaults['comments']);
+        if (isset($extra_setting['hide_metabox_page_author']) && $extra_setting['hide_metabox_page_author']) 
+                unset($defaults['author']);
+        return $defaults;
+    }
+
+    
     function update_admin_footer() {
         $extra_setting = $this->settings['extra_settings'];
         if (isset($extra_setting['dashboard_footer']) && !empty($extra_setting['dashboard_footer'])) {

@@ -241,7 +241,7 @@ class MainWPChild
         }
 
         if (!get_option('mainwp_branding_remove_restore')) {
-            $restorePage = add_submenu_page('tools.php', $this->branding . ' Restore', '<span style="display: hidden"></span>', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
+            $restorePage = add_submenu_page('tools.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
             add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
 
             $sitesToClone = get_option('mainwp_child_clone_sites');
@@ -362,7 +362,7 @@ class MainWPChild
 //                $ch = @fopen($htaccess_file,'w');
 //                if (@flock($ch, LOCK_EX))
 //                {
-                    insert_with_markers($htaccess_file, 'MainWP', $rules);
+                insert_with_markers($htaccess_file, 'MainWP', $rules);
 //                }
 //                @flock($ch, LOCK_UN);
 //                @fclose($ch);
@@ -387,7 +387,7 @@ class MainWPChild
 //                $ch = @fopen($htaccess_file,'w');
 //                if (@flock($ch, LOCK_EX))
 //                {
-                    insert_with_markers($htaccess_file, 'MainWP', $rules);
+                insert_with_markers($htaccess_file, 'MainWP', $rules);
 //                }
 //                @flock($ch, LOCK_UN);
 //                @fclose($ch);
@@ -557,8 +557,15 @@ class MainWPChild
                 $_SESSION['file'] = $file;
                 $_SESSION['size'] = $_POST['size'];
             }
-
-            add_filter('the_content', array(MainWPKeywordLinks::Instance(), 'filter_content'), 100, 2);
+            
+            $open_location = isset($_REQUEST['open_location']) ? $_REQUEST['open_location'] : '';  
+            if (!empty($open_location)) {
+                $open_location = base64_decode($open_location);                  
+                wp_redirect(site_url() . $open_location);
+                exit();
+            }
+            
+            add_filter('the_content', array(MainWPKeywordLinks::Instance(), 'filter_content'), 100, 2);            
             wp_redirect(admin_url($where));
             exit();
         }
