@@ -617,8 +617,8 @@ class MainWPBackup
 
         if ($this->gcCnt > 20)
         {
-            @gc_enable();
-            @gc_collect_cycles();
+            if (function_exists('gc_enable')) @gc_enable();
+            if (function_exists('gc_collect_cycles')) @gc_collect_cycles();
             $this->gcCnt = 0;
         }
 
@@ -628,8 +628,8 @@ class MainWPBackup
             $this->zip->close();
             $this->zip = null;
             unset($this->zip);
-            @gc_enable();
-            @gc_collect_cycles();
+            if (function_exists('gc_enable')) @gc_enable();
+            if (function_exists('gc_collect_cycles')) @gc_collect_cycles();
             $this->zip = new ZipArchive();
             $this->zip->open($this->zipArchiveFileName);
             $this->zipArchiveFileCount = 0;
