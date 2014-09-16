@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '1.2';
+    private $version = '1.3';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
