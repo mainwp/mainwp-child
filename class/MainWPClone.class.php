@@ -1100,7 +1100,7 @@ Author URI: http://dd32.id.au/
             {
                 while (($file = readdir($dh)) !== false)
                 {
-                    if ($file != '.' && $file != '..' && preg_match('/^download-(.*).zip/', $file))
+                    if ($file != '.' && $file != '..' && MainWPHelper::isArchive($file, 'download-'))
                     {
                         @unlink($backupdir . $file);
                     }
@@ -1160,10 +1160,19 @@ Author URI: http://dd32.id.au/
             $dirs = MainWPHelper::getMainWPDir('backup', false);
             $backupdir = $dirs[0];
 
-            $files = glob($backupdir . 'download-*.zip');
+            $files = glob($backupdir . 'download-*');
+            $archiveFile = false;
+            foreach ($files as $file)
+            {
+                if (MainWPHelper::isArchive($file, 'download-'))
+                {
+                    $archiveFile = $file;
+                    break;
+                }
+            }
+            if ($archiveFile === false) throw new Exception(__('No download file found','mainwp-child'));
 
-            if (count($files) == 0) throw new Exception(__('No download file found','mainwp-child'));
-            $output = array('size' => filesize($files[0]) / 1024);
+            $output = array('size' => filesize($archiveFile) / 1024);
         }
         catch (Exception $e)
         {
@@ -1186,10 +1195,18 @@ Author URI: http://dd32.id.au/
                 $dirs = MainWPHelper::getMainWPDir('backup', false);
                 $backupdir = $dirs[0];
 
-                $files = glob($backupdir . 'download-*.zip');
-
-                if (count($files) == 0) throw new Exception(__('No download file found','mainwp-child'));
-                $file = $files[0];
+                $files = glob($backupdir . 'download-*');
+                $archiveFile = false;
+                foreach ($files as $file)
+                {
+                    if (MainWPHelper::isArchive($file, 'download-'))
+                    {
+                        $archiveFile = $file;
+                        break;
+                    }
+                }
+                if ($archiveFile === false) throw new Exception(__('No download file found','mainwp-child'));
+                $file = $archiveFile;
             } else if(file_exists($file)) {
                 $testFull = true;
             } else {

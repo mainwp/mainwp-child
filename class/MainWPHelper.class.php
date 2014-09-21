@@ -146,17 +146,24 @@ class MainWPHelper
                     $originalImgUrl = $imgUrl;
                 }
 
-                $downloadfile = MainWPHelper::uploadImage($originalImgUrl);
-                $localUrl = $downloadfile['url'];
-                $linkToReplaceWith = dirname($localUrl);
-                if ($hrefLink != '')
+                try
                 {
-                    $lnkToReplace = dirname($hrefLink);
+                    $downloadfile = MainWPHelper::uploadImage($originalImgUrl);
+                    $localUrl = $downloadfile['url'];
+                    $linkToReplaceWith = dirname($localUrl);
+                    if ($hrefLink != '')
+                    {
+                        $lnkToReplace = dirname($hrefLink);
+                        if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);
+                    }
+
+                    $lnkToReplace = dirname($imgUrl);
                     if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);
                 }
+                catch (Exception $e)
+                {
 
-                $lnkToReplace = dirname($imgUrl);
-                if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);
+                }
             }
         }
         
@@ -890,10 +897,18 @@ class MainWPHelper
                     $inExcludes = true;
                     break;
                 }
+                else if (MainWPHelper::startsWith($value, $exclude . '/'))
+                {
+                    $inExcludes = true;
+                    break;
+                }
             }
         }
         return $inExcludes;
     }
-}
 
-?>
+    public static function isArchive($pFileName, $pPrefix = '', $pSuffix = '')
+    {
+        return preg_match('/' . $pPrefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $pSuffix . '$/', $pFileName);
+    }
+}

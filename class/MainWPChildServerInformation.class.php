@@ -295,6 +295,22 @@ class MainWPChildServerInformation
         <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
             <thead>
             <tr>
+                <th scope="col" class="manage-column column-posts" style="" colspan="4"><span><?php _e('Backup Archive Information','mainwp'); ?></span></th>
+            </tr>
+            </thead>
+
+            <tbody id="the-sites-list" class="list:sites">
+                <?php
+                self::renderRow('ZipArchive enabled in PHP', '=', true, 'getZipArchiveEnabled');
+                self::renderRow('Tar GZip supported', '=', true, 'getGZipEnabled');
+                self::renderRow('Tar BZip2 supported', '=', true, 'getBZipEnabled');
+                ?>
+            </tbody>
+        </table>
+        <br />
+        <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
+            <thead>
+            <tr>
                 <th scope="col" class="manage-column sorted" style=""><span><?php _e('Directory name','mainwp'); ?></span></th>
                 <th scope="col" class="manage-column sorted" style=""><span><?php _e('Path','mainwp'); ?></span></th>
                 <th scope="col" class="manage-column column-posts" style=""><?php _e('Check','mainwp'); ?></th>
@@ -479,6 +495,21 @@ class MainWPChildServerInformation
         $currentVersion = call_user_func(array('MainWPChildServerInformation', $pGetter));
 
         return (version_compare($currentVersion, $pVersion, $pCompare) || (($pExtraCompare != null) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare)));
+    }
+
+    protected static function getZipArchiveEnabled()
+    {
+        return class_exists('ZipArchive');
+    }
+
+    protected static function getGZipEnabled()
+    {
+        return function_exists('gzopen');
+    }
+
+    protected static function getBZipEnabled()
+    {
+        return function_exists('bzopen');
     }
 
     protected static function getWordpressVersion()

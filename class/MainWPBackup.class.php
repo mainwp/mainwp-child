@@ -13,6 +13,8 @@ class MainWPBackup
     protected $timeout;
     protected $lastRun;
 
+    protected $archiver = null;
+
     protected function __construct()
     {
 
@@ -30,7 +32,7 @@ class MainWPBackup
     /**
      * Create full backup
      */
-    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true)
+    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip')
     {
         $this->file_descriptors = $file_descriptors;
         $this->loadFilesBeforeZip = $loadFilesBeforeZip;
@@ -41,13 +43,25 @@ class MainWPBackup
 
         $timestamp = time();
         if ($filePrefix != '') $filePrefix .= '-';
-        if (($fileSuffix !== false) && !empty($fileSuffix))
+
+        if ($ext == 'zip')
         {
-            $file = $fileSuffix . '.zip';
+            $this->archiver = null;
+            $ext = '.zip';
         }
         else
         {
-            $file =  'backup-' . $filePrefix . $timestamp . '.zip';
+            $this->archiver = new TarArchiver($this, $ext);
+            $ext = $this->archiver->getExtension();
+        }
+
+        if (($fileSuffix !== false) && !empty($fileSuffix))
+        {
+            $file = $fileSuffix . $ext;
+        }
+        else
+        {
+            $file =  'backup-' . $filePrefix . $timestamp . $ext;
         }
         $filepath = $backupdir . $file;
         $fileurl = $dirs[1] . $file;
@@ -56,7 +70,7 @@ class MainWPBackup
         {
             while (($file = readdir($dh)) !== false)
             {
-                if ($file != '.' && $file != '..' && preg_match('/(.*).zip/', $file))
+                if ($file != '.' && $file != '..' && preg_match('/(.*).(zip|tar|tar.gz|tar.bz2)$/', $file))
                 {
                     @unlink($backupdir . $file);
                 }
@@ -80,7 +94,11 @@ class MainWPBackup
         @ini_set('max_execution_time', $this->timeout);
 
         $success = false;
-        if ($this->checkZipSupport())
+        if ($this->archiver != null)
+        {
+            $success = $this->archiver->createFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp);
+        }
+        else if ($this->checkZipSupport())
         {
             $success = $this->createZipFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp);
         }
@@ -486,7 +504,7 @@ class MainWPBackup
             {
                 if ($path->isDir())
                 {
-                    $this->zip->addEmptyDir(str_replace(ABSPATH, '', $name));
+                    $this->zipAddDir($name, $excludes);
                 }
                 else
                 {
