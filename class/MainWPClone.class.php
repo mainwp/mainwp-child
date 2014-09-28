@@ -549,7 +549,7 @@ Author URI: http://dd32.id.au/
             } }(siteId, rand), 'json');
         };
 
-        cloneInitiateBackupDownload = function(pSiteId, pUrl, pSize)
+        cloneInitiateBackupDownload = function(pSiteId, pFile, pSize)
         {
             updateClonePopup(translations['downloading_backup']);
 
@@ -558,7 +558,7 @@ Author URI: http://dd32.id.au/
 
             var data = {
                 action:'mainwp-child_clone_backupdownload',
-                url: pUrl
+                file: pFile
             };
             if (pSiteId != undefined) data['siteId'] = pSiteId;
 
@@ -581,17 +581,17 @@ Author URI: http://dd32.id.au/
             }}(pSiteId), 'json');
 
             //Poll for filesize 'till it's complete
-            pollingDownloading = setTimeout(function() { cloneBackupDownloadPolling(pSiteId, pUrl); }, 1000);
+            pollingDownloading = setTimeout(function() { cloneBackupDownloadPolling(pSiteId, pFile); }, 1000);
         };
 
-        cloneBackupDownloadPolling = function(siteId, url)
+        cloneBackupDownloadPolling = function(siteId, pFile)
         {
             if (backupDownloadFinished) return;
 
             var data = {
                 action:'mainwp-child_clone_backupdownloadpoll',
                 siteId: siteId,
-                url: url
+                file: pFile
             };
 
             jQuery.post(ajaxurl, data, function(pSiteId) { return function(resp) {
@@ -1087,12 +1087,32 @@ Author URI: http://dd32.id.au/
     {
         try
         {
-            if (!isset($_POST['url'])) throw new Exception(__('No download link given','mainwp-child'));
-            $url = $_POST['url'];
+            if (!isset($_POST['file'])) throw new Exception(__('No download link given','mainwp-child'));
+//            if (!isset($_POST['siteId'])) throw new Exception(__('No site given','mainwp-child'));
 
+            $file = $_POST['file'];
+            if (isset($_POST['siteId']))
+            {
+                $siteId = $_POST['siteId'];
+
+                $sitesToClone = get_option('mainwp_child_clone_sites');
+                if (!is_array($sitesToClone) || !isset($sitesToClone[$siteId])) throw new Exception(__('Site not found', 'mainwp-child'));
+
+                $siteToClone = $sitesToClone[$siteId];
+                $url = $siteToClone['url'];
+                $key = $siteToClone['extauth'];
+
+                $url = trailingslashit($url) . '&cloneFunc=dl&key=' . urlencode($key) . '&f=' . $file;
+            }
+            else
+            {
+                $url = $file;
+            }
             MainWPHelper::endSession();
             //Send request to the childsite!
-            $filename = 'download-'.basename($url);
+            $split = explode('=', $file);
+            $file = urldecode($split[count($split) - 1]);
+            $filename = 'download-'.basename($file);
             $dirs = MainWPHelper::getMainWPDir('backup', false);
             $backupdir = $dirs[0];
 
@@ -1214,7 +1234,6 @@ Author URI: http://dd32.id.au/
                 if (!file_exists($file)) throw new Exception(__('Backup file not found','mainwp-child'));
                 $testFull = true;
             }
-
             //return size in kb
             $cloneInstall = new MainWPCloneInstall($file);
 

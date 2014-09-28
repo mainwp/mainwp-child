@@ -22,15 +22,15 @@ class MainWPCloneInstall
         }
         else if (substr($this->file, -7) == '.tar.gz')
         {
-            $$this->archiver = new TarArchiver(null, 'tar.gz');
+            $this->archiver = new TarArchiver(null, 'tar.gz');
         }
         else if (substr($this->file, -8) == '.tar.bz2')
         {
-            $$this->archiver = new TarArchiver(null, 'tar.bz2');
+            $this->archiver = new TarArchiver(null, 'tar.bz2');
         }
         else if (substr($this->file, -4) == '.tar')
         {
-            $$this->archiver = new TarArchiver(null, 'tar');
+            $this->archiver = new TarArchiver(null, 'tar');
         }
     }
 
@@ -554,7 +554,10 @@ class MainWPCloneInstall
             return false;
 
         if ($this->archiver != null)
-            return $this->archiver->extractTo(ABSPATH);
+        {
+            $mwpDir = MainWPHelper::getMainWPDir('test');
+            return $this->archiver->extractTo($mwpDir[0]);
+        }
         else if ($this->checkWPZip())
             return $this->extractWPZipBackup();
         else if ($this->checkZipConsole())

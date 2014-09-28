@@ -402,13 +402,18 @@ class MainWPChild
 
     function parse_init()
     {
-        if (isset($_POST['cloneFunc']))
+        if (isset($_REQUEST['cloneFunc']))
         {
-            if (!isset($_POST['key'])) return;
-            if (!isset($_POST['f']) || ($_POST['f'] == '')) return;
-            if (!$this->isValidAuth($_POST['key'])) return;
+            if (!isset($_REQUEST['key'])) return;
+            if (!isset($_REQUEST['f']) || ($_REQUEST['f'] == '')) return;
+            if (!$this->isValidAuth($_REQUEST['key'])) return;
 
-            if ($_POST['cloneFunc'] == 'deleteCloneBackup')
+            if ($_REQUEST['cloneFunc'] == 'dl')
+            {
+                $this->uploadFile($_REQUEST['f']);
+                exit;
+            }
+            else if ($_POST['cloneFunc'] == 'deleteCloneBackup')
             {
                 $dirs = MainWPHelper::getMainWPDir('backup');
                 $backupdir = $dirs[0];
@@ -540,12 +545,22 @@ class MainWPChild
                 {
                     $file = $_REQUEST['file'];
                 }
+                else if (isset($_REQUEST['fdl']))
+                {
+                    $file = $_REQUEST['fdl'];
+                }
                 $auth = $this->auth($signature, rawurldecode((isset($_REQUEST['where']) ? $_REQUEST['where'] : $file)), isset($_REQUEST['nonce']) ? $_REQUEST['nonce'] : '', isset($_REQUEST['nossl']) ? $_REQUEST['nossl'] : 0);
                 if (!$auth) return;
                 if (!$this->login($_REQUEST['user']))
                 {
                     return;
                 }
+            }
+
+            if (isset($_REQUEST['fdl']))
+            {
+                $this->uploadFile($_REQUEST['fdl']);
+                exit;
             }
 
             $where = isset($_REQUEST['where']) ? $_REQUEST['where'] : '';
@@ -596,14 +611,24 @@ class MainWPChild
 
         if (isset($_GET['mainwptest']))
         {
-//            error_reporting(E_ALL);
-//            ini_set('display_errors', TRUE);
-//            ini_set('display_startup_errors', TRUE);
-//            echo '<pre>';
-//            $start = microtime(true);
-//            $time = microtime(true) - $start;
-//            echo "\n\nTime elapsed: " . $time . 'seconds';
-//            die('</pre>');
+            error_reporting(E_ALL);
+            ini_set('display_errors', TRUE);
+            ini_set('display_startup_errors', TRUE);
+            echo '<pre>';
+            $start = microtime(true);
+
+            $file = '/home/ruben/public_html/mainwpdev/wp-content/uploads/mainwp/backup/download-full-test.verticon.be-mainwpdev-09-28-2014-1411891519.tar.gz';
+            $archiver = new TarArchiver(null, 'tar.gz');
+            if (!$archiver->isOpen())
+            {
+                echo 'opening..';
+                $archiver->read($file);
+            }
+            $content = $archiver->getFromName('clone/config.txt');
+            print_r($content);
+            $time = microtime(true) - $start;
+            echo "\n\nTime elapsed: " . $time . 'seconds';
+            die('</pre>');
         }
 
         //Register does not require auth, so we register here..
@@ -1774,7 +1799,7 @@ class MainWPChild
 
         return ($result === false) ? false : array(
             'timestamp' => $timestamp,
-            'file' => $dirs[1] . basename($result['filepath']),
+            'file' => basename($result['filepath']),
             'filesize' => filesize($result['filepath'])
         );
     }
@@ -3746,6 +3771,21 @@ class MainWPChild
 
     function wordfence() {
         MainWPChildWordfence::Instance()->action();
+    }
+
+    function uploadFile($file)
+    {
+        $dirs = MainWPHelper::getMainWPDir('backup');
+        $backupdir = $dirs[0];
+
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename=' . basename($file));
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($backupdir . $file));
+        readfile($backupdir . $file);
     }
 }
 

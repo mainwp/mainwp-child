@@ -392,7 +392,6 @@ class TarArchiver
     {
         if (!$this->archive) return false;
         if (empty($entryName)) return false;
-
         $content = false;
         while ($block = @fread($this->archive, 512))
         {

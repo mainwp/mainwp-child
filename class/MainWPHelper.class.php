@@ -412,6 +412,12 @@ class MainWPHelper
             {
                 @touch($dir . 'index.php');
             }
+            if (!file_exists($dir . '.htaccess'))
+            {
+                $file = @fopen($dir . '.htaccess', 'w+');
+                @fwrite($file, 'deny from all');
+                @fclose($file);
+            }
             $url .= 'backup/';
         }
 

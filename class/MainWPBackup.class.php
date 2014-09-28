@@ -64,7 +64,7 @@ class MainWPBackup
             $file =  'backup-' . $filePrefix . $timestamp . $ext;
         }
         $filepath = $backupdir . $file;
-        $fileurl = $dirs[1] . $file;
+        $fileurl = $file;
 
         if ($dh = opendir($backupdir))
         {
@@ -677,6 +677,12 @@ class MainWPBackup
      */
     public function createBackupDB($filepath, $zip = false)
     {
+        $timeout = 20 * 60 * 60; //20minutes
+        @set_time_limit($timeout);
+        @ini_set('max_execution_time', $timeout);
+        $mem =  '512M';
+        @ini_set('memory_limit', $mem);
+
         $fh = fopen($filepath, 'w'); //or error;
 
         global $wpdb;
@@ -694,6 +700,7 @@ class MainWPBackup
             $rows = @MainWPChildDB::_query('SELECT * FROM ' . $table, $wpdb->dbh);
             if ($rows)
             {
+                $i = 0;
                 $table_insert = 'INSERT INTO `' . $table . '` VALUES (';
 
                 while ($row = @MainWPChildDB::fetch_array($rows))
@@ -706,8 +713,19 @@ class MainWPBackup
                     $query = trim($query, ', ') . ");";
 
                     fwrite($fh, "\n" . $query);
+                    $i++;
+
+                    if ($i >= 50)
+                    {
+                        fflush($fh);
+                        $i = 0;
+                    }
+
+                    $query = null;
+                    $row = null;
                 }
             }
+            $rows = null;
             fflush($fh);
         }
 
