@@ -60,6 +60,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 = 1.3.3 =
 * Added new hooks for Wordfence Extension
+* Fixed issue with WooCommerce Extension
 
 = 1.3.2 =
 * Fixed Permission denied issue when restoring from a backup on the dashboard
