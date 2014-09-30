@@ -387,6 +387,8 @@ class MainWPClientReport
                     if ($data == "version") {
                         if ($str2 == "old")
                             $data = "old_version";
+                        else if ($str2 == "current")
+                            $data = "new_version";                            
                     }                
                 }
                 
@@ -404,6 +406,7 @@ class MainWPClientReport
                     case "name":   
                     case "version":  
                     case "old_version":
+                    case "new_version":                        
                     case "display_name":                            
                     case "roles":            
                         if ($data == "name") {
