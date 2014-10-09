@@ -61,7 +61,8 @@ class MainWPChild
         'woo_com_status' => 'woo_com_status',
         'heatmaps' => 'heatmaps',
         'links_checker' => 'links_checker',
-        'wordfence' => 'wordfence'
+        'wordfence' => 'wordfence',
+        'delete_backup' => 'delete_backup'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -619,17 +620,10 @@ class MainWPChild
             echo '<pre>';
             $start = microtime(true);
 
-            $file = '/home/ruben/public_html/mainwpdev/wp-content/uploads/mainwp/backup/download-full-test.verticon.be-mainwpdev-09-28-2014-1411891519.tar.gz';
-            $archiver = new TarArchiver(null, 'tar.gz');
-            if (!$archiver->isOpen())
-            {
-                echo 'opening..';
-                $archiver->read($file);
-            }
-            $content = $archiver->getFromName('clone/config.txt');
-            print_r($content);
-            $time = microtime(true) - $start;
-            echo "\n\nTime elapsed: " . $time . 'seconds';
+            $file = $_GET['file'];
+
+            $this->uploadFile($file);
+
             die('</pre>');
         }
 
@@ -3775,6 +3769,21 @@ class MainWPChild
         MainWPChildWordfence::Instance()->action();                
     }
 
+    function delete_backup()
+    {
+        $dirs = MainWPHelper::getMainWPDir('backup');
+        $backupdir = $dirs[0];
+
+        $file = $_REQUEST['del'];
+
+        if (@file_exists($backupdir . $file))
+        {
+            @unlink($backupdir . $file);
+        }
+
+        MainWPHelper::write(array('result' => 'ok'));
+    }
+
     function uploadFile($file)
     {
         $dirs = MainWPHelper::getMainWPDir('backup');
@@ -3787,8 +3796,25 @@ class MainWPChild
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
         header('Content-Length: ' . filesize($backupdir . $file));
-        readfile($backupdir . $file);
+        while (@ob_end_flush());
+        $this->readfile_chunked($backupdir . $file);
+    }
+
+    function readfile_chunked($filename)
+    {
+        $chunksize = 1024; // how many bytes per chunk
+        $handle = @fopen($filename, 'rb');
+        if ($handle === false) return false;
+
+        while (!@feof($handle))
+        {
+            $buffer = @fread($handle, $chunksize);
+            echo $buffer;
+            @ob_flush();
+            @flush();
+            $buffer = null;
+        }
+        return @fclose($handle);
     }
 }
-
 ?>

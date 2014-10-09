@@ -130,11 +130,15 @@ class TarArchiver
                     'plugins' => $plugins,
                     'themes' => $themes)));
 
+//                $configFile = dirname($filepath) . DIRECTORY_SEPARATOR . time() . 'config.txt';
+//                $fh = fopen($filepath, 'w'); //or error;
+//                dirname($filepath) . DIRECTORY_SEPARATOR
+                $this->addEmptyDirectory('clone', 0, 0, 0, time());
                 $this->addFileFromString('clone/config.txt', $string);
             }
 
             $this->addData(pack("a1024", ""));
-            @fclose($this->archive);
+            $this->close();
             @unlink(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');
 
             return true;
@@ -178,10 +182,28 @@ class TarArchiver
 
     private function addData($data)
     {
-        @fwrite($this->archive, $data);
+        if ($this->type == 'tar.gz')
+        {
+            @fputs($this->archive, $data, strlen($data));
+        }
+        else if ($this->type == 'tar.bz2')
+        {
+            @bzwrite($this->archive, $data, strlen($data));
+        }
+        else
+        {
+            @fputs($this->archive, $data, strlen($data));
+        }
     }
 
     private function addEmptyDir($path, $entryName)
+    {
+        $stat = @stat($path);
+
+        $this->addEmptyDirectory($entryName, $stat['mode'], $stat['uid'], $stat['gid'], $stat['mtime']);
+    }
+
+    private function addEmptyDirectory($entryName, $mode, $uid, $gid, $mtime)
     {
         $prefix = "";
         if (strlen($entryName) > 99)
@@ -193,15 +215,15 @@ class TarArchiver
                 //todo: add some error feedback!
             }
         }
-        $stat = @stat($path);
+
 
         $block = pack("a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12",
             $entryName,
-            sprintf("%07o", $stat['mode']),
-            sprintf("%07o", $stat['uid']),
-            sprintf("%07o", $stat['gid']),
+            sprintf("%07o", $mode),
+            sprintf("%07o", $uid),
+            sprintf("%07o", $gid),
             sprintf("%011o", 0),
-            sprintf("%011o", $stat['mtime']),
+            sprintf("%011o", $mtime),
             "        ",
             5,
             "",
@@ -294,7 +316,6 @@ class TarArchiver
 
     private function addFileFromString($entryName, $content)
     {
-
         $prefix = "";
         if (strlen($entryName) > 99)
         {
@@ -384,7 +405,18 @@ class TarArchiver
     {
         if ($this->archive)
         {
-            @fclose($this->archive);
+            if ($this->type == 'tar.gz')
+            {
+                @fclose($this->archive);
+            }
+            else if ($this->type == 'tar.bz2')
+            {
+                @bzclose($this->archive);
+            }
+            else
+            {
+                @fclose($this->archive);
+            }
         }
     }
 
