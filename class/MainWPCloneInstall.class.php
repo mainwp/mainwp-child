@@ -555,8 +555,9 @@ class MainWPCloneInstall
 
         if ($this->archiver != null)
         {
-            $mwpDir = MainWPHelper::getMainWPDir('test');
-            return $this->archiver->extractTo($mwpDir[0]);
+            if (!$this->archiver->isOpen()) $this->archiver->read($this->file);
+
+            return $this->archiver->extractTo(ABSPATH);
         }
         else if ($this->checkWPZip())
             return $this->extractWPZipBackup();

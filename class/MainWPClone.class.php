@@ -560,6 +560,7 @@ Author URI: http://dd32.id.au/
                 action:'mainwp-child_clone_backupdownload',
                 file: pFile
             };
+
             if (pSiteId != undefined) data['siteId'] = pSiteId;
 
             jQuery.post(ajaxurl, data, function(siteId) { return function(resp) {
@@ -1102,7 +1103,7 @@ Author URI: http://dd32.id.au/
                 $url = $siteToClone['url'];
                 $key = $siteToClone['extauth'];
 
-                $url = trailingslashit($url) . '&cloneFunc=dl&key=' . urlencode($key) . '&f=' . $file;
+                $url = trailingslashit($url) . '?cloneFunc=dl&key=' . urlencode($key) . '&f=' . $file;
             }
             else
             {

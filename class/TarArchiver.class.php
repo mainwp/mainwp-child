@@ -387,7 +387,7 @@ class TarArchiver
         if (substr($filepath, -6) == 'tar.gz')
         {
             $this->type = 'tar.gz';
-            $this->archive = @gzopen($filepath, 'rb');
+            $this->archive = @fopen('compress.zlib://' . $filepath, 'rb');
         }
         else if (substr($filepath, -7) == 'tar.bz2')
         {
@@ -425,6 +425,7 @@ class TarArchiver
         if (!$this->archive) return false;
         if (empty($entryName)) return false;
         $content = false;
+        @fseek($this->archive, 0);
         while ($block = @fread($this->archive, 512))
         {
             $temp = unpack("a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp", $block);
@@ -490,7 +491,7 @@ class TarArchiver
     {
         if (!$this->archive) return false;
         if (empty($entryName)) return false;
-
+        @fseek($this->archive, 0);
         while ($block = @fread($this->archive, 512))
         {
             $temp = unpack("a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp", $block);
@@ -545,8 +546,10 @@ class TarArchiver
 
     function extractTo($to)
     {
-        $to = trailingslashit($to);
+        global $wp_filesystem;
 
+        $to = trailingslashit($to);
+        @fseek($this->archive, 0);
         while ($block = fread($this->archive, 512))
         {
             $temp = unpack("a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp", $block);
@@ -577,35 +580,59 @@ class TarArchiver
                 $checksum += ord(substr($block, $i, 1));
 //            if ($file['checksum'] != $checksum)
 //                $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
-
             if ($file['type'] == 5)
             {
                 if (!is_dir($to . $file['name']))
                 {
-                    mkdir($to . $file['name'], 0777, true);
+                    if (!empty($wp_filesystem)) $wp_filesystem->mkdir($to . $file['name'], FS_CHMOD_DIR);
+                    else mkdir($to . $file['name'], 0777, true);
                 }
             }
             else if ($file['type'] == 0)
             {
                 if (!is_dir(dirname($to . $file['name'])))
                 {
-                    mkdir(dirname($to . $file['name']), 0777, true);
-                }
-                $new = @fopen($to . $file['name'], "wb+");
-                $bytesToRead = $file['stat'][7];
-                while ($bytesToRead > 0)
-                {
-                    $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                    fwrite($new, fread($this->archive, $readNow));
-                    $bytesToRead -= $readNow;
+                    if (!empty($wp_filesystem)) $wp_filesystem->mkdir(dirname($to . $file['name']), FS_CHMOD_DIR);
+                    else mkdir(dirname($to . $file['name']), 0777, true);
                 }
 
-                $toRead = (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512);
-                if ($toRead > 0)
+                if (!empty($wp_filesystem))
                 {
-                    fread($this->archive, (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512));
+                    $contents = '';
+                    $bytesToRead = $file['stat'][7];
+                    while ($bytesToRead > 0)
+                    {
+                        $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+                        $contents .= fread($this->archive, $readNow);
+                        $bytesToRead -= $readNow;
+                    }
+
+                    $toRead = (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512);
+                    if ($toRead > 0)
+                    {
+                        fread($this->archive, (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512));
+                    }
+
+                    $wp_filesystem->put_contents($to . $file['name'], $contents, FS_CHMOD_FILE);
                 }
-                fclose($new);
+                else
+                {
+                    $new = @fopen($to . $file['name'], "wb+");
+                    $bytesToRead = $file['stat'][7];
+                    while ($bytesToRead > 0)
+                    {
+                        $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+                        fwrite($new, fread($this->archive, $readNow));
+                        $bytesToRead -= $readNow;
+                    }
+
+                    $toRead = (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512);
+                    if ($toRead > 0)
+                    {
+                        fread($this->archive, (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512));
+                    }
+                    fclose($new);
+                }
             }
             unset ($file);
         }

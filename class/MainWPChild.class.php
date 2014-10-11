@@ -620,9 +620,10 @@ class MainWPChild
             echo '<pre>';
             $start = microtime(true);
 
-            $file = $_GET['file'];
-
-            $this->uploadFile($file);
+            $file = new TarArchiver(null, 'tar.gz');
+            $file->read('/home/ruben/public_html/mainwpdev/wp-content/uploads/mainwp/full-test.verticon.be-mainwpdev-10-11-2014-1413032436.tar.gz');
+            $file->extractTo('bla');
+//            $this->uploadFile($file);
 
             die('</pre>');
         }
