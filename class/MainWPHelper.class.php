@@ -148,17 +148,17 @@ class MainWPHelper
 
                 try
                 {
-                    $downloadfile = MainWPHelper::uploadImage($originalImgUrl);
-                    $localUrl = $downloadfile['url'];
-                    $linkToReplaceWith = dirname($localUrl);
-                    if ($hrefLink != '')
-                    {
-                        $lnkToReplace = dirname($hrefLink);
-                        if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);
-                    }
-
-                    $lnkToReplace = dirname($imgUrl);
+                $downloadfile = MainWPHelper::uploadImage($originalImgUrl);
+                $localUrl = $downloadfile['url'];
+                $linkToReplaceWith = dirname($localUrl);
+                if ($hrefLink != '')
+                {
+                    $lnkToReplace = dirname($hrefLink);
                     if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);
+                }
+
+                $lnkToReplace = dirname($imgUrl);
+                if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);
                 }
                 catch (Exception $e)
                 {

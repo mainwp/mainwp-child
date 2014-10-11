@@ -82,12 +82,22 @@ if (class_exists('WP_Stream_Connector')) {
                 $webtrust = isset($scan_result['webtrust']) ? $scan_result['webtrust'] : "";
             }
             
-            self::log(
-                $message,
-                compact('scan_status', 'status', 'webtrust'),
-                0,
-                array( 'mainwp_sucuri' => 'mainwp_sucuri_scan' )
-            );            
+            if (MainWPClientReport::is_version_2()) {
+                self::log(
+                    $message,
+                    compact('scan_status', 'status', 'webtrust'),
+                    0,
+                    'mainwp_sucuri',
+                    'mainwp_sucuri_scan'
+                );                            
+            } else {
+                self::log(
+                    $message,
+                    compact('scan_status', 'status', 'webtrust'),
+                    0,
+                    array( 'mainwp_sucuri' => 'mainwp_sucuri_scan' )
+                );            
+            }
         }
     }
 }

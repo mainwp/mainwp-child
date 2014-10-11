@@ -64,14 +64,23 @@ if (class_exists('WP_Stream_Connector')) {
             return $links;
 	}
 
-        public static function callback_mainwp_backup($destination, $message, $size, $status, $type) {                        
-            self::log(
-                $message,
-                compact('destination', 'status', 'type', 'size'),
-                0,
-                array( 'mainwp_backups' => 'mainwp_backup' )
-            );
-            
+        public static function callback_mainwp_backup($destination, $message, $size, $status, $type) {                                    
+            if (MainWPClientReport::is_version_2()) {
+                self::log(
+                    $message,
+                    compact('destination', 'status', 'type', 'size'),
+                    0,
+                    'mainwp_backups',
+                    'mainwp_backup'    
+                );                          
+            } else {
+                self::log(
+                    $message,
+                    compact('destination', 'status', 'type', 'size'),
+                    0,
+                    array( 'mainwp_backups' => 'mainwp_backup' )
+                );
+            }            
         }
     }
 }

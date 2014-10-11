@@ -204,7 +204,8 @@ class MainWPHeatmapTracker
 			return false;
 		$timestamp = time();
 		$signature = $this->createSignature($key, $timestamp, $clickData);
-		$request = wp_remote_post($url, array(
+                
+                $params = array(
 			'headers' => array(
 				'Referer' => site_url()
 			),
@@ -213,8 +214,14 @@ class MainWPHeatmapTracker
 				'signature' => $signature,
 				'data' => base64_encode(serialize($clickData)),
 				'action' => 'heatmapSendClick'
-			)
-		));
+			)                        
+		);
+                
+                if (strpos($url, "https://") === 0)
+                      $params['sslverify'] = FALSE; 
+                
+		$request = wp_remote_post($url, $params);                
+
 		if ( is_array($request) && intval($request['body']) > 0 )
 			delete_option('mainwp_child_click_data');
 	}
@@ -349,7 +356,8 @@ class MainWPHeatmapTracker
 		$key = get_option('mainwp_child_pubkey');
 		$timestamp = time();
 		$signature = $this->createSignature($key, $timestamp, $data);
-		$request = wp_remote_post($url, array(
+                
+                $params = array(
 			'headers' => array(
 				'Referer' => site_url()
 			),
@@ -359,8 +367,13 @@ class MainWPHeatmapTracker
 				'data' => base64_encode(serialize($data)),
 				'action' => 'heatmapGetClickData'
 			),
-			'timeout' => 60
-		));
+			'timeout' => 60                        
+                );
+                
+                if (strpos($url, "https://") === 0)
+                      $params['sslverify'] = FALSE; 
+                
+		$request = wp_remote_post($url, $params);
 		
         if ( is_array($request) )
         {

@@ -731,7 +731,7 @@ class MainWPChild
                 $auth = (md5($func . $nonce . get_option('mainwp_child_nossl_key')) == base64_decode($signature));
             }
             else
-            {
+            {                
                 $auth = openssl_verify($func . $nonce, base64_decode($signature), base64_decode(get_option('mainwp_child_pubkey')));
             }
         }
@@ -1362,11 +1362,14 @@ class MainWPChild
         $extra = $_POST['extra'];
         $userId = $_POST['id'];
         $user_pass = $_POST['user_pass'];
-
+        
+        global $current_user;
+        $reassign = (isset($current_user) && isset($current_user->ID)) ? $current_user->ID : 0;
+        
         if ($action == 'delete')
         {
             include_once(ABSPATH . '/wp-admin/includes/user.php');
-            wp_delete_user($userId);
+            wp_delete_user($userId, $reassign);
         }
         else if ($action == 'changeRole')
         {
@@ -3042,7 +3045,7 @@ class MainWPChild
                 $out['slug'] = $pluginslug;
                 $out['description'] = $plugin['Description'];
                 $out['version'] = $plugin['Version'];
-                $out['active'] = (is_array($active_plugins) && in_array($pluginslug, $active_plugins)) ? 1 : 0;				
+                $out['active'] = (is_array($active_plugins) && in_array($pluginslug, $active_plugins)) ? 1 : 0;				                
                 if (!$filter)
                 {
                     $rslt[] = $out;

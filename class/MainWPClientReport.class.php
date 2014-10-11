@@ -2,8 +2,8 @@
 
 class MainWPClientReport
 {   
-    public static $instance = null;   
-        
+    public static $instance = null; 
+            
     static function Instance() {
         if (MainWPClientReport::$instance == null) {
             MainWPClientReport::$instance = new MainWPClientReport();
@@ -42,10 +42,18 @@ class MainWPClientReport
     
     public function action() {   
         $information = array();
-        if (!function_exists('wp_stream_query')) {
+        if (!function_exists('wp_stream_query') || !class_exists('WP_Stream') ) {
             $information['error'] = 'NO_STREAM';
             MainWPHelper::write($information);
-        }   
+        } 
+        
+        if (version_compare(WP_Stream::VERSION, '2.0.0', '>=') && function_exists('WP_Stream::is_connected')) {
+            if (!WP_Stream::is_connected()) {
+                $information['error'] = 'NOT_CONNECT_STREAM';
+                MainWPHelper::write($information);
+            }            
+        }  
+        
         if (isset($_POST['mwp_action'])) {
             switch ($_POST['mwp_action']) {
                 case "save_sucuri_stream":
@@ -111,7 +119,7 @@ class MainWPClientReport
         unset($_POST['sections']);
         unset($_POST['other_tokens']);
         
-        $args = array();  
+        $args = array();
         foreach ( $allowed_params as $param ) {                                            
                 $paramval = wp_stream_filter_input( INPUT_POST, $param );                
                 if ( $paramval || '0' === $paramval ) {
@@ -123,18 +131,38 @@ class MainWPClientReport
             if (!in_array($arg, $allowed_params)) {
                 unset($args[$arg]);
             }                
-        }        
-        if (isset($args['date_from']))
-            $args['date_from'] = date("Y-m-d H:i:s", $args['date_from']);
+        }     
         
-        if (isset($args['date_to']))
-            $args['date_to'] = date("Y-m-d H:i:s", $args['date_to']);
+        $args['action__not_in'] =  array('login');  
         
-        $args['records_per_page'] = -1;
+        if (self::is_version_2()) {             
+            if (isset($args['date_from']))
+                $args['date_from'] = date("Y-m-d", $args['date_from']);
+
+            if (isset($args['date_to']))
+                $args['date_to'] = date("Y-m-d", $args['date_to']);
+        } else {
+            $args['fields'] = 'with-meta';
+            if (isset($args['date_from']))
+                $args['date_from'] = date("Y-m-d H:i:s", $args['date_from']);
+
+            if (isset($args['date_to']))
+                $args['date_to'] = date("Y-m-d H:i:s", $args['date_to']);
+        }   
         
-        $records = wp_stream_query( $args );
+        $args['records_per_page'] = 9999;        
+//        error_log(print_r($args, true));        
+        
+        $records = wp_stream_query( $args );        
+        
+//        if (count($records) > 0)
+//            error_log(print_r($records, true));
+//        else 
+//            error_log("==============");
+        
         if (!is_array($records)) 
             $records = array();
+        
         //return $records;
         //$other_tokens_data = $this->get_other_tokens_data($records, $other_tokens);
          
@@ -152,29 +180,136 @@ class MainWPClientReport
          
         $sections_data = array();    
         
-        if (isset($sections['header']) && is_array($sections['header'])) {
-            foreach($sections['header'] as $sec => $tokens) {
-                $sections_data['header'][$sec] = $this->get_section_loop_data($records, $tokens, $sec);
+        if (isset($sections['header']) && is_array($sections['header']) && !empty($sections['header'])) {
+            foreach($sections['header']['section_token'] as $index => $sec) {                
+                $tokens = $sections['header']['section_content_tokens'][$index];                
+                $sections_data['header'][$index] = $this->get_section_loop_data($records, $tokens, $sec);
             }
         }
-        if (isset($sections['body']) && is_array($sections['body'])) {
-            foreach($sections['body'] as $sec => $tokens) {
-                $sections_data['body'][$sec] = $this->get_section_loop_data($records, $tokens, $sec);
+        if (isset($sections['body']) && is_array($sections['body']) && !empty($sections['body'])) {
+            foreach($sections['body']['section_token'] as $index => $sec) {                
+                $tokens = $sections['body']['section_content_tokens'][$index];  
+                $sections_data['body'][$index] = $this->get_section_loop_data($records, $tokens, $sec);
             }
         }
-        if (isset($sections['footer']) && is_array($sections['footer'])) {
-            foreach($sections['footer'] as $sec => $tokens) {
-                $sections_data['footer'][$sec] = $this->get_section_loop_data($records, $tokens, $sec);
+        if (isset($sections['footer']) && is_array($sections['footer']) && !empty($sections['footer'])) {
+            foreach($sections['footer']  as $index => $sec) {                
+                $tokens = $sections['footer']['section_content_tokens'][$index];  
+                $sections_data['footer'][$index] = $this->get_section_loop_data($records, $tokens, $sec);
             }
         }
             
         $information = array('other_tokens_data' => $other_tokens_data,
-                             'sections_data' => $sections_data );            
+                             'sections_data' => $sections_data );           
         
         return $information;
     }
     
     function get_other_tokens_data($records, $tokens) {
+        if (self::is_version_2()) {
+            return $this->get_other_tokens_data_two($records, $tokens);            
+        }
+        
+        $convert_context_name = array(
+            "comment" => "comments",
+            "plugin" => "plugins",
+            "profile" => "profiles",
+            "session" => "sessions",
+            "setting" => "settings",
+            "setting" => "settings",
+            "theme" => "themes",
+            "posts" => "post",
+            "pages" => "page",
+            "user" => "users",
+            "widget" => "widgets",
+            "menu" => "menus",
+            "backups" => "mainwp_backups",
+            "backup" => "mainwp_backups", 
+            "sucuri" => "mainwp_sucuri",
+        );
+               
+        $convert_action_name = array(
+            "restored" => "untrashed",
+            "spam" => "spammed",
+            "backups" => "mainwp_backup",
+            "backup" => "mainwp_backup"
+        );
+        
+        $allowed_data = array(                             
+            'count'          
+        );
+        
+        $token_values = array();
+        
+        if (!is_array($tokens))
+            $tokens = array();
+        
+        foreach ($tokens as $token) {
+               $str_tmp = str_replace(array('[', ']'), "", $token);
+               $array_tmp = explode(".", $str_tmp);  
+
+               if (is_array($array_tmp)) {
+                   $context = $action = $data = "";
+                   if (count($array_tmp) == 2) {
+                       list($context, $data) = $array_tmp;  
+                   } else if (count($array_tmp) == 3) {
+                       list($context, $action, $data) = $array_tmp;                        
+                   }       
+
+                    $context = isset($convert_context_name[$context]) ? $convert_context_name[$context] : $context;
+                    if (isset($convert_action_name[$action])) {
+                        $action = $convert_action_name[$action];
+                    }
+
+                    switch ($data) {                      
+                       case "count": 
+                           $count = 0;
+                           foreach ($records as $record) {                                
+                                if ($context == "themes" && $action == "edited") {
+                                    if ($record->action !== "updated" || $record->connector !== "editor")
+                                        continue;                                    
+                                } else if ($context == "users" && $action == "updated") {
+                                    if ($record->context !== "profiles" || $record->connector !== "users")
+                                        continue;                                    
+                                } else if ($context == "mainwp_backups") {
+                                    if ($record->context !== "mainwp_backups") {
+                                        continue;
+                                    }
+                                } else if ($context == "mainwp_sucuri") {
+                                    if ($record->context !== "mainwp_sucuri") {
+                                        continue;
+                                    }
+                                } else { 
+                                    if ($action != $record->action)
+                                        continue;
+
+                                    if ($context == "comments" && $record->context != "page" && $record->context != "post")
+                                        continue;
+                                    else if ($context == "media" && $record->connector != "media")
+                                        continue;
+                                    else if ($context == "widgets" && $record->connector != "widgets")
+                                        continue; 
+                                    else if ($context == "menus" && $record->connector != "menus")
+                                        continue; 
+
+                                    if ($context !== "comments" && $context !== "media" && 
+                                        $context !== "widgets" && $context !== "menus" &&
+                                        $record->context != $context)
+                                        continue;
+                                }
+                                
+                                $count++;
+                           }     
+                           $token_values[$token] = $count;                         
+                           break;                
+                   }            
+               } 
+        }            
+        return $token_values;        
+    }
+    
+    function get_other_tokens_data_two($records, $tokens) {
+        
         $convert_context_name = array(
             "comment" => "comments",
             "plugin" => "plugins",
@@ -230,7 +365,10 @@ class MainWPClientReport
                        case "count": 
                            $count = 0;
                            foreach ($records as $record) {    
-                                if ($context == "themes" && $action == "edited") {
+                                if ($context == "plugins" && $action == "edited") {
+                                    if ($record->action !== "updated" || $record->connector !== "editor")
+                                        continue;                                    
+                                } else if ($context == "themes" && $action == "edited") {
                                     if ($record->action !== "updated" || $record->connector !== "editor")
                                         continue;                                    
                                 } else if ($context == "users" && $action == "updated") {
@@ -261,8 +399,7 @@ class MainWPClientReport
                                         $context !== "widgets" && $context !== "menus" &&
                                         $record->context != $context)
                                         continue;
-                                }
-                                
+                                }                                
                                 $count++;
                            }     
                            $token_values[$token] = $count;                         
@@ -272,6 +409,7 @@ class MainWPClientReport
         }            
         return $token_values;        
     }
+    
     
     function get_section_loop_data($records, $tokens, $section) {
         
@@ -326,8 +464,21 @@ class MainWPClientReport
         $loop_count = 0;
         
         foreach ($records as $record) {     
-            $theme_edited = $users_updated = false;            
-            if ($context == "themes" && $action == "edited") {
+            $theme_edited = $users_updated = $plugin_edited = false;              
+            
+            if (self::is_version_2()) {
+                if ($context == "plugins" && $action == "edited") {
+                    if ($record->action !== "updated" || $record->connector !== "editor")
+                        continue;
+                    else {
+                        $plugin_edited = true;                                            
+                    }
+                }
+            }
+            
+            if($plugin_edited) {
+                // ok next
+            } else if ($context == "themes" && $action == "edited") {
                 if ($record->action !== "updated" || $record->connector !== "editor")
                     continue;
                 else 
@@ -387,7 +538,7 @@ class MainWPClientReport
                     if ($data == "version") {
                         if ($str2 == "old")
                             $data = "old_version";
-                        else if ($str2 == "current")
+                        else if ($str2 == "current" && $str1 == "wordpress")
                             $data = "new_version";                            
                     }                
                 }
@@ -401,7 +552,7 @@ class MainWPClientReport
                         break;
                     case "area":                        
                         $data = "sidebar_name";  
-                        $token_values[$token] = $this->get_stream_meta_data($record->ID, $data);                      
+                        $token_values[$token] = $this->get_stream_meta_data($record, $data);                      
                         break;
                     case "name":   
                     case "version":  
@@ -412,10 +563,13 @@ class MainWPClientReport
                         if ($data == "name") {
                             if ($theme_edited)
                                 $data = "theme_name";
-                            else if ($users_updated) {
+                            else if ($plugin_edited) {
+                                $data = "plugin_name";
+                            } else if ($users_updated) {
                                 $data = "display_name";
                             }
-                        }
+                        } 
+                        
                         if ($data == "roles" && $users_updated) {
                             $user_info = get_userdata($record->object_id);
                             if ( !( is_object( $user_info ) && is_a( $user_info, 'WP_User' ) ) ) {                                
@@ -425,7 +579,7 @@ class MainWPClientReport
                             }                                
                             $token_values[$token] = $roles;                                                                              
                         } else {                            
-                            $token_values[$token] = $this->get_stream_meta_data($record->ID, $data);
+                            $token_values[$token] = $this->get_stream_meta_data($record, $data);
                         }
                         break;
                     case "title":  
@@ -434,28 +588,28 @@ class MainWPClientReport
                         else if ($record->connector == "menus") {
                             $data = "name";      
                         }
-                        $token_values[$token] = $this->get_stream_meta_data($record->ID, $data);                                                                                 
+                        $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
                         break;
                     case "author":   
                         $data = "author_meta";
-                        $token_values[$token] = $this->get_stream_meta_data($record->ID, $data);                                                                                 
+                        $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
                         break; 
                     case "status":   // sucuri cases                         
                     case "webtrust":                       
                         if ($context == "mainwp_sucuri") {                           
-                            $token_values[$token] = $this->get_stream_meta_data($record->ID, $data);                                                                                 
+                            $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
                         } else 
                             $token_values[$token] = $token; 
                         break;
                     case "destination":   // backup cases                         
                     case "type":   
                         if ($context == "mainwp_backups") {                           
-                            $token_values[$token] = $this->get_stream_meta_data($record->ID, $data);                                                                                 
+                            $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
                         } else 
                             $token_values[$token] = $token; 
                         break;                    
                     default:   
-                        $token_values[$token] = $token;                                                                                 
+                        $token_values[$token] = "N/A";                                                                                 
                         break;
                 }                                
             
@@ -469,28 +623,56 @@ class MainWPClientReport
         return $loops;
     }
     
-    function get_stream_meta_data($record_id, $data) {                 
+    public static function is_version_2() {
+        return version_compare(WP_Stream::VERSION, '2.0.0', '>=');
+    }
+    
+    function get_stream_meta_data($record, $data) { 
+        
+        if (empty($record))
+            return "";
+                
+        if (self::is_version_2())
+            return $this->get_stream_meta_data_two($record, $data);
+        
+        $record_id = $record->ID;
         
         $meta_key = $data;
-        
-        global $wpdb;
-        
-        if (class_exists('WP_Stream_Install'))
-            $prefix = WP_Stream_Install::$table_prefix;
-        else
-            $prefix = $wpdb->prefix;
-        
-	$sql    = "SELECT meta_value FROM {$prefix}stream_meta WHERE record_id = " . $record_id . " AND meta_key = '" . $meta_key . "'";
-	$meta   = $wpdb->get_row( $sql );        
-        
         $value = "";
-        if (!empty($meta)) {
-            $value = $meta->meta_value;
-            if ($meta_key == "author_meta") {
-                $value = unserialize($value);
-                $value = $value['display_name'];
-            }            
+        
+        if (isset($record->meta)) {
+            $meta = $record->meta;
+            if (isset($meta[$meta_key])) {
+                $value = $meta[$meta_key];
+                $value = current($value); 
+                if ($meta_key == "author_meta") {
+                    $value = unserialize($value); 
+                    $value = $value['display_name'];                    
+                }
+                
+            }             
         }
+        
+        return $value;            
+    }
+    
+    function get_stream_meta_data_two($record, $data) {  
+        $meta_key = $data;
+        $stream_meta = $author_meta = false;
+        
+        if (is_object($record)) {
+            if (isset($record->stream_meta))         
+                $stream_meta  = $record->stream_meta;        
+            if (isset($record->author_meta)) 
+                $author_meta  = $record->author_meta;
+        }        
+        $value = "";        
+        if ($meta_key == "author_meta") {
+            if (is_object($author_meta) && isset($author_meta->display_name))                     
+                $value = $author_meta->display_name;
+        } else if (is_object($stream_meta) && isset($stream_meta->{$meta_key})){
+            $value = $stream_meta->{$meta_key};
+        }        
         
         return $value;            
     }
