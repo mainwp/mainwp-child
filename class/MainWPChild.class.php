@@ -619,11 +619,16 @@ class MainWPChild
             ini_set('display_startup_errors', TRUE);
             echo '<pre>';
             $start = microtime(true);
+            $excludes  = array('wp-content');
+            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
+            $uploadDir = MainWPHelper::getMainWPDir();
+            $uploadDir = $uploadDir[0];
+            $excludes[] = str_replace(ABSPATH, '', $uploadDir);
 
-            $file = new TarArchiver(null, 'tar.gz');
-            $file->read('/home/ruben/public_html/mainwpdev/wp-content/uploads/mainwp/full-test.verticon.be-mainwpdev-10-11-2014-1413032436.tar.gz');
-            $file->extractTo('bla');
-//            $this->uploadFile($file);
+//            $file = new TarArchiver(null, 'tar.gz');
+//            $file->read('/home/ruben/public_html/mainwpdev/wp-content/uploads/mainwp/full-test.verticon.be-mainwpdev-10-11-2014-1413032436.tar.gz');
+//            $file->extractTo('bla');
+            print_r(MainWPBackup::get()->createFullBackup($excludes, '', false, false, 0, false, false, false, false, 'tar.gz'));
 
             die('</pre>');
         }
@@ -1731,7 +1736,7 @@ class MainWPChild
                 $ext = $_POST['ext'];
             }
 
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, false, false, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext);
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext);
             if (!$res)
             {
                 $information['full'] = false;

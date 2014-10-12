@@ -1156,7 +1156,7 @@ Author URI: http://dd32.id.au/
                     {
                         $siteToClone = $sitesToClone[$siteId];
 
-                        MainWPHelper::fetchUrl($siteToClone['url'], array('cloneFunc' => 'deleteCloneBackup', 'key' => $siteToClone['extauth'], 'f' => basename($url)));
+                        MainWPHelper::fetchUrl($siteToClone['url'], array('cloneFunc' => 'deleteCloneBackup', 'key' => $siteToClone['extauth'], 'f' => $_POST['file']));
                     }
                 }
             }
