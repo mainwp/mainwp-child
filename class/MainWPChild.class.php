@@ -618,18 +618,6 @@ class MainWPChild
             ini_set('display_errors', TRUE);
             ini_set('display_startup_errors', TRUE);
             echo '<pre>';
-            $start = microtime(true);
-            $excludes  = array('wp-content');
-            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
-            $uploadDir = MainWPHelper::getMainWPDir();
-            $uploadDir = $uploadDir[0];
-            $excludes[] = str_replace(ABSPATH, '', $uploadDir);
-
-//            $file = new TarArchiver(null, 'tar.gz');
-//            $file->read('/home/ruben/public_html/mainwpdev/wp-content/uploads/mainwp/full-test.verticon.be-mainwpdev-10-11-2014-1413032436.tar.gz');
-//            $file->extractTo('bla');
-            print_r(MainWPBackup::get()->createFullBackup($excludes, '', false, false, 0, false, false, false, false, 'tar.gz'));
-
             die('</pre>');
         }
 
@@ -785,6 +773,13 @@ class MainWPChild
         return $r;
     }
 
+    public function http_request_reject_unsafe_urls($r, $url)
+    {
+        $r['reject_unsafe_urls'] = false;
+
+        return $r;
+    }
+
     /**
      * Functions to support core functionality
      */
@@ -824,6 +819,7 @@ class MainWPChild
             {
                 add_filter( 'http_request_args', array(&$this, 'noSSLFilterFunction'), 99, 2);
             }
+            add_filter('http_request_args', array(&$this, 'http_request_reject_unsafe_urls'), 99, 2);
 
             $result = $installer->run(array(
                 'package' => $url,
@@ -834,6 +830,7 @@ class MainWPChild
                 'hook_extra' => array()
             ));
 
+            remove_filter( 'http_request_args', array(&$this, 'http_request_reject_unsafe_urls') , 99, 2);
             if (isset($_POST['sslVerify']) && $_POST['sslVerify'] == 0)
             {
                 remove_filter( 'http_request_args', array(&$this, 'noSSLFilterFunction') , 99);
