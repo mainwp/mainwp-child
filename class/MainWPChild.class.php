@@ -466,7 +466,10 @@ class MainWPChild
                     $newExcludes[] = rtrim($exclude, '/');
                 }
 
-                $res = MainWPBackup::get()->createFullBackup($newExcludes, (isset($_POST['f']) ? $_POST['f'] : $_POST['file']), true, $includeCoreFiles);
+                $method = (!isset($_POST['zipmethod']) ? 'tar.gz' : $_POST['zipmethod']);
+                if ($method == 'tar.gz' && !function_exists('gzopen')) $method = 'zip';
+
+                $res = MainWPBackup::get()->createFullBackup($newExcludes, (isset($_POST['f']) ? $_POST['f'] : $_POST['file']), true, $includeCoreFiles, 0, false, false, false, false, $method);
                 if (!$res)
                 {
                     $information['backup'] = false;
@@ -618,6 +621,16 @@ class MainWPChild
             ini_set('display_errors', TRUE);
             ini_set('display_startup_errors', TRUE);
             echo '<pre>';
+            $start = microtime(true);
+            //$excludes  = array('wp-content/uploads');
+            $excludes  = array();
+            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
+            $uploadDir = MainWPHelper::getMainWPDir();
+            $uploadDir = $uploadDir[0];
+            $excludes[] = str_replace(ABSPATH, '', $uploadDir);
+
+            print_r(MainWPBackup::get()->createFullBackup($excludes, '', false, false, 0, false, false, false, false, 'tar.gz'));
+
             die('</pre>');
         }
 

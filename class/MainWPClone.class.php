@@ -1034,7 +1034,8 @@ Author URI: http://dd32.id.au/
             MainWPHelper::endSession();
             //Send request to the childsite!
             global $wp_version;
-            $result = MainWPHelper::fetchUrl($url, array('cloneFunc' => 'createCloneBackup', 'key' => $key, 'f' => $rand, 'wpversion' => $wp_version));
+            $method = (function_exists('gzopen') ? 'tar.gz' : 'zip');
+            $result = MainWPHelper::fetchUrl($url, array('cloneFunc' => 'createCloneBackup', 'key' => $key, 'f' => $rand, 'wpversion' => $wp_version, 'zipmethod' => $method));
 
             if (!$result['backup']) throw new Exception(__('Could not create backupfile on child','mainwp-child'));
             @session_start();

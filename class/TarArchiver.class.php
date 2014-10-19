@@ -153,7 +153,8 @@ class TarArchiver
 
         if (file_exists(rtrim($path, '/') . '/.htaccess')) $this->addFile(rtrim($path, '/') . '/.htaccess', rtrim(str_replace(ABSPATH, '', $path), '/') . '/mainwp-htaccess');
 
-        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::SELF_FIRST);
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::SELF_FIRST,
+                    RecursiveIteratorIterator::CATCH_GET_CHILD);
 
         /** @var $path DirectoryIterator */
         foreach ($iterator as $path)
@@ -185,6 +186,7 @@ class TarArchiver
         if ($this->type == 'tar.gz')
         {
             @fputs($this->archive, $data, strlen($data));
+            @fflush($this->archive);
         }
         else if ($this->type == 'tar.bz2')
         {
@@ -193,6 +195,7 @@ class TarArchiver
         else
         {
             @fputs($this->archive, $data, strlen($data));
+            @fflush($this->archive);
         }
     }
 
@@ -247,6 +250,10 @@ class TarArchiver
         return true;
     }
 
+    protected $block;
+    protected $tempContent;
+    protected $gcCnt = 0;
+
     private function addFile($path, $entryName)
     {
         if (time() - $this->lastRun > 60)
@@ -257,6 +264,14 @@ class TarArchiver
 
         if ($this->excludeZip && MainWPHelper::endsWith($path, '.zip')) return false;
 
+        $this->gcCnt++;
+        if ($this->gcCnt > 20)
+        {
+            if (function_exists('gc_enable')) @gc_enable();
+            if (function_exists('gc_collect_cycles')) @gc_collect_cycles();
+            $this->gcCnt = 0;
+        }
+
         $prefix = "";
         if (strlen($entryName) > 99)
         {
@@ -265,6 +280,7 @@ class TarArchiver
             if (strlen($prefix) > 154 || strlen($entryName) > 99)
             {
                 //todo: add some error feedback!
+                return;
             }
         }
         $stat = @stat($path);
@@ -272,9 +288,10 @@ class TarArchiver
         if (!$fp)
         {
             //todo: add some error feedback!
+            return;
         }
 
-        $block = pack("a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12",
+        $this->block = pack("a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12",
             $entryName,
             sprintf("%07o", $stat['mode']),
             sprintf("%07o", $stat['uid']),
@@ -295,18 +312,18 @@ class TarArchiver
 
         $checksum = 0;
         for ($i = 0; $i < 512; $i++)
-            $checksum += ord(substr($block, $i, 1));
+            $checksum += ord(substr($this->block, $i, 1));
         $checksum = pack("a8", sprintf("%07o", $checksum));
-        $block = substr_replace($block, $checksum, 148, 8);
+        $this->block = substr_replace($this->block, $checksum, 148, 8);
 
-        $this->addData($block);
+        $this->addData($this->block);
 
         while (!feof($fp))
         {
-            $temp = fread($fp, 512);
-            if ($temp)
+            $this->tempContent = fread($fp, 512);
+            if ($this->tempContent)
             {
-                $this->addData(pack("a512", $temp));
+                $this->addData(pack("a512", $this->tempContent));
             }
         }
         @fclose($fp);
@@ -430,7 +447,7 @@ class TarArchiver
         {
             $temp = unpack("a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp", $block);
             $file = array(
-                'name' => $temp['prefix'] . $temp['name'],
+                'name' => trim($temp['prefix']) . trim($temp['name']),
                 'stat' => array(
                     2 => $temp['mode'],
                     4 => octdec($temp['uid']),
@@ -461,7 +478,7 @@ class TarArchiver
 
             if ($file['type'] == 0)
             {
-                if ($temp['name'] == $entryName)
+                if (strcmp(trim($temp['name']), trim($entryName)) == 0)
                 {
                     if ($file['stat'][7] > 0)
                     {
@@ -496,7 +513,7 @@ class TarArchiver
         {
             $temp = unpack("a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp", $block);
             $file = array(
-                'name' => $temp['prefix'] . $temp['name'],
+                'name' => trim($temp['prefix']) . trim($temp['name']),
                 'stat' => array(
                     2 => $temp['mode'],
                     4 => octdec($temp['uid']),
@@ -527,7 +544,7 @@ class TarArchiver
 
             if ($file['type'] == 0)
             {
-                if ($temp['name'] == $entryName)
+                if (strcmp(trim($temp['name']), trim($entryName)) == 0)
                 {
                     return true;
                 }
@@ -554,7 +571,7 @@ class TarArchiver
         {
             $temp = unpack("a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp", $block);
             $file = array(
-                'name' => $temp['prefix'] . $temp['name'],
+                'name' => trim($temp['prefix']) . trim($temp['name']),
                 'stat' => array(
                     2 => $temp['mode'],
                     4 => octdec($temp['uid']),
