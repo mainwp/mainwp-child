@@ -1674,12 +1674,13 @@ class MainWPChild
                 //Backup buddy
                 $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/backupbuddy_backups';
                 $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/backupbuddy_temp';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/pb_backupbuddy';
 
                 //ManageWP
                 $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/managewp';
 
                 //InfiniteWP
-                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/infinitewp/backups';
+                $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/infinitewp';
 
                 //WordPress Backup to Dropbox
                 $newExcludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/backups';
@@ -1760,7 +1761,13 @@ class MainWPChild
         }
         else if ($_POST['type'] == 'db')
         {
-            $res = $this->backupDB($fileName);
+            $ext = 'zip';
+            if (isset($_POST['ext']))
+            {
+                $ext = $_POST['ext'];
+            }
+
+            $res = $this->backupDB($fileName, $ext);
             if (!$res)
             {
                 $information['db'] = false;
@@ -1783,7 +1790,7 @@ class MainWPChild
         return $information;
     }
 
-    protected function backupDB($fileName = '')
+    protected function backupDB($fileName = '', $ext = 'zip')
     {
         $dirs = MainWPHelper::getMainWPDir('backup');
         $dir = $dirs[0];
@@ -1795,7 +1802,7 @@ class MainWPChild
         {
             while (($file = readdir($dh)) !== false)
             {
-                if ($file != '.' && $file != '..' && (preg_match('/dbBackup-(.*).sql$/', $file) || preg_match('/dbBackup-(.*).sql.zip$/', $file)))
+                if ($file != '.' && $file != '..' && (preg_match('/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2)?$/', $file)))
                 {
                     @unlink($dir . $file);
                 }
@@ -1808,7 +1815,7 @@ class MainWPChild
             @unlink($filepath);
         }
 
-        $result = MainWPBackup::get()->createBackupDB($filepath, true);
+        $result = MainWPBackup::get()->createBackupDB($filepath, $ext);
 
         MainWPHelper::update_option('mainwp_child_last_db_backup_size', filesize($result['filepath']));
 

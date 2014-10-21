@@ -41,6 +41,21 @@ class TarArchiver
         return '.tar';
     }
 
+    public function zipFile($filepath, $archive)
+    {
+        $this->create($archive);
+        if ($this->archive)
+        {
+            $this->addFile($filepath, basename($filepath));
+
+            $this->addData(pack("a1024", ""));
+            $this->close();
+
+            return true;
+        }
+        return false;
+    }
+
     public function createFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp)
     {
         $this->excludeZip = $excludezip;

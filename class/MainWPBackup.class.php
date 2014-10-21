@@ -127,7 +127,12 @@ class MainWPBackup
         @ini_set('max_execution_time', $this->timeout);
 
         $success = false;
-        if ($this->checkZipSupport())
+
+        if ($this->archiver != null)
+        {
+            $success = $this->archiver->zipFile($file, $archive);
+        }
+        else if ($this->checkZipSupport())
         {
             $success = $this->_zipFile($file, $archive);
         }
@@ -670,12 +675,7 @@ class MainWPBackup
         return false;
     }
 
-    /**
-     * Create full SQL backup
-     *
-     * @return string The SQL string
-     */
-    public function createBackupDB($filepath, $zip = false)
+    public function createBackupDB($filepath, $archiveExt = false)
     {
         $timeout = 20 * 60 * 60; //20minutes
         @set_time_limit($timeout);
@@ -685,6 +685,7 @@ class MainWPBackup
 
         $fh = fopen($filepath, 'w'); //or error;
 
+        /** @var $wpdb wpdb */
         global $wpdb;
 
         //Get all the tables
@@ -731,9 +732,19 @@ class MainWPBackup
 
         fclose($fh);
 
-        if ($zip)
+        if ($archiveExt != false)
         {
-            $newFilepath = $filepath . '.zip';
+            $newFilepath = $filepath . '.' . $archiveExt;
+
+            if ($archiveExt == 'zip')
+            {
+                $this->archiver = null;
+            }
+            else
+            {
+                $this->archiver = new TarArchiver($this, $archiveExt);
+            }
+
             if ($this->zipFile($filepath, $newFilepath) && file_exists($newFilepath))
             {
                 @unlink($filepath);
