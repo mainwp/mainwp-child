@@ -110,6 +110,7 @@ class MainWPChild
             $this->branding_robust = stripslashes($branding_header["name"]);
         }
         add_action( 'admin_notices', array(&$this, 'admin_notice'));        
+        add_filter('plugin_row_meta', array(&$this, 'plugin_row_meta'), 10, 2);
     }
 
     function update()
@@ -192,6 +193,13 @@ class MainWPChild
         if (get_option('mainwp_maintenance_opt_alert_404') == 1) {
             $this->maintenance_alert_404();
         }
+    }
+
+
+    public function plugin_row_meta($plugin_meta, $plugin_file)
+    {
+        if ($this->plugin_slug != $plugin_file) return $plugin_meta;
+        return apply_filters("mainwp_child_plugin_row_meta", $plugin_meta, $plugin_file, $this->plugin_slug);
     }
 
     function admin_menu()
@@ -2751,7 +2759,7 @@ class MainWPChild
         {
             if (isset($_POST['keyword']))
             {
-                $this->posts_where_suffix .= " AND $wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%'";
+                $this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' OR $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
             }
             if (isset($_POST['dtsstart']) && $_POST['dtsstart'] != '')
             {
@@ -3723,10 +3731,16 @@ class MainWPChild
             MainWPHelper::write($information); 
             return;
         }
-            
-        if ($path === '/')
+
+        if (strpos($path, "wp-content") === 0) {
+            $path = basename(WP_CONTENT_DIR) . substr($path, 10);
+        } else if (strpos($path, "wp-includes") === 0) {
+            $path = WPINC . substr($path, 11);
+        }
+
+        if ($path === '/') {
             $dir = ABSPATH;
-        else {
+        } else {
             $path = str_replace(' ', '-', $path);
             $path = str_replace('.', '-', $path);            
             $dir = ABSPATH . $path;

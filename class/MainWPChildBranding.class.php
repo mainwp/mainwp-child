@@ -14,11 +14,12 @@ class MainWPChildBranding
         }
         return MainWPChildBranding::$instance;
     }
-
+    
     public function __construct()
     {
         $this->child_plugin_dir = dirname(dirname(__FILE__));        
         add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
+        add_filter("mainwp_child_plugin_row_meta", array($this, "plugin_row_meta"), 10, 3);
         
         $label = get_option("mainwp_branding_button_contact_label");
         if (!empty($label)) {
@@ -30,6 +31,24 @@ class MainWPChildBranding
         $this->settings['extra_settings'] = get_option('mainwp_branding_extra_settings');
     }
 
+    
+    public function plugin_row_meta($plugin_meta, $plugin_file, $child_plugin_slug)
+    {
+        if ($child_plugin_slug != $plugin_file) return $plugin_meta;  
+       
+        if (!self::is_branding())
+            return $plugin_meta;
+        
+        for ($i = 0; $i < count($plugin_meta); $i++) {
+            $str_meta = $plugin_meta[$i];            
+            if (strpos($str_meta, "plugin-install.php?tab=plugin-information")) {
+                unset ($plugin_meta[$i]);
+                break;
+            }
+        }
+        return $plugin_meta;
+    }
+    
     public static function admin_init()
     {
     }
@@ -668,18 +687,58 @@ class MainWPChildBranding
         return false;
     }
     
+    function check_update_stream_plugin() {
+        if ( $plugins = current_user_can( 'update_plugins' ) ) {
+            $update_plugins = get_site_transient( 'update_plugins' );
+            if (!empty( $update_plugins->response )) {
+                $response =  $update_plugins->response;                
+                if (is_array($response) && isset($response['stream/stream.php']))                
+                    return true;
+            }
+	}
+        return false;
+    }
+    
     function update_footer($text){        
-        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false && self::is_branding())
-        {
-            ?>
-           <script>
-                jQuery(document).ready(function(){
-                    jQuery('input[type="checkbox"][value="mainwp-child/mainwp-child.php"]').closest('tr').remove();
-                });        
-            </script>
-           <?php
+        if (self::is_branding()) {
+            if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false)
+            {  
+                ?>
+               <script>
+                    jQuery(document).ready(function(){
+                        jQuery('input[type="checkbox"][value="mainwp-child/mainwp-child.php"]').closest('tr').remove();
+                    });        
+                </script>
+               <?php
+            } 
+            
+            if ($this->check_update_stream_plugin()) {
+                ?>            
+                <script>
+                    jQuery(document).ready(function(){
+                        var menu_update = jQuery('span.update-plugins');
+                        var menu_count = jQuery('span.update-plugins > span.update-count'); 
+                        if (menu_count) {
+                            var count = parseInt(menu_count.html());                        
+                            if (count > 0) {                                                            
+                                jQuery('span.update-plugins > span.update-count').each(function(){
+                                     jQuery(this).html(count - 1);
+                                }); 
+                                jQuery('span.update-plugins > span.plugin-count').each(function(){
+                                     jQuery(this).html(count - 1);
+                                }); 
+                                var title = menu_update.attr('title').replace(count, count - 1);
+                                jQuery('span.update-plugins').each(function(){
+                                     jQuery(this).attr('title', title);
+                                });
+                               
+                            }
+                        }
+                    });        
+                </script>
+                <?php
+            }
         }
-
         return $text;
     }
 

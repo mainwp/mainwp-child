@@ -694,10 +694,11 @@ class MainWPClientReport
         {
             add_filter('all_plugins', array($this, 'creport_branding_plugin'));   
             add_action( 'admin_menu', array($this, 'creport_remove_menu'));
+            add_filter('update_footer', array(&$this, 'update_footer'), 15);           
         }
     }    
     
-    
+         
     public function creport_branding_plugin($plugins) {
         foreach ($plugins as $key => $value)
         {
@@ -710,6 +711,21 @@ class MainWPClientReport
     
     public function creport_remove_menu() {
         remove_menu_page('wp_stream');  
-    }    
+    } 
+         
+    function update_footer($text){        
+        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false)
+        {
+            ?>
+           <script>
+                jQuery(document).ready(function(){
+                    jQuery('input[type="checkbox"][value="stream/stream.php"]').closest('tr').remove();
+                });        
+            </script>
+           <?php
+        }
+
+        return $text;
+    }
 }
 
