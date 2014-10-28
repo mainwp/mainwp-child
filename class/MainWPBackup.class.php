@@ -32,7 +32,7 @@ class MainWPBackup
     /**
      * Create full backup
      */
-    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip')
+    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false)
     {
         $this->file_descriptors = $file_descriptors;
         $this->loadFilesBeforeZip = $loadFilesBeforeZip;
@@ -40,6 +40,11 @@ class MainWPBackup
         $dirs = MainWPHelper::getMainWPDir('backup');
         $backupdir = $dirs[0];
         if (!defined('PCLZIP_TEMPORARY_DIR')) define('PCLZIP_TEMPORARY_DIR', $backupdir);
+
+        if ($pid !== false)
+        {
+            $pid = trailingslashit($backupdir) . 'backup-' . $pid . '.pid';
+        }
 
         $timestamp = time();
         if ($filePrefix != '') $filePrefix .= '-';
@@ -51,7 +56,7 @@ class MainWPBackup
         }
         else
         {
-            $this->archiver = new TarArchiver($this, $ext);
+            $this->archiver = new TarArchiver($this, $ext, $pid);
             $ext = $this->archiver->getExtension();
         }
 

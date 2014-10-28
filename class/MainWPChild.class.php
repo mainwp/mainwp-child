@@ -544,10 +544,10 @@ class MainWPChild
         //Login the user
         if (isset($_REQUEST['login_required']) && ($_REQUEST['login_required'] == 1) && isset($_REQUEST['user']))
         {
-            if (!is_user_logged_in() || $_REQUEST['user'] != $current_user->user_login)
+            $username = rawurldecode($_REQUEST['user']);
+            if (!is_user_logged_in() || $username != $current_user->user_login)
             {
                 $signature = rawurldecode(isset($_REQUEST['mainwpsignature']) ? $_REQUEST['mainwpsignature'] : '');
-//                $signature = str_replace(' ', '+', $signature);
                 $file = '';
                 if (isset($_REQUEST['f']))
                 {
@@ -563,7 +563,7 @@ class MainWPChild
                 }
                 $auth = $this->auth($signature, rawurldecode((isset($_REQUEST['where']) ? $_REQUEST['where'] : $file)), isset($_REQUEST['nonce']) ? $_REQUEST['nonce'] : '', isset($_REQUEST['nossl']) ? $_REQUEST['nossl'] : 0);
                 if (!$auth) return;
-                if (!$this->login($_REQUEST['user']))
+                if (!$this->login($username))
                 {
                     return;
                 }
@@ -630,15 +630,55 @@ class MainWPChild
             ini_set('display_startup_errors', TRUE);
             echo '<pre>';
             $start = microtime(true);
-            //$excludes  = array('wp-content/uploads');
-            $excludes  = array();
-            $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/uploads/mainwp';
-            $uploadDir = MainWPHelper::getMainWPDir();
-            $uploadDir = $uploadDir[0];
-            $excludes[] = str_replace(ABSPATH, '', $uploadDir);
 
-            print_r(MainWPBackup::get()->createFullBackup($excludes, '', false, false, 0, false, false, false, false, 'tar.gz'));
+            if (!isset($_REQUEST['backup']))
+            {
+                $pid = '1414526368';
 
+                $dirs = MainWPHelper::getMainWPDir('backup');
+                $backupdir = $dirs[0];
+
+                /** @var $wp_filesystem WP_Filesystem_Base */
+                global $wp_filesystem;
+
+                $pidFile = trailingslashit($backupdir) . 'backup-' . $pid . '.pid';
+                $doneFile = trailingslashit($backupdir) . 'backup-' . $pid . '.done';
+                if ($wp_filesystem->is_file($pidFile))
+                {
+                    $time = $wp_filesystem->mtime($pidFile);
+
+                    $minutes = date('i', time());
+                    $seconds = date('s', time());
+
+                    $file_minutes = date('i', $time);
+                    $file_seconds = date('s', $time);
+
+                    $minuteDiff = $minutes - $file_minutes;
+                    if ($minuteDiff == 59) $minuteDiff = 1;
+                    $secondsdiff = ($minuteDiff * 60) + $seconds - $file_seconds;
+
+                    if ($secondsdiff < 60)
+                    {
+                        echo 'busy..' . (time()) . ' - '  . $time;
+                    }
+                    else
+                    {
+                        echo 'stalled..';
+                    }
+                }
+                else if ($wp_filesystem->is_file($doneFile))
+                {
+                    echo 'done..';
+                }
+            }
+            else
+            {
+                $_POST['type'] = 'full';
+                $_POST['pid'] = time();
+                $_POST['loadFilesBeforeZip'] = 0;
+                $_POST['ext'] = 'tar.gz';
+                print_r($this->backup(false));
+            }
             die('</pre>');
         }
 
@@ -1755,7 +1795,13 @@ class MainWPChild
                 $ext = $_POST['ext'];
             }
 
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext);
+            $pid = false;
+            if (isset($_POST['pid']))
+            {
+                $pid = $_POST['pid'];
+            }
+
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid);
             if (!$res)
             {
                 $information['full'] = false;

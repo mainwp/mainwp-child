@@ -11,9 +11,13 @@ class TarArchiver
     protected $backup;
 
     protected $type;
+    protected $pidFile; //filepath of pid file
+    protected $pidContent; //content of pid file
+    protected $pidUpdated; //last updated pid file
 
-    public function __construct($backup, $type = 'tar')
+    public function __construct($backup, $type = 'tar', $pidFile = false)
     {
+        $this->pidFile = $pidFile;
         $this->backup = $backup;
 
         $this->type = $type;
@@ -56,8 +60,53 @@ class TarArchiver
         return false;
     }
 
+    private function createPidFile($file)
+    {
+        if ($this->pidFile === false) return false;
+        $this->pidContent = $file;
+
+        /** @var $wp_filesystem WP_Filesystem_Base */
+        global $wp_filesystem;
+
+        $wp_filesystem->put_contents($this->pidFile, $this->pidContent);
+
+        $this->pidUpdated = time();
+
+        return true;
+    }
+
+    private function updatePidFile()
+    {
+        if ($this->pidFile === false) return false;
+        if (time() - $this->pidUpdated < 20) return false;
+
+        /** @var $wp_filesystem WP_Filesystem_Base */
+        global $wp_filesystem;
+
+        $wp_filesystem->put_contents($this->pidFile, $this->pidContent);
+        $this->pidUpdated = time();
+
+        return true;
+    }
+
+    private function completePidFile()
+    {
+        if ($this->pidFile === false) return false;
+
+        /** @var $wp_filesystem WP_Filesystem_Base */
+        global $wp_filesystem;
+
+        $filename = basename($this->pidFile);
+        $wp_filesystem->move($this->pidFile, trailingslashit(dirname($this->pidFile)) . substr($filename, 0, strlen($filename) - 4) . '.done');
+        $this->pidFile = false;
+
+        return true;
+    }
+
     public function createFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp)
     {
+        $this->createPidFile($filepath);
+
         $this->excludeZip = $excludezip;
         $this->create($filepath);
 
@@ -156,6 +205,7 @@ class TarArchiver
             $this->close();
             @unlink(dirname($filepath) . DIRECTORY_SEPARATOR . 'dbBackup.sql');
 
+            $this->completePidFile();
             return true;
         }
 
@@ -271,6 +321,8 @@ class TarArchiver
 
     private function addFile($path, $entryName)
     {
+        $this->updatePidFile();
+
         if (time() - $this->lastRun > 60)
         {
             @set_time_limit(20 * 60 * 60); /*20 minutes*/
