@@ -32,7 +32,7 @@ class MainWPBackup
     /**
      * Create full backup
      */
-    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false)
+    public function createFullBackup($excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false, $append = false)
     {
         $this->file_descriptors = $file_descriptors;
         $this->loadFilesBeforeZip = $loadFilesBeforeZip;
@@ -60,9 +60,10 @@ class MainWPBackup
             $ext = $this->archiver->getExtension();
         }
 
+//        throw new Exception('Test 1 2 : ' . print_r($append,1));
         if (($fileSuffix !== false) && !empty($fileSuffix))
         {
-            $file = $fileSuffix . $ext;
+            $file = $fileSuffix . ($append === true ? '' : $ext); //Append already contains extension!
         }
         else
         {
@@ -71,16 +72,19 @@ class MainWPBackup
         $filepath = $backupdir . $file;
         $fileurl = $file;
 
-        if ($dh = opendir($backupdir))
+        if (!$append)
         {
-            while (($file = readdir($dh)) !== false)
+            if ($dh = opendir($backupdir))
             {
-                if ($file != '.' && $file != '..' && preg_match('/(.*).(zip|tar|tar.gz|tar.bz2)$/', $file))
+                while (($file = readdir($dh)) !== false)
                 {
-                    @unlink($backupdir . $file);
+                    if ($file != '.' && $file != '..' && preg_match('/(.*).(zip|tar|tar.gz|tar.bz2|pid|done)$/', $file))
+                    {
+                        @unlink($backupdir . $file);
+                    }
                 }
+                closedir($dh);
             }
-            closedir($dh);
         }
 
         if (!$addConfig)
@@ -98,10 +102,9 @@ class MainWPBackup
         @set_time_limit($this->timeout);
         @ini_set('max_execution_time', $this->timeout);
 
-        $success = false;
         if ($this->archiver != null)
         {
-            $success = $this->archiver->createFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp);
+            $success = $this->archiver->createFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append);
         }
         else if ($this->checkZipSupport())
         {
@@ -680,7 +683,7 @@ class MainWPBackup
         return false;
     }
 
-    public function createBackupDB($filepath, $archiveExt = false)
+    public function createBackupDB($filepath, $archiveExt = false, &$archiver = NULL)
     {
         $timeout = 20 * 60 * 60; //20minutes
         @set_time_limit($timeout);
@@ -697,6 +700,11 @@ class MainWPBackup
         $tables_db = $wpdb->get_results('SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N);
         foreach ($tables_db as $curr_table)
         {
+            if ($archiver != NULL)
+            {
+                $archiver->updatePidFile();
+            }
+
             $table = $curr_table[0];
 
             fwrite($fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';');

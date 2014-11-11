@@ -24,6 +24,7 @@ class MainWPChild
         'installplugintheme' => 'installPluginTheme',
         'upgradeplugintheme' => 'upgradePluginTheme',
         'backup' => 'backup',
+        'backup_checkpid' => 'backup_checkpid',
         'cloneinfo' => 'cloneinfo',
         'security' => 'getSecurityStats',
         'securityFix' => 'doSecurityFix',
@@ -571,7 +572,7 @@ class MainWPChild
 
             if (isset($_REQUEST['fdl']))
             {
-                $this->uploadFile($_REQUEST['fdl']);
+                $this->uploadFile($_REQUEST['fdl'], isset($_REQUEST['foffset']) ? $_REQUEST['foffset'] : 0);
                 exit;
             }
 
@@ -614,9 +615,10 @@ class MainWPChild
 
         // Call Heatmap
         if ((get_option('heatMapsIndividualOverrideSetting') != '1' && get_option('heatMapEnabled') !== '0') || 
-            (get_option('heatMapsIndividualOverrideSetting') == '1' && get_option('heatMapsIndividualDisable') != '1')
-            )
+            (get_option('heatMapsIndividualOverrideSetting') == '1' && get_option('heatMapsIndividualDisable') != '1'))
+        {
              new MainWPHeatmapTracker();
+        }
 
         /**
          * Security
@@ -625,61 +627,16 @@ class MainWPChild
 		
         if (isset($_GET['mainwptest']))
         {
-            error_reporting(E_ALL);
-            ini_set('display_errors', TRUE);
-            ini_set('display_startup_errors', TRUE);
-            echo '<pre>';
-            $start = microtime(true);
-
-            if (!isset($_REQUEST['backup']))
-            {
-                $pid = '1414526368';
-
-                $dirs = MainWPHelper::getMainWPDir('backup');
-                $backupdir = $dirs[0];
-
-                /** @var $wp_filesystem WP_Filesystem_Base */
-                global $wp_filesystem;
-
-                $pidFile = trailingslashit($backupdir) . 'backup-' . $pid . '.pid';
-                $doneFile = trailingslashit($backupdir) . 'backup-' . $pid . '.done';
-                if ($wp_filesystem->is_file($pidFile))
-                {
-                    $time = $wp_filesystem->mtime($pidFile);
-
-                    $minutes = date('i', time());
-                    $seconds = date('s', time());
-
-                    $file_minutes = date('i', $time);
-                    $file_seconds = date('s', $time);
-
-                    $minuteDiff = $minutes - $file_minutes;
-                    if ($minuteDiff == 59) $minuteDiff = 1;
-                    $secondsdiff = ($minuteDiff * 60) + $seconds - $file_seconds;
-
-                    if ($secondsdiff < 60)
-                    {
-                        echo 'busy..' . (time()) . ' - '  . $time;
-                    }
-                    else
-                    {
-                        echo 'stalled..';
-                    }
-                }
-                else if ($wp_filesystem->is_file($doneFile))
-                {
-                    echo 'done..';
-                }
-            }
-            else
-            {
-                $_POST['type'] = 'full';
-                $_POST['pid'] = time();
-                $_POST['loadFilesBeforeZip'] = 0;
-                $_POST['ext'] = 'tar.gz';
-                print_r($this->backup(false));
-            }
-            die('</pre>');
+//            error_reporting(E_ALL);
+//            ini_set('display_errors', TRUE);
+//            ini_set('display_startup_errors', TRUE);
+//            echo '<pre>';
+//            $start = microtime(true);
+//
+//            sleep(3);
+//
+//            $stop = microtime(true);
+//            die(($stop - $start) . 's</pre>');
         }
 
         //Register does not require auth, so we register here..
@@ -1677,11 +1634,66 @@ class MainWPChild
         }
     }
 
+    function backup_checkpid()
+    {
+        $pid = $_POST['pid'];
+
+        $dirs = MainWPHelper::getMainWPDir('backup');
+        $backupdir = $dirs[0];
+
+        $information = array();
+
+        /** @var $wp_filesystem WP_Filesystem_Base */
+        global $wp_filesystem;
+
+        $pidFile = trailingslashit($backupdir) . 'backup-' . $pid . '.pid';
+        $doneFile = trailingslashit($backupdir) . 'backup-' . $pid . '.done';
+        if ($wp_filesystem->is_file($pidFile))
+        {
+            $time = $wp_filesystem->mtime($pidFile);
+
+            $minutes = date('i', time());
+            $seconds = date('s', time());
+
+            $file_minutes = date('i', $time);
+            $file_seconds = date('s', $time);
+
+            $minuteDiff = $minutes - $file_minutes;
+            if ($minuteDiff == 59) $minuteDiff = 1;
+            $secondsdiff = ($minuteDiff * 60) + $seconds - $file_seconds;
+
+            $file = $wp_filesystem->get_contents($pidFile);
+            $information['file'] = basename($file);
+            if ($secondsdiff < 80)
+            {
+                $information['status'] = 'busy';
+            }
+            else
+            {
+                $information['status'] = 'stalled';
+            }
+        }
+        else if ($wp_filesystem->is_file($doneFile))
+        {
+            $file = $wp_filesystem->get_contents($doneFile);
+            $information['status'] = 'done';
+            $information['file'] = basename($file);
+            $information['size'] = @filesize($file);
+        }
+        else
+        {
+            $information['status'] = 'invalid';
+        }
+
+        MainWPHelper::write($information);
+    }
+
     function backup($pWrite = true)
     {
         $timeout = 20 * 60 * 60; //20minutes
         @set_time_limit($timeout);
         @ini_set('max_execution_time', $timeout);
+        MainWPHelper::endSession();
 
         $fileName = (isset($_POST['fileUID']) ? $_POST['fileUID'] : '');
         if ($_POST['type'] == 'full')
@@ -1801,7 +1813,9 @@ class MainWPChild
                 $pid = $_POST['pid'];
             }
 
-            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid);
+            $append = (isset($_POST['append']) && ($_POST['append'] == '1'));
+
+            $res = MainWPBackup::get()->createFullBackup($newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append);
             if (!$res)
             {
                 $information['full'] = false;
@@ -3870,7 +3884,7 @@ class MainWPChild
         MainWPHelper::write(array('result' => 'ok'));
     }
 
-    function uploadFile($file)
+    function uploadFile($file, $offset = 0)
     {
         $dirs = MainWPHelper::getMainWPDir('backup');
         $backupdir = $dirs[0];
@@ -3883,14 +3897,16 @@ class MainWPChild
         header('Pragma: public');
         header('Content-Length: ' . filesize($backupdir . $file));
         while (@ob_end_flush());
-        $this->readfile_chunked($backupdir . $file);
+        $this->readfile_chunked($backupdir . $file, $offset);
     }
 
-    function readfile_chunked($filename)
+    function readfile_chunked($filename, $offset)
     {
         $chunksize = 1024; // how many bytes per chunk
         $handle = @fopen($filename, 'rb');
         if ($handle === false) return false;
+
+        @fseek($handle, $offset);
 
         while (!@feof($handle))
         {
