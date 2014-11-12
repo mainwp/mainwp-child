@@ -117,7 +117,7 @@ class TarArchiver
 
     public function createFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false)
     {
-        $this->logHandle = fopen($filepath . ".log", "a+");
+        //$this->logHandle = fopen($filepath . ".log", "a+");
         $this->createPidFile($filepath);
 
         $this->excludeZip = $excludezip;

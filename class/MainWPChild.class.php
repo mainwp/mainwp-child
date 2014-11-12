@@ -105,12 +105,21 @@ class MainWPChild
         MainWPClone::init();
         MainWPChildServerInformation::init();  
         MainWPClientReport::init();
-        $this->run_saved_snippets();        
-        $branding_header = get_option('mainwp_branding_plugin_header');
-        if (is_array($branding_header) && isset($branding_header['name']) && !empty($branding_header['name'])) {
-            $this->branding_robust = stripslashes($branding_header["name"]);
+        $this->run_saved_snippets();
+
+        if (!get_option('mainwp_child_pubkey'))
+            MainWPHelper::update_option('mainwp_child_branding_disconnected', 'yes');
+
+        $branding_robust = true;
+        $cancelled_branding = (get_option('mainwp_child_branding_disconnected') === 'yes') && !get_option('mainwp_branding_preserve_branding');
+
+        if ($branding_robust && !$cancelled_branding) {
+            $branding_header = get_option('mainwp_branding_plugin_header');
+            if (is_array($branding_header) && isset($branding_header['name']) && !empty($branding_header['name'])) {
+                $this->branding_robust = stripslashes($branding_header["name"]);
+            }
         }
-        add_action( 'admin_notices', array(&$this, 'admin_notice'));        
+        add_action( 'admin_notices', array(&$this, 'admin_notice'));
         add_filter('plugin_row_meta', array(&$this, 'plugin_row_meta'), 10, 2);
     }
 
@@ -205,7 +214,9 @@ class MainWPChild
 
     function admin_menu()
     {
-        if (get_option('mainwp_branding_remove_wp_tools')) {
+        $cancelled_branding = (get_option('mainwp_child_branding_disconnected') === 'yes') && !get_option('mainwp_branding_preserve_branding');
+
+        if (get_option('mainwp_branding_remove_wp_tools') && !$cancelled_branding) {
             remove_menu_page( 'tools.php' );                            
             $pos = stripos($_SERVER['REQUEST_URI'], 'tools.php') ||
                     stripos($_SERVER['REQUEST_URI'], 'import.php') ||
@@ -213,8 +224,8 @@ class MainWPChild
             if ($pos !== false)
                 wp_redirect(get_option('siteurl') . '/wp-admin/index.php');  
         }
-        
-        if (get_option('mainwp_branding_remove_wp_setting')) {
+        // if preserve branding do not remove menus
+        if (get_option('mainwp_branding_remove_wp_setting') && !$cancelled_branding) {
             remove_menu_page( 'options-general.php' );              
             $pos = stripos($_SERVER['REQUEST_URI'], 'options-general.php') || 
                     stripos($_SERVER['REQUEST_URI'], 'options-writing.php') || 
@@ -226,7 +237,9 @@ class MainWPChild
                 wp_redirect(get_option('siteurl') . '/wp-admin/index.php'); 
                 exit();
             }
-        } else if (get_option('mainwp_branding_remove_permalink')) {
+        }
+
+        if (get_option('mainwp_branding_remove_permalink') && !$cancelled_branding) {
             remove_submenu_page('options-general.php', 'options-permalink.php');  
             $pos = stripos($_SERVER['REQUEST_URI'], 'options-permalink.php');            
             if ($pos !== false) {
@@ -235,40 +248,55 @@ class MainWPChild
             }
         }
         
-        // hide menu    
-        if (get_option('mainwp_branding_child_hide') == 'T') 
-            return;            
-        
-        $branding_header = get_option('mainwp_branding_plugin_header');        
-                
-        if (is_array($branding_header) && !empty($branding_header['name']))
-             $this->branding = stripslashes($branding_header['name']);
-        
-        if (!get_option('mainwp_branding_remove_setting'))
-        {
-            add_options_page('MainWPSettings', __($this->branding . ' Settings','mainwp-child'), 'manage_options', 'MainWPSettings', array(&$this, 'settings'));
-            add_options_page('MainWPSettings', __($this->branding . ' Server Information','mainwp-child'), 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
+        $remove_all_child_menu = false;
+        if (get_option('mainwp_branding_remove_setting') && get_option('mainwp_branding_remove_restore')) {
+            $remove_all_child_menu = true;
         }
 
-        if (!get_option('mainwp_branding_remove_restore')) {
-            $restorePage = add_submenu_page('import.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
-            add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
+        // if preserve branding do not hide menus
+        // hide menu
+        if ((!$remove_all_child_menu && get_option('mainwp_branding_child_hide') !== 'T') || $cancelled_branding) {
+            $branding_header = get_option('mainwp_branding_plugin_header');
 
-            $sitesToClone = get_option('mainwp_child_clone_sites');
-            if ($sitesToClone != '0')
-            {
-                MainWPClone::init_menu($this->branding);
+            if ((is_array($branding_header) && !empty($branding_header['name'])) && !$cancelled_branding) {
+                $this->branding = $child_menu_name = stripslashes($branding_header['name']);
+                $child_menu_icon = "";
+            } else {
+                $child_menu_name = "MainWP Child";
+                $child_menu_icon = plugins_url('images/mainwpicon.png', dirname(plugin_basename(__FILE__)));
             }
-            else
+
+            add_menu_page($child_menu_name, $child_menu_name, 'read', 'mainwp_child_tab', array($this, 'on_show_page'), $child_menu_icon, '80.00001');
+
+            if (!get_option('mainwp_branding_remove_setting') || $cancelled_branding)
             {
-                MainWPClone::init_restore_menu($this->branding);
+//                add_options_page('MainWPSettings', __($this->branding . ' Settings','mainwp-child'), 'manage_options', 'MainWPSettings', array(&$this, 'settings'));
+//                add_options_page('MainWPSettings', __($this->branding . ' Server Information','mainwp-child'), 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
+                add_submenu_page('mainwp_child_tab', 'MainWPSettings',  __($this->branding . ' Settings','mainwp-child') , 'manage_options', 'mainwp_child_tab', array(&$this, 'settings'));
+                add_submenu_page('mainwp_child_tab', 'MainWPSettings',  __($this->branding . ' Server Information','mainwp-child') , 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
+            }
+
+            if (!get_option('mainwp_branding_remove_restore') || $cancelled_branding) {
+                $restorePage = add_submenu_page('import.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
+//                $restorePage = add_submenu_page('mainwp_child_tab', $this->branding . ' Restore', $this->branding . ' Restore' , 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
+                add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
+
+                $sitesToClone = get_option('mainwp_child_clone_sites');
+                if ($sitesToClone != '0')
+                {
+                    MainWPClone::init_menu($this->branding);
+                }
+                else
+                {
+                    MainWPClone::init_restore_menu($this->branding);
+                }
             }
         }
     }
-	
-	 function admin_init(){
-		MainWPChildBranding::admin_init();
-	}
+
+    function admin_init(){
+           MainWPChildBranding::admin_init();
+    }
 
     function settings()
     {
@@ -284,32 +312,32 @@ class MainWPChild
             }
         }
         ?>
+        <div class="wrap">
     <div id="icon-options-general" class="icon32"><br></div><h2><?php _e($this->branding . ' Settings','mainwp-child'); ?></h2>
-    <form method="post" action="">
-        <br/>
-
-        <h3><?php _e('Connection Settings','mainwp-child'); ?></h3>        
-        <table class="form-table">
-            <tbody>
-            <tr valign="top">
-                <th scope="row"><input name="requireUniqueSecurityId" type="checkbox"
-                                       id="requireUniqueSecurityId" <?php if (get_option('mainwp_child_uniqueId') != '')
+    <div class="postbox" style="margin-top: 6em;">
+        <h3 class="hndle" style="margin: 0 !important; padding: .5em 1em;"><span><?php _e('Connection Settings','mainwp-child'); ?></span></h3>
+        <div class="inside">
+        <form method="post" action="">
+        <div class="howto"><?php _e('The Unique Security ID adds additional protection between the Child plugin and your Main Dashboard. The Unique Security ID will need to match when being added to the Main Dashboard. This is additional security and should not be needed in most situations.','mainwp-child'); ?></div>
+        <div style="margin: 1em 0 4em 0;">
+        <input name="requireUniqueSecurityId" type="checkbox" id="requireUniqueSecurityId" <?php if (get_option('mainwp_child_uniqueId') != '')
                     {
                         echo 'checked';
-                    } ?> /> <label for="requireUniqueSecurityId"><?php _e('Require Unique Security ID','mainwp-child'); ?></label></th>
-                <td><?php if (get_option('mainwp_child_uniqueId') != '')
+                    } ?> /> <label for="requireUniqueSecurityId" style="font-size: 15px;"><?php _e('Require Unique Security ID','mainwp-child'); ?></label>
+        </div>
+        <div>
+            <?php if (get_option('mainwp_child_uniqueId') != '')
                 {
-                    echo '<i><strong>'.__('Your Unique Security ID is:','mainwp-child') . ' ' . get_option('mainwp_child_uniqueId') . '</strong></i>';
-                } ?></td>
-            </tr>
-            <tr>
-                <td colspan="2"><span class="howto"><?php _e('The Unique Security ID adds additional protection between the Child plugin and your<br/>Main Dashboard. The Unique Security ID will need to match when being added to <br/>the Main Dashboard. This is additional security and should not be needed in most situations.','mainwp-child'); ?></span>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <p class="submit"><input type="submit" name="submit" id="submit" class="button button-primary"
-                                 value="<?php _e('Save Changes','mainwp-child'); ?>"></p></form>
+                    echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">'.__('Your Unique Security ID is:','mainwp-child') . ' <span style="font-weight: bold; color: #7fb100;">' . get_option('mainwp_child_uniqueId') . '</span></span>';
+                } ?>
+        </div>
+        <p class="submit" style="margin-top: 4em;">
+            <input type="submit" name="submit" id="submit" class="button button-primary" value="<?php _e('Save Changes','mainwp-child'); ?>">
+        </p>
+    </form>
+    </div>
+    </div>
+    </div>
     <?php
     }
 
@@ -614,12 +642,12 @@ class MainWPChild
         remove_action('login_init', 'send_frame_options_header');
 
         // Call Heatmap
-        if ((get_option('heatMapsIndividualOverrideSetting') != '1' && get_option('heatMapEnabled') !== '0') || 
-            (get_option('heatMapsIndividualOverrideSetting') == '1' && get_option('heatMapsIndividualDisable') != '1'))
-        {
-             new MainWPHeatmapTracker();
+        if (get_option('heatMapExtensionLoaded') == 'yes') {
+            if ((get_option('heatMapsIndividualOverrideSetting') != '1' && get_option('heatMapEnabled') !== '0') ||
+                (get_option('heatMapsIndividualOverrideSetting') == '1' && get_option('heatMapsIndividualDisable') != '1')
+                )
+                 new MainWPHeatmapTracker();
         }
-
         /**
          * Security
          */
@@ -1243,6 +1271,8 @@ class MainWPChild
             MainWPHelper::error(__('Invalid request','mainwp-child'));
         }
 
+        MainWPHelper::update_option('mainwp_child_branding_disconnected', 'yes');
+
         //Already added - can't readd. Deactivate plugin..
         if (get_option('mainwp_child_pubkey'))
         {
@@ -1283,6 +1313,7 @@ class MainWPChild
         $nossl_key = uniqid('', true);
         MainWPHelper::update_option('mainwp_child_nossl_key', $nossl_key);
         $information['nosslkey'] = $nossl_key;
+        MainWPHelper::update_option('mainwp_child_branding_disconnected', '');
 
         $information['register'] = 'OK';
         $information['user'] = $_POST['user'];
@@ -2095,7 +2126,8 @@ class MainWPChild
             if ($_POST['heatMap'] == '1')
             {
                 if (get_option('heatMapEnabled') != '1') $update_htaccess = true;
-                MainWPHelper::update_option('heatMapEnabled', '1');                
+                MainWPHelper::update_option('heatMapEnabled', '1');
+                MainWPHelper::update_option('heatMapExtensionLoaded', 'yes');
             }
             else
             {
@@ -2143,6 +2175,8 @@ class MainWPChild
         global $wp_version;
 
         if ($exit) $this->updateExternalSettings();
+
+        MainWPHelper::update_option('mainwp_child_branding_disconnected', '');
 
         $information['version'] = $this->version;
         $information['wpversion'] = $wp_version;

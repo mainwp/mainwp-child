@@ -105,7 +105,7 @@ class MainWPChildBranding
             'author' => $settings['child_plugin_author'],
             'authoruri' => $settings['child_plugin_author_uri'],
             'pluginuri' => $settings['child_plugin_uri']);
-        
+        MainWPHelper::update_option('mainwp_branding_preserve_branding', $settings['child_preserve_branding']);               
         MainWPHelper::update_option('mainwp_branding_plugin_header', $header);
         MainWPHelper::update_option('mainwp_branding_support_email', $settings['child_support_email']);
         MainWPHelper::update_option('mainwp_branding_support_message', $settings['child_support_message']);
@@ -118,8 +118,8 @@ class MainWPChildBranding
         MainWPHelper::update_option('mainwp_branding_send_email_message', $settings['child_send_email_message']);
         MainWPHelper::update_option('mainwp_branding_message_return_sender', $settings['child_message_return_sender']);
         MainWPHelper::update_option('mainwp_branding_submit_button_title', $settings['child_submit_button_title']);
-         if (isset($settings['child_disable_wp_branding']) && ($settings['child_disable_wp_branding'] === "Y" || $settings['child_disable_wp_branding'] === "N"))
-             MainWPHelper::update_option('mainwp_branding_disable_wp_branding', $settings['child_disable_wp_branding']);
+        if (isset($settings['child_disable_wp_branding']) && ($settings['child_disable_wp_branding'] === "Y" || $settings['child_disable_wp_branding'] === "N"))
+            MainWPHelper::update_option('mainwp_branding_disable_wp_branding', $settings['child_disable_wp_branding']);
        
         $extra_setting = array('show_button_in' => $settings['child_show_support_button_in'],                                                            
                                 'global_footer' => $settings['child_global_footer'],
@@ -153,8 +153,7 @@ class MainWPChildBranding
                                 'hide_metabox_page_discussion' => $settings['child_hide_metabox_page_discussion'],
                                 'hide_metabox_page_revisions' => $settings['child_hide_metabox_page_revisions'],
                                 'hide_metabox_page_attributes' => $settings['child_hide_metabox_page_attributes'],                
-                                'hide_metabox_page_slug' => $settings['child_hide_metabox_page_slug'],
-                                'hide_metabox_page_comments' => $settings['hide_metabox_page_comments'],                                
+                                'hide_metabox_page_slug' => $settings['child_hide_metabox_page_slug']                                
                             );
         
         if (isset($settings['child_login_image_url'])) {
@@ -274,16 +273,20 @@ class MainWPChildBranding
 
     public function branding_init()
     {   
+        $extra_setting = $this->settings['extra_settings'];
+        if (!is_array($extra_setting)) 
+            $extra_setting = array();               
+        $cancelled_branding = (get_option('mainwp_child_branding_disconnected') === 'yes') && !get_option('mainwp_branding_preserve_branding');
+        if ($cancelled_branding)       
+            return;
         // enable branding in case child plugin is deactive
         add_filter('all_plugins', array($this, 'branding_child_plugin')); 
         
         if (get_option('mainwp_branding_ext_enabled') !== "Y")
             return;
         
-        add_filter('map_meta_cap', array($this, 'branding_map_meta_cap'), 10, 5);                           
-        $extra_setting = $this->settings['extra_settings'];
-        if (!is_array($extra_setting)) 
-            $extra_setting = array();       
+        add_filter('map_meta_cap', array($this, 'branding_map_meta_cap'), 10, 5);                                          
+        
         if (get_option('mainwp_branding_show_support') == 'T')
         {          
             $title = $this->settings['contact_support_label'];            
@@ -676,7 +679,7 @@ class MainWPChildBranding
         $wp_admin_bar->add_node($args);
     }
     
-    public static function is_branding() {
+    protected static function is_branding() {
         // hide
         if (get_option('mainwp_branding_child_hide') == 'T')
             return true;

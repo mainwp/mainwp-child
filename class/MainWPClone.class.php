@@ -14,7 +14,8 @@ class MainWPClone
     {     
         if (empty($the_branding))
             $the_branding = "MainWP";
-        $page = add_options_page('MainWPClone', __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
+        //$page = add_options_page('MainWPClone', __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
+        $page = add_submenu_page('mainwp_child_tab', 'MainWPClone', __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
         add_action('admin_print_scripts-'.$page, array('MainWPClone', 'print_scripts'));
     }
 
@@ -22,7 +23,8 @@ class MainWPClone
     {
         if (empty($the_branding))
             $the_branding = "MainWP";
-        $page = add_options_page('MainWPClone', __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
+        //$page = add_options_page('MainWPClone', __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
+        $page = add_submenu_page('mainwp_child_tab', 'MainWPClone', __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
         add_action('admin_print_scripts-'.$page, array('MainWPClone', 'print_scripts'));
     }
 
@@ -161,10 +163,10 @@ class MainWPClone
 ?>
     <div id="icon-options-general" class="icon32"><br></div><h2><strong><?php _e('Option 1:', 'mainwp-child'); ?></strong> <?php _e('Restore/Clone From Backup','mainwp-child'); ?></h2>
         <br />
-    <?php _e('Upload backup in .zip format (Maximum filesize for your server settings: ','mainwp-child'); ?><?php echo $uploadSize; ?>)<br/>
+    <div class="mainwp-child_info-box-green"><?php _e('Upload backup in .zip format (Maximum filesize for your server settings: ','mainwp-child'); ?><?php echo $uploadSize; ?>)</div>
     <i><?php _e('If you have a FULL backup created by your Network dashboard you may restore it by uploading here.','mainwp-child'); ?><br />
     <?php _e('A database only backup will not work.','mainwp-child'); ?></i><br /><br />
-    <form action="<?php echo admin_url('options-general.php?page=MainWPClone&upload=yes'); ?>" method="post" enctype="multipart/form-data"><input type="file" name="file" id="file" /> <input type="submit" name="submit" id="filesubmit" disabled="disabled" value="<?php _e('Clone/Restore Website','mainwp-child'); ?>" /></form>
+    <form action="<?php echo admin_url('admin.php?page=MainWPClone&upload=yes'); ?>" method="post" enctype="multipart/form-data"><input type="file" name="file" id="file" /> <input type="submit" name="submit" id="filesubmit" disabled="disabled" value="<?php _e('Clone/Restore Website','mainwp-child'); ?>" /></form>
         <?php
         }
 		
@@ -231,7 +233,7 @@ class MainWPClone
     <?php _e('Upload backup in .zip format (Maximum filesize for your server settings: ','mainwp-child'); ?><?php echo $uploadSize; ?>)<br/>
     <i><?php _e('If you have a FULL backup created by your Network dashboard you may restore it by uploading here.','mainwp-child'); ?><br />
     <?php _e('A database only backup will not work.','mainwp-child'); ?></i><br /><br />
-    <form action="<?php echo admin_url('options-general.php?page=MainWPRestore&upload=yes'); ?>" method="post" enctype="multipart/form-data"><input type="file" name="file" id="file" /> <input type="submit" name="submit" id="filesubmit" disabled="disabled" value="<?php _e('Restore Website','mainwp-child'); ?>" /></form>
+    <form action="<?php echo admin_url('admin.php?page=MainWPRestore&upload=yes'); ?>" method="post" enctype="multipart/form-data"><input type="file" name="file" id="file" /> <input type="submit" name="submit" id="filesubmit" disabled="disabled" value="<?php _e('Restore Website','mainwp-child'); ?>" /></form>
         <?php
         }
 		
@@ -252,7 +254,7 @@ Author URI: http://dd32.id.au/
     public static function renderCloneFromServer() {
 
         $page = $_REQUEST['page'];
-        $url = admin_url('options-general.php?page=' . $page . "#title_03"); 
+        $url = admin_url('admin.php?page=MainWPClone' . "#title_03");
 
         $dirs = MainWPHelper::getMainWPDir('backup', false);
         $current_dir = $backup_dir = $dirs[0];		
@@ -274,7 +276,7 @@ Author URI: http://dd32.id.au/
 
         echo "<br /><hr /><br />";
         echo '<h2 id="title_03"><strong>' . __('Option 2:', 'mainwp-child') . '</strong> ' . __('Restore/Clone From Server','mainwp-child') . '</h2>';
-		echo __('If you have uploaded a FULL backup to your server (via FTP or other means) you can use this section to locate the zip file and select it.  A database only backup will not work.','mainwp-child'); 
+        echo '<div class="mainwp-child_info-box-green">' . __('If you have uploaded a FULL backup to your server (via FTP or other means) you can use this section to locate the zip file and select it.  A database only backup will not work.','mainwp-child') . '</div>';
 
         if (!is_readable($current_dir)) {
                 echo '<div class="mainwp-child_info-box-yellow"><strong>' . __('Root directory is not readable. Please contact with site administrator to correct.','mainwp-child') . '</strong></div>';
@@ -779,32 +781,29 @@ Author URI: http://dd32.id.au/
         .mainwp-child_info-box-yellow {
             margin: 5px 0 15px;
             padding: .6em;
-            background: #ffffe0;
-            border: 1px solid #e6db55;
-            border-radius: 3px ;
-            -moz-border-radius: 3px ;
-            -webkit-border-radius: 3px ;
+            background: #fff;
+            border-left: 4px solid #ffec00;
             clear: both ;
+            color:#333;
+            box-shadow: 0 1px 1px rgba(0,0,0,.04);
         }
         .mainwp-child_info-box-red {
             margin: 5px 0 15px;
             padding: .6em;
-            background: #ffebe8;
-            border: 1px solid #c00;
-            border-radius: 3px ;
-            -moz-border-radius: 3px ;
-            -webkit-border-radius: 3px ;
+            background: #fff;
+            border-left: 4px solid #bb4539;
             clear: both ;
+            color:#333;
+            box-shadow: 0 1px 1px rgba(0,0,0,.04);
         }
         .mainwp-child_info-box-green {
             margin: 5px 0 15px;
             padding: .6em;
-            background: rgba(127, 177, 0, 0.3);
-            border: 1px solid #7fb100;
-            border-radius: 3px ;
-            -moz-border-radius: 3px ;
-            -webkit-border-radius: 3px ;
+            background: #fff;
+            border-left: 4px solid #7fb100;
             clear: both ;
+            color:#333;
+            box-shadow: 0 1px 1px rgba(0,0,0,.04);
         }
         .mainwp-child_select_sites_box {
             width: 505px;
