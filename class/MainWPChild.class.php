@@ -661,8 +661,6 @@ class MainWPChild
 //            echo '<pre>';
 //            $start = microtime(true);
 //
-//            sleep(3);
-//
 //            $stop = microtime(true);
 //            die(($stop - $start) . 's</pre>');
         }
@@ -3953,4 +3951,3 @@ class MainWPChild
         return @fclose($handle);
     }
 }
-?>

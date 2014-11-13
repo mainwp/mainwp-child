@@ -251,8 +251,8 @@ class TarArchiver
 
         if (file_exists(rtrim($path, '/') . '/.htaccess')) $this->addFile(rtrim($path, '/') . '/.htaccess', rtrim(str_replace(ABSPATH, '', $path), '/') . '/mainwp-htaccess');
 
-        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::SELF_FIRST,
-                    RecursiveIteratorIterator::CATCH_GET_CHILD);
+        $iterator = new ExampleSortedIterator(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::SELF_FIRST,
+                    RecursiveIteratorIterator::CATCH_GET_CHILD));
 
         /** @var $path DirectoryIterator */
         foreach ($iterator as $path)
@@ -403,6 +403,12 @@ class TarArchiver
     protected $cnt = 0;
     private function addFile($path, $entryName)
     {
+        if ($this->excludeZip && MainWPHelper::endsWith($path, '.zip'))
+        {
+            $this->log('Skipping ' . $path);
+            return false;
+        }
+
         $this->log('Adding ' . $path);
 
 //        if ($this->limit)
@@ -429,8 +435,6 @@ class TarArchiver
             @set_time_limit(20 * 60 * 60); /*20 minutes*/
             $this->lastRun = time();
         }
-
-        if ($this->excludeZip && MainWPHelper::endsWith($path, '.zip')) return false;
 
         $this->gcCnt++;
         if ($this->gcCnt > 20)
@@ -1179,3 +1183,58 @@ class TarArchiver
         return null;
     }
 }
+
+class ExampleSortedIterator extends SplHeap
+{
+    public function __construct(Iterator $iterator)
+    {
+        foreach ($iterator as $item) {
+            $this->insert($item);
+        }
+    }
+    public function compare($b,$a)
+    {
+        $pathA = $a->__toString();
+        $pathB = $b->__toString();
+        $dirnameA = (is_file($pathA) ? dirname($pathA) : $pathA);
+        $dirnameB = (is_file($pathB) ? dirname($pathB) : $pathB);
+
+        //if both are in the same folder, first show the files, then the directories
+        if (dirname($pathA) == dirname($pathB))
+        {
+            if (is_file($pathA) && !is_file($pathB))
+            {
+                return -1;
+            }
+            else if (!is_file($pathA) && is_file($pathB))
+            {
+                return 1;
+            }
+
+            return strcmp($pathA, $pathB);
+        }
+        else if ($dirnameA == $dirnameB)
+        {
+            return strcmp($pathA, $pathB);
+        }
+        else if (MainWPHelper::startsWith($dirnameA, $dirnameB))
+        {
+            return 1;
+        }
+        else if (MainWPHelper::startsWith($dirnameB, $dirnameA))
+        {
+            return -1;
+        }
+        else
+        {
+            $cmp = strcmp($dirnameA, $dirnameB);
+            if ($cmp == 0)
+            {
+                return strcmp($pathA, $pathB);
+            }
+
+            return $cmp;
+        }
+    }
+}
+?>
