@@ -287,7 +287,7 @@ class TarArchiver
             {
                 throw new Exception('Could not write to archive');
             }
-            @fflush($this->archive);
+            //@fflush($this->archive);
         }
         else if ($this->type == 'tar.bz2')
         {
@@ -487,8 +487,8 @@ class TarArchiver
                 $checksum = pack("a8", sprintf("%07o", $checksum));
                 $block = substr_replace($block, $checksum, 148, 8);
 
-                $this->addData($block);
-                $this->addData(pack("a512", $entryName));
+                if (!isset($rslt['bytesRead'])) $this->addData($block);
+                if (!isset($rslt['bytesRead'])) $this->addData(pack("a512", $entryName));
                 $entryName = substr($entryName, 0, 100);
             }
         }
@@ -524,12 +524,20 @@ class TarArchiver
         {
             @fseek($fp, $rslt['bytesRead']);
 
-            $toRead = $rslt['bytesRead'] % 512;
+            $alreadyRead = ($rslt['bytesRead'] % 512);
+            $toRead = 512 - $alreadyRead;
             if ($toRead > 0)
             {
                 $this->tempContent = fread($fp, $toRead);
 
                 $this->addData($this->tempContent);
+
+                $remainder = 512 - (strlen($this->tempContent) + $alreadyRead);
+                $this->log('DEBUG-Added ' . strlen($this->tempContent) . '(before: ' . $alreadyRead . ') will pack: ' . $remainder . ' (packed: '. strlen(pack("a" . $remainder, "")));
+                if ($remainder > 0)
+                {
+                    $this->addData(pack("a" . $remainder), "");
+                }
             }
         }
 
@@ -671,7 +679,7 @@ class TarArchiver
             {
                 $readOffset = $rslt['readOffset'];
                 $bytesRead = $rslt['bytesRead'];
-                @fseek($this->archive, $readOffset + $bytesRead);
+                //@fseek($this->archive, $readOffset + $bytesRead);
 
                 $out = array('bytesRead' => $bytesRead);
             }
@@ -716,7 +724,7 @@ class TarArchiver
 
             if ($block === false || strlen($block) == 0)
             {
-                return false;
+                return $rslt;
             }
 
             if (strlen($block) != 512)
@@ -772,7 +780,7 @@ class TarArchiver
                     $ftell = @ftell($this->archive);
                     if ($this->type == 'tar.gz')
                     {
-                        if ($ftell == -1)
+                        if (($ftell === false) || ($ftell == -1))
                         {
                             @fseek($this->archive, $previousFtell);
 
@@ -807,7 +815,7 @@ class TarArchiver
                             return $rslt;
                         }
                     }
-                    else if ($this->type == 'tar')
+                    else if (($this->type == 'tar') && (($ftell === false) || ($ftell == -1)))
                     {
                         $this->log('Will append this: ' . print_r($rslt, 1));
                         return $rslt;

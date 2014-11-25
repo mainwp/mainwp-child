@@ -322,7 +322,15 @@ class MainWPSecurity
     {
         if (get_option('mainwp_child_remove_readme') == 'T')
         {
-            if (file_exists(ABSPATH . 'readme.html')) @unlink(ABSPATH . 'readme.html');
+            if (@file_exists(ABSPATH . 'readme.html'))
+            {
+                if (!@unlink(ABSPATH . 'readme.html'))
+                {
+                    MainWPHelper::getWPFilesystem();
+                    global $wp_filesystem;
+                    if (!empty($wp_filesystem)) $wp_filesystem->delete(ABSPATH . 'readme.html');
+                }
+            }
         }
     }
 

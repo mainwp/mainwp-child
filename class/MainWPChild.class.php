@@ -1675,6 +1675,8 @@ class MainWPChild
         /** @var $wp_filesystem WP_Filesystem_Base */
         global $wp_filesystem;
 
+        MainWPHelper::getWPFilesystem();
+
         $pidFile = trailingslashit($backupdir) . 'backup-' . $pid . '.pid';
         $doneFile = trailingslashit($backupdir) . 'backup-' . $pid . '.done';
         if ($wp_filesystem->is_file($pidFile))
