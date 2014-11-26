@@ -59,7 +59,7 @@ class MainWPHelper
         $file_name = sanitize_file_name($file_name);
         $full_file_name = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
         
-        $response = wp_remote_get($file_url, array( 'timeout' => 600, 'stream' => true, 'filename' => $full_file_name ) );
+        $response = wp_remote_get($file_url, array( 'timeout' => 10 * 60 * 60, 'stream' => true, 'filename' => $full_file_name ) );
 
         if ( is_wp_error( $response ) ) {
             @unlink( $full_file_name );

@@ -63,7 +63,8 @@ class MainWPChild
         'heatmaps' => 'heatmaps',
         'links_checker' => 'links_checker',
         'wordfence' => 'wordfence',
-        'delete_backup' => 'delete_backup'
+        'delete_backup' => 'delete_backup',
+        'update_values' => 'update_values'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -148,8 +149,12 @@ class MainWPChild
             if (!get_option('mainwp_child_pubkey'))
             {
                 $child_name = ($this->branding_robust === "MainWP") ? "MainWP Child" : $this->branding_robust;
-                echo '<div class="error" style="text-align: center;"><p style="color: red; font-size: 16px; font-weight: bold;">Attention!</p>
-                      <p>Please add this site to your ' . $this->branding_robust . ' Dashboard now or deactivate the ' . $child_name . ' plugin until you are ready to do so to avoid security issues.</p></div>';
+                $msg = '<div class="postbox" style="padding-left: 1em; padding-right: 1em; margin-top: 4em;"><p style="text-align: center; background: #dd3d36; color: #fff; font-size: 22px; font-weight: bold;">Attention!</p>' .
+                      '<p style="font-size: 16px;">Please add this site to your ' . $this->branding_robust . ' Dashboard <b>NOW</b> or deactivate the ' . $child_name . ' plugin until you are ready to do so to avoid unexpected security issues.</p>' ;                
+                if (!MainWPChildBranding::is_branding()) 
+                    $msg .= '<p>You can also turn on the Unique Security ID option in <a href="admin.php?page=mainwp_child_tab">' . $this->branding_robust . ' settings</a> if you would like extra security and additional time to add this site to your Dashboard.   Find out more in this Help Doc <a href="http://docs.mainwp.com/how-do-i-use-the-child-unique-security-id/" target="_blank">How do I use the Child Unique Security ID?</a></p>';                      
+                $msg .= '</div>';
+                echo $msg;      
             }
         }
 
@@ -253,6 +258,9 @@ class MainWPChild
             $remove_all_child_menu = true;
         }
 
+        $restorePage = add_submenu_page('import.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
+        add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
+        
         // if preserve branding do not hide menus
         // hide menu
         if ((!$remove_all_child_menu && get_option('mainwp_branding_child_hide') !== 'T') || $cancelled_branding) {
@@ -277,9 +285,9 @@ class MainWPChild
             }
 
             if (!get_option('mainwp_branding_remove_restore') || $cancelled_branding) {
-                $restorePage = add_submenu_page('import.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
+//                $restorePage = add_submenu_page('import.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
 //                $restorePage = add_submenu_page('mainwp_child_tab', $this->branding . ' Restore', $this->branding . ' Restore' , 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
-                add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
+//                add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
 
                 $sitesToClone = get_option('mainwp_child_clone_sites');
                 if ($sitesToClone != '0')
@@ -304,11 +312,11 @@ class MainWPChild
         {
             if (isset($_POST['requireUniqueSecurityId']))
             {
-                MainWPHelper::update_option('mainwp_child_uniqueId', MainWPHelper::randString(8));
+                MainWPHelper::update_option('mainwp_child_uniqueId', MainWPHelper::randString(8));                
             }
             else
             {
-                MainWPHelper::update_option('mainwp_child_uniqueId', '');
+                MainWPHelper::update_option('mainwp_child_uniqueId', '');                
             }
         }
         ?>
@@ -1275,8 +1283,8 @@ class MainWPChild
         if (get_option('mainwp_child_pubkey'))
         {
             MainWPHelper::error(__('Public key already set, reset the MainWP plugin on your site and try again.','mainwp-child'));
-        }
-
+        }        
+        
         if (get_option('mainwp_child_uniqueId') != '')
         {
             if (!isset($_POST['uniqueId']) || ($_POST['uniqueId'] == ''))
@@ -1313,8 +1321,10 @@ class MainWPChild
         $information['nosslkey'] = $nossl_key;
         MainWPHelper::update_option('mainwp_child_branding_disconnected', '');
 
-        $information['register'] = 'OK';
+        $information['register'] = 'OK';        
+        $information['uniqueId'] = get_option('mainwp_child_uniqueId', '');
         $information['user'] = $_POST['user'];
+        
         $this->getSiteStats($information);
     }
 
@@ -2392,7 +2402,7 @@ class MainWPChild
         if (isset($last_post[0])) $last_post = $last_post[0];
         if (isset($last_post)) $information['last_post_gmt'] = strtotime($last_post['post_modified_gmt']);
         $information['mainwpdir'] = (MainWPHelper::validateMainWPDir() ? 1 : -1);
-
+        $information['uniqueId'] = get_option('mainwp_child_uniqueId', '');
         if ($exit) MainWPHelper::write($information);
 
         return $information;
@@ -3031,7 +3041,8 @@ class MainWPChild
     {
         $keyword = $_POST['keyword'];
         $status = $_POST['status'];
-        $rslt = $this->get_all_themes_int(true, $keyword, $status);
+        $filter = isset($_POST['filter']) ? $_POST['filter'] : true;
+        $rslt = $this->get_all_themes_int($filter, $keyword, $status);
 
         MainWPHelper::write($rslt);
     }
@@ -3144,7 +3155,8 @@ class MainWPChild
     {
         $keyword = $_POST['keyword'];
         $status = $_POST['status'];
-        $rslt = $this->get_all_plugins_int(true, $keyword, $status);
+        $filter = isset($_POST['filter']) ? $_POST['filter'] : true;
+        $rslt = $this->get_all_plugins_int($filter, $keyword, $status);
 
         MainWPHelper::write($rslt);
     }
@@ -3917,7 +3929,14 @@ class MainWPChild
 
         MainWPHelper::write(array('result' => 'ok'));
     }
-
+    
+    function update_values()
+    {
+        $uniId = isset($_POST['uniqueId']) ? $_POST['uniqueId'] : "";
+        MainWPHelper::update_option('mainwp_child_uniqueId', $uniId);  
+        MainWPHelper::write(array('result' => 'ok'));
+    }    
+    
     function uploadFile($file, $offset = 0)
     {
         $dirs = MainWPHelper::getMainWPDir('backup');
@@ -3953,3 +3972,4 @@ class MainWPChild
         return @fclose($handle);
     }
 }
+?>

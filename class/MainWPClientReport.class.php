@@ -712,7 +712,20 @@ class MainWPClientReport
     public function creport_remove_menu() {
         remove_menu_page('wp_stream');  
     } 
-         
+      
+    
+    function check_update_stream_plugin() {
+        if ( $plugins = current_user_can( 'update_plugins' ) ) {
+            $update_plugins = get_site_transient( 'update_plugins' );
+            if (!empty( $update_plugins->response )) {
+                $response =  $update_plugins->response;                
+                if (is_array($response) && isset($response['stream/stream.php']))                
+                    return true;
+            }
+	}
+        return false;
+    }
+    
     function update_footer($text){        
         if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false)
         {
@@ -724,7 +737,35 @@ class MainWPClientReport
             </script>
            <?php
         }
+        
+        if ($this->check_update_stream_plugin()) {
+            ?>            
+            <script>
+                jQuery(document).ready(function(){                    
+                    var menu_update = jQuery('span.update-plugins');
+                    var menu_count = jQuery('span.update-plugins > span.update-count'); 
+                    if (menu_count) {                        
+                        if (count > 1) {                                                            
+                            jQuery('span.update-plugins > span.update-count').each(function(){
+                                 jQuery(this).html(count - 1);
+                            }); 
+                            jQuery('span.update-plugins > span.plugin-count').each(function(){
+                                 jQuery(this).html(count - 1);
+                            }); 
+                            var title = menu_update.attr('title').replace(count, count - 1);
+                            jQuery('span.update-plugins').each(function(){
+                                 jQuery(this).attr('title', title);
+                            });
 
+                        } else if (count == 1) {
+                            jQuery('span.update-plugins').remove();
+                        }
+                    }
+                });        
+            </script>
+            <?php
+        }
+            
         return $text;
     }
 }

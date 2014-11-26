@@ -299,8 +299,8 @@ class MainWPChildBranding
                 add_submenu_page( null, $title, $this->settings['contact_support_label'] , 'read', "ContactSupport", array($this, "contact_support") ); 
                 add_action('admin_bar_menu', array($this, 'add_support_button_in_top_admin_bar'), 100);                                        
             }             
-        }  
-        add_filter('update_footer', array(&$this, 'update_footer'), 15);                
+        }          
+        add_filter('update_footer', array(&$this, 'update_footer'), 15);   
         if(get_option('mainwp_branding_disable_wp_branding') !== "Y") {            
             add_filter('wp_footer', array(&$this, 'branding_global_footer'), 15);    
             add_action('wp_dashboard_setup', array(&$this, 'custom_dashboard_widgets'), 999);
@@ -321,7 +321,6 @@ class MainWPChildBranding
             if (isset($extra_setting['hide_nag']) && !empty($extra_setting['hide_nag']))
             {
                 add_action( 'admin_init', create_function('', 'remove_action( \'admin_notices\', \'update_nag\', 3 );') );
-
             }   
             
             add_action('admin_menu', array(&$this, 'remove_default_post_metaboxes'));            
@@ -679,7 +678,7 @@ class MainWPChildBranding
         $wp_admin_bar->add_node($args);
     }
     
-    protected static function is_branding() {
+    public static function is_branding() {
         // hide
         if (get_option('mainwp_branding_child_hide') == 'T')
             return true;
@@ -690,12 +689,12 @@ class MainWPChildBranding
         return false;
     }
     
-    function check_update_stream_plugin() {
+    function check_update_child_plugin() {
         if ( $plugins = current_user_can( 'update_plugins' ) ) {
             $update_plugins = get_site_transient( 'update_plugins' );
             if (!empty( $update_plugins->response )) {
                 $response =  $update_plugins->response;                
-                if (is_array($response) && isset($response['stream/stream.php']))                
+                if (is_array($response) && isset($response['mainwp-child/mainwp-child.php']))                
                     return true;
             }
 	}
@@ -715,7 +714,7 @@ class MainWPChildBranding
                <?php
             } 
             
-            if ($this->check_update_stream_plugin()) {
+            if ($this->check_update_child_plugin()) {
                 ?>            
                 <script>
                     jQuery(document).ready(function(){
@@ -723,7 +722,7 @@ class MainWPChildBranding
                         var menu_count = jQuery('span.update-plugins > span.update-count'); 
                         if (menu_count) {
                             var count = parseInt(menu_count.html());                        
-                            if (count > 0) {                                                            
+                            if (count > 1) {                                                            
                                 jQuery('span.update-plugins > span.update-count').each(function(){
                                      jQuery(this).html(count - 1);
                                 }); 
@@ -734,13 +733,15 @@ class MainWPChildBranding
                                 jQuery('span.update-plugins').each(function(){
                                      jQuery(this).attr('title', title);
                                 });
-                               
+
+                            } else if (count == 1) {
+                                jQuery('span.update-plugins').remove();
                             }
                         }
                     });        
                 </script>
                 <?php
-            }
+            }            
         }
         return $text;
     }
