@@ -205,7 +205,9 @@ class MainWPHelper
                 
         //Save the post to the wp
         remove_filter('content_save_pre', 'wp_filter_post_kses');  // to fix brake scripts or html
-        $new_post_id = wp_insert_post($new_post, $wp_error);
+        $post_status = $new_post['post_status'];
+        $new_post['post_status'] = 'auto-draft';
+        $new_post_id = wp_insert_post($new_post, $wp_error);        
 
         //Show errors if something went wrong
         if (is_wp_error($wp_error))
@@ -216,6 +218,8 @@ class MainWPHelper
         {
             return 'Undefined error';
         }
+        
+        wp_update_post( array('ID' => $new_post_id, 'post_status' => $post_status));
         
         if (!empty($terms)) {                 
                  wp_set_object_terms($new_post_id, array_map( intval, $terms),  'category');
