@@ -1731,6 +1731,39 @@ class MainWPChild
         @ini_set('max_execution_time', $timeout);
         MainWPHelper::endSession();
 
+
+        //Cleanup pid files!
+        $dirs = MainWPHelper::getMainWPDir('backup');
+        $backupdir = trailingslashit($dirs[0]);
+
+
+        /** @var $wp_filesystem WP_Filesystem_Base */
+        global $wp_filesystem;
+
+        MainWPHelper::getWPFilesystem();
+
+        $files = glob($backupdir . '*');
+        //Find old files (changes > 3 hr)
+        foreach ($files as $file)
+        {
+            if (MainWPHelper::endsWith($file, '/index.php') | MainWPHelper::endsWith($file, '/.htaccess')) continue;
+
+            if ((time() - filemtime($file)) > (60 * 60 * 3))
+            {
+                @unlink($file);
+            }
+        }
+
+        //Verify if another backup is running, if so, return an error
+        $files = glob($backupdir . '*.pid');
+        foreach ($files as $file)
+        {
+            if ((time() - filemtime($file)) < 160)
+            {
+                MainWPHelper::error('Another backup process is running, try again later');
+            }
+        }
+
         $fileName = (isset($_POST['fileUID']) ? $_POST['fileUID'] : '');
         if ($_POST['type'] == 'full')
         {

@@ -72,20 +72,20 @@ class MainWPBackup
         $filepath = $backupdir . $file;
         $fileurl = $file;
 
-        if (!$append)
-        {
-            if ($dh = opendir($backupdir))
-            {
-                while (($file = readdir($dh)) !== false)
-                {
-                    if ($file != '.' && $file != '..' && preg_match('/(.*).(zip|tar|tar.gz|tar.bz2|pid|done)$/', $file))
-                    {
-                        @unlink($backupdir . $file);
-                    }
-                }
-                closedir($dh);
-            }
-        }
+//        if (!$append)
+//        {
+//            if ($dh = opendir($backupdir))
+//            {
+//                while (($file = readdir($dh)) !== false)
+//                {
+//                    if ($file != '.' && $file != '..' && preg_match('/(.*).(zip|tar|tar.gz|tar.bz2|pid|done)$/', $file))
+//                    {
+//                        @unlink($backupdir . $file);
+//                    }
+//                }
+//                closedir($dh);
+//            }
+//        }
 
         if (!$addConfig)
         {
@@ -133,8 +133,6 @@ class MainWPBackup
         @ini_set('memory_limit', $mem);
         @set_time_limit($this->timeout);
         @ini_set('max_execution_time', $this->timeout);
-
-        $success = false;
 
         if ($this->archiver != null)
         {
@@ -670,12 +668,6 @@ class MainWPBackup
         return $added;
     }
 
-    /**
-     * Create full backup using zip on console
-     *
-     * @param string $filepath File path to create
-     * @return bool
-     */
     public function createZipConsoleFullBackup($filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp)
     {
         // @TODO to work with 'zip' from system if PHP Zip library not available
