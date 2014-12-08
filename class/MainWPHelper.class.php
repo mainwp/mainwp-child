@@ -92,31 +92,44 @@ class MainWPHelper
         //Set up a new post (adding addition information)
         $usr = get_user_by('login', $_POST['user']);
         //$new_post['post_author'] = $current_user->ID;
+        $is_robot_post = false;
+        if (isset($_POST['isMainWPRobot']) && !empty($_POST['isMainWPRobot'])) {
+            $is_robot_post = true;
+        }
         
-        if (isset($new_post['custom_post_author']) && !empty($new_post['custom_post_author'])) {
+        $post_author = isset($new_post['post_author']) ? $new_post['post_author'] : $usr->ID; 
+        if ($is_robot_post) {            
+            if ($post_author == 1) {
+                $new_post['post_author'] = $usr->ID;
+            } else if (!is_numeric($post_author)) {
+                $user_author = get_user_by('login',$post_author);
+                if($user_author) {
+                    $post_author = $user_author->ID;
+                } else {
+                    $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
+                    $post_author = wp_create_user( $post_author, $random_password, $post_author . "@asdf.com" );
+                }
+            }
+        } else if (isset($new_post['custom_post_author']) && !empty($new_post['custom_post_author'])) {
             $_author = get_user_by( 'login', $new_post['custom_post_author'] );
             if (!empty($_author))
                 $new_post['post_author'] = $_author->ID;
             else 
                 $new_post['post_author'] = $usr->ID; 
             unset($new_post['custom_post_author']);
-        } else {
-            $new_post['post_author'] = $usr->ID; // to fix missing post author
-        }
+        } 
         
-        $ezine_post = !empty($post_custom['_ezine_post_article_source']) ? true : false;
+        $post_author = !empty ($post_author) ? $post_author : $usr->ID;        
+        $new_post['post_author'] = $post_author;         
+        
+        $is_ezine_post = !empty($post_custom['_ezine_post_article_source']) ? true : false;
         $terms = $new_post['_ezin_post_category'];
         unset($new_post['_ezin_post_category']);
-        $post_plus = isset($post_custom['_mainwp_post_plus']) ? true : false;
+        $is_post_plus = isset($post_custom['_mainwp_post_plus']) ? true : false;
         
         $wp_error = null;
 
-        //Search for all the images added to the new post
-        //some images have a href tag to click to navigate to the image.. we need to replace this too
-        if (!$ezine_post || $post_plus) {
-            $foundMatches = preg_match_all('/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER);
-        }
-        else 
+        if ($is_ezine_post || $is_post_plus)
         {
             if (isset($new_post['post_date_gmt']) && !empty($new_post['post_date_gmt'])) {
                     $post_date_timestamp = strtotime($new_post['post_date_gmt']) + get_option('gmt_offset') * 60 * 60;
@@ -124,11 +137,15 @@ class MainWPHelper
                     $new_post['post_status'] = ($post_date_timestamp <= current_time('timestamp')) ? 'publish' : 'future';
             } else {
                     $new_post['post_status'] = 'publish';
-            }
-            $foundMatches = 0;
+            }           
         }    
-                
-        if ($foundMatches > 0)
+        
+        $wpr_options = isset($_POST['wpr_options']) ? $_POST['wpr_options'] : array();       
+
+        //Search for all the images added to the new post
+        //some images have a href tag to click to navigate to the image.. we need to replace this too
+        $foundMatches = preg_match_all('/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER);              
+        if (($foundMatches > 0 || ($is_robot_post && $wpr_options['wpr_save_images'] == "Yes")) && (!$is_ezine_post))
         {
             //We found images, now to download them so we can start balbal
             foreach ($matches as $match)
@@ -167,7 +184,7 @@ class MainWPHelper
             }
         }
         
-        if ($post_plus) {
+        if ($is_post_plus) {
             $random_publish_date = isset($post_custom['_saved_draft_random_publish_date']) ? $post_custom['_saved_draft_random_publish_date'] : false;             
             $random_publish_date = is_array($random_publish_date) ? current($random_publish_date) : null;
             if (!empty($random_publish_date)) {
@@ -251,7 +268,8 @@ class MainWPHelper
         $not_allowed[] = '_saved_draft_publish_date_from';
         $not_allowed[] = '_saved_draft_publish_date_to';     
         $not_allowed[] = '_post_to_only_existing_categories';
-        
+        $not_allowed[] = '_mainwp_robot_post_comments';        
+                
         $post_to_only_existing_categories = false;
         foreach ($post_custom as $meta_key => $meta_values)
         {
@@ -332,7 +350,7 @@ class MainWPHelper
                 }
             }
         }
-
+        
         //If featured image exists - set it
         if ($post_featured_image != null)
         {
@@ -352,7 +370,7 @@ class MainWPHelper
         }
         
         // post plus extension process        
-        if ($post_plus) {
+        if ($is_post_plus) {
             $random_privelege = isset($post_custom['_saved_draft_random_privelege']) ? $post_custom['_saved_draft_random_privelege'] : null;            
             $random_privelege = is_array($random_privelege) ? current($random_privelege) : null;
             $random_privelege = unserialize(base64_decode($random_privelege));
@@ -390,6 +408,12 @@ class MainWPHelper
             }
         }
         // end of post plus
+        
+        // MainWP Robot
+        if ($is_robot_post) {
+            $all_comments = $post_custom['_mainwp_robot_post_comments'];            
+            MainWPChildRobot::Instance()->wpr_insertcomments($new_post_id, $all_comments);           
+        }
         
         $ret['success'] = true;
         $ret['link'] = $permalink;

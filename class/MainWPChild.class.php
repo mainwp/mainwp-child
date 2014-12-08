@@ -3657,26 +3657,25 @@ class MainWPChild
 
         if (in_array('optimize', $maint_options))
         {
-            $this->maintenance_optimize(true);
+            $this->maintenance_optimize();
         }        
         if (!isset($information['status'])) $information['status'] = 'SUCCESS';
         MainWPHelper::write($information);
     }
 
-    function maintenance_optimize($optimize)
-    {
-        if (!$optimize) return;
-
-        global $wpdb;
-
+    function maintenance_optimize()
+    {      
+        global $wpdb, $table_prefix;          
         $sql = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
-        $result = @MainWPChildDB::_query($sql, $wpdb->dbh);
+        $result = @MainWPChildDB::_query($sql, $wpdb->dbh);        
         if (@MainWPChildDB::num_rows($result) && @MainWPChildDB::is_result($result))
-        {
+        {       
             while ($row = MainWPChildDB::fetch_array($result))
-            {
-                $sql = 'OPTIMIZE TABLE ' . $row[0];
-                MainWPChildDB::_query($sql, $wpdb->dbh);
+            {  
+                if (strpos($row['Name'], $table_prefix) !== false) {                                       
+                    $sql = 'OPTIMIZE TABLE ' . $row['Name'];
+                    MainWPChildDB::_query($sql, $wpdb->dbh);
+                }
             }
         }
     }
