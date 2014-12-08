@@ -3,10 +3,10 @@ Contributors: mainwp
 Donate link: 
 Tags: WordPress Management, WordPress Controller, manage, multiple, updates, mainwp, mainwp child
 Author: mainwp
-Author URI: http://mainwp.com
-Plugin URI: http://mainwp.com
-Requires at least: 3.6
-Tested up to: 4.0
+Author URI: https://mainwp.com
+Plugin URI: https://mainwp.com
+Requires at least: 2.0
+Tested up to: 4.1
 Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -19,7 +19,7 @@ This is the Child plugin for the [MainWP Dashboard](http://wordpress.org/plugins
 
 The MainWP Child plugin is used so the installed blog can be securely managed remotely by your WordPress Network.
 
-[MainWP](http://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
+[MainWP](https://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
 
 **Features include:**
  
@@ -57,6 +57,26 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0 =
+* Added:  Tar GZip as a backup file format
+* Added:  Tar Bzip2 as a backup file format
+* Added:  Tar as a backup file format
+* Added: Feature to resume unfinished or stalled backups
+* Added:  Feature to detect is backup is already running
+* Added: New feature for the new Branding extension - Preserve branding option if child site gets disconnected
+* Fixed: Bug where the Stream plugin update was showing if the plugin is hidden
+* Fixed: MainWP Child Server Information page layout fixed
+* Fixed: Restore issue in case the child plugin is hidden with the Branding Extension
+* Tweak: New feature for the File Uploader extension - wp-content folder auto detected if renamed
+* Tweak: Heatmap tracker script disabled by default
+* Tweak: Updated the Warning message in case child site is disconnected
+* Tweak: Updated the Warning message in case child site is disconnected
+* Redesign: CSS updated to match the Dashboard style
+* Redesign: MainWP Child Settings page layout updated
+* Redesign: MainWP Child Clone/Restore layout updated
+* Refactor: Added MainWP Child menu added in the WP Admin Menu 
+* Refactor: MainWP Child Settings, MainWP Clone/Restore and MainWP Child Server Information pages removed from the WP Settings menu and added to MainWP Child
 
 = 1.3.3 =
 * Added new hooks for Wordfence Extension
