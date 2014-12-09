@@ -59,11 +59,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Changelog ==
 
 = 2.0 =
-* Added:  Tar GZip as a backup file format
-* Added:  Tar Bzip2 as a backup file format
-* Added:  Tar as a backup file format
+* Added: Tar GZip as a backup file format
+* Added: Tar Bzip2 as a backup file format
+* Added: Tar as a backup file format
 * Added: Feature to resume unfinished or stalled backups
-* Added:  Feature to detect is backup is already running
+* Added: Feature to detect is backup is already running
 * Added: New feature for the new Branding extension - Preserve branding option if child site gets disconnected
 * Fixed: Bug where the Stream plugin update was showing if the plugin is hidden
 * Fixed: MainWP Child Server Information page layout fixed
