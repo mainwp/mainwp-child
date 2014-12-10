@@ -1022,6 +1022,7 @@ class TarArchiver
     function file_exists($entryName)
     {
         if (!$this->archive) return false;
+        $entryName = untrailingslashit($entryName);
         if (empty($entryName)) return false;
         @fseek($this->archive, 0);
         while ($block = @fread($this->archive, 512))
@@ -1171,16 +1172,27 @@ class TarArchiver
                         fread($this->archive, (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512));
                     }
 
-                    $wp_filesystem->put_contents($to . $file['name'], $contents, FS_CHMOD_FILE);
+                    if ($file['name'] != 'wp-config.php')
+                    {
+                        $wp_filesystem->put_contents($to . $file['name'], $contents, FS_CHMOD_FILE);
+                    }
                 }
                 else
                 {
-                    $new = @fopen($to . $file['name'], "wb+");
+                    if ($file['name'] != 'wp-config.php')
+                    {
+                        $new = @fopen($to . $file['name'], "wb+");
+                    }
+                    else
+                    {
+                        $new = false;
+                    }
                     $bytesToRead = $file['stat'][7];
                     while ($bytesToRead > 0)
                     {
                         $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                        fwrite($new, fread($this->archive, $readNow));
+                        if ($new !== false) fwrite($new, fread($this->archive, $readNow));
+                        else fread($this->archive, $readNow);
                         $bytesToRead -= $readNow;
                     }
 
@@ -1189,7 +1201,7 @@ class TarArchiver
                     {
                         fread($this->archive, (512 - $file['stat'][7] % 512) == 512 ? 0 : (512 - $file['stat'][7] % 512));
                     }
-                    fclose($new);
+                    if ($new !== false) fclose($new);
                 }
             }
             unset ($file);

@@ -498,6 +498,7 @@ class MainWPChildWordfence
 	}
         
         function save_setting() {
+            MainWPHelper::update_option('mainwp_wordfence_ext_enabled', "Y");   
             $settings = unserialize(base64_decode($_POST['settings']));
             if (is_array($settings) && count($settings) > 0) {
                 $result = array();
