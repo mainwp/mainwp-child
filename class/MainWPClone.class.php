@@ -328,8 +328,7 @@ Author URI: http://dd32.id.au/
                 if (is_dir( $current_dir . "/" . $file) ) 
                         $directories[] = $file;				
                 else {
-                        $wp_filetype = wp_check_filetype( $file);				
-                        if ('zip' !== $wp_filetype['ext'])
+                        if (!MainWPHelper::isArchive($file))
                                 $rejected_files[] = $file;	
                         else 	
                                 $files[] = $file;
