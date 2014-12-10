@@ -1066,7 +1066,14 @@ class TarArchiver
 //            if ($file['checksum'] != $checksum)
 //                $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
 
-            if ($file['type'] == 0)
+            if ($file['type'] == 5)
+            {
+                if (strcmp(trim($file['name']), trim($entryName)) == 0)
+                {
+                    return true;
+                }
+            }
+            else if ($file['type'] == 0)
             {
                 if (strcmp(trim($file['name']), trim($entryName)) == 0)
                 {
