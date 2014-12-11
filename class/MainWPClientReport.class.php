@@ -744,7 +744,8 @@ class MainWPClientReport
                 jQuery(document).ready(function(){                    
                     var menu_update = jQuery('span.update-plugins');
                     var menu_count = jQuery('span.update-plugins > span.update-count'); 
-                    if (menu_count) {                        
+                    if (menu_count) {
+                        var count = parseInt(menu_count.html());
                         if (count > 1) {                                                            
                             jQuery('span.update-plugins > span.update-count').each(function(){
                                  jQuery(this).html(count - 1);

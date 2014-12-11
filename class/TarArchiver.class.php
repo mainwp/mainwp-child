@@ -251,8 +251,13 @@ class TarArchiver
 
         if (file_exists(rtrim($path, '/') . '/.htaccess')) $this->addFile(rtrim($path, '/') . '/.htaccess', rtrim(str_replace(ABSPATH, '', $path), '/') . '/mainwp-htaccess');
 
-        $iterator = new ExampleSortedIterator(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::SELF_FIRST,
-                    RecursiveIteratorIterator::CATCH_GET_CHILD));
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::SELF_FIRST,
+                    RecursiveIteratorIterator::CATCH_GET_CHILD);
+
+        if (class_exists('ExampleSortedIterator'))
+        {
+            $iterator = new ExampleSortedIterator($iterator);
+        }
 
         /** @var $path DirectoryIterator */
         foreach ($iterator as $path)
@@ -1210,57 +1215,59 @@ class TarArchiver
         return null;
     }
 }
-
-class ExampleSortedIterator extends SplHeap
+if (class_exists('SplHeap'))
 {
-    public function __construct(Iterator $iterator)
+    class ExampleSortedIterator extends SplHeap
     {
-        foreach ($iterator as $item) {
-            $this->insert($item);
-        }
-    }
-    public function compare($b,$a)
-    {
-        $pathA = $a->__toString();
-        $pathB = $b->__toString();
-        $dirnameA = (is_file($pathA) ? dirname($pathA) : $pathA);
-        $dirnameB = (is_file($pathB) ? dirname($pathB) : $pathB);
-
-        //if both are in the same folder, first show the files, then the directories
-        if (dirname($pathA) == dirname($pathB))
+        public function __construct(Iterator $iterator)
         {
-            if (is_file($pathA) && !is_file($pathB))
-            {
-                return -1;
+            foreach ($iterator as $item) {
+                $this->insert($item);
             }
-            else if (!is_file($pathA) && is_file($pathB))
-            {
-                return 1;
-            }
+        }
+        public function compare($b,$a)
+        {
+            $pathA = $a->__toString();
+            $pathB = $b->__toString();
+            $dirnameA = (is_file($pathA) ? dirname($pathA) : $pathA);
+            $dirnameB = (is_file($pathB) ? dirname($pathB) : $pathB);
 
-            return strcmp($pathA, $pathB);
-        }
-        else if ($dirnameA == $dirnameB)
-        {
-            return strcmp($pathA, $pathB);
-        }
-        else if (MainWPHelper::startsWith($dirnameA, $dirnameB))
-        {
-            return 1;
-        }
-        else if (MainWPHelper::startsWith($dirnameB, $dirnameA))
-        {
-            return -1;
-        }
-        else
-        {
-            $cmp = strcmp($dirnameA, $dirnameB);
-            if ($cmp == 0)
+            //if both are in the same folder, first show the files, then the directories
+            if (dirname($pathA) == dirname($pathB))
+            {
+                if (is_file($pathA) && !is_file($pathB))
+                {
+                    return -1;
+                }
+                else if (!is_file($pathA) && is_file($pathB))
+                {
+                    return 1;
+                }
+
+                return strcmp($pathA, $pathB);
+            }
+            else if ($dirnameA == $dirnameB)
             {
                 return strcmp($pathA, $pathB);
             }
+            else if (MainWPHelper::startsWith($dirnameA, $dirnameB))
+            {
+                return 1;
+            }
+            else if (MainWPHelper::startsWith($dirnameB, $dirnameA))
+            {
+                return -1;
+            }
+            else
+            {
+                $cmp = strcmp($dirnameA, $dirnameB);
+                if ($cmp == 0)
+                {
+                    return strcmp($pathA, $pathB);
+                }
 
-            return $cmp;
+                return $cmp;
+            }
         }
     }
 }
