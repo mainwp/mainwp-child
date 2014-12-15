@@ -577,32 +577,55 @@ class MainWPChild
         if (isset($_REQUEST['login_required']) && ($_REQUEST['login_required'] == 1) && isset($_REQUEST['user']))
         {
             $username = rawurldecode($_REQUEST['user']);
+            if (is_user_logged_in())
+            {
+                global $current_user;
+                if ($current_user->wp_user_level != 10 && (!isset($current_user->user_level) || $current_user->user_level != 10) && !current_user_can('level_10'))
+                {
+                    do_action('wp_logout');
+                }
+            }
+
             if (!is_user_logged_in() || $username != $current_user->user_login)
             {
-                $signature = rawurldecode(isset($_REQUEST['mainwpsignature']) ? $_REQUEST['mainwpsignature'] : '');
-                $file = '';
-                if (isset($_REQUEST['f']))
-                {
-                    $file = $_REQUEST['f'];
-                }
-                else if (isset($_REQUEST['file']))
-                {
-                    $file = $_REQUEST['file'];
-                }
-                else if (isset($_REQUEST['fdl']))
-                {
-                    $file = $_REQUEST['fdl'];
-                }
-                $auth = $this->auth($signature, rawurldecode((isset($_REQUEST['where']) ? $_REQUEST['where'] : $file)), isset($_REQUEST['nonce']) ? $_REQUEST['nonce'] : '', isset($_REQUEST['nossl']) ? $_REQUEST['nossl'] : 0);
-                if (!$auth) return;
                 if (!$this->login($username))
                 {
                     return;
                 }
+
+                global $current_user;
+                if ($current_user->wp_user_level != 10 && (!isset($current_user->user_level) || $current_user->user_level != 10) && !current_user_can('level_10'))
+                {
+                    do_action('wp_logout');
+                    return;
+                }
             }
+
+            $signature = rawurldecode(isset($_REQUEST['mainwpsignature']) ? $_REQUEST['mainwpsignature'] : '');
+            $file = '';
+            if (isset($_REQUEST['f']))
+            {
+                $file = $_REQUEST['f'];
+            }
+            else if (isset($_REQUEST['file']))
+            {
+                $file = $_REQUEST['file'];
+            }
+            else if (isset($_REQUEST['fdl']))
+            {
+                $file = $_REQUEST['fdl'];
+            }
+
+            $auth = $this->auth($signature, rawurldecode((isset($_REQUEST['where']) ? $_REQUEST['where'] : $file)), isset($_REQUEST['nonce']) ? $_REQUEST['nonce'] : '', isset($_REQUEST['nossl']) ? $_REQUEST['nossl'] : 0);
+            if (!$auth) return;
 
             if (isset($_REQUEST['fdl']))
             {
+                if (stristr($_REQUEST['fdl'], '..'))
+                {
+                    return;
+                }
+
                 $this->uploadFile($_REQUEST['fdl'], isset($_REQUEST['foffset']) ? $_REQUEST['foffset'] : 0);
                 exit;
             }
