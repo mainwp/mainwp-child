@@ -3881,6 +3881,7 @@ class MainWPChild
     function uploader_action() {
         $file_url = base64_decode($_POST['url']);
         $path = $_POST['path'];
+        $filename = $_POST['filename'];
         $information = array();
         
         if (empty($file_url) || empty($path)) {
@@ -3912,7 +3913,7 @@ class MainWPChild
         
         try
         {
-            $upload = MainWPHelper::uploadFile($file_url, $dir);
+            $upload = MainWPHelper::uploadFile($file_url, $dir, $filename);
             if ($upload != null)
             {                    
                 $information['success'] = true;

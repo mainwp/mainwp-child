@@ -53,9 +53,8 @@ class MainWPHelper
         return null;
     }
 
-    static function uploadFile($file_url, $path)
-    {
-        $file_name = basename($file_url);
+    static function uploadFile($file_url, $path, $file_name)
+    {  
         $file_name = sanitize_file_name($file_name);
         $full_file_name = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
         
