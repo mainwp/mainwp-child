@@ -15,6 +15,11 @@ class TarArchiver
     protected $archiveSize;
     protected $lastRun = 0;
 
+    protected $debug;
+
+    protected $chunk = ''; //1024 * 1024 * 4
+    protected $chunkSize = 4194304; //1024 * 1024 * 4
+
     /** @var $backup MainWPBackup */
     protected $backup;
 
@@ -29,6 +34,8 @@ class TarArchiver
 
     public function __construct($backup, $type = 'tar', $pidFile = false)
     {
+        $this->debug = false;
+
         $this->pidFile = $pidFile;
         $this->backup = $backup;
 
@@ -132,7 +139,7 @@ class TarArchiver
         if ($append && @file_exists($filepath)) //todo: use wpFS
         {
             $this->mode = self::APPEND;
-            $this->read($filepath);
+            $this->prepareAppend($filepath);
         }
         else
         {
@@ -286,9 +293,22 @@ class TarArchiver
 
     private function addData($data)
     {
+        if ($this->debug)
+        {
+            $this->chunk .= $data;
+
+            if (strlen($this->chunk) > $this->chunkSize)
+            {
+                $this->writeChunk();
+            }
+
+            return;
+        }
+
         if ($this->type == 'tar.gz')
         {
-            if (@fwrite($this->archive, $data, strlen($data)) === false)
+            //if (@fwrite($this->archive, $data, strlen($data)) === false)
+            if (@gzwrite($this->archive, $data, strlen($data)) === false)
             {
                 throw new Exception('Could not write to archive');
             }
@@ -309,6 +329,47 @@ class TarArchiver
             }
             @fflush($this->archive);
         }
+    }
+
+    private function writeChunk()
+    {
+        $len = strlen($this->chunk);
+        if ($len == 0) return;
+
+//        if ($this->cnt++ > 3)
+//        {
+//            $this->log('error?');
+//            $this->cnt = 0;
+//            throw new Exception('error!');
+//        }
+
+        if ($this->type == 'tar.gz')
+        {
+            $this->log('writing & flushing ' . $len);;
+            $this->chunk = gzencode($this->chunk);
+            if (@fwrite($this->archive, $this->chunk, strlen($this->chunk)) === false)
+            {
+                throw new Exception('Could not write to archive');
+            }
+            @fflush($this->archive);
+        }
+        else if ($this->type == 'tar.bz2')
+        {
+            if (@bzwrite($this->archive, $this->chunk, strlen($len)) === false)
+            {
+                throw new Exception('Could not write to archive');
+            }
+        }
+        else
+        {
+            if (@fwrite($this->archive, $len, strlen($len)) === false)
+            {
+                throw new Exception('Could not write to archive');
+            }
+            @fflush($this->archive);
+        }
+
+        $this->chunk = '';
     }
 
     private function addEmptyDir($path, $entryName)
@@ -423,6 +484,8 @@ class TarArchiver
 //            if ($this->cnt > 250) throw new Exception('Some error..' . $this->archivePath);
 //        }
 
+        $this->updatePidFile();
+
         $rslt = false;
         if ($this->mode == self::APPEND)
         {
@@ -432,8 +495,6 @@ class TarArchiver
                 return true;
             }
         }
-
-        $this->updatePidFile();
 
         if (time() - $this->lastRun > 60)
         {
@@ -583,7 +644,6 @@ class TarArchiver
             }
         }
 
-        //todo: add ceck to append!!!!
         $prefix = "";
         if (strlen($entryName) > 99)
         {
@@ -857,9 +917,23 @@ class TarArchiver
     function create($filepath)
     {
         $this->log('Creating ' . $filepath);
+        if ($this->debug)
+        {
+            if ($this->type == 'tar.bz2')
+            {
+                $this->archive = @bzopen($filepath, 'w');
+            }
+            else
+            {
+                $this->archive = @fopen($filepath, 'wb+');
+            }
+            return;
+        }
+
         if ($this->type == 'tar.gz')
         {
-            $this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
+            //$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
+            $this->archive = @gzopen($filepath, 'w');
         }
         else if ($this->type == 'tar.bz2')
         {
@@ -874,9 +948,23 @@ class TarArchiver
     function append($filepath)
     {
         $this->log('Appending to ' . $filepath);
+        if ($this->debug)
+        {
+            if ($this->type == 'tar.bz2')
+            {
+                $this->archive = @bzopen($filepath, 'a');
+            }
+            else
+            {
+                $this->archive = @fopen($filepath, 'ab+');
+            }
+            return;
+        }
+
         if ($this->type == 'tar.gz')
         {
-            $this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
+            //$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
+			$this->archive = @gzopen($filepath, 'a');
         }
         else if ($this->type == 'tar.bz2')
         {
@@ -893,6 +981,59 @@ class TarArchiver
         return !empty($this->archive);
     }
 
+    function prepareAppend($filepath)
+    {
+        if ($this->debug)
+        {
+            if (substr($filepath, -6) == 'tar.gz')
+            {
+                $text = chr(31) . chr(139) . chr(8) . chr(0) . chr(0) . chr(0) . chr(0) . chr(0) . chr(0); //magic header!!
+
+                //Check if valid, if not, crop to valid!
+                $fh = @fopen($filepath, 'rb');
+                $read = '';
+                $lastCorrect = 0;
+                try
+                {
+                    while (!feof($fh))
+                    {
+                        $read .= fread($fh, 1000);
+                        while (($pos = strpos($read, $text, 2)) !== false)
+                        {
+                            for ($i = 0; $i < 10; $i++)
+                            {
+                                echo ord($read[$i]) . "\n";
+                            }
+
+                            if (!$this->isValidBlock(substr($read, 10, $pos - 10)))
+                            {
+                                throw new Exception('invalid!');
+                            }
+
+                            $lastCorrect += $pos;
+                            $read = substr($read, $pos);
+                        }
+                    }
+
+                    if (!$this->isValidBlock(substr($read, 10))) throw new Exception('invalid!');
+
+                    @fclose($fh);
+                }
+                catch (Exception $e)
+                {
+                    @fclose($fh);
+                    //reopen & truncate
+                    $fh = @fopen($filepath, 'ab+');
+                    @fseek($fh, $lastCorrect);
+                    @ftruncate($fh, $lastCorrect);
+                    @fclose($fh);
+                }
+            }
+        }
+
+        $this->read($filepath);
+    }
+
     function read($filepath)
     {
         $this->log('Reading ' . $filepath);
@@ -901,7 +1042,8 @@ class TarArchiver
         if (substr($filepath, -6) == 'tar.gz')
         {
             $this->type = 'tar.gz';
-            $this->archive = @fopen('compress.zlib://' . $filepath, 'rb');
+//            $this->archive = @fopen('compress.zlib://' . $filepath, 'rb');
+            $this->archive = @gzopen($filepath, 'r');
         }
         else if (substr($filepath, -7) == 'tar.bz2')
         {
@@ -924,6 +1066,9 @@ class TarArchiver
 
     function close($closeLog = true)
     {
+        //Write chunk if it's not empty..
+        $this->writeChunk();
+
         $this->log('Closing archive');
 
         if ($closeLog && $this->logHandle)
@@ -935,7 +1080,8 @@ class TarArchiver
         {
             if ($this->type == 'tar.gz')
             {
-                @fclose($this->archive);
+                //@fclose($this->archive);
+                @gzclose($this->archive);
             }
             else if ($this->type == 'tar.bz2')
             {
@@ -1213,6 +1359,16 @@ class TarArchiver
         }
 
         return null;
+    }
+
+    function isValidBlock($block)
+    {
+        $test = @gzinflate($block);
+        if ($test === false) return false;
+        $crc = crc32($test);
+        $crcFound = substr($block, strlen($block) - 8, 4);
+        $crcFound = (ord($crcFound[3]) << 24) + (ord($crcFound[2]) << 16) + (ord($crcFound[1]) << 8) + (ord($crcFound[0]));
+        return $crcFound == $crc;
     }
 }
 if (class_exists('SplHeap'))

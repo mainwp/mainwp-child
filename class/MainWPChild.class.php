@@ -681,14 +681,16 @@ class MainWPChild
 		
         if (isset($_GET['mainwptest']))
         {
-//            error_reporting(E_ALL);
-//            ini_set('display_errors', TRUE);
-//            ini_set('display_startup_errors', TRUE);
-//            echo '<pre>';
-//            $start = microtime(true);
-//
-//            $stop = microtime(true);
-//            die(($stop - $start) . 's</pre>');
+            error_reporting(E_ALL);
+            ini_set('display_errors', TRUE);
+            ini_set('display_startup_errors', TRUE);
+            echo '<pre>';
+            $start = microtime(true);
+
+            print_r(base64_encode(gzdeflate("test1234")));
+
+            $stop = microtime(true);
+            die(($stop - $start) . 's</pre>');
         }
 
         //Register does not require auth, so we register here..
@@ -1774,16 +1776,6 @@ class MainWPChild
             if ((time() - filemtime($file)) > (60 * 60 * 3))
             {
                 @unlink($file);
-            }
-        }
-
-        //Verify if another backup is running, if so, return an error
-        $files = glob($backupdir . '*.pid');
-        foreach ($files as $file)
-        {
-            if ((time() - filemtime($file)) < 160)
-            {
-                MainWPHelper::error('Another backup process is running, try again later');
             }
         }
 

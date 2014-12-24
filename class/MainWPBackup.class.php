@@ -46,6 +46,20 @@ class MainWPBackup
             $pid = trailingslashit($backupdir) . 'backup-' . $pid . '.pid';
         }
 
+
+
+        //Verify if another backup is running, if so, return an error
+        $files = glob($backupdir . '*.pid');
+        foreach ($files as $file)
+        {
+            if (basename($file) == basename($pid)) continue;
+
+            if ((time() - filemtime($file)) < 160)
+            {
+                MainWPHelper::error('Another backup process is running, try again later');
+            }
+        }
+
         $timestamp = time();
         if ($filePrefix != '') $filePrefix .= '-';
 
