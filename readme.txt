@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.1
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,10 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0.4 =
+* Fixed: Backups for hosts having issues with "compress.zlib://" stream wrappers from PHP causing corrupt backup archives
+* Fixed: "Another backup is running" message displaying incorrectly 
 
 = 2.0.3 =
 * Fixed: Possible security issue
