@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0';
+    private $version = '2.0.4';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -651,7 +651,7 @@ class MainWPChild
             
             $open_location = isset($_REQUEST['open_location']) ? $_REQUEST['open_location'] : '';  
             if (!empty($open_location)) {
-                $open_location = base64_decode($open_location);    
+                $open_location = base64_decode ($open_location);
                 if (strpos($open_location, "nonce=child_temp_nonce") !== false)
                     $open_location = str_replace ("nonce=child_temp_nonce", "nonce=" . wp_create_nonce('wp-ajax'), $open_location);
                 wp_redirect(site_url() . $open_location);
@@ -794,11 +794,11 @@ class MainWPChild
 
             if (($nossl == 1) || $serverNoSsl)
             {
-                $auth = (md5($func . $nonce . get_option('mainwp_child_nossl_key')) == base64_decode($signature));
+                $auth = (md5($func . $nonce . get_option('mainwp_child_nossl_key')) == base64_decode ($signature));
             }
             else
             {                
-                $auth = openssl_verify($func . $nonce, base64_decode($signature), base64_decode(get_option('mainwp_child_pubkey')));
+                $auth = openssl_verify($func . $nonce, base64_decode ($signature), base64_decode (get_option('mainwp_child_pubkey')));
             }
         }
 
@@ -1351,13 +1351,13 @@ class MainWPChild
     function newPost()
     {
         //Read form data
-        $new_post = unserialize(base64_decode($_POST['new_post']));
-        $post_custom = unserialize(base64_decode($_POST['post_custom']));
-        $post_category = rawurldecode(isset($_POST['post_category']) ? base64_decode($_POST['post_category']) : null);
+        $new_post = unserialize(base64_decode ($_POST['new_post']));
+        $post_custom = unserialize(base64_decode ($_POST['post_custom']));
+        $post_category = rawurldecode(isset($_POST['post_category']) ? base64_decode ($_POST['post_category']) : null);
         $post_tags = rawurldecode(isset($new_post['post_tags']) ? $new_post['post_tags'] : null);
-        $post_featured_image = base64_decode($_POST['post_featured_image']);
-        $upload_dir = unserialize(base64_decode($_POST['mainwp_upload_dir']));
-        $new_post['_ezin_post_category'] = unserialize(base64_decode($_POST['_ezin_post_category']));
+        $post_featured_image = base64_decode ($_POST['post_featured_image']);
+        $upload_dir = unserialize(base64_decode ($_POST['mainwp_upload_dir']));
+        $new_post['_ezin_post_category'] = unserialize(base64_decode ($_POST['_ezin_post_category']));
 
         $res = MainWPHelper::createPost($new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags);
         $created = $res['success'];
@@ -1412,7 +1412,7 @@ class MainWPChild
         }
         else if ($action == 'update_meta')
         {
-            $values = unserialize(base64_decode($_POST['values']));
+            $values = unserialize(base64_decode ($_POST['values']));
             $meta_key = $values['meta_key'];
             $meta_value = $values['meta_value'];
             $check_prev = $values['check_prev'];
@@ -1574,7 +1574,7 @@ class MainWPChild
     function newAdminPassword()
     {
         //Read form data
-        $new_password = unserialize(base64_decode($_POST['new_password']));
+        $new_password = unserialize(base64_decode ($_POST['new_password']));
         $user = get_user_by('login', $_POST['user']);
         require_once(ABSPATH . WPINC . '/registration.php');
 
@@ -1598,7 +1598,7 @@ class MainWPChild
     function newUser()
     {
         //Read form data
-        $new_user = unserialize(base64_decode($_POST['new_user']));
+        $new_user = unserialize(base64_decode ($_POST['new_user']));
         $send_password = $_POST['send_password'];
 
         $new_user_id = wp_insert_user($new_user);
@@ -2596,16 +2596,16 @@ class MainWPChild
 
     function get_terms()
     {
-        $taxonomy = base64_decode($_POST['taxonomy']);
+        $taxonomy = base64_decode ($_POST['taxonomy']);
         $rslt = get_terms(taxonomy_exists($taxonomy) ? $taxonomy : 'category', 'hide_empty=0');
         MainWPHelper::write($rslt);
     }
 
     function set_terms()
     {
-        $id = base64_decode($_POST['id']);
-        $terms = base64_decode($_POST['terms']);
-        $taxonomy = base64_decode($_POST['taxonomy']);
+        $id = base64_decode ($_POST['id']);
+        $terms = base64_decode ($_POST['terms']);
+        $taxonomy = base64_decode ($_POST['taxonomy']);
 
         if (trim($terms) != '')
         {
@@ -2620,7 +2620,7 @@ class MainWPChild
     function insert_comment()
     {
         $postId = $_POST['id'];
-        $comments = unserialize(base64_decode($_POST['comments']));
+        $comments = unserialize(base64_decode ($_POST['comments']));
         $ids = array();
         foreach ($comments as $comment)
         {
@@ -2639,7 +2639,7 @@ class MainWPChild
         /** @var $wpdb wpdb */
         global $wpdb;
         $postId = $_POST['id'];
-        $keys = base64_decode(unserialize($_POST['keys']));
+        $keys = base64_decode (unserialize($_POST['keys']));
         $meta_value = $_POST['value'];
 
         $where = '';
@@ -2662,9 +2662,9 @@ class MainWPChild
     {
         /** @var $wpdb wpdb */
         global $wpdb;
-        $start_date = base64_decode($_POST['start_date']);
-        $end_date = base64_decode($_POST['end_date']);
-        $keyword_meta = base64_decode($_POST['keyword_meta']);
+        $start_date = base64_decode ($_POST['start_date']);
+        $end_date = base64_decode ($_POST['end_date']);
+        $keyword_meta = base64_decode ($_POST['keyword_meta']);
         $where = " WHERE ";
         if (!empty($start_date) && !empty($end_date))
             $where .= "  p.post_date>='$start_date' AND p.post_date<='$end_date' AND ";
@@ -2930,7 +2930,7 @@ class MainWPChild
         
         $extra = array();
         if (isset($_POST['extract_tokens'])) {
-            $extra['tokens'] = unserialize(base64_decode($_POST['extract_tokens']));  
+            $extra['tokens'] = unserialize(base64_decode ($_POST['extract_tokens']));
             $extra['extract_post_type'] = $_POST['extract_post_type'];
         }
         
@@ -3861,7 +3861,7 @@ class MainWPChild
     }
     function execute_snippet($code) {
         ob_start();
-        $result = eval($code);        
+        $result = eval ($code);
         $output = ob_get_contents();  
         ob_end_clean();
         $return = array('output' => $output);
@@ -3871,7 +3871,7 @@ class MainWPChild
     }
     
     function uploader_action() {
-        $file_url = base64_decode($_POST['url']);
+        $file_url = base64_decode ($_POST['url']);
         $path = $_POST['path'];
         $filename = $_POST['filename'];
         $information = array();
