@@ -825,7 +825,7 @@ class MainWPChildServerInformation
 
         if ( empty( $lines ) ) {
 
-            echo '<tr><td colspan="2">' . __( 'No errors found... Yet.', 'mainwp' ) . '</td></tr>';
+            echo '<tr><td colspan="2">' . __( 'MainWP is unable to find your error logs, please contact your host for server error logs.', 'mainwp' ) . '</td></tr>';
 
             return;
         }
