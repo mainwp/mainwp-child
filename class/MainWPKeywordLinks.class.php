@@ -31,7 +31,7 @@ class MainWPKeywordLinks
         if (empty($this->keyword_links))
             $this->keyword_links = array();    
         //print_r($this->keyword_links);
-        $this->siteurl = get_option('siteurl');
+        $this->siteurl = get_option('home');
         add_action('permalink_structure_changed', array(&$this, 'permalinkChanged'), 10, 2);
         add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
     }
