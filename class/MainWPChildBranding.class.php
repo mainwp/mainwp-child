@@ -62,6 +62,7 @@ class MainWPChildBranding
             'mainwp_branding_support_message',
             'mainwp_branding_remove_restore',
             'mainwp_branding_remove_setting',
+            'mainwp_branding_remove_server_info',
             'mainwp_branding_remove_wp_tools',
             'mainwp_branding_remove_wp_setting',
             'mainwp_branding_remove_permalink',
@@ -111,6 +112,7 @@ class MainWPChildBranding
         MainWPHelper::update_option('mainwp_branding_support_message', $settings['child_support_message']);
         MainWPHelper::update_option('mainwp_branding_remove_restore', $settings['child_remove_restore']);
         MainWPHelper::update_option('mainwp_branding_remove_setting', $settings['child_remove_setting']);
+        MainWPHelper::update_option('mainwp_branding_remove_server_info', $settings['child_remove_server_info']);
         MainWPHelper::update_option('mainwp_branding_remove_wp_tools', $settings['child_remove_wp_tools']);
         MainWPHelper::update_option('mainwp_branding_remove_wp_setting', $settings['child_remove_wp_setting']);
         MainWPHelper::update_option('mainwp_branding_remove_permalink', $settings['child_remove_permalink']);

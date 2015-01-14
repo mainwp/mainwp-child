@@ -64,7 +64,7 @@ class MainWPChild
         'links_checker' => 'links_checker',
         'wordfence' => 'wordfence',
         'delete_backup' => 'delete_backup',
-        'update_values' => 'update_values'
+        'update_values' => 'update_values'               
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -253,14 +253,35 @@ class MainWPChild
             }
         }
         
-        $remove_all_child_menu = false;
-        if (get_option('mainwp_branding_remove_setting') && get_option('mainwp_branding_remove_restore')) {
+        $remove_all_child_menu = false;        
+        if (get_option('mainwp_branding_remove_setting') && get_option('mainwp_branding_remove_restore')  && get_option('mainwp_branding_remove_server_info')) {
             $remove_all_child_menu = true;
         }
 
         $restorePage = add_submenu_page('import.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array('MainWPClone', 'renderRestore'));
         add_action('admin_print_scripts-'.$restorePage, array('MainWPClone', 'print_scripts'));
         
+        
+        $sitesToClone = get_option('mainwp_child_clone_sites');
+        $mainwp_child_menu_slug = "mainwp_child_tab";
+        
+        if (!$cancelled_branding) {
+            if (get_option('mainwp_branding_remove_setting')) {
+                if (get_option('mainwp_branding_remove_server_info')) {
+                    if ($sitesToClone != '0')
+                    {
+                        $mainwp_child_menu_slug = "MainWPClone";
+                    } 
+                    else
+                    {
+                        $mainwp_child_menu_slug = "MainWPRestore";
+                    }
+                        
+                } else {
+                    $mainwp_child_menu_slug = "MainWPChildServerInformation";
+                }                                
+            }
+        }
         // if preserve branding do not hide menus
         // hide menu
         if ((!$remove_all_child_menu && get_option('mainwp_branding_child_hide') !== 'T') || $cancelled_branding) {
@@ -273,25 +294,28 @@ class MainWPChild
                 $child_menu_name = "MainWP Child";
                 $child_menu_icon = 'data:image/png+xml;base64,' . base64_encode(file_get_contents($this->plugin_dir . '/images/mainwpicon.png'));
             }
-
-            add_menu_page($child_menu_name, $child_menu_name, 'read', 'mainwp_child_tab', false, $child_menu_icon, '80.00001');
+            
+            add_menu_page($child_menu_name, $child_menu_name, 'read', $mainwp_child_menu_slug, false, $child_menu_icon, '80.00001');
 
             if (!get_option('mainwp_branding_remove_setting') || $cancelled_branding)
             {
                 add_submenu_page('mainwp_child_tab', 'MainWPSettings',  __($this->branding . ' Settings','mainwp-child') , 'manage_options', 'mainwp_child_tab', array(&$this, 'settings'));
-                add_submenu_page('mainwp_child_tab', 'MainWPSettings',  __($this->branding . ' Server Information','mainwp-child') , 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
             }
 
-            if (!get_option('mainwp_branding_remove_restore') || $cancelled_branding)
+            if (!get_option('mainwp_branding_remove_server_info') || $cancelled_branding)
             {
-                $sitesToClone = get_option('mainwp_child_clone_sites');
+                add_submenu_page($mainwp_child_menu_slug, 'MainWPSettings',  __($this->branding . ' Server Information','mainwp-child') , 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
+            }
+            
+            if (!get_option('mainwp_branding_remove_restore') || $cancelled_branding)
+            {                
                 if ($sitesToClone != '0')
                 {
-                    MainWPClone::init_menu($this->branding);
+                    MainWPClone::init_menu($this->branding, $mainwp_child_menu_slug);
                 }
                 else
                 {
-                    MainWPClone::init_restore_menu($this->branding);
+                    MainWPClone::init_restore_menu($this->branding, $mainwp_child_menu_slug);
                 }
             }
         }
@@ -774,7 +798,7 @@ class MainWPChild
         MainWPChildPagespeed::Instance()->init();        
         MainWPChildLinksChecker::Instance()->init();
         MainWPChildWordfence::Instance()->wordfence_init();        
-        
+         
     }
 
     function default_option_active_plugins($default)
@@ -3951,9 +3975,12 @@ class MainWPChild
                 MainWPHelper::update_option('heatMapsIndividualOverrideSetting', $override);             
                 MainWPHelper::update_option('heatMapsIndividualDisable', $disable);            
                 $this->update_htaccess(true);
-            }
+                }            
+            MainWPHelper::write(array('result' => 'success'));
         }             
+        MainWPHelper::write(array('result' => 'fail'));         
     }
+    
     function links_checker() {        
         MainWPChildLinksChecker::Instance()->action();                
     }
