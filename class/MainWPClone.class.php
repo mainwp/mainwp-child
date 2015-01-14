@@ -63,6 +63,13 @@ class MainWPClone
         <?php
     }
 
+    public static function upload_mimes($mime_types = array())
+    {
+        if (!isset($mime_types['tar.bz2'])) $mime_types['tar.bz2'] = 'application/x-tar';
+
+        return $mime_types;
+    }
+
     public static function render()
     {
         $uploadError = false;
@@ -74,6 +81,7 @@ class MainWPClone
                 if (!function_exists('wp_handle_upload')) require_once(ABSPATH . 'wp-admin/includes/file.php');
                 $uploadedfile = $_FILES['file'];
                 $upload_overrides = array('test_form' => false);
+                add_filter('upload_mimes', array('MainWPClone', 'upload_mimes'));
                 $movefile = wp_handle_upload($uploadedfile, $upload_overrides);
                 if ($movefile)
                 {

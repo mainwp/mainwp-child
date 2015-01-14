@@ -681,19 +681,20 @@ class MainWPChild
 		
         if (isset($_GET['mainwptest']))
         {
-            /*error_reporting(E_ALL);
-            ini_set('display_errors', TRUE);
-            ini_set('display_startup_errors', TRUE);
-            echo '<pre>';
-            $start = microtime(true);
+//            error_reporting(E_ALL);
+//            ini_set('display_errors', TRUE);
+//            ini_set('display_startup_errors', TRUE);
+//            echo '<pre>';
+//            $start = microtime(true);
 
-            $_POST['type'] = 'full';
-            $_POST['ext'] = 'tar.gz';
-            $_POST['pid'] = time();
-            print_r($this->backup(false));
+//            phpinfo();
+//            $_POST['type'] = 'full';
+//            $_POST['ext'] = 'tar.gz';
+//            $_POST['pid'] = time();
+//            print_r($this->backup(false));
 
-            $stop = microtime(true);
-            die(($stop - $start) . 's</pre>');*/
+//            $stop = microtime(true);
+//            die(($stop - $start) . 's</pre>');
         }
 
         //Register does not require auth, so we register here..
