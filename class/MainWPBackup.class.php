@@ -321,7 +321,7 @@ class MainWPBackup
                                         'home' => get_option('home'),
                                         'abspath' => ABSPATH,
                                         'prefix' => $wpdb->prefix,
-                                        'lang' => WPLANG,
+                                        'lang' => defined('WPLANG') ? WPLANG : '',
                                         'plugins' => $plugins,
                                         'themes' => $themes)));
 
@@ -523,7 +523,7 @@ class MainWPBackup
         foreach ($iterator as $path)
         {
             $name = $path->__toString();
-            if (MainWPHelper::endsWith($name, '/.') || MainWPHelper::endsWith($name, '/..')) continue;
+            if ((basename($name) == '.') || (basename($name) == '..')) continue;
 
             if (!MainWPHelper::inExcludes($excludes, str_replace(ABSPATH, '', $name)))
             {

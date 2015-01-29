@@ -1710,13 +1710,12 @@ class MainWPChild
         {
             $backupFile = 'dbBackup-' . $fileNameUID . '-*.sql';
 
+            $dirs = MainWPHelper::getMainWPDir('backup');
+            $backupdir = $dirs[0];
+            $result = glob($backupdir . $backupFile . '*');
+            if (count($result) == 0) MainWPHelper::write(array());
 
-        $dirs = MainWPHelper::getMainWPDir('backup');
-        $backupdir = $dirs[0];
-        $result = glob($backupdir . $backupFile . '*');
-        if (count($result) == 0) MainWPHelper::write(array());
-
-        MainWPHelper::write(array('size' => filesize($result[0])));
+            MainWPHelper::write(array('size' => filesize($result[0])));
             exit();
         }
     }
@@ -2571,8 +2570,8 @@ class MainWPChild
                 $outPost = array();
                 $outPost['id'] = $post->ID;
                 $outPost['status'] = $post->post_status;
-                $outPost['title'] = $post->post_title;
-                $outPost['content'] = $post->post_content;
+                $outPost['title'] = utf8_encode($post->post_title);
+                $outPost['content'] = utf8_encode($post->post_content);
                 $outPost['comment_count'] = $post->comment_count;
                 $outPost['dts'] = strtotime($post->post_modified_gmt);
                 $usr = get_user_by('id', $post->post_author);
@@ -4017,7 +4016,17 @@ class MainWPChild
         $backupdir = $dirs[0];
 
         header('Content-Description: File Transfer');
-        header('Content-Type: application/octet-stream');
+
+        header('Content-Description: File Transfer');
+        if (MainWPHelper::endsWith($file, '.tar.gz'))
+        {
+            header('Content-Type: application/x-gzip');
+            header("Content-Encoding: gzip'");
+        }
+        else
+        {
+            header('Content-Type: application/octet-stream');
+        }
         header('Content-Disposition: attachment; filename="' . basename($file) . '"');
         header('Expires: 0');
         header('Cache-Control: must-revalidate');

@@ -254,6 +254,8 @@ class TarArchiver
 
     public function addDir($path, $excludes)
     {
+        if ((basename($path) == '.') || (basename($path) == '..')) return;
+
         $this->addEmptyDir($path, str_replace(ABSPATH, '', $path));
 
         if (file_exists(rtrim($path, '/') . '/.htaccess')) $this->addFile(rtrim($path, '/') . '/.htaccess', rtrim(str_replace(ABSPATH, '', $path), '/') . '/mainwp-htaccess');
@@ -270,7 +272,7 @@ class TarArchiver
         foreach ($iterator as $path)
         {
             $name = $path->__toString();
-            if (MainWPHelper::endsWith($name, '/.') || MainWPHelper::endsWith($name, '/..')) continue;
+            if ((basename($name) == '.') || (basename($name) == '..')) continue;
 
             if (!MainWPHelper::inExcludes($excludes, str_replace(ABSPATH, '', $name)))
             {
@@ -469,6 +471,8 @@ class TarArchiver
     protected $cnt = 0;
     private function addFile($path, $entryName)
     {
+        if ((basename($path) == '.') || (basename($path) == '..')) return false;
+
         if ($this->excludeZip && MainWPHelper::endsWith($path, '.zip'))
         {
             $this->log('Skipping ' . $path);
@@ -933,7 +937,7 @@ class TarArchiver
         if ($this->type == 'tar.gz')
         {
             //$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
-            $this->archive = @gzopen($filepath, 'w');
+            $this->archive = @gzopen($filepath, 'wb');
         }
         else if ($this->type == 'tar.bz2')
         {
@@ -964,7 +968,7 @@ class TarArchiver
         if ($this->type == 'tar.gz')
         {
             //$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
-			$this->archive = @gzopen($filepath, 'a');
+			$this->archive = @gzopen($filepath, 'ab');
         }
         else if ($this->type == 'tar.bz2')
         {
@@ -1306,7 +1310,7 @@ class TarArchiver
                     else mkdir(dirname($to . $file['name']), 0777, true);
                 }
 
-                if (!empty($wp_filesystem))
+                if (!empty($wp_filesystem) && ($file['stat'][7] < 2000000))
                 {
                     $contents = '';
                     $bytesToRead = $file['stat'][7];
