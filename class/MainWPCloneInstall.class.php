@@ -240,11 +240,19 @@ class MainWPCloneInstall
         $tableName = '';
         $wpdb->query('SET foreign_key_checks = 0');
         $handle = @fopen(WP_CONTENT_DIR . '/dbBackup.sql', 'r');
+
+        $lastRun = 0;
         if ($handle)
         {
             $readline = '';
             while (($line = fgets($handle, 81920)) !== false)
             {
+                if (time() - $lastRun > 20)
+                {
+                    @set_time_limit(0); //reset timer..
+                    $lastRun = time();
+                }
+
                 $readline .= $line;
                 if (!stristr($line, ";\n") && !feof($handle)) continue;
 
@@ -559,12 +567,14 @@ class MainWPCloneInstall
 
             return $this->archiver->extractTo(ABSPATH);
         }
-        else if ($this->checkWPZip())
+        else if ((filesize($this->file) >= 50000000) && $this->checkWPZip())
             return $this->extractWPZipBackup();
         else if ($this->checkZipConsole())
             return $this->extractZipConsoleBackup();
         else if ($this->checkZipSupport())
             return $this->extractZipBackup();
+        else if ((filesize($this->file) < 50000000) && $this->checkWPZip())
+            return $this->extractWPZipBackup();
         else
             return $this->extractZipPclBackup();
     }
@@ -591,6 +601,32 @@ class MainWPCloneInstall
     {
         MainWPHelper::getWPFilesystem();
         global $wp_filesystem;
+
+        //First check if there is a database backup in the zip file, these can be very large and the wordpress unzip_file can not handle these!
+//        if ($this->checkZipSupport())
+//        {
+//             return $this->extractZipBackup();
+//            $zip = new ZipArchive();
+//            $zipRes = $zip->open($this->file);
+//            if ($zipRes)
+//            {
+//                $stats = $zip->statName('wp-content/dbBackup.sql');
+//
+//                @$zip->extractTo(ABSPATH);
+//
+//                $zip->deleteName('wp-content/dbBackup.sql');
+//                $zip->deleteName('clone');
+//                $zip->close();
+//
+//                $zip->close();
+//            }
+//        }
+//        else
+//        {
+//             return $this->extractZipPclBackup();
+//        }
+
+
         $tmpdir = ABSPATH;
         if (($wp_filesystem->method == 'ftpext') && defined('FTP_BASE'))
         {

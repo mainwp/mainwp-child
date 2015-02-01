@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.6';
+    private $version = '2.0.7';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -1815,6 +1815,20 @@ class MainWPChild
             $uploadDir = $uploadDir[0];
             $excludes[] = str_replace(ABSPATH, '', $uploadDir);
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
+
+            $uname = @posix_uname();
+            if (is_array($uname) && isset($uname['nodename']))
+            {
+                if (stristr($uname['nodename'], 'hostgator'))
+                {
+                    if (!isset($_POST['file_descriptors']) || $_POST['file_descriptors'] == 0 || $_POST['file_descriptors'] > 1000)
+                    {
+                        $_POST['file_descriptors'] = 1000;
+                    }
+                    $_POST['file_descriptors_auto'] = 0;
+                    $_POST['loadFilesBeforeZip'] = false;
+                }
+            }
 
             $file_descriptors = (isset($_POST['file_descriptors']) ? $_POST['file_descriptors'] : 0);
             $file_descriptors_auto = (isset($_POST['file_descriptors_auto']) ? $_POST['file_descriptors_auto'] : 0);
