@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.7';
+    private $version = '2.0.7.1';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -1816,17 +1816,20 @@ class MainWPChild
             $excludes[] = str_replace(ABSPATH, '', $uploadDir);
             $excludes[] = str_replace(ABSPATH, '', WP_CONTENT_DIR) . '/object-cache.php';
 
-            $uname = @posix_uname();
-            if (is_array($uname) && isset($uname['nodename']))
+            if (function_exists('posix_uname'))
             {
-                if (stristr($uname['nodename'], 'hostgator'))
+                $uname = @posix_uname();
+                if (is_array($uname) && isset($uname['nodename']))
                 {
-                    if (!isset($_POST['file_descriptors']) || $_POST['file_descriptors'] == 0 || $_POST['file_descriptors'] > 1000)
+                    if (stristr($uname['nodename'], 'hostgator'))
                     {
-                        $_POST['file_descriptors'] = 1000;
+                        if (!isset($_POST['file_descriptors']) || $_POST['file_descriptors'] == 0 || $_POST['file_descriptors'] > 1000)
+                        {
+                            $_POST['file_descriptors'] = 1000;
+                        }
+                        $_POST['file_descriptors_auto'] = 0;
+                        $_POST['loadFilesBeforeZip'] = false;
                     }
-                    $_POST['file_descriptors_auto'] = 0;
-                    $_POST['loadFilesBeforeZip'] = false;
                 }
             }
 
@@ -2584,8 +2587,8 @@ class MainWPChild
                 $outPost = array();
                 $outPost['id'] = $post->ID;
                 $outPost['status'] = $post->post_status;
-                $outPost['title'] = utf8_encode($post->post_title);
-                $outPost['content'] = utf8_encode($post->post_content);
+                $outPost['title'] = $post->post_title;
+                $outPost['content'] = $post->post_content;
                 $outPost['comment_count'] = $post->comment_count;
                 $outPost['dts'] = strtotime($post->post_modified_gmt);
                 $usr = get_user_by('id', $post->post_author);

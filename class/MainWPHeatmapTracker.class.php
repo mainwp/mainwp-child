@@ -198,12 +198,22 @@ class MainWPHeatmapTracker
 	public function sendClick()
 	{
 		$url = $this->server.'admin-ajax.php';
-		$clickData = get_option('mainwp_child_click_data');
+		$clickData = get_option('mainwp_child_click_data');                
 		$key = get_option('mainwp_child_pubkey');
 		if ( ! is_array($clickData) )
 			return false;
+                // send 1000 record per time to fix memory bug
+                $sendNow = array();                
+                if (count($clickData) > 1000) {
+                    for($i = 0; $i < 1000; $i++) {
+                        $sendNow[$i] = $clickData[$i];
+                    }
+                } else {
+                    $sendNow = $clickData;                
+                }
+                    
 		$timestamp = time();
-		$signature = $this->createSignature($key, $timestamp, $clickData);
+		$signature = $this->createSignature($key, $timestamp, $sendNow);
                 
                 $params = array(
 			'headers' => array(
@@ -212,7 +222,7 @@ class MainWPHeatmapTracker
 			'body' => array(
 				'timestamp' => $timestamp,
 				'signature' => $signature,
-				'data' => base64_encode(serialize($clickData)),
+				'data' => base64_encode(serialize($sendNow)),
 				'action' => 'heatmapSendClick'
 			)                        
 		);
@@ -222,8 +232,17 @@ class MainWPHeatmapTracker
                 
 		$request = wp_remote_post($url, $params);                
 
-		if ( is_array($request) && intval($request['body']) > 0 )
-			delete_option('mainwp_child_click_data');
+		if ( is_array($request) && intval($request['body']) > 0 ) {
+                        if (count($clickData) > 1000) {
+                            $saveData = array();
+                            for($i = 1000; $i < count($clickData); $i++ ) {
+                                $saveData[$i] = $clickData[$i];
+                            }
+                            MainWPHelper::update_option('mainwp_child_click_data', $saveData);
+                        } else {
+                            delete_option('mainwp_child_click_data');
+                        }
+                }
 	}
 	
 	public function checkSignature( $signature, $timestamp, $data )
@@ -402,11 +421,5 @@ class MainWPHeatmapTracker
 	}
 	
 }
-
-
-
-
-
-
 
 ?>
