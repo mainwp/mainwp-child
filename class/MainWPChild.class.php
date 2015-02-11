@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.7.1';
+    private $version = '2.0.8';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -1136,15 +1136,18 @@ class MainWPChild
             if (count($premiumPlugins) > 0)
             {
                 $mwp_premium_updates = apply_filters('mwp_premium_perform_update', array());
-                foreach ($premiumPlugins as $premiumPlugin)
+                if (is_array($mwp_premium_updates) && is_array($premiumPlugins))
                 {
-                    foreach ($mwp_premium_updates as $key => $update)
+                    foreach ($premiumPlugins as $premiumPlugin)
                     {
-                        $slug = (isset($update['slug']) ? $update['slug'] : $update['Name']);
-                        if (strcmp($slug, $premiumPlugin) == 0)
+                        foreach ($mwp_premium_updates as $key => $update)
                         {
-                            $mwp_premium_updates_todo[$key] = $update;
-                            $mwp_premium_updates_todo_slugs[] = $premiumPlugin;
+                            $slug = (isset($update['slug']) ? $update['slug'] : $update['Name']);
+                            if (strcmp($slug, $premiumPlugin) == 0)
+                            {
+                                $mwp_premium_updates_todo[$key] = $update;
+                                $mwp_premium_updates_todo_slugs[] = $premiumPlugin;
+                            }
                         }
                     }
                 }
@@ -1215,15 +1218,18 @@ class MainWPChild
                 $mwp_premium_updates = apply_filters('mwp_premium_perform_update', array());
                 $mwp_premium_updates_todo = array();
                 $mwp_premium_updates_todo_slugs = array();
-                foreach ($premiumThemes as $premiumTheme)
+                if (is_array($premiumThemes) && is_array($mwp_premium_updates))
                 {
-                    foreach ($mwp_premium_updates as $key => $update)
+                    foreach ($premiumThemes as $premiumTheme)
                     {
-                        $slug = (isset($update['slug']) ? $update['slug'] : $update['Name']);
-                        if (strcmp($slug, $premiumTheme) == 0)
+                        foreach ($mwp_premium_updates as $key => $update)
                         {
-                            $mwp_premium_updates_todo[$key] = $update;
-                            $mwp_premium_updates_todo_slugs[] = $slug;
+                            $slug = (isset($update['slug']) ? $update['slug'] : $update['Name']);
+                            if (strcmp($slug, $premiumTheme) == 0)
+                            {
+                                $mwp_premium_updates_todo[$key] = $update;
+                                $mwp_premium_updates_todo_slugs[] = $slug;
+                            }
                         }
                     }
                 }
@@ -2453,14 +2459,17 @@ class MainWPChild
             if (count($pluginConflicts) > 0)
             {
                 if ($plugins == false) $plugins = $this->get_all_plugins_int(false);
-                foreach ($plugins as $plugin)
+                if (is_array($plugins) && is_array($pluginConflicts))
                 {
-                    foreach ($pluginConflicts as $pluginConflict)
+                    foreach ($plugins as $plugin)
                     {
-                       if (($plugin['active'] == 1) && (($plugin['name'] == $pluginConflict) || ($plugin['slug'] == $pluginConflict)))
-                       {
-                           $conflicts[] = $plugin['name'];
-                       }
+                        foreach ($pluginConflicts as $pluginConflict)
+                        {
+                           if (($plugin['active'] == 1) && (($plugin['name'] == $pluginConflict) || ($plugin['slug'] == $pluginConflict)))
+                           {
+                               $conflicts[] = $plugin['name'];
+                           }
+                        }
                     }
                 }
             }

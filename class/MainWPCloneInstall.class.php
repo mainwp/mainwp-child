@@ -322,7 +322,7 @@ class MainWPCloneInstall
             foreach ($tables_db as $curr_table)
             {
                 // fix for more table prefix in one database
-                if (strpos($curr_table[0], $wpdb->prefix) !== false)
+                if ((strpos($curr_table[0], $wpdb->prefix) !== false) || (strpos($curr_table[0], $table_prefix) !== false))
                     $tables[] = $curr_table[0];
             }
             // Replace importance data first so if other replace failed, the website still work
@@ -849,6 +849,19 @@ class MainWPCloneInstall
                 foreach ($data as $key => $value)
                 {
                     $_tmp[$key] = $this->recursive_unserialize_replace($from, $to, $value, false);
+                }
+
+                $data = $_tmp;
+                unset($_tmp);
+            }
+
+            elseif (is_object($data))
+            {
+                $_tmp = $data;
+
+                foreach ($data as $key => $value)
+                {
+                    $_tmp->{$key} = $this->recursive_unserialize_replace($from, $to, $value, false);
                 }
 
                 $data = $_tmp;
