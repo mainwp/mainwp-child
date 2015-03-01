@@ -2480,7 +2480,7 @@ class MainWPChild
         {
             $themeConflicts = json_decode(stripslashes($_POST['themeConflicts']), true);
             $conflicts = array();
-            if (count($themeConflicts) > 0)
+            if (is_array($themeConflicts) && count($themeConflicts) > 0)
             {
                 $theme = wp_get_theme()->get('Name');
                 foreach ($themeConflicts as $themeConflict)
