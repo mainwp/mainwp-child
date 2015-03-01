@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.1
-Stable tag: 2.0.8
+Stable tag: 2.0.9
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0.9 =
+* Added: Support for Polish language
+* Added: Support for Greek language
+* Added: Support for the upcoming extension
+* Fixed: Bug that was causing plugin bulk installation failing caused by disabled functions (eg. curl_multi_exec)
 
 = 2.0.8 =
 * Fixed: Not all site references updated after clone
