@@ -52,6 +52,17 @@ class MainWPChildServerInformation
             $dismissWarnings['conflicts'] = array();
         }
         MainWPHelper::update_option('mainwp_child_dismiss_warnings', $dismissWarnings);
+
+        $itheme_ext_activated = (get_option('mainwp_ithemes_ext_activated') == 'Y') ? true : false;
+        if ($itheme_ext_activated) {
+            foreach($conflicts as $key => $cf) {
+                if ($cf === "iThemes Security") {
+                    unset($conflicts[$key]);
+                }
+            }
+            if ($warnings == 0 && count($conflicts) == 0) return;
+        }
+
 ?>
     <script language="javascript">
         dismiss_warnings = function(pElement, pAction) {
