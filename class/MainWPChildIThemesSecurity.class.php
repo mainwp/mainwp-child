@@ -110,7 +110,7 @@ class MainWPChildIThemesSecurity
         foreach ($plugins as $key => $value)
         {
             $plugin_slug = basename($key, '.php');
-            if ($plugin_slug == 'better-wp-security')
+            if ($plugin_slug == 'better-wp-security' || $plugin_slug == 'ithemes-security-pro')
                 unset($plugins[$key]);
         }
         return $plugins;       
