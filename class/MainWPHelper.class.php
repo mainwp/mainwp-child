@@ -244,7 +244,7 @@ class MainWPHelper
         $permalink = get_permalink( $new_post_id );
         
         $seo_ext_activated = false;
-        if (class_exists('WPSEO_Meta') && class_exists('WPSEO_admin')) 
+        if (class_exists('WPSEO_Meta') && class_exists('WPSEO_Admin')) 
             $seo_ext_activated = true;
         
         //Set custom fields

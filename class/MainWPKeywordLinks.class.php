@@ -32,24 +32,10 @@ class MainWPKeywordLinks
             $this->keyword_links = array();    
         //print_r($this->keyword_links);
         $this->siteurl = get_option('home');
-        add_action('permalink_structure_changed', array(&$this, 'permalinkChanged'), 10, 2);
-        add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
+        add_action('permalink_structure_changed', array(&$this, 'permalinkChanged'), 10, 2);        
     }
     
-    public function child_deactivation()
-    {
-        $dell_all = array('mainwp_keyword_links_htaccess_set',
-                        'mainwp_kwl_options',
-                        'mainwpKeywordLinks',
-                        'mainwp_kwl_keyword_links',
-                        'mainwp_kwl_click_statistic_data',
-                        'mainwp_kwl_enable_statistic',
-                        'mainwp_kwl_keyword_links');
-        foreach ($dell_all as $opt)
-        {
-            delete_option($opt);
-        }
-    }
+   
     public function keywordLinksJS()
     {	
         if (!is_admin() && get_option('mainwp_kwl_enable_statistic'))
@@ -686,11 +672,15 @@ class MainWPKeywordLinks
     
     function remove_keywords() {
         $result = array();
-        $remove_keywords = $_POST['keywords'];
+        $remove_settings = $_POST['removeSettings'];
+        $remove_keywords = $_POST['keywords'];        
         $remove_keywords = unserialize(base64_decode($remove_keywords));
         $remove_kws = $this->explode_multi($remove_keywords);
         
-        if (is_array($remove_kws) && is_array($this->keyword_links)) {
+        if ($remove_settings) {
+            $this->clear_settings();
+            $return['status'] = 'SUCCESS';
+        } else if (is_array($remove_kws) && is_array($this->keyword_links)) {
             $new_keyword_links = array();            
             foreach($this->keyword_links as $link_id => $link) {
                 $lnk_kws = $link->keyword;
@@ -711,6 +701,22 @@ class MainWPKeywordLinks
             $return['status'] = 'NOCHANGE';                      
         }
         return $return;   
+    }
+    
+    public function clear_settings()
+    {
+        $dell_all = array('mainwp_keyword_links_htaccess_set',
+                        'mainwp_kwl_options',
+                        'mainwpKeywordLinks',
+                        'mainwp_kwl_keyword_links',
+                        'mainwp_kwl_click_statistic_data',
+                        'mainwp_kwl_enable_statistic',
+                        'mainwp_kwl_keyword_links');
+        
+        foreach ($dell_all as $opt)
+        {
+            delete_option($opt);
+        }
     }
     
     public function enable_stats()

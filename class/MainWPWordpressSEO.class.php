@@ -26,7 +26,7 @@ class MainWPWordpressSEO
     }
     
     public function action() {        
-        if (!class_exists('wpseo_admin')) {
+        if (!class_exists('WPSEO_Admin')) {
             $information['error'] = 'NO_WPSEO';
             MainWPHelper::write($information);
         }
