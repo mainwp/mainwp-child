@@ -227,8 +227,15 @@ class MainWPChildUpdraftplusBackups
     */
     
     public function extradb_testconnection() {
-
-            if (empty($_POST['user'])) 
+            
+            if (!class_exists('UpdraftPlus_WPDB_OtherDB_Test')) 
+                if (file_exists(UPDRAFTPLUS_DIR."/addons/moredatabase.php")) require_once(UPDRAFTPLUS_DIR."/addons/moredatabase.php");                                
+            
+            if (!class_exists('UpdraftPlus_WPDB_OtherDB_Test')) {
+                return array('r' => $_POST['row'], 'm' => 'Error: Require premium UpdraftPlus plugin.');
+            }
+            
+            if (empty($_POST['user_db'])) 
                 return array('r' => $_POST['row'], 'm' => '<p>'.sprintf(__("Failure: No %s was given.",'updraftplus').'</p>',__('user','updraftplus')));
 
             if (empty($_POST['host'])) 
@@ -242,8 +249,8 @@ class MainWPChildUpdraftplusBackups
 
             $ret = '';
             $failed = false;
-
-            $wpdb_obj = new UpdraftPlus_WPDB_OtherDB_Test($_POST['user'], $_POST['pass'], $_POST['name'], $_POST['host']);
+            
+            $wpdb_obj = new UpdraftPlus_WPDB_OtherDB_Test($_POST['user_db'], $_POST['pass'], $_POST['name'], $_POST['host']);
             if (!empty($wpdb_obj->error)) {
                     $failed = true;
                     $ret .= '<p>';$dbinfo['user'].'@'.$dbinfo['host'].'/'.$dbinfo['name']." : ".__('database connection attempt failed', 'updraftplus')."</p>";
@@ -451,7 +458,7 @@ class MainWPChildUpdraftplusBackups
 
     }
     
-    private function get_updraft_data($pSyncData) {        
+    private function get_updraft_data() {        
         global $updraftplus;
         // UNIX timestamp
         $next_scheduled_backup = wp_next_scheduled('updraft_backup');        
@@ -2514,10 +2521,10 @@ ENDHERE;
         }        
     }
     
-    public function sync_data($syncData = array()) {
+    public function syncData() {
         if (!self::isActivatedUpdraftplus()) 
             return "";
-        return $this->get_updraft_data($syncData);
+        return $this->get_updraft_data();
     }    
   
     public function all_plugins($plugins) {

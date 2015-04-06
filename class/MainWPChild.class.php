@@ -2529,7 +2529,7 @@ class MainWPChild
 
             if (isset($othersData['syncUpdraftData']) && $othersData['syncUpdraftData']) {
                 if (MainWPChildUpdraftplusBackups::isActivatedUpdraftplus()) {
-                    $information['syncUpdraftData'] =   MainWPChildUpdraftplusBackups::Instance()->sync_data($othersData['syncUpdraftData']);
+                    $information['syncUpdraftData'] =   MainWPChildUpdraftplusBackups::Instance()->syncData();
                 }
             }
         }
@@ -2552,12 +2552,11 @@ class MainWPChild
         $favi = "";
         if (is_array($request) && isset($request['body'])) {
             $preg_str = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-            $preg_apple = '/(<link\s+(?:[^\>]*)(?:rel="apple-touch-icon-precomposed"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
             if (preg_match($preg_str, $request['body'], $matches))
             {
                 $favi = $matches[2];
-            } else if (preg_match($preg_apple, $request['body'], $matches)) {
-                $favi = $matches[2];
+            } else if (file_exists(ABSPATH . 'favicon.ico')) {
+                $favi = 'favicon.ico';
             }
         }
         return $favi;
