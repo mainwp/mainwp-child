@@ -58,6 +58,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
+= 2.0.10 =
+* Added: Support for the display Favicon for child sites feature
+* Added: Support for upcoming extension
+* Fixed: Plugin conflicts with Wordpress SEO by Yoast and Backupbuddy
+
 = 2.0.9.2 =
 * Fixed: Bug where SEO values are not being set for Boilerplate Pages and Posts
 * Added: Function for removing keywords and Links Manager extension settings

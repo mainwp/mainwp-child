@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.9';
+    private $version = '2.0.10';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -967,16 +967,20 @@ class MainWPChild
                     MainWPHelper::error($error);
                 }
             }
+
             if ($_POST['type'] == 'plugin' && isset($_POST['activatePlugin']) && $_POST['activatePlugin'] == 'yes')
             {
                 $path = $result['destination'];
+                $rslt = null;
+                wp_cache_set('plugins', array(), 'plugins');
                 foreach ($result['source_files'] as $srcFile)
                 {
+                    if (is_dir($path . $srcFile)) continue;
+
                     $thePlugin = get_plugin_data($path . $srcFile);
                     if ($thePlugin != null && $thePlugin != '' && $thePlugin['Name'] != '')
                     {
                         activate_plugin($path . $srcFile, '', false, true);
-                        break;
                     }
                 }
             }
