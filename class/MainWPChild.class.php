@@ -67,7 +67,8 @@ class MainWPChild
         'update_values' => 'update_values',
         'ithemes' => 'ithemes',
         'multistores' => 'multistores',
-        'updraftplus' => 'updraftplus'
+        'updraftplus' => 'updraftplus',
+        'traffic_adviser' => 'traffic_adviser'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -125,6 +126,7 @@ class MainWPChild
         }
         add_action( 'admin_notices', array(&$this, 'admin_notice'));
         add_filter('plugin_row_meta', array(&$this, 'plugin_row_meta'), 10, 2);
+	    add_action('plugins_loaded', array(MainWPChildTrafficAdviser::Instance(), 'check_rules'), -1000);
     }
 
     function update()
@@ -4083,6 +4085,10 @@ class MainWPChild
     function updraftplus() {
         MainWPChildUpdraftplusBackups::Instance()->action();
     }
+
+	public function traffic_adviser() {
+		MainWPChildTrafficAdviser::Instance()->action();
+	}
 
     function delete_backup()
     {
