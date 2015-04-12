@@ -17,7 +17,7 @@ class MainWPChildUpdraftplusBackups
     
     public function init()
     {  
-               
+                
     } 
        
     public function action() {        
@@ -82,6 +82,9 @@ class MainWPChildUpdraftplusBackups
                 case "extradbtestconnection":
                     $information = $this->extradb_testconnection();
                 break;
+                case "delete_old_dirs":
+                    $information = $this->delete_old_dirs_go();
+                break;
             }        
         }
         MainWPHelper::write($information);
@@ -96,8 +99,16 @@ class MainWPChildUpdraftplusBackups
     }
     
     public static function isActivatedUpdraftplus() {
-        if (!defined('UPDRAFTPLUS_DIR') || !class_exists('UpdraftPlus') || !class_exists('UpdraftPlus_Options')) 
+        if (!defined('UPDRAFTPLUS_DIR'))
             return false;
+        
+        if (!class_exists('UpdraftPlus')) {
+            require_once(UPDRAFTPLUS_DIR.'/class-updraftplus.php');
+        }
+        
+        if (!class_exists('UpdraftPlus_Options')) {
+            require_once(UPDRAFTPLUS_DIR.'/options.php');
+        }
         return true;
     }
     
@@ -1032,7 +1043,7 @@ class MainWPChildUpdraftplusBackups
         
         global $updraftplus_admin, $updraftplus;        
         if (empty($updraftplus_admin)) require_once(UPDRAFTPLUS_DIR.'/admin.php');
-        ob_start();     
+        ob_start(); 
         $backup_success = $this->restore_backup($_REQUEST['backup_timestamp']);
         if (empty($updraftplus->errors) && $backup_success === true) {
                 // If we restored the database, then that will have out-of-date information which may confuse the user - so automatically re-scan for them.
@@ -1048,7 +1059,7 @@ class MainWPChildUpdraftplusBackups
                         }
                 }
                 $pval = ($updraftplus->have_addons) ? 1 : 0;
-                echo '<strong>'.__('Actions','updraftplus').':</strong> <a href="'.UpdraftPlus_Options::admin_page_url().'?page=updraftplus&updraft_restore_success='.$s_val.'&pval='.$pval.'">'.__('Return to UpdraftPlus Configuration','updraftplus').'</a>';
+                //echo '<strong>'.__('Actions','updraftplus').':</strong> <a href="'.UpdraftPlus_Options::admin_page_url().'?page=updraftplus&updraft_restore_success='.$s_val.'&pval='.$pval.'">'.__('Return to UpdraftPlus Configuration','updraftplus').'</a>';
                 
         } elseif (is_wp_error($backup_success)) {
                 echo '<p>';
@@ -1057,7 +1068,7 @@ class MainWPChildUpdraftplusBackups
                 $updraftplus->log_wp_error($backup_success);
                 $updraftplus->log("Restore failed");
                 $updraftplus->list_errors();
-                echo '<strong>'.__('Actions','updraftplus').':</strong> <a href="'.UpdraftPlus_Options::admin_page_url().'?page=updraftplus">'.__('Return to UpdraftPlus Configuration','updraftplus').'</a>';
+                //echo '<strong>'.__('Actions','updraftplus').':</strong> <a href="'.UpdraftPlus_Options::admin_page_url().'?page=updraftplus">'.__('Return to UpdraftPlus Configuration','updraftplus').'</a>';
                 
         } elseif (false === $backup_success) {
                 # This means, "not yet - but stay on the page because we may be able to do it later, e.g. if the user types in the requested information"
@@ -1119,9 +1130,8 @@ class MainWPChildUpdraftplusBackups
 
 		//if we make it this far then WP_Filesystem has been instantiated and is functional (tested with ftpext, what about suPHP and other situations where direct may work?)
 		echo '<h1>'.__('UpdraftPlus Restoration: Progress', 'updraftplus').'</h1><div id="updraft-restore-progress">';
-
-		$this->show_admin_warning('<a target="_new" href="?action=downloadlog&page=updraftplus&updraftplus_backup_nonce='.htmlspecialchars($updraftplus->nonce).'">'.__('Follow this link to download the log file for this restoration (needed for any support requests).', 'updraftplus').'</a>');
-
+                $this->show_admin_warning('<a href="#" onclick="event.preventDefault(); mainwp_updraft_popuplog(\''.htmlspecialchars($updraftplus->nonce).'\', this);" >'.__('Follow this link to download the log file for this restoration (needed for any support requests).', 'updraftplus').'</a>');
+		
 		$updraft_dir = trailingslashit($updraftplus->backups_dir_location());
 		$foreign_known = apply_filters('updraftplus_accept_archivename', array());
 
@@ -1291,7 +1301,7 @@ class MainWPChildUpdraftplusBackups
 						echo '<strong>'.__('Error:',  'updraftplus').'</strong> '.htmlspecialchars($msg).'<br>';
 					}
 					foreach ($val->get_error_codes() as $code) {
-						if ('already_exists' == $code) $this->print_delete_old_dirs_form(false);
+						if ('already_exists' == $code) $this->print_delete_old_dirs_form();
 					}
 					echo '</div>'; //close the updraft_restore_progress div even if we error
 					restore_error_handler();
@@ -1372,19 +1382,20 @@ class MainWPChildUpdraftplusBackups
 
 		if (!function_exists('validate_current_theme')) require_once(ABSPATH.WPINC.'/themes');
 
-			# Have seen a case where the current theme in the DB began with a capital, but not on disk - and this breaks migrating from Windows to a case-sensitive system
-			$template = get_option('template');
-			if (!empty($template) && $template != WP_DEFAULT_THEME && $template != strtolower($template)) {
+                # Have seen a case where the current theme in the DB began with a capital, but not on disk - and this breaks migrating from Windows to a case-sensitive system
+                $template = get_option('template');
+                echo $template;
+                if (!empty($template) && $template != WP_DEFAULT_THEME && $template != strtolower($template)) {
 
-				$theme_root = get_theme_root($template);
-				$theme_root2 = get_theme_root(strtolower($template));
+                        $theme_root = get_theme_root($template);
+                        $theme_root2 = get_theme_root(strtolower($template));
 
-				if (!file_exists("$theme_root/$template/style.css") && file_exists("$theme_root/".strtolower($template)."/style.css")) {
-					$updraftplus->log_e("Theme directory (%s) not found, but lower-case version exists; updating database option accordingly", $template);
-					update_option('template', strtolower($template));
-				}
+                        if (!file_exists("$theme_root/$template/style.css") && file_exists("$theme_root/".strtolower($template)."/style.css")) {
+                                $updraftplus->log_e("Theme directory (%s) not found, but lower-case version exists; updating database option accordingly", $template);
+                                update_option('template', strtolower($template));
+                        }
 
-			}
+                }
 
 		if (!validate_current_theme()) {
 			global $updraftplus;
@@ -1401,6 +1412,116 @@ class MainWPChildUpdraftplusBackups
 		restore_error_handler();
 		return true;
 	}
+
+        
+    public function option_filter_template($val) { global $updraftplus; return $updraftplus->option_filter_get('template'); }
+
+    public function option_filter_stylesheet($val) { global $updraftplus; return $updraftplus->option_filter_get('stylesheet'); }
+
+    public function option_filter_template_root($val) { global $updraftplus; return $updraftplus->option_filter_get('template_root'); }
+
+    public function option_filter_stylesheet_root($val) { global $updraftplus; return $updraftplus->option_filter_get('stylesheet_root'); }
+
+
+    private function print_delete_old_dirs_form() {
+            echo "<a href=\"#\" class=\"button-primary\" onclick=\"event.preventDefault(); mainwp_updraft_delete_old_dirs();\">".__('Delete Old Directories','updraftplus')."</a>";           
+    }
+    
+    private function delete_old_dirs_go($show_return = true) {
+        ob_start();  
+        
+        echo ($show_return) ? '<h1>UpdraftPlus - '.__('Remove old directories', 'updraftplus').'</h1>' : '<h2>'.__('Remove old directories', 'updraftplus').'</h2>';
+        $deleted = 0;
+        if($this->delete_old_dirs()) {
+                echo '<p>'.__('Old directories successfully removed.','updraftplus').'</p>';
+                echo '<p>'.__('Now press Restore again to proceed.','updraftplus').'</p><br/>';
+                $deleted = 1;
+        } else {
+                echo '<p>',__('Old directory removal failed for some reason. You may want to do this manually.','updraftplus').'</p><br/>';
+        }
+        //if ($show_return) echo '<b>'.__('Actions','updraftplus').':</b> <a href="'.UpdraftPlus_Options::admin_page_url().'?page=updraftplus">'.__('Return to UpdraftPlus Configuration','updraftplus').'</a>';
+
+        $output = ob_get_clean();         
+        return array('o' => $output, 'd' => $deleted);
+    }
+
+    //deletes the -old directories that are created when a backup is restored.
+    private function delete_old_dirs() {
+            global $wp_filesystem, $updraftplus;
+            $credentials = request_filesystem_credentials(wp_nonce_url(UpdraftPlus_Options::admin_page_url()."?page=updraftplus&action=updraft_delete_old_dirs", 'updraftplus-credentialtest-nonce')); 
+            WP_Filesystem($credentials);
+            if ($wp_filesystem->errors->get_error_code()) { 
+                    foreach ($wp_filesystem->errors->get_error_messages() as $message)
+                            show_message($message); 
+                    exit; 
+            }
+            // From WP_CONTENT_DIR - which contains 'themes'
+            $ret = $this->delete_old_dirs_dir($wp_filesystem->wp_content_dir());
+
+            $updraft_dir = $updraftplus->backups_dir_location();
+            if ($updraft_dir) {
+                    $ret4 = ($updraft_dir) ? $this->delete_old_dirs_dir($updraft_dir, false) : true;
+            } else {
+                    $ret4 = true;
+            }
+
+// 		$ret2 = $this->delete_old_dirs_dir($wp_filesystem->abspath());
+            $plugs = untrailingslashit($wp_filesystem->wp_plugins_dir());
+            if ($wp_filesystem->is_dir($plugs.'-old')) {
+                    print "<strong>".__('Delete','updraftplus').": </strong>plugins-old: ";
+                    if(!$wp_filesystem->delete($plugs.'-old', true)) {
+                            $ret3 = false;
+                            print "<strong>".__('Failed', 'updraftplus')."</strong><br>";
+                    } else {
+                            $ret3 = true;
+                            print "<strong>".__('OK', 'updraftplus')."</strong><br>";
+                    }
+            } else {
+                    $ret3 = true;
+            }
+
+            return $ret && $ret3 && $ret4;
+    }
+
+    private function delete_old_dirs_dir($dir, $wpfs = true) {
+
+            $dir = trailingslashit($dir);
+
+            global $wp_filesystem, $updraftplus;
+
+            if ($wpfs) {
+                    $list = $wp_filesystem->dirlist($dir);
+            } else {
+                    $list = scandir($dir);
+            }
+            if (!is_array($list)) return false;
+
+            $ret = true;
+            foreach ($list as $item) {
+                    $name = (is_array($item)) ? $item['name'] : $item;
+                    if ("-old" == substr($name, -4, 4)) {
+                            //recursively delete
+                            print "<strong>".__('Delete','updraftplus').": </strong>".htmlspecialchars($name).": ";
+
+                            if ($wpfs) {
+                                    if(!$wp_filesystem->delete($dir.$name, true)) {
+                                            $ret = false;
+                                            echo "<strong>".__('Failed', 'updraftplus')."</strong><br>";
+                                    } else {
+                                            echo "<strong>".__('OK', 'updraftplus')."</strong><br>";
+                                    }
+                            } else {
+                                    if ($updraftplus->remove_local_directory($dir.$name)) {
+                                            echo "<strong>".__('OK', 'updraftplus')."</strong><br>";
+                                    } else {
+                                            $ret = false;
+                                            echo "<strong>".__('Failed', 'updraftplus')."</strong><br>";
+                                    }
+                            }
+                    }
+            }
+            return $ret;
+    }
 
         
     public function show_admin_warning($message, $class = "updated") {
@@ -1584,25 +1705,6 @@ class MainWPChildUpdraftplusBackups
                     @gzclose($dbhandle);
             }
 
-/*        $blog_tables = "CREATE TABLE $wpdb->terms (
-CREATE TABLE $wpdb->term_taxonomy (
-CREATE TABLE $wpdb->term_relationships (
-CREATE TABLE $wpdb->commentmeta (
-CREATE TABLE $wpdb->comments (
-CREATE TABLE $wpdb->links (
-CREATE TABLE $wpdb->options (
-CREATE TABLE $wpdb->postmeta (
-CREATE TABLE $wpdb->posts (
-    $users_single_table = "CREATE TABLE $wpdb->users (
-    $users_multi_table = "CREATE TABLE $wpdb->users (
-    $usermeta_table = "CREATE TABLE $wpdb->usermeta (
-    $ms_global_tables = "CREATE TABLE $wpdb->blogs (
-CREATE TABLE $wpdb->blog_versions (
-CREATE TABLE $wpdb->registration_log (
-CREATE TABLE $wpdb->site (
-CREATE TABLE $wpdb->sitemeta (
-CREATE TABLE $wpdb->signups (
-*/
 
             $missing_tables = array();
             if ($old_table_prefix) {
@@ -2509,7 +2611,7 @@ ENDHERE;
     }
         
     public function updraftplus_init()
-    {  
+    {           
         if (get_option('mainwp_updraftplus_ext_enabled') !== "Y")
             return;
         

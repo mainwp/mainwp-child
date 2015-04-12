@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.10';
+    private $version = '2.0.11';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -67,7 +67,7 @@ class MainWPChild
         'update_values' => 'update_values',
         'ithemes' => 'ithemes',
         'multistores' => 'multistores',
-        'updraftplus' => 'updraftplus'
+        'updraftplus' => 'updraftplus'        
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -791,8 +791,8 @@ class MainWPChild
         new MainWPChildIThemesSecurity();
 
         MainWPChildWooCommerceMultiStores::Instance()->init();
-        MainWPChildUpdraftplusBackups::Instance()->updraftplus_init();
-
+        MainWPChildUpdraftplusBackups::Instance()->updraftplus_init();                    
+      
         //Call the function required
         if (isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
         {
