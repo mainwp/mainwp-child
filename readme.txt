@@ -58,6 +58,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
+= 2.0.11 =
+* Fixed: Upcoming extension bug
+
 = 2.0.10 =
 * Added: Support for the display Favicon for child sites feature
 * Added: Support for upcoming extension
