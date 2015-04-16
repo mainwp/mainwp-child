@@ -58,6 +58,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
+= 2.0.12 =
+* Fixed: Bug for the MainWP iThemes Security Extension 
+* Fixed: Bug for the MainWP WordFence Extension 
+* Fixed: Bug where the MainWP Child plugin was breaking cron jobs on child sites
+
 = 2.0.11 =
 * Fixed: Upcoming extension bug
 
