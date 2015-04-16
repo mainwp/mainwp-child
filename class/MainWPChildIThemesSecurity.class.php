@@ -103,7 +103,12 @@ class MainWPChildIThemesSecurity
         {
             add_filter('all_plugins', array($this, 'all_plugins'));   
             add_action( 'admin_menu', array($this, 'remove_menu'));
+            add_action('admin_init', array($this, 'admin_init'));   
         }        
+    }
+    
+    public function admin_init() {
+        remove_meta_box('itsec-dashboard-widget', 'dashboard');
     }
     
     public function all_plugins($plugins) {

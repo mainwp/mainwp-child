@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.11';
+    private $version = '2.0.12';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -65,8 +65,7 @@ class MainWPChild
         'wordfence' => 'wordfence',
         'delete_backup' => 'delete_backup',
         'update_values' => 'update_values',
-        'ithemes' => 'ithemes',
-        'multistores' => 'multistores',
+        'ithemes' => 'ithemes',        
         'updraftplus' => 'updraftplus'        
     );
 
@@ -790,7 +789,6 @@ class MainWPChild
 
         new MainWPChildIThemesSecurity();
 
-        MainWPChildWooCommerceMultiStores::Instance()->init();
         MainWPChildUpdraftplusBackups::Instance()->updraftplus_init();                    
       
         //Call the function required
@@ -4076,9 +4074,6 @@ class MainWPChild
         MainWPChildIThemesSecurity::Instance()->action();
     }
 
-    function multistores() {
-        MainWPChildWooCommerceMultiStores::Instance()->action();
-    }
 
     function updraftplus() {
         MainWPChildUpdraftplusBackups::Instance()->action();

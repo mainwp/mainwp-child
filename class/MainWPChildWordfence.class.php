@@ -223,9 +223,14 @@ class MainWPChildWordfence
         {
             add_filter('all_plugins', array($this, 'all_plugins'));   
             add_action( 'admin_menu', array($this, 'remove_menu'));
+            add_action('admin_init', array($this, 'admin_init'));   
         }
         $this->init_cron();
         
+    }
+         
+    public function admin_init() {
+        remove_meta_box('wordfence_activity_report_widget', 'dashboard');
     }
     
     public function init_cron() {                       
