@@ -286,7 +286,7 @@ class MainWPSecurity
         if (get_option('mainwp_child_remove_scripts_version') == 'T')
         {
             if (strpos($src, '?ver='))
-                $src = remove_query_arg('ver', $src);
+                $src = esc_url_raw(remove_query_arg('ver', $src));
 
             return $src;
         }
@@ -298,7 +298,7 @@ class MainWPSecurity
         if (get_option('mainwp_child_remove_styles_version') == 'T')
         {
             if (strpos($src, '?ver='))
-                $src = remove_query_arg('ver', $src);
+                $src = esc_url_raw(remove_query_arg('ver', $src));
 
             return $src;
         }

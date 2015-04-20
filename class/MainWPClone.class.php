@@ -320,7 +320,7 @@ Author URI: http://dd32.id.au/
                 $adir = str_replace('\\', '/', strtolower($adir));						
                 if ( strlen($adir) > 1 )
                         $adir = ltrim($adir, '/');
-                $durl = add_query_arg(array('dir' => rawurlencode($adir)), $url);
+                $durl = esc_url(add_query_arg(array('dir' => rawurlencode($adir)), $url));
                 $quick_links[] = "<a href='$durl'>$text</a>";
         }
 
@@ -359,14 +359,14 @@ Author URI: http://dd32.id.au/
                                     <div id="mainwp-child_clonesite_select_site">
                                             <div class="clonesite_select_site_item">                                
                                                             <div class="mainwp-child_name_label">
-                                                                    <a href="<?php echo add_query_arg(array('dir' => rawurlencode($parent)), $url) ?>" title="<?php echo esc_attr(dirname($current_dir)) ?>"><?php _e('Parent Folder', 'mainwp') ?></a>		
+                                                                    <a href="<?php echo esc_url(add_query_arg(array('dir' => rawurlencode($parent)), $url)); ?>" title="<?php echo esc_attr(dirname($current_dir)) ?>"><?php _e('Parent Folder', 'mainwp') ?></a>
                                                             </div>                                
                                             </div>							
 
                                             <?php
                                             foreach( (array)$directories as $file  ) {
                                                     $filename = ltrim($file, '/');
-                                                    $folder_url = add_query_arg(array('dir' => rawurlencode($filename)), $url);
+                                                    $folder_url = esc_url(add_query_arg(array('dir' => rawurlencode($filename)), $url));
                                                     ?>
                                                     <div class="clonesite_select_site_item">                                
                                                             <div class="mainwp-child_name_label">
