@@ -5,7 +5,7 @@
   Description: Child Plugin for MainWP. The plugin is used so the installed blog can be securely managed remotely by your network. Plugin documentation and options can be found here http://docs.mainwp.com
   Author: MainWP
   Author URI: http://mainwp.com
-  Version: 2.0.12
+  Version: 2.0.13
  */
 header('X-Frame-Options: ALLOWALL');
 //header('X-Frame-Options: GOFORIT');

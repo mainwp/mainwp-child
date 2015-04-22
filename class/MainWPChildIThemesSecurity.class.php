@@ -136,7 +136,11 @@ class MainWPChildIThemesSecurity
         $settings = unserialize(base64_decode($_POST['settings']));           
         $updated = false;
         $rewrites_changed = false;
-        if (isset($settings['itsec_global'])) {            
+                
+        if (isset($settings['itsec_global'])) { 
+//            $old_settings = get_site_option( 'itsec_global' );
+//            // keep current value
+//            $settings['itsec_global']['log_location'] = $old_settings['log_location'];        
             if (update_site_option('itsec_global', $settings['itsec_global'])) {                
                 if (isset( $settings['itsec_global']['write_files'] ) && $settings['itsec_global']['write_files'] === true) {
                     add_site_option( 'itsec_rewrites_changed', true );
@@ -518,113 +522,7 @@ class MainWPChildIThemesSecurity
         return false;
 
     }
-    
-//    public function process_directory() {
-//        global $itsec_files, $itsec_globals;        
-//        //suppress error messages due to timing
-//        error_reporting( 0 );
-//        @ini_set( 'display_errors', 0 );
-//        $out = array();  
-//        $msg = "";          
-//        if ( strpos( WP_CONTENT_DIR, 'wp-content' ) === false && strpos( WP_CONTENT_URL, 'wp-content' ) === false ) {
-//            $dir_name = substr( WP_CONTENT_DIR, strrpos( WP_CONTENT_DIR, '/' ) + 1 );
-//            $msg .= __( 'Congratulations! You have already renamed your "wp-content" directory.', 'it-l10n-better-wp-security' );
-//            $msg .= __( 'Your current content directory is: ', 'it-l10n-better-wp-security' );
-//            $msg .= '<strong>' . $dir_name . '</strong>';
-//            $out['message'] = $msg;
-//            return $out;
-//        }        
-//       
-//        if ( !isset( $itsec_globals['settings']['write_files'] ) || $itsec_globals['settings']['write_files'] !== true ) {
-//            $out['result'] = 'fail';
-//            $msg = sprintf(
-//                            '%s %s %s',
-//                            __( 'You must allow this plugin to write to the wp-config.php file on the', 'it-l10n-better-wp-security' ),
-//                            __( 'Settings', 'it-l10n-better-wp-security' ),
-//                            __( 'page to use this feature.', 'it-l10n-better-wp-security' )
-//                    );
-//            $out['message'] = $msg;
-//            return $out;
-//        }
-//               
-//        
-//        $dir_name      = sanitize_file_name( $_POST['name'] );
-//        $old_directory = '';
-//        $new_directory = '';
-//        if ( strlen( $dir_name ) <= 2 ) { //make sure the directory name is at least 2 characters
-//                $type    = 'error';
-//                $message = __( 'Please choose a directory name that is greater than 2 characters in length.', 'it-l10n-better-wp-security' );
-//        } elseif ( $dir_name === 'wp-content' ) {
-//                $type    = 'error';
-//                $message = __( 'You have not chosen a new name for wp-content. Nothing was saved.', 'it-l10n-better-wp-security' );
-//        } else { //process the name change
-//
-//                $rules = $this->build_wpconfig_rules( array(), $dir_name );
-//
-//                $itsec_files->set_wpconfig( $rules );
-//                $configs = $itsec_files->save_wpconfig();                
-//                
-//                if ( is_array( $configs ) ) {
-//
-//                        if ( $configs['success'] === false ) {
-//                                $type    = 'error';
-//                                $message = $configs['text'];
-//                        }
-//
-//                        $old_directory = WP_CONTENT_DIR;
-//                        $new_directory = trailingslashit( ABSPATH ) . $dir_name;
-//
-//                        $renamed = rename( $old_directory, $new_directory );
-//
-//                        if ( ! $renamed ) {
-//
-//                                $type    = 'error';
-//                                $message = __( 'Unable to rename the wp-content folder. Operation cancelled.', 'it-l10n-better-wp-security' );
-//
-//                        }
-//
-//                } else {
-//
-//                        add_site_option( 'itsec_manual_update', true );
-//
-//                }
-//
-//        }
-//
-//      
-//        $backup = get_site_option( 'itsec_backup' );
-//
-//        if ( $backup !== false && isset( $backup['location'] ) ) {
-//
-//                $backup['location'] = str_replace( $old_directory, $new_directory, $backup['location'] );
-//                update_site_option( 'itsec_backup', $backup );
-//
-//        }
-//
-//        $global = get_site_option( 'itsec_global' );
-//
-//        if ( $global !== false && ( isset( $global['log_location'] ) || isset( $global['nginx_file'] ) ) ) {
-//
-//                if ( isset( $global['log_location'] ) ) {
-//                        $global['log_location'] = str_replace( $old_directory, $new_directory, $global['log_location'] );
-//                }
-//
-//                if ( isset( $global['nginx_file'] ) ) {
-//                        $global['nginx_file'] = str_replace( $old_directory, $new_directory, $global['nginx_file'] );
-//                }
-//                update_site_option( 'itsec_global', $global );
-//        }
-//          
-//        if ( isset( $type ) ) {
-//            $out['result'] = 'fail';
-//            $out['error'] = $message;
-//        } else {
-//            $out['result'] = 'success';
-//        }
-//        
-//        return $out;        
-//    }
-
+   
     public function build_wpconfig_rules( $rules_array, $input = null ) {
         //Get the rules from the database if input wasn't sent
         if ( $input === null ) {

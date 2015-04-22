@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.12';
+    private $version = '2.0.13';
     private $update_version = '1.0';
 
     private $callableFunctions = array(
@@ -2536,7 +2536,7 @@ class MainWPChild
 
         $last_post = wp_get_recent_posts(array( 'numberposts' => absint('1')));
         if (isset($last_post[0])) $last_post = $last_post[0];
-        if (isset($last_post)) $information['last_post_gmt'] = strtotime($last_post['post_modified_gmt']);
+        if (isset($last_post) && isset($last_post['post_modified_gmt'])) $information['last_post_gmt'] = strtotime($last_post['post_modified_gmt']);
         $information['mainwpdir'] = (MainWPHelper::validateMainWPDir() ? 1 : -1);
         $information['uniqueId'] = get_option('mainwp_child_uniqueId', '');
         if ($exit) MainWPHelper::write($information);
@@ -2555,6 +2555,8 @@ class MainWPChild
                 $favi = $matches[2];
             } else if (file_exists(ABSPATH . 'favicon.ico')) {
                 $favi = 'favicon.ico';
+            } else if (file_exists(ABSPATH . 'favicon.png')) {
+                $favi = 'favicon.png';
             }
         }
         return $favi;
