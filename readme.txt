@@ -15,7 +15,7 @@ Allows you to manage multiple blogs from one dashboard by providing a secure con
 
 == Description ==
 
-This is the Child plugin for the [MainWP Dashboard](http://wordpress.org/plugins/mainwp/)
+This is the Child plugin for the [MainWP Dashboard](https://wordpress.org/plugins/mainwp/)
 
 The MainWP Child plugin is used so the installed blog can be securely managed remotely by your WordPress Network.
 
