@@ -76,7 +76,7 @@ class MainWPChildPagespeed
             $recheck = false;
             $count++;
         }        
-        update_option("mainwp_child_pagespeed_count_checking", $count);
+        update_option('mainwp_child_pagespeed_count_checking', $count);
         
         $worker_args = array(
             array(), false, $recheck
@@ -119,7 +119,7 @@ class MainWPChildPagespeed
     
     
      function set_showhide() {
-        MainWPHelper::update_option('mainwp_pagespeed_ext_enabled', "Y");        
+        MainWPHelper::update_option('mainwp_pagespeed_ext_enabled', "Y", 'yes');
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
         MainWPHelper::update_option('mainwp_pagespeed_hide_plugin', $hide);        
         $information['result'] = 'SUCCESS';
@@ -127,7 +127,7 @@ class MainWPChildPagespeed
     }
     
     function save_settings() {
-        MainWPHelper::update_option('mainwp_pagespeed_ext_enabled', "Y");  
+        MainWPHelper::update_option('mainwp_pagespeed_ext_enabled', "Y", 'yes');
         $current_values = get_option('gpagespeedi_options');
         if (is_array($current_values) && $current_values['last_run_finished'] == false)
             return array('result' => 'RUNNING');

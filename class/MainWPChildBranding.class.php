@@ -100,14 +100,14 @@ class MainWPChildBranding
         if (!is_array($settings))
             return $information;
         $current_extra_setting = $this->settings['extra_settings'];
-        MainWPHelper::update_option('mainwp_branding_ext_enabled', "Y");
+        MainWPHelper::update_option('mainwp_branding_ext_enabled', "Y", 'yes');
         $header = array('name' => $settings['child_plugin_name'],
             'description' => $settings['child_plugin_desc'],
             'author' => $settings['child_plugin_author'],
             'authoruri' => $settings['child_plugin_author_uri'],
             'pluginuri' => $settings['child_plugin_uri']);
         MainWPHelper::update_option('mainwp_branding_preserve_branding', $settings['child_preserve_branding']);               
-        MainWPHelper::update_option('mainwp_branding_plugin_header', $header);
+        MainWPHelper::update_option('mainwp_branding_plugin_header', $header, 'yes');
         MainWPHelper::update_option('mainwp_branding_support_email', $settings['child_support_email']);
         MainWPHelper::update_option('mainwp_branding_support_message', $settings['child_support_message']);
         MainWPHelper::update_option('mainwp_branding_remove_restore', $settings['child_remove_restore']);
@@ -116,7 +116,7 @@ class MainWPChildBranding
         MainWPHelper::update_option('mainwp_branding_remove_wp_tools', $settings['child_remove_wp_tools']);
         MainWPHelper::update_option('mainwp_branding_remove_wp_setting', $settings['child_remove_wp_setting']);
         MainWPHelper::update_option('mainwp_branding_remove_permalink', $settings['child_remove_permalink']);
-        MainWPHelper::update_option('mainwp_branding_button_contact_label', $settings['child_button_contact_label']);
+        MainWPHelper::update_option('mainwp_branding_button_contact_label', $settings['child_button_contact_label'], 'yes');
         MainWPHelper::update_option('mainwp_branding_send_email_message', $settings['child_send_email_message']);
         MainWPHelper::update_option('mainwp_branding_message_return_sender', $settings['child_message_return_sender']);
         MainWPHelper::update_option('mainwp_branding_submit_button_title', $settings['child_submit_button_title']);
@@ -211,7 +211,7 @@ class MainWPChildBranding
         }
         
         
-        MainWPHelper::update_option('mainwp_branding_extra_settings', $extra_setting);
+        MainWPHelper::update_option('mainwp_branding_extra_settings', $extra_setting, 'yes');
         
         if ($settings['child_plugin_hide'])
         {

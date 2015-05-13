@@ -91,7 +91,7 @@ class MainWPChildUpdraftplusBackups
     }
     
     function set_showhide() {
-        MainWPHelper::update_option('mainwp_updraftplus_ext_enabled', "Y");        
+        MainWPHelper::update_option('mainwp_updraftplus_ext_enabled', "Y", 'yes');
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
         MainWPHelper::update_option('mainwp_updraftplus_hide_plugin', $hide);        
         $information['result'] = 'SUCCESS';
@@ -174,7 +174,7 @@ class MainWPChildUpdraftplusBackups
         
     function save_settings() {        
 
-        MainWPHelper::update_option('mainwp_updraftplus_ext_enabled', "Y");   
+        MainWPHelper::update_option('mainwp_updraftplus_ext_enabled', "Y", 'yes');
         $settings = unserialize(base64_decode($_POST['settings']));           
         
         $keys = $this->get_settings_keys();

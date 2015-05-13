@@ -120,7 +120,7 @@ class MainWPKeywordLinks
             $rules = explode("\n", '');
             insert_with_markers($htaccess_file, 'MainWP Keyword Links Extension', $rules);
         }
-        MainWPHelper::update_option('mainwp_keyword_links_htaccess_set', '');
+        MainWPHelper::update_option('mainwp_keyword_links_htaccess_set', '', 'yes');
     }
     
     public function do_update_htaccess($force_clear = false) {    
@@ -146,13 +146,12 @@ class MainWPKeywordLinks
                 $rules = explode("\n", $rules);
                 insert_with_markers($htaccess_file, 'MainWP Keyword Links Extension', $rules);
             }
-            MainWPHelper::update_option('mainwp_keyword_links_htaccess_set', 'yes');
+            MainWPHelper::update_option('mainwp_keyword_links_htaccess_set', 'yes', 'yes');
             return true;
         } else {
             self::clear_htaccess();
             return true;
         }
-        return false;
     }
     
 	
@@ -840,7 +839,7 @@ class MainWPKeywordLinks
                     $this->update_htaccess_for_change_cloak_links($link);                    
                 }
             }               
-        MainWPHelper::update_option('mainwpKeywordLinks', 1); // enable extension functions
+        MainWPHelper::update_option('mainwpKeywordLinks', 1, 'yes'); // enable extension functions
             return $return;
     }
      
@@ -879,7 +878,7 @@ class MainWPKeywordLinks
                     'enable_post_type' => $_POST['enable_post_type'],
                     'enable_post_type_link' => $_POST['enable_post_type_link']
             );
-        MainWPHelper::update_option('mainwpKeywordLinks', 1); // enable extension functions
+        MainWPHelper::update_option('mainwpKeywordLinks', 1, 'yes'); // enable extension functions
             if (MainWPHelper::update_option('mainwp_kwl_options', $this->config)) {
                 $return['status'] = 'SUCCESS';    
 			}

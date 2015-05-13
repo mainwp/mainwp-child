@@ -828,9 +828,9 @@ class MainWPHelper
 <br>';
     }
     
-    static function update_option($option_name, $option_value)
+    static function update_option($option_name, $option_value, $autoload = 'no')
     {
-        $success = add_option($option_name, $option_value, '', 'no');
+        $success = add_option($option_name, $option_value, '', $autoload);
 
          if (!$success)
          {
@@ -840,15 +840,15 @@ class MainWPHelper
          return $success;
     }
 
-    static function fix_option($option_name)
+    static function fix_option($option_name, $autoload = 'no')
     {
         global $wpdb;
 
-        if ( 'yes' == $wpdb->get_var( "SELECT autoload FROM $wpdb->options WHERE option_name = '" . $option_name . "'" ) )
+        if ( $autoload != $wpdb->get_var( "SELECT autoload FROM $wpdb->options WHERE option_name = '" . $option_name . "'" ) )
         {
             $option_value = get_option( $option_name );
             delete_option( $option_name );
-            add_option( $option_name, $option_value, null, 'no' );
+            add_option( $option_name, $option_value, null, $autoload );
         }
     }
 

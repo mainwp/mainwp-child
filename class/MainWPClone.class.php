@@ -1281,20 +1281,20 @@ Author URI: http://dd32.id.au/
 //            $cloneInstall->update_option('mainwp_child_nossl_key', $nossl_key);
 //            $cloneInstall->update_option('mainwp_child_clone_sites', $sitesToClone);
 //            $cloneInstall->update_option('mainwp_child_clone_permalink', true);
-            MainWPHelper::update_option('mainwp_child_pubkey', $pubkey);
+            MainWPHelper::update_option('mainwp_child_pubkey', $pubkey, 'yes');
             MainWPHelper::update_option('mainwp_child_uniqueId', $uniqueId);
             MainWPHelper::update_option('mainwp_child_server', $server);
             MainWPHelper::update_option('mainwp_child_nonce', $nonce);
-            MainWPHelper::update_option('mainwp_child_nossl', $nossl);
+            MainWPHelper::update_option('mainwp_child_nossl', $nossl, 'yes');
             MainWPHelper::update_option('mainwp_child_nossl_key', $nossl_key);
             MainWPHelper::update_option('mainwp_child_clone_sites', $sitesToClone);
             if (!MainWPHelper::startsWith(basename($file), 'download-backup-'))
             {
-                MainWPHelper::update_option('mainwp_child_restore_permalink', true);
+                MainWPHelper::update_option('mainwp_child_restore_permalink', true, 'yes');
             }
             else
             {
-                MainWPHelper::update_option('mainwp_child_clone_permalink', true);
+                MainWPHelper::update_option('mainwp_child_clone_permalink', true, 'yes');
             }
 			
             $cloneInstall->clean();

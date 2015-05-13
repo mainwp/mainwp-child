@@ -62,15 +62,21 @@ class MainWPSecurity
         }
     }
 
+    public static function get_security_option($option)
+    {
+        $security = get_option('mainwp_security');
+        return !empty($security) && isset($security[$option]) && ($security[$option] === true);
+    }
+
     //Removed wp-version
     public static function remove_wp_version_ok()
     {
         return !(has_action('wp_head', 'wp_generator') || has_filter('wp_head', 'wp_generator'));
     }
 
-    public static function remove_wp_version()
+    public static function remove_wp_version($force = false)
     {
-        if (get_option('mainwp_child_remove_wp_version') == 'T')
+        if ($force || self::get_security_option('wp_version'))
         {
             remove_action('wp_head', 'wp_generator');
             remove_filter('wp_head', 'wp_generator');
@@ -83,9 +89,9 @@ class MainWPSecurity
         return (!has_action('wp_head', 'rsd_link'));
     }
 
-    public static function remove_rsd()
+    public static function remove_rsd($force = false)
     {
-        if (get_option('mainwp_child_remove_rsd') == 'T')
+        if ($force || self::get_security_option('rsd'))
         {
             remove_action('wp_head', 'rsd_link');
         }
@@ -97,9 +103,9 @@ class MainWPSecurity
         return (!has_action('wp_head', 'wlwmanifest_link'));
     }
 
-    public static function remove_wlw()
+    public static function remove_wlw($force = false)
     {
-        if (get_option('mainwp_child_remove_wlw') == 'T')
+        if ($force || self::get_security_option('wlw'))
         {
             remove_action('wp_head', 'wlwmanifest_link');
         }
@@ -108,12 +114,12 @@ class MainWPSecurity
     //Removed core update information for non-admins
 //    public static function remove_core_update_ok()
 //    {
-//        return (get_option('mainwp_child_remove_core_updates') == 'T');
+//        return self::get_security_option('core_updates');
 //    }
 
-//    public static function remove_core_update()
+//    public static function remove_core_update($force = false)
 //    {
-//        if (get_option('mainwp_child_remove_core_updates') == 'T')
+//        if ($force || self::get_security_option('core_updates'))
 //        {
 //            if (!current_user_can('update_plugins'))
 //            {
@@ -133,12 +139,12 @@ class MainWPSecurity
     //Removed plugin-update information for non-admins
 //    public static function remove_plugin_update_ok()
 //    {
-//        return (get_option('mainwp_child_remove_plugin_updates') == 'T');
+//        return self:get_security_option('plugin_updates');
 //    }
 
-//    public static function remove_plugin_update()
+//    public static function remove_plugin_update($force = false)
 //    {
-//        if (get_option('mainwp_child_remove_plugin_updates') == 'T')
+//        if ($force || self::get_security_option('plugin_updates'))
 //        {
 //            if (!current_user_can('update_plugins'))
 //            {
@@ -161,12 +167,12 @@ class MainWPSecurity
     //Removed theme-update information for non-admins
 //    public static function remove_theme_update_ok()
 //    {
-//        return (get_option('mainwp_child_remove_theme_updates') == 'T');
+//        return self::get_security_option('theme_updates');
 //    }
 
-//    public static function remove_theme_update()
+//    public static function remove_theme_update($force = false)
 //    {
-//        if (get_option('mainwp_child_remove_theme_updates') == 'T')
+//        if ($force || self::get_security_option('theme_updates'))
 //        {
 //            if (!current_user_can('edit_themes'))
 //            {
@@ -251,9 +257,9 @@ class MainWPSecurity
         return !(((ini_get('display_errors') != 0) && (ini_get('display_errors') != 'off')) || ((ini_get('display_startup_errors') != 0) && (ini_get('display_startup_errors') != 'off')));
     }
 
-    public static function remove_php_reporting()
+    public static function remove_php_reporting($force)
     {
-        if (get_option('mainwp_child_remove_php_reporting') == 'T')
+        if ($force || self::get_security_option('php_reporting'))
         {
             @error_reporting(0);
             @ini_set('display_errors', 'off');
@@ -264,7 +270,7 @@ class MainWPSecurity
     //Removed version information for scripts/stylesheets
     public static function remove_scripts_version_ok()
     {
-        return (get_option('mainwp_child_remove_scripts_version') == 'T');
+        return self::get_security_option('scripts_version');
 
 //        global $wp_scripts;
 //        if (!is_a($wp_scripts, 'WP_Scripts'))
@@ -283,7 +289,7 @@ class MainWPSecurity
 
     public static function remove_script_versions($src)
     {
-        if (get_option('mainwp_child_remove_scripts_version') == 'T')
+        if (self::get_security_option('scripts_version'))
         {
             if (strpos($src, '?ver='))
                 $src = esc_url_raw(remove_query_arg('ver', $src));
@@ -295,7 +301,7 @@ class MainWPSecurity
 
     public static function remove_theme_versions($src)
     {
-        if (get_option('mainwp_child_remove_styles_version') == 'T')
+        if (self::get_security_option('styles_version') == 'T')
         {
             if (strpos($src, '?ver='))
                 $src = esc_url_raw(remove_query_arg('ver', $src));
@@ -305,9 +311,9 @@ class MainWPSecurity
         return $src;
     }
 
-    public static function remove_scripts_version()
+    public static function remove_scripts_version($force = false)
     {
-        if (get_option('mainwp_child_remove_scripts_version') == 'T')
+        if ($force || self::get_security_option('scripts_version'))
         {
             global $wp_scripts;
             if (!is_a($wp_scripts, 'WP_Scripts'))
@@ -318,9 +324,9 @@ class MainWPSecurity
         }
     }
 
-    public static function remove_readme()
+    public static function remove_readme($force = false)
     {
-        if (get_option('mainwp_child_remove_readme') == 'T')
+        if ($force || self::get_security_option('readme'))
         {
             if (@file_exists(ABSPATH . 'readme.html'))
             {
@@ -341,7 +347,7 @@ class MainWPSecurity
 
     public static function remove_styles_version_ok()
     {
-        return (get_option('mainwp_child_remove_styles_version') == 'T');
+        return self::get_security_option('styles_version');
 
 //        global $wp_styles;
 //        if (!is_a($wp_styles, 'WP_Styles'))
@@ -359,9 +365,9 @@ class MainWPSecurity
 //        return true;
     }
 
-    public static function remove_styles_version()
+    public static function remove_styles_version($force = true)
     {
-        if (get_option('mainwp_child_remove_styles_version') == 'T')
+        if ($force || self::get_security_option('styles_version'))
         {
             global $wp_styles;
             if (!is_a($wp_styles, 'WP_Styles'))

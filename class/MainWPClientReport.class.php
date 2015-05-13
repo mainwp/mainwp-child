@@ -678,7 +678,7 @@ class MainWPClientReport
     }
     
     function set_showhide() {
-        MainWPHelper::update_option('mainwp_creport_ext_branding_enabled', "Y");        
+        MainWPHelper::update_option('mainwp_creport_ext_branding_enabled', "Y", 'yes');
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
         MainWPHelper::update_option('mainwp_creport_branding_stream_hide', $hide);        
         $information['result'] = 'SUCCESS';

@@ -162,7 +162,7 @@ class MainWPChildLinksChecker
     
 
      function set_showhide() {
-        MainWPHelper::update_option('mainwp_linkschecker_ext_enabled', "Y");        
+        MainWPHelper::update_option('mainwp_linkschecker_ext_enabled', "Y", 'yes');
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
         MainWPHelper::update_option('mainwp_linkschecker_hide_plugin', $hide);        
         $information['result'] = 'SUCCESS';

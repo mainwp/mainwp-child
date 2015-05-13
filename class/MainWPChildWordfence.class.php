@@ -208,7 +208,7 @@ class MainWPChildWordfence
     }    
     
     function set_showhide() {
-        MainWPHelper::update_option('mainwp_wordfence_ext_enabled', "Y");        
+        MainWPHelper::update_option('mainwp_wordfence_ext_enabled', "Y", 'yes');
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
         MainWPHelper::update_option('mainwp_wordfence_hide_plugin', $hide);        
         $information['result'] = 'SUCCESS';
@@ -503,7 +503,7 @@ class MainWPChildWordfence
 	}
         
         function save_setting() {
-            MainWPHelper::update_option('mainwp_wordfence_ext_enabled', "Y");   
+            MainWPHelper::update_option('mainwp_wordfence_ext_enabled', "Y", 'yes');
             $settings = unserialize(base64_decode($_POST['settings']));
             if (is_array($settings) && count($settings) > 0) {
                 $result = array();
