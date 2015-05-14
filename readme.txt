@@ -59,10 +59,10 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Changelog ==
 
 = 2.0.15 =
+* Added: Support for the upcoming extension
 * Fixed: Post categories not showing on Dashboard
 * Fixed: Potential malware false alert issue
 * Fixed: Spelling error
-* Added: Support for the upcoming extension
 * Updated: Required values on the Server Information page
 * Updated: Layout of the Server Information page
 * Removed: Unnecessary checks from the Sever Information page
