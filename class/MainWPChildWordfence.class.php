@@ -230,7 +230,7 @@ class MainWPChildWordfence
     }
          
     public function admin_init() {
-        remove_meta_box('wordfence_activity_report_widget', 'dashboard');
+        remove_meta_box('wordfence_activity_report_widget', 'dashboard', 'normal');
     }
     
     public function init_cron() {                       

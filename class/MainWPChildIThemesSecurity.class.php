@@ -108,7 +108,7 @@ class MainWPChildIThemesSecurity
     }
     
     public function admin_init() {
-        remove_meta_box('itsec-dashboard-widget', 'dashboard');
+        remove_meta_box('itsec-dashboard-widget', 'dashboard', 'normal');
     }
     
     public function all_plugins($plugins) {

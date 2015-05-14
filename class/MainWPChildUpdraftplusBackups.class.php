@@ -184,13 +184,25 @@ class MainWPChildUpdraftplusBackups
             if (class_exists('UpdraftPlus_Options')) {
                 foreach($keys as $key) {
                     if (isset($settings[$key])) {
-//                        if ($key == "updraft_service") {                              
-//                            UpdraftPlus_Options::update_updraft_option($key, $settings[$key]);    
-//                        } else if ($key == "updraft_s3") {                            
-//                            UpdraftPlus_Options::update_updraft_option($key, $settings[$key]);    
-//                        } else {
+                        if ($key == "updraft_dropbox") {
+                            if (isset($settings[$key])) {
+                                $opts = UpdraftPlus_Options::get_updraft_option('updraft_dropbox');
+                                $opts['appkey'] = $settings[$key]['appkey'];
+                                $opts['secret'] = $settings[$key]['secret'];
+                                $opts['folder'] = $settings[$key]['folder'];
+                                UpdraftPlus_Options::update_updraft_option($key, $opts);
+                            }
+                        } else if ($key == "updraft_googledrive") {
+                             if (isset($settings[$key])) {
+                                $opts = UpdraftPlus_Options::get_updraft_option('updraft_googledrive');
+                                $opts['clientid'] = $settings[$key]['clientid'];
+                                $opts['secret'] = $settings[$key]['secret'];
+                                $opts['folder'] = $settings[$key]['folder'];
+                                UpdraftPlus_Options::update_updraft_option($key, $opts);
+                             }
+                        } else {
                             UpdraftPlus_Options::update_updraft_option($key, $settings[$key]);                        
-//                        }
+                        }
                         $updated = true;
                     }
                 }

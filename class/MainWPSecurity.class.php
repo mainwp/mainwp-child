@@ -257,7 +257,7 @@ class MainWPSecurity
         return !(((ini_get('display_errors') != 0) && (ini_get('display_errors') != 'off')) || ((ini_get('display_startup_errors') != 0) && (ini_get('display_startup_errors') != 'off')));
     }
 
-    public static function remove_php_reporting($force)
+    public static function remove_php_reporting($force = false)
     {
         if ($force || self::get_security_option('php_reporting'))
         {

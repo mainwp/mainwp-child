@@ -66,6 +66,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Updated: Required values on the Server Information page
 * Updated: Layout of the Server Information page
 * Removed: Unnecessary checks from the Sever Information page
+* Enhancement: Reduced page load time by autoloading common options
 
 = 2.0.14 =
 * Fixed: Handling of updates when plugins change folder structure or name

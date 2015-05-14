@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.14';
+    private $version = '2.0.15';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -66,7 +66,8 @@ class MainWPChild
         'delete_backup' => 'delete_backup',
         'update_values' => 'update_values',
         'ithemes' => 'ithemes',        
-        'updraftplus' => 'updraftplus'        
+        'updraftplus' => 'updraftplus',
+        'backup_wp' => 'backup_wp'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -102,7 +103,12 @@ class MainWPChild
         add_action('init', array(&$this, 'parse_init'));
         add_action('admin_menu', array(&$this, 'admin_menu'));
         add_action('admin_init', array(&$this, 'admin_init'));
-        add_action('init', array(&$this, 'localization'));        
+        add_action('init', array(&$this, 'localization'));
+
+        if (is_admin()) {
+            MainWPHelper::update_option('mainwp_child_plugin_version', $this->version, 'yes');
+        }
+
         $this->checkOtherAuth();
 		
         MainWPClone::init();
@@ -712,12 +718,17 @@ class MainWPChild
                 $open_location = base64_decode ($open_location);
                 $_vars = MainWPHelper::parse_query($open_location);
                 $_path = parse_url($open_location, PHP_URL_PATH);
-
                 if (isset($_vars['_mwpNoneName']) && isset($_vars['_mwpNoneValue'])) {
                     $_vars[$_vars['_mwpNoneName']] = wp_create_nonce($_vars['_mwpNoneValue']);
                     unset($_vars['_mwpNoneName']);
                     unset($_vars['_mwpNoneValue']);
-                    $open_location = "/wp-admin/" . $_path . "?" . http_build_query($_vars);
+                    $open_url = "";
+                    foreach ($_vars as $key => $value)
+                    {
+                        $open_url .= $key . '=' . $value . '&';
+                    }
+                    $open_url = rtrim($open_url, '&');
+                    $open_location = "/wp-admin/" . $_path . "?" . $open_url;
                 } else {
                     if (strpos($open_location, "nonce=child_temp_nonce") !== false)
                         $open_location = str_replace ("nonce=child_temp_nonce", "nonce=" . wp_create_nonce('wp-ajax'), $open_location);
@@ -775,7 +786,7 @@ class MainWPChild
 
         if (!$auth && isset($_POST['mainwpsignature']))
         {
-            MainWPHelper::error(__('Authentication failed. Reinstall MainWP plugin please','mainwp-child'));
+            MainWPHelper::error(__('Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.','mainwp-child'));
         }
 
         //Check if the user exists & is an administrator
@@ -820,7 +831,8 @@ class MainWPChild
         new MainWPChildIThemesSecurity();
 
         MainWPChildUpdraftplusBackups::Instance()->updraftplus_init();                    
-      
+        MainWPChildBackUpWordPress::Instance()->init();
+
         //Call the function required
         if (isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
         {
@@ -2496,7 +2508,7 @@ class MainWPChild
 
         //Directory listings!
         $information['directories'] = $this->scanDir(ABSPATH, 3);
-        $cats = get_categories(array('hide_empty' => 0, 'name' => 'select_name', 'hierarchical' => true));
+        $cats = get_categories(array('hide_empty' => 0, 'hierarchical' => true));
         $categories = array();
         foreach ($cats as $cat)
         {
@@ -2572,6 +2584,12 @@ class MainWPChild
             if (isset($othersData['syncUpdraftData']) && $othersData['syncUpdraftData']) {
                 if (MainWPChildUpdraftplusBackups::isActivatedUpdraftplus()) {
                     $information['syncUpdraftData'] =   MainWPChildUpdraftplusBackups::Instance()->syncData();
+                }
+            }
+
+            if (isset($othersData['syncBackUpWordPress']) && $othersData['syncBackUpWordPress']) {
+                if (MainWPChildBackUpWordPress::isActivated()) {
+                    $information['syncBackUpWordPress'] =   MainWPChildBackUpWordPress::Instance()->syncData();
                 }
             }
         }
@@ -4123,6 +4141,10 @@ class MainWPChild
 
     function updraftplus() {
         MainWPChildUpdraftplusBackups::Instance()->action();
+    }
+
+    function backup_wp() {
+        MainWPChildBackUpWordPress::Instance()->action();
     }
 
     function delete_backup()
