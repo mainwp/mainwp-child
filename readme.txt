@@ -1,13 +1,13 @@
 === MainWP Child ===
 Contributors: mainwp
 Donate link: 
-Tags: WordPress Management, WordPress Controller, manage, multiple, updates, mainwp, mainwp child
+Tags: WordPress Management, WordPress Controller, manage, multiple, updates, mainwp, mainwp child, network
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.2.1
-Stable tag: 2.0.14
+Tested up to: 4.2.2
+Stable tag: 2.0.15
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0.15 =
+* Fixed: Post categories not showing on Dashboard
+* Fixed: Potential malware false alert issue
+* Fixed: Spelling error
+* Added: Support for the upcoming extension
 
 = 2.0.14 =
 * Fixed: Handling of updates when plugins change folder structure or name
