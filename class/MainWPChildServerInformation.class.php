@@ -302,7 +302,7 @@ class MainWPChildServerInformation
                 ?><tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('WORDPRESS','mainwp-child'); ?></td></tr><?php
                 self::renderRow('WordPress Version', '>=', '3.4', 'getWordpressVersion');
                 ?><tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('PHP SETTINGS','mainwp-child'); ?></td></tr><?php
-                self::renderRow('PHP Version', '>=', '5.2.4', 'getPHPVersion');                
+                self::renderRow('PHP Version', '>=', '5.3', 'getPHPVersion');                
                 self::renderRow('PHP Max Execution Time', '>=', '30', 'getMaxExecutionTime', 'seconds', '=', '0');
                 self::renderRow('PHP Upload Max Filesize', '>=', '2M', 'getUploadMaxFilesize', '(2MB+ best for upload of big plugins)');
                 self::renderRow('PHP Post Max Size', '>=', '2M', 'getPostMaxSize', '(2MB+ best for upload of big plugins)');

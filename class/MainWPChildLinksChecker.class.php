@@ -210,7 +210,12 @@ class MainWPChildLinksChecker
         );
         $return = "";
         $site_id = $_POST['site_id'];
-        $blc_option = get_option('wsblc_options');
+        $blc_option = get_option('wsblc_options');  
+        
+        if ( is_string($blc_option) && !empty($blc_option) ) {
+            $blc_option = json_decode($blc_option, true);
+        }       
+        
         if (is_array($links)) {
             foreach($links as $link) {
                 $lnk = new stdClass();

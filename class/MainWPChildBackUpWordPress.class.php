@@ -190,18 +190,17 @@ class MainWPChildBackUpWordPress
 
         $scheduleIds = isset($_POST['schedule_ids']) ? $_POST['schedule_ids'] : array();
         HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
-
-        if (empty($scheduleIds)) {
-            $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
-            foreach($schedules as $sch) {
-                $scheduleIds[] = $sch->get_id();
-            }
+        
+        $all_schedules_ids = array();        
+        $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
+        foreach($schedules as $sch) {
+            $all_schedules_ids[] = $sch->get_id();
         }
-
-        if (empty($scheduleIds))
+        
+        if (empty($all_schedules_ids))
             return array('error' => __("Not found schedules.", 'mainwp-child'));
         
-        foreach ($scheduleIds as $schedule_id ) {
+        foreach ($all_schedules_ids as $schedule_id ) {
             if ( ! HM\BackUpWordPress\Schedules::get_instance()->get_schedule( $schedule_id ) ) 
                 continue;     
             
