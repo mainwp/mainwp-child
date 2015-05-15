@@ -61,6 +61,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 = 2.0.16 =
 * Fixed: Issue with sites running PHP 5.2 and lower
 * Fixed: Sync error on some sites with UpdraftPlus installed 
+* Fixed: PHP Warning
 * Changed: Server page to reflect requested mininum of PHP 5.3
 
 = 2.0.15 =
