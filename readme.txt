@@ -1,13 +1,13 @@
 === MainWP Child ===
 Contributors: mainwp
 Donate link: 
-Tags: WordPress Management, WordPress Controller, manage, multiple, updates, mainwp, mainwp child, network
+Tags: WordPress management, management, manager, WordPress controller, network, MainWP, MainWP Child, updates, updates, admin, administration, manage,  multiple
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.2.2
-Stable tag: 2.0.16
+Stable tag: 2.0.17
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0.17 =
+* Fixed: Bug where some premium plugin didn't update
+* Fixed: Bug where some Favicons didn't display correctly
+* Fixed: Bug where relative links didn't show correctly in posts
 
 = 2.0.16 =
 * Fixed: Issue with sites running PHP 5.2 and lower
