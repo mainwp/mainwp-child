@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.16';
+    private $version = '2.0.17';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -1176,13 +1176,16 @@ class MainWPChild
                 }
                 $plugins = $newPlugins;
             }
-            if (count($plugins) > 0)
-            {
-                //Fix bug
+            
+            //Fix bug
+            if ((count($plugins) > 0) || (count($premiumPlugins) > 0)) {            
                 global $wp_current_filter;
                 $wp_current_filter[] = 'load-update.php';
-                wp_update_plugins();
-                
+                wp_update_plugins();                
+            }
+            
+            if (count($plugins) > 0)
+            {                
                 //@see wp-admin/update.php
                 $upgrader = new Plugin_Upgrader(new Bulk_Plugin_Upgrader_Skin(compact('nonce', 'url')));
                 $result = $upgrader->bulk_upgrade($plugins);
@@ -2614,8 +2617,13 @@ class MainWPChild
         $request = wp_remote_get( $url, array('timeout' => 50));
         $favi = "";
         if (is_array($request) && isset($request['body'])) {
-            $preg_str = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-            if (preg_match($preg_str, $request['body'], $matches))
+            // to fix bug
+            $preg_str1 = '/(<link\s+(?:[^\>]*)(?:rel="shortcut\s+icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
+            $preg_str2 = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
+            if (preg_match($preg_str1, $request['body'], $matches))
+            {
+                $favi = $matches[2];
+            } else if (preg_match($preg_str2, $request['body'], $matches))
             {
                 $favi = $matches[2];
             } else if (file_exists(ABSPATH . 'favicon.ico')) {

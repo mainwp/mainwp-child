@@ -169,9 +169,17 @@ class MainWPHelper
                 $localUrl = $downloadfile['url'];
                 $linkToReplaceWith = dirname($localUrl);
                 if ($hrefLink != '')
-                {
-                    $lnkToReplace = dirname($hrefLink);
-                    if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);
+                {                    
+                    $server = get_option('mainwp_child_server');
+                    $serverHost = parse_url($server, PHP_URL_HOST);                     
+                    if (!empty($serverHost) && strpos($hrefLink, $serverHost) !== false) {
+                        $serverHref = "href=\"" .$serverHost; 
+                        $replaceServerHref = "href=\"" .parse_url($localUrl, PHP_URL_SCHEME) . "://" . parse_url($localUrl, PHP_URL_HOST);                                                 
+                        $new_post['post_content'] = str_replace($serverHref, $replaceServerHref, $new_post['post_content']);
+                    } if (strpos($hrefLink, "http") !== false) {
+                        $lnkToReplace = dirname($hrefLink);                        
+                        if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);                        
+                    }
                 }
 
                 $lnkToReplace = dirname($imgUrl);
