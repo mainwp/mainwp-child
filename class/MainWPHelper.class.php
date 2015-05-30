@@ -450,9 +450,10 @@ class MainWPHelper
                 @touch($dir . 'index.php');
             }
 
-            if (!file_exists($dir . '.htaccess'))
+            $another_name = '.htaccess';
+            if (!file_exists($dir . $another_name))
             {
-                $file = @fopen($dir . '.htaccess', 'w+');
+                $file = @fopen($dir . $another_name, 'w+');
                 @fwrite($file, 'deny from all');
                 @fclose($file);
             }
