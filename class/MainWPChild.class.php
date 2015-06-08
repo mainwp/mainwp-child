@@ -1138,6 +1138,8 @@ class MainWPChild
         //Prevent disable/re-enable at upgrade
         define('DOING_CRON', true);
 
+        MainWPHelper::getWPFilesystem();
+
         include_once(ABSPATH . '/wp-admin/includes/class-wp-upgrader.php');
 //        if (file_exists(ABSPATH . '/wp-admin/includes/deprecated.php')) include_once(ABSPATH . '/wp-admin/includes/deprecated.php');
         if (file_exists(ABSPATH . '/wp-admin/includes/screen.php')) include_once(ABSPATH . '/wp-admin/includes/screen.php');
