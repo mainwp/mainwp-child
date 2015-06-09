@@ -2645,7 +2645,7 @@ class MainWPChild
             if (basename($pDir) == 'logs') return empty($output) ? null : $output;
             if ($pLvl == 0) return empty($output) ? null : $output;
 
-            if ($files = @scandir($pDir))
+            if ($files = $this->intScanDir($pDir))
             {
                 foreach ($files as $file)
                 {
@@ -2663,6 +2663,25 @@ class MainWPChild
         }
         return empty($output) ? null : $output;
     }
+
+    function intScanDir($dir)
+   	{
+   		if (@is_dir($dir) && ($dh = @opendir($dir)))
+   		{
+   			$cnt = 0;
+   			$out = array();
+   			while (($file = @readdir($dh)) !== false) {
+   				$newDir = $dir . $file . DIRECTORY_SEPARATOR;
+   				if (!@is_dir($newDir)) continue;
+
+   				$out[] = $file;
+   				if ($cnt++ > 10) return $out;
+   			}
+   			@closedir($dh);
+   			return $out;
+   		}
+   		return false;
+   	}
 
     function upgrade_get_theme_updates()
     {
