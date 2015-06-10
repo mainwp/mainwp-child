@@ -176,7 +176,7 @@ class MainWPHelper
                         $serverHref = "href=\"" .$serverHost; 
                         $replaceServerHref = "href=\"" .parse_url($localUrl, PHP_URL_SCHEME) . "://" . parse_url($localUrl, PHP_URL_HOST);                                                 
                         $new_post['post_content'] = str_replace($serverHref, $replaceServerHref, $new_post['post_content']);
-                    } if (strpos($hrefLink, "http") !== false) {
+                    } else if (strpos($hrefLink, "http") !== false) {
                         $lnkToReplace = dirname($hrefLink);                        
                         if ($lnkToReplace != 'http:' && $lnkToReplace != 'https:') $new_post['post_content'] = str_replace($lnkToReplace, $linkToReplaceWith, $new_post['post_content']);                        
                     }

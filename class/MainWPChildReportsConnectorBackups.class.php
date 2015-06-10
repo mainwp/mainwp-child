@@ -1,6 +1,6 @@
 <?php
-if (class_exists('WP_Stream_Connector')) {
-    class MainWPStreamConnectorBackups extends WP_Stream_Connector   
+if (class_exists('MainWP_WP_Stream_Connector')) {
+    class MainWPChildReportsConnectorBackups extends MainWP_WP_Stream_Connector   
     {   
 
 	/**

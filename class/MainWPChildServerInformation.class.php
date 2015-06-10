@@ -279,6 +279,20 @@ class MainWPChildServerInformation
         ?><br /><?php
     }
 
+    protected static function getFileSystemMethod() {
+        $fs = get_filesystem_method();
+        return $fs;
+    }
+
+    protected static function getFileSystemMethodCheck() {
+        $fsmethod = self::getFileSystemMethod();
+        if ($fsmethod == 'direct') {
+            echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>';
+        } else {
+            echo '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>';
+        }
+    }
+
     public static function render()
     {
         ?>
@@ -304,12 +318,14 @@ class MainWPChildServerInformation
                 ?><tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('PHP SETTINGS','mainwp-child'); ?></td></tr><?php
                 self::renderRow('PHP Version', '>=', '5.3', 'getPHPVersion');                
                 self::renderRow('PHP Max Execution Time', '>=', '30', 'getMaxExecutionTime', 'seconds', '=', '0');
-                self::renderRow('PHP Upload Max Filesize', '>=', '2M', 'getUploadMaxFilesize', '(2MB+ best for upload of big plugins)');
-                self::renderRow('PHP Post Max Size', '>=', '2M', 'getPostMaxSize', '(2MB+ best for upload of big plugins)');
-//                            self::renderRow('PHP Memory Limit', '>=', '128M', 'getPHPMemoryLimit', '(256M+ best for big backups)');
+                self::renderRow('PHP Upload Max Filesize', '>=', '2M', 'getUploadMaxFilesize', '(2MB+ best for upload of big plugins)', null, null, true);
+                self::renderRow('PHP Post Max Size', '>=', '2M', 'getPostMaxSize', '(2MB+ best for upload of big plugins)', null, null, true);
+                self::renderRow('PHP Memory Limit', '>=', '128M', 'getPHPMemoryLimit', '(256M+ best for big backups)' , null, null, true);
+                self::renderRow('SSL Extension Enabled', '=', true, 'getSSLSupport');
                 ?><tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('MISC','mainwp-child'); ?></td></tr><?php                
                 self::renderRow('PCRE Backtracking Limit', '>=', '10000', 'getOutputBufferSize');
-                self::renderRow('SSL Extension Enabled', '=', true, 'getSSLSupport');
+                ?><tr><td></td><td><?php _e('FileSystem Method','mainwp'); ?></td><td><?php echo '= ' . __('direct','mainwp'); ?></td><td><?php echo self::getFileSystemMethod(); ?></td><td><?php echo self::getFileSystemMethodCheck(); ?></td></tr><?php
+                
                 ?><tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('MySQL SETTINGS','mainwp-child'); ?></td></tr><?php
                 self::renderRow('MySQL Version', '>=', '5.0', 'getMySQLVersion');
                 ?><tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('BACKUP ARCHIVE INFORMATION','mainwp-child'); ?></td></tr><?php
@@ -516,7 +532,7 @@ class MainWPChildServerInformation
       return true;
     }
 
-    protected static function renderRow($pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null)
+    protected static function renderRow($pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $compareFilesize = false)
     {
         $currentVersion = call_user_func(array('MainWPChildServerInformation', $pGetter));
 
@@ -526,11 +542,33 @@ class MainWPChildServerInformation
         <td><?php echo $pConfig; ?></td>
         <td><?php echo $pCompare; ?>  <?php echo ($pVersion === true ? 'true' : $pVersion) . ' ' . $pExtraText; ?></td>
         <td><?php echo ($currentVersion === true ? 'true' : $currentVersion); ?></td>
+         <?php if ($compareFilesize) { ?>        
+        <td><?php echo (self::filesize_compare($currentVersion, $pVersion, $pCompare) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>'); ?></td>
+        <?php } else { ?>
         <td><?php echo (self::check($pCompare, $pVersion, $pGetter, $pExtraCompare, $pExtraVersion) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>'); ?></td>
+        <?php } ?>
     </tr>
     <?php
     }
 
+    protected static function filesize_compare($value1, $value2, $operator = null) {        
+        if (strpos($value1, "G") !== false) {
+            $value1 = preg_replace('/[A-Za-z]/', '', $value1);
+            $value1 = intval($value1) * 1024; // Megabyte number            
+        } else {
+            $value1 = preg_replace('/[A-Za-z]/', '', $value1); // Megabyte number
+        }
+        
+        if (strpos($value2, "G") !== false) {
+            $value2 = preg_replace('/[A-Za-z]/', '', $value2);
+            $value2 = intval($value2) * 1024; // Megabyte number            
+        } else {
+            $value2 = preg_replace('/[A-Za-z]/', '', $value2); // Megabyte number
+        }
+        
+        return version_compare($value1, $value2, $operator);
+    }
+    
     protected static function check($pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null)
     {
         $currentVersion = call_user_func(array('MainWPChildServerInformation', $pGetter));

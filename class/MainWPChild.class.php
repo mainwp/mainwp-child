@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.18';
+    private $version = '2.0.19';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -356,6 +356,12 @@ class MainWPChild
                     MainWPClone::init_restore_menu($this->branding, $mainwp_child_menu_slug);
                 }
             }
+            $subpageargs = array(
+                'child_slug' => $mainwp_child_menu_slug,
+                'branding' => $this->branding
+            );
+            do_action('mainwp-child-subpages', $subpageargs);
+
         }
     }
 
@@ -1468,7 +1474,9 @@ class MainWPChild
         $post_tags = rawurldecode(isset($new_post['post_tags']) ? $new_post['post_tags'] : null);
         $post_featured_image = base64_decode ($_POST['post_featured_image']);
         $upload_dir = unserialize(base64_decode ($_POST['mainwp_upload_dir']));
-        $new_post['_ezin_post_category'] = unserialize(base64_decode ($_POST['_ezin_post_category']));
+
+        if (isset($_POST['_ezin_post_category']))
+            $new_post['_ezin_post_category'] = unserialize(base64_decode ($_POST['_ezin_post_category']));
 
         $res = MainWPHelper::createPost($new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags);
         $created = $res['success'];
@@ -2373,6 +2381,10 @@ class MainWPChild
         $information['nossl'] = (get_option('mainwp_child_nossl') == 1 ? 1 : 0);
 
         include_once(ABSPATH . '/wp-admin/includes/update.php');
+
+        $timeout = 3 * 60 * 60; // 3minutes
+        @set_time_limit($timeout);
+        @ini_set('max_execution_time', $timeout);
 
         //Check for new versions
         if ($this->filterFunction != null) add_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );

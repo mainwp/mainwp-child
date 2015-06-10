@@ -5,9 +5,11 @@
   Description: Child Plugin for MainWP. The plugin is used so the installed blog can be securely managed remotely by your network. Plugin documentation and options can be found here http://docs.mainwp.com
   Author: MainWP
   Author URI: http://mainwp.com
-  Version: 2.0.19-beta
+  Version: 2.0.19
  */
-header('X-Frame-Options: ALLOWALL');
+if ((isset($_REQUEST['heatmap']) && $_REQUEST['heatmap'] == '1') || (isset($_REQUEST['mainwpsignature']) && (!empty($_REQUEST['mainwpsignature'])))) {
+    header('X-Frame-Options: ALLOWALL');
+}
 //header('X-Frame-Options: GOFORIT');
 include_once(ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'); //Version information from wordpress
 

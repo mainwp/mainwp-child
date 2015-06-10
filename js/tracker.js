@@ -27,7 +27,7 @@ jQuery(document).ready(function($){
 	});
 	
 	$(window).unload(function(){
-		sendTrackData(true); // Make sure to send track data before going off from page, set it synchronious
+		sendTrackData(false); // Make sure to send track data before going off from page, set it synchronious
 	});
 	
 	function getSelector()

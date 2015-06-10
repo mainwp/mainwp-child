@@ -23,11 +23,16 @@ class MainWPChildBackUpWordPress
         if (get_option('mainwp_backupwordpress_hide_plugin') === "hide")
         {
             add_filter('all_plugins', array($this, 'all_plugins'));   
-            add_action('admin_menu', array($this, 'remove_menu'));
-            add_filter('update_footer', array(&$this, 'update_footer'), 15);   
+            add_action('admin_menu', array($this, 'remove_menu'));            
+            add_filter('site_transient_update_plugins', array(&$this, 'remove_update_nag')); 
         }        
     }
     
+    function remove_update_nag($value) {
+        if (isset($value->response['backupwordpress/backupwordpress.php']))
+            unset($value->response['backupwordpress/backupwordpress.php']);        
+        return $value;
+    }
     
     public function action() {        
         $information = array();          
@@ -112,9 +117,13 @@ class MainWPChildBackUpWordPress
             if (!empty($existing_backup)) {
                 $backups_time = array_merge( $backups_time, array_keys($existing_backup));
             }            
-         }      
+         }   
          
-         $return = array('lasttime_backup' => max($backups_time));  
+         $lasttime_backup = 0;
+         if(!empty($backups_time))
+             $lasttime_backup = max($backups_time);
+         
+         $return = array('lasttime_backup' => $lasttime_backup);  
          return $return;         
     }
             
@@ -879,62 +888,6 @@ class MainWPChildBackUpWordPress
             wp_redirect(get_option('siteurl') . '/wp-admin/index.php'); 
             exit();
         }
-    }
-    
-    function update_footer($text){ 
-        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false) {
-            ?>
-           <script>
-                jQuery(document).ready(function(){
-                    jQuery('input[type="checkbox"][value="backupwordpress/backupwordpress.php"]').closest('tr').remove();
-                });        
-            </script>
-           <?php
-
-            if ($this->check_update_child_plugin()) {
-                    ?>            
-                    <script>
-                        jQuery(document).ready(function(){
-                            var menu_update = jQuery('span.update-plugins');
-                            var menu_count = jQuery('span.update-plugins > span.update-count'); 
-                            if (menu_count) {
-                                var count = parseInt(menu_count.html());                        
-                                if (count > 1) {                                                            
-                                    jQuery('span.update-plugins > span.update-count').each(function(){
-                                         jQuery(this).html(count - 1);
-                                    }); 
-                                    jQuery('span.update-plugins > span.plugin-count').each(function(){
-                                         jQuery(this).html(count - 1);
-                                    }); 
-                                    var title = menu_update.attr('title').replace(count, count - 1);
-                                    jQuery('span.update-plugins').each(function(){
-                                         jQuery(this).attr('title', title);
-                                    });
-
-                                } else if (count == 1) {
-                                    jQuery('span.update-plugins').remove();
-                                }
-                            }
-                        });        
-                    </script>
-                    <?php
-                }            
-         }    
-         
-        return $text;
-    }
-    
-    function check_update_child_plugin() {
-        if ( $plugins = current_user_can( 'update_plugins' ) ) {
-            $update_plugins = get_site_transient( 'update_plugins' );
-            if (!empty( $update_plugins->response )) {
-                $response =  $update_plugins->response;                
-                if (is_array($response) && isset($response['backupwordpress/backupwordpress.php']))                
-                    return true;
-            }
-	}
-        return false;
-    }
-    
+    }         
 }
 

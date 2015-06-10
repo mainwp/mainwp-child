@@ -36,14 +36,21 @@ class MainWPChildUpdraftplusBackups
             MainWPHelper::write($information);
         }
         
-        if (isset($_POST['mwp_action'])) {
+        if (isset($_POST['mwp_action'])) {            
+            
+            if (get_option('mainwp_updraftplus_ext_enabled') !== 'Y')
+                MainWPHelper::update_option('mainwp_updraftplus_ext_enabled', "Y", 'yes');            
+            
             switch ($_POST['mwp_action']) {                               
                 case "set_showhide":
                     $information = $this->set_showhide();
                 break;                                                                              
                 case "save_settings":
                     $information = $this->save_settings();
-                break;    
+                break;   
+                case "addons_connect":
+                    $information = $this->addons_connect();
+                break;   
                 case "backup_now":
                     $information = $this->backup_now();
                 break;  
@@ -100,8 +107,7 @@ class MainWPChildUpdraftplusBackups
         MainWPHelper::write($information);
     }
     
-    function set_showhide() {
-        MainWPHelper::update_option('mainwp_updraftplus_ext_enabled', "Y", 'yes');
+    function set_showhide() {        
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
         MainWPHelper::update_option('mainwp_updraftplus_hide_plugin', $hide);        
         $information['result'] = 'SUCCESS';
@@ -178,13 +184,13 @@ class MainWPChildUpdraftplusBackups
                 'updraft_copycom',
                 'updraft_sftp_settings',
                 'updraft_webdav_settings',
-                'updraft_dreamobjects'            
+                'updraft_dreamobjects',
+                'updraft_onedrive'
             );
     } 
         
     function save_settings() {        
 
-        MainWPHelper::update_option('mainwp_updraftplus_ext_enabled', "Y", 'yes');
         $settings = unserialize(base64_decode($_POST['settings']));           
         
         $keys = $this->get_settings_keys();
@@ -205,6 +211,14 @@ class MainWPChildUpdraftplusBackups
                         } else if ($key == "updraft_googledrive") {
                              if (isset($settings[$key])) {
                                 $opts = UpdraftPlus_Options::get_updraft_option('updraft_googledrive');
+                                $opts['clientid'] = $settings[$key]['clientid'];
+                                $opts['secret'] = $settings[$key]['secret'];
+                                $opts['folder'] = $settings[$key]['folder'];
+                                UpdraftPlus_Options::update_updraft_option($key, $opts);
+                             }
+                        } else if ($key == "updraft_onedrive") {
+                             if (isset($settings[$key])) {
+                                $opts = UpdraftPlus_Options::get_updraft_option('updraft_onedrive');
                                 $opts['clientid'] = $settings[$key]['clientid'];
                                 $opts['secret'] = $settings[$key]['secret'];
                                 $opts['folder'] = $settings[$key]['folder'];
@@ -246,6 +260,78 @@ class MainWPChildUpdraftplusBackups
         return $out;
     }
     
+    function addons_connect() {                
+        if (!defined('UDADDONS2_SLUG'))
+            return array('error' => 'NO_PREMIUM');
+        
+        $addons_options = unserialize(base64_decode($_POST['addons_options']));           
+        if (!is_array($addons_options)) $addons_options = array();
+        
+        $updated = $this->update_wpmu_options($addons_options);
+        
+        $out = array();                              
+        if ($updated)
+            $out['result'] = 'success';         
+        return $out;
+    }
+    
+    public function update_wpmu_options($value) {
+        
+            if ( !UpdraftPlus_Options::user_can_manage() ) return;
+            $options = $this->addons2_get_option(UDADDONS2_SLUG.'_options');
+            if (!is_array($options)) $options=array();
+            
+            $options['email'] = isset($value['email']) ? $value['email'] : "";
+            $options['password'] = isset($value['password']) ? $value['password'] : "";
+            
+            $options = $this->options_validate($options);
+            $this->addons2_update_option(UDADDONS2_SLUG.'_options', $options);
+            return true;
+    }
+    
+    // Funnelling through here a) allows for future flexibility and b) allows us to migrate elegantly from the previous non-MU-friendly setup
+    public function addons2_get_option($option) {
+            $val = get_site_option($option);
+            # On multisite, migrate options into the site options
+            if (false === $val && is_multisite()) {
+                    $blog_id = get_current_blog_id();
+                    if ($blog_id>1) {
+                            $val = get_option($option);
+                            if ($val !== false) {
+                                    delete_option($option);
+                                    update_site_option($option, $val);
+                                    return $val;
+                            }
+                    }
+                    # $val is still false
+                    switch_to_blog(1);
+                    $val = get_option($option);
+                    if ($val !== false) {
+                            delete_option($option);
+                            update_site_option($option, $val);
+                    }
+                    restore_current_blog();
+            }
+            return $val;
+    }
+
+    public function addons2_update_option($option, $val) {
+            return update_site_option($option, $val);
+    }
+    
+    public function options_validate($input) {
+            # See: http://codex.wordpress.org/Function_Reference/add_settings_error
+
+            // When the options are re-saved, clear any previous cache of the connection status
+            $ehash = substr(md5($input['email']), 0, 23);
+            delete_site_transient('udaddons_connect_'.$ehash);
+
+    // 	add_settings_error( UDADDONS2_SLUG."_options", UDADDONS2_SLUG."_options_nodb", "Whinge, whinge", "error" );
+
+            return $input;
+    }
+        
+        
     /*
     *Plugin: UpdraftPlus - Backup/Restore
     *PluginURI: http://updraftplus.com
@@ -2649,8 +2735,14 @@ ENDHERE;
         {
             add_filter('all_plugins', array($this, 'all_plugins'));   
             add_action( 'admin_menu', array($this, 'remove_menu'));
-            add_filter('update_footer', array(&$this, 'update_footer'), 15);   
+            add_filter('site_transient_update_plugins', array(&$this, 'remove_update_nag'));  
         }        
+    }   
+    
+    function remove_update_nag($value) {
+        if (isset($value->response['updraftplus/updraftplus.php']))
+            unset($value->response['updraftplus/updraftplus.php']);        
+        return $value;
     }
     
     public function syncData() {
@@ -2685,61 +2777,6 @@ ENDHERE;
             wp_redirect(get_option('siteurl') . '/wp-admin/index.php'); 
             exit();
         }
-    }
-    
-    function update_footer($text){ 
-        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false) {
-            ?>
-           <script>
-                jQuery(document).ready(function(){
-                    jQuery('input[type="checkbox"][value="updraftplus/updraftplus.php"]').closest('tr').remove();
-                });        
-            </script>
-           <?php
-
-            if ($this->check_update_child_plugin()) {
-                    ?>            
-                    <script>
-                        jQuery(document).ready(function(){
-                            var menu_update = jQuery('span.update-plugins');
-                            var menu_count = jQuery('span.update-plugins > span.update-count'); 
-                            if (menu_count) {
-                                var count = parseInt(menu_count.html());                        
-                                if (count > 1) {                                                            
-                                    jQuery('span.update-plugins > span.update-count').each(function(){
-                                         jQuery(this).html(count - 1);
-                                    }); 
-                                    jQuery('span.update-plugins > span.plugin-count').each(function(){
-                                         jQuery(this).html(count - 1);
-                                    }); 
-                                    var title = menu_update.attr('title').replace(count, count - 1);
-                                    jQuery('span.update-plugins').each(function(){
-                                         jQuery(this).attr('title', title);
-                                    });
-
-                                } else if (count == 1) {
-                                    jQuery('span.update-plugins').remove();
-                                }
-                            }
-                        });        
-                    </script>
-                    <?php
-                }            
-         }    
-         
-        return $text;
-    }
-    
-    function check_update_child_plugin() {
-        if ( $plugins = current_user_can( 'update_plugins' ) ) {
-            $update_plugins = get_site_transient( 'update_plugins' );
-            if (!empty( $update_plugins->response )) {
-                $response =  $update_plugins->response;                
-                if (is_array($response) && isset($response['updraftplus/updraftplus.php']))                
-                    return true;
-            }
-	}
-        return false;
     }
     
 }

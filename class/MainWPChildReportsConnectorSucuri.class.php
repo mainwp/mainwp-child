@@ -1,6 +1,6 @@
 <?php
-if (class_exists('WP_Stream_Connector')) {
-    class MainWPStreamConnectorSucuri extends WP_Stream_Connector   
+if (class_exists('MainWP_WP_Stream_Connector')) {
+    class MainWPChildReportsConnectorSucuri extends MainWP_WP_Stream_Connector   
     {   
 
 	/**
@@ -81,12 +81,13 @@ if (class_exists('WP_Stream_Connector')) {
                 $status = isset($scan_result['status']) ? $scan_result['status'] : "";
                 $webtrust = isset($scan_result['webtrust']) ? $scan_result['webtrust'] : "";
             }
+         
             self::log(
                 $message,
                 compact('scan_status', 'status', 'webtrust'),
                 0,
                 array( 'mainwp_sucuri' => 'mainwp_sucuri_scan' )
-            );                        
+            );
         }
     }
 }

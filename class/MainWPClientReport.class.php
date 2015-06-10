@@ -3,7 +3,8 @@
 class MainWPClientReport
 {   
     public static $instance = null; 
-            
+    public static $mainwpChildReports = false;
+    
     static function Instance() {
         if (MainWPClientReport::$instance == null) {
             MainWPClientReport::$instance = new MainWPClientReport();
@@ -11,22 +12,15 @@ class MainWPClientReport
         return MainWPClientReport::$instance;
     }    
     
-    
     public function __construct() {
-        global $wpdb;
-        add_action('mainwp_child_deactivation', array($this, 'child_deactivation'));
-        
+       
     }
         
     public static function  init() {                
         add_filter('wp_stream_connectors', array('MainWPClientReport', 'init_stream_connectors'), 10, 1);   
+        add_filter('mainwp_client_reports_connectors', array('MainWPClientReport', 'init_connectors'), 10, 1);   
     }
-    
-    public function child_deactivation()
-    {
-       
-    }
-    
+        
     public static function init_stream_connectors($classes) {
         $connectors = array(
             'Backups',
@@ -40,19 +34,30 @@ class MainWPClientReport
         return $classes;
     }
     
+    public static function init_connectors($classes) {
+        $connectors = array(
+            'Backups',
+            'Sucuri',                  
+        );     
+        
+        foreach ( $connectors as $connector ) {                
+                $class     = "MainWPChildReportsConnector$connector";
+                $classes[] = $class;
+        }          
+        return $classes;
+    }
+    
     public function action() {   
+        
         $information = array();
-        if (!function_exists('wp_stream_query') || !class_exists('WP_Stream') ) {
+        if (function_exists('mainwp_wp_stream_query') && class_exists('MainWP_WP_Stream') ) {
+            self::$mainwpChildReports = true;
+        } else if (function_exists('wp_stream_query') && class_exists('WP_Stream') ) {
+            self::$mainwpChildReports = false;
+        } else {
             $information['error'] = 'NO_STREAM';
             MainWPHelper::write($information);
         } 
-        
-        if (version_compare(WP_Stream::VERSION, '2.0.0', '>=') && function_exists('WP_Stream::is_connected')) {
-            if (!WP_Stream::is_connected()) {
-                $information['error'] = 'NOT_CONNECT_STREAM';
-                MainWPHelper::write($information);
-            }            
-        }  
         
         if (isset($_POST['mwp_action'])) {
             switch ($_POST['mwp_action']) {
@@ -82,12 +87,7 @@ class MainWPClientReport
         do_action("mainwp_backup", $_POST['destination'] , $_POST['message'], $_POST['size'], $_POST['status'], $_POST['type']);
         return true;
     }
-    
-    public function save_ga_stream() {
-        do_action("mainwp_ga");
-        return true;
-    }    
-    
+   
     public function get_stream() {        
         // Filters
         $allowed_params = array(
@@ -120,11 +120,15 @@ class MainWPClientReport
         unset($_POST['other_tokens']);
         
         $args = array();
-        foreach ( $allowed_params as $param ) {                                            
-                $paramval = wp_stream_filter_input( INPUT_POST, $param );                
-                if ( $paramval || '0' === $paramval ) {
-                        $args[ $param ] = $paramval;
-                }
+        foreach ( $allowed_params as $param ) {  
+            if (self::$mainwpChildReports) {                   
+                $paramval = mainwp_wp_stream_filter_input( INPUT_POST, $param );                
+            } else {
+                $paramval = wp_stream_filter_input( INPUT_POST, $param );
+            }            
+            if ( $paramval || '0' === $paramval ) {
+                    $args[ $param ] = $paramval;
+            }
         }
         
         foreach ( $args as $arg => $val ) { 
@@ -133,27 +137,23 @@ class MainWPClientReport
             }                
         }     
         
-        $args['action__not_in'] =  array('login');  
-        
-        if (self::is_version_2()) {             
-            if (isset($args['date_from']))
-                $args['date_from'] = date("Y-m-d", $args['date_from']);
+        $args['action__not_in'] =  array('login');
+      
+        $args['fields'] = 'with-meta';
+        if (isset($args['date_from']))
+            $args['date_from'] = date("Y-m-d H:i:s", $args['date_from']);
 
-            if (isset($args['date_to']))
-                $args['date_to'] = date("Y-m-d", $args['date_to']);
-        } else {
-            $args['fields'] = 'with-meta';
-            if (isset($args['date_from']))
-                $args['date_from'] = date("Y-m-d H:i:s", $args['date_from']);
-
-            if (isset($args['date_to']))
-                $args['date_to'] = date("Y-m-d H:i:s", $args['date_to']);
-        }   
+        if (isset($args['date_to']))
+            $args['date_to'] = date("Y-m-d H:i:s", $args['date_to']);
         
         $args['records_per_page'] = 9999;        
-//        error_log(print_r($args, true));        
+//        error_log(print_r($args, true));    
         
-        $records = wp_stream_query( $args );        
+        if (self::$mainwpChildReports) {           
+            $records = mainwp_wp_stream_query( $args );        
+        } else {           
+            $records = wp_stream_query( $args );        
+        }
         
 //        if (count($records) > 0)
 //            error_log(print_r($records, true));
@@ -206,10 +206,7 @@ class MainWPClientReport
     }
     
     function get_other_tokens_data($records, $tokens) {
-        if (self::is_version_2()) {
-            return $this->get_other_tokens_data_two($records, $tokens);            
-        }
-        
+                
         $convert_context_name = array(
             "comment" => "comments",
             "plugin" => "plugins",
@@ -307,110 +304,7 @@ class MainWPClientReport
         }            
         return $token_values;        
     }
-    
-    function get_other_tokens_data_two($records, $tokens) {
-        
-        $convert_context_name = array(
-            "comment" => "comments",
-            "plugin" => "plugins",
-            "profile" => "profiles",
-            "session" => "sessions",
-            "setting" => "settings",
-            "setting" => "settings",
-            "theme" => "themes",
-            "posts" => "post",
-            "pages" => "page",
-            "user" => "users",
-            "widget" => "widgets",
-            "menu" => "menus",
-            "backups" => "mainwp_backups",
-            "backup" => "mainwp_backups", 
-            "sucuri" => "mainwp_sucuri",
-        );
-               
-        $convert_action_name = array(
-            "restored" => "untrashed",
-            "spam" => "spammed",
-            "backups" => "mainwp_backup",
-            "backup" => "mainwp_backup"
-        );
-        
-        $allowed_data = array(                             
-            'count'          
-        );
-        
-        $token_values = array();
-        
-        if (!is_array($tokens))
-            $tokens = array();
-        
-        foreach ($tokens as $token) {
-               $str_tmp = str_replace(array('[', ']'), "", $token);
-               $array_tmp = explode(".", $str_tmp);  
-
-               if (is_array($array_tmp)) {
-                   $context = $action = $data = "";
-                   if (count($array_tmp) == 2) {
-                       list($context, $data) = $array_tmp;  
-                   } else if (count($array_tmp) == 3) {
-                       list($context, $action, $data) = $array_tmp;                        
-                   }       
-
-                    $context = isset($convert_context_name[$context]) ? $convert_context_name[$context] : $context;
-                    if (isset($convert_action_name[$action])) {
-                        $action = $convert_action_name[$action];
-                    }
-
-                    switch ($data) {                      
-                       case "count": 
-                           $count = 0;
-                           foreach ($records as $record) {    
-                                if ($context == "plugins" && $action == "edited") {
-                                    if ($record->action !== "updated" || $record->connector !== "editor")
-                                        continue;                                    
-                                } else if ($context == "themes" && $action == "edited") {
-                                    if ($record->action !== "updated" || $record->connector !== "editor")
-                                        continue;                                    
-                                } else if ($context == "users" && $action == "updated") {
-                                    if ($record->context !== "profiles" || $record->connector !== "users")
-                                        continue;                                    
-                                } else if ($context == "mainwp_backups") {
-                                    if ($record->context !== "mainwp_backups") {
-                                        continue;
-                                    }
-                                } else if ($context == "mainwp_sucuri") {
-                                    if ($record->context !== "mainwp_sucuri") {
-                                        continue;
-                                    }
-                                } else { 
-                                    if ($action != $record->action)
-                                        continue;
-
-                                    if ($context == "comments" && $record->context != "page" && $record->context != "post")
-                                        continue;
-                                    else if ($context == "media" && $record->connector != "media")
-                                        continue;
-                                    else if ($context == "widgets" && $record->connector != "widgets")
-                                        continue; 
-                                    else if ($context == "menus" && $record->connector != "menus")
-                                        continue; 
-
-                                    if ($context !== "comments" && $context !== "media" && 
-                                        $context !== "widgets" && $context !== "menus" &&
-                                        $record->context != $context)
-                                        continue;
-                                }                                
-                                $count++;
-                           }     
-                           $token_values[$token] = $count;                         
-                           break;                
-                   }            
-               } 
-        }            
-        return $token_values;        
-    }
-    
-    
+   
     function get_section_loop_data($records, $tokens, $section) {
         
         $convert_context_name = array(
@@ -465,16 +359,6 @@ class MainWPClientReport
         
         foreach ($records as $record) {     
             $theme_edited = $users_updated = $plugin_edited = false;              
-            
-            if (self::is_version_2()) {
-                if ($context == "plugins" && $action == "edited") {
-                    if ($record->action !== "updated" || $record->connector !== "editor")
-                        continue;
-                    else {
-                        $plugin_edited = true;                                            
-                    }
-                }
-            }
             
             if($plugin_edited) {
                 // ok next
@@ -622,19 +506,12 @@ class MainWPClientReport
         } // foreach $records
         return $loops;
     }
-    
-    public static function is_version_2() {
-        return version_compare(WP_Stream::VERSION, '2.0.0', '>=');
-    }
-    
+   
     function get_stream_meta_data($record, $data) { 
         
         if (empty($record))
             return "";
-                
-        if (self::is_version_2())
-            return $this->get_stream_meta_data_two($record, $data);
-        
+         
         $record_id = $record->ID;
         
         $meta_key = $data;
@@ -655,28 +532,7 @@ class MainWPClientReport
         
         return $value;            
     }
-    
-    function get_stream_meta_data_two($record, $data) {  
-        $meta_key = $data;
-        $stream_meta = $author_meta = false;
-        
-        if (is_object($record)) {
-            if (isset($record->stream_meta))         
-                $stream_meta  = $record->stream_meta;        
-            if (isset($record->author_meta)) 
-                $author_meta  = $record->author_meta;
-        }        
-        $value = "";        
-        if ($meta_key == "author_meta") {
-            if (is_object($author_meta) && isset($author_meta->display_name))                     
-                $value = $author_meta->display_name;
-        } else if (is_object($stream_meta) && isset($stream_meta->{$meta_key})){
-            $value = $stream_meta->{$meta_key};
-        }        
-        
-        return $value;            
-    }
-    
+     
     function set_showhide() {
         MainWPHelper::update_option('mainwp_creport_ext_branding_enabled', "Y", 'yes');
         $hide = isset($_POST['showhide']) && ($_POST['showhide'] === "hide") ? 'hide' : "";
@@ -694,80 +550,33 @@ class MainWPClientReport
         {
             add_filter('all_plugins', array($this, 'creport_branding_plugin'));   
             add_action( 'admin_menu', array($this, 'creport_remove_menu'));
-            add_filter('update_footer', array(&$this, 'update_footer'), 15);           
+            add_filter('site_transient_update_plugins', array(&$this, 'remove_update_nag'));                      
         }
     }    
     
-         
+    function remove_update_nag($value) {
+        if (isset($value->response['stream/stream.php']))
+            unset($value->response['stream/stream.php']);
+        
+        if (isset($value->response['mainwp-child-reports/mainwp-child-reports.php']))
+            unset($value->response['mainwp-child-reports/mainwp-child-reports.php']);
+        return $value;
+    }
+
+
     public function creport_branding_plugin($plugins) {
         foreach ($plugins as $key => $value)
         {
             $plugin_slug = basename($key, '.php');
-            if ($plugin_slug == 'stream')
-                unset($plugins[$key]);
+            if ($plugin_slug == 'stream' || $plugin_slug == 'mainwp-child-reports')
+                unset($plugins[$key]);            
         }
         return $plugins;       
     }
     
     public function creport_remove_menu() {
         remove_menu_page('wp_stream');  
+        remove_menu_page('mainwp_wp_stream'); 
     } 
-      
-    
-    function check_update_stream_plugin() {
-        if ( $plugins = current_user_can( 'update_plugins' ) ) {
-            $update_plugins = get_site_transient( 'update_plugins' );
-            if (!empty( $update_plugins->response )) {
-                $response =  $update_plugins->response;                
-                if (is_array($response) && isset($response['stream/stream.php']))                
-                    return true;
-            }
-	}
-        return false;
-    }
-    
-    function update_footer($text){        
-        if (stripos($_SERVER['REQUEST_URI'], 'update-core.php') !== false)
-        {
-            ?>
-           <script>
-                jQuery(document).ready(function(){
-                    jQuery('input[type="checkbox"][value="stream/stream.php"]').closest('tr').remove();
-                });        
-            </script>
-           <?php
-        }
-        
-        if ($this->check_update_stream_plugin()) {
-            ?>            
-            <script>
-                jQuery(document).ready(function(){                    
-                    var menu_update = jQuery('span.update-plugins');
-                    var menu_count = jQuery('span.update-plugins > span.update-count'); 
-                    if (menu_count) {
-                        var count = parseInt(menu_count.html());
-                        if (count > 1) {                                                            
-                            jQuery('span.update-plugins > span.update-count').each(function(){
-                                 jQuery(this).html(count - 1);
-                            }); 
-                            jQuery('span.update-plugins > span.plugin-count').each(function(){
-                                 jQuery(this).html(count - 1);
-                            }); 
-                            var title = menu_update.attr('title').replace(count, count - 1);
-                            jQuery('span.update-plugins').each(function(){
-                                 jQuery(this).attr('title', title);
-                            });
-
-                        } else if (count == 1) {
-                            jQuery('span.update-plugins').remove();
-                        }
-                    }
-                });        
-            </script>
-            <?php
-        }
-            
-        return $text;
-    }
 }
 
