@@ -58,21 +58,21 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
-= 2.0.18 =
+= 2.0.18 - 5-30-15 =
 * Fixed: False malware alert
 
-= 2.0.17 =
+= 2.0.17 - 5-23-15 =
 * Fixed: Bug where some premium plugin didn't update
 * Fixed: Bug where some Favicons didn't display correctly
 * Fixed: Bug where relative links didn't show correctly in posts
 
-= 2.0.16 =
+= 2.0.16 - 5-15-15 =
 * Fixed: Issue with sites running PHP 5.2 and lower
 * Fixed: Sync error on some sites with UpdraftPlus installed 
 * Fixed: PHP Warning
 * Changed: Server page to reflect requested mininum of PHP 5.3
 
-= 2.0.15 =
+= 2.0.15 - 5-14-15 =
 * Added: Support for the upcoming extension
 * Fixed: Post categories not showing on Dashboard
 * Fixed: Potential malware false alert issue
@@ -82,78 +82,78 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Removed: Unnecessary checks from the Sever Information page
 * Enhancement: Reduced page load time by autoloading common options
 
-= 2.0.14 =
+= 2.0.14 - 4-28-15 =
 * Fixed: Handling of updates when plugins change folder structure or name
 
-= 2.0.13 =
+= 2.0.13 - 4-22-15 =
 * Fixed: Security Issue with add_query_arg and remove_query_arg
 
-= 2.0.12 =
+= 2.0.12 - 4-16-15 =
 * Fixed: Bug for the MainWP iThemes Security Extension 
 * Fixed: Bug for the MainWP WordFence Extension 
 * Fixed: Bug where the MainWP Child plugin was breaking cron jobs on child sites
 
-= 2.0.11 =
+= 2.0.11 - 4-12-15 =
 * Fixed: Upcoming extension bug
 
-= 2.0.10 =
+= 2.0.10 - 4-06-15 =
 * Added: Support for the display Favicon for child sites feature
 * Added: Support for upcoming extension
 * Fixed: Plugin conflicts with Wordpress SEO by Yoast and Backupbuddy
 
-= 2.0.9.2 =
+= 2.0.9.2 - 3-06-15 =
 * Fixed: Bug where SEO values are not being set for Boilerplate Pages and Posts
 * Added: Function for removing keywords and Links Manager extension settings
 * Fixed: Security issue allowing some users to log on to the child site
 
-= 2.0.9.1 =
+= 2.0.9.1 - 3-05-15 =
 * Added: Allow Extension to work with IThemes Security Pro
 
-= 2.0.9 =
+= 2.0.9 - 3-01-15 =
 * Added: Support for Polish language
 * Added: Support for Greek language
 * Added: Support for the upcoming extension
 * Fixed: Bug that was causing plugin bulk installation failing caused by disabled functions (eg. curl_multi_exec)
 * Tweaked: Less PHP notices
 
-= 2.0.8 =
+= 2.0.8 - 2-11-15 =
 * Fixed: Not all site references updated after clone
 * Fixed: Fixed some PHP warnings
 
-= 2.0.7.1 =
+= 2.0.7.1 - 2-05-15 =
 * Fixed: Hostgator detection caused issues on some hosts
 * Fixed: Russian/arabic not shown properly
 * Tweak: Heatmap tracker now consumes less memory when uploading the tracked clicks
 
-= 2.0.7 =
+= 2.0.7 - 2-01-15 =
 * Fixed: Backup issues on Windows-hosts
 * Fixed: PHP Warning message when cloning
 * Added: Detect Hostgator-host to enhance settings while backing up
 
-= 2.0.6 =
+= 2.0.6 - 1-14-15 =
 * Fixed: Uploading tar.bz2 to clone from is no longer blocked
 * Fixed: Saving heatmap options process
 * Fixed: Branding extension options - hiding child plugin pages
 * Added: A new Branding extension option - hiding the child plugin server information page
 
-= 2.0.5 =
+= 2.0.5 - 1-07-15 =
 * Fixed: Links Manager Extension: Now using the wordpress home option instead of siteurl for the links
 
-= 2.0.4 =
+= 2.0.4 - 12-26-14 =
 * Fixed: Backups for hosts having issues with "compress.zlib://" stream wrappers from PHP causing corrupt backup archives
 * Fixed: "Another backup is running" message displaying incorrectly 
 
-= 2.0.3 =
+= 2.0.3 - 12-15-14 =
 * Fixed: Possible security issue
 
-= 2.0.2 =
+= 2.0.2 - 12-11-14 =
 * Added: Support hosts with PHP Heap classes
 * Fixed: Javascript issue disabling the popup menu on the admin menu
 
-= 2.0.1 =
+= 2.0.1 - 12-10-14 =
 * Fixed: Restore/Clone from Tar via server upload
 
-= 2.0 =
+= 2.0 - 12-09-14 =
 * Added: Tar GZip as a backup file format
 * Added: Tar Bzip2 as a backup file format
 * Added: Tar as a backup file format
@@ -173,11 +173,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Refactor: Added MainWP Child menu added in the WP Admin Menu 
 * Refactor: MainWP Child Settings, MainWP Clone/Restore and MainWP Child Server Information pages removed from the WP Settings menu and added to MainWP Child
 
-= 1.3.3 =
+= 1.3.3 - 21-9-14 =
 * Added new hooks for Wordfence Extension
 * Fixed issue with WooCommerce Extension
 
-= 1.3.2 =
+= 1.3.2 - 16-9-14  =
 * Fixed Permission denied issue when restoring from a backup on the dashboard
 
 = 1.3.1 =
