@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.2.2
-Stable tag: 2.0.18
+Stable tag: 2.0.19
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,18 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0.19 - 6-10-15 =
+* Added: Filesystem Check on the Server Information page
+* Added: Support for the MainWP Child Report plugin
+* Added: Support for the new UpdraftPlus Extension options
+* Enhancement: Speed up directory listing by using less resources, reducing timeout issues
+* Fixed: Plugin/theme upgrade issue when no file system method is specified
+* Fixed: X-Frame-Options - ALLOWALL bug 
+* Fixed: Timeout error for the stats child data function
+* Fixed: An error with the Synchronous XMLHttpRequest for tracker.js
+* Fixed: Expert settings options for the UpdraftPlus Extension
+* Fixed: Calculation error for the PHP Memory Limit, PHP Max Upload Filesize and PHP Post Max Size checks
 
 = 2.0.18 - 5-30-15 =
 * Fixed: False malware alert
@@ -173,11 +185,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Refactor: Added MainWP Child menu added in the WP Admin Menu 
 * Refactor: MainWP Child Settings, MainWP Clone/Restore and MainWP Child Server Information pages removed from the WP Settings menu and added to MainWP Child
 
-= 1.3.3 - 21-9-14 =
+= 1.3.3 - 9-21-14 =
 * Added new hooks for Wordfence Extension
 * Fixed issue with WooCommerce Extension
 
-= 1.3.2 - 16-9-14  =
+= 1.3.2 - 9-16-14  =
 * Fixed Permission denied issue when restoring from a backup on the dashboard
 
 = 1.3.1 =
