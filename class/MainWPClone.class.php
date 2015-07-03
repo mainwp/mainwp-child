@@ -413,6 +413,7 @@ Author URI: http://dd32.id.au/
     public static function renderJavaScript()
     {
         $uploadSizeInBytes = min(MainWPHelper::return_bytes(ini_get('upload_max_filesize')), MainWPHelper::return_bytes(ini_get('post_max_size')));
+        $uploadSizeInBytes = ($uploadSizeInBytes?$uploadSizeInBytes:0);
         $uploadSize = MainWPHelper::human_filesize($uploadSizeInBytes);
 ?>
     <div id="mainwp-child_clone_status" title="Restore process"></div>
@@ -1140,16 +1141,24 @@ Author URI: http://dd32.id.au/
             }
 
             $filename = $backupdir . $filename;
+			if(WP_DEBUG)
+			trigger_error("Start wp_remote_get");
 
-            $response = wp_remote_get($url, array( 'timeout' => 300000, 'stream' => true, 'filename' => $filename ) );
-
+            $response = wp_remote_get($url, array(    'blocking'    => true, 'timeout' => 0, 'stream' => true, 'filename' => $filename ) );
+			if(WP_DEBUG)
+			trigger_error("end wp_remote_get");
+			
             if ( is_wp_error( $response ) ) {
+				trigger_error("Response is WP ERROR".var_export($response, true), E_USER_ERROR);
            		unlink( $filename );
            		return $response;
            	}
 
            	if ( 200 != wp_remote_retrieve_response_code( $response ) ){
-           		unlink( $filename );
+           		
+			trigger_error("Response is not status 200: ".var_export($response, true), E_USER_ERROR);
+			unlink( $filename );
+
            		return new WP_Error( 'http_404', trim( wp_remote_retrieve_response_message( $response ) ) );
            	}
 
@@ -1201,7 +1210,7 @@ Author URI: http://dd32.id.au/
                     break;
                 }
             }
-            if ($archiveFile === false) throw new Exception(__('No download file found','mainwp-child'));
+            if ($archiveFile === false) throw new Exception(__('cloneBackupDownloadPoll No download file found','mainwp-child'));
 
             $output = array('size' => filesize($archiveFile) / 1024);
         }
@@ -1236,7 +1245,7 @@ Author URI: http://dd32.id.au/
                         break;
                     }
                 }
-                if ($archiveFile === false) throw new Exception(__('No download file found','mainwp-child'));
+                if ($archiveFile === false) throw new Exception(__('cloneBackupExtract No download file found','mainwp-child'));
                 $file = $archiveFile;
             } else if(file_exists($file)) {
                 $testFull = true;
@@ -1259,7 +1268,7 @@ Author URI: http://dd32.id.au/
                 $cloneInstall->testDownload();
             }
             $cloneInstall->removeConfigFile();
-            $cloneInstall->extractBackup();
+            $cloneInstall->extractBackup(ABSPATH,true);
 
             $pubkey = get_option('mainwp_child_pubkey');
             $uniqueId = get_option('mainwp_child_uniqueId');
