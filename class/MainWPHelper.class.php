@@ -663,6 +663,7 @@ class MainWPHelper
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
@@ -684,7 +685,7 @@ class MainWPHelper
         }
         else if ($data == '')
         {
-            throw new Exception(__('Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.','mainwp-child'));
+            throw new Exception(__(var_export($url,true).var_export($postdata,true).var_export($data,true).var_export($http_status,true).var_export($err,true).'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.','mainwp-child'));
         }
         else
         {
