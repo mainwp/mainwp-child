@@ -842,7 +842,8 @@ class MainWPChild
         }
 
         //Call the function required
-        if (isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
+		$_POST['function']= (isset($_POST['function'])?$_POST['function']:false);
+        if (isset($_POST['function']) && !empty($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
         {
             call_user_func(array($this, ($auth ? $this->callableFunctions[$_POST['function']]
                     : $this->callableFunctionsNoAuth[$_POST['function']])));
