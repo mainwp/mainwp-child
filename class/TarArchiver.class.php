@@ -230,7 +230,7 @@ class TarArchiver
                     'home' => get_option('home'),
                     'abspath' => ABSPATH,
                     'prefix' => $wpdb->prefix,
-                    'lang' => WPLANG,
+                    'lang' => get_bloginfo("language"),
                     'plugins' => $plugins,
                     'themes' => $themes)));
 
