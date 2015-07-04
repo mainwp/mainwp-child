@@ -34,7 +34,9 @@ class TarArchiver
 
     public function __construct($backup, $type = 'tar', $pidFile = false)
     {
-        $this->debug = false;
+        $this->debug = true;
+        error_log("start ".__METHOD__);
+        
 
         $this->pidFile = $pidFile;
         $this->backup = $backup;
@@ -126,6 +128,7 @@ class TarArchiver
     {
         //$this->logHandle = fopen($filepath . ".log", "a+");
         $this->createPidFile($filepath);
+        
 
         $this->excludeZip = $excludezip;
 
@@ -138,14 +141,16 @@ class TarArchiver
 
         if ($append && @file_exists($filepath)) //todo: use wpFS
         {
-            $this->mode = self::APPEND;
-            $this->prepareAppend($filepath);
+            //$this->mode = self::APPEND;
+            //$this->prepareAppend($filepath);
         }
         else
         {
             $this->mode = self::CREATE;
             $this->create($filepath);
         }
+        $this->mode = self::CREATE;
+        $this->create($filepath);
 
         if ($this->archive)
         {
@@ -183,6 +188,13 @@ class TarArchiver
 
             foreach ($nodes as $node)
             {
+            	//NEVER add the backup you are currently writing in! This results in an invinite loop
+            	if ($node == $filepath) {
+            		//error_log("node == filepath detected ".__METHOD__); die("node == filepath detected ");
+            	
+            		continue;
+            	}
+            	
                 if ($excludenonwp && is_dir($node))
                 {
                     if (!MainWPHelper::startsWith($node, WP_CONTENT_DIR) && !MainWPHelper::startsWith($node, ABSPATH . 'wp-admin') && !MainWPHelper::startsWith($node, ABSPATH . WPINC)) continue;
@@ -196,6 +208,7 @@ class TarArchiver
                     }
                     else if (is_file($node))
                     {
+
                         $this->addFile($node, str_replace(ABSPATH, '', $node));
                     }
                 }
