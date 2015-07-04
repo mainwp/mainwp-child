@@ -40,7 +40,7 @@ class MainWPCloneInstall
 		{
 			$this->archiver = new TarArchiver(null, 'tar');
 		}
-		trigger_error("Construct done archiver:".var_export($this->archiver,true));
+		error_log("Construct done archiver:".var_export($this->archiver,true));
 
 	}
 
@@ -82,7 +82,7 @@ class MainWPCloneInstall
 
 	public function removeConfigFile()
 	{
-		trigger_error("start removeConfigFile ");
+		error_log("start removeConfigFile ");
 
 		if (!$this->file || !file_exists($this->file))
 			return false;
@@ -119,7 +119,7 @@ class MainWPCloneInstall
 		else
 		{
 			//use pclzip
-			trigger_error("use pclzip");
+			error_log("use pclzip");
 
 			$zip = new PclZip($this->file);
 			$list = $zip->delete(PCLZIP_OPT_BY_NAME, 'wp-config.php');
@@ -132,40 +132,40 @@ class MainWPCloneInstall
 
 	public function testDownload()
 	{
-		trigger_error("start testDownload");
+		error_log("start testDownload");
 
 		if (!$this->file_exists('wp-content/')) throw new Exception(__('Not a full backup.', 'mainwp-child'));
 		if (!$this->file_exists('wp-admin/')) throw new Exception(__('Not a full backup.', 'mainwp-child'));
 		if (!$this->file_exists('wp-content/dbBackup.sql')) throw new Exception(__('Database backup not found.', 'mainwp-child'));
-		trigger_error("successfull testDownload");
+		error_log("successfull testDownload");
 
 	}
 
 	private function file_exists($file)
 	{
-		trigger_error("start file_exists".var_export($file,true));
+		error_log("start file_exists".var_export($file,true));
 
 		if ($this->file == 'extracted'){
-			trigger_error("files is extracted returning ../clone/config.txt");
+			error_log("files is extracted returning ../clone/config.txt");
 				
 			return file_get_contents('../clone/config.txt');
 		}
 
 		if (!$this->file || !file_exists($this->file)){
-			trigger_error("files does not exist returning false");
+			error_log("files does not exist returning false");
 				
 			return false;
 		}
 
 		if ($this->archiver != null)
 		{
-			trigger_error("using archiver");
+			error_log("using archiver");
 				
 			if (!$this->archiver->isOpen())
 			{
 				$this->archiver->read($this->file);
 			}
-			trigger_error("calling file_exists");
+			error_log("calling file_exists");
 				
 			return $this->archiver->file_exists($file);
 		}
@@ -179,19 +179,19 @@ class MainWPCloneInstall
 			$zipRes = $zip->open($this->file);
 			if ($zipRes)
 			{
-				trigger_error("locateName");
+				error_log("locateName");
 				
 				$content = $zip->locateName($file);
 				$zip->close();
 				return $content !== false;
 			}
-			trigger_error("return false, problem with zip file",E_USER_WARNING );
+			error_log("return false, problem with zip file",E_USER_WARNING );
 				
 			return false;
 		}
 		else
 		{
-			trigger_error("return true");
+			error_log("return true");
 				
 			return true;
 		}
@@ -200,7 +200,7 @@ class MainWPCloneInstall
 
 	public function readConfigurationFile()
 	{
-		trigger_error("start readConfigurationFile");
+		error_log("start readConfigurationFile");
 
 		$configContents = $this->getConfigContents();
 		if ($configContents === FALSE) throw new Exception(__('Cant read configuration file from backup', 'mainwp-child'));
@@ -217,7 +217,7 @@ class MainWPCloneInstall
 
 	public function testDatabase()
 	{
-		trigger_error("start testDatabase");
+		error_log("start testDatabase");
 
 		$link = @MainWPChildDB::connect($this->config['dbHost'], $this->config['dbUser'], $this->config['dbPass']);
 		if (!$link) throw new Exception(__('Invalid database host or user/password.', 'mainwp-child'));
@@ -228,7 +228,7 @@ class MainWPCloneInstall
 
 	public function clean()
 	{
-		trigger_error("start clean");
+		error_log("start clean");
 
 		if (file_exists(WP_CONTENT_DIR . '/dbBackup.sql')) @unlink(WP_CONTENT_DIR . '/dbBackup.sql');
 		if (file_exists(ABSPATH . 'clone/config.txt')) @unlink(ABSPATH . 'clone/config.txt');
@@ -256,7 +256,7 @@ class MainWPCloneInstall
 
 	public function updateWPConfig()
 	{
-		trigger_error("start updateWPConfig");
+		error_log("start updateWPConfig");
 
 		$wpConfig = file_get_contents(ABSPATH . 'wp-config.php');
 		$wpConfig = $this->replaceVar('table_prefix', $this->config['prefix'], $wpConfig);
@@ -269,7 +269,7 @@ class MainWPCloneInstall
 
 	public function update_option($name, $value)
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		/** @var $wpdb wpdb */
 		global $wpdb;
@@ -287,7 +287,7 @@ class MainWPCloneInstall
 
 	public function install()
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		/** @var $wpdb wpdb */
 		global $wpdb;
@@ -415,7 +415,7 @@ class MainWPCloneInstall
 
 	public function install_legacy()
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		/** @var $wpdb wpdb */
 		global $wpdb;
@@ -506,14 +506,14 @@ class MainWPCloneInstall
 
 	protected function recalculateSerializedLengths($pObject)
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		return preg_replace_callback('|s:(\d+):"(.*?)";|', array($this, 'recalculateSerializedLengths_callback'), $pObject);
 	}
 
 	protected function recalculateSerializedLengths_callback($matches)
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		return 's:' . strlen($matches[2]) . ':"' . $matches[2] . '";';
 	}
@@ -531,7 +531,7 @@ class MainWPCloneInstall
 	 */
 	function is_serialized($data)
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		// if it isn't a string, it isn't serialized
 		if (!is_string($data))
@@ -566,7 +566,7 @@ class MainWPCloneInstall
 
 	public function cleanUp()
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		// Clean up!
 		@unlink('../dbBackup.sql');
@@ -575,17 +575,17 @@ class MainWPCloneInstall
 	public function getConfigContents()
 	{
 
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		if ($this->file == 'extracted') {
-			trigger_error("File is $this->file == 'extracted' in ".__METHOD__);
+			error_log("File is $this->file == 'extracted' in ".__METHOD__);
 
 			return file_get_contents('../clone/config.txt');
 
 		}
 
 		if (!$this->file || !file_exists($this->file)){
-			trigger_error("if (!$this->file || !file_exists($this->file)) in ".__METHOD__);
+			error_log("if (!$this->file || !file_exists($this->file)) in ".__METHOD__);
 
 			return false;
 		}
@@ -596,7 +596,7 @@ class MainWPCloneInstall
 			{
 				$this->archiver->read($this->file);
 			}
-			trigger_error("try to do this->archiver->getFromName'clone/config.txt'  in ".__METHOD__);
+			error_log("try to do this->archiver->getFromName'clone/config.txt'  in ".__METHOD__);
 			if(USE_GET_FROM_NAME){
 				$content = $this->archiver->getFromName('clone/config.txt');
 			}
@@ -605,7 +605,7 @@ class MainWPCloneInstall
 				if(file_exists($this->upload_basedir."/mainwp/tmp/clone/config.txt")){
 					return file_get_contents($this->upload_basedir.'/mainwp/tmp/clone/config.txt');
 				}else{
-					trigger_error("config.txt not found in ".__METHOD__);
+					error_log("config.txt not found in ".__METHOD__);
 
 				}
 			}
@@ -614,7 +614,7 @@ class MainWPCloneInstall
 		}
 		else
 		{
-			trigger_error("archiver is null".__METHOD__);
+			error_log("archiver is null".__METHOD__);
 
 			if ($this->checkZipConsole())
 			{
@@ -664,7 +664,7 @@ class MainWPCloneInstall
 	 */
 	public function extractBackup($dir=ABSPATH,$useTemp = false)
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 
 		if (!$this->file || !file_exists($this->file))
@@ -685,7 +685,7 @@ class MainWPCloneInstall
 		}
 		if ($this->archiver != null)
 		{
-			trigger_error("start ".__METHOD__);
+			error_log("start ".__METHOD__);
 
 			if (!$this->archiver->isOpen()) $this->archiver->read($this->file);
 
@@ -710,7 +710,7 @@ class MainWPCloneInstall
 	 */
 	public function extractZipBackup($dir=ABSPATH)
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		$zip = new ZipArchive();
 		$zipRes = $zip->open($this->file);
@@ -725,7 +725,7 @@ class MainWPCloneInstall
 
 	public function extractWPZipBackup($dir=ABSPATH)
 	{
-		trigger_error("start ".__METHOD__);
+		error_log("start ".__METHOD__);
 
 		MainWPHelper::getWPFilesystem();
 		global $wp_filesystem;
@@ -770,7 +770,7 @@ class MainWPCloneInstall
 
 				public function extractZipPclBackup($dir=ABSPATH)
 				{
-					trigger_error("start ".__METHOD__);
+					error_log("start ".__METHOD__);
 
 					$zip = new PclZip($this->file);
 					if ($zip->extract(PCLZIP_OPT_PATH, $dir, PCLZIP_OPT_REPLACE_NEWER) == 0)
@@ -788,7 +788,7 @@ class MainWPCloneInstall
 				 */
 				public function extractZipConsoleBackup()
 				{
-					trigger_error("start ".__METHOD__);
+					error_log("start ".__METHOD__);
 
 					//todo implement
 					//system('zip');
@@ -805,7 +805,7 @@ class MainWPCloneInstall
 				 */
 				protected function replaceDefine($constant, $value, $content)
 				{
-					trigger_error("start ".__METHOD__);
+					error_log("start ".__METHOD__);
 
 					return preg_replace('/(define *\( *[\'"]' . $constant . '[\'"] *, *[\'"])(.*?)([\'"] *\))/is', '${1}' . $value . '${3}', $content);
 				}
@@ -820,14 +820,14 @@ class MainWPCloneInstall
 				 */
 				protected function replaceVar($varname, $value, $content)
 				{
-					trigger_error("start ".__METHOD__);
+					error_log("start ".__METHOD__);
 
 					return preg_replace('/(\$' . $varname . ' *= *[\'"])(.*?)([\'"] *;)/is', '${1}' . $value . '${3}', $content);
 				}
 
 				function recurse_chmod($mypath, $arg)
 				{
-					trigger_error("start ".__METHOD__);
+					error_log("start ".__METHOD__);
 
 					$d = opendir($mypath);
 					while (($file = readdir($d)) !== false)
@@ -861,7 +861,7 @@ class MainWPCloneInstall
 				 */
 				function icit_srdb_replacer($connection, $search = '', $replace = '', $tables = array())
 				{
-					trigger_error("start ".__METHOD__);
+					error_log("start ".__METHOD__);
 
 					global $guid, $exclude_cols;
 
@@ -973,7 +973,7 @@ class MainWPCloneInstall
 				 */
 				function recursive_unserialize_replace($from = '', $to = '', $data = '', $serialised = false)
 				{
-					trigger_error("start ".__METHOD__);
+					error_log("start ".__METHOD__);
 
 					// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
 					try
