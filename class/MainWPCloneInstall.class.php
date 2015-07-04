@@ -143,7 +143,7 @@ class MainWPCloneInstall
 
 	private function file_exists($file)
 	{
-		error_log("start file_exists".var_export($file,true));
+		error_log("start ".__METHOD__.var_export($file,true));
 
 		if ($this->file == 'extracted'){
 			error_log("files is extracted returning ../clone/config.txt");
@@ -973,7 +973,7 @@ class MainWPCloneInstall
 				 */
 				function recursive_unserialize_replace($from = '', $to = '', $data = '', $serialised = false)
 				{
-					error_log("start ".__METHOD__);
+					//error_log("start ".__METHOD__);
 
 					// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
 					try
