@@ -143,20 +143,30 @@ class MainWPCloneInstall
 
 	private function file_exists($file)
 	{
-		trigger_error("start file_exists");
+		trigger_error("start file_exists".var_export($file,true));
 
-		if ($this->file == 'extracted') return file_get_contents('../clone/config.txt');
+		if ($this->file == 'extracted'){
+			trigger_error("files is extracted returning ../clone/config.txt");
+				
+			return file_get_contents('../clone/config.txt');
+		}
 
-		if (!$this->file || !file_exists($this->file))
+		if (!$this->file || !file_exists($this->file)){
+			trigger_error("files does not exist returning false");
+				
 			return false;
+		}
 
 		if ($this->archiver != null)
 		{
+			trigger_error("using archiver");
+				
 			if (!$this->archiver->isOpen())
 			{
 				$this->archiver->read($this->file);
 			}
-
+			trigger_error("calling file_exists");
+				
 			return $this->archiver->file_exists($file);
 		}
 		else if ($this->checkZipConsole())
@@ -169,15 +179,20 @@ class MainWPCloneInstall
 			$zipRes = $zip->open($this->file);
 			if ($zipRes)
 			{
+				trigger_error("locateName");
+				
 				$content = $zip->locateName($file);
 				$zip->close();
 				return $content !== false;
 			}
-
+			trigger_error("return false, problem with zip file",E_USER_WARNING );
+				
 			return false;
 		}
 		else
 		{
+			trigger_error("return true");
+				
 			return true;
 		}
 		return false;
