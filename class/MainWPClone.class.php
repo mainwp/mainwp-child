@@ -1142,21 +1142,21 @@ Author URI: http://dd32.id.au/
 
             $filename = $backupdir . $filename;
 			if(WP_DEBUG)
-			trigger_error("Start wp_remote_get");
+			error_log("Start wp_remote_get");
 
             $response = wp_remote_get($url, array(    'blocking'    => true, 'timeout' => 0, 'stream' => true, 'filename' => $filename ) );
 			if(WP_DEBUG)
-			trigger_error("end wp_remote_get");
+			error_log("end wp_remote_get");
 			
             if ( is_wp_error( $response ) ) {
-				trigger_error("Response is WP ERROR".var_export($response, true), E_USER_ERROR);
+				error_log("Response is WP ERROR".var_export($response, true), E_USER_ERROR);
            		unlink( $filename );
            		return $response;
            	}
 
            	if ( 200 != wp_remote_retrieve_response_code( $response ) ){
            		
-			trigger_error("Response is not status 200: ".var_export($response, true), E_USER_ERROR);
+			error_log("Response is not status 200: ".var_export($response, true), E_USER_ERROR);
 			unlink( $filename );
 
            		return new WP_Error( 'http_404', trim( wp_remote_retrieve_response_message( $response ) ) );
