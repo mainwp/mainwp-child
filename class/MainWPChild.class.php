@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.19';
+    private $version = '2.0.20';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -333,7 +333,7 @@ class MainWPChild
                 $child_menu_icon = 'data:image/png+xml;base64,' . base64_encode(file_get_contents($this->plugin_dir . '/images/mainwpicon.png'));
             }
             
-            add_menu_page($child_menu_name, $child_menu_name, 'read', $mainwp_child_menu_slug, false, $child_menu_icon, '80.00001');
+            add_menu_page($child_menu_name, $child_menu_name, 'manage_options', $mainwp_child_menu_slug, false, $child_menu_icon, '80.00001');
 
             if (!get_option('mainwp_branding_remove_setting') || $cancelled_branding)
             {
@@ -1161,11 +1161,28 @@ class MainWPChild
         {
             include_once(ABSPATH . '/wp-admin/includes/update.php');
             if ($this->filterFunction != null) add_filter( 'pre_site_transient_update_plugins', $this->filterFunction , 99);
-
+            
+            $plugins = explode(',', urldecode($_POST['list']));            
+            
+            // To fix: backupbuddy update 
+            if (in_array('backupbuddy/backupbuddy.php', $plugins)) {            
+                if (isset($GLOBALS['ithemes_updater_path'])) {
+                    if ( ! class_exists( 'Ithemes_Updater_Settings' ) ) {
+                            require( $GLOBALS['ithemes_updater_path'] . '/settings.php' );
+                    }	
+                    if (class_exists('Ithemes_Updater_Settings')) {
+                        $ithemes_updater = new Ithemes_Updater_Settings();
+                        $ithemes_updater->update();
+                    }   
+                }
+            }
+            ////
+            
+            global $wp_current_filter;
+            $wp_current_filter[] = 'load-plugins.php';
             @wp_update_plugins();
             $information['plugin_updates'] = get_plugin_updates();
 
-            $plugins = explode(',', urldecode($_POST['list']));
             $premiumPlugins = array();
             $premiumUpdates = get_option('mainwp_premium_updates');
             if (is_array($premiumUpdates))
@@ -1183,13 +1200,6 @@ class MainWPChild
                     }
                 }
                 $plugins = $newPlugins;
-            }
-            
-            //Fix bug
-            if ((count($plugins) > 0) || (count($premiumPlugins) > 0)) {            
-                global $wp_current_filter;
-                $wp_current_filter[] = 'load-update.php';
-                wp_update_plugins();                
             }
             
             if (count($plugins) > 0)
@@ -2472,6 +2482,10 @@ class MainWPChild
         remove_filter('option_active_plugins', array(&$this, 'default_option_active_plugins'));
 
         if ($this->filterFunction != null) add_filter( 'pre_site_transient_update_plugins', $this->filterFunction , 99);
+        
+        global $wp_current_filter;
+        $wp_current_filter[] = 'load-plugins.php';
+            
         @wp_update_plugins();
         include_once(ABSPATH . '/wp-admin/includes/plugin.php');
         $plugin_updates = get_plugin_updates();
