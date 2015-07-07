@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.2.2
-Stable tag: 2.0.19
+Stable tag: 2.0.20
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,13 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0.20 - 7-6-15 =
+* Fixed: Bug with time schedule for the UpdraftPlus extension
+* Fixed: Bug in the Scan for backups feature for the UpdraftPlus extension
+* Fixed: Bug with saving email report option for free version of the UpdraftPuls plugin
+* Fixed: Bug that was causing the BackupBuddy updates to fail
+* Updated: Only users with the Administrator role can see the MainWP Child menu
 
 = 2.0.19 - 6-10-15 =
 * Added: Filesystem Check on the Server Information page

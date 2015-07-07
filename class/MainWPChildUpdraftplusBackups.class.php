@@ -12,7 +12,7 @@ class MainWPChildUpdraftplusBackups
     }    
     
     public function __construct() {                
-        
+      
     }
     
     public function init()
@@ -200,41 +200,52 @@ class MainWPChildUpdraftplusBackups
             if (class_exists('UpdraftPlus_Options')) {
                 foreach($keys as $key) {
                     if (isset($settings[$key])) {
-                        if ($key == "updraft_dropbox") {
-                            if (isset($settings[$key])) {
-                                $opts = UpdraftPlus_Options::get_updraft_option('updraft_dropbox');
-                                $opts['appkey'] = $settings[$key]['appkey'];
-                                $opts['secret'] = $settings[$key]['secret'];
-                                $opts['folder'] = $settings[$key]['folder'];
-                                UpdraftPlus_Options::update_updraft_option($key, $opts);
+                        if ($key == "updraft_dropbox") {                           
+                            $opts = UpdraftPlus_Options::get_updraft_option('updraft_dropbox');
+                            $opts['appkey'] = $settings[$key]['appkey'];
+                            $opts['secret'] = $settings[$key]['secret'];
+                            $opts['folder'] = $settings[$key]['folder'];
+                            UpdraftPlus_Options::update_updraft_option($key, $opts);                           
+                        } else if ($key == "updraft_googledrive") {                            
+                            $opts = UpdraftPlus_Options::get_updraft_option('updraft_googledrive');
+                            $opts['clientid'] = $settings[$key]['clientid'];
+                            $opts['secret'] = $settings[$key]['secret'];
+                            $opts['folder'] = $settings[$key]['folder'];
+                            UpdraftPlus_Options::update_updraft_option($key, $opts);                             
+                        } else if ($key == "updraft_onedrive") {                            
+                            $opts = UpdraftPlus_Options::get_updraft_option('updraft_onedrive');
+                            $opts['clientid'] = $settings[$key]['clientid'];
+                            $opts['secret'] = $settings[$key]['secret'];
+                            $opts['folder'] = $settings[$key]['folder'];
+                            UpdraftPlus_Options::update_updraft_option($key, $opts);                            
+                        } else if ($key == "updraft_email") { 
+                            $value = $settings[$key];
+                            // free version
+                            if (!is_array($value)) {                                                          
+                                if (!empty($value)) {
+                                    $value = htmlspecialchars(get_bloginfo('admin_email'));                                                                   
+                                }
                             }
-                        } else if ($key == "updraft_googledrive") {
-                             if (isset($settings[$key])) {
-                                $opts = UpdraftPlus_Options::get_updraft_option('updraft_googledrive');
-                                $opts['clientid'] = $settings[$key]['clientid'];
-                                $opts['secret'] = $settings[$key]['secret'];
-                                $opts['folder'] = $settings[$key]['folder'];
-                                UpdraftPlus_Options::update_updraft_option($key, $opts);
-                             }
-                        } else if ($key == "updraft_onedrive") {
-                             if (isset($settings[$key])) {
-                                $opts = UpdraftPlus_Options::get_updraft_option('updraft_onedrive');
-                                $opts['clientid'] = $settings[$key]['clientid'];
-                                $opts['secret'] = $settings[$key]['secret'];
-                                $opts['folder'] = $settings[$key]['folder'];
-                                UpdraftPlus_Options::update_updraft_option($key, $opts);
-                             }
+                            UpdraftPlus_Options::update_updraft_option($key, $value);                                                                                  
                         } else {
                             UpdraftPlus_Options::update_updraft_option($key, $settings[$key]);                        
                         }
                         $updated = true;
-                    }
+                    } 
                 }
                 global $updraftplus;
-                if ($settings['updraft_interval']) {
+                if (isset($settings['updraft_interval'])) {         
+                    // fix for premium version
+                    $_POST['updraft_interval'] = $settings['updraft_interval'];
+                    $_POST['updraft_startday_files'] = $settings['updraft_startday_files'];
+                    $_POST['updraft_starttime_files'] = $settings['updraft_starttime_files'];                    
                     $updraftplus->schedule_backup($settings['updraft_interval']);
                 }
-                if ($settings['updraft_interval_database']) {
+                if (isset($settings['updraft_interval_database'])) {
+                    // fix for premium version
+                    $_POST['updraft_interval_database'] = $settings['updraft_interval_database'];
+                    $_POST['updraft_startday_database'] = $settings['updraft_startday_database'];
+                    $_POST['updraft_starttime_database'] = $settings['updraft_starttime_database'];                    
                     $updraftplus->schedule_backup_database($settings['updraft_interval_database']);
                 }
                 
@@ -840,14 +851,14 @@ class MainWPChildUpdraftplusBackups
     }
              
     public function historystatus($remotescan = null, $rescan = null ) {
-        global $updraftplus_admin, $updraftplus;
-        if (empty($updraftplus_admin)) require_once(UPDRAFTPLUS_DIR.'/admin.php');
-
+        global $updraftplus;
+        
         $remotescan = ($remotescan !== null) ? $remotescan : $_POST['remotescan'];
         $rescan = ($rescan !== null) ? $rescan : $_POST['rescan']; 
         
-        if ($rescan) $messages = $updraftplus_admin->rebuild_backup_history($remotescan);
-
+        if ($rescan) 
+            $messages = $this->rebuildBackupHistory($remotescan);   
+        
         $backup_history = UpdraftPlus_Options::get_updraft_option('updraft_backup_history');
         $backup_history = (is_array($backup_history)) ? $backup_history : array();
         $output = $this->existing_backup_table($backup_history);
@@ -1163,7 +1174,7 @@ class MainWPChildUpdraftplusBackups
         $backup_success = $this->restore_backup($_REQUEST['backup_timestamp']);
         if (empty($updraftplus->errors) && $backup_success === true) {
                 // If we restored the database, then that will have out-of-date information which may confuse the user - so automatically re-scan for them.
-                $updraftplus_admin->rebuild_backup_history();
+                $this->rebuildBackupHistory();
                 echo '<p><strong>';
                 $updraftplus->log_e('Restore successful!');
                 echo '</strong></p>';
@@ -2237,13 +2248,16 @@ ENDHERE;
         }
     }
 
-//    private function rebuildBackupHistory() {
-//        global $updraftplus_admin;
-//        $messages = $updraftplus_admin->rebuild_backup_history();
-//        $out['updraft_backup_history'] = UpdraftPlus_Options::get_updraft_option('updraft_backup_history');   
-//        $out['messages'] = $messages;
-//        return $out;
-//    }
+    private function rebuildBackupHistory($remotescan = false) {
+        global $updraftplus_admin, $updraftplus;
+        $messages = null;
+        if (method_exists($updraftplus, 'rebuild_backup_history')) {
+            $messages = $updraftplus->rebuild_backup_history($remotescan);
+        } else if (method_exists($updraftplus_admin, 'rebuild_backup_history')) {           
+            $messages = $updraftplus_admin->rebuild_backup_history($remotescan);
+        }   
+        return $messages;
+    }
 
     private function forceScheduledResumption() {
         global $updraftplus;
