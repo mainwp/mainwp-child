@@ -479,14 +479,14 @@ Author URI: http://dd32.id.au/
         };
 
         var translations = [] ;
-        translations['large_site'] = '<?php _e('This is a large site (%dMB), the restore process will more than likely fail.', 'mainwp-child'); ?>';
-        translations['continue_anyway'] = '<?php _e('Continue Anyway?', 'mainwp-child'); ?>';
-        translations['creating_backup'] = '<?php _e('Creating backup on %s expected size: %dMB (estimated time: %d seconds)', 'mainwp-child'); ?>';
-        translations['backup_created'] = '<?php _e('Backup created on %s total size to download: %dMB', 'mainwp-child'); ?>';
-        translations['downloading_backup'] = '<?php _e('Downloading backup', 'mainwp-child'); ?>';
-        translations['backup_downloaded'] = '<?php _e('Backup downloaded', 'mainwp-child'); ?>';
-        translations['extracting_backup'] = '<?php _e('Extracting backup and updating your database, this might take a while. Please be patient.', 'mainwp-child'); ?>';
-        translations['clone_complete'] = '<?php _e('Cloning process completed successfully!', 'mainwp-child'); ?>';
+        translations['large_site'] = "<?php _e('This is a large site (%dMB), the restore process will more than likely fail.', 'mainwp-child'); ?>";
+        translations['continue_anyway'] = "<?php _e('Continue Anyway?', 'mainwp-child'); ?>";
+        translations['creating_backup'] = "<?php _e('Creating backup on %s expected size: %dMB (estimated time: %d seconds)', 'mainwp-child'); ?>";
+        translations['backup_created'] = "<?php _e('Backup created on %s total size to download: %dMB', 'mainwp-child'); ?>";
+        translations['downloading_backup'] = "<?php _e('Downloading backup', 'mainwp-child'); ?>";
+        translations['backup_downloaded'] = "<?php _e('Backup downloaded', 'mainwp-child'); ?>";
+        translations['extracting_backup'] = "<?php _e('Extracting backup and updating your database, this might take a while. Please be patient.', 'mainwp-child'); ?>";
+        translations['clone_complete'] = "<?php _e('Cloning process completed successfully!', 'mainwp-child'); ?>";
 
         cloneInitiateBackupCreation = function(siteId, siteName, size, rand, continueAnyway)
         {

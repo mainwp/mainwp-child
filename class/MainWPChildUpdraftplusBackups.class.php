@@ -244,8 +244,8 @@ class MainWPChildUpdraftplusBackups
                 if (isset($settings['updraft_interval_database'])) {
                     // fix for premium version
                     $_POST['updraft_interval_database'] = $settings['updraft_interval_database'];
-                    $_POST['updraft_startday_database'] = $settings['updraft_startday_database'];
-                    $_POST['updraft_starttime_database'] = $settings['updraft_starttime_database'];                    
+                    $_POST['updraft_startday_db'] = $settings['updraft_startday_db'];
+                    $_POST['updraft_starttime_db'] = $settings['updraft_starttime_db'];                    
                     $updraftplus->schedule_backup_database($settings['updraft_interval_database']);
                 }
                 
