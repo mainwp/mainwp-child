@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.20';
+    private $version = '2.0.21';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -67,7 +67,8 @@ class MainWPChild
         'update_values' => 'update_values',
         'ithemes' => 'ithemes',        
         'updraftplus' => 'updraftplus',
-        'backup_wp' => 'backup_wp'
+        'backup_wp' => 'backup_wp',
+        'backwpup' => 'backwpup'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -841,6 +842,8 @@ class MainWPChild
             MainWPChildBackUpWordPress::Instance()->init();
         }
 
+        MainWPChildBackWPup::Instance()->init();
+
         //Call the function required
 		//$_POST['function']= (isset($_POST['function'])?$_POST['function']:false);
         if (isset($_POST['function']) && !empty($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
@@ -1162,7 +1165,7 @@ class MainWPChild
         {
             include_once(ABSPATH . '/wp-admin/includes/update.php');
             if ($this->filterFunction != null) add_filter( 'pre_site_transient_update_plugins', $this->filterFunction , 99);
-            
+
             $plugins = explode(',', urldecode($_POST['list']));            
             
             // To fix: backupbuddy update 
@@ -1184,6 +1187,7 @@ class MainWPChild
             @wp_update_plugins();
             $information['plugin_updates'] = get_plugin_updates();
 
+            $plugins = explode(',', urldecode($_POST['list']));
             $premiumPlugins = array();
             $premiumUpdates = get_option('mainwp_premium_updates');
             if (is_array($premiumUpdates))
@@ -4209,6 +4213,11 @@ class MainWPChild
         }
         MainWPChildBackUpWordPress::Instance()->action();
     }
+
+    function backwpup() {
+        MainWPChildBackWPup::Instance()->action();
+    }
+
 
     function delete_backup()
     {
