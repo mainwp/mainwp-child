@@ -58,9 +58,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
-= 2.0.21 - 7-9-2015 =
-* Fixed: Bug with time schedule for the UpdraftPlus Extension
-* Added: Support for an upcoming Extension
+= 2.0.21 - 7-9-15 =
+* Fixed: Bug with time schedule for the UpdraftPlus extension
+* Added: Support for the upcomming extension
 
 = 2.0.20 - 7-6-15 =
 * Fixed: Bug with time schedule for the UpdraftPlus extension

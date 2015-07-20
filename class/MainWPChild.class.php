@@ -68,7 +68,8 @@ class MainWPChild
         'ithemes' => 'ithemes',        
         'updraftplus' => 'updraftplus',
         'backup_wp' => 'backup_wp',
-        'backwpup' => 'backwpup'
+        'backwpup' => 'backwpup',        
+        'wp_rocket' => 'wp_rocket'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -841,7 +842,9 @@ class MainWPChild
         if ( version_compare( phpversion(), '5.3', '>=' ) ) {
             MainWPChildBackUpWordPress::Instance()->init();
         }
-
+        
+        MainWPChildWPRocket::Instance()->init();
+             
         MainWPChildBackWPup::Instance()->init();
 
         //Call the function required
@@ -1288,9 +1291,20 @@ class MainWPChild
 
             if (count($themes) > 0)
             {
+                // To fix: optimizePressTheme update 
+                $addFilterToFixUpdate_optimizePressTheme = false;
+                if (in_array('optimizePressTheme', $themes)) {
+                    $addFilterToFixUpdate_optimizePressTheme = true;
+                    add_filter('site_transient_update_themes', array($this, 'hookFixOptimizePressThemeUpdate'), 99);
+                }
+                
                 //@see wp-admin/update.php
                 $upgrader = new Theme_Upgrader(new Bulk_Theme_Upgrader_Skin(compact('nonce', 'url')));
                 $result = $upgrader->bulk_upgrade($themes);
+                
+                if ($addFilterToFixUpdate_optimizePressTheme)
+                    remove_filter( 'site_transient_update_themes', array($this, 'hookFixOptimizePressThemeUpdate'), 99 );
+                
                 if (!empty($result))
                 {
                     foreach ($result as $theme => $info)
@@ -1416,6 +1430,38 @@ class MainWPChild
         MainWPHelper::write($information);
     }
 
+    function hookFixOptimizePressThemeUpdate($transient) {
+        if (!defined('OP_FUNC')) {
+            return $transient;
+        }
+
+        $theme_slug = 'optimizePressTheme';
+
+        if (!function_exists('op_sl_update')) {
+            require_once OP_FUNC.'options.php';
+            require_once OP_FUNC.'sl_api.php';
+        }
+        $apiResponse = op_sl_update('theme');
+
+        if (is_wp_error($apiResponse)) {
+            return $transient;
+        }
+
+        $obj                = new stdClass();
+        $obj->slug          = $theme_slug;
+        $obj->new_version   = $apiResponse->new_version;
+        $obj->url           = $apiResponse->url;
+        $obj->package       = $apiResponse->s3_package;
+        $obj->sections      = array(
+            'description' => $apiResponse->section->description,
+            'changelog' => $apiResponse->section->changelog,
+        );
+
+        $transient->response[$theme_slug] = (array) $obj;
+
+        return $transient;
+    }
+    
     //This will register the current wp - thus generating the public key etc..
     function registerSite()
     {
@@ -2630,6 +2676,16 @@ class MainWPChild
                     }
                 }
             }
+            
+            if (isset($othersData['syncWPRocketData']) && ($othersData['syncWPRocketData'] == 'yes')) {                
+                $data = array();                
+                if (MainWPChildWPRocket::isActivated()){                    
+                    $boxes = get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true );                    
+                    $data['rocket_boxes'] = $boxes;                    
+                }         
+                $information['syncWPRocketData'] =   $data;
+            }
+            
         }
 
         $information['faviIcon'] = $this->get_favicon();
@@ -4211,6 +4267,10 @@ class MainWPChild
             MainWPHelper::write(array('error' => $error));
         }
         MainWPChildBackUpWordPress::Instance()->action();
+    }
+    
+    function wp_rocket() {     
+        MainWPChildWPRocket::Instance()->action();
     }
 
     function backwpup() {
