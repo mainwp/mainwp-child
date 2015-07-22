@@ -58,6 +58,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
+= 2.0.22 - 7-22-15 =
+* Fixed: Bug where the OptmizePress theme has not been updated properly
+* Fixed: Bug where the Client Report extenison recored incorrect time 
+* Added: Support for the upcomming extension
+
 = 2.0.21 - 7-9-15 =
 * Fixed: Bug with time schedule for the UpdraftPlus extension
 * Added: Support for the upcomming extension
