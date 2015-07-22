@@ -253,11 +253,10 @@ class MainWPClientReport
                        list($context, $action, $data) = $array_tmp;                        
                    }       
 
-                    $context = isset($convert_context_name[$context]) ? $convert_context_name[$context] : $context;
+                    $context = isset($convert_context_name[$context]) ? $convert_context_name[$context] : $context;                    
                     if (isset($convert_action_name[$action])) {
                         $action = $convert_action_name[$action];
                     }
-
                     switch ($data) {                      
                        case "count": 
                            $count = 0;
@@ -269,7 +268,7 @@ class MainWPClientReport
                                     if ($record->context !== "profiles" || $record->connector !== "users")
                                         continue;                                    
                                 } else if ($context == "mainwp_backups") {
-                                    if ($record->context !== "mainwp_backups") {
+                                    if ($record->context !== "mainwp_backups"  && $record->context !== "updraftplus_backups" &&  $record->context !== "backupwordpress_backups") {
                                         continue;
                                     }
                                 } else if ($context == "mainwp_sucuri") {
@@ -373,7 +372,7 @@ class MainWPClientReport
                 else 
                     $users_updated = true; 
             } else if ($context == "mainwp_backups") {
-                if ($record->context !== "mainwp_backups") {
+                if ($record->context !== "mainwp_backups" && $record->context !== "updraftplus_backups" &&  $record->context !== "backupwordpress_backups") {
                     continue;
                 }
             } else if ($context == "mainwp_sucuri") {
@@ -432,7 +431,7 @@ class MainWPClientReport
                                 
                 switch ($data) {
                     case "date":
-                        $token_values[$token] = MainWPHelper::formatTimestamp(strtotime($record->created));                            
+                        $token_values[$token] = MainWPHelper::formatTimestamp(MainWPHelper::getTimestamp(strtotime($record->created)));
                         break;
                     case "area":                        
                         $data = "sidebar_name";  

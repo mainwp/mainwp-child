@@ -87,8 +87,30 @@ class MainWPHelper
     
     static function createPost($new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags)
     {
-        global $current_user;
-
+        global $current_user;        
+        $wprocket_fields = array( 'lazyload', 'lazyload_iframes', 'minify_html', 'minify_css', 'minify_js', 'cdn' );     
+        $wprocket_activated = false;
+        if (MainWPChildWPRocket::isActivated()) {
+            if (function_exists('get_rocket_option')) {
+                $wprocket_activated = true;
+                foreach ( $wprocket_fields as $field ) {
+                    if (!isset($post_custom['_rocket_exclude_' . $field])) {  // check not exclude only                     
+                        if (!get_rocket_option( $field )) {
+                            $post_custom['_rocket_exclude_' . $field] = array(true); // set as excluded
+                        }
+                    }
+                }
+            }
+        }     
+        
+        if (!$wprocket_activated) {
+            foreach ( $wprocket_fields as $field ) {
+                if (isset($post_custom['_rocket_exclude_' . $field])) {
+                    unset($post_custom['_rocket_exclude_' . $field]);
+                }
+            }
+        }        
+        
         //Set up a new post (adding addition information)
         $usr = get_user_by('login', $_POST['user']);
         //$new_post['post_author'] = $current_user->ID;
