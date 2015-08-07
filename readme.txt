@@ -58,7 +58,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
-= 2.0.22 - 8-7-15 =
+= 2.0.23 - 8-7-15 =
 * Fixed: An issue with Heatmaps not loading
 * Added: Support for the Establish New Connection feature
 * Added: Support for the Abandoned plugins detection feature

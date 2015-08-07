@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.22';
+    private $version = '2.0.23';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -69,7 +69,8 @@ class MainWPChild
         'updraftplus' => 'updraftplus',
         'backup_wp' => 'backup_wp',
         'backwpup' => 'backwpup',        
-        'wp_rocket' => 'wp_rocket'
+        'wp_rocket' => 'wp_rocket',
+        'settings_tools' => 'settings_tools'
     );
 
     private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -92,7 +93,7 @@ class MainWPChild
     public function __construct($plugin_file)
     {			
         $this->update();
-
+              
         $this->filterFunction = create_function( '$a', 'if ($a == null) { return false; } return $a;' );
         $this->plugin_dir = dirname($plugin_file);
         $this->plugin_slug = plugin_basename($plugin_file);
@@ -115,7 +116,10 @@ class MainWPChild
 		
         MainWPClone::init();
         MainWPChildServerInformation::init();  
-        MainWPClientReport::init();
+        MainWPClientReport::init();             
+        MainWPChildPluginsCheck::Instance();
+        MainWPChildThemesCheck::Instance();
+        
         $this->run_saved_snippets();
 
         if (!get_option('mainwp_child_pubkey'))
@@ -846,8 +850,8 @@ class MainWPChild
         MainWPChildWPRocket::Instance()->init();
              
         MainWPChildBackWPup::Instance()->init();
-
-        //Call the function required
+      
+            //Call the function required
         if (isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
         {
             call_user_func(array($this, ($auth ? $this->callableFunctions[$_POST['function']]
@@ -2434,7 +2438,19 @@ class MainWPChild
         if ($exit) $this->updateExternalSettings();
 
         MainWPHelper::update_option('mainwp_child_branding_disconnected', '', 'yes');
-
+        if (isset($_POST['server']))
+            MainWPHelper::update_option('mainwp_child_server', $_POST['server']); 
+        
+        if (isset($_POST['numberdaysOutdatePluginTheme']) && !empty($_POST['numberdaysOutdatePluginTheme'])) {
+            $days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
+            if ($days_outdate != $_POST['numberdaysOutdatePluginTheme']) {
+                $days_outdate = $_POST['numberdaysOutdatePluginTheme'];
+                MainWPHelper::update_option('mainwp_child_plugintheme_days_outdate', $days_outdate); 
+                MainWPChildPluginsCheck::Instance()->cleanup_deactivation(false);
+                MainWPChildThemesCheck::Instance()->cleanup_deactivation(false);
+            }
+        }
+        
         $information['version'] = $this->version;
         $information['wpversion'] = $wp_version;
         $information['siteurl'] = get_option('siteurl');
@@ -2695,6 +2711,9 @@ class MainWPChild
         if (isset($last_post) && isset($last_post['post_modified_gmt'])) $information['last_post_gmt'] = strtotime($last_post['post_modified_gmt']);
         $information['mainwpdir'] = (MainWPHelper::validateMainWPDir() ? 1 : -1);
         $information['uniqueId'] = get_option('mainwp_child_uniqueId', '');
+        $information['plugins_outdate_info'] = MainWPChildPluginsCheck::Instance()->get_plugins_outdate_info();
+        $information['themes_outdate_info'] = MainWPChildThemesCheck::Instance()->get_themes_outdate_info();
+        
         if ($exit) MainWPHelper::write($information);
 
         return $information;
@@ -3058,115 +3077,6 @@ class MainWPChild
 			MainWPHelper::write($information);
 		}
     }
-
-    // function get_next_time_of_post_to_post()
-    // {
-        // /** @var $wpdb wpdb */
-        // global $wpdb;
-		// try
-		// {
-			// $ct = current_time('mysql');
-			// $next_post = $wpdb->get_row("
-				// SELECT *
-				// FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id
-				// WHERE
-					// pm.meta_key='_ezine_keyword' AND
-					// p.post_status='future' AND
-					// p.post_type='post' AND
-					// p.post_date>'$ct'
-				// ORDER BY p.post_date
-				// LIMIT 1");
-
-			// if (!$next_post)
-			// {
-				// $information['error'] =  "Can not get next schedule post";
-			// }
-			// else
-			// {
-				// $information['next_post_date'] =  $next_post->post_date;
-				// $information['next_post_id'] =  $next_post->ID;
-
-				// $next_posts = $wpdb->get_results("
-				// SELECT DISTINCT  `ID`
-					// FROM $wpdb->posts p
-					// JOIN $wpdb->postmeta pm ON p.ID = pm.post_id
-					// WHERE pm.meta_key =  '_ezine_keyword'
-					// AND p.post_status =  'future'
-					// AND p.post_date > NOW( )
-					// ORDER BY p.post_date
-				// ");
-
-				// if (!$next_posts)
-					// $information['error'] =  "Can not get all next schedule post";
-				// else
-					// $information['next_posts'] =  $next_posts;
-
-			// }
-
-			// MainWPHelper::write($information);
-		// }
-		// catch (Exception $e)
-		// {
-			// $information['error'] = $e->getMessage();
-			// MainWPHelper::write($information);
-		// }
-    // }
-
-    // function get_next_time_of_page_to_post()
-    // {
-        // /** @var $wpdb wpdb */
-        // global $wpdb;
-		// try
-		// {
-
-			// $ct = current_time('mysql');
-			// $next_post = $wpdb->get_row("
-				// SELECT *
-				// FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id
-				// WHERE
-					// pm.meta_key='_ezine_keyword' AND
-					// p.post_status='future' AND
-					// p.post_type='page' AND
-					// p.post_date>'$ct'
-				// ORDER BY p.post_date
-				// LIMIT 1");
-
-			// if (!$next_post)
-			// {
-				// $information['error'] =  "Can not get next schedule post";
-			// }
-			// else
-			// {
-
-				// $information['next_post_date'] =  $next_post->post_date;
-				// $information['next_post_id'] =  $next_post->ID;
-
-				 // $next_posts = $wpdb->get_results("
-					// SELECT DISTINCT  `ID`
-						// FROM $wpdb->posts p
-						// JOIN $wpdb->postmeta pm ON p.ID = pm.post_id
-						// WHERE pm.meta_key =  '_ezine_keyword'
-						// AND p.post_status =  'future'
-						// AND p.post_date > NOW( )
-						// ORDER BY p.post_date
-					// ");
-
-				// if (!$next_posts)
-					// $information['error'] =  "Can not get all next schedule post";
-				// else
-					// $information['next_posts'] =  $next_posts;
-
-			// }
-
-			// MainWPHelper::write($information);
-		// }
-		// catch (Exception $e)
-		// {
-			// $information['error'] = $e->getMessage();
-			// MainWPHelper::write($information);
-		// }
-
-    // }
 
     function get_all_pages()
     {
@@ -3681,7 +3591,7 @@ class MainWPChild
         foreach ($to_delete as $delete)
         {  
             delete_option($delete);           
-        }
+        }         
     }
 
     function deactivation()
@@ -4276,8 +4186,8 @@ class MainWPChild
     function backwpup() {
         MainWPChildBackWPup::Instance()->action();
     }
-
-
+    
+  
     function delete_backup()
     {
         $dirs = MainWPHelper::getMainWPDir('backup');
@@ -4344,5 +4254,33 @@ class MainWPChild
         }
         return @fclose($handle);
     }
+    
+    function settings_tools() {
+        if (isset($_POST['action'])) {
+            switch ($_POST['action']) {
+                case 'force_destroy_sessions';
+                    if (get_current_user_id() == 0) {
+                        MainWPHelper::write(array('error' => __( 'Cannot get user_id', 'mainwp-child' ) ) );
+                    }
+
+                    wp_destroy_all_sessions();
+
+                    $sessions = wp_get_all_sessions();
+
+                    if (empty($sessions)) {
+                        MainWPHelper::write(array('success' => 1));   
+                    } else {
+                        MainWPHelper::write(array('error' => __( 'Cannot destroy sessions', 'mainwp-child' ) ) );
+                    }
+                break;
+                
+                default:
+                    MainWPHelper::write(array('error' => __( 'Invalid action', 'mainwp-child' ) ) );
+            }
+        } else {
+            MainWPHelper::write(array('error' => __( 'Missing action', 'mainwp-child' ) ) );
+        }
+    }
+    
 }
 ?>
