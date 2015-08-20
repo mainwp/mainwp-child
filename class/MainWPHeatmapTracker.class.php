@@ -206,7 +206,7 @@ class MainWPHeatmapTracker
                 $sendNow = array();                
                 if (count($clickData) > 1000) {
                     for($i = 0; $i < 1000; $i++) {
-                        $sendNow[$i] = $clickData[$i];
+                        $sendNow[] = $clickData[$i];
                     }
                 } else {
                     $sendNow = $clickData;                
@@ -224,19 +224,20 @@ class MainWPHeatmapTracker
 				'signature' => $signature,
 				'data' => base64_encode(serialize($sendNow)),
 				'action' => 'heatmapSendClick'
-			)                        
+			),
+                        'timeout' => 30
 		);
                 
                 if (strpos($url, "https://") === 0)
                       $params['sslverify'] = FALSE; 
                 
-		$request = wp_remote_post($url, $params);                
-
-		if ( is_array($request) && intval($request['body']) > 0 ) {
+		$request = wp_remote_post($url, $params);                 
+                
+		if ( is_array($request) && isset($request['response']['code']) && $request['response']['code'] == 200) {
                         if (count($clickData) > 1000) {
                             $saveData = array();
                             for($i = 1000; $i < count($clickData); $i++ ) {
-                                $saveData[$i] = $clickData[$i];
+                                $saveData[] = $clickData[$i];
                             }
                             MainWPHelper::update_option('mainwp_child_click_data', $saveData);
                         } else {
@@ -306,10 +307,10 @@ class MainWPHeatmapTracker
 			remove_action('wp_footer','wp_admin_bar_render',1000);
 			remove_action('wp_head', '_admin_bar_bump_cb');
 			$pageUrl = sprintf('%s%s', preg_replace('#^((http|https)://([^/]+)).*#is', '$1', site_url()), $_SERVER['REQUEST_URI']);
-			$pageUrl = preg_replace('#(&|\?)heatmap(|_start|_end|_browser|_browser_version|_platform|_width)=([^&]*)#is', '', $pageUrl);
+			$pageUrl = preg_replace('#(&|\?)heatmap(|_start|_end|_browser|_browser_version|_platform|_width)=?([^&]*)#is', '', $pageUrl);
 			$page = $this->getPageObject($pageUrl);
-			$start = isset( $_GET['heatmap_start'] ) && preg_match('/^[0123][0-9]\/[01][0-9]\/[2][01][0-9]{2}$/is', $_GET['heatmap_start']) ? $_GET['heatmap_start'] : null;
-			$end = isset( $_GET['heatmap_end'] ) && preg_match('/^[0123][0-9]\/[01][0-9]\/[2][01][0-9]{2}$/is', $_GET['heatmap_end']) ? $_GET['heatmap_end'] : null;
+			$start = isset( $_GET['heatmap_start'] ) && preg_match('/^[2][01][0-9]{2}[\/\-][01][0-9][\/\-][0123][0-9]$/is', $_GET['heatmap_start']) ? $_GET['heatmap_start'] : null;
+			$end = isset( $_GET['heatmap_end'] ) && preg_match('/^[2][01][0-9]{2}[\/\-][01][0-9][\/\-][0123][0-9]$/is', $_GET['heatmap_end']) ? $_GET['heatmap_end'] : null;
 			$browser = isset($_GET['heatmap_browser']) ? strtolower($_GET['heatmap_browser']) : '';
 			$browserVersion = isset($_GET['heatmap_browser_version']) ? $_GET['heatmap_browser_version'] : '';
 			$platform = isset($_GET['heatmap_platform']) ? strtolower($_GET['heatmap_platform']) : '';
@@ -394,6 +395,7 @@ class MainWPHeatmapTracker
                 
 		$request = wp_remote_post($url, $params);
 		
+                
         if ( is_array($request) )
         {
     		$clicks = ( ! empty($request['body']) ) ? json_decode($request['body']) : array();

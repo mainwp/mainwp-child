@@ -13,18 +13,20 @@ class MainWPClone
     public static function init_menu($the_branding, $childMenuSlug = "")
     {     
         if (empty($the_branding))
-            $the_branding = "MainWP";        
+            $the_branding = "MainWP";      
+        $page_title = $the_branding . "Clone";
         //$page = add_options_page('MainWPClone', __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
-        $page = add_submenu_page($childMenuSlug, 'MainWPClone', __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
+        $page = add_submenu_page($childMenuSlug, $page_title, __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
         add_action('admin_print_scripts-'.$page, array('MainWPClone', 'print_scripts'));
     }
 
     public static function init_restore_menu($the_branding, $childMenuSlug = "")
     {
         if (empty($the_branding))
-            $the_branding = "MainWP";       
+            $the_branding = "MainWP";    
+        $page_title = $the_branding . "Clone";
         //$page = add_options_page('MainWPClone', __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
-        $page = add_submenu_page($childMenuSlug, 'MainWPClone', __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
+        $page = add_submenu_page($childMenuSlug, $page_title, __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
         add_action('admin_print_scripts-'.$page, array('MainWPClone', 'print_scripts'));
     }
 

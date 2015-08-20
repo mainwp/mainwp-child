@@ -681,6 +681,10 @@ class MainWPChildBranding
     }
     
     public static function is_branding() {
+        $cancelled_branding = (get_option('mainwp_child_branding_disconnected') === 'yes') && !get_option('mainwp_branding_preserve_branding');
+        if ($cancelled_branding)
+            return false;      
+        
         // hide
         if (get_option('mainwp_branding_child_hide') == 'T')
             return true;
@@ -690,6 +694,14 @@ class MainWPChildBranding
             return true;
         return false;
     }
+    
+    public static function get_branding() {
+        if(self::is_branding()) {
+            $header = get_option('mainwp_branding_plugin_header');              
+            return $header['name'];
+        }
+        return "MainWP";
+    }    
     
     function check_update_child_plugin() {
         if ( $plugins = current_user_can( 'update_plugins' ) ) {

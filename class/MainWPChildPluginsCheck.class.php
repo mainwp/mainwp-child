@@ -133,6 +133,8 @@ class MainWPChildPluginsCheck
 
     public function get_plugins_outdate_info() {        
         $plugins_outdate = get_transient( $this->tran_name_plugin_timestamps );
+        if (!is_array($plugins_outdate))
+            $plugins_outdate = array();
         if( ! function_exists( 'get_plugins' ) )
         {
             require_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -333,10 +335,15 @@ class MainWPChildPluginsCheck
             //Requires WP 3.4.0
             $url = set_url_scheme( $url, 'https' );
         }
-
+        
+        $plugin_dir = $plugin;
+        if (strpos($plugin, "/") !== false) {
+            $plugin_dir = dirname($plugin);
+        }
+        
         //Try to get the response (usually the SSL version)
         //Requires WP 2.7.0
-        $raw_response = wp_remote_get( $url . $plugin, $options );
+        $raw_response = wp_remote_get( $url . $plugin_dir, $options );
 
         //If we don't have an error and we received a valid response code
         //Requires WP 2.7.0
