@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.3
-Stable tag: 2.0.23
+Stable tag: 2.0.24
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,7 +17,7 @@ Allows you to manage multiple blogs from one dashboard by providing a secure con
 
 This is the Child plugin for the [MainWP Dashboard](https://wordpress.org/plugins/mainwp/)
 
-The MainWP Child plugin is used so the installed blog can be securely managed remotely by your WordPress Network.
+The MainWP Child plugin is used to securely remotely manage multiple WordPress websites from your MainWP Dashboard.  This plugin is to be installed on every WordPress site you want controlled from your Dashboard.
 
 [MainWP](https://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
 
@@ -57,6 +57,13 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 10. The Extension Screen
 
 == Changelog ==
+
+= 2.0.24 - 8-20-15 =
+* Fixed: Incorrect last update value for abandoned plugins & themes feature
+* Fixed: Branding for Server Information page and Clone page title
+* Fixed: Incorrect heatmap data and warnings
+* Fixed: Can not add child site because get favicon timeout 
+* Fixed: Hiding UpdraftPlus, WP Rocket toolbar and their notices when set to hide plugins
 
 = 2.0.23 - 8-7-15 =
 * Fixed: An issue with Heatmaps not loading
