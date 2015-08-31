@@ -17,20 +17,29 @@ class MainWPClientReport
     }
         
     public static function  init() {                
-        add_filter('wp_stream_connectors', array('MainWPClientReport', 'init_stream_connectors'), 10, 1);   
-        add_filter('mainwp_client_reports_connectors', array('MainWPClientReport', 'init_connectors'), 10, 1);   
+        add_filter('wp_stream_connectors', array('MainWPClientReport', 'init_stream_connectors'), 10, 1);
+        add_filter('mainwp_client_reports_connectors', array('MainWPClientReport', 'init_connectors'), 10, 1);
     }
         
     public static function init_stream_connectors($classes) {
         $connectors = array(
             'Backups',
-            'Sucuri',                  
-        );      
-        
-        foreach ( $connectors as $connector ) {                
-                $class     = "MainWPStreamConnector$connector";
+            'Sucuri',
+        );
+
+        foreach ( $connectors as $connector ) {
+            $class_name = "MainWPStreamConnector$connector";
+            if ( ! class_exists( $class_name ) ) {
+                continue;
+            }
+            $class = new $class_name();
+            if ( ! method_exists( $class, 'is_dependency_satisfied' ) ) {
+                continue;
+            }
+            if ( $class->is_dependency_satisfied() ) {
                 $classes[] = $class;
-        }          
+            }
+        }
         return $classes;
     }
     
