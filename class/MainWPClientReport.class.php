@@ -155,11 +155,6 @@ class MainWPClientReport
             $records = wp_stream_query( $args );        
         }
         
-//        if (count($records) > 0)
-//            error_log(print_r($records, true));
-//        else 
-//            error_log("==============");
-        
         if (!is_array($records)) 
             $records = array();
         
@@ -466,16 +461,24 @@ class MainWPClientReport
                         }
                         break;
                     case "title":  
-                        if ($context == "page" || $context == "post" || $context == "comments")
+                        if ($context == "comments") {
+                            $token_values[$token] = $record->summary;
+                        } else { 
+                            if ($context == "page" || $context == "post")
                             $data = "post_title";      
                         else if ($record->connector == "menus") {
                             $data = "name";      
                         }
                         $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
+                        }
                         break;
                     case "author":   
                         $data = "author_meta";
-                        $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
+                        $value = $this->get_stream_meta_data($record, $data);                           
+                        if (empty($value) && $context == "comments") {
+                            $value =  __('Guest', 'mainwp-child-reports');
+                        }
+                        $token_values[$token] = $value;                        
                         break; 
                     case "status":   // sucuri cases                         
                     case "webtrust":                       

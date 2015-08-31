@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.24';
+    private $version = '2.0.25';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -1008,8 +1008,8 @@ class MainWPChild
                 'clear_destination' => (isset($_POST['overwrite']) && $_POST['overwrite'] == true), //overwrite files?
                 'clear_working' => true,
                 'hook_extra' => array()
-            ));
-
+            ));            
+             
             remove_filter( 'http_request_args', array(&$this, 'http_request_reject_unsafe_urls') , 99, 2);
             if (isset($_POST['sslVerify']) && $_POST['sslVerify'] == 0)
             {
@@ -1026,24 +1026,61 @@ class MainWPChild
                 {
                     MainWPHelper::error($error);
                 }
-            }
-
-            if ($_POST['type'] == 'plugin' && isset($_POST['activatePlugin']) && $_POST['activatePlugin'] == 'yes')
-            {
+            }         
+            
+            $args = array('success' => 1, 'action' => 'install');            
+            if ($_POST['type'] == 'plugin') {
                 $path = $result['destination'];
+                $fileName = "";
                 $rslt = null;
                 wp_cache_set('plugins', array(), 'plugins');
                 foreach ($result['source_files'] as $srcFile)
                 {
                     if (is_dir($path . $srcFile)) continue;
-
                     $thePlugin = get_plugin_data($path . $srcFile);
                     if ($thePlugin != null && $thePlugin != '' && $thePlugin['Name'] != '')
                     {
-                        activate_plugin($path . $srcFile, '', false, true);
+                        $args['type'] = 'plugin';                        
+                        $args['Name'] = $thePlugin['Name'];
+                        $args['Version'] = $thePlugin['Version']; 
+                        $args['slug'] = $result['destination_name'] . "/" . $srcFile;
+                        $fileName = $srcFile;
+                        break;                       
                     }
                 }
-            }
+                
+                if (!empty($fileName)) {
+                    do_action('mainwp_child_installPluginTheme', $args );
+                    if (isset($_POST['activatePlugin']) && $_POST['activatePlugin'] == 'yes') {
+                        activate_plugin($path . $fileName, '', false, true);                        
+                        do_action('activate_plugin', $args['slug'] , null);
+                    }
+                }
+                
+            } else {
+                $args['type'] = 'theme';
+                $args['slug'] = $result['destination_name'];          
+                do_action('mainwp_child_installPluginTheme', $args );            
+            }            
+            
+            
+//            if ($_POST['type'] == 'plugin' && isset($_POST['activatePlugin']) && $_POST['activatePlugin'] == 'yes')
+//            {
+//                $path = $result['destination'];
+//                $rslt = null;
+//                wp_cache_set('plugins', array(), 'plugins');
+//                foreach ($result['source_files'] as $srcFile)
+//                {
+//                    if (is_dir($path . $srcFile)) continue;
+//
+//                    $thePlugin = get_plugin_data($path . $srcFile);
+//                    if ($thePlugin != null && $thePlugin != '' && $thePlugin['Name'] != '')
+//                    {
+//                        activate_plugin($path . $srcFile, '', false, true);
+//                       
+//                    }
+//                }
+//            }
         }
         $information['installation'] = 'SUCCESS';
         $information['destination_name'] = $result['destination_name'];
@@ -3272,8 +3309,12 @@ class MainWPChild
                     $theTheme = get_theme($themeToDelete);
                     if ($theTheme != null && $theTheme != '')
                     {
-                        $tmp['theme'] = $theTheme['Template'];
-                        $themeUpgrader->delete_old_theme(null, null, null, $tmp);
+                        $tmp['theme'] = $theTheme['Template'];                                              
+                        if (true === $themeUpgrader->delete_old_theme(null, null, null, $tmp)) {
+                            $args = array('action' => 'delete', 'Name' => $theTheme['Name']);
+                            do_action('mainwp_child_theme_action', $args);
+                        }
+                        
                     }
                 }
             }
@@ -3377,17 +3418,20 @@ class MainWPChild
 
             $wp_filesystem = $this->getWPFilesystem();
             if ($wp_filesystem == null) $wp_filesystem = new WP_Filesystem_Direct(null);
-            $pluginUpgrader = new Plugin_Upgrader();
-
+            $pluginUpgrader = new Plugin_Upgrader(); 
+            
+            $all_plugins = get_plugins();                        
             foreach ($plugins as $idx => $plugin)
             {
                 if ($plugin != $this->plugin_slug)
                 {
-                    $thePlugin = get_plugin_data($plugin);
-                    if ($thePlugin != null && $thePlugin != '')
-                    {
+                    if (isset($all_plugins[$plugin]))
+                    {                        
                         $tmp['plugin'] = $plugin;
-                        $pluginUpgrader->delete_old_plugin(null, null, null, $tmp);
+                        if (true === $pluginUpgrader->delete_old_plugin(null, null, null, $tmp)) {                      
+                            $args = array('action' => 'delete', 'Name' => $all_plugins[$plugin]['Name']);
+                            do_action('mainwp_child_plugin_action', $args);
+                        }
                     }
                 }
             }
