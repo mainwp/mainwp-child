@@ -28,9 +28,19 @@ class MainWPClientReport
         );      
         
         foreach ( $connectors as $connector ) {                
-                $class     = "MainWPStreamConnector$connector";
+            $class_name = "MainWPStreamConnector$connector";
+            if ( ! class_exists( $class_name ) ) {
+                continue;
+            }
+            $class = new $class_name();
+            if ( ! method_exists( $class, 'is_dependency_satisfied' ) ) {
+                continue;
+            }
+            if ( $class->is_dependency_satisfied() ) {
                 $classes[] = $class;
-        }          
+            }          
+        }
+
         return $classes;
     }
     
@@ -52,7 +62,7 @@ class MainWPClientReport
         $information = array();
         if (function_exists('mainwp_wp_stream_query') && class_exists('MainWP_WP_Stream') ) {
             self::$mainwpChildReports = true;
-        } else if (function_exists('wp_stream_query') && class_exists('WP_Stream') ) {
+        } else if (class_exists('WP_Stream\Plugin')) {
             self::$mainwpChildReports = false;
         } else {
             $information['error'] = 'NO_STREAM';
