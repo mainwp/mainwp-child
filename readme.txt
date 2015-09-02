@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.3
-Stable tag: 2.0.26
+Stable tag: 2.0.27
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 6. The Groups Screen
 
 == Changelog ==
+
+= 2.0.26 - 9-2-15 =
+* Fixed: Security Issue (MainWP White Hat Reward Program) 
 
 = 2.0.26 - 9-1-15 =
 * Fixed: Conflict with Stream 3 (Thanks Luke Carbis of Stream) 
