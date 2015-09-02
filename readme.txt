@@ -54,7 +54,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
-= 2.0.26 - 9-2-15 =
+= 2.0.27 - 9-2-15 =
 * Fixed: Security Issue (MainWP White Hat Reward Program) 
 
 = 2.0.26 - 9-1-15 =
