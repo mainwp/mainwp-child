@@ -570,7 +570,7 @@ class MainWPChildBranding
         {
             global $current_user;            
             $mail = '<p>Support Email from: <a href="' . site_url() . '">' . site_url() . '</a></p>';
-            $mail .= '<p>Sent from WordPress page: ' . (!empty($_POST['mainwp_branding_send_from_page']) ? '<a href="' . $_POST['mainwp_branding_send_from_page'] . '">' . $_POST['mainwp_branding_send_from_page'] . '</a></p>' : "");
+            $mail .= '<p>Sent from WordPress page: ' . (!empty($_POST['mainwp_branding_send_from_page']) ? '<a href="' . esc_url($_POST['mainwp_branding_send_from_page']) . '">' . esc_url($_POST['mainwp_branding_send_from_page']) . '</a></p>' : "");
             $mail .= '<p>Client Email: ' . $current_user->user_email . ' </p>';
             $mail .= '<p>Support Text:</p>';            
             $mail .= '<p>' . $content . '</p>';
@@ -582,6 +582,8 @@ class MainWPChildBranding
 
     function contact_support()
     {       
+       if (current_user_can( 'subscriber' ))
+            return false;
     ?>
     <style>  
         .mainwp_info-box-yellow {
@@ -596,11 +598,14 @@ class MainWPChildBranding
         }        
     </style>
     <?php 
-        if (isset($_POST['submit'])) {                  
+        if (isset($_POST['submit'])) {            
+            if (!isset($_POST['_wpnonce']) || !wp_verify_nonce($_POST['_wpnonce'], '_contactNonce')) {
+                return false;
+            }            
             $from_page = $_POST['mainwp_branding_send_from_page']; 
             $back_link = get_option('mainwp_branding_message_return_sender');
             $back_link = !empty($back_link) ? $back_link : "Go Back";
-            $back_link = !empty($from_page) ? '<a href="' .  $from_page . '" title="' . $back_link . '">' . $back_link . '</a>' : '';          
+            $back_link = !empty($from_page) ? '<a href="' .  esc_url($from_page) . '" title="' . $back_link . '">' . $back_link . '</a>' : '';          
             
            if ($this->send_support_mail()) {
                 $send_email_message = get_option("mainwp_branding_send_email_message");
@@ -652,7 +657,8 @@ class MainWPChildBranding
                         <input id="mainwp-branding-contact-support-submit" type="submit" name="submit" value="<?php echo $button_title; ?>"
                                class="button-primary button" style="float: left"/>        
                     </div>    
-                    <input type="hidden"  name="mainwp_branding_send_from_page" value="<?php echo $from_page;?>" />    
+                    <input type="hidden"  name="mainwp_branding_send_from_page" value="<?php echo esc_url($from_page);?>" />    
+                    <input type="hidden" name="_wpnonce"  value="<?php echo wp_create_nonce('_contactNonce'); ?>" />
             </form>
     <?php } 
     }
@@ -662,12 +668,15 @@ class MainWPChildBranding
      */
     public function add_support_button_in_top_admin_bar($wp_admin_bar)
     {
+        if (current_user_can( 'subscriber' ))
+            return false;
+        
         if (isset($_GET['from_page']))
-            $href = admin_url('admin.php?page=ContactSupport&from_page=' . urlencode ($_GET['from_page']));
+            $href = admin_url('admin.php?page=ContactSupport&from_page=' . urlencode (esc_url($_GET['from_page'])));
         else {                         
             $protocol = isset($_SERVER['HTTPS']) && strcasecmp($_SERVER['HTTPS'], 'off') ? 'https://' : 'http://';
             $fullurl = $protocol .$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']; 
-            $href = admin_url('admin.php?page=ContactSupport&from_page=' . urlencode($fullurl));
+            $href = admin_url('admin.php?page=ContactSupport&from_page=' . urlencode(esc_url($fullurl)));
         }
         $args = array(
             'id' => 999,
