@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.3
-Stable tag: 2.0.27
+Stable tag: 2.0.28
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 6. The Groups Screen
 
 == Changelog ==
+
+= 2.0.28 - 9-7-15 =
+* Fixed: Security Issue (MainWP White Hat Reward Program) 
+* Fixed: Support for the Stream 3 plugin
+* Fixed: Client Reports issue with recording auto saves for Posts and Pages
+* Fixed: An issue with detection for Abandoned Plugins & Themes that are not hosted on WP.org
 
 = 2.0.27 - 9-2-15 =
 * Fixed: Security Issue (MainWP White Hat Reward Program) 
