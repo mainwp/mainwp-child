@@ -232,13 +232,16 @@ class MainWPChildPluginsCheck
             }            
             $responses = array();
         }
-
+        
+        $avoid_plugins = array("sitepress-multilingual-cms/sitepress.php");
         //Grab a small number of plugins to scan
         $plugins_to_scan = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
-
+        
         //Loop through each known plugin
         foreach( $plugins_to_scan as $slug => $v )
         {
+            if (in_array($slug, $avoid_plugins))
+                continue;
             //Try to get the raw information for this plugin
             $body = $this->try_get_response_body( $slug, false );
 

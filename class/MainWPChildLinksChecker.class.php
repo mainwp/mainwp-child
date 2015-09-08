@@ -82,7 +82,11 @@ class MainWPChildLinksChecker
     function save_settings() {
         $information = array();
         $information['result'] = 'NOTCHANGE';  
-        $new_check_threshold = intval($_POST['check_threshold']);        
+        $new_check_threshold = intval($_POST['check_threshold']); 
+        
+        if(update_option('mainwp_child_blc_max_number_of_links', intval($_POST['max_number_of_links'])))
+            $information['result'] = 'SUCCESS';
+        
         if( $new_check_threshold > 0 ){
             $conf = blc_get_configuration();
             $conf->options['check_threshold'] = $new_check_threshold;
@@ -183,8 +187,13 @@ class MainWPChildLinksChecker
         return $information;
     }
         
-    static function sync_link_data() {        
-        $links = blc_get_links(array('load_instances' => true));
+    static function sync_link_data() {     
+        $max_results = get_option('mainwp_child_blc_max_number_of_links', 50);        
+        $params = array(array('load_instances' => true));       
+        if (!empty($max_results)) {
+            $params['max_results'] = $max_results;
+        }        
+        $links = blc_get_links($params);        
         $get_fields = array(
             'link_id',
             'url',

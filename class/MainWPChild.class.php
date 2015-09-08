@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.25';
+    private $version = '2.0.28';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -803,26 +803,31 @@ class MainWPChild
             MainWPHelper::error(__('Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.','mainwp-child'));
         }
 
-        //Check if the user exists & is an administrator
-        if (isset($_POST['function']) && isset($_POST['user']))
+        if (!$auth && isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]) && !isset($this->callableFunctionsNoAuth[$_POST['function']]))
         {
-            $user = get_user_by('login', $_POST['user']);
-            if (!$user)
-            {
-                MainWPHelper::error(__('No such user','mainwp-child'));
-            }
-
-            if ($user->wp_user_level != 10 && (!isset($user->user_level) || $user->user_level != 10) && !current_user_can('level_10'))
-            {
-                MainWPHelper::error(__('User is not an administrator','mainwp-child'));
-            }
-
-            $this->login($_REQUEST['user']);
+            MainWPHelper::error(__('Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.','mainwp-child'));
         }
 
-        if (isset($_POST['function']) && $_POST['function'] == 'visitPermalink')
+        if ($auth)
         {
-            if ($auth)
+            //Check if the user exists & is an administrator
+            if (isset($_POST['function']) && isset($_POST['user']))
+            {
+                $user = get_user_by('login', $_POST['user']);
+                if (!$user)
+                {
+                    MainWPHelper::error(__('No such user','mainwp-child'));
+                }
+
+                if ($user->wp_user_level != 10 && (!isset($user->user_level) || $user->user_level != 10) && !current_user_can('level_10'))
+                {
+                    MainWPHelper::error(__('User is not an administrator','mainwp-child'));
+                }
+
+                $this->login($_REQUEST['user']);
+            }
+
+            if (isset($_POST['function']) && $_POST['function'] == 'visitPermalink')
             {
                 if ($this->login($_POST['user'], true))
                 {
@@ -833,13 +838,13 @@ class MainWPChild
                     exit();
                 }
             }
-        }
-		
-        //Redirect to the admin part if needed
-        if ($auth && isset($_POST['admin']) && $_POST['admin'] == 1)
-        {
-            wp_redirect(get_option('siteurl') . '/wp-admin/');
-            die();
+
+            //Redirect to the admin part if needed
+            if (isset($_POST['admin']) && $_POST['admin'] == 1)
+            {
+                wp_redirect(get_option('siteurl') . '/wp-admin/');
+                die();
+            }
         }
 
         new MainWPChildIThemesSecurity();
@@ -854,11 +859,15 @@ class MainWPChild
         MainWPChildBackWPup::Instance()->init();
       
             //Call the function required
-        if (isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
+        if ($auth && isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
         {
-            call_user_func(array($this, ($auth ? $this->callableFunctions[$_POST['function']]
-                    : $this->callableFunctionsNoAuth[$_POST['function']])));
+            call_user_func(array($this, $this->callableFunctions[$_POST['function']]));
         }
+        else if (isset($_POST['function']) && isset($this->callableFunctionsNoAuth[$_POST['function']]))
+        {
+            call_user_func(array($this, $this->callableFunctionsNoAuth[$_POST['function']]));
+        }
+
         if (get_option('mainwpKeywordLinks') == 1) {
             new MainWPKeywordLinks();
             if (!is_admin()) {
