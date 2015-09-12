@@ -13,18 +13,20 @@ class MainWPClone
     public static function init_menu($the_branding, $childMenuSlug = "")
     {     
         if (empty($the_branding))
-            $the_branding = "MainWP";        
+            $the_branding = "MainWP";      
+        $page_title = $the_branding . "Clone";
         //$page = add_options_page('MainWPClone', __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
-        $page = add_submenu_page($childMenuSlug, 'MainWPClone', __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
+        $page = add_submenu_page($childMenuSlug, $page_title, __($the_branding . ' Clone','mainwp-child'), 'manage_options', 'MainWPClone', array('MainWPClone', 'render'));
         add_action('admin_print_scripts-'.$page, array('MainWPClone', 'print_scripts'));
     }
 
     public static function init_restore_menu($the_branding, $childMenuSlug = "")
     {
         if (empty($the_branding))
-            $the_branding = "MainWP";       
+            $the_branding = "MainWP";    
+        $page_title = $the_branding . "Clone";
         //$page = add_options_page('MainWPClone', __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
-        $page = add_submenu_page($childMenuSlug, 'MainWPClone', __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
+        $page = add_submenu_page($childMenuSlug, $page_title, __($the_branding . ' Restore','mainwp-child'), 'manage_options', 'MainWPRestore', array('MainWPClone', 'renderNormalRestore'));
         add_action('admin_print_scripts-'.$page, array('MainWPClone', 'print_scripts'));
     }
 
@@ -413,7 +415,6 @@ Author URI: http://dd32.id.au/
     public static function renderJavaScript()
     {
         $uploadSizeInBytes = min(MainWPHelper::return_bytes(ini_get('upload_max_filesize')), MainWPHelper::return_bytes(ini_get('post_max_size')));
-        $uploadSizeInBytes = ($uploadSizeInBytes?$uploadSizeInBytes:0);
         $uploadSize = MainWPHelper::human_filesize($uploadSizeInBytes);
 ?>
     <div id="mainwp-child_clone_status" title="Restore process"></div>
@@ -1141,24 +1142,16 @@ Author URI: http://dd32.id.au/
             }
 
             $filename = $backupdir . $filename;
-			if(WP_DEBUG)
-			error_log("Start wp_remote_get");
 
-            $response = wp_remote_get($url, array(    'blocking'    => true, 'timeout' => 0, 'stream' => true, 'filename' => $filename ) );
-			if(WP_DEBUG)
-			error_log("end wp_remote_get");
-			
+            $response = wp_remote_get($url, array( 'timeout' => 300000, 'stream' => true, 'filename' => $filename ) );
+
             if ( is_wp_error( $response ) ) {
-				error_log("Response is WP ERROR".var_export($response, true), E_USER_ERROR);
            		unlink( $filename );
            		return $response;
            	}
 
            	if ( 200 != wp_remote_retrieve_response_code( $response ) ){
-           		
-			error_log("Response is not status 200: ".var_export($response, true), E_USER_ERROR);
-			unlink( $filename );
-
+           		unlink( $filename );
            		return new WP_Error( 'http_404', trim( wp_remote_retrieve_response_message( $response ) ) );
            	}
 
@@ -1210,7 +1203,7 @@ Author URI: http://dd32.id.au/
                     break;
                 }
             }
-            if ($archiveFile === false) throw new Exception(__('cloneBackupDownloadPoll No download file found','mainwp-child'));
+            if ($archiveFile === false) throw new Exception(__('No download file found','mainwp-child'));
 
             $output = array('size' => filesize($archiveFile) / 1024);
         }
@@ -1245,7 +1238,7 @@ Author URI: http://dd32.id.au/
                         break;
                     }
                 }
-                if ($archiveFile === false) throw new Exception(__('cloneBackupExtract No download file found','mainwp-child'));
+                if ($archiveFile === false) throw new Exception(__('No download file found','mainwp-child'));
                 $file = $archiveFile;
             } else if(file_exists($file)) {
                 $testFull = true;
@@ -1268,7 +1261,7 @@ Author URI: http://dd32.id.au/
                 $cloneInstall->testDownload();
             }
             $cloneInstall->removeConfigFile();
-            $cloneInstall->extractBackup(ABSPATH,true);
+            $cloneInstall->extractBackup();
 
             $pubkey = get_option('mainwp_child_pubkey');
             $uniqueId = get_option('mainwp_child_uniqueId');

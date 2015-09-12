@@ -25,6 +25,44 @@ class MainWPChildWPRocket
             add_filter('all_plugins', array($this, 'all_plugins'));   
             add_action('admin_menu', array($this, 'remove_menu'));            
             add_filter('site_transient_update_plugins', array(&$this, 'remove_update_nag')); 
+            add_action('wp_before_admin_bar_render', array($this, 'wp_before_admin_bar_render'), 99);
+            add_action( 'admin_init', array( $this, 'remove_notices' ));
+        }        
+    }
+ 
+    function remove_notices() {
+        $remove_hooks['admin_notices'] = array(
+            'rocket_bad_deactivations' => 10,
+            'rocket_warning_plugin_modification' => 10,
+            'rocket_plugins_to_deactivate' => 10,
+            'rocket_warning_using_permalinks' => 10,
+            'rocket_warning_wp_config_permissions' => 10,
+            'rocket_warning_advanced_cache_permissions' => 10,
+            'rocket_warning_advanced_cache_not_ours' => 10,
+            'rocket_warning_htaccess_permissions' => 10,
+            'rocket_warning_config_dir_permissions' => 10,
+            'rocket_warning_cache_dir_permissions' => 10,
+            'rocket_warning_minify_cache_dir_permissions' => 10,
+            'rocket_thank_you_license' => 10,
+            'rocket_need_api_key' => 10,            
+        );
+        foreach($remove_hooks as $hook_name => $hooks) {
+            foreach($hooks as $method => $priority) {                
+                MainWPHelper::remove_filters_with_method_name($hook_name, $method, $priority);
+            }
+        }  
+    }
+    
+    
+    public function wp_before_admin_bar_render() {
+        global $wp_admin_bar;
+        $nodes = $wp_admin_bar->get_nodes();
+        if (is_array($nodes)) {
+            foreach($nodes as $node) {
+                if ($node->parent == "wp-rocket" || ($node->id = "wp-rocket")) {
+                    $wp_admin_bar->remove_node($node->id);
+                }   
+            }
         }        
     }
     

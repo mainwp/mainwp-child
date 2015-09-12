@@ -1,30 +1,35 @@
 <?php
-if (class_exists('WP_Stream_Connector')) {
-    class MainWPStreamConnectorSucuri extends WP_Stream_Connector   
+if (class_exists('WP_Stream\Connector')) {
+    class MainWPStreamConnectorSucuri extends WP_Stream\Connector
     {   
 
+    
 	/**
 	 * Connector slug
 	 *
 	 * @var string
 	 */
-	public static $name = 'mainwp_sucuri';
+	public $name = 'mainwp_sucuri';
 
 	/**
 	 * Actions registered for this connector
 	 *
 	 * @var array
 	 */
-	public static $actions = array(
+	public $actions = array(
 		'mainwp_sucuri_scan',		
 	);
 
+        public function is_dependency_satisfied() {
+            return true;
+	}
+        
 	/**
 	 * Return translated connector label
 	 *
 	 * @return string Translated connector label
 	 */
-	public static function get_label() {
+	public function get_label() {
 		return __( 'MainWP Sucuri', 'default' );
 	}
 
@@ -33,7 +38,7 @@ if (class_exists('WP_Stream_Connector')) {
 	 *
 	 * @return array Action label translations
 	 */
-	public static function get_action_labels() {
+	public function get_action_labels() {
 		return array(
 			'mainwp_sucuri_scan'    => __( 'Scan', 'default' ),			
 		);
@@ -44,7 +49,7 @@ if (class_exists('WP_Stream_Connector')) {
 	 *
 	 * @return array Context label translations
 	 */
-	public static function get_context_labels() {
+	public function get_context_labels() {
 		return array(
 			'mainwp_sucuri' => __( 'MainWP Sucuri', 'default' ),
 		);
@@ -58,14 +63,14 @@ if (class_exists('WP_Stream_Connector')) {
 	 * @param  int   $record     Stream record
 	 * @return array             Action links
 	 */
-	public static function action_links( $links, $record ) {
+	public function action_links( $links, $record ) {
 		if ( isset($record->object_id )) {
 			
 		}
 		return $links;
 	}
 
-        public static function callback_mainwp_sucuri_scan($data, $scan_status) {
+        public function callback_mainwp_sucuri_scan($data, $scan_status) {
             $message = "";            
             if ($scan_status == "success") {
                 $message = __("Sucuri scan success", "mainwp-child");                
@@ -85,7 +90,8 @@ if (class_exists('WP_Stream_Connector')) {
                 $message,
                 compact('scan_status', 'status', 'webtrust'),
                 0,
-                array( 'mainwp_sucuri' => 'mainwp_sucuri_scan' )
+                'mainwp_sucuri',
+                'mainwp_sucuri_scan'
             );                        
         }
     }

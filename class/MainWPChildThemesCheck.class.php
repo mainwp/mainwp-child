@@ -131,12 +131,14 @@ class MainWPChildThemesCheck
 
     public function get_themes_outdate_info() {
         $themes_outdate = get_transient( $this->tran_name_theme_timestamps );
+        if (!is_array($themes_outdate))
+            $themes_outdate = array();
          if( ! function_exists( 'wp_get_themes' ) )
         {
             require_once(ABSPATH . '/wp-admin/includes/theme.php');
         }
         $themes = wp_get_themes();        
-        $update = false;
+        $update = false;        
         foreach($themes_outdate as $slug => $v) {
             if (!isset($themes[$slug])) {
                 unset($themes_outdate[$slug]);

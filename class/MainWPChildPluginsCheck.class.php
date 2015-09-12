@@ -133,6 +133,8 @@ class MainWPChildPluginsCheck
 
     public function get_plugins_outdate_info() {        
         $plugins_outdate = get_transient( $this->tran_name_plugin_timestamps );
+        if (!is_array($plugins_outdate))
+            $plugins_outdate = array();
         if( ! function_exists( 'get_plugins' ) )
         {
             require_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -230,13 +232,16 @@ class MainWPChildPluginsCheck
             }            
             $responses = array();
         }
-
+        
+        $avoid_plugins = array("sitepress-multilingual-cms/sitepress.php");
         //Grab a small number of plugins to scan
         $plugins_to_scan = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
-
+        
         //Loop through each known plugin
         foreach( $plugins_to_scan as $slug => $v )
         {
+            if (in_array($slug, $avoid_plugins))
+                continue;
             //Try to get the raw information for this plugin
             $body = $this->try_get_response_body( $slug, false );
 
@@ -333,10 +338,15 @@ class MainWPChildPluginsCheck
             //Requires WP 3.4.0
             $url = set_url_scheme( $url, 'https' );
         }
-
+        
+        $plugin_dir = $plugin;
+        if (strpos($plugin, "/") !== false) {
+            $plugin_dir = dirname($plugin);
+        }
+        
         //Try to get the response (usually the SSL version)
         //Requires WP 2.7.0
-        $raw_response = wp_remote_get( $url . $plugin, $options );
+        $raw_response = wp_remote_get( $url . $plugin_dir, $options );
 
         //If we don't have an error and we received a valid response code
         //Requires WP 2.7.0

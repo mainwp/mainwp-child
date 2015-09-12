@@ -11,7 +11,7 @@ include_once(ABSPATH . '/wp-admin/includes/plugin.php');
 
 class MainWPChild
 {
-    private $version = '2.0.23';
+    private $version = '2.0.28';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -88,7 +88,7 @@ class MainWPChild
 
     private $filterFunction = null;
     private $branding = "MainWP";
-    private $branding_robust = "MainWP";
+    private $branding_robust = "MainWP";    
 
     public function __construct($plugin_file)
     {			
@@ -334,21 +334,23 @@ class MainWPChild
             if ((is_array($branding_header) && !empty($branding_header['name'])) && !$cancelled_branding) {
                 $this->branding = $child_menu_name = stripslashes($branding_header['name']);
                 $child_menu_icon = "";
+                $child_page_title = $child_menu_name . " Settings";                
             } else {
                 $child_menu_name = "MainWP Child";
                 $child_menu_icon = 'data:image/png+xml;base64,' . base64_encode(file_get_contents($this->plugin_dir . '/images/mainwpicon.png'));
+                $child_page_title = "MainWPSettings";                
             }
             
             add_menu_page($child_menu_name, $child_menu_name, 'manage_options', $mainwp_child_menu_slug, false, $child_menu_icon, '80.00001');
 
             if (!get_option('mainwp_branding_remove_setting') || $cancelled_branding)
             {
-                add_submenu_page('mainwp_child_tab', 'MainWPSettings',  __($this->branding . ' Settings','mainwp-child') , 'manage_options', 'mainwp_child_tab', array(&$this, 'settings'));
+                add_submenu_page('mainwp_child_tab', $child_page_title,  __($this->branding . ' Settings','mainwp-child') , 'manage_options', 'mainwp_child_tab', array(&$this, 'settings'));
             }
 
             if (!get_option('mainwp_branding_remove_server_info') || $cancelled_branding)
             {
-                add_submenu_page($mainwp_child_menu_slug, 'MainWPSettings',  __($this->branding . ' Server Information','mainwp-child') , 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
+                add_submenu_page($mainwp_child_menu_slug, $child_page_title,  __($this->branding . ' Server Information','mainwp-child') , 'manage_options', 'MainWPChildServerInformation', array('MainWPChildServerInformation', 'renderPage'));
             }
             
             if (!get_option('mainwp_branding_remove_restore') || $cancelled_branding)
@@ -373,8 +375,8 @@ class MainWPChild
 
     function admin_init(){
            MainWPChildBranding::admin_init();
-    }
-
+    }    
+    
     function settings()
     {
         if (isset($_POST['submit']))
@@ -801,6 +803,13 @@ class MainWPChild
             MainWPHelper::error(__('Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.','mainwp-child'));
         }
 
+        if (!$auth && isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]) && !isset($this->callableFunctionsNoAuth[$_POST['function']]))
+        {
+            MainWPHelper::error(__('Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.','mainwp-child'));
+        }
+
+        if ($auth)
+        {
         //Check if the user exists & is an administrator
         if (isset($_POST['function']) && isset($_POST['user']))
         {
@@ -820,8 +829,6 @@ class MainWPChild
 
         if (isset($_POST['function']) && $_POST['function'] == 'visitPermalink')
         {
-            if ($auth)
-            {
                 if ($this->login($_POST['user'], true))
                 {
                     return;
@@ -831,13 +838,13 @@ class MainWPChild
                     exit();
                 }
             }
-        }
-		
+
         //Redirect to the admin part if needed
-        if ($auth && isset($_POST['admin']) && $_POST['admin'] == 1)
+            if (isset($_POST['admin']) && $_POST['admin'] == 1)
         {
             wp_redirect(get_option('siteurl') . '/wp-admin/');
             die();
+        }
         }
 
         new MainWPChildIThemesSecurity();
@@ -851,15 +858,15 @@ class MainWPChild
              
         MainWPChildBackWPup::Instance()->init();
         //Call the function required
-
-
-            //Call the function required
-        if (isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
-
+        if ($auth && isset($_POST['function']) && isset($this->callableFunctions[$_POST['function']]))
         {
-            call_user_func(array($this, ($auth ? $this->callableFunctions[$_POST['function']]
-                    : $this->callableFunctionsNoAuth[$_POST['function']])));
+            call_user_func(array($this, $this->callableFunctions[$_POST['function']]));
         }
+        else if (isset($_POST['function']) && isset($this->callableFunctionsNoAuth[$_POST['function']]))
+        {
+            call_user_func(array($this, $this->callableFunctionsNoAuth[$_POST['function']]));
+        }
+
         if (get_option('mainwpKeywordLinks') == 1) {
             new MainWPKeywordLinks();
             if (!is_admin()) {
@@ -1009,8 +1016,8 @@ class MainWPChild
                 'clear_destination' => (isset($_POST['overwrite']) && $_POST['overwrite'] == true), //overwrite files?
                 'clear_working' => true,
                 'hook_extra' => array()
-            ));
-
+            ));            
+             
             remove_filter( 'http_request_args', array(&$this, 'http_request_reject_unsafe_urls') , 99, 2);
             if (isset($_POST['sslVerify']) && $_POST['sslVerify'] == 0)
             {
@@ -1027,24 +1034,61 @@ class MainWPChild
                 {
                     MainWPHelper::error($error);
                 }
-            }
-
-            if ($_POST['type'] == 'plugin' && isset($_POST['activatePlugin']) && $_POST['activatePlugin'] == 'yes')
-            {
+            }         
+            
+            $args = array('success' => 1, 'action' => 'install');            
+            if ($_POST['type'] == 'plugin') {
                 $path = $result['destination'];
+                $fileName = "";
                 $rslt = null;
                 wp_cache_set('plugins', array(), 'plugins');
                 foreach ($result['source_files'] as $srcFile)
                 {
                     if (is_dir($path . $srcFile)) continue;
-
                     $thePlugin = get_plugin_data($path . $srcFile);
                     if ($thePlugin != null && $thePlugin != '' && $thePlugin['Name'] != '')
                     {
-                        activate_plugin($path . $srcFile, '', false, true);
+                        $args['type'] = 'plugin';                        
+                        $args['Name'] = $thePlugin['Name'];
+                        $args['Version'] = $thePlugin['Version']; 
+                        $args['slug'] = $result['destination_name'] . "/" . $srcFile;
+                        $fileName = $srcFile;
+                        break;                       
                     }
                 }
+                
+                if (!empty($fileName)) {
+                    do_action('mainwp_child_installPluginTheme', $args );
+                    if (isset($_POST['activatePlugin']) && $_POST['activatePlugin'] == 'yes') {
+                        activate_plugin($path . $fileName, '', false, true);                        
+                        do_action('activate_plugin', $args['slug'] , null);
             }
+        }
+                
+            } else {
+                $args['type'] = 'theme';
+                $args['slug'] = $result['destination_name'];          
+                do_action('mainwp_child_installPluginTheme', $args );            
+            }            
+            
+            
+//            if ($_POST['type'] == 'plugin' && isset($_POST['activatePlugin']) && $_POST['activatePlugin'] == 'yes')
+//            {
+//                $path = $result['destination'];
+//                $rslt = null;
+//                wp_cache_set('plugins', array(), 'plugins');
+//                foreach ($result['source_files'] as $srcFile)
+//                {
+//                    if (is_dir($path . $srcFile)) continue;
+//
+//                    $thePlugin = get_plugin_data($path . $srcFile);
+//                    if ($thePlugin != null && $thePlugin != '' && $thePlugin['Name'] != '')
+//                    {
+//                        activate_plugin($path . $srcFile, '', false, true);
+//                       
+//                    }
+//                }
+//            }
         }
         $information['installation'] = 'SUCCESS';
         $information['destination_name'] = $result['destination_name'];
@@ -2724,7 +2768,8 @@ class MainWPChild
 
     function get_favicon() {
         $url = site_url();
-        $request = wp_remote_get( $url, array('timeout' => 50));
+        $request = wp_remote_get( $url, array('timeout' => 20));
+        
         $favi = "";
         if (is_array($request) && isset($request['body'])) {
             // to fix bug
@@ -2736,7 +2781,11 @@ class MainWPChild
             } else if (preg_match($preg_str2, $request['body'], $matches))
             {
                 $favi = $matches[2];
-            } else if (file_exists(ABSPATH . 'favicon.ico')) {
+            } 
+        }
+        
+        if (empty($favi)) {
+            if (file_exists(ABSPATH . 'favicon.ico')) {
                 $favi = 'favicon.ico';
             } else if (file_exists(ABSPATH . 'favicon.png')) {
                 $favi = 'favicon.png';
@@ -3268,11 +3317,15 @@ class MainWPChild
                     $theTheme = get_theme($themeToDelete);
                     if ($theTheme != null && $theTheme != '')
                     {
-                        $tmp['theme'] = $theTheme['Template'];
-                        $themeUpgrader->delete_old_theme(null, null, null, $tmp);
+                        $tmp['theme'] = $theTheme['Template'];                                              
+                        if (true === $themeUpgrader->delete_old_theme(null, null, null, $tmp)) {
+                            $args = array('action' => 'delete', 'Name' => $theTheme['Name']);
+                            do_action('mainwp_child_theme_action', $args);
                     }
+                        
                 }
             }
+        }
         }
         else
         {
@@ -3373,20 +3426,23 @@ class MainWPChild
 
             $wp_filesystem = $this->getWPFilesystem();
             if ($wp_filesystem == null) $wp_filesystem = new WP_Filesystem_Direct(null);
-            $pluginUpgrader = new Plugin_Upgrader();
-
+            $pluginUpgrader = new Plugin_Upgrader(); 
+            
+            $all_plugins = get_plugins();                        
             foreach ($plugins as $idx => $plugin)
             {
                 if ($plugin != $this->plugin_slug)
                 {
-                    $thePlugin = get_plugin_data($plugin);
-                    if ($thePlugin != null && $thePlugin != '')
-                    {
+                    if (isset($all_plugins[$plugin]))
+                    {                        
                         $tmp['plugin'] = $plugin;
-                        $pluginUpgrader->delete_old_plugin(null, null, null, $tmp);
+                        if (true === $pluginUpgrader->delete_old_plugin(null, null, null, $tmp)) {                      
+                            $args = array('action' => 'delete', 'Name' => $all_plugins[$plugin]['Name']);
+                            do_action('mainwp_child_plugin_action', $args);
                     }
                 }
             }
+        }
         }
         else
         {
@@ -3578,7 +3634,7 @@ class MainWPChild
 
     function activation()
     {
-            $to_delete = array('mainwp_child_pubkey', 'mainwp_child_nonce', 'mainwp_child_nossl', 'mainwp_child_nossl_key', 'mainwp_child_uniqueId');
+            $to_delete = array('mainwp_child_pubkey', 'mainwp_child_nonce', 'mainwp_child_nossl', 'mainwp_child_nossl_key');
             foreach ($to_delete as $delete)
             {
                 if (get_option($delete))

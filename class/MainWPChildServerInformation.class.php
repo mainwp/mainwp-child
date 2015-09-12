@@ -215,9 +215,13 @@ class MainWPChildServerInformation
     }
 
     public static function renderConflicts()
-    {
+    {               
         $conflicts = self::getConflicts();
-
+        $branding_title = "MainWP";
+        if (MainWPChildBranding::is_branding()) {
+            $branding_title = MainWPChildBranding::get_branding();
+        }
+        
         if (count($conflicts) > 0)
         {
             $information['pluginConflicts'] = $conflicts;
@@ -232,8 +236,10 @@ class MainWPChildServerInformation
             -webkit-border-radius: 3px;
             -moz-border-radius: 3px;
             border-radius: 3px;
+            <?php if (!MainWPChildBranding::is_branding()) { ?>
             padding-left: 4.5em;
             background-image: url('<?php echo plugins_url('images/mainwp-icon-orange.png', dirname(__FILE__)); ?>') !important;
+            <?php } ?>
             background-position: 1.5em 50% !important;
             background-repeat: no-repeat !important;
             background-size: 30px !important;
@@ -243,7 +249,7 @@ class MainWPChildServerInformation
             <tbody id="the-sites-list" class="list:sites">
                 <tr><td colspan="2"><strong><?php echo count($conflicts); ?> plugin conflict<?php echo (count($conflicts) > 1 ? 's' : ''); ?> found</strong></td><td style="text-align: right;"></td></tr>
                 <?php foreach ($conflicts as $conflict) { ?>
-                <tr><td><strong><?php echo $conflict; ?></strong> is installed on this site. This plugin is known to have a potential conflict with MainWP functions. <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td></tr>
+                <tr><td><strong><?php echo $conflict; ?></strong> is installed on this site. This plugin is known to have a potential conflict with <?php echo $branding_title; ?> functions. <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td></tr>
                 <?php } ?>
             </tbody>
         </table>
@@ -262,8 +268,10 @@ class MainWPChildServerInformation
             -webkit-border-radius: 3px;
             -moz-border-radius: 3px;
             border-radius: 3px;
+            <?php if (!MainWPChildBranding::is_branding()) { ?>
             padding-left: 4.5em;
             background-image: url('<?php echo plugins_url('images/mainwp-icon.png', dirname(__FILE__)); ?>') !important;
+            <?php } ?>
             background-position: 1.5em 50% !important;
             background-repeat: no-repeat !important;
             background-size: 30px !important;
@@ -295,6 +303,11 @@ class MainWPChildServerInformation
 
     public static function render()
     {
+        $branding_title = "MainWP Child";
+        if (MainWPChildBranding::is_branding()) {
+            $branding_title = MainWPChildBranding::get_branding();
+        }
+        
         ?>
         <br />
         <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
@@ -309,8 +322,8 @@ class MainWPChildServerInformation
             </thead>
 
             <tbody id="the-sites-list" class="list:sites">
-                <tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('MAINWP CHILD','mainwp'); ?></td></tr>
-                <tr><td></td><td>MainWP Child Version</td><td><?php echo self::getMainWPVersion(); ?></td><td><?php echo self::getCurrentVersion(); ?></td><td><?php echo self::getMainWPVersionCheck(); ?></td></tr>
+                <tr><td style="background: #333; color: #fff;" colspan="5"><?php echo strtoupper($branding_title);  ?></td></tr>
+                <tr><td></td><td><?php echo $branding_title; ?> Version</td><td><?php echo self::getMainWPVersion(); ?></td><td><?php echo self::getCurrentVersion(); ?></td><td><?php echo self::getMainWPVersionCheck(); ?></td></tr>
                 <?php
                 self::checkDirectoryMainWPDirectory();
                 ?><tr><td style="background: #333; color: #fff;" colspan="5"><?php _e('WORDPRESS','mainwp-child'); ?></td></tr><?php
@@ -464,7 +477,14 @@ class MainWPChildServerInformation
     }
 
     protected static function checkDirectoryMainWPDirectory($write = true)
-    {
+    {       
+        $branding_title = "MainWP";
+        if (MainWPChildBranding::is_branding()) {
+            $branding_title = MainWPChildBranding::get_branding();
+        }
+        $branding_title .= " upload directory"; 
+        
+        
         try
         {
             $dirs = MainWPHelper::getMainWPDir(null, false);
@@ -472,14 +492,14 @@ class MainWPChildServerInformation
         }
         catch (Exception $e)
         {
-            return self::renderDirectoryRow('MainWP upload directory', '', 'Writable', $e->getMessage(), false);
+            return self::renderDirectoryRow($branding_title, '', 'Writable', $e->getMessage(), false);
         }
 
         if (!is_dir(dirname($path)))
         {
             if ($write)
             {
-                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not found', false);
+                return self::renderDirectoryRow($branding_title, $path, 'Writable', 'Directory not found', false);
             }
             else return false;
         }
@@ -493,7 +513,7 @@ class MainWPChildServerInformation
             {
                 if ($write)
                 {
-                return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                return self::renderDirectoryRow($branding_title, $path, 'Writable', 'Directory not writable', false);
                 }
                 else return false;
             }
@@ -504,7 +524,7 @@ class MainWPChildServerInformation
             {
                 if ($write)
                 {
-                    return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Directory not writable', false);
+                    return self::renderDirectoryRow($branding_title, $path, 'Writable', 'Directory not writable', false);
                 }
                 else return false;
             }
@@ -512,18 +532,17 @@ class MainWPChildServerInformation
 
         if ($write)
         {
-        return self::renderDirectoryRow('MainWP upload directory', $path, 'Writable', 'Writable', true);
+        return self::renderDirectoryRow($branding_title, $path, 'Writable', 'Writable', true);
     }
         else return true;
     }
 
     protected static function renderDirectoryRow($pName, $pDirectory, $pCheck, $pResult, $pPassed)
-    {
+    {        
         ?>
     <tr>
         <td ></td>
-        <td><?php echo $pName; ?><br/><?php echo $pDirectory; ?></td>
-<!--        <td><?php echo $pDirectory; ?></td>-->
+        <td><?php echo $pName; ?><br/><?php echo (MainWPChildBranding::is_branding()) ? "" : $pDirectory; ?></td>
         <td><?php echo $pCheck; ?></td>
         <td><?php echo $pResult; ?></td>
         <td><?php echo ($pPassed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>'); ?></td>

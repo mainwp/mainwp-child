@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.2.4
-Stable tag: 2.0.23
+Tested up to: 4.3
+Stable tag: 2.0.28
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,7 +17,7 @@ Allows you to manage multiple blogs from one dashboard by providing a secure con
 
 This is the Child plugin for the [MainWP Dashboard](https://wordpress.org/plugins/mainwp/)
 
-The MainWP Child plugin is used so the installed blog can be securely managed remotely by your WordPress Network.
+The MainWP Child plugin is used to securely remotely manage multiple WordPress websites from your MainWP Dashboard.  This plugin is to be installed on every WordPress site you want controlled from your Dashboard.
 
 [MainWP](https://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
 
@@ -46,17 +46,36 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Screenshots ==
 
 1. The Dashboard Screen
-2. The Posts Screen
-3. The Comments Screen
-4. The Sites Screen
+2. The Sites Screen
+3. The Posts Screen
+4. The Extensions Screen
 5. The Plugins Screen
-6. The Themes Screen
-7. The Groups Screen
-8. The Offline Checks Screen
-9. The Clone Screen
-10. The Extension Screen
+6. The Groups Screen
 
 == Changelog ==
+
+= 2.0.28 - 9-7-15 =
+* Fixed: Security Issue (MainWP White Hat Reward Program) 
+* Fixed: Support for the Stream 3 plugin
+* Fixed: Client Reports issue with recording auto saves for Posts and Pages
+* Fixed: An issue with detection for Abandoned Plugins & Themes that are not hosted on WP.org
+
+= 2.0.27 - 9-2-15 =
+* Fixed: Security Issue (MainWP White Hat Reward Program) 
+
+= 2.0.26 - 9-1-15 =
+* Fixed: Conflict with Stream 3 (Thanks Luke Carbis of Stream) 
+
+= 2.0.25 - 8-31-15 =
+* Fixed: Issue with Client Reports extension where comments records were not displayed correctly
+* Added: Support for missing Client Report records
+
+= 2.0.24 - 8-20-15 =
+* Fixed: Incorrect last update value for abandoned plugins & themes feature
+* Fixed: Branding for Server Information page and Clone page title
+* Fixed: Incorrect heatmap data and warnings
+* Fixed: Can not add child site because get favicon timeout 
+* Fixed: Hiding UpdraftPlus, WP Rocket toolbar and their notices when set to hide plugins
 
 = 2.0.23 - 8-7-15 =
 * Fixed: An issue with Heatmaps not loading

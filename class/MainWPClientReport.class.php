@@ -4,6 +4,7 @@ class MainWPClientReport
 {   
     public static $instance = null; 
     public static $mainwpChildReports = false;
+    public static $streamVersionNumber = null;
     
     static function Instance() {
         if (MainWPClientReport::$instance == null) {
@@ -28,9 +29,19 @@ class MainWPClientReport
         );      
         
         foreach ( $connectors as $connector ) {                
-                $class     = "MainWPStreamConnector$connector";
+            $class_name = "MainWPStreamConnector$connector";
+            if ( ! class_exists( $class_name ) ) {
+                continue;
+            }
+            $class = new $class_name();
+            if ( ! method_exists( $class, 'is_dependency_satisfied' ) ) {
+                continue;
+            }
+            if ( $class->is_dependency_satisfied() ) {
                 $classes[] = $class;
-        }          
+            }          
+        }
+
         return $classes;
     }
     
@@ -50,10 +61,13 @@ class MainWPClientReport
     public function action() {   
         
         $information = array();
+        self::$mainwpChildReports = false;
         if (function_exists('mainwp_wp_stream_query') && class_exists('MainWP_WP_Stream') ) {
             self::$mainwpChildReports = true;
         } else if (function_exists('wp_stream_query') && class_exists('WP_Stream') ) {
-            self::$mainwpChildReports = false;
+            self::$streamVersionNumber = 149;
+        } else if (function_exists('wp_stream_get_instance') && class_exists('WP_Stream\Plugin')) {
+            self::$streamVersionNumber = 3; 
         } else {
             $information['error'] = 'NO_STREAM';
             MainWPHelper::write($information);
@@ -138,27 +152,34 @@ class MainWPClientReport
         }     
         
         $args['action__not_in'] =  array('login');
-      
-        $args['fields'] = 'with-meta';
-        if (isset($args['date_from']))
-            $args['date_from'] = date("Y-m-d H:i:s", $args['date_from']);
+        
+        // fix for Stream 3
+        if (self::$streamVersionNumber != 3) {
+            $args['fields'] = 'with-meta';
+            if (isset($args['date_from']))
+                $args['date_from'] = date("Y-m-d H:i:s", $args['date_from']);
 
-        if (isset($args['date_to']))
-            $args['date_to'] = date("Y-m-d H:i:s", $args['date_to']);
+            if (isset($args['date_to']))
+                $args['date_to'] = date("Y-m-d H:i:s", $args['date_to']);
+
+        } else {        
+            if (isset($args['date_from']))
+                $args['date_from'] = date("Y-m-d", $args['date_from']);
+
+            if (isset($args['date_to']))
+                $args['date_to'] = date("Y-m-d", $args['date_to']);
+        }
         
         $args['records_per_page'] = 9999;        
 //        error_log(print_r($args, true));    
         
         if (self::$mainwpChildReports) {           
             $records = mainwp_wp_stream_query( $args );        
-        } else {           
+        } else if (self::$streamVersionNumber == 149) {           
             $records = wp_stream_query( $args );        
+        }  else if (self::$streamVersionNumber == 3) {                 
+            $records = wp_stream_get_instance()->db->query->query( $args );              
         }
-        
-//        if (count($records) > 0)
-//            error_log(print_r($records, true));
-//        else 
-//            error_log("==============");
         
         if (!is_array($records)) 
             $records = array();
@@ -279,7 +300,7 @@ class MainWPClientReport
                                     if ($action != $record->action)
                                         continue;
 
-                                    if ($context == "comments" && $record->context != "page" && $record->context != "post")
+                                    if ($context === "comments" && $record->connector !== "comments")                    
                                         continue;
                                     else if ($context == "media" && $record->connector != "media")
                                         continue;
@@ -292,6 +313,14 @@ class MainWPClientReport
                                         $context !== "widgets" && $context !== "menus" &&
                                         $record->context != $context)
                                         continue;
+                                    
+                                    if ($action == 'updated' && ($context == 'post' || $context == 'page')) {
+                                        $new_status = $this->get_stream_meta_data($record, 'new_status');
+                                        if ($new_status == 'draft') // avoid auto save post
+                                            continue;
+                                    }
+
+                                    
                                 }
                                 
                                 $count++;
@@ -382,8 +411,8 @@ class MainWPClientReport
             } else {            
                 if ($action !== $record->action)
                     continue;        
-
-                if ($context === "comments" && $record->context !== "page" && $record->context !== "post")
+                                    
+                if ($context === "comments" && $record->connector !== "comments")
                     continue;
                 else if ($context === "media" && $record->connector !== "media")
                     continue;
@@ -397,7 +426,13 @@ class MainWPClientReport
                 if ($context !== "comments" && $context !== "media" && 
                     $context !== "widgets" && $context !== "menus" &&                     
                     $record->context !== $context)
-                    continue;   
+                    continue; 
+                
+                if ($action == 'updated' && ($context == 'post' || $context == 'page')) {
+                    $new_status = $this->get_stream_meta_data($record, 'new_status');
+                    if ($new_status == 'draft') // avoid auto save post
+                        continue;
+                }                
             }
             
             $token_values = array();
@@ -422,7 +457,7 @@ class MainWPClientReport
                         if ($str2 == "old")
                             $data = "old_version";
                         else if ($str2 == "current" && $str1 == "wordpress")
-                            $data = "new_version";                            
+                            $data = "new_version";                        
                     }                
                 }
                 
@@ -466,16 +501,24 @@ class MainWPClientReport
                         }
                         break;
                     case "title":  
-                        if ($context == "page" || $context == "post" || $context == "comments")
+                        if ($context == "comments") {
+                            $token_values[$token] = $record->summary;
+                        } else { 
+                            if ($context == "page" || $context == "post")
                             $data = "post_title";      
                         else if ($record->connector == "menus") {
                             $data = "name";      
                         }
                         $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
+                        }
                         break;
                     case "author":   
                         $data = "author_meta";
-                        $token_values[$token] = $this->get_stream_meta_data($record, $data);                                                                                 
+                        $value = $this->get_stream_meta_data($record, $data);                           
+                        if (empty($value) && $context == "comments") {
+                            $value =  __('Guest', 'mainwp-child-reports');
+                        }
+                        $token_values[$token] = $value;                        
                         break; 
                     case "status":   // sucuri cases                         
                     case "webtrust":                       
@@ -514,14 +557,22 @@ class MainWPClientReport
         $record_id = $record->ID;
         
         $meta_key = $data;
+        
+        if (self::$streamVersionNumber == 3 && $meta_key == "author_meta") {            
+            $meta_key = "user_meta";
+        }
+        
         $value = "";
         
         if (isset($record->meta)) {
             $meta = $record->meta;
             if (isset($meta[$meta_key])) {
                 $value = $meta[$meta_key];
-                $value = current($value); 
-                if ($meta_key == "author_meta") {
+                // fix for Stream 3
+                if (self::$streamVersionNumber != 3) {
+                    $value = current($value); 
+                }               
+                if ($meta_key == "author_meta" || $meta_key == "user_meta") {                    
                     $value = unserialize($value); 
                     $value = $value['display_name'];                    
                 }

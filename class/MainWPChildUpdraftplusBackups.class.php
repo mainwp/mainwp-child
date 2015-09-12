@@ -17,7 +17,7 @@ class MainWPChildUpdraftplusBackups
     
     public function init()
     {  
-                
+
     } 
        
     public function action() {        
@@ -2750,8 +2750,70 @@ ENDHERE;
             add_filter('all_plugins', array($this, 'all_plugins'));   
             add_action( 'admin_menu', array($this, 'remove_menu'));
             add_filter('site_transient_update_plugins', array(&$this, 'remove_update_nag'));  
+            add_action('wp_before_admin_bar_render', array($this, 'wp_before_admin_bar_render'), 99);            
+            add_action( 'admin_init', array( $this, 'remove_notices' ));
+        }  
+    }
+    
+    function remove_notices() {
+        $remove_hooks['all_admin_notices'] = array(
+//            'UpdraftPlus_Admin' => array( 
+//                'show_admin_notice_upgradead' => 10,
+//                'show_admin_warning_googledrive' => 10,
+//                'show_admin_warning_dropbox' => 10,
+//                'show_admin_warning_bitcasa' => 10, 
+//                'show_admin_warning_copycom' => 10, 
+//                'show_admin_warning_onedrive' => 10,
+//                'show_admin_warning_updraftvault' => 10,
+//                'show_admin_warning_diskspace' => 10,
+//                'show_admin_warning_disabledcron' => 10,
+//                'show_admin_nosettings_warning' => 10,
+//                'show_admin_warning_execution_time' => 10,
+//                'show_admin_warning_litespeed' => 10,
+//            ),                
+            'UpdraftPlus' => array( 
+                'show_admin_warning_unreadablelog' => 10,
+                'show_admin_warning_nolog' => 10,
+                'show_admin_warning_unreadablelog' => 10,
+                'show_admin_warning_unreadablefile' => 10,
+            ),                
+            'UpdraftPlus_BackupModule_dropbox' => array( 
+                'show_authed_admin_warning' => 10
+            ),
+            'UpdraftPlus_BackupModule_googledrive' => array( 
+                'show_authed_admin_success' => 10
+            ),
+//            'UpdraftPlus_Options' => array( 
+//                'show_admin_warning_multisite' => 10
+//            )                
+        );
+        
+        foreach($remove_hooks as $hook_name => $hooks) {
+            foreach($hooks as $class_name => $methods) {
+                foreach($methods as $method => $priority) {
+                    MainWPHelper::remove_filters_for_anonymous_class($hook_name, $class_name, $method, $priority);
+                }
+            }
+        }  
+    }
+    
+     function wp_before_admin_bar_render() {
+        global $wp_admin_bar;
+        
+        $nodes = $wp_admin_bar->get_nodes();
+        if (is_array($nodes)) {
+            foreach($nodes as $node) {                   
+                if (is_array($nodes)) {
+                    foreach($nodes as $node) {
+                        if ($node->parent == "updraft_admin_node" || ($node->id = "updraft_admin_node")) {
+                            $wp_admin_bar->remove_node($node->id);
+                        }   
+                    }
+                } 
+        
+            }
         }        
-    }   
+    }
     
     function remove_update_nag($value) {
         if (isset($value->response['updraftplus/updraftplus.php']))
