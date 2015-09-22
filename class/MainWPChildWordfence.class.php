@@ -3,7 +3,7 @@
 class MainWPChildWordfence
 {   
     public static $instance = null;   
-    private static $wfLog = false;
+    private static $wfLog = false;  
     
     public static $options_filter = array(
             'alertEmails',
@@ -369,7 +369,7 @@ class MainWPChildWordfence
                                     }
                             } else if($op == 'repair'){
                                     $dat = $issue['data'];	
-                                    $result = self::getWPFileContent($dat['file'], $dat['cType'], $dat['cName'], $dat['cVersion']);
+                                    $result = wordfence::getWPFileContent($dat['file'], $dat['cType'], $dat['cName'], $dat['cVersion']);
                                     if($result['cerrorMsg']){
                                             $errors[] = $result['cerrorMsg'];
                                             continue;

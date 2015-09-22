@@ -78,7 +78,7 @@ if (isset($_GET['skeleton_keyuse_nonce_key']) && isset($_GET['skeleton_keyuse_no
 
 class MainWPChild
 {
-    private $version = '2.0.28';
+    private $version = '2.0.29';
     private $update_version = '1.2';
 
     private $callableFunctions = array(
@@ -527,8 +527,8 @@ class MainWPChild
 
             $rules = null;
             if ((get_option('heatMapsIndividualOverrideSetting') != '1' && get_option('heatMapEnabled') !== '0') || 
-                (get_option('heatMapsIndividualOverrideSetting') == '1' && get_option('heatMapsIndividualDisable') != '1')
-                )
+                (get_option('heatMapsIndividualOverrideSetting') == '1' && get_option('heatMapsIndividualDisable') != '1') || 
+				 get_option('mainwp_kwl_enable_statistic'))                
             {
                 //Heatmap enabled
                 //Make the plugin invisible, except heatmap

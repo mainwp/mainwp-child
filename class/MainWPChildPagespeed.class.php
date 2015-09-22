@@ -183,7 +183,25 @@ class MainWPChildPagespeed
         
         $strategy = $current_values['strategy'];
         
-        $result = $this->sync_data($strategy);        
+        $result = $this->sync_data($strategy);
+        
+        if (isset($_POST['doaction']) && ($_POST['doaction'] == 'check_new_pages' || $_POST['doaction'] == 'recheck_all_pages')) {
+            if ($_POST['doaction'] == 'recheck_all_pages') {
+                $recheck = true;
+            } else {
+                $recheck = false;
+            }
+            
+            if (defined('GPI_DIRECTORY')) {
+                $options = get_option('gpagespeedi_options');
+                require_once GPI_DIRECTORY . '/core/core.php';
+                $googlePagespeedInsights = new googlePagespeedInsights($options);                  
+                if ($googlePagespeedInsights) {
+                    $googlePagespeedInsights->googlepagespeedinsightsworker( array(), true, $recheck );            
+                    $information['doaction'] = $_POST['doaction'];
+                }
+            }
+        }    
         $information['data'] = $result['data'];
         return $information;
     }

@@ -29,6 +29,8 @@ class MainWPChildBackUpWordPress
     }
     
     function remove_update_nag($value) {
+        if (isset($_POST['mainwpsignature'])) 
+            return $value;
         if (isset($value->response['backupwordpress/backupwordpress.php']))
             unset($value->response['backupwordpress/backupwordpress.php']);        
         return $value;
@@ -207,7 +209,7 @@ class MainWPChildBackUpWordPress
         }
         
         if (empty($all_schedules_ids))
-            return array('error' => __("Not found schedules.", 'mainwp-child'));
+            return array('error' => 'Not found schedules.');
         
         foreach ($all_schedules_ids as $schedule_id ) {
             if ( ! HM\BackUpWordPress\Schedules::get_instance()->get_schedule( $schedule_id ) ) 
@@ -828,9 +830,25 @@ class MainWPChildBackUpWordPress
             // do not update 'excludes' value
             $options['excludes'] =  $current_value['excludes'];
         }
-        
+		
+		$filter_opts = array(	'type', 
+								'email', 
+								'reoccurrence', 
+								'max_backups', 
+								'schedule_start_time'
+							);
+			
         $out = array();
-        if ( is_array($options)) {          
+        if ( is_array($options)) {    
+			$old_options = get_option('hmbkp_schedule_' . $sch_id);
+			if (is_array($old_options)) {
+				foreach ($old_options as $key => $val) {
+					if (!in_array($key, $filter_opts)) {
+						$options[$key] = $old_options[$key];						
+					}
+				}
+			}
+		  
             update_option( 'hmbkp_schedule_' . $sch_id, $options );
             $out['result'] = 'SUCCESS';                
         } else {

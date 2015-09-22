@@ -193,7 +193,7 @@ class MainWPChildLinksChecker
         if (!empty($max_results)) {
             $params['max_results'] = $max_results;
         }        
-        $links = blc_get_links($params);        
+        $links = blc_get_links($params);           
         $get_fields = array(
             'link_id',
             'url',
@@ -226,7 +226,7 @@ class MainWPChildLinksChecker
         }       
         
         if (is_array($links)) {
-            foreach($links as $link) {
+            foreach($links as $link) {               
                 $lnk = new stdClass();
                 foreach($get_fields as $field) {
                     $lnk->$field = $link->$field;
@@ -247,14 +247,22 @@ class MainWPChildLinksChecker
                                 }
                         }
                 }
-                $lnk->days_broken = $days_broken;
-                if ( !empty($link->_instances) ){			
-                    $instance = reset($link->_instances); 
-                    $lnk->link_text = $instance->ui_get_link_text();                    
-                    $lnk->count_instance = count($link->_instances);                    
-                    $container = $instance->get_container(); /** @var blcContainer $container */
-                    $lnk->container = $container;
+                $lnk->days_broken = $days_broken;                   
+                
+                $instances = false;
+                
+                $get_link = new blcLink( intval($link->link_id) );
+                if ( $get_link->valid() )
+                    $instances = $get_link->get_instances();
                     
+                if ( !empty($instances) ){
+                    
+                    $first_instance = reset($instances);                                   
+                    $lnk->link_text = $first_instance->ui_get_link_text();                    
+                    $lnk->count_instance = count($instances);                    
+                    $container = $first_instance->get_container(); /** @var blcContainer $container */
+                    
+                    $lnk->container = $container;                    
                     if ( !empty($container) /* && ($container instanceof blcAnyPostContainer) */ ) {                        
                         $lnk->container_type = $container->container_type;
                         $lnk->container_id = $container->container_id;                          
@@ -264,7 +272,7 @@ class MainWPChildLinksChecker
                     $can_edit_text = false;
                     $can_edit_url = false;
                     $editable_link_texts = $non_editable_link_texts = array();
-                    $instances = $link->_instances;
+                    
                     foreach($instances as $instance) {
                             if ( $instance->is_link_text_editable() ) {
                                     $can_edit_text = true;
