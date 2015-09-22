@@ -1,7 +1,7 @@
 <?php
 
 class MainWPChildServerInformation
-{
+{	
     public static function init()
     {
         add_action('wp_ajax_mainwp-child_dismiss_warnings', array('MainWPChildServerInformation', 'dismissWarnings'));
@@ -288,6 +288,7 @@ class MainWPChildServerInformation
     }
 
     protected static function getFileSystemMethod() {
+		if (defined('MAINWP_SAVE_FS_METHOD')) return MAINWP_SAVE_FS_METHOD;		
         $fs = get_filesystem_method();
         return $fs;
     }

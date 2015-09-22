@@ -720,10 +720,14 @@ class MainWPKeywordLinks
     
     public function enable_stats()
     {
+		global $mainWPChild;
         $result = array();
         $enable_stats = intval($_POST['enablestats']);
-        if (MainWPHelper::update_option('mainwp_kwl_enable_statistic', $enable_stats))
-            $return['status'] = 'SUCCESS';                      
+		if ($enable_stats != get_option('mainwp_kwl_enable_statistic')) {
+			if (MainWPHelper::update_option('mainwp_kwl_enable_statistic', $enable_stats))
+				$return['status'] = 'SUCCESS';              
+			$mainWPChild->update_htaccess(true);
+		}
         return $return;
     }
 	
