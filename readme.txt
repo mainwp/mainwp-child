@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.3
-Stable tag: 2.0.28
+Tested up to: 4.3.1
+Stable tag: 2.0.29
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,15 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 6. The Groups Screen
 
 == Changelog ==
+
+= 2.0.29 - 9-22-15 =
+Fixed: 404 error that occurs in case Links Manger extension is in use when child plugin is hidden
+Fixed: Bug with detecting updates of hidden plugins (UpdraftPlus, BackUpWordPress, WP Rocket)
+Fixed: Bug with overwriting Amazon S3 settings in BackUpWordPress plugin
+Fixed: Bug with empty values for Text Link and Link Source options in Broken Links Checker Extension 
+Fixed: Bug with bulk repair action in Wordfence Extension
+Fixed: Bug with incorrect File System Method detection
+Added: Support for an upcoming Extension
 
 = 2.0.28 - 9-7-15 =
 * Fixed: Security Issue (MainWP White Hat Reward Program) 
