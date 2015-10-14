@@ -586,6 +586,7 @@ class MainWPHelper
             ob_end_clean();
             if (empty($creds))
             {
+				if (!defined('MAINWP_SAVE_FS_METHOD')) define( 'MAINWP_SAVE_FS_METHOD', get_filesystem_method());	
                 define('FS_METHOD', 'direct');
             }
             $init = WP_Filesystem($creds);

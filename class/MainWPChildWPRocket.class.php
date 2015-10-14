@@ -67,6 +67,8 @@ class MainWPChildWPRocket
     }
     
     function remove_update_nag($value) {
+        if (isset($_POST['mainwpsignature'])) 
+            return $value;
         if (isset($value->response['wp-rocket/wp-rocket.php']))
             unset($value->response['wp-rocket/wp-rocket.php']);        
         return $value;

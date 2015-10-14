@@ -605,6 +605,9 @@ class MainWPClientReport
     }    
     
     function remove_update_nag($value) {
+        if (isset($_POST['mainwpsignature'])) 
+            return $value;
+        
         if (isset($value->response['stream/stream.php']))
             unset($value->response['stream/stream.php']);
         
