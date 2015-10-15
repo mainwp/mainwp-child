@@ -13,12 +13,8 @@ if ( ( isset( $_REQUEST['heatmap'] ) && '1' === $_REQUEST['heatmap'] ) || ( isse
 //header('X-Frame-Options: GOFORIT');
 include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from wordpress
 
-$main_wp_class_dir = trailingslashit( plugin_dir_path( dirname( __FILE__ ) ) ) . 'class';
-
 function mainwp_child_autoload( $class_name ) {
-	global $main_wp_class_dir;
-
-	$autoload_dir  = \trailingslashit( $main_wp_class_dir );
+	$autoload_dir  = \trailingslashit( dirname( __FILE__ ) . '/class' );
 	$autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
 
 	if ( file_exists( $autoload_path ) ) {

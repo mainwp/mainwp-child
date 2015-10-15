@@ -472,7 +472,6 @@ class MainWP_Backup {
 	}
 
 	public function createZipPclFullBackup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
-		global $main_wp_class_dir;
 		//Create backup folder
 		$backupFolder = dirname( $filepath ) . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
 		// @codingStandardsIgnoreStart
