@@ -4,12 +4,12 @@ if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
 	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
 }
 
-class MainWPChildBackWPup {
+class MainWP_Child_Back_WP_Up {
 	public $is_backwpup_installed = false;
 	public $is_backwpup_pro = false;
-	public $plugin_translate = "mainwp-backwpup-extension";
+	public $plugin_translate = 'mainwp-backwpup-extension';
 	public static $instance = null;
-	protected $software_version = "0.1";
+	protected $software_version = '0.1';
 	public static $information = array();
 
 	protected $exclusions = array(
@@ -28,7 +28,7 @@ class MainWPChildBackWPup {
 			'daycronminutes',
 			'daycronhours',
 			'hourcronminutes',
-			'cronbtype'
+			'cronbtype',
 		),
 		'dest-EMAIL'     => array( 'emailpass' ),
 		'dest-DBDUMP'    => array( 'dbdumpspecialsetalltables' ),
@@ -38,40 +38,40 @@ class MainWPChildBackWPup {
 		'dest-SUGARSYNC' => array( 'sugaremail', 'sugarpass', 'sugarrefreshtoken' ),
 		'dest-GDRIVE'    => array( 'gdriverefreshtoken' ),
 		'dest-RSC'       => array( 'rscapikey' ),
-		'dest-GLACIER'   => array( 'glaciersecretkey' )
+		'dest-GLACIER'   => array( 'glaciersecretkey' ),
 	);
 
 	static function Instance() {
-		if ( MainWPChildBackWPup::$instance == null ) {
-			MainWPChildBackWPup::$instance = new MainWPChildBackWPup();
+		if ( MainWP_Child_Back_WP_Up::$instance == null ) {
+			MainWP_Child_Back_WP_Up::$instance = new MainWP_Child_Back_WP_Up();
 		}
 
-		return MainWPChildBackWPup::$instance;
+		return MainWP_Child_Back_WP_Up::$instance;
 	}
 
 	public function __construct() {
 		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 
-		if ( is_plugin_active( "backwpup-pro/backwpup.php" ) && file_exists( plugin_dir_path( __FILE__ ) . "../../backwpup-pro/backwpup.php" ) ) {
-			require_once( plugin_dir_path( __FILE__ ) . "../../backwpup-pro/backwpup.php" );
-			require_once( plugin_dir_path( __FILE__ ) . "../../backwpup-pro/inc/pro/class-pro.php" );
+		if ( is_plugin_active( 'backwpup-pro/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup-pro/backwpup.php' ) ) {
+			require_once( plugin_dir_path( __FILE__ ) . '../../backwpup-pro/backwpup.php' );
+			require_once( plugin_dir_path( __FILE__ ) . '../../backwpup-pro/inc/pro/class-pro.php' );
 			BackWPup::get_instance();
 			$this->is_backwpup_installed = true;
 			$this->is_backwpup_pro       = true;
-		} else if ( is_plugin_active( "backwpup/backwpup.php" ) && file_exists( plugin_dir_path( __FILE__ ) . "../../backwpup/backwpup.php" ) ) {
-			require_once( plugin_dir_path( __FILE__ ) . "../../backwpup/backwpup.php" );
+		} else if ( is_plugin_active( 'backwpup/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php' ) ) {
+			require_once( plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php' );
 			BackWPup::get_instance();
 			$this->is_backwpup_installed = true;
 		}
 
-		if ($this->is_backwpup_installed) {
+		if ( $this->is_backwpup_installed ) {
 			add_action( 'wp_ajax_mainwp_backwpup_download_backup', array( $this, 'download_backup' ) );
 		}
 	}
 
 	public function action() {
 		if ( ! $this->is_backwpup_installed ) {
-			MainWPHelper::write( array( 'error' => __( 'Please install BackWPup plugin on child website', $this->plugin_translate ) ) );
+			MainWP_Helper::write( array( 'error' => __( 'Please install BackWPup plugin on child website', $this->plugin_translate ) ) );
 
 			return;
 		}
@@ -79,16 +79,16 @@ class MainWPChildBackWPup {
 		error_reporting( 0 );
 		function mainwp_backwpup_handle_fatal_error() {
 			$error = error_get_last();
-			if (isset($error['type']) && $error['type'] == E_ERROR && isset($error['message'])) {
-				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
-			} else if (!empty(MainWPChildBackWPup::$information)) {
-				die( '<mainwp>' . base64_encode( serialize( MainWPChildBackWPup::$information ) ) . '</mainwp>' );
+			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
+				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
+			} else if ( ! empty( MainWP_Child_Back_WP_Up::$information ) ) {
+				die( '<mainwp>' . base64_encode( serialize( MainWP_Child_Back_WP_Up::$information ) ) . '</mainwp>' );
 			} else {
-				die( '<mainwp>' . base64_encode( array('error' => 'Missing information array inside fatal_error') ) . '</mainwp>' );
+				die( '<mainwp>' . base64_encode( array( 'error' => 'Missing information array inside fatal_error' ) ) . '</mainwp>' );
 			}
 		}
 
-		register_shutdown_function( "mainwp_backwpup_handle_fatal_error" );
+		register_shutdown_function( 'mainwp_backwpup_handle_fatal_error' );
 
 		$information = array();
 
@@ -173,16 +173,16 @@ class MainWPChildBackWPup {
 			}
 		}
 
-		MainWPChildBackWPup::$information = $information;
+		MainWP_Child_Back_WP_Up::$information = $information;
 		exit();
 	}
 
 	public function init() {
-		if ( get_option( 'mainwp_backwpup_ext_enabled' ) !== "Y" ) {
+		if ( get_option( 'mainwp_backwpup_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
 
-		if ( get_option( 'mainwp_backwpup_hide_plugin' ) === "hide" ) {
+		if ( get_option( 'mainwp_backwpup_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
 		}
@@ -191,7 +191,7 @@ class MainWPChildBackWPup {
 	public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
-			if ( $plugin_slug == 'backwpup' ) {
+			if ( 'backwpup' === $plugin_slug ) {
 				unset( $plugins[ $key ] );
 			}
 		}
@@ -209,18 +209,18 @@ class MainWPChildBackWPup {
 		remove_menu_page( 'backwpup' );
 
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=backwpup' );
-		if ( $pos !== false ) {
+		if ( false !== $pos ) {
 			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
 	}
 
 	protected function show_hide() {
-		MainWPHelper::update_option( 'mainwp_backwpup_ext_enabled', "Y" );
+		MainWP_Helper::update_option( 'mainwp_backwpup_ext_enabled', 'Y' );
 
-		$hide = isset( $_POST['show_hide'] ) && ( $_POST['show_hide'] == "1" ) ? 'hide' : "";
+		$hide = isset( $_POST['show_hide'] ) && ( '1' === $_POST['show_hide'] ) ? 'hide' : '';
 
-		MainWPHelper::update_option( 'mainwp_backwpup_hide_plugin', $hide );
+		MainWP_Helper::update_option( 'mainwp_backwpup_hide_plugin', $hide );
 
 		return array( 'success' => 1 );
 	}
@@ -240,7 +240,7 @@ class MainWPChildBackWPup {
 		}
 
 		echo '<tr title="&gt;=5.3.3"><td>' . __( 'PHP version', 'backwpup' ) . '</td><td>' . esc_html( PHP_VERSION ) . '</td></tr>';
-		echo '<tr title="&gt;=5.0.7"><td>' . __( 'MySQL version', 'backwpup' ) . '</td><td>' . esc_html( $wpdb->get_var( "SELECT VERSION() AS version" ) ) . '</td></tr>';
+		echo '<tr title="&gt;=5.0.7"><td>' . __( 'MySQL version', 'backwpup' ) . '</td><td>' . esc_html( $wpdb->get_var( 'SELECT VERSION() AS version' ) ) . '</td></tr>';
 		if ( function_exists( 'curl_version' ) ) {
 			$curlversion = curl_version();
 			echo '<tr title=""><td>' . __( 'cURL version', 'backwpup' ) . '</td><td>' . esc_html( $curlversion['version'] ) . '</td></tr>';
@@ -255,21 +255,20 @@ class MainWPChildBackWPup {
 		$test_result  = '';
 		if ( is_wp_error( $raw_response ) ) {
 			$test_result .= sprintf( __( 'The HTTP response test get an error "%s"', 'backwpup' ), esc_html( $raw_response->get_error_message() ) );
-		} elseif ( 200 != wp_remote_retrieve_response_code( $raw_response ) && 204 != wp_remote_retrieve_response_code( $raw_response ) ) {
+		} elseif ( 200 !== (int) wp_remote_retrieve_response_code( $raw_response ) && 204 !== (int) wp_remote_retrieve_response_code( $raw_response ) ) {
 			$test_result .= sprintf( __( 'The HTTP response test get a false http status (%s)', 'backwpup' ), esc_html( wp_remote_retrieve_response_code( $raw_response ) ) );
 		}
 		$headers = wp_remote_retrieve_headers( $raw_response );
-		if ( isset( $headers['x-backwpup-ver'] ) && $headers['x-backwpup-ver'] != BackWPup::get_plugin_data( 'version' ) ) {
+		if ( isset( $headers['x-backwpup-ver'] ) && BackWPup::get_plugin_data( 'version' ) !== $headers['x-backwpup-ver'] ) {
 			$test_result .= sprintf( __( 'The BackWPup HTTP response header returns a false value: "%s"', 'backwpup' ), esc_html( $headers['x-backwpup-ver'] ) );
 		}
 
 		if ( empty( $test_result ) ) {
-			_e( 'Response Test O.K.', 'backwpup' );
+			esc_html_e( 'Response Test O.K.', 'backwpup' );
 		} else {
-			echo $test_result;
+			echo esc_html( $test_result );
 		}
 		echo '</td></tr>';
-
 
 		echo '<tr><td>' . __( 'Temp folder:', 'backwpup' ) . '</td><td>';
 		if ( ! is_dir( BackWPup::get_plugin_data( 'TEMP' ) ) ) {
@@ -398,21 +397,22 @@ class MainWPChildBackWPup {
 		}
 
 		$backupfile = $_POST['settings']['backupfile'];
-		$dest = $_POST['settings']['dest'];
+		$dest       = $_POST['settings']['dest'];
 
-		list($dest_id, $dest_name) = explode("_", $dest);
+		list( $dest_id, $dest_name ) = explode( '_', $dest );
 
-		$dest_class = BackWPup::get_destination($dest_name);
+		$dest_class = BackWPup::get_destination( $dest_name );
 
-		if (is_null($dest_class)) {
+		if ( is_null( $dest_class ) ) {
 			return array( 'error' => __( 'Invalid dest class.', $this->plugin_translate ) );
 		}
 
 		$files = $dest_class->file_get_list( $dest );
-		
+
 		foreach ( $files as $file ) {
-			if ( is_array( $file ) && $file[ 'file' ] == $backupfile ) {
+			if ( is_array( $file ) && $file['file'] == $backupfile ) {
 				$dest_class->file_delete( $dest, $backupfile );
+
 				return array( 'success' => 1, 'response' => 'DELETED' );
 			}
 		}
@@ -425,7 +425,7 @@ class MainWPChildBackWPup {
 			return array( 'error' => __( 'Missing logfile.', $this->plugin_translate ) );
 		}
 
-		$log_file = get_site_option( 'backwpup_cfg_logfolder' ) . basename($_POST['settings']['logfile']);
+		$log_file = get_site_option( 'backwpup_cfg_logfolder' ) . basename( $_POST['settings']['logfile'] );
 
 		if ( ! is_readable( $log_file ) && ! is_readable( $log_file . '.gz' ) && ! is_readable( $log_file . '.bz2' ) ) {
 			$output = __( 'Log file doesn\'t exists', $this->plugin_translate );
@@ -437,12 +437,11 @@ class MainWPChildBackWPup {
 			if ( ! file_exists( $log_file ) && file_exists( $log_file . '.bz2' ) ) {
 				$log_file = $log_file . '.bz2';
 			}
-			
-			if ( '.gz' == substr( $log_file, -3 ) ) {
-				$output = file_get_contents( 'compress.zlib://' .$log_file, FALSE );
-			}
-			else {
-				$output = file_get_contents( $log_file, FALSE );
+
+			if ( '.gz' == substr( $log_file, - 3 ) ) {
+				$output = file_get_contents( 'compress.zlib://' . $log_file, false );
+			} else {
+				$output = file_get_contents( $log_file, false );
 			}
 		}
 
@@ -477,7 +476,7 @@ class MainWPChildBackWPup {
 
 			case 'backups':
 				update_user_option( get_current_user_id(), 'backwpupbackups_per_page', 99999999 );
-				$output = new BackWPup_Page_Backups();
+				$output        = new BackWPup_Page_Backups();
 				$output->items = array();
 
 				$jobids = BackWPup_Option::get_job_ids();
@@ -491,12 +490,12 @@ class MainWPChildBackWPup {
 						$dests = BackWPup_Option::get( $jobid, 'destinations' );
 						foreach ( $dests as $dest ) {
 							$dest_class = BackWPup::get_destination( $dest );
-							$items = $dest_class->file_get_list( $jobid . '_' . $dest );
+							$items      = $dest_class->file_get_list( $jobid . '_' . $dest );
 							if ( ! empty( $items ) ) {
-								foreach ($items as $item) {
-									$temp_single_item = $item;
-									$temp_single_item['dest'] = $jobid. '_' . $dest;
-									$output->items[] = $temp_single_item;
+								foreach ( $items as $item ) {
+									$temp_single_item         = $item;
+									$temp_single_item['dest'] = $jobid . '_' . $dest;
+									$output->items[]          = $temp_single_item;
 								}
 							}
 						}
@@ -511,7 +510,6 @@ class MainWPChildBackWPup {
 				break;
 		}
 
-		
 		if ( is_array( $output->items ) ) {
 			if ( $type == 'jobs' ) {
 				foreach ( $output->items as $key => $val ) {
@@ -520,30 +518,28 @@ class MainWPChildBackWPup {
 					$temp_array['name']         = BackWPup_Option::get( $val, 'name' );
 					$temp_array['type']         = BackWPup_Option::get( $val, 'type' );
 					$temp_array['destinations'] = BackWPup_Option::get( $val, 'destinations' );
-					
+
 					if ( $this->is_backwpup_pro ) {
 						$temp_array['export'] = str_replace( '&amp;', '&', wp_nonce_url( network_admin_url( 'admin.php' ) . '?page=backwpupjobs&action=export&jobs[]=' . $val, 'bulk-jobs' ) );
 					}
 
 					if ( BackWPup_Option::get( $val, 'activetype' ) == 'wpcron' ) {
-						if ( $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'id' => $val ) ) + ( get_option( 'gmt_offset' ) * 3600 )  ) {
-							$temp_array['nextrun'] = sprintf( __( '%1$s at %2$s by WP-Cron', 'backwpup' ) , date_i18n( get_option( 'date_format' ), $nextrun, TRUE ) , date_i18n( get_option( 'time_format' ), $nextrun, TRUE ) ) ;
-						}
-						else
+						if ( $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'id' => $val ) ) + ( get_option( 'gmt_offset' ) * 3600 ) ) {
+							$temp_array['nextrun'] = sprintf( __( '%1$s at %2$s by WP-Cron', 'backwpup' ), date_i18n( get_option( 'date_format' ), $nextrun, true ), date_i18n( get_option( 'time_format' ), $nextrun, true ) );
+						} else {
 							$temp_array['nextrun'] = __( 'Not scheduled!', 'backwpup' );
-					}
-					else {
+						}
+					} else {
 						$temp_array['nextrun'] = __( 'Inactive', 'backwpup' );
 					}
 
 					if ( BackWPup_Option::get( $val, 'lastrun' ) ) {
-						$lastrun = BackWPup_Option::get( $val, 'lastrun' );
-						$temp_array['lastrun'] = sprintf( __( '%1$s at %2$s', 'backwpup' ), date_i18n( get_option( 'date_format' ), $lastrun, TRUE ), date_i18n( get_option( 'time_format' ), $lastrun, TRUE ) );
+						$lastrun               = BackWPup_Option::get( $val, 'lastrun' );
+						$temp_array['lastrun'] = sprintf( __( '%1$s at %2$s', 'backwpup' ), date_i18n( get_option( 'date_format' ), $lastrun, true ), date_i18n( get_option( 'time_format' ), $lastrun, true ) );
 						if ( BackWPup_Option::get( $val, 'lastruntime' ) ) {
 							$temp_array['lastrun'] .= ' ' . sprintf( __( 'Runtime: %d seconds', 'backwpup' ), BackWPup_Option::get( $val, 'lastruntime' ) );
 						}
-					}
-					else {
+					} else {
 						$temp_array['lastrun'] = __( 'not yet', 'backwpup' );
 					}
 
@@ -554,12 +550,18 @@ class MainWPChildBackWPup {
 				$without_dupes = array();
 				foreach ( $output->items as $key ) {
 					$temp_array                = $key;
-					$temp_array['downloadurl'] = str_replace(array('&amp;', network_admin_url( 'admin.php' ).'?page=backwpupbackups&action='), array('&', admin_url( 'admin-ajax.php' ).'?action=mainwp_backwpup_download_backup&type='), $temp_array['downloadurl'].'&_wpnonce='.$this->create_nonce_without_session('mainwp_download_backup') );
+					$temp_array['downloadurl'] = str_replace( array(
+						'&amp;',
+						network_admin_url( 'admin.php' ) . '?page=backwpupbackups&action=',
+						), array(
+						'&',
+						admin_url( 'admin-ajax.php' ) . '?action=mainwp_backwpup_download_backup&type=',
+						), $temp_array['downloadurl'] . '&_wpnonce=' . $this->create_nonce_without_session( 'mainwp_download_backup' ) );
 					$temp_array['website_id']  = $website_id;
-					
-					if (!isset($without_dupes[$temp_array['file']])) {
-						$array[]                   = $temp_array;
-						$without_dupes[$temp_array['file']] = 1;
+
+					if ( ! isset( $without_dupes[ $temp_array['file'] ] ) ) {
+						$array[]                              = $temp_array;
+						$without_dupes[ $temp_array['file'] ] = 1;
 					}
 				}
 			} else {
@@ -573,49 +575,49 @@ class MainWPChildBackWPup {
 	}
 
 	public function download_backup() {
-		if (!isset($_GET['type']) || empty($_GET['type']) || !isset($_GET['_wpnonce']) || empty($_GET['_wpnonce'])) {
-			die('-1');
+		if ( ! isset( $_GET['type'] ) || empty( $_GET['type'] ) || ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {
+			die( '-1' );
 		}
 
 		if ( ! current_user_can( 'backwpup_backups_download' ) ) {
-			die('-2');
+			die( '-2' );
 		}
 
-		if (!$this->verify_nonce_without_session($_GET['_wpnonce'], 'mainwp_download_backup')) {
-			die('-3');
+		if ( ! $this->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {
+			die( '-3' );
 		}
 
 		$dest = strtoupper( str_replace( 'download', '', $_GET['type'] ) );
-		if ( !empty( $dest ) && strstr( $_GET['type'], 'download') ) {
+		if ( ! empty( $dest ) && strstr( $_GET['type'], 'download' ) ) {
 			$dest_class = BackWPup::get_destination( $dest );
-			if (is_null($dest_class)) {
-				die('-4');
+			if ( is_null( $dest_class ) ) {
+				die( '-4' );
 			}
 
-			$dest_class->file_download( (int)$_GET[ 'jobid' ], $_GET[ 'file' ] );
+			$dest_class->file_download( (int) $_GET['jobid'], $_GET['file'] );
 		} else {
-			die('-5');
+			die( '-5' );
 		}
 
 		die();
 	}
 
-	protected function create_nonce_without_session($action = -1) {
+	protected function create_nonce_without_session( $action = - 1 ) {
 		$user = wp_get_current_user();
-		$uid = (int) $user->ID;
-		if ( ! $uid ) {		
+		$uid  = (int) $user->ID;
+		if ( ! $uid ) {
 			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
 		}
 
 		$i = wp_nonce_tick();
 
-		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), -12, 10 );
+		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
 	}
 
-	protected function verify_nonce_without_session( $nonce, $action = -1 ) {
+	protected function verify_nonce_without_session( $nonce, $action = - 1 ) {
 		$nonce = (string) $nonce;
-		$user = wp_get_current_user();
-		$uid = (int) $user->ID;
+		$user  = wp_get_current_user();
+		$uid   = (int) $user->ID;
 		if ( ! $uid ) {
 			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
 		}
@@ -626,12 +628,12 @@ class MainWPChildBackWPup {
 
 		$i = wp_nonce_tick();
 
-		$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce'), -12, 10 );
+		$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
 		if ( hash_equals( $expected, $nonce ) ) {
 			return 1;
 		}
 
-		$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), -12, 10 );
+		$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
 		if ( hash_equals( $expected, $nonce ) ) {
 			return 2;
 		}
@@ -656,7 +658,7 @@ class MainWPChildBackWPup {
 		}
 
 		// We do this in order to not die when using wp_die
-		if ( ! defined( "DOING_AJAX" ) ) {
+		if ( ! defined( 'DOING_AJAX' ) ) {
 			define( 'DOING_AJAX', true );
 		}
 
@@ -703,7 +705,7 @@ class MainWPChildBackWPup {
 				return array(
 					'success'  => 1,
 					'response' => $output['message'],
-					'logfile'  => basename( $job_object->logfile )
+					'logfile'  => basename( $job_object->logfile ),
 				);
 			} else {
 				return array( 'success' => 1, 'response' => $output['message'] );
@@ -752,7 +754,7 @@ class MainWPChildBackWPup {
 	}
 
 	protected function wizard_system_scan() {
-		if ( class_exists( "BackWPup_Pro_Wizard_SystemTest" ) ) {
+		if ( class_exists( 'BackWPup_Pro_Wizard_SystemTest' ) ) {
 			ob_start();
 
 			$system_test = new BackWPup_Pro_Wizard_SystemTest();
@@ -771,7 +773,7 @@ class MainWPChildBackWPup {
 	protected function destination_email_check_email() {
 		$settings = $_POST['settings'];
 
-		$message = "";
+		$message = '';
 
 		$emailmethod   = ( isset( $settings['emailmethod'] ) ? $settings['emailmethod'] : '' );
 		$emailsendmail = ( isset( $settings['emailsendmail'] ) ? $settings['emailsendmail'] : '' );
@@ -896,7 +898,7 @@ class MainWPChildBackWPup {
 			'content' => WP_CONTENT_DIR,
 			'plugin'  => WP_PLUGIN_DIR,
 			'theme'   => get_theme_root(),
-			'upload'  => BackWPup_File::get_upload_dir()
+			'upload'  => BackWPup_File::get_upload_dir(),
 		);
 
 		foreach ( $folders as $key => $folder ) {
@@ -911,14 +913,14 @@ class MainWPChildBackWPup {
 					while ( ( $file = readdir( $dir ) ) !== false ) {
 						if ( ! in_array( $file, array(
 								'.',
-								'..'
+								'..',
 							) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) )
 						) {
 							$folder_size = ' (' . size_format( BackWPup_File::get_folder_size( $main_folder_name . '/' . $file ), 2 ) . ')';
 
 							$return_temp[] = array(
 								'size' => $folder_size,
-								'name' => $file
+								'name' => $file,
 							);
 
 						}
@@ -1050,7 +1052,7 @@ class MainWPChildBackWPup {
 			'success' => 1,
 			'job_id'  => $new_job_id,
 			'changes' => $changes_array,
-			'message' => array_keys( $message_array )
+			'message' => array_keys( $message_array ),
 		);
 	}
 
@@ -1095,7 +1097,7 @@ class MainWPChildBackWPup {
 		if ( isset( $return['error'] ) ) {
 			return array(
 				'success'       => 1,
-				'error_message' => __( 'Cannot save jobs: ' . $return['error'], $this->plugin_translate )
+				'error_message' => __( 'Cannot save jobs: ' . $return['error'], $this->plugin_translate ),
 			);
 		}
 
@@ -1111,7 +1113,7 @@ class MainWPChildBackWPup {
 			BackWPup_Option::update( $job_id, 'dbdumpexclude', array() );
 		}
 
-		if ( isset( $settings['value']['dropboxtoken']) && isset($settings['value']['dropboxroot'])) {
+		if ( isset( $settings['value']['dropboxtoken'] ) && isset( $settings['value']['dropboxroot'] ) ) {
 			BackWPup_Option::update( $job_id, 'dropboxtoken', $settings['value']['dropboxtoken'] );
 			BackWPup_Option::update( $job_id, 'dropboxroot', $settings['value']['dropboxroot'] );
 		}
@@ -1135,7 +1137,7 @@ class MainWPChildBackWPup {
 			'success' => 1,
 			'job_id'  => $job_id,
 			'changes' => $changes_array,
-			'message' => $return['message']
+			'message' => $return['message'],
 		);
 	}
 
@@ -1151,7 +1153,7 @@ class MainWPChildBackWPup {
 			return array( 'error' => __( 'Install BackWPup on child website', $this->plugin_translate ) );
 		}
 
-		if ( isset($settings['value']['is_premium']) && $settings['value']['is_premium'] == 1 && $this->is_backwpup_pro == false ) {
+		if ( isset( $settings['value']['is_premium'] ) && $settings['value']['is_premium'] == 1 && $this->is_backwpup_pro == false ) {
 			return array( 'error' => __( 'You try to use pro version settings in non pro plugin version. Please install pro version on child and try again.', $this->plugin_translate ) );
 		}
 
@@ -1182,7 +1184,7 @@ class MainWPChildBackWPup {
 			'sugarsyncsecret',
 			'googleclientsecret',
 			'override',
-			'httpauthpassword'
+			'httpauthpassword',
 		);
 
 		$changes_array = array();
@@ -1203,18 +1205,17 @@ class MainWPChildBackWPup {
 		update_site_option( 'backwpup_messages', array() );
 
 		if ( isset( $message['error'] ) ) {
-			return array( 'error' => implode( ", ", $message['error'] ) );
+			return array( 'error' => implode( ', ', $message['error'] ) );
 		} else if ( isset( $message['updated'] ) ) {
 			return array( 'message' => $message['updated'] );
 		} else {
 			return array( 'error' => 'Generic error' );
 		}
 
-
 	}
 }
 
-if ( ! class_exists( "MainWP_Fake_Wp_Screen" ) ) {
+if ( ! class_exists( 'MainWP_Fake_Wp_Screen' ) ) {
 	class MainWP_Fake_Wp_Screen {
 		public $action;
 		public $base;
