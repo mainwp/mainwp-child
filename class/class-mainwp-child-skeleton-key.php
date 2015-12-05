@@ -20,9 +20,9 @@ class MainWP_Child_Skeleton_Key {
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['message'] ) ) {
-				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
+				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			} else {
-				die( '<mainwp>' . base64_encode( serialize( MainWP_Child_Skeleton_Key::$information ) ) . '</mainwp>' );
+				MainWP_Helper::write(  MainWP_Child_Skeleton_Key::$information );
 			}
 		}
 

@@ -391,15 +391,23 @@ class MainWP_Heatmap_Tracker {
 		$request = wp_remote_post( $url, $params );
 
 		if ( is_array( $request ) ) {
-			$clicks    = ( ! empty( $request['body'] ) ) ? json_decode( $request['body'] ) : array();
+			$clicks = array();
+			if (! empty($request['body']) ) {
+				if (preg_match('/<heatmap>(.*)<\/heatmap>/', $request['body'], $results) > 0) {
+					$result = $results[1];
+					$clicks = json_decode($result);
+				}
+			}
 			$clickData = array();
-			foreach ( $clicks as $click ) {
-				$clickData[] = array(
-					'x' => $click->x,
-					'y' => $click->y,
-					'w' => $click->w,
-					'h' => $click->h,
-				);
+			if ( is_array( $clicks ) ) {
+				foreach ($clicks as $click) {
+					$clickData[] = array(
+						'x' => $click->x,
+						'y' => $click->y,
+						'w' => $click->w,
+						'h' => $click->h,
+					);
+				}
 			}
 			?>
 			var heatmapClick = <?php echo json_encode( $clickData ) ?>;

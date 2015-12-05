@@ -186,7 +186,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	function save_settings() {
 
-		$settings = unserialize( base64_decode( $_POST['settings'] ) );
+		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 
 		$keys = $this->get_settings_keys();
 
@@ -271,7 +271,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			return array( 'error' => 'NO_PREMIUM' );
 		}
 
-		$addons_options = unserialize( base64_decode( $_POST['addons_options'] ) );
+		$addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) );
 		if ( ! is_array( $addons_options ) ) {
 			$addons_options = array();
 		}

@@ -80,11 +80,11 @@ class MainWP_Child_Back_WP_Up {
 		function mainwp_backwpup_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
-				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
+				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			} else if ( ! empty( MainWP_Child_Back_WP_Up::$information ) ) {
-				die( '<mainwp>' . base64_encode( serialize( MainWP_Child_Back_WP_Up::$information ) ) . '</mainwp>' );
+				MainWP_Helper::write( MainWP_Child_Back_WP_Up::$information );
 			} else {
-				die( '<mainwp>' . base64_encode( array( 'error' => 'Missing information array inside fatal_error' ) ) . '</mainwp>' );
+				MainWP_Helper::write( array( 'error' => 'Missing information array inside fatal_error' ) );
 			}
 		}
 

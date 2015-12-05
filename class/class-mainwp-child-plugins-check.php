@@ -1,7 +1,7 @@
 <?php
 
 /*
-Plugin Name: Vendi Abandoned Plugin Check
+Plugin: Vendi Abandoned Plugin Check
 Description: Provides information about abandoned plugins.
 Version: 3.1.1
 License: GPLv2
@@ -233,7 +233,7 @@ class MainWP_Child_Plugins_Check {
 			}
 
 			//Deserialize the response
-			$obj = unserialize( $body );
+			$obj = maybe_unserialize( $body );
 
 			$now = new \DateTime();
 
@@ -271,7 +271,7 @@ class MainWP_Child_Plugins_Check {
 
 		if ( 0 === count( $all_plugins ) ) {
 			delete_transient( $this->tran_name_plugins_to_batch );
-			wp_schedule_single_event( time() + DAY_IN_SECONDS, $this->cron_name_daily );
+			//wp_schedule_single_event( time() + DAY_IN_SECONDS, $this->cron_name_daily );
 		} else {
 			set_transient( $this->tran_name_plugins_to_batch, $all_plugins, DAY_IN_SECONDS );
 			wp_schedule_single_event( time(), $this->cron_name_batching );

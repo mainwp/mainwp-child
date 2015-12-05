@@ -50,8 +50,8 @@ class MainWP_Keyword_Links {
 		<script type="text/javascript">
 			var kwlAjaxUrl = "<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>";
 			var kwlNonce = "<?php echo esc_js( wp_create_nonce( 'keywordLinksSaveClick' ) ); ?>";
-			var kwlIp = "<?php echo esc_js( $_SERVER['REMOTE_ADDR'] ); ?>";
-			var kwlReferer = "<?php echo esc_js( $_SERVER['HTTP_REFERER'] ); ?>";
+			var kwlIp ="<?php echo esc_html( $_SERVER['REMOTE_ADDR'] ); ?>";
+			var kwlReferer ="<?php echo esc_html( $_SERVER['HTTP_REFERER'] ); ?>";
 		</script>
 		<?php
 	}
@@ -294,7 +294,7 @@ class MainWP_Keyword_Links {
 
 		// save specific link
 		if ( $post ) {
-			$specific_link = unserialize( get_post_meta( $post->ID, '_mainwp_kwl_specific_link', true ) );
+			$specific_link = maybe_unserialize( get_post_meta( $post->ID, '_mainwp_kwl_specific_link', true ) );
 			if ( is_array( $specific_link ) && count( $specific_link ) > 0 ) {
 				$specific_link          = current( $specific_link );
 				$specific_link->post_id = $post->ID;
@@ -328,7 +328,7 @@ class MainWP_Keyword_Links {
 		// start create links for keywords (terms) in post content
 		$this->link_count_temp = $replace_max;
 		$not_allow_keywords    = get_post_meta( $post->ID, 'mainwp_kl_not_allowed_keywords_on_this_post', true );
-		$not_allow_keywords    = unserialize( $not_allow_keywords );
+		$not_allow_keywords    = maybe_unserialize( $not_allow_keywords );
 		foreach ( $links as $link ) {
 			if ( ! $link ) {
 				continue;
@@ -554,7 +554,7 @@ class MainWP_Keyword_Links {
 			$where = " AND (tr.term_taxonomy_id = '" . implode( "' OR tr.term_taxonomy_id = '", $cats ) . "')";
 		}
 		//$results = $wpdb->get_results(sprintf("SELECT * FROM $wpdb->posts as p LEFT JOIN $wpdb->postmeta as pm ON p.ID=pm.post_id $join WHERE p.post_status='publish' AND p.post_type='%s' AND pm.meta_key='_mainwp_kl_post_keyword' $where", $post_type));
-		$results = $wpdb->get_results( sprintf( "SELECT * FROM $wpdb->posts as p $join WHERE p.post_status='publish' AND p.post_type='%s' $where", $post_type ) );
+		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $wpdb->posts as p $join WHERE p.post_status='publish' AND p.post_type= %s $where", $post_type ) );
 		$links   = array();
 		if ( ! is_array( $results ) ) {
 			return array();
@@ -731,7 +731,7 @@ class MainWP_Keyword_Links {
 		$result          = array();
 		$remove_settings = $_POST['removeSettings'];
 		$remove_keywords = $_POST['keywords'];
-		$remove_keywords = unserialize( base64_decode( $remove_keywords ) );
+		$remove_keywords = maybe_unserialize( base64_decode( $remove_keywords ) );
 		$remove_kws      = $this->explode_multi( $remove_keywords );
 
 		if ( $remove_settings ) {
@@ -884,7 +884,7 @@ class MainWP_Keyword_Links {
 			$link                  = new stdClass;
 			$link->id              = intval( $link_id );
 			$link->name            = sanitize_text_field( $_POST['name'] );
-			$link->destination_url = sanitize_text_field( $_POST['destination_url'] );
+			$link->destination_url = esc_url( $_POST['destination_url'] );
 			$link->cloak_path      = sanitize_text_field( $_POST['cloak_path'] );
 			$link->keyword         = $valid_kws;
 			$link->link_target     = $_POST['link_target'];  // number or text

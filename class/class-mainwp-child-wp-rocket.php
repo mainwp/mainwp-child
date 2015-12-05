@@ -136,6 +136,9 @@ class MainWP_Child_WP_Rocket {
 				case 'save_settings':
 					$information = $this->save_settings();
 					break;
+				case "load_existing_settings":
+					$information = $this->load_existing_settings();
+					break;
 			}
 		}
 		MainWP_Helper::write( $information );
@@ -174,7 +177,7 @@ class MainWP_Child_WP_Rocket {
 			$options['minify_js_key']  = create_rocket_uniqid();
 			remove_all_filters( 'update_option_' . WP_ROCKET_SLUG );
 			update_option( WP_ROCKET_SLUG, $options );
-			rocket_dismiss_box( 'rocket_warning_plugin_modification' );
+			//rocket_dismiss_box( 'rocket_warning_plugin_modification' );
 
 			return array( 'result' => 'SUCCESS' );
 		} else {
@@ -193,7 +196,7 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	function save_settings() {
-		$options = unserialize( base64_decode( $_POST['settings'] ) );
+		$options = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 		if ( ! is_array( $options ) || empty( $options ) ) {
 			return array( 'error' => 'INVALID_OPTIONS' );
 		}
@@ -213,6 +216,10 @@ class MainWP_Child_WP_Rocket {
 		return array( 'result' => 'SUCCESS' );
 	}
 
+	function load_existing_settings() {
+		$options = get_option( WP_ROCKET_SLUG );
+		return array('result' => 'success', 'options' => $options);
+	}
 
 	function get_rocket_default_options() {
 		return array(

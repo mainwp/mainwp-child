@@ -119,13 +119,13 @@ class MainWP_Client_Report {
 			'ip',
 		);
 
-		$sections = isset( $_POST['sections'] ) ? unserialize( base64_decode( $_POST['sections'] ) ) : array();
+		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array();
 		if ( ! is_array( $sections ) ) {
 			$sections = array();
 		}
 		//return $sections;
 
-		$other_tokens = isset( $_POST['other_tokens'] ) ? unserialize( base64_decode( $_POST['other_tokens'] ) ) : array();
+		$other_tokens = isset( $_POST['other_tokens'] ) ? maybe_unserialize( base64_decode( $_POST['other_tokens'] ) ) : array();
 		if ( ! is_array( $other_tokens ) ) {
 			$other_tokens = array();
 		}
@@ -151,6 +151,70 @@ class MainWP_Client_Report {
 				unset( $args[ $arg ] );
 			}
 		}
+
+		// to fix bug
+		$exclude_connector_posts = true;
+		if ( isset( $sections['body'] ) && isset( $sections['body']['section_token'] ) && is_array($sections['body']['section_token']) ) {
+			foreach ($sections['body']['section_token'] as $sec) {
+				if (strpos($sec, "[section.posts") !== false) {
+					$exclude_connector_posts = false;
+					break;
+				}
+			}
+		}
+		if ($exclude_connector_posts) {
+			if ( isset( $sections['header'] ) && isset( $sections['header']['section_token'] ) && is_array($sections['header']['section_token']) ) {
+				foreach ($sections['header']['section_token'] as $sec) {
+					if (strpos($sec, "[section.posts") !== false) {
+						$exclude_connector_posts = false;
+						break;
+					}
+				}
+			}
+		}
+		if ($exclude_connector_posts) {
+			if ( isset( $sections['footer'] ) && isset( $sections['footer']['section_token'] ) && is_array($sections['footer']['section_token']) ) {
+				foreach ($sections['footer']['section_token'] as $sec) {
+					if (strpos($sec, "[section.posts") !== false) {
+						$exclude_connector_posts = false;
+						break;
+					}
+				}
+			}
+		}
+		if ($exclude_connector_posts) {
+			if ( isset( $other_tokens['body'] ) && is_array( $other_tokens['body'] ) ) {
+				foreach ( $other_tokens['body'] as $sec ) {
+					if ( strpos( $sec, "[post." ) !== false ) {
+						$exclude_connector_posts = false;
+						break;
+					}
+				}
+			}
+		}
+		if ($exclude_connector_posts) {
+			if ( isset( $other_tokens['header'] ) && is_array($other_tokens['header']) ) {
+				foreach ($other_tokens['header'] as $sec) {
+					if (strpos($sec, "[post.") !== false) {
+						$exclude_connector_posts = false;
+						break;
+					}
+				}
+			}
+		}
+		if ($exclude_connector_posts) {
+			if ( isset( $other_tokens['footer'] ) && is_array($other_tokens['footer']) ) {
+				foreach ($other_tokens['footer'] as $sec) {
+					if (strpos($sec, "[post.") !== false) {
+						$exclude_connector_posts = false;
+						break;
+					}
+				}
+			}
+		}
+		if ($exclude_connector_posts)
+			$args['connector__not_in'] =  array('posts');
+		///// end fix /////
 
 		$args['action__not_in'] = array( 'login' );
 
@@ -514,7 +578,7 @@ class MainWP_Client_Report {
 
 						if ( 'roles' === $data && $users_updated ) {
 							$user_info = get_userdata( $record->object_id );
-							if ( ! ( is_object( $user_info ) && is_a( $user_info, 'WP_User' ) ) ) {
+							if ( ! ( is_object( $user_info ) && $user_info instanceof WP_User ) ) {
 								$roles = '';
 							} else {
 								$roles = implode( ', ', $user_info->roles );
@@ -599,7 +663,7 @@ class MainWP_Client_Report {
 					$value = current( $value );
 				}
 				if ( 'author_meta' === $meta_key || 'user_meta' === $meta_key ) {
-					$value = unserialize( $value );
+					$value = maybe_unserialize( $value );
 					$value = $value['display_name'];
 				}
 			}

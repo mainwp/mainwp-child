@@ -79,7 +79,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 
 class MainWP_Child {
 	private $version = '2.0.29';
-	private $update_version = '1.2';
+	private $update_version = '1.3';
 
 	private $callableFunctions = array(
 		'stats'                 => 'getSiteStats',
@@ -337,6 +337,9 @@ class MainWP_Child {
 				}
 				MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
 			}
+		} else if ($update_version == '1.2') {
+			MainWP_Child_Plugins_Check::Instance()->cleanup_deactivation(false);
+			MainWP_Child_Themes_Check::Instance()->cleanup_deactivation(false);
 		}
 
 		MainWP_Helper::update_option( 'mainwp_child_update_version', $this->update_version, 'yes' );
@@ -534,7 +537,7 @@ class MainWP_Child {
 	}
 
 	function settings() {
-		if ( isset( $_POST['submit'] ) ) {
+		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( $_POST['nonce'], 'child-settings' ) ) {
 			if ( isset( $_POST['requireUniqueSecurityId'] ) ) {
 				MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::randString( 8 ) );
 			} else {
@@ -570,6 +573,7 @@ class MainWP_Child {
 							<input type="submit" name="submit" id="submit" class="button button-primary"
 							       value="<?php esc_html_e( 'Save Changes', 'mainwp-child' ); ?>">
 						</p>
+						<input type="hidden" name="nonce" value="<?php echo wp_create_nonce( 'child-settings' );?>">
 					</form>
 				</div>
 			</div>
@@ -1603,7 +1607,8 @@ class MainWP_Child {
 		//Login
 		if ( isset( $_POST['user'] ) ) {
 			if ( ! $this->login( $_POST['user'] ) ) {
-				MainWP_Helper::error( __( 'No such user', 'mainwp-child' ) );
+				$hint = "<br/>" . __('Hint: Check if the Administrator User exists on the child site, if not you need to use existing Administrator ', 'mainwp-child');
+				MainWP_Helper::error(__('No such user' . $hint,'mainwp-child'));
 			}
 			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
 				MainWP_Helper::error( __( 'User is not an administrator', 'mainwp-child' ) );
@@ -1630,15 +1635,15 @@ class MainWP_Child {
 
 	function newPost() {
 		//Read form data
-		$new_post            = unserialize( base64_decode( $_POST['new_post'] ) );
-		$post_custom         = unserialize( base64_decode( $_POST['post_custom'] ) );
+		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) );
+		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) );
 		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null );
 		$post_tags           = rawurldecode( isset( $new_post['post_tags'] ) ? $new_post['post_tags'] : null );
 		$post_featured_image = base64_decode( $_POST['post_featured_image'] );
-		$upload_dir          = unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) );
+		$upload_dir          = maybe_unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) );
 
 		if ( isset( $_POST['_ezin_post_category'] ) ) {
-			$new_post['_ezin_post_category'] = unserialize( base64_decode( $_POST['_ezin_post_category'] ) );
+			$new_post['_ezin_post_category'] = maybe_unserialize( base64_decode( $_POST['_ezin_post_category'] ) );
 		}
 
 		$res     = MainWP_Helper::createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags );
@@ -1679,7 +1684,7 @@ class MainWP_Child {
 		} else if ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
 		} else if ( 'update_meta' === $action ) {
-			$values     = unserialize( base64_decode( $_POST['values'] ) );
+			$values     = maybe_unserialize( base64_decode( $_POST['values'] ) );
 			$meta_key   = $values['meta_key'];
 			$meta_value = $values['meta_value'];
 			$check_prev = $values['check_prev'];
@@ -1800,7 +1805,7 @@ class MainWP_Child {
 
 	function newAdminPassword() {
 		//Read form data
-		$new_password = unserialize( base64_decode( $_POST['new_password'] ) );
+		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) );
 		$user         = get_user_by( 'login', $_POST['user'] );
 		require_once( ABSPATH . WPINC . '/registration.php' );
 
@@ -1819,7 +1824,7 @@ class MainWP_Child {
 
 	function newUser() {
 		//Read form data
-		$new_user      = unserialize( base64_decode( $_POST['new_user'] ) );
+		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) );
 		$send_password = $_POST['send_password'];
 
 		$new_user_id = wp_insert_user( $new_user );
@@ -2846,13 +2851,17 @@ class MainWP_Child {
 		$posts = get_posts( $args );
 		if ( is_array( $posts ) ) {
 			foreach ( $posts as $post ) {
-				$outPost                  = array();
+ 				$outPost                  = array();
 				$outPost['id']            = $post->ID;
 				$outPost['status']        = $post->post_status;
 				$outPost['title']         = $post->post_title;
 				$outPost['content']       = $post->post_content;
 				$outPost['comment_count'] = $post->comment_count;
-				$outPost['dts']           = strtotime( $post->post_modified_gmt );
+				if ( isset( $extra['where_post_date'] ) && !empty( $extra['where_post_date'] ) ) {
+					$outPost['dts'] = strtotime( $post->post_date_gmt );
+				} else {
+					$outPost['dts'] = strtotime( $post->post_modified_gmt );
+				}
 				$usr                      = get_user_by( 'id', $post->post_author );
 				$outPost['author']        = ! empty( $usr ) ? $usr->user_nicename : 'removed';
 				$categoryObjects          = get_the_category( $post->ID );
@@ -2926,7 +2935,7 @@ class MainWP_Child {
 
 	function insert_comment() {
 		$postId   = $_POST['id'];
-		$comments = unserialize( base64_decode( $_POST['comments'] ) );
+		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) );
 		$ids      = array();
 		foreach ( $comments as $comment ) {
 			$ids[] = wp_insert_comment( array(
@@ -2958,7 +2967,7 @@ class MainWP_Child {
 			$where .= " AND `meta_value` = $meta_value ";
 		}
 
-		$results = $wpdb->get_results( sprintf( "SELECT * FROM %s WHERE 1 = 1 $where ", $wpdb->postmeta ) );
+		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %s WHERE 1 = 1 $where ", $wpdb->postmeta ) );
 		MainWP_Helper::write( $results );
 	}
 
@@ -2990,10 +2999,9 @@ class MainWP_Child {
 		$information = array();
 		if ( $postId > 0 ) {
 			if ( 'yes' === get_post_meta( $postId, '_is_auto_generate_content', true ) ) {
-				$post = $wpdb->get_row( "SELECT * FROM $wpdb->posts
-											WHERE ID = $postId
-											AND post_status = 'future'"
-				);
+				$post = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $wpdb->posts
+											WHERE ID = %d
+											AND post_status = 'future'", $postId ) );
 				if ( $post ) {
 					$result = wp_trash_post( $postId );
 				} else {
@@ -3005,8 +3013,8 @@ class MainWP_Child {
 			}
 		} else if ( $cancel_all ) {
 			$post_type = $_POST['post_type'];
-			$where     = " WHERE p.post_status='future' AND p.post_type = '" . $post_type . "' AND  pm.meta_key = '_is_auto_generate_content' AND pm.meta_value = 'yes' ";
-			$posts     = $wpdb->get_results( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where " );
+			$where     = " WHERE p.post_status='future' AND p.post_type = %s AND  pm.meta_key = '_is_auto_generate_content' AND pm.meta_value = 'yes' ";
+			$posts     = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where ", $post_type) );
 			$count     = 0;
 			if ( is_array( $posts ) ) {
 				foreach ( $posts as $post ) {
@@ -3039,17 +3047,17 @@ class MainWP_Child {
 		try {
 			global $wpdb;
 			$ct        = current_time( 'mysql' );
-			$next_post = $wpdb->get_row( '
+			$next_post = $wpdb->get_row( $wpdb->prepare( '
                     SELECT *
                     FROM ' . $wpdb->posts . ' p JOIN ' . $wpdb->postmeta . " pm ON p.ID=pm.post_id
 					WHERE
 						pm.meta_key='_is_auto_generate_content' AND
 						pm.meta_value='yes' AND
 						p.post_status='future' AND
-						p.post_type= '" . $post_type . "' AND
+						p.post_type= %s AND
 						p.post_date > NOW()
 					ORDER BY p.post_date
-					LIMIT 1" );
+					LIMIT 1", $post_type) );
 
 			if ( ! $next_post ) {
 				$information['error'] = 'Thera are not auto scheduled post';
@@ -3081,6 +3089,7 @@ class MainWP_Child {
 		global $wpdb;
 
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
+		$where_post_date = isset($_POST['where_post_date']) && !empty($_POST['where_post_date']) ? true : false;
 
 		if ( isset( $_POST['postId'] ) ) {
 			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . $_POST['postId'];
@@ -3091,10 +3100,18 @@ class MainWP_Child {
 				$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' OR $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
-				$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . $_POST['dtsstart'] . "'";
+				if ($where_post_date) {
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_date > '" . $_POST['dtsstart'] . "'";
+				} else {
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . $_POST['dtsstart'] . "'";
+				}
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
-				$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . $_POST['dtsstop'] . "'";
+				if ($where_post_date) {
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_date < '" . $_POST['dtsstop'] . "'";
+				} else {
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . $_POST['dtsstop'] . "'";
+				}
 			}
 		}
 
@@ -3108,10 +3125,11 @@ class MainWP_Child {
 
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
-			$extra['tokens']            = unserialize( base64_decode( $_POST['extract_tokens'] ) );
+			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) );
 			$extra['extract_post_type'] = $_POST['extract_post_type'];
 		}
 
+		$extra['where_post_date'] = $where_post_date;
 		$rslt                     = $this->get_recent_posts( explode( ',', $_POST['status'] ), $maxPages, $type, $extra );
 		$this->posts_where_suffix = '';
 
@@ -3505,7 +3523,8 @@ class MainWP_Child {
 	//Show stats without login - only allowed while no account is added yet
 	function getSiteStatsNoAuth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
-			MainWP_Helper::error( __( 'This site already contains a link - please disable and enable the MainWP plugin.', 'mainwp-child' ) );
+			$hint = '<br/>' . __('Hint 1: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.<br/>Hint 2: Please verify that the ctype_digit() PHP function has not been disabled on your child site server.', 'mainwp-child');
+			MainWP_Helper::error(__('This site already contains a link - please disable and enable the MainWP plugin.','mainwp-child') . $hint);
 		}
 
 		global $wp_version;

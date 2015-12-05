@@ -93,7 +93,7 @@ class MainWP_Child_Branding {
 
 	public function update_branding() {
 		$information = array();
-		$settings    = unserialize( base64_decode( $_POST['settings'] ) );
+		$settings    = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 		if ( ! is_array( $settings ) ) {
 			return $information;
 		}
@@ -498,14 +498,14 @@ class MainWP_Child_Branding {
 		}
 
 		if ( ! empty( $header_css ) ) {
-			echo '<style>' . $header_css . '</style>';
+			echo '<style>' . esc_html( $header_css ) . '</style>';
 		}
 	}
 
 	function custom_login_css() {
 		$extra_setting = $this->settings['extra_settings'];
 		if ( is_array( $extra_setting ) && isset( $extra_setting['login_css'] ) && ! empty( $extra_setting['login_css'] ) ) {
-			echo '<style>' . $extra_setting['login_css'] . '</style>';
+			echo '<style>' . esc_html( $extra_setting['login_css'] ) . '</style>';
 		}
 	}
 
@@ -540,9 +540,6 @@ class MainWP_Child_Branding {
 						break;
 					case 'export':
 						$generator = '<!-- generator="' . $extra_setting['site_generator'] . '" created="' . date( 'Y-m-d H:i' ) . '" -->';
-						break;
-					default:
-						$generator = '<meta name="generator" content="' . $extra_setting['site_generator'] . '">';
 						break;
 				endswitch;
 
@@ -628,7 +625,7 @@ class MainWP_Child_Branding {
 			$from_page = $_POST['mainwp_branding_send_from_page'];
 			$back_link = get_option( 'mainwp_branding_message_return_sender' );
 			$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
-			$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . $back_link . '">' . $back_link . '</a>' : '';
+			$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';
 
 			if ( $this->send_support_mail() ) {
 				$send_email_message = get_option( 'mainwp_branding_send_email_message' );

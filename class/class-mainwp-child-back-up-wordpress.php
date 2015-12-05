@@ -407,7 +407,7 @@ class MainWP_Child_Back_Up_Wordpress {
 					<?php esc_html_e( 'Currently Excluded', 'backupwordpress' ); ?>
 				</h3>
 
-				<p><?php _e( 'We automatically detect and ignore common <abbr title="Version Control Systems">VCS</abbr> folders and other backup plugin folders.', 'backupwordpress' ); ?></p>
+				<p><?php esc_html_e( 'We automatically detect and ignore common <abbr title="Version Control Systems">VCS</abbr> folders and other backup plugin folders.', 'backupwordpress' ); ?></p>
 
 				<table class="widefat">
 
@@ -851,7 +851,7 @@ class MainWP_Child_Back_Up_Wordpress {
 	function update_schedule() {
 		$sch_id  = isset( $_POST['schedule_id'] ) ? $_POST['schedule_id'] : 0;
 		$sch_id  = sanitize_text_field( urldecode( $sch_id ) );
-		$options = isset( $_POST['options'] ) ? unserialize( base64_decode( $_POST['options'] ) ) : false;
+		$options = isset( $_POST['options'] ) ? maybe_unserialize( base64_decode( $_POST['options'] ) ) : false;
 
 		if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {
 			return array( 'error' => 'Error: Schedule data' );

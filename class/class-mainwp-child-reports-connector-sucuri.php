@@ -73,7 +73,7 @@ if ( class_exists( 'MainWP_WP_Stream_Connector' ) ) {
 				$scan_status = 'failed';
 			}
 
-			$scan_result = unserialize( base64_decode( $data ) );
+			$scan_result = maybe_unserialize( base64_decode( $data ) );
 			$status      = $webtrust = '';
 			if ( is_array( $scan_result ) ) {
 				$status   = isset( $scan_result['status'] ) ? $scan_result['status'] : '';

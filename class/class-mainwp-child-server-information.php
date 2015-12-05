@@ -779,8 +779,8 @@ class MainWP_Child_Server_Information {
 		?>
 		<tr>
 			<td></td>
-			<td><?php echo esc_html( $pConfig ); ?></td>
-			<td><?php echo esc_html( $pCompare ); ?><?php echo esc_html( ( true === $pVersion ? 'true' : $pVersion ) . ' ' . $pExtraText ); ?></td>
+			<td><?php echo esc_html( esc_html( $pConfig ) ); ?></td>
+			<td><?php echo esc_html( esc_html( $pCompare ) ); ?><?php echo esc_html( ( true === $pVersion ? 'true' : $pVersion ) . ' ' . $pExtraText ); ?></td>
 			<td><?php echo esc_html( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
 			<?php if ( $compareFilesize ) { ?>
 				<td><?php echo esc_html( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>

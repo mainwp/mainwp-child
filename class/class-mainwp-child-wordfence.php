@@ -37,11 +37,11 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_diskSpace',
 		'scansEnabled_dns',
 		'scansEnabled_fileContents',
+		'scansEnabled_database',
 		'scansEnabled_heartbleed',
 		'scansEnabled_highSense',
 		'scansEnabled_malware',
 		'scansEnabled_oldVersions',
-		'scansEnabled_options',
 		'scansEnabled_passwds',
 		'scansEnabled_plugins',
 		'scansEnabled_posts',
@@ -49,7 +49,7 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_themes',
 		'scheduledScansEnabled',
 		'securityLevel',
-		//'scheduleScan' // filtered this
+		//'scheduleScan' // NOTE: filtered, not save
 		'blockFakeBots',
 		'neverBlockBG',
 		'maxGlobalRequests',
@@ -85,11 +85,18 @@ class MainWP_Child_Wordfence {
 		'startScansRemotely',
 		'disableConfigCaching',
 		'addCacheComment',
-		'isPaid',
-		'advancedCommentScanning',
-		'checkSpamIP',
-		'spamvertizeCheck',
+		'disableCodeExecutionUploads',
+		//'isPaid',
+		"advancedCommentScanning",
+		"checkSpamIP",
+		"spamvertizeCheck",
 		'scansEnabled_public',
+		'email_summary_enabled',
+		'email_summary_dashboard_widget_enabled',
+		'ssl_verify',
+		'email_summary_interval',
+		'email_summary_excluded_directories',
+		'allowed404s',
 	);
 
 
@@ -120,6 +127,7 @@ class MainWP_Child_Wordfence {
 			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
+			MainWP_Helper::update_option('mainwp_wordfence_ext_enabled', "Y", 'yes');
 			switch ( $_POST['mwp_action'] ) {
 				case 'start_scan':
 					$information = $this->start_scan();
@@ -166,9 +174,6 @@ class MainWP_Child_Wordfence {
 				case 'reverse_lookup':
 					$information = $this->reverse_lookup();
 					break;
-				case 'update_live_traffic':
-					$information = $this->update_live_traffic();
-					break;
 				case 'block_ip':
 					$information = $this->block_ip();
 					break;
@@ -180,6 +185,12 @@ class MainWP_Child_Wordfence {
 					break;
 				case 'downgrade_license':
 					$information = $this->downgrade_license();
+					break;
+				case "import_settings":
+					$information = $this->import_settings();
+					break;
+				case "export_settings":
+					$information = $this->export_settings();
 					break;
 			}
 		}
@@ -209,7 +220,6 @@ class MainWP_Child_Wordfence {
 	}
 
 	function set_showhide() {
-		MainWP_Helper::update_option( 'mainwp_wordfence_ext_enabled', 'Y', 'yes' );
 		$hide = isset( $_POST['showhide'] ) && ( $_POST['showhide'] === 'hide' ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_wordfence_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
@@ -309,8 +319,17 @@ class MainWP_Child_Wordfence {
 			'summary'           => $i->getSummaryItems(),
 			'lastScanCompleted' => wfConfig::get( 'lastScanCompleted' ),
 			'apiKey'            => wfConfig::get( 'apiKey' ),
-			'isPaid'            => wfConfig::get( 'isPaid' ),
+			'isPaid' => wfConfig::get('isPaid'),
+			'lastscan_timestamp' => $this->get_lastscan()
 		);
+	}
+
+	function get_lastscan() {
+		global $wpdb;
+		$wfdb = new wfDB();
+		$p = $wpdb->base_prefix;
+		$ctime = $wfdb->querySingle("SELECT MAX(ctime) FROM $p"."wfStatus WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'");
+		return $ctime;
 	}
 
 	function update_all_issues() {
@@ -517,8 +536,7 @@ class MainWP_Child_Wordfence {
 	}
 
 	function save_setting() {
-		MainWP_Helper::update_option( 'mainwp_wordfence_ext_enabled', 'Y', 'yes' );
-		$settings = unserialize( base64_decode( $_POST['settings'] ) );
+		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
 			$result       = array();
 			$reload       = '';
@@ -575,6 +593,30 @@ class MainWP_Child_Wordfence {
 				wfConfig::enableAutoUpdate();
 			} else if ( '0' === $opts['autoUpdate'] ) {
 				wfConfig::disableAutoUpdate();
+			}
+
+			if (isset($opts['disableCodeExecutionUploads'])) {
+				try {
+					if ( $opts['disableCodeExecutionUploads'] ) {
+						wfConfig::disableCodeExecutionForUploads();
+					} else {
+						wfConfig::removeCodeExecutionProtectionForUploads();
+					}
+				} catch ( wfConfigException $e ) {
+					return array( 'error' => $e->getMessage() );
+				}
+			}
+
+			if (isset($opts['email_summary_enabled'])) {
+				if ( ! empty( $opts['email_summary_enabled'] ) ) {
+					wfConfig::set( 'email_summary_enabled', 1 );
+					wfConfig::set( 'email_summary_interval', $opts['email_summary_interval'] );
+					wfConfig::set( 'email_summary_excluded_directories', $opts['email_summary_excluded_directories'] );
+					wfActivityReport::scheduleCronJob();
+				} else {
+					wfConfig::set( 'email_summary_enabled', 0 );
+					wfActivityReport::disableCronJob();
+				}
 			}
 
 			$sch = isset( $opts['scheduleScan'] ) ? $opts['scheduleScan'] : '';
@@ -646,13 +688,63 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
-	function update_live_traffic() {
-		//            if (isset($_POST['liveTrafficEnabled'])) {
-		//                wfConfig::set('liveTrafficEnabled', $_POST['liveTrafficEnabled']);
-		//                return array(
-		//                    'ok' => 1
-		//                );
-		//            }
+	public function export_settings(){
+		/** @var wpdb $wpdb */
+		global $wpdb;
+
+		$keys = wfConfig::getExportableOptionsKeys();
+		$export = array();
+		foreach($keys as $key){
+			$export[$key] = wfConfig::get($key, '');
+		}
+		$export['scanScheduleJSON'] = json_encode(wfConfig::get_ser('scanSched', array()));
+		$export['schedMode'] = wfConfig::get('schedMode', '');
+
+		// Any user supplied blocked IPs.
+		$export['_blockedIPs'] = $wpdb->get_results('SELECT *, HEX(IP) as IP FROM ' . $wpdb->base_prefix . 'wfBlocks WHERE wfsn = 0 AND permanent = 1');
+
+		// Any advanced blocking stuff too.
+		$export['_advancedBlocking'] = $wpdb->get_results('SELECT * FROM ' . $wpdb->base_prefix . 'wfBlocksAdv');
+
+		try {
+			$api = new wfAPI(wfConfig::get('apiKey'), wfUtils::getWPVersion());
+			$res = $api->call('export_options', array(), $export);
+			if($res['ok'] && $res['token']){
+				return array(
+					'ok' => 1,
+					'token' => $res['token'],
+				);
+			} else {
+				throw new Exception("Invalid response: " . var_export($res, true));
+			}
+		} catch(Exception $e){
+			return array('errorExport' => "An error occurred: " . $e->getMessage());
+		}
+	}
+
+	public function import_settings(){
+		$token = $_POST['token'];
+		try {
+			$totalSet = wordfence::importSettings($token);
+			return array(
+				'ok' => 1,
+				'totalSet' => $totalSet,
+				'settings' => $this->get_settings()
+			);
+		} catch(Exception $e){
+			return array('errorImport' => "An error occurred: " . $e->getMessage());
+		}
+	}
+
+	function get_settings() {
+		$keys = wfConfig::getExportableOptionsKeys();
+		$settings = array();
+		foreach($keys as $key){
+			$settings[$key] = wfConfig::get($key, '');
+		}
+		$settings['apiKey'] = wfConfig::get('apiKey');  //get more apiKey
+		$settings['isPaid'] = wfConfig::get('isPaid');
+		return $settings;
 	}
 
 	function ticker() {

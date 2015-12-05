@@ -23,6 +23,7 @@ class MainWP_Child_Pagespeed {
 			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
+			MainWP_Helper::update_option('mainwp_pagespeed_ext_enabled', 'Y', 'yes');
 			switch ( $_POST['mwp_action'] ) {
 				case 'save_settings':
 					$information = $this->save_settings();
@@ -32,6 +33,9 @@ class MainWP_Child_Pagespeed {
 					break;
 				case 'sync_data':
 					$information = $this->sync_data();
+					break;
+				case "check_pages":
+					$information = $this->check_pages();
 					break;
 			}
 		}
@@ -119,7 +123,6 @@ class MainWP_Child_Pagespeed {
 
 
 	function set_showhide() {
-		MainWP_Helper::update_option( 'mainwp_pagespeed_ext_enabled', 'Y', 'yes' );
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_pagespeed_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
@@ -128,14 +131,13 @@ class MainWP_Child_Pagespeed {
 	}
 
 	function save_settings() {
-		MainWP_Helper::update_option( 'mainwp_pagespeed_ext_enabled', 'Y', 'yes' );
 		$current_values = get_option( 'gpagespeedi_options' );
 		if ( is_array( $current_values ) && false === $current_values['last_run_finished'] ) {
 			return array( 'result' => 'RUNNING' );
 		}
 
 		$settings = $_POST['settings'];
-		$settings = unserialize( base64_decode( $settings ) );
+		$settings = maybe_unserialize( base64_decode( $settings ) );
 
 		if ( is_array( $settings ) ) {
 
@@ -203,19 +205,39 @@ class MainWP_Child_Pagespeed {
 				$recheck = false;
 			}
 
-			if ( defined( 'GPI_DIRECTORY' ) ) {
+
+			if ($this->do_check_pages($recheck))
+				$information['checked_pages'] = 1;
+		}
+		$information['data'] = $result['data'];
+		return $information;
+	}
+
+
+	function check_pages() {
+		if (isset($_POST['force_recheck']) && !empty($_POST['force_recheck'])) {
+			$recheck = true;
+		} else {
+			$recheck = false;
+		}
+		$information = array();
+		$information['result'] = 'SUCCESS';
+		if ($this->do_check_pages($recheck))
+			$information['checked_pages'] = 1;
+		return $information;
+	}
+
+	function do_check_pages($forceRecheck = false) {
+		if ( defined( 'GPI_DIRECTORY' ) ) {
 				$options = get_option( 'gpagespeedi_options' );
 				require_once GPI_DIRECTORY . '/core/core.php';
 				$googlePagespeedInsights = new googlePagespeedInsights( $options );
 				if ( $googlePagespeedInsights ) {
-					$googlePagespeedInsights->googlepagespeedinsightsworker( array(), true, $recheck );
-					$information['doaction'] = $_POST['doaction'];
+					$googlePagespeedInsights->googlepagespeedinsightsworker( array(), true, $forceRecheck );
+					return true;
 				}
-			}
 		}
-		$information['data'] = $result['data'];
-
-		return $information;
+		return false;
 	}
 
 	function sync_data( $strategy = '' ) {

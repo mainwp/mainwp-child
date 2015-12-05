@@ -313,6 +313,8 @@ class MainWP_Helper {
 		foreach ( $post_custom as $meta_key => $meta_values ) {
 			if ( ! in_array( $meta_key, $not_allowed ) ) {
 				foreach ( $meta_values as $meta_value ) {
+					if (strpos($meta_key, "_mainwp_spinner_") === 0)
+						continue; // not save
 
 					if ( ! $seo_ext_activated ) {
 						// if Wordpress SEO plugin is not activated do not save yoast post meta
@@ -399,7 +401,7 @@ class MainWP_Helper {
 			$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
 			$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
 			$random_privelege_base = base64_decode( $random_privelege );
-			$random_privelege      = unserialize( $random_privelege_base );
+			$random_privelege      = maybe_unserialize( $random_privelege_base );
 
 			if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
 				$random_post_authors = array();
@@ -681,7 +683,7 @@ class MainWP_Helper {
 		} else if ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
 			$result_base = base64_decode( $result );
-			$information = unserialize( $result_base );
+			$information = maybe_unserialize( $result_base );
 
 			return $information;
 		} else if ( '' === $data ) {
@@ -850,7 +852,7 @@ class MainWP_Helper {
 	static function fix_option( $option_name, $autoload = 'no' ) {
 		global $wpdb;
 
-		if ( $autoload !== $wpdb->get_var( "SELECT autoload FROM $wpdb->options WHERE option_name = '" . $option_name . "'" ) ) {
+		if ( $autoload != $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM $wpdb->options WHERE option_name = %s", $option_name ) ) ) {
 			$option_value = get_option( $option_name );
 			delete_option( $option_name );
 			add_option( $option_name, $option_value, null, $autoload );
