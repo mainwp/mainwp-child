@@ -1,17 +1,17 @@
 <?php
 
 
-class MainWPChildSkeletonKey {
+class MainWP_Child_Skeleton_Key {
 	public static $instance = null;
 	public static $information = array();
-	public $plugin_translate = "mainwp-child";
+	public $plugin_translate = 'mainwp-child';
 
 	static function Instance() {
-		if ( MainWPChildSkeletonKey::$instance == null ) {
-			MainWPChildSkeletonKey::$instance = new MainWPChildSkeletonKey();
+		if ( null === MainWP_Child_Skeleton_Key::$instance ) {
+			MainWP_Child_Skeleton_Key::$instance = new MainWP_Child_Skeleton_Key();
 		}
 
-		return MainWPChildSkeletonKey::$instance;
+		return MainWP_Child_Skeleton_Key::$instance;
 	}
 
 	public function action() {
@@ -20,15 +20,14 @@ class MainWPChildSkeletonKey {
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['message'] ) ) {
-				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
+				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
 			} else {
-				die( '<mainwp>' . base64_encode( serialize( MainWPChildSkeletonKey::$information ) ) . '</mainwp>' );
+				die( '<mainwp>' . base64_encode( serialize( MainWP_Child_Skeleton_Key::$information ) ) . '</mainwp>' );
 			}
 		}
 
-		register_shutdown_function( "mainwp_skeleton_key_handle_fatal_error" );
+		register_shutdown_function( 'mainwp_skeleton_key_handle_fatal_error' );
 
-		$information = array();
 		switch ( $_POST['action'] ) {
 			case 'skeleton_key_visit_site_as_browser':
 				$information = $this->visit_site_as_browser();
@@ -36,9 +35,9 @@ class MainWPChildSkeletonKey {
 
 			default:
 				$information = array( 'error' => 'Unknown action' );
-
 		}
-		MainWPChildSkeletonKey::$information = $information;
+
+		MainWP_Child_Skeleton_Key::$information = $information;
 		exit();
 	}
 
@@ -75,7 +74,7 @@ class MainWPChildSkeletonKey {
 		$post_args['decompress']  = false; // For gzinflate() data error bug
 		$post_args['cookies']     = array(
 			new WP_Http_Cookie( array( 'name' => AUTH_COOKIE, 'value' => $auth_cookie ) ),
-			new WP_Http_Cookie( array( 'name' => LOGGED_IN_COOKIE, 'value' => $logged_cookie ) )
+			new WP_Http_Cookie( array( 'name' => LOGGED_IN_COOKIE, 'value' => $logged_cookie ) ),
 		);
 
 		if ( isset( $args['get'] ) ) {
@@ -96,7 +95,6 @@ class MainWPChildSkeletonKey {
 			$good_nonce = $this->wp_create_nonce_recursive( $temp_nonce );
 			$get_args   = array_merge( $get_args, $good_nonce );
 		}
-
 
 		if ( isset( $args['post'] ) ) {
 			parse_str( $args['post'], $temp_post );
@@ -156,7 +154,7 @@ class MainWPChildSkeletonKey {
 			'get'                 => $get_args,
 			'post'                => $post_args['body'],
 			'search_ok_counter'   => $search_ok_counter,
-			'search_fail_counter' => $search_fail_counter
+			'search_fail_counter' => $search_fail_counter,
 		);
 	}
 
