@@ -755,7 +755,9 @@ class MainWP_Backup {
 			$table = $curr_table[0];
 
 			fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-			$table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
+			//todo fix this
+			//$table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
+			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N );
 			fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );
 
 			// @codingStandardsIgnoreStart
@@ -825,7 +827,9 @@ class MainWP_Backup {
 			$table = $curr_table[0];
 
 			fwrite( $fh, "\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-			$table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
+			//todo fix this
+			//$table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
+			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N );
 			fwrite( $fh, "\n" . $table_create[1] . ';' );
 
 			//$rows = $wpdb->get_results('SELECT * FROM ' . $table, ARRAY_N);

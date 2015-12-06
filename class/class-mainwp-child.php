@@ -810,9 +810,8 @@ class MainWP_Child {
 		$this->update_htaccess();
 
 		global $current_user; //wp variable
-
 		//Login the user
-		if ( isset( $_REQUEST['login_required'] ) && ( 1 === $_REQUEST['login_required'] ) && isset( $_REQUEST['user'] ) ) {
+		if ( isset( $_REQUEST['login_required'] ) && ( '1' === $_REQUEST['login_required'] ) && isset( $_REQUEST['user'] ) ) {
 			$username = rawurldecode( $_REQUEST['user'] );
 			if ( is_user_logged_in() ) {
 				global $current_user;
@@ -3726,7 +3725,7 @@ class MainWP_Child {
 		if ( isset( $_POST['action'] ) ) {
 			if ( 'save_settings' === $_POST['action'] ) {
 
-				if ( isset( $_POST['enable_alert'] ) && 1 === $_POST['enable_alert'] ) {
+				if ( isset( $_POST['enable_alert'] ) && '1' === $_POST['enable_alert'] ) {
 					MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404', 1, 'yes' );
 				} else {
 					delete_option( 'mainwp_maintenance_opt_alert_404' );
