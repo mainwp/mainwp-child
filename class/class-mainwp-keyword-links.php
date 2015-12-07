@@ -98,10 +98,10 @@ class MainWP_Keyword_Links {
 		} else if ( $force_update ) {
 			return $this->do_update_htaccess();
 		} else {
-			if ( '' === get_option( 'permalink_structure' ) && 'yes' !== get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
+			if ( '' == get_option( 'permalink_structure' ) && 'yes' !== get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
 				$this->do_update_htaccess();
 			} // need to update
-			else if ( '' !== get_option( 'permalink_structure' ) && 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
+			else if ( '' != get_option( 'permalink_structure' ) && 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
 				$this->do_update_htaccess();
 			} // need to update
 		}

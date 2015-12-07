@@ -559,13 +559,13 @@ class MainWP_Child {
 							class="howto"><?php esc_html_e( 'The Unique Security ID adds additional protection between the Child plugin and your Main Dashboard. The Unique Security ID will need to match when being added to the Main Dashboard. This is additional security and should not be needed in most situations.', 'mainwp-child' ); ?></div>
 						<div style="margin: 1em 0 4em 0;">
 							<input name="requireUniqueSecurityId" type="checkbox"
-							       id="requireUniqueSecurityId" <?php if ( '' !== get_option( 'mainwp_child_uniqueId' ) ) {
+							       id="requireUniqueSecurityId" <?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
 										echo 'checked';
 } ?> /> <label for="requireUniqueSecurityId"
 							               style="font-size: 15px;"><?php esc_html_e( 'Require Unique Security ID', 'mainwp-child' ); ?></label>
 						</div>
 						<div>
-							<?php if ( '' !== get_option( 'mainwp_child_uniqueId' ) ) {
+							<?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
 								echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">' . esc_html__( 'Your Unique Security ID is:', 'mainwp-child' ) . ' <span style="font-weight: bold; color: #7fb100;">' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</span></span>';
 } ?>
 						</div>
@@ -959,7 +959,7 @@ class MainWP_Child {
 					MainWP_Helper::error( __( 'No such user', 'mainwp-child' ) );
 				}
 
-				if ( 10 !== $user->wp_user_level && ( ! isset( $user->user_level ) || 10 !== $user->user_level ) && ! current_user_can( 'level_10' ) ) {
+				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! current_user_can( 'level_10' ) ) {
 					MainWP_Helper::error( __( 'User is not an administrator', 'mainwp-child' ) );
 				}
 
@@ -1595,7 +1595,7 @@ class MainWP_Child {
 			MainWP_Helper::error( __( 'Public key already set, reset the MainWP plugin on your site and try again.', 'mainwp-child' ) );
 		}
 
-		if ( '' !== get_option( 'mainwp_child_uniqueId' ) ) {
+		if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
 			if ( ! isset( $_POST['uniqueId'] ) || ( '' === $_POST['uniqueId'] ) ) {
 				MainWP_Helper::error( __( 'This Child Site is set to require a Unique Security ID - Please Enter It before connection can be established.', 'mainwp-child' ) );
 			} else if ( get_option( 'mainwp_child_uniqueId' ) !== $_POST['uniqueId'] ) {
