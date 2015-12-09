@@ -46,7 +46,7 @@ class MainWP_Backup {
 		//Verify if another backup is running, if so, return an error
 		$files = glob( $backupdir . '*.pid' );
 		foreach ( $files as $file ) {
-			if ( basename( $file ) === basename( $pid ) ) {
+			if ( basename( $file ) == basename( $pid ) ) {
 				continue;
 			}
 
@@ -60,7 +60,7 @@ class MainWP_Backup {
 			$filePrefix .= '-';
 		}
 
-		if ( 'zip' !== $ext ) {
+		if ( 'zip' == $ext ) {
 			$this->archiver = null;
 			$ext            = '.zip';
 		} else {
@@ -514,7 +514,7 @@ class MainWP_Backup {
 					unset( $nodes[ $key ] );
 				} else {
 					foreach ( $coreFiles as $coreFile ) {
-						if ( ABSPATH . $coreFile === $node ) {
+						if ( ABSPATH . $coreFile == $node ) {
 							unset( $nodes[ $key ] );
 						}
 					}

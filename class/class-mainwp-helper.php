@@ -595,11 +595,11 @@ class MainWP_Helper {
 
 	public static function endsWith( $haystack, $needle ) {
 		$length = strlen( $needle );
-		if ( 0 === $length ) {
+		if ( 0 == $length ) {
 			return true;
 		}
 
-		return ( substr( $haystack, - $length ) === $needle );
+		return ( substr( $haystack, - $length ) == $needle );
 	}
 
 	public static function getNiceURL( $pUrl, $showHttp = false ) {
@@ -927,13 +927,13 @@ class MainWP_Helper {
 			return false;
 		}
 
-		if ( null !== $excludes ) {
+		if ( null != $excludes ) {
 			foreach ( $excludes as $exclude ) {
 				if ( MainWP_Helper::endsWith( $exclude, '*' ) ) {
 					if ( MainWP_Helper::startsWith( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
 						return true;
 					}
-				} else if ( $value === $exclude ) {
+				} else if ( $value == $exclude ) {
 					return true;
 				} else if ( MainWP_Helper::startsWith( $value, $exclude . '/' ) ) {
 					return true;

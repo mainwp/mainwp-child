@@ -1996,7 +1996,7 @@ class MainWP_Child {
 				$uname = @posix_uname();
 				if ( is_array( $uname ) && isset( $uname['nodename'] ) ) {
 					if ( stristr( $uname['nodename'], 'hostgator' ) ) {
-						if ( ! isset( $_POST['file_descriptors'] ) || '0' === $_POST['file_descriptors'] || $_POST['file_descriptors'] > 1000 ) {
+						if ( ! isset( $_POST['file_descriptors'] ) || '0' == $_POST['file_descriptors'] || $_POST['file_descriptors'] > 1000 ) {
 							$_POST['file_descriptors'] = 1000;
 						}
 						$_POST['file_descriptors_auto'] = 0;
@@ -2023,10 +2023,10 @@ class MainWP_Child {
 				$newExcludes[] = rtrim( $exclude, '/' );
 			}
 
-			$excludebackup = ( isset( $_POST['excludebackup'] ) && '1' === $_POST['excludebackup'] );
-			$excludecache  = ( isset( $_POST['excludecache'] ) && '1' === $_POST['excludecache'] );
-			$excludezip    = ( isset( $_POST['excludezip'] ) && '1' === $_POST['excludezip'] );
-			$excludenonwp  = ( isset( $_POST['excludenonwp'] ) && '1' === $_POST['excludenonwp'] );
+			$excludebackup = ( isset( $_POST['excludebackup'] ) && '1' == $_POST['excludebackup'] );
+			$excludecache  = ( isset( $_POST['excludecache'] ) && '1' == $_POST['excludecache'] );
+			$excludezip    = ( isset( $_POST['excludezip'] ) && '1' == $_POST['excludezip'] );
+			$excludenonwp  = ( isset( $_POST['excludenonwp'] ) && '1' == $_POST['excludenonwp'] );
 
 			if ( $excludebackup ) {
 				//Backup buddy
@@ -2105,7 +2105,7 @@ class MainWP_Child {
 				$pid = $_POST['pid'];
 			}
 
-			$append = ( isset( $_POST['append'] ) && ( '1' === $_POST['append'] ) );
+			$append = ( isset( $_POST['append'] ) && ( '1' == $_POST['append'] ) );
 
 			$res = MainWP_Backup::get()->createFullBackup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
 			if ( ! $res ) {
@@ -2115,7 +2115,7 @@ class MainWP_Child {
 				$information['size'] = $res['filesize'];
 			}
 			$information['db'] = false;
-		} else if ( 'db' === $_POST['type'] ) {
+		} else if ( 'db' == $_POST['type'] ) {
 			$ext = 'zip';
 			if ( isset( $_POST['ext'] ) ) {
 				$ext = $_POST['ext'];
