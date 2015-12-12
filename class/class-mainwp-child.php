@@ -78,7 +78,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	private $version = '3.0';
+	public static $version = '3.0';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -176,7 +176,7 @@ class MainWP_Child {
 		add_action( 'init', array( &$this, 'localization' ) );
 
 		if ( is_admin() ) {
-			MainWP_Helper::update_option( 'mainwp_child_plugin_version', $this->version, 'yes' );
+			MainWP_Helper::update_option( 'mainwp_child_plugin_version', self::$version, 'yes' );
 		}
 
 		$this->checkOtherAuth();
@@ -2418,7 +2418,7 @@ class MainWP_Child {
 			}
 		}
 
-		$information['version']   = $this->version;
+		$information['version']   = self::$version;
 		$information['wpversion'] = $wp_version;
 		$information['siteurl']   = get_option( 'siteurl' );
 		$information['nossl']     = ( '1' === get_option( 'mainwp_child_nossl' ) ? 1 : 0 );
@@ -3399,11 +3399,8 @@ class MainWP_Child {
 			$active_plugins = get_option( 'active_plugins' );
 
 			foreach ( $plugins as $pluginslug => $plugin ) {
-				if ( $pluginslug === $this->plugin_slug ) {
-					continue;
-				}
-
 				$out                = array();
+				$out['mainwp']    = ($pluginslug == $this->plugin_slug ? 'T' : 'F');
 				$out['name']        = $plugin['Name'];
 				$out['slug']        = $pluginslug;
 				$out['description'] = $plugin['Description'];
@@ -3527,7 +3524,7 @@ class MainWP_Child {
 		}
 
 		global $wp_version;
-		$information['version']   = $this->version;
+		$information['version']   = self::$version;
 		$information['wpversion'] = $wp_version;
 		MainWP_Helper::write( $information );
 	}

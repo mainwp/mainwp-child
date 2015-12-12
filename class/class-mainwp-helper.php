@@ -664,7 +664,8 @@ class MainWP_Helper {
 	}
 
 	public static function _fetchUrl( $url, $postdata ) {
-		$agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
+		//$agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
+		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
 
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, $url );

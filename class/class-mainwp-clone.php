@@ -338,7 +338,7 @@ class MainWP_Clone {
 			$dirparts = '<a href="' . $durl . '">' . $part . DIRECTORY_SEPARATOR . '</a>' . $dirparts;
 		}
 
-		echo '<p>' . esc_html__( '<strong>Current Directory:</strong> <span>' . $dirparts . '</span>', 'mainwp' ) . '</p>';
+		echo '<p>' . __( '<strong>Current Directory:</strong> <span>' . $dirparts . '</span>', 'mainwp' ) . '</p>';
 		$quick_dirs   = array();
 		$quick_dirs[] = array( __( 'Site Root', 'mainwp' ), ABSPATH );
 		$quick_dirs[] = array( __( 'Backup', 'mainwp' ), $backup_dir );
@@ -359,7 +359,7 @@ class MainWP_Clone {
 		}
 
 		if ( ! empty( $quick_links ) ) {
-			echo '<p><strong>' . esc_html__( 'Quick Jump:', 'mainwp' ) . '</strong> ' . esc_html( implode( ' | ', $quick_links ) ) . '</p>';
+			echo '<p><strong>' . esc_html__( 'Quick Jump:', 'mainwp' ) . '</strong> ' . __( implode( ' | ', $quick_links ) ) . '</p>';
 		}
 
 		$dir_files      = scandir( $current_dir );

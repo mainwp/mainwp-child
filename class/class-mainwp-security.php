@@ -239,7 +239,7 @@ class MainWP_Security {
 
 	//PHP error reporting turned on/off
 	public static function remove_php_reporting_ok() {
-		return ! ( ( ( 0 !== ini_get( 'display_errors' ) ) && ( 'off' !== ini_get( 'display_errors' ) ) ) || ( ( 0 !== ini_get( 'display_startup_errors' ) ) && ( 'off' !== ini_get( 'display_startup_errors' ) ) ) );
+		return ! ( ( ( 0 != ini_get( 'display_errors' ) ) && ( 'off' != ini_get( 'display_errors' ) ) ) || ( ( 0 != ini_get( 'display_startup_errors' ) ) && ( 'off' != ini_get( 'display_startup_errors' ) ) ) );
 	}
 
 	public static function remove_php_reporting( $force = false ) {
