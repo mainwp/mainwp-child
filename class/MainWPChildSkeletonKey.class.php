@@ -19,7 +19,7 @@ class MainWPChildSkeletonKey {
 		error_reporting( 0 );
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
-			if ( isset( $error['message'] ) ) {
+			if ( isset( $error['type'] ) && in_array($error['type'], 1, 4, 16, 64) && isset( $error['message'] ) ) { 
 				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
 			} else {
 				die( '<mainwp>' . base64_encode( serialize( MainWPChildSkeletonKey::$information ) ) . '</mainwp>' );
