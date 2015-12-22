@@ -12,20 +12,16 @@ class MainWP_Child_iThemes_Security {
 	}
 
 	public function __construct() {
-		add_action( 'mainwp_child_deactivation', array( $this, 'deactivation' ) );
-		add_action( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ) );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 	}
 
-	public function deactivation() {
-
-	}
-
-	function syncOthersData( $data ) {
+	function syncOthersData( $information, $data = array() ) {
 		if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_ithemes_ext_activated', 'Y' );
 		} else {
 			MainWP_Helper::update_option( 'mainwp_ithemes_ext_activated', '' );
 		}
+		return $information;
 	}
 
 	public function action() {

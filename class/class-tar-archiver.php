@@ -62,10 +62,12 @@ class Tar_Archiver {
 		return '.tar';
 	}
 
-	public function zipFile( $filepath, $archive ) {
+	public function zipFile( $files, $archive ) {
 		$this->create( $archive );
 		if ( $this->archive ) {
-			$this->addFile( $filepath, basename( $filepath ) );
+			foreach ( $files as $filepath ) {
+				$this->addFile( $filepath, basename( $filepath ) );
+			}
 
 			$this->addData( pack( 'a1024', '' ) );
 			$this->close();
@@ -187,10 +189,12 @@ class Tar_Archiver {
 				unset( $coreFiles );
 			}
 
-			if ( ! $append || ! file_exists( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql' ) ) {
-				$this->backup->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql', false, $this );
+			$db_files = $this->backup->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', false, $this );
+
+			foreach ( $db_files as $db_file ) {
+				$this->addFile( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
 			}
-			$this->addFile( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql', basename( WP_CONTENT_DIR ) . '/dbBackup.sql' );
+
 			if ( file_exists( ABSPATH . '.htaccess' ) ) {
 				$this->addFile( ABSPATH . '.htaccess', 'mainwp-htaccess' );
 			}
@@ -260,7 +264,9 @@ class Tar_Archiver {
 
 			$this->addData( pack( 'a1024', '' ) );
 			$this->close();
-			@unlink( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql' );
+			foreach ( $db_files as $db_file ) {
+				@unlink( $db_file );
+			}
 
 			$this->completePidFile();
 

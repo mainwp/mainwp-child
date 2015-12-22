@@ -166,8 +166,9 @@ class MainWP_Clone_Install {
 	}
 
 	public function clean() {
-		if ( file_exists( WP_CONTENT_DIR . '/dbBackup.sql' ) ) {
-			@unlink( WP_CONTENT_DIR . '/dbBackup.sql' );
+		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+		foreach ( $files as $file ) {
+			@unlink( $file );
 		}
 		if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
 			@unlink( ABSPATH . 'clone/config.txt' );
@@ -225,199 +226,61 @@ class MainWP_Clone_Install {
 		$query     = '';
 		$tableName = '';
 		$wpdb->query( 'SET foreign_key_checks = 0' );
-		$handle = @fopen( WP_CONTENT_DIR . '/dbBackup.sql', 'r' );
 
-		$lastRun = 0;
-		if ( $handle ) {
-			$readline = '';
-			while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
-				if ( time() - $lastRun > 20 ) {
-					@set_time_limit( 0 ); //reset timer..
-					$lastRun = time();
-				}
+		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+		foreach ( $files as $file ) {
+			$handle = @fopen( $file, 'r' );
 
-				$readline .= $line;
-				if ( ! stristr( $line, ";\n" ) && ! feof( $handle ) ) {
-					continue;
-				}
-
-				$splitLine = explode( ";\n", $readline );
-				$splitLineLength = count( $splitLine );
-				for ( $i = 0; $i < $splitLineLength - 1; $i ++ ) {
-					$wpdb->query( $splitLine[ $i ] );
-				}
-
-				$readline = $splitLine[ count( $splitLine ) - 1 ];
-
-				//                if (preg_match('/^(DROP +TABLE +IF +EXISTS|CREATE +TABLE|INSERT +INTO) +(\S+)/is', $readline, $match))
-				//                {
-				//                    if (trim($query) != '')
-				//                    {
-				//                        $queryTable = $tableName;
-				//                        $query = preg_replace('/^(DROP +TABLE +IF +EXISTS|CREATE +TABLE|INSERT +INTO) +(\S+)/is', '$1 `' . $queryTable . '`', $query);
-				//
-				//                        $query = str_replace($this->config['home'], $home, $query);
-				//                        $query = str_replace($this->config['siteurl'], $site_url, $query);
-				//                        $query = str_replace($this->config['abspath'], ABSPATH, $query);
-				////                        $query = str_replace('\"', '\\\"', $query);
-				////                        $query = str_replace("\\\\'", "\\'", $query);
-				////                        $query = str_replace('\r\n', '\\\r\\\n', $query);
-				//
-				//                        if ($wpdb->query($query) === false) throw new Exception('Error importing database');
-				//                    }
-				//
-				//                    $query = $readline;
-				//                    $readline = '';
-				//                    $tableName = trim($match[2], '`; ');
-				//                }
-				//                else
-				//                {
-				//                    $query .= $readline;
-				//                    $readline = '';
-				//                }
-			}
-
-			if ( trim( $readline ) != '' ) {
-				$wpdb->query( $readline );
-			}
-			//
-			//            if (trim($query) != '')
-			//            {
-			//                $queryTable = $tableName;
-			//                $query = preg_replace('/^(DROP +TABLE +IF +EXISTS|CREATE +TABLE|INSERT +INTO) +(\S+)/is', '$1 `' . $queryTable . '`', $query);
-			//
-			//                $query = str_replace($this->config['home'], $home, $query);
-			//                $query = str_replace($this->config['siteurl'], $site_url, $query);
-			////                $query = str_replace('\"', '\\\"', $query);
-			////                $query = str_replace("\\\\'", "\\'", $query);
-			////                $query = str_replace('\r\n', '\\\r\\\n', $query);
-			//                if ($wpdb->query($query) === false) throw new Exception(__('Error importing database','mainwp-child'));
-			//            }
-			//
-			if ( ! feof( $handle ) ) {
-				throw new Exception( __( 'Error: unexpected end of file for database', 'mainwp-child' ) );
-			}
-			fclose( $handle );
-
-			$tables    = array();
-			$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
-
-			foreach ( $tables_db as $curr_table ) {
-				// fix for more table prefix in one database
-				if ( ( strpos( $curr_table[0], $wpdb->prefix ) !== false ) || ( strpos( $curr_table[0], $table_prefix ) !== false ) ) {
-					$tables[] = $curr_table[0];
-				}
-			}
-			// Replace importance data first so if other replace failed, the website still work
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "siteurl"', $site_url ) );
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "home"', $home) );
-			// Replace others
-			$this->icit_srdb_replacer( $wpdb->dbh, $this->config['home'], $home, $tables );
-			$this->icit_srdb_replacer( $wpdb->dbh, $this->config['siteurl'], $site_url, $tables );
-		}
-
-		// Update site url
-		//        $wpdb->query('UPDATE '.$table_prefix.'options SET option_value = "'.$site_url.'" WHERE option_name = "siteurl"');
-		//        $wpdb->query('UPDATE '.$table_prefix.'options SET option_value = "'.$home.'" WHERE option_name = "home"');
-
-		//        $rows = $wpdb->get_results( 'SELECT * FROM ' . $table_prefix.'options', ARRAY_A);
-		//        foreach ($rows as $row)
-		//        {
-		//            $option_val = $row['option_value'];
-		//            if (!$this->is_serialized($option_val)) continue;
-		//
-		//            $option_val = $this->recalculateSerializedLengths($option_val);
-		//            $option_id = $row['option_id'];
-		//            $wpdb->query('UPDATE '.$table_prefix.'options SET option_value = "'.MainWP_Child_DB::real_escape_string($option_val).'" WHERE option_id = '.$option_id);
-		//        }
-		$wpdb->query( 'SET foreign_key_checks = 1' );
-
-		return true;
-	}
-
-	public function install_legacy() {
-		/** @var $wpdb wpdb */
-		global $wpdb;
-
-		$table_prefix = $this->config['prefix'];
-		$home         = get_option( 'home' );
-		$site_url     = get_option( 'siteurl' );
-		// Install database
-		define( 'WP_INSTALLING', true );
-		define( 'WP_DEBUG', false );
-		$query     = '';
-		$tableName = '';
-		$wpdb->query( 'SET foreign_key_checks = 0' );
-		$handle = @fopen( WP_CONTENT_DIR . '/dbBackup.sql', 'r' );
-		if ( $handle ) {
-			$readline = '';
-			while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
-				$readline .= $line;
-				if ( ! stristr( $line, "\n" ) && ! feof( $handle ) ) {
-					continue;
-				}
-
-				if ( preg_match( '/^(DROP +TABLE +IF +EXISTS|CREATE +TABLE|INSERT +INTO) +(\S+)/is', $readline, $match ) ) {
-					if ( '' !== trim( $query ) ) {
-						$queryTable = $tableName;
-						$query      = preg_replace( '/^(DROP +TABLE +IF +EXISTS|CREATE +TABLE|INSERT +INTO) +(\S+)/is', '$1 `' . $queryTable . '`', $query );
-
-						$query = str_replace( $this->config['home'], $home, $query );
-						$query = str_replace( $this->config['siteurl'], $site_url, $query );
-						$query = str_replace( $this->config['abspath'], ABSPATH, $query );
-						//                        $query = str_replace('\"', '\\\"', $query);
-						//                        $query = str_replace("\\\\'", "\\'", $query);
-						//                        $query = str_replace('\r\n', '\\\r\\\n', $query);
-
-						if ( false === $wpdb->query( $query ) ) {
-							throw new Exception( 'Error importing database' );
-						}
+			$lastRun = 0;
+			if ( $handle ) {
+				$readline = '';
+				while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
+					if ( time() - $lastRun > 20 ) {
+						@set_time_limit( 0 ); //reset timer..
+						$lastRun = time();
 					}
 
-					$query     = $readline;
-					$readline  = '';
-					$tableName = trim( $match[2], '`; ' );
-				} else {
-					$query .= $readline;
-					$readline = '';
+					$readline .= $line;
+					if ( ! stristr( $line, ";\n" ) && ! feof( $handle ) ) {
+						continue;
+					}
+
+					$splitLine       = explode( ";\n", $readline );
+					$splitLineLength = count( $splitLine );
+					for ( $i = 0; $i < $splitLineLength - 1; $i ++ ) {
+						$wpdb->query( $splitLine[ $i ] );
+					}
+
+					$readline = $splitLine[ count( $splitLine ) - 1 ];
 				}
-			}
 
-			if ( '' !== trim( $query ) ) {
-				$queryTable = $tableName;
-				$query      = preg_replace( '/^(DROP +TABLE +IF +EXISTS|CREATE +TABLE|INSERT +INTO) +(\S+)/is', '$1 `' . $queryTable . '`', $query );
-
-				$query = str_replace( $this->config['home'], $home, $query );
-				$query = str_replace( $this->config['siteurl'], $site_url, $query );
-				//                $query = str_replace('\"', '\\\"', $query);
-				//                $query = str_replace("\\\\'", "\\'", $query);
-				//                $query = str_replace('\r\n', '\\\r\\\n', $query);
-				if ( $wpdb->query( $query ) === false ) {
-					throw new Exception( __( 'Error importing database', 'mainwp-child' ) );
+				if ( trim( $readline ) != '' ) {
+					$wpdb->query( $readline );
 				}
-			}
 
-			if ( ! feof( $handle ) ) {
-				throw new Exception( __( 'Error: unexpected end of file for database', 'mainwp-child' ) );
+				if ( ! feof( $handle ) ) {
+					throw new Exception( __( 'Error: unexpected end of file for database', 'mainwp-child' ) );
+				}
+				fclose( $handle );
 			}
-			fclose( $handle );
 		}
 
-		// Update site url
-		$wpdb->query( 'UPDATE ' . $table_prefix . 'options SET option_value = "' . $site_url . '" WHERE option_name = "siteurl"' );
-		$wpdb->query( 'UPDATE ' . $table_prefix . 'options SET option_value = "' . $home . '" WHERE option_name = "home"' );
+		$tables    = array();
+		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
 
-		$rows = $wpdb->get_results( 'SELECT * FROM ' . $table_prefix . 'options', ARRAY_A );
-		foreach ( $rows as $row ) {
-			$option_val = $row['option_value'];
-			if ( ! $this->is_serialized( $option_val ) ) {
-				continue;
+		foreach ( $tables_db as $curr_table ) {
+			// fix for more table prefix in one database
+			if ( ( strpos( $curr_table[0], $wpdb->prefix ) !== false ) || ( strpos( $curr_table[0], $table_prefix ) !== false ) ) {
+				$tables[] = $curr_table[0];
 			}
-
-			$option_val = $this->recalculateSerializedLengths( $option_val );
-			$option_id  = $row['option_id'];
-			$wpdb->query( 'UPDATE ' . $table_prefix . 'options SET option_value = "' . MainWP_Child_DB::real_escape_string( $option_val ) . '" WHERE option_id = ' . $option_id );
 		}
+		// Replace importance data first so if other replace failed, the website still work
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "siteurl"', $site_url ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "home"', $home ) );
+		// Replace others
+		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['home'], $home, $tables );
+		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['siteurl'], $site_url, $tables );
+
 		$wpdb->query( 'SET foreign_key_checks = 1' );
 
 		return true;
@@ -486,7 +349,10 @@ class MainWP_Clone_Install {
 
 	public function cleanUp() {
 		// Clean up!
-		@unlink( '../dbBackup.sql' );
+		$files = glob( '../dbBackup*.sql' );
+		foreach ( $files as $file ) {
+			@unlink( $file );
+		}
 	}
 
 	public function getConfigContents() {
@@ -587,30 +453,6 @@ class MainWP_Clone_Install {
 	public function extractWPZipBackup() {
 		MainWP_Helper::getWPFilesystem();
 		global $wp_filesystem;
-
-		//First check if there is a database backup in the zip file, these can be very large and the wordpress unzip_file can not handle these!
-		//        if ($this->checkZipSupport())
-		//        {
-		//             return $this->extractZipBackup();
-		//            $zip = new ZipArchive();
-		//            $zipRes = $zip->open($this->file);
-		//            if ($zipRes)
-		//            {
-		//                $stats = $zip->statName('wp-content/dbBackup.sql');
-		//
-		//                @$zip->extractTo(ABSPATH);
-		//
-		//                $zip->deleteName('wp-content/dbBackup.sql');
-		//                $zip->deleteName('clone');
-		//                $zip->close();
-		//
-		//                $zip->close();
-		//            }
-		//        }
-		//        else
-		//        {
-		//             return $this->extractZipPclBackup();
-		//        }
 
 		$tmpdir = ABSPATH;
 		if ( ( 'ftpext' === $wp_filesystem->method ) && defined( 'FTP_BASE' ) ) {

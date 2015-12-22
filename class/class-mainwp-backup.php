@@ -124,7 +124,7 @@ class MainWP_Backup {
 		) : false;
 	}
 
-	public function zipFile( $file, $archive ) {
+	public function zipFile( $files, $archive ) {
 		$this->timeout = 20 * 60 * 60; /*20 minutes*/
 		$mem           = '512M';
 		// @codingStandardsIgnoreStart
@@ -133,27 +133,33 @@ class MainWP_Backup {
 		@ini_set( 'max_execution_time', $this->timeout );
 		// @codingStandardsIgnoreEnd
 
+		if ( !is_array( $files ) ) {
+			$files = array ($files );
+		}
+
 		if ( null !== $this->archiver ) {
-			$success = $this->archiver->zipFile( $file, $archive );
+			$success = $this->archiver->zipFile( $files, $archive );
 		} else if ( $this->checkZipSupport() ) {
-			$success = $this->_zipFile( $file, $archive );
+			$success = $this->_zipFile( $files, $archive );
 		} else if ( $this->checkZipConsole() ) {
-			$success = $this->_zipFileConsole( $file, $archive );
+			$success = $this->_zipFileConsole( $files, $archive );
 		} else {
-			$success = $this->_zipFilePcl( $file, $archive );
+			$success = $this->_zipFilePcl( $files, $archive );
 		}
 
 		return $success;
 	}
 
-	function _zipFile( $file, $archive ) {
+	function _zipFile( $files, $archive ) {
 		$this->zip                 = new ZipArchive();
 		$this->zipArchiveFileCount = 0;
 		$this->zipArchiveSizeCount = 0;
 
 		$zipRes = $this->zip->open( $archive, ZipArchive::CREATE );
 		if ( $zipRes ) {
-			$this->addFileToZip( $file, basename( $file ) );
+			foreach ( $files as $file ) {
+				$this->addFileToZip( $file, basename( $file ) );
+			}
 
 			return $this->zip->close();
 		}
@@ -161,21 +167,23 @@ class MainWP_Backup {
 		return false;
 	}
 
-	function _zipFileConsole( $file, $archive ) {
+	function _zipFileConsole( $files, $archive ) {
 		return false;
 	}
 
-	public function _zipFilePcl( $file, $archive ) {
+	public function _zipFilePcl( $files, $archive ) {
 		//Zip this backup folder..
 		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
 		$this->zip = new PclZip( $archive );
 
 		$error = false;
-		if ( 0 === ( $rslt = $this->zip->add( $file, PCLZIP_OPT_REMOVE_PATH, dirname( $file ) ) ) ) {
-			$error = true;
+		foreach ( $files as $file ) {
+			if ( 0 === ( $rslt = $this->zip->add( $file, PCLZIP_OPT_REMOVE_PATH, dirname( $file ) ) ) ) {
+				$error = true;
+			}
 		}
 
-		return ! $error;
+		return !$error;
 	}
 
 	/**
@@ -253,8 +261,11 @@ class MainWP_Backup {
 				unset( $coreFiles );
 			}
 
-			$this->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql' );
-			$this->addFileToZip( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql', basename( WP_CONTENT_DIR ) . '/' . 'dbBackup.sql' );
+			$db_files = $this->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
+			foreach ( $db_files as $db_file ) {
+				$this->addFileToZip( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
+			}
+
 			if ( file_exists( ABSPATH . '.htaccess' ) ) {
 				$this->addFileToZip( ABSPATH . '.htaccess', 'mainwp-htaccess' );
 			}
@@ -323,9 +334,9 @@ class MainWP_Backup {
 			}
 
 			$return = $this->zip->close();
-			// @codingStandardsIgnoreStart
-			@unlink( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql' );
-			// @codingStandardsIgnoreEnd
+			foreach ( $db_files as $db_file ) {
+				@unlink( $db_file );
+			}
 
 			return true;
 		}
@@ -384,15 +395,17 @@ class MainWP_Backup {
 			unset( $coreFiles );
 		}
 
-		$this->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql' );
+		$db_files = $this->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
 		$error = false;
-		if ( 0 === ( $rslt = $this->zip->add( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql', PCLZIP_OPT_REMOVE_PATH, dirname( $filepath ), PCLZIP_OPT_ADD_PATH, basename( WP_CONTENT_DIR ) ) ) ) {
-			$error = true;
+		foreach ( $db_files as $db_file ) {
+			if ( 0 === ( $rslt = $this->zip->add( $db_file, PCLZIP_OPT_REMOVE_PATH, dirname( $db_file ), PCLZIP_OPT_ADD_PATH, basename( WP_CONTENT_DIR ) ) ) ) {
+				$error = true;
+			}
 		}
 
-		// @codingStandardsIgnoreStart
-		@unlink( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup.sql' );
-		// @codingStandardsIgnoreEnd
+		foreach ( $db_files as $db_file ) {
+			@unlink( $db_file );
+		}
 		if ( ! $error ) {
 			foreach ( $nodes as $node ) {
 				if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes ) ) {
@@ -479,7 +492,7 @@ class MainWP_Backup {
 		// @codingStandardsIgnoreEnd
 
 		//Create DB backup
-		$this->createBackupDB( $backupFolder . 'dbBackup.sql' );
+		$db_files = $this->createBackupDB( $backupFolder . 'dbBackup' );
 
 		//Copy installation to backup folder
 		$nodes = glob( ABSPATH . '*' );
@@ -525,8 +538,11 @@ class MainWP_Backup {
 		$this->copy_dir( $nodes, $excludes, $backupFolder, $excludenonwp, true );
 		// to fix bug wrong folder
 		// @codingStandardsIgnoreStart
-		@copy( $backupFolder . 'dbBackup.sql', $backupFolder . basename( WP_CONTENT_DIR ) . '/dbBackup.sql' );
-		@unlink( $backupFolder . 'dbBackup.sql' );
+
+		foreach ( $db_files as $db_file ) {
+			@copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
+			@unlink( $db_file );
+		}
 		// @codingStandardsIgnoreEnd
 		unset( $nodes );
 
@@ -731,7 +747,7 @@ class MainWP_Backup {
 		return false;
 	}
 
-	public function createBackupDB( $filepath, $archiveExt = false, &$archiver = null ) {
+	public function createBackupDB( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
 		$timeout = 20 * 60 * 60; //20minutes
 		// @codingStandardsIgnoreStart
 		@set_time_limit( $timeout );
@@ -740,11 +756,10 @@ class MainWP_Backup {
 		@ini_set( 'memory_limit', $mem );
 		// @codingStandardsIgnoreEnd
 
-		$fh = fopen( $filepath, 'w' ); //or error;
-
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
+		$db_files = array();
 		//Get all the tables
 		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
 		foreach ( $tables_db as $curr_table ) {
@@ -753,6 +768,13 @@ class MainWP_Backup {
 			}
 
 			$table = $curr_table[0];
+
+			$currentfile = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql';
+			$db_files[] = $currentfile;
+			if ( file_exists( $currentfile ) ) {
+				continue;
+			}
+			$fh = fopen( $currentfile . '.tmp', 'w' ); //or error;
 
 			fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
 			//todo fix this
@@ -791,12 +813,16 @@ class MainWP_Backup {
 			}
 			$rows = null;
 			fflush( $fh );
+			fclose( $fh );
+			rename( $currentfile . '.tmp', $currentfile );
 		}
 
-		fclose( $fh );
+		fclose( fopen( $filepath_prefix . '.sql', 'w' ) );
+		$db_files[] = $filepath_prefix . '.sql';
 
+		$archivefilePath = null;
 		if ( false !== $archiveExt ) {
-			$newFilepath = $filepath . '.' . $archiveExt;
+			$archivefilePath = $filepath_prefix . '.sql.' . $archiveExt;
 
 			if ( 'zip' === $archiveExt ) {
 				$this->archiver = null;
@@ -804,93 +830,16 @@ class MainWP_Backup {
 				$this->archiver = new Tar_Archiver( $this, $archiveExt );
 			}
 
-			if ( $this->zipFile( $filepath, $newFilepath ) && file_exists( $newFilepath ) ) {
-				// @codingStandardsIgnoreStart
-				@unlink( $filepath );
-				// @codingStandardsIgnoreEnd
-				$filepath = $newFilepath;
+			if ( $this->zipFile( $db_files, $archivefilePath ) && file_exists( $archivefilePath ) ) {
+				foreach ( $db_files as $db_file ) {
+					@unlink( $db_file );
+				}
+			} else {
+				//todo: throw exception!
 			}
 		}
 
-		return array( 'filepath' => $filepath );
-	}
 
-	public function createBackupDB_legacy( $filepath ) {
-		$fh = fopen( $filepath, 'w' ); //or error;
-
-		global $wpdb;
-		$maxchars = 50000;
-
-		//Get all the tables
-		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
-		foreach ( $tables_db as $curr_table ) {
-			$table = $curr_table[0];
-
-			fwrite( $fh, "\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-			//todo fix this
-			//$table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
-			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N );
-			fwrite( $fh, "\n" . $table_create[1] . ';' );
-
-			//$rows = $wpdb->get_results('SELECT * FROM ' . $table, ARRAY_N);
-			// @codingStandardsIgnoreStart
-			$rows = @MainWP_Child_DB::_query( 'SELECT * FROM ' . $table, $wpdb->dbh );
-			// @codingStandardsIgnoreEnd
-			if ( $rows ) {
-				$table_columns        = $wpdb->get_results( 'SHOW COLUMNS FROM ' . $table );
-				$table_columns_insert = '';
-				foreach ( $table_columns as $table_column ) {
-					if ( '' !== $table_columns_insert ) {
-						$table_columns_insert .= ', ';
-					}
-					$table_columns_insert .= '`' . $table_column->Field . '`';
-				}
-				$table_insert = 'INSERT INTO `' . $table . '` (';
-				$table_insert .= $table_columns_insert;
-				$table_insert .= ') VALUES ' . "\n";
-
-				$current_insert = $table_insert;
-
-				$inserted   = false;
-				$add_insert = '';
-				// @codingStandardsIgnoreStart
-				while ( $row = @MainWP_Child_DB::fetch_array( $rows ) ) {
-					// @codingStandardsIgnoreEnd
-					//Create new insert!
-					$add_insert      = '(';
-					$add_insert_each = '';
-					foreach ( $row as $value ) {
-						//$add_insert_each .= "'" . str_replace(array("\n", "\r", "'"), array('\n', '\r', "\'"), $value) . "',";
-
-						$value = addslashes( $value );
-						$value = str_replace( "\n", "\\n", $value );
-						$value = str_replace( "\r", "\\r", $value );
-						$add_insert_each .= '"' . $value . '",';
-					}
-					$add_insert .= trim( $add_insert_each, ',' ) . ')';
-
-					//If we already inserted something & the total is too long - commit previous!
-					if ( $inserted && strlen( $add_insert ) + strlen( $current_insert ) >= $maxchars ) {
-						fwrite( $fh, "\n" . $current_insert . ';' );
-						$current_insert = $table_insert;
-						$current_insert .= $add_insert;
-						$inserted = false;
-					} else {
-						if ( $inserted ) {
-							$current_insert .= ', ' . "\n";
-						}
-						$current_insert .= $add_insert;
-					}
-					$inserted = true;
-				}
-				if ( $inserted ) {
-					fwrite( $fh, "\n" . $current_insert . ';' );
-				}
-			}
-		}
-
-		fclose( $fh );
-
-		return true;
+		return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );
 	}
 }

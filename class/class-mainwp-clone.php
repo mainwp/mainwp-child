@@ -994,8 +994,8 @@ class MainWP_Clone {
             .ui-dialog .ui-dialog-titlebar-close {
                 background: none;
                 border-radius: 15px;
-                -moz- border-radius: 15px;
-                -webkit- border-radius: 15px;
+                -moz-border-radius: 15px;
+                -webkit-border-radius: 15px;
                 color: #fff;
             }
 

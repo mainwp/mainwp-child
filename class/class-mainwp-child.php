@@ -714,8 +714,10 @@ class MainWP_Child {
 				MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
 			} else if ( 'createCloneBackup' === $_POST['cloneFunc'] ) {
 				MainWP_Helper::endSession();
-				if ( file_exists( WP_CONTENT_DIR . '/dbBackup.sql' ) ) {
-					@unlink( WP_CONTENT_DIR . '/dbBackup.sql' );
+
+				$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+				foreach ( $files as $file ) {
+					@unlink( $file );
 				}
 				if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
 					@unlink( ABSPATH . 'clone/config.txt' );
@@ -982,6 +984,7 @@ class MainWP_Child {
 		}
 
 		new MainWP_Child_iThemes_Security();
+		new MainWP_Child_Updraft_Plus_Backups();
 
 		MainWP_Child_Updraft_Plus_Backups::Instance()->updraftplus_init();
 		if ( version_compare( phpversion(), '5.3', '>=' ) ) {
@@ -1902,7 +1905,11 @@ class MainWP_Child {
 				MainWP_Helper::write( array() );
 			}
 
-			MainWP_Helper::write( array( 'size' => filesize( $result[0] ) ) );
+			$size = 0;
+			foreach ( $result as $f ) {
+				$size += filesize($f);
+			}
+			MainWP_Helper::write( array( 'size' => $size ) );
 			exit();
 		}
 	}
@@ -2145,25 +2152,23 @@ class MainWP_Child {
 		$dirs      = MainWP_Helper::getMainWPDir( 'backup' );
 		$dir       = $dirs[0];
 		$timestamp = time();
+
 		if ( '' !== $fileName ) {
 			$fileName .= '-';
 		}
-		$filepath = $dir . 'dbBackup-' . $fileName . $timestamp . '.sql';
+
+		$filepath_prefix = $dir . 'dbBackup-' . $fileName . $timestamp;
 
 		if ( $dh = opendir( $dir ) ) {
 			while ( ( $file = readdir( $dh ) ) !== false ) {
-				if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2)?$/', $file ) ) ) {
+				if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
 					@unlink( $dir . $file );
 				}
 			}
 			closedir( $dh );
 		}
 
-		if ( file_exists( $filepath ) ) {
-			@unlink( $filepath );
-		}
-
-		$result = MainWP_Backup::get()->createBackupDB( $filepath, $ext );
+		$result = MainWP_Backup::get()->createBackupDB( $filepath_prefix, $ext );
 
 		MainWP_Helper::update_option( 'mainwp_child_last_db_backup_size', filesize( $result['filepath'] ) );
 
@@ -2669,13 +2674,8 @@ class MainWP_Child {
 				$othersData = array();
 			}
 
-			do_action( 'mainwp-site-sync-others-data', $othersData );
+			$information = apply_filters( 'mainwp-site-sync-others-data', $information, $othersData );
 
-			if ( isset( $othersData['syncUpdraftData'] ) && $othersData['syncUpdraftData'] ) {
-				if ( MainWP_Child_Updraft_Plus_Backups::isActivatedUpdraftplus() ) {
-					$information['syncUpdraftData'] = MainWP_Child_Updraft_Plus_Backups::Instance()->syncData();
-				}
-			}
 			if ( version_compare( phpversion(), '5.3', '>=' ) ) {
 				if ( isset( $othersData['syncBackUpWordPress'] ) && $othersData['syncBackUpWordPress'] ) {
 					if ( MainWP_Child_Back_Up_Wordpress::isActivated() ) {
@@ -3407,11 +3407,11 @@ class MainWP_Child {
 				$out['version']     = $plugin['Version'];
 				$out['active']      = ( is_array( $active_plugins ) && in_array( $pluginslug, $active_plugins ) ) ? 1 : 0;
 				if ( ! $filter ) {
-					if ( '' === $keyword || stristr( $out['name'], $keyword ) ) {
+					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
 						$rslt[] = $out;
 					}
 				} else if ( $out['active'] == ( ( $status == 'active' ) ? 1 : 0 ) ) {
-					if ( '' === $keyword || stristr( $out['name'], $keyword ) ) {
+					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
 						$rslt[] = $out;
 					}
 				}
@@ -3422,7 +3422,7 @@ class MainWP_Child {
 	}
 
 	function get_all_users() {
-		$roles    = explode( ',', $_POST['role'] );
+		$roles = explode( ',', $_POST['role'] );
 		$allusers = array();
 		if ( is_array( $roles ) ) {
 			foreach ( $roles as $role ) {

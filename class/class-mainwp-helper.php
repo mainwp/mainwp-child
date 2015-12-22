@@ -7,6 +7,23 @@ class MainWP_Helper {
 		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' );
 	}
 
+	static function close_connection( $val = null ) {
+		$output = serialize( $val );
+		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>';
+		// Close browser connection so that it can resume AJAX polling
+		header( 'Content-Length: ' . strlen( $output ) );
+		header( 'Connection: close' );
+		header( 'Content-Encoding: none' );
+		if ( session_id() ) {
+			session_write_close();
+		}
+		echo $output;
+		if ( ob_get_level() ) {
+			ob_end_flush();
+		}
+		flush();
+	}
+
 	static function error( $error ) {
 		$information['error'] = $error;
 		MainWP_Helper::write( $information );
@@ -1012,5 +1029,18 @@ class MainWP_Helper {
 		}
 
 		return false;
+	}
+
+	public static function sanitize_filename( $filename ) {
+		// Remove anything which isn't a word, whitespace, number
+		// or any of the following caracters -_~,;:[]().
+		// If you don't need to handle multi-byte characters
+		// you can use preg_replace rather than mb_ereg_replace
+		// Thanks @Łukasz Rysiak!
+		$filename = mb_ereg_replace( "([^\w\s\d\-_~,;:\[\]\(\).])", '', $filename );
+		// Remove any runs of periods (thanks falstro!)
+		$filename = mb_ereg_replace( "([\.]{2,})", '', $filename );
+
+		return $filename;
 	}
 }
