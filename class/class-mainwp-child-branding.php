@@ -461,7 +461,7 @@ class MainWP_Child_Branding {
 		if ( isset( $extra_setting['login_image']['url'] ) && ! empty( $extra_setting['login_image']['url'] ) ) {
 			$login_logo = $extra_setting['login_image']['url'];
 			echo '<style type="text/css">
-                    h1 a { background-image: url(\'' . esc_url( $login_logo ) . '\') !important; height:70px !important; width:310px !important; background-size: auto auto !important; }
+                    #login h1 a { background-image: url(\'' . esc_url( $login_logo ) . '\') !important; height:70px !important; width:310px !important; background-size: auto auto !important; }
                 </style>';
 		}
 	}
