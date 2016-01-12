@@ -1,17 +1,17 @@
 === MainWP Child ===
 Contributors: mainwp
 Donate link: 
-Tags: WordPress management, management, manager, WordPress controller, network, MainWP, MainWP Child, updates, updates, admin, administration, manage,  multiple
+Tags: WordPress management, management, manager, manage, WordPress controller, network, MainWP, updates, admin, administration, multiple, multisite, plugin updates, theme updates, login, remote, backups
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.4
-Stable tag: 2.0.29
+Tested up to: 4.4.1
+Stable tag: 3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Allows you to manage multiple blogs from one dashboard by providing a secure connection between your child site and your MainWP dashboard.
+Provides a secure connection between your MainWP Dashboard and your WordPress sites.   MainWP allows you to manage WP sites from one central location.
 
 == Description ==
 
@@ -39,7 +39,7 @@ The MainWP Child plugin is used to securely remotely manage multiple WordPress w
 
 = What is the purpose of this plugin? =
 
-It allows the connection between the MainWP main dashboard plugin and the site it is installed on.
+It allows the connection between the [MainWP Dashboard](https://wordpress.org/plugins/mainwp/) plugin and the site it is installed on.
 
 To see full documentation and FAQs please visit [MainWP Documentation](http://docs.mainwp.com/)
 
@@ -53,6 +53,28 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 6. The Groups Screen
 
 == Changelog ==
+
+= 3.0 - 1-12-16 =
+* Fixed: Refactored code to meet WordPress Coding standards
+* Fixed: Deprecated Function
+* Fixed: Fatal Error caused by the MainWP Rocket Extension
+* Fixed: Issue introduced with the new version of the iThemes Security plugin
+* Fixed: Link Manager Extension bug with special characters in url
+* Fixed: MainWP Client Reports Extension bug caused by high number of posts logged in database
+* Fixed: Generator meta tag issue
+* Fixed: Wordfence Extension issue with displaying incorrect last scan time
+* Fixed: Broken Link Extension bug
+* Fixed: MainWP Heatmaps Extension bug
+* Fixed: Abandoned Plugins/Themes function bug with registering multiple cron jobs
+* Fixed: CSS issue
+* Fixed: Escaped html
+* Fixed: PHP error reporting security alert
+* Added: Support for the MainWP Rocket Extension to load existing WP Rocket settings
+* Added: Support for Export/Import settings for the Wordfence Extension
+* Added: Support new Wordfence settings options for the Wordfence Extension
+* Added: Force Check Pages function for the MainWP PageSpeed Extensions
+* Added: Allow to see MainWP child plugin in MainWP Dashboard plugins search
+* Updated: MainWP URL Extractor Extension logic to extract urls by Post published date instead of last change date
 
 = 2.0.29 - 9-22-15 =
 * Fixed: 404 error that occurs in case Links Manger extension is in use when child plugin is hidden
