@@ -181,7 +181,9 @@ class MainWP_Child {
 
 		$this->checkOtherAuth();
 
-		MainWP_Clone::init();
+		if ( is_admin() ) {
+			MainWP_Clone::init();
+		}
 		MainWP_Child_Server_Information::init();
 		MainWP_Client_Report::init();
 		MainWP_Child_Plugins_Check::Instance();

@@ -344,7 +344,7 @@ class MainWP_Child_Server_Information {
 			<thead>
 			<tr>
 				<th scope="col" class="manage-column column-posts mwp-not-generate-row"
-				    style="width: 1px;"><?php esc_html_e( '', 'mainwp-child' ); ?></th>
+				    style="width: 1px;"></th>
 				<th scope="col" class="manage-column column-posts" style="">
 					<span><?php esc_html_e( 'Server Configuration', 'mainwp-child' ); ?></span></th>
 				<th scope="col" class="manage-column column-posts"
