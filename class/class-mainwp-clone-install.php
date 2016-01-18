@@ -207,9 +207,9 @@ class MainWP_Clone_Install {
 
 		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name) );
 		if ( null === $var ) {
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, "' . MainWPChildDB::real_escape_string( maybe_serialize( $value ) ) . '")', $name) );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '")', $name) );
 		} else {
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = "' . MainWPChildDB::real_escape_string( maybe_serialize( $value ) ) . '" WHERE option_name = %s', $name) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '" WHERE option_name = %s', $name) );
 		}
 	}
 

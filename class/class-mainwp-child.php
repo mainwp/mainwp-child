@@ -78,7 +78,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.0';
+	public static $version = '3.0.1';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -1127,9 +1127,11 @@ class MainWP_Child {
 		$result = array();
 		foreach ( $urls as $url ) {
 			$installer = new WP_Upgrader();
+			$ssl_verify = true;
 			//@see wp-admin/includes/class-wp-upgrader.php
 			if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
 				add_filter( 'http_request_args', array( &$this, 'noSSLFilterFunction' ), 99, 2 );
+				$ssl_verify = false;
 			}
 			add_filter( 'http_request_args', array( &$this, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
@@ -1143,17 +1145,36 @@ class MainWP_Child {
 				'hook_extra'        => array(),
 			) );
 
-			remove_filter( 'http_request_args', array( &$this, 'http_request_reject_unsafe_urls' ), 99, 2 );
-			if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
-				remove_filter( 'http_request_args', array( &$this, 'noSSLFilterFunction' ), 99 );
-			}
 			if ( is_wp_error( $result ) ) {
-				$error = $result->get_error_codes();
-				if ( is_array( $error ) ) {
-					MainWP_Helper::error( implode( ', ', $error ) );
-				} else {
-					MainWP_Helper::error( $error );
+				if ( true == $ssl_verify && strpos( $url, 'https://' ) === 0) {
+					// retry
+					add_filter( 'http_request_args', array( &$this, 'noSSLFilterFunction' ), 99, 2 );
+					$ssl_verify = false;
+					$result = $installer->run( array(
+						'package'           => $url,
+						'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR
+							: WP_CONTENT_DIR . '/themes' ),
+						'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
+						//overwrite files?
+						'clear_working'     => true,
+						'hook_extra'        => array(),
+					) );
 				}
+
+				if ( is_wp_error( $result ) ) {
+					if ( $result->get_error_data() && is_string( $result->get_error_data() ) ) {
+						$error = $result->get_error_data();
+						MainWP_Helper::error( $error );
+					} else {
+						$error = $result->get_error_code();
+						MainWP_Helper::error( implode( ', ', $error ) );
+					}
+				}
+			}
+
+			remove_filter( 'http_request_args', array( &$this, 'http_request_reject_unsafe_urls' ), 99, 2 );
+			if ( false == $ssl_verify ) {
+				remove_filter( 'http_request_args', array( &$this, 'noSSLFilterFunction' ), 99 );
 			}
 
 			$args = array( 'success' => 1, 'action' => 'install' );
