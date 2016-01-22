@@ -58,10 +58,10 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Changelog ==
 
 = 3.0.2 - 1-22-16 =
-* Fixed: Call to undefined function mb_ereg_replace() affecting a small number of child sites
 * Fixed: Issue with scheduled BackupWordpress when run from dashboard
 * Fixed: Issue with Heatmap tracker javascript
 * Fixed: Issue where you could not disable the Heatmap Extension tracker js
+* Added: Support for hosts with PHP with disabled mb_regex
 * Tweaked: Code snippet result message
 
 = 3.0.1 - 1-18-16 =
