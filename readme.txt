@@ -60,7 +60,6 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 = 3.0.2 - 1-22-16 =
 * Fixed: Issue with scheduled BackupWordpress when run from dashboard
 * Fixed: Issue with Heatmap tracker javascript
-* Fixed: Issue where you could not disable the Heatmap Extension tracker js
 * Added: Support for hosts with PHP with disabled mb_regex
 * Tweaked: Code snippet result message
 
