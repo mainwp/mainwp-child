@@ -273,7 +273,7 @@ class MainWP_Child_Server_Information {
 				<?php foreach ( $conflicts as $conflict ) { ?>
 					<tr>
 						<td><strong><?php echo $conflict; ?></strong> is installed on this site. This plugin is known to
-							have a potential conflict with <?php echo $branding_title; ?> functions. <a
+							have a potential conflict with <?php echo esc_html( stripslashes( $branding_title ) ); ?> functions. <a
 								href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for
 								possible solutions</a></td>
 					</tr>
@@ -356,11 +356,11 @@ class MainWP_Child_Server_Information {
 
 			<tbody id="the-sites-list" class="list:sites">
 			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php echo esc_html( strtoupper( $branding_title ) ); ?></td>
+				<td style="background: #333; color: #fff;" colspan="5"><?php echo esc_html( strtoupper( stripslashes( $branding_title ) ) ); ?></td>
 			</tr>
 			<tr>
 				<td></td>
-				<td><?php echo esc_html( $branding_title ); ?> Version</td>
+				<td><?php echo esc_html( stripslashes( $branding_title ) ); ?> Version</td>
 				<td><?php echo esc_html( self::getMainWPVersion() ); ?></td>
 				<td><?php echo esc_html( self::getCurrentVersion() ); ?></td>
 				<td><?php echo esc_html( self::getMainWPVersionCheck() ); ?></td>
@@ -763,7 +763,7 @@ class MainWP_Child_Server_Information {
 		?>
 		<tr>
 			<td></td>
-			<td><?php echo esc_html( $pName ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::is_branding() ) ? '' : $pDirectory ); ?>
+			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::is_branding() ) ? '' : $pDirectory ); ?>
 			</td>
 			<td><?php echo esc_html( $pCheck ); ?></td>
 			<td><?php echo esc_html( $pResult ); ?></td>

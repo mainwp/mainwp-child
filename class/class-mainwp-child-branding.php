@@ -57,6 +57,7 @@ class MainWP_Child_Branding {
 	public function child_deactivation() {
 		$dell_all = array(
 			'mainwp_branding_disable_change',
+			'mainwp_branding_disable_switching_theme',
 			'mainwp_branding_child_hide',
 			'mainwp_branding_show_support',
 			'mainwp_branding_support_email',
@@ -224,6 +225,13 @@ class MainWP_Child_Branding {
 		} else {
 			MainWP_Helper::update_option( 'mainwp_branding_disable_change', '' );
 		}
+
+		if ( $settings['child_disable_switching_theme'] ) {
+			MainWP_Helper::update_option( 'mainwp_branding_disable_switching_theme', 'T' );
+		} else {
+			MainWP_Helper::update_option( 'mainwp_branding_disable_switching_theme', '' );
+		}
+
 		$information['result'] = 'SUCCESS';
 
 		return $information;
@@ -294,10 +302,10 @@ class MainWP_Child_Branding {
 		if ( get_option( 'mainwp_branding_disable_wp_branding' ) !== 'Y' ) {
 			add_filter( 'wp_footer', array( &$this, 'branding_global_footer' ), 15 );
 			add_action( 'wp_dashboard_setup', array( &$this, 'custom_dashboard_widgets' ), 999 );
-			// branding site generator
+			// branding site generator			
 			$types = array( 'html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export' );
 			foreach ( $types as $type ) {
-				add_filter( 'get_the_generator_' . $type, array( &$this, 'custom_the_generator' ) );
+				add_filter( 'get_the_generator_' . $type, array( &$this, 'custom_the_generator' ), 999, 2 );
 			}
 			add_action( 'admin_head', array( &$this, 'custom_admin_css' ) );
 			add_action( 'login_enqueue_scripts', array( &$this, 'custom_login_css' ) );
@@ -511,6 +519,7 @@ class MainWP_Child_Branding {
 
 	function custom_the_generator( $generator, $type = '' ) {
 		$extra_setting = $this->settings['extra_settings'];
+		error_log($type . "======" . print_r($extra_setting, true));
 		if ( isset( $extra_setting['site_generator'] ) ) {
 			if ( ! empty( $extra_setting['site_generator'] ) ) {
 				switch ( $type ) :
@@ -639,7 +648,7 @@ class MainWP_Child_Branding {
 			}
 			?>
 			<div
-				class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message . '&nbsp;&nbsp' . $back_link ); ?></div><?php
+				class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . "&nbsp;&nbsp" . $back_link; ?></div><?php
 		} else {
 			$from_page = '';
 			if ( isset( $_GET['from_page'] ) ) {
@@ -811,11 +820,15 @@ class MainWP_Child_Branding {
 		if ( 'T' === get_option( 'mainwp_branding_disable_change' ) ) {
 			// disable: edit, update, install, active themes and plugins
 			if ( false !== strpos( $cap, 'plugins' ) || false !== strpos( $cap, 'themes' ) || 'edit_theme_options' === $cap ) {
-				//echo $cap."======<br />";
 				$caps[0] = 'do_not_allow';
 			}
 		}
-
+		if ( 'T' === get_option( 'mainwp_branding_disable_switching_theme' ) ) {
+			// disable: theme switching
+			if ( 'switch_themes' === $cap ) {
+				$caps[0] = 'do_not_allow';
+			}
+		}
 		return $caps;
 	}
 

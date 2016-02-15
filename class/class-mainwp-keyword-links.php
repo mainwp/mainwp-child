@@ -953,13 +953,10 @@ class MainWP_Keyword_Links {
 			'enable_post_type_link'    => $_POST['enable_post_type_link'],
 		);
 		MainWP_Helper::update_option( 'mainwpKeywordLinks', 1, 'yes' ); // enable extension functions
-		if ( MainWP_Helper::update_option( 'mainwp_kwl_options', $this->config ) ) {
-			$return['status'] = 'SUCCESS';
-		}
-
+		MainWP_Helper::update_option( 'mainwp_kwl_options', $this->config );
 		// force update
 		$this->update_htaccess( true );
-
+		$return['status'] = 'SUCCESS';
 		return $return;
 	}
 

@@ -11,12 +11,13 @@ class MainWP_Security {
 		MainWP_Security::remove_php_reporting();
 		MainWP_Security::remove_scripts_version();
 		MainWP_Security::remove_styles_version();
+		MainWP_Security::remove_generator_version();
 		MainWP_Security::remove_readme();
 
-		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_script_versions' ), 999 );
-		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_theme_versions' ), 999 );
-		add_filter( 'script_loader_src', array( 'MainWP_Security', 'remove_script_versions' ), 999 );
-		add_filter( 'script_loader_src', array( 'MainWP_Security', 'remove_theme_versions' ), 999 );
+		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_script_versions' ), PHP_INT_MAX );
+		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_theme_versions' ), PHP_INT_MAX );
+		add_filter( 'script_loader_src', array( 'MainWP_Security', 'remove_script_versions' ), PHP_INT_MAX );
+		add_filter( 'script_loader_src', array( 'MainWP_Security', 'remove_theme_versions' ), PHP_INT_MAX );
 	}
 
 	//Prevent listing wp-content, wp-content/plugins, wp-content/themes, wp-content/uploads
@@ -276,9 +277,29 @@ class MainWP_Security {
 			}
 
 			return $src;
+		} else if ( false === strpos( $src, '?ver=' ) ) {
+			self::update_security_option('scripts_version', true);
 		}
 
 		return $src;
+	}
+
+
+	public static function remove_generator_version_ok() {
+		return self::get_security_option( 'generator_version' );
+	}
+
+	public static function remove_generator_version( $force = false ) {
+		if ( $force || self::get_security_option( 'generator_version' ) ) {
+			$types = array( 'html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export' );
+			foreach ( $types as $type ) {
+				add_filter( 'get_the_generator_' . $type, array( &$this, 'custom_the_generator' ), 10, 2 );
+			}
+		}
+	}
+
+	function custom_the_generator( $generator, $type = '' ) {
+		return '';
 	}
 
 	public static function remove_theme_versions( $src ) {
@@ -288,6 +309,8 @@ class MainWP_Security {
 			}
 
 			return $src;
+		} else if ( false === strpos( $src, '?ver=' ) ) {
+			self::update_security_option('styles_version', true);
 		}
 
 		return $src;
@@ -361,6 +384,13 @@ class MainWP_Security {
 		$user = get_user_by( 'login', 'admin' );
 
 		return ! ( $user && ( 10 === $user->wp_user_level || ( isset( $user->user_level ) && 10 === $user->user_level ) ) );
+	}
+
+	public static function update_security_option( $key, $value ) {
+		$security = get_option( 'mainwp_security' );
+		if ( !empty($key) )
+			$security[$key] = $value;
+		MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
 	}
 }
 

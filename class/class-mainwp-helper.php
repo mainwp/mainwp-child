@@ -24,8 +24,10 @@ class MainWP_Helper {
 		flush();
 	}
 
-	static function error( $error ) {
+	static function error( $error, $code = null ) {
 		$information['error'] = $error;
+		if (null !== $code)
+			$information['error_code'] = $code;
 		MainWP_Helper::write( $information );
 	}
 
@@ -1122,6 +1124,8 @@ class MainWP_Helper {
 	}
 
 	public static function sanitize_filename( $filename ) {
+		if (!function_exists('mb_ereg_replace')) return sanitize_file_name($filename);
+
 		// Remove anything which isn't a word, whitespace, number
 		// or any of the following caracters -_~,;:[]().
 		// If you don't need to handle multi-byte characters
@@ -1132,5 +1136,9 @@ class MainWP_Helper {
 		$filename = mb_ereg_replace( "([\.]{2,})", '', $filename );
 
 		return $filename;
+	}
+
+	static function ctype_digit( $str ) {
+		return ( is_string( $str ) || is_int( $str ) || is_float( $str ) ) && preg_match( '/^\d+\z/', $str );
 	}
 }

@@ -9,6 +9,7 @@ define( 'MAINWP_CHILD_NR_OF_PAGES', 50 );
 include_once( ABSPATH . '/wp-admin/includes/file.php' );
 include_once( ABSPATH . '/wp-admin/includes/plugin.php' );
 
+
 if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyuse_nonce_hmac'] ) ) {
 	$skeleton_keyuse_nonce_key  = intval( $_GET['skeleton_keyuse_nonce_key'] );
 	$skeleton_keyuse_nonce_hmac = $_GET['skeleton_keyuse_nonce_hmac'];
@@ -78,7 +79,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.0.1';
+	public static $version = '3.0.2';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -90,6 +91,7 @@ class MainWP_Child {
 		'newadminpassword'      => 'newAdminPassword',
 		'installplugintheme'    => 'installPluginTheme',
 		'upgradeplugintheme'    => 'upgradePluginTheme',
+		'upgradetranslation'    => 'upgradeTranslation',
 		'backup'                => 'backup',
 		'backup_checkpid'       => 'backup_checkpid',
 		'cloneinfo'             => 'cloneinfo',
@@ -174,6 +176,7 @@ class MainWP_Child {
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
 		add_action( 'init', array( &$this, 'localization' ) );
+		add_action( 'pre_current_active_plugins', array( &$this, 'pre_current_active_plugins' ) );
 
 		if ( is_admin() ) {
 			MainWP_Helper::update_option( 'mainwp_child_plugin_version', self::$version, 'yes' );
@@ -367,6 +370,19 @@ class MainWP_Child {
 
 	public function localization() {
 		load_plugin_textdomain( 'mainwp-child', false, dirname( dirname( plugin_basename( __FILE__ ) ) ) . '/languages/' );
+	}
+
+	public function pre_current_active_plugins() {
+		$plugin_updates = get_plugin_updates();
+		$fix_update_plugins = array();
+		if ( is_array( $plugin_updates ) ) {
+			foreach ( $plugin_updates as $slug => $plugin_update ) {
+				if ( in_array( $slug, array( 'ithemes-security-pro/ithemes-security-pro.php', 'monarch/monarch.php', 'cornerstone/cornerstone.php') ) ) {
+					$fix_update_plugins[ $slug ] = $plugin_update;
+				}
+			}
+		}
+		set_site_transient( 'tofix_update_plugins', $fix_update_plugins);
 	}
 
 	function checkOtherAuth() {
@@ -918,26 +934,26 @@ class MainWP_Child {
 				new MainWP_Heatmap_Tracker();
 			}
 		}
+
 		/**
 		 * Security
 		 */
 		MainWP_Security::fixAll();
 
 		if ( isset( $_GET['mainwptest'] ) ) {
-			//            error_reporting(E_ALL);
-			//            ini_set('display_errors', TRUE);
-			//            ini_set('display_startup_errors', TRUE);
-			//            echo '<pre>';
-			//            $start = microtime(true);
+//			            error_reporting(E_ALL);
+//			            ini_set('display_errors', TRUE);
+//			            ini_set('display_startup_errors', TRUE);
+//			            echo '<pre>';
+//			            $start = microtime(true);
+//
+//			print_r(wp_get_translation_updates());
+//
+//			print_r($this->getSiteStats(array(), false));
+//
 
-			//            phpinfo();
-			//            $_POST['type'] = 'full';
-			//            $_POST['ext'] = 'tar.gz';
-			//            $_POST['pid'] = time();
-			//            print_r($this->backup(false));
-
-			//            $stop = microtime(true);
-			//            die(($stop - $start) . 's</pre>');
+//			            $stop = microtime(true);
+//			            die(($stop - $start) . 's</pre>');
 		}
 
 		//Register does not require auth, so we register here..
@@ -1162,12 +1178,12 @@ class MainWP_Child {
 				}
 
 				if ( is_wp_error( $result ) ) {
+					$err_code = $result->get_error_code();
 					if ( $result->get_error_data() && is_string( $result->get_error_data() ) ) {
 						$error = $result->get_error_data();
-						MainWP_Helper::error( $error );
+						MainWP_Helper::error( $error, $err_code );
 					} else {
-						$error = $result->get_error_code();
-						MainWP_Helper::error( implode( ', ', $error ) );
+						MainWP_Helper::error( implode( ', ', $error ), $err_code );
 					}
 				}
 			}
@@ -1323,6 +1339,53 @@ class MainWP_Child {
 		MainWP_Helper::write( $information );
 	}
 
+	function upgradeTranslation() {
+		//Prevent disable/re-enable at upgrade
+		define( 'DOING_CRON', true );
+
+		MainWP_Helper::getWPFilesystem();
+		include_once( ABSPATH . '/wp-admin/includes/class-wp-upgrader.php' );
+		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
+			include_once( ABSPATH . '/wp-admin/includes/screen.php' );
+		}
+		if ( file_exists( ABSPATH . '/wp-admin/includes/template.php' ) ) {
+			include_once( ABSPATH . '/wp-admin/includes/template.php' );
+		}
+		if ( file_exists( ABSPATH . '/wp-admin/includes/misc.php' ) ) {
+			include_once( ABSPATH . '/wp-admin/includes/misc.php' );
+		}
+		include_once( ABSPATH . '/wp-admin/includes/file.php' );
+
+		include_once( ABSPATH . 'wp-admin/includes/class-wp-upgrader.php' );
+
+		$upgrader = new Language_Pack_Upgrader( new Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
+		$translations = explode( ',', urldecode( $_POST['list'] ) );
+		$all_language_updates = wp_get_translation_updates();
+
+		$language_updates = array();
+		foreach ( $all_language_updates as $current_language_update ) {
+			if ( in_array( $current_language_update->slug, $translations ) ) {
+				$language_updates[] = $current_language_update;
+			}
+		}
+
+		$result = count( $language_updates ) == 0 ? false : $upgrader->bulk_upgrade( $language_updates );
+		if ( ! empty( $result ) ) {
+			for ( $i = 0; $i < count( $result ); $i++ ) {
+				if ( empty( $result[$i] ) || is_wp_error( $result[$i] ) ) {
+					$information['upgrades'][ $language_updates[$i]->slug ] = false;
+				} else {
+					$information['upgrades'][ $language_updates[$i]->slug ] = true;
+				}
+			}
+		} else {
+			MainWP_Helper::error( __( 'Bad request', 'mainwp-child' ) );
+		}
+
+		$information['sync'] = $this->getSiteStats( array(), false );
+		MainWP_Helper::write( $information );
+	}
+
 	/**
 	 * Expects $_POST['type'] == plugin/theme
 	 * $_POST['list'] == 'theme1,theme2' or 'plugin1,plugin2'
@@ -1433,10 +1496,17 @@ class MainWP_Child {
 				remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 			}
 		} else if ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
+
+			$last_update = get_site_transient( 'update_themes' );
+
 			include_once( ABSPATH . '/wp-admin/includes/update.php' );
 			if ( null !== $this->filterFunction ) {
 				add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			}
+
+//			$last_update = get_site_transient( 'update_themes' );
+//			$originalLastChecked = !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ? $last_update->last_checked : 0;
+
 			@wp_update_themes();
 			include_once( ABSPATH . '/wp-admin/includes/theme.php' );
 			$information['theme_updates'] = $this->upgrade_get_theme_updates();
@@ -1464,8 +1534,26 @@ class MainWP_Child {
 				}
 
 				//@see wp-admin/update.php
+				if ( null !== $this->filterFunction ) {
+					remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+				}
+
+				$last_update2 = get_site_transient( 'update_themes' );
+				set_site_transient( 'update_themes', $last_update );
+//				if ( !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ) {
+//					$last_update->last_checked = $originalLastChecked;
+//					set_site_transient( 'update_themes', $last_update );
+//				}
+
+//				@wp_update_themes();
+
 				$upgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 				$result   = $upgrader->bulk_upgrade( $themes );
+				if ( null !== $this->filterFunction ) {
+					add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+				}
+
+				set_site_transient( 'update_themes', $last_update2 );
 
 				if ( $addFilterToFixUpdate_optimizePressTheme ) {
 					remove_filter( 'site_transient_update_themes', array(
@@ -1486,6 +1574,15 @@ class MainWP_Child {
 					MainWP_Helper::error( __( 'Bad request', 'mainwp-child' ) );
 				}
 			}
+
+//			$last_update = get_site_transient( 'update_themes' );
+//			if ( !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ) {
+//				$last_update->last_checked = $originalLastChecked;
+//				set_site_transient( 'update_themes', $last_update );
+//			}
+
+//			@wp_update_themes();
+
 			if ( count( $premiumThemes ) > 0 ) {
 				$mwp_premium_updates            = apply_filters( 'mwp_premium_perform_update', array() );
 				$mwp_premium_updates_todo       = array();
@@ -1618,7 +1715,7 @@ class MainWP_Child {
 
 		//Already added - can't readd. Deactivate plugin..
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
-			MainWP_Helper::error( __( 'Public key already set, reset the MainWP plugin on your site and try again.', 'mainwp-child' ) );
+			MainWP_Helper::error( __( 'Public key already set, reset the MainWP Child plugin on your Child site and try again.', 'mainwp-child' ) );
 		}
 
 		if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
@@ -2283,9 +2380,11 @@ class MainWP_Child {
 		if ( 'all' === $_POST['feature'] || 'versions' === $_POST['feature'] ) {
 			$security['scripts_version'] = true;
 			$security['styles_version']  = true;
+			$security['generator_version']  = true;
 			MainWP_Security::remove_scripts_version( true );
 			MainWP_Security::remove_styles_version( true );
-			$information['versions'] = ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok() ? 'N' : 'Y' );
+			MainWP_Security::remove_generator_version( true );
+			$information['versions'] = 'Y';
 		}
 
 		if ( 'all' === $_POST['feature'] || 'admin' === $_POST['feature'] ) {
@@ -2339,6 +2438,7 @@ class MainWP_Child {
 		if ( 'all' === $_POST['feature'] || 'versions' === $_POST['feature'] ) {
 			$security['scripts_version'] = false;
 			$security['styles_version']  = false;
+			$security['generator_version']  = false;
 			$information['versions']     = 'N';
 		}
 
@@ -2369,7 +2469,7 @@ class MainWP_Child {
 		//        $information['file_perms'] = (!MainWP_Security::fix_file_permissions_ok() ? 'N' : 'Y');
 		$information['db_reporting']  = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
 		$information['php_reporting'] = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
-		$information['versions']      = ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok()
+		$information['versions']      = ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok()  || ! MainWP_Security::remove_generator_version_ok()
 			? 'N' : 'Y' );
 		$information['admin']         = ( ! MainWP_Security::admin_user_ok() ? 'N' : 'Y' );
 		$information['readme']        = ( MainWP_Security::remove_readme_ok() ? 'Y' : 'N' );
@@ -2396,6 +2496,7 @@ class MainWP_Child {
 					$update_htaccess = true;
 				}
 				MainWP_Helper::update_option( 'heatMapEnabled', '0', 'yes' );
+				MainWP_Helper::update_option( 'heatMapExtensionLoaded', '', 'yes' );
 			}
 		}
 
@@ -2561,7 +2662,19 @@ class MainWP_Child {
 
 				$information['plugin_updates'][ $slug ] = $plugin_update;
 			}
+
+			// to fix bug
+			$fix_update_plugins = get_site_transient( 'tofix_update_plugins' );
+			if ( count($fix_update_plugins) > 0 ) {
+				foreach( $fix_update_plugins as $slug => $plugin_update ) {
+					if ( !isset( $information['plugin_updates'][ $slug ] ) ) {
+						$information['plugin_updates'][ $slug ] = $plugin_update;
+					}
+				}
+			}
+			// end fix
 		}
+
 		if ( null !== $this->filterFunction ) {
 			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
@@ -2586,6 +2699,34 @@ class MainWP_Child {
 		if ( null !== $this->filterFunction ) {
 			remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 		}
+
+		$translation_updates = wp_get_translation_updates();
+		if ( !empty( $translation_updates ) ) {
+			$information['translation_updates'] = array();
+			foreach ($translation_updates as $translation_update)
+			{
+				$new_translation_update = array('type' => $translation_update->type,
+				                                'slug' => $translation_update->slug,
+				                                'language' => $translation_update->language,
+				                                'version' => $translation_update->version);
+				if ( 'plugin' === $translation_update->type ) {
+					$all_plugins = get_plugins();
+					foreach ( $all_plugins as $file => $plugin ) {
+						if ( stristr( $file, $translation_update->slug ) ) {
+							$new_translation_update['name'] = $plugin['Name'];
+							break;
+						}
+					}
+				} else if ( 'theme' === $translation_update->type ) {
+					$theme = wp_get_theme($translation_update->slug);
+					$new_translation_update['name'] = $theme->name;
+				} else if ( ( 'core' === $translation_update->type ) && ( 'default' === $translation_update->slug ) ) {
+					$new_translation_update['name'] = 'Wordpress core';
+				}
+				$information['translation_updates'][] = $new_translation_update;
+			}
+		}
+
 		$information['recent_comments'] = $this->get_recent_comments( array( 'approve', 'hold' ), 5 );
 		$information['recent_posts']    = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash' ), 5 );
 		$information['recent_pages']    = $this->get_recent_posts( array(
@@ -2618,7 +2759,7 @@ class MainWP_Child {
 		if ( ! MainWP_Security::remove_php_reporting_ok() ) {
 			$securityIssuess ++;
 		}
-		if ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok() ) {
+		if ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok() || ! MainWP_Security::remove_generator_version_ok() ) {
 			$securityIssuess ++;
 		}
 		if ( ! MainWP_Security::admin_user_ok() ) {
@@ -3640,6 +3781,35 @@ class MainWP_Child {
 
 	function getTotalFileSize( $directory = WP_CONTENT_DIR ) {
 		try {
+			function continueFileSize( $dir, $limit ) {
+				$dirs = array( $dir );
+				$cnt = 0;
+				while ( isset( $dirs[0] ) ) {
+					$path = array_shift( $dirs );
+					if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
+						continue;
+					}
+					$uploadDir = MainWP_Helper::getMainWPDir();
+					$uploadDir = $uploadDir[0];
+					if ( stristr( $path, $uploadDir ) ) {
+						continue;
+					}
+					$res = @glob( $path . '/*' );
+					if ( is_array( $res ) ) {
+						foreach ( $res as $next ) {
+							if ( is_dir( $next ) ) {
+								$dirs[] = $next;
+							} else {
+								if ($cnt++ > $limit) return false;;
+							}
+						}
+					}
+				}
+				return true;
+			}
+
+			if ( !continueFilesize( $directory, 20000 ) ) return 0;
+
 			if ( MainWP_Helper::function_exists( 'popen' ) ) {
 				$uploadDir   = MainWP_Helper::getMainWPDir();
 				$uploadDir   = $uploadDir[0];
@@ -3648,18 +3818,19 @@ class MainWP_Child {
 					$size = @fread( $popenHandle, 1024 );
 					@pclose( $popenHandle );
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
-					if ( ctype_digit( $size ) ) {
+					if ( MainWP_Helper::ctype_digit( $size ) ) {
 						return $size / 1024;
 					}
 				}
 			}
+
 			if ( MainWP_Helper::function_exists( 'shell_exec' ) ) {
 				$uploadDir = MainWP_Helper::getMainWPDir();
 				$uploadDir = $uploadDir[0];
-				$size      = @shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' );
+				$size      = @shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' );
 				if ( null !== $size ) {
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
-					if ( ctype_digit( $size ) ) {
+					if ( MainWP_Helper::ctype_digit( $size ) ) {
 						return $size / 1024;
 					}
 				}
@@ -3673,7 +3844,7 @@ class MainWP_Child {
 					$size = $ref->size;
 
 					$obj = null;
-					if ( ctype_digit( $size ) ) {
+					if ( MainWP_Helper::ctype_digit( $size ) ) {
 						return $size / 1024;
 					}
 				}
@@ -3949,11 +4120,7 @@ class MainWP_Child {
 		}
 		$code = stripslashes( $_POST['code'] );
 		if ( 'run_snippet' === $action ) {
-			$return = $this->execute_snippet( $code );
-			if ( is_array( $return ) && isset( $return['result'] ) && 'SUCCESS' === $return['result'] ) {
-				$information['status'] = 'SUCCESS';
-			}
-			$information['result'] = isset( $return['output'] ) ? $return['output'] : '';
+			$information = $this->execute_snippet( $code );
 		} else if ( 'save_snippet' === $action ) {
 			$type     = $_POST['type'];
 			$slug     = $_POST['slug'];
@@ -4035,11 +4202,14 @@ class MainWP_Child {
 		$result = eval( $code );
 		$output = ob_get_contents();
 		ob_end_clean();
-		$return = array( 'output' => $output );
-		if ( $result ) {
-			$return['result'] = 'SUCCESS';
+		$return = array();
+		if ( false === $result && ( $error = error_get_last() ) ) {
+			$return['status'] = 'FAIL';
+			$return['result'] = $error['message'];
+		} else {
+			$return['status'] = 'SUCCESS';
+			$return['result'] = $output;
 		}
-
 		return $return;
 	}
 

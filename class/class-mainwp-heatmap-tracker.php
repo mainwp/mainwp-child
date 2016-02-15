@@ -289,7 +289,7 @@ class MainWP_Heatmap_Tracker {
 	 */
 	public function trackerJsInline() {
 		echo '<script type="text/javascript">';
-		echo esc_js( 'var trackerAjaxUrl="' . admin_url( 'admin-ajax.php' ) . '"; var trackerNonce="' . wp_create_nonce( 'heatmapSaveClick' ) . '";' );
+		echo 'var trackerAjaxUrl="' . admin_url( 'admin-ajax.php' ) . '"; var trackerNonce="' . wp_create_nonce( 'heatmapSaveClick' ) . '";';
 		if ( $this->displayHeatmap() ) {
 			wp_deregister_script( 'admin-bar' );
 			wp_deregister_style( 'admin-bar' );
