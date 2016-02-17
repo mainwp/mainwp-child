@@ -293,12 +293,12 @@ class MainWP_Security {
 		if ( $force || self::get_security_option( 'generator_version' ) ) {
 			$types = array( 'html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export' );
 			foreach ( $types as $type ) {
-				add_filter( 'get_the_generator_' . $type, array( &$this, 'custom_the_generator' ), 10, 2 );
+				add_filter( 'get_the_generator_' . $type, array( 'MainWP_Security', 'custom_the_generator' ), 10, 2 );
 			}
 		}
 	}
 
-	function custom_the_generator( $generator, $type = '' ) {
+	public static function custom_the_generator( $generator, $type = '' ) {
 		return '';
 	}
 

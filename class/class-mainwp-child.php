@@ -79,7 +79,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.0.2';
+	public static $version = '3.1';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -426,9 +426,7 @@ class MainWP_Child {
 	}
 
 	function template_redirect() {
-		if ( 1 === (int) get_option( 'mainwp_maintenance_opt_alert_404' ) ) {
-			$this->maintenance_alert_404();
-		}
+		$this->maintenance_alert_404();
 	}
 
 
@@ -947,17 +945,13 @@ class MainWP_Child {
 //			            echo '<pre>';
 //			            $start = microtime(true);
 //
-//			print_r(wp_get_translation_updates());
-//
-//			print_r($this->getSiteStats(array(), false));
-//
-
 //			            $stop = microtime(true);
 //			            die(($stop - $start) . 's</pre>');
 		}
 
 		//Register does not require auth, so we register here..
 		if ( isset( $_POST['function'] ) && 'register' === $_POST['function'] ) {
+			define( 'DOING_CRON', true );
 			$this->registerSite();
 		}
 
@@ -1015,8 +1009,10 @@ class MainWP_Child {
 
 		//Call the function required
 		if ( $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) ) {
+			define( 'DOING_CRON', true );
 			call_user_func( array( $this, $this->callableFunctions[ $_POST['function'] ] ) );
 		} else if ( isset( $_POST['function'] ) && isset( $this->callableFunctionsNoAuth[ $_POST['function'] ] ) ) {
+			define( 'DOING_CRON', true );
 			call_user_func( array( $this, $this->callableFunctionsNoAuth[ $_POST['function'] ] ) );
 		}
 
@@ -2665,7 +2661,7 @@ class MainWP_Child {
 
 			// to fix bug
 			$fix_update_plugins = get_site_transient( 'tofix_update_plugins' );
-			if ( count($fix_update_plugins) > 0 ) {
+			if ( is_array( $fix_update_plugins ) && ( count( $fix_update_plugins ) > 0 ) ) {
 				foreach( $fix_update_plugins as $slug => $plugin_update ) {
 					if ( !isset( $information['plugin_updates'][ $slug ] ) ) {
 						$information['plugin_updates'][ $slug ] = $plugin_update;
@@ -3683,7 +3679,7 @@ class MainWP_Child {
 	//Show stats without login - only allowed while no account is added yet
 	function getSiteStatsNoAuth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
-			$hint = '<br/>' . __('Hint 1: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.<br/>Hint 2: Please verify that the ctype_digit() PHP function has not been disabled on your child site server.', 'mainwp-child');
+			$hint = '<br/>' . __('Hint: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.', 'mainwp-child');
 			MainWP_Helper::error(__('This site already contains a link - please disable and enable the MainWP plugin.','mainwp-child') . $hint);
 		}
 
@@ -4030,6 +4026,11 @@ class MainWP_Child {
 		if ( ! is_404() ) {
 			return;
 		}
+
+		if ( 1 !== (int) get_option( 'mainwp_maintenance_opt_alert_404' ) ) {
+			return;
+		}
+
 		$email = get_option( 'mainwp_maintenance_opt_alert_404_email' );
 
 		if ( empty( $email ) || ! preg_match( '/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/is', $email ) ) {
