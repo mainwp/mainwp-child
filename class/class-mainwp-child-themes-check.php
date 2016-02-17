@@ -151,6 +151,7 @@ class MainWP_Child_Themes_Check {
 		$all_themes = get_transient( $this->tran_name_themes_to_batch );
 		//If there wasn't a previous cache
 		if ( false === $all_themes || ! is_array( $all_themes ) ) {
+			$all_themes = array();
 			$themes = wp_get_themes();
 			if ( is_array( $themes ) ) {
 				foreach ( $themes as $theme ) {
