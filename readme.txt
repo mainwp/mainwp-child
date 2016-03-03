@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.4.1
-Stable tag: 3.1
+Stable tag: 3.1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,16 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.1.1 - 3-3-16 =
+* Fixed: Checking abandoned plugins not in WP repository
+* Fixed: Bug when running BackupWordPress backup
+* Fixed: Bug in add cache settings for WordFence Extension 
+* Added: Feature to generate server information
+* Added: Server Information items
+* Added: New Subject text box for support email in Branding Extension
+* Tweaked: support new version of BackupWodrpress plugin version
+* Updated: Added support in Client Reports Extension for BackWPup backups.
 
 = 3.1 - 2-17-16 =
 * Fixed: PHP notices
