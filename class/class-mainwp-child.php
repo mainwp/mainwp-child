@@ -952,6 +952,7 @@ class MainWP_Child {
 		//Register does not require auth, so we register here..
 		if ( isset( $_POST['function'] ) && 'register' === $_POST['function'] ) {
 			define( 'DOING_CRON', true );
+			MainWP_Child::fix_for_custom_themes();
 			$this->registerSite();
 		}
 
@@ -1010,9 +1011,11 @@ class MainWP_Child {
 		//Call the function required
 		if ( $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) ) {
 			define( 'DOING_CRON', true );
+			MainWP_Child::fix_for_custom_themes();
 			call_user_func( array( $this, $this->callableFunctions[ $_POST['function'] ] ) );
 		} else if ( isset( $_POST['function'] ) && isset( $this->callableFunctionsNoAuth[ $_POST['function'] ] ) ) {
 			define( 'DOING_CRON', true );
+			MainWP_Child::fix_for_custom_themes();
 			call_user_func( array( $this, $this->callableFunctionsNoAuth[ $_POST['function'] ] ) );
 		}
 
@@ -4420,5 +4423,11 @@ class MainWP_Child {
 
 	function skeleton_key() {
 		MainWP_Child_Skeleton_Key::Instance()->action();
+	}
+
+	static function fix_for_custom_themes() {
+		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
+			include_once( ABSPATH . '/wp-admin/includes/screen.php' );
+		}
 	}
 }
