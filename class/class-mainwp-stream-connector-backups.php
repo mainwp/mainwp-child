@@ -39,7 +39,7 @@ if ( class_exists( 'WP_Stream\Connector' ) ) {
 		 */
 		public function get_action_labels() {
 			return array(
-				'mainwp_backup' => __( 'Backup', 'default' ),
+				'mainwp_backup' => __( 'MainWP Backup', 'default' ),
 			);
 		}
 

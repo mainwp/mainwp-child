@@ -585,8 +585,8 @@ class MainWP_Child_Wordfence {
 				}
 			}
 
-			if ( $regenerateHtaccess ) {
-				wfCache::addHtaccessCode( 'add' );
+			if ( $regenerateHtaccess && ( wfConfig::get('cacheType') == 'falcon' ) ) {
+				wfCache::addHtaccessCode('add');
 			}
 
 			if ( '1' === $opts['autoUpdate'] ) {
@@ -807,15 +807,15 @@ class MainWP_Child_Wordfence {
 		}
 		if ( self::getLog()->isWhitelisted( $IP ) ) {
 			return array(
-			'err'      => 1,
-			              'errorMsg' => 'The IP address ' . htmlentities( $IP ) . " is whitelisted and can't be blocked or it is in a range of internal IP addresses that Wordfence does not block. You can remove this IP from the whitelist on the Wordfence options page.",
+				'err'      => 1,
+				'errorMsg' => 'The IP address ' . htmlentities( $IP ) . " is whitelisted and can't be blocked or it is in a range of internal IP addresses that Wordfence does not block. You can remove this IP from the whitelist on the Wordfence options page.",
 			);
 		}
 		if ( wfConfig::get( 'neverBlockBG' ) !== 'treatAsOtherCrawlers' ) { //Either neverBlockVerified or neverBlockUA is selected which means the user doesn't want to block google
 			if ( wfCrawl::verifyCrawlerPTR( '/googlebot\.com$/i', $IP ) ) {
 				return array(
-				'err'      => 1,
-				              'errorMsg' => "The IP address you're trying to block belongs to Google. Your options are currently set to not block these crawlers. Change this in Wordfence options if you want to manually block Google.",
+					'err'      => 1,
+					'errorMsg' => "The IP address you're trying to block belongs to Google. Your options are currently set to not block these crawlers. Change this in Wordfence options if you want to manually block Google.",
 				);
 			}
 		}

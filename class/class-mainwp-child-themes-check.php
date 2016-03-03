@@ -167,6 +167,7 @@ class MainWP_Child_Themes_Check {
 		}
 
 		$themes_to_scan = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
+		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		foreach ( $themes_to_scan as $slug => $v ) {
 
@@ -188,7 +189,6 @@ class MainWP_Child_Themes_Check {
 
 				$diff_in_days = $now->diff( $theme_last_updated_date )->format( '%a' );
 
-				$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 				if ( $diff_in_days < $tolerance_in_days ) {
 					continue;

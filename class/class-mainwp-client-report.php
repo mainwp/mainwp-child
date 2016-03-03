@@ -15,7 +15,7 @@ class MainWP_Client_Report {
 
 	public static function init() {
 		add_filter( 'wp_stream_connectors', array( 'MainWP_Client_Report', 'init_stream_connectors' ), 10, 1 );
-		add_filter( 'mainwp_client_reports_connectors', array( 'MainWP_Client_Report', 'init_connectors' ), 10, 1 );
+		add_filter( 'mainwp_client_reports_connectors', array( 'MainWP_Client_Report', 'init_report_connectors' ), 10, 1 );
 	}
 
 	public static function init_stream_connectors( $classes ) {
@@ -41,10 +41,10 @@ class MainWP_Client_Report {
 		return $classes;
 	}
 
-	public static function init_connectors( $classes ) {
+	public static function init_report_connectors( $classes ) {
 		$connectors = array(
 			'Backups',
-			'Sucuri',
+			'Sucuri'
 		);
 
 		foreach ( $connectors as $connector ) {
@@ -366,7 +366,7 @@ class MainWP_Client_Report {
 									continue;
 								}
 							} else if ( 'mainwp_backups' === $context ) {
-								if ( $record->context !== 'mainwp_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' ) {
+								if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' &&  $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' ) {
 									continue;
 								}
 							} else if ( 'mainwp_sucuri' === $context ) {
@@ -485,7 +485,7 @@ class MainWP_Client_Report {
 					$users_updated = true;
 				}
 			} else if ( 'mainwp_backups' === $context ) {
-				if ( $record->context !== 'mainwp_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' ) {
+				if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' ) {
 					continue;
 				}
 			} else if ( 'mainwp_sucuri' === $context ) {

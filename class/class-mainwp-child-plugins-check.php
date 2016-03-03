@@ -40,7 +40,7 @@ class MainWP_Child_Plugins_Check {
 
 		add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
 
-		//        add_filter( 'plugin_row_meta', array( $this, 'change_plugin_row_meta' ), 10, 4 );
+		//add_filter( 'plugin_row_meta', array( $this, 'change_plugin_row_meta' ), 10, 4 );
 
 		add_filter( 'plugins_api_args', array( $this, 'modify_plugin_api_search_query' ), 10, 2 );
 
@@ -141,45 +141,46 @@ class MainWP_Child_Plugins_Check {
 
 	}
 
+	// for testing
 	public function change_plugin_row_meta( $plugin_meta, $plugin_file, $plugin_data, $status ) {
-		//        //Grab our previously stored array of known last modified dates
-		//        //Requires WP 2.8.0
-		//        $plugin_info = get_transient( $this->tran_name_plugin_timestamps );
-		//
-		//        //Sanity check the response
-		//        if( false === $plugin_info || ! is_array( $plugin_info ) && 0 === count( $plugin_info ) )
-		//        {
-		//            return $plugin_meta;
-		//        }
-		//
-		//        //See if this specific plugin is in the known list
-		//        if( array_key_exists( $plugin_file, $plugin_info ) )
-		//        {
-		//            //Get now
-		//            $now = new \DateTime();
-		//            $last_updated = $plugin_info[ $plugin_file ]['last_updated'];
-		//
-		//            //Last updated is stored as timestamp, get a real date
-		//            $plugin_last_updated_date = new \DateTime( '@' . $last_updated );
-		//
-		//            //Compute days between now and plugin last updated
-		//            $diff_in_days = $now->diff( $plugin_last_updated_date )->format( '%a' );
-		//
-		//            //Customizable number of days for tolerance
-		//            $tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
-		//
-		//            //If we're outside the window for tolerance show a message
-		//            if( $diff_in_days > $tolerance_in_days )
-		//            {
-		//                $plugin_meta[] = sprintf( '<strong style="color: #f00;">This plugin has not been updated by the author in %1$d days!</strong>', $diff_in_days );
-		//            }
-		//            else
-		//            {
-		//                $plugin_meta[] = sprintf( '<span style="color: #090;">This plugin was last updated by the author in %1$d days ago.</span>', $diff_in_days );
-		//            }
-		//        }
-		//
-		//        return $plugin_meta;
+		//Grab our previously stored array of known last modified dates
+		//Requires WP 2.8.0
+		$plugin_info = get_transient( $this->tran_name_plugin_timestamps );
+
+		//Sanity check the response
+		if( false === $plugin_info || ! is_array( $plugin_info ) && 0 === count( $plugin_info ) )
+		{
+			return $plugin_meta;
+		}
+
+		//See if this specific plugin is in the known list
+		if( array_key_exists( $plugin_file, $plugin_info ) )
+		{
+			//Get now
+			$now = new \DateTime();
+			$last_updated = $plugin_info[ $plugin_file ]['last_updated'];
+
+			//Last updated is stored as timestamp, get a real date
+			$plugin_last_updated_date = new \DateTime( '@' . $last_updated );
+
+			//Compute days between now and plugin last updated
+			$diff_in_days = $now->diff( $plugin_last_updated_date )->format( '%a' );
+
+			//Customizable number of days for tolerance
+			$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
+
+			//If we're outside the window for tolerance show a message
+			if( $diff_in_days > $tolerance_in_days )
+			{
+				$plugin_meta[] = sprintf( '<strong style="color: #f00;">This plugin has not been updated by the author in %1$d days!</strong>', $diff_in_days );
+			}
+			else
+			{
+				$plugin_meta[] = sprintf( '<span style="color: #090;">This plugin was last updated by the author in %1$d days ago.</span>', $diff_in_days );
+			}
+		}
+
+		return $plugin_meta;
 	}
 
 	public function run_check() {
@@ -218,6 +219,7 @@ class MainWP_Child_Plugins_Check {
 		$avoid_plugins = array( 'sitepress-multilingual-cms/sitepress.php' );
 		//Grab a small number of plugins to scan
 		$plugins_to_scan = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
+		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		//Loop through each known plugin
 		foreach ( $plugins_to_scan as $slug => $v ) {
@@ -239,12 +241,13 @@ class MainWP_Child_Plugins_Check {
 
 			//Sanity check that deserialization worked and that our property exists
 			if ( false !== $obj && is_object( $obj ) && property_exists( $obj, 'last_updated' ) ) {
+				if ( version_compare( $v['Version'], $obj->version, '>' ) ) {
+					continue;
+				}
 				$last_updated             = strtotime( $obj->last_updated );
 				$plugin_last_updated_date = new \DateTime( '@' . $last_updated );
 
 				$diff_in_days = $now->diff( $plugin_last_updated_date )->format( '%a' );
-
-				$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 				if ( $diff_in_days < $tolerance_in_days ) {
 					continue;

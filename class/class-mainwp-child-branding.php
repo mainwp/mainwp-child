@@ -587,18 +587,20 @@ class MainWP_Child_Branding {
 
 	public function send_support_mail() {
 		$email   = get_option( 'mainwp_branding_support_email' );
+		$sub = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
+		$subject = !empty( $sub ) ? $sub : "MainWP - Support Contact";
 		$content = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_content'] ) ) );
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 			global $current_user;
-			$mail = '<p>Support Email from: <a href="' . site_url() . '">' . site_url() . '</a></p>';
-			$mail .= '<p>Sent from WordPress page: ' . ( ! empty( $_POST['mainwp_branding_send_from_page'] ) ? '<a href="' . esc_url( $_POST['mainwp_branding_send_from_page'] ) . '">' . esc_url( $_POST['mainwp_branding_send_from_page'] ) . '</a></p>' : '' );
-			$mail .= '<p>Client Email: ' . $current_user->user_email . ' </p>';
-			$mail .= '<p>Support Text:</p>';
-			$mail .= '<p>' . $content . '</p>';
-			if ( wp_mail( $email, 'MainWP - Support Contact', $mail, array(
-				'From: "' . $current_user->user_email . '" <' . $current_user->user_email . '>',
-				'content-type: text/html',
-			) ) ) {
+			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
+			$headers .= "From: \"" . $current_user->user_email . "\" <" . $current_user->user_email . ">\r\n";
+			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
+			$mail .= "<p>Sent from WordPress page: " . ( ! empty( $_POST["mainwp_branding_send_from_page"] ) ? "<a href='" . esc_url( $_POST["mainwp_branding_send_from_page"] ) . "'>" . esc_url( $_POST["mainwp_branding_send_from_page"] ) . "</a></p>\r\n\r\n" : "" );
+			$mail .= "<p>Client Email: " . $current_user->user_email . " </p>\r\n\r\n";
+			$mail .= "<p>Support Text:</p>\r\n\r\n";
+			$mail .= "<p>" . $content . "</p>\r\n\r\n";
+
+			if ( wp_mail( $email, $subject, $mail, $headers ) ) {
 				;
 			}
 
@@ -667,8 +669,10 @@ class MainWP_Child_Branding {
 
 					<div style="height: auto; margin-bottom: 10px; text-align: left">
 						<p><?php echo wp_kses_post( $support_message ); ?></p>
-
+						<p><label for="mainwp_branding_contact_message_subject"><?php _e('Subject:', 'mainwp-child'); ?></label><br>
+							<input type="text" name="mainwp_branding_contact_message_subject" style="width: 650px;"></p>
 						<div style="max-width: 650px;">
+							<label for="mainwp_branding_contact_message_content"><?php _e('Your Message:', 'mainwp-child'); ?></label><br>
 							<?php
 							remove_editor_styles(); // stop custom theme styling interfering with the editor
 							wp_editor( '', 'mainwp_branding_contact_message_content', array(

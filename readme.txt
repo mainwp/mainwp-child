@@ -60,12 +60,13 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 = 3.1.1 - 3-3-16 =
 * Fixed: Checking abandoned plugins not in WP repository
 * Fixed: Bug when running BackupWordPress backup
-* Fixed: Bug in add cache settings for WordFence Extension 
+* Fixed: Bug adding cache settings for WordFence Extension
 * Added: Feature to generate server information
 * Added: Server Information items
-* Added: New Subject text box for support email in Branding Extension
-* Tweaked: support new version of BackupWodrpress plugin version
-* Updated: Added support in Client Reports Extension for BackWPup backups.
+* Added: New Subject text box to support email in Branding Extension
+* Added: Support themes using invalid screen functions
+* Tweaked: Support new version of BackupWordpress plugin version
+* Updated: Added support in Client Reports Extension for BackWPup backups
 
 = 3.1 - 2-17-16 =
 * Fixed: PHP notices
