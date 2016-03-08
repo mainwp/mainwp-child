@@ -191,9 +191,10 @@ class MainWP_Child_Back_WP_Up {
 	}
 
 	function do_site_stats() {
-		if ( ! $this->is_backwpup_installed || !class_exists('BackWPup_Page_Logs')) {
+		if ( ! $this->is_backwpup_installed ) {
 			return;
 		}
+		$this->wp_list_table_dependency();
 		update_user_option( get_current_user_id(), 'backwpuplogs_per_page', 99999999 );
 		$output = new BackWPup_Page_Logs();
 		$output->prepare_items();
