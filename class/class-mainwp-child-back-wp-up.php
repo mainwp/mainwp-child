@@ -536,6 +536,9 @@ class MainWP_Child_Back_WP_Up {
 						$dests = BackWPup_Option::get( $jobid, 'destinations' );
 						foreach ( $dests as $dest ) {
 							$dest_class = BackWPup::get_destination( $dest );
+							if ( is_null($dest_class) ) {
+								continue;
+							}
 							$items      = $dest_class->file_get_list( $jobid . '_' . $dest );
 							if ( ! empty( $items ) ) {
 								foreach ( $items as $item ) {
