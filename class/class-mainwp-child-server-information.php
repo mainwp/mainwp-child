@@ -533,10 +533,10 @@ class MainWP_Child_Server_Information {
 		if ( ! self::check( '>=', '30', 'getMaxExecutionTime', '=', '0' ) ) {
 			$i ++;
 		}
-		if ( ! self::check( '>=', '2M', 'getUploadMaxFilesize' ) ) {
+		if ( ! self::check( '>=', '2M', 'getUploadMaxFilesize', null, null, true ) ) {
 			$i ++;
 		}
-		if ( ! self::check( '>=', '2M', 'getPostMaxSize' ) ) {
+		if ( ! self::check( '>=', '2M', 'getPostMaxSize', null, null, true ) ) {
 			$i ++;
 		}
 		if ( ! self::check( '>=', '10000', 'getOutputBufferSize' ) ) {
@@ -1158,7 +1158,7 @@ class MainWP_Child_Server_Information {
 		return true;
 	}
 
-	protected static function renderRow( $pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $compareFilesize = false ) {
+	protected static function renderRow( $pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
 		$currentVersion = call_user_func( array( 'MainWP_Child_Server_Information', $pGetter ) );
 
 		?>
@@ -1167,11 +1167,7 @@ class MainWP_Child_Server_Information {
 			<td><?php echo esc_html( esc_html( $pConfig ) ); ?></td>
 			<td><?php echo esc_html( esc_html( $pCompare ) ); ?><?php echo esc_html( ( true === $pVersion ? 'true' : $pVersion ) . ' ' . $pExtraText ); ?></td>
 			<td><?php echo esc_html( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
-			<?php if ( $compareFilesize ) { ?>
-				<td><?php echo ( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
-			<?php } else { ?>
-				<td><?php echo ( self::check( $pCompare, $pVersion, $pGetter, $pExtraCompare, $pExtraVersion ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
-			<?php } ?>
+			<td><?php echo ( self::check( $pCompare, $pVersion, $pGetter, $pExtraCompare, $pExtraVersion, $sizeCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
 		</tr>
 		<?php
 	}
@@ -1223,10 +1219,14 @@ class MainWP_Child_Server_Information {
 		return version_compare( $value1, $value2, $operator );
 	}
 
-	protected static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null ) {
+	protected static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false) {
 		$currentVersion = call_user_func( array( 'MainWP_Child_Server_Information', $pGetter ) );
 
-		return ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null !== $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) );
+		if ($sizeCompare) {
+			return self::filesize_compare( $currentVersion, $pVersion, $pCompare );
+		} else {
+			return ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null !== $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) );
+		}
 	}
 
 	protected static function getZipArchiveEnabled() {
@@ -1735,4 +1735,3 @@ class MainWP_Child_Server_Information {
 		<?php
 	}
 }
-

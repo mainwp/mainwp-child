@@ -6,13 +6,15 @@
   Author: MainWP
   Author URI: http://mainwp.com
   Text Domain: mainwp-child
-  Version: 3.1.1
+  Version: 3.1.3-alpha
  */
 if ( ( isset( $_REQUEST['heatmap'] ) && '1' === $_REQUEST['heatmap'] ) || ( isset( $_REQUEST['mainwpsignature'] ) && ( ! empty( $_REQUEST['mainwpsignature'] ) ) ) ) {
 	header( 'X-Frame-Options: ALLOWALL' );
 }
 //header('X-Frame-Options: GOFORIT');
 include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from wordpress
+
+define( 'MAINWP_DEBUG', FALSE );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 	define( 'MAINWP_CHILD_FILE', __FILE__ );

@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.4.1
-Stable tag: 3.1.1
+Stable tag: 3.1.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.1.2 - 3-15-16 =
+* Fixed: False connection issue warning
+* Fixed: Smart Manager For WP eCommerce not updating
+* Fixed: Multiple mixed content warnings
+* Added: Support for Wordfence performance options
 
 = 3.1.1 - 3-3-16 =
 * Fixed: Checking abandoned plugins not in WP repository

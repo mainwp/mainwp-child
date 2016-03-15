@@ -1,7 +1,12 @@
 <?php
-
-@ini_set( 'display_errors', false );
-@error_reporting( 0 );
+if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === TRUE ) {
+    @error_reporting( E_ALL );
+    @ini_set( 'display_errors', TRUE );
+    @ini_set( 'display_startup_errors', TRUE );
+} else {
+	@ini_set( 'display_errors', FALSE );
+	@error_reporting( 0 );
+}
 
 define( 'MAINWP_CHILD_NR_OF_COMMENTS', 50 );
 define( 'MAINWP_CHILD_NR_OF_PAGES', 50 );
@@ -79,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.1.1';
+	public static $version = '3.1.2';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -172,10 +177,10 @@ class MainWP_Child {
 		$this->posts_where_suffix   = '';
 		$this->comments_and_clauses = '';
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
-		add_action( 'init', array( &$this, 'parse_init' ) );
+		add_action( 'init', array( &$this, 'parse_init' ), 33 );
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
-		add_action( 'init', array( &$this, 'localization' ) );
+		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'pre_current_active_plugins', array( &$this, 'pre_current_active_plugins' ) );
 
 		if ( is_admin() ) {
@@ -232,7 +237,6 @@ class MainWP_Child {
 				'mainwp_child_auth',
 				'mainwp_branding_ext_enabled',
 				'mainwp_child_uniqueId',
-				'mainwp_child_onetime_htaccess',
 				'mainwp_child_htaccess_set',
 				'mainwp_child_fix_htaccess',
 				'mainwp_child_pubkey',
@@ -650,7 +654,7 @@ class MainWP_Child {
 	}
 
 	function update_htaccess( $hard = false ) {
-		if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+		if ( !$hard && defined( 'DOING_CRON' ) && DOING_CRON ) {
 			return;
 		}
 
@@ -685,9 +689,6 @@ class MainWP_Child {
 				//                @flock($ch, LOCK_UN);
 				//                @fclose($ch);
 
-				if ( get_option( 'mainwp_child_onetime_htaccess' ) === false ) {
-					MainWP_Helper::update_option( 'mainwp_child_onetime_htaccess', true );
-				}
 			}
 			MainWP_Helper::update_option( 'mainwp_child_htaccess_set', 'yes', 'yes' );
 		} else if ( $hard ) {
@@ -706,9 +707,6 @@ class MainWP_Child {
 				//                @flock($ch, LOCK_UN);
 				//                @fclose($ch);
 
-				if ( get_option( 'mainwp_child_onetime_htaccess' ) === false ) {
-					MainWP_Helper::update_option( 'mainwp_child_onetime_htaccess', true );
-				}
 			}
 		}
 	}
@@ -963,17 +961,7 @@ class MainWP_Child {
 		 * Security
 		 */
 		MainWP_Security::fixAll();
-
-		if ( isset( $_GET['mainwptest'] ) ) {
-//			            error_reporting(E_ALL);
-//			            ini_set('display_errors', TRUE);
-//			            ini_set('display_startup_errors', TRUE);
-//			            echo '<pre>';
-//			            $start = microtime(true);
-//
-//			            $stop = microtime(true);
-//			            die(($stop - $start) . 's</pre>');
-		}
+		MainWP_Debug::process($this);
 
 		//Register does not require auth, so we register here..
 		if ( isset( $_POST['function'] ) && 'register' === $_POST['function'] ) {
@@ -1441,6 +1429,7 @@ class MainWP_Child {
 		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
 			include_once( ABSPATH . '/wp-admin/includes/update.php' );
 			if ( null !== $this->filterFunction ) {
+//				ET_Automatic_Updates
 				add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 			}
 
@@ -1456,6 +1445,15 @@ class MainWP_Child {
 						$ithemes_updater = new Ithemes_Updater_Settings();
 						$ithemes_updater->update();
 					}
+				}
+			}
+			////
+
+			// to fix: smart-manager-for-wp-e-commerce update
+			if (in_array('smart-manager-for-wp-e-commerce/smart-manager.php', $plugins)) {
+				if (file_exists(plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php') && file_exists(plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php')) {
+					include_once plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php';
+					include_once (plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php');
 				}
 			}
 			////
@@ -2504,10 +2502,6 @@ class MainWP_Child {
 
 	function updateExternalSettings() {
 		$update_htaccess = false;
-
-		if ( get_option( 'mainwp_child_onetime_htaccess' ) === false ) {
-			$update_htaccess = true;
-		}
 
 		if ( isset( $_POST['heatMap'] ) ) {
 			if ( '1' === $_POST['heatMap'] ) {

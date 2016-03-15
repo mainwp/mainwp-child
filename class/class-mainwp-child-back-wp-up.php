@@ -178,11 +178,11 @@ class MainWP_Child_Back_WP_Up {
 	}
 
 	public function init() {
-		add_action('mainwp_child_site_stats', array($this, 'do_site_stats'));
-
 		if ( get_option( 'mainwp_backwpup_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
+
+		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 
 		if ( get_option( 'mainwp_backwpup_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );

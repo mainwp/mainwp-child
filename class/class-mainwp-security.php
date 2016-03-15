@@ -273,7 +273,7 @@ class MainWP_Security {
 	public static function remove_script_versions( $src ) {
 		if ( self::get_security_option( 'scripts_version' ) ) {
 			if ( strpos( $src, '?ver=' ) ) {
-				$src = esc_url_raw( remove_query_arg( 'ver', $src ) );
+				$src = remove_query_arg( 'ver', $src );
 			}
 
 			return $src;
@@ -305,7 +305,7 @@ class MainWP_Security {
 	public static function remove_theme_versions( $src ) {
 		if ( 'T' === self::get_security_option( 'styles_version' ) ) {
 			if ( strpos( $src, '?ver=' ) ) {
-				$src = esc_url_raw( remove_query_arg( 'ver', $src ) );
+				$src = remove_query_arg( 'ver', $src );
 			}
 
 			return $src;

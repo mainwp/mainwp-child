@@ -3,6 +3,8 @@
 class MainWP_Child_Wordfence {
 	public static $instance = null;
 	private static $wfLog = false;
+	public $is_wordfence_installed = false;
+	public $plugin_translate = 'mainwp-child';
 
 	public static $options_filter = array(
 		'alertEmails',
@@ -111,6 +113,18 @@ class MainWP_Child_Wordfence {
 
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'deactivation' ) );
+
+		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+
+		if ( is_plugin_active( 'wordfence/wordfence.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../wordfence/wordfence.php' ) ) {
+			require_once( plugin_dir_path( __FILE__ ) . '../../wordfence/wordfence.php' );
+			$this->is_wordfence_installed = true;
+		}
+
+		if ( $this->is_wordfence_installed ) {
+			add_action( 'wp_ajax_mainwp_wordfence_download_htaccess', array( $this, 'downloadHtaccess' ) );
+		}
+
 	}
 
 	public function deactivation() {
@@ -122,6 +136,11 @@ class MainWP_Child_Wordfence {
 
 	public function action() {
 		$information = array();
+		if ( ! $this->is_wordfence_installed ) {
+			MainWP_Helper::write( array( 'error' => __( 'Please install Wordfence plugin on child website', $this->plugin_translate ) ) );
+			return;
+		}
+
 		if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfScanEngine' ) ) {
 			$information['error'] = 'NO_WORDFENCE';
 			MainWP_Helper::write( $information );
@@ -191,6 +210,30 @@ class MainWP_Child_Wordfence {
 					break;
 				case "export_settings":
 					$information = $this->export_settings();
+					break;
+				case "save_cache_config":
+					$information = $this->saveCacheConfig();
+					break;
+				case "check_falcon_htaccess":
+					$information = $this->checkFalconHtaccess();
+					break;
+				case "save_cache_options":
+					$information = $this->saveCacheOptions();
+					break;
+				case "clear_page_cache":
+					$information = $this->clearPageCache();
+					break;
+				case "get_cache_stats":
+					$information = $this->getCacheStats();
+					break;
+				case "add_cache_exclusion":
+					$information = $this->addCacheExclusion();
+					break;
+				case "load_cache_exclusions":
+					$information = $this->loadCacheExclusions();
+					break;
+				case "remove_cache_exclusion":
+					$information = $this->removeCacheExclusion();
 					break;
 			}
 		}
@@ -873,5 +916,265 @@ class MainWP_Child_Wordfence {
 
 		return $return;
 	}
-}
 
+	public static function saveCacheConfig(){
+		$noEditHtaccess = '1';
+		if (isset($_POST['needToCheckFalconHtaccess']) && !empty($_POST['needToCheckFalconHtaccess'])) {
+			$checkHtaccess = self::checkFalconHtaccess();
+			if (isset($checkHtaccess['ok']))
+				$noEditHtaccess = '0';
+		} else if (isset($_POST['noEditHtaccess']))	{
+			$noEditHtaccess = $_POST['noEditHtaccess'];
+		}
+
+		$cacheType = $_POST['cacheType'];
+		if($cacheType == 'falcon' || $cacheType == 'php'){
+			$plugins = get_plugins();
+			$badPlugins = array();
+			foreach($plugins as $pluginFile => $data){
+				if(is_plugin_active($pluginFile)){
+					if($pluginFile == 'w3-total-cache/w3-total-cache.php'){
+						$badPlugins[] = "W3 Total Cache";
+					} else if($pluginFile == 'quick-cache/quick-cache.php'){
+						$badPlugins[] = "Quick Cache";
+					} else if($pluginFile == "wp-super-cache/wp-cache.php"){
+						$badPlugins[] = "WP Super Cache";
+					} else if($pluginFile == "wp-fast-cache/wp-fast-cache.php"){
+						$badPlugins[] = "WP Fast Cache";
+					} else if($pluginFile == "wp-fastest-cache/wpFastestCache.php"){
+						$badPlugins[] = "WP Fastest Cache";
+					}
+				}
+			}
+			if(count($badPlugins) > 0){
+				return array('errorMsg' => "You can not enable caching in Wordfence with other caching plugins enabled. This may cause conflicts. You need to disable other caching plugins first. Wordfence caching is very fast and does not require other caching plugins to be active. The plugins you have that conflict are: " . implode(', ', $badPlugins) . ". Disable these plugins, then return to this page and enable Wordfence caching.");
+			}
+			$siteURL = site_url();
+			if(preg_match('/^https?:\/\/[^\/]+\/[^\/]+\/[^\/]+\/.+/i', $siteURL)){
+				return array('errorMsg' => "Wordfence caching currently does not support sites that are installed in a subdirectory and have a home page that is more than 2 directory levels deep. e.g. we don't support sites who's home page is http://example.com/levelOne/levelTwo/levelThree");
+			}
+		}
+		if($cacheType == 'falcon'){
+			if(! get_option('permalink_structure', '')){
+				return array('errorMsg' => "You need to enable Permalinks for your site to use Falcon Engine. You can enable Permalinks in WordPress by going to the Settings - Permalinks menu and enabling it there. Permalinks change your site URL structure from something that looks like /p=123 to pretty URLs like /my-new-post-today/ that are generally more search engine friendly.");
+			}
+		}
+		$warnHtaccess = false;
+		if($cacheType == 'disable' || $cacheType == 'php'){
+			$removeError = wfCache::addHtaccessCode('remove');
+			$removeError2 = wfCache::updateBlockedIPs('remove');
+			if($removeError || $removeError2){
+				$warnHtaccess = true;
+			}
+		}
+		if($cacheType == 'php' || $cacheType == 'falcon'){
+			$err = wfCache::cacheDirectoryTest();
+			if($err){
+				return array('ok' => 1, 'heading' => "Could not write to cache directory", 'body' => "To enable caching, Wordfence needs to be able to create and write to the /wp-content/wfcache/ directory. We did some tests that indicate this is not possible. You need to manually create the /wp-content/wfcache/ directory and make it writable by Wordfence. The error we encountered was during our tests was: $err");
+			}
+		}
+
+		//Mainly we clear the cache here so that any footer cache diagnostic comments are rebuilt. We could just leave it intact unless caching is being disabled.
+		if($cacheType != wfConfig::get('cacheType', false)){
+			wfCache::scheduleCacheClear();
+		}
+		$htMsg = "";
+		if($warnHtaccess){
+			$htMsg = " <strong style='color: #F00;'>Warning: We could not remove the caching code from your .htaccess file. you need to remove this manually yourself.</strong> ";
+		}
+		if($cacheType == 'disable'){
+			wfConfig::set('cacheType', false);
+			return array('ok' => 1, 'heading' => "Caching successfully disabled.", 'body' => "{$htMsg}Caching has been disabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
+		} else if($cacheType == 'php'){
+			wfConfig::set('cacheType', 'php');
+			return array('ok' => 1, 'heading' => "Wordfence Basic Caching Enabled", 'body' => "{$htMsg}Wordfence basic caching has been enabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
+		} else if($cacheType == 'falcon'){
+			if($noEditHtaccess != '1'){
+				$err = wfCache::addHtaccessCode('add');
+				if($err){
+					return array('ok' => 1, 'heading' => "Wordfence could not edit .htaccess", 'body' => "Wordfence could not edit your .htaccess code. The error was: " . $err);
+				}
+			}
+			wfConfig::set('cacheType', 'falcon');
+			wfCache::scheduleUpdateBlockedIPs(); //Runs every 5 mins until we change cachetype
+			return array('ok' => 1, 'heading' => "Wordfence Falcon Engine Activated!", 'body' => "Wordfence Falcon Engine has been activated on your system. You will see this icon appear on the Wordfence admin pages as long as Falcon is active indicating your site is running in high performance mode:<div class='wfFalconImage'></div><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
+		}
+		return array('errorMsg' => "An error occurred.");
+	}
+
+	public static function checkFalconHtaccess(){
+		if(wfUtils::isNginx()){
+			return array('nginx' => 1);
+		}
+		$file = wfCache::getHtaccessPath();
+		if(! $file){
+			return array('err' => "We could not find your .htaccess file to modify it.", 'code' => wfCache::getHtaccessCode() );
+		}
+		$fh = @fopen($file, 'r+');
+		if(! $fh){
+			$err = error_get_last();
+			return array('err' => "We found your .htaccess file but could not open it for writing: " . $err['message'], 'code' => wfCache::getHtaccessCode() );
+		}
+		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . MainWP_Helper::create_nonce_without_session( 'mainwp_download_htaccess' );
+		return array( 'ok' => 1 , 'download_url' => $download_url );
+	}
+
+	public static function downloadHtaccess(){
+		if ( ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {
+			die( '-1' );
+		}
+
+		if ( ! MainWP_Helper::verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_htaccess' ) ) {
+			die( '-2' );
+		}
+
+		$url = site_url();
+		$url = preg_replace('/^https?:\/\//i', '', $url);
+		$url = preg_replace('/[^a-zA-Z0-9\.]+/', '_', $url);
+		$url = preg_replace('/^_+/', '', $url);
+		$url = preg_replace('/_+$/', '', $url);
+		header('Content-Type: application/octet-stream');
+		header('Content-Disposition: attachment; filename="htaccess_Backup_for_' . $url . '.txt"');
+		$file = wfCache::getHtaccessPath();
+		readfile($file);
+		die();
+	}
+
+	public static function saveCacheOptions(){
+		$changed = false;
+		if($_POST['allowHTTPSCaching'] != wfConfig::get('allowHTTPSCaching', false)){
+			$changed = true;
+		}
+		wfConfig::set('allowHTTPSCaching', $_POST['allowHTTPSCaching'] == '1' ? 1 : 0);
+		wfConfig::set('addCacheComment', $_POST['addCacheComment'] == 1 ? '1' : 0);
+		wfConfig::set('clearCacheSched', $_POST['clearCacheSched'] == 1 ? '1' : 0);
+		if($changed && wfConfig::get('cacheType', false) == 'falcon'){
+			$err = wfCache::addHtaccessCode('add');
+			if($err){
+				return array('updateErr' => "Wordfence could not edit your .htaccess file. The error was: " . $err, 'code' => wfCache::getHtaccessCode() );
+			}
+		}
+		wfCache::scheduleCacheClear();
+		return array('ok' => 1);
+	}
+
+	public static function clearPageCache(){
+		$stats = wfCache::clearPageCache();
+		if($stats['error']){
+			$body = "A total of " . $stats['totalErrors'] . " errors occurred while trying to clear your cache. The last error was: " . $stats['error'];
+			return array('ok' => 1, 'heading' => 'Error occurred while clearing cache', 'body' => $body );
+		}
+		$body = "A total of " . $stats['filesDeleted'] . ' files were deleted and ' . $stats['dirsDeleted'] . ' directories were removed. We cleared a total of ' . $stats['totalData'] . 'KB of data in the cache.';
+		if($stats['totalErrors'] > 0){
+			$body .=  ' A total of ' . $stats['totalErrors'] . ' errors were encountered. This probably means that we could not remove some of the files or directories in the cache. Please use your CPanel or file manager to remove the rest of the files in the directory: ' . WP_CONTENT_DIR . '/wfcache/';
+		}
+		return array('ok' => 1, 'heading' => 'Page Cache Cleared', 'body' => $body );
+	}
+
+	public static function getCacheStats(){
+		$s = wfCache::getCacheStats();
+		if($s['files'] == 0){
+			return array('ok' => 1, 'heading' => 'Cache Stats', 'body' => "The cache is currently empty. It may be disabled or it may have been recently cleared.");
+		}
+		$body = 'Total files in cache: ' . $s['files'] .
+		        '<br />Total directories in cache: ' . $s['dirs'] .
+		        '<br />Total data: ' . $s['data'] . 'KB';
+		if($s['compressedFiles'] > 0){
+			$body .= '<br />Files: ' . $s['uncompressedFiles'] .
+			         '<br />Data: ' . $s['uncompressedKBytes'] . 'KB' .
+			         '<br />Compressed files: ' . $s['compressedFiles'] .
+			         '<br />Compressed data: ' . $s['compressedKBytes'] . 'KB';
+		}
+		if($s['largestFile'] > 0){
+			$body .= '<br />Largest file: ' . $s['largestFile'] . 'KB';
+		}
+		if($s['oldestFile'] !== false){
+			$body .= '<br />Oldest file in cache created ';
+			if(time() - $s['oldestFile'] < 300){
+				$body .= (time() - $s['oldestFile']) . ' seconds ago';
+			} else {
+				$body .= human_time_diff($s['oldestFile']) . ' ago.';
+			}
+		}
+		if($s['newestFile'] !== false){
+			$body .= '<br />Newest file in cache created ';
+			if(time() - $s['newestFile'] < 300){
+				$body .= (time() - $s['newestFile']) . ' seconds ago';
+			} else {
+				$body .= human_time_diff($s['newestFile']) . ' ago.';
+			}
+		}
+
+		return array('ok' => 1, 'heading' => 'Cache Stats', 'body' => $body);
+	}
+
+	public static function addCacheExclusion(){
+		$ex = wfConfig::get('cacheExclusions', false);
+		if($ex){
+			$ex = unserialize($ex);
+		} else {
+			$ex = array();
+		}
+		if (isset($_POST['cacheExclusions'])) {
+			$ex = $_POST['cacheExclusions'];
+		} else {
+			$ex[] = array(
+				'pt' => $_POST['patternType'],
+				'p' => $_POST['pattern'],
+				'id' => $_POST['id'],
+			);
+		}
+		wfConfig::set('cacheExclusions', serialize($ex));
+		wfCache::scheduleCacheClear();
+		if(wfConfig::get('cacheType', false) == 'falcon' && preg_match('/^(?:uac|uaeq|cc)$/', $_POST['patternType'])){
+			if(wfCache::addHtaccessCode('add')){ //rewrites htaccess rules
+				return array('errorMsg' => "We added the rule you requested but could not modify your .htaccess file. Please delete this rule, check the permissions on your .htaccess file and then try again.", 'ex' => $ex);
+			}
+		}
+		return array('ok' => 1, 'ex' => $ex);
+	}
+
+	public static function loadCacheExclusions(){
+		$ex = wfConfig::get('cacheExclusions', false);
+		if(! $ex){
+			return array('ex' => false);
+		}
+		$ex = unserialize($ex);
+		return array('ok' => 1, 'ex' => $ex);
+	}
+
+	public static function removeCacheExclusion(){
+		$id = $_POST['id'];
+		$ex = wfConfig::get('cacheExclusions', false);
+		if(! $ex){
+			return array('ok' => 1);
+		}
+		$ex = unserialize($ex);
+		$rewriteHtaccess = false;
+		$removed = false;
+		for($i = 0; $i < sizeof($ex); $i++){
+			if((string)$ex[$i]['id'] == (string)$id){
+				if(wfConfig::get('cacheType', false) == 'falcon' && preg_match('/^(?:uac|uaeq|cc)$/', $ex[$i]['pt'])){
+					$rewriteHtaccess = true;
+				}
+				array_splice($ex, $i, 1);
+				//Dont break in case of dups
+				$removed = true;
+			}
+		}
+		$return = array('ex' => $ex);
+		if (!$removed) {
+			$return['error'] = "Not found the cache exclusion.";
+			return $return;
+		}
+
+		wfConfig::set('cacheExclusions', serialize($ex));
+		if($rewriteHtaccess && wfCache::addHtaccessCode('add')){ //rewrites htaccess rules
+			$return['errorMsg'] = "We removed that rule but could not rewrite your .htaccess file. You're going to have to manually remove this rule from your .htaccess file. Please reload this page now.";
+			return $return;
+		}
+
+		$return['ok'] = 1;
+		return $return;
+	}
+}

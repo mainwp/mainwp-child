@@ -897,7 +897,7 @@ class MainWP_Helper {
                 <div style="width:600px;background:#fff;margin-left:auto;margin-right:auto;margin-top:10px;margin-bottom:25px;padding:0!important;border:10px Solid #fff;border-radius:10px;overflow:hidden">
                     <div style="display: block; width: 100% ; background-image: url(http://mainwp.com/wp-content/uploads/2013/02/debut_light.png) ; background-repeat: repeat; border-bottom: 2px Solid #7fb100 ; overflow: hidden;">
                       <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
-                         <div style="float: left;"><a href="http://mainwp.com"><img src="http://mainwp.com/wp-content/uploads/2013/07/MainWP-Logo-1000-300x62.png" alt="MainWP" height="30"/></a></div>
+                         <div style="float: left;"><a href="http://mainwp.com"><img src="//mainwp.com/wp-content/uploads/2013/07/MainWP-Logo-1000-300x62.png" alt="MainWP" height="30"/></a></div>
                          <div style="float: right; margin-top: .6em ;">
                             <span style="display: inline-block; margin-right: .8em;"><a href="https://mainwp.com/mainwp-extensions/" style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;">Extensions</a></span>
                             <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="http://mainwp.com/forum">Support</a></span>
@@ -919,7 +919,7 @@ class MainWP_Helper {
                     <div style="display: block; width: 100% ; background: #1c1d1b;">
                       <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
                         <div style="padding: .5em 0 ; float: left;"><p style="color: #fff; font-family: Helvetica, Sans; font-size: 12px ;">© 2013 MainWP. All Rights Reserved.</p></div>
-                        <div style="float: right;"><a href="http://mainwp.com"><img src="http://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png" height="45"/></a></div><div style="clear: both;"></div>
+                        <div style="float: right;"><a href="http://mainwp.com"><img src="//mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png" height="45"/></a></div><div style="clear: both;"></div>
                       </div>
                    </div>
                 </div>
@@ -1140,5 +1140,44 @@ class MainWP_Helper {
 
 	static function ctype_digit( $str ) {
 		return ( is_string( $str ) || is_int( $str ) || is_float( $str ) ) && preg_match( '/^\d+\z/', $str );
+	}
+
+	public static function create_nonce_without_session( $action = - 1 ) {
+		$user = wp_get_current_user();
+		$uid  = (int) $user->ID;
+		if ( ! $uid ) {
+			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
+		}
+
+		$i = wp_nonce_tick();
+
+		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+	}
+
+	public static function verify_nonce_without_session( $nonce, $action = - 1 ) {
+		$nonce = (string) $nonce;
+		$user  = wp_get_current_user();
+		$uid   = (int) $user->ID;
+		if ( ! $uid ) {
+			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
+		}
+
+		if ( empty( $nonce ) ) {
+			return false;
+		}
+
+		$i = wp_nonce_tick();
+
+		$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 1;
+		}
+
+		$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 2;
+		}
+
+		return false;
 	}
 }
