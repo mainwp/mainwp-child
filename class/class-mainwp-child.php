@@ -177,6 +177,7 @@ class MainWP_Child {
 		$this->posts_where_suffix   = '';
 		$this->comments_and_clauses = '';
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
+		add_action( 'init', array( &$this, 'check_login' ), 1 );
 		add_action( 'init', array( &$this, 'parse_init' ), 33 );
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
@@ -711,6 +712,48 @@ class MainWP_Child {
 		}
 	}
 
+	function check_login() {
+		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
+
+		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) {
+			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
+		}
+
+		if ( ! $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) && ! isset( $this->callableFunctionsNoAuth[ $_POST['function'] ] ) ) {
+			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
+		}
+
+		if ( $auth ) {
+			//Check if the user exists & is an administrator
+			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
+				$user = get_user_by( 'login', $_POST['user'] );
+				if ( ! $user ) {
+					MainWP_Helper::error( __( 'No such user', 'mainwp-child' ) );
+				}
+
+				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
+					MainWP_Helper::error( __( 'User is not an administrator', 'mainwp-child' ) );
+				}
+
+				$this->login( $_REQUEST['user'] );
+			}
+
+			if ( isset( $_POST['function'] ) && 'visitPermalink' === $_POST['function'] ) {
+				if ( $this->login( $_POST['user'], true ) ) {
+					return;
+				} else {
+					exit();
+				}
+			}
+
+			//Redirect to the admin part if needed
+			if ( isset( $_POST['admin'] ) && '1' === $_POST['admin'] ) {
+				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/' );
+				die();
+			}
+		}
+	}
+
 	function parse_init() {
 		if ( isset( $_REQUEST['cloneFunc'] ) ) {
 			if ( ! isset( $_REQUEST['key'] ) ) {
@@ -988,7 +1031,7 @@ class MainWP_Child {
 					MainWP_Helper::error( __( 'No such user', 'mainwp-child' ) );
 				}
 
-				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! current_user_can( 'level_10' ) ) {
+				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
 					MainWP_Helper::error( __( 'User is not an administrator', 'mainwp-child' ) );
 				}
 
@@ -1755,7 +1798,8 @@ class MainWP_Child {
 				$hint = "<br/>" . __('Hint: Check if the Administrator User exists on the child site, if not you need to use existing Administrator ', 'mainwp-child');
 				MainWP_Helper::error(__('No such user' . $hint,'mainwp-child'));
 			}
-			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
+
+			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! $current_user->has_cap( 'level_10' ) ) {
 				MainWP_Helper::error( __( 'User is not an administrator', 'mainwp-child' ) );
 			}
 		}
@@ -2792,7 +2836,7 @@ class MainWP_Child {
 
 		//Directory listings!
 		$information['directories'] = $this->scanDir( ABSPATH, 3 );
-		$cats                       = get_categories( array( 'hide_empty' => 0, 'hierarchical' => true ) );
+		$cats                       = get_categories( array( 'hide_empty' => 0, 'hierarchical' => true, 'number' => 100 ) );
 		$categories                 = array();
 		foreach ( $cats as $cat ) {
 			$categories[] = $cat->name;
@@ -3603,6 +3647,29 @@ class MainWP_Child {
 			}
 		}
 
+		$muplugins = get_mu_plugins();
+		if ( is_array( $muplugins ) ) {
+			foreach ( $muplugins as $pluginslug => $plugin ) {
+				$out                = array();
+				$out['mainwp']    = ($pluginslug == $this->plugin_slug ? 'T' : 'F');
+				$out['name']        = $plugin['Name'];
+				$out['slug']        = $pluginslug;
+				$out['description'] = $plugin['Description'];
+				$out['version']     = $plugin['Version'];
+				$out['active']      = 1;
+				$out['mu']          = 1;
+				if ( ! $filter ) {
+					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
+						$rslt[] = $out;
+					}
+				} else if ( $out['active'] == ( ( $status == 'active' ) ? 1 : 0 ) ) {
+					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
+						$rslt[] = $out;
+					}
+				}
+			}
+		}
+
 		return $rslt;
 	}
 
@@ -3802,34 +3869,34 @@ class MainWP_Child {
 
 	function getTotalFileSize( $directory = WP_CONTENT_DIR ) {
 		try {
-			function continueFileSize( $dir, $limit ) {
-				$dirs = array( $dir );
-				$cnt = 0;
-				while ( isset( $dirs[0] ) ) {
-					$path = array_shift( $dirs );
-					if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
-						continue;
-					}
-					$uploadDir = MainWP_Helper::getMainWPDir();
-					$uploadDir = $uploadDir[0];
-					if ( stristr( $path, $uploadDir ) ) {
-						continue;
-					}
-					$res = @glob( $path . '/*' );
-					if ( is_array( $res ) ) {
-						foreach ( $res as $next ) {
-							if ( is_dir( $next ) ) {
-								$dirs[] = $next;
-							} else {
-								if ($cnt++ > $limit) return false;;
-							}
-						}
-					}
-				}
-				return true;
-			}
-
-			if ( !continueFilesize( $directory, 20000 ) ) return 0;
+//			function continueFileSize( $dir, $limit ) {
+//				$dirs = array( $dir );
+//				$cnt = 0;
+//				while ( isset( $dirs[0] ) ) {
+//					$path = array_shift( $dirs );
+//					if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
+//						continue;
+//					}
+//					$uploadDir = MainWP_Helper::getMainWPDir();
+//					$uploadDir = $uploadDir[0];
+//					if ( stristr( $path, $uploadDir ) ) {
+//						continue;
+//					}
+//					$res = @glob( $path . '/*' );
+//					if ( is_array( $res ) ) {
+//						foreach ( $res as $next ) {
+//							if ( is_dir( $next ) ) {
+//								$dirs[] = $next;
+//							} else {
+//								if ($cnt++ > $limit) return false;;
+//							}
+//						}
+//					}
+//				}
+//				return true;
+//			}
+//
+//			if ( !continueFilesize( $directory, 20000 ) ) return 0;
 
 			if ( MainWP_Helper::function_exists( 'popen' ) ) {
 				$uploadDir   = MainWP_Helper::getMainWPDir();
@@ -3871,36 +3938,37 @@ class MainWP_Child {
 				}
 			}
 
-			function dirsize( $dir ) {
-				$dirs = array( $dir );
-				$size = 0;
-				while ( isset( $dirs[0] ) ) {
-					$path = array_shift( $dirs );
-					if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
-						continue;
-					}
-					$uploadDir = MainWP_Helper::getMainWPDir();
-					$uploadDir = $uploadDir[0];
-					if ( stristr( $path, $uploadDir ) ) {
-						continue;
-					}
-					$res = @glob( $path . '/*' );
-					if ( is_array( $res ) ) {
-						foreach ( $res as $next ) {
-							if ( is_dir( $next ) ) {
-								$dirs[] = $next;
-							} else {
-								$fs = filesize( $next );
-								$size += $fs;
-							}
-						}
-					}
-				}
-
-				return $size / 1024 / 1024;
-			}
-
-			return dirsize( $directory );
+//			function dirsize( $dir ) {
+//				$dirs = array( $dir );
+//				$size = 0;
+//				while ( isset( $dirs[0] ) ) {
+//					$path = array_shift( $dirs );
+//					if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
+//						continue;
+//					}
+//					$uploadDir = MainWP_Helper::getMainWPDir();
+//					$uploadDir = $uploadDir[0];
+//					if ( stristr( $path, $uploadDir ) ) {
+//						continue;
+//					}
+//					$res = @glob( $path . '/*' );
+//					if ( is_array( $res ) ) {
+//						foreach ( $res as $next ) {
+//							if ( is_dir( $next ) ) {
+//								$dirs[] = $next;
+//							} else {
+//								$fs = filesize( $next );
+//								$size += $fs;
+//							}
+//						}
+//					}
+//				}
+//
+//				return $size / 1024 / 1024;
+//			}
+//
+//			return dirsize( $directory );
+			return 0;
 		} catch ( Exception $e ) {
 			return 0;
 		}
