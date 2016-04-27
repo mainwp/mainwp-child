@@ -578,8 +578,38 @@ class MainWP_Child_Wordfence {
 		);
 	}
 
+	function simple_crypt($key, $data, $action = 'encrypt'){
+		$res = '';
+		if($action == 'encrypt'){
+			$string = base64_encode( serialize($data) );
+		} else {
+			$string = $data;
+		}
+		for( $i = 0; $i < strlen($string); $i++){
+			$c = ord(substr($string, $i));
+			if($action == 'encrypt'){
+				$c += ord(substr($key, (($i + 1) % strlen($key))));
+				$res .= chr($c & 0xFF);
+			}else{
+				$c -= ord(substr($key, (($i + 1) % strlen($key))));
+				$res .= chr(abs($c) & 0xFF);
+			}
+		}
+
+		if($action !== 'encrypt'){
+			$res = unserialize( base64_decode($res) );
+		}
+		return $res;
+	}
+
+
 	function save_setting() {
-		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
+		if (isset($_POST['encrypted']))
+			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost 	 	
+		else {
+			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
+		}
+
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
 			$result       = array();
 			$reload       = '';

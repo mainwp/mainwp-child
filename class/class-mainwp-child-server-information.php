@@ -18,9 +18,7 @@ class MainWP_Child_Server_Information {
 				$dismissWarnings = array();
 			}
 
-			if ( $_POST['what'] == 'conflict' ) {
-				$dismissWarnings['conflicts'] = self::getConflicts();
-			} else if ( $_POST['what'] == 'warning' ) {
+			if ( $_POST['what'] == 'warning' ) {
 				$dismissWarnings['warnings'] = self::getWarnings();
 			}
 
@@ -33,7 +31,6 @@ class MainWP_Child_Server_Information {
 			return;
 		}
 
-		$conflicts = self::getConflicts();
 		$warnings  = self::getWarnings();
 
 		$dismissWarnings = get_option( 'mainwp_child_dismiss_warnings' );
@@ -44,11 +41,8 @@ class MainWP_Child_Server_Information {
 		if ( isset( $dismissWarnings['warnings'] ) && $dismissWarnings['warnings'] >= $warnings ) {
 			$warnings = 0;
 		}
-		if ( isset( $dismissWarnings['conflicts'] ) && MainWP_Helper::containsAll( $dismissWarnings['conflicts'], $conflicts ) ) {
-			$conflicts = array();
-		}
 
-		if ( 0 === $warnings && 0 === count( $conflicts ) ) {
+		if ( 0 === $warnings ) {
 			return;
 		}
 
@@ -56,23 +50,7 @@ class MainWP_Child_Server_Information {
 			$dismissWarnings['warnings'] = 0;
 		}
 
-		if ( count( $conflicts ) > 0 ) {
-			$dismissWarnings['conflicts'] = array();
-		}
 		MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
-
-		$itheme_ext_activated = ( 'Y' === get_option( 'mainwp_ithemes_ext_activated' ) ) ? true : false;
-		if ( $itheme_ext_activated ) {
-			foreach ( $conflicts as $key => $cf ) {
-				if ( 'iThemes Security' === $cf ) {
-					unset( $conflicts[ $key ] );
-				}
-			}
-			if ( 0 === $warnings && 0 === count( $conflicts ) ) {
-				return;
-			}
-		}
-
 		?>
 		<script language="javascript">
 			dismiss_warnings = function ( pElement, pAction ) {
@@ -144,17 +122,6 @@ class MainWP_Child_Server_Information {
 				if ( $warnings > 0 ) {
 					$warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="admin.php?page=MainWP_Child_Server_Information">MainWP Server Information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a></td><td style="text-align: right;"><a href="#" id="mainwp-child-connect-warning-dismiss">Dismiss</a></td></tr>';
 				}
-
-				if ( count( $conflicts ) > 0 ) {
-					$warning .= '<tr><td colspan="2">';
-					if ( 1 === count( $conflicts ) ) {
-						$warning .= '"' . $conflicts[0] . '" is';
-					} else {
-						$warning .= '"' . join( '", "', $conflicts ) . '" are';
-					}
-					$warning .= ' installed on this site. This is known to have a potential conflict with MainWP functions. <a href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for possible solutions</a></td><td style="text-align: right;"><a href="#" id="mainwp-child-all-pages-warning-dismiss">Dismiss</a></td></tr>';
-				}
-
 				echo $warning;
 				?>
 				</tbody>
@@ -489,8 +456,6 @@ class MainWP_Child_Server_Information {
 			}
 		</style>
 		<div class="wrap">
-			<h2><?php esc_html_e( 'Plugin Conflicts' ); ?></h2>
-			<br/>
 			<div class="updated below-h2">
 				<p><?php _e( 'Please include this information when requesting support:', 'mainwp' ); ?></p>
 				<span class="mwp_child_close_srv_info"><a href="#" id="mwp_child_download_srv_info"><?php _e( 'Download', 'mainwp' ); ?></a> | <a href="#" id="mwp_child_close_srv_info"><i class="fa fa-eye-slash"></i> <?php _e( 'Hide', 'mainwp' ); ?>
@@ -504,9 +469,7 @@ class MainWP_Child_Server_Information {
 			</div>
 			<br/>
 			<div class="mwp_server_info_box">
-				<?php
-				MainWP_Child_Server_Information::renderConflicts();
-				?><h2><?php esc_html_e( 'Server Information' ); ?></h2><?php
+				<h2><?php esc_html_e( 'Server Information' ); ?></h2><?php
 				MainWP_Child_Server_Information::render();
 				?><h2><?php esc_html_e( 'Cron Schedules' ); ?></h2><?php
 				MainWP_Child_Server_Information::renderCron();
@@ -549,110 +512,6 @@ class MainWP_Child_Server_Information {
 		}
 
 		return $i;
-	}
-
-	public static function getConflicts() {
-		global $mainWPChild;
-
-		$pluginConflicts = array(
-			'Better WP Security',
-			'iThemes Security',
-			'Secure WordPress',
-			'Wordpress Firewall',
-			'Bad Behavior',
-			'SpyderSpanker',
-		);
-		$conflicts       = array();
-		if ( count( $pluginConflicts ) > 0 ) {
-			$plugins = $mainWPChild->get_all_plugins_int( false );
-			foreach ( $plugins as $plugin ) {
-				foreach ( $pluginConflicts as $pluginConflict ) {
-					if ( ( 1 === $plugin['active'] ) && ( ( $plugin['name'] === $pluginConflict ) || ( $plugin['slug'] === $pluginConflict ) ) ) {
-						$conflicts[] = $plugin['name'];
-					}
-				}
-			}
-		}
-
-		return $conflicts;
-	}
-
-	public static function renderConflicts() {
-		$conflicts      = self::getConflicts();
-		$branding_title = 'MainWP';
-		if ( MainWP_Child_Branding::is_branding() ) {
-			$branding_title = MainWP_Child_Branding::get_branding();
-		}
-
-		if ( count( $conflicts ) > 0 ) {
-			$information['pluginConflicts'] = $conflicts;
-			?>
-			<style type="text/css">
-				.mainwp-child_info-box-warning {
-					background-color: rgba(187, 114, 57, 0.2) !important;
-					border-bottom: 4px solid #bb7239 !important;
-					border-top: 1px solid #bb7239 !important;
-					border-left: 1px solid #bb7239 !important;
-					border-right: 1px solid #bb7239 !important;
-					-webkit-border-radius: 3px;
-					-moz-border-radius: 3px;
-					border-radius: 3px;
-				<?php if ( ! MainWP_Child_Branding::is_branding() ) { ?> padding-left: 4.5em;
-					background-image: url('<?php echo esc_url( plugins_url( 'images/mainwp-icon-orange.png', dirname( __FILE__ ) ) ); ?>') !important;
-				<?php } ?> background-position: 1.5em 50% !important;
-					background-repeat: no-repeat !important;
-					background-size: 30px !important;
-				}
-			</style>
-			<table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box-warning" cellspacing="0">
-				<tbody id="the-sites-list" class="list:sites">
-				<tr>
-					<td colspan="2"><strong><?php echo count( $conflicts ); ?> plugin
-							conflict<?php echo( count( $conflicts ) > 1 ? 's' : '' ); ?> found</strong></td>
-					<td style="text-align: right;"></td>
-				</tr>
-				<?php foreach ( $conflicts as $conflict ) { ?>
-					<tr>
-						<td><strong><?php echo $conflict; ?></strong> is installed on this site. This plugin is known to
-							have a potential conflict with <?php echo esc_html( stripslashes( $branding_title ) ); ?> functions. <a
-								href="http://docs.mainwp.com/known-plugin-conflicts/">Please click this link for
-								possible solutions</a></td>
-					</tr>
-				<?php } ?>
-				</tbody>
-			</table>
-			<?php
-		} else {
-			?>
-			<style type="text/css">
-				.mainwp-child_info-box {
-					background-color: rgba(127, 177, 0, 0.2) !important;
-					border-bottom: 4px solid #7fb100 !important;
-					border-top: 1px solid #7fb100 !important;
-					border-left: 1px solid #7fb100 !important;
-					border-right: 1px solid #7fb100 !important;
-					-webkit-border-radius: 3px;
-					-moz-border-radius: 3px;
-					border-radius: 3px;
-				<?php if ( ! MainWP_Child_Branding::is_branding() ) { ?> padding-left: 4.5em;
-					background-image: url('<?php echo plugins_url( 'images/mainwp-icon.png', dirname( __FILE__ ) ); ?>') !important;
-				<?php } ?> background-position: 1.5em 50% !important;
-					background-repeat: no-repeat !important;
-					background-size: 30px !important;
-				}
-			</style>
-			<table id="mainwp-table" class="wp-list-table widefat mainwp-child_info-box" cellspacing="0">
-				<tbody id="the-sites-list" class="list:sites">
-				<tr>
-					<td>No conflicts found.</td>
-					</td>
-					<td style="text-align: right;"><a href="#" id="mainwp-child-info-dismiss">Dismiss</a></td>
-				</tr>
-				</tbody>
-			</table>
-			<?php
-		}
-		?><br/><?php
 	}
 
 	protected static function getFileSystemMethod() {

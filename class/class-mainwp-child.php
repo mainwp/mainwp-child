@@ -162,8 +162,11 @@ class MainWP_Child {
 	private $maxHistory = 5;
 
 	private $filterFunction = null;
-	private $branding = 'MainWP';
+	public static $brandingTitle = null;
 	private $branding_robust = 'MainWP';
+
+	public static $subPages;
+	public static $subPagesLoaded = false;
 
 	public function __construct( $plugin_file ) {
 		$this->update();
@@ -204,10 +207,8 @@ class MainWP_Child {
 			MainWP_Helper::update_option( 'mainwp_child_branding_disconnected', 'yes', 'yes' );
 		}
 
-		$branding_robust    = true;
 		$cancelled_branding = ( get_option( 'mainwp_child_branding_disconnected' ) === 'yes' ) && ! get_option( 'mainwp_branding_preserve_branding' );
-
-		if ( $branding_robust && ! $cancelled_branding ) {
+		if ( ! $cancelled_branding ) {
 			$branding_header = get_option( 'mainwp_branding_plugin_header' );
 			if ( is_array( $branding_header ) && isset( $branding_header['name'] ) && ! empty( $branding_header['name'] ) ) {
 				$this->branding_robust = stripslashes( $branding_header['name'] );
@@ -510,73 +511,234 @@ class MainWP_Child {
 			$remove_all_child_menu = true;
 		}
 
-		$restorePage = add_submenu_page( 'import.php', $this->branding . ' Restore', $this->branding . ' Restore', 'read', 'mainwp-child-restore', array(
-			'MainWP_Clone',
-			'renderRestore',
-		) );
-		add_action( 'admin_print_scripts-' . $restorePage, array( 'MainWP_Clone', 'print_scripts' ) );
-
-		$sitesToClone           = get_option( 'mainwp_child_clone_sites' );
-		$mainwp_child_menu_slug = 'mainwp_child_tab';
-
-		if ( ! $cancelled_branding ) {
-			if ( get_option( 'mainwp_branding_remove_setting' ) ) {
-				if ( get_option( 'mainwp_branding_remove_server_info' ) ) {
-					if ( 0 !== (int) $sitesToClone ) {
-						$mainwp_child_menu_slug = 'MainWP_Clone';
-					} else {
-						$mainwp_child_menu_slug = 'MainWPRestore';
-					}
-				} else {
-					$mainwp_child_menu_slug = 'MainWP_Child_Server_Information';
-				}
-			}
-		}
 		// if preserve branding do not hide menus
-		// hide menu
 		if ( ( ! $remove_all_child_menu && get_option( 'mainwp_branding_child_hide' ) !== 'T' ) || $cancelled_branding ) {
 			$branding_header = get_option( 'mainwp_branding_plugin_header' );
-
 			if ( ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) && ! $cancelled_branding ) {
-				$this->branding   = $child_menu_name = stripslashes( $branding_header['name'] );
-				$child_menu_icon  = '';
-				$child_page_title = $child_menu_name . ' Settings';
+				self::$brandingTitle   = $child_menu_title = stripslashes( $branding_header['name'] );
+				$child_page_title = $child_menu_title . ' Settings';
 			} else {
-				$child_menu_name  = 'MainWP Child';
-				$child_menu_icon  = 'data:image/png+xml;base64,' . base64_encode( file_get_contents( $this->plugin_dir . '/images/mainwpicon.png' ) );
+				$child_menu_title  = 'MainWP Child';
 				$child_page_title = 'MainWPSettings';
 			}
 
-			add_menu_page( $child_menu_name, $child_menu_name, 'manage_options', $mainwp_child_menu_slug, false, $child_menu_icon, '80.00001' );
+			$settingsPage = add_submenu_page( 'options-general.php', $child_menu_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
 
-			if ( ! get_option( 'mainwp_branding_remove_setting' ) || $cancelled_branding ) {
-				add_submenu_page( 'mainwp_child_tab', $child_page_title, __( $this->branding . ' Settings', 'mainwp-child' ), 'manage_options', 'mainwp_child_tab', array(
-					&$this,
-					'settings',
-				) );
+			add_action( 'admin_print_scripts-' . $settingsPage, array( 'MainWP_Clone', 'print_scripts' ) );
+			$subpageargs = array(
+				'child_slug' => 'options-general.php', // to backwards compatible
+				'branding'   => (self::$brandingTitle === null) ? 'MainWP' : self::$brandingTitle,
+				'parent_menu' => $settingsPage
+			);
+			do_action( 'mainwp-child-subpages', $subpageargs ); // to compatible
+
+			$sub_pages = array();
+			$all_subpages = apply_filters( 'mainwp-child-init-subpages', false );
+			if (!self::$subPagesLoaded) {
+				foreach($all_subpages as $page) {
+					$slug = isset($page['slug']) ? $page['slug'] : '';
+					if (empty($slug))
+						continue;
+					$subpage = array();
+					$subpage['slug'] = $slug;
+					$subpage['title'] = $page['title'];
+					$subpage['page']  = 'mainwp-' . str_replace( ' ', '-', strtolower( str_replace( '-', ' ',  $slug ) ) );
+					if (isset($page['callback'])) {
+						$subpage['callback'] =  $page['callback'];
+						$created_page = add_submenu_page( 'options-general.php', $subpage['title'], '<div class="mainwp-hidden">' . $subpage['title'] . '</div>', 'manage_options', $subpage['page'], $subpage['callback'] );
+						if (isset($page['load_callback'])) {
+							$subpage['load_callback'] =  $page['load_callback'];
+							add_action( 'load-' . $created_page, $subpage['load_callback'] );
+						}
+					}
+					$sub_pages[] = $subpage;
+				}
+				self::$subPages = $sub_pages;
+				self::$subPagesLoaded = true;
+				MainWP_Helper::update_option( 'mainwp_child_subpages', self::$subPages );
 			}
+			add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
+			add_action( 'mainwp-child-pagefooter', array( __CLASS__, 'render_footer' ) );
 
-			if ( ! get_option( 'mainwp_branding_remove_server_info' ) || $cancelled_branding ) {
-				add_submenu_page( $mainwp_child_menu_slug, $child_page_title, __( $this->branding . ' Server Information', 'mainwp-child' ), 'manage_options', 'MainWP_Child_Server_Information', array(
-					'MainWP_Child_Server_Information',
-					'renderPage',
-				) );
-			}
-
-			if ( ! get_option( 'mainwp_branding_remove_restore' ) || $cancelled_branding ) {
-				if ( 0 !== (int) $sitesToClone ) {
-					MainWP_Clone::init_menu( $this->branding, $mainwp_child_menu_slug );
-				} else {
-					MainWP_Clone::init_restore_menu( $this->branding, $mainwp_child_menu_slug );
+			global $submenu;
+			if ( isset( $submenu['options-general.php'] ) ) {
+				foreach ( $submenu['options-general.php'] as $index => $item ) {
+					if ( 'mainwp-reports-page' === $item[2] || 'mainwp-reports-settings' === $item[2]) {
+						unset( $submenu['options-general.php'][ $index ] );
+					}
 				}
 			}
-			$subpageargs = array(
-				'child_slug' => $mainwp_child_menu_slug,
-				'branding'   => $this->branding,
-			);
-			do_action( 'mainwp-child-subpages', $subpageargs );
-
 		}
+	}
+
+	function render_pages($shownPage) {
+		if ( isset($_GET['tab']) ) {
+			$shownPage = $_GET['tab'];
+		}
+
+		if (empty($shownPage))
+			$shownPage = 'settings';
+
+		$hide_settings = get_option( 'mainwp_branding_remove_setting' ) ? true : false;
+		$hide_restore = get_option( 'mainwp_branding_remove_restore' ) ? true : false;
+		$hide_server_info = get_option( 'mainwp_branding_remove_server_info' ) ? true : false;
+		$hide_style = 'style="display:none"';
+
+		self::render_header($shownPage, false);
+		?>
+		<?php if (!$hide_settings ) { ?>
+		<div class="mainwp-child-setting-tab settings" <?php echo ('settings' !==  $shownPage) ? $hide_style : '' ; ?>>
+			<?php $this->settings(); ?>
+		</div>
+		<?php } ?>
+
+		<?php if ( !$hide_restore ) { ?>
+		<div class="mainwp-child-setting-tab restore-clone" <?php echo ('restore-clone' !==  $shownPage) ? $hide_style : '' ; ?>>
+			<?php
+			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
+			if ( 0 !== (int)$sitesToClone ) {
+				MainWP_Clone::render();
+			} else {
+				MainWP_Clone::renderNormalRestore();
+			}
+			?>
+		</div>
+		<?php } ?>
+
+		<?php if ( !$hide_server_info  ) { ?>
+		<div class="mainwp-child-setting-tab server-info" <?php echo ('server-info' !==  $shownPage) ? $hide_style : '' ; ?>>
+			<?php MainWP_Child_Server_Information::renderPage(); ?>
+		</div>
+		<?php } ?>
+		<?php
+		self::render_footer();
+	}
+
+	public static function render_header($shownPage, $subpage = true) {
+		if ( isset($_GET['tab']) ) {
+			$shownPage = $_GET['tab'];
+		}
+
+		if (empty($shownPage))
+			$shownPage = 'settings';
+
+		$hide_settings = get_option( 'mainwp_branding_remove_setting' ) ? true : false;
+		$hide_restore = get_option( 'mainwp_branding_remove_restore' ) ? true : false;
+		$hide_server_info = get_option( 'mainwp_branding_remove_server_info' ) ? true : false;
+
+		$hide_style = 'style="display:none"';
+		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
+
+		?>
+		<style type="text/css">
+			.mainwp-tabs
+			{
+				margin-top: 2em;
+				border-bottom: 1px solid #e5e5e5;
+			}
+
+			#mainwp-tabs {
+				clear: both ;
+			}
+			#mainwp-tabs .nav-tab-active {
+				background: #fafafa ;
+				border-top: 1px solid #7fb100 !important;
+				border-left: 1px solid #e5e5e5;
+				border-right: 1px solid #e5e5e5;
+				border-bottom: 1px solid #fafafa !important ;
+				color: #7fb100;
+			}
+
+			#mainwp-tabs .nav-tab {
+				border-top: 1px solid #e5e5e5;
+				border-left: 1px solid #e5e5e5;
+				border-right: 1px solid #e5e5e5;
+				border-bottom: 1px solid #e5e5e5;
+				padding: 10px 16px;
+				font-size: 14px;
+				text-transform: uppercase;
+			}
+
+			#mainwp_wrap-inside {
+				min-height: 80vh;
+				height: 100% ;
+				margin-top: 0em ;
+				padding: 10px ;
+				background: #fafafa ;
+				border-top: none ;
+				border-bottom: 1px solid #e5e5e5;
+				border-left: 1px solid #e5e5e5;
+				border-right: 1px solid #e5e5e5;
+				box-shadow: 0 1px 1px rgba(0,0,0,.04);
+				position: relative;
+			}
+
+			#mainwp_wrap-inside h2.hndle {
+				font-size: 14px;
+				padding: 8px 12px;
+				margin: 0;
+				line-height: 1.4;
+			}
+
+			.mainwp-hidden {
+				display: none;
+			}
+		</style>
+
+		<div class="wrap">
+				<h2><i class="fa fa-file"></i> <?php echo ( self::$brandingTitle === null ?  'MainWP Child' : self::$brandingTitle ); ?></h2>
+				<div style="clear: both;"></div><br/>
+				<div class="mainwp-tabs" id="mainwp-tabs">
+					<?php if ( !$hide_settings ) { ?>
+					<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'settings' ) { echo 'nav-tab-active'; } ?>" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php _e( 'Settings','mainwp-child' ); ?></a>
+					<?php } ?>
+					<?php if ( !$hide_restore ) { ?>
+					<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'restore-clone' ) { echo 'nav-tab-active'; } ?>" tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? __( 'Restore / Clone','mainwp-child' ) : __( 'Restore','mainwp-child' ); ?></a>
+					<?php } ?>
+					<?php if (!$hide_server_info ) { ?>
+					<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'server-info' ) { echo 'nav-tab-active'; } ?>" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php _e( 'Server information','mainwp-child' ); ?></a>
+					<?php } ?>
+					<?php
+					if ( isset( self::$subPages ) && is_array( self::$subPages ) ) {
+						foreach ( self::$subPages as $subPage ) {
+						?>
+							<a class="nav-tab pos-nav-tab <?php if ( $shownPage == $subPage['slug'] ) { echo 'nav-tab-active'; } ?>" tab-slug="<?php echo $subPage['slug']; ?>" href="options-general.php?page=<?php echo $subPage['page']; ?>"><?php echo $subPage['title']; ?></a>
+						<?php
+						}
+					}
+					?>
+					<div style="clear:both;"></div>
+				</div>
+				<div style="clear:both;"></div>
+				<script type="text/javascript">
+						jQuery( document ).ready( function () {
+							$hideMenu = jQuery('#menu-settings li a .mainwp-hidden');
+							$hideMenu.each(function(){jQuery(this).closest('li').hide();})
+
+							var $tabs          = jQuery( '.mainwp-tabs' );
+							$tabs.on('click', 'a', function () {
+								if (jQuery(this).attr('href') !=='#' )
+									return true;
+								jQuery('.mainwp-tabs > a').removeClass('nav-tab-active');
+								jQuery(this).addClass('nav-tab-active');
+								jQuery('.mainwp-child-setting-tab').hide();
+								var _tab = jQuery(this).attr('tab-slug');
+								jQuery('.mainwp-child-setting-tab.' + _tab ).show();
+								return false;
+							});
+						})
+				</script>
+
+			<div id="mainwp_wrap-inside">
+
+		<?php
+	}
+
+	public static function render_footer() {
+		?>
+			</div>
+		</div>
+		<?php
 	}
 
 	function admin_init() {
@@ -591,41 +753,39 @@ class MainWP_Child {
 				MainWP_Helper::update_option( 'mainwp_child_uniqueId', '' );
 			}
 		}
+		//self::render_header('setting');
 		?>
-		<div class="wrap">
-			<div id="icon-options-general" class="icon32"><br></div>
-			<h2><?php esc_html_e( $this->branding . ' Settings', 'mainwp-child' ); ?></h2>
-
-			<div class="postbox" style="margin-top: 6em;">
-				<h3 class="hndle" style="margin: 0 !important; padding: .5em 1em;">
-					<span><?php esc_html_e( 'Connection Settings', 'mainwp-child' ); ?></span></h3>
-
-				<div class="inside">
-					<form method="post" action="">
-						<div
-							class="howto"><?php esc_html_e( 'The Unique Security ID adds additional protection between the Child plugin and your Main Dashboard. The Unique Security ID will need to match when being added to the Main Dashboard. This is additional security and should not be needed in most situations.', 'mainwp-child' ); ?></div>
-						<div style="margin: 1em 0 4em 0;">
-							<input name="requireUniqueSecurityId" type="checkbox"
-							       id="requireUniqueSecurityId" <?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
-										echo 'checked';
-} ?> /> <label for="requireUniqueSecurityId"
-							               style="font-size: 15px;"><?php esc_html_e( 'Require Unique Security ID', 'mainwp-child' ); ?></label>
-						</div>
-						<div>
-							<?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
-								echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">' . esc_html__( 'Your Unique Security ID is:', 'mainwp-child' ) . ' <span style="font-weight: bold; color: #7fb100;">' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</span></span>';
-} ?>
-						</div>
-						<p class="submit" style="margin-top: 4em;">
-							<input type="submit" name="submit" id="submit" class="button button-primary"
-							       value="<?php esc_html_e( 'Save Changes', 'mainwp-child' ); ?>">
-						</p>
-						<input type="hidden" name="nonce" value="<?php echo wp_create_nonce( 'child-settings' );?>">
-					</form>
-				</div>
+		<div class="postbox">
+			<h2 class="hndle"><span><?php esc_html_e( 'Connection Settings', 'mainwp-child' ); ?></span></h2>
+			<div class="inside">
+				<form method="post" action="options-general.php?page=mainwp_child_tab">
+					<div class="howto"><?php esc_html_e( 'The Unique Security ID adds additional protection between the Child plugin and your Main Dashboard. The Unique Security ID will need to match when being added to the Main Dashboard. This is additional security and should not be needed in most situations.', 'mainwp-child' ); ?></div>
+					<div style="margin: 1em 0 4em 0;">
+						<input name="requireUniqueSecurityId"
+							   type="checkbox"
+							   id="requireUniqueSecurityId" <?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) { echo 'checked'; } ?> />
+						<label for="requireUniqueSecurityId"
+							   style="font-size: 15px;"><?php esc_html_e( 'Require Unique Security ID', 'mainwp-child' ); ?></label>
+					</div>
+					<div>
+						<?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
+							echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">' . esc_html__( 'Your Unique Security ID is:', 'mainwp-child' ) . ' <span style="font-weight: bold; color: #7fb100;">' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</span></span>';
+						} ?>
+					</div>
+					<p class="submit" style="margin-top: 4em;">
+						<input type="submit"
+							   name="submit"
+							   id="submit"
+							   class="button button-primary button-hero"
+							   value="<?php esc_html_e( 'Save Changes', 'mainwp-child' ); ?>">
+					</p>
+					<input type="hidden" name="nonce" value="<?php echo wp_create_nonce( 'child-settings' );?>">
+				</form>
 			</div>
 		</div>
+
 		<?php
+		//self::render_footer('setting');
 	}
 
 	function mod_rewrite_rules( $pRules ) {
@@ -2855,44 +3015,6 @@ class MainWP_Child {
 
 		if ( isset( $_POST['optimize'] ) && ( '1' === $_POST['optimize'] ) ) {
 			$information['users'] = $this->get_all_users_int();
-		}
-
-		if ( isset( $_POST['pluginConflicts'] ) && ( '' !== $_POST['pluginConflicts'] ) ) {
-			$pluginConflicts = json_decode( stripslashes( $_POST['pluginConflicts'] ), true );
-			$conflicts       = array();
-			if ( count( $pluginConflicts ) > 0 ) {
-				if ( ! $plugins ) {
-					$plugins = $this->get_all_plugins_int( false );
-				}
-				if ( is_array( $plugins ) && is_array( $pluginConflicts ) ) {
-					foreach ( $plugins as $plugin ) {
-						foreach ( $pluginConflicts as $pluginConflict ) {
-							if ( ( '1' === $plugin['active'] ) && ( ( $plugin['name'] === $pluginConflict ) || ( $plugin['slug'] === $pluginConflict ) ) ) {
-								$conflicts[] = $plugin['name'];
-							}
-						}
-					}
-				}
-			}
-			if ( count( $conflicts ) > 0 ) {
-				$information['pluginConflicts'] = $conflicts;
-			}
-		}
-
-		if ( isset( $_POST['themeConflicts'] ) && ( '' !== $_POST['themeConflicts'] ) ) {
-			$themeConflicts = json_decode( stripslashes( $_POST['themeConflicts'] ), true );
-			$conflicts      = array();
-			if ( is_array( $themeConflicts ) && count( $themeConflicts ) > 0 ) {
-				$theme = wp_get_theme()->get( 'Name' );
-				foreach ( $themeConflicts as $themeConflict ) {
-					if ( $theme === $themeConflict ) {
-						$conflicts[] = $theme;
-					}
-				}
-			}
-			if ( count( $conflicts ) > 0 ) {
-				$information['themeConflicts'] = $conflicts;
-			}
 		}
 
 		if ( isset( $_POST['othersData'] ) ) {

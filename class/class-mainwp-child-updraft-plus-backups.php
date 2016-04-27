@@ -262,72 +262,72 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	// Returns either true (in which case the Vault token will be stored), or false|WP_Error
 	private function vault_connect( $email, $password ) {
-			global $updraftplus;
-			$vault_mothership = 'https://vault.updraftplus.com/plugin-info/';
+		global $updraftplus;
+		$vault_mothership = 'https://vault.updraftplus.com/plugin-info/';
 
-			// Use SSL to prevent snooping
-			$result = wp_remote_post( $vault_mothership.'/?udm_action=vault_connect',
-				array(
-					'timeout' => 20,
-					'body' => array(
-						'e' => $email,
-						'p' => base64_encode( $password ),
-						'sid' => $updraftplus->siteid(),
-						'su' => base64_encode( home_url() )
-					)
+		// Use SSL to prevent snooping
+		$result = wp_remote_post( $vault_mothership.'/?udm_action=vault_connect',
+			array(
+				'timeout' => 20,
+				'body' => array(
+					'e' => $email,
+					'p' => base64_encode( $password ),
+					'sid' => $updraftplus->siteid(),
+					'su' => base64_encode( home_url() )
 				)
-			);
+			)
+		);
 
-			if ( is_wp_error( $result ) || ( false === $result ) ) return $result;
+		if ( is_wp_error( $result ) || ( false === $result ) ) return $result;
 
-			$response = json_decode( $result['body'], true );
+		$response = json_decode( $result['body'], true );
 
-			if ( !is_array( $response ) || !isset( $response['mothership'] ) || !isset( $response['loggedin'] ) ) {
-				if ( preg_match( '/has banned your IP address \(([\.:0-9a-f]+)\)/', $result['body'], $matches ) ) {
-					return new WP_Error( 'banned_ip', sprintf( __( "UpdraftPlus.com has responded with 'Access Denied'.", 'updraftplus' ) . '<br>' . __( "It appears that your web server's IP Address (%s) is blocked.", 'updraftplus' ) . ' ' . __( 'This most likely means that you share a webserver with a hacked website that has been used in previous attacks.', 'updraftplus' ) . '<br> <a href="https://updraftplus.com/unblock-ip-address/" target="_blank">' . __( 'To remove the block, please go here.', 'updraftplus' ) . '</a> ', $matches[1] ) );
+		if ( !is_array( $response ) || !isset( $response['mothership'] ) || !isset( $response['loggedin'] ) ) {
+			if ( preg_match( '/has banned your IP address \(([\.:0-9a-f]+)\)/', $result['body'], $matches ) ) {
+				return new WP_Error( 'banned_ip', sprintf( __( "UpdraftPlus.com has responded with 'Access Denied'.", 'updraftplus' ) . '<br>' . __( "It appears that your web server's IP Address (%s) is blocked.", 'updraftplus' ) . ' ' . __( 'This most likely means that you share a webserver with a hacked website that has been used in previous attacks.', 'updraftplus' ) . '<br> <a href="https://updraftplus.com/unblock-ip-address/" target="_blank">' . __( 'To remove the block, please go here.', 'updraftplus' ) . '</a> ', $matches[1] ) );
+			} else {
+				return new WP_Error( 'unknown_response', sprintf( __( 'UpdraftPlus.Com returned a response which we could not understand (data: %s)', 'updraftplus' ), $result['body'] ) );
+			}
+		}
+
+		switch ( $response['loggedin'] ) {
+			case 'connected':
+				if ( !empty( $response['token'] ) ) {
+					// Store it
+					$vault_settings = UpdraftPlus_Options::get_updraft_option( 'updraft_updraftvault' );
+					if ( !is_array( $vault_settings ) ) $vault_settings = array();
+					$vault_settings['email'] = $email;
+					$vault_settings['token'] = (string) $response['token'];
+					$vault_settings['quota'] = -1;
+					unset( $vault_settings['last_config'] );
+					if ( isset($response['quota'] ) ) $vault_settings['quota'] = $response['quota'];
+					UpdraftPlus_Options::update_updraft_option( 'updraft_updraftvault', $vault_settings );
+				} elseif ( isset( $response['quota'] ) && !$response['quota'] ) {
+					return new WP_Error( 'no_quota', __( 'You do not currently have any UpdraftPlus Vault quota', 'updraftplus' ) );
 				} else {
-					return new WP_Error( 'unknown_response', sprintf( __( 'UpdraftPlus.Com returned a response which we could not understand (data: %s)', 'updraftplus' ), $result['body'] ) );
-				}
-			}
-
-			switch ( $response['loggedin'] ) {
-				case 'connected':
-					if ( !empty( $response['token'] ) ) {
-						// Store it
-						$vault_settings = UpdraftPlus_Options::get_updraft_option( 'updraft_updraftvault' );
-						if ( !is_array( $vault_settings ) ) $vault_settings = array();
-						$vault_settings['email'] = $email;
-						$vault_settings['token'] = (string) $response['token'];
-						$vault_settings['quota'] = -1;
-						unset( $vault_settings['last_config'] );
-						if ( isset($response['quota'] ) ) $vault_settings['quota'] = $response['quota'];
-						UpdraftPlus_Options::update_updraft_option( 'updraft_updraftvault', $vault_settings );
-					} elseif ( isset( $response['quota'] ) && !$response['quota'] ) {
-						return new WP_Error( 'no_quota', __( 'You do not currently have any UpdraftPlus Vault quota', 'updraftplus' ) );
-					} else {
-						return new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
-					}
-					break;
-				case 'authfailed':
-
-					if ( !empty( $response['authproblem'] ) ) {
-						if ( 'invalidpassword' == $response['authproblem'] ) {
-							$authfail_error = new WP_Error( 'authfailed', __( 'Your email address was valid, but your password was not recognised by UpdraftPlus.Com.', 'updraftplus' ) . ' <a href="https://updraftplus.com/my-account/lost-password/">' . __( 'If you have forgotten your password, then go here to change your password on updraftplus.com.', 'updraftplus' ) . '</a>' );
-							return $authfail_error;
-						} elseif ( 'invaliduser' == $response['authproblem'] ) {
-							return new WP_Error( 'authfailed', __( 'You entered an email address that was not recognised by UpdraftPlus.Com', 'updraftplus' ) );
-						}
-					}
-
-					return new WP_Error( 'authfailed', __( 'Your email address and password were not recognised by UpdraftPlus.Com', 'updraftplus' ) );
-					break;
-
-				default:
 					return new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
-					break;
-			}
+				}
+				break;
+			case 'authfailed':
 
-			return true;
+				if ( !empty( $response['authproblem'] ) ) {
+					if ( 'invalidpassword' == $response['authproblem'] ) {
+						$authfail_error = new WP_Error( 'authfailed', __( 'Your email address was valid, but your password was not recognised by UpdraftPlus.Com.', 'updraftplus' ) . ' <a href="https://updraftplus.com/my-account/lost-password/">' . __( 'If you have forgotten your password, then go here to change your password on updraftplus.com.', 'updraftplus' ) . '</a>' );
+						return $authfail_error;
+					} elseif ( 'invaliduser' == $response['authproblem'] ) {
+						return new WP_Error( 'authfailed', __( 'You entered an email address that was not recognised by UpdraftPlus.Com', 'updraftplus' ) );
+					}
+				}
+
+				return new WP_Error( 'authfailed', __( 'Your email address and password were not recognised by UpdraftPlus.Com', 'updraftplus' ) );
+				break;
+
+			default:
+				return new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
+				break;
+		}
+
+		return true;
 	}
 
 	// This method also gets called directly, so don't add code that assumes that it's definitely an AJAX situation
@@ -671,7 +671,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$options['restrict_files_to_override'] = explode( ',', $_REQUEST['onlythisfileentity'] );
 		}
 
-		do_action( $event, apply_filters( 'updraft_backupnow_options', $options ) );
+		do_action( $event, apply_filters( 'updraft_backupnow_options', $options, array() ) );
 
 		// not used anymore
 		//        if (wp_schedule_single_event(time()+5, $event, array($backupnow_nocloud)) === false) {
@@ -2487,7 +2487,7 @@ ENDHERE;
 	}
 
 	private function date_label( $pretty_date, $key, $backup, $jobdata, $nonce ) {
-		$ret = apply_filters( 'updraftplus_showbackup_date', $pretty_date, $backup, $jobdata, (int) $key );
+		$ret = apply_filters( 'updraftplus_showbackup_date', $pretty_date, $backup, $jobdata, (int) $key, false );
 		if ( is_array( $jobdata ) && ! empty( $jobdata['resume_interval'] ) && ( empty( $jobdata['jobstatus'] ) || 'finished' !== $jobdata['jobstatus'] ) ) {
 			$ret .= apply_filters( 'updraftplus_msg_unfinishedbackup', '<br><span title="' . esc_attr( __( 'If you are seeing more backups than you expect, then it is probably because the deletion of old backup sets does not happen until a fresh backup completes.', 'updraftplus' ) ) . '">' . __( '(Not finished)', 'updraftplus' ) . '</span>', $jobdata, $nonce );
 		}
@@ -3220,20 +3220,20 @@ ENDHERE;
 
 	function remove_notices() {
 		$remove_hooks['all_admin_notices'] = array(
-		//            'UpdraftPlus_Admin' => array(
-		//                'show_admin_notice_upgradead' => 10,
-		//                'show_admin_warning_googledrive' => 10,
-		//                'show_admin_warning_dropbox' => 10,
-		//                'show_admin_warning_bitcasa' => 10,
-		//                'show_admin_warning_copycom' => 10,
-		//                'show_admin_warning_onedrive' => 10,
-		//                'show_admin_warning_updraftvault' => 10,
-		//                'show_admin_warning_diskspace' => 10,
-		//                'show_admin_warning_disabledcron' => 10,
-		//                'show_admin_nosettings_warning' => 10,
-		//                'show_admin_warning_execution_time' => 10,
-		//                'show_admin_warning_litespeed' => 10,
-		//            ),
+			//            'UpdraftPlus_Admin' => array(
+			//                'show_admin_notice_upgradead' => 10,
+			//                'show_admin_warning_googledrive' => 10,
+			//                'show_admin_warning_dropbox' => 10,
+			//                'show_admin_warning_bitcasa' => 10,
+			//                'show_admin_warning_copycom' => 10,
+			//                'show_admin_warning_onedrive' => 10,
+			//                'show_admin_warning_updraftvault' => 10,
+			//                'show_admin_warning_diskspace' => 10,
+			//                'show_admin_warning_disabledcron' => 10,
+			//                'show_admin_nosettings_warning' => 10,
+			//                'show_admin_warning_execution_time' => 10,
+			//                'show_admin_warning_litespeed' => 10,
+			//            ),
 			'UpdraftPlus'                          => array(
 				'show_admin_warning_unreadablelog'  => 10,
 				'show_admin_warning_nolog'          => 10,

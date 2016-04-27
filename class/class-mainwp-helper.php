@@ -121,7 +121,9 @@ class MainWP_Helper {
 
 	}
 
-	static function uploadImage( $img_url ) {
+	static function uploadImage( $img_url, $img_data = array()  ) {
+		if (!is_array($img_data))
+			$img_data = array();
 		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
 		//Download $img_url
 		$temporary_file = download_url( $img_url );
@@ -137,15 +139,17 @@ class MainWP_Helper {
 				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); //Get the filetype to set the mimetype
 				$attachment  = array(
 					'post_mime_type' => $wp_filetype['type'],
-					'post_title'     => preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
-					'post_content'   => '',
+					'post_title'     => isset( $img_data['title'] ) && !empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
+					'post_content'   => isset( $img_data['description'] ) && !empty( $img_data['description'] ) ? $img_data['description'] : '',
+					'post_excerpt' => isset( $img_data['caption'] ) && !empty( $img_data['caption'] ) ? $img_data['caption'] : '',
 					'post_status'    => 'inherit',
 				);
 				$attach_id   = wp_insert_attachment( $attachment, $local_img_path ); //Insert the image in the database
 				require_once( ABSPATH . 'wp-admin/includes/image.php' );
 				$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
 				wp_update_attachment_metadata( $attach_id, $attach_data ); //Update generated metadata
-
+				if ( isset( $img_data['alt'] ) && !empty( $img_data['alt'] ) )
+					update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
 				return array( 'id' => $attach_id, 'url' => $local_img_url );
 			}
 		}
@@ -300,20 +304,60 @@ class MainWP_Helper {
 							$serverHref               = 'href="' . $serverHost;
 							$replaceServerHref        = 'href="' . parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . parse_url( $localUrl, PHP_URL_HOST );
 							$new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
-						} else if ( strpos( $hrefLink, 'http' ) !== false ) {
-							$lnkToReplace = dirname( $hrefLink );
-							if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
-								$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
-							}
 						}
+						// To fix bug
+//						else if ( strpos( $hrefLink, 'http' ) !== false ) {
+//							$lnkToReplace = dirname( $hrefLink );
+//							if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
+//								$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
+//							}
+//						}
 					}
-
 					$lnkToReplace = dirname( $imgUrl );
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
 						$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
 					}
 				} catch ( Exception $e ) {
 
+				}
+			}
+		}
+
+		if ( has_shortcode( $new_post['post_content'], 'gallery' ) ) {
+			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
+				$replaceAttachedIds = array();
+				if ( isset( $_POST['post_gallery_images'] ) ) {
+					$post_gallery_images = unserialize(base64_decode( $_POST['post_gallery_images'] ));
+					if (is_array($post_gallery_images)) {
+						foreach($post_gallery_images as $gallery){
+							if (isset($gallery['src'])) {
+								try {
+									$upload = MainWP_Helper::uploadImage( $gallery['src'], $gallery ); //Upload image to WP
+									if ( null !== $upload ) {
+										$replaceAttachedIds[$gallery['id']] = $upload['id'];
+									}
+								} catch ( Exception $e ) {
+
+								}
+							}
+						}
+					}
+				}
+				if (count($replaceAttachedIds) > 0) {
+					foreach ( $matches as $match ) {
+						$idsToReplace = $match[1];
+						$idsToReplaceWith = "";
+						$originalIds = explode(',', $idsToReplace);
+						foreach($originalIds as $attached_id) {
+							if (!empty($originalIds) && isset($replaceAttachedIds[$attached_id])) {
+								$idsToReplaceWith .= $replaceAttachedIds[$attached_id].",";
+							}
+						}
+						$idsToReplaceWith = rtrim($idsToReplaceWith,",");
+						if (!empty($idsToReplaceWith)) {
+							$new_post['post_content'] = str_replace( '"' . $idsToReplace . '"', '"'.$idsToReplaceWith.'"', $new_post['post_content'] );
+						}
+					}
 				}
 			}
 		}
