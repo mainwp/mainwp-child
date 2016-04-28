@@ -1464,7 +1464,9 @@ class MainWP_Clone {
 
 		self::renderStyle();
 		?>
-		<div id="icon-options-general" class="icon32"><br></div><h2><?php esc_html_e( 'Restore', 'mainwp-child' ); ?></h2>
+		<div class="postbox">
+	    <h2 class="hndle"><?php esc_html_e( 'Restore', 'mainwp-child' ); ?></h2>
+	    <div class="inside">
         <div class="mainwp-hide-after-restore">
 			<br/><?php esc_html_e( 'Be sure to use a FULL backup created by your Network dashboard, if critical folders are excluded it may result in a not working installation.', 'mainwp-child' ); ?>
 			<br/><br/><a href="#" class="button-primary" file="<?php echo esc_attr( urldecode( $file ) ); ?>"
@@ -1475,6 +1477,8 @@ class MainWP_Clone {
         <div class="mainwp-child_info-box-green"
 		     style="display: none;"><?php esc_html_e( 'Restore process completed successfully! You will now need to click ', 'mainwp-child' ); ?>
 			<a href="<?php echo esc_attr( admin_url( 'options-permalink.php' ) ); ?>"><?php esc_html_e( 'here', 'mainwp-child' ); ?></a><?php esc_html_e( ' to re-login to the admin and re-save permalinks.', 'mainwp-child' ); ?>
+        </div>
+        </div>
         </div>
 		<?php
 		self::renderJavaScript();

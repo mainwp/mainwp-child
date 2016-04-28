@@ -593,13 +593,21 @@ class MainWP_Child {
 		<?php } ?>
 
 		<?php if ( !$hide_restore ) { ?>
-		<div class="mainwp-child-setting-tab restore-clone" <?php echo ('restore-clone' !==  $shownPage) ? $hide_style : '' ; ?>>
+			<div class="mainwp-child-setting-tab restore-clone" <?php echo ( 'restore-clone' !== $shownPage ) ? $hide_style : ''; ?>>
 			<?php
-			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
-			if ( 0 !== (int)$sitesToClone ) {
-				MainWP_Clone::render();
+			if ( '' === session_id() ) {
+				@session_start();
+			}
+
+			if ( isset( $_SESSION['file'] ) ) {
+				MainWP_Clone::renderRestore();
 			} else {
-				MainWP_Clone::renderNormalRestore();
+				$sitesToClone = get_option( 'mainwp_child_clone_sites' );
+				if ( 0 !== (int) $sitesToClone ) {
+					MainWP_Clone::render();
+				} else {
+					MainWP_Clone::renderNormalRestore();
+				}
 			}
 			?>
 		</div>
@@ -873,7 +881,16 @@ class MainWP_Child {
 	}
 
 	function check_login() {
-		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
+		$file      = '';
+		if ( isset( $_REQUEST['f'] ) ) {
+			$file = $_REQUEST['f'];
+		} else if ( isset( $_REQUEST['file'] ) ) {
+			$file = $_REQUEST['file'];
+		} else if ( isset( $_REQUEST['fdl'] ) ) {
+			$file = $_REQUEST['fdl'];
+		}
+
+		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '', isset( $_POST['function'] ) ? $_POST['function'] : rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
 
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
@@ -1111,7 +1128,7 @@ class MainWP_Child {
 					$file = $_POST['file'];
 				}
 
-				$where = 'admin.php?page=mainwp-child-restore';
+				$where = 'admin.php?page=mainwp_child_tab&tab=restore-clone';
 				if ( '' === session_id() ) {
 					session_start();
 				}
