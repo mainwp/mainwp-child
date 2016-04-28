@@ -64,6 +64,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Fixed: Incorrect replacement of the href attribute for image external links
 * Fixed: Issue with saving Wordfence option on Dreamhost hosting
 * Fixed: Issue with saving PageSpeed Settings and syncing PageSpeed data
+* Fixed: Secure login issue with some plugin/theme updates
+* Fixed: Connection timeouts due to large sites
+* Added: MU-Plugins support
 * Added: Support for publishing Image Galleries in Posts and Pages
 * Updated: MainWP Child plugin pages layout
 * Updated: Support for the new version of the BackUpWordPress plugin
