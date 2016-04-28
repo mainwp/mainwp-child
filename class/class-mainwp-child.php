@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.1.2';
+	public static $version = '3.1.3';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -533,20 +533,24 @@ class MainWP_Child {
 			do_action( 'mainwp-child-subpages', $subpageargs ); // to compatible
 
 			$sub_pages = array();
-			$all_subpages = apply_filters( 'mainwp-child-init-subpages', false );
-			if (!self::$subPagesLoaded) {
-				foreach($all_subpages as $page) {
-					$slug = isset($page['slug']) ? $page['slug'] : '';
-					if (empty($slug))
+			$all_subpages = apply_filters( 'mainwp-child-init-subpages', array() );
+
+			if ( !is_array( $all_subpages ) )
+				$all_subpages = array();
+
+			if ( !self::$subPagesLoaded ) {
+				foreach( $all_subpages as $page ) {
+					$slug = isset( $page['slug'] ) ? $page['slug'] : '';
+					if ( empty( $slug ) )
 						continue;
 					$subpage = array();
 					$subpage['slug'] = $slug;
 					$subpage['title'] = $page['title'];
 					$subpage['page']  = 'mainwp-' . str_replace( ' ', '-', strtolower( str_replace( '-', ' ',  $slug ) ) );
-					if (isset($page['callback'])) {
+					if ( isset( $page['callback'] ) ) {
 						$subpage['callback'] =  $page['callback'];
 						$created_page = add_submenu_page( 'options-general.php', $subpage['title'], '<div class="mainwp-hidden">' . $subpage['title'] . '</div>', 'manage_options', $subpage['page'], $subpage['callback'] );
-						if (isset($page['load_callback'])) {
+						if ( isset( $page['load_callback'] ) ) {
 							$subpage['load_callback'] =  $page['load_callback'];
 							add_action( 'load-' . $created_page, $subpage['load_callback'] );
 						}
