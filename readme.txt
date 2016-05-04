@@ -17,7 +17,7 @@ Provides a secure connection between your MainWP Dashboard and your WordPress si
 
 This is the Child plugin for the [MainWP Dashboard](https://wordpress.org/plugins/mainwp/)
 
-The MainWP Child plugin is used to securely remotely manage multiple WordPress websites from your MainWP Dashboard.  This plugin is to be installed on every WordPress site you want controlled from your Dashboard.
+The MainWP Child plugin is used to securely manage multiple WordPress websites from your MainWP Dashboard.  This plugin is to be installed on every WordPress site you want to control from your Dashboard.
 
 [MainWP](https://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
 
