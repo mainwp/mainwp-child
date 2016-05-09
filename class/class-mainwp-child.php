@@ -1,8 +1,8 @@
 <?php
 if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === TRUE ) {
-    @error_reporting( E_ALL );
-    @ini_set( 'display_errors', TRUE );
-    @ini_set( 'display_startup_errors', TRUE );
+	@error_reporting( E_ALL );
+	@ini_set( 'display_errors', TRUE );
+	@ini_set( 'display_startup_errors', TRUE );
 } else {
 	@ini_set( 'display_errors', FALSE );
 	@error_reporting( 0 );
@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.1.3';
+	public static $version = '3.1.4';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -591,36 +591,36 @@ class MainWP_Child {
 		self::render_header($shownPage, false);
 		?>
 		<?php if (!$hide_settings ) { ?>
-		<div class="mainwp-child-setting-tab settings" <?php echo ('settings' !==  $shownPage) ? $hide_style : '' ; ?>>
-			<?php $this->settings(); ?>
-		</div>
+			<div class="mainwp-child-setting-tab settings" <?php echo ('settings' !==  $shownPage) ? $hide_style : '' ; ?>>
+				<?php $this->settings(); ?>
+			</div>
 		<?php } ?>
 
 		<?php if ( !$hide_restore ) { ?>
 			<div class="mainwp-child-setting-tab restore-clone" <?php echo ( 'restore-clone' !== $shownPage ) ? $hide_style : ''; ?>>
-			<?php
-			if ( '' === session_id() ) {
-				@session_start();
-			}
-
-			if ( isset( $_SESSION['file'] ) ) {
-				MainWP_Clone::renderRestore();
-			} else {
-				$sitesToClone = get_option( 'mainwp_child_clone_sites' );
-				if ( 0 !== (int) $sitesToClone ) {
-					MainWP_Clone::render();
-				} else {
-					MainWP_Clone::renderNormalRestore();
+				<?php
+				if ( '' === session_id() ) {
+					@session_start();
 				}
-			}
-			?>
-		</div>
+
+				if ( isset( $_SESSION['file'] ) ) {
+					MainWP_Clone::renderRestore();
+				} else {
+					$sitesToClone = get_option( 'mainwp_child_clone_sites' );
+					if ( 0 !== (int) $sitesToClone ) {
+						MainWP_Clone::render();
+					} else {
+						MainWP_Clone::renderNormalRestore();
+					}
+				}
+				?>
+			</div>
 		<?php } ?>
 
 		<?php if ( !$hide_server_info  ) { ?>
-		<div class="mainwp-child-setting-tab server-info" <?php echo ('server-info' !==  $shownPage) ? $hide_style : '' ; ?>>
-			<?php MainWP_Child_Server_Information::renderPage(); ?>
-		</div>
+			<div class="mainwp-child-setting-tab server-info" <?php echo ('server-info' !==  $shownPage) ? $hide_style : '' ; ?>>
+				<?php MainWP_Child_Server_Information::renderPage(); ?>
+			</div>
 		<?php } ?>
 		<?php
 		self::render_footer();
@@ -638,7 +638,6 @@ class MainWP_Child {
 		$hide_restore = get_option( 'mainwp_branding_remove_restore' ) ? true : false;
 		$hide_server_info = get_option( 'mainwp_branding_remove_server_info' ) ? true : false;
 
-		$hide_style = 'style="display:none"';
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 		?>
@@ -698,57 +697,57 @@ class MainWP_Child {
 		</style>
 
 		<div class="wrap">
-				<h2><i class="fa fa-file"></i> <?php echo ( self::$brandingTitle === null ?  'MainWP Child' : self::$brandingTitle ); ?></h2>
-				<div style="clear: both;"></div><br/>
-				<div class="mainwp-tabs" id="mainwp-tabs">
-					<?php if ( !$hide_settings ) { ?>
-					<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'settings' ) { echo 'nav-tab-active'; } ?>" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php _e( 'Settings','mainwp-child' ); ?></a>
-					<?php } ?>
-					<?php if ( !$hide_restore ) { ?>
-					<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'restore-clone' ) { echo 'nav-tab-active'; } ?>" tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? __( 'Restore / Clone','mainwp-child' ) : __( 'Restore','mainwp-child' ); ?></a>
-					<?php } ?>
-					<?php if (!$hide_server_info ) { ?>
-					<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'server-info' ) { echo 'nav-tab-active'; } ?>" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php _e( 'Server information','mainwp-child' ); ?></a>
-					<?php } ?>
-					<?php
-					if ( isset( self::$subPages ) && is_array( self::$subPages ) ) {
-						foreach ( self::$subPages as $subPage ) {
-						?>
-							<a class="nav-tab pos-nav-tab <?php if ( $shownPage == $subPage['slug'] ) { echo 'nav-tab-active'; } ?>" tab-slug="<?php echo $subPage['slug']; ?>" href="options-general.php?page=<?php echo $subPage['page']; ?>"><?php echo $subPage['title']; ?></a>
-						<?php
-						}
-					}
+		<h2><i class="fa fa-file"></i> <?php echo ( self::$brandingTitle === null ?  'MainWP Child' : self::$brandingTitle ); ?></h2>
+		<div style="clear: both;"></div><br/>
+		<div class="mainwp-tabs" id="mainwp-tabs">
+			<?php if ( !$hide_settings ) { ?>
+				<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'settings' ) { echo 'nav-tab-active'; } ?>" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php _e( 'Settings','mainwp-child' ); ?></a>
+			<?php } ?>
+			<?php if ( !$hide_restore ) { ?>
+				<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'restore-clone' ) { echo 'nav-tab-active'; } ?>" tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? __( 'Restore / Clone','mainwp-child' ) : __( 'Restore','mainwp-child' ); ?></a>
+			<?php } ?>
+			<?php if (!$hide_server_info ) { ?>
+				<a class="nav-tab pos-nav-tab <?php if ( $shownPage === 'server-info' ) { echo 'nav-tab-active'; } ?>" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php _e( 'Server information','mainwp-child' ); ?></a>
+			<?php } ?>
+			<?php
+			if ( isset( self::$subPages ) && is_array( self::$subPages ) ) {
+				foreach ( self::$subPages as $subPage ) {
 					?>
-					<div style="clear:both;"></div>
-				</div>
-				<div style="clear:both;"></div>
-				<script type="text/javascript">
-						jQuery( document ).ready( function () {
-							$hideMenu = jQuery('#menu-settings li a .mainwp-hidden');
-							$hideMenu.each(function(){jQuery(this).closest('li').hide();})
+					<a class="nav-tab pos-nav-tab <?php if ( $shownPage == $subPage['slug'] ) { echo 'nav-tab-active'; } ?>" tab-slug="<?php echo $subPage['slug']; ?>" href="options-general.php?page=<?php echo $subPage['page']; ?>"><?php echo $subPage['title']; ?></a>
+					<?php
+				}
+			}
+			?>
+			<div style="clear:both;"></div>
+		</div>
+		<div style="clear:both;"></div>
+		<script type="text/javascript">
+			jQuery( document ).ready( function () {
+				$hideMenu = jQuery('#menu-settings li a .mainwp-hidden');
+				$hideMenu.each(function(){jQuery(this).closest('li').hide();})
 
-							var $tabs          = jQuery( '.mainwp-tabs' );
-							$tabs.on('click', 'a', function () {
-								if (jQuery(this).attr('href') !=='#' )
-									return true;
-								jQuery('.mainwp-tabs > a').removeClass('nav-tab-active');
-								jQuery(this).addClass('nav-tab-active');
-								jQuery('.mainwp-child-setting-tab').hide();
-								var _tab = jQuery(this).attr('tab-slug');
-								jQuery('.mainwp-child-setting-tab.' + _tab ).show();
-								return false;
-							});
-						})
-				</script>
+				var $tabs          = jQuery( '.mainwp-tabs' );
+				$tabs.on('click', 'a', function () {
+					if (jQuery(this).attr('href') !=='#' )
+						return true;
+					jQuery('.mainwp-tabs > a').removeClass('nav-tab-active');
+					jQuery(this).addClass('nav-tab-active');
+					jQuery('.mainwp-child-setting-tab').hide();
+					var _tab = jQuery(this).attr('tab-slug');
+					jQuery('.mainwp-child-setting-tab.' + _tab ).show();
+					return false;
+				});
+			})
+		</script>
 
-			<div id="mainwp_wrap-inside">
+		<div id="mainwp_wrap-inside">
 
 		<?php
 	}
 
 	public static function render_footer() {
 		?>
-			</div>
+		</div>
 		</div>
 		<?php
 	}
@@ -774,10 +773,10 @@ class MainWP_Child {
 					<div class="howto"><?php esc_html_e( 'The Unique Security ID adds additional protection between the Child plugin and your Main Dashboard. The Unique Security ID will need to match when being added to the Main Dashboard. This is additional security and should not be needed in most situations.', 'mainwp-child' ); ?></div>
 					<div style="margin: 1em 0 4em 0;">
 						<input name="requireUniqueSecurityId"
-							   type="checkbox"
-							   id="requireUniqueSecurityId" <?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) { echo 'checked'; } ?> />
+						       type="checkbox"
+						       id="requireUniqueSecurityId" <?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) { echo 'checked'; } ?> />
 						<label for="requireUniqueSecurityId"
-							   style="font-size: 15px;"><?php esc_html_e( 'Require Unique Security ID', 'mainwp-child' ); ?></label>
+						       style="font-size: 15px;"><?php esc_html_e( 'Require Unique Security ID', 'mainwp-child' ); ?></label>
 					</div>
 					<div>
 						<?php if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
@@ -786,10 +785,10 @@ class MainWP_Child {
 					</div>
 					<p class="submit" style="margin-top: 4em;">
 						<input type="submit"
-							   name="submit"
-							   id="submit"
-							   class="button button-primary button-hero"
-							   value="<?php esc_html_e( 'Save Changes', 'mainwp-child' ); ?>">
+						       name="submit"
+						       id="submit"
+						       class="button button-primary button-hero"
+						       value="<?php esc_html_e( 'Save Changes', 'mainwp-child' ); ?>">
 					</p>
 					<input type="hidden" name="nonce" value="<?php echo wp_create_nonce( 'child-settings' );?>">
 				</form>
@@ -3222,7 +3221,7 @@ class MainWP_Child {
 		$posts = get_posts( $args );
 		if ( is_array( $posts ) ) {
 			foreach ( $posts as $post ) {
- 				$outPost                  = array();
+				$outPost                  = array();
 				$outPost['id']            = $post->ID;
 				$outPost['status']        = $post->post_status;
 				$outPost['title']         = $post->post_title;
@@ -4357,7 +4356,7 @@ class MainWP_Child {
 		}
 		$code = stripslashes( $_POST['code'] );
 		if ( 'run_snippet' === $action ) {
-			$information = $this->execute_snippet( $code );
+			$information = MainWP_Tools::execute_snippet( $code );
 		} else if ( 'save_snippet' === $action ) {
 			$type     = $_POST['type'];
 			$slug     = $_POST['slug'];
@@ -4428,27 +4427,12 @@ class MainWP_Child {
 			$snippets = get_option( 'mainwp_ext_code_snippets' );
 			if ( is_array( $snippets ) && count( $snippets ) > 0 ) {
 				foreach ( $snippets as $code ) {
-					$this->execute_snippet( $code );
+					MainWP_Tools::execute_snippet( $code );
 				}
 			}
 		}
 	}
 
-	function execute_snippet( $code ) {
-		ob_start();
-		$result = eval( $code );
-		$output = ob_get_contents();
-		ob_end_clean();
-		$return = array();
-		if ( false === $result && ( $error = error_get_last() ) ) {
-			$return['status'] = 'FAIL';
-			$return['result'] = $error['message'];
-		} else {
-			$return['status'] = 'SUCCESS';
-			$return['result'] = $output;
-		}
-		return $return;
-	}
 
 	function uploader_action() {
 		$file_url    = base64_decode( $_POST['url'] );
