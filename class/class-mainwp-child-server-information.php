@@ -1296,7 +1296,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getCompleteURL() {
-		echo esc_html( $_SERVER['HTTP_REFERER'] );
+		echo isset( $_SERVER['HTTP_REFERER'] ) ? esc_html( $_SERVER['HTTP_REFERER'] ) : '';
 	}
 
 	protected static function getUserAgent() {
