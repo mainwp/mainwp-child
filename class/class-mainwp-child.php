@@ -146,7 +146,8 @@ class MainWP_Child {
 		'wp_rocket'             => 'wp_rocket',
 		'settings_tools'        => 'settings_tools',
 		'skeleton_key'          => 'skeleton_key',
-		'custom_post_type'		=> 'custom_post_type'
+		'custom_post_type'		=> 'custom_post_type',
+		//'backup_buddy'          => 'backup_buddy'
 	);
 
 	private $FTP_ERROR = 'Failed, please add FTP details for automatic upgrades.';
@@ -1246,6 +1247,7 @@ class MainWP_Child {
 
 		MainWP_Child_Back_WP_Up::Instance()->init();
 
+//		MainWP_Child_Back_Up_Buddy::Instance()->init();
 		//Call the function required
 		if ( $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) ) {
 			define( 'DOING_CRON', true );
@@ -3088,20 +3090,7 @@ class MainWP_Child {
 	}
 
 	function get_favicon() {
-		$url     = site_url();
-		$request = wp_remote_get( $url, array( 'timeout' => 20 ) );
-
 		$favi = '';
-		if ( is_array( $request ) && isset( $request['body'] ) ) {
-			// to fix bug
-			$preg_str1 = '/(<link\s+(?:[^\>]*)(?:rel="shortcut\s+icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-			$preg_str2 = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-			if ( preg_match( $preg_str1, $request['body'], $matches ) ) {
-				$favi = $matches[2];
-			} else if ( preg_match( $preg_str2, $request['body'], $matches ) ) {
-				$favi = $matches[2];
-			}
-		}
 
 		if ( empty( $favi ) ) {
 			if ( file_exists( ABSPATH . 'favicon.ico' ) ) {
@@ -4644,6 +4633,10 @@ class MainWP_Child {
 	function skeleton_key() {
 		MainWP_Child_Skeleton_Key::Instance()->action();
 	}
+
+//	function backup_buddy() {
+//		MainWP_Child_Back_Up_Buddy::Instance()->action();
+//	}
 
 	function custom_post_type() {
         MainWP_Custom_Post_Type::Instance()->action();

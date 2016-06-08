@@ -139,6 +139,12 @@ class MainWP_Child_WP_Rocket {
 				case "load_existing_settings":
 					$information = $this->load_existing_settings();
 					break;
+				case 'optimize_database':
+					$information = $this->optimize_database();
+					break;
+				case 'get_optimize_info':
+					$information = $this->get_optimize_info();
+					break;
 			}
 		}
 		MainWP_Helper::write( $information );
@@ -209,24 +215,72 @@ class MainWP_Child_WP_Rocket {
 				$options[ $field ] = $value;
 			}
 		}
+		if (isset($_POST['do_database_optimization']) && !empty($_POST['do_database_optimization'])) {
+			$_POST['wp_rocket_settings']['submit_optimize'] = 1; // simulate POST			
+		}
 
-		remove_all_filters( 'update_option_' . WP_ROCKET_SLUG );
 		update_option( WP_ROCKET_SLUG, $options );
 
 		return array( 'result' => 'SUCCESS' );
 	}
 
+	function optimize_database() {
+		$return = array();
+		if (function_exists('do_rocket_database_optimization')) {
+			do_rocket_database_optimization();
+			$return['result'] = 'SUCCESS';
+		}
+		return $return;
+	}
+
+	function get_optimize_info() {
+
+		if (function_exists('rocket_database_count_cleanup_items')) {
+			$information['optimize_info'] = array(
+				'total_revisions'         => rocket_database_count_cleanup_items( 'revisions' ),
+				'total_auto_draft'         => rocket_database_count_cleanup_items( 'auto_drafts' ),
+				'total_trashed_posts'      => rocket_database_count_cleanup_items( 'trashed_posts' ),
+				'total_spam_comments'     => rocket_database_count_cleanup_items( 'spam_comments' ),
+				'total_trashed_comments'   => rocket_database_count_cleanup_items( 'trashed_comments' ),
+				'total_expired_transients' => rocket_database_count_cleanup_items( 'expired_transients' ),
+				'total_all_transients'     => rocket_database_count_cleanup_items( 'all_transients' ),
+				'total_optimize_tables'    => rocket_database_count_cleanup_items( 'optimize_tables' )
+			);
+			$information['result'] = 'SUCCESS';
+		}
+		return $information;
+	}
+
 	function load_existing_settings() {
 		$options = get_option( WP_ROCKET_SLUG );
-		return array('result' => 'success', 'options' => $options);
+		return array('result' => 'SUCCESS', 'options' => $options);
 	}
 
 	function get_rocket_default_options() {
 		return array(
 			//                'secret_cache_key'         => $secret_cache_key,
 			'cache_mobile'             => 0,
+			'do_caching_mobile_files'     => 0,
+			'cache_feed'				  => 0,
 			'cache_logged_user'        => 0,
 			'cache_ssl'                => 0,
+			'emoji'					  => 0,
+			'varnish_auto_purge' => 0,
+			'manual_preload' => 0,
+			'automatic_preload' => 0,
+			'sitemap_preload' => 0,
+			'sitemap_preload_url_crawl' => 500000,
+			'sitemaps' => '',
+			'database_revisions' => 0,
+			'database_auto_drafts' => 0,
+			'database_trashed_posts' => 0,
+			'database_spam_comments' => 0,
+			'database_trashed_comments' => 0,
+			'database_expired_transients' => 0,
+			'database_all_transients' => 0,
+			'database_optimize_tables' => 0,
+			'schedule_automatic_cleanup' => 0,
+			'automatic_cleanup_frequency' => 'daily',
 			'cache_reject_uri'         => array(),
 			'cache_reject_cookies'     => array(),
 			'cache_reject_ua'          => array(),

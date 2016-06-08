@@ -567,7 +567,15 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<?php
 			self::checkDirectoryMainWPDirectory();
+			$server       = get_option( 'mainwp_child_server' );
 			?>
+			<tr>
+				<td></td>
+				<td><?php _e( 'Currently Connected to Dashboard URL', 'mainwp-child' ); ?></td>
+				<td><?php echo esc_html( $server ); ?></td>
+				<td></td>
+				<td></td>
+			</tr>
 			<tr>
 				<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WORDPRESS', 'mainwp-child' ); ?></td>
 			</tr><?php
@@ -575,6 +583,13 @@ class MainWP_Child_Server_Information {
 			self::renderRow( 'WordPress Memory Limit', '>=', '64M', 'getWordpressMemoryLimit' );
 			self::renderRow( 'MultiSite Disabled', '=', true, 'checkIfMultisite' );
 			?>
+			<tr>
+				<td></td>
+				<td><?php esc_html_e( 'FileSystem Method', 'mainwp' ); ?></td>
+				<td><?php echo esc_html( '= ' . __( 'direct', 'mainwp' ) ); ?></td>
+				<td><?php echo esc_html( self::getFileSystemMethod() ); ?></td>
+				<td><?php echo esc_html( self::getFileSystemMethodCheck() ); ?></td>
+			</tr>
 			<tr>
 				<td style="background: #333; color: #fff;"
 				    colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
@@ -590,6 +605,7 @@ class MainWP_Child_Server_Information {
 			self::renderRow( 'PHP Max Execution Time', '>=', '30', 'getMaxExecutionTime', 'seconds', '=', '0' );
 			self::renderRowSec( 'PHP Max Input Time', '>=', '30', 'getMaxInputTime', 'seconds', '=', '0' );
 			self::renderRow( 'PHP Memory Limit', '>=', '128M', 'getPHPMemoryLimit', '(256M+ best for big backups)', null, null, true );
+			self::renderRow( 'PCRE Backtracking Limit', '>=', '10000', 'getOutputBufferSize' );
 			self::renderRow( 'PHP Upload Max Filesize', '>=', '2M', 'getUploadMaxFilesize', '(2MB+ best for upload of big plugins)', null, null, true );
 			self::renderRow( 'PHP Post Max Size', '>=', '2M', 'getPostMaxSize', '(2MB+ best for upload of big plugins)', null, null, true );
 			self::renderRow( 'SSL Extension Enabled', '=', true, 'getSSLSupport' );
@@ -610,18 +626,6 @@ class MainWP_Child_Server_Information {
 			</tr><?php
 			self::renderRow( 'MySQL Version', '>=', '5.0', 'getMySQLVersion' );
 			?>
-			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'MISC', 'mainwp-child' ); ?></td>
-			</tr><?php
-			self::renderRow( 'PCRE Backtracking Limit', '>=', '10000', 'getOutputBufferSize' );
-			?>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'FileSystem Method', 'mainwp' ); ?></td>
-				<td><?php echo esc_html( '= ' . __( 'direct', 'mainwp' ) ); ?></td>
-				<td><?php echo esc_html( self::getFileSystemMethod() ); ?></td>
-				<td><?php echo esc_html( self::getFileSystemMethodCheck() ); ?></td>
-			</tr>
 			<tr>
 				<td style="background: #333; color: #fff;"
 				    colspan="5"><?php esc_html_e( 'BACKUP ARCHIVE INFORMATION', 'mainwp-child' ); ?></td>
@@ -692,11 +696,6 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<tr>
 				<td></td>
-				<td><?php esc_html_e( 'Server Admin', 'mainwp' ); ?></td>
-				<td colspan="3"><?php self::getServerAdmin(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
 				<td><?php esc_html_e( 'Server Port', 'mainwp' ); ?></td>
 				<td colspan="3"><?php self::getServerPort(); ?></td>
 			</tr>
@@ -717,18 +716,8 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<tr>
 				<td></td>
-				<td><?php esc_html_e( 'Request Method', 'mainwp' ); ?></td>
-				<td colspan="3"><?php self::getServerRequestMethod(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
 				<td><?php esc_html_e( 'Request Time', 'mainwp' ); ?></td>
 				<td colspan="3"><?php self::getServerRequestTime(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Query String', 'mainwp' ); ?></td>
-				<td colspan="3"><?php self::getServerQueryString(); ?></td>
 			</tr>
 			<tr>
 				<td></td>
@@ -744,26 +733,6 @@ class MainWP_Child_Server_Information {
 				<td></td>
 				<td><?php esc_html_e( 'Currently Executing Script Pathname', 'mainwp' ); ?></td>
 				<td colspan="3"><?php self::getScriptFileName(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Server Signature', 'mainwp' ); ?></td>
-				<td colspan="3"><?php self::getServerSignature(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Currently Executing Script', 'mainwp' ); ?></td>
-				<td colspan="3"><?php self::getCurrentlyExecutingScript(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Path Translated', 'mainwp' ); ?></td>
-				<td colspan="3"><?php self::getServerPathTranslated(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Current Script Path', 'mainwp' ); ?></td>
-				<td colspan="3"><?php self::getScriptName(); ?></td>
 			</tr>
 			<tr>
 				<td></td>
@@ -832,6 +801,23 @@ class MainWP_Child_Server_Information {
 				<td><?php esc_html_e( 'MySQL Client Encoding', 'mainwp' ); ?></td>
 				<td colspan="3"><?php echo esc_html( defined( 'DB_CHARSET' ) ? DB_CHARSET : '' ); ?></td>
 			</tr>
+			<tr>
+				<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WORDPRESS PLUGINS', 'mainwp' ); ?></td>
+			</tr>
+			<?php
+			$all_plugins = get_plugins();
+			foreach ( $all_plugins as $slug => $plugin) {
+				?>
+				<tr>
+					<td>&nbsp;</td>
+					<td><?php echo $plugin['Name']; ?></td>
+					<td><?php echo $plugin['Version']; ?></td>
+					<td><?php echo is_plugin_active($slug) ? 'Active' : 'Inactive'; ?></td>
+					<td>&nbsp;</td>
+				</tr>
+				<?php
+			}
+			?>
 			</tbody>
 		</table>
 		<br/>
