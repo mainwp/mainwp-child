@@ -163,6 +163,11 @@ class MainWP_Child_iThemes_Security {
 		$update_settings         = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 		foreach($update_settings as $module => $settings) {
 			if (in_array($module, $_itsec_modules)) {
+				if ($module == 'wordpress-salts') {
+					$settings['last_generated'] = ITSEC_Modules::get_setting( 'wordpress-salts', 'last_generated' ); // not update
+				} else if ($module == 'global') {
+					$settings['nginx_file'] = ITSEC_Modules::get_setting( 'global', 'nginx_file' ); // not update
+				}
 				ITSEC_Modules::set_settings( $module, $settings );
 				$updated          = true;
 			}

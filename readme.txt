@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.5.2
-Stable tag: 3.1.4
+Stable tag: 3.1.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.1.5 - 9-12-16 =
+* Fixed: Incompatibility with the new version of the iThemes Security version
+* Added: Support for the new iThemes Security features
+* Added: Support for the new WP Rocket features
+* Added: "Currently connected to" check in the Server Information
+* Fixed: PHP Notice
+* Removed: Unnecesary checks in the Server Information page
 
 = 3.1.4 - 5-9-16 =
 * Updated: function execute_snippet() extracted to a separate file

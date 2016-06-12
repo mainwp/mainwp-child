@@ -631,12 +631,12 @@ class MainWP_Helper {
 		return array( $dir, $url );
 	}
 
-	static function checkDir( $dir, $dieOnError ) {
+	static function checkDir( $dir, $dieOnError, $chmod = 0755 ) {
 		MainWP_Helper::getWPFilesystem();
 		global $wp_filesystem;
 		if ( ! file_exists( $dir ) ) {
 			if ( empty( $wp_filesystem ) ) {
-				@mkdir( $dir, 0777, true );
+				@mkdir( $dir, $chmod, true );
 			} else {
 				if ( ( 'ftpext' === $wp_filesystem->method ) && defined( 'FTP_BASE' ) ) {
 					$ftpBase = FTP_BASE;
@@ -645,7 +645,7 @@ class MainWP_Helper {
 				} else {
 					$tmpdir = $dir;
 				}
-				$wp_filesystem->mkdir( $tmpdir, 0777 );
+				$wp_filesystem->mkdir( $tmpdir, $chmod );
 			}
 
 			if ( ! file_exists( $dir ) ) {
