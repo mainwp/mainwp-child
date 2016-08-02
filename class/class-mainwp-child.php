@@ -906,6 +906,9 @@ class MainWP_Child {
 		}
 
 		if ( $auth ) {
+			//disable duo auth for mainwp
+			remove_action('init', 'duo_verify_auth', 10);
+
 			//Check if the user exists & is an administrator
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
 				$user = get_user_by( 'login', $_POST['user'] );
