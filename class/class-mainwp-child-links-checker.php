@@ -27,6 +27,9 @@ class MainWP_Child_Links_Checker {
 				case 'sync_data':
 					$information = $this->sync_data();
 					break;
+				case 'sync_links_data':
+					$information = $this->sync_links_data();
+					break;
 				case 'edit_link':
 					$information = $this->edit_link();
 					break;
@@ -77,22 +80,14 @@ class MainWP_Child_Links_Checker {
 	}
 
 	function save_settings() {
-		$information           = array();
-		$information['result'] = 'NOTCHANGE';
-		$new_check_threshold   = intval( $_POST['check_threshold'] );
-
-		if ( update_option( 'mainwp_child_blc_max_number_of_links', intval( $_POST['max_number_of_links'] ) ) ) {
-			$information['result'] = 'SUCCESS';
-		}
-
-		if ( $new_check_threshold > 0 ) {
+		$information           = array();		
+		$check_threshold   = intval( $_POST['check_threshold'] );
+		if ( $check_threshold > 0 ) {
 			$conf                             = blc_get_configuration();
-			$conf->options['check_threshold'] = $new_check_threshold;
-			if ( $conf->save_options() ) {
-				$information['result'] = 'SUCCESS';
-			}
+			$conf->options['check_threshold'] = $check_threshold;
+			$conf->save_options();
 		}
-
+		$information['result'] = 'SUCCESS';
 		return $information;
 	}
 
@@ -179,29 +174,74 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	function sync_data( $strategy = '' ) {
+	function sync_data( $strategy = '' ) {		
 		$information = array();
-		$data        = array();
-
+		$data        = $this->get_count_links();
+		
+//		$max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 50;		
+		
+//		$params      = array( array( 'load_instances' => true ),
+//								'max_results' => $max_results
+//							);									
+		//$data['link_data']   = $this->do_sync_links_data($params);
+		
+		$information['data'] = $data;
+		return $information;
+	}
+	
+	function sync_links_data() {
+		$blc_link_query      = blcLinkQuery::getInstance();
+		$total         = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
+		
+		
+		$max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 50;		
+		$offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+						
+		$params      = array( 
+							array( 'load_instances' => true ),
+							'max_results' => $max_results
+						);				
+		
+		if (empty($offset)) {
+			$first_sync = true;			
+		} else {
+			$params['offset'] = $offset;
+		}
+		
+		$link_data = $this->do_sync_links_data($params);		
+		
+		$information = array('links_data' => $link_data);
+		
+		if ($first_sync) {
+			$information['data'] = $this->get_count_links();
+		}
+		
+		if ($total > $offset + $max_results ) {
+			$information['sync_offset'] = $offset + $max_results;
+		} else {
+			$information['last_sync'] = 1;
+		}		
+		
+		$information['result'] = 'success';
+		return $information;	
+	}
+	
+	function get_count_links() {
+		$data = array();
 		$blc_link_query      = blcLinkQuery::getInstance();
 		$data['broken']      = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
 		$data['redirects']   = $blc_link_query->get_filter_links( 'redirects', array( 'count_only' => true ) );
 		$data['dismissed']   = $blc_link_query->get_filter_links( 'dismissed', array( 'count_only' => true ) );
+		$data['warning']   = $blc_link_query->get_filter_links( 'warning', array( 'count_only' => true ) );
 		$data['all']         = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
-		$data['link_data']   = self::sync_link_data();
-		$information['data'] = $data;
-
-		return $information;
+		return $data;
 	}
-
-	static function sync_link_data() {
-		$max_results = get_option( 'mainwp_child_blc_max_number_of_links', 50 );
-		$params      = array( array( 'load_instances' => true ) );
-		if ( ! empty( $max_results ) ) {
-			$params['max_results'] = $max_results;
-		}
+	
+	function do_sync_links_data($params) {		
+		
 		$links      = blc_get_links( $params );
-		$get_fields = array(
+		
+		$filter_fields = array(
 			'link_id',
 			'url',
 			'being_checked',
@@ -214,6 +254,7 @@ class MainWP_Child_Links_Checker {
 			'redirect_count',
 			'final_url',
 			'broken',
+			'warning',
 			'first_failure',
 			'last_success',
 			'may_recheck',
@@ -222,10 +263,10 @@ class MainWP_Child_Links_Checker {
 			'dismissed',
 			'status_text',
 			'status_code',
-			'log',
+			'log'			
 		);
 		$return     = '';
-		$site_id    = $_POST['site_id'];
+		
 		$blc_option = get_option( 'wsblc_options' );
 
 		if ( is_string( $blc_option ) && ! empty( $blc_option ) ) {
@@ -234,28 +275,29 @@ class MainWP_Child_Links_Checker {
 
 		if ( is_array( $links ) ) {
 			foreach ( $links as $link ) {
-				$lnk = new stdClass();
-				foreach ( $get_fields as $field ) {
-					$lnk->$field = $link->$field;
+				$new_link = new stdClass();
+				foreach ( $filter_fields as $field ) {
+					$new_link->$field = $link->$field;
 				}
-
-				if ( ! empty( $link->post_date ) ) {
-					$lnk->post_date = $link->post_date;
+				
+				$extra_info = array();
+				
+				if ( ! empty( $link->post_date ) ) {					
+					$extra_info['post_date'] = $link->post_date;
 				}
-
+				
 				$days_broken = 0;
 				if ( $link->broken ) {
 					//Add a highlight to broken links that appear to be permanently broken
 					$days_broken = intval( ( time() - $link->first_failure ) / ( 3600 * 24 ) );
 					if ( $days_broken >= $blc_option['failure_duration_threshold'] ) {
-						$lnk->permanently_broken = 1;
-						if ( $blc_option['highlight_permanent_failures'] ) {
-							$lnk->permanently_broken_highlight = 1;
+						$extra_info['permanently_broken'] = 1;						
+						if ( $blc_option['highlight_permanent_failures'] ) {							
+							$extra_info['permanently_broken_highlight'] = 1;
 						}
 					}
-				}
-				$lnk->days_broken = $days_broken;
-
+				}				
+				$extra_info['days_broken'] = $days_broken;
 				$instances = false;
 
 				$get_link = new blcLink( intval( $link->link_id ) );
@@ -266,16 +308,16 @@ class MainWP_Child_Links_Checker {
 				if ( ! empty( $instances ) ) {
 
 					$first_instance      = reset( $instances );
-					$lnk->link_text      = $first_instance->ui_get_link_text();
-					$lnk->count_instance = count( $instances );
+					$new_link->link_text = $first_instance->ui_get_link_text();
+					$extra_info['count_instance'] = count( $instances );
 					$container           = $first_instance->get_container();
+					
 					/** @var blcContainer $container */
-
-					$lnk->container = $container;
+					
 					if ( ! empty( $container ) /* && ($container instanceof blcAnyPostContainer) */ ) {
-						$lnk->container_type = $container->container_type;
-						$lnk->container_id   = $container->container_id;
-						$lnk->source_data    = MainWP_Child_Links_Checker::Instance()->ui_get_source( $container, $first_instance->container_field );
+						$extra_info['container_type'] = $container->container_type;
+						$extra_info['container_id'] = $container->container_id;
+						$extra_info['source_data'] = $this->ui_get_source( $container, $first_instance->container_field );
 					}
 
 					$can_edit_text       = false;
@@ -302,16 +344,16 @@ class MainWP_Child_Links_Checker {
 						$link_text      = key( $link_texts );
 						$data_link_text = esc_attr( $link_text );
 					}
-					$lnk->data_link_text = $data_link_text;
-					$lnk->can_edit_url   = $can_edit_url;
-					$lnk->can_edit_text  = $can_edit_text;
-				} else {
-					$lnk->link_text      = '';
-					$lnk->count_instance = 0;
+					$extra_info['data_link_text'] = $data_link_text;
+					$extra_info['can_edit_url'] = $can_edit_url;
+					$extra_info['can_edit_text'] = $can_edit_text;					
+				} else {				
+					$new_link->link_text = '';
+					$extra_info['count_instance'] = 0;
 				}
-				$lnk->site_id = $site_id;
-
-				$return[] = $lnk;
+				$new_link->extra_info = base64_encode(serialize($extra_info));
+				$new_link->synced = 1;
+				$return[] = $new_link;
 			}
 		} else {
 			return '';

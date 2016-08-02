@@ -1033,7 +1033,10 @@ class MainWP_Child_Back_WP_Up {
 
 			$return['tables'] = $tables_temp;
 		}
-
+		
+		if (isset($settings['job_id'])) {
+			$return['dbdumpexclude'] = BackWPup_Option::get( $settings['job_id'], 'dbdumpexclude' );	
+		}
 		return array( 'success' => 1, 'return' => $return );
 	}
 

@@ -1,8 +1,7 @@
 <?php
 
 class MainWP_Child_Wordfence {
-	public static $instance = null;
-	private static $wfLog = false;
+	public static $instance = null;	
 	public $is_wordfence_installed = false;
 	public $plugin_translate = 'mainwp-child';
 
@@ -20,7 +19,7 @@ class MainWP_Child_Wordfence {
 		'autoUpdate',
 		'firewallEnabled',
 		'howGetIPs',
-		'liveTrafficEnabled',
+		'liveTrafficEnabled',		
 		'loginSec_blockAdminReg',
 		'loginSec_countFailMins',
 		'loginSec_disableAuthorScan',
@@ -34,16 +33,18 @@ class MainWP_Child_Wordfence {
 		'loginSecurityEnabled',
 		'other_scanOutside',
 		'scan_exclude',
+		'scansEnabled_checkReadableConfig',
 		'scansEnabled_comments',
 		'scansEnabled_core',
 		'scansEnabled_diskSpace',
 		'scansEnabled_dns',
 		'scansEnabled_fileContents',
-		'scansEnabled_database',
+		'scan_include_extra', 		
 		'scansEnabled_heartbleed',
 		'scansEnabled_highSense',
 		'scansEnabled_malware',
 		'scansEnabled_oldVersions',
+		"scansEnabled_suspiciousAdminUsers",
 		'scansEnabled_passwds',
 		'scansEnabled_plugins',
 		'scansEnabled_posts',
@@ -71,6 +72,7 @@ class MainWP_Child_Wordfence {
 		'liveTraf_ignoreUsers',
 		'liveTraf_ignoreIPs',
 		'liveTraf_ignoreUA',
+		'liveTraf_maxRows',
 		'whitelisted',
 		'bannedURLs',
 		'other_hideWPVersion',
@@ -99,8 +101,19 @@ class MainWP_Child_Wordfence {
 		'email_summary_interval',
 		'email_summary_excluded_directories',
 		'allowed404s',
+                //'ajaxWatcherDisabled_front', // do not update those values when save settings
+                //'ajaxWatcherDisabled_admin' 
 	);
 
+        public static $diagnosticParams = array(
+		'addCacheComment',
+		'debugOn',
+		'startScansRemotely',
+		'ssl_verify',
+		'disableConfigCaching',
+		'betaThreatDefenseFeed',
+	);
+        
 
 	static function Instance() {
 		if ( null === MainWP_Child_Wordfence::$instance ) {
@@ -235,10 +248,76 @@ class MainWP_Child_Wordfence {
 				case "remove_cache_exclusion":
 					$information = $this->removeCacheExclusion();
 					break;
+				case 'get_diagnostics':
+					$information = $this->getDiagnostics();
+					break;
+				case 'update_waf_rules':
+					$information = $this->updateWAFRules();
+					break;
+                                case 'save_debugging_config':
+					$information = $this->save_debugging_config();
+					break;
+                                case 'load_live_traffic':
+                                    $information = $this->loadLiveTraffic();
+                                    break;
+                                case 'white_list_waf':
+                                    $information = $this->whitelistWAFParamKey();
+                                    break;  
+                                case 'hide_file_htaccess':
+                                    $information = $this->hideFileHtaccess();
+                                    break; 
+                                case 'fix_fpd':
+                                    $information = $this->fixFPD();
+                                    break;
+                                case 'disable_directory_listing':
+                                    $information = $this->disableDirectoryListing();
+                                    break;
+                                case 'delete_database_option':
+                                    $information = $this->deleteDatabaseOption();
+                                    break;
+                                 case 'delete_admin_user':
+                                    $information = $this->deleteAdminUser();
+                                    break;
+                                case 'revoke_admin_user':
+                                    $information = $this->revokeAdminUser();
+                                    break;
+                                case 'clear_all_blocked':
+                                    $information = $this->clearAllBlocked();
+                                    break;
+                                case 'permanently_block_all_ips':
+                                    $information = $this->permanentlyBlockAllIPs();
+                                    break;
+                                case 'unlockout_ip':
+                                    $information = $this->unlockOutIP();
+                                    break;
+                                case 'unblock_range':
+                                    $information = $this->unblockRange();
+                                    break;                                
+                                case 'block_ip_ua_range':
+                                    $information = $this->blockIPUARange();
+                                    break;
+                                case 'load_block_ranges':
+                                    $information = $this->loadBlockRanges();
+                                    break;
+                                case 'save_waf_config':
+                                    $information = $this->saveWAFConfig();
+                                    break;
+                                case 'whitelist_bulk_delete':
+                                    $information = $this->whitelistBulkDelete();
+                                    break;
+                                case 'whitelist_bulk_enable':
+                                    $information = $this->whitelistBulkEnable();
+                                    break;
+                                case 'whitelist_bulk_disable':
+                                   $information = $this->whitelistBulkDisable();
+                                   break;   
+                               case 'update_config':
+                                   $information = $this->updateConfig();
+                                   break;  
 			}
 		}
 		MainWP_Helper::write( $information );
-	}
+	}        
 
 	private function start_scan() {
 		$information = array();
@@ -328,7 +407,7 @@ class MainWP_Child_Wordfence {
 
 	public function get_log() {
 		$information = array();
-		$wfLog       = self::getLog();
+		$wfLog       = wordfence::getLog();
 		if ( $wfLog ) {
 			$information['events']  = $wfLog->getStatusEvents( 0 );
 			$information['summary'] = $wfLog->getSummaryEvents();
@@ -339,15 +418,6 @@ class MainWP_Child_Wordfence {
 		return $information;
 	}
 
-	private static function getLog() {
-		if ( ! self::$wfLog ) {
-			$wfLog       = new wfLog( wfConfig::get( 'apiKey' ), wfUtils::getWPVersion() );
-			self::$wfLog = $wfLog;
-		}
-
-		return self::$wfLog;
-	}
-
 	public function update_log() {
 		return wordfence::ajax_activityLogUpdate_callback();
 	}
@@ -356,14 +426,15 @@ class MainWP_Child_Wordfence {
 		$i   = new wfIssues();
 		$iss = $i->getIssues();
 
-		//error_log("wp-ajax: " . wp_create_nonce('wp-ajax'));
 		return array(
 			'issuesLists'       => $iss,
 			'summary'           => $i->getSummaryItems(),
 			'lastScanCompleted' => wfConfig::get( 'lastScanCompleted' ),
 			'apiKey'            => wfConfig::get( 'apiKey' ),
 			'isPaid' => wfConfig::get('isPaid'),
-			'lastscan_timestamp' => $this->get_lastscan()
+			'lastscan_timestamp' => $this->get_lastscan(),
+                        'isNginx' => wfUtils::isNginx() ? 1 : 0,
+                        'wafData' => $this->_getWAFData()
 		);
 	}
 
@@ -756,7 +827,7 @@ class MainWP_Child_Wordfence {
 			}
 			$result['ok']     = 1;
 			$result['reload'] = $reload;
-
+                        
 			return $result;
 		}
 	}
@@ -826,13 +897,15 @@ class MainWP_Child_Wordfence {
 		$p = $wpdb->base_prefix;
 
 		$serverTime = $wfdb->querySingle( 'select unix_timestamp()' );
-		$issues     = new wfIssues();
+	
 		$jsonData   = array(
 			'serverTime' => $serverTime,
+                        'serverMicrotime' => microtime(true),
 			'msg'        => $wfdb->querySingle( "select msg from $p" . 'wfStatus where level < 3 order by ctime desc limit 1' ),
 		);
+                
 		$events     = array();
-		$alsoGet    = $_POST['alsoGet'];
+		$alsoGet    = $_POST['alsoGet'];                               
 		if ( preg_match( '/^logList_(404|hit|human|ruser|crawler|gCrawler|loginLogout)$/', $alsoGet, $m ) ) {
 			$type            = $m[1];
 			$newestEventTime = $_POST['otherParams'];
@@ -840,18 +913,20 @@ class MainWP_Child_Wordfence {
 			if ( 'loginLogout' === $type ) {
 				$listType = 'logins';
 			}
-			$events = self::getLog()->getHits( $listType, $type, $newestEventTime );
+			$events = wordfence::getLog()->getHits( $listType, $type, $newestEventTime );
 		} else if ( 'perfStats' === $alsoGet ) {
 			$newestEventTime = $_POST['otherParams'];
-			$events          = self::getLog()->getPerfStats( $newestEventTime );
-		}
-		/*
-		$longest = 0;
-		foreach($events as $e){
-				$length = $e['domainLookupEnd'] + $e['connectEnd'] + $e['responseStart'] + $e['responseEnd'] + $e['domReady'] + $e['loaded'];
-				$longest = $length > $longest ? $length : $longest;
-		}
-		*/
+			$events          = wordfence::getLog()->getPerfStats( $newestEventTime );
+		} else if ($alsoGet == 'liveTraffic') {
+			if (get_site_option('wordfence_syncAttackDataAttempts') > 10) {
+				wordfence::syncAttackData(false);
+			}
+			$results = wordfence::ajax_loadLiveTraffic_callback();
+			$events = $results['data'];
+			if (isset($results['sql'])) {
+				$jsonData['sql'] = $results['sql'];
+			}
+		}		
 		$jsonData['events']    = $events;
 		$jsonData['alsoGet']   = $alsoGet; //send it back so we don't load data if panel has changed
 		$jsonData['cacheType'] = wfConfig::get( 'cacheType' );
@@ -859,6 +934,154 @@ class MainWP_Child_Wordfence {
 		return $jsonData;
 	}
 
+        public static function loadLiveTraffic() {
+            $wfdb = new wfDB();
+            $serverTime = $wfdb->querySingle( 'select unix_timestamp()' );
+            $return = wordfence::ajax_loadLiveTraffic_callback();            
+            $return['serverTime'] = $serverTime;
+            $return['serverMicrotime'] = microtime(true);
+            return $return;            
+        }
+                
+        function whitelistWAFParamKey() {            
+            $return = wordfence::ajax_whitelistWAFParamKey_callback();
+            return $return;            
+        }
+        
+        function hideFileHtaccess() {            
+            $return = wordfence::ajax_hideFileHtaccess_callback();
+            return $return;            
+        }        
+        
+         public static function fixFPD(){
+            $return = wordfence::ajax_fixFPD_callback();
+            return $return;		
+	}
+        
+        public static function disableDirectoryListing() {
+            $return = wordfence::ajax_disableDirectoryListing_callback();
+            return $return;            
+	}       
+        
+        public static function deleteDatabaseOption() {
+            $return = wordfence::ajax_deleteDatabaseOption_callback();
+            return $return;            
+	}         
+        
+        public static function deleteAdminUser() {
+            $return = wordfence::ajax_deleteAdminUser_callback();
+            return $return;		
+	}        
+        
+        public static function revokeAdminUser() {
+             $return = wordfence::ajax_revokeAdminUser_callback();
+            return $return;	
+        }
+        
+        public static function clearAllBlocked() {
+             $return = wordfence::ajax_clearAllBlocked_callback();
+            return $return;	
+        }        
+        
+        public static function permanentlyBlockAllIPs() {
+             $return = wordfence::ajax_permanentlyBlockAllIPs_callback();
+            return $return;	
+        }   
+        
+        public static function unlockOutIP() {
+            $return = wordfence::ajax_unlockOutIP_callback();
+            return $return;	
+        }   
+        
+        public static function unblockRange() {
+            $return = wordfence::ajax_unblockRange_callback();
+            return $return;	
+        }   
+        
+        public static function blockIPUARange() {
+            $return = wordfence::ajax_blockIPUARange_callback();
+            return $return;	
+        }   
+        
+        public static function loadBlockRanges() {
+            $return = wordfence::ajax_loadBlockRanges_callback();
+            return $return;	
+        }
+        
+        public static function saveWAFConfig() {
+            $return = wordfence::ajax_saveWAFConfig_callback();
+            if (is_array($return) && isset($return['data'])) {                
+                $return['learningModeGracePeriod'] = wfWAF::getInstance()->getStorageEngine()->getConfig('learningModeGracePeriod');
+            }
+            return $return;	
+        }        
+        
+        public static function whitelistBulkDelete() {
+            $return = wordfence::ajax_whitelistBulkDelete_callback();
+            return $return;	
+        }   
+        
+        public static function whitelistBulkEnable() {      
+            $return = wordfence::ajax_whitelistBulkEnable_callback();
+            return $return;	
+        }
+        
+        public static function whitelistBulkDisable() {
+            $return = wordfence::ajax_whitelistBulkDisable_callback();
+            return $return;	
+        } 
+        public static function updateConfig() {
+            $return = wordfence::ajax_updateConfig_callback();
+            return $return;	
+        } 
+        
+        private static function _getWAFData() {
+		$data['learningMode'] = wfWAF::getInstance()->isInLearningMode();
+		$data['rules'] = wfWAF::getInstance()->getRules();
+		/** @var wfWAFRule $rule */
+		foreach ($data['rules'] as $ruleID => $rule) {
+			$data['rules'][$ruleID] = $rule->toArray();
+		}
+
+		$whitelistedURLParams = wfWAF::getInstance()->getStorageEngine()->getConfig('whitelistedURLParams', array());
+		$data['whitelistedURLParams'] = array();
+		foreach ($whitelistedURLParams as $urlParamKey => $rules) {
+			list($path, $paramKey) = explode('|', $urlParamKey);
+			$whitelistData = null;
+			foreach ($rules as $ruleID => $whitelistedData) {
+				if ($whitelistData === null) {
+					$whitelistData = $whitelistedData;
+					continue;
+				}
+				if ($ruleID === 'all') {
+					$whitelistData = $whitelistedData;
+					break;
+				}
+			}
+
+			if (is_array($whitelistData) && array_key_exists('userID', $whitelistData) && function_exists('get_user_by')) {
+				$user = get_user_by('id', $whitelistData['userID']);
+				if ($user) {
+					$whitelistData['username'] = $user->user_login;
+				}
+			}
+
+			$data['whitelistedURLParams'][] = array(
+				'path'     => $path,
+				'paramKey' => $paramKey,
+				'ruleID'   => array_keys($rules),
+				'data'     => $whitelistData,
+			);
+		}
+
+		$data['disabledRules'] = (array) wfWAF::getInstance()->getStorageEngine()->getConfig('disabledRules');
+		if ($lastUpdated = wfWAF::getInstance()->getStorageEngine()->getConfig('rulesLastUpdated')) {
+			$data['rulesLastUpdated'] = $lastUpdated;
+		}
+		$data['isPaid'] = (bool) wfConfig::get('isPaid', 0);
+		return $data;
+	}
+        
 	function reverse_lookup() {
 		$ips = explode( ',', $_POST['ips'] );
 		$res = array();
@@ -878,7 +1101,7 @@ class MainWP_Child_Wordfence {
 		if ( wfUtils::getIP() === $IP ) {
 			return array( 'err' => 1, 'errorMsg' => "You can't block your own IP address." );
 		}
-		if ( self::getLog()->isWhitelisted( $IP ) ) {
+		if ( wordfence::getLog()->isWhitelisted( $IP ) ) {
 			return array(
 				'err'      => 1,
 				'errorMsg' => 'The IP address ' . htmlentities( $IP ) . " is whitelisted and can't be blocked or it is in a range of internal IP addresses that Wordfence does not block. You can remove this IP from the whitelist on the Wordfence options page.",
@@ -892,7 +1115,7 @@ class MainWP_Child_Wordfence {
 				);
 			}
 		}
-		self::getLog()->blockIP( $IP, $_POST['reason'], false, $perm );
+		wordfence::getLog()->blockIP( $IP, $_POST['reason'], false, $perm );
 
 		return array( 'ok' => 1 );
 	}
@@ -900,7 +1123,7 @@ class MainWP_Child_Wordfence {
 	function unblock_ip() {
 		if ( isset( $_POST['IP'] ) ) {
 			$IP = $_POST['IP'];
-			self::getLog()->unblockIP( $IP );
+			wordfence::getLog()->unblockIP( $IP );
 
 			return array( 'ok' => 1 );
 		}
@@ -908,7 +1131,7 @@ class MainWP_Child_Wordfence {
 
 	public function load_static_panel() {
 		$mode  = $_POST['mode'];
-		$wfLog = self::getLog();
+		$wfLog = wordfence::getLog();
 		if ( 'topScanners' === $mode || 'topLeechers' === $mode ) {
 			$results = $wfLog->getLeechers( $mode );
 		} else if ( 'blockedIPs' === $mode ) {
@@ -1206,5 +1429,373 @@ class MainWP_Child_Wordfence {
 
 		$return['ok'] = 1;
 		return $return;
+	}
+	
+	public function getDiagnostics() {
+
+		$diagnostic = new wfDiagnostic;
+		$plugins = get_plugins();
+		$activePlugins = array_flip(get_option('active_plugins'));
+		$activeNetworkPlugins = is_multisite() ? array_flip(wp_get_active_network_plugins()) : array();
+		$muPlugins = get_mu_plugins();
+		$themes = wp_get_themes();
+		$currentTheme = wp_get_theme();
+		$cols = 3;
+
+		$w = new wfConfig();
+		
+		$inEmail = false;
+		ob_start();
+		?>
+
+		<form id="wfConfigForm">
+			<table class="wf-table"<?php echo !empty($inEmail) ? ' border=1' : '' ?>>
+				<?php foreach ($diagnostic->getResults() as $title => $tests): ?>
+					<tbody class="thead">
+					<tr>
+						<th colspan="<?php echo $cols ?>"><?php echo esc_html($title) ?></th>
+					</tr>
+					</tbody>
+					<tbody>
+					<?php foreach ($tests as $result): ?>
+						<tr>
+							<td style="width: 75%;"
+								colspan="<?php echo $cols - 1 ?>"><?php echo wp_kses($result['label'], array(
+									'code'   => array(),
+									'strong' => array(),
+									'em'     => array(),
+									'a'      => array('href' => true),
+								)) ?></td>
+							<?php if ($result['test']): ?>
+								<td class="success"><?php echo esc_html($result['message']) ?></td>
+							<?php else: ?>
+								<td class="error"><?php echo esc_html($result['message']) ?></td>
+							<?php endif ?>
+						</tr>
+					<?php endforeach ?>
+					</tbody>
+					<tbody class="empty-row">
+					<tr>
+						<td colspan="<?php echo $cols ?>"></td>
+					</tr>
+					</tbody>
+				<?php endforeach ?>
+
+				<tbody class="thead">
+				<tr>
+					<th>IPs</th>
+					<th>Value</th>
+					<th>Used</th>
+				</tr>
+				</tbody>
+				<tbody>
+				<?php
+				$howGet = wfConfig::get('howGetIPs', false);
+				list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVarible();
+				foreach (array(
+							 'REMOTE_ADDR'           => 'REMOTE_ADDR',
+							 'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',
+							 'HTTP_X_REAL_IP'        => 'X-Real-IP',
+							 'HTTP_X_FORWARDED_FOR'  => 'X-Forwarded-For',
+						 ) as $variable => $label): ?>
+					<tr>
+						<td><?php echo $label ?></td>
+						<td><?php echo esc_html(array_key_exists($variable, $_SERVER) ? $_SERVER[$variable] : '(not set)') ?></td>
+						<?php if ($currentServerVarForIP && $currentServerVarForIP === $variable): ?>
+							<td class="success">In use</td>
+						<?php elseif ($howGet === $variable): ?>
+							<td class="error">Configured, but not valid</td>
+						<?php else: ?>
+							<td></td>
+						<?php endif ?>
+					</tr>
+				<?php endforeach ?>
+				</tbody>
+				<tbody class="empty-row">
+				<tr>
+					<td colspan="<?php echo $cols ?>"></td>
+				</tr>
+				</tbody>
+
+				<tbody class="thead">
+				<tr>
+					<th colspan="<?php echo $cols ?>">WordPress</th>
+				</tr>
+				</tbody>
+				<tbody>
+				<?php
+				require(ABSPATH . 'wp-includes/version.php');
+				$postRevisions = (defined('WP_POST_REVISIONS') ? WP_POST_REVISIONS : true);
+				$wordPressValues = array(
+					'WordPress Version' => array('description' => '', 'value' => $wp_version),
+					'WP_DEBUG' => array('description' => 'WordPress debug mode', 'value' => (defined('WP_DEBUG') && WP_DEBUG ? 'On' : 'Off')),
+					'WP_DEBUG_LOG' => array('description' => 'WordPress error logging override', 'value' => defined('WP_DEBUG_LOG') ? (WP_DEBUG_LOG ? 'Enabled' : 'Disabled') : '(not set)'),
+					'WP_DEBUG_DISPLAY' => array('description' => 'WordPress error display override', 'value' => defined('WP_DEBUG_DISPLAY') ? (WP_DEBUG_LOG ? 'Enabled' : 'Disabled') : '(not set)'),
+					'SCRIPT_DEBUG' => array('description' => 'WordPress script debug mode', 'value' => (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? 'On' : 'Off')),
+					'SAVEQUERIES' => array('description' => 'WordPress query debug mode', 'value' => (defined('SAVEQUERIES') && SAVEQUERIES ? 'On' : 'Off')),
+					'DB_CHARSET' => 'Database character set',
+					'DB_COLLATE' => 'Database collation',
+					'WP_SITEURL' => 'Explicitly set site URL',
+					'WP_HOME' => 'Explicitly set blog URL',
+					'WP_CONTENT_DIR' => array('description' => '"wp-content" folder is in default location', 'value' => (realpath(WP_CONTENT_DIR) === realpath(ABSPATH . 'wp-content') ? 'Yes' : 'No')),
+					'WP_CONTENT_URL' => 'URL to the "wp-content" folder',
+					'WP_PLUGIN_DIR' => array('description' => '"plugins" folder is in default location', 'value' => (realpath(WP_PLUGIN_DIR) === realpath(ABSPATH . 'wp-content/plugins') ? 'Yes' : 'No')),
+					'WP_LANG_DIR' => array('description' => '"languages" folder is in default location', 'value' => (realpath(WP_LANG_DIR) === realpath(ABSPATH . 'wp-content/languages') ? 'Yes' : 'No')),
+					'WPLANG' => 'Language choice',
+					'UPLOADS' => 'Custom upload folder location',
+					'TEMPLATEPATH' => array('description' => 'Theme template folder override', 'value' => (defined('TEMPLATEPATH') && realpath(get_template_directory()) !== realpath(TEMPLATEPATH) ? 'Overridden' : '(not set)')),
+					'STYLESHEETPATH' => array('description' => 'Theme stylesheet folder override', 'value' => (defined('STYLESHEETPATH') && realpath(get_stylesheet_directory()) !== realpath(STYLESHEETPATH) ? 'Overridden' : '(not set)')),
+					'AUTOSAVE_INTERVAL' => 'Post editing automatic saving interval',
+					'WP_POST_REVISIONS' => array('description' => 'Post revisions saved by WordPress', 'value' => is_numeric($postRevisions) ? $postRevisions : ($postRevisions ? 'Unlimited' : 'None')),
+					'COOKIE_DOMAIN' => 'WordPress cookie domain',
+					'COOKIEPATH' => 'WordPress cookie path',
+					'SITECOOKIEPATH' => 'WordPress site cookie path',
+					'ADMIN_COOKIE_PATH' => 'WordPress admin cookie path',
+					'PLUGINS_COOKIE_PATH' => 'WordPress plugins cookie path',
+					'WP_ALLOW_MULTISITE' => array('description' => 'Multisite/network ability enabled', 'value' => (defined('WP_ALLOW_MULTISITE') && WP_ALLOW_MULTISITE ? 'Yes' : 'No')),
+					'NOBLOGREDIRECT' => 'URL redirected to if the visitor tries to access a nonexistent blog',
+					'CONCATENATE_SCRIPTS' => array('description' => 'Concatenate JavaScript files', 'value' => (defined('CONCATENATE_SCRIPTS') && CONCATENATE_SCRIPTS ? 'Yes' : 'No')),
+					'WP_MEMORY_LIMIT' => 'WordPress memory limit',
+					'WP_MAX_MEMORY_LIMIT' => 'Administrative memory limit',
+					'WP_CACHE' => array('description' => 'Built-in caching', 'value' => (defined('WP_CACHE') && WP_CACHE ? 'Enabled' : 'Disabled')),
+					'CUSTOM_USER_TABLE' => array('description' => 'Custom "users" table', 'value' => (defined('CUSTOM_USER_TABLE') ? 'Set' : '(not set)')),
+					'CUSTOM_USER_META_TABLE' => array('description' => 'Custom "usermeta" table', 'value' => (defined('CUSTOM_USER_META_TABLE') ? 'Set' : '(not set)')),
+					'FS_CHMOD_DIR' => array('description' => 'Overridden permissions for a new folder', 'value' => defined('FS_CHMOD_DIR') ? decoct(FS_CHMOD_DIR) : '(not set)'),
+					'FS_CHMOD_FILE' => array('description' => 'Overridden permissions for a new file', 'value' => defined('FS_CHMOD_FILE') ? decoct(FS_CHMOD_FILE) : '(not set)'),
+					'ALTERNATE_WP_CRON' => array('description' => 'Alternate WP cron', 'value' => (defined('ALTERNATE_WP_CRON') && ALTERNATE_WP_CRON ? 'Enabled' : 'Disabled')),
+					'DISABLE_WP_CRON' => array('description' => 'WP cron status', 'value' => (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON ? 'Disabled' : 'Enabled')),
+					'WP_CRON_LOCK_TIMEOUT' => 'Cron running frequency lock',
+					'EMPTY_TRASH_DAYS' => array('description' => 'Interval the trash is automatically emptied at in days', 'value' => (EMPTY_TRASH_DAYS > 0 ? EMPTY_TRASH_DAYS : 'Never')),
+					'WP_ALLOW_REPAIR' => array('description' => 'Automatic database repair', 'value' => (defined('WP_ALLOW_REPAIR') && WP_ALLOW_REPAIR ? 'Enabled' : 'Disabled')),
+					'DO_NOT_UPGRADE_GLOBAL_TABLES' => array('description' => 'Do not upgrade global tables', 'value' => (defined('DO_NOT_UPGRADE_GLOBAL_TABLES') && DO_NOT_UPGRADE_GLOBAL_TABLES ? 'Yes' : 'No')),
+					'DISALLOW_FILE_EDIT' => array('description' => 'Disallow plugin/theme editing', 'value' => (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT ? 'Yes' : 'No')),
+					'DISALLOW_FILE_MOD' => array('description' => 'Disallow plugin/theme update and installation', 'value' => (defined('DISALLOW_FILE_MOD') && DISALLOW_FILE_MOD ? 'Yes' : 'No')),
+					'IMAGE_EDIT_OVERWRITE' => array('description' => 'Overwrite image edits when restoring the original', 'value' => (defined('IMAGE_EDIT_OVERWRITE') && IMAGE_EDIT_OVERWRITE ? 'Yes' : 'No')),
+					'FORCE_SSL_ADMIN' => array('description' => 'Force SSL for administrative logins', 'value' => (defined('FORCE_SSL_ADMIN') && FORCE_SSL_ADMIN ? 'Yes' : 'No')),
+					'WP_HTTP_BLOCK_EXTERNAL' => array('description' => 'Block external URL requests', 'value' => (defined('WP_HTTP_BLOCK_EXTERNAL') && WP_HTTP_BLOCK_EXTERNAL ? 'Yes' : 'No')),
+					'WP_ACCESSIBLE_HOSTS' => 'Whitelisted hosts',
+					'WP_AUTO_UPDATE_CORE' => array('description' => 'Automatic WP Core updates', 'value' => defined('WP_AUTO_UPDATE_CORE') ? (is_bool(WP_AUTO_UPDATE_CORE) ? (WP_AUTO_UPDATE_CORE ? 'Everything' : 'None') : WP_AUTO_UPDATE_CORE) : 'Default'),
+				);
+
+				foreach ($wordPressValues as $settingName => $settingData):
+					$escapedName = esc_html($settingName);
+					$escapedDescription = '';
+					$escapedValue = '(not set)';
+					if (is_array($settingData)) {
+						$escapedDescription = esc_html($settingData['description']);
+						if (isset($settingData['value'])) {
+							$escapedValue = esc_html($settingData['value']);
+						}
+					}
+					else {
+						$escapedDescription = esc_html($settingData);
+						if (defined($settingName)) {
+							$escapedValue = esc_html(constant($settingName));
+						}
+					}
+				?>
+					<tr>
+						<td><strong><?php echo $escapedName ?></strong></td>
+						<td><?php echo $escapedDescription ?></td>
+						<td><?php echo $escapedValue ?></td>
+					</tr>
+				<?php endforeach ?>
+				</tbody>
+				<tbody class="empty-row">
+				<tr>
+					<td colspan="<?php echo $cols ?>"></td>
+				</tr>
+				</tbody>
+
+				<tbody class="thead">
+				<tr>
+					<th colspan="<?php echo $cols ?>">WordPress Plugins</th>
+				</tr>
+				</tbody>
+				<tbody>
+				<?php foreach ($plugins as $plugin => $pluginData): ?>
+					<tr>
+						<td colspan="<?php echo $cols - 1 ?>"><strong><?php echo esc_html($pluginData['Name']) ?></strong>
+							<?php if (!empty($pluginData['Version'])): ?>
+								- Version <?php echo esc_html($pluginData['Version']) ?>
+							<?php endif ?>
+						</td>
+						<?php if (array_key_exists(trailingslashit(WP_PLUGIN_DIR) . $plugin, $activeNetworkPlugins)): ?>
+							<td class="success">Network Activated</td>
+						<?php elseif (array_key_exists($plugin, $activePlugins)): ?>
+							<td class="success">Active</td>
+						<?php else: ?>
+							<td class="inactive">Inactive</td>
+						<?php endif ?>
+					</tr>
+				<?php endforeach ?>
+				</tbody>
+
+				<tbody class="empty-row">
+				<tr>
+					<td colspan="<?php echo $cols ?>"></td>
+				</tr>
+				</tbody>
+				<tbody class="thead">
+				<tr>
+					<th colspan="<?php echo $cols ?>">Must-Use WordPress Plugins</th>
+				</tr>
+				</tbody>
+				<?php if (!empty($muPlugins)): ?>
+					<tbody>
+					<?php foreach ($muPlugins as $plugin => $pluginData): ?>
+						<tr>
+							<td colspan="<?php echo $cols - 1 ?>">
+								<strong><?php echo esc_html($pluginData['Name']) ?></strong>
+								<?php if (!empty($pluginData['Version'])): ?>
+									- Version <?php echo esc_html($pluginData['Version']) ?>
+								<?php endif ?>
+							</td>
+							<td class="success">Active</td>
+						</tr>
+					<?php endforeach ?>
+					</tbody>
+				<?php else: ?>
+					<tbody>
+					<tr>
+						<td colspan="<?php echo $cols ?>">No MU-Plugins</td>
+					</tr>
+					</tbody>
+
+				<?php endif ?>
+
+				<tbody class="empty-row">
+				<tr>
+					<td colspan="<?php echo $cols ?>"></td>
+				</tr>
+				</tbody>
+				<tbody class="thead">
+				<tr>
+					<th colspan="<?php echo $cols ?>">Themes</th>
+				</tr>
+				</tbody>
+				<?php if (!empty($themes)): ?>
+					<tbody>
+					<?php foreach ($themes as $theme => $themeData): ?>
+						<tr>
+							<td colspan="<?php echo $cols - 1 ?>">
+								<strong><?php echo esc_html($themeData['Name']) ?></strong>
+								Version <?php echo esc_html($themeData['Version']) ?></td>
+							<?php if ($currentTheme instanceof WP_Theme && $theme === $currentTheme->get_stylesheet()): ?>
+								<td class="success">Active</td>
+							<?php else: ?>
+								<td class="inactive">Inactive</td>
+							<?php endif ?>
+						</tr>
+					<?php endforeach ?>
+					</tbody>
+				<?php else: ?>
+					<tbody>
+					<tr>
+						<td colspan="<?php echo $cols ?>">No MU-Plugins</td>
+					</tr>
+					</tbody>
+
+				<?php endif ?>
+
+				<tbody class="empty-row">
+				<tr>
+					<td colspan="<?php echo $cols ?>"></td>
+				</tr>
+				</tbody>
+				<tbody class="thead">
+				<tr>
+					<th colspan="<?php echo $cols ?>">Cron Jobs</th>
+				</tr>
+				</tbody>
+				<tbody>
+				<?php
+				$cron = _get_cron_array();
+
+				foreach ($cron as $timestamp => $values) {
+					if (is_array($values)) {
+						foreach ($values as $cron_job => $v) {
+							if (is_numeric($timestamp)) {
+								?>
+								<tr>
+									<td colspan="<?php echo $cols - 1 ?>"><?php echo esc_html(date('r', $timestamp)) ?></td>
+									<td><?php echo esc_html($cron_job) ?></td>
+								</tr>
+								<?php
+							}
+						}
+					}
+				}
+				?>
+				</tbody>
+			</table>
+			<?php
+			$wfdb = new wfDB();
+			$q = $wfdb->querySelect("show table status");
+			if ($q):
+				$databaseCols = count($q[0]);
+				?>
+				<div style="max-width: 100%; overflow: auto; padding: 1px;">
+					<table class="wf-table"<?php echo !empty($inEmail) ? ' border=1' : '' ?>>
+						<tbody class="empty-row">
+						<tr>
+							<td colspan="<?php echo $databaseCols ?>"></td>
+						</tr>
+						</tbody>
+						<tbody class="thead">
+						<tr>
+							<th colspan="<?php echo $databaseCols ?>">Database Tables</th>
+						</tr>
+						</tbody>
+						<tbody class="thead thead-subhead" style="font-size: 85%">
+						<?php
+						$val = array_shift($q);
+						?>
+						<tr>
+							<?php foreach ($val as $tkey => $tval): ?>
+								<th><?php echo esc_html($tkey) ?></th>
+							<?php endforeach; ?>
+						</tr>
+						</tbody>
+						<tbody style="font-size: 85%">
+						<?php
+						foreach ($q as $val): ?>
+							<tr>
+								<?php foreach ($val as $tkey => $tval): ?>
+									<td><?php echo esc_html($tval) ?></td>
+								<?php endforeach; ?>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+
+					</table>
+				</div>
+				<?php endif ?>
+			</form>
+		</div>	
+		<?php
+		$html = ob_get_clean();
+		return array('ok' => 1, 'html' => $html);
+
+	}
+	
+	public static function updateWAFRules() {
+		$event = new wfWAFCronFetchRulesEvent(time() - 2);
+		$event->setWaf(wfWAF::getInstance());
+		$event->fire();
+		$isPaid = (bool) wfConfig::get('isPaid', 0);
+		//return self::_getWAFData();
+		return array('ok' => 1, 'isPaid' => $isPaid );
+	}
+        
+        public static function save_debugging_config() {		
+		$settings = $_POST['settings'];	                
+		foreach (self::$diagnosticParams as $param) {
+                    if (isset($settings[$param])) {
+                        wfConfig::set( $param, $settings[$param] );
+			
+                    }
+		}                
+		return array('ok' => 1 );
 	}
 }

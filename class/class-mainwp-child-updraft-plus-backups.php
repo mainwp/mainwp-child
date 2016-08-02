@@ -384,6 +384,15 @@ class MainWP_Child_Updraft_Plus_Backups {
 							$opts['secret']   = $settings[ $key ]['secret'];
 							$opts['folder']   = $settings[ $key ]['folder'];
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
+						} else if ( 'updraft_googlecloud' === $key ) {
+							$opts             = UpdraftPlus_Options::get_updraft_option( $key );
+							$opts['clientid'] = $settings[ $key ]['clientid'];
+							$opts['secret']   = $settings[ $key ]['secret'];
+							$opts['project_id']   = $settings[ $key ]['project_id'];
+                                                        $opts['bucket_path']   = $settings[ $key ]['bucket_path'];
+                                                        $opts['storage_class']   = $settings[ $key ]['storage_class'];
+                                                        $opts['bucket_location']   = $settings[ $key ]['bucket_location'];
+							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} else if ( 'updraft_onedrive' === $key ) {
 							$opts             = UpdraftPlus_Options::get_updraft_option( 'updraft_onedrive' );
 							$opts['clientid'] = $settings[ $key ]['clientid'];
