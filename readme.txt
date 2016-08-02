@@ -62,7 +62,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Fixed: an issue with saving UpdraftPlus extension settings
 * Fixed: an issue with extracting URL for the MainWP URL Extractor Extension
 * Fixed: an issue with including new tables in database backup for individual BackWPup Extension jobs
-* Updated: support for new iThemes Secuirty options
+* Updated: support for new iThemes Security options
 
 = 3.1.5 - 7-12-16 =
 * Fixed: Incompatibility with the new version of the iThemes Security version
