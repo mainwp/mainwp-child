@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.5.2
-Stable tag: 3.1.5
+Tested up to: 4.5.3
+Stable tag: 3.1.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -57,7 +57,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 == Changelog ==
 
-= 3.1.5 - 9-12-16 =
+= 3.1.6 - 8-2-16 =
+* Fixed: an issue with loading too much data from the Broken Links Checker
+* Fixed: an issue with saving UpdraftPlus extension settings
+* Fixed: an issue with extracting URL for the MainWP URL Extractor Extension
+* Fixed: an issue with including new tables in database backup for individual BackWPup Extension jobs
+* Updated: support for new iThemes Secuirty options
+
+= 3.1.5 - 7-12-16 =
 * Fixed: Incompatibility with the new version of the iThemes Security version
 * Added: Support for the new iThemes Security features
 * Added: Support for the new WP Rocket features
