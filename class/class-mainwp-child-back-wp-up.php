@@ -339,7 +339,7 @@ class MainWP_Child_Back_WP_Up {
 		echo '<tr title=""><td>' . __( 'Operating System', 'backwpup' ) . '</td><td>' . esc_html( PHP_OS ) . '</td></tr>';
 		echo '<tr title=""><td>' . __( 'PHP SAPI', 'backwpup' ) . '</td><td>' . esc_html( PHP_SAPI ) . '</td></tr>';
 		echo '<tr title=""><td>' . __( 'Current PHP user', 'backwpup' ) . '</td><td>' . esc_html( get_current_user() ) . '</td></tr>';
-		$text = (bool) ini_get( 'safe_mode' ) ? __( 'On', 'backwpup' ) : __( 'Off', 'backwpup' );
+		$text = version_compare(phpversion(), '5.3.0') < 0 && (bool) ini_get( 'safe_mode' ) ? __( 'On', 'backwpup' ) : __( 'Off', 'backwpup' );
 		echo '<tr title=""><td>' . __( 'Safe Mode', 'backwpup' ) . '</td><td>' . $text . '</td></tr>';
 		echo '<tr title="&gt;=30"><td>' . __( 'Maximum execution time', 'backwpup' ) . '</td><td>' . ini_get( 'max_execution_time' ) . ' ' . __( 'seconds', 'backwpup' ) . '</td></tr>';
 		if ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) {

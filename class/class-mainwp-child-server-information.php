@@ -1171,7 +1171,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getPHPSafeMode() {
-		if ( ini_get( 'safe_mode' ) ) {
+		if ( version_compare(phpversion(), '5.3.0') < 0 && ini_get( 'safe_mode' ) ) {
 			$safe_mode = __( 'ON' );
 		} else {
 			$safe_mode = __( 'OFF' );

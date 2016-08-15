@@ -1002,8 +1002,8 @@ class MainWP_Child {
 				$uploadDir        = $uploadDir[0];
 				$excludes[]       = str_replace( ABSPATH, '', $uploadDir );
 				$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
-				if ( ! ini_get( 'safe_mode' ) ) {
-					set_time_limit( 6000 );
+				if ( version_compare(phpversion(), '5.3.0') >= 0 || ! ini_get( 'safe_mode' ) ) {
+					@set_time_limit( 6000 );
 				}
 
 				$newExcludes = array();
