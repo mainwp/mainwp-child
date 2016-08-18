@@ -58,7 +58,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Changelog ==
 
 = 3.1.7 - 8-18-16 =
-* Fixed: Issues with PHP 7 - The MainWP Dashboard is now PHP 7 friendly! :-) 
+* Fixed: Issues with PHP 7 - The MainWP Child is now PHP 7 friendly! :-) 
 * Added: Support for an upcoming extension (BacukpBuddy Extension)
 
 = 3.1.6 - 8-2-16 =
