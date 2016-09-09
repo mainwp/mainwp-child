@@ -2032,6 +2032,8 @@ class MainWP_Child {
 		$information['added_id'] = $res['added_id'];
 		$information['link']     = $res['link'];
 
+		do_action('mainwp_child_after_newpost', $res);
+
 		MainWP_Helper::write( $information );
 	}
 
