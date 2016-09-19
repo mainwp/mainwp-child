@@ -727,7 +727,7 @@ class MainWP_Child_Back_WP_Up {
 	protected function backup_now() {
 
 		if ( ! isset( $_POST['settings']['job_id'] ) ) {
-			return array( 'error' => __( 'Missing job id', $this->plugin_translate ) );
+			return array( 'error' => __( 'Missing job_id', $this->plugin_translate ) );
 		}
 
 		// Simulate http://wp/wp-admin/admin.php?jobid=1&page=backwpupjobs&action=runnow
@@ -1048,7 +1048,7 @@ class MainWP_Child_Back_WP_Up {
 		}
 
 		if ( ! isset( $settings['job_id'] ) ) {
-			return array( 'error' => __( 'Missing job id', $this->plugin_translate ) );
+			return array( 'error' => __( 'Missing job_id', $this->plugin_translate ) );
 		}
 
 		if ( $settings['job_id'] > 0 ) {
@@ -1120,7 +1120,7 @@ class MainWP_Child_Back_WP_Up {
 		}
 
 		if ( ! isset( $settings['job_id'] ) ) {
-			return array( 'error' => __( 'Missing job id', $this->plugin_translate ) );
+			return array( 'error' => __( 'Missing job_id', $this->plugin_translate ) );
 		}
 
 		if ( ! class_exists( 'BackWPup' ) ) {
