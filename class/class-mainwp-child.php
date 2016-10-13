@@ -3096,6 +3096,10 @@ class MainWP_Child {
 	function get_favicon() {
 		$favi = '';
 
+		if ( has_site_icon() ) {
+			$favi = get_site_icon_url();
+		}
+
 		if ( empty( $favi ) ) {
 			if ( file_exists( ABSPATH . 'favicon.ico' ) ) {
 				$favi = 'favicon.ico';
