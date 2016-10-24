@@ -89,13 +89,13 @@ class MainWP_Clone_Install {
 
 	public function testDownload() {
 		if ( ! $this->file_exists( 'wp-content/' ) ) {
-			throw new Exception( __( 'Not a full backup.', 'mainwp-child' ) );
+			throw new Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-admin/' ) ) {
-			throw new Exception( __( 'Not a full backup.', 'mainwp-child' ) );
+			throw new Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-content/dbBackup.sql' ) ) {
-			throw new Exception( __( 'Database backup not found.', 'mainwp-child' ) );
+			throw new Exception( __( 'Database backup is missing.', 'mainwp-child' ) );
 		}
 	}
 
@@ -137,7 +137,7 @@ class MainWP_Clone_Install {
 	public function readConfigurationFile() {
 		$configContents = $this->getConfigContents();
 		if ( false === $configContents ) {
-			throw new Exception( __( 'Cant read configuration file from backup', 'mainwp-child' ) );
+			throw new Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
 		$this->config = maybe_unserialize( base64_decode( $configContents ) );
 
@@ -161,7 +161,7 @@ class MainWP_Clone_Install {
 
 		$db_selected = @MainWP_Child_DB::select_db( $this->config['dbName'], $link );
 		if ( ! $db_selected ) {
-			throw new Exception( __( 'Invalid database name', 'mainwp-child' ) );
+			throw new Exception( __( 'Invalid database name.', 'mainwp-child' ) );
 		}
 	}
 
@@ -259,7 +259,7 @@ class MainWP_Clone_Install {
 				}
 
 				if ( ! feof( $handle ) ) {
-					throw new Exception( __( 'Error: unexpected end of file for database', 'mainwp-child' ) );
+					throw new Exception( __( 'Error: unexpected end of file for database.', 'mainwp-child' ) );
 				}
 				fclose( $handle );
 			}

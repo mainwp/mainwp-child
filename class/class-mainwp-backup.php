@@ -51,7 +51,7 @@ class MainWP_Backup {
 			}
 
 			if ( ( time() - filemtime( $file ) ) < 160 ) {
-				MainWP_Helper::error( 'Another backup process is running, try again later' );
+				MainWP_Helper::error( __( 'Another backup process is running. Please, try again later.', 'mainwp-child' ) );
 			}
 		}
 

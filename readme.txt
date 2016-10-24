@@ -6,7 +6,7 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.6
+Tested up to: 4.6.1
 Stable tag: 3.1.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
@@ -243,7 +243,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Fixed: Spelling error
 * Updated: Required values on the Server Information page
 * Updated: Layout of the Server Information page
-* Removed: Unnecessary checks from the Sever Information page
+* Removed: Unnecessary checks from the Server Information page
 * Enhancement: Reduced page load time by autoloading common options
 
 = 2.0.14 - 4-28-15 =

@@ -366,7 +366,7 @@ class MainWP_Client_Report {
 									continue;
 								}
 							} else if ( 'mainwp_backups' === $context ) {
-								if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' &&  $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' ) {
+								if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' &&  $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' && $record->context !== 'backupbuddy_backups' ) {
 									continue;
 								}
 							} else if ( 'mainwp_sucuri' === $context ) {
@@ -485,7 +485,7 @@ class MainWP_Client_Report {
 					$users_updated = true;
 				}
 			} else if ( 'mainwp_backups' === $context ) {
-				if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' ) {
+				if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups'  && $record->context !== 'backupbuddy_backups' ) {
 					continue;
 				}
 			} else if ( 'mainwp_sucuri' === $context ) {

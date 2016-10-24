@@ -2,7 +2,7 @@
 
 class MainWP_Child_Back_Up_Wordpress {
 	public static $instance = null;
-
+        public $is_plugin_installed = false;
 	static function Instance() {
 		if ( null === MainWP_Child_Back_Up_Wordpress::$instance ) {
 			MainWP_Child_Back_Up_Wordpress::$instance = new MainWP_Child_Back_Up_Wordpress();
@@ -10,12 +10,25 @@ class MainWP_Child_Back_Up_Wordpress {
 
 		return MainWP_Child_Back_Up_Wordpress::$instance;
 	}
-
+        
+        public function __construct() {
+		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		if ( is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
+                    $this->is_plugin_installed = true;			
+		}
+                
+        }
 	public function init() {
 		if ( get_option( 'mainwp_backupwordpress_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
-
+                
+                if (!$this->is_plugin_installed)
+                    return;
+                    
+                add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
+                add_action( 'mainwp_extensions_reports_backups', array( $this, 'do_reports_backups' ) );
+                
 		if ( get_option( 'mainwp_backupwordpress_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
@@ -132,7 +145,31 @@ class MainWP_Child_Back_Up_Wordpress {
 
 		return $return;
 	}
-
+        
+        function do_site_stats() {            
+            do_action( 'mainwp_client_reports_backups', 'backupwordpress');					
+	}
+        
+        function do_reports_backups($ext = '') {  
+            if ($ext !== 'backupwordpress')
+                return;
+            // Refresh the schedules from the database to make sure we have the latest changes
+            HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
+            $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
+            foreach($schedules as $schedule) {
+                foreach ( $schedule->get_backups() as $file ) {    
+                    $backup_type =  $schedule->get_type();
+                    $message = "BackupWordpres backup " .  $backup_type . ' finished';                    
+                    $destination = "N/A";                          
+                    if ( file_exists($file) ) {                    
+                        $date = @filemtime( $file );     
+                        if (!empty($date))
+                            do_action("backupwordpress_backup", $destination , $message, 'finished', $backup_type, $date);
+                    }   
+                }
+            }
+        }
+        
 	function set_showhide() {
 		MainWP_Helper::update_option( 'mainwp_backupwordpress_ext_enabled', 'Y' );
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -221,7 +258,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			$task = new \HM\Backdrop\Task( '\HM\BackUpWordPress\run_schedule_async', $schedule_id );
 			$task->schedule();
 		} else
-			return array( 'error' => __('Error run schedule', 'mainwp-child') );
+			return array( 'error' => __('Error while trying to trigger the schedule', 'mainwp-child') );
 		return array( 'result' => 'SUCCESS' );
 	}
 
@@ -237,7 +274,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		}
 
 		if ( empty( $all_schedules_ids ) ) {
-			return array( 'error' => 'Not found schedules.' );
+			return array( 'error' => 'Schedules could not be found.' );
 		}
 
 		foreach ( $all_schedules_ids as $schedule_id ) {
@@ -306,7 +343,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 	function hmbkp_request_delete_backup() {
 		if ( ! isset( $_POST['hmbkp_backuparchive'] ) || empty( $_POST['hmbkp_backuparchive'] ) ) {
-			return array( 'error' => __( 'Error data.', 'mainwp-child' ) );
+			return array( 'error' => __( 'Invalid data!', 'mainwp-child' ) );
 		}
 
 		$schedule_id = $this->check_schedule();
@@ -1030,6 +1067,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			}
 
 			update_option( 'hmbkp_schedule_' . $sch_id, $options );
+                        delete_transient( 'hmbkp_schedules' );
 			$out['result'] = 'SUCCESS';
 		} else {
 			$out['result'] = 'NOTCHANGE';
@@ -1099,6 +1137,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			}
 			$out['result'] = 'SUCCESS';
 		}
+                delete_transient( 'hmbkp_schedules' );
 		return $out;
 	}
 

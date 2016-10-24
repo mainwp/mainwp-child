@@ -261,7 +261,7 @@ class MainWP_Helper {
 		$wp_error = null;
 
 		if ( $is_ezine_post || $is_post_plus ) {
-			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) ) {
+			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && $new_post['post_date_gmt'] != '0000-00-00 00:00:00' ) {
 				$post_date_timestamp     = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
 				$new_post['post_date']   = date( 'Y-m-d H:i:s', $post_date_timestamp );
 				$new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';

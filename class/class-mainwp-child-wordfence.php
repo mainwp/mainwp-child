@@ -150,7 +150,7 @@ class MainWP_Child_Wordfence {
 	public function action() {
 		$information = array();
 		if ( ! $this->is_wordfence_installed ) {
-			MainWP_Helper::write( array( 'error' => __( 'Please install Wordfence plugin on child website', $this->plugin_translate ) ) );
+			MainWP_Helper::write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
 			return;
 		}
 
@@ -1036,6 +1036,9 @@ class MainWP_Child_Wordfence {
         } 
         
         private static function _getWAFData() {
+                if(!class_exists('wfWAF'))
+                    return false;
+                
 		$data['learningMode'] = wfWAF::getInstance()->isInLearningMode();
 		$data['rules'] = wfWAF::getInstance()->getRules();
 		/** @var wfWAFRule $rule */

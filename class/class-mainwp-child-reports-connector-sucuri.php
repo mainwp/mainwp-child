@@ -66,10 +66,10 @@ if ( class_exists( 'MainWP_WP_Stream_Connector' ) ) {
 		public static function callback_mainwp_sucuri_scan( $data, $scan_status ) {
 			$message = '';
 			if ( 'success' === $scan_status ) {
-				$message     = __( 'Sucuri scan success', 'mainwp-child' );
+				$message     = __( 'Sucuri scan successful!', 'mainwp-child' );
 				$scan_status = 'success';
 			} else {
-				$message     = __( 'Sucuri scan failed', 'mainwp-child' );
+				$message     = __( 'Sucuri scan failed!', 'mainwp-child' );
 				$scan_status = 'failed';
 			}
 
