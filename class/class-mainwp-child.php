@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.1.7';
+	public static $version = '3.2';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -1297,17 +1297,18 @@ class MainWP_Child {
 
 		MainWP_Child_Back_WP_Up::Instance()->init();
                 
-                new MainWP_Child_Back_Up_Buddy();                
-                
-                global $_wp_submenu_nopriv;
-                if ($_wp_submenu_nopriv === null)
-                    $_wp_submenu_nopriv = array(); // fix warning
+        new MainWP_Child_Back_Up_Buddy();
+
+        global $_wp_submenu_nopriv;
+        if ($_wp_submenu_nopriv === null)
+            $_wp_submenu_nopriv = array(); // fix warning
                     //
 		//Call the function required
 		if ( $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) ) {
 			define( 'DOING_CRON', true );
-                        global $wp_db_version;                        
-                        require_once( ABSPATH . 'wp-admin/admin.php' );
+//			ob_start();
+//            require_once( ABSPATH . 'wp-admin/admin.php' );
+//			ob_end_clean();
 			MainWP_Child::fix_for_custom_themes();
 			call_user_func( array( $this, $this->callableFunctions[ $_POST['function'] ] ) );
 		} else if ( isset( $_POST['function'] ) && isset( $this->callableFunctionsNoAuth[ $_POST['function'] ] ) ) {
@@ -1372,7 +1373,6 @@ class MainWP_Child {
 		if ( isset( $current_user->user_login ) ) {
 			if ( $current_user->user_login === $username ) {
 				wp_set_auth_cookie( $current_user->ID );
-
 				return true;
 			}
 
@@ -1386,7 +1386,6 @@ class MainWP_Child {
 
 			wp_set_current_user( $user->ID );
 			wp_set_auth_cookie( $user->ID );
-
 			if ( $doAction ) {
 				do_action( 'wp_login', $user->user_login );
 			}
