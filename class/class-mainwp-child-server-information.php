@@ -1586,6 +1586,7 @@ class MainWP_Child_Server_Information {
         
         public static function renderConnectionDetails() {
             global $current_user;
+	        $uniqueId = get_option('mainwp_child_uniqueId');
             $details = array(
                 'siteurl' => array(
                                 'title' => __('Site URL', 'mainwp'),
@@ -1604,7 +1605,7 @@ class MainWP_Child_Server_Information {
                             ),
                 'uniqueid' => array(
                                 'title' => __('Child unique security id', 'mainwp'),
-                                'value' => !empty(get_option('mainwp_child_uniqueId')) ? get_option('mainwp_child_uniqueId') : __('Leave the field blank', 'mainwp-child'),
+                                'value' => !empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
                                 'desc' => __('Child unique security id is not required, however, since you have enabled it, you need to add it to your MainWP dashboad.', 'mainwp')                            
                             ),
                 'verify_ssl' => array(

@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.2';
+	public static $version = '3.2.1';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -2236,8 +2236,9 @@ class MainWP_Child {
                             return array('error' => 'You can&#8217;t give users that role.');                                
                 } 
 
-                if ( isset( $data['email'] ) && !empty(trim($data['email'])))
-                        $user->user_email = sanitize_text_field( wp_unslash( $data['email'] ) );                
+	            $email = trim($data['email']);
+                if ( isset( $data['email'] ) && !empty( $email ) )
+                        $user->user_email = sanitize_text_field( wp_unslash( $email ) );
                 else
                         $user->user_email = $userdata->user_email;                
                 

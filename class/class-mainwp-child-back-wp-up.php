@@ -79,9 +79,10 @@ class MainWP_Child_Back_WP_Up {
 		error_reporting( 0 );
 		function mainwp_backwpup_handle_fatal_error() {
 			$error = error_get_last();
+			$info = MainWP_Child_Back_WP_Up::$information;
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
-			} else if ( ! empty( MainWP_Child_Back_WP_Up::$information ) ) {
+			} else if ( ! empty( $info ) ) {
 				MainWP_Helper::write( MainWP_Child_Back_WP_Up::$information );
 			} else {
 				MainWP_Helper::write( array( 'error' => 'Missing information array inside fatal_error' ) );
