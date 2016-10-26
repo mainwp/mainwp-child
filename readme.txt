@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.6.1
-Stable tag: 3.1.7
+Stable tag: 3.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,20 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.2 - 10-26-16 =
+* Fixed: An issue with installing plugins and themes on HTTP Basic Authentication protected sites
+* Fixed: Support for the Divi Theme updates
+* Fixed: An issue with Themes search on the Auto Update themes page
+* Fixed: An issue with getting child site favicon
+* Fixed: An issue where BackUpWordPress schedules couldn't be found
+* Fixed: An issue with recording BackWPup, BackUpWordPress and BackupBuddy backups for Client Reports
+* Fixed: An issue with dismissing warning message if the WordPress All Import plugin is installed
+* Fixed: An issue with publishing Drafts from the Post Plus extension
+* Added: Support for the new Edit User feature
+* Added: Connection details tab
+* Added: Support for deleting active plugins
+* Updated: Number of categories pulled from child sites (from 50 to 300)
 
 = 3.1.7 - 8-18-16 =
 * Fixed: Issues with PHP 7 - The MainWP Child is now PHP 7 friendly! :-) 
