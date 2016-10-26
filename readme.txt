@@ -59,7 +59,6 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 = 3.2 - 10-26-16 =
 * Fixed: An issue with installing plugins and themes on HTTP Basic Authentication protected sites
-* Fixed: Support for the Divi Theme updates
 * Fixed: An issue with Themes search on the Auto Update themes page
 * Fixed: An issue with getting child site favicon
 * Fixed: An issue where BackUpWordPress schedules couldn't be found
