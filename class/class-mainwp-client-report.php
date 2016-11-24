@@ -241,8 +241,12 @@ class MainWP_Client_Report {
 			}
 		}
 
+        if ( MainWP_Child_Branding::is_branding() ) {
+            $args['hide_child_reports'] = 1;
+        }
+
 		$args['records_per_page'] = 9999;
-		//        error_log(print_r($args, true));
+
 
 		if ( self::$mainwpChildReports ) {
 			$records = mainwp_wp_stream_query( $args );

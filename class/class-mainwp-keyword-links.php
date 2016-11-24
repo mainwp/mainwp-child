@@ -131,7 +131,6 @@ class MainWP_Keyword_Links {
 			if ( empty( $redirection_folder ) ) {
 				$rules = $this->get_cloak_rules();
 				$rules = $this->mod_rewrite_rules( $rules );
-				//error_log(print_r($rules, true));
 				//self::clear_htaccess();
 			} else {
 				//Create rewrite ruler

@@ -30,7 +30,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function showWarnings() {
-		if ( stristr( $_SERVER['REQUEST_URI'], 'MainWP_Child_Server_Information' ) ) {
+		if ( stristr( $_SERVER['REQUEST_URI'], 'mainwp_child_tab' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-page' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-settings' )) {
 			return;
 		}
 
@@ -124,7 +124,7 @@ class MainWP_Child_Server_Information {
 				$warning = '';
 
 				if ( $warnings > 0 ) {
-					$warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="admin.php?page=MainWP_Child_Server_Information">MainWP server information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a></td><td style="text-align: right;"><a href="#" id="mainwp-child-connect-warning-dismiss">Dismiss</a></td></tr>';
+					$warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=mainwp_child_tab">MainWP server information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a></td><td style="text-align: right;"><a href="#" id="mainwp-child-connect-warning-dismiss">Dismiss</a></td></tr>';
 				}
 				echo $warning;
 				?>
@@ -598,7 +598,7 @@ class MainWP_Child_Server_Information {
 				<td style="background: #333; color: #fff;"
 				    colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
 			</tr><?php
-			self::renderRow( 'PHP Version', '>=', '5.3', 'getPHPVersion' );
+			self::renderRow( 'PHP Version', '>=', '5.6', 'getPHPVersion' );
 			?>
 			<tr>
 				<td></td>
@@ -606,7 +606,7 @@ class MainWP_Child_Server_Information {
 				<td colspan="3"><?php self::getPHPSafeMode(); ?></td>
 			</tr>
 			<?php
-			self::renderRow( 'PHP Max Execution Time', '>=', '30', 'getMaxExecutionTime', 'seconds', '=', '0' );
+			self::renderRowSec( 'PHP Max Execution Time', '>=', '30', 'getMaxExecutionTime', 'seconds', '=', '0' );
 			self::renderRowSec( 'PHP Max Input Time', '>=', '30', 'getMaxInputTime', 'seconds', '=', '0' );
 			self::renderRow( 'PHP Memory Limit', '>=', '128M', 'getPHPMemoryLimit', '(256M+ best for big backups)', null, null, true );
 			self::renderRow( 'PCRE Backtracking Limit', '>=', '10000', 'getOutputBufferSize' );
@@ -1033,7 +1033,7 @@ class MainWP_Child_Server_Information {
 				<td><?php echo( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
 			<?php } else if ( $whatType == 'curlssl' ) { ?>
 				<td><?php echo( self::curlssl_compare( $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
-			<?php } else if ($pGetter == 'getMaxInputTime' && $currentVersion == -1) { ?>
+			<?php } else if (($pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime') && $currentVersion == -1) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
 				<td><?php echo (version_compare($currentVersion, $pVersion, $pCompare) || (($pExtraCompare != null) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare)) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType )); ?></td>

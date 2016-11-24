@@ -38,7 +38,7 @@ class MainWP_Child_Branding {
 		if ( ! self::is_branding() ) {
 			return $plugin_meta;
 		}
-
+        // hide View details links
 		$meta_total = count( $plugin_meta );
 		for ( $i = 0; $i < $meta_total; $i++ ) {
 			$str_meta = $plugin_meta[ $i ];
