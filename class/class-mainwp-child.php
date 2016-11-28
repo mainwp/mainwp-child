@@ -4184,8 +4184,6 @@ class MainWP_Child {
 		$rslt    = array();
 		$plugins = get_plugins();
 		if ( is_array( $plugins ) ) {
-			$active_plugins = get_option( 'active_plugins' );
-
 			foreach ( $plugins as $pluginslug => $plugin ) {
 				$out                = array();
 				$out['mainwp']    = ($pluginslug == $this->plugin_slug ? 'T' : 'F');
@@ -4193,7 +4191,7 @@ class MainWP_Child {
 				$out['slug']        = $pluginslug;
 				$out['description'] = $plugin['Description'];
 				$out['version']     = $plugin['Version'];
-				$out['active']      = ( is_array( $active_plugins ) && in_array( $pluginslug, $active_plugins ) ) ? 1 : 0;
+				$out['active']      = is_plugin_active( $pluginslug );
 				if ( ! $filter ) {
 					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
 						$rslt[] = $out;
