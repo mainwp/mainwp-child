@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.6.1
-Stable tag: 3.2.1
+Stable tag: 3.2.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,22 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.2.2 - 12-01-16 =
+* Fixed: an issue with activating the BackUpWordPress plugin
+* Fixed: an issue with edit user feature
+* Fixed: an issue with activating the WP Rocket plugin
+* Fixed: an issue with displaying Scheduled Posts and Pages in the Recent Posts and Recent Pages widget
+* Fixed: an issue with false alert with PHP Max Execution time set to -1
+* Fixed: incorrect links to the MainWP Child Setting page
+* Fixed: an issue with UpdraftPlus Pro version updates
+* Fixed: an issue with showing the MainWP Child Plugin updates in client reports when the MainWP Child Plugin is hidden
+* Added: support for %sitename% and %site_url% tokens for directory path settings for the UpdraftPlus extension
+* Added: support for the new Edit Posts and Pages process
+* Added: 'mainwp_create_post_custom_author' hook
+* Added: support for the Reload remote destination function (MainWP Buddy Extension)
+* Added: support for the new Wordfence options
+* Updated: PHP requirement bumped to 5.6
 
 = 3.2.1 - 10-26-16 =
 * Added: Support for PHP 5.4 and below
