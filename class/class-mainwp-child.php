@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.2.2';
+	public static $version = '3.2.3';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -146,8 +146,8 @@ class MainWP_Child {
 		'wp_rocket'             => 'wp_rocket',
 		'settings_tools'        => 'settings_tools',
 		'skeleton_key'          => 'skeleton_key',
-		'custom_post_type'	=> 'custom_post_type',
-                'backup_buddy'             => 'backup_buddy',
+		'custom_post_type'	    => 'custom_post_type',
+        'backup_buddy'          => 'backup_buddy',
 	);
 
 	private $FTP_ERROR = 'Failed! Please, add FTP details for automatic updates.';
@@ -186,7 +186,7 @@ class MainWP_Child {
 		add_action( 'init', array( &$this, 'parse_init' ), 33 );
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
-                add_action( 'admin_head', array( &$this, 'admin_head' ) );
+		add_action( 'admin_head', array( &$this, 'admin_head' ) );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'pre_current_active_plugins', array( &$this, 'pre_current_active_plugins' ) );
 
@@ -196,9 +196,7 @@ class MainWP_Child {
 
 		$this->checkOtherAuth();
 
-		if ( is_admin() ) {
-			MainWP_Clone::init();
-		}
+		MainWP_Clone::get()->init();
 		MainWP_Child_Server_Information::init();
 		MainWP_Client_Report::init();
 		MainWP_Child_Plugins_Check::Instance();

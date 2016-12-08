@@ -1275,4 +1275,17 @@ class MainWP_Helper {
 
 		return false;
 	}
+
+	public static function isAdmin() {
+		global $current_user;
+		if ( $current_user->ID == 0 ) {
+			return false;
+		}
+
+		if ( $current_user->wp_user_level == 10 || ( isset( $current_user->user_level ) && $current_user->user_level == 10 ) || current_user_can( 'level_10' ) ) {
+			return true;
+		}
+
+		return false;
+	}
 }

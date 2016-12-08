@@ -1,7 +1,81 @@
 <?php
 
 class MainWP_Clone {
-	public static function init() {
+	protected static $instance = null;
+	protected $security_nonces;
+
+	public static function get() {
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Clone();
+		}
+
+		return self::$instance;
+	}
+
+	function addSecurityNonce( $action ) {
+		if ( ! is_array( $this->security_nonces ) ) {
+			$this->security_nonces = array();
+		}
+
+		if ( ! function_exists( 'wp_create_nonce' ) ) {
+			include_once( ABSPATH . WPINC . '/pluggable.php' );
+		}
+		$this->security_nonces[ $action ] = wp_create_nonce( $action );
+	}
+
+	function getSecurityNonces() {
+		return $this->security_nonces;
+	}
+
+	function addAction( $action, $callback ) {
+		add_action( 'wp_ajax_' . $action, $callback );
+		$this->addSecurityNonce( $action );
+	}
+
+	function secure_request( $action = '', $query_arg = 'security' ) {
+		if ( ! MainWP_Helper::isAdmin() ) {
+			die( 0 );
+		}
+		if ( $action == '' ) {
+			return;
+		}
+
+		if ( ! $this->check_security( $action, $query_arg ) ) {
+			die( json_encode( array( 'error' => __( 'Invalid request!', 'mainwp-child' ) ) ) );
+		}
+
+		if ( isset( $_POST['dts'] ) ) {
+			$ajaxPosts = get_option( 'mainwp_ajaxposts' );
+			if ( ! is_array( $ajaxPosts ) ) {
+				$ajaxPosts = array();
+			}
+
+			//If already processed, just quit!
+			if ( isset( $ajaxPosts[ $action ] ) && ( $ajaxPosts[ $action ] == $_POST['dts'] ) ) {
+				die( json_encode( array( 'error' => __( 'Double request!', 'mainwp-child' ) ) ) );
+			}
+
+			$ajaxPosts[ $action ] = $_POST['dts'];
+			MainWP_Helper::update_option( 'mainwp_ajaxposts', $ajaxPosts );
+		}
+	}
+
+	function check_security( $action = - 1, $query_arg = 'security' ) {
+		if ( $action == - 1 ) {
+			return false;
+		}
+
+		$adminurl = strtolower( admin_url() );
+		$referer  = strtolower( wp_get_referer() );
+		$result   = isset( $_REQUEST[ $query_arg ] ) ? wp_verify_nonce( $_REQUEST[ $query_arg ], $action ) : false;
+		if ( ! $result && ! ( - 1 == $action && strpos( $referer, $adminurl ) === 0 ) ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	public function init() {
 		self::init_ajax();
 
 		add_action( 'check_admin_referer', array( 'MainWP_Clone', 'permalinkChanged' ) );
@@ -424,6 +498,24 @@ class MainWP_Clone {
 		?>
         <div id="mainwp-child_clone_status" title="Restore process"></div>
         <script language="javascript">
+            var child_security_nonces = [];
+            <?php
+				$security_nonces = MainWP_Clone::get()->getSecurityNonces();
+				foreach ($security_nonces as $k => $v)
+				{
+					echo 'child_security_nonces['."'" .$k . "'". '] = ' . "'" . $v . "';\n";
+				}
+			?>
+
+			mainwpchild_secure_data = function(data, includeDts)
+			{
+			    if (data['action'] == undefined) return data;
+
+			    data['security'] = child_security_nonces[data['action']];
+			    if (includeDts) data['dts'] = Math.round(new Date().getTime() / 1000);
+			    return data;
+			};
+
             jQuery( document ).on( 'change', '#file', function () {
 				var maxSize = <?php echo esc_js( $uploadSizeInBytes ); ?>;
 				var humanSize = '<?php echo esc_js( $uploadSize ); ?>';
@@ -507,11 +599,11 @@ class MainWP_Clone {
                 updateClonePopup( '<div id="mainwp-child-clone-create-progress" style="margin-top: 1em !important;"></div>', false );
                 jQuery( '#mainwp-child-clone-create-progress' ).progressbar( {value: 0, max: (size * 1024)} );
 
-                var data = {
+                var data = mainwpchild_secure_data({
                     action: 'mainwp-child_clone_backupcreate',
                     siteId: siteId,
                     rand: rand
-                };
+                });
 
                 jQuery.post( ajaxurl, data, function ( pSiteId, pSiteName ) {
                     return function ( resp ) {
@@ -540,11 +632,11 @@ class MainWP_Clone {
             cloneBackupCreationPolling = function ( siteId, rand ) {
                 if ( backupCreationFinished ) return;
 
-                var data = {
+                var data = mainwpchild_secure_data({
                     action: 'mainwp-child_clone_backupcreatepoll',
                     siteId: siteId,
                     rand: rand
-                };
+                });
 
                 jQuery.post( ajaxurl, data, function ( pSiteId, pRand ) {
                     return function ( resp ) {
@@ -570,10 +662,10 @@ class MainWP_Clone {
                 updateClonePopup( '<div id="mainwp-child-clone-download-progress" style="margin-top: 1em !important;"></div>', false );
                 jQuery( '#mainwp-child-clone-download-progress' ).progressbar( {value: 0, max: pSize} );
 
-                var data = {
+                var data = mainwpchild_secure_data({
                     action: 'mainwp-child_clone_backupdownload',
                     file: pFile
-                };
+                });
 
                 if ( pSiteId != undefined ) data['siteId'] = pSiteId;
 
@@ -605,11 +697,11 @@ class MainWP_Clone {
             cloneBackupDownloadPolling = function ( siteId, pFile ) {
                 if ( backupDownloadFinished ) return;
 
-                var data = {
+                var data = ({
                     action: 'mainwp-child_clone_backupdownloadpoll',
                     siteId: siteId,
                     file: pFile
-                };
+                });
 
                 jQuery.post( ajaxurl, data, function ( pSiteId ) {
                     return function ( resp ) {
@@ -633,10 +725,10 @@ class MainWP_Clone {
 
                 updateClonePopup( translations['extracting_backup'] );
                 //Extract & install SQL
-                var data = {
+                var data = mainwpchild_secure_data({
                     action: 'mainwp-child_clone_backupextract',
                     f: file
-                };
+                });
 
                 jQuery.ajax( {
                     type: "POST",
@@ -1068,19 +1160,18 @@ class MainWP_Clone {
 		<?php
 	}
 
-	public static function init_ajax() {
-		add_action( 'wp_ajax_mainwp-child_clone_backupcreate', array( 'MainWP_Clone', 'cloneBackupCreate' ) );
-		add_action( 'wp_ajax_mainwp-child_clone_backupcreatepoll', array( 'MainWP_Clone', 'cloneBackupCreatePoll' ) );
-		add_action( 'wp_ajax_mainwp-child_clone_backupdownload', array( 'MainWP_Clone', 'cloneBackupDownload' ) );
-		add_action( 'wp_ajax_mainwp-child_clone_backupdownloadpoll', array(
-			'MainWP_Clone',
-			'cloneBackupDownloadPoll',
-		) );
-		add_action( 'wp_ajax_mainwp-child_clone_backupextract', array( 'MainWP_Clone', 'cloneBackupExtract' ) );
+	public function init_ajax() {
+		$this->addAction( 'mainwp-child_clone_backupcreate', array( &$this, 'cloneBackupCreate' ) );
+		$this->addAction( 'mainwp-child_clone_backupcreatepoll', array( &$this, 'cloneBackupCreatePoll' ) );
+		$this->addAction( 'mainwp-child_clone_backupdownload', array( &$this, 'cloneBackupDownload' ) );
+		$this->addAction( 'mainwp-child_clone_backupdownloadpoll', array( &$this, 'cloneBackupDownloadPoll' ) );
+		$this->addAction( 'mainwp-child_clone_backupextract', array( &$this, 'cloneBackupExtract' ) );
 	}
 
-	public static function cloneBackupCreate() {
+	public function cloneBackupCreate() {
 		try {
+			$this->secure_request('mainwp-child_clone_backupcreate');
+
 			if ( ! isset( $_POST['siteId'] ) ) {
 				throw new Exception( __( 'No site given', 'mainwp-child' ) );
 			}
@@ -1125,8 +1216,10 @@ class MainWP_Clone {
 		die( json_encode( $output ) );
 	}
 
-	public static function cloneBackupCreatePoll() {
+	public function cloneBackupCreatePoll() {
 		try {
+			$this->secure_request('mainwp-child_clone_backupcreatepoll');
+
 			if ( ! isset( $_POST['siteId'] ) ) {
 				throw new Exception( __( 'No site given', 'mainwp-child' ) );
 			}
@@ -1163,8 +1256,10 @@ class MainWP_Clone {
 		die( json_encode( $output ) );
 	}
 
-	public static function cloneBackupDownload() {
+	public function cloneBackupDownload() {
 		try {
+			$this->secure_request('mainwp-child_clone_backupdownload');
+
 			if ( ! isset( $_POST['file'] ) ) {
 				throw new Exception( __( 'No download link given', 'mainwp-child' ) );
 			}
@@ -1247,8 +1342,10 @@ class MainWP_Clone {
 		die( json_encode( $output ) );
 	}
 
-	public static function cloneBackupDownloadPoll() {
+	public function cloneBackupDownloadPoll() {
 		try {
+			$this->secure_request('mainwp-child_clone_backupdownloadpoll');
+
 			MainWP_Helper::endSession();
 			$dirs      = MainWP_Helper::getMainWPDir( 'backup', false );
 			$backupdir = $dirs[0];
@@ -1273,8 +1370,10 @@ class MainWP_Clone {
 		die( json_encode( $output ) );
 	}
 
-	public static function cloneBackupExtract() {
+	public function cloneBackupExtract() {
 		try {
+			$this->secure_request('mainwp-child_clone_backupextract');
+
 			MainWP_Helper::endSession();
 
 			$file     = ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] );
@@ -1328,7 +1427,6 @@ class MainWP_Clone {
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 			$cloneInstall->install();
-			$cloneInstall->updateWPConfig();
 
 			//            $cloneInstall->update_option('mainwp_child_pubkey', $pubkey);
 			//            $cloneInstall->update_option('mainwp_child_uniqueId', $uniqueId);
@@ -1350,6 +1448,8 @@ class MainWP_Clone {
 			} else {
 				MainWP_Helper::update_option( 'mainwp_child_clone_permalink', true, 'yes' );
 			}
+
+			$cloneInstall->updateWPConfig();
 
 			$cloneInstall->clean();
 			if ( false !== $plugins ) {
