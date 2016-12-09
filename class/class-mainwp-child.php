@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.2.3';
+	public static $version = '3.2.4';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -773,6 +773,9 @@ class MainWP_Child {
 
 	function admin_init() {
 		MainWP_Child_Branding::admin_init();
+		if ( MainWP_Helper::isAdmin() && is_admin() ) {
+			MainWP_Clone::get()->init_ajax();
+		}
 	}
         
         function admin_head() {

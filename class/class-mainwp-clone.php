@@ -76,8 +76,6 @@ class MainWP_Clone {
 	}
 
 	public function init() {
-		self::init_ajax();
-
 		add_action( 'check_admin_referer', array( 'MainWP_Clone', 'permalinkChanged' ) );
 		if ( get_option( 'mainwp_child_clone_permalink' ) || get_option( 'mainwp_child_restore_permalink' ) ) {
 			add_action( 'admin_notices', array( 'MainWP_Clone', 'permalinkAdminNotice' ) );
