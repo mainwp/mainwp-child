@@ -6,7 +6,7 @@
   Author: MainWP
   Author URI: https://mainwp.com
   Text Domain: mainwp-child
-  Version: 3.2.4
+  Version: 3.2.5-alpha
  */
 if ( ( isset( $_REQUEST['heatmap'] ) && '1' === $_REQUEST['heatmap'] ) || ( isset( $_REQUEST['mainwpsignature'] ) && ( ! empty( $_REQUEST['mainwpsignature'] ) ) ) ) {
 	header( 'X-Frame-Options: ALLOWALL' );
@@ -15,6 +15,8 @@ if ( ( isset( $_REQUEST['heatmap'] ) && '1' === $_REQUEST['heatmap'] ) || ( isse
 include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from wordpress
 
 define( 'MAINWP_DEBUG', FALSE );
+define( 'MAINWP_NOSSL', TRUE );
+define( 'MAINWP_ALLOW_NOSSL_CONNECT', TRUE );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 	define( 'MAINWP_CHILD_FILE', __FILE__ );

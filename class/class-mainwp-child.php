@@ -2036,6 +2036,11 @@ class MainWP_Child {
 			}
 		}
 
+		//Check SSL Requirement
+		if ( !MainWP_Helper::isSSLEnabled() && ( !defined( 'MAINWP_ALLOW_NOSSL_CONNECT' ) || !MAINWP_ALLOW_NOSSL_CONNECT ) ) {
+			MainWP_Helper::error( __( 'SSL is required on the child site to set up a secure connection.', 'mainwp-child' ) );
+		}
+
 		//Login
 		if ( isset( $_POST['user'] ) ) {
 			if ( ! $this->login( $_POST['user'] ) ) {
@@ -2052,8 +2057,8 @@ class MainWP_Child {
 		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] ); //Save the public key
 		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 ); //Save the nonce
 
-		MainWP_Helper::update_option( 'mainwp_child_nossl', ( '-1' === $_POST['pubkey'] || ! function_exists( 'openssl_verify' ) ? 1 : 0 ), 'yes' );
-		$information['nossl'] = ( '-1' === $_POST['pubkey'] || ! function_exists( 'openssl_verify' ) ? 1 : 0 );
+		MainWP_Helper::update_option( 'mainwp_child_nossl', ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::isSSLEnabled() ? 1 : 0 ), 'yes' );
+		$information['nossl'] = ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::isSSLEnabled() ? 1 : 0 );
 		$nossl_key            = uniqid( '', true );
 		MainWP_Helper::update_option( 'mainwp_child_nossl_key', $nossl_key, 'yes' );
 		$information['nosslkey'] = $nossl_key;
@@ -3211,7 +3216,17 @@ class MainWP_Child {
 		$information['version']   = self::$version;
 		$information['wpversion'] = $wp_version;
 		$information['siteurl']   = get_option( 'siteurl' );
-		$information['nossl']     = ( '1' === get_option( 'mainwp_child_nossl' ) ? 1 : 0 );
+
+		//Try to switch to SSL if SSL is enabled in between!
+		$pubkey = get_option( 'mainwp_child_pubkey' );
+		$nossl = get_option( 'mainwp_child_nossl' );
+		if ( 1 == $nossl )  {
+			if ( isset($pubkey) && MainWP_Helper::isSSLEnabled() ) {
+				MainWP_Helper::update_option( 'mainwp_child_nossl', 0, 'yes' );
+				$nossl = 0;
+			}
+		}
+		$information['nossl']     = ( 1 == $nossl ? 1 : 0 );
 
 		include_once( ABSPATH . '/wp-admin/includes/update.php' );
 

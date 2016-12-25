@@ -1288,4 +1288,10 @@ class MainWP_Helper {
 
 		return false;
 	}
+
+	public static function isSSLEnabled()
+	{
+		if ( defined( 'MAINWP_NOSSL' ) ) return !MAINWP_NOSSL;
+		return function_exists( 'openssl_verify' );
+	}
 }
