@@ -305,6 +305,7 @@ class MainWP_Child_WP_Rocket {
 			'minify_html'              => 0,
 			'minify_html_inline_css'   => 0,
 			'minify_html_inline_js'    => 0,
+            'remove_query_strings'     => 0,
 			'dns_prefetch'             => 0,
 			'cdn'                      => 0,
 			'cdn_cnames'               => array(),

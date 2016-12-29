@@ -58,7 +58,7 @@ class MainWP_Child_Skeleton_Key {
 
 		$url = '/' . $_POST['url'];
 
-		$expiration = time() + 300;
+		$expiration = time() + 600;
 		$manager    = WP_Session_Tokens::get_instance( $current_user->ID );
 		$token      = $manager->create( $expiration );
 
