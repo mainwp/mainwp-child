@@ -62,6 +62,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 * Added: support for the new display favicon process
 * Updated: site connection process (MD5 encryption not supported)
 * Updated: multiple functions refactored
+* Preventative: Security improvements
 
 = 3.2.4 - 12-09-16 =
 * Fixed: Conflict with SendGrid
