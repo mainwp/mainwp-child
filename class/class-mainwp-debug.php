@@ -21,6 +21,8 @@ class MainWP_Debug {
 			$_POST['excludenonwp']  = '1';
 			$_POST['ext']           = 'tar.gz';
 			print_r( $mainwpChild->backup( false ) );
+		} else if ( 'test' == $_GET['mainwpdebug'] ) {
+			print_r( get_included_files() );
 		} else {
 			print_r( $mainwpChild->getSiteStats( array(), false ) );
 		}

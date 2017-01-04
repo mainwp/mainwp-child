@@ -779,33 +779,32 @@ class MainWP_Child {
 		}
 	}
         
-        function admin_head() {
-            if (isset($_GET['page']) && $_GET['page'] == 'mainwp_child_tab') {
-                ?>
-                <style type="text/css">
-                    .mainwp-postbox-actions-top {
-                        padding: 10px;
-                        clear: both;
-                        border-bottom: 1px solid #ddd;
-                        background: #f5f5f5;
-                    }
-                    h3.mainwp_box_title {
-                        font-family: "Open Sans",sans-serif;
-                        font-size: 14px;
-                        font-weight: 600;
-                        line-height: 1.4;
-                        margin: 0;
-                        padding: 8px 12px;
-                        border-bottom: 1px solid #eee;
-                    }
-                    .mainwp-child-setting-tab.connection-detail .postbox .inside{
-                        margin: 0;
-                        padding: 0;
-                    }
-                </style>    
-                <?php 
-            }
-		
+    function admin_head() {
+        if (isset($_GET['page']) && $_GET['page'] == 'mainwp_child_tab') {
+            ?>
+            <style type="text/css">
+                .mainwp-postbox-actions-top {
+                    padding: 10px;
+                    clear: both;
+                    border-bottom: 1px solid #ddd;
+                    background: #f5f5f5;
+                }
+                h3.mainwp_box_title {
+                    font-family: "Open Sans",sans-serif;
+                    font-size: 14px;
+                    font-weight: 600;
+                    line-height: 1.4;
+                    margin: 0;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid #eee;
+                }
+                .mainwp-child-setting-tab.connection-detail .postbox .inside{
+                    margin: 0;
+                    padding: 0;
+                }
+            </style>
+            <?php
+        }
 	}
 	function settings() {
 		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( $_POST['nonce'], 'child-settings' ) ) {
@@ -4212,13 +4211,13 @@ class MainWP_Child {
 			foreach ( $plugins as $idx => $plugin ) {
 				if ( $plugin !== $this->plugin_slug ) {
 					if ( isset( $all_plugins[ $plugin ] ) ) {						
-                                                if (is_plugin_active($plugin)) {
-                                                    $thePlugin = get_plugin_data( $plugin );
-                                                    if ( null !== $thePlugin && '' !== $thePlugin ) {
-                                                            deactivate_plugins( $plugin );
-                                                    }
-                                                }     
-                                                $tmp['plugin'] = $plugin;
+	                    if (is_plugin_active($plugin)) {
+	                        $thePlugin = get_plugin_data( $plugin );
+	                        if ( null !== $thePlugin && '' !== $thePlugin ) {
+	                                deactivate_plugins( $plugin );
+	                        }
+	                    }
+	                    $tmp['plugin'] = $plugin;
 						if ( true === $pluginUpgrader->delete_old_plugin( null, null, null, $tmp ) ) {
 							$args = array( 'action' => 'delete', 'Name' => $all_plugins[ $plugin ]['Name'] );
 							do_action( 'mainwp_child_plugin_action', $args );
@@ -5158,6 +5157,10 @@ class MainWP_Child {
 	static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once( ABSPATH . '/wp-admin/includes/screen.php' );
+		}
+
+		if ( function_exists( 'et_register_updates_component' ) ) {
+			et_register_updates_component();
 		}
 	}
 }
