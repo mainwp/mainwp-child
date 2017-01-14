@@ -3,8 +3,9 @@
 class MainWP_Child_Pagespeed {
 
 	public static $instance = null;
+        public $is_plugin_installed = false;
 
-	static function Instance() {
+        static function Instance() {
 		if ( null === MainWP_Child_Pagespeed::$instance ) {
 			MainWP_Child_Pagespeed::$instance = new MainWP_Child_Pagespeed();
 		}
@@ -13,6 +14,11 @@ class MainWP_Child_Pagespeed {
 	}
 
 	public function __construct() {
+        require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		if ( is_plugin_active( 'google-pagespeed-insights/google-pagespeed-insights.php' ) ) {
+                    $this->is_plugin_installed = true;
+		}
+
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 
@@ -243,7 +249,7 @@ class MainWP_Child_Pagespeed {
 		return false;
 	}
 
-	function sync_data( $strategy = '' ) {
+	public function sync_data( $strategy = '' ) {
 		if ( empty( $strategy ) ) {
 			$strategy = 'both';
 		}

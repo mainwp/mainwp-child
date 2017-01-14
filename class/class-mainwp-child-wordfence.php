@@ -353,18 +353,64 @@ class MainWP_Child_Wordfence {
 	}
 
 	public function wordfence_init() {
-		if ( get_option( 'mainwp_wordfence_ext_enabled' ) !== 'Y' ) {
-			return;
-		}
+		if ( get_option( 'mainwp_wordfence_ext_enabled' ) !== 'Y' ) return;
+        if ( ! $this->is_wordfence_installed ) return;
 
+        add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 		if ( get_option( 'mainwp_wordfence_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
 		}
 		$this->init_cron();
-
 	}
+
+    function do_site_stats() {
+        do_action( 'mainwp_child_reports_log', 'wordfence' );
+	}
+
+    public function do_reports_log($ext = '') {
+        if ( $ext !== 'wordfence' ) return;
+
+        global $wpdb;
+
+        $lastcheck = get_option('mainwp_wordfence_lastcheck_scan');
+        if ($lastcheck == false) {
+            $lastcheck = time() - 3600 * 24 * 10; // check 10 days ago
+        }
+
+        $status_table = $wpdb->base_prefix . 'wfStatus';
+        // to fix prepare sql empty
+        $sql = sprintf( "SELECT * FROM {$status_table} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
+        $sql .= " 'Scan Complete. %';";
+        $rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
+
+        if ( $rows ) {
+            while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
+                $message = "Wordfence scan completed";
+                $scan_time = $row['ctime'];
+
+                $sql = sprintf( "SELECT * FROM {$status_table} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $scan_time, $scan_time + 100 ); // to get nearest SUM_FINAL msg
+                $sql .= " 'SUM_FINAL:Scan complete.%';";
+                $sum_rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
+                $result = '';
+                if ($sum_rows) {
+                    $sum_row = MainWP_Child_DB::fetch_array( $sum_rows );
+                    if (is_array($sum_row) && isset($sum_row['msg'])) {
+                        if ( false !== strpos( $sum_row['msg'], 'Congratulations, no problems found' ) ) {
+                            $result = 'No issues detected';
+                        } else {
+                            $result = 'Issues Detected';
+                        }
+                    }
+                }
+                $details = $row['msg'];
+                do_action( 'mainwp_reports_wordfence_scan', $message, $scan_time, $details, $result );
+            }
+        }
+
+        update_option( 'mainwp_wordfence_lastcheck_scan', time() );
+    }
 
 	public function admin_init() {
 		remove_meta_box( 'wordfence_activity_report_widget', 'dashboard', 'normal' );

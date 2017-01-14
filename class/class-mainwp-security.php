@@ -304,7 +304,7 @@ class MainWP_Security {
 	}
 
 	public static function remove_theme_versions( $src ) {
-		if ( 'T' === self::get_security_option( 'styles_version' ) ) {
+		if ( self::get_security_option( 'styles_version' ) ) {
 			if ( strpos( $src, '?ver=' ) ) {
 				$src = remove_query_arg( 'ver', $src );
 			}

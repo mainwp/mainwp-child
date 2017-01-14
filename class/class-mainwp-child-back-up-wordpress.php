@@ -19,16 +19,11 @@ class MainWP_Child_Back_Up_Wordpress {
                 
         }
 	public function init() {
-		if ( get_option( 'mainwp_backupwordpress_ext_enabled' ) !== 'Y' ) {
-			return;
-		}
-                
-                if (!$this->is_plugin_installed)
-                    return;
-                    
-                add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
-                add_action( 'mainwp_extensions_reports_backups', array( $this, 'do_reports_backups' ) );
-                
+		if ( get_option( 'mainwp_backupwordpress_ext_enabled' ) !== 'Y' ) return;
+		if (!$this->is_plugin_installed) return;
+
+        add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
+
 		if ( get_option( 'mainwp_backupwordpress_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
@@ -150,29 +145,30 @@ class MainWP_Child_Back_Up_Wordpress {
 		return $return;
 	}
         
-        function do_site_stats() {            
-            do_action( 'mainwp_client_reports_backups', 'backupwordpress');					
+    function do_site_stats() {
+        do_action( 'mainwp_child_reports_log', 'backupwordpress');
 	}
         
-        function do_reports_backups($ext = '') {  
-            if ($ext !== 'backupwordpress')
-                return;
-            // Refresh the schedules from the database to make sure we have the latest changes
-            HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
-            $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
-            foreach($schedules as $schedule) {
-                foreach ( $schedule->get_backups() as $file ) {    
-                    $backup_type =  $schedule->get_type();
-                    $message = "BackupWordpres backup " .  $backup_type . ' finished';                    
-                    $destination = "N/A";                          
-                    if ( file_exists($file) ) {                    
-                        $date = @filemtime( $file );     
-                        if (!empty($date))
-                            do_action("backupwordpress_backup", $destination , $message, 'finished', $backup_type, $date);
-                    }   
+    public function do_reports_log($ext = '') {
+        if ( $ext !== 'backupwordpress' ) return;
+
+        // Refresh the schedules from the database to make sure we have the latest changes
+        HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
+        $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
+        foreach($schedules as $schedule) {
+            foreach ( $schedule->get_backups() as $file ) {
+                $backup_type =  $schedule->get_type();
+                $message = "BackupWordpres backup " .  $backup_type . ' finished';
+                $destination = "N/A";
+                if ( file_exists( $file ) ) {
+                    $date = @filemtime( $file );
+                    if ( !empty( $date ) ) {
+	                    do_action( "backupwordpress_backup", $destination, $message, 'finished', $backup_type, $date );
+                    }
                 }
             }
         }
+    }
         
 	function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';

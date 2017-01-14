@@ -25,10 +25,8 @@ class MainWP_Child_Back_Up_Buddy {
 			return;
 		}
 
-		add_action( 'wp_ajax_mainwp_backupbuddy_download_archive', array( $this, 'download_archive' ) );
-
-		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
-		add_action( 'mainwp_extensions_reports_backups', array( $this, 'do_reports_backups' ) );
+        add_action( 'wp_ajax_mainwp_backupbuddy_download_archive', array( $this, 'download_archive' ) );
+        add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 
 		if ( get_option( 'mainwp_backupbuddy_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
@@ -72,15 +70,15 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
 
-	function do_site_stats() {
-		do_action( 'mainwp_client_reports_backups', 'backupbuddy');
+    function do_site_stats() {
+        do_action( 'mainwp_child_reports_log', 'backupbuddy');
 	}
 
-	function do_reports_backups($ext = '') {
-		if ($ext !== 'backupbuddy')
-			return;
+    function do_reports_log($ext = '') {
+        if ($ext !== 'backupbuddy')
+            return;
 
-		$backups = array();
+        $backups = array();
 		$backup_sort_dates = array();
 
 		$files = glob( backupbuddy_core::getBackupDirectory() . 'backup*.zip' );

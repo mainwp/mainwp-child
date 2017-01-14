@@ -365,12 +365,12 @@ class MainWP_Child_Updraft_Plus_Backups {
 	function save_settings() {
 		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 
-		$keys = $this->get_settings_keys();
+		$keys_filter = $this->get_settings_keys();
 
 		$updated = false;
 		if ( is_array( $settings ) ) {
 			if ( class_exists( 'UpdraftPlus_Options' ) ) {
-				foreach ( $keys as $key ) {
+				foreach ( $keys_filter as $key ) {
 					if ( isset( $settings[ $key ] ) ) {
 						if ( 'updraft_dropbox' === $key && is_array($settings[ $key ])) {
                                                         $opts           = UpdraftPlus_Options::get_updraft_option( 'updraft_dropbox' );
@@ -427,7 +427,19 @@ class MainWP_Child_Updraft_Plus_Backups {
                                                         $opts['secretkey']   = $settings[ $key ]['secretkey'];
 							$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
-						} else {
+						}  else if ( 'updraft_ftp' === $key ) {
+	                        $opts = $settings[ $key ];
+	                        if ( isset( $opts['path'] ) ) {
+	                            $opts['path'] = $this->replace_tokens( $opts['path'] );
+	                        }
+	                        UpdraftPlus_Options::update_updraft_option( $key, $opts );
+		                } else if ( 'updraft_sftp_settings' === $key ) {
+	                        $opts = $settings[ $key ];
+	                        if ( isset( $opts['path'] ) ) {
+	                            $opts['path'] = $this->replace_tokens( $opts['path'] );
+	                        }
+	                        UpdraftPlus_Options::update_updraft_option( $key, $opts );
+		                } else {
 							UpdraftPlus_Options::update_updraft_option( $key, $settings[ $key ] );
 						}
 						$updated = true;

@@ -378,14 +378,14 @@ class MainWP_Clone {
 			$dirparts = '<a href="' . $durl . '">' . $part . DIRECTORY_SEPARATOR . '</a>' . $dirparts;
 		}
 
-		echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . __( '<strong>Current Directory:</strong> <span>' . $dirparts . '</span>', 'mainwp' ) . '</div>';
+		echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . __( '<strong>Current Directory:</strong> <span>' . $dirparts . '</span>', 'mainwp-child' ) . '</div>';
 		$quick_dirs   = array();
-		$quick_dirs[] = array( __( 'Site Root', 'mainwp' ), ABSPATH );
-		$quick_dirs[] = array( __( 'Backup', 'mainwp' ), $backup_dir );
+		$quick_dirs[] = array( __( 'Site Root', 'mainwp-child' ), ABSPATH );
+		$quick_dirs[] = array( __( 'Backup', 'mainwp-child' ), $backup_dir );
 		if ( ( $uploads = wp_upload_dir() ) && false === $uploads['error'] ) {
-			$quick_dirs[] = array( __( 'Uploads Folder', 'mainwp' ), $uploads['path'] );
+			$quick_dirs[] = array( __( 'Uploads Folder', 'mainwp-child' ), $uploads['path'] );
 		}
-		$quick_dirs[] = array( __( 'Content Folder', 'mainwp' ), WP_CONTENT_DIR );
+		$quick_dirs[] = array( __( 'Content Folder', 'mainwp-child' ), WP_CONTENT_DIR );
 
 		$quick_links = array();
 		foreach ( $quick_dirs as $dir ) {
@@ -399,7 +399,7 @@ class MainWP_Clone {
 		}
 
 		if ( ! empty( $quick_links ) ) {
-			echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp' ) . '</strong> ' . __( implode( ' | ', $quick_links ) ) . '</div>';
+			echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . __( implode( ' | ', $quick_links ) ) . '</div>';
 		}
 
 		$dir_files      = scandir( $current_dir );
@@ -436,7 +436,7 @@ class MainWP_Clone {
                             <div class="clonesite_select_site_item">
                                 <div class="mainwp-child_name_label">
 									<a href="<?php echo esc_url( add_query_arg( array( 'dir' => rawurlencode( $parent ) ), $url ) ); ?>"
-									   title="<?php echo esc_attr( dirname( $current_dir ) ) ?>"><?php esc_html_e( 'Parent Folder', 'mainwp' ) ?></a>
+									   title="<?php echo esc_attr( dirname( $current_dir ) ) ?>"><?php esc_html_e( 'Parent Folder', 'mainwp-child' ) ?></a>
                                 </div>
                             </div>
 

@@ -3,6 +3,7 @@
 class MainWP_Child_Links_Checker {
 
 	public static $instance = null;
+    public $is_plugin_installed = false;
 
 	static function Instance() {
 		if ( null === MainWP_Child_Links_Checker::$instance ) {
@@ -10,6 +11,13 @@ class MainWP_Child_Links_Checker {
 		}
 
 		return MainWP_Child_Links_Checker::$instance;
+	}
+
+	public function __construct() {
+        require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		if ( is_plugin_active( 'broken-link-checker/broken-link-checker.php' ) ) {
+                    $this->is_plugin_installed = true;
+		}
 	}
 
 	public function action() {
@@ -177,19 +185,16 @@ class MainWP_Child_Links_Checker {
 	function sync_data( $strategy = '' ) {		
 		$information = array();
 		$data        = $this->get_count_links();
-		
-//		$max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 50;		
-		
-//		$params      = array( array( 'load_instances' => true ),
-//								'max_results' => $max_results
-//							);									
-		//$data['link_data']   = $this->do_sync_links_data($params);
-		
-		$information['data'] = $data;
+        if (is_array($data))
+            $information['data'] = $data;
 		return $information;
 	}
 	
 	function sync_links_data() {
+        if (!defined('BLC_DIRECTORY')) return;
+        require_once BLC_DIRECTORY . '/includes/link-query.php';
+        require_once BLC_DIRECTORY . '/includes/modules.php';
+
 		$blc_link_query      = blcLinkQuery::getInstance();
 		$total         = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 		
@@ -227,6 +232,11 @@ class MainWP_Child_Links_Checker {
 	}
 	
 	function get_count_links() {
+        if (!defined('BLC_DIRECTORY')) return;
+
+        require_once BLC_DIRECTORY . '/includes/link-query.php';
+        require_once BLC_DIRECTORY . '/includes/modules.php';
+
 		$data = array();
 		$blc_link_query      = blcLinkQuery::getInstance();
 		$data['broken']      = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
