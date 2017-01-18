@@ -269,7 +269,7 @@ class MainWP_Helper {
 		$new_post['post_author'] = $post_author;
 
 		$is_ezine_post = ! empty( $post_custom['_ezine_post_article_source'] ) ? true : false;
-		$terms         = $new_post['_ezin_post_category'];
+		$terms         = isset( $new_post['_ezin_post_category'] ) ? $new_post['_ezin_post_category'] : false ;
 		unset( $new_post['_ezin_post_category'] );
 		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 

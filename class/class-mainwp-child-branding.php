@@ -275,6 +275,10 @@ class MainWP_Child_Branding {
 		// enable branding in case child plugin is deactive
 		add_filter( 'all_plugins', array( $this, 'branding_child_plugin' ) );
 
+        if ( self::is_branding() ) {
+            add_filter( 'site_transient_update_plugins', array( &$this, 'remove_update_nag' ) );
+        }
+
 		if ( get_option( 'mainwp_branding_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
@@ -299,7 +303,6 @@ class MainWP_Child_Branding {
 				add_action( 'admin_bar_menu', array( $this, 'add_support_button_in_top_admin_bar' ), 100 );
 			}
 		}
-		add_filter( 'update_footer', array( &$this, 'update_footer' ), 15 );
 		if ( get_option( 'mainwp_branding_disable_wp_branding' ) !== 'Y' ) {
 			add_filter( 'wp_footer', array( &$this, 'branding_global_footer' ), 15 );
 			add_action( 'wp_dashboard_setup', array( &$this, 'custom_dashboard_widgets' ), 999 );
@@ -761,65 +764,6 @@ class MainWP_Child_Branding {
 		return 'MainWP';
 	}
 
-	function check_update_child_plugin() {
-		if ( $plugins = current_user_can( 'update_plugins' ) ) {
-			$update_plugins = get_site_transient( 'update_plugins' );
-			if ( ! empty( $update_plugins->response ) ) {
-				$response = $update_plugins->response;
-				if ( is_array( $response ) && isset( $response['mainwp-child/mainwp-child.php'] ) ) {
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
-	function update_footer( $text ) {
-		if ( self::is_branding() ) {
-			if ( stripos( $_SERVER['REQUEST_URI'], 'update-core.php' ) !== false ) {
-				?>
-				<script>
-					jQuery( document ).ready( function () {
-						jQuery( 'input[type="checkbox"][value="mainwp-child/mainwp-child.php"]' ).closest( 'tr' ).remove();
-					} );
-				</script>
-				<?php
-			}
-
-			if ( $this->check_update_child_plugin() ) {
-				?>
-				<script>
-					jQuery( document ).ready( function () {
-						var menu_update = jQuery( 'span.update-plugins' );
-						var menu_count = jQuery( 'span.update-plugins > span.update-count' );
-						if ( menu_count ) {
-							var count = parseInt( menu_count.html() );
-							if ( count > 1 ) {
-								jQuery( 'span.update-plugins > span.update-count' ).each( function () {
-									jQuery( this ).html( count - 1 );
-								} );
-								jQuery( 'span.update-plugins > span.plugin-count' ).each( function () {
-									jQuery( this ).html( count - 1 );
-								} );
-								var title = menu_update.attr( 'title' ).replace( count, count - 1 );
-								jQuery( 'span.update-plugins' ).each( function () {
-									jQuery( this ).attr( 'title', title );
-								} );
-
-							} else if ( count == 1 ) {
-								jQuery( 'span.update-plugins' ).remove();
-							}
-						}
-					} );
-				</script>
-				<?php
-			}
-		}
-
-		return $text;
-	}
-
 	public function branding_map_meta_cap( $caps, $cap, $user_id, $args ) {
 		if ( 'T' === get_option( 'mainwp_branding_disable_change' ) ) {
 			// disable: edit, update, install, active themes and plugins
@@ -854,6 +798,16 @@ class MainWP_Child_Branding {
 		} else {
 			return $plugins;
 		}
+	}
+
+    function remove_update_nag( $value ) {
+		if ( isset( $_POST['mainwpsignature'] ) ) {
+			return $value;
+		}
+		if ( isset( $value->response['mainwp-child/mainwp-child.php'] ) ) {
+			unset( $value->response['mainwp-child/mainwp-child.php'] );
+		}
+		return $value;
 	}
 
 	public function update_child_header( $plugins, $header ) {

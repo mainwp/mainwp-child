@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.2.6';
+	public static $version = '3.2.7';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -2102,6 +2102,7 @@ class MainWP_Child {
 		//Read form data
 		$action = $_POST['action'];
 		$postId = $_POST['id'];
+        $my_post = array();
 
 		if ( 'publish' === $action ) {
 			wp_publish_post( $postId );
@@ -2110,7 +2111,6 @@ class MainWP_Child {
 			$my_post  = is_array( $postData ) ? $postData : array();
 			wp_update_post( $my_post );
 		} else if ( 'unpublish' === $action ) {
-			$my_post                = array();
 			$my_post['ID']          = $postId;
 			$my_post['post_status'] = 'draft';
 			wp_update_post( $my_post );
@@ -2397,8 +2397,11 @@ class MainWP_Child {
                             return array('error' => 'You can&#8217;t give users that role.');                                
                 } 
 
-	            $email = trim($data['email']);
-                if ( isset( $data['email'] ) && !empty( $email ) )
+                $email = '';
+                if ( isset( $data['email'] ) )
+                    $email = trim( $data['email'] );
+
+                if ( !empty( $email ) )
                         $user->user_email = sanitize_text_field( wp_unslash( $email ) );
                 else
                         $user->user_email = $userdata->user_email;                

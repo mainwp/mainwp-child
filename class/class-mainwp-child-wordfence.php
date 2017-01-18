@@ -1324,7 +1324,7 @@ class MainWP_Child_Wordfence {
 		return array( 'ok' => 1 , 'download_url' => $download_url );
 	}
 
-	public static function downloadHtaccess(){
+	public static function downloadHtaccess() {
 		if ( ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {
 			die( '-1' );
 		}
