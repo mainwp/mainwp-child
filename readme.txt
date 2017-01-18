@@ -59,6 +59,8 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 
 = 3.2.7 - 1-18-17 =
 * Fixed: an issue with removing Scripts and Stylesheets version number
+* Fixed: multiple PHP Warnings
+* Fixed: JS issue that occurs when a MainWP Child plugin update is available and the plugin has been rebranded
 
 = 3.2.6 - 1-5-17 =
 * Added: support for the Divi (Elegant Themes) themes updates
