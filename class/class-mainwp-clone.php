@@ -109,7 +109,7 @@ class MainWP_Clone {
 	public static function render() {
 		$uploadError = false;
 		$uploadFile  = false;
-		if ( isset( $_REQUEST['upload'] ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once( ABSPATH . 'wp-admin/includes/file.php' );
@@ -230,6 +230,7 @@ class MainWP_Clone {
                 	   class="button button-primary"
                 	   disabled="disabled"
 					   value="<?php esc_attr_e( 'Clone/Restore Website', 'mainwp-child' ); ?>"/>
+			    <input type="hidden" name="_nonce" value="<?php echo wp_create_nonce( 'cloneRestore' ); ?>" />
 			</form>
 			</div>
 			</div>
@@ -244,7 +245,7 @@ class MainWP_Clone {
 	public static function renderNormalRestore() {
 		$uploadError = false;
 		$uploadFile  = false;
-		if ( isset( $_REQUEST['upload'] ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once( ABSPATH . 'wp-admin/includes/file.php' );
@@ -298,6 +299,8 @@ class MainWP_Clone {
 			<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
 			<em><?php esc_html_e( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' ); ?>
                 <br/>
+
+
 				<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?></em><br/><br/>
 			<form action="<?php echo esc_attr( admin_url( 'admin.php?page=MainWPRestore&upload=yes' ) ); ?>" 
 				  method="post"
@@ -309,6 +312,7 @@ class MainWP_Clone {
                          id="filesubmit"
                          disabled="disabled"
                          value="<?php esc_html_e( 'Restore Website', 'mainwp-child' ); ?>"/>
+			    <input type="hidden" name="_nonce" value="<?php echo wp_create_nonce( 'cloneRestore' ); ?>" />
             </form>
             </div>
         </div>
