@@ -1072,6 +1072,55 @@ class MainWP_Helper {
 		}
 	}
 
+    static function update_lasttime_backup( $by, $time ) {
+        $backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus');
+
+        if (!in_array($by, $backup_by))
+            return false;
+
+        $lasttime = get_option('mainwp_lasttime_backup_' . $by);
+        if ( $time > $lasttime ) {
+            update_option('mainwp_lasttime_backup_' . $by, $time);
+        }
+
+        return true;
+	}
+
+    static function get_lasttime_backup( $by ) {
+        if ($by == 'backupwp') // to compatible
+            $by = 'backupwordpress';
+        $backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus');
+
+        switch($by) {
+            case 'backupbuddy':
+                if ( !is_plugin_active( 'backupbuddy/backupbuddy.php' )) {
+                    return -1;
+                }
+                break;
+            case 'backupwordpress':
+                if ( !is_plugin_active( 'backupwordpress/backupwordpress.php' )) {
+                    return -1;
+                }
+                break;
+            case 'backwpup':
+                if ( !is_plugin_active( 'backwpup/backwpup.php' ) && !is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
+                    return -1;
+                }
+                break;
+            case 'updraftplus':
+                if ( !is_plugin_active( 'updraftplus/updraftplus.php' )) {
+                    return -1;
+                }
+                break;
+            default:
+                return 0;
+                break;
+        }
+
+        return get_option('mainwp_lasttime_backup_' . $by, 0);
+	}
+
+
 	static function containsAll( $haystack, $needle ) {
 		if ( ! is_array( $haystack ) || ! is_array( $needle ) ) {
 			return false;

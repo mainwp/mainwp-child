@@ -13,7 +13,19 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	public function __construct() {
 		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+        add_filter('updraftplus_save_last_backup', array( __CLASS__, 'hookUpdraftplusSaveLastBackup' ));
 	}
+
+    public static function hookUpdraftplusSaveLastBackup($last_backup) {
+        if (!is_array($last_backup))
+            return $last_backup;
+
+        if (isset($last_backup['backup_time'])) {
+            $backup_time = $last_backup['backup_time'];
+            MainWP_Helper::update_lasttime_backup('updraftplus', $backup_time);
+        }
+        return $last_backup;
+    }
 
 	function syncOthersData( $information, $data = array() ) {
 		if ( isset( $data['syncUpdraftData'] ) && $data['syncUpdraftData'] ) {
@@ -79,9 +91,6 @@ class MainWP_Child_Updraft_Plus_Backups {
 				case 'next_scheduled_backups':
 					$information = $this->next_scheduled_backups();
 					break;
-				//                case "rebuildBackupHistory":
-				//                    $information = $this->rebuildBackupHistory();
-				//                break;
 				case 'forcescheduledresumption':
 					$information = $this->forceScheduledResumption();
 					break;

@@ -196,11 +196,18 @@ class MainWP_Child_Back_WP_Up {
 	}
 
     function do_site_stats() {
+        if (has_action('mainwp_child_reports_log')) {
             do_action( 'mainwp_child_reports_log', 'backwpup');
-	}
+        } else {
+            $this->do_reports_log('backwpup');
+        }
+    }
         
     public function do_reports_log($ext = '') {
         if ( $ext !== 'backwpup' ) return;
+        if (!$this->is_backwpup_installed)
+            return;
+
         $destinations = BackWPup::get_registered_destinations();
         $jobdests = $this->get_destinations_list();
 
@@ -218,8 +225,10 @@ class MainWP_Child_Back_WP_Up {
                                 $message = 'BackWPup backup finished';
                                 $backup_type = 'BackWPup';
                                 $destination = "N/A";
-                                if (!empty($backup_time))
-                                    do_action( 'mainwp_backwpup_backup', $message, $backup_type, $backup_time);
+                                if (!empty($backup_time)) {
+	                                do_action( 'mainwp_backwpup_backup', $message, $backup_type, $backup_time );
+	                                MainWP_Helper::update_lasttime_backup( 'backwpup', $backup_time ); // to support backup before update feature
+                                }
                             }
                         }
                     }

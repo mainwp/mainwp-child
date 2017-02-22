@@ -35,7 +35,10 @@ class MainWP_Child_Wordfence {
 		'loginSecurityEnabled',
 		'other_scanOutside',
 		'scan_exclude',
+        'scan_maxIssues',
+        'scan_maxDuration',
 		'scansEnabled_checkReadableConfig',
+        'scansEnabled_suspectedFiles',
 		'scansEnabled_comments',
 		'scansEnabled_core',
 		'scansEnabled_diskSpace',
@@ -43,12 +46,15 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_fileContents',
 		'scan_include_extra', 		
 		'scansEnabled_heartbleed',
+        'scansEnabled_checkHowGetIPs',
 		'scansEnabled_highSense',
+        'lowResourceScansEnabled',
 		'scansEnabled_malware',
 		'scansEnabled_oldVersions',
 		"scansEnabled_suspiciousAdminUsers",
 		'scansEnabled_passwds',
 		'scansEnabled_plugins',
+        'scansEnabled_coreUnknown',
 		'scansEnabled_posts',
 		'scansEnabled_scanImages',
 		'scansEnabled_themes',
@@ -371,6 +377,7 @@ class MainWP_Child_Wordfence {
 
     public function do_reports_log($ext = '') {
         if ( $ext !== 'wordfence' ) return;
+        if ( ! $this->is_wordfence_installed ) return;
 
         global $wpdb;
 

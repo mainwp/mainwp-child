@@ -71,12 +71,20 @@ class MainWP_Child_Back_Up_Buddy {
 
 
     function do_site_stats() {
-        do_action( 'mainwp_child_reports_log', 'backupbuddy');
-	}
+        if (has_action('mainwp_child_reports_log')) {
+            do_action( 'mainwp_child_reports_log', 'backupbuddy');
+        } else {
+            $this->do_reports_log('backupbuddy');
+        }
+    }
 
     function do_reports_log($ext = '') {
         if ($ext !== 'backupbuddy')
             return;
+
+        if (!$this->is_backupbuddy_installed) {
+            return;
+        }
 
         $backups = array();
 		$backup_sort_dates = array();
@@ -99,7 +107,7 @@ class MainWP_Child_Back_Up_Buddy {
 				$options = array();
 				if ( file_exists( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt' ) ) {
 					require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
-					pb_backupbuddy::status( 'details', 'Fileoptions instance #33.' );
+					//pb_backupbuddy::status( 'details', 'Fileoptions instance #33.' );
 					$backup_options = new pb_backupbuddy_fileoptions( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt', $read_only = false, $ignore_lock = false, $create_file = true ); // Will create file to hold integrity data if nothing exists.
 				} else {
 					$backup_options = '';
@@ -118,12 +126,8 @@ class MainWP_Child_Back_Up_Buddy {
 
 				// Defaults...
 				$detected_type = '';
-				$file_size = '';
-				$modified = '';
 				$modified_time = 0;
-				$integrity = '';
 
-				$main_string = 'Warn#284.';
 				if ( is_array( $backup_integrity ) ) {
 					// Calculate time ago.
 					$time_ago = '';
@@ -139,8 +143,10 @@ class MainWP_Child_Back_Up_Buddy {
 					$modified_time = $backup_integrity['modified'];
 					$message = 'BackupBuddy ' . $detected_type . ' finished';
 					$backup_type = $detected_type;
-					if (!empty($modified_time))
+					if (!empty($modified_time)) {
 						do_action( 'mainwp_reports_backupbuddy_backup', $message, $backup_type, $modified_time);
+                        MainWP_Helper::update_lasttime_backup('backupbuddy', $modified_time); // to support backup before update feature
+                    }
 				}
 			}
 		}

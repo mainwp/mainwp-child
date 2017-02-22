@@ -11,13 +11,13 @@ class MainWP_Child_Back_Up_Wordpress {
 		return MainWP_Child_Back_Up_Wordpress::$instance;
 	}
         
-        public function __construct() {
+    public function __construct() {
 		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 		if ( is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
                     $this->is_plugin_installed = true;			
 		}
-                
-        }
+    }
+
 	public function init() {
 		if ( get_option( 'mainwp_backupwordpress_ext_enabled' ) !== 'Y' ) return;
 		if (!$this->is_plugin_installed) return;
@@ -146,11 +146,16 @@ class MainWP_Child_Back_Up_Wordpress {
 	}
         
     function do_site_stats() {
-        do_action( 'mainwp_child_reports_log', 'backupwordpress');
-	}
+        if (has_action('mainwp_child_reports_log')) {
+            do_action( 'mainwp_child_reports_log', 'backupwordpress');
+        } else {
+            $this->do_reports_log('backupwordpress');
+        }
+    }
         
     public function do_reports_log($ext = '') {
         if ( $ext !== 'backupwordpress' ) return;
+        if (!$this->is_plugin_installed) return;
 
         // Refresh the schedules from the database to make sure we have the latest changes
         HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
@@ -164,6 +169,7 @@ class MainWP_Child_Back_Up_Wordpress {
                     $date = @filemtime( $file );
                     if ( !empty( $date ) ) {
 	                    do_action( "backupwordpress_backup", $destination, $message, 'finished', $backup_type, $date );
+	                    MainWP_Helper::update_lasttime_backup('backupwordpress', $date); // to support backup before update feature
                     }
                 }
             }
