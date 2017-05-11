@@ -58,7 +58,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 == Changelog ==
 
 = 3.4 - 5-11-17 =
-* Fixed: an issue with updating plugins and themes from MainWP Dashboard
+* Fixed: an issue with updating plugins and themes on some server setups
 * Fixed: an issue with child site connection after cloning the site
 * Fixed: an issue with saving iThemes Security settings
 * Fixed: an issue with recording empty values for the Client Reports
