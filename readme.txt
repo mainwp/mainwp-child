@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.7.2
-Stable tag: 3.3
+Tested up to: 4.7.4
+Stable tag: 3.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,18 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4 - 5-11-17 =
+* Fixed: an issue with updating plugins and themes from MainWP Dashboard
+* Fixed: an issue with child site connection after cloning the site
+* Fixed: an issue with saving iThemes Security settings
+* Fixed: an issue with recording empty values for the Client Reports
+* Fixed: an issue with creating a custom port type posts
+* Fixed: an issue with incorrect slugs created after publishing drafts
+* Fixed: an issue with showing correct tabs if a custom branding applied
+* Fixed: an issue with syncing sites when the MainWP Buddy extension is used
+* Fixed: an issue with saving BackupBuddy settings
+* Added: support for new Wordfence features
 
 = 3.3 - 2-22-17 =
 * Fixed: an issue with syncing sites when the Client Reports Extension is activated
