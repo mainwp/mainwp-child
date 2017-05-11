@@ -1074,7 +1074,7 @@ class MainWP_Child_iThemes_Security {
 		);
 
 		if ( $all_sites ) {
-			$query = 'SHOW_TABLES';
+			$query = 'SHOW TABLES';
 		} else {
 			$query = $wpdb->prepare( 'SHOW TABLES LIKE %s', "{$wpdb->base_prefix}%" );
 		}

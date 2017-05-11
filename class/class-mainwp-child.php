@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.3';
+	public static $version = '3.4';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -584,18 +584,28 @@ class MainWP_Child {
 	}
 
 	function render_pages($shownPage) {
+        $shownPage = '';
 		if ( isset($_GET['tab']) ) {
 			$shownPage = $_GET['tab'];
 		}
-
-		if (empty($shownPage))
-			$shownPage = 'settings';
 
 		$hide_settings = get_option( 'mainwp_branding_remove_setting' ) ? true : false;
 		$hide_restore = get_option( 'mainwp_branding_remove_restore' ) ? true : false;
 		$hide_server_info = get_option( 'mainwp_branding_remove_server_info' ) ? true : false;
                 $hide_connection_detail = get_option( 'mainwp_branding_remove_connection_detail' ) ? true : false;
 		$hide_style = 'style="display:none"';
+
+	    if ($shownPage == '') {
+	        if (!$hide_settings ) {
+	                $shownPage = 'settings';
+	        } else if (!$hide_restore) {
+	            $shownPage = 'restore-clone';
+	        } else if (!$hide_server_info) {
+	            $shownPage = 'server-info';
+	        } else if (!$hide_connection_detail) {
+	            $shownPage = 'connection-detail';
+	        }
+	    }
 
 		self::render_header($shownPage, false);
 		?>
@@ -1318,7 +1328,9 @@ class MainWP_Child {
 			define( 'DOING_CRON', true );
 			MainWP_Child::fix_for_custom_themes();
 			call_user_func( array( $this, $this->callableFunctionsNoAuth[ $_POST['function'] ] ) );
-		}
+		} else if (isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] )  && !isset($this->callableFunctions[ $_POST['function'] ]) && !isset( $this->callableFunctionsNoAuth[ $_POST['function'] ]) ) {
+            MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
+        }
 
 		if ( 1 === (int) get_option( 'mainwpKeywordLinks' ) ) {
 			new MainWP_Keyword_Links();
@@ -1581,7 +1593,7 @@ class MainWP_Child {
 		@wp_version_check();
 
 		$core_updates = get_core_updates();
-		if ( count( $core_updates ) > 0 ) {
+		if ( is_array($core_updates) && count( $core_updates ) > 0 ) {
 			foreach ( $core_updates as $core_update ) {
 				if ( 'latest' === $core_update->response ) {
 					$information['upgrade'] = 'SUCCESS';
@@ -1693,8 +1705,8 @@ class MainWP_Child {
 	 */
 	function upgradePluginTheme() {
 		//Prevent disable/re-enable at upgrade
-                if (!defined( 'DOING_CRON') )
-                    define( 'DOING_CRON', true );
+        if (!defined( 'DOING_CRON') )
+            define( 'DOING_CRON', true );
 
 		MainWP_Helper::getWPFilesystem();
 
@@ -1769,19 +1781,25 @@ class MainWP_Child {
 
 			if ( count( $plugins ) > 0 ) {
 				//@see wp-admin/update.php
-				$upgrader = new Plugin_Upgrader( new Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
-				$result   = $upgrader->bulk_upgrade( $plugins );
-				if ( ! empty( $result ) ) {
-					foreach ( $result as $plugin => $info ) {
-						if ( empty( $info ) ) {
-							$information['upgrades'][ $plugin ] = false;
-						} else {
-							$information['upgrades'][ $plugin ] = true;
-						}
-					}
-				} else {
-					MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
-				}
+                $failed = true;
+                // to fix logging update
+                foreach($plugins as $plugin) {
+                    $upgrader = new Plugin_Upgrader( new Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+                    $result   = $upgrader->bulk_upgrade( array($plugin) );
+                    if ( ! empty( $result ) ) {
+                        foreach ( $result as $plugin => $info ) {
+                            if ( empty( $info ) ) {
+                                $information['upgrades'][ $plugin ] = false;
+                            } else {
+                                $information['upgrades'][ $plugin ] = true;
+                            }
+                        }
+                        $failed = false;
+                    }
+                }
+                if ($failed) {
+                    MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+                }
 			}
 			if ( count( $premiumPlugins ) > 0 ) {
 				$mwp_premium_updates = apply_filters( 'mwp_premium_perform_update', array() );
@@ -1858,9 +1876,26 @@ class MainWP_Child {
 //				}
 
 //				@wp_update_themes();
+                $failed = true;
+                // to fix logging update
+                foreach($themes as $theme) {
+                    $upgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+                    $result   = $upgrader->bulk_upgrade( array($theme) );
+                    if ( ! empty( $result ) ) {
+                        foreach ( $result as $theme => $info ) {
+                            if ( empty( $info ) ) {
+                                $information['upgrades'][ $theme ] = false;
+                            } else {
+                                $information['upgrades'][ $theme ] = true;
+                            }
+                        }
+                        $failed = false;
+                    }
+                }
+                if ($failed) {
+                    MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+                }
 
-				$upgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
-				$result   = $upgrader->bulk_upgrade( $themes );
 				if ( null !== $this->filterFunction ) {
 					add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 				}
@@ -1874,17 +1909,6 @@ class MainWP_Child {
 					), 99 );
 				}
 
-				if ( ! empty( $result ) ) {
-					foreach ( $result as $theme => $info ) {
-						if ( empty( $info ) ) {
-							$information['upgrades'][ $theme ] = false;
-						} else {
-							$information['upgrades'][ $theme ] = true;
-						}
-					}
-				} else {
-					MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
-				}
 			}
 
 //			$last_update = get_site_transient( 'update_themes' );
@@ -2106,7 +2130,9 @@ class MainWP_Child {
         $my_post = array();
 
 		if ( 'publish' === $action ) {
-			wp_publish_post( $postId );
+            // to fix error post slug
+			//wp_publish_post( $postId );
+            wp_update_post(array('ID' => $postId, 'post_status' => 'publish'  ));
 		} else if ( 'update' === $action ) {
 			$postData = $_POST['post_data'];
 			$my_post  = is_array( $postData ) ? $postData : array();
@@ -3257,7 +3283,7 @@ class MainWP_Child {
 		}
 		@wp_version_check();
 		$core_updates = get_core_updates();
-		if ( count( $core_updates ) > 0 ) {
+		if ( is_array($core_updates) && count( $core_updates ) > 0 ) {
 			foreach ( $core_updates as $core_update ) {
 				if ( 'latest' === $core_update->response ) {
 					break;

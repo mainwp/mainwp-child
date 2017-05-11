@@ -1165,6 +1165,13 @@ class MainWP_Child_Back_WP_Up {
 
 		update_site_option( 'backwpup_messages', array() );
 
+        if (isset($settings['value']['backupdir']) && empty($settings['value']['backupdir'])) {
+            $backupdir = BackWPup_Option::get( (int)$job_id, 'backupdir' );
+            if (!empty($backupdir)) {
+               $settings['value']['backupdir'] = $backupdir;
+            }
+        }
+
 		foreach ( $settings['value'] as $key => $val ) {
 			$_POST[ $key ] = $val;
 		}

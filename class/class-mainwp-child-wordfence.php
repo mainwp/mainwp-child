@@ -95,7 +95,7 @@ class MainWP_Child_Wordfence {
 		'deleteTablesOnDeact',
 		'disableCookies',
 		'startScansRemotely',
-		'disableConfigCaching',
+		//'disableConfigCaching',
 		'addCacheComment',
 		'disableCodeExecutionUploads',
 		//'isPaid',
@@ -109,17 +109,18 @@ class MainWP_Child_Wordfence {
 		'email_summary_interval',
 		'email_summary_excluded_directories',
 		'allowed404s',
+        'wafAlertWhitelist',
         'wafAlertOnAttacks'
                 //'ajaxWatcherDisabled_front', // do not update those values when save settings
                 //'ajaxWatcherDisabled_admin' 
 	);
 
         public static $diagnosticParams = array(
-		'addCacheComment',
+		//'addCacheComment',
 		'debugOn',
 		'startScansRemotely',
 		'ssl_verify',
-		'disableConfigCaching',
+		//'disableConfigCaching',
 		'betaThreatDefenseFeed',
 	);
         
@@ -322,7 +323,10 @@ class MainWP_Child_Wordfence {
                                    break;   
                                case 'update_config':
                                    $information = $this->updateConfig();
-                                   break;  
+                                   break;
+                               case 'save_country_blocking':
+                                   $information = $this->saveCountryBlocking();
+                                   break;
 			}
 		}
 		MainWP_Helper::write( $information );
@@ -490,9 +494,25 @@ class MainWP_Child_Wordfence {
 			'isPaid' => wfConfig::get('isPaid'),
 			'lastscan_timestamp' => $this->get_lastscan(),
                         'isNginx' => wfUtils::isNginx() ? 1 : 0,
+                        'todayAttBlocked' => $this->count_attacks_blocked(1),
+                        'weekAttBlocked' => $this->count_attacks_blocked(7),
+                        'monthAttBlocked' => $this->count_attacks_blocked(30),
                         'wafData' => $this->_getWAFData()
 		);
 	}
+
+
+        public function count_attacks_blocked($maxAgeDays) {
+            global $wpdb;
+            $interval = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
+            return $wpdb->get_var(<<<SQL
+SELECT SUM(blockCount) as blockCount
+FROM {$wpdb->prefix}wfBlockedIPLog
+WHERE unixday >= {$interval}
+SQL
+                );
+        }
+
 
 	function get_lastscan() {
 		global $wpdb;
@@ -1188,6 +1208,23 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
+    public static function saveCountryBlocking(){
+		if(! wfConfig::get('isPaid')){
+			return array('error' => "Sorry but this feature is only available for paid customers.");
+		}
+                $settings = $_POST['setings'];
+		wfConfig::set('cbl_action', $settings['blockAction']);
+		wfConfig::set('cbl_countries', $settings['codes']);
+		wfConfig::set('cbl_redirURL', $settings['redirURL']);
+		wfConfig::set('cbl_loggedInBlocked', $settings['loggedInBlocked']);
+		wfConfig::set('cbl_loginFormBlocked', $settings['loginFormBlocked']);
+		wfConfig::set('cbl_restOfSiteBlocked', $settings['restOfSiteBlocked']);
+		wfConfig::set('cbl_bypassRedirURL', $settings['bypassRedirURL']);
+		wfConfig::set('cbl_bypassRedirDest', $settings['bypassRedirDest']);
+		wfConfig::set('cbl_bypassViewURL', $settings['bypassViewURL']);
+		return array('ok' => 1);
+	}
+
 	public function load_static_panel() {
 		$mode  = $_POST['mode'];
 		$wfLog = wordfence::getLog();
@@ -1358,7 +1395,7 @@ class MainWP_Child_Wordfence {
 			$changed = true;
 		}
 		wfConfig::set('allowHTTPSCaching', $_POST['allowHTTPSCaching'] == '1' ? 1 : 0);
-		wfConfig::set('addCacheComment', $_POST['addCacheComment'] == 1 ? '1' : 0);
+		//wfConfig::set('addCacheComment', $_POST['addCacheComment'] == 1 ? '1' : 0);
 		wfConfig::set('clearCacheSched', $_POST['clearCacheSched'] == 1 ? '1' : 0);
 		if($changed && wfConfig::get('cacheType', false) == 'falcon'){
 			$err = wfCache::addHtaccessCode('add');
@@ -1550,7 +1587,7 @@ class MainWP_Child_Wordfence {
 				<tbody>
 				<?php
 				$howGet = wfConfig::get('howGetIPs', false);
-				list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVarible();
+				list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVariable();
 				foreach (array(
 							 'REMOTE_ADDR'           => 'REMOTE_ADDR',
 							 'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',

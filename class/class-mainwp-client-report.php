@@ -251,16 +251,18 @@ class MainWP_Client_Report {
 		//return $records;
 		//$other_tokens_data = $this->get_other_tokens_data($records, $other_tokens);
 
+        // to fix invalid data
+        $skip_records = array();
 		if ( isset( $other_tokens['header'] ) && is_array( $other_tokens['header'] ) ) {
-			$other_tokens_data['header'] = $this->get_other_tokens_data( $records, $other_tokens['header'] );
+			$other_tokens_data['header'] = $this->get_other_tokens_data( $records, $other_tokens['header'], $skip_records);
 		}
 
 		if ( isset( $other_tokens['body'] ) && is_array( $other_tokens['body'] ) ) {
-			$other_tokens_data['body'] = $this->get_other_tokens_data( $records, $other_tokens['body'] );
+			$other_tokens_data['body'] = $this->get_other_tokens_data( $records, $other_tokens['body'], $skip_records );
 		}
 
 		if ( isset( $other_tokens['footer'] ) && is_array( $other_tokens['footer'] ) ) {
-			$other_tokens_data['footer'] = $this->get_other_tokens_data( $records, $other_tokens['footer'] );
+			$other_tokens_data['footer'] = $this->get_other_tokens_data( $records, $other_tokens['footer'], $skip_records );
 		}
 
 		$sections_data = array();
@@ -268,19 +270,19 @@ class MainWP_Client_Report {
 		if ( isset( $sections['header'] ) && is_array( $sections['header'] ) && ! empty( $sections['header'] ) ) {
 			foreach ( $sections['header']['section_token'] as $index => $sec ) {
 				$tokens                            = $sections['header']['section_content_tokens'][ $index ];
-				$sections_data['header'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec );
+				$sections_data['header'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
 			}
 		}
 		if ( isset( $sections['body'] ) && is_array( $sections['body'] ) && ! empty( $sections['body'] ) ) {
 			foreach ( $sections['body']['section_token'] as $index => $sec ) {
 				$tokens                          = $sections['body']['section_content_tokens'][ $index ];
-				$sections_data['body'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec );
+				$sections_data['body'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
 			}
 		}
 		if ( isset( $sections['footer'] ) && is_array( $sections['footer'] ) && ! empty( $sections['footer'] ) ) {
-			foreach ( $sections['footer'] as $index => $sec ) {
+			foreach ( $sections['footer']['section_token'] as $index => $sec ) {
 				$tokens                            = $sections['footer']['section_content_tokens'][ $index ];
-				$sections_data['footer'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec );
+				$sections_data['footer'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
 			}
 		}
 
@@ -292,7 +294,7 @@ class MainWP_Client_Report {
 		return $information;
 	}
 
-	function get_other_tokens_data( $records, $tokens ) {
+	function get_other_tokens_data( $records, $tokens, &$skip_records ) {
 
 		$convert_context_name = array(
 			'comment' => 'comments',
@@ -400,7 +402,23 @@ class MainWP_Client_Report {
 									if ( 'draft' === $new_status ) { // avoid auto save post
 										continue;
 									}
-								}
+								} else if ( 'updated' === $action && ('themes' === $context || 'plugins' === $context)) {
+                                    $name = $this->get_stream_meta_data( $record, 'name' );
+                                    if ( empty($name) ) { // to fix empty value
+                                        if (!in_array($record->ID, $skip_records))
+                                            $skip_records[] = $record->ID;
+                                        continue;
+                                    } else {
+                                        $old_version = $this->get_stream_meta_data( $record, 'old_version' );
+                                        $version = $this->get_stream_meta_data( $record, 'version' );
+                                        if (version_compare($version, $old_version, '<=')) { // to fix
+                                            if (!in_array($record->ID, $skip_records))
+                                                $skip_records[] = $record->ID;
+                                            continue;
+                                        }
+                                    }
+                                }
+
 							}
 
 							$count ++;
@@ -414,7 +432,7 @@ class MainWP_Client_Report {
 		return $token_values;
 	}
 
-	function get_section_loop_data( $records, $tokens, $section ) {
+	function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
 		$convert_context_name = array(
 			'comment' => 'comments',
@@ -439,6 +457,7 @@ class MainWP_Client_Report {
 		);
 
 		$some_allowed_data = array(
+            'ID',
 			'name',
 			'title',
 			'oldversion',
@@ -469,6 +488,10 @@ class MainWP_Client_Report {
 		$loop_count = 0;
 
 		foreach ( $records as $record ) {
+            if (in_array($record->ID, $skip_records)) {
+                continue;
+            }
+
 			$theme_edited = $users_updated = $plugin_edited = false;
 
 			if ( $plugin_edited ) {
@@ -565,6 +588,9 @@ class MainWP_Client_Report {
 				}
 
 				switch ( $data ) {
+                    case 'ID':
+						$token_values[ $token ] = $record->ID;
+						break;
 					case 'date':
 						$token_values[ $token ] = MainWP_Helper::formatDate( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
 						break;
@@ -600,7 +626,7 @@ class MainWP_Client_Report {
 							}
 							$token_values[ $token ] = $roles;
 						} else {
-							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+                            $token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
 						}
 						break;
 					case 'title':
