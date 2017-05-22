@@ -4,7 +4,7 @@
  *
  * Uninstalling mainwp child deletes options.
  *
- * @author      mainwp
+ * @author      MainWP
  * @category    Core
  * @package     mainwp-child/Uninstaller
  * @version     3.4
