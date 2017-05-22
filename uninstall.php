@@ -1,4 +1,3 @@
-
 <?php
 /**
  * MainWP Child Uninstall
