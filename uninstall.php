@@ -17,3 +17,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 // Delete options.
 $wpdb->query( "DELETE FROM $wpdb->options WHERE option_name LIKE 'mainWPChild\_%';" );
+
+
+// Clear any cached data that has been removed
+wp_cache_flush();
