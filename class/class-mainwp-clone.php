@@ -220,7 +220,7 @@ class MainWP_Clone {
                 <br/>
                 <br/>
             <form
-				action="<?php echo esc_attr( admin_url( 'admin.php?page=' . ( 0 !== $sitesToClone ? 'MainWP_Clone' : 'MainWPRestore' ) . '&upload=yes' ) ); ?>"
+				action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>"
                 method="post" 
                 enctype="multipart/form-data">
                 <input type="file" name="file" id="file"/> 
@@ -314,7 +314,7 @@ class MainWP_Clone {
                             ?>
                         <br/>
 				<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?></em><br/><br/>
-			<form action="<?php echo esc_attr( admin_url( 'admin.php?page=MainWPRestore&upload=yes' ) ); ?>" 
+			<form action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>" 
 				  method="post"
                   enctype="multipart/form-data">
                   <input type="file" name="file" id="file"/> 
@@ -326,10 +326,11 @@ class MainWP_Clone {
                          value="<?php esc_html_e( 'Restore Website', 'mainwp-child' ); ?>"/>
 			    <input type="hidden" name="_nonce" value="<?php echo wp_create_nonce( 'cloneRestore' ); ?>" />
             </form>
+          <?php } ?>
             </div>
         </div>
 			<?php
-		}
+		
 		self::renderCloneFromServer();
 		self::renderJavaScript();
 	}

@@ -75,7 +75,7 @@ class MainWP_Child_Back_WP_Up {
 
 			return;
 		}
-                
+
 		error_reporting( 0 );
 		function mainwp_backwpup_handle_fatal_error() {
 			$error = error_get_last();
@@ -96,7 +96,7 @@ class MainWP_Child_Back_WP_Up {
 		if ( ! isset( $_POST['action'] ) ) {
 			$information = array( 'error' => __( 'Missing action.', $this->plugin_translate ) );
 		} else {
-                        MainWP_Helper::update_option( 'mainwp_backwpup_ext_enabled', 'Y' );
+			MainWP_Helper::update_option( 'mainwp_backwpup_ext_enabled', 'Y' );
 			switch ( $_POST['action'] ) {
 				case 'backwpup_update_settings':
 					$information = $this->update_settings();
@@ -179,15 +179,15 @@ class MainWP_Child_Back_WP_Up {
 		exit();
 	}
 
-	public function init() {                
+	public function init() {
 		if ( get_option( 'mainwp_backwpup_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
-                
-                if (!$this->is_backwpup_installed) 
-                    return;
-                
-		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );                
+
+		if (!$this->is_backwpup_installed)
+			return;
+
+		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 
 		if ( get_option( 'mainwp_backwpup_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
@@ -195,53 +195,53 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-    function do_site_stats() {
-        if (has_action('mainwp_child_reports_log')) {
-            do_action( 'mainwp_child_reports_log', 'backwpup');
-        } else {
-            $this->do_reports_log('backwpup');
-        }
-    }
-        
-    public function do_reports_log($ext = '') {
-        if ( $ext !== 'backwpup' ) return;
-        if (!$this->is_backwpup_installed)
-            return;
+	function do_site_stats() {
+		if (has_action('mainwp_child_reports_log')) {
+			do_action( 'mainwp_child_reports_log', 'backwpup');
+		} else {
+			$this->do_reports_log('backwpup');
+		}
+	}
 
-        $destinations = BackWPup::get_registered_destinations();
-        $jobdests = $this->get_destinations_list();
+	public function do_reports_log($ext = '') {
+		if ( $ext !== 'backwpup' ) return;
+		if (!$this->is_backwpup_installed)
+			return;
 
-        if ( !empty( $jobdests ) ) {
-            foreach ($jobdests as $jobdest) {
-                list( $jobid, $dest ) = explode( '_', $jobdest );
-                if ( ! empty( $destinations[ $dest ][ 'class' ] ) ) {
-                    $dest_object = BackWPup::get_destination( $dest );
-                    $items = $dest_object->file_get_list( $jobdest );
-                    //if no items brake
-                    if ( $items ) {
-                        foreach ( $items as $ma ) {
-                            if (isset($ma['time'])) {
-                                $backup_time = $ma[ "time" ];
-                                $message = 'BackWPup backup finished';
-                                $backup_type = 'BackWPup';
-                                $destination = "N/A";
-                                if (!empty($backup_time)) {
-	                                do_action( 'mainwp_backwpup_backup', $message, $backup_type, $backup_time );
-	                                MainWP_Helper::update_lasttime_backup( 'backwpup', $backup_time ); // to support backup before update feature
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+		$destinations = BackWPup::get_registered_destinations();
+		$jobdests = $this->get_destinations_list();
 
-    function get_destinations_list() {
+		if ( !empty( $jobdests ) ) {
+			foreach ($jobdests as $jobdest) {
+				list( $jobid, $dest ) = explode( '_', $jobdest );
+				if ( ! empty( $destinations[ $dest ][ 'class' ] ) ) {
+					$dest_object = BackWPup::get_destination( $dest );
+					$items = $dest_object->file_get_list( $jobdest );
+					//if no items brake
+					if ( $items ) {
+						foreach ( $items as $ma ) {
+							if (isset($ma['time'])) {
+								$backup_time = $ma[ "time" ];
+								$message = 'BackWPup backup finished';
+								$backup_type = 'BackWPup';
+								$destination = "N/A";
+								if (!empty($backup_time)) {
+									do_action( 'mainwp_backwpup_backup', $message, $backup_type, $backup_time );
+									MainWP_Helper::update_lasttime_backup( 'backwpup', $backup_time ); // to support backup before update feature
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	function get_destinations_list() {
 
 		$jobdest      = array();
 		$jobids       = BackWPup_Option::get_job_ids();
-                $destinations = BackWPup::get_registered_destinations();
+		$destinations = BackWPup::get_registered_destinations();
 		foreach ( $jobids as $jobid ) {
 			if ( BackWPup_Option::get( $jobid, 'backuptype' ) === 'sync' ) {
 				continue;
@@ -261,7 +261,7 @@ class MainWP_Child_Back_WP_Up {
 
 		return $jobdest;
 	}
-        
+
 	public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
@@ -290,10 +290,10 @@ class MainWP_Child_Back_WP_Up {
 	}
 
 	protected function show_hide() {
-		
+
 		$hide = isset( $_POST['show_hide'] ) && ( '1' === $_POST['show_hide'] ) ? 'hide' : '';
 
-		MainWP_Helper::update_option( 'mainwp_backwpup_hide_plugin', $hide );
+		MainWP_Helper::update_option( 'mainwp_backwpup_hide_plugin', $hide, 'yes' );
 
 		return array( 'success' => 1 );
 	}
@@ -1060,9 +1060,9 @@ class MainWP_Child_Back_WP_Up {
 
 			$return['tables'] = $tables_temp;
 		}
-		
+
 		if (isset($settings['job_id'])) {
-			$return['dbdumpexclude'] = BackWPup_Option::get( $settings['job_id'], 'dbdumpexclude' );	
+			$return['dbdumpexclude'] = BackWPup_Option::get( $settings['job_id'], 'dbdumpexclude' );
 		}
 		return array( 'success' => 1, 'return' => $return );
 	}
@@ -1135,7 +1135,68 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
+	// From BackWPup_JobType_File::edit_form_post_save with some tweaks
+	public function edit_form_post_save( $post_data, $id ) {
+		// Parse and save files to exclude
+		$exclude_input = $post_data['fileexclude'];
+		$to_exclude_list = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
+		$to_exclude_list and $to_exclude_list = sanitize_text_field( stripslashes( $to_exclude_list ) );
+		$to_exclude = $to_exclude_list ? explode( ',', $to_exclude_list ) : array();
+		$to_exclude_parsed = array();
+		foreach ( $to_exclude as $key => $value ) {
+			$normalized = wp_normalize_path( trim( $value ) );
+			$normalized and $to_exclude_parsed[$key] = $normalized;
+		}
+		sort( $to_exclude_parsed );
+		BackWPup_Option::update( $id, 'fileexclude', implode( ',', $to_exclude_parsed ) );
+		unset( $exclude_input, $to_exclude_list, $to_exclude, $to_exclude_parsed, $normalized );
+
+		// Parse and save folders to include
+		$include_input = $post_data['dirinclude'];
+		$include_list = $include_input ? str_replace( array( "\r\n", "\r" ), ',', $include_input ) : array();
+		$to_include = $include_list ? explode( ',', $include_list ) : array();
+		$to_include_parsed = array();
+		foreach ( $to_include as $key => $value ) {
+			$normalized = trailingslashit( wp_normalize_path( trim( $value ) ) );
+			$normalized and $normalized = filter_var( $normalized, FILTER_SANITIZE_URL );
+			$realpath = $normalized && $normalized !== '/' ? realpath( $normalized ) : false;
+			$realpath and $to_include_parsed[$key] = $realpath;
+		}
+		sort( $to_include_parsed );
+		BackWPup_Option::update( $id, 'dirinclude', implode( ',', $to_include_parsed ) );
+		unset( $include_input, $include_list, $to_include, $to_include_parsed, $normalized, $realpath  );
+
+		// Parse and save boolean fields
+		$boolean_fields_def = array(
+			'backupexcludethumbs' => FILTER_VALIDATE_BOOLEAN,
+			'backupspecialfiles'  => FILTER_VALIDATE_BOOLEAN,
+			'backuproot'          => FILTER_VALIDATE_BOOLEAN,
+			'backupabsfolderup'   => FILTER_VALIDATE_BOOLEAN,
+			'backupcontent'       => FILTER_VALIDATE_BOOLEAN,
+			'backupplugins'       => FILTER_VALIDATE_BOOLEAN,
+			'backupthemes'        => FILTER_VALIDATE_BOOLEAN,
+			'backupuploads'       => FILTER_VALIDATE_BOOLEAN,
+		);
+
+		foreach( $boolean_fields_def as $key => $value ) {
+			BackWPup_Option::update( $id, $key, ! empty( $post_data[$key] ) );
+		}
+		// Parse and save directories to exclude
+		$exclude_dirs_def = array(
+			'backuprootexcludedirs'    => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
+			'backuppluginsexcludedirs' => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
+			'backupcontentexcludedirs'    => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
+			'backupthemesexcludedirs'  => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
+			'backupuploadsexcludedirs' => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
+		);
+		foreach( $exclude_dirs_def as $key => $filter ) {
+			$value = ! empty( $post_data[$key] ) && is_array( $post_data[$key] ) ? $post_data[$key] : array();
+			BackWPup_Option::update( $id, $key, $value );
+		}
+	}
+
 	protected function insert_or_update_jobs() {
+
 		$settings = $_POST['settings'];
 
 		if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
@@ -1165,18 +1226,29 @@ class MainWP_Child_Back_WP_Up {
 
 		update_site_option( 'backwpup_messages', array() );
 
-        if (isset($settings['value']['backupdir']) && empty($settings['value']['backupdir'])) {
-            $backupdir = BackWPup_Option::get( (int)$job_id, 'backupdir' );
-            if (!empty($backupdir)) {
-               $settings['value']['backupdir'] = $backupdir;
-            }
-        }
+		if (isset($settings['value']['backupdir']) && empty($settings['value']['backupdir'])) {
+			$backupdir = BackWPup_Option::get( (int)$job_id, 'backupdir' );
+			if (!empty($backupdir)) {
+				$settings['value']['backupdir'] = $backupdir;
+			}
+		}
 
 		foreach ( $settings['value'] as $key => $val ) {
 			$_POST[ $key ] = $val;
 		}
 
-		BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
+		if ($settings['tab'] == 'jobtype-FILE') {
+			// to fix
+			$this->edit_form_post_save($settings['value'], $job_id);
+			//saved message
+			$messages = BackWPup_Admin::get_messages();
+			if ( empty( $messages['error'] ) ) {
+				$url = BackWPup_Job::get_jobrun_url( 'runnowlink', $job_id );
+				BackWPup_Admin::message( sprintf( __( 'Changes for job <i>%s</i> saved.', 'backwpup' ), BackWPup_Option::get( $job_id, 'name' ) ) . ' <a href="' . network_admin_url( 'admin.php' ) . '?page=backwpupjobs">' . __( 'Jobs overview', 'backwpup' ) . '</a> | <a href="' . $url['url'] . '">' . __( 'Run now', 'backwpup' ) . '</a>' );
+			}
+		} else {
+			BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
+		}
 
 		$return = $this->check_backwpup_messages();
 

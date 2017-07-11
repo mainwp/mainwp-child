@@ -145,6 +145,9 @@ class MainWP_Child_WP_Rocket {
 				case 'get_optimize_info':
 					$information = $this->get_optimize_info();
 					break;
+                case 'purge_opcache':
+					$information = $this->do_admin_post_rocket_purge_opcache();
+					break;
 			}
 		}
 		MainWP_Helper::write( $information );
@@ -157,6 +160,15 @@ class MainWP_Child_WP_Rocket {
 
 		return $information;
 	}
+
+    function do_admin_post_rocket_purge_opcache() {
+        if ( function_exists( 'opcache_reset' ) ) {
+            @opcache_reset();
+        } else {
+            return array('error' => 'The host do not support the function reset opcache.');
+        }
+        return array('result' => 'SUCCESS');
+    }
 
 	function purge_cloudflare() {
 		if ( function_exists( 'rocket_purge_cloudflare' ) ) {
@@ -257,70 +269,74 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	function get_rocket_default_options() {
-		return array(
-			//                'secret_cache_key'         => $secret_cache_key,
-			'cache_mobile'             => 0,
-			'do_caching_mobile_files'     => 0,
-			'cache_feed'				  => 0,
-			'cache_logged_user'        => 0,
-			'cache_ssl'                => 0,
-			'emoji'					  => 0,
-			'varnish_auto_purge' => 0,
-			'manual_preload' => 0,
-			'automatic_preload' => 0,
-			'sitemap_preload' => 0,
-			'sitemap_preload_url_crawl' => 500000,
-			'sitemaps' => '',
-			'database_revisions' => 0,
-			'database_auto_drafts' => 0,
-			'database_trashed_posts' => 0,
-			'database_spam_comments' => 0,
-			'database_trashed_comments' => 0,
-			'database_expired_transients' => 0,
-			'database_all_transients' => 0,
-			'database_optimize_tables' => 0,
-			'schedule_automatic_cleanup' => 0,
-			'automatic_cleanup_frequency' => 'daily',
-			'cache_reject_uri'         => array(),
-			'cache_reject_cookies'     => array(),
-			'cache_reject_ua'          => array(),
-			'cache_query_strings'      => array(),
-			'cache_purge_pages'        => array(),
-			'purge_cron_interval'      => 24,
-			'purge_cron_unit'          => 'HOUR_IN_SECONDS',
-			'exclude_css'              => array(),
-			'exclude_js'               => array(),
-			'deferred_js_files'        => array(),
-			'deferred_js_wait'         => array(),
-			'lazyload'                 => 0,
-			'lazyload_iframes'         => 0,
-			'minify_css'               => 0,
-			//                'minify_css_key'           => $minify_css_key,
-			'minify_css_combine_all'   => 0,
-			'minify_js'                => 0,
-			//                'minify_js_key'            => $minify_js_key,
-			'minify_js_in_footer'      => array(),
-			'minify_js_combine_all'    => 0,
-			'minify_google_fonts'      => 0,
-			'minify_html'              => 0,
-			'minify_html_inline_css'   => 0,
-			'minify_html_inline_js'    => 0,
-            'remove_query_strings'     => 0,
-			'dns_prefetch'             => 0,
-			'cdn'                      => 0,
-			'cdn_cnames'               => array(),
-			'cdn_zone'                 => array(),
-			'cdn_ssl'                  => 0,
-			'cdn_reject_files'         => array(),
-			'do_cloudflare'            => 0,
-			'cloudflare_email'         => '',
-			'cloudflare_api_key'       => '',
-			'cloudflare_domain'        => '',
-			'cloudflare_devmode'       => 0,
-			'cloudflare_auto_settings' => 0,
-			'cloudflare_old_settings'  => 0,
-			'do_beta'                  => 0,
-		);
+		  return array(
+                'cache_mobile'             => 1,
+				'do_caching_mobile_files'     => 0,
+                'cache_logged_user'        => 0,
+                'cache_ssl'                => 0,
+				'emoji'					  => 0,
+                'embeds'                   => 1,
+				'varnish_auto_purge' => 0,
+				'manual_preload' => 0,
+				'automatic_preload' => 0,
+				'sitemap_preload' => 0,
+				'sitemap_preload_url_crawl' => 500000,
+				'sitemaps' => array(),
+				'database_revisions' => 0,
+				'database_auto_drafts' => 0,
+				'database_trashed_posts' => 0,
+				'database_spam_comments' => 0,
+				'database_trashed_comments' => 0,
+				'database_expired_transients' => 0,
+				'database_all_transients' => 0,
+				'database_optimize_tables' => 0,
+				'schedule_automatic_cleanup' => 0,
+				'automatic_cleanup_frequency' => '',
+                'cache_reject_uri'         => array(),
+                'cache_reject_cookies'     => array(),
+                'cache_reject_ua'          => array(),
+                'cache_query_strings'      => array(),
+                'cache_purge_pages'        => array(),
+                'purge_cron_interval'      => 10,
+                'purge_cron_unit'          => 'HOUR_IN_SECONDS',
+                'exclude_css'              => array(),
+                'exclude_js'               => array(),
+            	'defer_all_js'              => 0,
+                'critical_css'              => '',
+                'deferred_js_files'        => array(),
+                'lazyload'          	   => 0,
+                'lazyload_iframes'         => 0,
+                'minify_css'               => 0,
+//                'minify_css_key'           => $minify_css_key,
+                'minify_concatenate_css'	  => 0,
+                'minify_css_combine_all'   => 0,
+                'minify_css_legacy'			  => 0,
+                'minify_js'                => 0,
+//                'minify_js_key'            => $minify_js_key,
+                'minify_js_in_footer'      => array(),
+                'minify_concatenate_js'		  => 0,
+                'minify_js_combine_all'    => 0,
+                //'minify_js_legacy'			  => 0,
+                'minify_google_fonts'      => 0,
+                'minify_html'              => 0,
+                'remove_query_strings'     => 0,
+                'dns_prefetch'             => 0,
+                'cdn'                      => 0,
+                'cdn_cnames'               => array(),
+                'cdn_zone'                 => array(),
+                'cdn_ssl'                  => 0,
+                'cdn_reject_files'         => array(),
+                'do_cloudflare'		   	   => 0,
+                'cloudflare_email'		   => '',
+                'cloudflare_api_key'	   => '',
+                'cloudflare_domain'	   	   => '',
+                //'cloudflare_zone_id'          => '',
+                'cloudflare_devmode'	   => 0,
+                'cloudflare_protocol_rewrite' => 0,
+                'cloudflare_auto_settings' => 0,
+                'cloudflare_old_settings'  => 0,
+                'do_beta'                  => 0,
+        );
 	}
 }
 
