@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 4.8
-Stable tag: 3.4.1
+Stable tag: 3.4.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4.2 - 7-11-17 =
+* Fixed: an issue with saving BackWPup job files
+* Fixed: conflict with the Color Picker library
+* Fixed: an issue with executing multiple updates at once on a site detected on some setups
+* Fixed: an issue with cloning sites from a backup file detected on some setups
+* Updated: support for the new Google PageSpeed Insights plugin version
+* Updated: the Contact Support branding feature will be visible only to Administrator users
 
 = 3.4.1 - 6-12-17 =
 * Fixed: an issue with the update process on some setups
