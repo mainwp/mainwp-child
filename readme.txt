@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.8
-Stable tag: 3.4.2
+Tested up to: 4.8.1
+Stable tag: 3.4.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,26 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4.3 - 8-24-17 =
+* Fixed: an issue with saving Bulk Setting Manager keys on some HTTPS sites
+* Fixed: timeout issues for the Bulk Settings Manager extension
+* Fixed: multiple issues with saving remote storage settings for the UpdraftPlus extension
+* Fixed: an issue with 404 email notification templates for the Maintenance extension
+* Fixed: an issue with saving Post and Page status as Private
+* Fixed: an issue with displaying incorrect number of updates caused by server conflict
+* Fixed: an issue with displaying locked status for Posts and Pages while Post/Page is being edited in MainWP Dashboard
+* Added: a function to check if a post or a page is being edited before saving changes from MainWP Dashboard
+* Added: the new 'mainwp_child_after_newpost' hook
+* Updated: compatibility for the new version of the Bulk Settings Manager extension
+* Updated: compatibility with the new version of the BackupBuddy plugin
+* Updated: compatibility with the new version of the Wordfence plugin
+* Updated: compatibility with the new version of the UpdraftPlus plugin
+* Updated: compatibility with the new version of the Yoast SEO plugin
+* Updated: compatibility with the new version of the iThemes Security extension
+* Updated: reduced number of database queries in order to improve performance
+* Updated: display options for the Custom Post Types extension
+* Updated: header response to 403 for the applied security fix preventing directory listing
 
 = 3.4.2 - 7-11-17 =
 * Fixed: an issue with saving BackWPup job files
