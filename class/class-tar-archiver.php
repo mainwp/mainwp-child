@@ -250,7 +250,7 @@ class Tar_Archiver {
 					'home'    => get_option( 'home' ),
 					'abspath' => ABSPATH,
 					'prefix'  => $wpdb->prefix,
-					'lang'    => WPLANG,
+					'lang'    => get_bloginfo("language"),
 					'plugins' => $plugins,
 					'themes'  => $themes,
 				) ) );
@@ -288,7 +288,7 @@ class Tar_Archiver {
 		}
 
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST,
-		RecursiveIteratorIterator::CATCH_GET_CHILD );
+			RecursiveIteratorIterator::CATCH_GET_CHILD );
 
 		if ( class_exists( 'ExampleSortedIterator' ) ) {
 			$iterator = new ExampleSortedIterator( $iterator );
@@ -417,7 +417,7 @@ class Tar_Archiver {
 					'',
 					'',
 					'',
-				'' );
+					'' );
 
 				$checksum = 0;
 				for ( $i = 0; $i < 512; $i ++ ) {
@@ -449,7 +449,7 @@ class Tar_Archiver {
 			'',
 			'',
 			$prefix,
-		'' );
+			'' );
 
 		$checksum = 0;
 		for ( $i = 0; $i < 512; $i ++ ) {
@@ -548,7 +548,7 @@ class Tar_Archiver {
 					'',
 					'',
 					'',
-				'' );
+					'' );
 
 				$checksum = 0;
 				for ( $i = 0; $i < 512; $i ++ ) {
@@ -584,7 +584,7 @@ class Tar_Archiver {
 			'',
 			'',
 			$prefix,
-		'' );
+			'' );
 
 		$checksum = 0;
 		for ( $i = 0; $i < 512; $i ++ ) {
@@ -672,7 +672,7 @@ class Tar_Archiver {
 					'',
 					'',
 					'',
-				'' );
+					'' );
 
 				$checksum = 0;
 				for ( $i = 0; $i < 512; $i ++ ) {
@@ -704,7 +704,7 @@ class Tar_Archiver {
 			'',
 			'',
 			$prefix,
-		'' );
+			'' );
 
 		$checksum = 0;
 		for ( $i = 0; $i < 512; $i ++ ) {

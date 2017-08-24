@@ -13,19 +13,19 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	public function __construct() {
 		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
-        add_filter('updraftplus_save_last_backup', array( __CLASS__, 'hookUpdraftplusSaveLastBackup' ));
+		add_filter('updraftplus_save_last_backup', array( __CLASS__, 'hookUpdraftplusSaveLastBackup' ));
 	}
 
-    public static function hookUpdraftplusSaveLastBackup($last_backup) {
-        if (!is_array($last_backup))
-            return $last_backup;
+	public static function hookUpdraftplusSaveLastBackup($last_backup) {
+		if (!is_array($last_backup))
+			return $last_backup;
 
-        if (isset($last_backup['backup_time'])) {
-            $backup_time = $last_backup['backup_time'];
-            MainWP_Helper::update_lasttime_backup('updraftplus', $backup_time);
-        }
-        return $last_backup;
-    }
+		if (isset($last_backup['backup_time'])) {
+			$backup_time = $last_backup['backup_time'];
+			MainWP_Helper::update_lasttime_backup('updraftplus', $backup_time);
+		}
+		return $last_backup;
+	}
 
 	function syncOthersData( $information, $data = array() ) {
 		if ( isset( $data['syncUpdraftData'] ) && $data['syncUpdraftData'] ) {
@@ -195,7 +195,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			'updraft_disable_ping',
 			'updraft_openstack',
 			'updraft_bitcasa',
-			'updraft_cloudfiles',
+			//'updraft_cloudfiles',
 			'updraft_ssl_useservercerts',
 			'updraft_ssl_disableverify',
 			'updraft_report_warningsonly',
@@ -213,8 +213,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 			'updraft_sftp_settings',
 			'updraft_webdav_settings',
 			'updraft_dreamobjects',
-			'updraft_onedrive',
-			'updraft_azure',
+			//'updraft_onedrive', // disalbed
+			//'updraft_azure', // disabled
 			'updraft_googlecloud',
 			//'updraft_updraftvault',
 			'updraft_retain_extrarules'
@@ -381,36 +381,73 @@ class MainWP_Child_Updraft_Plus_Backups {
 			if ( class_exists( 'UpdraftPlus_Options' ) ) {
 				foreach ( $keys_filter as $key ) {
 					if ( isset( $settings[ $key ] ) ) {
+						$settings_key = null;
 						if ( 'updraft_dropbox' === $key && is_array($settings[ $key ])) {
-                                                        $opts           = UpdraftPlus_Options::get_updraft_option( 'updraft_dropbox' );
-                                                        if (isset($settings['is_general']) && !empty($settings['is_general'])){
-                                                            $opts['folder'] = $this->replace_tokens($settings[ $key ]['folder']);
-                                                        } else {
-                                                            $opts['appkey'] = $settings[ $key ]['appkey'];
-                                                            $opts['secret'] = $settings[ $key ]['secret'];
-                                                            $opts['folder'] = $this->replace_tokens($settings[ $key ]['folder']);
-                                                        }
+							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_dropbox' );
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+								if (isset($settings['is_general']) && !empty($settings['is_general'])){
+									$opts['settings'][$settings_key]['folder'] = $this->replace_tokens($settings[ $key ]['folder']);
+								} else {
+//                                    $opts['settings'][$settings_key]['appkey'] = $settings[ $key ]['appkey'];
+//                                    $opts['settings'][$settings_key]['secret'] = $settings[ $key ]['secret'];
+									$opts['settings'][$settings_key]['folder'] = $this->replace_tokens($settings[ $key ]['folder']);
+								}
+							}  else {
+								if (isset($settings['is_general']) && !empty($settings['is_general'])){
+									$opts['folder'] = $this->replace_tokens($settings[ $key ]['folder']);
+								} else {
+//                                    $opts['appkey'] = $settings[ $key ]['appkey'];
+//                                    $opts['secret'] = $settings[ $key ]['secret'];
+									$opts['folder'] = $this->replace_tokens($settings[ $key ]['folder']);
+								}
+							}
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} else if ( 'updraft_googledrive' === $key ) {
 							$opts             = UpdraftPlus_Options::get_updraft_option( 'updraft_googledrive' );
-							$opts['clientid'] = $settings[ $key ]['clientid'];
-							$opts['secret']   = $settings[ $key ]['secret'];
-							$opts['folder']   = $this->replace_tokens($settings[ $key ]['folder']);
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+//                                $opts['settings'][$settings_key]['clientid'] = $settings[ $key ]['clientid'];
+//                                $opts['settings'][$settings_key]['secret']   = $settings[ $key ]['secret'];
+								$opts['settings'][$settings_key]['folder']   = $this->replace_tokens($settings[ $key ]['folder']);
+							} else {
+//                                $opts['clientid'] = $settings[ $key ]['clientid'];
+//                                $opts['secret']   = $settings[ $key ]['secret'];
+								$opts['folder']   = $this->replace_tokens($settings[ $key ]['folder']);
+							}
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} else if ( 'updraft_googlecloud' === $key ) {
 							$opts             = UpdraftPlus_Options::get_updraft_option( $key );
-							$opts['clientid'] = $settings[ $key ]['clientid'];
-							$opts['secret']   = $settings[ $key ]['secret'];
-							$opts['project_id']   = $settings[ $key ]['project_id'];
-                                                        $opts['bucket_path']   = $settings[ $key ]['bucket_path'];
-                                                        $opts['storage_class']   = $settings[ $key ]['storage_class'];
-                                                        $opts['bucket_location']   = $settings[ $key ]['bucket_location'];
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+//                                $opts['settings'][$settings_key]['clientid'] = $settings[ $key ]['clientid'];
+//                                $opts['settings'][$settings_key]['secret']   = $settings[ $key ]['secret'];
+//                                $opts['settings'][$settings_key]['project_id']   = $settings[ $key ]['project_id'];
+//                                $opts['settings'][$settings_key]['bucket_path']   = $settings[ $key ]['bucket_path'];
+								$opts['settings'][$settings_key]['storage_class']   = $settings[ $key ]['storage_class'];
+								$opts['settings'][$settings_key]['bucket_location']   = $settings[ $key ]['bucket_location'];
+							} else {
+//                                $opts['clientid'] = $settings[ $key ]['clientid'];
+//                                $opts['secret']   = $settings[ $key ]['secret'];
+//                                $opts['project_id']   = $settings[ $key ]['project_id'];
+//                                $opts['bucket_path']   = $settings[ $key ]['bucket_path'];
+								$opts['storage_class']   = $settings[ $key ]['storage_class'];
+								$opts['bucket_location']   = $settings[ $key ]['bucket_location'];
+							}
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} else if ( 'updraft_onedrive' === $key ) {
 							$opts             = UpdraftPlus_Options::get_updraft_option( 'updraft_onedrive' );
-							$opts['clientid'] = $settings[ $key ]['clientid'];
-							$opts['secret']   = $settings[ $key ]['secret'];
-							$opts['folder']   = $this->replace_tokens($settings[ $key ]['folder']);
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+//                                $opts['settings'][$settings_key]['clientid'] = $settings[ $key ]['clientid'];
+//                                $opts['settings'][$settings_key]['secret']   = $settings[ $key ]['secret'];
+								$opts['settings'][$settings_key]['folder']   = $this->replace_tokens($settings[ $key ]['folder']);
+							} else {
+//                                $opts['clientid'] = $settings[ $key ]['clientid'];
+//                                $opts['secret']   = $settings[ $key ]['secret'];
+								$opts['folder']   = $this->replace_tokens($settings[ $key ]['folder']);
+							}
+
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} else if ( 'updraft_email' === $key ) {
 							$value = $settings[ $key ];
@@ -422,33 +459,106 @@ class MainWP_Child_Updraft_Plus_Backups {
 							}
 							UpdraftPlus_Options::update_updraft_option( $key, $value );
 						} else if ( 'updraft_s3' === $key ) {
-							$opts             = UpdraftPlus_Options::get_updraft_option( 'updraft_s3' );
-                                                   	$opts['accesskey'] = $settings[ $key ]['accesskey'];
-							$opts['secretkey']   = $settings[ $key ]['secretkey'];
-							$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
-                                                        $opts['rrs']   = $settings[ $key ]['rrs'];
-                                                        $opts['server_side_encryption']   = $settings[ $key ]['server_side_encryption'];
+							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_s3' );
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+//                                $opts['settings'][$settings_key]['accesskey'] = $settings[ $key ]['accesskey'];
+//                                $opts['settings'][$settings_key]['secretkey']   = $settings[ $key ]['secretkey'];
+								$opts['settings'][$settings_key]['path']   = $this->replace_tokens($settings[ $key ]['path']);
+								if (!empty($opts['settings'][$settings_key]['path']) && '/' == substr($opts['settings'][$settings_key]['path'], 0, 1)) {
+									$opts['settings'][$settings_key]['path'] = substr($opts['settings'][$settings_key]['path'], 1);
+								}
+								if (isset($settings[ $key ]['rrs'])) { // premium settings
+									$opts['settings'][$settings_key]['rrs']   = $settings[ $key ]['rrs'];
+									$opts['settings'][$settings_key]['server_side_encryption']   = $settings[ $key ]['server_side_encryption'];
+								}
+							} else {
+//                                $opts['accesskey'] = $settings[ $key ]['accesskey'];
+//                                $opts['secretkey']   = $settings[ $key ]['secretkey'];
+								$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
+								if (!empty($opts['path']) && '/' == substr($opts['path'], 0, 1)) {
+									$opts['path'] = substr($opts['path'], 1);
+								}
+								if (isset($settings[ $key ]['rrs'])) { // premium settings
+									$opts['rrs']   = $settings[ $key ]['rrs'];
+									$opts['server_side_encryption']   = $settings[ $key ]['server_side_encryption'];
+								}
+							}
+
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} else if ( 'updraft_s3generic' === $key ) {
 							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_s3generic' );
-                                                   	$opts['endpoint'] = $settings[ $key ]['endpoint'];
-							$opts['accesskey']   = $settings[ $key ]['accesskey'];
-                                                        $opts['secretkey']   = $settings[ $key ]['secretkey'];
-							$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+//                                $opts['settings'][$settings_key]['endpoint'] = $settings[ $key ]['endpoint'];
+//                                $opts['settings'][$settings_key]['accesskey']   = $settings[ $key ]['accesskey'];
+//                                $opts['settings'][$settings_key]['secretkey']   = $settings[ $key ]['secretkey'];
+								$opts['settings'][$settings_key]['path']   = $this->replace_tokens($settings[ $key ]['path']);
+							} else {
+//                                $opts['endpoint'] = $settings[ $key ]['endpoint'];
+//                                $opts['accesskey']   = $settings[ $key ]['accesskey'];
+//                                $opts['secretkey']   = $settings[ $key ]['secretkey'];
+								$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
+							}
+
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
-						}  else if ( 'updraft_ftp' === $key ) {
-	                        $opts = $settings[ $key ];
-	                        if ( isset( $opts['path'] ) ) {
-	                            $opts['path'] = $this->replace_tokens( $opts['path'] );
-	                        }
-	                        UpdraftPlus_Options::update_updraft_option( $key, $opts );
-		                } else if ( 'updraft_sftp_settings' === $key ) {
-	                        $opts = $settings[ $key ];
-	                        if ( isset( $opts['path'] ) ) {
-	                            $opts['path'] = $this->replace_tokens( $opts['path'] );
-	                        }
-	                        UpdraftPlus_Options::update_updraft_option( $key, $opts );
-		                } else {
+						} else if ( 'updraft_dreamobjects' === $key ) {
+							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_dreamobjects' );
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+								$opts['settings'][$settings_key]['path']   = $this->replace_tokens($settings[ $key ]['path']);
+							} else {
+								$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
+							}
+							UpdraftPlus_Options::update_updraft_option( $key, $opts );
+						} else if ( 'updraft_ftp' === $key ) {
+							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_ftp' );
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+								if ( isset( $settings[ $key ]['path'] ) ) {
+									$opts['settings'][$settings_key]['host'] = $settings[ $key ]['host'];
+									$opts['settings'][$settings_key]['user'] = $settings[ $key ]['user'];
+									$opts['settings'][$settings_key]['pass'] = $settings[ $key ]['pass'];
+									$opts['settings'][$settings_key]['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
+									$opts['settings'][$settings_key]['passive'] = isset($settings[ $key ]['passive']) ? $settings[ $key ]['passive'] : 0;
+								}
+							} else {
+								if ( isset( $settings[ $key ]['path'] ) ) {
+									$opts['host'] = $settings[ $key ]['host'];
+									$opts['user'] = $settings[ $key ]['user'];
+									$opts['pass'] = $settings[ $key ]['pass'];
+									$opts['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
+									$opts['passive'] = isset($settings[ $key ]['passive']) ? $settings[ $key ]['passive'] : 0;
+								}
+							}
+
+							UpdraftPlus_Options::update_updraft_option( $key, $opts );
+						} else if ( 'updraft_sftp_settings' === $key ) {
+							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_sftp' );
+							if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+								if ( isset( $settings[ $key ]['path'] ) ) {
+									$opts['settings'][$settings_key]['host'] = $settings[ $key ]['host'];
+									$opts['settings'][$settings_key]['port'] = $settings[ $key ]['port'];
+									$opts['settings'][$settings_key]['user'] = $settings[ $key ]['user'];
+									$opts['settings'][$settings_key]['pass'] = $settings[ $key ]['pass'];
+									$opts['settings'][$settings_key]['key'] = $settings[ $key ]['key'];
+									$opts['settings'][$settings_key]['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
+									$opts['settings'][$settings_key]['scp'] = isset($settings[ $key ]['scp']) ? $settings[ $key ]['scp'] : 0;
+								}
+							} else {
+								if ( isset( $settings[ $key ]['path'] ) ) {
+									$opts['host'] = $settings[ $key ]['host'];
+									$opts['port'] = $settings[ $key ]['port'];
+									$opts['user'] = $settings[ $key ]['user'];
+									$opts['pass'] = $settings[ $key ]['pass'];
+									$opts['key'] = $settings[ $key ]['key'];
+									$opts['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
+									$opts['scp'] = isset($settings[ $key ]['scp']) ? $settings[ $key ]['scp'] : 0;
+								}
+							}
+							UpdraftPlus_Options::update_updraft_option( 'updraft_sftp', $opts );
+						} else {
 							UpdraftPlus_Options::update_updraft_option( $key, $settings[ $key ] );
 						}
 						$updated = true;
@@ -479,37 +589,27 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$out['result'] = 'noupdate';
 		}
 
-		//        $sync_updraft_status = array();
-		//        if ($updraftplus)
-		//            $sync_updraft_status['updraft_backup_history'] = $updraftplus->get_backup_history();
-		//
-		//        if (class_exists('UpdraftPlus_Options')) {
-		//            $sync_updraft_status['updraft_last_backup'] = UpdraftPlus_Options::get_updraft_option('updraft_last_backup');
-		//        }
-		//
-		//        $out['sync_updraft_status'] = $sync_updraft_status;
-
 		return $out;
 	}
 
-    function replace_tokens($str = '') {
-        if (stripos($str, '%sitename%') !== false) {
-            $replace_token = get_bloginfo( 'name' );
-            $replace_token = sanitize_file_name($replace_token);
-            $replace_token = strtolower($replace_token);
-            $str = str_ireplace("%sitename%", $replace_token, $str);
-        }
+	function replace_tokens($str = '') {
+		if (stripos($str, '%sitename%') !== false) {
+			$replace_token = get_bloginfo( 'name' );
+			$replace_token = sanitize_file_name($replace_token);
+			$replace_token = strtolower($replace_token);
+			$str = str_ireplace("%sitename%", $replace_token, $str);
+		}
 
-        if (stripos($str, '%siteurl%') !== false) {
-            $replace_token = get_bloginfo( 'url' );
-            $replace_token = preg_replace('/^https?:\/\//i', '', $replace_token);
-            $replace_token = sanitize_file_name($replace_token);
-            $str = str_ireplace("%siteurl%", $replace_token, $str);
-        }
-        return $str;
-    }
+		if (stripos($str, '%siteurl%') !== false) {
+			$replace_token = get_bloginfo( 'url' );
+			$replace_token = preg_replace('/^https?:\/\//i', '', $replace_token);
+			$replace_token = sanitize_file_name($replace_token);
+			$str = str_ireplace("%siteurl%", $replace_token, $str);
+		}
+		return $str;
+	}
 
-    function addons_connect() {
+	function addons_connect() {
 		if ( ! defined( 'UDADDONS2_SLUG' ) ) {
 			return array( 'error' => 'NO_PREMIUM' );
 		}
@@ -1383,7 +1483,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		$mess = array();
 		parse_str( $_POST['restoreopts'], $res );
-        if ( isset( $res['updraft_restore'] ) ) {
+		if ( isset( $res['updraft_restore'] ) ) {
 			set_error_handler( array( $this, 'get_php_errors' ), E_ALL & ~E_STRICT );
 
 			$elements = array_flip( $res['updraft_restore'] );

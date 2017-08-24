@@ -53,7 +53,9 @@ class MainWP_Security {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! file_exists( $file ) ) {
 				$h = fopen( $file, 'w' );
-				fwrite( $h, '<?php die(); ?>' );
+				fwrite( $h, '<?php ' . "\n" );
+				fwrite( $h, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );" . "\n" );
+				fwrite( $h, "die( '403 Fordibben' );" . "\n" );
 				fclose( $h );
 			}
 		}

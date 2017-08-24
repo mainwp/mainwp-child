@@ -119,4 +119,42 @@ class MainWP_Wordpress_SEO {
 
 		return false;
 	}
+
+	// from wordpress-seo plugin
+	public function parse_column_score( $post_id ) {
+		if ( '1' === WPSEO_Meta::get_value( 'meta-robots-noindex', $post_id ) ) {
+			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_INDEX );
+			$title = __( 'Post is set to noindex.', 'wordpress-seo' );
+			WPSEO_Meta::set_value( 'linkdex', 0, $post_id );
+		}
+		elseif ( '' === WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
+			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_FOCUS );
+			$title = __( 'Focus keyword not set.', 'wordpress-seo' );
+		}
+		else {
+			$score = (int) WPSEO_Meta::get_value( 'linkdex', $post_id );
+			$rank  = WPSEO_Rank::from_numeric_score( $score );
+			$title = $rank->get_label();
+		}
+
+		return $this->render_score_indicator( $rank, $title );
+	}
+
+	// from wordpress-seo plugin
+	public function parse_column_score_readability( $post_id ) {
+		$score = (int) WPSEO_Meta::get_value( 'content_score', $post_id );
+		$rank = WPSEO_Rank::from_numeric_score( $score );
+
+		return $this->render_score_indicator( $rank );
+	}
+
+	// from wordpress-seo plugin
+	private function render_score_indicator( $rank, $title = '' ) {
+		if ( empty( $title ) ) {
+			$title = $rank->get_label();
+		}
+
+		return '<div aria-hidden="true" title="' . esc_attr( $title ) . '" class="wpseo-score-icon ' . esc_attr( $rank->get_css_class() ) . '"></div><span class="screen-reader-text">' . $title . '</span>';
+	}
+
 }

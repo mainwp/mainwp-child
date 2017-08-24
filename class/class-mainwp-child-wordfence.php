@@ -25,6 +25,12 @@ class MainWP_Child_Wordfence {
 		'loginSec_blockAdminReg',
 		'loginSec_countFailMins',
 		'loginSec_disableAuthorScan',
+        'notification_updatesNeeded',   
+        "notification_securityAlerts",
+        "notification_promotions",
+        "notification_blogHighlights",
+        "notification_productUpdates",
+        "notification_scanStatus",
 		'loginSec_lockInvalidUsers',
 		'loginSec_lockoutMins',
 		'loginSec_maskLoginErrors',
@@ -44,8 +50,9 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_diskSpace',
 		'scansEnabled_dns',
 		'scansEnabled_fileContents',
+        'scansEnabled_fileContentsGSB',
 		'scan_include_extra', 		
-		'scansEnabled_heartbleed',
+		//'scansEnabled_heartbleed',
         'scansEnabled_checkHowGetIPs',
 		'scansEnabled_highSense',
         'lowResourceScansEnabled',
@@ -100,9 +107,10 @@ class MainWP_Child_Wordfence {
 		'disableCodeExecutionUploads',
 		//'isPaid',
 		"advancedCommentScanning",
+        "scansEnabled_checkGSB",
 		"checkSpamIP",
 		"spamvertizeCheck",
-		'scansEnabled_public',
+		//'scansEnabled_public',
 		'email_summary_enabled',
 		'email_summary_dashboard_widget_enabled',
 		'ssl_verify',
@@ -110,9 +118,10 @@ class MainWP_Child_Wordfence {
 		'email_summary_excluded_directories',
 		'allowed404s',
         'wafAlertWhitelist',
-        'wafAlertOnAttacks'
-                //'ajaxWatcherDisabled_front', // do not update those values when save settings
-                //'ajaxWatcherDisabled_admin' 
+        'wafAlertOnAttacks',
+        //'ajaxWatcherDisabled_front', // do not update those values when save settings
+        //'ajaxWatcherDisabled_admin' 
+       'howGetIPs_trusted_proxies',
 	);
 
         public static $diagnosticParams = array(
@@ -264,69 +273,72 @@ class MainWP_Child_Wordfence {
 				case 'update_waf_rules':
 					$information = $this->updateWAFRules();
 					break;
-                                case 'save_debugging_config':
+                case 'save_debugging_config':
 					$information = $this->save_debugging_config();
 					break;
-                                case 'load_live_traffic':
-                                    $information = $this->loadLiveTraffic();
-                                    break;
-                                case 'white_list_waf':
-                                    $information = $this->whitelistWAFParamKey();
-                                    break;  
-                                case 'hide_file_htaccess':
-                                    $information = $this->hideFileHtaccess();
-                                    break; 
-                                case 'fix_fpd':
-                                    $information = $this->fixFPD();
-                                    break;
-                                case 'disable_directory_listing':
-                                    $information = $this->disableDirectoryListing();
-                                    break;
-                                case 'delete_database_option':
-                                    $information = $this->deleteDatabaseOption();
-                                    break;
-                                 case 'delete_admin_user':
-                                    $information = $this->deleteAdminUser();
-                                    break;
-                                case 'revoke_admin_user':
-                                    $information = $this->revokeAdminUser();
-                                    break;
-                                case 'clear_all_blocked':
-                                    $information = $this->clearAllBlocked();
-                                    break;
-                                case 'permanently_block_all_ips':
-                                    $information = $this->permanentlyBlockAllIPs();
-                                    break;
-                                case 'unlockout_ip':
-                                    $information = $this->unlockOutIP();
-                                    break;
-                                case 'unblock_range':
-                                    $information = $this->unblockRange();
-                                    break;                                
-                                case 'block_ip_ua_range':
-                                    $information = $this->blockIPUARange();
-                                    break;
-                                case 'load_block_ranges':
-                                    $information = $this->loadBlockRanges();
-                                    break;
-                                case 'save_waf_config':
-                                    $information = $this->saveWAFConfig();
-                                    break;
-                                case 'whitelist_bulk_delete':
-                                    $information = $this->whitelistBulkDelete();
-                                    break;
-                                case 'whitelist_bulk_enable':
-                                    $information = $this->whitelistBulkEnable();
-                                    break;
-                                case 'whitelist_bulk_disable':
-                                   $information = $this->whitelistBulkDisable();
-                                   break;   
-                               case 'update_config':
-                                   $information = $this->updateConfig();
-                                   break;
-                               case 'save_country_blocking':
-                                   $information = $this->saveCountryBlocking();
-                                   break;
+                case 'load_live_traffic':
+                    $information = $this->loadLiveTraffic();
+                    break;
+                case 'white_list_waf':
+                    $information = $this->whitelistWAFParamKey();
+                    break;  
+                case 'hide_file_htaccess':
+                    $information = $this->hideFileHtaccess();
+                    break; 
+                case 'fix_fpd':
+                    $information = $this->fixFPD();
+                    break;
+                case 'disable_directory_listing':
+                    $information = $this->disableDirectoryListing();
+                    break;
+                case 'delete_database_option':
+                    $information = $this->deleteDatabaseOption();
+                    break;
+                case 'misconfigured_howget_ips_choice':
+                    $information = $this->misconfiguredHowGetIPsChoice();
+                    break;                
+                 case 'delete_admin_user':
+                    $information = $this->deleteAdminUser();
+                    break;
+                case 'revoke_admin_user':
+                    $information = $this->revokeAdminUser();
+                    break;
+                case 'clear_all_blocked':
+                    $information = $this->clearAllBlocked();
+                    break;
+                case 'permanently_block_all_ips':
+                    $information = $this->permanentlyBlockAllIPs();
+                    break;
+                case 'unlockout_ip':
+                    $information = $this->unlockOutIP();
+                    break;
+                case 'unblock_range':
+                    $information = $this->unblockRange();
+                    break;                                
+                case 'block_ip_ua_range':
+                    $information = $this->blockIPUARange();
+                    break;
+                case 'load_block_ranges':
+                    $information = $this->loadBlockRanges();
+                    break;
+                case 'save_waf_config':
+                    $information = $this->saveWAFConfig();
+                    break;
+                case 'whitelist_bulk_delete':
+                    $information = $this->whitelistBulkDelete();
+                    break;
+                case 'whitelist_bulk_enable':
+                    $information = $this->whitelistBulkEnable();
+                    break;
+                case 'whitelist_bulk_disable':
+                   $information = $this->whitelistBulkDisable();
+                   break;   
+               case 'update_config':
+                   $information = $this->updateConfig();
+                   break;
+               case 'save_country_blocking':
+                   $information = $this->saveCountryBlocking();
+                   break;
 			}
 		}
 		MainWP_Helper::write( $information );
@@ -356,7 +368,7 @@ class MainWP_Child_Wordfence {
 
 	function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( $_POST['showhide'] === 'hide' ) ? 'hide' : '';
-		MainWP_Helper::update_option( 'mainwp_wordfence_hide_plugin', $hide );
+		MainWP_Helper::update_option( 'mainwp_wordfence_hide_plugin', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
 
 		return $information;
@@ -1039,12 +1051,17 @@ SQL
             return $return;            
 	}       
         
-        public static function deleteDatabaseOption() {
+    public static function deleteDatabaseOption() {
             $return = wordfence::ajax_deleteDatabaseOption_callback();
             return $return;            
-	}         
+	}     
+
+    public static function misconfiguredHowGetIPsChoice() {
+        $return = wordfence::ajax_misconfiguredHowGetIPsChoice_callback();
+        return $return;
+	}
         
-        public static function deleteAdminUser() {
+    public static function deleteAdminUser() {
             $return = wordfence::ajax_deleteAdminUser_callback();
             return $return;		
 	}        
@@ -1884,7 +1901,7 @@ SQL
 		return array('ok' => 1, 'isPaid' => $isPaid );
 	}
         
-        public static function save_debugging_config() {		
+    public static function save_debugging_config() {		
 		$settings = $_POST['settings'];	                
 		foreach (self::$diagnosticParams as $param) {
                     if (isset($settings[$param])) {

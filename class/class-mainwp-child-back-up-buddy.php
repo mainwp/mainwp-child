@@ -14,7 +14,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	public function __construct() {
 		// To fix bug run dashboard on local machine
-                //if ( is_plugin_active( 'backupbuddy/backupbuddy.php' )) {
+		//if ( is_plugin_active( 'backupbuddy/backupbuddy.php' )) {
 		if ( class_exists('pb_backupbuddy')) {
 			$this->is_backupbuddy_installed = true;
 		}
@@ -27,8 +27,8 @@ class MainWP_Child_Back_Up_Buddy {
 			return;
 		}
 
-        add_action( 'wp_ajax_mainwp_backupbuddy_download_archive', array( $this, 'download_archive' ) );
-        add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
+		add_action( 'wp_ajax_mainwp_backupbuddy_download_archive', array( $this, 'download_archive' ) );
+		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 
 		if ( get_option( 'mainwp_backupbuddy_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
@@ -72,27 +72,27 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
 
-    function do_site_stats() {
-        if (has_action('mainwp_child_reports_log')) {
-            do_action( 'mainwp_child_reports_log', 'backupbuddy');
-        } else {
-            $this->do_reports_log('backupbuddy');
-        }
-    }
+	function do_site_stats() {
+		if (has_action('mainwp_child_reports_log')) {
+			do_action( 'mainwp_child_reports_log', 'backupbuddy');
+		} else {
+			$this->do_reports_log('backupbuddy');
+		}
+	}
 
-    function do_reports_log($ext = '') {
-        if ($ext !== 'backupbuddy')
-            return;
+	function do_reports_log($ext = '') {
+		if ($ext !== 'backupbuddy')
+			return;
 
-        if (!$this->is_backupbuddy_installed) {
-            return;
-        }
+		if (!$this->is_backupbuddy_installed) {
+			return;
+		}
 
-        if ( ! class_exists( 'backupbuddy_core' ) ) {
-            require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
-        }
+		if ( ! class_exists( 'backupbuddy_core' ) ) {
+			require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
+		}
 
-        $backups = array();
+		$backups = array();
 		$backup_sort_dates = array();
 
 		$files = glob( backupbuddy_core::getBackupDirectory() . 'backup*.zip' );
@@ -151,8 +151,8 @@ class MainWP_Child_Back_Up_Buddy {
 					$backup_type = $detected_type;
 					if (!empty($modified_time)) {
 						do_action( 'mainwp_reports_backupbuddy_backup', $message, $backup_type, $modified_time);
-                        MainWP_Helper::update_lasttime_backup('backupbuddy', $modified_time); // to support backup before update feature
-                    }
+						MainWP_Helper::update_lasttime_backup('backupbuddy', $modified_time); // to support backup before update feature
+					}
 				}
 			}
 		}
@@ -160,7 +160,7 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
 	public function action() {
-        $information = array();
+		$information = array();
 		if ( ! $this->is_backupbuddy_installed ) {
 			MainWP_Helper::write( array( 'error' => __( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
 		}
@@ -222,6 +222,9 @@ class MainWP_Child_Back_Up_Buddy {
 					break;
 				case 'zip_viewer':
 					$information = $this->zip_viewer();
+					break;
+				case 'exclude_tree':
+					$information = $this->exclude_tree();
 					break;
 				case 'restore_file_view':
 					$information = $this->restore_file_view();
@@ -344,8 +347,10 @@ class MainWP_Child_Back_Up_Buddy {
 			'disable_localization',
 			'limit_single_cron_per_pass',
 			'use_internal_cron',
+			'cron_request_timeout_override',
 			'remote_send_timeout_retries',
 			'hide_live',
+			'hide_dashboard_widget',
 			'set_greedy_execution_time',
 			'archive_limit_size_big',
 			'max_execution_time',
@@ -364,6 +369,8 @@ class MainWP_Child_Back_Up_Buddy {
 			'backup_cron_rescheduling',
 			'skip_spawn_cron_call',
 			'backup_cron_passed_force_time',
+			'php_runtime_test_minimum_interval',
+			'php_memory_test_minimum_interval',
 			'database_method_strategy',
 			'skip_database_dump', // profiles#0
 			'breakout_tables',
@@ -410,7 +417,7 @@ class MainWP_Child_Back_Up_Buddy {
 			'email_notify_send_finish',
 			'email_notify_send_finish_subject',
 			'email_notify_send_finish_body',
-            'no_new_backups_error_days',
+			'no_new_backups_error_days',
 			'email_notify_error',
 			'email_notify_error_subject',
 			'email_notify_error_body',
@@ -683,6 +690,17 @@ class MainWP_Child_Back_Up_Buddy {
 		return $information;
 	}
 
+
+	public function get_sync_data() {
+		$information = array();
+		$information['plugins_root'] =  backupbuddy_core::get_plugins_root();
+		$information['themes_root'] =  backupbuddy_core::get_themes_root();
+		$information['media_root'] =  backupbuddy_core::get_media_root();
+		$information['additional_tables'] = $this->pb_additional_tables();
+		$information['abspath'] =  ABSPATH;
+		return $information;
+	}
+
 	function backup_list() {
 		require_once( pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php' );
 		$information = array();
@@ -868,6 +886,113 @@ class MainWP_Child_Back_Up_Buddy {
 
 		return array('result' => 'SUCCESS', 'files' => $files, 'message' => implode('<br/>', $alerts));
 
+	}
+
+	function exclude_tree() {
+		$root = substr( ABSPATH, 0, strlen( ABSPATH ) - 1 ) . '/' . ltrim( urldecode( $_POST['dir'] ), '/\\' );
+		if( file_exists( $root ) ) {
+			$files = scandir( $root );
+
+			natcasesort( $files );
+
+			// Sort with directories first.
+			$sorted_files = array(); // Temporary holder for sorting files.
+			$sorted_directories = array(); // Temporary holder for sorting directories.
+			foreach( $files as $file ) {
+				if ( ( $file == '.' ) || ( $file == '..' ) ) {
+					continue;
+				}
+				if( is_file( str_replace( '//', '/', $root . $file ) ) ) {
+					array_push( $sorted_files, $file );
+				} else {
+					array_unshift( $sorted_directories, $file );
+				}
+			}
+			$files = array_merge( array_reverse( $sorted_directories ), $sorted_files );
+			unset( $sorted_files );
+			unset( $sorted_directories );
+			unset( $file );
+
+			ob_start();
+
+			if( count( $files ) > 0 ) { // Files found.
+				echo '<ul class="jqueryFileTree" style="display: none;">';
+				foreach( $files as $file ) {
+					if( file_exists( str_replace( '//', '/', $root . $file ) ) ) {
+						if ( is_dir( str_replace( '//', '/', $root . $file ) ) ) { // Directory.
+							echo '<li class="directory collapsed">';
+							$return = '';
+							$return .= '<div class="pb_backupbuddy_treeselect_control">';
+							$return .= '<img src="' . pb_backupbuddy::plugin_url() . '/images/redminus.png" style="vertical-align: -3px;" title="Add to exclusions..." class="pb_backupbuddy_filetree_exclude">';
+							$return .= '</div>';
+							echo '<a href="#" rel="' . htmlentities( str_replace( ABSPATH, '', $root ) . $file) . '/" title="Toggle expand...">' . htmlentities($file) . $return . '</a>';
+							echo '</li>';
+						} else { // File.
+							echo '<li class="file collapsed">';
+							$return = '';
+							$return .= '<div class="pb_backupbuddy_treeselect_control">';
+							$return .= '<img src="' . pb_backupbuddy::plugin_url() . '/images/redminus.png" style="vertical-align: -3px;" title="Add to exclusions..." class="pb_backupbuddy_filetree_exclude">';
+							$return .= '</div>';
+							echo '<a href="#" rel="' . htmlentities( str_replace( ABSPATH, '', $root ) . $file) . '">' . htmlentities($file) . $return . '</a>';
+							echo '</li>';
+						}
+					}
+				}
+				echo '</ul>';
+			} else {
+				echo '<ul class="jqueryFileTree" style="display: none;">';
+				echo '<li><a href="#" rel="' . htmlentities( pb_backupbuddy::_POST( 'dir' ) . 'NONE' ) . '"><i>Empty Directory ...</i></a></li>';
+				echo '</ul>';
+			}
+
+			$html = ob_get_clean();
+			return array('result' => $html) ;
+		} else {
+			return array('error' => 'Error #1127555. Unable to read child site root.') ;
+		}
+
+	}
+
+
+	function pb_additional_tables( $display_size = false ) {
+
+		$return = '';
+		$size_string = '';
+
+		global $wpdb;
+		if ( true === $display_size ) {
+			$results = $wpdb->get_results( "SHOW TABLE STATUS", ARRAY_A );
+		} else {
+			$results = $wpdb->get_results( "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()", ARRAY_A );
+		}
+		foreach( $results as $result ) {
+
+			if ( true === $display_size ) {
+				// Fix up row count and average row length for InnoDB engine which returns inaccurate (and changing) values for these.
+				if ( 'InnoDB' === $result[ 'Engine' ] ) {
+					if ( false !== ( $rowCount = $wpdb->get_var( "SELECT COUNT(1) as rowCount FROM `{$rs[ 'Name' ]}`", ARRAY_A ) ) ) {
+						if ( 0 < ( $result[ 'Rows' ] = $rowCount ) ) {
+							$result[ 'Avg_row_length' ] = ( $result[ 'Data_length' ] / $result[ 'Rows' ] );
+						}
+					}
+					unset( $rowCount );
+				}
+
+				// Table size.
+				$size_string = ' (' . pb_backupbuddy::$format->file_size( ( $result['Data_length'] + $result['Index_length'] ) ) . ') ';
+
+			} // end if display size enabled.
+
+			$return .= '<li class="file ext_sql collapsed">';
+			$return .= '<a rel="/" alt="' . $result['table_name'] . '">' . $result['table_name'] . $size_string;
+			$return .= '<div class="pb_backupbuddy_treeselect_control">';
+			$return .= '<img src="' . pb_backupbuddy::plugin_url() . '/images/redminus.png" style="vertical-align: -3px;" title="Add to exclusions..." class="pb_backupbuddy_table_addexclude"> <img src="' . pb_backupbuddy::plugin_url() . '/images/greenplus.png" style="vertical-align: -3px;" title="Add to inclusions..." class="pb_backupbuddy_table_addinclude">';
+			$return .= '</div>';
+			$return .= '</a>';
+			$return .= '</li>';
+		}
+
+		return '<div class="jQueryOuterTree" style="position: absolute; height: 160px;"><ul class="jqueryFileTree">' . $return . '</ul></div>';
 	}
 
 	function restore_file_view() {

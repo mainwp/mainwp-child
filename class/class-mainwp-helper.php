@@ -125,15 +125,15 @@ class MainWP_Helper {
 		if (!is_array($img_data))
 			$img_data = array();
 		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
-        $upload_dir     = wp_upload_dir();
+		$upload_dir     = wp_upload_dir();
 
-        if ($check_file_existed) {
-            $local_img_url  = $upload_dir['url'] . '/' . basename( $img_url );
-            $attach_id = MainWP_Helper::get_image_id($local_img_url);
-            if ($attach_id) {
-                return array( 'id' => $attach_id, 'url' => $local_img_url );
-            }
-        }
+		if ($check_file_existed) {
+			$local_img_url  = $upload_dir['url'] . '/' . basename( $img_url );
+			$attach_id = MainWP_Helper::get_image_id($local_img_url);
+			if ($attach_id) {
+				return array( 'id' => $attach_id, 'url' => $local_img_url );
+			}
+		}
 
 		//Download $img_url
 		$temporary_file = download_url( $img_url );
@@ -169,11 +169,11 @@ class MainWP_Helper {
 		return null;
 	}
 
-    static function get_image_id($image_url) {
-        global $wpdb;
-        $attachment = $wpdb->get_col($wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE guid='%s';", $image_url ));
-        return $attachment[0];
-    }
+	static function get_image_id($image_url) {
+		global $wpdb;
+		$attachment = $wpdb->get_col($wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE guid='%s';", $image_url ));
+		return $attachment[0];
+	}
 
 	static function uploadFile( $file_url, $path, $file_name ) {
 		$file_name      = sanitize_file_name( $file_name );
@@ -279,18 +279,25 @@ class MainWP_Helper {
 			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && $new_post['post_date_gmt'] != '0000-00-00 00:00:00' ) {
 				$post_date_timestamp     = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
 				$new_post['post_date']   = date( 'Y-m-d H:i:s', $post_date_timestamp );
-				$new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
-			} else {
-				$new_post['post_status'] = 'publish';
+				//$new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
 			}
+//            else {
+//				$new_post['post_status'] = 'publish';
+//			}            
 		}
 
 		$wpr_options = isset( $_POST['wpr_options'] ) ? $_POST['wpr_options'] : array();
 
-        $edit_post_id = 0;
-        if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
-            $edit_post_id = current($post_custom['_mainwp_edit_post_id']);
-        }
+		$edit_post_id = 0;
+		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
+			$edit_post_id = current($post_custom['_mainwp_edit_post_id']);
+			require_once ABSPATH . 'wp-admin/includes/post.php';
+			if ( $user_id = wp_check_post_lock( $edit_post_id ) ) {
+				$user = get_userdata( $user_id );
+				$error = sprintf( __( 'This content is currently locked. %s is currently editing.' ), $user->display_name );
+				return array( 'error' => $error);
+			}
+		}
 
 		//Search for all the images added to the new post
 		//some images have a href tag to click to navigate to the image.. we need to replace this too
@@ -314,12 +321,12 @@ class MainWP_Helper {
 				}
 
 				try {
-                    // in the case edit post will check if file existed
-                    if ( $edit_post_id ) {
-                        $downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl , array(), true );
-                    } else {
-                        $downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl );
-                    }
+					// in the case edit post will check if file existed
+					if ( $edit_post_id ) {
+						$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl , array(), true );
+					} else {
+						$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl );
+					}
 
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
@@ -419,8 +426,8 @@ class MainWP_Helper {
 				}
 
 				$random_timestamp        = rand( $random_date_from, $random_date_to );
-				$post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
-				$new_post['post_status'] = $post_status;
+//				$post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
+//				$new_post['post_status'] = $post_status;
 				$new_post['post_date']   = date( 'Y-m-d H:i:s', $random_timestamp );
 			}
 		}
@@ -434,14 +441,14 @@ class MainWP_Helper {
 		$post_status             = $new_post['post_status'];
 		$new_post['post_status'] = 'auto-draft';
 
-        // update post
-        if ( $edit_post_id ) {
-            // check if post existed
-            $current_post = get_post($edit_post_id);
-            if ( $current_post && ( ( !isset( $new_post['post_type'] ) && $current_post->post_type == 'post' ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] == $current_post->post_type ) ) ) {
-                $new_post['ID'] = $edit_post_id;
-            }
-        }
+		// update post
+		if ( $edit_post_id ) {
+			// check if post existed
+			$current_post = get_post($edit_post_id);
+			if ( $current_post && ( ( !isset( $new_post['post_type'] ) && $current_post->post_type == 'post' ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] == $current_post->post_type ) ) ) {
+				$new_post['ID'] = $edit_post_id;
+			}
+		}
 
 		$new_post_id             = wp_insert_post( $new_post, $wp_error );
 
@@ -450,7 +457,7 @@ class MainWP_Helper {
 			return $wp_error->get_error_message();
 		}
 		if ( empty( $new_post_id ) ) {
-			return 'Undefined error';
+			return array( 'error' => 'Empty post id');
 		}
 
 		wp_update_post( array( 'ID' => $new_post_id, 'post_status' => $post_status ) );
@@ -497,9 +504,9 @@ class MainWP_Helper {
 		$not_allowed[] = '_saved_draft_publish_date_to';
 		$not_allowed[] = '_post_to_only_existing_categories';
 		$not_allowed[] = '_mainwp_robot_post_comments';
-        $not_allowed[] = '_mainwp_edit_post_site_id';
-        $not_allowed[] = '_mainwp_edit_post_id';
-        $not_allowed[] = '_edit_post_status';
+		$not_allowed[] = '_mainwp_edit_post_site_id';
+		$not_allowed[] = '_mainwp_edit_post_id';
+		$not_allowed[] = '_edit_post_status';
 
 		$post_to_only_existing_categories = false;
 		foreach ( $post_custom as $meta_key => $meta_values ) {
@@ -511,7 +518,7 @@ class MainWP_Helper {
 					if ( ! $seo_ext_activated ) {
 						// if Wordpress SEO plugin is not activated do not save yoast post meta
 						if ( strpos( $meta_key, '_yoast_wpseo_' ) === false ) {
-                            update_post_meta( $new_post_id, $meta_key, $meta_value );
+							update_post_meta( $new_post_id, $meta_key, $meta_value );
 						}
 					} else {
 						update_post_meta( $new_post_id, $meta_key, $meta_value );
@@ -575,7 +582,7 @@ class MainWP_Helper {
 			}
 		}
 
-        $featured_image_exist = false;
+		$featured_image_exist = false;
 		//If featured image exists - set it
 		if ( null !== $post_featured_image ) {
 			try {
@@ -583,16 +590,16 @@ class MainWP_Helper {
 
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); //Add the thumbnail to the post!
-                    $featured_image_exist = true;
+					$featured_image_exist = true;
 				}
 			} catch ( Exception $e ) {
 
 			}
 		}
 
-        if ( !$featured_image_exist ) {
-            delete_post_meta( $new_post_id, '_thumbnail_id' );
-        }
+		if ( !$featured_image_exist ) {
+			delete_post_meta( $new_post_id, '_thumbnail_id' );
+		}
 
 		// post plus extension process
 		if ( $is_post_plus ) {
@@ -635,17 +642,22 @@ class MainWP_Helper {
 		}
 		// end of post plus
 
-        // to support custom post author
-        $custom_post_author = apply_filters('mainwp_create_post_custom_author', false, $new_post_id);
-        if ( !empty( $custom_post_author ) ) {
-            wp_update_post( array( 'ID' => $new_post_id, 'post_author' => $custom_post_author ) );
-        }
+		// to support custom post author
+		$custom_post_author = apply_filters('mainwp_create_post_custom_author', false, $new_post_id);
+		if ( !empty( $custom_post_author ) ) {
+			wp_update_post( array( 'ID' => $new_post_id, 'post_author' => $custom_post_author ) );
+		}
 
 		// MainWP Robot
 		if ( $is_robot_post ) {
 			$all_comments = $post_custom['_mainwp_robot_post_comments'];
 			MainWP_Child_Robot::Instance()->wpr_insertcomments( $new_post_id, $all_comments );
 		}
+
+        // unlock if edit post
+        if ($edit_post_id) {
+            update_post_meta( $edit_post_id, '_edit_lock', '' );
+        }
 
 		$ret['success']  = true;
 		$ret['link']     = $permalink;
@@ -980,11 +992,11 @@ class MainWP_Helper {
 		return ( $gmtOffset ? ( $gmtOffset * HOUR_IN_SECONDS ) + $timestamp : $timestamp );
 	}
 
-    public static function formatDate( $timestamp ) {
+	public static function formatDate( $timestamp ) {
 		return date_i18n( get_option( 'date_format' ), $timestamp );
 	}
 
-    public static function formatTime( $timestamp ) {
+	public static function formatTime( $timestamp ) {
 		return date_i18n( get_option( 'time_format' ), $timestamp );
 	}
 
@@ -998,14 +1010,14 @@ class MainWP_Helper {
             <br>
             <div style="background:#ffffff;padding:0 1.618em;font:13px/20px Helvetica,Arial,Sans-serif;padding-bottom:50px!important">
                 <div style="width:600px;background:#fff;margin-left:auto;margin-right:auto;margin-top:10px;margin-bottom:25px;padding:0!important;border:10px Solid #fff;border-radius:10px;overflow:hidden">
-                    <div style="display: block; width: 100% ; background-image: url(http://mainwp.com/wp-content/uploads/2013/02/debut_light.png) ; background-repeat: repeat; border-bottom: 2px Solid #7fb100 ; overflow: hidden;">
+                    <div style="display: block; width: 100% ; background-image: url(https://mainwp.com/wp-content/uploads/2013/02/debut_light.png) ; background-repeat: repeat; border-bottom: 2px Solid #7fb100 ; overflow: hidden;">
                       <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
-                         <div style="float: left;"><a href="http://mainwp.com"><img src="//mainwp.com/wp-content/uploads/2013/07/MainWP-Logo-1000-300x62.png" alt="MainWP" height="30"/></a></div>
+                         <div style="float: left;"><a href="https://mainwp.com"><img src="https://mainwp.com/wp-content/uploads/2013/07/MainWP-Logo-1000-300x62.png" alt="MainWP" height="30"/></a></div>
                          <div style="float: right; margin-top: .6em ;">
                             <span style="display: inline-block; margin-right: .8em;"><a href="https://mainwp.com/mainwp-extensions/" style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;">Extensions</a></span>
-                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="http://mainwp.com/forum">Support</a></span>
-                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="http://docs.mainwp.com">Documentation</a></span>
-                            <span style="display: inline-block; margin-right: .5em;" class="mainwp-memebers-area"><a href="http://mainwp.com/member/login/index" style="padding: .6em .5em ; border-radius: 50px ; -moz-border-radius: 50px ; -webkit-border-radius: 50px ; background: #1c1d1b; border: 1px Solid #000; color: #fff !important; font-size: .9em !important; font-weight: normal ; -webkit-box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1); box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1);">Members Area</a></span>
+                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://mainwp.com/forum">Support</a></span>
+                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://docs.mainwp.com">Documentation</a></span>
+                            <span style="display: inline-block; margin-right: .5em;" class="mainwp-memebers-area"><a href="https://mainwp.com/member/login/index" style="padding: .6em .5em ; border-radius: 50px ; -moz-border-radius: 50px ; -webkit-border-radius: 50px ; background: #1c1d1b; border: 1px Solid #000; color: #fff !important; font-size: .9em !important; font-weight: normal ; -webkit-box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1); box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1);">Members Area</a></span>
                          </div><div style="clear: both;"></div>
                       </div>
                     </div>
@@ -1015,14 +1027,14 @@ class MainWP_Helper {
                         <div></div>
                         <br />
                         <div>MainWP</div>
-                        <div><a href="http://www.MainWP.com" target="_blank">www.MainWP.com</a></div>
+                        <div><a href="https://www.MainWP.com" target="_blank">www.MainWP.com</a></div>
                         <p></p>
                     </div>
 
                     <div style="display: block; width: 100% ; background: #1c1d1b;">
                       <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
                         <div style="padding: .5em 0 ; float: left;"><p style="color: #fff; font-family: Helvetica, Sans; font-size: 12px ;">© 2013 MainWP. All Rights Reserved.</p></div>
-                        <div style="float: right;"><a href="http://mainwp.com"><img src="//mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png" height="45"/></a></div><div style="clear: both;"></div>
+                        <div style="float: right;"><a href="https://mainwp.com"><img src="https://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png" height="45"/></a></div><div style="clear: both;"></div>
                       </div>
                    </div>
                 </div>
@@ -1072,52 +1084,54 @@ class MainWP_Helper {
 		}
 	}
 
-    static function update_lasttime_backup( $by, $time ) {
-        $backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus');
+	static function update_lasttime_backup( $by, $time ) {
+		$backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule');
 
-        if (!in_array($by, $backup_by))
-            return false;
+		if (!in_array($by, $backup_by))
+			return false;
 
-        $lasttime = get_option('mainwp_lasttime_backup_' . $by);
-        if ( $time > $lasttime ) {
-            update_option('mainwp_lasttime_backup_' . $by, $time);
-        }
+		$lasttime = get_option('mainwp_lasttime_backup_' . $by);
+		if ( $time > $lasttime ) {
+			update_option('mainwp_lasttime_backup_' . $by, $time);
+		}
 
-        return true;
+		return true;
 	}
 
-    static function get_lasttime_backup( $by ) {
-        if ($by == 'backupwp') // to compatible
-            $by = 'backupwordpress';
-        $backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus');
-
-        switch($by) {
-            case 'backupbuddy':
-                if ( !is_plugin_active( 'backupbuddy/backupbuddy.php' )) {
-                    return -1;
-                }
-                break;
-            case 'backupwordpress':
-                if ( !is_plugin_active( 'backupwordpress/backupwordpress.php' )) {
-                    return -1;
-                }
-                break;
-            case 'backwpup':
-                if ( !is_plugin_active( 'backwpup/backwpup.php' ) && !is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
-                    return -1;
-                }
-                break;
-            case 'updraftplus':
-                if ( !is_plugin_active( 'updraftplus/updraftplus.php' )) {
-                    return -1;
-                }
-                break;
-            default:
-                return 0;
-                break;
-        }
-
-        return get_option('mainwp_lasttime_backup_' . $by, 0);
+	static function get_lasttime_backup( $by ) {
+		if ($by == 'backupwp') // to compatible
+			$by = 'backupwordpress';
+		switch($by) {
+			case 'backupbuddy':
+				if ( !is_plugin_active( 'backupbuddy/backupbuddy.php' ) && !is_plugin_active( 'Backupbuddy/backupbuddy.php' )) {
+					return -1;
+				}
+				break;
+			case 'backupwordpress':
+				if ( !is_plugin_active( 'backupwordpress/backupwordpress.php' )) {
+					return -1;
+				}
+				break;
+			case 'backwpup':
+				if ( !is_plugin_active( 'backwpup/backwpup.php' ) && !is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
+					return -1;
+				}
+				break;
+			case 'updraftplus':
+				if ( !is_plugin_active( 'updraftplus/updraftplus.php' )) {
+					return -1;
+				}
+				break;
+			case 'wptimecapsule':
+				if ( !is_plugin_active( 'wp-time-capsule/wp-time-capsule.php'  )) {
+					return -1;
+				}
+				break;
+			default:
+				return 0;
+				break;
+		}
+		return get_option('mainwp_lasttime_backup_' . $by, 0);
 	}
 
 

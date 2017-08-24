@@ -2,7 +2,7 @@
 
 class MainWP_Child_Back_Up_Wordpress {
 	public static $instance = null;
-        public $is_plugin_installed = false;
+    public $is_plugin_installed = false;
 	static function Instance() {
 		if ( null === MainWP_Child_Back_Up_Wordpress::$instance ) {
 			MainWP_Child_Back_Up_Wordpress::$instance = new MainWP_Child_Back_Up_Wordpress();

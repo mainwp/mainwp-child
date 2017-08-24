@@ -14,7 +14,7 @@ class MainWP_Client_Report {
 	public static function init() {
 		add_filter( 'wp_stream_connectors', array( 'MainWP_Client_Report', 'init_stream_connectors' ), 10, 1 );
 		add_filter( 'mainwp_client_reports_connectors', array( 'MainWP_Client_Report', 'init_report_connectors' ), 10, 1 );
-        add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
+		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
 	}
 
 	public static function init_stream_connectors( $classes ) {
@@ -57,28 +57,31 @@ class MainWP_Client_Report {
 		return $classes;
 	}
 
-    public  static function do_reports_log( $ext = '' ) {
-        switch( $ext ) {
-            case 'backupbuddy':
-                MainWP_Child_Back_Up_Buddy::Instance()->do_reports_log( $ext );
-                break;
-            case 'backupwordpress':
-                MainWP_Child_Back_Up_Wordpress::Instance()->do_reports_log( $ext );
-                break;
-            case 'backwpup':
-                MainWP_Child_Back_WP_Up::Instance()->do_reports_log( $ext );
-                break;
-            case 'wordfence':
-                MainWP_Child_Wordfence::Instance()->do_reports_log( $ext );
-                break;
-        }
-    }
+	public  static function do_reports_log( $ext = '' ) {
+		switch( $ext ) {
+			case 'backupbuddy':
+				MainWP_Child_Back_Up_Buddy::Instance()->do_reports_log( $ext );
+				break;
+			case 'backupwordpress':
+				MainWP_Child_Back_Up_Wordpress::Instance()->do_reports_log( $ext );
+				break;
+			case 'backwpup':
+				MainWP_Child_Back_WP_Up::Instance()->do_reports_log( $ext );
+				break;
+			case 'wordfence':
+				MainWP_Child_Wordfence::Instance()->do_reports_log( $ext );
+				break;
+//            case 'wptimecapsule':
+//                MainWP_Child_WP_Time_Capsule::Instance()->do_reports_log( $ext );
+//                break;
+		}
+	}
 
 	public function action() {
 
 		$information              = array();
 
-        if ( !function_exists( 'mainwp_wp_stream_query' ) || !class_exists( 'MainWP_WP_Stream' ) ) {
+		if ( !function_exists( 'mainwp_wp_stream_query' ) || !class_exists( 'MainWP_WP_Stream' ) ) {
 			$information['error'] = 'NO_CREPORT';
 			MainWP_Helper::write( $information );
 		}
@@ -149,7 +152,7 @@ class MainWP_Client_Report {
 
 		$args = array();
 		foreach ( $allowed_params as $param ) {
-            $paramval = mainwp_wp_stream_filter_input( INPUT_POST, $param );
+			$paramval = mainwp_wp_stream_filter_input( INPUT_POST, $param );
 			if ( $paramval || '0' === $paramval ) {
 				$args[ $param ] = $paramval;
 			}
@@ -227,22 +230,22 @@ class MainWP_Client_Report {
 
 		$args['action__not_in'] = array( 'login' );
 
-        $args['fields'] = 'with-meta';
-        if ( isset( $args['date_from'] ) ) {
-                $args['date_from'] = date( 'Y-m-d H:i:s', $args['date_from'] );
-        }
+		$args['fields'] = 'with-meta';
+		if ( isset( $args['date_from'] ) ) {
+			$args['date_from'] = date( 'Y-m-d H:i:s', $args['date_from'] );
+		}
 
-        if ( isset( $args['date_to'] ) ) {
-                $args['date_to'] = date( 'Y-m-d H:i:s', $args['date_to'] );
-        }
+		if ( isset( $args['date_to'] ) ) {
+			$args['date_to'] = date( 'Y-m-d H:i:s', $args['date_to'] );
+		}
 
-        if ( MainWP_Child_Branding::is_branding() ) {
-            $args['hide_child_reports'] = 1;
-        }
+		if ( MainWP_Child_Branding::is_branding() ) {
+			$args['hide_child_reports'] = 1;
+		}
 
 		$args['records_per_page'] = 9999;
 
-        $records = mainwp_wp_stream_query( $args );
+		$records = mainwp_wp_stream_query( $args );
 
 		if ( ! is_array( $records ) ) {
 			$records = array();
@@ -251,8 +254,8 @@ class MainWP_Client_Report {
 		//return $records;
 		//$other_tokens_data = $this->get_other_tokens_data($records, $other_tokens);
 
-        // to fix invalid data
-        $skip_records = array();
+		// to fix invalid data
+		$skip_records = array();
 		if ( isset( $other_tokens['header'] ) && is_array( $other_tokens['header'] ) ) {
 			$other_tokens_data['header'] = $this->get_other_tokens_data( $records, $other_tokens['header'], $skip_records);
 		}
@@ -403,21 +406,21 @@ class MainWP_Client_Report {
 										continue;
 									}
 								} else if ( 'updated' === $action && ('themes' === $context || 'plugins' === $context)) {
-                                    $name = $this->get_stream_meta_data( $record, 'name' );
-                                    if ( empty($name) ) { // to fix empty value
-                                        if (!in_array($record->ID, $skip_records))
-                                            $skip_records[] = $record->ID;
-                                        continue;
-                                    } else {
-                                        $old_version = $this->get_stream_meta_data( $record, 'old_version' );
-                                        $version = $this->get_stream_meta_data( $record, 'version' );
-                                        if (version_compare($version, $old_version, '<=')) { // to fix
-                                            if (!in_array($record->ID, $skip_records))
-                                                $skip_records[] = $record->ID;
-                                            continue;
-                                        }
-                                    }
-                                }
+									$name = $this->get_stream_meta_data( $record, 'name' );
+									if ( empty($name) ) { // to fix empty value
+										if (!in_array($record->ID, $skip_records))
+											$skip_records[] = $record->ID;
+										continue;
+									} else {
+										$old_version = $this->get_stream_meta_data( $record, 'old_version' );
+										$version = $this->get_stream_meta_data( $record, 'version' );
+										if (version_compare($version, $old_version, '<=')) { // to fix
+											if (!in_array($record->ID, $skip_records))
+												$skip_records[] = $record->ID;
+											continue;
+										}
+									}
+								}
 
 							}
 
@@ -457,13 +460,13 @@ class MainWP_Client_Report {
 		);
 
 		$some_allowed_data = array(
-            'ID',
+			'ID',
 			'name',
 			'title',
 			'oldversion',
 			'currentversion',
 			'date',
-            'time',
+			'time',
 			'count',
 			'author',
 			'old.version',
@@ -488,9 +491,9 @@ class MainWP_Client_Report {
 		$loop_count = 0;
 
 		foreach ( $records as $record ) {
-            if (in_array($record->ID, $skip_records)) {
-                continue;
-            }
+			if (in_array($record->ID, $skip_records)) {
+				continue;
+			}
 
 			$theme_edited = $users_updated = $plugin_edited = false;
 
@@ -509,7 +512,7 @@ class MainWP_Client_Report {
 					$users_updated = true;
 				}
 			} else if ( 'mainwp_backups' === $context ) {
-				if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups'  && $record->context !== 'backupbuddy_backups' ) {
+				if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups'  && $record->context !== 'backupbuddy_backups' && $record->context !== 'wptimecapsule_backups') {
 					continue;
 				}
 			} else if ( 'mainwp_sucuri' === $context ) {
@@ -517,14 +520,14 @@ class MainWP_Client_Report {
 					continue;
 				}
 			} else if ( 'wordfence' === $context ) {
-                if ( $record->context !== 'wordfence_scans' ) {
-                        continue;
-                }
-            } else if ( 'maintenance' === $context ) {
-                if ( $record->context !== 'mainwp_maintenances' ) {
-                        continue;
-                }
-            } else {
+				if ( $record->context !== 'wordfence_scans' ) {
+					continue;
+				}
+			} else if ( 'maintenance' === $context ) {
+				if ( $record->context !== 'mainwp_maintenances' ) {
+					continue;
+				}
+			} else {
 				if ( $action !== $record->action ) {
 					continue;
 				}
@@ -538,8 +541,8 @@ class MainWP_Client_Report {
 				} else if ( 'menus' === $context && 'menus' !== $record->connector ) {
 					continue;
 				}
-				//                else if ($context === "themes" && $record->connector !== "themes")
-				//                    continue;
+//                else if ($context === "themes" && $record->connector !== "themes")
+//                    continue;
 
 				if ( 'comments' !== $context && 'media' !== $context &&
 				     'widgets' !== $context && 'menus' !== $context &&
@@ -588,15 +591,15 @@ class MainWP_Client_Report {
 				}
 
 				switch ( $data ) {
-                    case 'ID':
+					case 'ID':
 						$token_values[ $token ] = $record->ID;
 						break;
 					case 'date':
 						$token_values[ $token ] = MainWP_Helper::formatDate( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
 						break;
-                    case 'time':
-                        $token_values[ $token ] = MainWP_Helper::formatTime( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
-                        break;
+					case 'time':
+						$token_values[ $token ] = MainWP_Helper::formatTime( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
+						break;
 					case 'area':
 						$data                   = 'sidebar_name';
 						$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
@@ -626,7 +629,7 @@ class MainWP_Client_Report {
 							}
 							$token_values[ $token ] = $roles;
 						} else {
-                            $token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
 						}
 						break;
 					case 'title':
@@ -657,10 +660,10 @@ class MainWP_Client_Report {
 							$token_values[ $token ] = $value;
 						}
 						break;
-                    case 'details':
-                    case 'result':
+					case 'details':
+					case 'result':
 						if ( 'wordfence' === $context || 'maintenance' === $context ) {
-                            $token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
 						}
 						break;
 					case 'destination':   // backup cases
@@ -691,7 +694,7 @@ class MainWP_Client_Report {
 			return '';
 		}
 
-        $meta_key = $data;
+		$meta_key = $data;
 
 		$value = '';
 
@@ -699,7 +702,7 @@ class MainWP_Client_Report {
 			$meta = $record->meta;
 			if ( isset( $meta[ $meta_key ] ) ) {
 				$value = $meta[ $meta_key ];
-                $value = current( $value );
+				$value = current( $value );
 				if ( 'author_meta' === $meta_key || 'user_meta' === $meta_key ) {
 					$value = maybe_unserialize( $value );
 					$value = $value['display_name'];
@@ -713,7 +716,7 @@ class MainWP_Client_Report {
 	function set_showhide() {
 		MainWP_Helper::update_option( 'mainwp_creport_ext_branding_enabled', 'Y', 'yes' );
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
-		MainWP_Helper::update_option( 'mainwp_creport_branding_stream_hide', $hide );
+		MainWP_Helper::update_option( 'mainwp_creport_branding_stream_hide', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
 
 		return $information;
