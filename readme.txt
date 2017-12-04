@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.8.1
-Stable tag: 3.4.3
+Tested up to: 4.9.1
+Stable tag: 3.4.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,25 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4.4 - 12-4-17 =
+* Fixed: compatibility issue with the latest UpdraftPlus Backups plugin version
+* Fixed: compatibility issue with the latest iThemes Security plugin version
+* Fixed: an issue with updating certain plugins
+* Fixed: an issue with installing certain plugins
+* Fixed: an issue with logging the BackupBuddy backups for client reports
+* Fixed: an issue with syncing sites that run older versions of the BackupBuddy plugin
+* Fixed: an issue with calculating site size on Windows servers
+* Fixed: an issue with disabling Pro modules for the iThemes Security plugin
+* Fixed: an issue with saving Amazon S3 settings for the UpdraftPlus extension
+* Added: support for the upcoming extension
+* Added: support for the new MainWP iThemes Security Extension options
+* Added: support for the search by Title option
+* Added: support for the new MainWP UpdraftPlus Extension options
+* Added: support for the new MainWP Buddy Extension options
+* Added: support for the new version of the MainWP WooCommerce Status extension
+* Added: the mainwp-child-get-total-size hook for disabling the get total size of a site function
+* Updated: the process for displaying info for scheduled posts and pages
 
 = 3.4.3 - 8-24-17 =
 * Fixed: an issue with saving Bulk Setting Manager keys on some HTTPS sites
