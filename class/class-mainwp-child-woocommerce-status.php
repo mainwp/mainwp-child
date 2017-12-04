@@ -22,11 +22,11 @@ class MainWP_Child_WooCommerce_Status {
 
 	public function action() {
 		$information = array();
-		if ( ! class_exists( 'WooCommerce' ) ) {
+		if ( ! class_exists( 'WooCommerce' ) || !defined('WC_VERSION')) {
 			$information['error'] = 'NO_WOOCOMMERCE';
 			MainWP_Helper::write( $information );
 		}
-
+        
 		$is_ver220 = $this->is_version_220();
 		if ( isset( $_POST['mwp_action'] ) ) {
 			switch ( $_POST['mwp_action'] ) {
@@ -35,6 +35,9 @@ class MainWP_Child_WooCommerce_Status {
 					break;
 				case 'report_data':
 					$information = ! $is_ver220 ? $this->report_data() : $this->report_data_two();
+					break;  
+                case 'update_wc_db':
+					$information = $this->update_wc_db();
 					break;
 			}
 		}
@@ -281,6 +284,7 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	function sync_data_two() {
+        // sync data at current time
 		$start_date = current_time( 'timestamp' );
 		$end_date   = current_time( 'timestamp' );
 
@@ -293,7 +297,14 @@ class MainWP_Child_WooCommerce_Status {
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
-
+    
+    function check_db_update() {
+		if ( version_compare( get_option( 'woocommerce_db_version' ), WC_VERSION, '<' ) ) {
+            return true;
+        }
+        return false;
+	}
+        
 	function get_woocom_data( $start_date, $end_date ) {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
@@ -402,11 +413,40 @@ class MainWP_Child_WooCommerce_Status {
 			'stock'          => $stock,
 			'nostock'        => $nostock,
 			'lowstock'       => $lowinstock_count,
-			'outstock'       => $outofstock_count,
+			'outstock'       => $outofstock_count            
 		);
 		$information['data'] = $data;
-
+        $information['need_db_update'] = $this->check_db_update();        
 		return $information;
 	}
+    
+    private static function update_wc_db() {
+        include_once( WC()->plugin_path() . '/includes/class-wc-background-updater.php' );
+		$background_updater = new WC_Background_Updater();
+        
+		$current_db_version = get_option( 'woocommerce_db_version' );
+		$logger             = wc_get_logger();
+		$update_queued      = false;
+
+		foreach ( WC_Install::get_db_update_callbacks() as $version => $update_callbacks ) {
+			if ( version_compare( $current_db_version, $version, '<' ) ) {
+				foreach ( $update_callbacks as $update_callback ) {
+					$logger->info(
+						sprintf( 'Queuing %s - %s', $version, $update_callback ),
+						array( 'source' => 'wc_db_updates' )
+					);
+					$background_updater->push_to_queue( $update_callback );
+					$update_queued = true;
+				}
+			}
+		}
+
+		if ( $update_queued ) {
+			$background_updater->save()->dispatch();
+		}
+        
+        return array('result' => 'success');
+	}
+    
 }
 

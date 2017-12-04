@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.4.3';
+	public static $version = '3.4.4';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -149,7 +149,8 @@ class MainWP_Child {
 		'custom_post_type'	=> 'custom_post_type',
         'backup_buddy'          => 'backup_buddy',
         'get_site_icon'         => 'get_site_icon',
-        'vulner_checker'        => 'vulner_checker'
+        'vulner_checker'        => 'vulner_checker',  
+        'wp_staging'            => 'wp_staging'        
 	);
 
 	private $FTP_ERROR = 'Failed! Please, add FTP details for automatic updates.';
@@ -496,7 +497,7 @@ class MainWP_Child {
 		$fix_update_plugins = array();
 		if ( is_array( $plugin_updates ) ) {
 			foreach ( $plugin_updates as $slug => $plugin_update ) {
-				if ( in_array( $slug, array( 'ithemes-security-pro/ithemes-security-pro.php', 'monarch/monarch.php', 'cornerstone/cornerstone.php', 'updraftplus/updraftplus.php') ) ) {
+				if ( in_array( $slug, array( 'ithemes-security-pro/ithemes-security-pro.php', 'monarch/monarch.php', 'cornerstone/cornerstone.php', 'updraftplus/updraftplus.php', 'wp-all-import-pro/wp-all-import-pro.php') ) ) {
 					$fix_update_plugins[ $slug ] = $plugin_update;
 				}
 			}
@@ -1389,7 +1390,8 @@ class MainWP_Child {
 		MainWP_Child_Back_WP_Up::Instance()->init();
                 
         new MainWP_Child_Back_Up_Buddy();
-        MainWP_Child_Wordfence::Instance()->wordfence_init();
+        MainWP_Child_Wordfence::Instance()->wordfence_init();        
+        MainWP_Child_Staging::Instance()->init();
 
         global $_wp_submenu_nopriv;
         if ($_wp_submenu_nopriv === null)
@@ -1609,7 +1611,12 @@ class MainWP_Child {
 				if ( ! empty( $fileName ) ) {
 					do_action( 'mainwp_child_installPluginTheme', $args );
 					if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
-						activate_plugin( $path . $fileName, '' /* false, true */ );
+						 // to fix activate issue
+                        if ('quotes-collection/quotes-collection.php' == $args['slug']) {
+                            activate_plugin( $path . $fileName, '', false, true );
+                        } else {                            
+                            activate_plugin( $path . $fileName, '' /* false, true */ );
+                        }
 						do_action( 'activate_plugin', $args['slug'], null );
 					}
 				}
@@ -3610,7 +3617,10 @@ class MainWP_Child {
 			$categories[] = $cat->name;
 		}
 		$information['categories'] = $categories;
-		$information['totalsize']  = $this->getTotalFileSize();
+		$get_file_size = apply_filters('mainwp-child-get-total-size', true);
+        if ($get_file_size) {
+            $information['totalsize']  = $this->getTotalFileSize(); 
+        }
 		$information['dbsize']     = MainWP_Child_DB::get_size();
 
 		$auths                  = get_option( 'mainwp_child_auth' );
@@ -3640,7 +3650,15 @@ class MainWP_Child {
 					}
 				}
 			}
-
+           
+            
+            if ( isset( $othersData['syncWPStaging'] ) && !empty( $othersData['syncWPStaging'] ) ) {                   
+                if ( MainWP_Child_Staging::Instance()->is_plugin_installed ) {
+					$information['syncWPStaging'] =  MainWP_Child_Staging::Instance()->get_sync_data();
+                }
+			}
+            
+            
             if ( isset( $othersData['syncBackupBuddy'] ) && !empty( $othersData['syncBackupBuddy'] ) ) {
                 if ( MainWP_Child_Back_Up_Buddy::Instance()->is_backupbuddy_installed ) {
 					$information['syncBackupBuddy'] =  MainWP_Child_Back_Up_Buddy::Instance()->get_sync_data();
@@ -3883,7 +3901,7 @@ class MainWP_Child {
 
         $wp_seo_enabled = false;
         if ( isset( $_POST['WPSEOEnabled'] ) && $_POST['WPSEOEnabled']) {
-           if (is_plugin_active('wordpress-seo/wp-seo.php') && class_exists('WPSEO_Link_Column_Count')) {
+           if (is_plugin_active('wordpress-seo/wp-seo.php') && class_exists('WPSEO_Link_Column_Count') && class_exists('WPSEO_Meta')) {
                 $wp_seo_enabled = true;
            }
         }
@@ -3898,7 +3916,7 @@ class MainWP_Child {
                 $link_count = new WPSEO_Link_Column_Count();
                 $link_count->set( $post_ids );
             }
-			foreach ( $posts as $post ) {
+			foreach ( $posts as $post ) {                
 				$outPost                  = array();
 				$outPost['id']            = $post->ID;
 				$outPost['post_type']     = $post->post_type;
@@ -3906,11 +3924,17 @@ class MainWP_Child {
 				$outPost['title']         = $post->post_title;
 				$outPost['content']       = $post->post_content;
 				$outPost['comment_count'] = $post->comment_count;
+                // to support extract urls extension
 				if ( isset( $extra['where_post_date'] ) && !empty( $extra['where_post_date'] ) ) {
 					$outPost['dts'] = strtotime( $post->post_date_gmt );
 				} else {
 					$outPost['dts'] = strtotime( $post->post_modified_gmt );
 				}
+                
+                if ($post->post_status == 'future') {
+                    $outPost['dts'] = strtotime( $post->post_date_gmt );
+                }
+                
 				$usr                      = get_user_by( 'id', $post->post_author );
 				$outPost['author']        = ! empty( $usr ) ? $usr->user_nicename : 'removed';
 				$categoryObjects          = get_the_category( $post->ID );
@@ -4150,15 +4174,21 @@ class MainWP_Child {
 		global $wpdb;
 
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
-		$where_post_date = isset($_POST['where_post_date']) && !empty($_POST['where_post_date']) ? true : false;
-
+		$where_post_date = isset($_POST['where_post_date']) && !empty($_POST['where_post_date']) ? true : false;                
 		if ( isset( $_POST['postId'] ) ) {
 			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . $_POST['postId'];
 		} else if ( isset( $_POST['userId'] ) ) {
 			$this->posts_where_suffix .= " AND $wpdb->posts.post_author = " . $_POST['userId'];
 		} else {
 			if ( isset( $_POST['keyword'] ) ) {
-				$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' OR $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
+                $search_on = isset($_POST['search_on']) ? $_POST['search_on'] : '';
+                if ($search_on == 'title') {
+                    $this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
+                } else if ($search_on == 'content') {
+                    $this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' )";
+                } else {
+                    $this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' OR $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
+                }
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
 				if ($where_post_date) {
@@ -4398,7 +4428,13 @@ class MainWP_Child {
 				if ( $plugin !== $this->plugin_slug ) {
 					$thePlugin = get_plugin_data( $plugin );
 					if ( null !== $thePlugin && '' !== $thePlugin ) {
-						activate_plugin( $plugin );
+						// to fix activate issue
+						if ('quotes-collection/quotes-collection.php' == $plugin) {
+                            activate_plugin( $plugin, '', false, true );
+                            do_action( 'activate_plugin', $plugin, null );
+                        } else {                            
+                            activate_plugin( $plugin );
+                        }
 					}
 				}
 			}
@@ -4779,7 +4815,7 @@ class MainWP_Child {
 					$size = @fread( $popenHandle, 1024 );
 					@pclose( $popenHandle );
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
-					if ( MainWP_Helper::ctype_digit( $size ) ) {
+					if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
 						return $size / 1024;
 					}
 				}
@@ -4791,7 +4827,7 @@ class MainWP_Child {
 				$size      = @shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' );
 				if ( null !== $size ) {
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
-					if ( MainWP_Helper::ctype_digit( $size ) ) {
+					if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
 						return $size / 1024;
 					}
 				}
@@ -4809,6 +4845,16 @@ class MainWP_Child {
 						return $size / 1024;
 					}
 				}
+			}
+            // to fix for window host, performance not good? 
+            if ( class_exists( 'RecursiveIteratorIterator' ) ) {				
+                $size = 0;
+                foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory)) as $file){
+                    $size+=$file->getSize();
+                }                
+                if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
+                    return $size / 1024 / 1024;
+                }
 			}
 
 //			function dirsize( $dir ) {
@@ -5403,7 +5449,11 @@ class MainWP_Child {
     function vulner_checker() {
         MainWP_Child_Vulnerability_Checker::Instance()->action();
     }
-
+    
+    function wp_staging() {
+        MainWP_Child_Staging::Instance()->action();
+    }
+    
 	static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once( ABSPATH . '/wp-admin/includes/screen.php' );

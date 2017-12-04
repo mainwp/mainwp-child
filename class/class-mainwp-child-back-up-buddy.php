@@ -92,72 +92,54 @@ class MainWP_Child_Back_Up_Buddy {
 			require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
 		}
 
-		$backups = array();
-		$backup_sort_dates = array();
+        // Backup type.
+		$pretty_type = array(
+			'full'	=>	'Full',
+			'db'	=>	'Database',
+			'files' =>	'Files',
+		);
 
-		$files = glob( backupbuddy_core::getBackupDirectory() . 'backup*.zip' );
-		if ( ! is_array( $files ) ) {
-			$files = array();
-		}
+        $recentBackups_list = glob( backupbuddy_core::getLogDirectory() . 'fileoptions/*.txt' );        
 
-		$files2 = glob( backupbuddy_core::getBackupDirectory() . 'snapshot*.zip' );
-		if ( ! is_array( $files2 ) ) {
-			$files2 = array();
-		}
+		foreach( $recentBackups_list as $backup_fileoptions ) {
 
-		$files = array_merge( $files, $files2 );
+            require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
+			pb_backupbuddy::status( 'details', 'Fileoptions instance #1.' );
+			$backup = new pb_backupbuddy_fileoptions( $backup_fileoptions, $read_only = true );
+			if ( true !== ( $result = $backup->is_ok() ) ) {
+				continue;
+            }
 
-		if ( is_array( $files ) && !empty( $files ) ) { // For robustness. Without open_basedir the glob() function returns an empty array for no match. With open_basedir in effect the glob() function returns a boolean false for no match.
-			foreach( $files as $file_id => $file ) {
-				$serial = backupbuddy_core::get_serial_from_file( $file );
-				$options = array();
-				if ( file_exists( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt' ) ) {
-					require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
-					//pb_backupbuddy::status( 'details', 'Fileoptions instance #33.' );
-					$backup_options = new pb_backupbuddy_fileoptions( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt', $read_only = false, $ignore_lock = false, $create_file = true ); // Will create file to hold integrity data if nothing exists.
-				} else {
-					$backup_options = '';
-				}
-				$backup_integrity = backupbuddy_core::backup_integrity_check( $file, $backup_options, $options );
+            $backup = &$backup->options;
 
-				// Backup type.
-				$pretty_type = array(
-					'full'		=>	'Full',
-					'db'		=>	'Database',
-					'files'		=>	'Files',
-					'themes'	=>	'Themes',
-					'plugins'	=>	'Plugins',
-				);
-
-
-				// Defaults...
-				$detected_type = '';
-				$modified_time = 0;
-
-				if ( is_array( $backup_integrity ) ) {
-					// Calculate time ago.
-					$time_ago = '';
-					if ( isset( $backup_integrity['modified'] ) ) {
-						$time_ago = pb_backupbuddy::$format->time_ago( $backup_integrity['modified'] ) . ' ago';
-					}
-
-					$detected_type = pb_backupbuddy::$format->prettify( $backup_integrity['detected_type'], $pretty_type );
-					if ( $detected_type == '' ) {
-						$detected_type = backupbuddy_core::pretty_backup_type( backupbuddy_core::getBackupTypeFromFile( $file ) );
-					}
-
-					$modified_time = $backup_integrity['modified'];
-					$message = 'BackupBuddy ' . $detected_type . ' finished';
-					$backup_type = $detected_type;
-					if (!empty($modified_time)) {
-						do_action( 'mainwp_reports_backupbuddy_backup', $message, $backup_type, $modified_time);
-						MainWP_Helper::update_lasttime_backup('backupbuddy', $modified_time); // to support backup before update feature
-					}
-				}
+			if ( !isset( $backup['serial'] ) || ( $backup['serial'] == '' ) ) {
+				continue;
 			}
-		}
 
-	}
+            if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
+				// it is ok
+			} else {
+                continue;
+            }
+
+            if ( isset( $backup['profile'] ) && isset( $backup['profile']['type'] ) ) {
+				$backupType = pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type );
+			} else {
+				$backupType = backupbuddy_core::pretty_backup_type( backupbuddy_core::getBackupTypeFromFile( $backup['archive_file'] ) );				
+            }
+
+            if ( '' == $backupType ) {
+                $backupType = 'Unknown';
+            }
+
+            $finish_time = $backup['finish_time'];
+            $message = 'BackupBuddy ' . $backupType . ' finished';            
+            if (!empty($finish_time)) {
+                do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
+                MainWP_Helper::update_lasttime_backup('backupbuddy', $finish_time); // to support backup before update feature
+            }
+        }
+    }
 
 	public function action() {
 		$information = array();
@@ -692,6 +674,16 @@ class MainWP_Child_Back_Up_Buddy {
 
 
 	public function get_sync_data() {
+        if ( ! class_exists( 'backupbuddy_core' ) ) {
+            if (class_exists( 'pb_backupbuddy' ) && file_exists(pb_backupbuddy::plugin_path() . '/classes/core.php'))
+                require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
+            else
+                return false;
+		}
+        
+        if (!function_exists('backupbuddy_core::get_plugins_root'))
+          return false;
+        
 		$information = array();
 		$information['plugins_root'] =  backupbuddy_core::get_plugins_root();
 		$information['themes_root'] =  backupbuddy_core::get_themes_root();
@@ -1821,6 +1813,29 @@ class MainWP_Child_Back_Up_Buddy {
 	function remote_save() {
 		$data = isset($_POST['data']) ? $_POST['data'] : false;
 		$destination_id = isset($_POST['destination_id']) ? $_POST['destination_id'] : 0;
+                
+        if (is_array($data) && isset($data['do_not_override'])) {
+            
+            if (true == $data['do_not_override']) {
+                if (($data['type'] == 's32' || $data['type'] == 's33')) {
+                    $not_override = array(
+                        'accesskey',
+                        'secretkey',
+                        'bucket',
+                        'region'
+                    );
+                    foreach($not_override as $opt) {
+                        if (isset($data[$opt])) {
+                            unset($data[$opt]);                        
+                        }                    
+                    }
+                }
+            }
+            
+            unset($data['do_not_override']);
+        }
+        
+        
 		if (is_array($data)) {
 			if (isset(pb_backupbuddy::$options['remote_destinations'][$destination_id])) { // update
 				pb_backupbuddy::$options['remote_destinations'][$destination_id] = array_merge( pb_backupbuddy::$options['remote_destinations'][$destination_id], $data );

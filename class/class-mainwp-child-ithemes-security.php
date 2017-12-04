@@ -2,7 +2,8 @@
 
 class MainWP_Child_iThemes_Security {
 	public static $instance = null;
-
+    public $is_plugin_installed = false;
+ 
 	static function Instance() {
 		if ( null === MainWP_Child_iThemes_Security::$instance ) {
 			MainWP_Child_iThemes_Security::$instance = new MainWP_Child_iThemes_Security();
@@ -11,15 +12,28 @@ class MainWP_Child_iThemes_Security {
 		return MainWP_Child_iThemes_Security::$instance;
 	}
 
-	public function __construct() {
+	public function __construct() {                
+        require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		if ( is_plugin_active( 'better-wp-security/better-wp-security.php') || is_plugin_active( 'ithemes-security-pro/ithemes-security-pro.php' ) ) {
+            $this->is_plugin_installed = true;			
+		}   
+        
+        if (!$this->is_plugin_installed)
+            return;
+        
 		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 	}
 
 	function syncOthersData( $information, $data = array() ) {
 		if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
-			MainWP_Helper::update_option( 'mainwp_ithemes_ext_activated', 'Y' );
+            $information['syncIThemeData'] = array(
+                'users_and_roles' => $this->get_available_admin_users_and_roles()
+            );
+			//MainWP_Helper::update_option( 'mainwp_ithemes_ext_activated', 'Y' );            
+            return $information;
+
 		} else {
-			MainWP_Helper::update_option( 'mainwp_ithemes_ext_activated', '' );
+			//MainWP_Helper::update_option( 'mainwp_ithemes_ext_activated', '' );
 		}
 		return $information;
 	}
@@ -96,8 +110,8 @@ class MainWP_Child_iThemes_Security {
 					$information = $this->security_site();
 					break;
 				case 'activate_network_brute_force':
-					$information = $this->activate_network_brute_force();
-					break;				
+					$information = $this->activate_network_brute_force();					                
+					break;	
 			}
 		}
 		MainWP_Helper::write( $information );
@@ -163,7 +177,8 @@ class MainWP_Child_iThemes_Security {
 			'strong-passwords',
 			'system-tweaks',
 			'wordpress-tweaks',
-			'multisite-tweaks',					
+			'multisite-tweaks',	
+            'notification-center'
 			//'salts',
 			//'content-directory',					
 		);	
@@ -174,7 +189,7 @@ class MainWP_Child_iThemes_Security {
 		$nbf_settings = array();
 		
 		$update_settings         = maybe_unserialize( base64_decode( $_POST['settings'] ) );
-						
+		        
 		foreach($update_settings as $module => $settings) {
 			$do_not_save = false;
 			if (in_array($module, $_itsec_modules)) {	
@@ -240,7 +255,26 @@ class MainWP_Child_iThemes_Security {
 						}
 					}					
 					$settings = $nbf_settings;
-				} 			
+				} else if ($module == 'notification-center') {			
+                    $current_settings = ITSEC_Modules::get_settings( $module );
+                    if (isset($settings['notifications'])) {
+                        $update_fields = array( 'schedule', 'enabled', 'subject');
+                        if (isset($_POST['is_individual']) && $_POST['is_individual']) {
+                            $update_fields = array_merge($update_fields, array('user_list', 'email_list'));                            
+                        }
+                        foreach ($settings['notifications'] as $key => $val) {                            
+                            foreach ($update_fields as $field) {
+                                if(isset($val[$field])) {
+                                    $current_settings['notifications'][$key][$field] = $val[$field];
+                                }
+                            }
+                        }
+                        $updated          = true;
+                        ITSEC_Modules::set_settings( $module, $current_settings );
+                    }
+                    continue;
+                }			
+                
 				if ( !$do_not_save ) {
 					ITSEC_Modules::set_settings( $module, $settings );
 					$updated          = true;
@@ -249,7 +283,11 @@ class MainWP_Child_iThemes_Security {
 		}
 
         if ( isset( $update_settings['itsec_active_modules'] ) ) {
-            update_site_option( 'itsec_active_modules', $update_settings['itsec_active_modules'] );
+            $current_val = get_site_option( 'itsec_active_modules', array() );
+            foreach ($update_settings['itsec_active_modules'] as $mod => $val) {
+                $current_val[$mod] = $val;                
+            }
+            update_site_option( 'itsec_active_modules', $current_val );
         }
 
 		require_once( ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php' );
@@ -259,9 +297,8 @@ class MainWP_Child_iThemes_Security {
 			'is_multisite'          => is_multisite() ? 1 : 0,
 			'users_can_register'    => get_site_option( 'users_can_register' ) ? 1 : 0,			
 			'server_nginx'          => ( ITSEC_Lib::get_server() === 'nginx' ) ? 1 : 0,			
-			'has_ssl'				=> ITSEC_Lib::get_ssl() ? 1 : 0,
-			'jquery_version'		=> ITSEC_Modules::get_setting( 'wordpress-tweaks', 'jquery_version' ),
-			'is_jquery_version_safe'=> ITSEC_Lib::is_jquery_version_safe(),
+			'has_ssl'				=> ITSEC_Lib::get_ssl_support_probability(),
+			'jquery_version'		=> ITSEC_Modules::get_setting( 'wordpress-tweaks', 'jquery_version' ),			
 			'server_rules'			=> ITSEC_Lib_Config_File::get_server_config(),
 			'config_rules'			=> ITSEC_Lib_Config_File::get_wp_config(),
 			'lockouts_host'         => $this->get_lockouts( 'host', true ),
@@ -270,6 +307,7 @@ class MainWP_Child_iThemes_Security {
 			'default_log_location'     => ITSEC_Modules::get_default( 'global', 'log_location' ),
 			'default_location'     => ITSEC_Modules::get_default( 'backup', 'location' ),
 			'excludable_tables' => $this->get_excludable_tables(),
+            'users_and_roles' => $this->get_available_admin_users_and_roles()
 		);
 				
  		$return = array(
@@ -647,10 +685,17 @@ class MainWP_Child_iThemes_Security {
 
 		$username_exists = username_exists( 'admin' );
 		$user_id_exists  = ITSEC_Lib::user_id_exists( 1 );
-		$msg             = '';
-		if ( strlen( $new_username ) >= 1 && ! $username_exists ) {
-			$msg = __( 'Admin user already changes.', 'mainwp-child' );
-		}
+		$msg             = '';		
+        if ( strlen( $new_username ) >= 1) {
+            global $current_user;
+            if ( ! $username_exists ) {
+                $msg = __( 'Admin user already changes.', 'mainwp-child' );
+            } else if ($current_user->user_login == 'admin') {
+                $return['result'] = 'CHILD_ADMIN';
+                return $return;
+            }
+        }
+        
 		
 		if ( true === $change_id && ! $user_id_exists ) {			
 			if ( ! empty( $msg ) ) {
@@ -659,13 +704,13 @@ class MainWP_Child_iThemes_Security {
 			$msg .= __( 'Admin user ID already changes.', 'mainwp-child' );
 		}
 
-		if ( $change_id ) {
-			$user = get_user_by( 'login', $new_username );
-			if ( $user && 1 === (int) $user->ID ) {
-				$return['result'] = 'CHILD_ADMIN';
-				return $return;
-			}
-		}
+//		if ( $change_id ) {
+//			$user = get_user_by( 'login', $new_username );
+//			if ( $user && 1 === (int) $user->ID ) {
+//				$return['result'] = 'CHILD_ADMIN';
+//				return $return;
+//			}
+//		}
 
 		$admin_success = true;
 		$return           = array();
@@ -690,7 +735,8 @@ class MainWP_Child_iThemes_Security {
 		global $wpdb;
 		$itsec_files = ITSEC_Core::get_itsec_files();
 		
-		if ( $itsec_files->get_file_lock( 'admin_user' ) ) { //make sure it isn't already running
+        // do not need to check this 
+		//if ( $itsec_files->get_file_lock( 'admin_user' ) ) { //make sure it isn't already running
 
 			//sanitize the username
 			$new_user = sanitize_text_field( $username );
@@ -771,7 +817,7 @@ class MainWP_Child_iThemes_Security {
 				return true;
 
 			}
-		}
+		//}
 
 		return false;
 
@@ -1047,7 +1093,12 @@ class MainWP_Child_iThemes_Security {
 		if (!is_array($active_modules))
 			$active_modules = array();
 		
-		update_site_option( 'itsec_active_modules', $active_modules );
+        $current_val = get_site_option( 'itsec_active_modules', array() );
+        foreach ($active_modules as $mod => $val) {
+            $current_val[$mod] = $val;                
+        }
+            
+		update_site_option( 'itsec_active_modules', $current_val );
 		return array('result' => 'success');
 		
 	}	
@@ -1099,12 +1150,50 @@ class MainWP_Child_iThemes_Security {
 		return $excludes ;
 	}
 		
-	private function security_site() {
+    private function security_site() {
 		global $mainwp_itsec_modules_path;
 		require_once(  $mainwp_itsec_modules_path . 'security-check/scanner.php' );		
-		ITSEC_Security_Check_Scanner::run();
-		$response = ITSEC_Response::get_response();
+        require_once(  $mainwp_itsec_modules_path . 'security-check/feedback-renderer.php' );	        
+//		ITSEC_Security_Check_Scanner::run();
+//		$response = ITSEC_Response::get_response();
+        $results = ITSEC_Security_Check_Scanner::get_results();
+        ob_start();
+        ITSEC_Security_Check_Feedback_Renderer::render( $results );
+		$response = ob_get_clean();            
 		return array('result' => 'success' , 'response' => $response);
 	}
+    
+    // source from itheme plugin
+    public function get_available_admin_users_and_roles() {
+		if ( is_callable( 'wp_roles' ) ) {
+			$roles = wp_roles();
+		} else {
+			$roles = new WP_Roles();
+		}
+
+		$available_roles = array();
+		$available_users = array();
+
+		foreach ( $roles->roles as $role => $details ) {
+			if ( isset( $details['capabilities']['manage_options'] ) && ( true === $details['capabilities']['manage_options'] ) ) {
+				$available_roles["role:$role"] = translate_user_role( $details['name'] );
+
+				$users = get_users( array( 'role' => $role ) );
+
+				foreach ( $users as $user ) {
+					/* translators: 1: user display name, 2: user login */
+					$available_users[ $user->ID ] = sprintf( __( '%1$s (%2$s)', 'better-wp-security' ), $user->display_name, $user->user_login );
+				}
+			}
+		}
+
+		natcasesort( $available_users );
+
+		return array(
+			'users' => $available_users,
+			'roles' => $available_roles,
+		);
+	}
+    
 }
 

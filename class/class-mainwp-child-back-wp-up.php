@@ -1246,6 +1246,9 @@ class MainWP_Child_Back_WP_Up {
 				$url = BackWPup_Job::get_jobrun_url( 'runnowlink', $job_id );
 				BackWPup_Admin::message( sprintf( __( 'Changes for job <i>%s</i> saved.', 'backwpup' ), BackWPup_Option::get( $job_id, 'name' ) ) . ' <a href="' . network_admin_url( 'admin.php' ) . '?page=backwpupjobs">' . __( 'Jobs overview', 'backwpup' ) . '</a> | <a href="' . $url['url'] . '">' . __( 'Run now', 'backwpup' ) . '</a>' );
 			}
+		} else if ($settings['tab'] == 'dest-DROPBOX') {
+            unset($settings['value']); // do not save dropbox settings
+			BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
 		} else {
 			BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
 		}
