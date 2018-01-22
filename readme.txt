@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.9.1
-Stable tag: 3.4.4
+Tested up to: 4.9.2
+Stable tag: 3.4.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -56,6 +56,15 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4.5 - 1-22-18 =
+* Fixed: multiple issues with cloning sites
+* Fixed: an issue with passing metadata for featured images
+* Fixed: an issue with the sync process caused by syncing huge amount of data
+* Fixed: multiple PHP Warnings
+* Added: support for the new MainWP Wordfence Extension options
+* Added: multiple security enhancements
+* Updated: new BackWPup version compatibility
 
 = 3.4.4 - 12-4-17 =
 * Fixed: compatibility issue with the latest UpdraftPlus Backups plugin version
