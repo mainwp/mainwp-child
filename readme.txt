@@ -60,7 +60,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 = 3.4.5 - 1-22-18 =
 * Fixed: multiple issues with cloning sites
 * Fixed: an issue with passing metadata for featured images
-* Fixed: an issue with the sync process caused by syncing huge amount of data
+* Fixed: an issue with the sync process caused by syncing extremely large amount of data
 * Fixed: multiple PHP Warnings
 * Added: support for the new MainWP Wordfence Extension options
 * Added: multiple security enhancements
