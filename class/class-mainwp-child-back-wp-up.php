@@ -354,12 +354,15 @@ class MainWP_Child_Back_WP_Up {
 		echo '</td></tr>';
 
 		echo '<tr><td>' . __( 'Log folder:', 'backwpup' ) . '</td><td>';
-		if ( ! is_dir( get_site_option( 'backwpup_cfg_logfolder' ) ) ) {
-			echo sprintf( __( 'Logs folder %s not exist.', 'backwpup' ), esc_html( get_site_option( 'backwpup_cfg_logfolder' ) ) );
-		} elseif ( ! is_writable( get_site_option( 'backwpup_cfg_logfolder' ) ) ) {
-			echo sprintf( __( 'Log folder %s is not writable.', 'backwpup' ), esc_html( get_site_option( 'backwpup_cfg_logfolder' ) ) );
+        
+        $log_folder = BackWPup_File::get_absolute_path( get_site_option( 'backwpup_cfg_logfolder' ) );
+        
+		if ( ! is_dir( $log_folder ) ) {
+			echo sprintf( __( 'Logs folder %s not exist.', 'backwpup' ), esc_html( $log_folder ) );
+		} elseif ( ! is_writable( $log_folder ) ) {
+			echo sprintf( __( 'Log folder %s is not writable.', 'backwpup' ), esc_html( $log_folder ) );
 		} else {
-			echo esc_html( get_site_option( 'backwpup_cfg_logfolder' ) );
+			echo esc_html( $log_folder );
 		}
 		echo '</td></tr>';
 		echo '<tr title=""><td>' . __( 'Server', 'backwpup' ) . '</td><td>' . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . '</td></tr>';
@@ -427,7 +430,9 @@ class MainWP_Child_Back_WP_Up {
 			return array( 'error' => __( 'Missing logfile.', $this->plugin_translate ) );
 		}
 
-		$dir = get_site_option( 'backwpup_cfg_logfolder' );
+        $dir = get_site_option( 'backwpup_cfg_logfolder' );
+		$dir = BackWPup_File::get_absolute_path( $dir );
+        
 		foreach ( $_POST['settings']['logfile'] as $logfile ) {
 			$logfile = basename( $logfile );
 
@@ -498,7 +503,9 @@ class MainWP_Child_Back_WP_Up {
 			return array( 'error' => __( 'Missing logfile.', $this->plugin_translate ) );
 		}
 
-		$log_file = get_site_option( 'backwpup_cfg_logfolder' ) . basename( $_POST['settings']['logfile'] );
+        $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
+		$log_folder = BackWPup_File::get_absolute_path( $log_folder );
+		$log_file = $log_folder . basename( $_POST['settings']['logfile'] );
 
 		if ( ! is_readable( $log_file ) && ! is_readable( $log_file . '.gz' ) && ! is_readable( $log_file . '.bz2' ) ) {
 			$output = __( 'Log file doesn\'t exists', $this->plugin_translate );
@@ -539,7 +546,11 @@ class MainWP_Child_Back_WP_Up {
 
 		switch ( $type ) {
 			case 'logs':
-				if ( ! is_dir( get_site_option( 'backwpup_cfg_logfolder' ) ) ) {
+                $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
+                $log_folder = BackWPup_File::get_absolute_path( $log_folder );
+                $log_folder = untrailingslashit( $log_folder );
+                
+				if ( ! is_dir( $log_folder ) ) {
 					return array( 'success' => 1, 'response' => $array );
 				}
 				update_user_option( get_current_user_id(), 'backwpuplogs_per_page', 99999999 );

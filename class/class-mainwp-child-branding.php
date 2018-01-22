@@ -239,10 +239,13 @@ class MainWP_Child_Branding {
 	}
 
 	static function uploadImage( $img_url ) {
-		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
+		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url		
+		 global $mainWPChild;
+        add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );        
 		//Download $img_url
-		$temporary_file = download_url( $img_url );
-
+		$temporary_file = download_url( $img_url );        
+        remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+       
 		if ( is_wp_error( $temporary_file ) ) {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {

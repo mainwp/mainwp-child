@@ -183,6 +183,9 @@ class MainWP_Child_Wordfence {
 				case 'start_scan':
 					$information = $this->start_scan();
 					break;
+                case 'kill_scan':
+					$information = $this->kill_scan();
+					break;
 				case 'set_showhide':
 					$information = $this->set_showhide();
 					break;
@@ -345,12 +348,7 @@ class MainWP_Child_Wordfence {
 	}        
 
 	private function start_scan() {
-		$information = array();
-		if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfScanEngine' ) ) {
-			$information['error'] = 'NO_WORDFENCE';
-
-			return $information;
-		}
+		$information = array();		
 		if ( wfUtils::isScanRunning() ) {
 			$information['error'] = 'SCAN_RUNNING';
 
@@ -366,6 +364,16 @@ class MainWP_Child_Wordfence {
 		return $information;
 	}
 
+    private function kill_scan() {		
+		wordfence::status(1, 'info', "Scan kill request received.");
+		wordfence::status(10, 'info', "SUM_KILLED:A request was received to kill the previous scan.");
+		wfUtils::clearScanLock(); //Clear the lock now because there may not be a scan running to pick up the kill request and clear the lock
+		wfScanEngine::requestKill();
+		return array(
+            'ok' => 1,
+        );		
+	}
+        
 	function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( $_POST['showhide'] === 'hide' ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_wordfence_hide_plugin', $hide, 'yes' );
@@ -459,6 +467,9 @@ class MainWP_Child_Wordfence {
 	}
 
 	public function wfc_cron_scan() {
+        if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfScanEngine' ) ) {
+			return;
+		}        
 		$this->start_scan();
 	}
 
@@ -852,14 +863,17 @@ SQL
 			}
 
 			$sch = isset( $opts['scheduleScan'] ) ? $opts['scheduleScan'] : '';
-
-			if ( get_option( 'mainwp_child_wordfence_cron_time' ) !== $sch ) {
-				update_option( 'mainwp_child_wordfence_cron_time', $sch );
-				$sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
-				if ( false !== $sched ) {
-					wp_unschedule_event( $sched, 'mainwp_child_wordfence_cron_scan' );
-				}
-			}
+            $sync_sch = ( isset( $opts['notsync_scheduleScan'] ) && $opts['notsync_scheduleScan'] ) ? false : true;
+            
+            if ($sync_sch) {                
+                if ( get_option( 'mainwp_child_wordfence_cron_time' ) !== $sch ) {
+                    update_option( 'mainwp_child_wordfence_cron_time', $sch );
+                    $sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
+                    if ( false !== $sched ) {
+                        wp_unschedule_event( $sched, 'mainwp_child_wordfence_cron_scan' );
+                    }
+                }
+            }
 
 			$result['cacheType']  = wfConfig::get( 'cacheType' );
 			$result['paidKeyMsg'] = false;
@@ -1229,7 +1243,7 @@ SQL
 		if(! wfConfig::get('isPaid')){
 			return array('error' => "Sorry but this feature is only available for paid customers.");
 		}
-                $settings = $_POST['setings'];
+        $settings = $_POST['settings'];
 		wfConfig::set('cbl_action', $settings['blockAction']);
 		wfConfig::set('cbl_countries', $settings['codes']);
 		wfConfig::set('cbl_redirURL', $settings['redirURL']);

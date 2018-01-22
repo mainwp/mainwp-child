@@ -63,7 +63,7 @@ if ( class_exists( 'MainWP_WP_Stream_Connector' ) ) {
 			return $links;
 		}
 
-		public static function callback_mainwp_sucuri_scan( $data, $scan_status ) {
+		public static function callback_mainwp_sucuri_scan( $data, $scan_status, $scan_data ) {
 			$message = '';
 			if ( 'success' === $scan_status ) {
 				$message     = __( 'Sucuri scan successful!', 'mainwp-child' );
@@ -82,7 +82,7 @@ if ( class_exists( 'MainWP_WP_Stream_Connector' ) ) {
 
 			self::log(
 				$message,
-				compact( 'scan_status', 'status', 'webtrust' ),
+				compact( 'scan_status', 'status', 'webtrust', 'scan_data' ),
 				0,
 				array( 'mainwp_sucuri' => 'mainwp_sucuri_scan' )
 			);

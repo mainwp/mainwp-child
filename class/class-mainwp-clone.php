@@ -175,7 +175,7 @@ class MainWP_Clone {
 									id="mainwp-child_displayby_sitename"><?php esc_html_e( 'Site Name', 'mainwp-child' ); ?></a><a
                                     class="mainwp-child_action right" href="#"
 									id="mainwp-child_displayby_url"><?php esc_html_e( 'URL', 'mainwp-child' ); ?></a></div>
-							<h2 class="hndle"><?php esc_html_e( 'Clone Options', 'mainwp-child' ); ?></h2>
+							<h2 class="hndle"><?php esc_html_e( 'Select Source for clone', 'mainwp-child' ); ?></h2>
                             <div class="inside">
                                 <div id="mainwp-child_clonesite_select_site">
 									<?php
@@ -196,8 +196,10 @@ class MainWP_Clone {
 									}
 									?>
                                 </div>
+                                <p><?php _e("The site selected above will replace this site's files and database", 'mainwp-child'); ?></p>
                             </div>
-							<div class="mainwp-child_clonebutton_container"><?php if ( ! $error ) { ?><a href="#"
+							<div class="mainwp-child_clonebutton_container"><?php if ( ! $error ) { ?>                                
+                                <a href="#"
                                                                                                          id="mainwp-child_clonebutton"
 							                                                                             class="button-primary"><?php esc_html_e( 'Clone website', 'mainwp-child' ); ?></a><?php } ?>
                             </div>

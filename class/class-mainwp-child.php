@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.4.4';
+	public static $version = '3.4.5';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -1451,10 +1451,13 @@ class MainWP_Child {
 			$nossl       = get_option( 'mainwp_child_nossl' );
 			$serverNoSsl = ( isset( $pNossl ) && 1 === (int) $pNossl );
 
-			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
-				$auth = ( md5( $func . $nonce . get_option( 'mainwp_child_nossl_key' ) ) === base64_decode( $signature ) );
+			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {				
+                $auth = hash_equals( md5( $func . $nonce . get_option( 'mainwp_child_nossl_key' ) ), base64_decode( $signature ) );
 			} else {
 				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) );
+                if ($auth !== 1) {
+                    $auth = false;
+                }
 			}
 		}
 
@@ -2216,8 +2219,13 @@ class MainWP_Child {
 		if ( isset( $_POST['_ezin_post_category'] ) ) {
 			$new_post['_ezin_post_category'] = maybe_unserialize( base64_decode( $_POST['_ezin_post_category'] ) );
 		}
-
-		$res     = MainWP_Helper::createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags );
+        
+        $others = array(); 
+        if ( isset( $_POST['featured_image_data'] ) && !empty($_POST['featured_image_data'])) {
+            $others['featured_image_data'] = unserialize(base64_decode( $_POST['featured_image_data'] ));
+        }    
+        
+		$res     = MainWP_Helper::createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
 
         if (is_array($res) && isset($res['error'])) {
             MainWP_Helper::error( $res['error'] );
@@ -2503,7 +2511,7 @@ class MainWP_Child {
 		if ( ! isset( $information['status'] ) && !isset($information['error']) ) {
 			$information['status'] = 'SUCCESS';
                         if ('update_user' === $action && isset($_POST['optimize']) && !empty($_POST['optimize'])) {
-                            $information['users'] = $this->get_all_users_int();
+                            $information['users'] = $this->get_all_users_int(500); // to fix
                         }
                             
 		}
@@ -3632,7 +3640,7 @@ class MainWP_Child {
 		$information['themes']  = $themes;
 
 		if ( isset( $_POST['optimize'] ) && ( '1' === $_POST['optimize'] ) ) {
-			$information['users'] = $this->get_all_users_int();
+			$information['users'] = $this->get_all_users_int(500); // to fix
 		}
 
 		if ( isset( $_POST['othersData'] ) ) {
@@ -3922,7 +3930,7 @@ class MainWP_Child {
 				$outPost['post_type']     = $post->post_type;
 				$outPost['status']        = $post->post_status;
 				$outPost['title']         = $post->post_title;
-				$outPost['content']       = $post->post_content;
+				//$outPost['content']       = $post->post_content; // to fix overload memory
 				$outPost['comment_count'] = $post->comment_count;
                 // to support extract urls extension
 				if ( isset( $extra['where_post_date'] ) && !empty( $extra['where_post_date'] ) ) {
@@ -4589,10 +4597,14 @@ class MainWP_Child {
 		MainWP_Helper::write( $allusers );
 	}
 
-	function get_all_users_int() {
+	function get_all_users_int($number = false) {
 		$allusers = array();
-
-		$new_users = get_users();
+        
+        $params = array();
+        if ($number)
+            $params['number'] = $number;
+        
+		$new_users = get_users($params);
 		if ( is_array( $new_users ) ) {
 			foreach ( $new_users as $new_user ) {
 				$usr                 = array();
@@ -5372,7 +5384,7 @@ class MainWP_Child {
 		header( 'Content-Description: File Transfer' );
 		if ( MainWP_Helper::endsWith( $file, '.tar.gz' ) ) {
 			header( 'Content-Type: application/x-gzip' );
-			header( "Content-Encoding: gzip'" );
+			header( "Content-Encoding: gzip" );
 		} else {
 			header( 'Content-Type: application/octet-stream' );
 		}

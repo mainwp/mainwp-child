@@ -106,7 +106,8 @@ class MainWP_Client_Report {
 	}
 
 	public function save_sucuri_stream() {
-		do_action( 'mainwp_sucuri_scan', $_POST['result'], $_POST['scan_status'] );
+        $scan_data = isset($_POST['scan_data']) ? $_POST['scan_data'] : '';
+		do_action( 'mainwp_sucuri_scan', $_POST['result'], $_POST['scan_status'], $scan_data );
 
 		return true;
 	}
@@ -655,7 +656,31 @@ class MainWP_Client_Report {
 					case 'status':   // sucuri cases
 					case 'webtrust':
 						if ( 'mainwp_sucuri' === $context ) {
-							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+                            
+                            $scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
+                            if (!empty($scan_data)) {
+                                $scan_data  = maybe_unserialize( base64_decode( $scan_data ) );                              
+                                if ( is_array( $scan_data ) ) {
+                                    
+                                    $blacklisted = $scan_data['blacklisted'];
+                                    $malware_exists = $scan_data['malware_exists'];
+                                   
+                                    $status = array();
+                                    if ( $blacklisted ) {
+                                        $status[] = __( 'Site Blacklisted', 'mainwp-child' ); }
+                                    if ( $malware_exists ) {
+                                        $status[] = __( 'Site With Warnings', 'mainwp-child' ); }
+                                    
+                                    if ($data == 'status') {
+                                        $token_values[$token] = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
+                                    } else if ($data == 'webtrust') {
+                                        $token_values[$token] = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
+                                    }                                    
+                                }   
+                                
+                            } else {
+                                $token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+                            }
 						} else {
 							$token_values[ $token ] = $value;
 						}
