@@ -1039,34 +1039,44 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	private function next_scheduled_backups() {
 		global $updraftplus;
-		// UNIX timestamp
-		$next_scheduled_backup = wp_next_scheduled( 'updraft_backup' );
-
+	
 		$next_scheduled_backup_gmt = $next_scheduled_backup_database_gmt = 0;
 
-		if ( $next_scheduled_backup ) {
+        // UNIX timestamp
+		$next_scheduled_backup = wp_next_scheduled('updraft_backup');
+		if ($next_scheduled_backup) {
 			// Convert to GMT
-			$next_scheduled_backup_gmt = gmdate( 'Y-m-d H:i:s', $next_scheduled_backup );
+			$next_scheduled_backup_gmt = gmdate('Y-m-d H:i:s', $next_scheduled_backup);
 			// Convert to blog time zone
-			$next_scheduled_backup = get_date_from_gmt( $next_scheduled_backup_gmt, 'D, F j, Y H:i' );
+			$next_scheduled_backup = get_date_from_gmt($next_scheduled_backup_gmt, 'D, F j, Y H:i');
+// 			$next_scheduled_backup = date_i18n('D, F j, Y H:i', $next_scheduled_backup);
 		} else {
-			$next_scheduled_backup = __( 'Nothing currently scheduled', 'updraftplus' );
+			$next_scheduled_backup = __('Nothing currently scheduled', 'updraftplus');
+			$files_not_scheduled = true;
 		}
-
-		$next_scheduled_backup_database = wp_next_scheduled( 'updraft_backup_database' );
-		if ( UpdraftPlus_Options::get_updraft_option( 'updraft_interval_database', UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) == UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) {
-			$next_scheduled_backup_database = ( 'Nothing currently scheduled' == $next_scheduled_backup ) ? $next_scheduled_backup : __( 'At the same time as the files backup', 'updraftplus' );
-		} else {
-			if ( $next_scheduled_backup_database ) {
-				// Convert to GMT
-				$next_scheduled_backup_database_gmt = gmdate( 'Y-m-d H:i:s', $next_scheduled_backup_database );
-				// Convert to blog time zone
-				$next_scheduled_backup_database = get_date_from_gmt( $next_scheduled_backup_database_gmt, 'D, F j, Y H:i' );
+		
+		$next_scheduled_backup_database = wp_next_scheduled('updraft_backup_database');
+		if (UpdraftPlus_Options::get_updraft_option('updraft_interval_database',UpdraftPlus_Options::get_updraft_option('updraft_interval')) == UpdraftPlus_Options::get_updraft_option('updraft_interval')) {
+			if (isset($files_not_scheduled)) {
+				$next_scheduled_backup_database = $next_scheduled_backup;
+				$database_not_scheduled = true;
 			} else {
-				$next_scheduled_backup_database = __( 'Nothing currently scheduled', 'updraftplus' );
+				$next_scheduled_backup_database = __("At the same time as the files backup", 'updraftplus');
+				$next_scheduled_backup_database_same_time = true;
+			}
+		} else {
+			if ($next_scheduled_backup_database) {
+				// Convert to GMT
+				$next_scheduled_backup_database_gmt = gmdate('Y-m-d H:i:s', $next_scheduled_backup_database);
+				// Convert to blog time zone
+				$next_scheduled_backup_database = get_date_from_gmt($next_scheduled_backup_database_gmt, 'D, F j, Y H:i');
+// 				$next_scheduled_backup_database = date_i18n('D, F j, Y H:i', $next_scheduled_backup_database);
+			} else {
+				$next_scheduled_backup_database = __('Nothing currently scheduled', 'updraftplus');
+				$database_not_scheduled = true;
 			}
 		}
-
+        
 		$current_timegmt = time();
 		$current_time    = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $current_timegmt ), 'D, F j, Y H:i' );
 
@@ -1086,7 +1096,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			'n'                          => $html,
 			'updraft_backup_disabled'    => $backup_disabled,
 			'nextsched_files_gmt'        => $next_scheduled_backup_gmt,
-			'nextsched_database_gmt'     => $next_scheduled_backup_gmt,
+			'nextsched_database_gmt'     => $next_scheduled_backup_database_gmt,
 			'nextsched_current_timegmt'  => $current_timegmt,
 			'nextsched_current_timezone' => $current_time,
 		);
@@ -1095,7 +1105,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$out['nextsched_files_timezone'] = $next_scheduled_backup;
 		}
 
-		if ( $next_scheduled_backup_gmt ) {
+		if ( $next_scheduled_backup_database_gmt ) {
 			$out['nextsched_database_timezone'] = $next_scheduled_backup_database;
 		}
 

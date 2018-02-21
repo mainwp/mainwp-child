@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.4.5';
+	public static $version = '3.4.6';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -471,13 +471,16 @@ class MainWP_Child {
 			if ( ! get_option( 'mainwp_child_pubkey' ) && MainWP_Helper::isAdmin() && is_admin() ) {
 				$child_name = ( $this->branding_robust === 'MainWP' ) ? 'MainWP Child' : $this->branding_robust;
 				$msg 		= '<div class="wrap"><div class="postbox" style="margin-top: 4em;"><p style="background: #a00; color: #fff; font-size: 22px; font-weight: bold; margin: 0; padding: .3em;">';
-				$msg        .= __( 'Attention!', 'mainwp-child' ); 
+				$msg        .= __( 'Attention!', 'mainwp-child' );
 				$msg 		.= '</p><div style="padding-left: 1em; padding-right: 1em;"><p style="font-size: 16px;">';
-				$msg 		.= __( 'Please add this site to your ', 'mainwp-child' ) . $this->branding_robust . __( ' Dashboard <b>NOW</b> or deactivate the ', 'mainwp-child' ) . $child_name . __( ' plugin until you are ready to do so to avoid unexpected security issues.','mainwp-child' );
+				$msg 		.= __( 'Please add this site to your ', 'mainwp-child' ) . $this->branding_robust . __( ' Dashboard <b>NOW</b> or deactivate the ', 'mainwp-child' ) . $child_name . __( ' plugin until you are ready to connect this site to your Dashboard in order to avoid unexpected security issues.','mainwp-child' );
 				$msg 		.= '</p>';
+				$msg    .= '<p style="font-size: 16px;">';
+				$msg    .= __( 'If you are not sure how to add this site to your Dashboard, <a href="https://mainwp.com/help/docs/set-up-the-mainwp-plugin/add-site-to-your-dashboard/" target="_blank">please review these instructions</a>.', 'mainwp-child' );
+				$msg 	  .= '</p>';
 				if ( ! MainWP_Child_Branding::is_branding() ) {
 					$msg 	.= '<p>';
-					$msg 	.= __( 'You can also turn on the unique security ID option in <a href="admin.php?page=mainwp_child_tab">', 'mainwp-child' ) . $this->branding_robust . __( ' settings</a> if you would like extra security and additional time to add this site to your Dashboard. <br/>Find out more in this help document <a href="http://docs.mainwp.com/how-do-i-use-the-child-unique-security-id/" target="_blank">How do I use the child unique security ID?</a>', 'mainwp-child' );
+					$msg 	.= __( 'You can also turn on the unique security ID option in <a href="admin.php?page=mainwp_child_tab">', 'mainwp-child' ) . $this->branding_robust . __( ' settings</a> if you would like extra security and additional time to add this site to your Dashboard. <br/>Find out more in this help document <a href="https://mainwp.com/help/docs/set-up-the-mainwp-plugin/set-unique-security-id/" target="_blank">How do I use the child unique security ID?</a>', 'mainwp-child' );
 					$msg 	.= '</p>';
 				}
 				$msg 		.= '</div></div></div>';

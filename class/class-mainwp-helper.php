@@ -1281,8 +1281,9 @@ class MainWP_Helper {
 	 * Credit to the : wp-filters-extras
 	 */
 
-function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
-	global $wp_filter;
+static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
+	
+    global $wp_filter;
 	// Take only filters on right hook name and priority
 	if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
 		return false;
