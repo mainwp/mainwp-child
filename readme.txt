@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.9.2
-Stable tag: 3.4.5
+Tested up to: 4.9.4
+Stable tag: 3.4.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -41,7 +41,7 @@ The MainWP Child plugin is used to securely manage multiple WordPress websites f
 
 It allows the connection between the [MainWP Dashboard](https://wordpress.org/plugins/mainwp/) plugin and the site it is installed on.
 
-To see full documentation and FAQs please visit [MainWP Documentation](http://docs.mainwp.com/)
+To see full documentation and FAQs please visit [MainWP Documentation](https://mainwp.com/help/)
 
 == Screenshots ==
 
@@ -56,6 +56,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](http://do
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4.6 - 2-21-18 =
+* Fixed: Wordfence 7 compatibility issues
+* Added: multiple security enhancements
+* Updated: admin notice text
 
 = 3.4.5 - 1-22-18 =
 * Fixed: multiple issues with cloning sites
