@@ -29,6 +29,20 @@ The MainWP Child plugin is used to securely manage multiple WordPress websites f
 * Manage and Add all your Pages from one location
 * Run everything from 1 Dashboard that you host!
 
+= More Information =
+[MainWP Documentation](https://mainwp.com/help/)
+
+[MainWP User Group](https://www.facebook.com/groups/MainWPUsers/)
+
+[MainWP Support](https://mainwp.com/support/)
+
+[MainWP Videos](http://www.youtube.com/user/MyMainWP)
+
+[MainWP Extensions](https://mainwp.com/mainwp-extensions/)
+
+[MainWP Codex](https://mainwp.com/codex/)
+
+[MainWP on Github](https://mainwp.com/github/)
 
 == Installation ==
 
