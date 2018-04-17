@@ -71,6 +71,19 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 == Changelog ==
 
+= 3.4.7 - 4-17-18 =
+* Fixed: multiple cloning issues
+* Fixed: timezone issue backup timestamp
+* Fixed: MainWP Branding Extension conflict that caused issues with hooking WP Admin menu items
+* Fixed: MainWP Branding Extension issue with hiding WordPress update nag
+* Fixed: MainWP Branding Extension issue with updating WordPress footer content 
+* Fixed: issues with loading broken links data
+* Fixed: multiple PHP 7.2 warnings 
+* Added: support for the BackBlaze backup remote destination (UpdraftPlus Extension)
+* Added: support for recording Live Stash updates for Client Reporting
+* Updated: recent Wordfence plugin version compatibility
+* Updated: recent WP Staging plugin version compatibility
+
 = 3.4.6 - 2-21-18 =
 * Fixed: Wordfence 7 compatibility issues
 * Added: multiple security enhancements
