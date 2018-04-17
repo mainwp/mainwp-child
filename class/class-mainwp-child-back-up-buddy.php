@@ -72,7 +72,7 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
 
-	function do_site_stats() {
+	function do_site_stats() {		
 		if (has_action('mainwp_child_reports_log')) {
 			do_action( 'mainwp_child_reports_log', 'backupbuddy');
 		} else {
@@ -91,7 +91,7 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( ! class_exists( 'backupbuddy_core' ) ) {
 			require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
 		}
-
+		
         // Backup type.
 		$pretty_type = array(
 			'full'	=>	'Full',
@@ -139,6 +139,31 @@ class MainWP_Child_Back_Up_Buddy {
                 MainWP_Helper::update_lasttime_backup('backupbuddy', $finish_time); // to support backup before update feature
             }
         }
+		
+		if ( file_exists(pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php') ) {
+			require_once( pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php' );
+			
+			$state = backupbuddy_live_periodic::get_stats();
+			if (is_array($state) && isset($state['stats'])) {
+				
+				if ( is_array($state['stats'] ) && isset( $state['stats']['last_remote_snapshot'] )) {
+					if (isset( $state['stats']['last_remote_snapshot_response'] )) {
+						$resp = $state['stats']['last_remote_snapshot_response'];						
+						if ( isset( $resp['success'] ) && $resp['success']) {
+							$finish_time = $state['stats']['last_remote_snapshot'];	
+							$backupType = 'Live Backup to cloud';
+							$message = 'BackupBuddy ' . $backupType . ' finished';            
+							if (!empty($finish_time)) {
+								do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
+								MainWP_Helper::update_lasttime_backup('backupbuddy', $finish_time); // to support backup before update feature
+							}
+
+						} 
+					}
+				}
+					
+			}
+		}
     }
 
 	public function action() {

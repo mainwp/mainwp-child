@@ -212,8 +212,14 @@ class MainWP_Child_Links_Checker {
 		} else {
 			$params['offset'] = $offset;
 		}
-		
+				
 		$link_data = $this->do_sync_links_data($params);		
+		
+		$total_sync = 0;
+		if ($offset){
+			$total_sync = $offset;
+		}
+		$total_sync += (is_array($link_data) ? count($link_data) : 0);
 		
 		$information = array('links_data' => $link_data);
 		
@@ -225,6 +231,8 @@ class MainWP_Child_Links_Checker {
 			$information['sync_offset'] = $offset + $max_results;
 		} else {
 			$information['last_sync'] = 1;
+			$information['total_sync'] = $total_sync;
+			$information['data'] = $this->get_count_links();
 		}		
 		
 		$information['result'] = 'success';
@@ -275,7 +283,7 @@ class MainWP_Child_Links_Checker {
 			'status_code',
 			'log'			
 		);
-		$return     = '';
+		$return     = array();
 		
 		$blc_option = get_option( 'wsblc_options' );
 
@@ -366,7 +374,7 @@ class MainWP_Child_Links_Checker {
 				$return[] = $new_link;
 			}
 		} else {
-			return '';
+			return array();
 		}
 
 		return $return;

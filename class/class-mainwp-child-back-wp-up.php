@@ -66,6 +66,7 @@ class MainWP_Child_Back_WP_Up {
 
 		if ( $this->is_backwpup_installed ) {
 			add_action( 'wp_ajax_mainwp_backwpup_download_backup', array( $this, 'download_backup' ) );
+            add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 		}
 	}
 
@@ -236,7 +237,17 @@ class MainWP_Child_Back_WP_Up {
 			}
 		}
 	}
-
+    
+    function syncOthersData( $information, $data = array() ) {
+		if ( isset( $data['syncBackwpupData'] ) ) {
+            $lastbackup = MainWP_Helper::get_lasttime_backup('backwpup');            
+            $information['syncBackwpupData'] = array(
+                'lastbackup' => $lastbackup
+            );			
+		}
+        return $information;
+    }
+    
 	function get_destinations_list() {
 
 		$jobdest      = array();
@@ -577,11 +588,12 @@ class MainWP_Child_Back_WP_Up {
 							if ( is_null($dest_class) ) {
 								continue;
 							}
-							$items      = $dest_class->file_get_list( $jobid . '_' . $dest );
+							$items      = $dest_class->file_get_list( $jobid . '_' . $dest );                            
 							if ( ! empty( $items ) ) {
 								foreach ( $items as $item ) {
 									$temp_single_item         = $item;
 									$temp_single_item['dest'] = $jobid . '_' . $dest;
+                                    $temp_single_item['timeloc'] = sprintf( __( '%1$s at %2$s', 'backwpup' ), date_i18n( get_option( 'date_format' ), $temp_single_item[ 'time' ], TRUE ), date_i18n( get_option( 'time_format' ), $temp_single_item[ 'time' ], TRUE ) );
 									$output->items[]          = $temp_single_item;
 								}
 							}

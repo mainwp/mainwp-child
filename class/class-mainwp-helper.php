@@ -509,7 +509,9 @@ class MainWP_Helper {
 		$not_allowed[] = '_edit_post_status';
 
 		$post_to_only_existing_categories = false;
-		foreach ( $post_custom as $meta_key => $meta_values ) {
+        
+        if (is_array($post_custom)) {
+            foreach ( $post_custom as $meta_key => $meta_values ) {
 			if ( ! in_array( $meta_key, $not_allowed ) ) {
 				foreach ( $meta_values as $meta_value ) {
 					if (strpos($meta_key, "_mainwp_spinner_") === 0)
@@ -536,7 +538,8 @@ class MainWP_Helper {
 				}
 			}
 		}
-
+        }
+        
 		// yoast seo extension
 		if ( $seo_ext_activated ) {
 			$_seo_opengraph_image = isset( $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
@@ -931,9 +934,11 @@ class MainWP_Helper {
 		return $str;
 	}
 
-	public static function return_bytes( $val ) {
+	public static function return_bytes( $val ) {		
 		$val  = trim( $val );
-		$last = strtolower( $val[ strlen( $val ) - 1 ] );
+		$last = $val[ strlen( $val ) - 1 ];
+		$val = rtrim($val, $last);
+		$last = strtolower( $last );		
 		switch ( $last ) {
 			// The 'G' modifier is available since PHP 5.1.0
 			case 'g':

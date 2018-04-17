@@ -795,7 +795,11 @@ class MainWP_Backup {
 					// @codingStandardsIgnoreEnd
 					$query = $table_insert;
 					foreach ( $row as $value ) {
-						$query .= '"' . MainWP_Child_DB::real_escape_string( $value ) . '", ';
+						if ( $value === null ) {
+							$query .= 'NULL, ';
+						} else {
+							$query .= '"' . MainWP_Child_DB::real_escape_string( $value ) . '", ';
+						}
 					}
 					$query = trim( $query, ', ' ) . ');';
 

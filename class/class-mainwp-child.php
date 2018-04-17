@@ -84,7 +84,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.4.6';
+	public static $version = '3.4.7';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -176,7 +176,12 @@ class MainWP_Child {
 	public function __construct( $plugin_file ) {
 		$this->update();
         $this->load_all_options();
-		$this->filterFunction = create_function( '$a', 'if ($a == null) { return false; } if (is_object($a) && property_exists($a, "last_checked") && !property_exists($a, "checked")) return false; return $a;' );
+		$this->filterFunction = function($a) {
+			if ($a == null) { return false; } 
+			if (is_object($a) && property_exists($a, "last_checked") && !property_exists($a, "checked")) 
+				return false; 
+			return $a;
+		};		
 		$this->plugin_dir     = dirname( $plugin_file );
 		$this->plugin_slug    = plugin_basename( $plugin_file );
 		list ( $t1, $t2 ) = explode( '/', $this->plugin_slug );
@@ -186,7 +191,7 @@ class MainWP_Child {
 		$this->comments_and_clauses = '';
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
 		add_action( 'init', array( &$this, 'check_login' ), 1 );
-		add_action( 'init', array( &$this, 'parse_init' ), 33 );
+		add_action( 'init', array( &$this, 'parse_init' ), 9999 );				
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
 		add_action( 'admin_head', array( &$this, 'admin_head' ) );
@@ -866,8 +871,7 @@ class MainWP_Child {
 		<?php
 	}
 
-	function admin_init() {
-		MainWP_Child_Branding::admin_init();
+	function admin_init() {		
 		if ( MainWP_Helper::isAdmin() && is_admin() ) {
 			MainWP_Clone::get()->init_ajax();
 		}
@@ -3646,6 +3650,25 @@ class MainWP_Child {
 			$information['users'] = $this->get_all_users_int(500); // to fix
 		}
 
+        if (isset($_POST['primaryBackup']) && !empty($_POST['primaryBackup'])) {
+            $primary_bk = $_POST['primaryBackup'];
+            $information['primaryLasttimeBackup'] = MainWP_Helper::get_lasttime_backup($primary_bk);
+        }
+
+		$last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );
+		if ( isset( $last_post[0] ) ) {
+			$last_post = $last_post[0];
+		}
+		if ( isset( $last_post ) && isset( $last_post['post_modified_gmt'] ) ) {
+			$information['last_post_gmt'] = strtotime( $last_post['post_modified_gmt'] );
+		}
+		$information['mainwpdir']            = ( MainWP_Helper::validateMainWPDir() ? 1 : - 1 );
+		$information['uniqueId']             = get_option( 'mainwp_child_uniqueId', '' );
+		$information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::Instance()->get_plugins_outdate_info();
+		$information['themes_outdate_info']  = MainWP_Child_Themes_Check::Instance()->get_themes_outdate_info();
+
+		do_action('mainwp_child_site_stats');
+		
 		if ( isset( $_POST['othersData'] ) ) {
 			$othersData = json_decode( stripslashes( $_POST['othersData'] ), true );
 			if ( ! is_array( $othersData ) ) {
@@ -3705,29 +3728,11 @@ class MainWP_Child {
                 if ( !empty( $creport_sync_data ) ) {
                     $information['syncClientReportData'] =  $creport_sync_data;
                 }
-			}
+			}            
 
 		}
 
-        if (isset($_POST['primaryBackup']) && !empty($_POST['primaryBackup'])) {
-            $primary_bk = $_POST['primaryBackup'];
-            $information['primaryLasttimeBackup'] = MainWP_Helper::get_lasttime_backup($primary_bk);
-        }
-
-		$last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );
-		if ( isset( $last_post[0] ) ) {
-			$last_post = $last_post[0];
-		}
-		if ( isset( $last_post ) && isset( $last_post['post_modified_gmt'] ) ) {
-			$information['last_post_gmt'] = strtotime( $last_post['post_modified_gmt'] );
-		}
-		$information['mainwpdir']            = ( MainWP_Helper::validateMainWPDir() ? 1 : - 1 );
-		$information['uniqueId']             = get_option( 'mainwp_child_uniqueId', '' );
-		$information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::Instance()->get_plugins_outdate_info();
-		$information['themes_outdate_info']  = MainWP_Child_Themes_Check::Instance()->get_themes_outdate_info();
-
-		do_action('mainwp_child_site_stats');
-
+		
 		if ( $exit ) {
 			MainWP_Helper::write( $information );
 		}

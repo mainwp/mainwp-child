@@ -106,6 +106,12 @@ class MainWP_Child_Staging {
                     case 'cancel_clone':
                             $information = $this->ajaxCancelClone();
                         break;
+					case 'staging_update':
+                            $information = $this->ajaxUpdateProcess();
+                        break;
+					case 'cancel_update':
+                            $information = $this->ajaxCancelUpdate();
+                        break;					
                 }
             }
             MainWP_Helper::write( $information );
@@ -129,7 +135,9 @@ class MainWP_Child_Staging {
             'wpSubDirectory',
             'debugMode',
             'unInstallOnDelete',
-            'checkDirectorySize'
+            'checkDirectorySize',
+			'optimizer',
+			'loginSlug'
         );
         
         $save_fields = array();
@@ -188,9 +196,11 @@ class MainWP_Child_Staging {
    }
    
    public function ajaxStartClone() {
-    
-      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
 
+	   $this->url = ''; // to fix warning
+      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+	  
+	
       if( !$cloning->save() ) {
          return;
       }
@@ -280,7 +290,25 @@ class MainWP_Child_Staging {
       $cancel = new WPStaging\Backend\Modules\Jobs\Cancel();
       return $cancel->start();
    }
+   
+    public function ajaxCancelUpdate() {      
+	  $cancel = new WPStaging\Backend\Modules\Jobs\CancelUpdate();
+      return $cancel->start();
+   }
 
+   public function ajaxUpdateProcess() {
+      
+		$cloning = new WPStaging\Backend\Modules\Jobs\Updating();	   
+
+		if( !$cloning->save() ) {
+		   return;
+		}
+
+		ob_start();
+		require_once WPSTG_PLUGIN_DIR . "apps/Backend/views/clone/ajax/update.php";
+		$result = ob_get_clean();
+		return $result;	 
+   }
    
     public function ajaxCheckFreeSpace() {             
        return $this->hasFreeDiskSpace();

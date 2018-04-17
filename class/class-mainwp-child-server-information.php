@@ -1490,7 +1490,7 @@ class MainWP_Child_Server_Information {
 			$lines[ $key ] = compact( 'time', 'error' );
 		}
 
-		if ( count( $error_log ) > 1 ) {
+		if ( is_array( $error_log ) && count( $error_log ) > 1 ) {
 
 			uasort( $lines, array( __CLASS__, 'time_compare' ) );
 			$lines = array_slice( $lines, 0, $count );
@@ -1620,6 +1620,11 @@ class MainWP_Child_Server_Information {
 	}
         
         public static function renderConnectionDetails() {
+            $branding_title = 'MainWP';
+            if ( MainWP_Child_Branding::is_branding() ) {
+	            $branding_title = MainWP_Child_Branding::get_branding();
+            }
+            
             global $current_user;
 	        $uniqueId = get_option('mainwp_child_uniqueId');
             $details = array(
@@ -1641,7 +1646,7 @@ class MainWP_Child_Server_Information {
                 'uniqueid' => array(
                                 'title' => __('Child unique security id', 'mainwp-child'),
                                 'value' => !empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
-                                'desc' => __('Child unique security id is not required, however, since you have enabled it, you need to add it to your MainWP dashboad.', 'mainwp-child')
+                                'desc' => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child') , stripslashes( $branding_title ) )
                             ),
                 'verify_ssl' => array(
                                 'title' => __('Verify certificate', 'mainwp-child'),
@@ -1661,7 +1666,7 @@ class MainWP_Child_Server_Information {
 			<div class="inside">
                             <div class="mainwp-postbox-actions-top mainwp-padding-5">
                             <?php
-                                _e('If you are trying to connect this child site to your Mainwp Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child');
+                                echo sprintf(__('If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child') , stripslashes( $branding_title ));
                             ?>
                             </div>
                             <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">

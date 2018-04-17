@@ -217,7 +217,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 			//'updraft_azure', // disabled
 			'updraft_googlecloud',
 			//'updraft_updraftvault',
-			'updraft_retain_extrarules'
+			'updraft_retain_extrarules',
+            'updraft_backblaze',
 		);
 	}
 
@@ -558,6 +559,16 @@ class MainWP_Child_Updraft_Plus_Backups {
 								}
 							}
 							UpdraftPlus_Options::update_updraft_option( 'updraft_sftp', $opts );
+						} else if ( 'updraft_backblaze' === $key ) {
+							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_backblaze' );
+							if (is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']); 
+                                $opts['settings'][$settings_key]['account_id'] = $settings[ $key ]['account_id'];
+                                $opts['settings'][$settings_key]['key'] = $settings[ $key ]['key'];
+                                $opts['settings'][$settings_key]['bucket_name'] = $this->replace_tokens( $settings[ $key ]['bucket_name'] );
+                                $opts['settings'][$settings_key]['backup_path'] = $this->replace_tokens( $settings[ $key ]['backup_path'] );                            
+                                UpdraftPlus_Options::update_updraft_option( $key, $opts );
+                            }
 						} else {
 							UpdraftPlus_Options::update_updraft_option( $key, $settings[ $key ] );
 						}
