@@ -18,7 +18,12 @@ class MainWP_Child_Pagespeed {
 		if ( is_plugin_active( 'google-pagespeed-insights/google-pagespeed-insights.php' ) ) {
 			$this->is_plugin_installed = true;
 		}
-
+        
+        if (!$this->is_plugin_installed)
+            return;
+        
+        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+        
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 
@@ -38,7 +43,7 @@ class MainWP_Child_Pagespeed {
 					$information = $this->set_showhide();
 					break;
 				case 'sync_data':
-					$information = $this->sync_data();
+					$information = $this->get_sync_data();
 					break;
 				case "check_pages":
 					$information = $this->check_pages();
@@ -61,8 +66,7 @@ class MainWP_Child_Pagespeed {
 
 		if ( get_option( 'mainwp_pagespeed_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'hide_plugin' ) );
-			add_action('admin_menu', array($this, 'hide_menu'), 999);
-			//add_filter( 'update_footer', array( &$this, 'update_footer' ), 15 );
+			add_action('admin_menu', array($this, 'hide_menu'), 999);			
 		}
 		$this->init_cron();
 	}
@@ -212,7 +216,7 @@ class MainWP_Child_Pagespeed {
 
 		$strategy = $current_values['strategy'];
 
-		$result = $this->sync_data( $strategy );
+		$result = $this->get_sync_data( $strategy );
 
 		if ( isset( $_POST['doaction'] ) && ( 'check_new_pages' === $_POST['doaction'] || 'recheck_all_pages' === $_POST['doaction'] ) ) {
 			if ( 'recheck_all_pages' === $_POST['doaction'] ) {
@@ -257,7 +261,18 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
-	public function sync_data( $strategy = '' ) {
+	public function syncOthersData( $information, $data = array() ) {       
+        if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {					
+            try{
+                $information['syncPageSpeedData'] = $this->get_sync_data();
+            } catch(Exception $e) {
+                
+            }
+        }        
+		return $information;
+	}
+    // ok
+	public function get_sync_data( $strategy = '' ) {
 		if ( empty( $strategy ) ) {
 			$strategy = 'both';
 		}

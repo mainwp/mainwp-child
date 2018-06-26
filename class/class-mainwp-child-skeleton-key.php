@@ -186,7 +186,7 @@ class MainWP_Child_Skeleton_Key {
 		$settings = isset($_POST['settings']) ? $_POST['settings'] : array();
 
 		if (!is_array($settings) || empty($settings))
-			return array('error' => 'Invalid data');
+			return array('error' => 'Invalid data. Please check and try again.');
 
 		$whitelist_options = array(
 			'general' => array( 'blogname', 'blogdescription', 'gmt_offset', 'date_format', 'time_format', 'start_of_week', 'timezone_string', 'WPLANG' ),

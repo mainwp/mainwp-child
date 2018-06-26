@@ -12,7 +12,7 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	public function __construct() {
-
+         
 	}
 
 	public function init() {
@@ -20,6 +20,8 @@ class MainWP_Child_WP_Rocket {
 			return;
 		}
 
+        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+        
 		if ( get_option( 'mainwp_wprocket_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
@@ -27,6 +29,18 @@ class MainWP_Child_WP_Rocket {
 			add_action( 'wp_before_admin_bar_render', array( $this, 'wp_before_admin_bar_render' ), 99 );
 			add_action( 'admin_init', array( $this, 'remove_notices' ) );
 		}
+	}
+    
+    // ok
+	public function syncOthersData( $information, $data = array() ) {       
+        if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {    
+            try{
+                $data = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ));            
+                $information['syncWPRocketData'] = $data;            
+            } catch(Exception $e) {
+            }
+        }        
+		return $information;
 	}
 
 	function remove_notices() {
@@ -181,21 +195,27 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
-	function purge_cache_all() {
+	function purge_cache_all() {				
 		if ( function_exists( 'rocket_clean_domain' ) || function_exists( 'rocket_clean_minify' ) || function_exists( 'create_rocket_uniqid' ) ) {
+			set_transient( 'rocket_clear_cache', 'all', HOUR_IN_SECONDS );
 			// Remove all cache files
 			rocket_clean_domain();
 
 			// Remove all minify cache files
 			rocket_clean_minify();
 
+			// Remove cache busting files.
+			if ( function_exists( 'rocket_clean_cache_busting' )) {
+				rocket_clean_cache_busting();
+			}
+				
 			// Generate a new random key for minify cache file
 			$options                   = get_option( WP_ROCKET_SLUG );
 			$options['minify_css_key'] = create_rocket_uniqid();
 			$options['minify_js_key']  = create_rocket_uniqid();
 			remove_all_filters( 'update_option_' . WP_ROCKET_SLUG );
 			update_option( WP_ROCKET_SLUG, $options );
-			//rocket_dismiss_box( 'rocket_warning_plugin_modification' );
+			rocket_dismiss_box( 'rocket_warning_plugin_modification' );
 
 			return array( 'result' => 'SUCCESS' );
 		} else {
@@ -301,15 +321,18 @@ class MainWP_Child_WP_Rocket {
                 'purge_cron_unit'          => 'HOUR_IN_SECONDS',
                 'exclude_css'              => array(),
                 'exclude_js'               => array(),
+				'async_css'					=> 0,
             	'defer_all_js'              => 0,
+				'defer_all_js_safe'			=> 1,
                 'critical_css'              => '',
                 'deferred_js_files'        => array(),
                 'lazyload'          	   => 0,
                 'lazyload_iframes'         => 0,
+				'lazyload_youtube'			=>0, 
                 'minify_css'               => 0,
 //                'minify_css_key'           => $minify_css_key,
                 'minify_concatenate_css'	  => 0,
-                'minify_css_combine_all'   => 0,
+                //'minify_css_combine_all'   => 0,
                 'minify_css_legacy'			  => 0,
                 'minify_js'                => 0,
 //                'minify_js_key'            => $minify_js_key,
@@ -324,7 +347,7 @@ class MainWP_Child_WP_Rocket {
                 'cdn'                      => 0,
                 'cdn_cnames'               => array(),
                 'cdn_zone'                 => array(),
-                'cdn_ssl'                  => 0,
+                //'cdn_ssl'                  => 0,
                 'cdn_reject_files'         => array(),
                 'do_cloudflare'		   	   => 0,
                 'cloudflare_email'		   => '',
@@ -336,6 +359,7 @@ class MainWP_Child_WP_Rocket {
                 'cloudflare_auto_settings' => 0,
                 'cloudflare_old_settings'  => 0,
                 'do_beta'                  => 0,
+			    'analytics_enabled'        => 1,
         );
 	}
 }

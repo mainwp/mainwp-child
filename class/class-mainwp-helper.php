@@ -211,7 +211,32 @@ class MainWP_Helper {
 
 	static function createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
 		global $current_user;
-		$wprocket_fields    = array( 'lazyload', 'lazyload_iframes', 'minify_html', 'minify_css', 'minify_js', 'cdn' );
+        
+        /**
+        * Hook: `mainwp_before_post_update`
+        *
+        * Runs before creating or updating a post via MainWP dashboard.
+        *
+        * @param array  $new_post      – Post data array.
+        * @param array  $post_custom   – Post custom meta data.
+        * @param string $post_category – Post categories.
+        * @param string $post_tags     – Post tags.
+        */
+       
+        do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
+
+		// Options fields.
+		$wprocket_fields = array(
+			'lazyload',
+			'lazyload_iframes',
+			'minify_html',
+			'minify_css',
+			'minify_js',
+			'cdn',
+			'async_css',
+			'defer_all_js',
+		);
+		
 		$wprocket_activated = false;
 		if ( MainWP_Child_WP_Rocket::isActivated() ) {
 			if ( function_exists( 'get_rocket_option' ) ) {
@@ -1387,4 +1412,160 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
 		if ( defined( 'MAINWP_NOSSL' ) ) return !MAINWP_NOSSL;
 		return function_exists( 'openssl_verify' );
 	}
+    
+    public static function check_files_exists( $files = array(), $return = false ) {		
+            $missing = array();
+            if (is_array($files)) {                    
+                    foreach($files as $name) {
+                            if (!file_exists( $name )) {
+                                    $missing[] = $name;					
+                            } 
+                    }                    
+            } else {
+                if (!file_exists( $files )) {
+                        $missing[] = $files;					
+                }
+            }
+            
+            if (!empty($missing)) {
+                $message = 'Missing file(s): ' . implode(',', $missing);        
+                if ($return)
+                    return $message;
+                else
+                    throw new Exception( $message );				
+            }
+            return true;
+	}
+    
+	public static function check_classes_exists($classes = array(), $return = false) {		
+            $missing = array();
+            if (is_array($classes)) {                    
+                    foreach($classes as $name) {
+                            if (!class_exists( $name )) {
+                                    $missing[] = $name;					
+                            }
+                    }                    
+            } else {
+                if ( !class_exists($classes) )
+                    $missing[] = $classes;
+            }
+            
+            if ( !empty($missing) ) {                
+                $message = 'Missing classes: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );	
+                }
+            }            
+            return true;
+	}
+        
+    public static function check_methods($object, $methods = array(), $return = false) {
+            $missing = array();
+            if (is_array($methods)) {
+                    $missing = array();
+                    foreach($methods as $name) {
+                            if ( !method_exists($object, $name) ) {
+                                $missing[] = $name;					
+                            }
+                    }                   
+            } else if (!empty($methods)) {
+                if ( !method_exists($object, $methods) )
+                    $missing[] = $methods;
+                    
+            }   
+            
+            if ( !empty($missing) ) {
+                $message = 'Missing method: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );	
+                }
+            }
+            
+            return true;
+	}
+    
+    public static function check_properties($object, $properties = array(), $return = false) {
+             $missing = array();
+            if (is_array($properties)) {                   
+                    foreach($properties as $name) {
+                            if ( !property_exists($object, $name) ) {
+                                $missing[] = $name;					
+                            }
+                    }                    
+            } else if (!empty($properties)) {
+                if ( !property_exists($object, $properties) )
+                    $missing[] = $properties;
+                    
+            }   
+            
+            if ( !empty($missing) ) {
+                $message = 'Missing properties: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );	
+                }
+            }
+            
+            return true;
+	}
+    
+    public static function check_functions($funcs = array(), $return = false) {
+            $missing = array();
+            if (is_array($funcs)) {                    
+                    foreach($funcs as $name) {
+                            if ( !function_exists( $name) ) {
+                                $missing[] = $name;					
+                        }
+                    }                    
+            } else if (!empty($funcs)) {
+                if ( !function_exists($funcs) )
+                    $missing[] = $funcs;
+                    
+            }   
+            
+            if ( !empty($missing) ) {
+                $message = 'Missing functions: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );	
+                }
+            }
+            
+            return true;        
+    }
+    
+    
+    /**
+	 * Handle fatal error for requests from the dashboard
+     * mwp_action requests 
+     * wordpress_seo requests  
+     * This will do not handle fatal error for sync request from the dashboard
+	 */
+    public static function handle_fatal_error() {  
+            
+        function handle_shutdown() {
+            // handle fatal errors and compile errors
+            $error = error_get_last();
+            if ( isset( $error['type'] )  && isset( $error['message'] )  && 
+                    ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] )
+                ) 
+            {
+               MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+            } 
+
+        }       
+        
+        if (isset($_POST['function']) && isset($_POST['mainwpsignature']) && 
+                (isset($_POST['mwp_action']) || 'wordpress_seo' == $_POST['function']) // wordpress_seo for Wordpress SEO 
+            ) {
+            register_shutdown_function( 'handle_shutdown' );
+        }             
+    }    
+    
 }

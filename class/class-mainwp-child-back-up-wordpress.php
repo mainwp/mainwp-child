@@ -14,11 +14,18 @@ class MainWP_Child_Back_Up_Wordpress {
     public function __construct() {
 		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 		if ( is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
-                    $this->is_plugin_installed = true;			
+            $this->is_plugin_installed = true;	
+            if ( version_compare( phpversion(), '5.3', '>=' ) ) {
+                add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+            }
 		}
+        
     }
 
 	public function init() {
+        if ( version_compare( phpversion(), '5.3', '<' ) ) {
+            return;
+        }
 		if ( get_option( 'mainwp_backupwordpress_ext_enabled' ) !== 'Y' ) return;
 		if (!$this->is_plugin_installed) return;
 
@@ -115,25 +122,38 @@ class MainWP_Child_Back_Up_Wordpress {
 
 		return $schedule_id;
 	}
-
-	public function syncData() {
-		if ( ! self::isActivated() ) {
-			return '';
-		}
-
-		return $this->get_sync_data();
+    // ok
+	public function syncOthersData( $information, $data = array() ) {
+        if ( isset( $data['syncBackUpWordPress'] ) && $data['syncBackUpWordPress'] ) {	
+            try {
+                $information['syncBackUpWordPress'] = $this->get_sync_data();
+            } catch(Exception $e) {
+                
+            }
+        }        
+		return $information;
 	}
-
+    
+    // ok
 	private function get_sync_data() {
+        MainWP_Helper::check_classes_exists('HM\BackUpWordPress\Schedules');
+        MainWP_Helper::check_methods('HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ) );
+        
 		HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 		$schedules    = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
 		$backups_time = array();
-		foreach ( $schedules as $sche ) {
-			$existing_backup = $sche->get_backups();
-			if ( ! empty( $existing_backup ) ) {
-				$backups_time = array_merge( $backups_time, array_keys( $existing_backup ) );
-			}
-		}
+        
+        if (is_array($schedules) && count($schedules)) {
+            $check = current($schedules);
+            MainWP_Helper::check_methods($check, array( 'get_backups' ) );
+            
+            foreach ( $schedules as $sche ) {
+                $existing_backup = $sche->get_backups();
+                if ( ! empty( $existing_backup ) ) {
+                    $backups_time = array_merge( $backups_time, array_keys( $existing_backup ) );
+                }
+            }
+        }
 
 		$lasttime_backup = 0;
 		if ( ! empty( $backups_time ) ) {
@@ -152,28 +172,41 @@ class MainWP_Child_Back_Up_Wordpress {
             $this->do_reports_log('backupwordpress');
         }
     }
-        
+    
+    // ok   
     public function do_reports_log($ext = '') {
         if ( $ext !== 'backupwordpress' ) return;
         if (!$this->is_plugin_installed) return;
-
-        // Refresh the schedules from the database to make sure we have the latest changes
-        HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
-        $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
-        foreach($schedules as $schedule) {
-            foreach ( $schedule->get_backups() as $file ) {
-                $backup_type =  $schedule->get_type();
-                $message = "BackupWordpres backup " .  $backup_type . ' finished';
-                $destination = "N/A";
-                if ( file_exists( $file ) ) {
-                    $date = @filemtime( $file );
-                    if ( !empty( $date ) ) {
-	                    do_action( "backupwordpress_backup", $destination, $message, 'finished', $backup_type, $date );
-	                    MainWP_Helper::update_lasttime_backup('backupwordpress', $date); // to support backup before update feature
+        
+        try {
+            MainWP_Helper::check_classes_exists('HM\BackUpWordPress\Schedules');                
+            MainWP_Helper::check_methods('HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ));
+            
+            // Refresh the schedules from the database to make sure we have the latest changes
+            HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
+            $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
+            if (is_array($schedules) && count($schedules) > 0) {
+                $check = current($schedules);
+                MainWP_Helper::check_methods($check, array( 'get_backups', 'get_type' ));
+                
+                foreach($schedules as $schedule) {
+                    foreach ( $schedule->get_backups() as $file ) {
+                        $backup_type =  $schedule->get_type();
+                        $message = "BackupWordpres backup " .  $backup_type . ' finished';
+                        $destination = "N/A";
+                        if ( file_exists( $file ) ) {
+                            $date = @filemtime( $file );
+                            if ( !empty( $date ) ) {
+                                do_action( "backupwordpress_backup", $destination, $message, 'finished', $backup_type, $date );
+                                MainWP_Helper::update_lasttime_backup('backupwordpress', $date); // to support backup before update feature
+                            }
+                        }
                     }
                 }
             }
-        }
+        } catch(Exception $e) {
+
+        }   
     }
         
 	function set_showhide() {
@@ -348,7 +381,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 	function hmbkp_request_delete_backup() {
 		if ( ! isset( $_POST['hmbkp_backuparchive'] ) || empty( $_POST['hmbkp_backuparchive'] ) ) {
-			return array( 'error' => __( 'Invalid data!', 'mainwp-child' ) );
+			return array( 'error' => __( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
 		}
 
 		$schedule_id = $this->check_schedule();

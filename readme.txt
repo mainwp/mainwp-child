@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.9.5
-Stable tag: 3.4.7.1
+Tested up to: 4.9.6
+Stable tag: 3.4.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -70,6 +70,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4.8 - 6-26-18 =
+* Fixed: issues caused by deprecated functions
+* Added: mainwp_before_post_update hook
+* Added: support for the new extension
+* Added: conditional checks to prevent possible conflicts with certain plugins 
+* Added: support for the new MainWP Branding Extension feature
+* Improved: PHP 7.2 compatibility  
 
 = 3.4.7.1 - 5-25-18 =
 * Fixed: UpdraftPlus 1.14.10 compatibility issue that caused child sites to disconnect

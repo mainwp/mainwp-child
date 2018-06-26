@@ -11,12 +11,28 @@ class MainWP_Client_Report {
 		return MainWP_Client_Report::$instance;
 	}
 
-	public static function init() {
+	public function init() {
+        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );        
 		add_filter( 'wp_stream_connectors', array( 'MainWP_Client_Report', 'init_stream_connectors' ), 10, 1 );
 		add_filter( 'mainwp_client_reports_connectors', array( 'MainWP_Client_Report', 'init_report_connectors' ), 10, 1 );
 		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
 	}
 
+    // ok
+    public function syncOthersData( $information, $data = array() ) {     
+        if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {            
+            $creport_sync_data = array();
+            if ( ( $firsttime = get_option( 'mainwp_creport_first_time_activated' ) ) !== false ) {
+                $creport_sync_data['firsttime_activated'] = $firsttime;
+            }
+            if ( !empty( $creport_sync_data ) ) {
+                $information['syncClientReportData'] =  $creport_sync_data;
+            }     
+        }        
+		return $information;
+	}
+
+    
 	public static function init_stream_connectors( $classes ) {
 		$connectors = array(
 			'Backups',
@@ -71,9 +87,6 @@ class MainWP_Client_Report {
 			case 'wordfence':
 				MainWP_Child_Wordfence::Instance()->do_reports_log( $ext );
 				break;
-//            case 'wptimecapsule':
-//                MainWP_Child_WP_Time_Capsule::Instance()->do_reports_log( $ext );
-//                break;
 		}
 	}
 

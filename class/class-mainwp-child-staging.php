@@ -20,7 +20,8 @@ class MainWP_Child_Staging {
         
         if (!$this->is_plugin_installed)
             return;       
-		
+        
+        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );		
     }
 
     
@@ -30,9 +31,7 @@ class MainWP_Child_Staging {
         
         if (!$this->is_plugin_installed) 
             return;      
-        
-        //add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
-         
+          
 		if ( get_option( 'mainwp_wp_staging_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
@@ -40,6 +39,17 @@ class MainWP_Child_Staging {
 		}
 	}
 
+	public function syncOthersData( $information, $data = array() ) {       
+        if ( isset( $data['syncWPStaging'] ) && $data['syncWPStaging'] ) {		
+            try{
+                $information['syncWPStaging'] = $this->get_sync_data();
+            } catch(Exception $e) {
+                // do not exit
+            }
+        }        
+		return $information;
+	}
+    // ok
     public function get_sync_data() {        
         return $this->get_overview();
     }

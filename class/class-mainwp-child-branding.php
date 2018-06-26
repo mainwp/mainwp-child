@@ -132,6 +132,8 @@ class MainWP_Child_Branding {
 			'remove_widget_activity'          => $settings['child_remove_widget_activity'],
 			'remove_widget_quick'             => $settings['child_remove_widget_quick'],
 			'remove_widget_news'              => $settings['child_remove_widget_news'],
+			'login_image_link'              => $settings['child_login_image_link'],
+			'login_image_title'              => $settings['child_login_image_title'],
 			'site_generator'                  => $settings['child_site_generator'],
 			'generator_link'                  => $settings['child_generator_link'],
 			'admin_css'                       => $settings['child_admin_css'],
@@ -339,6 +341,8 @@ class MainWP_Child_Branding {
 			add_action( 'login_enqueue_scripts', array( &$this, 'custom_login_css' ) );
 			add_filter( 'gettext', array( &$this, 'custom_gettext' ), 99, 3 );
 			add_action( 'login_head', array( &$this, 'custom_login_logo' ) );
+			add_filter( 'login_headerurl', array( &$this, 'custom_login_headerurl' ) );	
+			add_filter( 'login_headertitle', array( &$this, 'custom_login_headertitle' ) );	
 			add_action( 'wp_head', array( &$this, 'custom_favicon_frontend' ) );
 			if ( isset( $extra_setting['dashboard_footer'] ) && ! empty( $extra_setting['dashboard_footer'] ) ) {
 				//remove_filter( 'update_footer', 'core_update_footer' );
@@ -564,6 +568,26 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	function custom_login_headerurl( $value ) {
+		
+		$extra_setting = $this->settings['extra_settings'];
+		if ( isset( $extra_setting['login_image_link'] ) && ! empty( $extra_setting['login_image_link'] ) ) {
+			return $extra_setting['login_image_link'];
+		}
+		
+		return $value;
+	}
+	
+	function custom_login_headertitle( $value ) {
+		
+		$extra_setting = $this->settings['extra_settings'];
+		if ( isset( $extra_setting['login_image_title'] ) && ! empty( $extra_setting['login_image_title'] ) ) {
+			return $extra_setting['login_image_title'];
+		}
+		
+		return $value;
+	}	
+	
 	function custom_gettext( $translations, $text, $domain = 'default' ) {
 		$extra_setting = $this->settings['extra_settings'];
 		$texts_replace = $extra_setting['texts_replace'];

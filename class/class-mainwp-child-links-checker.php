@@ -18,6 +18,12 @@ class MainWP_Child_Links_Checker {
 		if ( is_plugin_active( 'broken-link-checker/broken-link-checker.php' ) ) {
                     $this->is_plugin_installed = true;
 		}
+        
+        if ( !$this->is_plugin_installed )
+            return;
+        
+        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+        
 	}
 
 	public function action() {
@@ -27,38 +33,44 @@ class MainWP_Child_Links_Checker {
 			MainWP_Helper::write( $information );
 		}
 		blc_init();
-		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
-				case 'set_showhide':
-					$information = $this->set_showhide();
-					break;
-				case 'sync_data':
-					$information = $this->sync_data();
-					break;
-				case 'sync_links_data':
-					$information = $this->sync_links_data();
-					break;
-				case 'edit_link':
-					$information = $this->edit_link();
-					break;
-				case 'unlink':
-					$information = $this->unlink();
-					break;
-				case 'set_dismiss':
-					$information = $this->set_link_dismissed();
-					break;
-				case 'discard':
-					$information = $this->discard();
-					break;
-				case 'save_settings':
-					$information = $this->save_settings();
-					break;
-				case 'force_recheck':
-					$information = $this->force_recheck();
-					break;
-			}
-		}
-		MainWP_Helper::write( $information );
+        
+        // need this try()
+        try {
+            if ( isset( $_POST['mwp_action'] ) ) {
+                switch ( $_POST['mwp_action'] ) {
+                    case 'set_showhide':
+                        $information = $this->set_showhide();
+                        break;
+                    case 'sync_data':
+                        $information = $this->get_sync_data();
+                        break;
+                    case 'sync_links_data':
+                        $information = $this->get_links_data();
+                        break;
+                    case 'edit_link':
+                        $information = $this->edit_link();
+                        break;
+                    case 'unlink':
+                        $information = $this->unlink();
+                        break;
+                    case 'set_dismiss':
+                        $information = $this->set_link_dismissed();
+                        break;
+                    case 'discard':
+                        $information = $this->discard();
+                        break;
+                    case 'save_settings':
+                        $information = $this->save_settings();
+                        break;
+                    case 'force_recheck':
+                        $information = $this->force_recheck();
+                        break;
+                }
+            }
+            MainWP_Helper::write( $information );
+        } catch(Exception $e) {
+            MainWP_Helper::write( array('error' => $e->getMessage()) );
+        }
 	}
 
 
@@ -182,7 +194,20 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	function sync_data( $strategy = '' ) {		
+    // ok
+    public function syncOthersData( $information, $data = array() ) {       
+        if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {					
+            try{
+                $information['syncBrokenLinksCheckerData'] = $this->get_sync_data();
+            } catch(Exception $e) {
+                
+            }
+        }        
+		return $information;
+	}
+
+    
+	function get_sync_data( $strategy = '' ) {		
 		$information = array();
 		$data        = $this->get_count_links();
         if (is_array($data))
@@ -190,12 +215,24 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 	
-	function sync_links_data() {
+	function get_links_data() {
+        
         if (!defined('BLC_DIRECTORY')) return;
-        require_once BLC_DIRECTORY . '/includes/link-query.php';
-        require_once BLC_DIRECTORY . '/includes/modules.php';
+        
+        $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
+        $file_path2 = BLC_DIRECTORY . '/includes/modules.php';
+        MainWP_Helper::check_files_exists(array( $file_path1, $file_path2 ));
+         
+        require_once $file_path1;
+        require_once $file_path2;
 
+        MainWP_Helper::check_classes_exists('blcLinkQuery');
+        MainWP_Helper::check_methods('blcLinkQuery', 'getInstance');
+     
 		$blc_link_query      = blcLinkQuery::getInstance();
+        
+        MainWP_Helper::check_methods($blc_link_query, 'get_filter_links');
+           
 		$total         = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 		
 		
@@ -213,7 +250,7 @@ class MainWP_Child_Links_Checker {
 			$params['offset'] = $offset;
 		}
 				
-		$link_data = $this->do_sync_links_data($params);		
+		$link_data = $this->links_checker_data($params);		
 		
 		$total_sync = 0;
 		if ($offset){
@@ -241,12 +278,23 @@ class MainWP_Child_Links_Checker {
 	
 	function get_count_links() {
         if (!defined('BLC_DIRECTORY')) return;
+        
+        $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
+        $file_path2 = BLC_DIRECTORY . '/includes/modules.php';
+        
+        MainWP_Helper::check_files_exists(array( $file_path1, $file_path2 ));
+         
+        require_once $file_path1;
+        require_once $file_path2;
 
-        require_once BLC_DIRECTORY . '/includes/link-query.php';
-        require_once BLC_DIRECTORY . '/includes/modules.php';
-
+        MainWP_Helper::check_classes_exists('blcLinkQuery');
+        MainWP_Helper::check_methods('blcLinkQuery', 'getInstance');
+        
 		$data = array();
 		$blc_link_query      = blcLinkQuery::getInstance();
+        
+        MainWP_Helper::check_methods($blc_link_query, 'get_filter_links');
+        
 		$data['broken']      = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
 		$data['redirects']   = $blc_link_query->get_filter_links( 'redirects', array( 'count_only' => true ) );
 		$data['dismissed']   = $blc_link_query->get_filter_links( 'dismissed', array( 'count_only' => true ) );
@@ -255,8 +303,11 @@ class MainWP_Child_Links_Checker {
 		return $data;
 	}
 	
-	function do_sync_links_data($params) {		
+	function links_checker_data($params) {		
 		
+        MainWP_Helper::check_functions('blc_get_links');
+        MainWP_Helper::check_classes_exists('blcLink');
+                
 		$links      = blc_get_links( $params );
 		
 		$filter_fields = array(
@@ -320,22 +371,29 @@ class MainWP_Child_Links_Checker {
 
 				$get_link = new blcLink( intval( $link->link_id ) );
 				if ( $get_link->valid() ) {
+                    MainWP_Helper::check_methods($get_link, 'get_instances');        
 					$instances = $get_link->get_instances();
 				}
 
 				if ( ! empty( $instances ) ) {
-
-					$first_instance      = reset( $instances );
+                    $first_instance      = reset( $instances );
+                                        
+                    MainWP_Helper::check_methods($first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable') );
+                    
 					$new_link->link_text = $first_instance->ui_get_link_text();
 					$extra_info['count_instance'] = count( $instances );
 					$container           = $first_instance->get_container();
 					
 					/** @var blcContainer $container */
 					
-					if ( ! empty( $container ) /* && ($container instanceof blcAnyPostContainer) */ ) {
-						$extra_info['container_type'] = $container->container_type;
-						$extra_info['container_id'] = $container->container_id;
-						$extra_info['source_data'] = $this->ui_get_source( $container, $first_instance->container_field );
+					if ( ! empty( $container ) /* && ($container instanceof blcAnyPostContainer) */ ) {   
+                        if (true === MainWP_Helper::check_properties($first_instance, array( 'container_field' ), true )) {
+                            if (true === MainWP_Helper::check_properties($container, array( 'container_type', 'container_id' ), true )) {                             
+                                $extra_info['container_type'] = $container->container_type;
+                                $extra_info['container_id'] = $container->container_id;
+                                $extra_info['source_data'] = $this->ui_get_source( $container, $first_instance->container_field );
+                            }
+                        }
 					}
 
 					$can_edit_text       = false;
@@ -584,8 +642,11 @@ class MainWP_Child_Links_Checker {
 		} else {
 			$image = 'font-awesome/font-awesome-comment-alt.png';
 		}
-
-		$comment = $container->get_wrapped_object();
+        
+        if (true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object'), true ))                    
+            return false;
+        
+        $comment = $container->get_wrapped_object();
 
 		//Display a small text sample from the comment
 		$text_sample = strip_tags( $comment->comment_content );
