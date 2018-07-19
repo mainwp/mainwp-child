@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.9.6
-Stable tag: 3.4.8
+Tested up to: 4.9.7
+Stable tag: 3.4.9
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -70,6 +70,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.4.9 - 7-19-18 =
+* Fixed: MainWP iThemes Security Extension issues caused by the latest iThemes Security plugin version
 
 = 3.4.8 - 6-26-18 =
 * Fixed: issues caused by deprecated functions
