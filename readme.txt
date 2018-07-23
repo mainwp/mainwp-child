@@ -71,7 +71,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 == Changelog ==
 
-= 3.4.9 - 7-19-18 =
+= 3.4.9 - 7-23-18 =
 * Fixed: MainWP iThemes Security Extension issues caused by the latest iThemes Security plugin version
 
 = 3.4.8 - 6-26-18 =
