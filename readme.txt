@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.9.7
-Stable tag: 3.4.9
+Tested up to: 4.9.8
+Stable tag: 3.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html 
 
@@ -70,6 +70,19 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.5 - 9-27-18 =
+* Fixed: compatibility issues caused by the recent UpdraftPlus update
+* Fixed: issues with the WooCommerce Status information
+* Fixed: issues with Bulk Settings Manager for specific plugins
+* Added: mainwp_child_mu_plugin_enabled hook to allow MainWP Child usage as a must-use plugin
+* Added: support for recording WP Time Capsule backups for Client Reports
+* Added: mainwp_branding_role_cap_enable_contact_form hook to allow users to show Support Form (Branding extension option) to specific roles 
+* Added: support to for the new BackUpWordPrress Extension feature
+* Added: support for the new MainWP Buddy Extension feature
+* Updated: reporting system to determine backup type for BackWPup backups
+* Improved: connection stability for sites hosted on hosts with small execution time limits
+* Improved: detecting updates for premium plugins
 
 = 3.4.9 - 7-23-18 =
 * Fixed: MainWP iThemes Security Extension issues caused by the latest iThemes Security plugin version
