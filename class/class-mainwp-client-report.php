@@ -12,27 +12,27 @@ class MainWP_Client_Report {
 	}
 
 	public function init() {
-        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );        
+        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 		add_filter( 'wp_stream_connectors', array( 'MainWP_Client_Report', 'init_stream_connectors' ), 10, 1 );
 		add_filter( 'mainwp_client_reports_connectors', array( 'MainWP_Client_Report', 'init_report_connectors' ), 10, 1 );
 		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
 	}
 
     // ok
-    public function syncOthersData( $information, $data = array() ) {     
-        if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {            
+    public function syncOthersData( $information, $data = array() ) {
+        if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {
             $creport_sync_data = array();
             if ( ( $firsttime = get_option( 'mainwp_creport_first_time_activated' ) ) !== false ) {
                 $creport_sync_data['firsttime_activated'] = $firsttime;
             }
             if ( !empty( $creport_sync_data ) ) {
                 $information['syncClientReportData'] =  $creport_sync_data;
-            }     
-        }        
+            }
+        }
 		return $information;
 	}
 
-    
+
 	public static function init_stream_connectors( $classes ) {
 		$connectors = array(
 			'Backups',
@@ -86,6 +86,9 @@ class MainWP_Client_Report {
 				break;
 			case 'wordfence':
 				MainWP_Child_Wordfence::Instance()->do_reports_log( $ext );
+				break;
+            case 'wptimecapsule':
+				MainWP_Child_Timecapsule::Instance()->do_reports_log( $ext );
 				break;
 		}
 	}
@@ -377,7 +380,7 @@ class MainWP_Client_Report {
 									continue;
 								}
 							} else if ( 'mainwp_backups' === $context ) {
-								if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' &&  $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' && $record->context !== 'backupbuddy_backups' ) {
+								if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' &&  $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' && $record->context !== 'backupbuddy_backups'  && $record->context !== 'wptimecapsule_backups') {
 									continue;
 								}
 							} else if ( 'mainwp_sucuri' === $context ) {
@@ -669,28 +672,28 @@ class MainWP_Client_Report {
 					case 'status':   // sucuri cases
 					case 'webtrust':
 						if ( 'mainwp_sucuri' === $context ) {
-                            
+
                             $scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
                             if (!empty($scan_data)) {
-                                $scan_data  = maybe_unserialize( base64_decode( $scan_data ) );                              
+                                $scan_data  = maybe_unserialize( base64_decode( $scan_data ) );
                                 if ( is_array( $scan_data ) ) {
-                                    
+
                                     $blacklisted = $scan_data['blacklisted'];
                                     $malware_exists = $scan_data['malware_exists'];
-                                   
+
                                     $status = array();
                                     if ( $blacklisted ) {
                                         $status[] = __( 'Site Blacklisted', 'mainwp-child' ); }
                                     if ( $malware_exists ) {
                                         $status[] = __( 'Site With Warnings', 'mainwp-child' ); }
-                                    
+
                                     if ($data == 'status') {
                                         $token_values[$token] = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
                                     } else if ($data == 'webtrust') {
                                         $token_values[$token] = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
-                                    }                                    
-                                }   
-                                
+                                    }
+                                }
+
                             } else {
                                 $token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
                             }

@@ -9,8 +9,7 @@ class MainWP_Security {
 		//        MainWP_Security::remove_plugin_update();
 		//        MainWP_Security::remove_theme_update();
 		MainWP_Security::remove_php_reporting();
-		MainWP_Security::remove_scripts_version();
-		MainWP_Security::remove_styles_version();
+		MainWP_Security::remove_registered_versions();
 		MainWP_Security::remove_generator_version();
 		MainWP_Security::remove_readme();
 
@@ -256,20 +255,6 @@ class MainWP_Security {
 	//Removed version information for scripts/stylesheets
 	public static function remove_scripts_version_ok() {
 		return self::get_security_option( 'scripts_version' );
-
-		//        global $wp_scripts;
-		//        if (!is_a($wp_scripts, 'WP_Scripts'))
-		//        {
-		//            return true;
-		//        }
-		//        foreach ($wp_scripts->registered as $handle => $script)
-		//        {
-		//            if ($wp_scripts->registered[$handle]->ver != null)
-		//            {
-		//                return false;
-		//            }
-		//        }
-		//        return true;
 	}
 
 	public static function remove_script_versions( $src ) {
@@ -280,13 +265,29 @@ class MainWP_Security {
 
 			return $src;
 		}
-//		else if ( false === strpos( $src, '?ver=' ) ) {
-//			self::update_security_option('scripts_version', true);
-//		}
-
 		return $src;
 	}
 
+	public static function remove_registered_versions_ok() {
+		return self::get_security_option( 'registered_versions' );
+	}
+
+	public static function remove_registered_versions() {
+        if ( self::get_security_option( 'registered_versions' ) ) {
+			global $wp_styles;
+			if ( $wp_styles instanceof WP_Styles )  {
+				foreach ( $wp_styles->registered as $handle => $style ) {
+                    $wp_styles->registered[ $handle ]->ver = null;
+                }
+			}
+            global $wp_scripts;
+			if ( $wp_scripts instanceof WP_Scripts ) {
+				foreach ( $wp_scripts->registered as $handle => $script ) {
+                    $wp_scripts->registered[ $handle ]->ver = null;
+                }
+			}
+		}
+	}
 
 	public static function remove_generator_version_ok() {
 		return self::get_security_option( 'generator_version' );
@@ -313,27 +314,10 @@ class MainWP_Security {
 
 			return $src;
 		}
-//		else if ( false === strpos( $src, '?ver=' ) ) {
-//			self::update_security_option('styles_version', true);
-//		}
-
 		return $src;
 	}
 
-	public static function remove_scripts_version( $force = false ) {
-		if ( $force || self::get_security_option( 'scripts_version' ) ) {
-			global $wp_scripts;
-			if ( !( $wp_scripts instanceof WP_Scripts ) ) {
-				return;
-			}
-
-			foreach ( $wp_scripts->registered as $handle => $script ) {
-				$wp_scripts->registered[ $handle ]->ver = null;
-			}
-		}
-	}
-
-	public static function remove_readme( $force = false ) {
+    public static function remove_readme( $force = false ) {
 		if ( $force || self::get_security_option( 'readme' ) ) {
 			if ( @file_exists( ABSPATH . 'readme.html' ) ) {
 				if ( ! @unlink( ABSPATH . 'readme.html' ) ) {
@@ -357,34 +341,6 @@ class MainWP_Security {
 
 	public static function remove_styles_version_ok() {
 		return self::get_security_option( 'styles_version' );
-
-		//        global $wp_styles;
-		//        if (!is_a($wp_styles, 'WP_Styles'))
-		//        {
-		//            return true;
-		//        }
-		//
-		//        foreach ($wp_styles->registered as $handle => $style)
-		//        {
-		//            if ($wp_styles->registered[$handle]->ver != null)
-		//            {
-		//                return false;
-		//            }
-		//        }
-		//        return true;
-	}
-
-	public static function remove_styles_version( $force = true ) {
-		if ( $force || self::get_security_option( 'styles_version' ) ) {
-			global $wp_styles;
-			if ( !( $wp_styles instanceof WP_Styles ) ) {
-				return;
-			}
-
-			foreach ( $wp_styles->registered as $handle => $style ) {
-				$wp_styles->registered[ $handle ]->ver = null;
-			}
-		}
 	}
 
 	//Admin user name is not admin

@@ -238,13 +238,13 @@ class MainWP_Child_Branding {
 	}
 
 	static function uploadImage( $img_url ) {
-		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url		
+		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
 		 global $mainWPChild;
-        add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );        
+        add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 		//Download $img_url
-		$temporary_file = download_url( $img_url );        
+		$temporary_file = download_url( $img_url );
         remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
-       
+
 		if ( is_wp_error( $temporary_file ) ) {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
@@ -286,12 +286,12 @@ class MainWP_Child_Branding {
 		}
 
 		add_filter( 'map_meta_cap', array( $this, 'branding_map_meta_cap' ), 10, 5 );
-		
+
 		if ( 'T' === get_option( 'mainwp_branding_disable_change' ) ) {
-			
-			// Disable the wordpress plugin update notifications		
+
+			// Disable the wordpress plugin update notifications
 			remove_action('load-update-core.php', 'wp_update_plugins');
-			add_filter('pre_site_transient_update_plugins', '__return_null');		
+			add_filter('pre_site_transient_update_plugins', '__return_null');
 
 			// Disable the wordpress theme update notifications
 			remove_action('load-update-core.php', 'wp_update_themes');
@@ -299,40 +299,22 @@ class MainWP_Child_Branding {
 
 			// Disable the wordpress core update notifications
 			add_action('after_setup_theme', 'remove_core_updates');
-			function remove_core_updates() {				
+			function remove_core_updates() {
 				add_action('init', ( $func = function($a){ remove_action( 'wp_version_check', 'wp_version_check' );} ), 2);
 				add_filter('pre_option_update_core', '__return_null');
 				add_filter('pre_site_transient_update_core', '__return_null');
 			}
-			
-			add_action( 'admin_head', array( &$this, 'admin_head_hide_elements' ), 15 );	
+
+			add_action( 'admin_head', array( &$this, 'admin_head_hide_elements' ), 15 );
 			add_action( 'admin_menu', array($this, 'branding_redirect' ), 9);
 		}
 
 		// to fix
-		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
-//		if ( 'T' === get_option( 'mainwp_branding_show_support' ) ) {
-//			$title = $this->settings['contact_support_label'];
-//			if ( isset( $extra_setting['show_button_in'] ) && ( 2 === (int) $extra_setting['show_button_in'] || 3 === (int) $extra_setting['show_button_in'] ) ) {
-//				$title = $this->settings['contact_support_label'];
-//				add_menu_page( $title, $title, 'read', 'ContactSupport2', array(
-//					$this,
-//					'contact_support',
-//				), '', '2.0001' );
-//			}
-//
-//			if ( isset( $extra_setting['show_button_in'] ) && ( 1 === $extra_setting['show_button_in'] || 3 === $extra_setting['show_button_in'] ) ) {
-//				add_submenu_page( null, $title, $this->settings['contact_support_label'], 'read', 'ContactSupport', array(
-//					$this,
-//					'contact_support',
-//				) );
-//				add_action( 'admin_bar_menu', array( $this, 'add_support_button_in_top_admin_bar' ), 100 );
-//			}
-//		}
+		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );//
 		if ( get_option( 'mainwp_branding_disable_wp_branding' ) !== 'Y' ) {
 			add_filter( 'wp_footer', array( &$this, 'branding_global_footer' ), 15 );
 			add_action( 'wp_dashboard_setup', array( &$this, 'custom_dashboard_widgets' ), 999 );
-			// branding site generator			
+			// branding site generator
 			$types = array( 'html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export' );
 			foreach ( $types as $type ) {
 				add_filter( 'get_the_generator_' . $type, array( &$this, 'custom_the_generator' ), 999, 2 );
@@ -341,17 +323,17 @@ class MainWP_Child_Branding {
 			add_action( 'login_enqueue_scripts', array( &$this, 'custom_login_css' ) );
 			add_filter( 'gettext', array( &$this, 'custom_gettext' ), 99, 3 );
 			add_action( 'login_head', array( &$this, 'custom_login_logo' ) );
-			add_filter( 'login_headerurl', array( &$this, 'custom_login_headerurl' ) );	
-			add_filter( 'login_headertitle', array( &$this, 'custom_login_headertitle' ) );	
+			add_filter( 'login_headerurl', array( &$this, 'custom_login_headerurl' ) );
+			add_filter( 'login_headertitle', array( &$this, 'custom_login_headertitle' ) );
 			add_action( 'wp_head', array( &$this, 'custom_favicon_frontend' ) );
 			if ( isset( $extra_setting['dashboard_footer'] ) && ! empty( $extra_setting['dashboard_footer'] ) ) {
 				//remove_filter( 'update_footer', 'core_update_footer' );
 				add_filter( 'update_footer', array( &$this, 'core_update_footer' ), 14 );
-                add_filter( 'admin_footer_text', array( &$this, 'admin_footer_text' ), 14 );                
+                add_filter( 'admin_footer_text', array( &$this, 'admin_footer_text' ), 14 );
 			}
 
-			if ( isset( $extra_setting['hide_nag'] ) && ! empty( $extra_setting['hide_nag'] ) ) {				
-				add_action( 'admin_init', array($this, 'admin_init'));				
+			if ( isset( $extra_setting['hide_nag'] ) && ! empty( $extra_setting['hide_nag'] ) ) {
+				add_action( 'admin_init', array($this, 'admin_init'));
 			}
 
 			add_action( 'admin_menu', array( &$this, 'remove_default_post_metaboxes' ) );
@@ -359,14 +341,17 @@ class MainWP_Child_Branding {
 		}
 	}
 
-	
+
 	public function admin_init() {
-		remove_action( 'admin_notices', 'update_nag', 3 ); 
+		remove_action( 'admin_notices', 'update_nag', 3 );
 	}
-	
+
     // to fix conflict with other plugin
     function admin_menu() {
-        if ( !current_user_can( 'administrator' ) ) {
+        $allow_contact = apply_filters('mainwp_branding_role_cap_enable_contact_form', false);
+        if ( $allow_contact ) {
+            ; // ok
+        } else if ( !current_user_can( 'administrator' ) ) {
 			return false;
 		}
         $extra_setting = $this->settings['extra_settings'];
@@ -522,27 +507,27 @@ class MainWP_Child_Branding {
 		if ( false !== $pos1 || false !== $pos2 ) {
 			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
-		}		
+		}
 	}
-	
+
 	function admin_head_hide_elements() {
-		?><script type="text/javascript">			
-			document.addEventListener("DOMContentLoaded", function(event) { 
+		?><script type="text/javascript">
+			document.addEventListener("DOMContentLoaded", function(event) {
 				document.getElementById("wp-admin-bar-updates").outerHTML = '';
 				document.getElementById("menu-plugins").outerHTML = '';
 				var els_core = document.querySelectorAll("a[href='update-core.php']");
 				for (var i = 0, l = els_core.length; i < l; i++) {
-					var el = els_core[i];					
+					var el = els_core[i];
 					el.parentElement.innerHTML = '';
 				}
 			});
-		</script><?php		
+		</script><?php
 	}
-	
+
 	function core_update_footer() {
-		echo ''; // it clear version text 
+		echo ''; // it clear version text
 	}
-		
+
 	function admin_footer_text() {
 		$extra_setting = $this->settings['extra_settings'];
 		if ( isset( $extra_setting['dashboard_footer'] ) && ! empty( $extra_setting['dashboard_footer'] ) ) {
@@ -569,25 +554,25 @@ class MainWP_Child_Branding {
 	}
 
 	function custom_login_headerurl( $value ) {
-		
+
 		$extra_setting = $this->settings['extra_settings'];
 		if ( isset( $extra_setting['login_image_link'] ) && ! empty( $extra_setting['login_image_link'] ) ) {
 			return $extra_setting['login_image_link'];
 		}
-		
+
 		return $value;
 	}
-	
+
 	function custom_login_headertitle( $value ) {
-		
+
 		$extra_setting = $this->settings['extra_settings'];
 		if ( isset( $extra_setting['login_image_title'] ) && ! empty( $extra_setting['login_image_title'] ) ) {
 			return $extra_setting['login_image_title'];
 		}
-		
+
 		return $value;
-	}	
-	
+	}
+
 	function custom_gettext( $translations, $text, $domain = 'default' ) {
 		$extra_setting = $this->settings['extra_settings'];
 		$texts_replace = $extra_setting['texts_replace'];
@@ -725,9 +710,6 @@ class MainWP_Child_Branding {
 	}
 
 	function contact_support() {
-		if ( !current_user_can('administrator') ) {
-			return false;
-		}
 		?>
 		<style>
 			.mainwp_info-box-yellow {
@@ -756,10 +738,10 @@ class MainWP_Child_Branding {
 				if ( ! empty( $send_email_message ) ) {
 					$send_email_message = stripslashes( $send_email_message );
 				} else {
-					$send_email_message = 'Message has been submitted successfully.';
+					$send_email_message = __( 'Message has been submitted successfully.', 'mainwp-child' );
 				}
 			} else {
-				$send_email_message = __( 'Sending email failed!' );
+				$send_email_message = __( 'Sending email failed!', 'mainwp-child' );
 			}
 			?>
 			<div
@@ -875,7 +857,7 @@ class MainWP_Child_Branding {
 	}
 
 	public function branding_map_meta_cap( $caps, $cap, $user_id, $args ) {
-		
+
 		// this is causing of some plugin's menu not added
 //		if ( 'T' === get_option( 'mainwp_branding_disable_change' ) ) {
 //			// disable: edit, update, install, active themes and plugins

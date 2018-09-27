@@ -26,7 +26,7 @@ class MainWP_Child_WooCommerce_Status {
 			$information['error'] = 'NO_WOOCOMMERCE';
 			MainWP_Helper::write( $information );
 		}
-        
+
 		$is_ver220 = $this->is_version_220();
 		if ( isset( $_POST['mwp_action'] ) ) {
 			switch ( $_POST['mwp_action'] ) {
@@ -35,7 +35,7 @@ class MainWP_Child_WooCommerce_Status {
 					break;
 				case 'report_data':
 					$information = ! $is_ver220 ? $this->report_data() : $this->report_data_two();
-					break;  
+					break;
                 case 'update_wc_db':
 					$information = $this->update_wc_db();
 					break;
@@ -178,6 +178,10 @@ class MainWP_Child_WooCommerce_Status {
 		$reports    = new WC_Admin_Report();
 		$start_date = $_POST['start_date'];
 		$end_date   = $_POST['end_date'];
+
+        $start_date = date( 'Y-m-d H:i:s', $start_date );
+        $end_date = date( 'Y-m-d H:i:s', $end_date );
+
 		// Get sales
 		$sales = $wpdb->get_var( "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
                 LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
@@ -193,9 +197,12 @@ class MainWP_Child_WooCommerce_Status {
 					'on-hold',
 				) ) ) . "' )
                 AND 	postmeta.meta_key   = '_order_total'
-                AND 	posts.post_date >= '" . date( 'Y-m-01', $start_date ) . "'
-                AND 	posts.post_date <= '" . date( 'Y-m-d H:i:s', $end_date ) . "'
+                AND 	posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
+                AND 	posts.post_date <= STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')
         " );
+
+
+
 
 		// Get top seller
 		$top_seller = $wpdb->get_row( "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
@@ -216,8 +223,8 @@ class MainWP_Child_WooCommerce_Status {
 				) ) ) . "' )
                 AND 	order_item_meta.meta_key = '_qty'
                 AND 	order_item_meta_2.meta_key = '_product_id'
-                AND 	posts.post_date >= '" . date( 'Y-m-01', $start_date ) . "'
-                AND 	posts.post_date <= '" . date( 'Y-m-d H:i:s', $end_date ) . "'
+                AND 	posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
+                AND 	posts.post_date <= STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')
                 GROUP BY product_id
                 ORDER BY qty DESC
                 LIMIT   1
@@ -284,9 +291,12 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	function sync_data_two() {
-        // sync data at current time
-		$start_date = current_time( 'timestamp' );
-		$end_date   = current_time( 'timestamp' );
+        // sync data for current month
+        $start_date = date( 'Y-m-01 00:00:00', time() );
+        $end_date = date( 'Y-m-d H:i:s', time() );
+
+        $start_date = strtotime( $start_date );
+        $end_date = strtotime( $end_date );
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
@@ -297,14 +307,14 @@ class MainWP_Child_WooCommerce_Status {
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
-    
+
     function check_db_update() {
 		if ( version_compare( get_option( 'woocommerce_db_version' ), WC_VERSION, '<' ) ) {
             return true;
         }
         return false;
 	}
-        
+
 	function get_woocom_data( $start_date, $end_date ) {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
@@ -313,6 +323,10 @@ class MainWP_Child_WooCommerce_Status {
 		} else {
 			return false;
 		}
+
+        $start_date = date( 'Y-m-d H:i:s', $start_date );
+        $end_date = date( 'Y-m-d H:i:s', $end_date );
+
 		$reports = new WC_Admin_Report();
 		// Sales
 		$query           = array();
@@ -325,8 +339,8 @@ class MainWP_Child_WooCommerce_Status {
 				'on-hold',
 			) ) ) . "' ) ";
 		$query['where'] .= "AND postmeta.meta_key   = '_order_total' ";
-		$query['where'] .= "AND posts.post_date >= '" . date( 'Y-m-01', $start_date ) . "' ";
-		$query['where'] .= "AND posts.post_date <= '" . date( 'Y-m-d H:i:s', $end_date ) . "' ";
+		$query['where'] .= "AND posts.post_date >=  STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
+		$query['where'] .= "AND posts.post_date <=  STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s') ";
 
 		$sales = $wpdb->get_var( implode( ' ', apply_filters( 'woocommerce_dashboard_status_widget_sales_query', $query ) ) );
 
@@ -345,13 +359,13 @@ class MainWP_Child_WooCommerce_Status {
 			) ) ) . "' ) ";
 		$query['where'] .= "AND order_item_meta.meta_key = '_qty' ";
 		$query['where'] .= "AND order_item_meta_2.meta_key = '_product_id' ";
-		$query['where'] .= "AND posts.post_date >= %s ";
-		$query['where'] .= "AND posts.post_date <= %s ";
+		$query['where'] .= "AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
+		$query['where'] .= "AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')  ";
 		$query['groupby'] = 'GROUP BY product_id';
 		$query['orderby'] = 'ORDER BY qty DESC';
 		$query['limits']  = 'LIMIT 1';
 
-		$top_seller = $wpdb->get_row(  $wpdb->prepare( implode( ' ',  $query ), date( 'Y-m-01', $start_date ), date( 'Y-m-d H:i:s', $end_date ) ) );
+		$top_seller = $wpdb->get_row( implode( ' ',  $query ) );
 
 
 		if ( ! empty( $top_seller ) ) {
@@ -413,17 +427,17 @@ class MainWP_Child_WooCommerce_Status {
 			'stock'          => $stock,
 			'nostock'        => $nostock,
 			'lowstock'       => $lowinstock_count,
-			'outstock'       => $outofstock_count            
+			'outstock'       => $outofstock_count
 		);
 		$information['data'] = $data;
-        $information['need_db_update'] = $this->check_db_update();        
+        $information['need_db_update'] = $this->check_db_update();
 		return $information;
 	}
-    
+
     private static function update_wc_db() {
         include_once( WC()->plugin_path() . '/includes/class-wc-background-updater.php' );
 		$background_updater = new WC_Background_Updater();
-        
+
 		$current_db_version = get_option( 'woocommerce_db_version' );
 		$logger             = wc_get_logger();
 		$update_queued      = false;
@@ -444,9 +458,9 @@ class MainWP_Child_WooCommerce_Status {
 		if ( $update_queued ) {
 			$background_updater->save()->dispatch();
 		}
-        
+
         return array('result' => 'success');
 	}
-    
+
 }
 

@@ -11,15 +11,15 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return MainWP_Child_Updraft_Plus_Backups::$instance;
 	}
 
-	public function __construct() {                
+	public function __construct() {
         require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 		if ( is_plugin_active( 'updraftplus/updraftplus.php' ) && defined('UPDRAFTPLUS_DIR')) {
-            $this->is_plugin_installed = true;			
-		}   
-        
+            $this->is_plugin_installed = true;
+		}
+
         if (!$this->is_plugin_installed)
-            return;       
-        
+            return;
+
 		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 		add_filter('updraftplus_save_last_backup', array( __CLASS__, 'hookUpdraftplusSaveLastBackup' ));
 	}
@@ -30,7 +30,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		if (isset($last_backup['backup_time'])) {
 			$backup_time = $last_backup['backup_time'];
-			MainWP_Helper::update_lasttime_backup('updraftplus', $backup_time);
+             if ($last_backup['success']) {
+                MainWP_Helper::update_lasttime_backup('updraftplus', $backup_time);
+             }
 		}
 		return $last_backup;
 	}
@@ -48,9 +50,9 @@ class MainWP_Child_Updraft_Plus_Backups {
                 }
             }
         } catch(Exception $e) {
-                
+
         }
-        
+
 		return $information;
 	}
 
@@ -62,7 +64,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
         $this->required_files();
-                
+
 		global $updraftplus;
 		if ( empty( $updraftplus ) && class_exists( 'UpdraftPlus' ) ) {
 			$updraftplus = new UpdraftPlus();
@@ -71,13 +73,13 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$information['error'] = 'Error empty updraftplus';
 			MainWP_Helper::write( $information );
 		}
-        
+
 		if ( isset( $_POST['mwp_action'] ) ) {
 
 			if ( get_option( 'mainwp_updraftplus_ext_enabled' ) !== 'Y' ) {
 				MainWP_Helper::update_option( 'mainwp_updraftplus_ext_enabled', 'Y', 'yes' );
 			}
-            
+
             try {
                 switch ( $_POST['mwp_action'] ) {
                     case 'set_showhide':
@@ -249,7 +251,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	private function connected_html() {
         MainWP_Helper::check_classes_exists('UpdraftPlus_Options');
         MainWP_Helper::check_methods('UpdraftPlus_Options', 'get_updraft_option');
-     
+
 		$vault_settings = UpdraftPlus_Options::get_updraft_option( 'updraft_updraftvault' );
 		if ( !is_array( $vault_settings ) || empty( $vault_settings['token'] ) || empty( $vault_settings['email'] ) ) {
 			return '';
@@ -382,13 +384,13 @@ class MainWP_Child_Updraft_Plus_Backups {
             if ( ! class_exists( 'UpdraftPlus' ) && file_exists( UPDRAFTPLUS_DIR . '/class-updraftplus.php') ) {
                 require_once( UPDRAFTPLUS_DIR . '/class-updraftplus.php' );
             }
-            
+
             if ( ! class_exists( 'UpdraftPlus_Options' ) && file_exists( UPDRAFTPLUS_DIR . '/options.php' ) )  {
                 require_once( UPDRAFTPLUS_DIR . '/options.php' );
             }
         }
     }
-        
+
 	function save_settings() {
 		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 
@@ -539,8 +541,10 @@ class MainWP_Child_Updraft_Plus_Backups {
 							if(is_array($opts) && isset($opts['settings'])) {
 								$settings_key = key($opts['settings']);
 								$opts['settings'][$settings_key]['path']   = $this->replace_tokens($settings[ $key ]['path']);
+                                $opts['settings'][$settings_key]['endpoint']   = $settings[ $key ]['endpoint'];
 							} else {
 								$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
+                                $opts['endpoint']   = $settings[ $key ]['endpoint'];
 							}
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} else if ( 'updraft_ftp' === $key ) {
@@ -595,15 +599,15 @@ class MainWP_Child_Updraft_Plus_Backups {
 							}
 							UpdraftPlus_Options::update_updraft_option( 'updraft_sftp', $opts );
 						} else if ( 'updraft_backblaze' === $key ) {
-							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_backblaze' );                            
+							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_backblaze' );
                             if (!is_array($opts))
                                 $opts = array();
 							if (is_array($opts) && isset($opts['settings'])) {
-								$settings_key = key($opts['settings']); 
+								$settings_key = key($opts['settings']);
                                 $opts['settings'][$settings_key]['account_id'] = $settings[ $key ]['account_id'];
                                 $opts['settings'][$settings_key]['key'] = $settings[ $key ]['key'];
                                 $opts['settings'][$settings_key]['bucket_name'] = $this->replace_tokens( $settings[ $key ]['bucket_name'] );
-                                $opts['settings'][$settings_key]['backup_path'] = $this->replace_tokens( $settings[ $key ]['backup_path'] );                            
+                                $opts['settings'][$settings_key]['backup_path'] = $this->replace_tokens( $settings[ $key ]['backup_path'] );
                                 UpdraftPlus_Options::update_updraft_option( $key, $opts );
                             }
 						} else {
@@ -612,13 +616,13 @@ class MainWP_Child_Updraft_Plus_Backups {
 						$updated = true;
 					}
 				}
-                
-                
+
+
                 if (!isset($settings['do_not_save_remote_settings']) || empty($settings['do_not_save_remote_settings'])) {
-                    UpdraftPlus_Options::update_updraft_option( 'updraft_service', $settings['updraft_service'] );                    
+                    UpdraftPlus_Options::update_updraft_option( 'updraft_service', $settings['updraft_service'] );
                 }
-                
-                
+
+
 				global $updraftplus;
 				if ( isset( $settings['updraft_interval'] ) ) {
 					// fix for premium version
@@ -666,7 +670,10 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	function addons_connect() {
 		if ( ! defined( 'UDADDONS2_SLUG' ) ) {
-			return array( 'error' => 'NO_PREMIUM' );
+            if (is_file(UPDRAFTPLUS_DIR.'/udaddons/updraftplus-addons.php')) require_once(UPDRAFTPLUS_DIR.'/udaddons/updraftplus-addons.php');
+            if ( ! defined( 'UDADDONS2_SLUG' ) ) {
+                return array( 'error' => 'NO_PREMIUM' );
+            }
 		}
 
 		$addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) );
@@ -741,8 +748,6 @@ class MainWP_Child_Updraft_Plus_Backups {
 		// When the options are re-saved, clear any previous cache of the connection status
 		$ehash = substr( md5( $input['email'] ), 0, 23 );
 		delete_site_transient( 'udaddons_connect_' . $ehash );
-
-		// 	add_settings_error( UDADDONS2_SLUG."_options", UDADDONS2_SLUG."_options_nodb", "Whinge, whinge", "error" );
 
 		return $input;
 	}
@@ -829,7 +834,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$ret_info = '';
 		if ( ! $failed ) {
 			$all_tables = $wpdb_obj->get_results( 'SHOW TABLES', ARRAY_N );
-			$all_tables = array_map( create_function( '$a', 'return $a[0];' ), $all_tables );
+			//$all_tables = array_map( create_function( '$a', 'return $a[0];' ), $all_tables );
+            $all_tables = array_map(array($this, 'cb_get_name_base_type'), $all_tables);
+
 			if ( empty( $_POST['prefix'] ) ) {
 				$ret_info .= sprintf( __( '%s table(s) found.', 'updraftplus' ), count( $all_tables ) );
 			} else {
@@ -869,6 +876,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return array( 'r' => $_POST['row'], 'm' => $ret . $ret_after );
 	}
 
+	private function cb_get_name_base_type($a) {
+		return $a[0];
+	}
 
 	function backup_now() {
 		global $updraftplus;
@@ -1024,7 +1034,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		if ( empty( $updraftplus ) ) {
 			return false;
 		}
-        
+
 		// UNIX timestamp
 		$next_scheduled_backup     = wp_next_scheduled( 'updraft_backup' );
 		$next_scheduled_backup_gmt = $next_scheduled_backup_database_gmt = 0;
@@ -1037,11 +1047,12 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$next_scheduled_backup = 'Nothing currently scheduled';
 		}
 
-        
-        MainWP_Helper::check_classes_exists('UpdraftPlus_Options');
+
+        MainWP_Helper::check_classes_exists( array( 'UpdraftPlus_Options', 'UpdraftPlus_Filesystem_Functions' )) ;
         MainWP_Helper::check_methods('UpdraftPlus_Options', 'get_updraft_option');
-        MainWP_Helper::check_methods($updraftplus, array( 'backups_dir_location', 'really_is_writable' ));
-        
+        MainWP_Helper::check_methods('UpdraftPlus_Filesystem_Functions', 'really_is_writable');
+        MainWP_Helper::check_methods($updraftplus, array( 'backups_dir_location' ));
+
 		$next_scheduled_backup_database = wp_next_scheduled( 'updraft_backup_database' );
 		if ( UpdraftPlus_Options::get_updraft_option( 'updraft_interval_database', UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) === UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) {
 			$next_scheduled_backup_database = ( 'Nothing currently scheduled' === $next_scheduled_backup ) ? $next_scheduled_backup : __( 'At the same time as the files backup', 'updraftplus' );
@@ -1057,7 +1068,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		$updraft_dir     = $updraftplus->backups_dir_location();
-		$backup_disabled = ( $updraftplus->really_is_writable( $updraft_dir ) ) ? 0 : 1;
+        $backup_disabled = (UpdraftPlus_Filesystem_Functions::really_is_writable($updraft_dir)) ? 0 : 1;
 
 		$current_timegmt = time();
 		$current_time    = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $current_timegmt ), 'D, F j, Y H:i' );
@@ -1092,7 +1103,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	private function next_scheduled_backups() {
 		global $updraftplus;
-	
+
 		$next_scheduled_backup_gmt = $next_scheduled_backup_database_gmt = 0;
 
         // UNIX timestamp
@@ -1107,7 +1118,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$next_scheduled_backup = __('Nothing currently scheduled', 'updraftplus');
 			$files_not_scheduled = true;
 		}
-		
+
 		$next_scheduled_backup_database = wp_next_scheduled('updraft_backup_database');
 		if (UpdraftPlus_Options::get_updraft_option('updraft_interval_database',UpdraftPlus_Options::get_updraft_option('updraft_interval')) == UpdraftPlus_Options::get_updraft_option('updraft_interval')) {
 			if (isset($files_not_scheduled)) {
@@ -1129,7 +1140,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				$database_not_scheduled = true;
 			}
 		}
-        
+
 		$current_timegmt = time();
 		$current_time    = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $current_timegmt ), 'D, F j, Y H:i' );
 
@@ -1142,8 +1153,11 @@ class MainWP_Child_Updraft_Plus_Backups {
             <td style="width: 124px; vertical-align:top; margin: 0px; padding: 0px;">' . __( 'Time now', 'updraftplus' ) . ': </td><td style="color:blue; margin: 0px; padding: 0px;">' . $current_time . '</td>
         </table>';
 
+        MainWP_Helper::check_classes_exists( array( 'UpdraftPlus_Filesystem_Functions' ) ) ;
+        MainWP_Helper::check_methods('UpdraftPlus_Filesystem_Functions', 'really_is_writable');
+
 		$updraft_dir     = $updraftplus->backups_dir_location();
-		$backup_disabled = ( $updraftplus->really_is_writable( $updraft_dir ) ) ? 0 : 1;
+		$backup_disabled = (UpdraftPlus_Filesystem_Functions::really_is_writable($updraft_dir)) ? 0 : 1;
 
 		$out = array(
 			'n'                          => $html,
@@ -1167,7 +1181,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	private function deleteset() {
 		global $updraftplus;
-        
+
         if (method_exists($updraftplus, 'get_backup_history')) {
             $backups   = $updraftplus->get_backup_history();
         } else if (class_exists('UpdraftPlus_Backup_History')) {
@@ -1301,12 +1315,12 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 	public function build_historystatus() {
-        
-        MainWP_Helper::check_classes_exists('UpdraftPlus_Backup_History');                
+
+        MainWP_Helper::check_classes_exists('UpdraftPlus_Backup_History');
         MainWP_Helper::check_methods('UpdraftPlus_Backup_History', 'get_history');
-                
+
 		$backup_history = UpdraftPlus_Backup_History::get_history();
-		
+
 		$output         = $this->existing_backup_table( $backup_history );
 
 		if ( ! empty( $messages ) && is_array( $messages ) ) {
@@ -1392,13 +1406,13 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$updraftplus->jobdata_set( 'job_type', 'download' );
 		$updraftplus->jobdata_set( 'job_time_ms', $updraftplus->job_time_ms );
 
-		// Retrieve the information from our backup history		
+		// Retrieve the information from our backup history
         if (method_exists($updraftplus, 'get_backup_history')) {
             $backup_history   = $updraftplus->get_backup_history();
         } else if (class_exists('UpdraftPlus_Backup_History')) {
             $backup_history = UpdraftPlus_Backup_History::get_history();
         }
-        
+
 		// Base name
 		$file = $backup_history[ $timestamp ][ $type ];
 
@@ -1554,13 +1568,13 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	public function restore_alldownloaded() {
 		global $updraftplus;
-		
+
         if (method_exists($updraftplus, 'get_backup_history')) {
             $backups   = $updraftplus->get_backup_history();
         } else if (class_exists('UpdraftPlus_Backup_History')) {
             $backups = UpdraftPlus_Backup_History::get_history();
         }
-        
+
 		$updraft_dir = $updraftplus->backups_dir_location();
 
 		$timestamp = (int) $_POST['timestamp'];
@@ -1701,7 +1715,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			);
 		}
 	}
-	
+
 	// not used
 	public function restoreBackup() {
 
@@ -2116,7 +2130,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		return true;
 	}
-	
+
 	public function option_filter_template( $val ) {
 		global $updraftplus;
 
@@ -2487,10 +2501,10 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	}
 
-	
+
 	public function analyse_db_file($timestamp, $res, $db_file = false, $header_only = false) {
 		global $updraftplus;
-		
+
 		$mess = array();
 		$warn = array();
 		$err = array();
@@ -2853,9 +2867,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 					$collate_select_html .= '<option value="'.esc_attr($collate).'" '.selected($collate, $similar_type_collate, $echo = false).' '.implode(' ', $option_other_attr).'>'.esc_html($collate).'</option>';
 				}
 				$collate_select_html .= '</select>';
-				
+
 				$info['addui'] = empty($info['addui']) ? $collate_select_html : $info['addui'].'<br>'.$collate_select_html;
-				
+
 				if ($db_charset_forbidden) {
 					$collate_change_on_charset_selection_data = array(
 						'db_supported_collations' => $db_supported_collations,
@@ -2921,7 +2935,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return array($mess, $warn, $err, $info);
 	}
 
-	
+
 	private function gzopen_for_read( $file, &$warn, &$err ) {
 		if ( ! function_exists( 'gzopen' ) || ! function_exists( 'gzread' ) ) {
 			$missing = '';
@@ -3014,13 +3028,13 @@ class MainWP_Child_Updraft_Plus_Backups {
 		if ( false === $backup_history ) {
 			$backup_history = UpdraftPlus_Backup_History::get_history();
 		}
-		
+
 		if ( empty( $backup_history ) ) {
 			return '<p><em>' . __( 'You have not yet made any backups.', 'updraftplus' ) . '</em></p>';
 		}
 
         MainWP_Helper::check_methods($updraftplus, array( 'backups_dir_location', 'get_backupable_file_entities' ));
-                
+
 		$updraft_dir         = $updraftplus->backups_dir_location();
 		$backupable_entities = $updraftplus->get_backupable_file_entities( true, true );
 
@@ -3094,7 +3108,7 @@ ENDHERE;
 					} else if ( method_exists($updraftplus, 'is_db_encrypted') && $updraftplus->is_db_encrypted( $db ) ) {
 						$entities .= '/dbcrypted=1/';
 					}
-					
+
 					$ret .= $this->download_db_button( 'db', $key, $esc_pretty_date, $nonce_field, $backup, $accept );
 				}
 
@@ -3959,7 +3973,7 @@ ENDHERE;
 		return $value;
 	}
 
-	public function get_sync_data() {	
+	public function get_sync_data() {
         $this->required_files();
 		return $this->get_updraft_data();
 	}
