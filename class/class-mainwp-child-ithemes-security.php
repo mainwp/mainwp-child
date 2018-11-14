@@ -47,7 +47,7 @@ class MainWP_Child_iThemes_Security {
 		global $mainwp_itsec_modules_path;
 
 		$mainwp_itsec_modules_path = ITSEC_Core::get_core_dir() . '/modules/';
-		MainWP_Helper::update_option( 'mainwp_ithemes_ext_enabled', 'Y', 'yes' );
+
 
 		if ( isset( $_POST['mwp_action'] ) ) {
 			switch ( $_POST['mwp_action'] ) {
@@ -116,9 +116,8 @@ class MainWP_Child_iThemes_Security {
 	}
 
 	public function ithemes_init() {
-		if ( get_option( 'mainwp_ithemes_ext_enabled' ) !== 'Y' ) {
+        if (!$this->is_plugin_installed)
 			return;
-		}
 
 		if ( get_option( 'mainwp_ithemes_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );

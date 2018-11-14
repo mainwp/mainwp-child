@@ -26,7 +26,7 @@ class MainWP_Child_Back_Up_Wordpress {
         if ( version_compare( phpversion(), '5.3', '<' ) ) {
             return;
         }
-		if ( get_option( 'mainwp_backupwordpress_ext_enabled' ) !== 'Y' ) return;
+
 		if (!$this->is_plugin_installed) return;
 
         add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
@@ -55,9 +55,6 @@ class MainWP_Child_Back_Up_Wordpress {
 			$information['error'] = 'NO_BACKUPWORDPRESS';
 			MainWP_Helper::write( $information );
 		}
-
-        if (false === get_option('mainwp_backupwordpress_ext_enabled'))
-            MainWP_Helper::update_option( 'mainwp_backupwordpress_ext_enabled', 'Y' );
 
 		if ( isset( $_POST['mwp_action'] ) ) {
 			switch ( $_POST['mwp_action'] ) {

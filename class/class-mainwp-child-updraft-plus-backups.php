@@ -75,11 +75,6 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-
-			if ( get_option( 'mainwp_updraftplus_ext_enabled' ) !== 'Y' ) {
-				MainWP_Helper::update_option( 'mainwp_updraftplus_ext_enabled', 'Y', 'yes' );
-			}
-
             try {
                 switch ( $_POST['mwp_action'] ) {
                     case 'set_showhide':
@@ -3071,14 +3066,19 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$entities        = '';
 
 			$non       = $backup['nonce'];
-			$rawbackup = "<h2>$esc_pretty_date ($key)</h2><pre><p>" . esc_attr( print_r( $backup, true ) );
-			if ( ! empty( $non ) ) {
-				$jd = $updraftplus->jobdata_getarray( $non );
-				if ( ! empty( $jd ) && is_array( $jd ) ) {
-					$rawbackup .= '</p><p>' . esc_attr( print_r( $jd, true ) );
-				}
-			}
-			$rawbackup .= '</p></pre>';
+
+
+//			$rawbackup = "<h2>$esc_pretty_date ($key)</h2><pre><p>" . esc_attr( print_r( $backup, true ) );
+//			if ( ! empty( $non ) ) {
+//				$jd = $updraftplus->jobdata_getarray( $non );
+//				if ( ! empty( $jd ) && is_array( $jd ) ) {
+//					$rawbackup .= '</p><p>' . esc_attr( print_r( $jd, true ) );
+//				}
+//			}
+//			$rawbackup .= '</p></pre>';
+
+            // to fix
+            $rawbackup = '' ; //$updraftplus_admin->raw_backup_info($backup_history, $key, $non);
 
 			$jobdata = $updraftplus->jobdata_getarray( $non );
 
@@ -3908,9 +3908,8 @@ ENDHERE;
 	}
 
 	public function updraftplus_init() {
-		if ( get_option( 'mainwp_updraftplus_ext_enabled' ) !== 'Y' ) {
-			return;
-		}
+		if (!$this->is_plugin_installed)
+            return;
 
 		if ( get_option( 'mainwp_updraftplus_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );

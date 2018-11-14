@@ -746,7 +746,21 @@ class MainWP_Client_Report {
 				$value = current( $value );
 				if ( 'author_meta' === $meta_key || 'user_meta' === $meta_key ) {
 					$value = maybe_unserialize( $value );
-					$value = $value['display_name'];
+                    $value = $value['display_name'];
+
+                    if ( 'author_meta' === $meta_key && $value == '' && $context == 'comments') {
+                        $value = __( 'Guest', 'mainwp-child-reports' );
+                    }
+                    // to fix empty author value
+                    if ( empty($value) ) {
+                        if (isset($value['agent']) && !empty($value['agent'])) {
+                            $value = $value['agent'];
+                        }
+                    }
+                    
+                    if (!is_string($value)) {
+                        $value = '';
+                    }
 				}
 			}
 		}

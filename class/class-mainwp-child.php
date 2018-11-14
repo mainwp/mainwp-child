@@ -57,7 +57,11 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 					}
 
 					if ( empty( $nonce ) ) {
-						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action ) ) ) . '</mainwp>' );
+                        // to help tracing the conflict verify nonce with other plugins
+						@ob_start();
+                        @debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+                        $stackTrace = "\n" . @ob_get_clean();
+						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' .$stackTrace) ) ) . '</mainwp>' );
 					}
 
                     // To fix verify nonce conflict #1
@@ -523,7 +527,7 @@ class MainWP_Child {
 	}
 
 	public function pre_current_active_plugins() {
-        if (isset($_GET['_detect_plugins_updates']) && $_GET['_detect_plugins_updates'] = 'yes') {
+        if (isset($_GET['_detect_plugins_updates']) && $_GET['_detect_plugins_updates'] == 'yes') {
              // to fix some premium plugins update notification
             $current = get_site_transient( 'update_plugins' );
             set_site_transient( 'update_plugins', $current );
@@ -852,7 +856,7 @@ class MainWP_Child {
 			if ( isset( self::$subPages ) && is_array( self::$subPages ) ) {
 				foreach ( self::$subPages as $subPage ) {
 					?>
-					<a class="nav-tab pos-nav-tab <?php if ( $shownPage == $subPage['slug'] ) { echo 'nav-tab-active'; } ?>" tab-slug="<?php echo $subPage['slug']; ?>" href="options-general.php?page=<?php echo $subPage['page']; ?>"><?php echo $subPage['title']; ?></a>
+					<a class="nav-tab pos-nav-tab <?php if ( $shownPage == $subPage['slug'] ) { echo 'nav-tab-active'; } ?>" tab-slug="<?php echo esc_attr($subPage['slug']); ?>" href="options-general.php?page=<?php echo rawurlencode($subPage['page']); ?>"><?php echo esc_html($subPage['title']); ?></a>
 					<?php
 				}
 			}
@@ -1854,7 +1858,7 @@ class MainWP_Child {
 				add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 			}
 
-			$plugins = explode( ',', urldecode( $_POST['list'] ) );
+  			$plugins = explode( ',', urldecode( $_POST['list'] ) );
 
 			// To fix: backupbuddy update
 			if ( in_array( 'backupbuddy/backupbuddy.php', $plugins ) ) {
@@ -1887,6 +1891,9 @@ class MainWP_Child {
 			remove_all_filters('pre_set_site_transient_update_plugins');
 
 			$information['plugin_updates'] = get_plugin_updates();
+
+             // to support cached premium plugins update info, hooking in the bulk_upgrade()
+            add_filter( 'pre_site_transient_update_plugins', array( $this, 'set_cached_update_plugins' ) );
 
 			$plugins        = explode( ',', urldecode( $_POST['list'] ) );
 			$premiumPlugins = array();
@@ -1953,6 +1960,10 @@ class MainWP_Child {
                     MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
                 }
 			}
+
+            remove_filter( 'pre_site_transient_update_plugins', array( $this, 'set_cached_update_plugins' ), 10 );
+            delete_site_transient( 'mainwp_update_plugins_cached' ); // to fix cached update info
+
 			if ( count( $premiumPlugins ) > 0 ) {
 				$mwp_premium_updates = apply_filters( 'mwp_premium_perform_update', array() );
 				if ( is_array( $mwp_premium_updates ) && is_array( $premiumPlugins ) ) {
@@ -2167,6 +2178,29 @@ class MainWP_Child {
 		$information['sync'] = $this->getSiteStats( array(), false );
 		MainWP_Helper::write( $information );
 	}
+
+    public function set_cached_update_plugins( $false = false, $_transient_data = null ) {
+
+		if ( ! is_object( $_transient_data ) ) {
+			$_transient_data = new stdClass;
+		}
+
+        $pre = false;
+		$cached_update_info = get_site_transient( 'mainwp_update_plugins_cached' );
+        if ( is_array($cached_update_info) && count($cached_update_info) > 0 ) {
+            foreach( $cached_update_info as $slug => $plugin_update ) {
+                if ( !isset( $_transient_data->response[ $slug ] ) && isset($plugin_update->update) ) {
+                    $_transient_data->response[ $slug ] = $plugin_update->update;
+                    $pre = true;
+                }
+            }
+        }
+
+        if ($pre == false)
+            return $false;
+
+        return $_transient_data;
+    }
 
 	function hookFixOptimizePressThemeUpdate( $transient ) {
 		if ( ! defined( 'OP_FUNC' ) ) {

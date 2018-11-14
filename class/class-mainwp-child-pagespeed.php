@@ -18,12 +18,12 @@ class MainWP_Child_Pagespeed {
 		if ( is_plugin_active( 'google-pagespeed-insights/google-pagespeed-insights.php' ) ) {
 			$this->is_plugin_installed = true;
 		}
-        
+
         if (!$this->is_plugin_installed)
             return;
-        
+
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
-        
+
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 
@@ -34,7 +34,7 @@ class MainWP_Child_Pagespeed {
 			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
-			MainWP_Helper::update_option('mainwp_pagespeed_ext_enabled', 'Y', 'yes');
+
 			switch ( $_POST['mwp_action'] ) {
 				case 'save_settings':
 					$information = $this->save_settings();
@@ -60,13 +60,12 @@ class MainWP_Child_Pagespeed {
 	}
 
 	public function init() {
-		if ( get_option( 'mainwp_pagespeed_ext_enabled' ) !== 'Y' ) {
-			return;
-		}
-
+        if (!$this->is_plugin_installed)
+            return;
+        
 		if ( get_option( 'mainwp_pagespeed_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'hide_plugin' ) );
-			add_action('admin_menu', array($this, 'hide_menu'), 999);			
+			add_action('admin_menu', array($this, 'hide_menu'), 999);
 		}
 		$this->init_cron();
 	}
@@ -261,14 +260,14 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {       
-        if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {					
+	public function syncOthersData( $information, $data = array() ) {
+        if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {
             try{
                 $information['syncPageSpeedData'] = $this->get_sync_data();
             } catch(Exception $e) {
-                
+
             }
-        }        
+        }
 		return $information;
 	}
     // ok

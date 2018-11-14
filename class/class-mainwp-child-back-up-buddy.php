@@ -23,10 +23,6 @@ class MainWP_Child_Back_Up_Buddy {
 			return;
 		}
 
-		if ( get_option( 'mainwp_backupbuddy_ext_enabled' ) !== 'Y' ) {
-			return;
-		}
-
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 
 		add_action( 'wp_ajax_mainwp_backupbuddy_download_archive', array( $this, 'download_archive' ) );
@@ -194,9 +190,6 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( ! $this->is_backupbuddy_installed ) {
 			MainWP_Helper::write( array( 'error' => __( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
 		}
-
-		if (get_option( 'mainwp_backupbuddy_ext_enabled' ) !== 'Y')
-			MainWP_Helper::update_option( 'mainwp_backupbuddy_ext_enabled', 'Y' );
 
 		if ( ! class_exists( 'backupbuddy_core' ) ) {
 			require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
@@ -757,7 +750,7 @@ class MainWP_Child_Back_Up_Buddy {
             $data['media_root'] =  backupbuddy_core::get_media_root();
             $data['additional_tables'] = $this->pb_additional_tables();
             $data['abspath'] =  ABSPATH;
-            
+
             $getOverview = backupbuddy_api::getOverview();
             $data['editsSinceLastBackup'] =  $getOverview['editsSinceLastBackup'] ;
 

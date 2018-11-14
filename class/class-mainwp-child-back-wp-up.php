@@ -110,7 +110,7 @@ class MainWP_Child_Back_WP_Up {
 		if ( ! isset( $_POST['action'] ) ) {
 			$information = array( 'error' => __( 'Missing action.', $this->plugin_translate ) );
 		} else {
-			MainWP_Helper::update_option( 'mainwp_backwpup_ext_enabled', 'Y' );
+
 			switch ( $_POST['action'] ) {
 				case 'backwpup_update_settings':
 					$information = $this->update_settings();
@@ -194,9 +194,6 @@ class MainWP_Child_Back_WP_Up {
 	}
 
 	public function init() {
-		if ( get_option( 'mainwp_backwpup_ext_enabled' ) !== 'Y' ) {
-			return;
-		}
 
 		if (!$this->is_backwpup_installed)
 			return;
@@ -223,14 +220,44 @@ class MainWP_Child_Back_WP_Up {
 			return;
 
         try {
-            MainWP_Helper::check_classes_exists(array('BackWPup'));
-            MainWP_Helper::check_methods('BackWPup', array( 'get_registered_destinations', 'get_destination' ));
 
+            MainWP_Helper::check_classes_exists(array('BackWPup_File', 'BackWPup_Job'));
+            MainWP_Helper::check_methods('BackWPup_File', array( 'get_absolute_path' ));
+            MainWP_Helper::check_methods('BackWPup_Job', array( 'read_logheader' ));
 
-            $destinations = BackWPup::get_registered_destinations();
-            $jobdests = $this->get_destinations_list();
+            $lasttime_logged = MainWP_Helper::get_lasttime_backup('backwpup');
 
-            if ( !empty( $jobdests ) ) {
+            $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
+            $log_folder = BackWPup_File::get_absolute_path( $log_folder );
+            $log_folder = untrailingslashit( $log_folder );
+
+            //load logs
+            $logfiles = array();
+            if ( is_readable( $log_folder ) && $dir = opendir( $log_folder ) ) {
+                while ( ( $file = readdir( $dir ) ) !== FALSE ) {
+                    $log_file = $log_folder . '/' . $file;
+                    if ( is_file( $log_file ) && is_readable( $log_file ) && FALSE !== strpos( $file, 'backwpup_log_' ) && FALSE !== strpos( $file, '.html' ) ) {
+                        $logfiles[] = $file;
+                    }
+                }
+                closedir( $dir );
+            }
+
+            $log_items = array();
+            foreach ( $logfiles as $mtime => $logfile ) {
+                $meta = BackWPup_Job::read_logheader( $log_folder . '/' . $logfile );
+                if (!isset($meta['logtime']) || $meta['logtime'] < $lasttime_logged)
+                    continue;
+
+                if (isset($meta['errors']) && !empty($meta['errors'])) {
+                    continue; // do not logging backups have errors
+                }
+
+                $log_items[$mtime] = $meta;
+                $log_items[$mtime]['file'] = $logfile;
+            }
+
+            if ( !empty( $log_items ) ) {
                 $job_types = array(
                     'DBDUMP' => __('Database backup', 'mainwp-child'),
                     'FILE' => __('File backup', 'mainwp-child'),
@@ -239,41 +266,36 @@ class MainWP_Child_Back_WP_Up {
                     'DBCHECK' => __('Check database tables', 'mainwp-child')
                 );
 
-                foreach ($jobdests as $jobdest) {
-                    list( $jobid, $dest ) = explode( '_', $jobdest );
-                    if ( ! empty( $destinations[ $dest ][ 'class' ] ) ) {
+                $new_lasttime_logged = $lasttime_logged;
 
-                        $job_job_types = BackWPup_Option::get( $jobid, 'type' );
-
-                        $backup_type = '';
-                        foreach($job_job_types as $typeid) {
-                            if (isset( $job_types[$typeid] )) {
-                                $backup_type .= ' + ' . $job_types[$typeid];
-                            }
-                        }
-                        if (empty($backup_type))
-                            $backup_type = 'BackWPup';
-                        else {
-                            $backup_type = ltrim($backup_type, ' + ');
-                        }
-
-                        $dest_object = BackWPup::get_destination( $dest );
-                        $items = $dest_object->file_get_list( $jobdest );
-                        //if no items brake
-                        if ( $items ) {
-                            foreach ( $items as $ma ) {
-                                if (isset($ma['time'])) {
-                                    $backup_time = $ma[ "time" ];
-                                    $message = 'BackWPup backup finished (' . $backup_type . ')';
-                                    $destination = "N/A";
-                                    if (!empty($backup_time)) {
-                                        do_action( 'mainwp_backwpup_backup', $message, $backup_type, $backup_time );
-                                        MainWP_Helper::update_lasttime_backup( 'backwpup', $backup_time ); // to support backup before update feature
-                                    }
-                                }
-                            }
+                foreach ($log_items as $log) {
+                    $backup_time = $log[ "logtime" ];
+                    if ($backup_time < $lasttime_logged) {
+                         // small than last backup time then skip
+                        continue;
+                    }
+                    $job_job_types = explode('+', $log['type']);
+                    $backup_type = '';
+                    foreach($job_job_types as $typeid) {
+                        if (isset( $job_types[$typeid] )) {
+                            $backup_type .= ' + ' . $job_types[$typeid];
                         }
                     }
+
+                    if (empty($backup_type)) {
+                        continue;
+                    } else {
+                        $backup_type = ltrim($backup_type, ' + ');
+                    }
+                    $message = 'BackWPup backup finished (' . $backup_type . ')';
+                    do_action( 'mainwp_backwpup_backup', $message, $backup_type, $backup_time );
+
+                    if ($new_lasttime_logged < $backup_time)
+                        $new_lasttime_logged = $backup_time;
+                }
+
+                if ($new_lasttime_logged > $lasttime_logged ) {
+                    MainWP_Helper::update_lasttime_backup( 'backwpup', $new_lasttime_logged ); // to support backup before update feature
                 }
             }
         } catch (Exception $ex) {

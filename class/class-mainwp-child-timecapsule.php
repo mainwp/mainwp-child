@@ -531,7 +531,7 @@ function get_sibling_files_callback_wptc() {
 		$detailed = $this->get_activity_log($sub_records);
 
 		if (isset($load_more) && $load_more) {
-			$detailed .= '<tr><td></td><td><a style="cursor:pointer; position:relative" class="wptc_activity_log_load_more" action_id="'.$action_id.'" limit="'.$to_limit.'">Load more</a></td><td></td></tr>';
+			$detailed .= '<tr><td></td><td><a style="cursor:pointer; position:relative" class="wptc_activity_log_load_more" action_id="'. esc_attr( $action_id ).'" limit="'. esc_attr( $to_limit ) .'">Load more</a></td><td></td></tr>';
 		}
 
         return array( 'result' => $detailed);
