@@ -6,7 +6,7 @@
   Author: MainWP
   Author URI: https://mainwp.com
   Text Domain: mainwp-child
-  Version: 3.5.1
+  Version: 3.5.2
  */
 if ( ( isset( $_REQUEST['heatmap'] ) && '1' === $_REQUEST['heatmap'] ) || ( isset( $_REQUEST['mainwpsignature'] ) && ( ! empty( $_REQUEST['mainwpsignature'] ) ) ) ) {
 	header( 'X-Frame-Options: ALLOWALL' );

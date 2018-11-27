@@ -593,7 +593,18 @@ class MainWP_Child_Updraft_Plus_Backups {
 								}
 							}
 							UpdraftPlus_Options::update_updraft_option( 'updraft_sftp', $opts );
-						} else if ( 'updraft_backblaze' === $key ) {
+						} else if ('updraft_webdav_settings' == $key) {
+                            $opts = UpdraftPlus_Options::get_updraft_option( 'updraft_webdav' );
+                            if (!is_array($opts))
+                                $opts = array();
+
+                            if(is_array($opts) && isset($opts['settings'])) {
+								$settings_key = key($opts['settings']);
+                                $opts['settings'][$settings_key]['url'] = $settings[ $key ]['url'];
+                                UpdraftPlus_Options::update_updraft_option( 'updraft_webdav', $opts );
+                            }
+                            
+                        } else if ( 'updraft_backblaze' === $key ) {
 							$opts = UpdraftPlus_Options::get_updraft_option( 'updraft_backblaze' );
                             if (!is_array($opts))
                                 $opts = array();

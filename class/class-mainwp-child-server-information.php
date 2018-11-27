@@ -22,9 +22,9 @@ class MainWP_Child_Server_Information {
                             if (isset($_POST['warnings']))
                                 $warnings = intval($_POST['warnings']);
                             else
-                                $warnings = self::getWarnings();                            
+                                $warnings = self::getWarnings();
                             $dismissWarnings['warnings'] = $warnings;
-			}                        
+			}
 			MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
 		}
 	}
@@ -1123,7 +1123,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getSSLWarning() {
-		$conf = array( 'private_key_bits' => 384 );
+		$conf = array( 'private_key_bits' => 2048 );
 		$str = '';
 		if ( function_exists( 'openssl_pkey_new' ) ) {
 			$res  = @openssl_pkey_new( $conf );
@@ -1618,20 +1618,20 @@ class MainWP_Child_Server_Information {
 		</div>
 		<?php
 	}
-        
+
         public static function renderConnectionDetails() {
             $branding_title = 'MainWP';
             if ( MainWP_Child_Branding::is_branding() ) {
 	            $branding_title = MainWP_Child_Branding::get_branding();
             }
-            
+
             global $current_user;
 	        $uniqueId = get_option('mainwp_child_uniqueId');
             $details = array(
                 'siteurl' => array(
                                 'title' => __('Site URL', 'mainwp-child'),
                                 'value' => get_bloginfo( 'url' ),
-                                'desc' => get_bloginfo( 'url' )                            
+                                'desc' => get_bloginfo( 'url' )
                             ),
                 'adminuser' => array(
                                 'title' => __('Administrator name', 'mainwp-child'),
@@ -1656,7 +1656,7 @@ class MainWP_Child_Server_Information {
                 'ssl_version' => array(
                                 'title' => __('SSL version', 'mainwp-child'),
                                 'value' => __('Auto Detect', 'mainwp-child'),
-                                'desc' => __('Auto Detect', 'mainwp-child'),                            
+                                'desc' => __('Auto Detect', 'mainwp-child'),
                             ),
 
             );
@@ -1671,7 +1671,7 @@ class MainWP_Child_Server_Information {
                             </div>
                             <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
                                 <tbody>
-                                    <?php                            
+                                    <?php
                                         foreach ($details as $row) {
                                         ?>
                                             <tr>
@@ -1680,13 +1680,13 @@ class MainWP_Child_Server_Information {
                                                 <td><?php echo $row['desc']; ?></td>
                                             </tr>
                                         <?php
-                                        }                            
-                                    ?>                                    	
+                                        }
+                                    ?>
                                 </tbody>
                             </table>
 			</div>
 		</div>
 		<?php
 	}
-        
+
 }

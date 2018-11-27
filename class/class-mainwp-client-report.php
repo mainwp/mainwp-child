@@ -576,6 +576,18 @@ class MainWP_Client_Report {
 				}
 			}
 
+            // to avoid WC order_note, action_log
+            if ( 'comments' === $context ) {
+                if ( isset( $record->meta ) ) {
+                    if ( isset( $record->meta[ 'comment_type' ] ) && is_array($record->meta[ 'comment_type' ])) {
+                        $cmtype = current($record->meta[ 'comment_type' ]);
+                        if ( $cmtype == 'order_note' || $cmtype == 'action_log') {
+                            continue;
+                        }
+                    }
+                }
+            }
+
 			$token_values = array();
 
 			foreach ( $tokens as $token ) {
@@ -757,7 +769,7 @@ class MainWP_Client_Report {
                             $value = $value['agent'];
                         }
                     }
-                    
+
                     if (!is_string($value)) {
                         $value = '';
                     }

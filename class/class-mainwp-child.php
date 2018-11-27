@@ -107,7 +107,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.5';
+	public static $version = '3.5.2';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -176,7 +176,8 @@ class MainWP_Child {
         'wp_staging'            => 'wp_staging',
 		'disconnect'            => 'disconnect',
 		'time_capsule'          => 'time_capsule',
-        'extra_excution'        => 'extra_execution',
+        'extra_excution'        => 'extra_execution', // deprecated
+        'extra_execution'        => 'extra_execution',
 	);
 
 	private $FTP_ERROR = 'Failed! Please, add FTP details for automatic updates.';
@@ -3843,8 +3844,16 @@ class MainWP_Child {
                 }
 
                 if ( !empty( $favi ) ){
-                    if ( false === strpos( $favi, 'http' ) ) {
-                        $favi_url = $site_url . $favi;
+                    if ( false === strpos( $favi, 'http' )) {
+                         if (0 === strpos( $favi, '//' )) {
+                             if (0 === strpos( $site_url, 'https' )) {
+                                  $favi_url = 'https:' . $favi;
+                             } else {
+                                 $favi_url = 'http:' . $favi;
+                             }
+                         } else {
+                            $favi_url = $site_url . $favi;
+                         }
                     } else {
                         $favi_url = $favi;
                     }

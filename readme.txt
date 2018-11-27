@@ -7,7 +7,7 @@ Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 5.0
-Stable tag: 3.5.1
+Stable tag: 3.5.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.5.2 - 11-27-18 =
+* Fixed: an issue with detecting updates when a custom branding is applied
+* Fixed: an issue with passing WebDav remote storage info for the UpdraftPlus Extension
+* Fixed: an issue with grabbing fresh child site favicons
+* Updated: process to skip WooCommerce order notes in the comments section for Client Reports
 
 = 3.5.1 - 11-14-18 =
 * Fixed: an issue with detecting the Wordfence status info
