@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.0
-Stable tag: 3.5.2
+Tested up to: 5.0.1
+Stable tag: 3.5.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,19 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.5.3 - 12-19-18 =
+* Fixed: an issue with the X-Frame-Options configuration
+* Fixed: an issue with clearing WP Rocket cache
+* Fixed: an issue with saving BackWPup settings
+* Fixed: multiple compatibility issues for the Bulk Settings Manger extension
+* Fixed: an issue with submitting the Bulk Settings Manger keys on child sites protected with the HTTP Basic Authentication
+* Fixed: an issue with creating buckets in Backblaze remote option caused by disallowed characters
+* Fixed: an issue with tokens usage in the UpdraftPlus Webdav remote storage settings
+* Added: support for new WP Staging plugin options
+* Updated: update detection process in order to improve performance on some hosts
+* Updated: disabled site size calculation function as default state
+* Updated: support for the latest Wordfence version
 
 = 3.5.2 - 11-27-18 =
 * Fixed: an issue with detecting updates when a custom branding is applied
