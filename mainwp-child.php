@@ -6,11 +6,11 @@
   Author: MainWP
   Author URI: https://mainwp.com
   Text Domain: mainwp-child
-  Version: 3.5.2
+  Version: 3.5.3
  */
-if ( ( isset( $_REQUEST['heatmap'] ) && '1' === $_REQUEST['heatmap'] ) || ( isset( $_REQUEST['mainwpsignature'] ) && ( ! empty( $_REQUEST['mainwpsignature'] ) ) ) ) {
-	header( 'X-Frame-Options: ALLOWALL' );
-}
+//if ( ( isset( $_REQUEST['heatmap'] ) && '1' === $_REQUEST['heatmap'] ) || ( isset( $_REQUEST['mainwpsignature'] ) && ( ! empty( $_REQUEST['mainwpsignature'] ) ) ) ) {
+//	header( 'X-Frame-Options: ALLOWALL' );
+//}
 //header('X-Frame-Options: GOFORIT');
 include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from wordpress
 
@@ -35,7 +35,7 @@ function mainwp_child_autoload( $class_name ) {
 
 if ( function_exists( 'spl_autoload_register' ) ) {
 	spl_autoload_register( 'mainwp_child_autoload' );
-} 
+}
 
 $mainWPChild = new MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
 register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );

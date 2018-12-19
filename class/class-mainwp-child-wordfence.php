@@ -666,33 +666,35 @@ class MainWP_Child_Wordfence {
             $lastcheck = time() - 3600 * 24 * 10; // check 10 days ago
         }
 
-        $status_table = $wpdb->base_prefix . 'wfStatus';
+        $table_wfStatus = wfDB::networkTable('wfStatus');
+
         // to fix prepare sql empty
-        $sql = sprintf( "SELECT * FROM {$status_table} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
-        $sql .= " 'Scan Complete. %';";
+        $sql = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
+        $sql .= " 'Scan Complete.%';";
         $rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
 
+        $scan_time = array();
         if ( $rows ) {
             while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
-                $message = "Wordfence scan completed";
-                $scan_time = $row['ctime'];
+                $scan_time[$row['ctime']] = $row['msg'];
+            }
+        }
 
-                $sql = sprintf( "SELECT * FROM {$status_table} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $scan_time, $scan_time + 100 ); // to get nearest SUM_FINAL msg
+        if ($scan_time) {
+            $message = "Wordfence scan completed";
+            foreach($scan_time as $ctime => $details) {
+                $sql = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg
                 $sql .= " 'SUM_FINAL:Scan complete.%';";
+
                 $sum_rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
                 $result = '';
                 if ($sum_rows) {
                     $sum_row = MainWP_Child_DB::fetch_array( $sum_rows );
                     if (is_array($sum_row) && isset($sum_row['msg'])) {
-                        if ( false !== strpos( $sum_row['msg'], 'Congratulations, no problems found' ) ) {
-                            $result = 'No issues detected';
-                        } else {
-                            $result = 'Issues Detected';
-                        }
+                        $result = $sum_row['msg'];
                     }
                 }
-                $details = $row['msg'];
-                do_action( 'mainwp_reports_wordfence_scan', $message, $scan_time, $details, $result );
+                do_action( 'mainwp_reports_wordfence_scan', $message, $ctime, $details, $result );
             }
         }
 
@@ -830,10 +832,11 @@ class MainWP_Child_Wordfence {
 
     public function count_attacks_blocked($maxAgeDays) {
             global $wpdb;
+            $table_wfBlockedIPLog = wfDB::networkTable('wfBlockedIPLog');
             $interval = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
             return $wpdb->get_var(<<<SQL
 SELECT SUM(blockCount) as blockCount
-FROM {$wpdb->prefix}wfBlockedIPLog
+FROM {$table_wfBlockedIPLog}
 WHERE unixday >= {$interval}
 SQL
                 );
@@ -841,10 +844,9 @@ SQL
 
 
 	function get_lastscan() {
-		global $wpdb;
 		$wfdb = new wfDB();
-		$p = $wpdb->base_prefix;
-		$ctime = $wfdb->querySingle("SELECT MAX(ctime) FROM $p"."wfStatus WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'");
+        $table_wfStatus = wfDB::networkTable('wfStatus');
+		$ctime = $wfdb->querySingle("SELECT MAX(ctime) FROM {$table_wfStatus} WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'");
 		return $ctime;
 	}
 
@@ -1145,9 +1147,8 @@ SQL
             if (in_array('other_WFNet', $saving_opts)) {
                 if ( ! $opts['other_WFNet'] ) {
                     $wfdb = new wfDB();
-                    global $wpdb;
-                    $p = $wpdb->base_prefix;
-                    $wfdb->queryWrite( "delete from $p" . 'wfBlocks where wfsn=1 and permanent=0' );
+                    $table_wfBlocks7 = wfDB::networkTable('wfBlocks7');
+                    $wfdb->queryWrite( "delete from {$table_wfBlocks7} where wfsn=1 and permanent=0" );
                 }
             }
 
@@ -1158,7 +1159,7 @@ SQL
                     $regenerateHtaccess = true;
                 }
             }
-            //error_log(print_r($opts, true));
+            
 //            $to_fix_boolean_values = array(
 //                'scansEnabled_checkGSB',
 //                'spamvertizeCheck',
@@ -1372,9 +1373,8 @@ SQL
 
 			if ( ! $opts['other_WFNet'] ) {
 				$wfdb = new wfDB();
-				global $wpdb;
-				$p = $wpdb->base_prefix;
-				$wfdb->queryWrite( "delete from $p" . 'wfBlocks where wfsn=1 and permanent=0' );
+                $table_wfBlocks7 = wfDB::networkTable('wfBlocks7');
+				$wfdb->queryWrite( "delete from {$table_wfBlocks7} where wfsn=1 and permanent=0" );
 			}
 
 			$regenerateHtaccess = false;
@@ -1493,51 +1493,109 @@ SQL
 	}
 
 	public function export_settings(){
-		/** @var wpdb $wpdb */
-		global $wpdb;
 
+
+        $export = array();
+
+		//Basic Options
 		$keys = wfConfig::getExportableOptionsKeys();
-		$export = array();
-		foreach($keys as $key){
+		foreach ($keys as $key) {
 			$export[$key] = wfConfig::get($key, '');
 		}
-		$export['scanScheduleJSON'] = json_encode(wfConfig::get_ser('scanSched', array()));
-		$export['schedMode'] = wfConfig::get('schedMode', '');
 
-		// Any user supplied blocked IPs.
-		$export['_blockedIPs'] = $wpdb->get_results('SELECT *, HEX(IP) as IP FROM ' . $wpdb->base_prefix . 'wfBlocks WHERE wfsn = 0 AND permanent = 1');
+		//Serialized Options
+		$export['scanSched'] = wfConfig::get_ser('scanSched', array());
 
-		// Any advanced blocking stuff too.
-		$export['_advancedBlocking'] = $wpdb->get_results('SELECT * FROM ' . $wpdb->base_prefix . 'wfBlocksAdv');
+		//Table-based Options
+		$export['blocks'] = wfBlock::exportBlocks();
 
+		//Make the API call
 		try {
 			$api = new wfAPI(wfConfig::get('apiKey'), wfUtils::getWPVersion());
-			$res = $api->call('export_options', array(), $export);
-			if($res['ok'] && $res['token']){
+			$res = $api->call('export_options', array(), array('export' => json_encode($export)));
+			if ($res['ok'] && $res['token']) {
 				return array(
 					'ok' => 1,
 					'token' => $res['token'],
 				);
-			} else {
-				throw new Exception("Invalid response: " . var_export($res, true));
 			}
-		} catch(Exception $e){
-			return array('errorExport' => "An error occurred: " . $e->getMessage());
+			else if ($res['err']) {
+				return array('errorExport' => __("An error occurred: ", 'wordfence') . $res['err']);
+			}
+			else {
+				throw new Exception(__("Invalid response: ", 'wordfence') . var_export($res, true));
+			}
+		}
+		catch (Exception $e) {
+			return array('errorExport' => __("An error occurred: ", 'wordfence') . $e->getMessage());
 		}
 	}
 
 	public function import_settings(){
 		$token = $_POST['token'];
-		try {
-			$totalSet = wordfence::importSettings($token);
-			return array(
-				'ok' => 1,
-				'totalSet' => $totalSet,
-				'settings' => $this->get_settings()
-			);
-		} catch(Exception $e){
+        try {
+			$api = new wfAPI(wfConfig::get('apiKey'), wfUtils::getWPVersion());
+			$res = $api->call('import_options', array(), array('token' => $token));
+			if ($res['ok'] && $res['export']) {
+				$totalSet = 0;
+				$import = @json_decode($res['export'], true);
+				if (!is_array($import)) {
+					return array('errorImport' => __("An error occurred: Invalid options format received.", 'wordfence'));
+				}
+
+				//Basic Options
+				$keys = wfConfig::getExportableOptionsKeys();
+				$toSet = array();
+				foreach ($keys as $key) {
+					if (isset($import[$key])) {
+						$toSet[$key] = $import[$key];
+					}
+				}
+
+				if (count($toSet)) {
+					$validation = wfConfig::validate($toSet);
+					$skipped = array();
+					if ($validation !== true) {
+						foreach ($validation as $error) {
+							$skipped[$error['option']] = $error['error'];
+							unset($toSet[$error['option']]);
+						}
+					}
+
+					$totalSet += count($toSet);
+					wfConfig::save(wfConfig::clean($toSet));
+				}
+
+				//Serialized Options
+				if (isset($import['scanSched']) && is_array($import['scanSched'])) {
+					wfConfig::set_ser('scanSched', $import['scanSched']);
+					wfScanner::shared()->scheduleScans();
+					$totalSet++;
+				}
+
+				//Table-based Options
+				if (isset($import['blocks']) && is_array($import['blocks'])) {
+					wfBlock::importBlocks($import['blocks']);
+					$totalSet += count($import['blocks']);
+				}
+
+				return array(
+					'ok' => 1,
+					'totalSet' => $totalSet,
+                    'settings' => $this->get_settings()
+				);
+			}
+			else if ($res['err']) {
+				return array('errorImport' => "An error occurred: " . $res['err']);
+			}
+			else {
+				throw new Exception("Invalid response: " . var_export($res, true));
+			}
+		}
+		catch (Exception $e) {
 			return array('errorImport' => "An error occurred: " . $e->getMessage());
 		}
+
 	}
 
 	function get_settings() {
@@ -1553,15 +1611,15 @@ SQL
 
 	function ticker() {
 		$wfdb = new wfDB();
-		global $wpdb;
-		$p = $wpdb->base_prefix;
 
 		$serverTime = $wfdb->querySingle( 'select unix_timestamp()' );
 
+        $table_wfStatus = wfDB::networkTable('wfStatus');
+
 		$jsonData   = array(
 			'serverTime' => $serverTime,
-                        'serverMicrotime' => microtime(true),
-			'msg'        => $wfdb->querySingle( "select msg from $p" . 'wfStatus where level < 3 order by ctime desc limit 1' ),
+            'serverMicrotime' => microtime(true),
+            'msg'        => $wfdb->querySingle( "select msg from {$table_wfStatus} where level < 3 order by ctime desc limit 1" ),
 		);
 
 		$events     = array();

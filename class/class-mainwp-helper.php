@@ -1417,6 +1417,22 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
 		return function_exists( 'openssl_verify' );
 	}
 
+    public static function is_screen_with_update() {
+
+        if ( ( defined('DOING_AJAX') && DOING_AJAX )  || ( defined('DOING_CRON') && DOING_CRON ) )
+            return false;
+
+        if (function_exists('get_current_screen')) {
+            $screen = get_current_screen();
+            if ( $screen ) {
+                if ( $screen->base == 'update-core' && $screen->parent_file == 'index.php'  ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public static function check_files_exists( $files = array(), $return = false ) {
             $missing = array();
             if (is_array($files)) {

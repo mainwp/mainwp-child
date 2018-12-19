@@ -1423,7 +1423,10 @@ class MainWP_Child_Back_WP_Up {
 
 		update_site_option( 'backwpup_messages', array() );
 
-		$backwpup = new BackWPup_Page_Settings();
+        $settings_views = array();
+		$settings_updaters = array();
+
+		$backwpup = new BackWPup_Page_Settings($settings_views, $settings_updaters);
 		$backwpup->save_post_form();
 
 		if ( class_exists( 'BackWPup_Pro' ) ) {

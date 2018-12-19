@@ -123,6 +123,9 @@ class MainWP_Child_Skeleton_Key {
 
 		$full_url = add_query_arg( $get_args, get_site_url() . $url );
 
+        global $mainWPChild;
+        add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+
 		$response = wp_remote_post( $full_url, $post_args );
 
 		if ( is_wp_error( $response ) ) {

@@ -57,6 +57,14 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 					}
 
 					if ( empty( $nonce ) ) {
+
+                        // To fix verify nonce conflict #1
+                        // this is fake post field to fix some conflict of wp_verify_nonce()
+                        // just return false to unverify nonce, does not exit
+                        if ( isset($_POST[$action]) && ($_POST[$action] == 'mainwp-bsm-unverify-nonce')) {
+                            return false;
+                        }
+
                         // to help tracing the conflict verify nonce with other plugins
 						@ob_start();
                         @debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
@@ -64,8 +72,8 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' .$stackTrace) ) ) . '</mainwp>' );
 					}
 
-                    // To fix verify nonce conflict #1
-                    // this is fake nonce to fix some conflict of wp_verify_nonce
+                    // To fix verify nonce conflict #2
+                    // this is fake nonce to fix some conflict of wp_verify_nonce()
                     // just return false to unverify nonce, does not exit
                     if ($nonce == 'mainwp-bsm-unverify-nonce') {
                         return false;
@@ -87,8 +95,8 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 						return 2;
 					}
 
-                    // To fix verify nonce conflict #2
-                    // this is fake post field to fix some conflict of wp_verify_nonce
+                    // To fix verify nonce conflict #3
+                    // this is fake post field to fix some conflict of wp_verify_nonce()
                     // just return false to unverify nonce, does not exit
                     if ( isset($_POST[$action]) && ($_POST[$action] == 'mainwp-bsm-unverify-nonce')) {
                         return false;
@@ -107,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.5.2';
+	public static $version = '3.5.3';
 	private $update_version = '1.3';
 
 	private $callableFunctions = array(
@@ -1344,8 +1352,8 @@ class MainWP_Child {
 			exit();
 		}
 
-		remove_action( 'admin_init', 'send_frame_options_header' );
-		remove_action( 'login_init', 'send_frame_options_header' );
+//		remove_action( 'admin_init', 'send_frame_options_header' );
+//		remove_action( 'login_init', 'send_frame_options_header' );
 
 		// Call Heatmap
 		if ( 'yes' === get_option( 'heatMapExtensionLoaded' ) ) {
@@ -3729,7 +3737,7 @@ class MainWP_Child {
 		}
 		$information['categories'] = $categories;
 		$get_file_size = apply_filters('mainwp-child-get-total-size', true);
-        if ($get_file_size) {
+        if ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) {
             $max_exe = ini_get( 'max_execution_time' ); // to fix issue of some hosts have limit of execution time
             if ($max_exe > 20) {
                 $information['totalsize']  = $this->getTotalFileSize();

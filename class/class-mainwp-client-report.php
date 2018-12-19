@@ -439,6 +439,19 @@ class MainWP_Client_Report {
 									}
 								}
 
+                                // to avoid WC order_note, action_log
+                                if ( 'comments' === $context ) {
+                                    if ( isset( $record->meta ) ) {
+                                        if ( isset( $record->meta[ 'comment_type' ] ) && is_array($record->meta[ 'comment_type' ])) {
+                                            $cmtype = current($record->meta[ 'comment_type' ]);
+                                            if ( $cmtype == 'order_note' || $cmtype == 'action_log') {
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                }
+
+
 							}
 
 							$count ++;
@@ -716,7 +729,20 @@ class MainWP_Client_Report {
 					case 'details':
 					case 'result':
 						if ( 'wordfence' === $context || 'maintenance' === $context ) {
-							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+                            $meta_value  = $this->get_stream_meta_data( $record, $data );
+                            // to fix
+                            if ('wordfence' === $context && $data == 'result') {
+                                // SUM_FINAL:Scan complete. You have xxx new issues to fix. See below.
+                                // SUM_FINAL:Scan complete. Congratulations, no new problems found
+                                if (stripos($meta_value, 'Congratulations')) {
+                                    $meta_value = 'No issues detected';
+                                } else if (stripos($meta_value, 'You have')) {
+                                    $meta_value = 'Issues Detected';
+                                } else {
+                                    $meta_value = '';
+                                }
+                            }
+							$token_values[ $token ] = $meta_value;
 						}
 						break;
 					case 'destination':   // backup cases
@@ -781,7 +807,7 @@ class MainWP_Client_Report {
 	}
 
 	function set_showhide() {
-		MainWP_Helper::update_option( 'mainwp_creport_ext_branding_enabled', 'Y', 'yes' );
+//		MainWP_Helper::update_option( 'mainwp_creport_ext_branding_enabled', 'Y', 'yes' );
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_creport_branding_stream_hide', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
@@ -790,21 +816,41 @@ class MainWP_Client_Report {
 	}
 
 	public function creport_init() {
-		if ( get_option( 'mainwp_creport_ext_branding_enabled' ) !== 'Y' ) {
-			return;
-		}
+//		if ( get_option( 'mainwp_creport_ext_branding_enabled' ) !== 'Y' ) {
+//			return;
+//		}
 
+        $hide_nag = false;
 		if ( get_option( 'mainwp_creport_branding_stream_hide' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'creport_branding_plugin' ) );
 			add_action( 'admin_menu', array( $this, 'creport_remove_menu' ) );
-			add_filter( 'site_transient_update_plugins', array( &$this, 'remove_update_nag' ) );
+            $hide_nag = true;
 		}
+
+        if ( MainWP_Child_Branding::is_branding() ) {
+            $hide_nag = true;
+        }
+
+        if ($hide_nag) {
+            add_filter( 'site_transient_update_plugins', array( &$this, 'remove_update_nag' ) );
+            add_filter( 'mainwp_child_hide_update_notice', array( &$this, 'hide_update_notice' ) );
+        }
 	}
 
+    function hide_update_notice( $slugs ) {
+        $slugs[] = 'mainwp-child-reports/mainwp-child-reports.php';
+        return $slugs;
+    }
+
 	function remove_update_nag( $value ) {
-		if ( isset( $_POST['mainwpsignature'] ) ) {
+        if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
+
+        if (! MainWP_Helper::is_screen_with_update()) {
+            return $value;
+        }
+
 		if ( isset( $value->response['mainwp-child-reports/mainwp-child-reports.php'] ) ) {
 			unset( $value->response['mainwp-child-reports/mainwp-child-reports.php'] );
 		}

@@ -1250,7 +1250,8 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getServerGetawayInterface() {
-		echo esc_html( $_SERVER['GATEWAY_INTERFACE'] );
+        $gate = isset($_SERVER['GATEWAY_INTERFACE']) ? $_SERVER['GATEWAY_INTERFACE'] : '';
+		echo esc_html( $gate );
 	}
 
 	public static function getServerIP() {

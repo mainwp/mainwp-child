@@ -270,6 +270,17 @@ class MainWP_Child_Branding {
 		if ( ! is_array( $extra_setting ) ) {
 			$extra_setting = array();
 		}
+
+        // to hide updates notice
+        if (is_admin()) {
+            // back end
+            add_action( 'in_admin_footer', array( $this, 'in_admin_footer' ) );
+        } else if (is_user_logged_in()) {
+            // front end
+            add_action( 'add_admin_bar_menus', array( $this, 'add_admin_bar_menus' ));
+        }
+
+
 		$cancelled_branding = ( get_option( 'mainwp_child_branding_disconnected' ) === 'yes' ) && ! get_option( 'mainwp_branding_preserve_branding' );
 		if ( $cancelled_branding ) {
 			return;
@@ -277,9 +288,10 @@ class MainWP_Child_Branding {
 		// enable branding in case child plugin is deactive
 		add_filter( 'all_plugins', array( $this, 'branding_child_plugin' ) );
 
-//		if ( self::is_branding() ) {
-//			add_filter( 'site_transient_update_plugins', array( &$this, 'remove_update_nag' ) );
-//		}
+		if ( self::is_branding() ) {
+			add_filter( 'site_transient_update_plugins', array( &$this, 'remove_update_nag' ) );
+            add_filter( 'mainwp_child_hide_update_notice', array( &$this, 'hide_update_notice' ) );
+		}
 
 		if ( get_option( 'mainwp_branding_ext_enabled' ) !== 'Y' ) {
 			return;
@@ -856,6 +868,135 @@ class MainWP_Child_Branding {
 		return 'MainWP';
 	}
 
+    public function add_admin_bar_menus() {
+
+        $hide_slugs = apply_filters('mainwp_child_hide_update_notice' , array());
+
+        if (!is_array($hide_slugs))
+            $hide_slugs = array();
+
+        if (count($hide_slugs) == 0) {
+            return;
+        }
+
+        if (!function_exists('get_plugin_updates')) {
+            include_once( ABSPATH . '/wp-admin/includes/update.php' );
+        }
+
+        $count_hide = 0;
+
+        $updates = get_plugin_updates();
+        if (is_array($updates)) {
+            foreach($updates as $slug => $data) {
+                if (in_array($slug, $hide_slugs)) {
+                    $count_hide++;
+                }
+            }
+        }
+
+        if ( $count_hide == 0) {
+            return;
+        }
+        // js for front end
+        ?>
+        <script type="text/javascript">
+            var mainwpCountHide = <?php echo esc_attr($count_hide); ?>;
+			document.addEventListener("DOMContentLoaded", function(event) {
+                var $adminBarUpdates              = document.querySelector( '#wp-admin-bar-updates .ab-label' ),
+                    itemCount;
+
+                if (typeof($adminBarUpdates) !== 'undefined' && $adminBarUpdates !== null) {
+                    itemCount = $adminBarUpdates.textContent;
+                    itemCount = parseInt(itemCount);
+
+                    itemCount -= mainwpCountHide;
+                    if (itemCount < 0)
+                        itemCount = 0;
+
+                    $adminBarUpdates.textContent = itemCount;
+                }
+			});
+		</script><?php
+
+    }
+
+    public function in_admin_footer() {
+
+        $hide_slugs = apply_filters('mainwp_child_hide_update_notice' , array());
+
+        if (!is_array($hide_slugs))
+            $hide_slugs = array();
+
+        $count_hide = 0;
+
+        $updates = get_plugin_updates();
+        if (is_array($updates)) {
+            foreach($updates as $slug => $data) {
+                if (in_array($slug, $hide_slugs)) {
+                    $count_hide++;
+                }
+            }
+        }
+
+        if ( $count_hide == 0) {
+            return;
+        }
+
+        // to tweaks counting of update notification display
+        // js for admin end
+        ?>
+        <script type="text/javascript">
+            var mainwpCountHide = <?php echo esc_attr($count_hide); ?>;
+			document.addEventListener("DOMContentLoaded", function(event) {
+                if (typeof(pagenow) !== 'undefined' && pagenow == 'plugins') {
+                    <?php
+                    // hide update notice row
+                    if (in_array('mainwp-child/mainwp-child.php', $hide_slugs)) {
+                        ?>
+                        var el = document.querySelector('tr#mainwp-child-update');
+                        if (typeof(el) !== 'undefined' && el !== null) {
+                            el.style.display = 'none';
+                        }
+                        <?php
+                    }
+                    // hide update notice row
+                    if (in_array('mainwp-child-reports/mainwp-child-reports.php', $hide_slugs)) {
+                        ?>
+                        var el = document.querySelector('tr#mainwp-child-reports-update');
+                        if (typeof(el) !== 'undefined' && el !== null) {
+                            el.style.display = 'none';
+                        }
+                        <?php
+                    }
+                    ?>
+                }
+
+                if (mainwpCountHide > 0) {
+                    jQuery( document ).ready( function () {
+
+                        var $adminBarUpdates              = jQuery( '#wp-admin-bar-updates' ),
+                            $pluginsNavMenuUpdateCount    = jQuery( 'a[href="plugins.php"] .update-plugins' ),
+                            itemCount;
+                        itemCount = $adminBarUpdates.find( '.ab-label' ).text();
+                        itemCount -= mainwpCountHide;
+                        if (itemCount < 0)
+                            itemCount = 0;
+
+                        itemPCount = $pluginsNavMenuUpdateCount.find( '.plugin-count' ).text();
+                        itemPCount -= mainwpCountHide;
+
+                        if (itemPCount < 0)
+                            itemPCount = 0;
+
+                        $adminBarUpdates.find( '.ab-label' ).text(itemCount);
+                        $pluginsNavMenuUpdateCount.find( '.plugin-count' ).text( itemPCount );
+
+                    });
+                }
+			});
+		</script><?php
+    }
+
 	public function branding_map_meta_cap( $caps, $cap, $user_id, $args ) {
 
 		// this is causing of some plugin's menu not added
@@ -894,15 +1035,26 @@ class MainWP_Child_Branding {
 		}
 	}
 
-//	function remove_update_nag( $value ) {
-//		if ( isset( $_POST['mainwpsignature'] ) ) {
-//			return $value;
-//		}
-//		if ( isset( $value->response['mainwp-child/mainwp-child.php'] ) ) {
-//			unset( $value->response['mainwp-child/mainwp-child.php'] );
-//		}
-//		return $value;
-//	}
+    function hide_update_notice( $slugs ) {
+        $slugs[] = 'mainwp-child/mainwp-child.php';
+        return $slugs;
+    }
+
+
+	function remove_update_nag( $value ) {
+        if ( isset( $_POST['mainwpsignature'] ) ) {
+			return $value;
+		}
+
+        if (! MainWP_Helper::is_screen_with_update()) {
+            return $value;
+        }
+
+		if ( isset( $value->response['mainwp-child/mainwp-child.php'] ) ) {
+			unset( $value->response['mainwp-child/mainwp-child.php'] );
+		}
+		return $value;
+	}
 
 	public function update_child_header( $plugins, $header ) {
 		$plugin_key = '';

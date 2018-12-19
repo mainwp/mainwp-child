@@ -32,13 +32,24 @@ class MainWP_Child_Back_Up_Buddy {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 			add_filter( 'site_transient_update_plugins', array( &$this, 'remove_update_nag' ) );
+            add_filter( 'mainwp_child_hide_update_notice', array( &$this, 'hide_update_notice' ) );
 		}
 	}
+
+    function hide_update_notice( $slugs ) {
+        $slugs[] = 'backupbuddy/backupbuddy.php';
+        return $slugs;
+    }
 
 	function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
+
+        if (! MainWP_Helper::is_screen_with_update()) {
+            return $value;
+        }
+
 		if ( isset( $value->response['backupbuddy/backupbuddy.php'] ) ) {
 			unset( $value->response['backupbuddy/backupbuddy.php'] );
 		}
