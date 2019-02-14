@@ -318,6 +318,11 @@ class MainWP_Security {
 	}
 
     public static function remove_readme( $force = false ) {
+
+        // to prevent remove readme.html file on WPE hosts
+        if ( MainWP_Helper::is_wp_engine() )
+            return true;
+
 		if ( $force || self::get_security_option( 'readme' ) ) {
 			if ( @file_exists( ABSPATH . 'readme.html' ) ) {
 				if ( ! @unlink( ABSPATH . 'readme.html' ) ) {

@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.0.1
-Stable tag: 3.5.3
+Tested up to: 5.0.3
+Stable tag: 3.5.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,17 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.5.4 - 2-14-19 =
+* Fixed: issues with displaying broken links data for specific setups
+* Fixed: compatibility issues with the latest PageSpeed Insights plugin version
+* Fixed: an issue with publishing "future" posts
+* Fixed: an issue with sending email alerts in specific setups
+* Fixed: an issue with saving code snippets in wp-config.php when the file is in a custom location
+* Fixed: an issue with clearing unused scheduled cron jobs
+* Added: support for the new PageSpeed Insights plugin options
+* Updated: disabled the "Remove readme.html" security check feature for WPEngine hosted child sites 
+* Updated: support for detecting premium themes updates
 
 = 3.5.3 - 12-19-18 =
 * Fixed: an issue with the X-Frame-Options configuration

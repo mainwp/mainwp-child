@@ -256,7 +256,7 @@ class MainWP_Client_Report {
 			$args['date_to'] = date( 'Y-m-d H:i:s', $args['date_to'] );
 		}
 
-		if ( MainWP_Child_Branding::is_branding() ) {
+		if ( MainWP_Child_Branding::Instance()->is_branding() ) {
 			$args['hide_child_reports'] = 1;
 		}
 
@@ -316,6 +316,8 @@ class MainWP_Client_Report {
 
 	function get_other_tokens_data( $records, $tokens, &$skip_records ) {
 
+        // convert context name of tokens to context name saved in child report
+        // some context are not difference
 		$convert_context_name = array(
 			'comment' => 'comments',
 			'plugin'  => 'plugins',
@@ -489,19 +491,19 @@ class MainWP_Client_Report {
 			'backup'   => 'mainwp_backup',
 		);
 
-		$some_allowed_data = array(
-			'ID',
-			'name',
-			'title',
-			'oldversion',
-			'currentversion',
-			'date',
-			'time',
-			'count',
-			'author',
-			'old.version',
-			'current.version',
-		);
+//		$some_allowed_data = array(
+//			'ID',
+//			'name',
+//			'title',
+//			'oldversion',
+//			'currentversion',
+//			'date',
+//			'time',
+//			'count',
+//			'author',
+//			'old.version',
+//			'current.version',
+//		);
 
 		$context   = $action = '';
 		$str_tmp   = str_replace( array( '[', ']' ), '', $section );
@@ -807,28 +809,31 @@ class MainWP_Client_Report {
 	}
 
 	function set_showhide() {
-//		MainWP_Helper::update_option( 'mainwp_creport_ext_branding_enabled', 'Y', 'yes' );
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
-		MainWP_Helper::update_option( 'mainwp_creport_branding_stream_hide', $hide, 'yes' );
+        $hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+        MainWP_Child_Branding::Instance()->save_branding_options('hide_child_reports', $hide);
+        MainWP_Helper::update_option( 'mainwp_creport_branding_stream_hide', $hide, 'yes' ); // to compatible with old child reports
 		$information['result'] = 'SUCCESS';
 
-		return $information;
+        return $information;
 	}
 
 	public function creport_init() {
-//		if ( get_option( 'mainwp_creport_ext_branding_enabled' ) !== 'Y' ) {
-//			return;
-//		}
 
+        $branding_opts = MainWP_Child_Branding::Instance()->get_branding_options();
         $hide_nag = false;
-		if ( get_option( 'mainwp_creport_branding_stream_hide' ) === 'hide' ) {
-			add_filter( 'all_plugins', array( $this, 'creport_branding_plugin' ) );
-			add_action( 'admin_menu', array( $this, 'creport_remove_menu' ) );
-            $hide_nag = true;
-		}
 
-        if ( MainWP_Child_Branding::is_branding() ) {
+        // check setting of 'hide_child_reports'
+        if ( isset($branding_opts['hide_child_reports']) && $branding_opts['hide_child_reports'] == 'hide' ) {
+            add_filter( 'all_plugins', array( $this, 'creport_branding_plugin' ) );
+            add_action( 'admin_menu', array( $this, 'creport_remove_menu' ) );
             $hide_nag = true;
+        }
+
+        if ( ! $hide_nag ) {
+            // check child branding settings
+            if ( MainWP_Child_Branding::Instance()->is_branding() ) {
+                $hide_nag = true;
+            }
         }
 
         if ($hide_nag) {

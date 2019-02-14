@@ -33,19 +33,20 @@ class MainWP_Child_Plugins_Check {
 	}
 
 	public function __construct() {
-		$this->schedule_watchdog();
+        if ( get_option('mainwp_child_plugintheme_days_outdate') ) {
+            $this->schedule_watchdog();
 
-		add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
-		add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
+            add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
+            add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
 
-		add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
+            add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
 
-		//add_filter( 'plugin_row_meta', array( $this, 'change_plugin_row_meta' ), 10, 4 );
+            //add_filter( 'plugin_row_meta', array( $this, 'change_plugin_row_meta' ), 10, 4 );
 
-		add_filter( 'plugins_api_args', array( $this, 'modify_plugin_api_search_query' ), 10, 2 );
+            add_filter( 'plugins_api_args', array( $this, 'modify_plugin_api_search_query' ), 10, 2 );
 
-		add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
-
+            add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
+        }
 	}
 
 	private function cleanup_basic() {

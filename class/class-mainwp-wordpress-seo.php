@@ -50,7 +50,7 @@ class MainWP_Wordpress_SEO {
 				if ( $this->import_seo_settings( $temporary_file ) ) {
 					$information['success'] = true;
 				} else {
-					throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
+					throw new Exception( __( 'Settings could not be imported.', 'wordpress-seo' ) );
 				}
 			}
 		} catch ( Exception $e ) {

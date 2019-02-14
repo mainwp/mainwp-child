@@ -198,7 +198,7 @@ class MainWP_Clone {
                                 </div>
                                 <p><?php _e("The site selected above will replace this site's files and database", 'mainwp-child'); ?></p>
                             </div>
-							<div class="mainwp-child_clonebutton_container"><?php if ( ! $error ) { ?>                                
+							<div class="mainwp-child_clonebutton_container"><?php if ( ! $error ) { ?>
                                 <a href="#"
                                                                                                          id="mainwp-child_clonebutton"
 							                                                                             class="button-primary"><?php esc_html_e( 'Clone website', 'mainwp-child' ); ?></a><?php } ?>
@@ -223,12 +223,12 @@ class MainWP_Clone {
                 <br/>
             <form
 				action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>"
-                method="post" 
+                method="post"
                 enctype="multipart/form-data">
-                <input type="file" name="file" id="file"/> 
-                <input type="submit" 
-                	   name="submit" 
-                	   id="filesubmit" 
+                <input type="file" name="file" id="file"/>
+                <input type="submit"
+                	   name="submit"
+                	   id="filesubmit"
                 	   class="button button-primary"
                 	   disabled="disabled"
 					   value="<?php esc_attr_e( 'Clone/Restore Website', 'mainwp-child' ); ?>"/>
@@ -287,7 +287,7 @@ class MainWP_Clone {
 	        </div>
 			<?php
 			if ( $uploadFile ) {
-				esc_html_e( 'Upload successful.', 'mainwp-child' ); ?> <a href="#" 
+				esc_html_e( 'Upload successful.', 'mainwp-child' ); ?> <a href="#"
 																		  id="mainwp-child_uploadclonebutton"
                                                               			  class="button-primary"
 			                                                  			  file="<?php echo esc_attr( $uploadFile ); ?>"><?php esc_html_e( 'Restore Website', 'mainwp-child' ); ?></a><?php
@@ -300,26 +300,19 @@ class MainWP_Clone {
 			?>
 			<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
                         <?php
-                        $branding_msg = '';
-                        if ( MainWP_Child_Branding::is_branding() ) {
-                                $branding_title = MainWP_Child_Branding::get_branding();
-                                $branding_msg = 'If you have a FULL backup created by basic ' . esc_html( stripslashes( $branding_title ) ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
+                        $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+                        if ( $branding_title != '' ) {
+                            $branding_msg = 'If you have a FULL backup created by basic ' . esc_html( stripslashes( $branding_title ) ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
+                        } else {
+                            $branding_msg = esc_html__( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
                         }
                         ?>
-			<em>
-                            <?php
-                            if ($branding_msg != '') {
-                                echo $branding_msg ;
-                            } else {
-                                esc_html_e( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
-                            }
-                            ?>
-                        <br/>
+                        <em> <?php echo $branding_msg ; ?> <br/>
 				<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?></em><br/><br/>
-			<form action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>" 
+			<form action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>"
 				  method="post"
                   enctype="multipart/form-data">
-                  <input type="file" name="file" id="file"/> 
+                  <input type="file" name="file" id="file"/>
                   <input type="submit"
                          name="submit"
                          class="button button-primary"
@@ -332,7 +325,7 @@ class MainWP_Clone {
             </div>
         </div>
 			<?php
-		
+
 		self::renderCloneFromServer();
 		self::renderJavaScript();
 	}
@@ -350,7 +343,7 @@ class MainWP_Clone {
 
 		$page = $_REQUEST['page'];
 
-		$sitesToClone = get_option( 'mainwp_child_clone_sites' );		
+		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 		$url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
 
 		$dirs        = MainWP_Helper::getMainWPDir( 'backup', false );
@@ -895,7 +888,7 @@ class MainWP_Clone {
             } );
 
         </script>
-		<?php		
+		<?php
 	}
 
 	public static function renderStyle() {

@@ -66,7 +66,7 @@ class MainWP_Child_Server_Information {
 				var data = {
 					action: 'mainwp-child_dismiss_warnings',
 					what: pAction,
-                                        warnings: <?php echo intval($warnings); ?>
+                    warnings: <?php echo intval($warnings); ?>
 				};
 
 				jQuery.ajax( {
@@ -537,11 +537,11 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function render() {
-		$branding_title = 'MainWP Child';
-        $isBranding = false;
-		if ( MainWP_Child_Branding::is_branding() ) {
-			$branding_title = MainWP_Child_Branding::get_branding();
-            $isBranding = true;
+        $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+        $isBranding = true;
+		if ( $branding_title == '' ) {
+            $branding_title = 'MainWP Child';
+            $isBranding = false;
 		}
 
 		?>
@@ -956,10 +956,10 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function checkDirectoryMainWPDirectory( $write = true ) {
-		$branding_title = 'MainWP';
-		if ( MainWP_Child_Branding::is_branding() ) {
-			$branding_title = MainWP_Child_Branding::get_branding();
-		}
+        $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+        if ($branding_title == '')
+            $branding_title = 'MainWP';
+
 		$branding_title .= ' Upload Directory';
 
 		try {
@@ -1009,7 +1009,7 @@ class MainWP_Child_Server_Information {
 		?>
 		<tr class="mwp-not-generate-row">
 			<td></td>
-			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::is_branding() ) ? '' : $pDirectory ); ?>
+			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::Instance()->is_branding() ) ? '' : $pDirectory ); ?>
 			</td>
 			<td><?php echo esc_html( $pCheck ); ?></td>
 			<td><?php echo esc_html( $pResult ); ?></td>
@@ -1467,14 +1467,12 @@ class MainWP_Child_Server_Information {
 		$lines = array_filter( $lines );
 
 		if ( empty( $lines ) ) {
-            if ( MainWP_Child_Branding::is_branding() ) {
-	            $branding_title = MainWP_Child_Branding::get_branding();
-	            $msg = esc_html( stripslashes( $branding_title ) ) . ' is unable to find your error logs, please contact your host for server error logs.';
-            } else {
-                $msg = esc_html__( 'MainWP is unable to find your error logs, please contact your host for server error logs.', 'mainwp-child' );
+            $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+            if ($branding_title == '') {
+                $branding_title = 'MainWP';
             }
+            $msg = esc_html( stripslashes( $branding_title ) ) . ' is unable to find your error logs, please contact your host for server error logs.';
 			echo '<tr><td colspan="2">' . $msg  . '</td></tr>';
-
 			return;
 		}
 
@@ -1621,10 +1619,9 @@ class MainWP_Child_Server_Information {
 	}
 
         public static function renderConnectionDetails() {
-            $branding_title = 'MainWP';
-            if ( MainWP_Child_Branding::is_branding() ) {
-	            $branding_title = MainWP_Child_Branding::get_branding();
-            }
+            $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+            if ($branding_title == '')
+                $branding_title = 'MainWP';
 
             global $current_user;
 	        $uniqueId = get_option('mainwp_child_uniqueId');

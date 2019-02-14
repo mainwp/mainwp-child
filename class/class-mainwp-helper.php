@@ -263,18 +263,21 @@ class MainWP_Helper {
 			}
 		}
 
+        // current user may be connected admin or alternative admin
+        $current_uid = $current_user->ID;
 		//Set up a new post (adding addition information)
-		$usr = get_user_by( 'login', $_POST['user'] );
+		//$usr = get_user_by( 'login', $_POST['user'] );
 		//$new_post['post_author'] = $current_user->ID;
-		$is_robot_post = false;
+
+		$is_robot_post = false; // retirement soon
 		if ( isset( $_POST['isMainWPRobot'] ) && ! empty( $_POST['isMainWPRobot'] ) ) {
 			$is_robot_post = true;
 		}
 
-		$post_author = isset( $new_post['post_author'] ) ? $new_post['post_author'] : $usr->ID;
-		if ( $is_robot_post ) {
+		$post_author = isset( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
+		if ( $is_robot_post ) { // retirement soon
 			if ( 1 === $post_author ) {
-				$new_post['post_author'] = $usr->ID;
+				$new_post['post_author'] = $current_uid;
 			} else if ( ! is_numeric( $post_author ) ) {
 				$user_author = get_user_by( 'login', $post_author );
 				if ( $user_author ) {
@@ -289,12 +292,12 @@ class MainWP_Helper {
 			if ( ! empty( $_author ) ) {
 				$new_post['post_author'] = $_author->ID;
 			} else {
-				$new_post['post_author'] = $usr->ID;
+				$new_post['post_author'] = $current_uid;
 			}
 			unset( $new_post['custom_post_author'] );
 		}
 
-		$post_author             = ! empty( $post_author ) ? $post_author : $usr->ID;
+		$post_author             = ! empty( $post_author ) ? $post_author : $current_uid;
 		$new_post['post_author'] = $post_author;
 
 		$is_ezine_post = ! empty( $post_custom['_ezine_post_article_source'] ) ? true : false;
@@ -1431,6 +1434,10 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
             }
         }
         return false;
+    }
+
+    public static function is_wp_engine() {
+        return function_exists( 'is_wpe' ) && is_wpe();
     }
 
     public static function check_files_exists( $files = array(), $return = false ) {
