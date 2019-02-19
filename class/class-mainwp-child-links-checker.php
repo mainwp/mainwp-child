@@ -1,5 +1,18 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: Broken Link Checker
+ * Plugin URI: https://wordpress.org/plugins/broken-link-checker/
+ * Author: Janis Elsts, Vladimir Prelovac
+ *
+ * The code is used for the MainWP Broken Links Checker Extension
+ * Extension URL: https://mainwp.com/extension/broken-links-checker/
+ *
+*/
+
 class MainWP_Child_Links_Checker {
 
 	public static $instance = null;

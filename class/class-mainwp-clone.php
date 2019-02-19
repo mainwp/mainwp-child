@@ -331,7 +331,7 @@ class MainWP_Clone {
 	}
 
 	/*
-    Plugin Name: Add From Server
+    Plugin-Name: Add From Server
     Version: 3.2.0.3
     Plugin URI: http://dd32.id.au/wordpress-plugins/add-from-server/
     Description: Plugin to allow the Media Manager to add files from the webservers filesystem. <strong>Note:</strong> All files are copied to the uploads directory.
@@ -707,7 +707,7 @@ class MainWP_Clone {
             cloneBackupDownloadPolling = function ( siteId, pFile ) {
                 if ( backupDownloadFinished ) return;
 
-                var data = ({
+                var data = mainwpchild_secure_data({
                     action: 'mainwp-child_clone_backupdownloadpoll',
                     siteId: siteId,
                     file: pFile

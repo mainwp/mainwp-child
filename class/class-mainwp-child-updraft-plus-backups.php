@@ -1,5 +1,20 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: UpdraftPlus - Backup/Restore
+ * Plugin URI: https://updraftplus.com
+ * Author: UpdraftPlus.Com, DavidAnderson
+ * Author URI: https://updraftplus.com
+ * License: GPLv3 or later
+ *
+ * The code is used for the MainWP UpdraftPlus Extension
+ * Extension URL: https://mainwp.com/extension/updraftplus/
+ *
+*/
+
 class MainWP_Child_Updraft_Plus_Backups {
 	public static $instance = null;
     public $is_plugin_installed = false;

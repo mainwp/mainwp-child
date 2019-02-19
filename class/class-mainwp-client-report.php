@@ -13,7 +13,7 @@ class MainWP_Client_Report {
 
 	public function init() {
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
-		add_filter( 'wp_stream_connectors', array( 'MainWP_Client_Report', 'init_stream_connectors' ), 10, 1 );
+		//add_filter( 'wp_stream_connectors', array( 'MainWP_Client_Report', 'init_stream_connectors' ), 10, 1 );
 		add_filter( 'mainwp_client_reports_connectors', array( 'MainWP_Client_Report', 'init_report_connectors' ), 10, 1 );
 		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
 	}
@@ -33,6 +33,7 @@ class MainWP_Client_Report {
 	}
 
 
+    // not used
 	public static function init_stream_connectors( $classes ) {
 		$connectors = array(
 			'Backups',

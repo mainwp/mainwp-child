@@ -1,5 +1,20 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: WP Rocket
+ * Plugin URI: https://wp-rocket.me
+ * Author: WP Media
+ * Author URI: http://wp-media.me
+ * Licence: GPLv2 or later
+ *
+ * The code is used for the MainWP Rocket Extension
+ * Extension URL: https://mainwp.com/extension/rocket/
+ *
+*/
+
 class MainWP_Child_WP_Rocket {
 	public static $instance = null;
 

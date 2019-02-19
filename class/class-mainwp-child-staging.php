@@ -1,5 +1,21 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: WP Staging
+ * Plugin URI: https://wordpress.org/plugins/wp-staging
+ * Author: WP-Staging
+ * Author URI: https://wp-staging.com
+ * Contributors: ReneHermi, ilgityildirim
+ *
+ * The code is used for the MainWP Staging Extension
+ * Extension URL: https://mainwp.com/extension/staging/
+ *
+*/
+
+
 class MainWP_Child_Staging {
 
     public static $instance = null;

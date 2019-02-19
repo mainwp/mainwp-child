@@ -1,5 +1,19 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: WooCommerce
+ * Plugin URI: https://woocommerce.com/
+ * Author: Automattic
+ * Author URI: https://woocommerce.com
+ *
+ * The code is used for the MainWP WooCommerce Status Extension
+ * Extension URL: https://mainwp.com/extension/woocommerce-status/
+ *
+*/
+
 class MainWP_Child_WooCommerce_Status {
 	public static $instance = null;
 

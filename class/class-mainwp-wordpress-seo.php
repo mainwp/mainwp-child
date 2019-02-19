@@ -1,5 +1,20 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: Yoast SEO
+ * Plugin URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
+ * Author: Team Yoast
+ * Author URI: https://yoast.com/
+ * Licence: GPL v3
+ *
+ * The code is used for the MainWP WordPress SEO Extension
+ * Extension URL: https://mainwp.com/extension/wordpress-seo/
+ *
+*/
+
 class MainWP_Wordpress_SEO {
 	public static $instance = null;
 

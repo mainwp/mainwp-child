@@ -1,5 +1,21 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: BackWPup
+ * Plugin URI: http://backwpup.com
+ * Author: Inpsyde GmbH
+ * Author URI: http://inpsyde.com
+ * License: GPLv3
+ * License URI: http://www.gnu.org/licenses/gpl-3.0
+ *
+ * The code is used for the MainWP BackWPup Extension
+ * Extension URL: https://mainwp.com/extension/backwpup/
+ *
+*/
+
 if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
 	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
 }

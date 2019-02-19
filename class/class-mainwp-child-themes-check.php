@@ -1,11 +1,15 @@
 <?php
 
 /*
-Plugin: Vendi Abandoned Plugin Check
-Description: Provides information about abandoned plugins.
-Version: 3.1.1
-License: GPLv2
-Author: Vendi Advertising (Chris Haas)
+ *
+ * Credits
+ *
+ * Plugin-Name: Vendi Abandoned Plugin Check
+ * Plugin URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
+ * Author: Vendi Advertising (Chris Haas)
+ * Author URI: https://wp-staging.com
+ * License: GPLv2
+ *
 */
 
 class MainWP_Child_Themes_Check {
@@ -45,7 +49,7 @@ class MainWP_Child_Themes_Check {
 
             add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
         }
-        
+
 	}
 
 	private function cleanup_basic() {

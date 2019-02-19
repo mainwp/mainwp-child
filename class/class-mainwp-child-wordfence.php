@@ -1,5 +1,19 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: Wordfence Security
+ * Plugin URI: http://www.wordfence.com/
+ * Author: Wordfence
+ * Author URI: http://www.wordfence.com/
+ *
+ * The code is used for the MainWP Wordfence Extension
+ * Extension URL: https://mainwp.com/extension/wordfence/
+ *
+*/
+
 class MainWP_Child_Wordfence {
 	public static $instance = null;
 	public $is_wordfence_installed = false;
@@ -1159,7 +1173,7 @@ SQL
                     $regenerateHtaccess = true;
                 }
             }
-            
+
 //            $to_fix_boolean_values = array(
 //                'scansEnabled_checkGSB',
 //                'spamvertizeCheck',

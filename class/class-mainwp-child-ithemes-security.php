@@ -1,5 +1,20 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: iThemes Security
+ * Plugin URI: https://ithemes.com/security
+ * Author: iThemes
+ * Author URI: https://ithemes.com
+ * License: GPLv2
+ *
+ * The code is used for the MainWP iThemes Security Extension
+ * Extension URL: https://mainwp.com/extension/ithemes-security/
+ *
+*/
+
 class MainWP_Child_iThemes_Security {
 	public static $instance = null;
     public $is_plugin_installed = false;

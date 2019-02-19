@@ -1416,7 +1416,7 @@ class MainWP_Child_Server_Information {
 
 
 	/*
-    *Plugin Name: Error Log Dashboard Widget
+    *Plugin-Name: Error Log Dashboard Widget
     *Plugin URI: http://wordpress.org/extend/plugins/error-log-dashboard-widget/
     *Description: Robust zero-configuration and low-memory way to keep an eye on error log.
     *Author: Andrey "Rarst" Savchenko

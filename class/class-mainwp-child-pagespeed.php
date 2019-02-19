@@ -1,5 +1,20 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: Google Pagespeed Insights
+ * Plugin URI: http://mattkeys.me
+ * Author: Matt Keys
+ * Author URI: http://mattkeys.me
+ *
+ * The code is used for the MainWP Page Speed Extension
+ * Extension URL: https://mainwp.com/extension/page-speed/
+ *
+*/
+
+
 class MainWP_Child_Pagespeed {
 
 	public static $instance = null;

@@ -1,5 +1,22 @@
 <?php
 
+
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: BackUpWordPress
+ * Plugin URI: http://bwp.hmn.md/
+ * Author: Human Made Limited
+ * Author URI: http://hmn.md/
+ * License: GPL-2+
+ * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * The code is used for the MainWP BackUpWordPress Extension
+ * Extension URL: https://mainwp.com/extension/backupwordpress/
+ *
+*/
+
 class MainWP_Child_Back_Up_Wordpress {
 	public static $instance = null;
     public $is_plugin_installed = false;

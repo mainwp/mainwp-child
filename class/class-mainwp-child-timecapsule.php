@@ -1,5 +1,19 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: WP Time Capsule
+ * Plugin URI: https://wptimecapsule.com
+ * Author: Revmakx
+ * Author URI: http://www.revmakx.com
+ *
+ * The code is used for the MainWP Time Capsule Extension
+ * Extension URL: https://mainwp.com/extension/time-capsule/
+ *
+*/
+
 class MainWP_Child_Timecapsule {
     public static $instance = null;
     public $is_plugin_installed = false;

@@ -1,5 +1,20 @@
 <?php
 
+/*
+ *
+ * Credits
+ *
+ * Plugin-Name: BackupBuddy
+ * Plugin URI: http://ithemes.com/purchase/backupbuddy/
+ * Author: iThemes
+ * Author URI: http://ithemes.com/
+ * iThemes Package: backupbuddy
+ *
+ * The code is used for the MainWP Buddy Extension
+ * Extension URL: https://mainwp.com/extension/mainwpbuddy/
+ *
+*/
+
 class MainWP_Child_Back_Up_Buddy {
 	public static $instance = null;
 	public $plugin_translate = 'mainwp-child';
