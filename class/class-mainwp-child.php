@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.5.4.1';
+	public static $version = '3.5.5';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -230,8 +230,8 @@ class MainWP_Child {
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
 		add_action( 'admin_head', array( &$this, 'admin_head' ) );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
-		add_action( 'pre_current_active_plugins', array( &$this, 'detect_premium_themesplugins_updates' ) ); // to support detect premium themes/plugins update
-        add_action( 'core_upgrade_preamble', array( &$this, 'detect_premium_themesplugins_updates' ) );
+		add_action( 'pre_current_active_plugins', array( &$this, 'detect_premium_themesplugins_updates' ) ); // to support detect premium plugins update
+        add_action( 'core_upgrade_preamble', array( &$this, 'detect_premium_themesplugins_updates' ) ); // to support detect premium themes
 
 
 		if ( is_admin() ) {
@@ -569,6 +569,7 @@ class MainWP_Child {
 	}
 
 	public function detect_premium_themesplugins_updates() {
+
         if (isset($_GET['_detect_plugins_updates']) && $_GET['_detect_plugins_updates'] == 'yes') {
              // to fix some premium plugins update notification
             $current = get_site_transient( 'update_plugins' );
@@ -591,6 +592,25 @@ class MainWP_Child {
             set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS);
             wp_destroy_current_session(); // to fix issue multi user session
         }
+
+
+        $type = isset($_GET['_request_update_premiums_type']) ? $_GET['_request_update_premiums_type'] : '';
+        if ( $type == 'plugin' || $type == 'theme' ) {
+            $list = isset( $_GET['list'] ) ? $_GET['list'] : '';
+            if ( !empty($list) ) {
+                // to call function upgradePluginTheme(),
+                // will not get the response result
+                $_POST['type'] = $type;
+                $_POST['list'] = $list;
+
+                $function = 'upgradeplugintheme';
+                if (isset($this->callableFunctions[ $function ])) {
+                    call_user_func( array( $this, $this->callableFunctions[ $function ] ) );
+                }
+                wp_destroy_current_session(); // to fix issue multi user session
+            }
+        }
+
     }
 
 	function checkOtherAuth() {
@@ -761,10 +781,10 @@ class MainWP_Child {
 		}
         $branding_opts = MainWP_Child_Branding::Instance()->get_branding_options();
 
-		$hide_settings = $branding_opts['remove_setting'] ? true : false;
-		$hide_restore = $branding_opts['remove_restore'] ? true : false;
-		$hide_server_info = $branding_opts['remove_server_info'] ? true : false;
-        $hide_connection_detail = $branding_opts['remove_connection_detail'] ? true : false;
+		$hide_settings = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
+		$hide_restore = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
+		$hide_server_info = isset( $branding_opts['remove_server_info'] ) &&  $branding_opts['remove_server_info'] ? true : false;
+        $hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
 
 		$hide_style = 'style="display:none"';
 
@@ -837,10 +857,10 @@ class MainWP_Child {
 
         $branding_opts = MainWP_Child_Branding::Instance()->get_branding_options();
 
-		$hide_settings = $branding_opts['remove_setting'] ? true : false;
-		$hide_restore = $branding_opts['remove_restore'] ? true : false;
-		$hide_server_info = $branding_opts['remove_server_info'] ? true : false;
-        $hide_connection_detail = $branding_opts['remove_connection_detail'] ? true : false;
+		$hide_settings = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting']  ? true : false;
+		$hide_restore = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
+		$hide_server_info = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
+        $hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
 
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
@@ -3883,7 +3903,7 @@ class MainWP_Child {
 					$theme = wp_get_theme($translation_update->slug);
 					$new_translation_update['name'] = $theme->name;
 				} else if ( ( 'core' === $translation_update->type ) && ( 'default' === $translation_update->slug ) ) {
-					$new_translation_update['name'] = 'Wordpress core';
+					$new_translation_update['name'] = 'WordPress core';
 				}
 				$information['translation_updates'][] = $new_translation_update;
 			}

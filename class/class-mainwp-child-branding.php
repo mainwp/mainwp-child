@@ -795,6 +795,7 @@ class MainWP_Child_Branding {
 		$sub = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
 		$subject = !empty( $sub ) ? $sub : "MainWP - Support Contact";
 		$content = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_content'] ) ) );
+        $mail = $headers = '';
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 			global $current_user;
 			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
@@ -842,7 +843,7 @@ class MainWP_Child_Branding {
 			$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';
 
 			if ( $this->send_support_mail() ) {
-				$send_email_message = $opts['send_email_message'];
+				$send_email_message = isset( $opts['send_email_message'] ) ? $opts['send_email_message'] : '';
 				if ( ! empty( $send_email_message ) ) {
 					$send_email_message = stripslashes( $send_email_message );
 				} else {
@@ -910,7 +911,10 @@ class MainWP_Child_Branding {
 	 * @param WP_Admin_Bar $wp_admin_bar
 	 */
 	public function add_support_button_in_top_admin_bar( $wp_admin_bar ) {
-		if ( !current_user_can( 'administrator' ) ) {
+        $allow_contact = apply_filters('mainwp_branding_role_cap_enable_contact_form', false);
+        if ( $allow_contact ) {
+            ; // ok
+        } else if ( !current_user_can( 'administrator' ) ) {
 			return false;
 		}
 
@@ -1129,7 +1133,7 @@ class MainWP_Child_Branding {
             if ( $is_hide === 'T' ) {
                 foreach ( $plugins as $key => $value ) {
                     $plugin_slug = basename( $key, '.php' );
-                    if ( 'mainwp-child-reports' === $plugin_slug ) {
+                    if ( 'mainwp-child' === $plugin_slug ) {
                         unset( $plugins[ $key ] );
                     }
                 }

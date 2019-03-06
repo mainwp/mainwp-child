@@ -54,10 +54,14 @@ class MainWP_Child_Updraft_Plus_Backups {
     // ok
 	function syncOthersData( $information, $data = array() ) {
         try{
-            if ( isset( $data['syncUpdraftData'] ) && $data['syncUpdraftData'] ) {
+            if ( isset( $data['syncUpdraftData'] ) && $info = $data['syncUpdraftData'] ) {
                 if ( $this->is_plugin_installed ) {
-                    $information['syncUpdraftData'] = $this->get_sync_data();
+                    $with_hist = true;
+                    if ( version_compare( $info, '1.7', '>=' ) ) {
+                        $with_hist = false;
                 }
+                    $information['syncUpdraftData'] = $this->get_sync_data( $with_hist );
+            }
             }
             if ( isset( $data['sync_Updraftvault_quota_text'] ) && $data['sync_Updraftvault_quota_text'] ) {
                 if ( $this->is_plugin_installed ) {
@@ -1057,7 +1061,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	}
 
-	private function get_updraft_data() {
+	private function get_updraft_data( $with_hist = true ) {
 		global $updraftplus;
 
 		if ( empty( $updraftplus ) && class_exists( 'UpdraftPlus' ) ) {
@@ -1123,7 +1127,12 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		$bh                           = $this->build_historystatus();
+
+        // to fix performance issue
+        if ( $with_hist )  {
 		$out['updraft_historystatus'] = $bh['h'];
+        }
+
 		$out['updraft_count_backups'] = $bh['c'];
 
 		$last_backup                       = $this->last_backup_html();
@@ -3305,6 +3314,9 @@ ENDHERE;
 					$wpcore_restore_descrip = $sdescrip;
 				}
 			}
+
+            $fix_perfomance = 0;
+
 			if ( isset( $backup[ $type ] ) ) {
 				if ( ! is_array( $backup[ $type ] ) ) {
 					$backup[ $type ] = array( $backup[ $type ] );
@@ -3352,6 +3364,10 @@ ENDHERE;
 					} else {
 						$first_printed = false;
 					}
+
+                    $fix_perfomance++;
+                    if ($fix_perfomance > 50) // // to fix perfomance issue of response when too much backup files
+                        break;
 				}
 			}
 		}
@@ -4020,9 +4036,9 @@ ENDHERE;
 		return $value;
 	}
 
-	public function get_sync_data() {
+	public function get_sync_data( $with_hist = false) {
         $this->required_files();
-		return $this->get_updraft_data();
+		return $this->get_updraft_data( $with_hist );
 	}
 
 	public function all_plugins( $plugins ) {

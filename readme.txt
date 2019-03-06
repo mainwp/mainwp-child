@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.0.3
-Stable tag: 3.5.4.1
+Tested up to: 5.1
+Stable tag: 3.5.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,16 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 == Changelog ==
 
+= 3.5.5 - 3-6-19 =
+* Fixed: an issue with hook for controlling branding options for specific roles
+* Fixed: branding issues
+* Fixed: multiple PHP Warnings
+* Fixed: multiple typos
+* Fixed: MainWP UpdraftPlus Extension performance issues
+* Fixed: an issue with creating double media files when editing posts and pages from MainWP Dashboard
+* Fixed: an issue with creating duplicate Boilerplate posts and pages
+* Updated: added improvements for detecting premium plugin updates on specific setups
+
 = 3.5.4.1 - 2-19-19 =
 * Added: proper attribution to plugin code used for Extensions
 * Removed: unused code
@@ -81,9 +91,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed: an issue with publishing "future" posts
 * Fixed: an issue with sending email alerts in specific setups
 * Fixed: an issue with saving code snippets in wp-config.php when the file is in a custom location
-* Fixed: an issue with clearing unused scheduled cron jobs
+* Fixed: an issue with clearing unused scheduled Cron jobs
 * Added: support for the new PageSpeed Insights plugin options
-* Updated: disabled the "Remove readme.html" security check feature for WPEngine hosted child sites 
+* Updated: disabled the "Remove readme.html" security check feature for WPEngine hosted child sites
 * Updated: support for detecting premium themes updates
 
 = 3.5.3 - 12-19-18 =
@@ -314,7 +324,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: Support for the new WP Rocket features
 * Added: "Currently connected to" check in the Server Information
 * Fixed: PHP Notice
-* Removed: Unnecesary checks in the Server Information page
+* Removed: Unnecessary checks in the Server Information page
 
 = 3.1.4 - 5-9-16 =
 * Updated: function execute_snippet() extracted to a separate file
@@ -348,7 +358,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: Server Information items
 * Added: New Subject text box to support email in Branding Extension
 * Added: Support themes using invalid screen functions
-* Tweaked: Support new version of BackupWordpress plugin version
+* Tweaked: Support new version of BackupWordPress plugin version
 * Updated: Added support in Client Reports Extension for BackWPup backups
 
 = 3.1 - 2-17-16 =
@@ -358,14 +368,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed: Update issue for the iThemes Security Pro and the Monarch plugin
 * Fixed: Compatibility issue with the BackUpWordPress plugin
 * Added: Auto detect manually removed script/style versions feature
-* Added: Wordpress translation updates
+* Added: WordPress translation updates
 * Added: New Branding option to disable theme switching
 * Enhancement: Removed ctype_digit requirement
 * Enhancement: Install plugin error message
 
 = 3.0.2 - 1-22-16 =
-* Fixed: Issue with scheduled BackupWordpress when run from dashboard
-* Fixed: Issue with Heatmap tracker javascript
+* Fixed: Issue with scheduled BackupWordPress when run from dashboard
+* Fixed: Issue with Heatmap tracker JavaScript
 * Added: Support for hosts with PHP with disabled mb_regex
 * Tweaked: Code snippet result message
 
@@ -394,7 +404,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: Support new Wordfence settings options for the Wordfence Extension
 * Added: Force Check Pages function for the MainWP PageSpeed Extensions
 * Added: Allow to see MainWP child plugin in MainWP Dashboard plugins search
-* Updated: MainWP URL Extractor Extension logic to extract urls by Post published date instead of last change date
+* Updated: MainWP URL Extractor Extension logic to extract URLs by Post published date instead of last change date
 
 = 2.0.29 - 9-22-15 =
 * Fixed: 404 error that occurs in case Links Manger extension is in use when child plugin is hidden
@@ -436,12 +446,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 2.0.22 - 7-22-15 =
 * Fixed: Bug where the OptmizePress theme has not been updated properly
-* Fixed: Bug where the Client Report extenison recored incorrect time
-* Added: Support for the upcomming extension
+* Fixed: Bug where the Client Report extension recorded incorrect time
+* Added: Support for the upcoming extension
 
 = 2.0.21 - 7-9-15 =
 * Fixed: Bug with time schedule for the UpdraftPlus extension
-* Added: Support for the upcomming extension
+* Added: Support for the upcoming extension
 
 = 2.0.20 - 7-6-15 =
 * Fixed: Bug with time schedule for the UpdraftPlus extension
@@ -474,7 +484,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed: Issue with sites running PHP 5.2 and lower
 * Fixed: Sync error on some sites with UpdraftPlus installed
 * Fixed: PHP Warning
-* Changed: Server page to reflect requested mininum of PHP 5.3
+* Changed: Server page to reflect requested minimum of PHP 5.3
 
 = 2.0.15 - 5-14-15 =
 * Added: Support for the upcoming extension
@@ -495,7 +505,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 = 2.0.12 - 4-16-15 =
 * Fixed: Bug for the MainWP iThemes Security Extension
 * Fixed: Bug for the MainWP WordFence Extension
-* Fixed: Bug where the MainWP Child plugin was breaking cron jobs on child sites
+* Fixed: Bug where the MainWP Child plugin was breaking Cron jobs on child sites
 
 = 2.0.11 - 4-12-15 =
 * Fixed: Upcoming extension bug
@@ -503,7 +513,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 = 2.0.10 - 4-06-15 =
 * Added: Support for the display Favicon for child sites feature
 * Added: Support for upcoming extension
-* Fixed: Plugin conflicts with Wordpress SEO by Yoast and Backupbuddy
+* Fixed: Plugin conflicts with WordPress SEO by Yoast and Backupbuddy
 
 = 2.0.9.2 - 3-06-15 =
 * Fixed: Bug where SEO values are not being set for Boilerplate Pages and Posts
@@ -541,7 +551,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: A new Branding extension option - hiding the child plugin server information page
 
 = 2.0.5 - 1-07-15 =
-* Fixed: Links Manager Extension: Now using the wordpress home option instead of siteurl for the links
+* Fixed: Links Manager Extension: Now using the WordPress home option instead of site URL for the links
 
 = 2.0.4 - 12-26-14 =
 * Fixed: Backups for hosts having issues with "compress.zlib://" stream wrappers from PHP causing corrupt backup archives
@@ -552,7 +562,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 2.0.2 - 12-11-14 =
 * Added: Support hosts with PHP Heap classes
-* Fixed: Javascript issue disabling the popup menu on the admin menu
+* Fixed: JavaScript issue disabling the popup menu on the admin menu
 
 = 2.0.1 - 12-10-14 =
 * Fixed: Restore/Clone from Tar via server upload
@@ -670,7 +680,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 0.29 =
 * Added ability to view Child site error logs on MainWP Dashboard
-* Added ability to view Child site Wp-Config on MainWP Dashboard
+* Added ability to view Child site wp-config.php on MainWP Dashboard
 * Added new Hooks for Branding Extension
 * Added tweak for Code Snippet Extension
 
@@ -757,7 +767,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed conflict with main dashboard on same site
 
 = 0.11 =
-* Plugin localisation
+* Plugin localization
 * Extra check for readme.html file
 * Added child server information
 * Fixed restore issue: not all previous plugins/themes were removed
@@ -787,7 +797,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 0.5 =
 * Fixed issue with importing database with custom foreign key references
-* Fixed issue with disabled functions from te "suhosin" extension
+* Fixed issue with disabled functions from the "suhosin" extension
 * Fixed issue with click-heatmap
 
 = 0.4 =

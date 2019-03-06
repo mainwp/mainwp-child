@@ -121,20 +121,13 @@ class MainWP_Helper {
 
 	}
 
-	static function uploadImage( $img_url, $img_data = array() , $check_file_existed = false ) {
-		if (!is_array($img_data))
+    // $check_file_existed: to support checking if file existed
+    // $parent_id: optional
+	static function uploadImage( $img_url, $img_data = array() , $check_file_existed = false, $parent_id = 0 ) {
+		if ( !is_array($img_data) )
 			$img_data = array();
 		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
 		$upload_dir     = wp_upload_dir();
-
-		if ($check_file_existed) {
-			$local_img_url  = $upload_dir['url'] . '/' . basename( $img_url );
-			$attach_id = MainWP_Helper::get_image_id($local_img_url);
-			if ($attach_id) {
-				return array( 'id' => $attach_id, 'url' => $local_img_url );
-			}
-		}
-
 		//Download $img_url
 		$temporary_file = download_url( $img_url );
 
@@ -142,8 +135,28 @@ class MainWP_Helper {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url ); //Local name
-			$local_img_url  = $upload_dir['url'] . '/' . basename( $img_url );
+            $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+
+            $gen_unique_fn = true;
+
+            if ( $check_file_existed ) {
+                if ( file_exists( $local_img_path ) ) {
+                    if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) { // file exited
+                        $attach_id = attachment_url_to_postid( $local_img_url );
+                        if ( $attach_id ) { // found attachment
+                            return array( 'id' => $attach_id, 'url' => $local_img_url );
+                        }
+                    }
+                }
+            }
+
+            if ( $gen_unique_fn ) {
+                $local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
+                $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+            }
+
 			$moved          = @rename( $temporary_file, $local_img_path );
+
 			if ( $moved ) {
 				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); //Get the filetype to set the mimetype
 				$attachment  = array(
@@ -152,7 +165,14 @@ class MainWP_Helper {
 					'post_content'   => isset( $img_data['description'] ) && !empty( $img_data['description'] ) ? $img_data['description'] : '',
 					'post_excerpt' => isset( $img_data['caption'] ) && !empty( $img_data['caption'] ) ? $img_data['caption'] : '',
 					'post_status'    => 'inherit',
+                    'guid' => $local_img_url // to fix
 				);
+
+                // for post attachments, thumbnail
+                if ( $parent_id ) {
+                    $attachment['post_parent'] = $parent_id;
+                }
+
 				$attach_id   = wp_insert_attachment( $attachment, $local_img_path ); //Insert the image in the database
 				require_once( ABSPATH . 'wp-admin/includes/image.php' );
 				$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
@@ -321,15 +341,26 @@ class MainWP_Helper {
 		$wpr_options = isset( $_POST['wpr_options'] ) ? $_POST['wpr_options'] : array();
 
 		$edit_post_id = 0;
+
 		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
 			$edit_post_id = current($post_custom['_mainwp_edit_post_id']);
-			require_once ABSPATH . 'wp-admin/includes/post.php';
+        } else if (isset( $new_post['ID'] ) && $new_post['ID']) {
+            $edit_post_id = $new_post['ID'];
+        }
+
+
+        require_once ABSPATH . 'wp-admin/includes/post.php';
+        if ($edit_post_id) {
 			if ( $user_id = wp_check_post_lock( $edit_post_id ) ) {
 				$user = get_userdata( $user_id );
 				$error = sprintf( __( 'This content is currently locked. %s is currently editing.' ), $user->display_name );
 				return array( 'error' => $error);
 			}
 		}
+
+        $check_image_existed = false;
+        if ( $edit_post_id )
+            $check_image_existed = true; // if editing post then will check if image existed
 
 		//Search for all the images added to the new post
 		//some images have a href tag to click to navigate to the image.. we need to replace this too
@@ -353,13 +384,7 @@ class MainWP_Helper {
 				}
 
 				try {
-					// in the case edit post will check if file existed
-					if ( $edit_post_id ) {
-						$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl , array(), true );
-					} else {
-						$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl );
-					}
-
+					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl, array(), $check_image_existed );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -621,8 +646,7 @@ class MainWP_Helper {
 		//If featured image exists - set it
 		if ( null !== $post_featured_image ) {
 			try {
-				$upload = MainWP_Helper::uploadImage( $post_featured_image ); //Upload image to WP
-
+				$upload = MainWP_Helper::uploadImage( $post_featured_image, array(), $check_image_existed, $new_post_id); //Upload image to WP
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); //Add the thumbnail to the post!
 					$featured_image_exist = true;
