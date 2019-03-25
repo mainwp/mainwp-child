@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.1
-Stable tag: 3.5.5
+Tested up to: 5.1.1
+Stable tag: 3.5.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,13 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.5.6 - 3-25-19 =
+* Fixed: an issue with checking Page Speed data
+* Fixed: an issue with empty update data
+* Fixed: an issue with incorrect plugin update data
+* Added: Send From field in the Branding support form
+* Updated: compatibility with the latest Yoast SEO plugin version
 
 = 3.5.5 - 3-6-19 =
 * Fixed: an issue with hook for controlling branding options for specific roles

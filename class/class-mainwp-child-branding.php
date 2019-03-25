@@ -793,13 +793,15 @@ class MainWP_Child_Branding {
 	public function send_support_mail() {
 		$email   = $this->child_branding_options['support_email'];
 		$sub = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
+        $from = trim($_POST['mainwp_branding_contact_send_from']);
 		$subject = !empty( $sub ) ? $sub : "MainWP - Support Contact";
 		$content = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_content'] ) ) );
         $mail = $headers = '';
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 			global $current_user;
 			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
-			//$headers .= "From: \"" . $current_user->user_email . "\" <" . $current_user->user_email . ">\r\n";
+            if (!empty($from))
+                $headers .= "From: \"" . $from . "\" <" . $from . ">\r\n";
 			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
 			$mail .= "<p>Sent from WordPress page: " . ( ! empty( $_POST["mainwp_branding_send_from_page"] ) ? "<a href='" . esc_url( $_POST["mainwp_branding_send_from_page"] ) . "'>" . esc_url( $_POST["mainwp_branding_send_from_page"] ) . "</a></p>\r\n\r\n" : "" );
 			$mail .= "<p>Client Email: " . $current_user->user_email . " </p>\r\n\r\n";
@@ -817,6 +819,7 @@ class MainWP_Child_Branding {
 	}
 
 	function contact_support() {
+        global $current_user;
 		?>
 		<style>
 			.mainwp_info-box-yellow {
@@ -867,6 +870,7 @@ class MainWP_Child_Branding {
 
 			$support_message = $opts['support_message'];
 			$support_message = nl2br( stripslashes( $support_message ) );
+            $from_email = $current_user ? $current_user->user_email : '';
 			?>
 			<form action="" method="post">
 				<div style="width: 99%;">
@@ -875,7 +879,9 @@ class MainWP_Child_Branding {
 					<div style="height: auto; margin-bottom: 10px; text-align: left">
 						<p><?php echo wp_kses_post( $support_message ); ?></p>
 						<p><label for="mainwp_branding_contact_message_subject"><?php _e('Subject:', 'mainwp-child'); ?></label><br>
-							<input type="text" name="mainwp_branding_contact_message_subject" style="width: 650px;"></p>
+							<input type="text" id="mainwp_branding_contact_message_subject" name="mainwp_branding_contact_message_subject" style="width: 650px;"></p>
+                        <p><label for="mainwp_branding_contact_send_from"><?php _e('From:', 'mainwp-child'); ?></label><br>
+                            <input type="text" id="mainwp_branding_contact_send_from" name="mainwp_branding_contact_send_from" style="width: 650px;" value="<?php echo esc_html( $from_email ); ?>"></p>
 						<div style="max-width: 650px;">
 							<label for="mainwp_branding_contact_message_content"><?php _e('Your message:', 'mainwp-child'); ?></label><br>
 							<?php

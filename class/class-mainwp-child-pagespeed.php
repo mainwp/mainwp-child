@@ -272,7 +272,8 @@ class MainWP_Child_Pagespeed {
 			if ( $checkstatus ) {
 				$information['error'] = __( 'The API is busy checking other pages, please try again later.', 'gpagespeedi' );
 			} else {
-				do_action( 'googlepagespeedinsightsworker', array(), $forceRecheck );
+				//do_action( 'googlepagespeedinsightsworker', array(), $forceRecheck );
+                do_action( 'run_gpi', $forceRecheck ); // to fix 
 				$information['checked_pages'] = 1;
 			}
 		}

@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '3.5.5';
+	public static $version = '3.5.6';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -3819,6 +3819,11 @@ class MainWP_Child {
 					continue;
 				}
 
+                // to fix incorrect info
+                if ( !property_exists( $plugin_update, 'update' ) || !property_exists( $plugin_update->update, 'new_version' ) || empty($plugin_update->update->new_version)) {
+                    continue;
+                }
+
 				$information['plugin_updates'][ $slug ] = $plugin_update;
 			}
 		}
@@ -3834,6 +3839,10 @@ class MainWP_Child {
                 $information['plugin_updates'] = array();
             }
             foreach( $cached_plugins_update as $slug => $plugin_update ) {
+                // to fix incorrect info
+                if ( !property_exists( $plugin_update, 'new_version' ) || empty( $plugin_update->new_version ) ) {
+                    continue;
+                }
                 if ( !isset( $information['plugin_updates'][ $slug ] ) ) {
                     $information['plugin_updates'][ $slug ] = $plugin_update;
                 }
@@ -3894,7 +3903,8 @@ class MainWP_Child {
 				if ( 'plugin' === $translation_update->type ) {
 					$all_plugins = get_plugins();
 					foreach ( $all_plugins as $file => $plugin ) {
-						if ( stristr( $file, $translation_update->slug ) ) {
+                        $path = dirname($file);
+						if ( $path == $translation_update->slug ) {
 							$new_translation_update['name'] = $plugin['Name'];
 							break;
 						}

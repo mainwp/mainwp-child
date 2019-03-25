@@ -928,7 +928,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 		);
 
         // to fix issue for some site
-		//$this->close_browser_connection( $msg );
+        // unfix for tic#22678
+		$this->close_browser_connection( $msg );
 
 		$options = array( 'nocloud' => $backupnow_nocloud, 'use_nonce' => $nonce );
 		if ( ! empty( $_REQUEST['onlythisfileentity'] ) && is_string( $_REQUEST['onlythisfileentity'] ) ) {

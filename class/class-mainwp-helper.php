@@ -134,17 +134,45 @@ class MainWP_Helper {
 		if ( is_wp_error( $temporary_file ) ) {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
-			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url ); //Local name
+            $filename = basename( $img_url );
+			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename; //Local name
             $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
             $gen_unique_fn = true;
 
+            // to fix issue re-create new attachment
             if ( $check_file_existed ) {
                 if ( file_exists( $local_img_path ) ) {
+                    
                     if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) { // file exited
-                        $attach_id = attachment_url_to_postid( $local_img_url );
-                        if ( $attach_id ) { // found attachment
-                            return array( 'id' => $attach_id, 'url' => $local_img_url );
+                        $result = self::get_maybe_existed_attached_id( $local_img_url );
+                        if ( is_array($result) ) { // found attachment
+                            $attach = current($result);
+                            if (is_object($attach)) {
+                                if ( file_exists( $temporary_file ) ) {
+                                    unlink( $temporary_file );
+                                }
+                                return array( 'id' => $attach->ID, 'url' => $local_img_url );
+                            }
+                        }
+                    }
+
+                } else { // find in other path
+                    $result = self::get_maybe_existed_attached_id( $filename, false );
+
+                    if ( is_array( $result ) ) {  // found attachment
+                        $attach = current($result);
+                        if (is_object($attach)) {
+                            $basedir = $upload_dir['basedir'];
+                            $baseurl = $upload_dir['baseurl'];
+                            $local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
+                            if ( file_exists($local_img_path) && (filesize( $local_img_path ) == filesize( $temporary_file )) ) { // file exited
+
+                                if ( file_exists( $temporary_file ) ) {
+                                    unlink( $temporary_file );
+                                }
+                                return array( 'id' => $attach->ID, 'url' => $attach->guid );
+                            }
                         }
                     }
                 }
@@ -189,10 +217,17 @@ class MainWP_Helper {
 		return null;
 	}
 
-	static function get_image_id($image_url) {
-		global $wpdb;
-		$attachment = $wpdb->get_col($wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE guid='%s';", $image_url ));
-		return $attachment[0];
+	static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
+        global $wpdb;
+        if ( $full_guid ) {
+            $sql = $wpdb->prepare(
+                "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s",
+                $filename
+            );
+        } else {
+            $sql = "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE '%/" . $filename . "'";
+        }
+        return $wpdb->get_results( $sql );
 	}
 
 	static function uploadFile( $file_url, $path, $file_name ) {

@@ -53,28 +53,62 @@ class MainWP_Wordpress_SEO {
 	}
 
 	public function import_settings() {
-		$file_url       = base64_decode( $_POST['file_url'] );
-		$temporary_file = '';
-		try {
-			include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
-			$temporary_file = download_url( $file_url );
+        // to compatible
+        if ( isset($_POST['file_url']) ) {
+            $file_url       = base64_decode( $_POST['file_url'] );
+            $temporary_file = '';
+            try {
+                include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
+                $temporary_file = download_url( $file_url );
 
-			if ( is_wp_error( $temporary_file ) ) {
-				throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
-			} else {
-				if ( $this->import_seo_settings( $temporary_file ) ) {
-					$information['success'] = true;
-				} else {
-					throw new Exception( __( 'Settings could not be imported.', 'wordpress-seo' ) );
-				}
-			}
-		} catch ( Exception $e ) {
-			$information['error'] = $e->getMessage();
-		}
+                if ( is_wp_error( $temporary_file ) ) {
+                    throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
+                } else {
+                    if ( $this->import_seo_settings( $temporary_file ) ) {
+                        $information['success'] = true;
+                    } else {
+                        throw new Exception( __( 'Settings could not be imported.', 'wordpress-seo' ) );
+                    }
+                }
+            } catch ( Exception $e ) {
+                $information['error'] = $e->getMessage();
+            }
 
-		if ( file_exists( $temporary_file ) ) {
-			unlink( $temporary_file );
-		}
+            if ( file_exists( $temporary_file ) ) {
+                unlink( $temporary_file );
+            }
+
+        } else if ( isset( $_POST['settings'] ) ) {
+            try {
+                $settings = base64_decode( $_POST['settings'] );
+                 // @codingStandardsIgnoreLine
+                $options = parse_ini_string( $settings, true, INI_SCANNER_RAW ); // phpcs:ignore PHPCompatibility.FunctionUse.NewFunctions.parse_ini_stringFound -- We won't get to this function if PHP < 5.3 due to the WPSEO_NAMESPACES check above.
+                if ( is_array( $options ) && array() !== $options ) {
+
+                     $old_wpseo_version = null;
+                     if ( isset( $options['wpseo']['version'] ) && '' !== $options['wpseo']['version'] ) {
+                         $old_wpseo_version = $options['wpseo']['version'];
+                     }
+                     foreach ( $options as $name => $optgroup ) {
+                         if ( 'wpseo_taxonomy_meta' === $name ) {
+                             $optgroup = json_decode( urldecode( $optgroup['wpseo_taxonomy_meta'] ), true );
+                         }
+                         // Make sure that the imported options are cleaned/converted on import
+                         $option_instance = WPSEO_Options::get_option_instance( $name );
+                         if ( is_object( $option_instance ) && method_exists( $option_instance, 'import' ) ) {
+                             $optgroup = $option_instance->import( $optgroup, $old_wpseo_version, $options );
+                         }
+                     }
+                     $information['success'] = true;
+
+                 } else {
+                     throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
+                 }
+            } catch ( Exception $e ) {
+                $information['error'] = $e->getMessage();
+            }
+        }
+
 		MainWP_Helper::write( $information );
 	}
 
