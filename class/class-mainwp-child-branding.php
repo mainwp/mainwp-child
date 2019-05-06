@@ -35,6 +35,7 @@ class MainWP_Child_Branding {
 
             $opts['contact_label'] = $label;
             $opts['extra_settings']        = get_option( 'mainwp_branding_extra_settings' );
+            MainWP_Helper::update_option( 'mainwp_child_branding_settings', $opts  );
         }
 
         if ( !isset($opts['contact_label']) || empty($opts['contact_label']) ) {
@@ -382,7 +383,7 @@ class MainWP_Child_Branding {
             add_action( 'in_admin_footer', array( $this, 'in_admin_footer' ) );
         } else if (is_user_logged_in()) {
             // front end
-            add_action( 'add_admin_bar_menus', array( $this, 'add_admin_bar_menus' ));
+            add_action( 'wp_after_admin_bar_render', array( $this, 'after_admin_bar_render' ));
         }
         $opts = $this->child_branding_options;
 
@@ -429,7 +430,7 @@ class MainWP_Child_Branding {
 
 		// to fix
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );//
-		if ( $opts['disable_wp_branding'] !== 'Y' ) {
+		if ( !isset($opts['disable_wp_branding']) || $opts['disable_wp_branding'] !== 'Y' ) {
 			add_filter( 'wp_footer', array( &$this, 'branding_global_footer' ), 15 );
 			add_action( 'wp_dashboard_setup', array( &$this, 'custom_dashboard_widgets' ), 999 );
 			// branding site generator
@@ -986,7 +987,7 @@ class MainWP_Child_Branding {
         MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
     }
 
-    public function add_admin_bar_menus() {
+    public function after_admin_bar_render() {
 
         $hide_slugs = apply_filters('mainwp_child_hide_update_notice' , array());
 

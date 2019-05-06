@@ -273,7 +273,7 @@ class MainWP_Child_Pagespeed {
 				$information['error'] = __( 'The API is busy checking other pages, please try again later.', 'gpagespeedi' );
 			} else {
 				//do_action( 'googlepagespeedinsightsworker', array(), $forceRecheck );
-                do_action( 'run_gpi', $forceRecheck ); // to fix 
+                do_action( 'run_gpi', $forceRecheck ); // to fix
 				$information['checked_pages'] = 1;
 			}
 		}
@@ -342,7 +342,7 @@ class MainWP_Child_Pagespeed {
 		//$page_stats_column = $strategy . '_page_stats';
 
 
-		$data_typestocheck = self::getTypesToCheck( 'all' );
+		$data_typestocheck = self::get_filter_options( 'all' );
 
 		$gpi_page_stats = $wpdb->prefix . 'gpi_page_stats';
 		if ( ! empty( $data_typestocheck ) ) {
@@ -360,7 +360,7 @@ class MainWP_Child_Pagespeed {
 			$allpagedata = array();
 		}
 
-		$reports_typestocheck = self::getTypesToCheck( 'all' );
+		$reports_typestocheck = self::get_filter_options( 'all' );
 		$gpi_page_reports     = $wpdb->prefix . 'gpi_page_reports';
 
 		if ( ! empty( $reports_typestocheck ) ) {
@@ -435,7 +435,7 @@ class MainWP_Child_Pagespeed {
 		);
 	}
 
-	static function getTypesToCheck($restrict_type = 'all') {
+	static function get_filter_options($restrict_type = 'all') {
 
 		$types = array();
 		$gpi_options =  get_option('gpagespeedi_options');
@@ -492,6 +492,25 @@ class MainWP_Child_Pagespeed {
 							$types[1][] = $custom_post_types[$post_type];
 						}
 					}
+				}
+			}
+		}
+
+        if ( $gpi_options['check_custom_urls'] ) {
+			global $wpdb;
+
+			$gpi_custom_urls = $wpdb->prefix . 'gpi_custom_urls';
+			$custom_url_types = $wpdb->get_col(
+				"
+				SELECT DISTINCT type
+				FROM $gpi_custom_urls
+				"
+			);
+
+			if ( ! empty( $custom_url_types ) ) {
+				foreach ( $custom_url_types as $custom_url_type ) {
+                    $typestocheck[] = 'type = %s';
+                    $types[1][] = $custom_url_type;
 				}
 			}
 		}

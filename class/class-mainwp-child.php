@@ -580,7 +580,7 @@ class MainWP_Child {
             remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 
             set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS);
-            wp_destroy_current_session(); // to fix issue multi user session
+            //wp_destroy_current_session(); // to fix issue multi user session
 
         }
 
@@ -590,7 +590,7 @@ class MainWP_Child {
             remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 
             set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS);
-            wp_destroy_current_session(); // to fix issue multi user session
+            //wp_destroy_current_session(); // to fix issue multi user session
         }
 
 
@@ -607,7 +607,7 @@ class MainWP_Child {
                 if (isset($this->callableFunctions[ $function ])) {
                     call_user_func( array( $this, $this->callableFunctions[ $function ] ) );
                 }
-                wp_destroy_current_session(); // to fix issue multi user session
+                //wp_destroy_current_session(); // to fix issue multi user session
             }
         }
 
@@ -1593,7 +1593,7 @@ class MainWP_Child {
 		if ( 1 === (int) get_option( 'mainwpKeywordLinks' ) ) {
 			new MainWP_Keyword_Links();
 			if ( ! is_admin() ) {
-				add_filter( 'the_content', array( MainWP_Keyword_Links::Instance(), 'filter_content' ), 100 );
+				//add_filter( 'the_content', array( MainWP_Keyword_Links::Instance(), 'filter_content' ), 100 );
 			}
 			MainWP_Keyword_Links::Instance()->update_htaccess(); // if needed
 			MainWP_Keyword_Links::Instance()->redirect_cloak();
@@ -4012,6 +4012,14 @@ class MainWP_Child {
 		$information['uniqueId']             = get_option( 'mainwp_child_uniqueId', '' );
 		$information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::Instance()->get_plugins_outdate_info();
 		$information['themes_outdate_info']  = MainWP_Child_Themes_Check::Instance()->get_themes_outdate_info();
+
+        if (isset( $_POST['user'] )) {
+            $user = get_user_by( 'login', $_POST['user'] );
+            if ( $user && property_exists($user, 'ID') && $user->ID) {
+                $information['admin_nicename']  =    $user->data->user_nicename;
+                $information['admin_useremail'] =    $user->data->user_email;
+            }
+        }
 
         try {
             do_action('mainwp_child_site_stats');

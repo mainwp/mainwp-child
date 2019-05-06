@@ -139,7 +139,7 @@ class MainWP_Child_iThemes_Security {
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
 			add_action( 'admin_head', array( &$this, 'custom_admin_css' ) );
-			if ( isset($_GET['page']) && ($_GET['page'] == 'itsec' || $_GET['page'] == 'itsec-logs' || $_GET['page'] == 'itsec-security-check') ) {
+			if ( isset($_GET['page']) && ($_GET['page'] == 'itsec' || $_GET['page'] == 'itsec-security-check') ) {
 				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
 			}

@@ -32,6 +32,8 @@ class MainWP_Child_Staging {
         require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 		if ( is_plugin_active( 'wp-staging/wp-staging.php' ) && defined('WPSTG_PLUGIN_DIR')) {
             $this->is_plugin_installed = true;
+		} else if ( is_plugin_active( 'wp-staging-pro/wp-staging-pro.php' ) ) {
+            $this->is_plugin_installed = true;
 		}
 
         if (!$this->is_plugin_installed)
@@ -427,6 +429,10 @@ class MainWP_Child_Staging {
 
 		if ( isset( $value->response['wp-staging/wp-staging.php'] ) ) {
 			unset( $value->response['wp-staging/wp-staging.php'] );
+		}
+
+        if ( isset( $value->response['wp-staging-pro/wp-staging-pro.php'] ) ) {
+			unset( $value->response['wp-staging-pro/wp-staging-pro.php'] );
 		}
 
 		return $value;

@@ -143,7 +143,7 @@ class MainWP_Helper {
             // to fix issue re-create new attachment
             if ( $check_file_existed ) {
                 if ( file_exists( $local_img_path ) ) {
-                    
+
                     if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) { // file exited
                         $result = self::get_maybe_existed_attached_id( $local_img_url );
                         if ( is_array($result) ) { // found attachment
@@ -1210,27 +1210,27 @@ class MainWP_Helper {
 		switch($by) {
 			case 'backupbuddy':
 				if ( !is_plugin_active( 'backupbuddy/backupbuddy.php' ) && !is_plugin_active( 'Backupbuddy/backupbuddy.php' )) {
-					return -1;
+					return 0;
 				}
 				break;
 			case 'backupwordpress':
 				if ( !is_plugin_active( 'backupwordpress/backupwordpress.php' )) {
-					return -1;
+					return 0;
 				}
 				break;
 			case 'backwpup':
 				if ( !is_plugin_active( 'backwpup/backwpup.php' ) && !is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
-					return -1;
+					return 0;
 				}
 				break;
 			case 'updraftplus':
 				if ( !is_plugin_active( 'updraftplus/updraftplus.php' )) {
-					return -1;
+					return 0;
 				}
 				break;
 			case 'wptimecapsule':
 				if ( !is_plugin_active( 'wp-time-capsule/wp-time-capsule.php'  )) {
-					return -1;
+					return 0;
 				}
 				break;
 			default:

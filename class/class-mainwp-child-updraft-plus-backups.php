@@ -940,7 +940,11 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		do_action( $event, apply_filters( 'updraft_backupnow_options', $options, array() ) );
 
-        return $msg;
+        //return $msg;
+
+        // Control returns when the backup finished; but, the browser connection should have been closed before
+		die;
+
 
 		// not used anymore
 		//        if (wp_schedule_single_event(time()+5, $event, array($backupnow_nocloud)) === false) {

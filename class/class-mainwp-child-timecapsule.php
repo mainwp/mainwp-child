@@ -40,10 +40,10 @@ class MainWP_Child_Timecapsule {
 
 
 	public function init() {
-		if ( get_option( 'mainwp_time_capsule_ext_enabled' ) !== 'Y' )
+         if (!$this->is_plugin_installed)
             return;
 
-        if (!$this->is_plugin_installed)
+		if ( get_option( 'mainwp_time_capsule_ext_enabled' ) !== 'Y' )
             return;
 
         add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
@@ -70,8 +70,6 @@ class MainWP_Child_Timecapsule {
             }
 
             $information = array();
-            if (get_option( 'mainwp_time_capsule_ext_enabled' ) !== 'Y')
-                MainWP_Helper::update_option( 'mainwp_time_capsule_ext_enabled', 'Y', 'yes' );
 
             $options_helper = new Wptc_Options_Helper();
             $options = WPTC_Factory::get('config');
@@ -245,6 +243,8 @@ class MainWP_Child_Timecapsule {
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncWPTimeCapsule'] ) && $data['syncWPTimeCapsule'] ) {
             $information['syncWPTimeCapsule'] = $this->get_sync_data();
+            if (get_option( 'mainwp_time_capsule_ext_enabled' ) !== 'Y')
+                MainWP_Helper::update_option( 'mainwp_time_capsule_ext_enabled', 'Y', 'yes' );
         }
 		return $information;
 	}
@@ -724,6 +724,10 @@ function get_sibling_files_callback_wptc() {
             }
 
             $last_time = time() - 24 * 7 * 2 * 60 * 60; // 2 weeks ago
+            $lasttime_logged = MainWP_Helper::get_lasttime_backup('wptimecapsule');
+            if (empty($lasttime_logged))
+                $last_time = time() - 24 * 7 * 8 * 60 * 60; // 8 weeks ago
+
             $all_last_backups = $this->getBackups( $last_time );
 
             if (is_array($all_last_backups)) {

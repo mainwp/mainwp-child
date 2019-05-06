@@ -826,8 +826,8 @@ class MainWP_Child_Server_Information {
 				?>
 				<tr>
 					<td>&nbsp;</td>
-					<td><?php echo $plugin['Name']; ?></td>
-					<td><?php echo $plugin['Version']; ?></td>
+                    <td><?php echo esc_html($plugin['Name']); ?></td>
+					<td><?php echo esc_html($plugin['Version']); ?></td>
 					<td><?php echo is_plugin_active($slug) ? 'Active' : 'Inactive'; ?></td>
 					<td>&nbsp;</td>
 				</tr>
@@ -1569,11 +1569,6 @@ class MainWP_Child_Server_Information {
 
 	public static function renderWPConfig() {
 		?>
-		<style>
-			#mainwp-code-display code {
-				background: none !important;
-			}
-		</style>
 		<div class="postbox" id="mainwp-code-display">
 			<h3 class="hndle" style="padding: 8px 12px; font-size: 14px;"><span>WP-Config.php</span></h3>
 
@@ -1673,9 +1668,9 @@ class MainWP_Child_Server_Information {
                                         foreach ($details as $row) {
                                         ?>
                                             <tr>
-                                                <th style="width: 20%"><strong><?php echo $row['title']; ?></strong></th>
-                                                <td style="width: 20%"><strong><?php echo $row['value']; ?></strong></td>
-                                                <td><?php echo $row['desc']; ?></td>
+                                                <th style="width: 20%"><strong><?php echo esc_html($row['title']); ?></strong></th>
+                                                <td style="width: 20%"><strong><?php echo esc_html($row['value']); ?></strong></td>
+                                                <td><?php echo esc_html($row['desc']); ?></td>
                                             </tr>
                                         <?php
                                         }

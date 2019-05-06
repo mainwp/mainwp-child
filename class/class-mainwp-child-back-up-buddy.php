@@ -610,6 +610,12 @@ class MainWP_Child_Back_Up_Buddy {
 		$information['schedules'] = pb_backupbuddy::$options['schedules'];
 		$information['next_schedule_index'] = pb_backupbuddy::$options['next_schedule_index'];
 		$information['schedules_run_time'] = $this->get_schedules_run_time();
+
+        // to fix missing destination notice
+        if (isset(pb_backupbuddy::$options['remote_destinations'])) { // update
+			$information['remote_destinations'] = pb_backupbuddy::$options['remote_destinations'];
+		}
+
 		$information['result'] = 'SUCCESS';
 		return $information;
 	}
