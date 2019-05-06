@@ -6,8 +6,8 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.1.1
-Stable tag: 3.5.6
+Tested up to: 5.2
+Stable tag: 3.5.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,16 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 3.5.7 - 5-6-19 =
+* Fixed: multiple PHP Warnings
+* Fixed: multiple conflicts with 3rd party products
+* Fixed: an issue with Page Speed data for custom URLs
+* Fixed: an issue with logging WP Time Capsule backups on specific setups
+* Fixed: an issue with short login session
+* Added: multiple security enhancements
+* Added: support for the WP Staging Pro (free features only)
+* Added: support for plugin/theme installation requests to HTTP Basic Auth protected MainWP Dashboards
 
 = 3.5.6 - 3-25-19 =
 * Fixed: an issue with checking Page Speed data
