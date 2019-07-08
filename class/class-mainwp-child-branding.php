@@ -443,7 +443,7 @@ class MainWP_Child_Branding {
 			add_filter( 'gettext', array( &$this, 'custom_gettext' ), 99, 3 );
 			add_action( 'login_head', array( &$this, 'custom_login_logo' ) );
 			add_filter( 'login_headerurl', array( &$this, 'custom_login_headerurl' ) );
-			add_filter( 'login_headertitle', array( &$this, 'custom_login_headertitle' ) );
+			add_filter( 'login_headertext', array( &$this, 'custom_login_headertitle' ) );
 			add_action( 'wp_head', array( &$this, 'custom_favicon_frontend' ) );
 			if ( isset( $extra_setting['dashboard_footer'] ) && ! empty( $extra_setting['dashboard_footer'] ) ) {
 				//remove_filter( 'update_footer', 'core_update_footer' );
