@@ -576,7 +576,9 @@ class MainWP_Helper {
 			'_categories',
 			'_edit_last',
 			'_sticky',
-            '_mainwp_post_dripper'
+            '_mainwp_post_dripper',
+            '_bulkpost_do_not_del',
+            '_mainwp_spin_me'
 		);
 		$not_allowed[] = '_mainwp_boilerplate_sites_posts';
 		$not_allowed[] = '_ezine_post_keyword';
