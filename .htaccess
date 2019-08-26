@@ -1,0 +1,7 @@
+# BEGIN MainWP
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteRule ^(.*)$ \./THIS_PLUGIN_DOES_NOT_EXIST [QSA,L]
+</IfModule>
+# END MainWP

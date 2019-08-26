@@ -1,13 +1,13 @@
 === MainWP Child ===
 Contributors: mainwp
-Donate link:
 Tags: WordPress management, management, manager, manage, WordPress controller, network, MainWP, updates, admin, administration, multiple, multisite, plugin updates, theme updates, login, remote, backups
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.2
-Stable tag: 3.5.7
+Tested up to: 5.2.2
+Requires PHP: 5.6
+Stable tag: 4.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0 - 8-26-19 =
+* Fixed: various functionality problems
+* Added: support for ucoming 3rd party extensions
+* Added: .htaccess file with custom redirect to rule the MainWP Child plugin directory to hide the plugin from serach engines
+* Updated: support for the MainWP Dashboard 4.0
+* Updated: notifications texts
+* Removed: unused code
 
 = 3.5.7 - 5-6-19 =
 * Fixed: multiple PHP Warnings
@@ -828,3 +836,8 @@ Fixed cloning issue with custom prefix
 
 = 0.1 =
 * Initial version
+
+== Upgrade Notice ==
+
+= 4.0 =
+This is a major upgrade please check the [MainWP Upgrade FAQ](https://mainwp.com/help/docs/faq-on-upgrading-from-mainwp-version-3-to-mainwp-version-4/)

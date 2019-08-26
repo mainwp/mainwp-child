@@ -186,7 +186,7 @@ class MainWP_Client_Report {
 		$exclude_connector_posts = true;
 		if ( isset( $sections['body'] ) && isset( $sections['body']['section_token'] ) && is_array($sections['body']['section_token']) ) {
 			foreach ($sections['body']['section_token'] as $sec) {
-				if (strpos($sec, "[section.posts") !== false) {
+				if (strpos($sec, "[section.posts") !== false || strpos($sec, "[section.pages") !== false) {
 					$exclude_connector_posts = false;
 					break;
 				}
@@ -195,7 +195,7 @@ class MainWP_Client_Report {
 		if ($exclude_connector_posts) {
 			if ( isset( $sections['header'] ) && isset( $sections['header']['section_token'] ) && is_array($sections['header']['section_token']) ) {
 				foreach ($sections['header']['section_token'] as $sec) {
-					if (strpos($sec, "[section.posts") !== false) {
+					if (strpos($sec, "[section.posts") !== false  || strpos($sec, "[section.pages") !== false) {
 						$exclude_connector_posts = false;
 						break;
 					}
@@ -205,7 +205,7 @@ class MainWP_Client_Report {
 		if ($exclude_connector_posts) {
 			if ( isset( $sections['footer'] ) && isset( $sections['footer']['section_token'] ) && is_array($sections['footer']['section_token']) ) {
 				foreach ($sections['footer']['section_token'] as $sec) {
-					if (strpos($sec, "[section.posts") !== false) {
+					if (strpos($sec, "[section.posts") !== false  || strpos($sec, "[section.pages") !== false) {
 						$exclude_connector_posts = false;
 						break;
 					}
@@ -215,7 +215,7 @@ class MainWP_Client_Report {
 		if ($exclude_connector_posts) {
 			if ( isset( $other_tokens['body'] ) && is_array( $other_tokens['body'] ) ) {
 				foreach ( $other_tokens['body'] as $sec ) {
-					if ( strpos( $sec, "[post." ) !== false ) {
+					if ( strpos( $sec, "[post." ) !== false  || strpos($sec, "[page.") !== false) {
 						$exclude_connector_posts = false;
 						break;
 					}
@@ -225,7 +225,7 @@ class MainWP_Client_Report {
 		if ($exclude_connector_posts) {
 			if ( isset( $other_tokens['header'] ) && is_array($other_tokens['header']) ) {
 				foreach ($other_tokens['header'] as $sec) {
-					if (strpos($sec, "[post.") !== false) {
+					if (strpos($sec, "[post.") !== false  || strpos($sec, "[page.") !== false) {
 						$exclude_connector_posts = false;
 						break;
 					}
@@ -235,7 +235,7 @@ class MainWP_Client_Report {
 		if ($exclude_connector_posts) {
 			if ( isset( $other_tokens['footer'] ) && is_array($other_tokens['footer']) ) {
 				foreach ($other_tokens['footer'] as $sec) {
-					if (strpos($sec, "[post.") !== false) {
+					if (strpos($sec, "[post.") !== false || strpos($sec, "[page.") !== false) {
 						$exclude_connector_posts = false;
 						break;
 					}
@@ -354,6 +354,7 @@ class MainWP_Client_Report {
 			$tokens = array();
 		}
 
+        $backups_created_time_to_fix = array();
 		foreach ( $tokens as $token ) {
 			$str_tmp   = str_replace( array( '[', ']' ), '', $token );
 			$array_tmp = explode( '.', $str_tmp );
@@ -386,6 +387,17 @@ class MainWP_Client_Report {
 								if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' &&  $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' && $record->context !== 'backupbuddy_backups'  && $record->context !== 'wptimecapsule_backups') {
 									continue;
 								}
+
+                                $created = strtotime( $record->created );
+                                if ( in_array( $created, $backups_created_time_to_fix ) ) {
+                                    if ( !in_array($record->ID, $skip_records) ) {
+                                        $skip_records[] = $record->ID;
+                                    }
+                                    continue;
+                                } else {
+                                    $backups_created_time_to_fix[] = $created;
+                                }
+
 							} else if ( 'mainwp_sucuri' === $context ) {
 								if ( $record->context !== 'mainwp_sucuri' ) {
 									continue;
@@ -453,7 +465,6 @@ class MainWP_Client_Report {
                                         }
                                     }
                                 }
-
 
 							}
 

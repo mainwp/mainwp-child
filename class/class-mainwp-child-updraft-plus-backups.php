@@ -1191,17 +1191,25 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$current_timegmt = time();
 		$current_time    = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $current_timegmt ), 'D, F j, Y H:i' );
 
-		$html = '<table style="border: 0px; padding: 0px; margin: 0 10px 0 0;">
-            <tr>
-            <td style="width: 124px; vertical-align:top; margin: 0px; padding: 0px;">' . __( 'Files', 'updraftplus' ) . ': </td><td style="color:blue; margin: 0px; padding: 0px;">' . $next_scheduled_backup . '</td>
-            </tr><tr>
-            <td style="width: 124px; vertical-align:top; margin: 0px; padding: 0px;">' . __( 'Database', 'updraftplus' ) . ': </td><td style="color:blue; margin: 0px; padding: 0px;">' . $next_scheduled_backup_database . '</td>
-            </tr><tr>
-            <td style="width: 124px; vertical-align:top; margin: 0px; padding: 0px;">' . __( 'Time now', 'updraftplus' ) . ': </td><td style="color:blue; margin: 0px; padding: 0px;">' . $current_time . '</td>
-        </table>';
+		$html = '<table class="ui single line table">
+			<thead>
+				<tr>
+					<th>' . __( 'Files', 'mainwp-updraftplus-extension' ) . '</th>
+					<th>' .  __( 'Database', 'mainwp-updraftplus-extension' ) . '</th>
+					<th>' .  __( 'Time now', 'mainwp-updraftplus-extension' ) . '</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>' . $next_scheduled_backup. '</td>
+					<td>' . $next_scheduled_backup_database. '</td>
+					<td>' . $current_time. '</td>
+				</tr>
+			</tbody>
+		</table>';
 
-        MainWP_Helper::check_classes_exists( array( 'UpdraftPlus_Filesystem_Functions' ) ) ;
-        MainWP_Helper::check_methods('UpdraftPlus_Filesystem_Functions', 'really_is_writable');
+    MainWP_Helper::check_classes_exists( array( 'UpdraftPlus_Filesystem_Functions' ) ) ;
+    MainWP_Helper::check_methods('UpdraftPlus_Filesystem_Functions', 'really_is_writable');
 
 		$updraft_dir     = $updraftplus->backups_dir_location();
 		$backup_disabled = (UpdraftPlus_Filesystem_Functions::really_is_writable($updraft_dir)) ? 0 : 1;
@@ -3077,7 +3085,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		if ( empty( $backup_history ) ) {
-			return '<p><em>' . __( 'You have not yet made any backups.', 'updraftplus' ) . '</em></p>';
+			return '<div class="ui yellow message">' . __( 'You have not yet made any backups.', 'updraftplus' ) . '</div>';
 		}
 
         MainWP_Helper::check_methods($updraftplus, array( 'backups_dir_location', 'get_backupable_file_entities' ));
@@ -3090,20 +3098,17 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$accept = array();
 		}
 
-		$ret         = '<table style="margin-top: 20px; margin-left: 20px;">';
+		$ret         = '<table class="ui stackable single line table">';
 		$nonce_field = wp_nonce_field( 'updraftplus_download', '_wpnonce', true, false );
 
 		$ret .= '<thead>
-            <tr style="margin-bottom: 4px;">
-                <th style="padding:0px 10px 6px; width: 172px;">' . __( 'Backup date', 'updraftplus' ) . '</th>
-                <th style="padding:0px 16px 6px; width: 426px;">' . __( 'Backup data (click to download)', 'updraftplus' ) . '</th>
-                <th style="padding:0px 0px 6px 1px; width: 272px;">' . __( 'Actions', 'updraftplus' ) . '</th>
-            </tr>
-            <tr style="height:2px; padding:1px; margin:0px;">
-                <td colspan="4" style="margin:0; padding:0"><div style="height: 2px; background-color:#888888;">&nbsp;</div></td>
-            </tr>
-        </thead>
-        <tbody>';
+            	<tr>
+                <th>' . __( 'Backup date', 'updraftplus' ) . '</th>
+                <th>' . __( 'Backup data (click to download)', 'updraftplus' ) . '</th>
+                <th>' . __( 'Actions', 'updraftplus' ) . '</th>
+            	</tr>
+        		</thead>
+        		<tbody>';
 
 		krsort( $backup_history );
 		foreach ( $backup_history as $key => $backup ) {
@@ -3129,8 +3134,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 //			}
 //			$rawbackup .= '</p></pre>';
 
-            // to fix
-            $rawbackup = '' ; //$updraftplus_admin->raw_backup_info($backup_history, $key, $non);
+      // to fix
+      $rawbackup = '' ; //$updraftplus_admin->raw_backup_info($backup_history, $key, $non);
 
 			$jobdata = $updraftplus->jobdata_getarray( $non );
 
@@ -3138,11 +3143,27 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 			$date_label = $this->date_label( $pretty_date, $key, $backup, $jobdata, $non );
 
+            $service_title = '';
+            if (!isset($backup['service'])) $backup['service'] = array();
+            if (!is_array($backup['service'])) $backup['service'] = array($backup['service']);
+            foreach ($backup['service'] as $service) {
+                if ('none' === $service || '' === $service || (is_array($service) && (empty($service) || array('none') === $service || array('') === $service))) {
+                    // Do nothing
+                } else {
+//                    $image_url = file_exists($image_folder.$service.'.png') ? $image_folder_url.$service.'.png' : $image_folder_url.'folder.png';
+
+                    $remote_storage = ('remotesend' === $service) ? __('remote site', 'updraftplus') : $updraftplus->backup_methods[$service];
+
+                    $service_title = '<br>' . esc_attr(sprintf(__('Remote storage: %s', 'updraftplus'), $remote_storage));
+                }
+            }
+
+
 			$ret .= <<<ENDHERE
 		<tr id="updraft_existing_backups_row_$key">
 
-			<td style="max-width: 140px;" class="updraft_existingbackup_date" data-rawbackup="$rawbackup">
-				$date_label
+			<td class="updraft_existingbackup_date" data-rawbackup="$rawbackup">
+				$date_label . $service_title
 			</td>
 ENDHERE;
 
@@ -3195,7 +3216,7 @@ ENDHERE;
 
 			$ret .= '</td>';
 
-			$ret .= '<td style="padding: 1px; margin:0px;">';
+			$ret .= '<td>';
 			$ret .= $this->restore_button( $backup, $key, $pretty_date, $entities );
 			$ret .= $delete_button;
 			if ( empty( $backup['meta_foreign'] ) ) {
@@ -3204,8 +3225,6 @@ ENDHERE;
 			$ret .= '</td>';
 
 			$ret .= '</tr>';
-
-			$ret .= '<tr style="height:2px; padding:1px; margin:0px;"><td colspan="4" style="margin:0; padding:0"><div style="height: 2px; background-color:#aaaaaa;">&nbsp;</div></td></tr>';
 
 		}
 
@@ -3227,7 +3246,7 @@ ENDHERE;
 				$show_data .= ' ' . __( '(backup set imported from remote storage)', 'updraftplus' );
 			}
 			# jQuery('#updraft_restore_label_wpcore').html('".esc_js($wpcore_restore_descrip)."');
-			$ret .= '<button title="' . __( 'Go to Restore', 'updraftplus' ) . '" type="button" class="button-primary mwp-updraftplus-restore-btn" >' . __( 'Restore', 'updraftplus' ) . '</button>';
+			$ret .= '<button title="' . __( 'Go to Restore', 'updraftplus' ) . '" type="button" class="ui green button mwp-updraftplus-restore-btn" >' . __( 'Restore', 'updraftplus' ) . '</button>';
 		}
 		$ret .= "</form></div>\n";
 
@@ -3238,7 +3257,7 @@ ENDHERE;
 	private function delete_button( $key, $nonce, $backup ) {
 		$sval = ( ( isset( $backup['service'] ) && 'email' !== $backup['service'] && 'none' !== $backup['service'] ) ) ? '1' : '0';
 
-		return '<a style="float:left;margin-right:6px"  class="mainwp-button-red button-primary button" href="#" onclick="event.preventDefault();' . "mainwp_updraft_delete('$key', '$nonce', $sval,this);" . '" title="' . esc_attr( __( 'Delete this backup set', 'updraftplus' ) ) . '">' . __( 'Delete', 'updraftplus' ) . '</a>';
+		return '<a style="float:left;margin-right:6px"  class="ui green basic button" href="#" onclick="event.preventDefault();' . "mainwp_updraft_delete('$key', '$nonce', $sval,this);" . '" title="' . esc_attr( __( 'Delete this backup set', 'updraftplus' ) ) . '">' . __( 'Delete', 'updraftplus' ) . '</a>';
 	}
 
 	private function date_label( $pretty_date, $key, $backup, $jobdata, $nonce ) {
@@ -3273,7 +3292,7 @@ ENDHERE;
                         <input type="hidden" name="action" value="mainwp_updraft_download_backup" />
                         <input type="hidden" name="type" value="$bkey" />
                         <input type="hidden" name="timestamp" value="$key" />
-                        <input type="submit" class="mwp-updraft-backupentitybutton button" value="$dbt" />
+                        <input type="submit" class="mwp-updraft-backupentitybutton ui button" value="$dbt" />
                 </form>
         </div>
 ENDHERE;
@@ -3390,7 +3409,7 @@ ENDHERE;
                                 <input type="hidden" name="type" value="$type" />
                                 <input type="hidden" name="timestamp" value="$key" />
                                 <input type="hidden" name="findex" value="$findex" />
-                                <input type="submit" class="mwp-updraft-backupentitybutton button" title="$ide" value="$pdescrip" />
+                                <input type="submit" class="mwp-updraft-backupentitybutton ui button" title="$ide" value="$pdescrip" />
                         </form>
                 </div>
 ENDHERE;
@@ -3412,7 +3431,7 @@ ENDHERE;
                                 <input type="hidden" name="action" value="downloadlog" />
                                 <input type="hidden" name="page" value="updraftplus" />
                                 <input type="hidden" name="updraftplus_backup_nonce" value="$nval" />
-                                <input type="submit" value="$lt" class="updraft-log-link button" onclick="event.preventDefault(); mainwp_updraft_popuplog('$nval', this);" />
+                                <input type="submit" value="$lt" class="updraft-log-link ui button" onclick="event.preventDefault(); mainwp_updraft_popuplog('$nval', this);" />
                         </form>
                         </div>
 ENDHERE;

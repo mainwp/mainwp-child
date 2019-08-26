@@ -162,6 +162,8 @@ class MainWP_Child_Pagespeed {
 			return array( 'result' => 'RUNNING' );
 		}
 
+        $information = array();
+
 		$settings = $_POST['settings'];
 		$settings = maybe_unserialize( base64_decode( $settings ) );
 
@@ -236,17 +238,17 @@ class MainWP_Child_Pagespeed {
 
 		$result = $this->get_sync_data( $strategy );
 
-		if ( isset( $_POST['doaction'] ) && ( 'check_new_pages' === $_POST['doaction'] || 'recheck_all_pages' === $_POST['doaction'] ) ) {
-			if ( 'recheck_all_pages' === $_POST['doaction'] ) {
-				$recheck = true;
-			} else {
-				$recheck = false;
-			}
-
-
-			if ($this->do_check_pages($recheck))
-				$information['checked_pages'] = 1;
-		}
+//		if ( isset( $_POST['doaction'] ) && ( 'check_new_pages' === $_POST['doaction'] || 'recheck_all_pages' === $_POST['doaction'] ) ) {
+//			if ( 'recheck_all_pages' === $_POST['doaction'] ) {
+//				$recheck = true;
+//			} else {
+//				$recheck = false;
+//			}
+//
+//
+//			if ($this->do_check_pages($recheck))
+//				$information['checked_pages'] = 1;
+//		}
 		$information['data'] = $result['data'];
 		return $information;
 	}
