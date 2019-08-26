@@ -1135,7 +1135,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
         // to fix performance issue
         if ( $with_hist )  {
-		$out['updraft_historystatus'] = $bh['h'];
+            $out['updraft_historystatus'] = $bh['h'];
         }
 
 		$out['updraft_count_backups'] = $bh['c'];
