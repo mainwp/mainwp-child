@@ -301,5 +301,5 @@ class MainWP_Child_WPvivid_BackupRestore
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->set_remote($_POST['remote']);
         return $ret;
-                }
-            }
+	}
+}

@@ -71,10 +71,10 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 == Changelog ==
 
-= 4.0 - 8-27-19 =
+= 4.0 - 8-28-19 =
 * Fixed: various functionality problems
-* Added: support for ucoming 3rd party extensions
-* Added: .htaccess file with custom redirect to rule the MainWP Child plugin directory to hide the plugin from serach engines
+* Added: support for upcoming 3rd party extensions
+* Added: .htaccess file with custom redirect to rule the MainWP Child plugin directory to hide the plugin from search engines
 * Updated: support for the MainWP Dashboard 4.0
 * Updated: notifications texts
 * Removed: unused code
