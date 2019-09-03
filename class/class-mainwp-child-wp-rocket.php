@@ -340,6 +340,9 @@ class MainWP_Child_WP_Rocket {
 				require_once WP_ROCKET_ADMIN_PATH . 'admin.php';
 			}
 
+			// to fix
+			include_once( ABSPATH . '/wp-admin/includes/template.php' );
+			
 			// Generate a new random key for minify cache file
 			$options                   = get_option( WP_ROCKET_SLUG );
 			$options['minify_css_key'] = create_rocket_uniqid();

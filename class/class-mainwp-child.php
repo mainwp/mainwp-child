@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0';
+	public static $version = '4.0.1';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
