@@ -356,6 +356,10 @@ class MainWP_Client_Report {
 
         $backups_created_time_to_fix = array();
 		foreach ( $tokens as $token ) {
+			
+			if (isset($token_values[ $token ]))
+				continue;
+			
 			$str_tmp   = str_replace( array( '[', ']' ), '', $token );
 			$array_tmp = explode( '.', $str_tmp );
 
