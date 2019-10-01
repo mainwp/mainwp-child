@@ -56,7 +56,9 @@ class MainWP_Child_Branding {
                     $opts['branding_preserve_title'] = stripslashes( $branding_header['name'] );
                 }
             }
-		}
+		}		
+		
+		$opts = apply_filters( 'mainwp_child_branding_init_options', $opts );		
         return $opts;
     }
 

@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 5.2.3
 Requires PHP: 5.6
-Stable tag: 4.0.2
+Stable tag: 4.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,11 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.3 - 10-1-19 =
+* Added: 'mainwp_child_branding_init_options' filter for disabling custom branding
+* Updated: support for the WPVulnDB API v3
+* Removed: unused code and files
 
 = 4.0.2 - 9-6-19 =
 * Fixed: an issue incorrect backups count in the Client Reports system

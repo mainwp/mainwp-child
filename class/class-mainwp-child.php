@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0.2';
+	public static $version = '4.0.3';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -165,7 +165,6 @@ class MainWP_Child {
 		'createBackupPoll'      => 'backupPoll',
 		'page_speed'            => 'page_speed',
 		'woo_com_status'        => 'woo_com_status',
-		'heatmaps'              => 'heatmaps',
 		'links_checker'         => 'links_checker',
 		'wordfence'             => 'wordfence',
 		'delete_backup'         => 'delete_backup',
@@ -376,7 +375,6 @@ class MainWP_Child {
 				'mainwp_child_remove_scripts_version',
 				'mainwp_child_remove_styles_version',
 				'mainwp_child_remove_readme',
-				'heatMapEnabled',
 				'mainwp_child_clone_sites',
 				'mainwp_child_pluginDir',
 				'mainwp_premium_updates',
@@ -433,10 +431,6 @@ class MainWP_Child {
 				'mainwp_child_fix_htaccess',
 				'mainwp_child_pluginDir',
 				'mainwp_child_htaccess_set',
-				'heatMapEnabled',
-				'heatMapsIndividualOverrideSetting',
-				'heatMapExtensionLoaded',
-				'heatMapsIndividualDisable',
 				'mainwp_child_nossl',
 				'mainwp_updraftplus_ext_enabled',
 				'mainwpKeywordLinks',
@@ -1087,43 +1081,6 @@ class MainWP_Child {
 			return;
 		}
 
-//		if ( 'hidden' === ( get_option( 'mainwp_child_pluginDir' ) ) && ( $hard || 'yes' !== ( get_option( 'mainwp_child_htaccess_set' ) ) ) ) {
-
-//			include_once( ABSPATH . '/wp-admin/includes/misc.php' );
-//
-//			$snPluginDir = basename( $this->plugin_dir );
-//
-//			$rules = null;
-//			if ( ( '1' !== get_option( 'heatMapsIndividualOverrideSetting' ) && '0' !== get_option( 'heatMapEnabled' ) ) ||
-//			     ( '1' === get_option( 'heatMapsIndividualOverrideSetting' ) && '1' !== get_option( 'heatMapsIndividualDisable' ) ) ||
-//			     get_option( 'mainwp_kwl_enable_statistic' )
-//			) {
-//				//Heatmap enabled
-//				//Make the plugin invisible, except heatmap
-//				$rules = $this->mod_rewrite_rules( array( 'wp-content/plugins/' . $snPluginDir . '/([^js\/]*)$' => 'wp-content/plugins/THIS_PLUGIN_DOES_NOT_EXIST' ) );
-//			} else {
-//				//Make the plugin invisible
-//				$rules = $this->mod_rewrite_rules( array( 'wp-content/plugins/' . $snPluginDir . '/(.*)$' => 'wp-content/plugins/THIS_PLUGIN_DOES_NOT_EXIST' ) );
-//			}
-//
-//			$home_path     = ABSPATH;
-//			$htaccess_file = $home_path . '.htaccess';
-//			if ( function_exists( 'save_mod_rewrite_rules' ) ) {
-//				$rules = explode( "\n", $rules );
-//
-//				//                $ch = @fopen($htaccess_file,'w');
-//				//                if (@flock($ch, LOCK_EX))
-//				//                {
-//				insert_with_markers( $htaccess_file, 'MainWP', $rules );
-//				//                }
-//				//                @flock($ch, LOCK_UN);
-//				//                @fclose($ch);
-//
-//			}
-//			MainWP_Helper::update_option( 'mainwp_child_htaccess_set', 'yes', 'yes' );
-//
-//		} else
-
         if ( $hard ) {
 			include_once( ABSPATH . '/wp-admin/includes/misc.php' );
 
@@ -1467,18 +1424,6 @@ class MainWP_Child {
 
 			wp_redirect( admin_url( $where ) );
 			exit();
-		}
-
-//		remove_action( 'admin_init', 'send_frame_options_header' );
-//		remove_action( 'login_init', 'send_frame_options_header' );
-
-		// Call Heatmap
-		if ( 'yes' === get_option( 'heatMapExtensionLoaded' ) ) {
-			if ( ( '1' !== get_option( 'heatMapsIndividualOverrideSetting' ) && '0' !== get_option( 'heatMapEnabled' ) ) ||
-			     ( '1' !== get_option( 'heatMapsIndividualOverrideSetting' ) && '1' !== get_option( 'heatMapsIndividualDisable' ) )
-			) {
-				new MainWP_Heatmap_Tracker();
-			}
 		}
 
 		/**
@@ -3627,22 +3572,6 @@ class MainWP_Child {
 	function updateExternalSettings() {
 		$update_htaccess = false;
 
-		if ( isset( $_POST['heatMap'] ) ) {
-			if ( '1' === $_POST['heatMap'] ) {
-				if ( '1' !== get_option( 'heatMapEnabled' ) ) {
-					$update_htaccess = true;
-				}
-				MainWP_Helper::update_option( 'heatMapEnabled', '1', 'yes' );
-				MainWP_Helper::update_option( 'heatMapExtensionLoaded', 'yes', 'yes' );
-			} else {
-				if ( '0' !== get_option( 'heatMapEnabled' ) ) {
-					$update_htaccess = true;
-				}
-				MainWP_Helper::update_option( 'heatMapEnabled', '0', 'yes' );
-				MainWP_Helper::update_option( 'heatMapExtensionLoaded', '', 'yes' );
-			}
-		}
-
 		if ( isset( $_POST['cloneSites'] ) ) {
 			if ( '0' !== $_POST['cloneSites'] ) {
 				$arr = @json_decode( urldecode( $_POST['cloneSites'] ), 1 );
@@ -3690,7 +3619,7 @@ class MainWP_Child {
 				MainWP_Child_Themes_Check::Instance()->cleanup_deactivation( false );
 			}
 		}
-
+		
 		$information['version']   = self::$version;
 		$information['wpversion'] = $wp_version;
 		$information['siteurl']   = get_option( 'siteurl' );
@@ -4055,7 +3984,14 @@ class MainWP_Child {
 			if ( ! is_array( $othersData ) ) {
 				$othersData = array();
 			}
-
+			
+			if ( isset( $othersData['wpvulndbToken'] ) ) {
+				$wpvulndb_token = get_option( 'mainwp_child_wpvulndb_token', '' );				
+				if ( $wpvulndb_token != $othersData['wpvulndbToken'] ) {				
+					MainWP_Helper::update_option( 'mainwp_child_wpvulndb_token', $othersData['wpvulndbToken'] );				
+				}
+			}
+		
             try{
                 $information = apply_filters( 'mainwp-site-sync-others-data', $information, $othersData );
             } catch(Exception $e) {
@@ -5694,24 +5630,6 @@ class MainWP_Child {
 
 	function woo_com_status() {
 		MainWP_Child_WooCommerce_Status::Instance()->action();
-	}
-
-	function heatmaps() {
-		$need_update = true;
-		if ( isset( $_POST['heatMapsOverride'] ) ) {
-			$override = $_POST['heatMapsOverride'] ? '1' : '0';
-			$disable  = $_POST['heatMapsDisable'] ? '1' : '0';
-			if ( get_option( 'heatMapsIndividualOverrideSetting' ) === $override && get_option( 'heatMapsIndividualDisable' ) === $disable ) {
-				$need_update = false;
-			}
-			if ( $need_update ) {
-				MainWP_Helper::update_option( 'heatMapsIndividualOverrideSetting', $override, 'yes' );
-				MainWP_Helper::update_option( 'heatMapsIndividualDisable', $disable, 'yes' );
-				$this->update_htaccess( true );
-			}
-			MainWP_Helper::write( array( 'result' => 'success' ) );
-		}
-		MainWP_Helper::write( array( 'result' => 'fail' ) );
 	}
 
 	function links_checker() {
