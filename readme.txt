@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.2.3
+Tested up to: 5.3
 Requires PHP: 5.6
-Stable tag: 4.0.3
+Stable tag: 4.0.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.4 - 11-11-19 =
+* Fixed: WordPress 5.3 compatibility problems
+* Fixed: an issue with managing BackWPup backups
+* Updated: multiple error messages
+* Removed: unused code
 
 = 4.0.3 - 10-1-19 =
 * Added: 'mainwp_child_branding_init_options' filter for disabling custom branding

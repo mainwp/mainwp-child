@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0.3';
+	public static $version = '4.0.4';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -1442,11 +1442,11 @@ class MainWP_Child {
 		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
 
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) {
-			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
+			MainWP_Helper::error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
 		}
 
 		if ( ! $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) && ! isset( $this->callableFunctionsNoAuth[ $_POST['function'] ] ) ) {
-			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
+			MainWP_Helper::error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
 		}
 
         $auth_user = false;
@@ -1470,11 +1470,11 @@ class MainWP_Child {
                 }
 
 				if ( ! $user ) {
-					MainWP_Helper::error( __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+					MainWP_Helper::error( __( 'Unexising administrator username. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 				}
 
 				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
-					MainWP_Helper::error( __( 'That user is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
+					MainWP_Helper::error( __( 'Invalid user. Please verify that the user has administrator privileges.', 'mainwp-child' ) );
 				}
 
 				$this->login( $auth_user );
@@ -2404,7 +2404,7 @@ class MainWP_Child {
             // set disconnect status to yes here, it will empty after reconnected
             MainWP_Child_Branding::Instance()->save_branding_options('branding_disconnected', 'yes');
     		MainWP_Helper::update_option( 'mainwp_child_branding_disconnected', 'yes', 'yes' ); // to compatible with old client reports
-			MainWP_Helper::error( __( 'Public key already set. Please reset the MainWP Child plugin on the child site and try again.', 'mainwp-child' ) );
+			MainWP_Helper::error( __( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin and try again.', 'mainwp-child' ) );
 
 		}
 
@@ -3032,7 +3032,13 @@ class MainWP_Child {
 		//Read form data
 		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) );
 		$send_password = $_POST['send_password'];
-
+		// check role existed
+		if (isset( $new_user['role'] )) {
+			if ( !get_role( $new_user['role'] ) ) {
+				$new_user['role'] = 'subscriber';
+			}
+		}
+		
 		$new_user_id = wp_insert_user( $new_user );
 
 		if ( is_wp_error( $new_user_id ) ) {
@@ -4926,17 +4932,17 @@ class MainWP_Child {
 
 	function search_users() {
 
-                $search_user_role = array();
-                $check_users_role = false;
+		$search_user_role = array();
+		$check_users_role = false;
 
-                if (isset($_POST['role']) && !empty($_POST['role'])) {
-                    $check_users_role = true;
-                    $all_users_role = $this->get_all_users(true);
-                    foreach($all_users_role as $user) {
-                        $search_user_role[] = $user['id'];
-                    }
-                    unset($all_users_role);
-                }
+		if (isset($_POST['role']) && !empty($_POST['role'])) {
+			$check_users_role = true;
+			$all_users_role = $this->get_all_users(true);
+			foreach($all_users_role as $user) {
+				$search_user_role[] = $user['id'];
+			}
+			unset($all_users_role);
+		}
 
 		$columns  = explode( ',', $_POST['search_columns'] );
 		$allusers = array();

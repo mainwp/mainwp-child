@@ -72,7 +72,13 @@ class MainWP_Child_Back_WP_Up {
 
             if ( is_plugin_active( 'backwpup-pro/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup-pro/backwpup.php' ) ) {
                 $file_path1 = plugin_dir_path( __FILE__ ) . '../../backwpup-pro/backwpup.php';
-                $file_path2 = plugin_dir_path( __FILE__ ) . '../../backwpup-pro/inc/pro/class-pro.php';
+                $file_path2 = plugin_dir_path( __FILE__ ) . '../../backwpup-pro/inc/Pro/class-pro.php';
+				
+				// to fix
+				if ( ! file_exists( $file_path2 ) ) {
+					$file_path2 = plugin_dir_path( __FILE__ ) . '../../backwpup-pro/inc/pro/class-pro.php';
+				}
+				
                 MainWP_Helper::check_files_exists(array( $file_path1, $file_path2 ));
                 require_once(  $file_path1 );
                 require_once(  $file_path2 );
@@ -90,7 +96,8 @@ class MainWP_Child_Back_WP_Up {
                 MainWP_Helper::check_methods('get_instance');
                 BackWPup::get_instance();
 
-                add_action( 'wp_ajax_mainwp_backwpup_download_backup', array( $this, 'download_backup' ) );
+                //add_action( 'wp_ajax_mainwp_backwpup_download_backup', array( $this, 'download_backup' ) );
+				add_action( 'admin_init', array( $this, 'init_download_backup' ) );				
                 add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
             }
         } catch ( Exception $e) {
@@ -748,6 +755,17 @@ class MainWP_Child_Back_WP_Up {
 						'&',
 						admin_url( 'admin-ajax.php' ) . '?action=mainwp_backwpup_download_backup&type=',
 					), $temp_array['downloadurl'] . '&_wpnonce=' . $this->create_nonce_without_session( 'mainwp_download_backup' ) );
+					
+					$temp_array['downloadurl_id'] = '/wp-admin/admin.php?page=backwpupbackups';
+					if ( preg_match( '/.*&jobid=([^&]+)&.*/is', $temp_array['downloadurl'], $matches )) {
+						if ( !empty( $matches[1] ) && is_numeric( $matches[1] ) ) {
+							$temp_array['downloadurl_id'] .= '&download_click_id=' . $matches[1];							
+						}						
+						error_log('did match' . print_r($matches, true));						
+					} else {
+						error_log('not match');
+					}
+					
 					$temp_array['website_id']  = $website_id;
 
 					if ( ! isset( $without_dupes[ $temp_array['file'] ] ) ) {
@@ -765,7 +783,23 @@ class MainWP_Child_Back_WP_Up {
 		return array( 'success' => 1, 'response' => $array );
 	}
 
-	public function download_backup() {
+	public function init_download_backup() {
+		if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'backwpupbackups' || !isset( $_GET['download_click_id'] )  || empty( $_GET['download_click_id'] )) {
+			return;
+		}
+		?>
+		<script type="text/javascript">
+			document.addEventListener("DOMContentLoaded", function(event) {
+                var downloadLink = document.querySelector( 'a.backup-download-link[data-jobid="<?php echo intval($_GET['download_click_id']); ?>"' );		
+				if (typeof(downloadLink) !== 'undefined' && downloadLink !== null) {
+                   downloadLink.click();
+                }
+			});
+		</script>
+		<?php
+	}
+	
+	public function download_backup() {				
 		if ( ! isset( $_GET['type'] ) || empty( $_GET['type'] ) || ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {
 			die( '-1' );
 		}
@@ -777,21 +811,21 @@ class MainWP_Child_Back_WP_Up {
 		if ( ! $this->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {
 			die( '-3' );
 		}
-
+				
 		$dest = strtoupper( str_replace( 'download', '', $_GET['type'] ) );
 		if ( ! empty( $dest ) && strstr( $_GET['type'], 'download' ) ) {
 			$dest_class = BackWPup::get_destination( $dest );
 			if ( is_null( $dest_class ) ) {
 				die( '-4' );
-			}
+			}				
 
 			$dest_class->file_download( (int) $_GET['jobid'], $_GET['file'] );
 		} else {
 			die( '-5' );
-		}
+			}
 
 		die();
-	}
+		} 	
 
 	protected function create_nonce_without_session( $action = - 1 ) {
 		$user = wp_get_current_user();

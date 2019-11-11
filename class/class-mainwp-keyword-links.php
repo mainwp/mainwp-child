@@ -38,7 +38,7 @@ class MainWP_Keyword_Links {
 
 
 	public function keywordLinksJS() {
-		if ( ! is_admin() && get_option( 'mainwp_kwl_enable_statistic' ) ) {
+		if ( ! is_admin() && get_option( 'mainwp_kwl_enable_statistic' ) && !empty($this->keyword_links) ) {
 			wp_enqueue_script( 'jquery' );
 			wp_enqueue_script( 'keywordLinks', plugins_url( '/js/keywordlinks.js', dirname( __FILE__ ) ) );
 			add_action( 'wp_head', array( $this, 'head_loading' ), 1 );
