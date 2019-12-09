@@ -741,7 +741,7 @@ function get_sibling_files_callback_wptc() {
                 if (count($formatted_backups) > 0) {
                     foreach($formatted_backups as $key => $value) {
                         $backup_time = $key;
-                        do_action( 'mainwp_wptimecapsule_backup', $message, $backup_type, $backup_time );
+                        do_action( 'mainwp_reports_wptimecapsule_backup', $message, $backup_type, $backup_time );
                     }
                 }
             }

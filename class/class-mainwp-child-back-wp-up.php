@@ -311,7 +311,7 @@ class MainWP_Child_Back_WP_Up {
                         $backup_type = ltrim($backup_type, ' + ');
                     }
                     $message = 'BackWPup backup finished (' . $backup_type . ')';
-                    do_action( 'mainwp_backwpup_backup', $message, $backup_type, $backup_time );
+                    do_action( 'mainwp_reports_backwpup_backup', $message, $backup_type, $backup_time );
 
                     if ($new_lasttime_logged < $backup_time)
                         $new_lasttime_logged = $backup_time;

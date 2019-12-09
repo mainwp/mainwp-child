@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 5.3
 Requires PHP: 5.6
-Stable tag: 4.0.4
+Stable tag: 4.0.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,10 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.5 - 12-9-19 =
+* Added: support for the Pro Reports extension
+* Fixed: MainWP Child Reports version 2 compatibility
 
 = 4.0.4 - 11-11-19 =
 * Fixed: WordPress 5.3 compatibility problems

@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0.4';
+	public static $version = '4.0.5';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -498,7 +498,7 @@ class MainWP_Child {
                     'show_support' => 'mainwp_branding_show_support',
                     'disable_change' => 'mainwp_branding_disable_change',
                     'disable_switching_theme' => 'mainwp_branding_disable_switching_theme',
-                    'hide_child_reports'                => 'mainwp_creport_branding_stream_hide',
+                    //'hide_child_reports'                => 'mainwp_creport_branding_stream_hide',
                     'branding_ext_enabled'  => 'mainwp_branding_ext_enabled'
                 );
 
@@ -3630,7 +3630,7 @@ class MainWP_Child {
 		$information['wpversion'] = $wp_version;
 		$information['siteurl']   = get_option( 'siteurl' );
 		$information['wpe']   =  MainWP_Helper::is_wp_engine() ? 1 : 0;
-
+		$theme_name = wp_get_theme()->get( 'Name' );
 	    $information['site_info']   = array(
 	        'wpversion' => $wp_version,
             'debug_mode' => (defined('WP_DEBUG') && true === WP_DEBUG) ? true : false,
@@ -3638,6 +3638,7 @@ class MainWP_Child {
 	        'child_version' => self::$version,
 	        'memory_limit' => MainWP_Child_Server_Information::getPHPMemoryLimit(),
 	        'mysql_version' => MainWP_Child_Server_Information::getMySQLVersion(),
+			'themeactivated' => $theme_name,
 	        'ip' => $_SERVER['SERVER_ADDR']
 	    );
 
@@ -5282,45 +5283,59 @@ class MainWP_Child {
 			$maint_options         = array();
 		}
 
+		
+//		$this->options = array(
+//			'revisions'    => __( 'Delete all post revisions', 'mainwp-maintenance-extension' ),
+//			'autodraft'    => __( 'Delete all auto draft posts',                   'mainwp-maintenance-extension' ),
+//			'trashpost'    => __( 'Delete trash posts',                            'mainwp-maintenance-extension' ),
+//			'spam'         => __( 'Delete spam comments',                          'mainwp-maintenance-extension' ),
+//			'pending'      => __( 'Delete pending comments',                       'mainwp-maintenance-extension' ),
+//			'trashcomment' => __( 'Delete trash comments',                         'mainwp-maintenance-extension' ),
+//			'tags'         => __( 'Delete tags with 0 posts associated',           'mainwp-maintenance-extension' ),
+//			'categories'   => __( 'Delete categories with 0 posts associated',     'mainwp-maintenance-extension' ),
+//			'optimize'     => __( 'Optimize database tables',                      'mainwp-maintenance-extension' )
+//		);
+		
         $performed_what = array();
 		if ( empty( $max_revisions ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
-			$wpdb->query( $sql_clean );
-            $performed_what[] = 'Posts revisions deleted';
+			$wpdb->query( $sql_clean );			
+			// to fix issue of meta_value short length
+            $performed_what[] = 'revisions'; //'Posts revisions deleted';
 		} else {
 			$results       = MainWP_Helper::getRevisions( $max_revisions );
 			$count_deleted = MainWP_Helper::deleteRevisions( $results, $max_revisions );
-            $performed_what[] = 'Posts revisions deleted';
+            $performed_what[] = 'revisions'; //'Posts revisions deleted';
 		}
 
 		if ( in_array( 'autodraft', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'";
 			$wpdb->query( $sql_clean );
-            $performed_what[] = 'Auto draft posts deleted';
+            $performed_what[] = 'autodraft'; //'Auto draft posts deleted';
 		}
 
 		if ( in_array( 'trashpost', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'trash'";
 			$wpdb->query( $sql_clean );
-            $performed_what[] = 'Trash posts deleted';
+            $performed_what[] = 'trashpost'; //'Trash posts deleted';
 		}
 
 		if ( in_array( 'spam', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'spam'";
 			$wpdb->query( $sql_clean );
-            $performed_what[] = 'Spam comments deleted';
+            $performed_what[] = 'spam'; //'Spam comments deleted';
 		}
 
 		if ( in_array( 'pending', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = '0'";
 			$wpdb->query( $sql_clean );
-            $performed_what[] = 'Pending comments deleted';
+            $performed_what[] = 'pending'; //'Pending comments deleted';
 		}
 
 		if ( in_array( 'trashcomment', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'trash'";
 			$wpdb->query( $sql_clean );
-            $performed_what[] = 'Trash comments deleted';
+            $performed_what[] = 'trashcomment'; //'Trash comments deleted';
 		}
 
 		if ( in_array( 'tags', $maint_options ) ) {
@@ -5332,7 +5347,7 @@ class MainWP_Child {
 					}
 				}
 			}
-            $performed_what[] = 'Tags with 0 posts associated deleted';
+            $performed_what[] = 'tags'; //'Tags with 0 posts associated deleted';
 		}
 
 		if ( in_array( 'categories', $maint_options ) ) {
@@ -5344,19 +5359,19 @@ class MainWP_Child {
 					}
 				}
 			}
-            $performed_what[] = 'Categories with 0 posts associated deleted';
+            $performed_what[] = 'categories'; //'Categories with 0 posts associated deleted';
 		}
 
 		if ( in_array( 'optimize', $maint_options ) ) {
 			$this->maintenance_optimize();
-            $performed_what[] = 'Database optimized';
+            $performed_what[] = 'optimize'; //'Database optimized';
 		}
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
 
 	    if ( !empty( $performed_what ) && has_action( 'mainwp_reports_maintenance' ) ) {
-	        $details = implode( ', ', $performed_what );
+	        $details = implode( ',', $performed_what );
 	        $log_time = time();
 	        $message = $result = "Maintenance Performed";
 	        do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result);

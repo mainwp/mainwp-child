@@ -224,7 +224,7 @@ class MainWP_Child_Back_Up_Wordpress {
                         if ( file_exists( $file ) ) {
                             $date = @filemtime( $file );
                             if ( !empty( $date ) ) {
-                                do_action( "backupwordpress_backup", $destination, $message, 'finished', $backup_type, $date );
+                                do_action( "mainwp_reports_backupwordpress_backup", $destination, $message, 'finished', $backup_type, $date );
                                 MainWP_Helper::update_lasttime_backup('backupwordpress', $date); // to support backup before update feature
                             }
                         }

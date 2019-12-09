@@ -1,8 +1,9 @@
 <?php
 
 class MainWP_Client_Report {
-	public static $instance = null;
-
+	
+	public static $instance = null;	
+	
 	static function Instance() {
 		if ( null === MainWP_Client_Report::$instance ) {
 			MainWP_Client_Report::$instance = new MainWP_Client_Report();
@@ -10,15 +11,23 @@ class MainWP_Client_Report {
 
 		return MainWP_Client_Report::$instance;
 	}
-
+	
+	public function __construct() {		
+		add_filter( 'wp_mainwp_stream_current_agent', array($this, 'current_agent' ), 10, 1 );
+	}
+	
 	public function init() {
-        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
-		//add_filter( 'wp_stream_connectors', array( 'MainWP_Client_Report', 'init_stream_connectors' ), 10, 1 );
-		add_filter( 'mainwp_client_reports_connectors', array( 'MainWP_Client_Report', 'init_report_connectors' ), 10, 1 );
+        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );		
 		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
 	}
 
-    // ok
+	public function current_agent( $agent ) {		
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) )
+			$agent = '';				
+		return $agent;		
+	}
+	
+	// ok
     public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {
             $creport_sync_data = array();
@@ -30,48 +39,6 @@ class MainWP_Client_Report {
             }
         }
 		return $information;
-	}
-
-
-    // not used
-	public static function init_stream_connectors( $classes ) {
-		$connectors = array(
-			'Backups',
-			'Sucuri',
-		);
-
-		foreach ( $connectors as $connector ) {
-			$class_name = "MainWP_Child_Reports_Connector_$connector";
-			if ( ! class_exists( $class_name ) ) {
-				continue;
-			}
-			$class = new $class_name();
-			if ( ! method_exists( $class, 'is_dependency_satisfied' ) ) {
-				continue;
-			}
-			if ( $class->is_dependency_satisfied() ) {
-				$classes[] = $class;
-			}
-		}
-
-		return $classes;
-	}
-
-	public static function init_report_connectors( $classes ) {
-		$connectors = array(
-			'Backups',
-			'Sucuri'
-		);
-
-		foreach ( $connectors as $connector ) {
-			$class     = "MainWP_Child_Reports_Connector_$connector";
-			if ( ! class_exists( $class ) ) {
-				continue;
-			}
-			$classes[] = $class;
-		}
-
-		return $classes;
 	}
 
 	public  static function do_reports_log( $ext = '' ) {
@@ -98,8 +65,8 @@ class MainWP_Client_Report {
 
 		$information              = array();
 
-		if ( !function_exists( 'mainwp_wp_stream_query' ) || !class_exists( 'MainWP_WP_Stream' ) ) {
-			$information['error'] = 'NO_CREPORT';
+		if ( !function_exists( 'wp_mainwp_stream_get_instance' ) ) {
+			$information['error'] = __( 'Error: No MainWP Client Reports plugin installed.' );
 			MainWP_Helper::write( $information );
 		}
 
@@ -122,10 +89,9 @@ class MainWP_Client_Report {
 		MainWP_Helper::write( $information );
 	}
 
-	public function save_sucuri_stream() {
-        $scan_data = isset($_POST['scan_data']) ? $_POST['scan_data'] : '';
-		do_action( 'mainwp_sucuri_scan', $_POST['result'], $_POST['scan_status'], $scan_data );
-
+	public function save_sucuri_stream() {		
+        $scan_data = isset($_POST['scan_data']) ? $_POST['scan_data'] : '';		
+		do_action( 'mainwp_reports_sucuri_scan', $_POST['result'], $_POST['scan_status'], $scan_data, isset($_POST['scan_time']) ? $_POST['scan_time'] : 0  );
 		return true;
 	}
 
@@ -134,7 +100,102 @@ class MainWP_Client_Report {
 
 		return true;
 	}
+	
+	public function is_backup_action( $action ) {
+		if ( in_array( $action, array( 'mainwp_backup', 'backupbuddy_backup', 'backupwordpress_backup', 'backwpup_backup', 'updraftplus_backup', 'wptimecapsule_backup' ) ) ) 
+			return true;
+		return false;		
+	}
+	
+	public function get_compatible_context( $context ) {	
+		// convert context name of tokens to context name saved in child report
+		// some context are not difference	
+		$mapping_contexts =  array(
+			'comment' => 'comments', // actual context values: post,page
+			'plugin'  => 'plugins',
+			'users' => 'profiles',
+			'user'		=> 'profiles',
+			'session' => 'sessions',
+			'setting' => 'settings',
+			'theme'   => 'themes',
+			'posts'   => 'post',
+			'pages'   => 'page',
+			'widgets'  => 'widgets',
+			'widget'  => 'widgets',
+			'menu'    => 'menus',
+			'backups' => 'backups',
+			'backup'  => 'backups',
+			'sucuri'  => 'sucuri_scan',
+			'maintenance' => 'mainwp_maintenance',
+			'wordfence' => 'wordfence_scan',
+			'backups'  => 'backups', 
+			'backup'   => 'backups', 
+			'media'	=> 'media'					
+		);
+		
+		return isset( $mapping_contexts[ $context ] ) ? $mapping_contexts[ $context ] : $context;		
+	}
+	
+		
+	public function get_connector_by_compatible_context( $context ) {
+		
+		$connector = "";
+		if ( $context == "plugins" || $context == "themes" ) {			
+			$connector = "installer";
+		} else if ( $context == 'profiles' ) {
+			$connector = "users";
+		} else if ( $context == 'comments' ) { // multi values			
+			$connector = "comments";
+		} 
+//		else if ( $context == 'sessions' ) {
+//			$connector = "users";
+//		} 
+		else if ( $context == 'settings' ) {
+			$connector = "settings";
+		} else if ( $context == 'post' || $context == 'page') {
+			$connector = "posts";
+		} else if ( $context == 'widgets' ) {
+			$connector = "widgets";
+		} else if ( $context == 'menus' ) {
+			$connector = "menus";
+		} else if ( $context == 'backups' ) {
+			$connector = "mainwp_backups";
+		} else if ( $context == 'sucuri_scan' ) {						
+			$connector = "mainwp_sucuri";
+		} else if ( $context == 'mainwp_maintenance' ) {
+			$connector = "mainwp_maintenance";
+		} else if ( $context == 'wordfence_scan' ) {			
+			$connector = "mainwp_wordfence";
+		} else if ( $context == 'media' ) {			
+			$connector = "media";
+		} 				
+		
+		return $connector;		
+	}
 
+	public function get_compatible_action( $action, $context = '' ) {
+		
+		$mapping_actions = array(
+			'restored' => 'untrashed',
+			'spam'     => 'spammed',			
+		);				
+		
+		if (isset($mapping_actions[ $action ]))
+			return $mapping_actions[ $action ];
+		
+		if ( $context == 'mainwp_maintenance' ) {
+			if ( $action == 'process')
+				$action = 'maintenance';
+		} else if ( $context == 'sucuri_scan' ) {
+			if ( $action == 'checks')
+				$action = 'sucuri_scan';
+		} else if ($context == 'wordfence_scan') {
+			if ( $action == 'scan')
+				$action = 'wordfence_scan';
+		}				
+		return $action;
+	}
+		
 	public function get_stream() {
 		// Filters
 		$allowed_params = array(
@@ -170,7 +231,7 @@ class MainWP_Client_Report {
 
 		$args = array();
 		foreach ( $allowed_params as $param ) {
-			$paramval = mainwp_wp_stream_filter_input( INPUT_POST, $param );
+			$paramval = wp_mainwp_stream_filter_input( INPUT_POST, $param );
 			if ( $paramval || '0' === $paramval ) {
 				$args[ $param ] = $paramval;
 			}
@@ -248,13 +309,14 @@ class MainWP_Client_Report {
 
 		$args['action__not_in'] = array( 'login' );
 
-		$args['fields'] = 'with-meta';
+		$args['with-meta'] = 1;
+		
 		if ( isset( $args['date_from'] ) ) {
-			$args['date_from'] = date( 'Y-m-d H:i:s', $args['date_from'] );
+			$args['date_from'] = date( 'Y-m-d', $args['date_from'] );
 		}
 
 		if ( isset( $args['date_to'] ) ) {
-			$args['date_to'] = date( 'Y-m-d H:i:s', $args['date_to'] );
+			$args['date_to'] = date( 'Y-m-d', $args['date_to'] );
 		}
 
 		if ( MainWP_Child_Branding::Instance()->is_branding() ) {
@@ -263,14 +325,12 @@ class MainWP_Client_Report {
 
 		$args['records_per_page'] = 9999;
 
-		$records = mainwp_wp_stream_query( $args );
-
+//		$records = mainwp_wp_stream_query( $args );
+		$records = wp_mainwp_stream_get_instance()->db->query( $args );
+		
 		if ( ! is_array( $records ) ) {
 			$records = array();
 		}
-
-		//return $records;
-		//$other_tokens_data = $this->get_other_tokens_data($records, $other_tokens);
 
 		// to fix invalid data
 		$skip_records = array();
@@ -317,37 +377,6 @@ class MainWP_Client_Report {
 
 	function get_other_tokens_data( $records, $tokens, &$skip_records ) {
 
-        // convert context name of tokens to context name saved in child report
-        // some context are not difference
-		$convert_context_name = array(
-			'comment' => 'comments',
-			'plugin'  => 'plugins',
-			'profile' => 'profiles',
-			'session' => 'sessions',
-			'setting' => 'settings',
-			'setting' => 'settings',
-			'theme'   => 'themes',
-			'posts'   => 'post',
-			'pages'   => 'page',
-			'user'    => 'users',
-			'widget'  => 'widgets',
-			'menu'    => 'menus',
-			'backups' => 'mainwp_backups',
-			'backup'  => 'mainwp_backups',
-			'sucuri'  => 'mainwp_sucuri',
-		);
-
-		$convert_action_name = array(
-			'restored' => 'untrashed',
-			'spam'     => 'spammed',
-			'backups'  => 'mainwp_backup',
-			'backup'   => 'mainwp_backup',
-		);
-
-		$allowed_data = array(
-			'count'
-		);
-
 		$token_values = array();
 
 		if ( ! is_array( $tokens ) ) {
@@ -357,7 +386,7 @@ class MainWP_Client_Report {
         $backups_created_time_to_fix = array();
 		foreach ( $tokens as $token ) {
 			
-			if (isset($token_values[ $token ]))
+			if ( isset( $token_values[ $token ] ) )
 				continue;
 			
 			$str_tmp   = str_replace( array( '[', ']' ), '', $token );
@@ -371,68 +400,78 @@ class MainWP_Client_Report {
 					list( $context, $action, $data ) = $array_tmp;
 				}
 
-				$context = isset( $convert_context_name[ $context ] ) ? $convert_context_name[ $context ] : $context;
-				if ( isset( $convert_action_name[ $action ] ) ) {
-					$action = $convert_action_name[ $action ];
+				$context = $this->get_compatible_context( $context );	
+				
+				// to compatible with new version of child report
+				// to check condition for grabbing report data		
+				$connector = $this->get_connector_by_compatible_context( $context );
+				
+				$action = $this->get_compatible_action( $action, $context );
+								
+				// custom values
+				if ( $context == 'profiles' ) {
+					if ( $action == 'created' || $action == 'deleted' ) {
+						$context = 'users'; // see class-connector-user.php
+					}
 				}
+				//// 
+				
 				switch ( $data ) {
 					case 'count':
+						
 						$count = 0;
 						foreach ( $records as $record ) {
-							if ( 'themes' === $context && 'edited' === $action ) {
-								if ( $record->action !== 'updated' || $record->connector !== 'editor' ) {
+							
+							// check connector							
+							if ( $record->connector == 'editor' ) {				
+								if ( !in_array( $context, array('plugins', 'themes') ) || $action !== 'updated' )
+									continue;				
+							} else if ( $connector !== $record->connector ) {
+								continue;
+							}				
+							
+							// check context			
+							if ( $context == 'comments' ) { // multi values									
+								$comment_contexts = array( 'post', 'page' );					
+								if ( ! in_array( $record->context, $comment_contexts ) ) {
 									continue;
 								}
-							} else if ( 'users' === $context && 'updated' === $action ) {
-								if ( $record->context !== 'profiles' || $record->connector !== 'users' ) {
+							} else if ( $context == "menus") {
+								// ok, pass, don't check context
+							} else if ( $record->connector == 'editor' ) {
+								// ok, pass, checked above 
+							} else if ( $connector == 'media' && $record->connector == 'media' ) {
+								// ok, pass, do not check context
+							} else if ( $connector == "widgets" && $record->connector == 'widgets') {
+								// ok, pass, don't check context
+							} else if ( $context !== $record->context) {
+								continue;
+							}
+									
+							// custom action value
+							if ( $connector == "widgets" ) {
+								if ( $action == "deleted" ) {
+									$action = "removed"; // action saved in database
+								}									
+							}
+							//// 
+							
+							// check action
+							if ( 'backups' === $context ) {																
+								if ( ! $this->is_backup_action($record->action) ) {
 									continue;
 								}
-							} else if ( 'mainwp_backups' === $context ) {
-								if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' &&  $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups' && $record->context !== 'backupbuddy_backups'  && $record->context !== 'wptimecapsule_backups') {
-									continue;
-								}
-
                                 $created = strtotime( $record->created );
                                 if ( in_array( $created, $backups_created_time_to_fix ) ) {
-                                    if ( !in_array($record->ID, $skip_records) ) {
+                                    if ( ! in_array($record->ID, $skip_records) ) {
                                         $skip_records[] = $record->ID;
                                     }
                                     continue;
                                 } else {
                                     $backups_created_time_to_fix[] = $created;
                                 }
-
-							} else if ( 'mainwp_sucuri' === $context ) {
-								if ( $record->context !== 'mainwp_sucuri' ) {
-									continue;
-								}
-							} else if ( 'wordfence' === $context ) {
-								if ( $record->context !== 'wordfence_scans' ) {
-									continue;
-								}
-							} else if ( 'maintenance' === $context ) {
-								if ( $record->context !== 'mainwp_maintenances' ) {
-									continue;
-								}
-							} else {
+							} else {								
 								if ( $action !== $record->action ) {
-									continue;
-								}
-
-								if ( 'comments' === $context && 'comments' !== $record->connector ) {
-									continue;
-								} else if ( 'media' === $context && 'media' !== $record->connector ) {
-									continue;
-								} else if ( 'widgets' === $context && 'widgets' !== $record->connector ) {
-									continue;
-								} else if ( 'menus' === $context && 'menus' !== $record->connector ) {
-									continue;
-								}
-
-								if ( 'comments' !== $context && 'media' !== $context &&
-								     'widgets' !== $context && 'menus' !== $context &&
-								     $record->context !== $context
-								) {
 									continue;
 								}
 
@@ -457,21 +496,7 @@ class MainWP_Client_Report {
 										}
 									}
 								}
-
-                                // to avoid WC order_note, action_log
-                                if ( 'comments' === $context ) {
-                                    if ( isset( $record->meta ) ) {
-                                        if ( isset( $record->meta[ 'comment_type' ] ) && is_array($record->meta[ 'comment_type' ])) {
-                                            $cmtype = current($record->meta[ 'comment_type' ]);
-                                            if ( $cmtype == 'order_note' || $cmtype == 'action_log') {
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                }
-
 							}
-
 							$count ++;
 						}
 						$token_values[ $token ] = $count;
@@ -485,43 +510,22 @@ class MainWP_Client_Report {
 
 	function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
-		$convert_context_name = array(
-			'comment' => 'comments',
-			'plugin'  => 'plugins',
-			'profile' => 'profiles',
-			'session' => 'sessions',
-			'setting' => 'settings',
-			'theme'   => 'themes',
-			'posts'   => 'post',
-			'pages'   => 'page',
-			'widget'  => 'widgets',
-			'menu'    => 'menus',
-			'backups' => 'mainwp_backups',
-			'backup'  => 'mainwp_backups',
-			'sucuri'  => 'mainwp_sucuri',
+		
+		$maintenance_details = array(
+			'revisions'    => __( 'Delete all post revisions', 'mainwp-child' ),
+			'autodraft'    => __( 'Delete all auto draft posts',                   'mainwp-child' ),
+			'trashpost'    => __( 'Delete trash posts',                            'mainwp-child' ),
+			'spam'         => __( 'Delete spam comments',                          'mainwp-child' ),
+			'pending'      => __( 'Delete pending comments',                       'mainwp-child' ),
+			'trashcomment' => __( 'Delete trash comments',                         'mainwp-child' ),
+			'tags'         => __( 'Delete tags with 0 posts associated',           'mainwp-child' ),
+			'categories'   => __( 'Delete categories with 0 posts associated',     'mainwp-child' ),
+			'optimize'     => __( 'Optimize database tables',                      'mainwp-child' )
 		);
-
-		$convert_action_name = array(
-			'restored' => 'untrashed',
-			'spam'     => 'spammed',
-			'backup'   => 'mainwp_backup',
-		);
-
-//		$some_allowed_data = array(
-//			'ID',
-//			'name',
-//			'title',
-//			'oldversion',
-//			'currentversion',
-//			'date',
-//			'time',
-//			'count',
-//			'author',
-//			'old.version',
-//			'current.version',
-//		);
-
-		$context   = $action = '';
+		
+		$context = $action = '';
+		
+		// parse $context, $action values from section tokens
 		$str_tmp   = str_replace( array( '[', ']' ), '', $section );
 		$array_tmp = explode( '.', $str_tmp );
 		if ( is_array( $array_tmp ) ) {
@@ -531,97 +535,86 @@ class MainWP_Client_Report {
 				list( $str1, $context, $action ) = $array_tmp;
 			}
 		}
-
-		$context = isset( $convert_context_name[ $context ] ) ? $convert_context_name[ $context ] : $context;
-		$action  = isset( $convert_action_name[ $action ] ) ? $convert_action_name[ $action ] : $action;
-
+		// end
+		
+		// get db $context value by mapping
+		$context = $this->get_compatible_context( $context );		
+		// to compatible with new version of child report
+		// to check condition for grabbing report data		
+		$connector = $this->get_connector_by_compatible_context( $context );
+		
+		$action = $this->get_compatible_action( $action, $context );
+		
+		if ( $context == 'profiles' ) {
+			if ( $action == 'created' || $action == 'deleted' ) {
+				$context = 'users'; // see class-connector-user.php
+			}
+		}
+						
 		$loops      = array();
 		$loop_count = 0;
 
 		foreach ( $records as $record ) {
+			
 			if (in_array($record->ID, $skip_records)) {
 				continue;
 			}
-
-			$theme_edited = $users_updated = $plugin_edited = false;
-
-			if ( $plugin_edited ) {
-				// ok next
-			} else if ( 'themes' === $context && 'edited' === $action ) {
-				if ( $record->action !== 'updated' || $record->connector !== 'editor' ) {
+				
+			// check connector
+			if ( $record->connector == 'editor' ) {				
+				if ( !in_array( $context, array('plugins', 'themes') ) || $action !== 'updated' )
+					continue;				
+		    } else if ( $connector !== $record->connector ) {
+				continue;
+			}
+			
+			// check context
+			if ( $context == "comments" ) { // multi values									
+				$comment_contexts = array('post', 'page');					
+				if ( ! in_array( $record->context, $comment_contexts ) ) {
 					continue;
-				} else {
-					$theme_edited = true;
-				}
-			} else if ( 'users' === $context && 'updated' === $action ) {
-				if ( $record->context !== 'profiles' || $record->connector !== 'users' ) {
-					continue;
-				} else {
-					$users_updated = true;
-				}
-			} else if ( 'mainwp_backups' === $context ) {
-				if ( $record->context !== 'mainwp_backups' && $record->context !== 'backwpup_backups' && $record->context !== 'updraftplus_backups' && $record->context !== 'backupwordpress_backups'  && $record->context !== 'backupbuddy_backups' && $record->context !== 'wptimecapsule_backups') {
-					continue;
-				}
-			} else if ( 'mainwp_sucuri' === $context ) {
-				if ( $record->context !== 'mainwp_sucuri' ) {
-					continue;
-				}
-			} else if ( 'wordfence' === $context ) {
-				if ( $record->context !== 'wordfence_scans' ) {
-					continue;
-				}
-			} else if ( 'maintenance' === $context ) {
-				if ( $record->context !== 'mainwp_maintenances' ) {
-					continue;
-				}
-			} else {
-				if ( $action !== $record->action ) {
-					continue;
-				}
-
-				if ( 'comments' === $context && 'comments' !== $record->connector ) {
-					continue;
-				} else if ( 'media' === $context && 'media' !== $record->connector ) {
-					continue;
-				} else if ( 'widgets' === $context && 'widgets' !== $record->connector ) {
-					continue;
-				} else if ( 'menus' === $context && 'menus' !== $record->connector ) {
+				}				
+			} else if ( $context == "menus") {
+				// ok, pass, don't check context
+			} else if ( $record->connector == 'editor' ) {
+				// ok, pass, checked above 
+			} else if ( $connector == 'media' && $record->connector == 'media' ) {
+				// ok, pass, do not check context
+			} else if ( $connector == "widgets" && $record->connector == 'widgets') {
+				// ok, pass, don't check context
+				//
+			} else if ( $context !== $record->context ) {
+				continue;
+			} 
+							
+			// custom action value
+			if ( $connector == "widgets" ) {
+				if ( $action == "deleted" ) {
+					$action = "removed"; // action saved in database
+				}									
+			}
+			//// 
+							
+			// check action 
+			if ( $context == 'backups' ) {					
+				if ( ! $this->is_backup_action($record->action) ) {
 					continue;
 				}
-//                else if ($context === "themes" && $record->connector !== "themes")
-//                    continue;
-
-				if ( 'comments' !== $context && 'media' !== $context &&
-				     'widgets' !== $context && 'menus' !== $context &&
-				     $record->context !== $context
-				) {
-					continue;
-				}
-
-				if ( 'updated' === $action && ( 'post' === $context || 'page' === $context ) ) {
-					$new_status = $this->get_stream_meta_data( $record, 'new_status' );
-					if ( 'draft' === $new_status ) { // avoid auto save post
-						continue;
-					}
-				}
+			} else if ( $action !== $record->action ) {
+				continue;
 			}
 
-            // to avoid WC order_note, action_log
-            if ( 'comments' === $context ) {
-                if ( isset( $record->meta ) ) {
-                    if ( isset( $record->meta[ 'comment_type' ] ) && is_array($record->meta[ 'comment_type' ])) {
-                        $cmtype = current($record->meta[ 'comment_type' ]);
-                        if ( $cmtype == 'order_note' || $cmtype == 'action_log') {
-                            continue;
-                        }
-                    }
-                }
-            }
-
+			if ( 'updated' === $action && ( 'post' === $context || 'page' === $context ) ) {
+				$new_status = $this->get_stream_meta_data( $record, 'new_status' );
+				if ( 'draft' === $new_status ) { // avoid auto save post
+					continue;
+				}
+			}			
+			
 			$token_values = array();
 
-			foreach ( $tokens as $token ) {
+			foreach ( $tokens as $token ) {				
+				// parse $data value from tokens in sections
 				$data       = '';
 				$token_name = str_replace( array( '[', ']' ), '', $token );
 				$array_tmp  = explode( '.', $token_name );
@@ -670,27 +663,11 @@ class MainWP_Client_Report {
 					case 'new_version':
 					case 'display_name':
 					case 'roles':
-						if ( 'name' === $data ) {
-							if ( $theme_edited ) {
-								$data = 'theme_name';
-							} else if ( $plugin_edited ) {
-								$data = 'plugin_name';
-							} else if ( $users_updated ) {
-								$data = 'display_name';
-							}
-						}
-
-						if ( 'roles' === $data && $users_updated ) {
-							$user_info = get_userdata( $record->object_id );
-							if ( ! ( is_object( $user_info ) && $user_info instanceof WP_User ) ) {
-								$roles = '';
-							} else {
-								$roles = implode( ', ', $user_info->roles );
-							}
-							$token_values[ $token ] = $roles;
-						} else {
-							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
-						}
+							if ( $data == 'name' ) {
+								if ( $context == 'profiles' )
+									$data  = 'display_name';
+							}	
+							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );						
 						break;
 					case 'title':
 						if ( 'comments' === $context ) {
@@ -704,8 +681,13 @@ class MainWP_Client_Report {
 							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
 						}
 						break;
-					case 'author':
-						$data  = 'author_meta';
+					case 'author':						
+						if ( $connector == "comment" ) {							
+							$data  = 'user_name'; 
+						} else {
+							$data  = 'user_meta'; 	
+						}
+						
 						$value = $this->get_stream_meta_data( $record, $data );
 						if ( empty( $value ) && 'comments' === $context ) {
 							$value = __( 'Guest', 'mainwp-child-reports' );
@@ -714,8 +696,7 @@ class MainWP_Client_Report {
 						break;
 					case 'status':   // sucuri cases
 					case 'webtrust':
-						if ( 'mainwp_sucuri' === $context ) {
-
+						if ( 'sucuri_scan' === $context ) {
                             $scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
                             if (!empty($scan_data)) {
                                 $scan_data  = maybe_unserialize( base64_decode( $scan_data ) );
@@ -746,7 +727,24 @@ class MainWP_Client_Report {
 						break;
 					case 'details':
 					case 'result':
-						if ( 'wordfence' === $context || 'maintenance' === $context ) {
+						
+						if ('mainwp_maintenance' === $context && 'details' == $data) {							
+							
+							$meta_value  = $this->get_stream_meta_data( $record, $data );
+							$meta_value = explode(",", $meta_value);
+							
+							$details = array();
+							
+							if ( is_array( $meta_value) ) {
+								foreach($meta_value as $mt) {
+									if ( isset($maintenance_details[$mt]) ) {
+										$details[] = $maintenance_details[$mt];
+									}
+								}
+							}
+							$token_values[ $token ] = implode(", ", $details);
+							
+						} else if ( 'wordfence_scan' === $context || 'mainwp_maintenance' === $context ) {
                             $meta_value  = $this->get_stream_meta_data( $record, $data );
                             // to fix
                             if ('wordfence' === $context && $data == 'result') {
@@ -763,9 +761,9 @@ class MainWP_Client_Report {
 							$token_values[ $token ] = $meta_value;
 						}
 						break;
-					case 'destination':   // backup cases
-					case 'type':
-						if ( 'mainwp_backups' === $context ) {
+					//case 'destination':  // for backup tokens 
+					case 'type': 
+						if ( 'backups' === $context ) {
 							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
 						} else {
 							$token_values[ $token ] = $token;
@@ -797,28 +795,30 @@ class MainWP_Client_Report {
 
 		if ( isset( $record->meta ) ) {
 			$meta = $record->meta;
-			if ( isset( $meta[ $meta_key ] ) ) {
+						
+			if ( isset( $meta[ $meta_key ] ) ) {				
 				$value = $meta[ $meta_key ];
-				$value = current( $value );
-				if ( 'author_meta' === $meta_key || 'user_meta' === $meta_key ) {
-					$value = maybe_unserialize( $value );
-                    $value = $value['display_name'];
-
-                    if ( 'author_meta' === $meta_key && $value == '' && $context == 'comments') {
-                        $value = __( 'Guest', 'mainwp-child-reports' );
-                    }
-                    // to fix empty author value
-                    if ( empty($value) ) {
-                        if (isset($value['agent']) && !empty($value['agent'])) {
-                            $value = $value['agent'];
-                        }
-                    }
-
-                    if (!is_string($value)) {
-                        $value = '';
-                    }
-				}
-			}
+				$value = current( $value );						
+				
+//				if ( 'author_meta' === $meta_key || 'user_meta' === $meta_key ) {	
+//					$value = maybe_unserialize( $value );
+//                    $value = $value['display_name'];
+//
+//                    if ( 'author_meta' === $meta_key && $value == '' && $context == 'comments') {
+//                        $value = __( 'Guest', 'mainwp-child-reports' );
+//                    }
+//                    // to fix empty author value
+//                    if ( empty($value) ) {
+//                        if (isset($value['agent']) && !empty($value['agent'])) {
+//                            $value = $value['agent'];
+//                        }
+//                    }
+//
+//                    if (!is_string($value)) {
+//                        $value = '';
+//                    }
+//				}
+			} 				
 		}
 
 		return $value;
@@ -827,7 +827,7 @@ class MainWP_Client_Report {
 	function set_showhide() {
         $hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
         MainWP_Child_Branding::Instance()->save_branding_options('hide_child_reports', $hide);
-        MainWP_Helper::update_option( 'mainwp_creport_branding_stream_hide', $hide, 'yes' ); // to compatible with old child reports
+        //MainWP_Helper::update_option( 'mainwp_creport_branding_stream_hide', $hide, 'yes' ); // to compatible with old child reports
 		$information['result'] = 'SUCCESS';
 
         return $information;
