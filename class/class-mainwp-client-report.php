@@ -133,14 +133,15 @@ class MainWP_Client_Report {
 			'media'	=> 'media'					
 		);
 		
-		return isset( $mapping_contexts[ $context ] ) ? $mapping_contexts[ $context ] : $context;		
+		$context = isset( $mapping_contexts[ $context ] ) ? $mapping_contexts[ $context ] : $context;		
+		return strtolower($context);
 	}
 	
 		
 	public function get_connector_by_compatible_context( $context ) {
 		
 		$connector = "";
-		if ( $context == "plugins" || $context == "themes" ) {			
+		if ( $context == "plugins" || $context == "themes" || $context == "wordpress" ) {			
 			$connector = "installer";
 		} else if ( $context == 'profiles' ) {
 			$connector = "users";
@@ -444,7 +445,7 @@ class MainWP_Client_Report {
 								// ok, pass, do not check context
 							} else if ( $connector == "widgets" && $record->connector == 'widgets') {
 								// ok, pass, don't check context
-							} else if ( $context !== $record->context) {
+							} else if ( $context !== strtolower( $record->context )) {
 								continue;
 							}
 									
@@ -470,7 +471,7 @@ class MainWP_Client_Report {
                                 } else {
                                     $backups_created_time_to_fix[] = $created;
                                 }
-							} else {								
+							} else {									
 								if ( $action !== $record->action ) {
 									continue;
 								}
@@ -494,7 +495,7 @@ class MainWP_Client_Report {
 												$skip_records[] = $record->ID;
 											continue;
 										}
-									}
+									}									
 								}
 							}
 							$count ++;
@@ -508,6 +509,26 @@ class MainWP_Client_Report {
 		return $token_values;
 	}
 
+//	function get_meta_value_from_summary( $summary, $meta ) {		
+//		$value = '';
+//		if ( $meta == 'name' ) {
+//			$value = str_replace(array('Updated plugin:', 'Updated theme:'), '', $summary);
+//			$value = trim( $value );
+//			$last_space_pos = strrpos($value, ' ');
+//			if ($last_space_pos !== false) {				
+//				$value = substr($value , 0, 0 - $last_space_pos);
+//			}			
+//		} else if ( $meta == 'version') {
+//			$last_space_pos = strrpos($value, ' ');
+//			if ($last_space_pos !== false) {				
+//				$value = substr($value , $last_space_pos);
+//			}
+//		} else if ( $meta == 'old_version' ) {
+//			$value = 'N/A';
+//		}		
+//		return $value;			
+//	}
+	
 	function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
 		
@@ -554,10 +575,21 @@ class MainWP_Client_Report {
 		$loops      = array();
 		$loop_count = 0;
 
-		foreach ( $records as $record ) {
+		foreach ( $records as $record ) {			
 			
-			if (in_array($record->ID, $skip_records)) {
-				continue;
+//			$fix_meta_name = $fix_old_version = $fix_version = '';			
+			
+			if ( in_array($record->ID, $skip_records) ) {
+				// to fix incorrect meta for update logging
+//				if ( 'updated' === $action && ('themes' === $context || 'plugins' === $context)) {
+//					if ( !isset( $record->meta ) ||  $record->meta == '') {
+//						$fix_meta_name = get_meta_value_from_summary($record->summary, 'name');						
+//						$fix_old_version = get_meta_value_from_summary($record->summary, 'old_version');
+//						$fix_version = get_meta_value_from_summary($record->summary, 'version');
+//					} 					
+//				} else {
+					continue;
+//				}
 			}
 				
 			// check connector
@@ -583,7 +615,7 @@ class MainWP_Client_Report {
 			} else if ( $connector == "widgets" && $record->connector == 'widgets') {
 				// ok, pass, don't check context
 				//
-			} else if ( $context !== $record->context ) {
+			} else if ( $context !== strtolower( $record->context ) ) {
 				continue;
 			} 
 							
@@ -689,9 +721,16 @@ class MainWP_Client_Report {
 						}
 						
 						$value = $this->get_stream_meta_data( $record, $data );
+						
 						if ( empty( $value ) && 'comments' === $context ) {
 							$value = __( 'Guest', 'mainwp-child-reports' );
 						}
+						
+						// to check may compatible with old meta data
+						if ( empty( $value )) {	
+							$value = $this->get_stream_meta_data( $record, 'author_meta' );															
+						}
+						
 						$token_values[ $token ] = $value;
 						break;
 					case 'status':   // sucuri cases
@@ -798,26 +837,25 @@ class MainWP_Client_Report {
 						
 			if ( isset( $meta[ $meta_key ] ) ) {				
 				$value = $meta[ $meta_key ];
-				$value = current( $value );						
+				$value = current( $value );			
 				
-//				if ( 'author_meta' === $meta_key || 'user_meta' === $meta_key ) {	
-//					$value = maybe_unserialize( $value );
-//                    $value = $value['display_name'];
-//
-//                    if ( 'author_meta' === $meta_key && $value == '' && $context == 'comments') {
-//                        $value = __( 'Guest', 'mainwp-child-reports' );
-//                    }
-//                    // to fix empty author value
-//                    if ( empty($value) ) {
-//                        if (isset($value['agent']) && !empty($value['agent'])) {
-//                            $value = $value['agent'];
-//                        }
-//                    }
-//
-//                    if (!is_string($value)) {
-//                        $value = '';
-//                    }
-//				}
+				// to compatible with old meta data
+				if ( 'author_meta' === $meta_key ) {	
+					$value = maybe_unserialize( $value );					
+					if (is_array($value)) {
+						$value = $value['display_name'];
+						// to fix empty author value
+						if ( empty($value) ) {
+							if (isset($value['agent']) && !empty($value['agent'])) {
+								$value = $value['agent'];
+							}
+						}
+					}
+                    if (!is_string($value)) {
+                        $value = '';
+                    }
+				}
+				// end
 			} 				
 		}
 

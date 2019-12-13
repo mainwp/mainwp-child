@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0.5';
+	public static $version = '4.0.5.1';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -1654,10 +1654,10 @@ class MainWP_Child {
 
 	public function http_request_reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
-                if ( isset($_POST['wpadmin_user']) && !empty($_POST['wpadmin_user']) && isset($_POST['wpadmin_passwd']) && !empty($_POST['wpadmin_passwd']) ) {
-                    $auth = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] );
-                    $r['headers']['Authorization'] = "Basic $auth";
-                }
+		if ( isset($_POST['wpadmin_user']) && !empty($_POST['wpadmin_user']) && isset($_POST['wpadmin_passwd']) && !empty($_POST['wpadmin_passwd']) ) {
+			$auth = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] );
+			$r['headers']['Authorization'] = "Basic $auth";
+		}
 		return $r;
 	}
 
@@ -1771,7 +1771,7 @@ class MainWP_Child {
                         } else {
                             activate_plugin( $path . $fileName, '' /* false, true */ );
                         }
-						do_action( 'activate_plugin', $args['slug'], null );
+						//do_action( 'activate_plugin', $args['slug'], null );
 					}
 				}
 			} else {
@@ -2064,17 +2064,17 @@ class MainWP_Child {
                         } else {
                             $information['upgrades'][ $plugin ] = true;
                             // to fix logging update
-                            if (isset($information['plugin_updates']) && isset($information['plugin_updates'][$plugin])) {
-                                $plugin_info = $information['plugin_updates'][$plugin];
-                                $args = array();
-                                $args['type']    = 'plugin';
-                                $args['slug']    = $plugin;
-                                $args['name']    = $plugin_info->Name;
-                                $args['version'] = $plugin_info->update->new_version;
-                                $args['old_version'] = $plugin_info->Version;
-                                $args['action'] = 'update';
-                                do_action( 'mainwp_child_upgradePluginTheme', $args );
-                            }
+//                            if (isset($information['plugin_updates']) && isset($information['plugin_updates'][$plugin])) {
+//                                $plugin_info = $information['plugin_updates'][$plugin];
+//                                $args = array();
+//                                $args['type']    = 'plugin';
+//                                $args['slug']    = $plugin;
+//                                $args['name']    = $plugin_info->Name;
+//                                $args['version'] = $plugin_info->update->new_version;
+//                                $args['old_version'] = $plugin_info->Version;
+//                                $args['action'] = 'update';
+//                                //do_action( 'mainwp_child_upgradePluginTheme', $args );
+//                            }
                         }
                     }
                     $failed = false;
@@ -2177,17 +2177,17 @@ class MainWP_Child {
                         } else {
                             $information['upgrades'][ $theme ] = true;
                             // to fix logging update
-                            if (isset($information['theme_updates']) && isset($information['theme_updates'][$theme])) {
-                                $theme_info = $information['theme_updates'][$theme];
-                                $args = array();
-                                $args['type']    = 'theme';
-                                $args['slug']    = $theme;
-                                $args['name']    = $theme_info['Name'];
-                                $args['version'] = $theme_info['update']['new_version'];
-                                $args['old_version'] = $theme_info['Version'];
-                                $args['action'] = 'update';
-                                do_action( 'mainwp_child_upgradePluginTheme', $args );
-                            }
+//                            if (isset($information['theme_updates']) && isset($information['theme_updates'][$theme])) {
+//                                $theme_info = $information['theme_updates'][$theme];
+//                                $args = array();
+//                                $args['type']    = 'theme';
+//                                $args['slug']    = $theme;
+//                                $args['name']    = $theme_info['Name'];
+//                                $args['version'] = $theme_info['update']['new_version'];
+//                                $args['old_version'] = $theme_info['Version'];
+//                                $args['action'] = 'update';
+//                                //do_action( 'mainwp_child_upgradePluginTheme', $args );
+//                            }
 
                         }
                     }
@@ -4743,7 +4743,7 @@ class MainWP_Child {
 						// to fix activate issue
 						if ('quotes-collection/quotes-collection.php' == $plugin) {
                             activate_plugin( $plugin, '', false, true );
-                            do_action( 'activate_plugin', $plugin, null );
+                            //do_action( 'activate_plugin', $plugin, null );
                         } else {
                             activate_plugin( $plugin );
                         }
