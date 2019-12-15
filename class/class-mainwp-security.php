@@ -54,7 +54,7 @@ class MainWP_Security {
 				$h = fopen( $file, 'w' );
 				fwrite( $h, '<?php ' . "\n" );
 				fwrite( $h, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );" . "\n" );
-				fwrite( $h, "die( '403 Fordibben' );" . "\n" );
+				fwrite( $h, "die( '403 Forbidden' );" . "\n" );
 				fclose( $h );
 			}
 		}
