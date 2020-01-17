@@ -2,13 +2,24 @@
 
 class MainWP_Helper {
 
-	static function write( $val ) {
-		$output = serialize( $val );
+	static function write( $val ) {		
+		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
+			$output = json_encode( $val );	
+		else:
+			$output = serialize( $val );
+		endif;			
+		
 		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' );
 	}
 
 	static function close_connection( $val = null ) {
-		$output = serialize( $val );
+		
+		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
+			$output = json_encode( $val );	
+		else:
+			$output = serialize( $val );
+		endif;
+		
 		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>';
 		// Close browser connection so that it can resume AJAX polling
 		header( 'Content-Length: ' . strlen( $output ) );
@@ -989,7 +1000,12 @@ class MainWP_Helper {
 	public static function _fetchUrl( $url, $postdata ) {
 		//$agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
-
+		
+		if (!is_array( $postdata )) 
+			$postdata = array();
+		
+		$postdata['json_result'] = true; // forced all response in json format
+		
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, $url );
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
@@ -1007,7 +1023,8 @@ class MainWP_Helper {
 		} else if ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
 			$result_base = base64_decode( $result );
-			$information = maybe_unserialize( $result_base );
+			//$information = maybe_unserialize( $result_base );
+			$information = json_decode( $result_base, true ); // it is json_encode result
 
 			return $information;
 		} else if ( '' === $data ) {

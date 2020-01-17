@@ -508,26 +508,6 @@ class MainWP_Client_Report {
 
 		return $token_values;
 	}
-
-//	function get_meta_value_from_summary( $summary, $meta ) {		
-//		$value = '';
-//		if ( $meta == 'name' ) {
-//			$value = str_replace(array('Updated plugin:', 'Updated theme:'), '', $summary);
-//			$value = trim( $value );
-//			$last_space_pos = strrpos($value, ' ');
-//			if ($last_space_pos !== false) {				
-//				$value = substr($value , 0, 0 - $last_space_pos);
-//			}			
-//		} else if ( $meta == 'version') {
-//			$last_space_pos = strrpos($value, ' ');
-//			if ($last_space_pos !== false) {				
-//				$value = substr($value , $last_space_pos);
-//			}
-//		} else if ( $meta == 'old_version' ) {
-//			$value = 'N/A';
-//		}		
-//		return $value;			
-//	}
 	
 	function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
@@ -577,19 +557,8 @@ class MainWP_Client_Report {
 
 		foreach ( $records as $record ) {			
 			
-//			$fix_meta_name = $fix_old_version = $fix_version = '';			
-			
 			if ( in_array($record->ID, $skip_records) ) {
-				// to fix incorrect meta for update logging
-//				if ( 'updated' === $action && ('themes' === $context || 'plugins' === $context)) {
-//					if ( !isset( $record->meta ) ||  $record->meta == '') {
-//						$fix_meta_name = get_meta_value_from_summary($record->summary, 'name');						
-//						$fix_old_version = get_meta_value_from_summary($record->summary, 'old_version');
-//						$fix_version = get_meta_value_from_summary($record->summary, 'version');
-//					} 					
-//				} else {
-					continue;
-//				}
+				continue;
 			}
 				
 			// check connector
@@ -643,8 +612,9 @@ class MainWP_Client_Report {
 				}
 			}			
 			
-			$token_values = array();
-
+			//$skip_this_loop = false;
+			$token_values = array();			
+			
 			foreach ( $tokens as $token ) {				
 				// parse $data value from tokens in sections
 				$data       = '';
@@ -677,17 +647,17 @@ class MainWP_Client_Report {
 
 				switch ( $data ) {
 					case 'ID':
-						$token_values[ $token ] = $record->ID;
+						$tok_value = $record->ID;
 						break;
 					case 'date':
-						$token_values[ $token ] = MainWP_Helper::formatDate( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
+						$tok_value = MainWP_Helper::formatDate( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
 						break;
 					case 'time':
-						$token_values[ $token ] = MainWP_Helper::formatTime( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
+						$tok_value = MainWP_Helper::formatTime( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
 						break;
 					case 'area':
 						$data                   = 'sidebar_name';
-						$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+						$tok_value = $this->get_stream_meta_data( $record, $data );
 						break;
 					case 'name':
 					case 'version':
@@ -699,18 +669,18 @@ class MainWP_Client_Report {
 								if ( $context == 'profiles' )
 									$data  = 'display_name';
 							}	
-							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );						
+							$tok_value = $this->get_stream_meta_data( $record, $data );						
 						break;
 					case 'title':
 						if ( 'comments' === $context ) {
-							$token_values[ $token ] = $record->summary;
+							$tok_value = $record->summary;
 						} else {
 							if ( 'page' === $context || 'post' === $context ) {
 								$data = 'post_title';
 							} else if ( 'menus' === $record->connector ) {
 								$data = 'name';
 							}
-							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+							$tok_value = $this->get_stream_meta_data( $record, $data );
 						}
 						break;
 					case 'author':						
@@ -731,7 +701,7 @@ class MainWP_Client_Report {
 							$value = $this->get_stream_meta_data( $record, 'author_meta' );															
 						}
 						
-						$token_values[ $token ] = $value;
+						$tok_value = $value;						
 						break;
 					case 'status':   // sucuri cases
 					case 'webtrust':
@@ -751,17 +721,17 @@ class MainWP_Client_Report {
                                         $status[] = __( 'Site With Warnings', 'mainwp-child' ); }
 
                                     if ($data == 'status') {
-                                        $token_values[$token] = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
+                                        $tok_value = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
                                     } else if ($data == 'webtrust') {
-                                        $token_values[$token] = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
+                                        $tok_value = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
                                     }
                                 }
 
                             } else {
-                                $token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+                                $tok_value = $this->get_stream_meta_data( $record, $data );
                             }
 						} else {
-							$token_values[ $token ] = $value;
+							$tok_value = $value;
 						}
 						break;
 					case 'details':
@@ -781,12 +751,12 @@ class MainWP_Client_Report {
 									}
 								}
 							}
-							$token_values[ $token ] = implode(", ", $details);
+							$tok_value = implode(", ", $details);
 							
 						} else if ( 'wordfence_scan' === $context || 'mainwp_maintenance' === $context ) {
                             $meta_value  = $this->get_stream_meta_data( $record, $data );
                             // to fix
-                            if ('wordfence' === $context && $data == 'result') {
+                            if ('wordfence_scan' === $context && $data == 'result') {
                                 // SUM_FINAL:Scan complete. You have xxx new issues to fix. See below.
                                 // SUM_FINAL:Scan complete. Congratulations, no new problems found
                                 if (stripos($meta_value, 'Congratulations')) {
@@ -797,27 +767,39 @@ class MainWP_Client_Report {
                                     $meta_value = '';
                                 }
                             }
-							$token_values[ $token ] = $meta_value;
+							$tok_value = $meta_value;
 						}
 						break;
 					//case 'destination':  // for backup tokens 
 					case 'type': 
 						if ( 'backups' === $context ) {
-							$token_values[ $token ] = $this->get_stream_meta_data( $record, $data );
+							$tok_value = $this->get_stream_meta_data( $record, $data );
 						} else {
-							$token_values[ $token ] = $token;
+							$tok_value = $token;
 						}
 						break;
 					default:
-						$token_values[ $token ] = 'N/A';
+						$tok_value = 'N/A';
 						break;
 				}
+								
+				$token_values[ $token ] = $tok_value;
+				
+				if ( empty( $tok_value ) ) {
+					//$skip_this_loop = true;
+					if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === TRUE ) {
+						error_log("MainWP Child Report:: skip empty value :: token :: " . $token . " :: record :: " . print_r( $record, true ));
+					}
+					//break;
+				}				
+				
 			} // foreach $tokens
 
 			if ( ! empty( $token_values ) ) {
 				$loops[ $loop_count ] = $token_values;
 				$loop_count ++;
 			}
+			
 		} // foreach $records
 		return $loops;
 	}

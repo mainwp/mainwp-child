@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: alienware`x
- * Date: 2019/4/30
- * Time: 10:26
- */
 
 class MainWP_Child_WPvivid_BackupRestore
 {
@@ -134,6 +128,9 @@ class MainWP_Child_WPvivid_BackupRestore
                     case 'set_remote':
                         $information = $this->set_remote();
                         break;
+                    default:
+                        $information = $this->post_mainwp_data($_POST);
+                        break;
                 }
             } catch (Exception $e) {
                 $information = array('error' => $e->getMessage());
@@ -141,6 +138,13 @@ class MainWP_Child_WPvivid_BackupRestore
 
             MainWP_Helper::write($information);
         }
+    }
+
+    public function post_mainwp_data($data){
+        global $wpvivid_plugin;
+
+        $ret =$wpvivid_plugin->wpvivid_handle_mainwp_action($data);
+        return $ret;
     }
 
     public function prepare_backup()

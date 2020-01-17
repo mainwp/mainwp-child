@@ -19,10 +19,20 @@ class MainWP_Custom_Post_Type {
 
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
-				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
+				$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
+//				die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
 			} else {
-				die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
+				$data = MainWP_Custom_Post_Type::$information;
+//				die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
 			}
+			
+			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
+				$data = json_encode( $data );
+			} else {
+				$data = serialize( $data );
+			}
+			
+			die('<mainwp>' . base64_encode( $data ) . '</mainwp>');
 		}
 
 		register_shutdown_function( "mainwp_custom_post_type_handle_fatal_error" );

@@ -3969,7 +3969,14 @@ ENDHERE;
 	}
 
 	private function close_browser_connection( $txt = '' ) {
-		$txt = '<mainwp>' . base64_encode( serialize( $txt ) ) . '</mainwp>';
+		
+		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
+			$output = json_encode( $txt );	
+		else:
+			$output = serialize( $txt );
+		endif;	
+		
+		$txt = '<mainwp>' . base64_encode( $output ) . '</mainwp>';
 		// Close browser connection so that it can resume AJAX polling
 		header( 'Content-Length: ' . ( ( ! empty( $txt ) ) ? strlen( $txt ) : '0' ) );
 		header( 'Connection: close' );

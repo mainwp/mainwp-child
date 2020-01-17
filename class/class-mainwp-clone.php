@@ -1208,6 +1208,7 @@ class MainWP_Clone {
 				'f'         => $rand,
 				'wpversion' => $wp_version,
 				'zipmethod' => $method,
+				'json_result' => true
 			) );
 
 			if ( ! $result['backup'] ) {
@@ -1252,6 +1253,7 @@ class MainWP_Clone {
 				'cloneFunc' => 'createCloneBackupPoll',
 				'key'       => $key,
 				'f'         => $rand,
+				'json_result' => true
 			) );
 
 			if ( ! isset( $result['size'] ) ) {
@@ -1339,6 +1341,7 @@ class MainWP_Clone {
 							'cloneFunc' => 'deleteCloneBackup',
 							'key'       => $siteToClone['extauth'],
 							'f'         => $_POST['file'],
+							'json_result' => true
 						) );
 					}
 				}

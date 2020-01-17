@@ -3586,6 +3586,10 @@ class MainWP_Child {
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', '0' );
 			}
 		}
+		
+		if ( isset( $_POST['siteId'] ) ) {			
+			MainWP_Helper::update_option( 'mainwp_child_siteid', intval($_POST['siteId']) );			
+		}
 
 		if ( isset( $_POST['pluginDir'] ) ) {
 			if ( get_option( 'mainwp_child_pluginDir' ) !== $_POST['pluginDir'] ) {
