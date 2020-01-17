@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.3.1
+Tested up to: 5.3.2
 Requires PHP: 5.6
-Stable tag: 4.0.5.1
+Stable tag: 4.0.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,7 +32,7 @@ The MainWP Child plugin is used to securely manage multiple WordPress websites f
 = More Information =
 [MainWP Documentation](https://mainwp.com/help/)
 
-[MainWP User Group](https://www.facebook.com/groups/MainWPUsers/)
+[MainWP Community](https://meta.mainwp.com/)
 
 [MainWP Support](https://mainwp.com/support/)
 
@@ -70,6 +70,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.6 - 1-17-20 =
+* Fixed: encoding problem in error messages
+* Added: site ID parameter in the sync request
+* Updated: MainWP_Child_WPvivid_BackupRestore class
+* Preventative: security improvements
 
 = 4.0.5.1 - 12-13-19 =
 * Fixed: Child Reports data conversion problem
