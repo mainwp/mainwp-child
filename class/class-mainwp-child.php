@@ -3,9 +3,6 @@ if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === TRUE ) {
 	@error_reporting( E_ALL );
 	@ini_set( 'display_errors', TRUE );
 	@ini_set( 'display_startup_errors', TRUE );
-} else {
-	@ini_set( 'display_errors', FALSE );
-	@error_reporting( 0 );
 }
 
 define( 'MAINWP_CHILD_NR_OF_COMMENTS', 50 );
