@@ -46,6 +46,7 @@ class MainWP_Child_WPvivid_BackupRestore
                 $information['syncWPvividSettingData']=$data['setting'];
                 $information['syncWPvividRemoteData']=$data['remote'];
                 $information['syncWPvividScheduleData']=$data['schedule'];
+                $information['syncWPvividSetting'] = $data;
             }
 
         } catch(Exception $e) {
