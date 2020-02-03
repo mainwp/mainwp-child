@@ -4,18 +4,39 @@ class MainWP_Helper {
 
 	static function write( $val ) {		
 		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
-			$output = json_encode( $val );	
+			$output = self::safe_json_encode( $val );			
 		else:
 			$output = serialize( $val );
 		endif;			
 		
 		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' );
 	}
+	
+	public static function utf8ize($mixed) {
+		if (is_array($mixed)) {
+			foreach ($mixed as $key => $value) {
+				$mixed[$key] = self::utf8ize($value);
+			}
+		} elseif (is_string($mixed)) {
+			if ( function_exists( 'mb_convert_encoding' )) {
+				return mb_convert_encoding($mixed, "UTF-8", "UTF-8");
+			}
+		}
+		return $mixed;
+	}
+
+	public static function safe_json_encode($value, $options = 0, $depth = 512) {
+		$encoded = @json_encode($value, $options, $depth);
+		if ($encoded === false && $value && json_last_error() == JSON_ERROR_UTF8) {
+			$encoded = @json_encode(self::utf8ize($value), $options, $depth);
+		}
+		return $encoded;
+	}
 
 	static function close_connection( $val = null ) {
 		
 		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
-			$output = json_encode( $val );	
+			$output = self::safe_json_encode( $val );	
 		else:
 			$output = serialize( $val );
 		endif;

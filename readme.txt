@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 5.3.2
 Requires PHP: 5.6
-Stable tag: 4.0.6.1
+Stable tag: 4.0.6.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.6.2 - 2-3-20 =
+* Fixed: connection problems caused by issues with json_encode function
 
 = 4.0.6.1 - 1-20-20 =
 * Updated: MainWP_Child_WPvivid_BackupRestore class

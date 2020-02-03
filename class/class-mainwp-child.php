@@ -115,7 +115,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0.6.1';
+	public static $version = '4.0.6.2';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -1539,7 +1539,7 @@ class MainWP_Child {
             MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
         }
 
-       
+
 		if ( 1 === (int) get_option( 'mainwpKeywordLinks' ) ) {
 			new MainWP_Keyword_Links();
 			if ( ! is_admin() ) {
@@ -3038,7 +3038,7 @@ class MainWP_Child {
 				$new_user['role'] = 'subscriber';
 			}
 		}
-		
+
 		$new_user_id = wp_insert_user( $new_user );
 
 		if ( is_wp_error( $new_user_id ) ) {
@@ -3586,9 +3586,9 @@ class MainWP_Child {
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', '0' );
 			}
 		}
-		
-		if ( isset( $_POST['siteId'] ) ) {			
-			MainWP_Helper::update_option( 'mainwp_child_siteid', intval($_POST['siteId']) );			
+
+		if ( isset( $_POST['siteId'] ) ) {
+			MainWP_Helper::update_option( 'mainwp_child_siteid', intval($_POST['siteId']) );
 		}
 
 		if ( isset( $_POST['pluginDir'] ) ) {
@@ -3629,7 +3629,7 @@ class MainWP_Child {
 				MainWP_Child_Themes_Check::Instance()->cleanup_deactivation( false );
 			}
 		}
-		
+
 		$information['version']   = self::$version;
 		$information['wpversion'] = $wp_version;
 		$information['siteurl']   = get_option( 'siteurl' );
@@ -3995,14 +3995,14 @@ class MainWP_Child {
 			if ( ! is_array( $othersData ) ) {
 				$othersData = array();
 			}
-			
+
 			if ( isset( $othersData['wpvulndbToken'] ) ) {
-				$wpvulndb_token = get_option( 'mainwp_child_wpvulndb_token', '' );				
-				if ( $wpvulndb_token != $othersData['wpvulndbToken'] ) {				
-					MainWP_Helper::update_option( 'mainwp_child_wpvulndb_token', $othersData['wpvulndbToken'] );				
+				$wpvulndb_token = get_option( 'mainwp_child_wpvulndb_token', '' );
+				if ( $wpvulndb_token != $othersData['wpvulndbToken'] ) {
+					MainWP_Helper::update_option( 'mainwp_child_wpvulndb_token', $othersData['wpvulndbToken'] );
 				}
 			}
-		
+
             try{
                 $information = apply_filters( 'mainwp-site-sync-others-data', $information, $othersData );
             } catch(Exception $e) {
@@ -5287,7 +5287,7 @@ class MainWP_Child {
 			$maint_options         = array();
 		}
 
-		
+
 //		$this->options = array(
 //			'revisions'    => __( 'Delete all post revisions', 'mainwp-maintenance-extension' ),
 //			'autodraft'    => __( 'Delete all auto draft posts',                   'mainwp-maintenance-extension' ),
@@ -5299,11 +5299,11 @@ class MainWP_Child {
 //			'categories'   => __( 'Delete categories with 0 posts associated',     'mainwp-maintenance-extension' ),
 //			'optimize'     => __( 'Optimize database tables',                      'mainwp-maintenance-extension' )
 //		);
-		
+
         $performed_what = array();
 		if ( empty( $max_revisions ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
-			$wpdb->query( $sql_clean );			
+			$wpdb->query( $sql_clean );
 			// to fix issue of meta_value short length
             $performed_what[] = 'revisions'; //'Posts revisions deleted';
 		} else {
