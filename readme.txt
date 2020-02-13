@@ -8,8 +8,8 @@ Requires at least: 3.6
 Tested up to: 5.3.2
 Requires PHP: 5.6
 Stable tag: 4.0.6.2
-License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
+License: GPLv3 or later
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
 Provides a secure connection between your MainWP Dashboard and your WordPress sites. MainWP allows you to manage WP sites from one central location.
 
