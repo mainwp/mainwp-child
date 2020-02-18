@@ -4,7 +4,7 @@
 [![License](https://poser.pugx.org/mainwp/mainwp-child/license)](https://packagist.org/packages/mainwp/mainwp-child)
 [![Monthly Downloads](https://poser.pugx.org/mainwp/mainwp-child/d/monthly)](https://packagist.org/packages/mainwp/mainwp-child)
 [![Daily Downloads](https://poser.pugx.org/mainwp/mainwp-child/d/daily)](https://packagist.org/packages/mainwp/mainwp-child)
-[![composer.lock](https://poser.pugx.org/mainwp/mainwp-child/composerlock)]
+[![composer.lock](https://poser.pugx.org/mainwp/mainwp-child/composerlock)
 <p align="center"><a href="https://mainwp.com"><img src="https://mainwp.com/images/mainwp-logo.png" alt="MainWP"></a></p>
 
 
