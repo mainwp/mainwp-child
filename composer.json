@@ -1,8 +1,10 @@
 {
     "name": "mainwp/mainwp-child",
-    "description": "his is the Child plugin for the MainWP Dashboard",
+    "description": "This is the Child plugin for the MainWP Dashboard",
     "license": "GPL-3.0-or-later",
     "type": "wordpress-plugin",
+    "prefer-stable": true,
+    "minimum-stability": "dev",
     "readme": "README.md",
     "authors": [
         {
