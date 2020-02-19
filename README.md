@@ -1,6 +1,13 @@
 
 <p align="center"><a href="https://mainwp.com"><img src="https://mainwp.com/images/mainwp-logo.png" alt="MainWP"></a></p>
 
+<p align="center">
+<a href="https://packagist.org/packages/mainwp/mainwp-child"><img src="https://poser.pugx.org/mainwp/mainwp-child/license" alt="license"></a> 
+ <a href="https://packagist.org/packages/mainwp/mainwp-child"><img src="https://poser.pugx.org/mainwp/mainwp-child/v/stable" alt="Latest Stable Version"></a>
+  <img alt="WordPress Plugin Active Installs" src="https://img.shields.io/wordpress/plugin/installs/mainwp-child?label=MainWP%20Child%20Active%20Installs">
+  <img alt="WordPress Plugin Rating" src="https://img.shields.io/wordpress/plugin/stars/mainwp-child?label=WP.org%20Rating">
+  <a href="https://travis-ci.org/mainwp/mainwp-child"><img src="https://travis-ci.org/mainwp/mainwp-child.svg?branch=master" alt="Build Status"></a>
+</p>
 
 Welcome to the [MainWP](https://mainwp.com) Child plugin repository on GitHub. Here you can browse the source, look at open issues and keep track of development.
 
@@ -14,7 +21,7 @@ The MainWP WordPress management system consists of 2 core plugins, the MainWP Da
 
 The [MainWP Child](https://wordpress.org/plugins/mainwp-child/) plugin is installed on the WordPress sites that you want to control from the MainWP Dashboard. 
 
-The [MainWP Dashboard](https://wordpress.org/plugins/mainwp/) is a stand-alone plugin that is installed on its own WordPress site; no other plugins should be installed with it, and it should not be installed on an active WordPress site with visitors. 
+The [MainWP Dashboard](https://wordpress.org/plugins/mainwp/) is a stand-alone plugin that is installed on its own WordPress site; no other plugins should be installed with it, and it should not be installed on an active WordPress site with visitors. The MainWP Dashboard currently has an <img alt="WordPress Plugin Active Installs" src="https://img.shields.io/wordpress/plugin/installs/mainwp?label=active%20install%20count%20of%20">
 
 
 ## Documentation
