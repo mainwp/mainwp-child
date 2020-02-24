@@ -51,7 +51,7 @@ class MainWP_Backup {
 			}
 
 			if ( ( time() - filemtime( $file ) ) < 160 ) {
-				MainWP_Helper::error( 'Another backup process is running, try again later' );
+				MainWP_Helper::error( __( 'Another backup process is running. Please, try again later.', 'mainwp-child' ) );
 			}
 		}
 
@@ -795,7 +795,11 @@ class MainWP_Backup {
 					// @codingStandardsIgnoreEnd
 					$query = $table_insert;
 					foreach ( $row as $value ) {
-						$query .= '"' . MainWP_Child_DB::real_escape_string( $value ) . '", ';
+						if ( $value === null ) {
+							$query .= 'NULL, ';
+						} else {
+							$query .= '"' . MainWP_Child_DB::real_escape_string( $value ) . '", ';
+						}
 					}
 					$query = trim( $query, ', ' ) . ');';
 

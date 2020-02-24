@@ -89,13 +89,13 @@ class MainWP_Clone_Install {
 
 	public function testDownload() {
 		if ( ! $this->file_exists( 'wp-content/' ) ) {
-			throw new Exception( __( 'Not a full backup.', 'mainwp-child' ) );
+			throw new Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-admin/' ) ) {
-			throw new Exception( __( 'Not a full backup.', 'mainwp-child' ) );
+			throw new Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-content/dbBackup.sql' ) ) {
-			throw new Exception( __( 'Database backup not found.', 'mainwp-child' ) );
+			throw new Exception( __( 'Database backup is missing.', 'mainwp-child' ) );
 		}
 	}
 
@@ -137,7 +137,7 @@ class MainWP_Clone_Install {
 	public function readConfigurationFile() {
 		$configContents = $this->getConfigContents();
 		if ( false === $configContents ) {
-			throw new Exception( __( 'Cant read configuration file from backup', 'mainwp-child' ) );
+			throw new Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
 		$this->config = maybe_unserialize( base64_decode( $configContents ) );
 
@@ -161,7 +161,7 @@ class MainWP_Clone_Install {
 
 		$db_selected = @MainWP_Child_DB::select_db( $this->config['dbName'], $link );
 		if ( ! $db_selected ) {
-			throw new Exception( __( 'Invalid database name', 'mainwp-child' ) );
+			throw new Exception( __( 'Invalid database name.', 'mainwp-child' ) );
 		}
 	}
 
@@ -259,7 +259,7 @@ class MainWP_Clone_Install {
 				}
 
 				if ( ! feof( $handle ) ) {
-					throw new Exception( __( 'Error: unexpected end of file for database', 'mainwp-child' ) );
+					throw new Exception( __( 'Error: unexpected end of file for database.', 'mainwp-child' ) );
 				}
 				fclose( $handle );
 			}
@@ -647,12 +647,14 @@ class MainWP_Clone_Install {
 	 *
 	 * @return array    The original array with all elements replaced as needed.
 	 */
+    
+    /* Fixed serialize issue */
 	function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
 
 		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
 		try {
 
-			if ( is_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
+			if ( is_string( $data ) && is_serialized( $data ) && !is_serialized_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
 				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
 			} elseif ( is_array( $data ) ) {
 				$_tmp = array();
@@ -664,13 +666,19 @@ class MainWP_Clone_Install {
 				unset( $_tmp );
 			} elseif ( is_object( $data ) ) {
 				$_tmp = $data;
-
-				foreach ( $data as $key => $value ) {
+                $props = get_object_vars( $data );
+				foreach ( $props as $key => $value ) {
 					$_tmp->{$key} = $this->recursive_unserialize_replace( $from, $to, $value, false );
 				}
 
 				$data = $_tmp;
 				unset( $_tmp );
+			}  elseif (is_serialized_string($data) && is_serialized($data)) {
+                // TODO: apply solution like phpmyadmin project have!
+				if ( ($data = @unserialize( $data )) !== false ) {
+					$data = str_replace( $from, $to, $data );
+                    $data = serialize( $data );
+				}
 			} else {
 				if ( is_string( $data ) ) {
 					$data = str_replace( $from, $to, $data );
