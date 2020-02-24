@@ -19,10 +19,20 @@ class MainWP_Custom_Post_Type {
 
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
-				die( '<mainwp>' . base64_encode( serialize( array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) ) ) . '</mainwp>' );
+				$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
+//				die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
 			} else {
-				die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
+				$data = MainWP_Custom_Post_Type::$information;
+//				die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
 			}
+			
+			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
+				$data = json_encode( $data );
+			} else {
+				$data = serialize( $data );
+			}
+			
+			die('<mainwp>' . base64_encode( $data ) . '</mainwp>');
 		}
 
 		register_shutdown_function( "mainwp_custom_post_type_handle_fatal_error" );
@@ -74,7 +84,7 @@ class MainWP_Custom_Post_Type {
 	/**
 	 * Search image inside post content and upload it to child
 	 **/
-	private function _search_images( $post_content, $upload_dir ) {
+	private function _search_images( $post_content, $upload_dir, $check_image = false  ) {
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $post_content, $matches, PREG_SET_ORDER );
 		if ( $foundMatches > 0 ) {
 			foreach ( $matches as $match ) {
@@ -94,7 +104,7 @@ class MainWP_Custom_Post_Type {
 				}
 
 				try {
-					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl );
+					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl , array(), $check_image );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -125,7 +135,7 @@ class MainWP_Custom_Post_Type {
 		return $post_content;
 	}
 
-        private function _insert_post( $data, $edit_id, $parent_id = 0 ) {
+    private function _insert_post( $data, $edit_id, $parent_id = 0 ) {
 
 		// Insert post
 		$data_insert                = array();
@@ -164,12 +174,14 @@ class MainWP_Custom_Post_Type {
 			return array( 'error' => __( 'Please install', $this->plugin_translate ) . ' ' . $data_insert['post_type'] . ' ' . __( 'on child and try again', $this->plugin_translate ) );
 		}
 
-		$data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'] );
+		//$data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'] );
 
 		$is_woocomerce = false;
 		if ( ($data_insert['post_type'] == 'product' || $data_insert['post_type'] == 'product_variation' )&& function_exists( 'wc_product_has_unique_sku' ) ) {
 			$is_woocomerce = true;
 		}
+
+        $check_image_existed = false;
 
 		// Support post_edit
 		if ( !empty( $edit_id ) ) {
@@ -185,7 +197,7 @@ class MainWP_Custom_Post_Type {
 			if ( get_post_status( $old_post_id ) == 'trash' ) {
 				return array( 'error' => __( 'This post is inside trash on child website. Please try publish it manually and try again.', $this->plugin_translate ) );
 			}
-
+            $check_image_existed = true;
 			// Set id
 			$data_insert['ID'] = $old_post_id;
 
@@ -200,6 +212,9 @@ class MainWP_Custom_Post_Type {
 			// Remove all previous taxonomy
 			wp_delete_object_term_relationships( $old_post_id, get_object_taxonomies( $data_insert['post_type'] ) );
 		}
+
+        $data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'], $check_image_existed );
+
         if (!empty($parent_id)) {
             $data_insert['post_parent'] = $parent_id; // for product variation
         }
@@ -224,7 +239,7 @@ class MainWP_Custom_Post_Type {
 							if ( isset($data['extras']['woocommerce']['product_images']) ) {
 								foreach ( $data['extras']['woocommerce']['product_images'] as $product_image ) {
 									try {
-										$upload_featured_image = MainWP_Helper::uploadImage( $product_image );
+										$upload_featured_image = MainWP_Helper::uploadImage( $product_image, array(), $check_image_existed );
 
 										if ( null !== $upload_featured_image ) {
 											$product_image_gallery[] = $upload_featured_image['id'];
@@ -245,7 +260,7 @@ class MainWP_Custom_Post_Type {
 					if ( $key['meta_key'] == '_thumbnail_id' ) {
 						if ( isset( $data['extras']['featured_image']) ) {
 							try {
-								$upload_featured_image = MainWP_Helper::uploadImage( $data['extras']['featured_image'] );
+								$upload_featured_image = MainWP_Helper::uploadImage( $data['extras']['featured_image'], array(), $check_image_existed );
 
 								if ( null !== $upload_featured_image ) {
 									$key['meta_value'] = $upload_featured_image['id'];

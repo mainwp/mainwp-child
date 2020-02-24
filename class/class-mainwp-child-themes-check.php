@@ -1,11 +1,15 @@
 <?php
 
 /*
-Plugin: Vendi Abandoned Plugin Check
-Description: Provides information about abandoned plugins.
-Version: 3.1.1
-License: GPLv2
-Author: Vendi Advertising (Chris Haas)
+ *
+ * Credits
+ *
+ * Plugin-Name: Vendi Abandoned Plugin Check
+ * Plugin URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
+ * Author: Vendi Advertising (Chris Haas)
+ * Author URI: https://wp-staging.com
+ * License: GPLv2
+ *
 */
 
 class MainWP_Child_Themes_Check {
@@ -33,15 +37,19 @@ class MainWP_Child_Themes_Check {
 	}
 
 	public function __construct() {
-		$this->schedule_watchdog();
-		add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
-		add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
 
-		add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
+        if ( get_option('mainwp_child_plugintheme_days_outdate') ) {
+            $this->schedule_watchdog();
+            add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
+            add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
 
-		add_filter( 'themes_api_args', array( $this, 'modify_theme_api_search_query' ), 10, 2 );
+            add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
 
-		add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
+            add_filter( 'themes_api_args', array( $this, 'modify_theme_api_search_query' ), 10, 2 );
+
+            add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
+        }
+
 	}
 
 	private function cleanup_basic() {
@@ -202,16 +210,8 @@ class MainWP_Child_Themes_Check {
 			}
 		}
 
-		if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
-			define( 'MINUTE_IN_SECONDS', 60 );
-		}
-
-		if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
-			define( 'HOUR_IN_SECONDS', 60 * MINUTE_IN_SECONDS );
-		}
-
 		if ( ! defined( 'DAY_IN_SECONDS' ) ) {
-			define( 'DAY_IN_SECONDS', 24 * HOUR_IN_SECONDS );
+			define( 'DAY_IN_SECONDS', 24 * 60 * 60 );
 		}
 
 		//Store the master response for usage in the plugin table
@@ -219,7 +219,6 @@ class MainWP_Child_Themes_Check {
 
 		if ( 0 === count( $all_themes ) ) {
 			delete_transient( $this->tran_name_themes_to_batch );
-			//wp_schedule_single_event( time() + DAY_IN_SECONDS, $this->cron_name_daily );
 		} else {
 			set_transient( $this->tran_name_themes_to_batch, $all_themes, DAY_IN_SECONDS );
 			wp_schedule_single_event( time(), $this->cron_name_batching );
@@ -229,18 +228,8 @@ class MainWP_Child_Themes_Check {
 
 
 	private function try_get_response_body( $theme ) {
-		//Some of this code is lifted from class-wp-upgrader
-
 		//Get the WordPress current version to be polite in the API call
 		include( ABSPATH . WPINC . '/version.php' );
-
-		if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
-			define( 'MINUTE_IN_SECONDS', 60 );
-		}
-
-		if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
-			define( 'HOUR_IN_SECONDS', 60 * MINUTE_IN_SECONDS );
-		}
 
 		$url = $http_url = 'http://api.wordpress.org/themes/info/1.0/';
 		if ( $ssl = wp_http_supports( array( 'ssl' ) ) ) {

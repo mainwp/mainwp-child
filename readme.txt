@@ -1,28 +1,28 @@
 === MainWP Child ===
 Contributors: mainwp
-Donate link: 
 Tags: WordPress management, management, manager, manage, WordPress controller, network, MainWP, updates, admin, administration, multiple, multisite, plugin updates, theme updates, login, remote, backups
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 4.9.5
-Stable tag: 3.4.7.1
-License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html 
+Tested up to: 5.3.2
+Requires PHP: 5.6
+Stable tag: 4.0.6.2
+License: GPLv3 or later
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Provides a secure connection between your MainWP Dashboard and your WordPress sites.   MainWP allows you to manage WP sites from one central location.
+Provides a secure connection between your MainWP Dashboard and your WordPress sites. MainWP allows you to manage WP sites from one central location.
 
 == Description ==
 
 This is the Child plugin for the [MainWP Dashboard](https://wordpress.org/plugins/mainwp/)
 
-The MainWP Child plugin is used to securely manage multiple WordPress websites from your MainWP Dashboard.  This plugin is to be installed on every WordPress site you want to control from your Dashboard.
+The MainWP Child plugin is used to securely manage multiple WordPress websites from your MainWP Dashboard. This plugin is to be installed on every WordPress site you want to control from your Dashboard.
 
 [MainWP](https://mainwp.com) is a self-hosted WordPress management system that allows you to manage an endless amount of WordPress blogs from one dashboard on your server.
 
 **Features include:**
- 
+
 * Connect and control all your WordPress installs even those on different hosts!
 * Update all WordPress installs, Plugins and Themes from one location
 * Manage and Add all your Posts from one location
@@ -32,7 +32,7 @@ The MainWP Child plugin is used to securely manage multiple WordPress websites f
 = More Information =
 [MainWP Documentation](https://mainwp.com/help/)
 
-[MainWP User Group](https://www.facebook.com/groups/MainWPUsers/)
+[MainWP Community](https://meta.mainwp.com/)
 
 [MainWP Support](https://mainwp.com/support/)
 
@@ -71,6 +71,147 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 == Changelog ==
 
+= 4.0.6.2 - 2-3-20 =
+* Fixed: connection problems caused by issues with json_encode function
+
+= 4.0.6.1 - 1-20-20 =
+* Updated: MainWP_Child_WPvivid_BackupRestore class
+
+= 4.0.6 - 1-17-20 =
+* Fixed: encoding problem in error messages
+* Added: site ID parameter in the sync request
+* Updated: MainWP_Child_WPvivid_BackupRestore class
+* Preventative: security improvements
+
+= 4.0.5.1 - 12-13-19 =
+* Fixed: Child Reports data conversion problem
+
+= 4.0.5 - 12-9-19 =
+* Added: support for the Pro Reports extension
+* Fixed: MainWP Child Reports version 2 compatibility
+
+= 4.0.4 - 11-11-19 =
+* Fixed: WordPress 5.3 compatibility problems
+* Fixed: an issue with managing BackWPup backups
+* Updated: multiple error messages
+* Removed: unused code
+
+= 4.0.3 - 10-1-19 =
+* Added: 'mainwp_child_branding_init_options' filter for disabling custom branding
+* Updated: support for the WPVulnDB API v3
+* Removed: unused code and files
+
+= 4.0.2 - 9-6-19 =
+* Fixed: an issue incorrect backups count in the Client Reports system
+
+= 4.0.1 - 9-3-19 =
+* Fixed: an issue with clearing and preloading WP Rocket cache
+
+= 4.0 - 8-28-19 =
+* Fixed: various functionality problems
+* Added: support for upcoming 3rd party extensions
+* Added: .htaccess file with custom redirect to rule the MainWP Child plugin directory to hide the plugin from search engines
+* Updated: support for the MainWP Dashboard 4.0
+* Updated: notifications texts
+* Removed: unused code
+
+= 3.5.7 - 5-6-19 =
+* Fixed: multiple PHP Warnings
+* Fixed: multiple conflicts with 3rd party products
+* Fixed: an issue with Page Speed data for custom URLs
+* Fixed: an issue with logging WP Time Capsule backups on specific setups
+* Fixed: an issue with short login session
+* Added: multiple security enhancements
+* Added: support for the WP Staging Pro (free features only)
+* Added: support for plugin/theme installation requests to HTTP Basic Auth protected MainWP Dashboards
+
+= 3.5.6 - 3-25-19 =
+* Fixed: an issue with checking Page Speed data
+* Fixed: an issue with empty update data
+* Fixed: an issue with incorrect plugin update data
+* Added: Send From field in the Branding support form
+* Updated: compatibility with the latest Yoast SEO plugin version
+
+= 3.5.5 - 3-6-19 =
+* Fixed: an issue with hook for controlling branding options for specific roles
+* Fixed: branding issues
+* Fixed: multiple PHP Warnings
+* Fixed: multiple typos
+* Fixed: MainWP UpdraftPlus Extension performance issues
+* Fixed: an issue with creating double media files when editing posts and pages from MainWP Dashboard
+* Fixed: an issue with creating duplicate Boilerplate posts and pages
+* Updated: added improvements for detecting premium plugin updates on specific setups
+
+= 3.5.4.1 - 2-19-19 =
+* Added: proper attribution to plugin code used for Extensions
+* Removed: unused code
+
+= 3.5.4 - 2-14-19 =
+* Fixed: issues with displaying broken links data for specific setups
+* Fixed: compatibility issues with the latest PageSpeed Insights plugin version
+* Fixed: an issue with publishing "future" posts
+* Fixed: an issue with sending email alerts in specific setups
+* Fixed: an issue with saving code snippets in wp-config.php when the file is in a custom location
+* Fixed: an issue with clearing unused scheduled Cron jobs
+* Added: support for the new PageSpeed Insights plugin options
+* Updated: disabled the "Remove readme.html" security check feature for WPEngine hosted child sites
+* Updated: support for detecting premium themes updates
+
+= 3.5.3 - 12-19-18 =
+* Fixed: an issue with the X-Frame-Options configuration
+* Fixed: an issue with clearing WP Rocket cache
+* Fixed: an issue with saving BackWPup settings
+* Fixed: multiple compatibility issues for the Bulk Settings Manger extension
+* Fixed: an issue with submitting the Bulk Settings Manger keys on child sites protected with the HTTP Basic Authentication
+* Fixed: an issue with creating buckets in Backblaze remote option caused by disallowed characters
+* Fixed: an issue with tokens usage in the UpdraftPlus Webdav remote storage settings
+* Added: support for new WP Staging plugin options
+* Updated: update detection process in order to improve performance on some hosts
+* Updated: disabled site size calculation function as default state
+* Updated: support for the latest Wordfence version
+
+= 3.5.2 - 11-27-18 =
+* Fixed: an issue with detecting updates when a custom branding is applied
+* Fixed: an issue with passing WebDav remote storage info for the UpdraftPlus Extension
+* Fixed: an issue with grabbing fresh child site favicons
+* Updated: process to skip WooCommerce order notes in the comments section for Client Reports
+
+= 3.5.1 - 11-14-18 =
+* Fixed: an issue with detecting the Wordfence status info
+* Fixed: an issue with loading UpdraftPlus existing backups
+* Fixed: the File Uploader extension issue with renaming special files
+* Fixed: an issue with syncing BackupBuddy data
+* Fixed: an issue with logging BackWPup backups
+* Fixed: an issue with detecting premium plugin updates
+* Added: new options for the MainWP Staging Extension
+* Added: multiple security enhancements
+* Added: support for the upcoming 3rd party extension
+* Updated: improved updating process
+
+= 3.5 - 9-27-18 =
+* Fixed: compatibility issues caused by the recent UpdraftPlus update
+* Fixed: issues with the WooCommerce Status information
+* Fixed: issues with Bulk Settings Manager for specific plugins
+* Added: mainwp_child_mu_plugin_enabled hook to allow MainWP Child usage as a must-use plugin
+* Added: support for recording WP Time Capsule backups for Client Reports
+* Added: mainwp_branding_role_cap_enable_contact_form hook to allow users to show Support Form (Branding extension option) to specific roles
+* Added: support to for the new BackUpWordPrress Extension feature
+* Added: support for the new MainWP Buddy Extension feature
+* Updated: reporting system to determine backup type for BackWPup backups
+* Improved: connection stability for sites hosted on hosts with small execution time limits
+* Improved: detecting updates for premium plugins
+
+= 3.4.9 - 7-23-18 =
+* Fixed: MainWP iThemes Security Extension issues caused by the latest iThemes Security plugin version
+
+= 3.4.8 - 6-26-18 =
+* Fixed: issues caused by deprecated functions
+* Added: mainwp_before_post_update hook
+* Added: support for the new extension
+* Added: conditional checks to prevent possible conflicts with certain plugins 
+* Added: support for the new MainWP Branding Extension feature
+* Improved: PHP 7.2 compatibility
+
 = 3.4.7.1 - 5-25-18 =
 * Fixed: UpdraftPlus 1.14.10 compatibility issue that caused child sites to disconnect
 * Added: support for the new MainWP Branding Extension option
@@ -82,9 +223,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed: timezone issue backup timestamp
 * Fixed: MainWP Branding Extension conflict that caused issues with hooking WP Admin menu items
 * Fixed: MainWP Branding Extension issue with hiding WordPress update nag
-* Fixed: MainWP Branding Extension issue with updating WordPress footer content 
+* Fixed: MainWP Branding Extension issue with updating WordPress footer content
 * Fixed: issues with loading broken links data
-* Fixed: multiple PHP 7.2 warnings 
+* Fixed: multiple PHP 7.2 warnings
 * Added: support for the BackBlaze backup remote destination (UpdraftPlus Extension)
 * Added: support for recording Live Stash updates for Client Reporting
 * Updated: recent Wordfence plugin version compatibility
@@ -228,7 +369,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Updated: Number of categories pulled from child sites (from 50 to 300)
 
 = 3.1.7 - 8-18-16 =
-* Fixed: Issues with PHP 7 - The MainWP Child is now PHP 7 friendly! :-) 
+* Fixed: Issues with PHP 7 - The MainWP Child is now PHP 7 friendly! :-)
 * Added: Support for an upcoming extension (BacukpBuddy Extension)
 
 = 3.1.6 - 8-2-16 =
@@ -244,7 +385,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: Support for the new WP Rocket features
 * Added: "Currently connected to" check in the Server Information
 * Fixed: PHP Notice
-* Removed: Unnecesary checks in the Server Information page
+* Removed: Unnecessary checks in the Server Information page
 
 = 3.1.4 - 5-9-16 =
 * Updated: function execute_snippet() extracted to a separate file
@@ -278,7 +419,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: Server Information items
 * Added: New Subject text box to support email in Branding Extension
 * Added: Support themes using invalid screen functions
-* Tweaked: Support new version of BackupWordpress plugin version
+* Tweaked: Support new version of BackupWordPress plugin version
 * Updated: Added support in Client Reports Extension for BackWPup backups
 
 = 3.1 - 2-17-16 =
@@ -288,14 +429,14 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed: Update issue for the iThemes Security Pro and the Monarch plugin
 * Fixed: Compatibility issue with the BackUpWordPress plugin
 * Added: Auto detect manually removed script/style versions feature
-* Added: Wordpress translation updates
+* Added: WordPress translation updates
 * Added: New Branding option to disable theme switching
 * Enhancement: Removed ctype_digit requirement
 * Enhancement: Install plugin error message
 
 = 3.0.2 - 1-22-16 =
-* Fixed: Issue with scheduled BackupWordpress when run from dashboard
-* Fixed: Issue with Heatmap tracker javascript
+* Fixed: Issue with scheduled BackupWordPress when run from dashboard
+* Fixed: Issue with Heatmap tracker JavaScript
 * Added: Support for hosts with PHP with disabled mb_regex
 * Tweaked: Code snippet result message
 
@@ -324,28 +465,28 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: Support new Wordfence settings options for the Wordfence Extension
 * Added: Force Check Pages function for the MainWP PageSpeed Extensions
 * Added: Allow to see MainWP child plugin in MainWP Dashboard plugins search
-* Updated: MainWP URL Extractor Extension logic to extract urls by Post published date instead of last change date
+* Updated: MainWP URL Extractor Extension logic to extract URLs by Post published date instead of last change date
 
 = 2.0.29 - 9-22-15 =
 * Fixed: 404 error that occurs in case Links Manger extension is in use when child plugin is hidden
 * Fixed: Bug with detecting updates of hidden plugins (UpdraftPlus, BackUpWordPress, WP Rocket)
 * Fixed: Bug with overwriting Amazon S3 settings in BackUpWordPress plugin
-* Fixed: Bug with empty values for Text Link and Link Source options in Broken Links Checker Extension 
+* Fixed: Bug with empty values for Text Link and Link Source options in Broken Links Checker Extension
 * Fixed: Bug with bulk repair action in Wordfence Extension
 * Fixed: Bug with incorrect File System Method detection
 * Added: Support for an upcoming Extension
 
 = 2.0.28 - 9-7-15 =
-* Fixed: Security Issue (MainWP White Hat Reward Program) 
+* Fixed: Security Issue (MainWP White Hat Reward Program)
 * Fixed: Support for the Stream 3 plugin
 * Fixed: Client Reports issue with recording auto saves for Posts and Pages
 * Fixed: An issue with detection for Abandoned Plugins & Themes that are not hosted on WP.org
 
 = 2.0.27 - 9-2-15 =
-* Fixed: Security Issue (MainWP White Hat Reward Program) 
+* Fixed: Security Issue (MainWP White Hat Reward Program)
 
 = 2.0.26 - 9-1-15 =
-* Fixed: Conflict with Stream 3 (Thanks Luke Carbis of Stream) 
+* Fixed: Conflict with Stream 3 (Thanks Luke Carbis of Stream)
 
 = 2.0.25 - 8-31-15 =
 * Fixed: Issue with Client Reports extension where comments records were not displayed correctly
@@ -355,7 +496,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed: Incorrect last update value for abandoned plugins & themes feature
 * Fixed: Branding for Server Information page and Clone page title
 * Fixed: Incorrect heatmap data and warnings
-* Fixed: Can not add child site because get favicon timeout 
+* Fixed: Can not add child site because get favicon timeout
 * Fixed: Hiding UpdraftPlus, WP Rocket toolbar and their notices when set to hide plugins
 
 = 2.0.23 - 8-7-15 =
@@ -366,12 +507,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 2.0.22 - 7-22-15 =
 * Fixed: Bug where the OptmizePress theme has not been updated properly
-* Fixed: Bug where the Client Report extenison recored incorrect time 
-* Added: Support for the upcomming extension
+* Fixed: Bug where the Client Report extension recorded incorrect time
+* Added: Support for the upcoming extension
 
 = 2.0.21 - 7-9-15 =
 * Fixed: Bug with time schedule for the UpdraftPlus extension
-* Added: Support for the upcomming extension
+* Added: Support for the upcoming extension
 
 = 2.0.20 - 7-6-15 =
 * Fixed: Bug with time schedule for the UpdraftPlus extension
@@ -386,7 +527,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: Support for the new UpdraftPlus Extension options
 * Enhancement: Speed up directory listing by using less resources, reducing timeout issues
 * Fixed: Plugin/theme upgrade issue when no file system method is specified
-* Fixed: X-Frame-Options - ALLOWALL bug 
+* Fixed: X-Frame-Options - ALLOWALL bug
 * Fixed: Timeout error for the stats child data function
 * Fixed: An error with the Synchronous XMLHttpRequest for tracker.js
 * Fixed: Expert settings options for the UpdraftPlus Extension
@@ -402,9 +543,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 2.0.16 - 5-15-15 =
 * Fixed: Issue with sites running PHP 5.2 and lower
-* Fixed: Sync error on some sites with UpdraftPlus installed 
+* Fixed: Sync error on some sites with UpdraftPlus installed
 * Fixed: PHP Warning
-* Changed: Server page to reflect requested mininum of PHP 5.3
+* Changed: Server page to reflect requested minimum of PHP 5.3
 
 = 2.0.15 - 5-14-15 =
 * Added: Support for the upcoming extension
@@ -423,9 +564,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed: Security Issue with add_query_arg and remove_query_arg
 
 = 2.0.12 - 4-16-15 =
-* Fixed: Bug for the MainWP iThemes Security Extension 
-* Fixed: Bug for the MainWP WordFence Extension 
-* Fixed: Bug where the MainWP Child plugin was breaking cron jobs on child sites
+* Fixed: Bug for the MainWP iThemes Security Extension
+* Fixed: Bug for the MainWP WordFence Extension
+* Fixed: Bug where the MainWP Child plugin was breaking Cron jobs on child sites
 
 = 2.0.11 - 4-12-15 =
 * Fixed: Upcoming extension bug
@@ -433,7 +574,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 = 2.0.10 - 4-06-15 =
 * Added: Support for the display Favicon for child sites feature
 * Added: Support for upcoming extension
-* Fixed: Plugin conflicts with Wordpress SEO by Yoast and Backupbuddy
+* Fixed: Plugin conflicts with WordPress SEO by Yoast and Backupbuddy
 
 = 2.0.9.2 - 3-06-15 =
 * Fixed: Bug where SEO values are not being set for Boilerplate Pages and Posts
@@ -471,18 +612,18 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Added: A new Branding extension option - hiding the child plugin server information page
 
 = 2.0.5 - 1-07-15 =
-* Fixed: Links Manager Extension: Now using the wordpress home option instead of siteurl for the links
+* Fixed: Links Manager Extension: Now using the WordPress home option instead of site URL for the links
 
 = 2.0.4 - 12-26-14 =
 * Fixed: Backups for hosts having issues with "compress.zlib://" stream wrappers from PHP causing corrupt backup archives
-* Fixed: "Another backup is running" message displaying incorrectly 
+* Fixed: "Another backup is running" message displaying incorrectly
 
 = 2.0.3 - 12-15-14 =
 * Fixed: Possible security issue
 
 = 2.0.2 - 12-11-14 =
 * Added: Support hosts with PHP Heap classes
-* Fixed: Javascript issue disabling the popup menu on the admin menu
+* Fixed: JavaScript issue disabling the popup menu on the admin menu
 
 = 2.0.1 - 12-10-14 =
 * Fixed: Restore/Clone from Tar via server upload
@@ -504,7 +645,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Redesign: CSS updated to match the Dashboard style
 * Redesign: MainWP Child Settings page layout updated
 * Redesign: MainWP Child Clone/Restore layout updated
-* Refactor: Added MainWP Child menu added in the WP Admin Menu 
+* Refactor: Added MainWP Child menu added in the WP Admin Menu
 * Refactor: MainWP Child Settings, MainWP Clone/Restore and MainWP Child Server Information pages removed from the WP Settings menu and added to MainWP Child
 
 = 1.3.3 - 9-21-14 =
@@ -536,7 +677,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Removed incorrect "This site may to connect to your dashboard or may have other issues" when there are ssl warnings
 
 = 1.0 =
-* Added: Communication to Dashboard during backups to locate common backup locations 
+* Added: Communication to Dashboard during backups to locate common backup locations
 * Added: Communication to Dashboard during backups to locate common cache locations
 * Added: Communication to Dashboard during backups to locate non-WordPress folders
 * Added: Communication to Dashboard during backups to locate Zip Archives
@@ -556,7 +697,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Changes for update to Client Reports Extension
 * Changes for update to Heat Map Extension
 * Changes for update to Maintenance Extension
-* Fixed verbiage for restore popup 
+* Fixed verbiage for restore popup
 
 = 0.29.10 =
 * Fixed: Admin not accessible with invalid upload directory
@@ -600,12 +741,12 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 0.29 =
 * Added ability to view Child site error logs on MainWP Dashboard
-* Added ability to view Child site Wp-Config on MainWP Dashboard
+* Added ability to view Child site wp-config.php on MainWP Dashboard
 * Added new Hooks for Branding Extension
-* Added tweak for Code Snippet Extension 
+* Added tweak for Code Snippet Extension
 
 = 0.28.4 =
-* More Extension Hooks to extend Code Snippet functionality 
+* More Extension Hooks to extend Code Snippet functionality
 
 = 0.28.3 =
 * Fixed some issues with Code Snippets extension
@@ -687,7 +828,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 * Fixed conflict with main dashboard on same site
 
 = 0.11 =
-* Plugin localisation
+* Plugin localization
 * Extra check for readme.html file
 * Added child server information
 * Fixed restore issue: not all previous plugins/themes were removed
@@ -717,7 +858,7 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 
 = 0.5 =
 * Fixed issue with importing database with custom foreign key references
-* Fixed issue with disabled functions from te "suhosin" extension
+* Fixed issue with disabled functions from the "suhosin" extension
 * Fixed issue with click-heatmap
 
 = 0.4 =
@@ -731,3 +872,8 @@ Fixed cloning issue with custom prefix
 
 = 0.1 =
 * Initial version
+
+== Upgrade Notice ==
+
+= 4.0 =
+This is a major upgrade please check the [MainWP Upgrade FAQ](https://mainwp.com/help/docs/faq-on-upgrading-from-mainwp-version-3-to-mainwp-version-4/)

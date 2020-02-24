@@ -123,6 +123,9 @@ class MainWP_Child_Skeleton_Key {
 
 		$full_url = add_query_arg( $get_args, get_site_url() . $url );
 
+        global $mainWPChild;
+        add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+
 		$response = wp_remote_post( $full_url, $post_args );
 
 		if ( is_wp_error( $response ) ) {
@@ -132,7 +135,7 @@ class MainWP_Child_Skeleton_Key {
 		$received_content = wp_remote_retrieve_body( $response );
 
 		if ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $received_content, $received_result ) > 0 ) {
-			$received_content_mainwp = json_decode( base64_decode( $received_result[1] ), true );
+			$received_content_mainwp = json_decode( base64_decode( $received_result[1] ), true ); // json format
 			if ( isset( $received_content_mainwp['error'] ) ) {
 				return array( 'error' => $received_content_mainwp['error'] );
 			}
@@ -186,7 +189,7 @@ class MainWP_Child_Skeleton_Key {
 		$settings = isset($_POST['settings']) ? $_POST['settings'] : array();
 
 		if (!is_array($settings) || empty($settings))
-			return array('error' => 'Invalid data');
+			return array('error' => 'Invalid data. Please check and try again.');
 
 		$whitelist_options = array(
 			'general' => array( 'blogname', 'blogdescription', 'gmt_offset', 'date_format', 'time_format', 'start_of_week', 'timezone_string', 'WPLANG' ),
