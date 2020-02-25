@@ -6,7 +6,7 @@
   Author: MainWP
   Author URI: https://mainwp.com
   Text Domain: mainwp-child
-  Version: 4.0.6.2
+  Version: 4.0.7
  */
 include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from wordpress
 

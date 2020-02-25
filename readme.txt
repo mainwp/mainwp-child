@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 5.3.2
 Requires PHP: 5.6
-Stable tag: 4.0.6.2
+Stable tag: 4.0.7
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -70,6 +70,17 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.7 - 2-25-20 =
+* Fixed: an issue with saving Bulk Setting Manager keys
+* Fixed: an issue with saving Wordfence extension settings
+* Fixed: an issue with overwriting PHP error reporting configuration
+* Added: pull request #9 to add an action to allow additional post customization when a new post is created - Thanks [joshlabau](https://github.com/joshlabau)
+* Added: pull request #13 to replace __autoload() with spl_autoload_register - Thanks [Christian Foellmann](https://github.com/cfoellmann)
+* Added: pull request #23 to fix a typo - Thanks [Marco Frodl](https://github.com/marcofrodl)
+* Added: pull request #24 to prevent overwriting PHP error reporting configuration - Thanks [Stanislav Khromov](https://github.com/khromov)
+* Updated: improved premium plugins and themes updates detection system
+* Removed: unused database options
 
 = 4.0.6.2 - 2-3-20 =
 * Fixed: connection problems caused by issues with json_encode function

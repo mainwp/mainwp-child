@@ -6,7 +6,7 @@ if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === TRUE ) {
 } else {
 	if (isset($_REQUEST['mainwpsignature'])) {
 		@ini_set( 'display_errors', FALSE );
-		@error_reporting( 0 );		
+		@error_reporting( 0 );
 }
 }
 
@@ -117,7 +117,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0.6.2';
+	public static $version = '4.0.7';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -2486,7 +2486,7 @@ class MainWP_Child {
 		$information['link']     = $res['link'];
 
 		do_action('mainwp_child_after_newpost', $res);
-    
+
 		MainWP_Helper::write( $information );
 	}
 
@@ -3788,7 +3788,7 @@ class MainWP_Child {
                 $information['plugin_updates'] = array();
             }
             foreach( $cached_plugins_update as $slug => $plugin_update ) {
-				
+
                 // to fix incorrect info
                 if ( !property_exists( $plugin_update, 'new_version' ) || empty( $plugin_update->new_version ) ) { // may do not need to check this?
 					// to fix for some premiums update info
@@ -3799,9 +3799,9 @@ class MainWP_Child {
 					} else {
 						continue;
 					}
-					
+
                 }
-				
+
                 if ( !isset( $information['plugin_updates'][ $slug ] ) ) {
                     $information['plugin_updates'][ $slug ] = $plugin_update;
                 }
