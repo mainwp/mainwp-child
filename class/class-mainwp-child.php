@@ -3,6 +3,11 @@ if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === TRUE ) {
 	@error_reporting( E_ALL );
 	@ini_set( 'display_errors', TRUE );
 	@ini_set( 'display_startup_errors', TRUE );
+} else {
+	if (isset($_REQUEST['mainwpsignature'])) {
+		@ini_set( 'display_errors', FALSE );
+		@error_reporting( 0 );
+}
 }
 
 define( 'MAINWP_CHILD_NR_OF_COMMENTS', 50 );
@@ -112,7 +117,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version = '4.0.6.2';
+	public static $version = '4.0.7';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -750,7 +755,7 @@ class MainWP_Child {
 				}
 				self::$subPages = $sub_pages;
 				self::$subPagesLoaded = true;
-				MainWP_Helper::update_option( 'mainwp_child_subpages', self::$subPages );
+				//MainWP_Helper::update_option( 'mainwp_child_subpages', self::$subPages ); // to fix error for some case
 			}
 			add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
 			add_action( 'mainwp-child-pagefooter', array( __CLASS__, 'render_footer' ) );
@@ -2481,7 +2486,7 @@ class MainWP_Child {
 		$information['link']     = $res['link'];
 
 		do_action('mainwp_child_after_newpost', $res);
-    
+
 		MainWP_Helper::write( $information );
 	}
 
@@ -3783,10 +3788,20 @@ class MainWP_Child {
                 $information['plugin_updates'] = array();
             }
             foreach( $cached_plugins_update as $slug => $plugin_update ) {
+
                 // to fix incorrect info
-                if ( !property_exists( $plugin_update, 'new_version' ) || empty( $plugin_update->new_version ) ) {
+                if ( !property_exists( $plugin_update, 'new_version' ) || empty( $plugin_update->new_version ) ) { // may do not need to check this?
+					// to fix for some premiums update info
+					if ( property_exists( $plugin_update, 'update' ) ) {
+						if ( !property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
                     continue;
                 }
+					} else {
+						continue;
+					}
+
+                }
+
                 if ( !isset( $information['plugin_updates'][ $slug ] ) ) {
                     $information['plugin_updates'][ $slug ] = $plugin_update;
                 }

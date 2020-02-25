@@ -563,7 +563,7 @@ class MainWP_Helper {
 		//Save the post to the wp
 		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html
 		$post_status             = $new_post['post_status'];
-		$new_post['post_status'] = 'auto-draft';
+		$new_post['post_status'] = 'auto-draft'; // child reports: to logging as created post		
 
 		// update post
 		if ( $edit_post_id ) {
@@ -572,6 +572,7 @@ class MainWP_Helper {
 			if ( $current_post && ( ( !isset( $new_post['post_type'] ) && $current_post->post_type == 'post' ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] == $current_post->post_type ) ) ) {
 				$new_post['ID'] = $edit_post_id;
 			}
+			$new_post['post_status'] = $post_status; // child reports: to logging as update post		
 		}
 
 		$new_post_id             = wp_insert_post( $new_post, $wp_error );
@@ -584,6 +585,7 @@ class MainWP_Helper {
 			return array( 'error' => 'Empty post id');
 		}
 
+		if ( !$edit_post_id )
 		wp_update_post( array( 'ID' => $new_post_id, 'post_status' => $post_status ) );
 
 		if ( ! empty( $terms ) ) {

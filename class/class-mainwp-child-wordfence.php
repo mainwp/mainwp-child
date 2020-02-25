@@ -1282,53 +1282,119 @@ SQL
 
             // if saving then validate data
             if (in_array('apiKey', $saving_opts)) {
+                    
                     $apiKey               = trim( $_POST['apiKey'] );
-                    if ( ! $apiKey ) { //Empty API key (after trim above), then try to get one.
+					$apiKey = strtolower(trim($apiKey)); 					
+					$existingAPIKey = wfConfig::get('apiKey', '');
+					
+				
+					
+					$ping = false;			
+					if ( empty( $apiKey ) && empty($existingAPIKey) ) { // then try to get one.
+						
                         $api = new wfAPI( '', wfUtils::getWPVersion() );
                         try {
                             $keyData = $api->call( 'get_anon_api_key' );
                             if ( $keyData['ok'] && $keyData['apiKey'] ) {
                                 wfConfig::set( 'apiKey', $keyData['apiKey'] );
                                 wfConfig::set( 'isPaid', 0 );
-                                $result['apiKey'] = $keyData['apiKey'];
+								wfConfig::set('keyType', wfAPI::KEY_TYPE_FREE);
+								wordfence::licenseStatusChanged();
+								$result['apiKey'] = $apiKey = $keyData['apiKey'];
                                 $result['isPaid'] = 0;
                                 $reload           = 'reload';
                             } else {
-                                throw new Exception( "We could not understand the Wordfence server's response because it did not contain an 'ok' and 'apiKey' element." );
+								throw new Exception("The Wordfence server's response did not contain the expected elements.");
                             }
                         } catch ( Exception $e ) {
-                            $result['error'] = 'Your options have been saved, but we encountered a problem. You left your API key blank, so we tried to get you a free API key from the Wordfence servers. However we encountered a problem fetching the free key: ' . htmlentities( $e->getMessage() );
-
+							$result['error'] = 'Your options have been saved, but you left your license key blank, so we tried to get you a free license key from the Wordfence servers. There was a problem fetching the free key: ' . wp_kses( $e->getMessage(), array() );
                             return $result;
                         }
-                    } else if ( wfConfig::get( 'apiKey' ) !== $apiKey ) {
+						
+					} else if ( !empty( $apiKey ) && $existingAPIKey != $apiKey ) { 
                         $api = new wfAPI( $apiKey, wfUtils::getWPVersion() );
                         try {
-                            $res = $api->call( 'check_api_key', array(), array() );
+							$res = $api->call('check_api_key', array(), array('previousLicense' => $existingAPIKey));
                             if ( $res['ok'] && isset( $res['isPaid'] ) ) {
-                                wfConfig::set( 'apiKey', $apiKey );
-                                wfConfig::set( 'isPaid', $res['isPaid'] ); //res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
+								
+//								wfConfig::set( 'apiKey', $apiKey );
+//								wfConfig::set( 'isPaid', $res['isPaid'] ); //res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
+//								$result['apiKey'] = $apiKey;
+//								$result['isPaid'] = $res['isPaid'];
+//								if ( $res['isPaid'] ) {
+//									$result['paidKeyMsg'] = true;
+//								}
+								
+								$isPaid = wfUtils::truthyToBoolean($res['isPaid']);
+								wfConfig::set('apiKey', $apiKey);
+								wfConfig::set('isPaid', $isPaid); //res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
+								wordfence::licenseStatusChanged();
+								if (!$isPaid) {
+									wfConfig::set('keyType', wfAPI::KEY_TYPE_FREE);
+								}
+								
+								
                                 $result['apiKey'] = $apiKey;
-                                $result['isPaid'] = $res['isPaid'];
-                                if ( $res['isPaid'] ) {
+								$result['isPaid'] = $isPaid;
+								if ( $isPaid ) {
                                     $result['paidKeyMsg'] = true;
                                 }
+								
+								$ping = true;
                                 $reload = 'reload';
                             } else {
                                 throw new Exception( 'We could not understand the Wordfence API server reply when updating your API key.' );
                             }
                         } catch ( Exception $e ) {
                             $result['error'] = 'Your options have been saved. However we noticed you changed your API key and we tried to verify it with the Wordfence servers and received an error: ' . htmlentities( $e->getMessage() );
-
                             return $result;
                         }
                     } else {
+						$ping = true;	
+						$apiKey = $existingAPIKey; 
+					}
+											
+					if ( $ping ) {						
+						
+						$api = new wfAPI($apiKey, wfUtils::getWPVersion());						
                         try {
-                            $api = new wfAPI( $apiKey, wfUtils::getWPVersion() );
-                            $res = $api->call( 'ping_api_key', array(), array() );
-                        } catch ( Exception $e ) {
-                            $result['error'] = 'Your options have been saved. However we noticed you do not change your API key and we tried to verify it with the Wordfence servers and received an error: ' . htmlentities( $e->getMessage() );
+							$keyType = wfAPI::KEY_TYPE_FREE;
+							$keyData = $api->call('ping_api_key', array(), array('supportHash' => wfConfig::get('supportHash', ''), 'whitelistHash' => wfConfig::get('whitelistHash', '')));
+							if (isset($keyData['_isPaidKey'])) {
+								$keyType = wfConfig::get('keyType');
+							}
+							if (isset($keyData['dashboard'])) {
+								wfConfig::set('lastDashboardCheck', time());
+								wfDashboard::processDashboardResponse($keyData['dashboard']);
+							}
+							if (isset($keyData['support']) && isset($keyData['supportHash'])) {
+								wfConfig::set('supportContent', $keyData['support']);
+								wfConfig::set('supportHash', $keyData['supportHash']);
+							}
+							if (isset($keyData['_whitelist']) && isset($keyData['_whitelistHash'])) {
+								wfConfig::setJSON('whitelistPresets', $keyData['_whitelist']);
+								wfConfig::set('whitelistHash', $keyData['_whitelistHash']);
+							}
+							if (isset($keyData['scanSchedule']) && is_array($keyData['scanSchedule'])) {
+								wfConfig::set_ser('noc1ScanSchedule', $keyData['scanSchedule']);
+								if (wfScanner::shared()->schedulingMode() == wfScanner::SCAN_SCHEDULING_MODE_AUTOMATIC) {
+									wfScanner::shared()->scheduleScans();
+								}
+							}
 
+							wfConfig::set('keyType', $keyType);
+							
+							if (!isset($result['apiKey'])) {
+								$isPaid = ( $keyType == wfAPI::KEY_TYPE_FREE ) ? false : true;
+								$result['apiKey'] = $apiKey; 
+								$result['isPaid'] = $isPaid;
+								if ( $isPaid ) {
+									$result['paidKeyMsg'] = true;
+								}
+							}
+
+                        } catch ( Exception $e ) {
+							$result['error'] = 'Your options have been saved. However we tried to verify your license key with the Wordfence servers and received an error: ' . wp_kses($e->getMessage(), array()) ;
                             return $result;
                         }
                     }
