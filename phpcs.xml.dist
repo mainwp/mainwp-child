@@ -10,12 +10,9 @@
 	<arg name="basepath" value="."/>
 	<arg name="parallel" value="8"/>
 
-	<exclude-pattern>*/vendor/*</exclude-pattern>
 	<exclude-pattern>*/bin/*</exclude-pattern>
 	<exclude-pattern>*/.github/*</exclude-pattern>
 	<exclude-pattern>*/tests/*</exclude-pattern>
-	<!-- Exclude Composer vendor directory. -->
-	<exclude-pattern>*/vendor/*</exclude-pattern>
 
 	<rule ref="WordPress">
 		<exclude name="WordPress.Files.FileName"/>
