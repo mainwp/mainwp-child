@@ -102,7 +102,7 @@ class MainWP_Client_Report {
 	}
 	
 	public function is_backup_action( $action ) {
-		if ( in_array( $action, array( 'mainwp_backup', 'backupbuddy_backup', 'backupwordpress_backup', 'backwpup_backup', 'updraftplus_backup', 'wptimecapsule_backup' ) ) ) 
+		if ( in_array( $action, array( 'mainwp_backup', 'backupbuddy_backup', 'backupwordpress_backup', 'backwpup_backup', 'updraftplus_backup', 'wptimecapsule_backup', 'wpvivid_backup' ) ) )
 			return true;
 		return false;		
 	}
