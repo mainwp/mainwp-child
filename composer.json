@@ -21,6 +21,7 @@
         "php": ">=5.6|>=7.0"
    },
     "require-dev": {
+	"squizlabs/php_codesniffer": "3.*",
         "dealerdirect/phpcodesniffer-composer-installer": "0.6.2",
         "phpcompatibility/php-compatibility": "^9.0",
         "sirbrillig/phpcs-changed": "2.2.7",
