@@ -13,8 +13,8 @@
 	<exclude-pattern>*/.github/*</exclude-pattern>
 	<exclude-pattern>*/tests/*</exclude-pattern>
 	
-	<config name="minimum_supported_wp_version" value="4.6" />
-	<config name="testVersion" value="5.4-"/>
+	<config name="minimum_supported_wp_version" value="4.0" />
+	<config name="testVersion" value="5.0-"/>
 	
 	<rule ref="PSR1.Classes.ClassDeclaration"/>
 	<rule ref="PSR2.Methods.FunctionClosingBrace"/>
@@ -38,16 +38,6 @@
 		</properties>
 	</rule>
 
-	<rule ref="PHPCompatibility">
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_finallyFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_yieldFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_ellipsisFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_powFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_pow_equalFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_spaceshipFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_coalesceFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_coalesce_equalFound"/>
-		<exclude name="PHPCompatibility.Constants.NewConstants.t_yield_fromFound"/>
-	</rule>
+	
 
 </ruleset>
