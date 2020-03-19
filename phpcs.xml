@@ -1,40 +1,44 @@
 <?xml version="1.0"?>
-<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="WordPress Coding Standards" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
-
+<ruleset name="MainWP">
 	<description>The Coding standard for the WordPress Coding Standards itself.</description>
-
+	
 	<file>.</file>
 
 	<arg value="sp"/>
 	<arg name="extensions" value="php"/>
 	<arg name="basepath" value="."/>
 	<arg name="parallel" value="8"/>
-
-	<exclude-pattern>*/bin/*</exclude-pattern>
-	<exclude-pattern>*/.github/*</exclude-pattern>
-	<exclude-pattern>*/tests/*</exclude-pattern>
+	
+	<config name="minimum_supported_wp_version" value="4.9" />
+	<config name="testVersion" value="5.6-"/>
+	
+	<rule ref="PSR1.Classes.ClassDeclaration"/>
+	<rule ref="PSR2.Methods.FunctionClosingBrace"/>
 
 	<rule ref="WordPress">
 		<exclude name="WordPress.Files.FileName"/>
 		<exclude name="WordPress.NamingConventions.ValidVariableName"/>
 		<exclude name="WordPress.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition"/>
 	</rule>
-
-	<!-- Enforce PSR1 compatible namespaces. -->
-	<rule ref="PSR1.Classes.ClassDeclaration"/>
-	<rule ref="PSR2.Methods.FunctionClosingBrace"/>
-
+	
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array" value="jetpack" />
+		</properties>
+	</rule>
+	
 	<rule ref="WordPress.Arrays.MultipleStatementAlignment">
 		<properties>
 			<property name="alignMultilineItems" value="!=100"/>
 			<property name="exact" value="false" phpcs-only="true"/>
 		</properties>
 	</rule>
+	
+	<rule ref="VariableAnalysis.CodeAnalysis.VariableAnalysis.UndefinedVariable">
+		<type>error</type>
+	</rule>
 
-	<!-- Check code for cross-version PHP compatibility. -->
-	<config name="testVersion" value="5.6-"/>
 	<rule ref="PHPCompatibility">
-		<!-- Exclude PHP constants back-filled by PHPCS. -->
 		<exclude name="PHPCompatibility.Constants.NewConstants.t_finallyFound"/>
 		<exclude name="PHPCompatibility.Constants.NewConstants.t_yieldFound"/>
 		<exclude name="PHPCompatibility.Constants.NewConstants.t_ellipsisFound"/>
@@ -49,5 +53,9 @@
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.DeprecatedWhitelistCommentFound">
 		<exclude-pattern>/WordPress/AbstractClassRestrictionsSniff\.php$</exclude-pattern>
 	</rule>
+	
+	<exclude-pattern>*/bin/*</exclude-pattern>
+	<exclude-pattern>*/.github/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
 
 </ruleset>
