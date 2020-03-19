@@ -43,7 +43,7 @@ class MainWP_Backup {
 			$pid = trailingslashit( $backupdir ) . 'backup-' . $pid . '.pid';
 		}
 
-		//Verify if another backup is running, if so, return an error
+		// Verify if another backup is running, if so, return an error
 		$files = glob( $backupdir . '*.pid' );
 		foreach ( $files as $file ) {
 			if ( basename( $file ) == basename( $pid ) ) {
@@ -78,7 +78,7 @@ class MainWP_Backup {
 		$fileurl  = $file;
 
 		if ( ! $addConfig ) {
-			if ( ! in_array( str_replace( ABSPATH, '', WP_CONTENT_DIR ), $excludes ) && ! in_array( 'wp-admin', $excludes ) && ! in_array( WPINC, $excludes ) ) {
+			if ( ! in_array( str_replace( ABSPATH, '', WP_CONTENT_DIR ), $excludes, true ) && ! in_array( 'wp-admin', $excludes, true ) && ! in_array( WPINC, $excludes, true ) ) {
 				$addConfig        = true;
 				$includeCoreFiles = true;
 			}
@@ -392,7 +392,7 @@ class MainWP_Backup {
 		}
 		if ( ! $error ) {
 			foreach ( $nodes as $node ) {
-				if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes ) ) {
+				if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes, true ) ) {
 					if ( is_dir( $node ) ) {
 						if ( ! $this->pclZipAddDir( $node, $excludes ) ) {
 							$error = true;
@@ -594,7 +594,7 @@ class MainWP_Backup {
 		}
 
 		foreach ( $nodes as $node ) {
-			if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes ) ) {
+			if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes, true ) ) {
 				if ( is_dir( $node ) ) {
 					if ( ! $this->pclZipAddDir( $node, $excludes ) ) {
 						$error = true;
