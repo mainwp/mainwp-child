@@ -37,10 +37,6 @@
 			<property name="exact" value="false" phpcs-only="true"/>
 		</properties>
 	</rule>
-	
-	<rule ref="VariableAnalysis.CodeAnalysis.VariableAnalysis.UndefinedVariable">
-		<type>error</type>
-	</rule>
 
 	<rule ref="PHPCompatibility">
 		<exclude name="PHPCompatibility.Constants.NewConstants.t_finallyFound"/>
