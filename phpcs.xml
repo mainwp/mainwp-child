@@ -14,7 +14,7 @@
 	<exclude-pattern>*/tests/*</exclude-pattern>
 	
 	<config name="minimum_supported_wp_version" value="4.9" />
-	<config name="testVersion" value="5.6-"/>
+	<config name="testVersion" value="5.4-"/>
 	
 	<rule ref="PSR1.Classes.ClassDeclaration"/>
 	<rule ref="PSR2.Methods.FunctionClosingBrace"/>
