@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<ruleset name="WordPress Coding Standards">
+<ruleset name="MainWP WordPress Coding Standards">
 
 	<description>The Coding standard for the WordPress Coding Standards itself.</description>
 
@@ -13,6 +13,8 @@
 	<arg name="parallel" value="8" />
 	<arg name="extensions" value="php" />
 	<arg name="basepath" value="./" />
+	
+	<ini name="memory_limit" value="256M"/>
 
 	<rule ref="WordPress">
 		<exclude name="WordPress.Files.FileName"/>
