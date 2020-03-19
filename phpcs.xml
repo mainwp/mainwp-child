@@ -7,7 +7,7 @@
 	<arg value="sp"/>
 	<arg name="extensions" value="php"/>
 	<arg name="basepath" value="."/>
-	<arg name="parallel" value="36"/>
+	<arg name="parallel" value="8"/>
 	
 	<exclude-pattern>*/bin/*</exclude-pattern>
 	<exclude-pattern>*/.github/*</exclude-pattern>
