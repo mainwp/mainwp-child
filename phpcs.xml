@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
-<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="WordPress Coding Standards" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
+<ruleset name="WordPress Coding Standards">
 
 	<description>The Coding standard for the WordPress Coding Standards itself.</description>
 
 	<file>.</file>
 
-	<arg value="sp"/>
-	<arg name="extensions" value="php"/>
-	<arg name="basepath" value="."/>
-	<arg name="parallel" value="8"/>
-
 	<exclude-pattern>*/bin/*</exclude-pattern>
 	<exclude-pattern>*/.github/*</exclude-pattern>
 	<exclude-pattern>*/tests/*</exclude-pattern>
+	
+	<arg value="ps" />
+	<arg name="parallel" value="8" />
+	<arg name="extensions" value="php" />
+	<arg name="basepath" value="./" />
 
 	<rule ref="WordPress">
 		<exclude name="WordPress.Files.FileName"/>
