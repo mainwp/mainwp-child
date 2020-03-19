@@ -9,12 +9,10 @@
 	<exclude-pattern>*/.github/*</exclude-pattern>
 	<exclude-pattern>*/tests/*</exclude-pattern>
 	
-	<arg value="ps" />
+	<arg value="sp" />
 	<arg name="parallel" value="8" />
 	<arg name="extensions" value="php" />
-	<arg name="basepath" value="./" />
-	
-	<ini name="memory_limit" value="256M"/>
+	<arg name="basepath" value="." />
 
 	<rule ref="WordPress">
 		<exclude name="WordPress.Files.FileName"/>
