@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <ruleset name="MainWP">
-	<description>The Coding standard for the WordPress Coding Standards itself.</description>
+	<description>WordPress coding standards for the MainWP Child.</description>
 	
 	<file>.</file>
 
