@@ -50,10 +50,4 @@
 		<exclude name="PHPCompatibility.Constants.NewConstants.t_yield_fromFound"/>
 	</rule>
 
-	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.DeprecatedWhitelistCommentFound">
-		<exclude-pattern>/WordPress/AbstractClassRestrictionsSniff\.php$</exclude-pattern>
-	</rule>
-	
-
-
 </ruleset>
