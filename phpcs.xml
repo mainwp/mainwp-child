@@ -13,7 +13,7 @@
 	<exclude-pattern>*/.github/*</exclude-pattern>
 	<exclude-pattern>*/tests/*</exclude-pattern>
 	
-	<config name="minimum_supported_wp_version" value="4.9" />
+	<config name="minimum_supported_wp_version" value="4.6" />
 	<config name="testVersion" value="5.4-"/>
 	
 	<rule ref="PSR1.Classes.ClassDeclaration"/>
