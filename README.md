@@ -6,7 +6,6 @@
  <a href="https://packagist.org/packages/mainwp/mainwp-child"><img src="https://poser.pugx.org/mainwp/mainwp-child/v/stable" alt="Latest Stable Version"></a>
   <img alt="WordPress Plugin Active Installs" src="https://img.shields.io/wordpress/plugin/installs/mainwp-child?label=MainWP%20Child%20Active%20Installs">
   <img alt="WordPress Plugin Rating" src="https://img.shields.io/wordpress/plugin/stars/mainwp-child?label=WP.org%20Rating">
-  <a href="https://travis-ci.org/mainwp/mainwp-child"><img src="https://travis-ci.org/mainwp/mainwp-child.svg?branch=master" alt="Build Status"></a>
 </p>
 
 Welcome to the [MainWP](https://mainwp.com) Child plugin repository on GitHub. Here you can browse the source, look at open issues and keep track of development.
