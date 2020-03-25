@@ -33,6 +33,7 @@
                 <exclude name="WordPress.PHP.StrictInArray"/>
 		
 		<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
+		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
                 
 	</rule>
 
