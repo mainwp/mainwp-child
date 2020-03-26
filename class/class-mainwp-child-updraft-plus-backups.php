@@ -16,7 +16,7 @@
 */
 
 class MainWP_Child_Updraft_Plus_Backups {
-	public static $instance = null;
+	public static $instance     = null;
     public $is_plugin_installed = false;
     static function Instance() {
 		if ( null === self::$instance ) {
@@ -262,7 +262,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				'e' => __( 'An unknown error occurred when trying to connect to UpdraftPlus.Com', 'updraftplus' ),
 			);
 			if ( is_wp_error( $connect ) ) {
-				$response['e'] = $connect->get_error_message();
+				$response['e']    = $connect->get_error_message();
 				$response['code'] = $connect->get_error_code();
 				$response['data'] = serialize( $connect->get_error_data() );
 			}
@@ -280,7 +280,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			return '';
 		}
 
-		$ret = '';
+		$ret  = '';
 		$ret .= '<p style="padding-top: 0px; margin-top: 0px;">';
 		$ret .= __( 'This site is <strong>connected</strong> to UpdraftPlus Vault.', 'updraftplus' ) . ' ' . __( "Well done - there's nothing more needed to set up.", 'updraftplus' ) . '</p><p><strong>' . __( 'Vault owner', 'updraftplus' ) . ':</strong> ' . htmlspecialchars( $vault_settings['email'] );
 
@@ -528,27 +528,27 @@ $post_body['token'] = (string) $vault_settings['token'];
                                 $opts = array();
                             }
 							if (is_array($opts) && isset($opts['settings'])) {
-								$settings_key = key($opts['settings']);
+								$settings_key                                   = key($opts['settings']);
                                 $opts['settings'][ $settings_key ]['accesskey'] = $settings[ $key ]['accesskey'];
-                                $opts['settings'][ $settings_key ]['secretkey']   = $settings[ $key ]['secretkey'];
-								$opts['settings'][ $settings_key ]['path']   = $this->replace_tokens($settings[ $key ]['path']);
+                                $opts['settings'][ $settings_key ]['secretkey'] = $settings[ $key ]['secretkey'];
+								$opts['settings'][ $settings_key ]['path']      = $this->replace_tokens($settings[ $key ]['path']);
 								if ( ! empty($opts['settings'][ $settings_key ]['path']) && '/' == substr($opts['settings'][ $settings_key ]['path'], 0, 1)) {
 									$opts['settings'][ $settings_key ]['path'] = substr($opts['settings'][ $settings_key ]['path'], 1);
 								}
 								if (isset($settings[ $key ]['rrs'])) { // premium settings
-									$opts['settings'][ $settings_key ]['rrs']   = $settings[ $key ]['rrs'];
-									$opts['settings'][ $settings_key ]['server_side_encryption']   = $settings[ $key ]['server_side_encryption'];
+									$opts['settings'][ $settings_key ]['rrs']                    = $settings[ $key ]['rrs'];
+									$opts['settings'][ $settings_key ]['server_side_encryption'] = $settings[ $key ]['server_side_encryption'];
 								}
 							} else {
                                 $opts['accesskey'] = $settings[ $key ]['accesskey'];
-                                $opts['secretkey']   = $settings[ $key ]['secretkey'];
-								$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
+                                $opts['secretkey'] = $settings[ $key ]['secretkey'];
+								$opts['path']      = $this->replace_tokens($settings[ $key ]['path']);
 								if ( ! empty($opts['path']) && '/' == substr($opts['path'], 0, 1)) {
 									$opts['path'] = substr($opts['path'], 1);
 								}
 								if (isset($settings[ $key ]['rrs'])) { // premium settings
-									$opts['rrs']   = $settings[ $key ]['rrs'];
-									$opts['server_side_encryption']   = $settings[ $key ]['server_side_encryption'];
+									$opts['rrs']                    = $settings[ $key ]['rrs'];
+									$opts['server_side_encryption'] = $settings[ $key ]['server_side_encryption'];
 								}
 							}
 
@@ -559,16 +559,16 @@ $post_body['token'] = (string) $vault_settings['token'];
                                 $opts = array();
                             }
 							if (is_array($opts) && isset($opts['settings'])) {
-								$settings_key = key($opts['settings']);
-                                $opts['settings'][ $settings_key ]['endpoint'] = $settings[ $key ]['endpoint'];
-                                $opts['settings'][ $settings_key ]['accesskey']   = $settings[ $key ]['accesskey'];
-                                $opts['settings'][ $settings_key ]['secretkey']   = $settings[ $key ]['secretkey'];
-								$opts['settings'][ $settings_key ]['path']   = $this->replace_tokens($settings[ $key ]['path']);
+								$settings_key                                   = key($opts['settings']);
+                                $opts['settings'][ $settings_key ]['endpoint']  = $settings[ $key ]['endpoint'];
+                                $opts['settings'][ $settings_key ]['accesskey'] = $settings[ $key ]['accesskey'];
+                                $opts['settings'][ $settings_key ]['secretkey'] = $settings[ $key ]['secretkey'];
+								$opts['settings'][ $settings_key ]['path']      = $this->replace_tokens($settings[ $key ]['path']);
 							} else {
-                                $opts['endpoint'] = $settings[ $key ]['endpoint'];
-                                $opts['accesskey']   = $settings[ $key ]['accesskey'];
-                                $opts['secretkey']   = $settings[ $key ]['secretkey'];
-								$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
+                                $opts['endpoint']  = $settings[ $key ]['endpoint'];
+                                $opts['accesskey'] = $settings[ $key ]['accesskey'];
+                                $opts['secretkey'] = $settings[ $key ]['secretkey'];
+								$opts['path']      = $this->replace_tokens($settings[ $key ]['path']);
 							}
 
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
@@ -578,12 +578,12 @@ $post_body['token'] = (string) $vault_settings['token'];
                                 $opts = array();
                             }
 							if (is_array($opts) && isset($opts['settings'])) {
-								$settings_key = key($opts['settings']);
-								$opts['settings'][ $settings_key ]['path']   = $this->replace_tokens($settings[ $key ]['path']);
-                                $opts['settings'][ $settings_key ]['endpoint']   = $settings[ $key ]['endpoint'];
+								$settings_key                                  = key($opts['settings']);
+								$opts['settings'][ $settings_key ]['path']     = $this->replace_tokens($settings[ $key ]['path']);
+                                $opts['settings'][ $settings_key ]['endpoint'] = $settings[ $key ]['endpoint'];
 							} else {
-								$opts['path']   = $this->replace_tokens($settings[ $key ]['path']);
-                                $opts['endpoint']   = $settings[ $key ]['endpoint'];
+								$opts['path']     = $this->replace_tokens($settings[ $key ]['path']);
+                                $opts['endpoint'] = $settings[ $key ]['endpoint'];
 							}
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
 						} elseif ( 'updraft_ftp' === $key ) {
@@ -594,18 +594,18 @@ $post_body['token'] = (string) $vault_settings['token'];
 							if (is_array($opts) && isset($opts['settings'])) {
 								$settings_key = key($opts['settings']);
 								if ( isset( $settings[ $key ]['path'] ) ) {
-									$opts['settings'][ $settings_key ]['host'] = $settings[ $key ]['host'];
-									$opts['settings'][ $settings_key ]['user'] = $settings[ $key ]['user'];
-									$opts['settings'][ $settings_key ]['pass'] = $settings[ $key ]['pass'];
-									$opts['settings'][ $settings_key ]['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
+									$opts['settings'][ $settings_key ]['host']    = $settings[ $key ]['host'];
+									$opts['settings'][ $settings_key ]['user']    = $settings[ $key ]['user'];
+									$opts['settings'][ $settings_key ]['pass']    = $settings[ $key ]['pass'];
+									$opts['settings'][ $settings_key ]['path']    = $this->replace_tokens( $settings[ $key ]['path'] );
 									$opts['settings'][ $settings_key ]['passive'] = isset($settings[ $key ]['passive']) ? $settings[ $key ]['passive'] : 0;
 								}
 							} else {
 								if ( isset( $settings[ $key ]['path'] ) ) {
-									$opts['host'] = $settings[ $key ]['host'];
-									$opts['user'] = $settings[ $key ]['user'];
-									$opts['pass'] = $settings[ $key ]['pass'];
-									$opts['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
+									$opts['host']    = $settings[ $key ]['host'];
+									$opts['user']    = $settings[ $key ]['user'];
+									$opts['pass']    = $settings[ $key ]['pass'];
+									$opts['path']    = $this->replace_tokens( $settings[ $key ]['path'] );
 									$opts['passive'] = isset($settings[ $key ]['passive']) ? $settings[ $key ]['passive'] : 0;
 								}
 							}
@@ -623,9 +623,9 @@ $post_body['token'] = (string) $vault_settings['token'];
 									$opts['settings'][ $settings_key ]['port'] = $settings[ $key ]['port'];
 									$opts['settings'][ $settings_key ]['user'] = $settings[ $key ]['user'];
 									$opts['settings'][ $settings_key ]['pass'] = $settings[ $key ]['pass'];
-									$opts['settings'][ $settings_key ]['key'] = $settings[ $key ]['key'];
+									$opts['settings'][ $settings_key ]['key']  = $settings[ $key ]['key'];
 									$opts['settings'][ $settings_key ]['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
-									$opts['settings'][ $settings_key ]['scp'] = isset($settings[ $key ]['scp']) ? $settings[ $key ]['scp'] : 0;
+									$opts['settings'][ $settings_key ]['scp']  = isset($settings[ $key ]['scp']) ? $settings[ $key ]['scp'] : 0;
 								}
 							} else {
 								if ( isset( $settings[ $key ]['path'] ) ) {
@@ -633,9 +633,9 @@ $post_body['token'] = (string) $vault_settings['token'];
 									$opts['port'] = $settings[ $key ]['port'];
 									$opts['user'] = $settings[ $key ]['user'];
 									$opts['pass'] = $settings[ $key ]['pass'];
-									$opts['key'] = $settings[ $key ]['key'];
+									$opts['key']  = $settings[ $key ]['key'];
 									$opts['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
-									$opts['scp'] = isset($settings[ $key ]['scp']) ? $settings[ $key ]['scp'] : 0;
+									$opts['scp']  = isset($settings[ $key ]['scp']) ? $settings[ $key ]['scp'] : 0;
 								}
 							}
 							UpdraftPlus_Options::update_updraft_option( 'updraft_sftp', $opts );
@@ -646,7 +646,7 @@ $post_body['token'] = (string) $vault_settings['token'];
                             }
 
                             if (is_array($opts) && isset($opts['settings'])) {
-								$settings_key = key($opts['settings']);
+								$settings_key                             = key($opts['settings']);
                                 $opts['settings'][ $settings_key ]['url'] = $this->replace_tokens( $settings[ $key ]['url'] );
                                 UpdraftPlus_Options::update_updraft_option( 'updraft_webdav', $opts );
                             }
@@ -657,9 +657,9 @@ $post_body['token'] = (string) $vault_settings['token'];
                                 $opts = array();
                             }
 							if (is_array($opts) && isset($opts['settings'])) {
-								$settings_key = key($opts['settings']);
+								$settings_key                                    = key($opts['settings']);
                                 $opts['settings'][ $settings_key ]['account_id'] = $settings[ $key ]['account_id'];
-                                $opts['settings'][ $settings_key ]['key'] = $settings[ $key ]['key'];
+                                $opts['settings'][ $settings_key ]['key']        = $settings[ $key ]['key'];
                                 $bname = $this->replace_tokens( $settings[ $key ]['bucket_name'] );
                                 $bpath = $this->replace_tokens( $settings[ $key ]['backup_path'] );
                                 $bname = str_replace('.', '-', $bname);
@@ -714,14 +714,14 @@ $post_body['token'] = (string) $vault_settings['token'];
 			$replace_token = get_bloginfo( 'name' );
 			$replace_token = sanitize_file_name($replace_token);
 			$replace_token = strtolower($replace_token);
-			$str = str_ireplace('%sitename%', $replace_token, $str);
+			$str           = str_ireplace('%sitename%', $replace_token, $str);
 		}
 
 		if (stripos($str, '%siteurl%') !== false) {
 			$replace_token = get_bloginfo( 'url' );
 			$replace_token = preg_replace('/^https?:\/\//i', '', $replace_token);
 			$replace_token = sanitize_file_name($replace_token);
-			$str = str_ireplace('%siteurl%', $replace_token, $str);
+			$str           = str_ireplace('%siteurl%', $replace_token, $str);
 		}
 		return $str;
 	}
@@ -871,7 +871,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 		$wpdb_obj = new UpdraftPlus_WPDB_OtherDB_Test( $_POST['user_db'], $_POST['pass'], $_POST['name'], $_POST['host'] );
 		if ( ! empty( $wpdb_obj->error ) ) {
 			$failed = true;
-			$ret .= '<p>';
+			$ret   .= '<p>';
 			$dbinfo['user'] . '@' . $dbinfo['host'] . '/' . $dbinfo['name'] . ' : ' . __( 'database connection attempt failed', 'updraftplus' ) . '</p>';
 			if ( is_wp_error( $wpdb_obj->error ) || is_string( $wpdb_obj->error ) ) {
 				$ret .= '<ul style="list-style: disc inside;">';
@@ -882,7 +882,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 							if ( 'db_connect_fail' === $code ) {
 								$ret .= '<li>' . __( 'Connection failed: check your access details, that the database server is up, and that the network connection is not firewalled.', 'updraftplus' ) . '</li>';
 							} else {
-								$err = $wpdb_obj->error->get_error_message( $code );
+								$err  = $wpdb_obj->error->get_error_message( $code );
 								$ret .= '<li>' . $err . '</li>';
 							}
 						}
@@ -1068,8 +1068,8 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 			// Show errors + warnings
 			if ( is_array( $updraft_last_backup['errors'] ) ) {
 				foreach ( $updraft_last_backup['errors'] as $err ) {
-					$level   = ( is_array( $err ) ) ? $err['level'] : 'error';
-					$message = ( is_array( $err ) ) ? $err['message'] : $err;
+					$level             = ( is_array( $err ) ) ? $err['level'] : 'error';
+					$message           = ( is_array( $err ) ) ? $err['message'] : $err;
 					$last_backup_text .= ( 'warning' === $level ) ? '<span style="color:orange;">' : '<span style="color:red;">';
 					if ( 'warning' === $level ) {
 						$message = sprintf( __( 'Warning: %s', 'updraftplus' ), make_clickable( htmlspecialchars( $message ) ) );
@@ -1165,7 +1165,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 			$out['nextsched_database_timezone'] = $next_scheduled_backup_database;
 		}
 
-		$bh                           = $this->build_historystatus();
+		$bh = $this->build_historystatus();
 
         // to fix performance issue
         if ( $with_hist ) {
@@ -1197,16 +1197,16 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 // 			$next_scheduled_backup = date_i18n('D, F j, Y H:i', $next_scheduled_backup);
 		} else {
 			$next_scheduled_backup = __('Nothing currently scheduled', 'updraftplus');
-			$files_not_scheduled = true;
+			$files_not_scheduled   = true;
 		}
 
 		$next_scheduled_backup_database = wp_next_scheduled('updraft_backup_database');
 		if (UpdraftPlus_Options::get_updraft_option('updraft_interval_database', UpdraftPlus_Options::get_updraft_option('updraft_interval')) == UpdraftPlus_Options::get_updraft_option('updraft_interval')) {
 			if (isset($files_not_scheduled)) {
 				$next_scheduled_backup_database = $next_scheduled_backup;
-				$database_not_scheduled = true;
+				$database_not_scheduled         = true;
 			} else {
-				$next_scheduled_backup_database = __('At the same time as the files backup', 'updraftplus');
+				$next_scheduled_backup_database           = __('At the same time as the files backup', 'updraftplus');
 				$next_scheduled_backup_database_same_time = true;
 			}
 		} else {
@@ -1218,7 +1218,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 // 				$next_scheduled_backup_database = date_i18n('D, F j, Y H:i', $next_scheduled_backup_database);
 			} else {
 				$next_scheduled_backup_database = __('Nothing currently scheduled', 'updraftplus');
-				$database_not_scheduled = true;
+				$database_not_scheduled         = true;
 			}
 		}
 
@@ -1272,7 +1272,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 		global $updraftplus;
 
         if (method_exists($updraftplus, 'get_backup_history')) {
-            $backups   = $updraftplus->get_backup_history();
+            $backups = $updraftplus->get_backup_history();
         } elseif (class_exists('UpdraftPlus_Backup_History')) {
             $backups = UpdraftPlus_Backup_History::get_history();
         }
@@ -1410,7 +1410,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 
 		$backup_history = UpdraftPlus_Backup_History::get_history();
 
-		$output         = $this->existing_backup_table( $backup_history );
+		$output = $this->existing_backup_table( $backup_history );
 
 		if ( ! empty( $messages ) && is_array( $messages ) ) {
 			$noutput = '<div style="margin-left: 100px; margin-top: 10px;"><ul style="list-style: disc inside;">';
@@ -1418,7 +1418,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 				$noutput .= '<li>' . ( ( $msg['desc'] ) ? $msg['desc'] . ': ' : '' ) . '<em>' . $msg['message'] . '</em></li>';
 			}
 			$noutput .= '</ul></div>';
-			$output = $noutput . $output;
+			$output   = $noutput . $output;
 		}
 
 		return array(
@@ -1446,7 +1446,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 				$noutput .= '<li>' . ( ( $msg['desc'] ) ? $msg['desc'] . ': ' : '' ) . '<em>' . $msg['message'] . '</em></li>';
 			}
 			$noutput .= '</ul></div>';
-			$output = $noutput . $output;
+			$output   = $noutput . $output;
 		}
 
 		return array(
@@ -1500,7 +1500,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 
 		// Retrieve the information from our backup history
         if (method_exists($updraftplus, 'get_backup_history')) {
-            $backup_history   = $updraftplus->get_backup_history();
+            $backup_history = $updraftplus->get_backup_history();
         } elseif (class_exists('UpdraftPlus_Backup_History')) {
             $backup_history = UpdraftPlus_Backup_History::get_history();
         }
@@ -1660,7 +1660,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 		global $updraftplus;
 
         if (method_exists($updraftplus, 'get_backup_history')) {
-            $backups   = $updraftplus->get_backup_history();
+            $backups = $updraftplus->get_backup_history();
         } elseif (class_exists('UpdraftPlus_Backup_History')) {
             $backups = UpdraftPlus_Backup_History::get_history();
         }
@@ -2379,7 +2379,7 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 			$updraftplus->get_max_packet_size();
 
             if (method_exists($updraftplus, 'get_backup_history')) {
-                $backup   = $updraftplus->get_backup_history($timestamp);
+                $backup = $updraftplus->get_backup_history($timestamp);
             } elseif (class_exists('UpdraftPlus_Backup_History')) {
                 $backup = UpdraftPlus_Backup_History::get_history($timestamp);
             }
@@ -2600,10 +2600,10 @@ require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
 	public function analyse_db_file( $timestamp, $res, $db_file = false, $header_only = false) {
 		global $updraftplus;
 
-		$mess = array();
-		$warn = array();
-		$err = array();
-		$info = array();
+		$mess       = array();
+		$warn       = array();
+		$err        = array();
+		$info       = array();
 		$wp_version = $updraftplus->get_wordpress_version();
 		global $wpdb;
 
@@ -2667,16 +2667,16 @@ return array( $mess, $warn, $err, $info );
 
 		// Analyse the file, print the results.
 
-		$line = 0;
-		$old_siteurl = '';
-		$old_home = '';
-		$old_table_prefix = '';
-		$old_siteinfo = array();
+		$line               = 0;
+		$old_siteurl        = '';
+		$old_home           = '';
+		$old_table_prefix   = '';
+		$old_siteinfo       = array();
 		$gathering_siteinfo = true;
-		$old_wp_version = '';
-		$old_php_version = '';
+		$old_wp_version     = '';
+		$old_php_version    = '';
 
-		$tables_found = array();
+		$tables_found      = array();
 		$db_charsets_found = array();
 
 		// TODO: If the backup is the right size/checksum, then we could restore the $line <= 100 in the 'while' condition and not bother scanning the whole thing? Or better: sort the core tables to be first so that this usually terminates early
@@ -2685,26 +2685,26 @@ return array( $mess, $warn, $err, $info );
 
 		$migration_warning = false;
 		$processing_create = false;
-		$db_version = $wpdb->db_version();
+		$db_version        = $wpdb->db_version();
 
 		// Don't set too high - we want a timely response returned to the browser
 		// Until April 2015, this was always 90. But we've seen a few people with ~1GB databases (uncompressed), and 90s is not enough. Note that we don't bother checking here if it's compressed - having a too-large timeout when unexpected is harmless, as it won't be hit. On very large dbs, they're expecting it to take a while.
 		// "120 or 240" is a first attempt at something more useful than just fixed at 90 - but should be sufficient (as 90 was for everyone without ~1GB databases)
 		$default_dbscan_timeout = ( filesize($db_file) < 31457280 ) ? 120 : 240;
-		$dbscan_timeout = ( defined('UPDRAFTPLUS_DBSCAN_TIMEOUT') && is_numeric(UPDRAFTPLUS_DBSCAN_TIMEOUT) ) ? UPDRAFTPLUS_DBSCAN_TIMEOUT : $default_dbscan_timeout;
+		$dbscan_timeout         = ( defined('UPDRAFTPLUS_DBSCAN_TIMEOUT') && is_numeric(UPDRAFTPLUS_DBSCAN_TIMEOUT) ) ? UPDRAFTPLUS_DBSCAN_TIMEOUT : $default_dbscan_timeout;
 		@set_time_limit($dbscan_timeout);
 
 		// We limit the time that we spend scanning the file for character sets
-		$db_charset_collate_scan_timeout = ( defined('UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT') && is_numeric(UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT) ) ? UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT : 10;
-		$charset_scan_start_time = microtime(true);
-		$db_supported_character_sets_res = $GLOBALS['wpdb']->get_results('SHOW CHARACTER SET', OBJECT_K);
-		$db_supported_character_sets = ( null !== $db_supported_character_sets_res ) ? $db_supported_character_sets_res : array();
-		$db_charsets_found = array();
-		$db_supported_collations_res = $GLOBALS['wpdb']->get_results('SHOW COLLATION', OBJECT_K);
-		$db_supported_collations = ( null !== $db_supported_collations_res ) ? $db_supported_collations_res : array();
-		$db_charsets_found = array();
-		$db_collates_found = array();
-		$db_supported_charset_related_to_unsupported_collation = false;
+		$db_charset_collate_scan_timeout                         = ( defined('UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT') && is_numeric(UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT) ) ? UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT : 10;
+		$charset_scan_start_time                                 = microtime(true);
+		$db_supported_character_sets_res                         = $GLOBALS['wpdb']->get_results('SHOW CHARACTER SET', OBJECT_K);
+		$db_supported_character_sets                             = ( null !== $db_supported_character_sets_res ) ? $db_supported_character_sets_res : array();
+		$db_charsets_found                                       = array();
+		$db_supported_collations_res                             = $GLOBALS['wpdb']->get_results('SHOW COLLATION', OBJECT_K);
+		$db_supported_collations                                 = ( null !== $db_supported_collations_res ) ? $db_supported_collations_res : array();
+		$db_charsets_found                                       = array();
+		$db_collates_found                                       = array();
+		$db_supported_charset_related_to_unsupported_collation   = false;
 		$db_supported_charsets_related_to_unsupported_collations = array();
 		while (( ( $is_plain && ! feof($dbhandle) ) || ( ! $is_plain && ! gzeof($dbhandle) ) ) && ( $line < 100 || ( ! $header_only && count($wanted_tables) > 0 ) || ( ( microtime(true) - $charset_scan_start_time ) < $db_charset_collate_scan_timeout && ! empty($db_supported_character_sets) ) )) {
 			$line++;
@@ -2715,7 +2715,7 @@ return array( $mess, $warn, $err, $info );
 				$processing_create = false;
 				if ('' == $old_siteurl && preg_match('/^\# Backup of: (http(.*))$/', $buffer, $matches)) {
 					$old_siteurl = untrailingslashit($matches[1]);
-					$mess[] = __('Backup of:', 'updraftplus') . ' ' . htmlspecialchars($old_siteurl) . ( ( ! empty($old_wp_version) ) ? ' ' . sprintf(__('(version: %s)', 'updraftplus'), $old_wp_version) : '' );
+					$mess[]      = __('Backup of:', 'updraftplus') . ' ' . htmlspecialchars($old_siteurl) . ( ( ! empty($old_wp_version) ) ? ' ' . sprintf(__('(version: %s)', 'updraftplus'), $old_wp_version) : '' );
 					// Check for should-be migration
 					if (untrailingslashit(site_url()) != $old_siteurl) {
 						if ( ! $migration_warning) {
@@ -2724,8 +2724,8 @@ return array( $mess, $warn, $err, $info );
 							// && !class_exists('UpdraftPlus_Addons_Migrator')
 							if (UpdraftPlus_Manipulation_Functions::normalise_url($old_siteurl) == UpdraftPlus_Manipulation_Functions::normalise_url(site_url())) {
 								// Same site migration with only http/https difference
-								$info['same_url'] = false;
-								$old_siteurl_parsed = parse_url($old_siteurl);
+								$info['same_url']      = false;
+								$old_siteurl_parsed    = parse_url($old_siteurl);
 								$actual_siteurl_parsed = parse_url(site_url());
 								if (( stripos($old_siteurl_parsed['host'], 'www.') === 0 && stripos($actual_siteurl_parsed['host'], 'www.') !== 0 ) || ( stripos($old_siteurl_parsed['host'], 'www.') !== 0 && stripos($actual_siteurl_parsed['host'], 'www.') === 0 )) {
 									$powarn = sprintf(__('The website address in the backup set (%1$s) is slightly different from that of the site now (%2$s). This is not expected to be a problem for restoring the site, as long as visits to the former address still reach the site.', 'updraftplus'), $old_siteurl, site_url()) . ' ';
@@ -2746,7 +2746,7 @@ return array( $mess, $warn, $err, $info );
 							} else {
 								// For completely different site migration
 								$info['same_url'] = false;
-								$warn[] = apply_filters('updraftplus_dbscan_urlchange', '<a href="https://updraftplus.com/shop/migrator/">' . __('This backup set is from a different site - this is not a restoration, but a migration. You need the Migrator add-on in order to make this work.', 'updraftplus') . '</a>', $old_siteurl, $res);
+								$warn[]           = apply_filters('updraftplus_dbscan_urlchange', '<a href="https://updraftplus.com/shop/migrator/">' . __('This backup set is from a different site - this is not a restoration, but a migration. You need the Migrator add-on in order to make this work.', 'updraftplus') . '</a>', $old_siteurl, $res);
 							}
 							if ( ! class_exists('UpdraftPlus_Addons_Migrator')) {
 								$warn[] .= '<strong><a href="' . apply_filters('updraftplus_com_link', 'https://updraftplus.com/faqs/tell-me-more-about-the-search-and-replace-site-location-in-the-database-option/') . '">' . __('You can search and replace your database (for migrating a website to a new location/URL) with the Migrator add-on - follow this link for more information', 'updraftplus') . '</a></strong>';
@@ -2766,7 +2766,7 @@ return array( $mess, $warn, $err, $info );
 					// Check for should-be migration
 					if ( ! $migration_warning && home_url() != $old_home) {
 						$migration_warning = true;
-						$powarn = apply_filters('updraftplus_dbscan_urlchange', '<a href="https://updraftplus.com/shop/migrator/">' . __('This backup set is from a different site - this is not a restoration, but a migration. You need the Migrator add-on in order to make this work.', 'updraftplus') . '</a>', $old_home, $res);
+						$powarn            = apply_filters('updraftplus_dbscan_urlchange', '<a href="https://updraftplus.com/shop/migrator/">' . __('This backup set is from a different site - this is not a restoration, but a migration. You need the Migrator add-on in order to make this work.', 'updraftplus') . '</a>', $old_home, $res);
 						if ( ! empty($powarn)) {
 $warn[] = $powarn;
                         }
@@ -2783,7 +2783,7 @@ $old_wp_version .= substr($matches[3], 0, strlen($matches[3]) - 1);
 						$warn[] = sprintf(__('You are importing from a newer version of WordPress (%1$s) into an older one (%2$s). There are no guarantees that WordPress can handle this.', 'updraftplus'), $old_wp_version, $wp_version);
 					}
 					if (preg_match('/running on PHP ([0-9]+\.[0-9]+)(\s|\.)/', $matches[4], $nmatches) && preg_match('/^([0-9]+\.[0-9]+)(\s|\.)/', PHP_VERSION, $cmatches)) {
-						$old_php_version = $nmatches[1];
+						$old_php_version     = $nmatches[1];
 						$current_php_version = $cmatches[1];
 						if (version_compare($old_php_version, $current_php_version, '>')) {
 							// $mess[] = sprintf(__('%s version: %s', 'updraftplus'), 'WordPress', $old_wp_version);
@@ -2795,7 +2795,7 @@ $old_wp_version .= substr($matches[3], 0, strlen($matches[3]) - 1);
 // echo '<strong>'.__('Old table prefix:', 'updraftplus').'</strong> '.htmlspecialchars($old_table_prefix).'<br>';
 				} elseif (empty($info['label']) && preg_match('/^\# Label: (.*)$/', $buffer, $matches)) {
 					$info['label'] = $matches[1];
-					$mess[] = __('Backup label:', 'updraftplus') . ' ' . htmlspecialchars($info['label']);
+					$mess[]        = __('Backup label:', 'updraftplus') . ' ' . htmlspecialchars($info['label']);
 				} elseif ($gathering_siteinfo && preg_match('/^\# Site info: (\S+)$/', $buffer, $matches)) {
 					if ('end' == $matches[1]) {
 						$gathering_siteinfo = false;
@@ -2832,7 +2832,7 @@ $mess[] = '<strong>' . __('Site information:', 'updraftplus') . '</strong> ' . '
 				}
 
 			} elseif (preg_match('/^\s*create table \`?([^\`\(]*)\`?\s*\(/i', $buffer, $matches)) {
-				$table = $matches[1];
+				$table          = $matches[1];
 				$tables_found[] = $table;
 				if ($old_table_prefix) {
 					// Remove prefix
@@ -2842,7 +2842,7 @@ $mess[] = '<strong>' . __('Site information:', 'updraftplus') . '</strong> ' . '
 					}
 				}
 				if (';' != substr($buffer, -1, 1)) {
-					$processing_create = true;
+					$processing_create                                     = true;
 					$db_supported_charset_related_to_unsupported_collation = true;
 				}
 			} elseif ($processing_create) {
@@ -2875,13 +2875,13 @@ $mess[] = '<strong>' . __('Site information:', 'updraftplus') . '</strong> ' . '
 					}
 				}
 				if (';' == substr($buffer, -1, 1)) {
-					$processing_create = false;
+					$processing_create                                     = false;
 					$db_supported_charset_related_to_unsupported_collation = false;
 				}
 				static $mysql_version_warned = false;
 				if ( ! $mysql_version_warned && version_compare($db_version, '5.2.0', '<') && preg_match('/(CHARSET|COLLATE)[= ]utf8mb4/', $buffer)) {
 					$mysql_version_warned = true;
-					$err[] = sprintf(__('Error: %s', 'updraftplus'), sprintf(__('The database backup uses MySQL features not available in the old MySQL version (%s) that this site is running on.', 'updraftplus'), $db_version) . ' ' . __('You must upgrade MySQL to be able to use this database.', 'updraftplus'));
+					$err[]                = sprintf(__('Error: %s', 'updraftplus'), sprintf(__('The database backup uses MySQL features not available in the old MySQL version (%s) that this site is running on.', 'updraftplus'), $db_version) . ' ' . __('You must upgrade MySQL to be able to use this database.', 'updraftplus'));
 				}
 			}
 		}
@@ -2892,27 +2892,27 @@ $mess[] = '<strong>' . __('Site information:', 'updraftplus') . '</strong> ' . '
 		}
 		if ( ! empty($db_supported_character_sets)) {
 			$db_charsets_found_unique = array_unique($db_charsets_found);
-			$db_unsupported_charset = array();
-			$db_charset_forbidden = false;
+			$db_unsupported_charset   = array();
+			$db_charset_forbidden     = false;
 			foreach ($db_charsets_found_unique as $db_charset) {
 				if ( ! isset($db_supported_character_sets[ $db_charset ])) {
 					$db_unsupported_charset[] = $db_charset;
-					$db_charset_forbidden = true;
+					$db_charset_forbidden     = true;
 				}
 			}
 			if ($db_charset_forbidden) {
 				$db_unsupported_charset_unique = array_unique($db_unsupported_charset);
-				$warn[] = sprintf(_n("The database server that this WordPress site is running on doesn't support the character set (%s) which you are trying to import.", "The database server that this WordPress site is running on doesn't support the character sets (%s) which you are trying to import.", count($db_unsupported_charset_unique), 'updraftplus'), implode(', ', $db_unsupported_charset_unique)) . ' ' . __('You can choose another suitable character set instead and continue with the restoration at your own risk.', 'updraftplus') . ' <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __('Go here for more information.', 'updraftplus') . '</a>' . ' <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __('Go here for more information.', 'updraftplus') . '</a>';
-				$db_supported_character_sets = array_keys($db_supported_character_sets);
-				$similar_type_charset = UpdraftPlus_Manipulation_Functions::get_matching_str_from_array_elems($db_unsupported_charset_unique, $db_supported_character_sets, true);
+				$warn[]                        = sprintf(_n("The database server that this WordPress site is running on doesn't support the character set (%s) which you are trying to import.", "The database server that this WordPress site is running on doesn't support the character sets (%s) which you are trying to import.", count($db_unsupported_charset_unique), 'updraftplus'), implode(', ', $db_unsupported_charset_unique)) . ' ' . __('You can choose another suitable character set instead and continue with the restoration at your own risk.', 'updraftplus') . ' <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __('Go here for more information.', 'updraftplus') . '</a>' . ' <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __('Go here for more information.', 'updraftplus') . '</a>';
+				$db_supported_character_sets   = array_keys($db_supported_character_sets);
+				$similar_type_charset          = UpdraftPlus_Manipulation_Functions::get_matching_str_from_array_elems($db_unsupported_charset_unique, $db_supported_character_sets, true);
 				if (empty($similar_type_charset)) {
-					$row = $GLOBALS['wpdb']->get_row('show variables like "character_set_database"');
+					$row                  = $GLOBALS['wpdb']->get_row('show variables like "character_set_database"');
 					$similar_type_charset = ( null !== $row ) ? $row->Value : '';
 				}
 				if (empty($similar_type_charset) && ! empty($db_supported_character_sets[0])) {
 					$similar_type_charset = $db_supported_character_sets[0];
 				}
-				$charset_select_html = '<label>' . __('Your chosen character set to use instead:', 'updraftplus') . '</label> ';
+				$charset_select_html  = '<label>' . __('Your chosen character set to use instead:', 'updraftplus') . '</label> ';
 				$charset_select_html .= '<select name="updraft_restorer_charset" id="updraft_restorer_charset">';
 				if (is_array($db_supported_character_sets)) {
 					foreach ($db_supported_character_sets as $character_set) {
@@ -2928,18 +2928,18 @@ $info['addui'] = '';
 		}
 		if ( ! empty($db_supported_collations)) {
 			$db_collates_found_unique = array_unique($db_collates_found);
-			$db_unsupported_collate = array();
-			$db_collate_forbidden = false;
+			$db_unsupported_collate   = array();
+			$db_collate_forbidden     = false;
 			foreach ($db_collates_found_unique as $db_collate) {
 				if ( ! isset($db_supported_collations[ $db_collate ])) {
 					$db_unsupported_collate[] = $db_collate;
-					$db_collate_forbidden = true;
+					$db_collate_forbidden     = true;
 				}
 			}
 			if ($db_collate_forbidden) {
 				$db_unsupported_collate_unique = array_unique($db_unsupported_collate);
-				$warn[] = sprintf(_n("The database server that this WordPress site is running on doesn't support the collation (%s) used in the database which you are trying to import.", "The database server that this WordPress site is running on doesn't support multiple collations (%s) used in the database which you are trying to import.", count($db_unsupported_collate_unique), 'updraftplus'), implode(', ', $db_unsupported_collate_unique)) . ' ' . __('You can choose another suitable collation instead and continue with the restoration (at your own risk).', 'updraftplus');
-				$similar_type_collate = '';
+				$warn[]                        = sprintf(_n("The database server that this WordPress site is running on doesn't support the collation (%s) used in the database which you are trying to import.", "The database server that this WordPress site is running on doesn't support multiple collations (%s) used in the database which you are trying to import.", count($db_unsupported_collate_unique), 'updraftplus'), implode(', ', $db_unsupported_collate_unique)) . ' ' . __('You can choose another suitable collation instead and continue with the restoration (at your own risk).', 'updraftplus');
+				$similar_type_collate          = '';
 				if ($db_charset_forbidden && ! empty($similar_type_charset)) {
 					$similar_type_collate = $updraftplus->get_similar_collate_related_to_charset($db_supported_collations, $db_unsupported_collate_unique, $similar_type_charset);
 				}
@@ -2961,7 +2961,7 @@ $info['addui'] = '';
 					$similar_type_collate = UpdraftPlus_Manipulation_Functions::get_matching_str_from_array_elems($db_unsupported_collate_unique, array_keys($db_supported_collations), false);
 				}
 
-				$collate_select_html = '<label>' . __('Your chosen replacement collation', 'updraftplus') . ':</label>';
+				$collate_select_html  = '<label>' . __('Your chosen replacement collation', 'updraftplus') . ':</label>';
 				$collate_select_html .= '<select name="updraft_restorer_collate" id="updraft_restorer_collate">';
 				foreach ($db_supported_collations as $collate => $collate_info_obj) {
 					$option_other_attr = array();
@@ -2983,7 +2983,7 @@ $info['addui'] = '';
 						'db_unsupported_collate_unique' => $db_unsupported_collate_unique,
 						'db_collates_found'             => $db_collates_found,
 					);
-					$info['addui'] .= '<input type="hidden" name="collate_change_on_charset_selection_data" id="collate_change_on_charset_selection_data" value="' . esc_attr(json_encode($collate_change_on_charset_selection_data)) . '">';
+					$info['addui']                           .= '<input type="hidden" name="collate_change_on_charset_selection_data" id="collate_change_on_charset_selection_data" value="' . esc_attr(json_encode($collate_change_on_charset_selection_data)) . '">';
 				}
 			}
 		}
@@ -3116,7 +3116,7 @@ $skipped_tables = array();
 			if ( ! rename( $file . '.tmp', $file ) ) {
 				$err_msg = __( 'The attempt to undo the double-compression failed.', 'updraftplus' );
 			} else {
-				$mess .= ' ' . __( 'The attempt to undo the double-compression succeeded.', 'updraftplus' );
+				$mess          .= ' ' . __( 'The attempt to undo the double-compression succeeded.', 'updraftplus' );
 				$messkey        = 'doublecompressfixed';
 				$what_to_return = gzopen( $file, 'r' );
 			}
@@ -3177,7 +3177,7 @@ $skipped_tables = array();
 			$esc_pretty_date = esc_attr( $pretty_date );
 			$entities        = '';
 
-			$non       = $backup['nonce'];
+			$non = $backup['nonce'];
 
 //			$rawbackup = "<h2>$esc_pretty_date ($key)</h2><pre><p>" . esc_attr( print_r( $backup, true ) );
 //			if ( ! empty( $non ) ) {
@@ -3387,10 +3387,10 @@ ENDHERE;
 
 				if ( isset( $accept[ $backup['meta_foreign'] ] ) ) {
 					$desc_source = $accept[ $backup['meta_foreign'] ]['desc'];
-					$ide .= sprintf( __( 'Backup created by: %s.', 'updraftplus' ), $accept[ $backup['meta_foreign'] ]['desc'] ) . ' ';
+					$ide        .= sprintf( __( 'Backup created by: %s.', 'updraftplus' ), $accept[ $backup['meta_foreign'] ]['desc'] ) . ' ';
 				} else {
 					$desc_source = __( 'unknown source', 'updraftplus' );
-					$ide .= __( 'Backup created by unknown source (%s) - cannot be restored.', 'updraftplus' ) . ' ';
+					$ide        .= __( 'Backup created by unknown source (%s) - cannot be restored.', 'updraftplus' ) . ' ';
 				}
 
 				$sdescrip = ( empty( $accept[ $backup['meta_foreign'] ]['separatedb'] ) ) ? sprintf( __( 'Files and database WordPress backup (created by %s)', 'updraftplus' ), $desc_source ) : sprintf( __( 'Files backup (created by %s)', 'updraftplus' ), $desc_source );
@@ -3409,8 +3409,8 @@ ENDHERE;
 				$expected_index = 0;
 				$index_missing  = false;
 				$set_contents   = '';
-				$entities .= "/$type=";
-				$whatfiles = $backup[ $type ];
+				$entities      .= "/$type=";
+				$whatfiles      = $backup[ $type ];
 				ksort( $whatfiles );
 				foreach ( $whatfiles as $findex => $bfile ) {
 					$set_contents .= ( '' === $set_contents ) ? $findex : ",$findex";
@@ -3425,7 +3425,7 @@ ENDHERE;
 				}
 				$first_printed = true;
 				foreach ( $whatfiles as $findex => $bfile ) {
-					$ide .= __( 'Press here to download', 'updraftplus' ) . ' ' . strtolower( $info['description'] );
+					$ide     .= __( 'Press here to download', 'updraftplus' ) . ' ' . strtolower( $info['description'] );
 					$pdescrip = ( $findex > 0 ) ? $sdescrip . ' (' . ( $findex + 1 ) . ')' : $sdescrip;
 					if ( ! $first_printed ) {
 						$ret .= '<div style="display:none;">';
@@ -3581,7 +3581,7 @@ ENDHERE;
 					$size += @filesize( $dir );
 				} else {
 					$suffix = ( '' !== $basedir ) ? ( ( 0 === strpos( $dir, $basedir . '/' ) ) ? substr( $dir, 1 + strlen( $basedir ) ) : '' ) : '';
-					$size += $this->recursive_directory_size_raw( $basedir, $exclude, $suffix );
+					$size  += $this->recursive_directory_size_raw( $basedir, $exclude, $suffix );
 				}
 			}
 		}
@@ -3749,11 +3749,11 @@ ENDHERE;
 				$stage    = 4;
 				$curstage = __( 'Uploading files to remote storage', 'updraftplus' );
 				if ( isset( $jobdata['uploading_substatus']['t'] ) && isset( $jobdata['uploading_substatus']['i'] ) ) {
-					$t     = max( (int) $jobdata['uploading_substatus']['t'], 1 );
-					$i     = min( $jobdata['uploading_substatus']['i'] / $t, 1 );
-					$p     = min( $jobdata['uploading_substatus']['p'], 1 );
-					$pd    = $i + $p / $t;
-					$stage = 4 + $pd;
+					$t         = max( (int) $jobdata['uploading_substatus']['t'], 1 );
+					$i         = min( $jobdata['uploading_substatus']['i'] / $t, 1 );
+					$p         = min( $jobdata['uploading_substatus']['p'], 1 );
+					$pd        = $i + $p / $t;
+					$stage     = 4 + $pd;
 					$curstage .= ' ' . sprintf( __( '(%1$s%%, file %2$s of %3$s)', 'updraftplus' ), floor( 100 * $pd ), $jobdata['uploading_substatus']['i'] + 1, $t );
 				}
 				break;
@@ -3801,7 +3801,7 @@ ENDHERE;
 						$curstage .= ' (' . sprintf( __( 'table: %s', 'updraftplus' ), $jobdata['dbcreating_substatus']['t'] ) . ')';
 						if ( ! empty( $jobdata['dbcreating_substatus']['i'] ) && ! empty( $jobdata['dbcreating_substatus']['a'] ) ) {
 							$substage = max( 0.001, ( $jobdata['dbcreating_substatus']['i'] / max( $jobdata['dbcreating_substatus']['a'], 1 ) ) );
-							$stage += $substage * $perdbspace * 0.5;
+							$stage   += $substage * $perdbspace * 0.5;
 						}
 					}
 				} elseif ( 'dbencrypting' === substr( $jobstatus, 0, 12 ) ) {
@@ -4014,14 +4014,14 @@ ENDHERE;
 				if ( $file_age > 20 ) {
 					$response['a'] = time() - filemtime( $matches[2] );
 				}
-				$response['t'] = $total_size;
+				$response['t']  = $total_size;
 				$response['m'] .= __( 'Download in progress', 'updraftplus' ) . ' (' . round( $cur_size / 1024 ) . ' / ' . round( ( $total_size / 1024 ) ) . ' Kb)';
-				$response['p'] = round( 100 * $cur_size / $total_size );
+				$response['p']  = round( 100 * $cur_size / $total_size );
 			} else {
 				$response['m'] .= __( 'No local copy present.', 'updraftplus' );
-				$response['p'] = 0;
-				$response['s'] = 0;
-				$response['t'] = 1;
+				$response['p']  = 0;
+				$response['s']  = 0;
+				$response['t']  = 1;
 			}
 		}
 

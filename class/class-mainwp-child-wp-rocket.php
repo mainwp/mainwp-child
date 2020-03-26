@@ -16,7 +16,7 @@
 */
 
 class MainWP_Child_WP_Rocket {
-	public static $instance = null;
+	public static $instance     = null;
     public $is_plugin_installed = false;
 
 	public static function Instance() {
@@ -138,7 +138,7 @@ class MainWP_Child_WP_Rocket {
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
             try {
-                $data = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );
+                $data                            = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );
                 $information['syncWPRocketData'] = $data;
             } catch (Exception $e) {
             }
@@ -383,8 +383,8 @@ class MainWP_Child_WP_Rocket {
 		));
 
         $critical_css = new WP_Rocket\Optimization\CSS\Critical_CSS( new WP_Rocket\Optimization\CSS\Critical_CSS_Generation() );
-        $options_api = new WP_Rocket\Admin\Options( 'wp_rocket_' );
-    	$options     = new WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
+        $options_api  = new WP_Rocket\Admin\Options( 'wp_rocket_' );
+    	$options      = new WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
 
         $sitemap_preload = new WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber( $critical_css, $options );
 
@@ -429,7 +429,7 @@ class MainWP_Child_WP_Rocket {
 			 'WP_Rocket\Admin\Options_Data',
 		 ));
 
-        $process = new WP_Rocket\Admin\Database\Optimization_Process();
+        $process      = new WP_Rocket\Admin\Database\Optimization_Process();
         $optimization = new WP_Rocket\Admin\Database\Optimization( $process );
         MainWP_Helper::check_methods( $optimization, array( 'process_handler', 'get_options' ) );
 
@@ -453,7 +453,7 @@ class MainWP_Child_WP_Rocket {
 			'WP_Rocket\Admin\Database\Optimization_Process',
 		));
 
-        $process = new WP_Rocket\Admin\Database\Optimization_Process();
+        $process      = new WP_Rocket\Admin\Database\Optimization_Process();
         $optimization = new WP_Rocket\Admin\Database\Optimization( $process );
         MainWP_Helper::check_methods($optimization, 'count_cleanup_items');
 

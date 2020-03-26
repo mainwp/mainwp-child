@@ -1,9 +1,9 @@
 <?php
 
 class MainWP_Custom_Post_Type {
-	public static $instance = null;
+	public static $instance    = null;
 	public static $information = array();
-	public $plugin_translate = 'mainwp-child';
+	public $plugin_translate   = 'mainwp-child';
 
 	static function Instance() {
 		if ( self::$instance == null ) {
@@ -68,7 +68,7 @@ class MainWP_Custom_Post_Type {
 			return array( 'error' => __( 'Cannot decode data', $this->plugin_translate ) );
 		}
         $edit_id = ( isset($_POST['post_id']) && ! empty($_POST['post_id']) ) ? $_POST['post_id'] : 0;
-		$return = $this->_insert_post($data, $edit_id, $parent_id = 0);
+		$return  = $this->_insert_post($data, $edit_id, $parent_id = 0);
         if (isset($return['success']) && $return['success'] == 1) {
             if (isset($data['product_variation']) && is_array($data['product_variation'])) {
                 foreach ($data['product_variation'] as $product_variation) {

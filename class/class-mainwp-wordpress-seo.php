@@ -190,7 +190,7 @@ class MainWP_Wordpress_SEO {
 	// from wordpress-seo plugin
 	public function parse_column_score_readability( $post_id ) {
 		$score = (int) WPSEO_Meta::get_value( 'content_score', $post_id );
-		$rank = WPSEO_Rank::from_numeric_score( $score );
+		$rank  = WPSEO_Rank::from_numeric_score( $score );
 
 		return $this->render_score_indicator( $rank );
 	}

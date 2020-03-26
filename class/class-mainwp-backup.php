@@ -380,7 +380,7 @@ class MainWP_Backup {
 		}
 
 		$db_files = $this->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
-		$error = false;
+		$error    = false;
 		foreach ( $db_files as $db_file ) {
 			if ( 0 === ( $rslt = $this->zip->add( $db_file, PCLZIP_OPT_REMOVE_PATH, dirname( $db_file ), PCLZIP_OPT_ADD_PATH, basename( WP_CONTENT_DIR ) ) ) ) {
 				$error = true;
@@ -735,7 +735,7 @@ class MainWP_Backup {
 			$table = $curr_table[0];
 
 			$currentfile = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql';
-			$db_files[] = $currentfile;
+			$db_files[]  = $currentfile;
 			if ( file_exists( $currentfile ) ) {
 				continue;
 			}
