@@ -38,7 +38,7 @@ class MainWP_Keyword_Links {
 
 
 	public function keywordLinksJS() {
-		if ( ! is_admin() && get_option( 'mainwp_kwl_enable_statistic' ) && !empty($this->keyword_links) ) {
+		if ( ! is_admin() && get_option( 'mainwp_kwl_enable_statistic' ) && ! empty($this->keyword_links) ) {
 			wp_enqueue_script( 'jquery' );
 			wp_enqueue_script( 'keywordLinks', plugins_url( '/js/keywordlinks.js', dirname( __FILE__ ) ) );
 			add_action( 'wp_head', array( $this, 'head_loading' ), 1 );
@@ -388,7 +388,7 @@ class MainWP_Keyword_Links {
 	}
 
     private function usort_callback_func( $a, $b) {
-		return strlen($a)<strlen($b);
+		return strlen($a) < strlen($b);
 	}
 
 	public function keyword_mark( $matches ) {

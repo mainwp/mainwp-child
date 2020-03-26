@@ -34,7 +34,7 @@ class MainWP_Child_WooCommerce_Status {
 
 	public function action() {
 		$information = array();
-		if ( ! class_exists( 'WooCommerce' ) || !defined('WC_VERSION')) {
+		if ( ! class_exists( 'WooCommerce' ) || ! defined('WC_VERSION')) {
 			$information['error'] = 'NO_WOOCOMMERCE';
 			MainWP_Helper::write( $information );
 		}
