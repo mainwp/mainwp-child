@@ -39,6 +39,8 @@
 		<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
 		
 		<exclude name="WordPress.WhiteSpace.OperatorSpacing"/>
+		
+		<exclude name="Squiz.ControlStructures.ControlSignature"/>
 	</rule>
 
 	<!-- Enforce PSR1 compatible namespaces. -->
