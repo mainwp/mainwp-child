@@ -7,7 +7,7 @@ if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === true ) {
 	if (isset($_REQUEST['mainwpsignature'])) {
 		@ini_set( 'display_errors', false );
 		@error_reporting( 0 );
-}
+	}
 }
 
 define( 'MAINWP_CHILD_NR_OF_COMMENTS', 50 );
@@ -213,7 +213,7 @@ class MainWP_Child {
         $this->load_all_options();
 		$this->filterFunction = function( $a) {
 			if ($a == null) {
-return false; }
+				return false; }
 			if (is_object($a) && property_exists($a, 'last_checked') && ! property_exists($a, 'checked')) {
 				return false;
             }
@@ -330,7 +330,7 @@ return false; }
 			$alloptions_db = $wpdb->get_results( $query );
 			$wpdb->suppress_errors($suppress);
 			if ( ! is_array( $alloptions ) ) {
-$alloptions = array();
+				$alloptions = array();
             }
 			if ( is_array( $alloptions_db ) ) {
 				foreach ( (array) $alloptions_db as $o ) {
@@ -401,24 +401,24 @@ $alloptions = array();
 				'mainwp_kwl_statistic_data_',
 				'mainwp_kwl_enable_statistic',
 				'mainwpKeywordLinks',
-//				'mainwp_branding_ext_enabled',
-//				'mainwp_branding_plugin_header',
-//				'mainwp_branding_support_email',
-//				'mainwp_branding_support_message',
-//				'mainwp_branding_remove_restore',
-//				'mainwp_branding_remove_setting',
-//				'mainwp_branding_remove_wp_tools',
-//				'mainwp_branding_remove_wp_setting',
-//				'mainwp_branding_remove_permalink',
-//				'mainwp_branding_button_contact_label',
-//				'mainwp_branding_send_email_message',
-//				'mainwp_branding_message_return_sender',
-//				'mainwp_branding_submit_button_title',
-//				'mainwp_branding_disable_wp_branding',
-//				'mainwp_branding_extra_settings',
-//				'mainwp_branding_child_hide',
-//				'mainwp_branding_show_support',
-//				'mainwp_branding_disable_change',
+			//              'mainwp_branding_ext_enabled',
+			//              'mainwp_branding_plugin_header',
+			//              'mainwp_branding_support_email',
+			//              'mainwp_branding_support_message',
+			//              'mainwp_branding_remove_restore',
+			//              'mainwp_branding_remove_setting',
+			//              'mainwp_branding_remove_wp_tools',
+			//              'mainwp_branding_remove_wp_setting',
+			//              'mainwp_branding_remove_permalink',
+			//              'mainwp_branding_button_contact_label',
+			//              'mainwp_branding_send_email_message',
+			//              'mainwp_branding_message_return_sender',
+			//              'mainwp_branding_submit_button_title',
+			//              'mainwp_branding_disable_wp_branding',
+			//              'mainwp_branding_extra_settings',
+			//              'mainwp_branding_child_hide',
+			//              'mainwp_branding_show_support',
+			//              'mainwp_branding_disable_change',
 			);
 			foreach ( $options as $option ) {
 				MainWP_Helper::fix_option( $option );
@@ -929,32 +929,32 @@ $alloptions = array();
 				<a class="nav-tab pos-nav-tab 
                 <?php
                 if ( $shownPage === 'settings' ) {
-echo 'nav-tab-active'; }
-?>
+					echo 'nav-tab-active'; }
+				?>
 " tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php _e( 'Settings', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php if ( ! $hide_restore ) { ?>
 				<a class="nav-tab pos-nav-tab 
                 <?php
                 if ( $shownPage === 'restore-clone' ) {
-echo 'nav-tab-active'; }
-?>
+					echo 'nav-tab-active'; }
+				?>
 " tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? __( 'Restore / Clone', 'mainwp-child' ) : __( 'Restore', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php if ( ! $hide_server_info ) { ?>
 				<a class="nav-tab pos-nav-tab 
                 <?php
                 if ( $shownPage === 'server-info' ) {
-echo 'nav-tab-active'; }
-?>
+					echo 'nav-tab-active'; }
+				?>
 " tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php _e( 'Server information', 'mainwp-child' ); ?></a>
 			<?php } ?>
                         <?php if ( ! $hide_connection_detail ) { ?>
 				<a class="nav-tab pos-nav-tab 
-                <?php
-                if ( $shownPage === 'connection-detail' ) {
-echo 'nav-tab-active'; }
-?>
+							<?php
+							if ( $shownPage === 'connection-detail' ) {
+								echo 'nav-tab-active'; }
+							?>
 " tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php _e( 'Connection Details', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php
@@ -964,8 +964,8 @@ echo 'nav-tab-active'; }
 					<a class="nav-tab pos-nav-tab 
                     <?php
                     if ( $shownPage == $subPage['slug'] ) {
-echo 'nav-tab-active'; }
-?>
+						echo 'nav-tab-active'; }
+					?>
 " tab-slug="<?php echo esc_attr($subPage['slug']); ?>" href="options-general.php?page=<?php echo rawurlencode($subPage['page']); ?>"><?php echo esc_html($subPage['title']); ?></a>
 					<?php
 				}
@@ -1058,9 +1058,9 @@ echo 'nav-tab-active'; }
 						       type="checkbox"
 						       id="requireUniqueSecurityId" 
                                <?php
-                               if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
-echo 'checked'; }
-?>
+								if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
+									echo 'checked'; }
+								?>
  />
 						<label for="requireUniqueSecurityId"
 						       style="font-size: 15px;"><?php esc_html_e( 'Require unique security ID', 'mainwp-child' ); ?></label>
@@ -1563,9 +1563,9 @@ echo 'checked'; }
 		//Call the function required
 		if ( $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) ) {
 			define( 'DOING_CRON', true );
-//			ob_start();
-//            require_once( ABSPATH . 'wp-admin/admin.php' );
-//			ob_end_clean();
+			//          ob_start();
+			//            require_once( ABSPATH . 'wp-admin/admin.php' );
+			//          ob_end_clean();
 
             MainWP_Helper::handle_fatal_error();
 			self::fix_for_custom_themes();
@@ -2019,7 +2019,7 @@ echo 'checked'; }
 		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
 			include_once ABSPATH . '/wp-admin/includes/update.php';
 			if ( null !== $this->filterFunction ) {
-//				ET_Automatic_Updates
+				//              ET_Automatic_Updates
 				add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 			}
 
@@ -2105,17 +2105,17 @@ echo 'checked'; }
                         } else {
                             $information['upgrades'][ $plugin ] = true;
                             // to fix logging update
-//                            if (isset($information['plugin_updates']) && isset($information['plugin_updates'][$plugin])) {
-//                                $plugin_info = $information['plugin_updates'][$plugin];
-//                                $args = array();
-//                                $args['type']    = 'plugin';
-//                                $args['slug']    = $plugin;
-//                                $args['name']    = $plugin_info->Name;
-//                                $args['version'] = $plugin_info->update->new_version;
-//                                $args['old_version'] = $plugin_info->Version;
-//                                $args['action'] = 'update';
-//                                //do_action( 'mainwp_child_upgradePluginTheme', $args );
-//                            }
+							//                            if (isset($information['plugin_updates']) && isset($information['plugin_updates'][$plugin])) {
+							//                                $plugin_info = $information['plugin_updates'][$plugin];
+							//                                $args = array();
+							//                                $args['type']    = 'plugin';
+							//                                $args['slug']    = $plugin;
+							//                                $args['name']    = $plugin_info->Name;
+							//                                $args['version'] = $plugin_info->update->new_version;
+							//                                $args['old_version'] = $plugin_info->Version;
+							//                                $args['action'] = 'update';
+							//                                //do_action( 'mainwp_child_upgradePluginTheme', $args );
+							//                            }
                         }
                     }
                     $failed = false;
@@ -2162,8 +2162,8 @@ echo 'checked'; }
 				add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			}
 
-//			$last_update = get_site_transient( 'update_themes' );
-//			$originalLastChecked = !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ? $last_update->last_checked : 0;
+			//          $last_update = get_site_transient( 'update_themes' );
+			//          $originalLastChecked = !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ? $last_update->last_checked : 0;
 
 			@wp_update_themes();
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
@@ -2202,12 +2202,12 @@ echo 'checked'; }
 
 				$last_update2 = get_site_transient( 'update_themes' );
 				set_site_transient( 'update_themes', $last_update );
-//				if ( !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ) {
-//					$last_update->last_checked = $originalLastChecked;
-//					set_site_transient( 'update_themes', $last_update );
-//				}
+				//              if ( !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ) {
+				//                  $last_update->last_checked = $originalLastChecked;
+				//                  set_site_transient( 'update_themes', $last_update );
+				//              }
 
-//				@wp_update_themes();
+				//              @wp_update_themes();
                 $failed   = true;
                 $upgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
                 $result   = $upgrader->bulk_upgrade( $themes );
@@ -2218,17 +2218,17 @@ echo 'checked'; }
                         } else {
                             $information['upgrades'][ $theme ] = true;
                             // to fix logging update
-//                            if (isset($information['theme_updates']) && isset($information['theme_updates'][$theme])) {
-//                                $theme_info = $information['theme_updates'][$theme];
-//                                $args = array();
-//                                $args['type']    = 'theme';
-//                                $args['slug']    = $theme;
-//                                $args['name']    = $theme_info['Name'];
-//                                $args['version'] = $theme_info['update']['new_version'];
-//                                $args['old_version'] = $theme_info['Version'];
-//                                $args['action'] = 'update';
-//                                //do_action( 'mainwp_child_upgradePluginTheme', $args );
-//                            }
+							//                            if (isset($information['theme_updates']) && isset($information['theme_updates'][$theme])) {
+							//                                $theme_info = $information['theme_updates'][$theme];
+							//                                $args = array();
+							//                                $args['type']    = 'theme';
+							//                                $args['slug']    = $theme;
+							//                                $args['name']    = $theme_info['Name'];
+							//                                $args['version'] = $theme_info['update']['new_version'];
+							//                                $args['old_version'] = $theme_info['Version'];
+							//                                $args['action'] = 'update';
+							//                                //do_action( 'mainwp_child_upgradePluginTheme', $args );
+							//                            }
 
                         }
                     }
@@ -2257,13 +2257,13 @@ echo 'checked'; }
             remove_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ), 10 );
             delete_site_transient( 'mainwp_update_themes_cached' ); // to fix cached update info
 
-//			$last_update = get_site_transient( 'update_themes' );
-//			if ( !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ) {
-//				$last_update->last_checked = $originalLastChecked;
-//				set_site_transient( 'update_themes', $last_update );
-//			}
+			//          $last_update = get_site_transient( 'update_themes' );
+			//          if ( !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ) {
+			//              $last_update->last_checked = $originalLastChecked;
+			//              set_site_transient( 'update_themes', $last_update );
+			//          }
 
-//			@wp_update_themes();
+			//          @wp_update_themes();
 
 			if ( count( $premiumThemes ) > 0 ) {
 				$mwp_premium_updates            = apply_filters( 'mwp_premium_perform_update', array() );
@@ -2724,19 +2724,19 @@ echo 'checked'; }
 
             if ( is_array($galleries) && isset($galleries['ids']) ) {
                     $attached_images = explode( ',', $galleries['ids'] );
-                    foreach ( $attached_images as $attachment_id ) {
-                            $attachment = get_post( $attachment_id );
-                            if ( $attachment ) {
-                                    $post_gallery_images[] = array(
-										'id'          => $attachment_id,
-										'alt'         => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
-										'caption'     => $attachment->post_excerpt,
-										'description' => $attachment->post_content,
-										'src'         => $attachment->guid,
-										'title'       => $attachment->post_title,
-                                    );
-                            }
-                    }
+				foreach ( $attached_images as $attachment_id ) {
+						$attachment = get_post( $attachment_id );
+					if ( $attachment ) {
+							$post_gallery_images[] = array(
+								'id'          => $attachment_id,
+								'alt'         => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
+								'caption'     => $attachment->post_excerpt,
+								'description' => $attachment->post_content,
+								'src'         => $attachment->guid,
+								'title'       => $attachment->post_title,
+							);
+					}
+				}
             }
 
             require_once ABSPATH . 'wp-admin/includes/post.php';
@@ -2781,233 +2781,233 @@ echo 'checked'; }
 			wp_update_user( $my_user );
 		} elseif ( 'edit' === $action ) {
                         $user_data = $this->get_user_to_edit($userId);
-                        if ( ! empty($user_data)) {
-                            $information['user_data'] = $user_data;
-                        } else {
-                            $failed = true;
-                        }
+			if ( ! empty($user_data)) {
+				$information['user_data'] = $user_data;
+			} else {
+				$failed = true;
+			}
 		} elseif ( 'update_user' === $action ) {
                         $my_user = $_POST['extra'];
-                        if (is_array($my_user)) {
-                            foreach ($my_user as $idx => $val) {
-                                if ($val === 'donotupdate' || ( empty($val) && $idx !== 'role' )) {
-                                    unset($my_user[ $idx ]);
-                                }
-                            }
-                            $result = $this->edit_user( $userId, $my_user );
-                            if (is_array($result) && isset($result['error'])) {
-                                $information['error'] = $result['error'];
-                            }
-                        } else {
-                            $failed = true;
-                        }
+			if (is_array($my_user)) {
+				foreach ($my_user as $idx => $val) {
+					if ($val === 'donotupdate' || ( empty($val) && $idx !== 'role' )) {
+						unset($my_user[ $idx ]);
+					}
+				}
+				$result = $this->edit_user( $userId, $my_user );
+				if (is_array($result) && isset($result['error'])) {
+					$information['error'] = $result['error'];
+				}
+			} else {
+				$failed = true;
+			}
 		} else {
 			$failed = true;
 		}
 
-                if ($failed) {
-                    $information['status'] = 'FAIL';
-                }
+		if ($failed) {
+			$information['status'] = 'FAIL';
+		}
 
 		if ( ! isset( $information['status'] ) && ! isset($information['error']) ) {
 			$information['status'] = 'SUCCESS';
-                        if ('update_user' === $action && isset($_POST['optimize']) && ! empty($_POST['optimize'])) {
-                            $information['users'] = $this->get_all_users_int(500); // to fix
-                        }
+			if ('update_user' === $action && isset($_POST['optimize']) && ! empty($_POST['optimize'])) {
+				$information['users'] = $this->get_all_users_int(500); // to fix
+			}
 
 		}
 		MainWP_Helper::write( $information );
 	}
 
-        function edit_user( $user_id, $data) {
-                $wp_roles = wp_roles();
-                $user     = new stdClass();
+	function edit_user( $user_id, $data) {
+			$wp_roles = wp_roles();
+			$user     = new stdClass();
 
-                $update = true;
+			$update = true;
 
-                if ( $user_id ) {
-                        $user->ID         = (int) $user_id;
-                        $userdata         = get_userdata( $user_id );
-                        $user->user_login = wp_slash( $userdata->user_login );
-                } else {
-                        return array( 'error' => 'ERROR: Empty user id.' );
-                }
+		if ( $user_id ) {
+				$user->ID         = (int) $user_id;
+				$userdata         = get_userdata( $user_id );
+				$user->user_login = wp_slash( $userdata->user_login );
+		} else {
+				return array( 'error' => 'ERROR: Empty user id.' );
+		}
 
-                $pass1 = $pass2 = '';
-                if ( isset( $data['pass1'] ) ) {
-                        $pass1 = $data['pass1'];
-                }
-                if ( isset( $data['pass2'] ) ) {
-                        $pass2 = $data['pass2'];
-                }
+			$pass1 = $pass2 = '';
+		if ( isset( $data['pass1'] ) ) {
+				$pass1 = $data['pass1'];
+		}
+		if ( isset( $data['pass2'] ) ) {
+				$pass2 = $data['pass2'];
+		}
 
-                if ( isset( $data['role'] ) && current_user_can( 'edit_users' ) ) {
-                        $new_role       = sanitize_text_field( $data['role'] );
-                        $potential_role = isset($wp_roles->role_objects[ $new_role ]) ? $wp_roles->role_objects[ $new_role ] : false;
-                        // Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
-                        // Multisite super admins can freely edit their blog roles -- they possess all caps.
-                        if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || $user_id != get_current_user_id() || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
-                                $user->role = $new_role;
-                        }
+		if ( isset( $data['role'] ) && current_user_can( 'edit_users' ) ) {
+				$new_role       = sanitize_text_field( $data['role'] );
+				$potential_role = isset($wp_roles->role_objects[ $new_role ]) ? $wp_roles->role_objects[ $new_role ] : false;
+				// Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
+				// Multisite super admins can freely edit their blog roles -- they possess all caps.
+			if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || $user_id != get_current_user_id() || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
+					$user->role = $new_role;
+			}
 
-                        // If the new role isn't editable by the logged-in user die with error
-                        $editable_roles = get_editable_roles();
-                        if ( ! empty( $new_role ) && empty( $editable_roles[ $new_role ] ) ) {
-                            return array( 'error' => 'You can&#8217;t give users that role.' );
-                        }
-                }
+				// If the new role isn't editable by the logged-in user die with error
+				$editable_roles = get_editable_roles();
+			if ( ! empty( $new_role ) && empty( $editable_roles[ $new_role ] ) ) {
+				return array( 'error' => 'You can&#8217;t give users that role.' );
+			}
+		}
 
-                $email = '';
-                if ( isset( $data['email'] ) ) {
-                    $email = trim( $data['email'] );
-                }
+			$email = '';
+		if ( isset( $data['email'] ) ) {
+			$email = trim( $data['email'] );
+		}
 
-                if ( ! empty( $email ) ) {
-                        $user->user_email = sanitize_text_field( wp_unslash( $email ) );
-                } else {
-                        $user->user_email = $userdata->user_email;
-                }
+		if ( ! empty( $email ) ) {
+				$user->user_email = sanitize_text_field( wp_unslash( $email ) );
+		} else {
+				$user->user_email = $userdata->user_email;
+		}
 
-                if ( isset( $data['url'] ) ) {
-                        if ( empty ( $data['url'] ) || $data['url'] == 'http://' ) {
-                                $user->user_url = '';
-                        } else {
-                                $user->user_url = esc_url_raw( $data['url'] );
-                                $protocols      = implode( '|', array_map( 'preg_quote', wp_allowed_protocols() ) );
-                                $user->user_url = preg_match('/^(' . $protocols . '):/is', $user->user_url) ? $user->user_url : 'http://' . $user->user_url;
-                        }
-                }
+		if ( isset( $data['url'] ) ) {
+			if ( empty ( $data['url'] ) || $data['url'] == 'http://' ) {
+					$user->user_url = '';
+			} else {
+					$user->user_url = esc_url_raw( $data['url'] );
+					$protocols      = implode( '|', array_map( 'preg_quote', wp_allowed_protocols() ) );
+					$user->user_url = preg_match('/^(' . $protocols . '):/is', $user->user_url) ? $user->user_url : 'http://' . $user->user_url;
+			}
+		}
 
-                if ( isset( $data['first_name'] ) ) {
-                        $user->first_name = sanitize_text_field( $data['first_name'] );
-                }
-                if ( isset( $data['last_name'] ) ) {
-                        $user->last_name = sanitize_text_field( $data['last_name'] );
-                }
-                if ( isset( $data['nickname'] ) && ! empty($data['nickname'])) {
-                        $user->nickname = sanitize_text_field( $data['nickname'] );
-                }
-                if ( isset( $data['display_name'] ) ) {
-                        $user->display_name = sanitize_text_field( $data['display_name'] );
-                }
-                if ( isset( $data['description'] ) ) {
-                        $user->description = trim( $data['description'] );
-                }
+		if ( isset( $data['first_name'] ) ) {
+				$user->first_name = sanitize_text_field( $data['first_name'] );
+		}
+		if ( isset( $data['last_name'] ) ) {
+				$user->last_name = sanitize_text_field( $data['last_name'] );
+		}
+		if ( isset( $data['nickname'] ) && ! empty($data['nickname'])) {
+				$user->nickname = sanitize_text_field( $data['nickname'] );
+		}
+		if ( isset( $data['display_name'] ) ) {
+				$user->display_name = sanitize_text_field( $data['display_name'] );
+		}
+		if ( isset( $data['description'] ) ) {
+				$user->description = trim( $data['description'] );
+		}
 
-                $errors = new WP_Error();
+			$errors = new WP_Error();
 
-                /* checking that username has been typed */
-                if ( $user->user_login == '' ) {
-                        $errors->add( 'user_login', __( '<strong>ERROR</strong>: Please enter a username.' ) );
-                }
+			/* checking that username has been typed */
+		if ( $user->user_login == '' ) {
+				$errors->add( 'user_login', __( '<strong>ERROR</strong>: Please enter a username.' ) );
+		}
 
-                do_action_ref_array( 'check_passwords', array( $user->user_login, &$pass1, &$pass2 ) );
+			do_action_ref_array( 'check_passwords', array( $user->user_login, &$pass1, &$pass2 ) );
 
-                if ( ! empty($pass1) || ! empty($pass2)) {
-                    // Check for blank password when adding a user.
-                    if ( ! $update && empty( $pass1 ) ) {
-                            $errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter a password.' ), array( 'form-field' => 'pass1' ) );
-                    }
+		if ( ! empty($pass1) || ! empty($pass2)) {
+			// Check for blank password when adding a user.
+			if ( ! $update && empty( $pass1 ) ) {
+					$errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter a password.' ), array( 'form-field' => 'pass1' ) );
+			}
 
-                    // Check for "\" in password.
-                    if ( false !== strpos( wp_unslash( $pass1 ), '\\' ) ) {
-                            $errors->add( 'pass', __( '<strong>ERROR</strong>: Passwords may not contain the character "\\".' ), array( 'form-field' => 'pass1' ) );
-                    }
+			// Check for "\" in password.
+			if ( false !== strpos( wp_unslash( $pass1 ), '\\' ) ) {
+					$errors->add( 'pass', __( '<strong>ERROR</strong>: Passwords may not contain the character "\\".' ), array( 'form-field' => 'pass1' ) );
+			}
 
-                    // Checking the password has been typed twice the same.
-                    if ( ( $update || ! empty( $pass1 ) ) && $pass1 != $pass2 ) {
-                            $errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter the same password in both password fields.' ), array( 'form-field' => 'pass1' ) );
-                    }
+			// Checking the password has been typed twice the same.
+			if ( ( $update || ! empty( $pass1 ) ) && $pass1 != $pass2 ) {
+					$errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter the same password in both password fields.' ), array( 'form-field' => 'pass1' ) );
+			}
 
-                    if ( ! empty( $pass1 ) ) {
-                            $user->user_pass = $pass1;
-                    }
-                } else {
-                            $user->user_pass = $userdata->user_pass;
-                }
+			if ( ! empty( $pass1 ) ) {
+					$user->user_pass = $pass1;
+			}
+		} else {
+					$user->user_pass = $userdata->user_pass;
+		}
 
-                /** This filter is documented in wp-includes/user.php */
-                $illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
+			/** This filter is documented in wp-includes/user.php */
+			$illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
 
-                if ( in_array( strtolower( $user->user_login ), array_map( 'strtolower', $illegal_logins ) ) ) {
-                        $errors->add( 'invalid_username', __( '<strong>ERROR</strong>: Sorry, that username is not allowed.' ) );
-                }
+		if ( in_array( strtolower( $user->user_login ), array_map( 'strtolower', $illegal_logins ) ) ) {
+				$errors->add( 'invalid_username', __( '<strong>ERROR</strong>: Sorry, that username is not allowed.' ) );
+		}
 
-                /* checking email address */
-                if ( empty( $user->user_email ) ) {
-                        $errors->add( 'empty_email', __( '<strong>ERROR</strong>: Please enter an email address.' ), array( 'form-field' => 'email' ) );
-                } elseif ( ! is_email( $user->user_email ) ) {
-                        $errors->add( 'invalid_email', __( '<strong>ERROR</strong>: The email address isn&#8217;t correct.' ), array( 'form-field' => 'email' ) );
-                } elseif ( ( $owner_id = email_exists($user->user_email) ) && ( ! $update || ( $owner_id != $user->ID ) ) ) {
-                        $errors->add( 'email_exists', __('<strong>ERROR</strong>: This email is already registered, please choose another one.'), array( 'form-field' => 'email' ) );
-                }
+			/* checking email address */
+		if ( empty( $user->user_email ) ) {
+				$errors->add( 'empty_email', __( '<strong>ERROR</strong>: Please enter an email address.' ), array( 'form-field' => 'email' ) );
+		} elseif ( ! is_email( $user->user_email ) ) {
+				$errors->add( 'invalid_email', __( '<strong>ERROR</strong>: The email address isn&#8217;t correct.' ), array( 'form-field' => 'email' ) );
+		} elseif ( ( $owner_id = email_exists($user->user_email) ) && ( ! $update || ( $owner_id != $user->ID ) ) ) {
+				$errors->add( 'email_exists', __('<strong>ERROR</strong>: This email is already registered, please choose another one.'), array( 'form-field' => 'email' ) );
+		}
 
-                do_action_ref_array( 'user_profile_update_errors', array( &$errors, $update, &$user ) );
+			do_action_ref_array( 'user_profile_update_errors', array( &$errors, $update, &$user ) );
 
-                if ( $errors->get_error_codes() ) {
-                    $error_str = '';
-                    foreach ( $errors->get_error_messages() as $message ) {
-                        if ( is_string( $message ) ) {
-                            $error_str .= ' ' . esc_html( strip_tags( $message ) );
-                        }
+		if ( $errors->get_error_codes() ) {
+			$error_str = '';
+			foreach ( $errors->get_error_messages() as $message ) {
+				if ( is_string( $message ) ) {
+					$error_str .= ' ' . esc_html( strip_tags( $message ) );
+				}
 
-                    }
-                    return array( 'error' => $error_str );
-                }
+			}
+			return array( 'error' => $error_str );
+		}
 
-                $user_id = wp_update_user( $user );
+			$user_id = wp_update_user( $user );
 
-                return $user_id;
-        }
+			return $user_id;
+	}
 
-        function get_user_to_edit( $user_id ) {
-            require_once ABSPATH . 'wp-admin/includes/user.php';
-            $profileuser = get_user_to_edit($user_id);
+	function get_user_to_edit( $user_id ) {
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		$profileuser = get_user_to_edit($user_id);
 
-            $edit_data = array();
-            if (is_object($profileuser)) {
-                $user_roles              = array_intersect( array_values( $profileuser->roles ), array_keys( get_editable_roles() ) );
-                $user_role               = reset( $user_roles );
-                $edit_data['role']       = $user_role;
-                $edit_data['first_name'] = $profileuser->first_name;
-                $edit_data['last_name']  = $profileuser->last_name;
-                $edit_data['nickname']   = $profileuser->nickname;
+		$edit_data = array();
+		if (is_object($profileuser)) {
+			$user_roles              = array_intersect( array_values( $profileuser->roles ), array_keys( get_editable_roles() ) );
+			$user_role               = reset( $user_roles );
+			$edit_data['role']       = $user_role;
+			$edit_data['first_name'] = $profileuser->first_name;
+			$edit_data['last_name']  = $profileuser->last_name;
+			$edit_data['nickname']   = $profileuser->nickname;
 
-                $public_display                     = array();
-                $public_display['display_nickname'] = $profileuser->nickname;
-                $public_display['display_username'] = $profileuser->user_login;
+			$public_display                     = array();
+			$public_display['display_nickname'] = $profileuser->nickname;
+			$public_display['display_username'] = $profileuser->user_login;
 
-                if ( ! empty($profileuser->first_name) ) {
-                        $public_display['display_firstname'] = $profileuser->first_name;
-                }
+			if ( ! empty($profileuser->first_name) ) {
+					$public_display['display_firstname'] = $profileuser->first_name;
+			}
 
-                if ( ! empty($profileuser->last_name) ) {
-                        $public_display['display_lastname'] = $profileuser->last_name;
-                }
+			if ( ! empty($profileuser->last_name) ) {
+					$public_display['display_lastname'] = $profileuser->last_name;
+			}
 
-                if ( ! empty($profileuser->first_name) && ! empty($profileuser->last_name) ) {
-                        $public_display['display_firstlast'] = $profileuser->first_name . ' ' . $profileuser->last_name;
-                        $public_display['display_lastfirst'] = $profileuser->last_name . ' ' . $profileuser->first_name;
-                }
+			if ( ! empty($profileuser->first_name) && ! empty($profileuser->last_name) ) {
+					$public_display['display_firstlast'] = $profileuser->first_name . ' ' . $profileuser->last_name;
+					$public_display['display_lastfirst'] = $profileuser->last_name . ' ' . $profileuser->first_name;
+			}
 
-                if ( ! in_array( $profileuser->display_name, $public_display ) ) { // Only add this if it isn't duplicated elsewhere
-                        $public_display = array( 'display_displayname' => $profileuser->display_name ) + $public_display;
-                }
+			if ( ! in_array( $profileuser->display_name, $public_display ) ) { // Only add this if it isn't duplicated elsewhere
+					$public_display = array( 'display_displayname' => $profileuser->display_name ) + $public_display;
+			}
 
-                $public_display = array_map( 'trim', $public_display );
-                $public_display = array_unique( $public_display );
+			$public_display = array_map( 'trim', $public_display );
+			$public_display = array_unique( $public_display );
 
-                $edit_data['public_display'] = $public_display;
-                $edit_data['display_name']   = $profileuser->display_name;
-                $edit_data['user_email']     = $profileuser->user_email;
-                $edit_data['user_url']       = $profileuser->user_url;
-                foreach ( wp_get_user_contact_methods( $profileuser ) as $name => $desc ) {
-                    $edit_data['contact_methods'][ $name ] = $profileuser->$name;
-                }
-                $edit_data['description'] = $profileuser->description;
-            }
-            return $edit_data;
-        }
+			$edit_data['public_display'] = $public_display;
+			$edit_data['display_name']   = $profileuser->display_name;
+			$edit_data['user_email']     = $profileuser->user_email;
+			$edit_data['user_url']       = $profileuser->user_url;
+			foreach ( wp_get_user_contact_methods( $profileuser ) as $name => $desc ) {
+				$edit_data['contact_methods'][ $name ] = $profileuser->$name;
+			}
+			$edit_data['description'] = $profileuser->description;
+		}
+		return $edit_data;
+	}
 
 	//todo: backwards compatible: wp_set_comment_status ?
 	function comment_action() {
@@ -3858,8 +3858,8 @@ echo 'checked'; }
 					// to fix for some premiums update info
 					if ( property_exists( $plugin_update, 'update' ) ) {
 						if ( ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
-                    continue;
-                }
+							continue;
+						}
 					} else {
 						continue;
 					}
@@ -4112,9 +4112,9 @@ echo 'checked'; }
 		$favi             = ''; // to compatible
 
                 $site_url = get_option( 'siteurl' );
-                if ( substr( $site_url, - 1 ) != '/' ) {
-                    $site_url .= '/';
-                }
+		if ( substr( $site_url, - 1 ) != '/' ) {
+			$site_url .= '/';
+		}
 
 		if ( function_exists( 'get_site_icon_url' ) && has_site_icon() ) {
 			$favi = $favi_url = get_site_icon_url();
@@ -4138,28 +4138,28 @@ echo 'checked'; }
                 $request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
                 $favi    = '';
                 if ( is_array( $request ) && isset( $request['body'] ) ) {
-                  // to fix bug
-                  $preg_str1 = '/(<link\s+(?:[^\>]*)(?:rel="shortcut\s+icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-                  $preg_str2 = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
+					// to fix bug
+					$preg_str1 = '/(<link\s+(?:[^\>]*)(?:rel="shortcut\s+icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
+					$preg_str2 = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
 
-                  if ( preg_match( $preg_str1, $request['body'], $matches ) ) {
-                    $favi = $matches[2];
-                  } elseif ( preg_match( $preg_str2, $request['body'], $matches ) ) {
-                    $favi = $matches[2];
-                  }
+					if ( preg_match( $preg_str1, $request['body'], $matches ) ) {
+						$favi = $matches[2];
+					} elseif ( preg_match( $preg_str2, $request['body'], $matches ) ) {
+						$favi = $matches[2];
+					}
                 }
 
                 if ( ! empty( $favi ) ) {
                     if ( false === strpos( $favi, 'http' )) {
-                         if (0 === strpos( $favi, '//' )) {
-                             if (0 === strpos( $site_url, 'https' )) {
-                                  $favi_url = 'https:' . $favi;
-                             } else {
-                                 $favi_url = 'http:' . $favi;
-                             }
-                         } else {
+						if (0 === strpos( $favi, '//' )) {
+							if (0 === strpos( $site_url, 'https' )) {
+								 $favi_url = 'https:' . $favi;
+							} else {
+								$favi_url = 'http:' . $favi;
+							}
+						} else {
                             $favi_url = $site_url . $favi;
-                         }
+						}
                     } else {
                         $favi_url = $favi;
                     }
@@ -4294,13 +4294,13 @@ echo 'checked'; }
         * The code is used for the MainWP WordPress SEO Extension
         * Extension URL: https://mainwp.com/extension/wordpress-seo/
         *
-       */
+		*/
 
         $wp_seo_enabled = false;
         if ( isset( $_POST['WPSEOEnabled'] ) && $_POST['WPSEOEnabled']) {
-           if (is_plugin_active('wordpress-seo/wp-seo.php') && class_exists('WPSEO_Link_Column_Count') && class_exists('WPSEO_Meta')) {
+			if (is_plugin_active('wordpress-seo/wp-seo.php') && class_exists('WPSEO_Link_Column_Count') && class_exists('WPSEO_Meta')) {
                 $wp_seo_enabled = true;
-           }
+			}
         }
 
 		$posts = get_posts( $args );
@@ -4987,9 +4987,9 @@ echo 'checked'; }
 				}
 			}
 		}
-                if ($return) {
-                    return $allusers;
-                }
+		if ($return) {
+			return $allusers;
+		}
 		MainWP_Helper::write( $allusers );
 	}
 
@@ -5056,11 +5056,11 @@ echo 'checked'; }
 			) );
 			if ( ! empty( $user_query->results ) ) {
 				foreach ( $user_query->results as $new_user ) {
-                                        if ($check_users_role) {
-                                            if ( ! in_array($new_user->ID, $search_user_role )) {
-                                                continue;
-                                            }
-                                        }
+					if ($check_users_role) {
+						if ( ! in_array($new_user->ID, $search_user_role )) {
+							continue;
+						}
+					}
 					$exclude[]           = $new_user->ID;
 					$usr                 = array();
 					$usr['id']           = $new_user->ID;
@@ -5201,34 +5201,34 @@ echo 'checked'; }
 
 	function getTotalFileSize( $directory = WP_CONTENT_DIR ) {
 		try {
-//			function continueFileSize( $dir, $limit ) {
-//				$dirs = array( $dir );
-//				$cnt = 0;
-//				while ( isset( $dirs[0] ) ) {
-//					$path = array_shift( $dirs );
-//					if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
-//						continue;
-//					}
-//					$uploadDir = MainWP_Helper::getMainWPDir();
-//					$uploadDir = $uploadDir[0];
-//					if ( stristr( $path, $uploadDir ) ) {
-//						continue;
-//					}
-//					$res = @glob( $path . '/*' );
-//					if ( is_array( $res ) ) {
-//						foreach ( $res as $next ) {
-//							if ( is_dir( $next ) ) {
-//								$dirs[] = $next;
-//							} else {
-//								if ($cnt++ > $limit) return false;;
-//							}
-//						}
-//					}
-//				}
-//				return true;
-//			}
-//
-//			if ( !continueFilesize( $directory, 20000 ) ) return 0;
+			//          function continueFileSize( $dir, $limit ) {
+			//              $dirs = array( $dir );
+			//              $cnt = 0;
+			//              while ( isset( $dirs[0] ) ) {
+			//                  $path = array_shift( $dirs );
+			//                  if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
+			//                      continue;
+			//                  }
+			//                  $uploadDir = MainWP_Helper::getMainWPDir();
+			//                  $uploadDir = $uploadDir[0];
+			//                  if ( stristr( $path, $uploadDir ) ) {
+			//                      continue;
+			//                  }
+			//                  $res = @glob( $path . '/*' );
+			//                  if ( is_array( $res ) ) {
+			//                      foreach ( $res as $next ) {
+			//                          if ( is_dir( $next ) ) {
+			//                              $dirs[] = $next;
+			//                          } else {
+			//                              if ($cnt++ > $limit) return false;;
+			//                          }
+			//                      }
+			//                  }
+			//              }
+			//              return true;
+			//          }
+			//
+			//          if ( !continueFilesize( $directory, 20000 ) ) return 0;
 
 			if ( MainWP_Helper::function_exists( 'popen' ) ) {
 				$uploadDir   = MainWP_Helper::getMainWPDir();
@@ -5280,36 +5280,36 @@ echo 'checked'; }
                 }
 			}
 
-//			function dirsize( $dir ) {
-//				$dirs = array( $dir );
-//				$size = 0;
-//				while ( isset( $dirs[0] ) ) {
-//					$path = array_shift( $dirs );
-//					if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
-//						continue;
-//					}
-//					$uploadDir = MainWP_Helper::getMainWPDir();
-//					$uploadDir = $uploadDir[0];
-//					if ( stristr( $path, $uploadDir ) ) {
-//						continue;
-//					}
-//					$res = @glob( $path . '/*' );
-//					if ( is_array( $res ) ) {
-//						foreach ( $res as $next ) {
-//							if ( is_dir( $next ) ) {
-//								$dirs[] = $next;
-//							} else {
-//								$fs = filesize( $next );
-//								$size += $fs;
-//							}
-//						}
-//					}
-//				}
-//
-//				return $size / 1024 / 1024;
-//			}
-//
-//			return dirsize( $directory );
+			//          function dirsize( $dir ) {
+			//              $dirs = array( $dir );
+			//              $size = 0;
+			//              while ( isset( $dirs[0] ) ) {
+			//                  $path = array_shift( $dirs );
+			//                  if ( stristr( $path, WP_CONTENT_DIR . '/uploads/mainwp' ) ) {
+			//                      continue;
+			//                  }
+			//                  $uploadDir = MainWP_Helper::getMainWPDir();
+			//                  $uploadDir = $uploadDir[0];
+			//                  if ( stristr( $path, $uploadDir ) ) {
+			//                      continue;
+			//                  }
+			//                  $res = @glob( $path . '/*' );
+			//                  if ( is_array( $res ) ) {
+			//                      foreach ( $res as $next ) {
+			//                          if ( is_dir( $next ) ) {
+			//                              $dirs[] = $next;
+			//                          } else {
+			//                              $fs = filesize( $next );
+			//                              $size += $fs;
+			//                          }
+			//                      }
+			//                  }
+			//              }
+			//
+			//              return $size / 1024 / 1024;
+			//          }
+			//
+			//          return dirsize( $directory );
 			return 0;
 		} catch ( Exception $e ) {
 			return 0;
@@ -5379,17 +5379,17 @@ echo 'checked'; }
 			$maint_options         = array();
 		}
 
-//		$this->options = array(
-//			'revisions'    => __( 'Delete all post revisions', 'mainwp-maintenance-extension' ),
-//			'autodraft'    => __( 'Delete all auto draft posts',                   'mainwp-maintenance-extension' ),
-//			'trashpost'    => __( 'Delete trash posts',                            'mainwp-maintenance-extension' ),
-//			'spam'         => __( 'Delete spam comments',                          'mainwp-maintenance-extension' ),
-//			'pending'      => __( 'Delete pending comments',                       'mainwp-maintenance-extension' ),
-//			'trashcomment' => __( 'Delete trash comments',                         'mainwp-maintenance-extension' ),
-//			'tags'         => __( 'Delete tags with 0 posts associated',           'mainwp-maintenance-extension' ),
-//			'categories'   => __( 'Delete categories with 0 posts associated',     'mainwp-maintenance-extension' ),
-//			'optimize'     => __( 'Optimize database tables',                      'mainwp-maintenance-extension' )
-//		);
+		//      $this->options = array(
+		//          'revisions'    => __( 'Delete all post revisions', 'mainwp-maintenance-extension' ),
+		//          'autodraft'    => __( 'Delete all auto draft posts',                   'mainwp-maintenance-extension' ),
+		//          'trashpost'    => __( 'Delete trash posts',                            'mainwp-maintenance-extension' ),
+		//          'spam'         => __( 'Delete spam comments',                          'mainwp-maintenance-extension' ),
+		//          'pending'      => __( 'Delete pending comments',                       'mainwp-maintenance-extension' ),
+		//          'trashcomment' => __( 'Delete trash comments',                         'mainwp-maintenance-extension' ),
+		//          'tags'         => __( 'Delete tags with 0 posts associated',           'mainwp-maintenance-extension' ),
+		//          'categories'   => __( 'Delete categories with 0 posts associated',     'mainwp-maintenance-extension' ),
+		//          'optimize'     => __( 'Optimize database tables',                      'mainwp-maintenance-extension' )
+		//      );
 
         $performed_what = array();
 		if ( empty( $max_revisions ) ) {

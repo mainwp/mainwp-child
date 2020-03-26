@@ -77,75 +77,75 @@ class MainWP_Child_Staging {
     }
 
     public function action() {
-            if ( ! $this->is_plugin_installed) {
-                 MainWP_Helper::write( array( 'error' => 'Please install WP Staging plugin on child website' ) );
-            }
+		if ( ! $this->is_plugin_installed) {
+			 MainWP_Helper::write( array( 'error' => 'Please install WP Staging plugin on child website' ) );
+		}
 
-            if ( ! class_exists( 'WPStaging\WPStaging' )) {
-                require_once WPSTG_PLUGIN_DIR . 'apps/Core/WPStaging.php';
-            }
+		if ( ! class_exists( 'WPStaging\WPStaging' )) {
+			require_once WPSTG_PLUGIN_DIR . 'apps/Core/WPStaging.php';
+		}
              \WPStaging\WPStaging::getInstance();
 
             $information = array();
-            if (get_option( 'mainwp_wp_staging_ext_enabled' ) !== 'Y') {
-                MainWP_Helper::update_option( 'mainwp_wp_staging_ext_enabled', 'Y', 'yes' );
-            }
+		if (get_option( 'mainwp_wp_staging_ext_enabled' ) !== 'Y') {
+			MainWP_Helper::update_option( 'mainwp_wp_staging_ext_enabled', 'Y', 'yes' );
+		}
 
-            if ( isset( $_POST['mwp_action'] ) ) {
-                switch ( $_POST['mwp_action'] ) {
-                    case 'set_showhide':
-                            $information = $this->set_showhide();
-                        break;
-                    case 'save_settings':
-                            $information = $this->save_settings();
-                        break;
-                    case 'get_overview':
-                            $information = $this->get_overview();
-                        break;
-                    case 'get_scan':
-                            $information = $this->get_scan();
-                        break;
-                    case 'check_disk_space':
-                            $information = $this->ajaxCheckFreeSpace();
-                        break;
-                    case 'check_clone':
-                            $information = $this->ajaxCheckCloneName();
-                        break;
-                    case 'start_clone':
-                            $information = $this->ajaxStartClone();
-                        break;
-                    case 'clone_database':
-                            $information = $this->ajaxCloneDatabase();
-                        break;
-                    case 'prepare_directories':
-                            $information = $this->ajaxPrepareDirectories();
-                        break;
-                    case 'copy_files':
-                            $information = $this->ajaxCopyFiles();
-                        break;
-                    case 'replace_data':
-                            $information = $this->ajaxReplaceData();
-                        break;
-                    case 'clone_finish':
-                            $information = $this->ajaxFinish();
-                        break;
-                    case 'delete_confirmation':
-                            $information = $this->ajaxDeleteConfirmation();
-                        break;
-                    case 'delete_clone':
-                            $information = $this->ajaxDeleteClone();
-                        break;
-                    case 'cancel_clone':
-                            $information = $this->ajaxCancelClone();
-                        break;
-					case 'staging_update':
-                            $information = $this->ajaxUpdateProcess();
-                        break;
-					case 'cancel_update':
-                            $information = $this->ajaxCancelUpdate();
-                        break;
-                }
-            }
+		if ( isset( $_POST['mwp_action'] ) ) {
+			switch ( $_POST['mwp_action'] ) {
+				case 'set_showhide':
+						$information = $this->set_showhide();
+					break;
+				case 'save_settings':
+						$information = $this->save_settings();
+					break;
+				case 'get_overview':
+						$information = $this->get_overview();
+					break;
+				case 'get_scan':
+						$information = $this->get_scan();
+					break;
+				case 'check_disk_space':
+						$information = $this->ajaxCheckFreeSpace();
+					break;
+				case 'check_clone':
+						$information = $this->ajaxCheckCloneName();
+					break;
+				case 'start_clone':
+						$information = $this->ajaxStartClone();
+					break;
+				case 'clone_database':
+						$information = $this->ajaxCloneDatabase();
+					break;
+				case 'prepare_directories':
+						$information = $this->ajaxPrepareDirectories();
+					break;
+				case 'copy_files':
+						$information = $this->ajaxCopyFiles();
+					break;
+				case 'replace_data':
+						$information = $this->ajaxReplaceData();
+					break;
+				case 'clone_finish':
+						$information = $this->ajaxFinish();
+					break;
+				case 'delete_confirmation':
+						$information = $this->ajaxDeleteConfirmation();
+					break;
+				case 'delete_clone':
+						$information = $this->ajaxDeleteClone();
+					break;
+				case 'cancel_clone':
+						$information = $this->ajaxCancelClone();
+					break;
+				case 'staging_update':
+						$information = $this->ajaxUpdateProcess();
+					break;
+				case 'cancel_update':
+						$information = $this->ajaxCancelUpdate();
+					break;
+			}
+		}
             MainWP_Helper::write( $information );
     }
 
@@ -206,176 +206,176 @@ class MainWP_Child_Staging {
             'prefix'           => WPStaging\WPStaging::getTablePrefix(),
         );
         return $return;
-   }
+	}
 
 
     public function ajaxCheckCloneName() {
-      $cloneName       = sanitize_key( $_POST['cloneID'] );
-      $cloneNameLength = strlen( $cloneName );
-      $clones          = get_option( 'wpstg_existing_clones_beta', array() );
+		$cloneName       = sanitize_key( $_POST['cloneID'] );
+		$cloneNameLength = strlen( $cloneName );
+		$clones          = get_option( 'wpstg_existing_clones_beta', array() );
 
-      // Check clone name length
-      if ( $cloneNameLength < 1 || $cloneNameLength > 16 ) {
-         echo array(
-             'status'  => 'failed',
-             'message' => 'Clone name must be between 1 - 16 characters',
-         );
-      } elseif ( array_key_exists( $cloneName, $clones ) ) {
-         return array(
-             'status'  => 'failed',
-             'message' => 'Clone name is already in use, please choose an another clone name',
-         );
-      }
+		// Check clone name length
+		if ( $cloneNameLength < 1 || $cloneNameLength > 16 ) {
+			echo array(
+				'status'  => 'failed',
+				'message' => 'Clone name must be between 1 - 16 characters',
+			);
+		} elseif ( array_key_exists( $cloneName, $clones ) ) {
+			return array(
+				'status'  => 'failed',
+				'message' => 'Clone name is already in use, please choose an another clone name',
+			);
+		}
 
-      return array( 'status' => 'success' );
-   }
+		return array( 'status' => 'success' );
+	}
 
-   public function ajaxStartClone() {
+	public function ajaxStartClone() {
 
-	   $this->url = ''; // to fix warning
-      $cloning    = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$this->url = ''; // to fix warning
+		$cloning   = new WPStaging\Backend\Modules\Jobs\Cloning();
 
-      if ( ! $cloning->save() ) {
-         return;
-      }
+		if ( ! $cloning->save() ) {
+			return;
+		}
 
-      ob_start();
-      require_once WPSTG_PLUGIN_DIR . 'apps/Backend/views/clone/ajax/start.php';
-      $result = ob_get_clean();
-      return $result;
-   }
+		ob_start();
+		require_once WPSTG_PLUGIN_DIR . 'apps/Backend/views/clone/ajax/start.php';
+		$result = ob_get_clean();
+		return $result;
+	}
 
     public function ajaxCloneDatabase() {
 
-      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
 
-      return $cloning->start();
-   }
+		return $cloning->start();
+	}
 
-   /**
-    * Ajax Prepare Directories (get listing of files)
-    */
-   public function ajaxPrepareDirectories() {
+	/**
+	 * Ajax Prepare Directories (get listing of files)
+	 */
+	public function ajaxPrepareDirectories() {
 
-      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
 
-      return $cloning->start();
-   }
+		return $cloning->start();
+	}
 
-   /**
-    * Ajax Clone Files
-    */
-   public function ajaxCopyFiles() {
+	/**
+	 * Ajax Clone Files
+	 */
+	public function ajaxCopyFiles() {
 
-      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
 
-      return $cloning->start();
-   }
+		return $cloning->start();
+	}
 
-   /**
-    * Ajax Replace Data
-    */
-   public function ajaxReplaceData() {
-      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
-      return $cloning->start();
-   }
+	/**
+	 * Ajax Replace Data
+	 */
+	public function ajaxReplaceData() {
+		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		return $cloning->start();
+	}
 
-   /**
-    * Ajax Finish
-    */
-   public function ajaxFinish() {
+	/**
+	 * Ajax Finish
+	 */
+	public function ajaxFinish() {
 
-      $cloning              = new WPStaging\Backend\Modules\Jobs\Cloning();
-      $this->url            = ''; // to fix warning
-      $return               = $cloning->start();
-      $return->blogInfoName = get_bloginfo('name');
+		$cloning              = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$this->url            = ''; // to fix warning
+		$return               = $cloning->start();
+		$return->blogInfoName = get_bloginfo('name');
 
-      return $return;
-   }
+		return $return;
+	}
 
-   /**
-    * Ajax Delete Confirmation
-    */
-   public function ajaxDeleteConfirmation() {
+	/**
+	 * Ajax Delete Confirmation
+	 */
+	public function ajaxDeleteConfirmation() {
 
-      $delete = new WPStaging\Backend\Modules\Jobs\Delete();
-      $delete->setData();
-      $clone  = $delete->getClone();
-      $result = array(
-		  'clone'        => $clone,
-		  'deleteTables' => $delete->getTables(),
-	  );
-      return $result;
-   }
+		$delete = new WPStaging\Backend\Modules\Jobs\Delete();
+		$delete->setData();
+		$clone  = $delete->getClone();
+		$result = array(
+			'clone'        => $clone,
+			'deleteTables' => $delete->getTables(),
+		);
+		return $result;
+	}
 
-   /**
-    * Delete clone
-    */
-   public function ajaxDeleteClone() {
+	/**
+	 * Delete clone
+	 */
+	public function ajaxDeleteClone() {
 
-      $delete = new WPStaging\Backend\Modules\Jobs\Delete();
-      return $delete->start();
-   }
+		$delete = new WPStaging\Backend\Modules\Jobs\Delete();
+		return $delete->start();
+	}
 
-   /**
-    * Delete clone
-    */
-   public function ajaxCancelClone() {
-      $cancel = new WPStaging\Backend\Modules\Jobs\Cancel();
-      return $cancel->start();
-   }
+	/**
+	 * Delete clone
+	 */
+	public function ajaxCancelClone() {
+		$cancel = new WPStaging\Backend\Modules\Jobs\Cancel();
+		return $cancel->start();
+	}
 
     public function ajaxCancelUpdate() {
-	  $cancel = new WPStaging\Backend\Modules\Jobs\CancelUpdate();
-      return $cancel->start();
-   }
+		$cancel = new WPStaging\Backend\Modules\Jobs\CancelUpdate();
+		return $cancel->start();
+	}
 
-   public function ajaxUpdateProcess() {
+	public function ajaxUpdateProcess() {
 
 		$cloning = new WPStaging\Backend\Modules\Jobs\Updating();
 
 		if ( ! $cloning->save() ) {
-		   return;
+			return;
 		}
 
 		ob_start();
 		require_once WPSTG_PLUGIN_DIR . 'apps/Backend/views/clone/ajax/update.php';
 		$result = ob_get_clean();
 		return $result;
-   }
+	}
 
     public function ajaxCheckFreeSpace() {
-       return $this->hasFreeDiskSpace();
+		return $this->hasFreeDiskSpace();
     }
 
     // from wp-staging plugin
     public function hasFreeDiskSpace() {
-      if ( ! function_exists( 'disk_free_space' ) ) {
-         return null;
-      }
-      $freeSpace = @disk_free_space( ABSPATH );
-      if ( false === $freeSpace ) {
-         $data = array(
-             'freespace' => false,
-             'usedspace' => $this->formatSize($this->getDirectorySizeInclSubdirs(ABSPATH)),
-         );
-         return $data;
-      }
-      $data = array(
-          'freespace' => $this->formatSize($freeSpace),
-          'usedspace' => $this->formatSize($this->getDirectorySizeInclSubdirs(ABSPATH)),
-      );
-      return $data;
-   }
+		if ( ! function_exists( 'disk_free_space' ) ) {
+			return null;
+		}
+		$freeSpace = @disk_free_space( ABSPATH );
+		if ( false === $freeSpace ) {
+			$data = array(
+				'freespace' => false,
+				'usedspace' => $this->formatSize($this->getDirectorySizeInclSubdirs(ABSPATH)),
+			);
+			return $data;
+		}
+		$data = array(
+			'freespace' => $this->formatSize($freeSpace),
+			'usedspace' => $this->formatSize($this->getDirectorySizeInclSubdirs(ABSPATH)),
+		);
+		return $data;
+	}
 
     // from wp-staging plugin
     function getDirectorySizeInclSubdirs( $dir ) {
-      $size = 0;
-      foreach ( glob( rtrim( $dir, '/' ) . '/*', GLOB_NOSORT ) as $each ) {
-         $size += is_file( $each ) ? filesize( $each ) : $this->getDirectorySizeInclSubdirs( $each );
-      }
-      return $size;
-   }
+		$size = 0;
+		foreach ( glob( rtrim( $dir, '/' ) . '/*', GLOB_NOSORT ) as $each ) {
+			$size += is_file( $each ) ? filesize( $each ) : $this->getDirectorySizeInclSubdirs( $each );
+		}
+		return $size;
+	}
 
     // from wp-staging plugin
     public function formatSize( $bytes, $precision = 2) {

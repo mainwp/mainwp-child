@@ -108,7 +108,7 @@ class MainWP_Helper {
 
 				if ( ! empty($selector)) {
 					if ( ! isset($new[ $selector ])) {
-$new[ $selector ] = array();
+						$new[ $selector ] = array();
                     }
 					$rules = explode(';', $val[ ++$i ]);
 					foreach ($rules as $rule) {
@@ -119,9 +119,9 @@ $new[ $selector ] = array();
 							$value    = implode(':', array_reverse($rule));
 
 							if ( ! isset($new[ $selector ][ $property ]) || ! preg_match('/!important/', $new[ $selector ][ $property ])) {
-$new[ $selector ][ $property ] = $value;
+								$new[ $selector ][ $property ] = $value;
 							} elseif (preg_match('/!important/', $new[ $selector ][ $property ]) && preg_match('/!important/', $value)) {
-$new[ $selector ][ $property ] = $value;
+								$new[ $selector ][ $property ] = $value;
                             }
 						}
 					}
@@ -137,7 +137,7 @@ $new[ $selector ][ $property ] = $value;
 				$output .= $media . " {\n";
 				$prefix  = "\t";
 			} else {
-$prefix = '';
+				$prefix = '';
             }
 
 			foreach ($content as $selector => $rules) {
@@ -413,9 +413,9 @@ $prefix = '';
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp );
 				//$new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
 			}
-//            else {
-//				$new_post['post_status'] = 'publish';
-//			}
+			//            else {
+			//              $new_post['post_status'] = 'publish';
+			//          }
 		}
 
 		$wpr_options = isset( $_POST['wpr_options'] ) ? $_POST['wpr_options'] : array();
@@ -476,12 +476,12 @@ $prefix = '';
 							$new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
 						}
 						// To fix bug
-//						else if ( strpos( $hrefLink, 'http' ) !== false ) {
-//							$lnkToReplace = dirname( $hrefLink );
-//							if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
-//								$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
-//							}
-//						}
+						//                      else if ( strpos( $hrefLink, 'http' ) !== false ) {
+						//                          $lnkToReplace = dirname( $hrefLink );
+						//                          if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
+						//                              $new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
+						//                          }
+						//                      }
 					}
 					$lnkToReplace = dirname( $imgUrl );
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
@@ -563,8 +563,8 @@ $prefix = '';
 				}
 
 				$random_timestamp = rand( $random_date_from, $random_date_to );
-//				$post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
-//				$new_post['post_status'] = $post_status;
+				//              $post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
+				//              $new_post['post_status'] = $post_status;
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp );
 			}
 		}
@@ -599,10 +599,10 @@ $prefix = '';
 		}
 
 		if ( ! $edit_post_id ) {
-		wp_update_post( array(
-			'ID'          => $new_post_id,
-			'post_status' => $post_status,
-		) );
+			wp_update_post( array(
+				'ID'          => $new_post_id,
+				'post_status' => $post_status,
+			) );
         }
 
 		if ( ! empty( $terms ) ) {
@@ -658,33 +658,33 @@ $prefix = '';
 
         if (is_array($post_custom)) {
             foreach ( $post_custom as $meta_key => $meta_values ) {
-			if ( ! in_array( $meta_key, $not_allowed ) ) {
-				foreach ( $meta_values as $meta_value ) {
-					if (strpos($meta_key, '_mainwp_spinner_') === 0) {
-						continue; // not save
-                    }
+				if ( ! in_array( $meta_key, $not_allowed ) ) {
+					foreach ( $meta_values as $meta_value ) {
+						if (strpos($meta_key, '_mainwp_spinner_') === 0) {
+							continue; // not save
+						}
 
-					if ( ! $seo_ext_activated ) {
-						// if WordPress SEO plugin is not activated do not save yoast post meta
-						if ( strpos( $meta_key, '_yoast_wpseo_' ) === false ) {
+						if ( ! $seo_ext_activated ) {
+							// if WordPress SEO plugin is not activated do not save yoast post meta
+							if ( strpos( $meta_key, '_yoast_wpseo_' ) === false ) {
+								update_post_meta( $new_post_id, $meta_key, $meta_value );
+							}
+						} else {
 							update_post_meta( $new_post_id, $meta_key, $meta_value );
 						}
-					} else {
-						update_post_meta( $new_post_id, $meta_key, $meta_value );
 					}
-				}
-			} elseif ( '_sticky' === $meta_key ) {
-				foreach ( $meta_values as $meta_value ) {
-					if ( 'sticky' === base64_decode( $meta_value ) ) {
-						stick_post( $new_post_id );
+				} elseif ( '_sticky' === $meta_key ) {
+					foreach ( $meta_values as $meta_value ) {
+						if ( 'sticky' === base64_decode( $meta_value ) ) {
+							stick_post( $new_post_id );
+						}
 					}
-				}
-			} elseif ( '_post_to_only_existing_categories' === $meta_key ) {
-				if ( isset( $meta_values[0] ) && $meta_values[0] ) {
-					$post_to_only_existing_categories = true;
+				} elseif ( '_post_to_only_existing_categories' === $meta_key ) {
+					if ( isset( $meta_values[0] ) && $meta_values[0] ) {
+						$post_to_only_existing_categories = true;
+					}
 				}
 			}
-		}
         }
 
 		// yoast seo extension
@@ -949,9 +949,9 @@ $prefix = '';
 
 		if ( empty( $wp_filesystem ) ) {
 			ob_start();
-//			if ( file_exists( ABSPATH . '/wp-admin/includes/deprecated.php' ) ) {
-//				include_once( ABSPATH . '/wp-admin/includes/deprecated.php' );
-//			}
+			//          if ( file_exists( ABSPATH . '/wp-admin/includes/deprecated.php' ) ) {
+			//              include_once( ABSPATH . '/wp-admin/includes/deprecated.php' );
+			//          }
 			if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 				include_once ABSPATH . '/wp-admin/includes/screen.php';
 			}
@@ -1451,34 +1451,34 @@ $prefix = '';
 	 * Credit to the : wp-filters-extras
 	 */
 
-static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
+	static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
 
-    global $wp_filter;
-	// Take only filters on right hook name and priority
-	if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
-		return false;
-	}
-	// Loop on filters registered
-	foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
-		// Test if filter is an array ! (always for class/method)
-		if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
-			// Test if object is a class and method is equal to param !
-			if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && $filter_array['function'][1] == $method_name ) {
-				// Test for WordPress >= 4.7 WP_Hook class
-				if ( is_a( $wp_filter[ $hook_name ], 'WP_Hook' ) ) {
-					unset( $wp_filter[ $hook_name ]->callbacks[ $priority ][ $unique_id ] );
-				} else {
-					unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
+		global $wp_filter;
+		// Take only filters on right hook name and priority
+		if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
+			return false;
+		}
+		// Loop on filters registered
+		foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
+			// Test if filter is an array ! (always for class/method)
+			if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
+				// Test if object is a class and method is equal to param !
+				if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && $filter_array['function'][1] == $method_name ) {
+					// Test for WordPress >= 4.7 WP_Hook class
+					if ( is_a( $wp_filter[ $hook_name ], 'WP_Hook' ) ) {
+						unset( $wp_filter[ $hook_name ]->callbacks[ $priority ][ $unique_id ] );
+					} else {
+						unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
+					}
 				}
 			}
 		}
+		return false;
 	}
-	return false;
-}
 
 	public static function sanitize_filename( $filename ) {
 		if ( ! function_exists('mb_ereg_replace')) {
-return sanitize_file_name($filename);
+			return sanitize_file_name($filename);
         }
 
 		// Remove anything which isn't a word, whitespace, number
@@ -1551,7 +1551,7 @@ return sanitize_file_name($filename);
 
 	public static function isSSLEnabled() {
 		if ( defined( 'MAINWP_NOSSL' ) ) {
-return ! MAINWP_NOSSL;
+			return ! MAINWP_NOSSL;
         }
 		return function_exists( 'openssl_verify' );
 	}
@@ -1579,132 +1579,132 @@ return ! MAINWP_NOSSL;
 
     public static function check_files_exists( $files = array(), $return = false ) {
             $missing = array();
-            if (is_array($files)) {
-                    foreach ($files as $name) {
-                            if ( ! file_exists( $name )) {
-                                    $missing[] = $name;
-                            }
-                    }
-            } else {
-                if ( ! file_exists( $files )) {
-                        $missing[] = $files;
-                }
-            }
+		if (is_array($files)) {
+			foreach ($files as $name) {
+				if ( ! file_exists( $name )) {
+					$missing[] = $name;
+				}
+			}
+		} else {
+			if ( ! file_exists( $files )) {
+					$missing[] = $files;
+			}
+		}
 
-            if ( ! empty($missing)) {
-                $message = 'Missing file(s): ' . implode(',', $missing);
-                if ($return) {
-                    return $message;
-                } else {
-                    throw new Exception( $message );
-                }
-            }
+		if ( ! empty($missing)) {
+			$message = 'Missing file(s): ' . implode(',', $missing);
+			if ($return) {
+				return $message;
+			} else {
+				throw new Exception( $message );
+			}
+		}
             return true;
 	}
 
 	public static function check_classes_exists( $classes = array(), $return = false) {
             $missing = array();
-            if (is_array($classes)) {
-                    foreach ($classes as $name) {
-                            if ( ! class_exists( $name )) {
-                                    $missing[] = $name;
-                            }
-                    }
-            } else {
-                if ( ! class_exists($classes) ) {
-                    $missing[] = $classes;
-                }
-            }
+		if (is_array($classes)) {
+			foreach ($classes as $name) {
+				if ( ! class_exists( $name )) {
+					$missing[] = $name;
+				}
+			}
+		} else {
+			if ( ! class_exists($classes) ) {
+				$missing[] = $classes;
+			}
+		}
 
-            if ( ! empty($missing) ) {
-                $message = 'Missing classes: ' . implode(',', $missing);
-                if ($return) {
-                    return $message;
-                } else {
-                    throw new Exception( $message );
-                }
-            }
+		if ( ! empty($missing) ) {
+			$message = 'Missing classes: ' . implode(',', $missing);
+			if ($return) {
+				return $message;
+			} else {
+				throw new Exception( $message );
+			}
+		}
             return true;
 	}
 
     public static function check_methods( $object, $methods = array(), $return = false) {
             $missing = array();
-            if (is_array($methods)) {
-                    $missing = array();
-                    foreach ($methods as $name) {
-                            if ( ! method_exists($object, $name) ) {
-                                $missing[] = $name;
-                            }
-                    }
-            } elseif ( ! empty($methods)) {
-                if ( ! method_exists($object, $methods) ) {
-                    $missing[] = $methods;
-                }
+		if (is_array($methods)) {
+				$missing = array();
+			foreach ($methods as $name) {
+				if ( ! method_exists($object, $name) ) {
+					$missing[] = $name;
+				}
+			}
+		} elseif ( ! empty($methods)) {
+			if ( ! method_exists($object, $methods) ) {
+				$missing[] = $methods;
+			}
 
-            }
+		}
 
-            if ( ! empty($missing) ) {
-                $message = 'Missing method: ' . implode(',', $missing);
-                if ($return) {
-                    return $message;
-                } else {
-                    throw new Exception( $message );
-                }
-            }
+		if ( ! empty($missing) ) {
+			$message = 'Missing method: ' . implode(',', $missing);
+			if ($return) {
+				return $message;
+			} else {
+				throw new Exception( $message );
+			}
+		}
 
             return true;
 	}
 
     public static function check_properties( $object, $properties = array(), $return = false) {
              $missing = array();
-            if (is_array($properties)) {
-                    foreach ($properties as $name) {
-                            if ( ! property_exists($object, $name) ) {
-                                $missing[] = $name;
-                            }
-                    }
-            } elseif ( ! empty($properties)) {
-                if ( ! property_exists($object, $properties) ) {
-                    $missing[] = $properties;
-                }
+		if (is_array($properties)) {
+			foreach ($properties as $name) {
+				if ( ! property_exists($object, $name) ) {
+					$missing[] = $name;
+				}
+			}
+		} elseif ( ! empty($properties)) {
+			if ( ! property_exists($object, $properties) ) {
+				$missing[] = $properties;
+			}
 
-            }
+		}
 
-            if ( ! empty($missing) ) {
-                $message = 'Missing properties: ' . implode(',', $missing);
-                if ($return) {
-                    return $message;
-                } else {
-                    throw new Exception( $message );
-                }
-            }
+		if ( ! empty($missing) ) {
+			$message = 'Missing properties: ' . implode(',', $missing);
+			if ($return) {
+				return $message;
+			} else {
+				throw new Exception( $message );
+			}
+		}
 
             return true;
 	}
 
     public static function check_functions( $funcs = array(), $return = false) {
             $missing = array();
-            if (is_array($funcs)) {
-                    foreach ($funcs as $name) {
-                            if ( ! function_exists( $name) ) {
-                                $missing[] = $name;
-                        }
-                    }
-            } elseif ( ! empty($funcs)) {
-                if ( ! function_exists($funcs) ) {
-                    $missing[] = $funcs;
-                }
+		if (is_array($funcs)) {
+			foreach ($funcs as $name) {
+				if ( ! function_exists( $name) ) {
+					$missing[] = $name;
+				}
+			}
+		} elseif ( ! empty($funcs)) {
+			if ( ! function_exists($funcs) ) {
+				$missing[] = $funcs;
+			}
 
-            }
+		}
 
-            if ( ! empty($missing) ) {
-                $message = 'Missing functions: ' . implode(',', $missing);
-                if ($return) {
-                    return $message;
-                } else {
-                    throw new Exception( $message );
-                }
-            }
+		if ( ! empty($missing) ) {
+			$message = 'Missing functions: ' . implode(',', $missing);
+			if ($return) {
+				return $message;
+			} else {
+				throw new Exception( $message );
+			}
+		}
 
             return true;
     }
@@ -1724,7 +1724,7 @@ return ! MAINWP_NOSSL;
             if ( isset( $error['type'] ) && isset( $error['message'] ) &&
                     ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] )
                 ) {
-               self::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+				self::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
             }
         }
 

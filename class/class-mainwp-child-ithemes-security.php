@@ -369,7 +369,7 @@ class MainWP_Child_iThemes_Security {
 			} elseif ( $results['saved'] ) {
 				ITSEC_Modules::activate( 'network-brute-force' );
 				$nbf_settings = ITSEC_Modules::get_settings( 'network-brute-force' );
-//				ITSEC_Response::set_response( '<p>' . __( 'Your site is now using Network Brute Force Protection.', 'better-wp-security' ) . '</p>' );
+				//              ITSEC_Response::set_response( '<p>' . __( 'Your site is now using Network Brute Force Protection.', 'better-wp-security' ) . '</p>' );
 			}
 		}
 		if ($nbf_settings !== null) {
@@ -409,15 +409,15 @@ class MainWP_Child_iThemes_Security {
 		$key = ITSEC_Network_Brute_Force_Utilities::get_api_key( $settings['email'], $settings['updates_optin'] );
 		if ( is_wp_error( $key ) ) {
 			return false;
-//			$this->set_can_save( false );
-//			$this->add_error( $key );
+			//          $this->set_can_save( false );
+			//          $this->add_error( $key );
 		} else {
 			$secret = ITSEC_Network_Brute_Force_Utilities::activate_api_key( $key );
 
 			if ( is_wp_error( $secret ) ) {
 				return false;
-//				$this->set_can_save( false );
-//				$this->add_error( $secret );
+				//              $this->set_can_save( false );
+				//              $this->add_error( $secret );
 			} else {
 				$settings['api_key']    = $key;
 				$settings['api_secret'] = $secret;
@@ -634,8 +634,8 @@ class MainWP_Child_iThemes_Security {
 			}
 
 			$class = 'entry-row';
-		ob_start();
-		?>
+			ob_start();
+			?>
 		<p><input type="button" id="itsec-file-permissions-reload_file_permissions" name="file-permissions[reload_file_permissions]" class="button-primary itsec-reload-module" value="<?php _e('Reload File Permissions Details', 'mainwp-child'); ?>"></p>
 		<table class="widefat">
 			<thead>
@@ -668,7 +668,7 @@ class MainWP_Child_iThemes_Security {
 			</tbody>
 		</table>
 		<br />
-	<?php
+		<?php
 		$html = ob_get_clean();
 		return array( 'html' => $html );
 	}
@@ -723,13 +723,13 @@ class MainWP_Child_iThemes_Security {
 			$msg .= __( 'Admin user ID already changes.', 'mainwp-child' );
 		}
 
-//		if ( $change_id ) {
-//			$user = get_user_by( 'login', $new_username );
-//			if ( $user && 1 === (int) $user->ID ) {
-//				$return['result'] = 'CHILD_ADMIN';
-//				return $return;
-//			}
-//		}
+		//      if ( $change_id ) {
+		//          $user = get_user_by( 'login', $new_username );
+		//          if ( $user && 1 === (int) $user->ID ) {
+		//              $return['result'] = 'CHILD_ADMIN';
+		//              return $return;
+		//          }
+		//      }
 
 		$admin_success = true;
 		$return        = array();
@@ -763,72 +763,23 @@ class MainWP_Child_iThemes_Security {
 			//Get the full user object
 			$user_object = get_user_by( 'id', '1' );
 
-			if ( null !== $username && validate_username( $new_user ) && false === username_exists( $new_user ) ) { //there is a valid username to change
+		if ( null !== $username && validate_username( $new_user ) && false === username_exists( $new_user ) ) { //there is a valid username to change
 
-				if ( true === $id ) { //we're changing the id too so we'll set the username
+			if ( true === $id ) { //we're changing the id too so we'll set the username
 
-					$user_login = $new_user;
+				$user_login = $new_user;
 
-				} else { // we're only changing the username
+			} else { // we're only changing the username
 
-					//query main user table
-					$wpdb->query( 'UPDATE `' . $wpdb->users . "` SET user_login = '" . esc_sql( $new_user ) . "' WHERE user_login='admin';" );
+				//query main user table
+				$wpdb->query( 'UPDATE `' . $wpdb->users . "` SET user_login = '" . esc_sql( $new_user ) . "' WHERE user_login='admin';" );
 
-					if ( is_multisite() ) { //process sitemeta if we're in a multi-site situation
-
-						$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
-						$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
-						$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->sitemeta . "` SET meta_value = %s WHERE meta_key = 'site_admins'", $newAdmins ) );
-					}
-
-					wp_clear_auth_cookie();
-					$itsec_files->release_file_lock( 'admin_user' );
-
-					return true;
-
-				}
-			} elseif ( null !== $username ) { //username didn't validate
-
-				$itsec_files->release_file_lock( 'admin_user' );
-
-				return false;
-
-			} else { //only changing the id
-
-				$user_login = $user_object->user_login;
-
-			}
-
-			if ( true === $id ) { //change the user id
-
-				$wpdb->query( 'DELETE FROM `' . $wpdb->users . '` WHERE ID = 1;' );
-
-				$wpdb->insert( $wpdb->users, array(
-					'user_login'          => $user_login,
-					'user_pass'           => $user_object->user_pass,
-					'user_nicename'       => $user_object->user_nicename,
-					'user_email'          => $user_object->user_email,
-					'user_url'            => $user_object->user_url,
-					'user_registered'     => $user_object->user_registered,
-					'user_activation_key' => $user_object->user_activation_key,
-					'user_status'         => $user_object->user_status,
-					'display_name'        => $user_object->display_name,
-				) );
-
-				if ( is_multisite() && null !== $username && validate_username( $new_user ) ) { //process sitemeta if we're in a multi-site situation
+				if ( is_multisite() ) { //process sitemeta if we're in a multi-site situation
 
 					$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
 					$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
-					$wpdb->query( 'UPDATE `' . $wpdb->sitemeta . "` SET meta_value = '" . esc_sql( $newAdmins ) . "' WHERE meta_key = 'site_admins'" );
-
+					$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->sitemeta . "` SET meta_value = %s WHERE meta_key = 'site_admins'", $newAdmins ) );
 				}
-
-				$new_user = $wpdb->insert_id;
-
-				$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->posts . '` SET post_author = %s WHERE post_author = 1;', $new_user ) );
-				$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->usermeta . '` SET user_id = %s WHERE user_id = 1;', $new_user ) );
-				$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->comments . '` SET user_id = %s WHERE user_id = 1;', $new_user ) );
-				$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->links . '` SET link_owner = %s WHERE link_owner = 1;', $new_user ) );
 
 				wp_clear_auth_cookie();
 				$itsec_files->release_file_lock( 'admin_user' );
@@ -836,6 +787,55 @@ class MainWP_Child_iThemes_Security {
 				return true;
 
 			}
+		} elseif ( null !== $username ) { //username didn't validate
+
+			$itsec_files->release_file_lock( 'admin_user' );
+
+			return false;
+
+		} else { //only changing the id
+
+			$user_login = $user_object->user_login;
+
+		}
+
+		if ( true === $id ) { //change the user id
+
+			$wpdb->query( 'DELETE FROM `' . $wpdb->users . '` WHERE ID = 1;' );
+
+			$wpdb->insert( $wpdb->users, array(
+				'user_login'          => $user_login,
+				'user_pass'           => $user_object->user_pass,
+				'user_nicename'       => $user_object->user_nicename,
+				'user_email'          => $user_object->user_email,
+				'user_url'            => $user_object->user_url,
+				'user_registered'     => $user_object->user_registered,
+				'user_activation_key' => $user_object->user_activation_key,
+				'user_status'         => $user_object->user_status,
+				'display_name'        => $user_object->display_name,
+			) );
+
+			if ( is_multisite() && null !== $username && validate_username( $new_user ) ) { //process sitemeta if we're in a multi-site situation
+
+				$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
+				$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
+				$wpdb->query( 'UPDATE `' . $wpdb->sitemeta . "` SET meta_value = '" . esc_sql( $newAdmins ) . "' WHERE meta_key = 'site_admins'" );
+
+			}
+
+			$new_user = $wpdb->insert_id;
+
+			$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->posts . '` SET post_author = %s WHERE post_author = 1;', $new_user ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->usermeta . '` SET user_id = %s WHERE user_id = 1;', $new_user ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->comments . '` SET user_id = %s WHERE user_id = 1;', $new_user ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->links . '` SET link_owner = %s WHERE link_owner = 1;', $new_user ) );
+
+			wp_clear_auth_cookie();
+			$itsec_files->release_file_lock( 'admin_user' );
+
+			return true;
+
+		}
 		//}
 
 		return false;

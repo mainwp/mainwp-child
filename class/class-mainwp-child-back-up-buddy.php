@@ -139,75 +139,75 @@ class MainWP_Child_Back_Up_Buddy {
 
             $recentBackups_list = glob( backupbuddy_core::getLogDirectory() . 'fileoptions/*.txt' );
 
-                foreach ( $recentBackups_list as $backup_fileoptions ) {
+			foreach ( $recentBackups_list as $backup_fileoptions ) {
 
-                    $backup = new pb_backupbuddy_fileoptions( $backup_fileoptions, $read_only = true );
-                    if ( method_exists($backup, 'is_ok') && true !== ( $result = $backup->is_ok() ) ) {
-                        continue;
-                    }
+				$backup = new pb_backupbuddy_fileoptions( $backup_fileoptions, $read_only = true );
+				if ( method_exists($backup, 'is_ok') && true !== ( $result = $backup->is_ok() ) ) {
+					continue;
+				}
 
-                    $backup = &$backup->options;
+				$backup = &$backup->options;
 
-                    if ( ! isset( $backup['serial'] ) || ( $backup['serial'] == '' ) ) {
-                        continue;
-                    }
+				if ( ! isset( $backup['serial'] ) || ( $backup['serial'] == '' ) ) {
+					continue;
+				}
 
-                    if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
-                        // it is ok
-                    } else {
-                        continue;
-                    }
+				if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
+					// it is ok
+				} else {
+					continue;
+				}
 
-                    $backupType = '';
-                    if ( isset( $backup['profile'] ) && isset( $backup['profile']['type'] ) ) {
-                        if (true === MainWP_Helper::check_properties('pb_backupbuddy', 'format', true)) {
-                            if (true === MainWP_Helper::check_methods(pb_backupbuddy::$format, array( 'prettify' ), true)) {
-                                $backupType = pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type );
-                            }
-                        }
-                    } else {
-                        if (true === MainWP_Helper::check_methods('backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true)) {
-                            $backupType = backupbuddy_core::pretty_backup_type( backupbuddy_core::getBackupTypeFromFile( $backup['archive_file'] ) );
-                        }
-                    }
+				$backupType = '';
+				if ( isset( $backup['profile'] ) && isset( $backup['profile']['type'] ) ) {
+					if (true === MainWP_Helper::check_properties('pb_backupbuddy', 'format', true)) {
+						if (true === MainWP_Helper::check_methods(pb_backupbuddy::$format, array( 'prettify' ), true)) {
+							$backupType = pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type );
+						}
+					}
+				} else {
+					if (true === MainWP_Helper::check_methods('backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true)) {
+						$backupType = backupbuddy_core::pretty_backup_type( backupbuddy_core::getBackupTypeFromFile( $backup['archive_file'] ) );
+					}
+				}
 
-                    if ( '' == $backupType ) {
-                        $backupType = 'Unknown';
-                    }
+				if ( '' == $backupType ) {
+					$backupType = 'Unknown';
+				}
 
-                    $finish_time = $backup['finish_time'];
-                    $message     = 'BackupBuddy ' . $backupType . ' finished';
-                    if ( ! empty($finish_time)) {
-                        do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
-                    }
-                }
+				$finish_time = $backup['finish_time'];
+				$message     = 'BackupBuddy ' . $backupType . ' finished';
+				if ( ! empty($finish_time)) {
+					do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
+				}
+			}
 
-                if ( file_exists(pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php') ) {
-                    require_once pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php';
+			if ( file_exists(pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php') ) {
+				require_once pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php';
 
-                    MainWP_Helper::check_classes_exists(array( 'backupbuddy_live_periodic' ));
-                    MainWP_Helper::check_methods('backupbuddy_live_periodic', 'get_stats');
+				MainWP_Helper::check_classes_exists(array( 'backupbuddy_live_periodic' ));
+				MainWP_Helper::check_methods('backupbuddy_live_periodic', 'get_stats');
 
-                    $state = backupbuddy_live_periodic::get_stats();
-                    if (is_array($state) && isset($state['stats'])) {
+				$state = backupbuddy_live_periodic::get_stats();
+				if (is_array($state) && isset($state['stats'])) {
 
-                        if ( is_array($state['stats'] ) && isset( $state['stats']['last_remote_snapshot'] )) {
-                            if (isset( $state['stats']['last_remote_snapshot_response'] )) {
-                                $resp = $state['stats']['last_remote_snapshot_response'];
-                                if ( isset( $resp['success'] ) && $resp['success']) {
-                                    $finish_time = $state['stats']['last_remote_snapshot'];
-                                    $backupType  = 'Live Backup to cloud';
-                                    $message     = 'BackupBuddy ' . $backupType . ' finished';
-                                    if ( ! empty($finish_time)) {
-                                        do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
-                                    }
+					if ( is_array($state['stats'] ) && isset( $state['stats']['last_remote_snapshot'] )) {
+						if (isset( $state['stats']['last_remote_snapshot_response'] )) {
+							$resp = $state['stats']['last_remote_snapshot_response'];
+							if ( isset( $resp['success'] ) && $resp['success']) {
+								$finish_time = $state['stats']['last_remote_snapshot'];
+								$backupType  = 'Live Backup to cloud';
+								$message     = 'BackupBuddy ' . $backupType . ' finished';
+								if ( ! empty($finish_time)) {
+									do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
+								}
 
-                                }
-                            }
-                        }
+							}
+						}
+					}
 
-                    }
-                }
+				}
+			}
         } catch ( Exception $e ) {
 
         }
@@ -802,7 +802,7 @@ class MainWP_Child_Back_Up_Buddy {
 
             return $data;
         } catch (Exception $e) {
-          // not exit here
+			// not exit here
         }
 
 		return false;
@@ -1537,24 +1537,24 @@ class MainWP_Child_Back_Up_Buddy {
 
 		<textarea readonly="readonly" id="backupbuddy_messages" wrap="off" style="width: 100%; min-height: 400px; height: 500px; height: 80%; background: #FFF;">
         <?php
-			foreach ( (array) $lines as $rawline ) {
-				$line = json_decode( $rawline, true );
-				//print_r( $line );
-				if ( is_array( $line ) ) {
-					$u = '';
-					if ( isset( $line['u'] ) ) { // As off v4.2.15.6. TODO: Remove this in a couple of versions once old logs without this will have cycled out.
-						$u = '.' . $line['u'];
-					}
-					echo pb_backupbuddy::$format->date( $line['time'], 'G:i:s' ) . $u . "\t\t";
-					echo $line['run'] . "sec\t";
-					echo $line['mem'] . "MB\t";
-					echo $line['event'] . "\t";
-					echo $line['data'] . "\n";
-				} else {
-					echo $rawline . "\n";
+		foreach ( (array) $lines as $rawline ) {
+			$line = json_decode( $rawline, true );
+			//print_r( $line );
+			if ( is_array( $line ) ) {
+				$u = '';
+				if ( isset( $line['u'] ) ) { // As off v4.2.15.6. TODO: Remove this in a couple of versions once old logs without this will have cycled out.
+					$u = '.' . $line['u'];
 				}
+				echo pb_backupbuddy::$format->date( $line['time'], 'G:i:s' ) . $u . "\t\t";
+				echo $line['run'] . "sec\t";
+				echo $line['mem'] . "MB\t";
+				echo $line['event'] . "\t";
+				echo $line['data'] . "\n";
+			} else {
+				echo $rawline . "\n";
 			}
-			?>
+		}
+		?>
             </textarea><br><br>
 		<small>Log file: <?php echo $logFile; ?></small>
 		<br>
@@ -2344,43 +2344,43 @@ class MainWP_Child_Back_Up_Buddy {
 							<div class="inside">
 								<label><?php _e('Site', 'it-l10n-backupbuddy' ); ?></label> 
                                                         <?php
-                                if ( ! empty( $scan['SCAN']['SITE'] ) ) {
-echo lined_array( $scan['SCAN']['SITE'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-?>
+														if ( ! empty( $scan['SCAN']['SITE'] ) ) {
+															echo lined_array( $scan['SCAN']['SITE'] );
+														} else {
+															echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+														?>
 <br />
 								<label><?php _e('Hostname', 'it-l10n-backupbuddy' ); ?></label> 
                                                             <?php
-                                if ( ! empty( $scan['SCAN']['DOMAIN'] ) ) {
-echo lined_array( $scan['SCAN']['DOMAIN'] );
-} else {
-echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-?>
+															if ( ! empty( $scan['SCAN']['DOMAIN'] ) ) {
+																echo lined_array( $scan['SCAN']['DOMAIN'] );
+															} else {
+																echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+															?>
 <br />
 								<label><?php _e('IP Address', 'it-l10n-backupbuddy' ); ?></label> 
                                                               <?php
-                                if ( ! empty( $scan['SCAN']['IP'] ) ) {
-echo lined_array( $scan['SCAN']['IP'] );
-} else {
-echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-?>
+																if ( ! empty( $scan['SCAN']['IP'] ) ) {
+																	echo lined_array( $scan['SCAN']['IP'] );
+																} else {
+																	echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+																?>
 <br />
 								<label><?php _e('System details', 'it-l10n-backupbuddy' ); ?></label> 
                                                                   <?php
-                                if ( ! empty( $scan['SYSTEM']['NOTICE'] ) ) {
-echo lined_array( $scan['SYSTEM']['NOTICE'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+																	if ( ! empty( $scan['SYSTEM']['NOTICE'] ) ) {
+																		echo lined_array( $scan['SYSTEM']['NOTICE'] );
+																	} else {
+																		echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+																	?>
 <br />
 								<label><?php _e('Information', 'it-l10n-backupbuddy' ); ?></label> 
                                                                <?php
-                                if ( ! empty( $scan['SYSTEM']['INFO'] ) ) {
-echo lined_array( $scan['SYSTEM']['INFO'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+																if ( ! empty( $scan['SYSTEM']['INFO'] ) ) {
+																	echo lined_array( $scan['SYSTEM']['INFO'] );
+																} else {
+																	echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+																?>
 <br />
 							</div>
 						</div>
@@ -2391,43 +2391,43 @@ echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
 							<div class="inside">
 								<label><?php _e('Details', 'it-l10n-backupbuddy' ); ?></label> 
                                                            <?php
-                                if ( ! empty( $scan['WEBAPP']['INFO'] ) ) {
-echo lined_array( $scan['WEBAPP']['INFO'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-?>
+															if ( ! empty( $scan['WEBAPP']['INFO'] ) ) {
+																echo lined_array( $scan['WEBAPP']['INFO'] );
+															} else {
+																echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+															?>
 <br />
 								<label><?php _e('Versions', 'it-l10n-backupbuddy' ); ?></label> 
                                                             <?php
-                                if ( ! empty( $scan['WEBAPP']['VERSION'] ) ) {
-echo lined_array( $scan['WEBAPP']['VERSION'] );
-} else {
-echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-?>
+															if ( ! empty( $scan['WEBAPP']['VERSION'] ) ) {
+																echo lined_array( $scan['WEBAPP']['VERSION'] );
+															} else {
+																echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+															?>
 <br />
 								<label><?php _e('Notices', 'it-l10n-backupbuddy' ); ?></label> 
                                                            <?php
-                                if ( ! empty( $scan['WEBAPP']['NOTICE'] ) ) {
-echo lined_array( $scan['WEBAPP']['NOTICE'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+															if ( ! empty( $scan['WEBAPP']['NOTICE'] ) ) {
+																echo lined_array( $scan['WEBAPP']['NOTICE'] );
+															} else {
+																echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+															?>
 <br />
 								<label><?php _e('Errors', 'it-l10n-backupbuddy' ); ?></label> 
                                                           <?php
-                                if ( ! empty( $scan['WEBAPP']['ERROR'] ) ) {
-echo lined_array( $scan['WEBAPP']['ERROR'] );
-} else {
-echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-?>
+															if ( ! empty( $scan['WEBAPP']['ERROR'] ) ) {
+																echo lined_array( $scan['WEBAPP']['ERROR'] );
+															} else {
+																echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+															?>
 <br />
 								<label><?php _e('Warnings', 'it-l10n-backupbuddy' ); ?></label> 
                                                             <?php
-                                if ( ! empty( $scan['WEBAPP']['WARN'] ) ) {
-echo lined_array( $scan['WEBAPP']['WARN'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+															if ( ! empty( $scan['WEBAPP']['WARN'] ) ) {
+																echo lined_array( $scan['WEBAPP']['WARN'] );
+															} else {
+																echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+															?>
 <br />
 							</div>
 						</div>
@@ -2438,10 +2438,10 @@ echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
 							<div class="inside">
 								<?php
                                 if ( ! empty( $scan['LINKS']['URL'] ) ) {
-echo lined_array( $scan['LINKS']['URL'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+									echo lined_array( $scan['LINKS']['URL'] );
+								} else {
+									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+								?>
 							</div>
 						</div>
 
@@ -2451,10 +2451,10 @@ echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
 							<div class="inside">
 								<?php
                                 if ( ! empty( $scan['LINKS']['JSLOCAL'] ) ) {
-echo lined_array( $scan['LINKS']['JSLOCAL'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-?>
+									echo lined_array( $scan['LINKS']['JSLOCAL'] );
+								} else {
+									echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+								?>
 							</div>
 						</div>
 
@@ -2464,10 +2464,10 @@ echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
 							<div class="inside">
 								<?php
                                 if ( ! empty( $scan['LINKS']['JSEXTERNAL'] ) ) {
-echo lined_array( $scan['LINKS']['JSEXTERNAL'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+									echo lined_array( $scan['LINKS']['JSEXTERNAL'] );
+								} else {
+									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+								?>
 							</div>
 						</div>
 
@@ -2477,10 +2477,10 @@ echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
 							<div class="inside">
 								<?php
                                 if ( ! empty( $scan['LINKS']['IFRAME'] ) ) {
-echo lined_array( $scan['LINKS']['IFRAME'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+									echo lined_array( $scan['LINKS']['IFRAME'] );
+								} else {
+									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+								?>
 							</div>
 						</div>
 
@@ -2490,10 +2490,10 @@ echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
 							<div class="inside">
 								<?php
                                 if ( ! empty( $scan['BLACKLIST']['INFO'] ) ) {
-echo lined_array( $scan['BLACKLIST']['INFO'] );
-} else {
-echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-?>
+									echo lined_array( $scan['BLACKLIST']['INFO'] );
+								} else {
+									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+								?>
 							</div>
 						</div>
 

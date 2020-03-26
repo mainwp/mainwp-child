@@ -281,10 +281,10 @@ class MainWP_Clone {
         	<?php
 				MainWP_Helper::getWPFilesystem();
 				global $wp_filesystem;
-				if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
-					echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
-					$error = true;
-				}
+			if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
+				echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
+				$error = true;
+			}
 			?>
 	        <div class="mainwp-child_info-box-green" style="display: none;"><?php esc_html_e( 'Restore process completed successfully! You will now need to click ', 'mainwp-child' ); ?>
 				<a href="<?php echo esc_attr( admin_url( 'options-permalink.php' ) ); ?>"><?php esc_html_e( 'here', 'mainwp-child' ); ?></a><?php esc_html_e( ' to re-login to the admin and re-save permalinks.', 'mainwp-child' ); ?>
@@ -299,12 +299,12 @@ class MainWP_Clone {
 			                                                  			  file="<?php echo esc_attr( $uploadFile ); ?>"><?php esc_html_e( 'Restore Website', 'mainwp-child' ); ?></a>
                                                                                            <?php
 			} else {
-			if ( $uploadError ) {
-				?>
+				if ( $uploadError ) {
+					?>
 					<div class="mainwp-child_info-box-red"><?php echo esc_html( $uploadError ); ?></div>
-				<?php
-			}
-			?>
+					<?php
+				}
+				?>
 			<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
                         <?php
                         $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
@@ -333,8 +333,8 @@ class MainWP_Clone {
         </div>
 			<?php
 
-		self::renderCloneFromServer();
-		self::renderJavaScript();
+			self::renderCloneFromServer();
+			self::renderJavaScript();
 	}
 
 	/*
@@ -518,9 +518,9 @@ class MainWP_Clone {
             var child_security_nonces = [];
             <?php
 				$security_nonces = self::get()->getSecurityNonces();
-				foreach ($security_nonces as $k => $v) {
-					echo 'child_security_nonces[' . "'" . $k . "'" . '] = ' . "'" . $v . "';\n";
-				}
+			foreach ($security_nonces as $k => $v) {
+				echo 'child_security_nonces[' . "'" . $k . "'" . '] = ' . "'" . $v . "';\n";
+			}
 			?>
 
 			mainwpchild_secure_data = function(data, includeDts)
@@ -1575,10 +1575,10 @@ class MainWP_Clone {
         <?php
         if ( get_option( 'mainwp_child_restore_permalink' ) ) {
 				esc_html_e( 'Restore process completed successfully! Check and re-save permalinks ', 'mainwp-child' );
-} else {
+		} else {
 				esc_html_e( 'Cloning process completed successfully! Check and re-save permalinks ', 'mainwp-child' );
-}
-?>
+		}
+		?>
  <a
 				href="<?php echo esc_attr( admin_url( 'options-permalink.php' ) ); ?>"><?php esc_html_e( 'here', 'mainwp-child' ); ?></a>.
         </div>
