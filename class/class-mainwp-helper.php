@@ -58,8 +58,9 @@ class MainWP_Helper {
 
 	static function error( $error, $code = null ) {
 		$information['error'] = $error;
-		if (null !== $code)
+		if (null !== $code) {
 			$information['error_code'] = $code;
+        }
 		self::write( $information );
 	}
 
@@ -110,7 +111,8 @@ class MainWP_Helper {
 				$selector = trim($val[$i], " \r\n\t");
 
 				if(!empty($selector)){
-					if(!isset($new[$selector])) $new[$selector] = array();
+					if(!isset($new[$selector])) { $new[$selector] = array();
+                    }
 					$rules = explode(';', $val[++$i]);
 					foreach($rules as $rule){
 						$rule = trim($rule, " \r\n\t");
@@ -119,8 +121,9 @@ class MainWP_Helper {
 							$property = trim(array_pop($rule), " \r\n\t");
 							$value = implode(':', array_reverse($rule));
 
-							if(!isset($new[$selector][$property]) || !preg_match('/!important/', $new[$selector][$property])) $new[$selector][$property] = $value;
-							elseif(preg_match('/!important/', $new[$selector][$property]) && preg_match('/!important/', $value)) $new[$selector][$property] = $value;
+							if(!isset($new[$selector][$property]) || !preg_match('/!important/', $new[$selector][$property])) { $new[$selector][$property] = $value;
+							} elseif(preg_match('/!important/', $new[$selector][$property]) && preg_match('/!important/', $value)) { $new[$selector][$property] = $value;
+                            }
 						}
 					}
 				}
@@ -135,7 +138,8 @@ class MainWP_Helper {
 				$output .= $media . " {\n";
 				$prefix = "\t";
 			}
-			else $prefix = '';
+			else { $prefix = '';
+            }
 
 			foreach($content as $selector => $rules){
 				$output .= $prefix . $selector . " {\n";
@@ -155,9 +159,10 @@ class MainWP_Helper {
     // $check_file_existed: to support checking if file existed
     // $parent_id: optional
 	static function uploadImage( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {
-		if ( !is_array($img_data) )
+		if ( !is_array($img_data) ) {
 			$img_data = array();
-		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
+        }
+		include_once ABSPATH . 'wp-admin/includes/file.php'; //Contains download_url
 		$upload_dir     = wp_upload_dir();
 		//Download $img_url
 		$temporary_file = download_url( $img_url );
@@ -233,11 +238,12 @@ class MainWP_Helper {
                 }
 
 				$attach_id   = wp_insert_attachment( $attachment, $local_img_path ); //Insert the image in the database
-				require_once( ABSPATH . 'wp-admin/includes/image.php' );
+				require_once ABSPATH . 'wp-admin/includes/image.php';
 				$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
 				wp_update_attachment_metadata( $attach_id, $attach_data ); //Update generated metadata
-				if ( isset( $img_data['alt'] ) && !empty( $img_data['alt'] ) )
+				if ( isset( $img_data['alt'] ) && !empty( $img_data['alt'] ) ) {
 					update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
+                }
 				return array( 'id' => $attach_id, 'url' => $local_img_url );
 			}
 		}
@@ -364,7 +370,7 @@ class MainWP_Helper {
 		if ( $is_robot_post ) { // retirement soon
 			if ( 1 === $post_author ) {
 				$new_post['post_author'] = $current_uid;
-			} else if ( ! is_numeric( $post_author ) ) {
+			} elseif ( ! is_numeric( $post_author ) ) {
 				$user_author = get_user_by( 'login', $post_author );
 				if ( $user_author ) {
 					$post_author = $user_author->ID;
@@ -373,7 +379,7 @@ class MainWP_Helper {
 					$post_author     = wp_create_user( $post_author, $random_password, $post_author . '@asdf.com' );
 				}
 			}
-		} else if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
+		} elseif ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
 			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
 			if ( ! empty( $_author ) ) {
 				$new_post['post_author'] = $_author->ID;
@@ -410,7 +416,7 @@ class MainWP_Helper {
 
 		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
 			$edit_post_id = current($post_custom['_mainwp_edit_post_id']);
-        } else if (isset( $new_post['ID'] ) && $new_post['ID']) {
+        } elseif (isset( $new_post['ID'] ) && $new_post['ID']) {
             $edit_post_id = $new_post['ID'];
         }
 
@@ -424,8 +430,9 @@ class MainWP_Helper {
 		}
 
         $check_image_existed = false;
-        if ( $edit_post_id )
+        if ( $edit_post_id ) {
             $check_image_existed = true; // if editing post then will check if image existed
+        }
 
 		//Search for all the images added to the new post
 		//some images have a href tag to click to navigate to the image.. we need to replace this too
@@ -583,8 +590,9 @@ class MainWP_Helper {
 			return array( 'error' => 'Empty post id');
 		}
 
-		if ( !$edit_post_id )
+		if ( !$edit_post_id ) {
 		wp_update_post( array( 'ID' => $new_post_id, 'post_status' => $post_status ) );
+        }
 
 		if ( ! empty( $terms ) ) {
 			wp_set_object_terms( $new_post_id, array_map( intval, $terms ), 'category' );
@@ -641,8 +649,9 @@ class MainWP_Helper {
             foreach ( $post_custom as $meta_key => $meta_values ) {
 			if ( ! in_array( $meta_key, $not_allowed ) ) {
 				foreach ( $meta_values as $meta_value ) {
-					if (strpos($meta_key, '_mainwp_spinner_') === 0)
+					if (strpos($meta_key, '_mainwp_spinner_') === 0) {
 						continue; // not save
+                    }
 
 					if ( ! $seo_ext_activated ) {
 						// if WordPress SEO plugin is not activated do not save yoast post meta
@@ -653,13 +662,13 @@ class MainWP_Helper {
 						update_post_meta( $new_post_id, $meta_key, $meta_value );
 					}
 				}
-			} else if ( '_sticky' === $meta_key ) {
+			} elseif ( '_sticky' === $meta_key ) {
 				foreach ( $meta_values as $meta_value ) {
 					if ( 'sticky' === base64_decode( $meta_value ) ) {
 						stick_post( $new_post_id );
 					}
 				}
-			} else if ( '_post_to_only_existing_categories' === $meta_key ) {
+			} elseif ( '_post_to_only_existing_categories' === $meta_key ) {
 				if ( isset( $meta_values[0] ) && $meta_values[0] ) {
 					$post_to_only_existing_categories = true;
 				}
@@ -692,7 +701,7 @@ class MainWP_Helper {
 		}
 
 		//If categories exist, create them (second parameter of wp_create_categories adds the categories to the post)
-		include_once( ABSPATH . 'wp-admin/includes/taxonomy.php' ); //Contains wp_create_categories
+		include_once ABSPATH . 'wp-admin/includes/taxonomy.php'; //Contains wp_create_categories
 		if ( isset( $post_category ) && '' !== $post_category ) {
 			$categories = explode( ',', $post_category );
 			if ( count( $categories ) > 0 ) {
@@ -727,7 +736,7 @@ class MainWP_Helper {
                                             'post_excerpt' => $_image_data['caption'],
                                             'post_content' => $_image_data['description'],
                                             'post_title' => $_image_data['title'],
-                                        )
+						)
                                     );
                     }
 				}
@@ -923,10 +932,10 @@ class MainWP_Helper {
 //				include_once( ABSPATH . '/wp-admin/includes/deprecated.php' );
 //			}
 			if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
-				include_once( ABSPATH . '/wp-admin/includes/screen.php' );
+				include_once ABSPATH . '/wp-admin/includes/screen.php';
 			}
 			if ( file_exists( ABSPATH . '/wp-admin/includes/template.php' ) ) {
-				include_once( ABSPATH . '/wp-admin/includes/template.php' );
+				include_once ABSPATH . '/wp-admin/includes/template.php';
 			}
 			$creds = request_filesystem_credentials( 'test' );
 			ob_end_clean();
@@ -964,7 +973,7 @@ class MainWP_Helper {
 			if ( ! $showHttp ) {
 				$url = substr( $url, 7 );
 			}
-		} else if ( self::startsWith( $pUrl, 'https://' ) ) {
+		} elseif ( self::startsWith( $pUrl, 'https://' ) ) {
 			if ( ! $showHttp ) {
 				$url = substr( $url, 8 );
 			}
@@ -1022,8 +1031,9 @@ class MainWP_Helper {
 		//$agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
 
-		if (!is_array( $postdata ))
+		if (!is_array( $postdata )) {
 			$postdata = array();
+        }
 
 		$postdata['json_result'] = true; // forced all response in json format
 
@@ -1041,14 +1051,14 @@ class MainWP_Helper {
 
 		if ( ( false === $data ) && ( 0 === $http_status ) ) {
 			throw new Exception( 'Http Error: ' . $err );
-		} else if ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
+		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
 			$result_base = base64_decode( $result );
 			//$information = maybe_unserialize( $result_base );
 			$information = json_decode( $result_base, true ); // it is json_encode result
 
 			return $information;
-		} else if ( '' === $data ) {
+		} elseif ( '' === $data ) {
 			throw new Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
 		} else {
 			throw new Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
@@ -1234,8 +1244,9 @@ class MainWP_Helper {
 	static function update_lasttime_backup( $by, $time ) {
 		$backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule');
 
-		if (!in_array($by, $backup_by))
+		if (!in_array($by, $backup_by)) {
 			return false;
+        }
 
 		$lasttime = get_option('mainwp_lasttime_backup_' . $by);
 		if ( $time > $lasttime ) {
@@ -1246,8 +1257,9 @@ class MainWP_Helper {
 	}
 
 	static function get_lasttime_backup( $by ) {
-		if ($by == 'backupwp') // to compatible
+		if ($by == 'backupwp') { // to compatible
 			$by = 'backupwordpress';
+        }
 		switch($by) {
 			case 'backupbuddy':
 				if ( !is_plugin_active( 'backupbuddy/backupbuddy.php' ) && !is_plugin_active( 'Backupbuddy/backupbuddy.php' )) {
@@ -1356,9 +1368,9 @@ class MainWP_Helper {
 					if ( self::startsWith( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
 						return true;
 					}
-				} else if ( $value == $exclude ) {
+				} elseif ( $value == $exclude ) {
 					return true;
-				} else if ( self::startsWith( $value, $exclude . '/' ) ) {
+				} elseif ( self::startsWith( $value, $exclude . '/' ) ) {
 					return true;
 				}
 			}
@@ -1444,7 +1456,8 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
 }
 
 	public static function sanitize_filename( $filename ) {
-		if (!function_exists('mb_ereg_replace')) return sanitize_file_name($filename);
+		if (!function_exists('mb_ereg_replace')) { return sanitize_file_name($filename);
+        }
 
 		// Remove anything which isn't a word, whitespace, number
 		// or any of the following caracters -_~,;:[]().
@@ -1515,14 +1528,16 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
 	}
 
 	public static function isSSLEnabled() {
-		if ( defined( 'MAINWP_NOSSL' ) ) return !MAINWP_NOSSL;
+		if ( defined( 'MAINWP_NOSSL' ) ) { return !MAINWP_NOSSL;
+        }
 		return function_exists( 'openssl_verify' );
 	}
 
     public static function is_screen_with_update() {
 
-        if ( ( defined('DOING_AJAX') && DOING_AJAX )  || ( defined('DOING_CRON') && DOING_CRON ) )
+        if ( ( defined('DOING_AJAX') && DOING_AJAX )  || ( defined('DOING_CRON') && DOING_CRON ) ) {
             return false;
+        }
 
         if (function_exists('get_current_screen')) {
             $screen = get_current_screen();
@@ -1555,10 +1570,11 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
 
             if (!empty($missing)) {
                 $message = 'Missing file(s): ' . implode(',', $missing);
-                if ($return)
+                if ($return) {
                     return $message;
-                else
+                } else {
                     throw new Exception( $message );
+                }
             }
             return true;
 	}
@@ -1572,8 +1588,9 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
                             }
                     }
             } else {
-                if ( !class_exists($classes) )
+                if ( !class_exists($classes) ) {
                     $missing[] = $classes;
+                }
             }
 
             if ( !empty($missing) ) {
@@ -1596,9 +1613,10 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
                                 $missing[] = $name;
                             }
                     }
-            } else if (!empty($methods)) {
-                if ( !method_exists($object, $methods) )
+            } elseif (!empty($methods)) {
+                if ( !method_exists($object, $methods) ) {
                     $missing[] = $methods;
+                }
 
             }
 
@@ -1622,9 +1640,10 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
                                 $missing[] = $name;
                             }
                     }
-            } else if (!empty($properties)) {
-                if ( !property_exists($object, $properties) )
+            } elseif (!empty($properties)) {
+                if ( !property_exists($object, $properties) ) {
                     $missing[] = $properties;
+                }
 
             }
 
@@ -1648,9 +1667,10 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
                                 $missing[] = $name;
                         }
                     }
-            } else if (!empty($funcs)) {
-                if ( !function_exists($funcs) )
+            } elseif (!empty($funcs)) {
+                if ( !function_exists($funcs) ) {
                     $missing[] = $funcs;
+                }
 
             }
 

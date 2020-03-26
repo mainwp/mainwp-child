@@ -95,13 +95,13 @@ class MainWP_Keyword_Links {
 	function update_htaccess( $force_update = false, $force_clear = false ) {
 		if ( $force_clear ) {
 			$this->do_update_htaccess( true );
-		} else if ( $force_update ) {
+		} elseif ( $force_update ) {
 			return $this->do_update_htaccess();
 		} else {
 			if ( '' == get_option( 'permalink_structure' ) && 'yes' !== get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
 				$this->do_update_htaccess();
 			} // need to update
-			else if ( '' != get_option( 'permalink_structure' ) && 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
+			elseif ( '' != get_option( 'permalink_structure' ) && 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
 				$this->do_update_htaccess();
 			} // need to update
 		}
@@ -110,7 +110,7 @@ class MainWP_Keyword_Links {
 	}
 
 	public static function clear_htaccess() {
-		include_once( ABSPATH . '/wp-admin/includes/misc.php' );
+		include_once ABSPATH . '/wp-admin/includes/misc.php';
 		$home_path     = ABSPATH;
 		$htaccess_file = $home_path . '.htaccess';
 		if ( function_exists( 'save_mod_rewrite_rules' ) ) {
@@ -125,8 +125,8 @@ class MainWP_Keyword_Links {
 			self::clear_htaccess();
 
 			return true;
-		} else if ( '' === get_option( 'permalink_structure' ) ) {
-			include_once( ABSPATH . '/wp-admin/includes/misc.php' );
+		} elseif ( '' === get_option( 'permalink_structure' ) ) {
+			include_once ABSPATH . '/wp-admin/includes/misc.php';
 			$redirection_folder = $this->get_option( 'redirection_folder', '' );
 			if ( empty( $redirection_folder ) ) {
 				$rules = $this->get_cloak_rules();
@@ -534,7 +534,7 @@ class MainWP_Keyword_Links {
 				} else {
 					$links[] = $link;
 				}
-			} else if ( $spec_link_id && $spec_link_id === $link->id ) { // type 2 is specific link
+			} elseif ( $spec_link_id && $spec_link_id === $link->id ) { // type 2 is specific link
 				if ( $link->check_post_date ) {
 					if ( $post_timestamp < $link->check_post_date ) {
 						$links[] = $link;
@@ -741,7 +741,7 @@ class MainWP_Keyword_Links {
 		if ( $remove_settings ) {
 			$this->clear_settings();
 			$return['status'] = 'SUCCESS';
-		} else if ( is_array( $remove_kws ) && is_array( $this->keyword_links ) ) {
+		} elseif ( is_array( $remove_kws ) && is_array( $this->keyword_links ) ) {
 			$new_keyword_links = array();
 			foreach ( $this->keyword_links as $link_id => $link ) {
 				$lnk_kws  = $link->keyword;
@@ -853,7 +853,7 @@ class MainWP_Keyword_Links {
 				if ( 3 === (int) $clear_link->type ) {
 					$clear_link->type = 2;
 					$cleared          = $this->set_link( $clear_link->id, $clear_link );
-				} else if ( 1 === (int) $clear_link->type ) {
+				} elseif ( 1 === (int) $clear_link->type ) {
 					$cleared = $this->set_link( $clear_link->id, '' ); // delete link
 				}
 				$this->update_htaccess_for_change_cloak_links( $clear_link );
@@ -901,7 +901,7 @@ class MainWP_Keyword_Links {
 			if ( 2 === (int) $link->type || 3 === (int) $link->type ) {
 				if ( intval( $_POST['post_id'] ) ) {
 					$link->post_id = intval( $_POST['post_id'] );
-				} else if ( $old && $old->post_id ) {
+				} elseif ( $old && $old->post_id ) {
 					$link->post_id = $old->post_id;
 				}
 				if ( $link->post_id ) {

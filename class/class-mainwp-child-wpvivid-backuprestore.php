@@ -15,14 +15,15 @@ class MainWP_Child_WPvivid_BackupRestore {
     }
 
     public function __construct() {
-        require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
         if ( is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) && defined('WPVIVID_PLUGIN_DIR'))
         {
             $this->is_plugin_installed = true;
         }
 
-        if (!$this->is_plugin_installed)
+        if (!$this->is_plugin_installed) {
             return;
+        }
 
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
         $this->public_intetface = new WPvivid_Public_Interface();
