@@ -31,22 +31,6 @@
                 
                 <!-- Disable Strict comparison in array check. Not applicable in the mojority of cases. -->               
                 <exclude name="WordPress.PHP.StrictInArray"/>
-		
-		<!--<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>-->
-		<!--<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>-->
-		<!--<exclude name="Squiz.Commenting.InlineComment"/>-->
-		<!--<exclude name="Generic.WhiteSpace.ScopeIndent"/>-->
-		<!--<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
-		<!--<exclude name="WordPress.WhiteSpace.OperatorSpacing"/>-->
-		<!--<exclude name="Squiz.ControlStructures.ControlSignature"/>-->
-		<!--<exclude name="WordPress.Arrays.ArrayDeclarationSpacing"/>-->
-		<!--<exclude name="WordPress.Arrays.ArrayKeySpacingRestrictions"/>-->
-		<!--<exclude name="WordPress.Arrays.MultipleStatementAlignment"/>-->
-		<!--<exclude name="Generic.WhiteSpace.ArbitraryParenthesesSpacing"/>-->
-		<!--<exclude name="PSR2.ControlStructures.ElseIfDeclaration"/>-->
-		<!--<exclude name="PEAR.Files.IncludingFile"/>-->
-		<!--<exclude name="WordPress.Arrays.ArrayIndentation"/>-->
-		<!--<exclude name="Generic.ControlStructures.InlineControlStructure"/>-->
                 
 	</rule>
 
