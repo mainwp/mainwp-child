@@ -13,7 +13,7 @@ class MainWP_Debug {
 		$start = microtime( true );
 
 		if ( 'fullbackup' == $_GET['mainwpdebug'] ) {
-			//Full backup
+			// Full backup
 			$_POST['type']          = 'full';
 			$_POST['excludebackup'] = '1';
 			$_POST['excludecache']  = '1';

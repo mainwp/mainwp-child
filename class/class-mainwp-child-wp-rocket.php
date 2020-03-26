@@ -34,9 +34,9 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	public function init() {
-		//      if ( get_option( 'mainwp_wprocket_ext_enabled' ) !== 'Y' ) {
-		//          return;
-		//      }
+		// if ( get_option( 'mainwp_wprocket_ext_enabled' ) !== 'Y' ) {
+		// return;
+		// }
 
         if ( ! $this->is_plugin_installed ) {
             return;
@@ -101,16 +101,16 @@ class MainWP_Child_WP_Rocket {
 			  'lazyload_iframes'                       => 0,
 			  'lazyload_youtube'                       => 0,
 			  'minify_css'                             => 0,
-			  //                'minify_css_key'           => $minify_css_key,
+			  // 'minify_css_key'           => $minify_css_key,
 							  'minify_concatenate_css' => 0,
-			  //'minify_css_combine_all'   => 0,
+			  // 'minify_css_combine_all'   => 0,
 			  'minify_css_legacy'                      => 0,
 			  'minify_js'                              => 0,
-			  //                'minify_js_key'            => $minify_js_key,
+			  // 'minify_js_key'            => $minify_js_key,
 							  'minify_js_in_footer'    => array(),
 			  'minify_concatenate_js'                  => 0,
 			  'minify_js_combine_all'                  => 0,
-			  //'minify_js_legacy'			  => 0,
+			  // 'minify_js_legacy'            => 0,
 			  'minify_google_fonts'                    => 0,
 			  'minify_html'                            => 0,
 			  'remove_query_strings'                   => 0,
@@ -118,13 +118,13 @@ class MainWP_Child_WP_Rocket {
 			  'cdn'                                    => 0,
 			  'cdn_cnames'                             => array(),
 			  'cdn_zone'                               => array(),
-			  //'cdn_ssl'                  => 0,
+			  // 'cdn_ssl'                  => 0,
 			  'cdn_reject_files'                       => array(),
 			  'do_cloudflare'                          => 0,
 			  'cloudflare_email'                       => '',
 			  'cloudflare_api_key'                     => '',
 			  'cloudflare_domain'                      => '',
-			  //'cloudflare_zone_id'          => '',
+			  // 'cloudflare_zone_id'          => '',
 			  'cloudflare_devmode'                     => 0,
 			  'cloudflare_protocol_rewrite'            => 0,
 			  'cloudflare_auto_settings'               => 0,
@@ -207,9 +207,9 @@ class MainWP_Child_WP_Rocket {
         if ( ! $this->is_plugin_installed ) {
             return false;
         }
-		//      if ( ! defined( 'WP_ROCKET_VERSION' ) || ! defined( 'WP_ROCKET_SLUG' ) ) {
-		//          return false;
-		//      }
+		// if ( ! defined( 'WP_ROCKET_VERSION' ) || ! defined( 'WP_ROCKET_SLUG' ) ) {
+		// return false;
+		// }
 
 		return true;
 	}
@@ -252,7 +252,7 @@ class MainWP_Child_WP_Rocket {
 		$information = array();
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			//          MainWP_Helper::update_option( 'mainwp_wprocket_ext_enabled', 'Y' );
+			// MainWP_Helper::update_option( 'mainwp_wprocket_ext_enabled', 'Y' );
             try {
                 switch ( $_POST['mwp_action'] ) {
                     case 'set_showhide':

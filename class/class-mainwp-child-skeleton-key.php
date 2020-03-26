@@ -23,9 +23,9 @@ class MainWP_Child_Skeleton_Key {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 			// to fix issue double <mainwp></mainwp> header in response
-			//          else {
-			//              MainWP_Helper::write(  MainWP_Child_Skeleton_Key::$information );
-			//          }
+			// else {
+			// MainWP_Helper::write(  MainWP_Child_Skeleton_Key::$information );
+			// }
 		}
 
 		register_shutdown_function( 'mainwp_skeleton_key_handle_fatal_error' );
@@ -42,7 +42,7 @@ class MainWP_Child_Skeleton_Key {
 		}
 
 		MainWP_Helper::write( $information );
-		//MainWP_Child_Skeleton_Key::$information = $information;
+		// MainWP_Child_Skeleton_Key::$information = $information;
 		exit();
 	}
 
@@ -216,7 +216,7 @@ class MainWP_Child_Skeleton_Key {
 			$whitelist_options['general'][] = 'default_role';
 		}
 
-		//$whitelist_options = apply_filters( 'whitelist_options', $whitelist_options );
+		// $whitelist_options = apply_filters( 'whitelist_options', $whitelist_options );
 		$whitelist_general = $whitelist_options['general'];
 
 		// Handle translation install.

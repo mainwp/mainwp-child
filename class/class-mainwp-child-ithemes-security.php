@@ -194,14 +194,14 @@ class MainWP_Child_iThemes_Security {
 			'404-detection',
 			'network-brute-force',
 			'ssl',
-			//'strong-passwords',
+			// 'strong-passwords',
             'password-requirements',
 			'system-tweaks',
 			'wordpress-tweaks',
 			'multisite-tweaks',
             'notification-center',
-			//'salts',
-			//'content-directory',
+			// 'salts',
+			// 'content-directory',
 		);
 
 		$require_permalinks = false;
@@ -369,7 +369,7 @@ class MainWP_Child_iThemes_Security {
 			} elseif ( $results['saved'] ) {
 				ITSEC_Modules::activate( 'network-brute-force' );
 				$nbf_settings = ITSEC_Modules::get_settings( 'network-brute-force' );
-				//              ITSEC_Response::set_response( '<p>' . __( 'Your site is now using Network Brute Force Protection.', 'better-wp-security' ) . '</p>' );
+				// ITSEC_Response::set_response( '<p>' . __( 'Your site is now using Network Brute Force Protection.', 'better-wp-security' ) . '</p>' );
 			}
 		}
 		if ($nbf_settings !== null) {
@@ -409,15 +409,15 @@ class MainWP_Child_iThemes_Security {
 		$key = ITSEC_Network_Brute_Force_Utilities::get_api_key( $settings['email'], $settings['updates_optin'] );
 		if ( is_wp_error( $key ) ) {
 			return false;
-			//          $this->set_can_save( false );
-			//          $this->add_error( $key );
+			// $this->set_can_save( false );
+			// $this->add_error( $key );
 		} else {
 			$secret = ITSEC_Network_Brute_Force_Utilities::activate_api_key( $key );
 
 			if ( is_wp_error( $secret ) ) {
 				return false;
-				//              $this->set_can_save( false );
-				//              $this->add_error( $secret );
+				// $this->set_can_save( false );
+				// $this->add_error( $secret );
 			} else {
 				$settings['api_key']    = $key;
 				$settings['api_secret'] = $secret;
@@ -697,7 +697,7 @@ class MainWP_Child_iThemes_Security {
 		$new_username = isset( $settings['new_username'] ) ? $settings['new_username'] : '';
 		$change_id    = isset( $settings['change_id'] ) && $settings['change_id'] ? true : false;
 
-		//load utility functions
+		// load utility functions
 		if ( ! class_exists( 'ITSEC_Lib' ) ) {
 			global $itsec_globals;
 			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
@@ -723,13 +723,13 @@ class MainWP_Child_iThemes_Security {
 			$msg .= __( 'Admin user ID already changes.', 'mainwp-child' );
 		}
 
-		//      if ( $change_id ) {
-		//          $user = get_user_by( 'login', $new_username );
-		//          if ( $user && 1 === (int) $user->ID ) {
-		//              $return['result'] = 'CHILD_ADMIN';
-		//              return $return;
-		//          }
-		//      }
+		// if ( $change_id ) {
+		// $user = get_user_by( 'login', $new_username );
+		// if ( $user && 1 === (int) $user->ID ) {
+		// $return['result'] = 'CHILD_ADMIN';
+		// return $return;
+		// }
+		// }
 
 		$admin_success = true;
 		$return        = array();
@@ -755,26 +755,26 @@ class MainWP_Child_iThemes_Security {
 		$itsec_files = ITSEC_Core::get_itsec_files();
 
         // do not need to check this
-		//if ( $itsec_files->get_file_lock( 'admin_user' ) ) { //make sure it isn't already running
+		// if ( $itsec_files->get_file_lock( 'admin_user' ) ) { //make sure it isn't already running
 
-			//sanitize the username
+			// sanitize the username
 			$new_user = sanitize_text_field( $username );
 
-			//Get the full user object
+			// Get the full user object
 			$user_object = get_user_by( 'id', '1' );
 
-		if ( null !== $username && validate_username( $new_user ) && false === username_exists( $new_user ) ) { //there is a valid username to change
+		if ( null !== $username && validate_username( $new_user ) && false === username_exists( $new_user ) ) { // there is a valid username to change
 
-			if ( true === $id ) { //we're changing the id too so we'll set the username
+			if ( true === $id ) { // we're changing the id too so we'll set the username
 
 				$user_login = $new_user;
 
 			} else { // we're only changing the username
 
-				//query main user table
+				// query main user table
 				$wpdb->query( 'UPDATE `' . $wpdb->users . "` SET user_login = '" . esc_sql( $new_user ) . "' WHERE user_login='admin';" );
 
-				if ( is_multisite() ) { //process sitemeta if we're in a multi-site situation
+				if ( is_multisite() ) { // process sitemeta if we're in a multi-site situation
 
 					$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
 					$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
@@ -787,19 +787,19 @@ class MainWP_Child_iThemes_Security {
 				return true;
 
 			}
-		} elseif ( null !== $username ) { //username didn't validate
+		} elseif ( null !== $username ) { // username didn't validate
 
 			$itsec_files->release_file_lock( 'admin_user' );
 
 			return false;
 
-		} else { //only changing the id
+		} else { // only changing the id
 
 			$user_login = $user_object->user_login;
 
 		}
 
-		if ( true === $id ) { //change the user id
+		if ( true === $id ) { // change the user id
 
 			$wpdb->query( 'DELETE FROM `' . $wpdb->users . '` WHERE ID = 1;' );
 
@@ -815,7 +815,7 @@ class MainWP_Child_iThemes_Security {
 				'display_name'        => $user_object->display_name,
 			) );
 
-			if ( is_multisite() && null !== $username && validate_username( $new_user ) ) { //process sitemeta if we're in a multi-site situation
+			if ( is_multisite() && null !== $username && validate_username( $new_user ) ) { // process sitemeta if we're in a multi-site situation
 
 				$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
 				$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
@@ -836,13 +836,13 @@ class MainWP_Child_iThemes_Security {
 			return true;
 
 		}
-		//}
+		// }
 
 		return false;
 	}
 
 	public function build_wpconfig_rules( $rules_array, $input = null ) {
-		//Get the rules from the database if input wasn't sent
+		// Get the rules from the database if input wasn't sent
 		if ( null === $input ) {
 			return $rules_array;
 		}

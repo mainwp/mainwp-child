@@ -50,7 +50,7 @@ class MainWP_Clone {
 				$ajaxPosts = array();
 			}
 
-			//If already processed, just quit!
+			// If already processed, just quit!
 			if ( isset( $ajaxPosts[ $action ] ) && ( $ajaxPosts[ $action ] == $_POST['dts'] ) ) {
 				die( json_encode( array( 'error' => __( 'Double request!', 'mainwp-child' ) ) ) );
 			}
@@ -1205,7 +1205,7 @@ class MainWP_Clone {
 			$key = $siteToClone['extauth'];
 
 			MainWP_Helper::endSession();
-			//Send request to the childsite!
+			// Send request to the childsite!
 			global $wp_version;
 			$method = ( function_exists( 'gzopen' ) ? 'tar.gz' : 'zip' );
 			$result = MainWP_Helper::fetchUrl( $url, array(
@@ -1257,7 +1257,7 @@ class MainWP_Clone {
 			$key = $siteToClone['extauth'];
 
 			MainWP_Helper::endSession();
-			//Send request to the childsite!
+			// Send request to the childsite!
 			$result = MainWP_Helper::fetchUrl( $url, array(
 				'cloneFunc'   => 'createCloneBackupPoll',
 				'key'         => $key,
@@ -1273,7 +1273,7 @@ class MainWP_Clone {
 		} catch ( Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
-		//Return size in kb
+		// Return size in kb
 		die( json_encode( $output ) );
 	}
 
@@ -1284,7 +1284,7 @@ class MainWP_Clone {
 			if ( ! isset( $_POST['file'] ) ) {
 				throw new Exception( __( 'No download link given', 'mainwp-child' ) );
 			}
-			//            if (!isset($_POST['siteId'])) throw new Exception(__('No site given','mainwp-child'));
+			// if (!isset($_POST['siteId'])) throw new Exception(__('No site given','mainwp-child'));
 
 			$file = $_POST['file'];
 			if ( isset( $_POST['siteId'] ) ) {
@@ -1304,7 +1304,7 @@ class MainWP_Clone {
 				$url = $file;
 			}
 			MainWP_Helper::endSession();
-			//Send request to the childsite!
+			// Send request to the childsite!
 			$split     = explode( '=', $file );
 			$file      = urldecode( $split[ count( $split ) - 1 ] );
 			$filename  = 'download-' . basename( $file );
@@ -1342,7 +1342,7 @@ class MainWP_Clone {
 
 			$output = array( 'done' => $filename );
 
-			//Delete backup on child
+			// Delete backup on child
 			try {
 				if ( isset( $_POST['siteId'] ) ) {
 					$siteId       = $_POST['siteId'];
@@ -1392,7 +1392,7 @@ class MainWP_Clone {
 		} catch ( Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
-		//return size in kb
+		// return size in kb
 		die( json_encode( $output ) );
 	}
 
@@ -1429,10 +1429,10 @@ class MainWP_Clone {
 				}
 				$testFull = true;
 			}
-			//return size in kb
+			// return size in kb
 			$cloneInstall = new MainWP_Clone_Install( $file );
 
-			//todo: RS: refactor to get those plugins after install (after .18 release)
+			// todo: RS: refactor to get those plugins after install (after .18 release)
 			$cloneInstall->readConfigurationFile();
 
 			$plugins = get_option( 'mainwp_temp_clone_plugins' );
@@ -1454,14 +1454,14 @@ class MainWP_Clone {
 
 			$cloneInstall->install();
 
-			//            $cloneInstall->update_option('mainwp_child_pubkey', $pubkey);
-			//            $cloneInstall->update_option('mainwp_child_uniqueId', $uniqueId);
-			//            $cloneInstall->update_option('mainwp_child_server', $server);
-			//            $cloneInstall->update_option('mainwp_child_nonce', $nonce);
-			//            $cloneInstall->update_option('mainwp_child_nossl', $nossl);
-			//            $cloneInstall->update_option('mainwp_child_nossl_key', $nossl_key);
-			//            $cloneInstall->update_option('mainwp_child_clone_sites', $sitesToClone);
-			//            $cloneInstall->update_option('mainwp_child_clone_permalink', true);
+			// $cloneInstall->update_option('mainwp_child_pubkey', $pubkey);
+			// $cloneInstall->update_option('mainwp_child_uniqueId', $uniqueId);
+			// $cloneInstall->update_option('mainwp_child_server', $server);
+			// $cloneInstall->update_option('mainwp_child_nonce', $nonce);
+			// $cloneInstall->update_option('mainwp_child_nossl', $nossl);
+			// $cloneInstall->update_option('mainwp_child_nossl_key', $nossl_key);
+			// $cloneInstall->update_option('mainwp_child_clone_sites', $sitesToClone);
+			// $cloneInstall->update_option('mainwp_child_clone_permalink', true);
 
             // to fix update values
             delete_option('mainwp_child_pubkey');
@@ -1533,14 +1533,14 @@ class MainWP_Clone {
 				delete_option( 'mainwp_temp_clone_themes' );
 			}
 			$output = array( 'result' => 'ok' );
-			//todo: remove old tables if other prefix?
+			// todo: remove old tables if other prefix?
 
 			wp_logout();
 			wp_set_current_user( 0 );
 		} catch ( Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
-		//return size in kb
+		// return size in kb
 		die( json_encode( $output ) );
 	}
 

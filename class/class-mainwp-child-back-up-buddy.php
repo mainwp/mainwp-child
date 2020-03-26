@@ -29,7 +29,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	public function __construct() {
 		// To fix bug run dashboard on local machine
-		//if ( is_plugin_active( 'backupbuddy/backupbuddy.php' )) {
+		// if ( is_plugin_active( 'backupbuddy/backupbuddy.php' )) {
 		if ( class_exists('pb_backupbuddy')) {
 			$this->is_backupbuddy_installed = true;
 		}
@@ -822,7 +822,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$information                       = array();
 		$information['backup_list']        = $this->get_backup_list();
 		$information['recent_backup_list'] = $this->get_recent_backup_list();
-		//$information['destinations_list'] = pb_backupbuddy_destinations::get_destinations_list();
+		// $information['destinations_list'] = pb_backupbuddy_destinations::get_destinations_list();
 		$backup_directory                             = backupbuddy_core::getBackupDirectory();
 		$backup_directory                             = str_replace( '\\', '/', $backup_directory );
 		$backup_directory                             = rtrim( $backup_directory, '/\\' ) . '/';
@@ -847,7 +847,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$comment         = backupbuddy_core::normalize_comment_data( $old_comment );
 		$comment['note'] = $note;
 
-		//$new_comment = base64_encode( serialize( $comment ) );
+		// $new_comment = base64_encode( serialize( $comment ) );
 
 		$comment_result = pb_backupbuddy::$classes['zipbuddy']->set_comment( $backup_file, $comment );
 
@@ -1149,16 +1149,16 @@ class MainWP_Child_Back_Up_Buddy {
 		unset( $temp_dir );
 
 		$message = 'Extracting "' . $file . '" from archive "' . $archive_file . '" into temporary file "' . $destination . '". ';
-		//echo '<!-- ';
+		// echo '<!-- ';
 		pb_backupbuddy::status( 'details', $message );
-		//echo $message;
+		// echo $message;
 
 		$file_content = '';
 
 		$extractions    = array( $file => $temp_file );
 		$extract_result = $zipbuddy->extract( backupbuddy_core::getBackupDirectory() . $archive_file, $destination, $extractions );
 		if ( false === $extract_result ) { // failed.
-			//echo ' -->';
+			// echo ' -->';
 			$error = 'Error #584984458. Unable to extract.';
 			pb_backupbuddy::status( 'error', $error );
 			return array( 'error' => $error );
@@ -1539,7 +1539,7 @@ class MainWP_Child_Back_Up_Buddy {
         <?php
 		foreach ( (array) $lines as $rawline ) {
 			$line = json_decode( $rawline, true );
-			//print_r( $line );
+			// print_r( $line );
 			if ( is_array( $line ) ) {
 				$u = '';
 				if ( isset( $line['u'] ) ) { // As off v4.2.15.6. TODO: Remove this in a couple of versions once old logs without this will have cycled out.
@@ -1598,7 +1598,7 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 		}
 
-		//***** BEGIN TESTS AND RESULTS.
+		// ***** BEGIN TESTS AND RESULTS.
 		if ( isset( $integrity['status_details'] ) ) { // $integrity['status_details'] is NOT array (old, pre-3.1.9).
 			echo '<h3>Integrity Technical Details</h3>';
 			echo '<textarea style="width: 100%; height: 175px;" wrap="off">';
@@ -1662,7 +1662,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		} // end $integrity['status_details'] is an array.
 		echo '<br><br>';
-		//***** END TESTS AND RESULTS.
+		// ***** END TESTS AND RESULTS.
 
 		// Output meta info table (if any).
 		$metaInfo = array();
@@ -1679,7 +1679,7 @@ class MainWP_Child_Back_Up_Buddy {
 		}
 		echo '<br><br>';
 
-		//***** BEGIN STEPS.
+		// ***** BEGIN STEPS.
 		$steps   = array();
 		$steps[] = array( 'Start Time', $start_time, '' );
 		if ( isset( $backup_options->options['steps'] ) ) {
@@ -1776,7 +1776,7 @@ class MainWP_Child_Back_Up_Buddy {
 			);
 		}
 		echo '<br><br>';
-		//***** END STEPS.
+		// ***** END STEPS.
 
 		if ( isset( $backup_options->options['trigger'] ) ) {
 			$trigger = $backup_options->options['trigger'];
@@ -2229,7 +2229,7 @@ class MainWP_Child_Back_Up_Buddy {
 				delete_transient( 'pb_backupbuddy_malwarescan' );
 			}
 
-			//echo '<br />Scanning `' . $url . '`.<br /><br />';
+			// echo '<br />Scanning `' . $url . '`.<br /><br />';
 			if ( ! defined( 'pluginbuddy_importbuddy' ) ) {
 				$scan = get_transient( 'pb_backupbuddy_malwarescan' );
 			} else {
@@ -2272,9 +2272,9 @@ class MainWP_Child_Back_Up_Buddy {
 				$continue_2 = false;
 			} else {
 				$scan = maybe_unserialize( $scan );
-				//echo '<pre>';
-				//print_r( $scan );
-				//echo '</pre>';
+				// echo '<pre>';
+				// print_r( $scan );
+				// echo '</pre>';
 			}
 
 		}
@@ -2294,7 +2294,7 @@ class MainWP_Child_Back_Up_Buddy {
 							$array[ $array_key ] = lined_array( $array_item );
 						}
 					}
-					//return implode( '<br />', $array );
+					// return implode( '<br />', $array );
 					$return = '';
 					foreach ( $array as $array_item ) {
 						$return .= $array_item . '<br />';
@@ -2653,7 +2653,7 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			pb_backupbuddy::save();
-			//pb_backupbuddy::alert( __( 'Settings saved. Restarting Live process so they take immediate effect.', 'it-l10n-backupbuddy' ) );
+			// pb_backupbuddy::alert( __( 'Settings saved. Restarting Live process so they take immediate effect.', 'it-l10n-backupbuddy' ) );
 			set_transient( 'backupbuddy_live_jump', array( 'daily_init', array() ), 60 * 60 * 48 ); // Tells Live process to restart from the beginning (if mid-process) so new settigns apply.
 
 			backupbuddy_live::send_trim_settings();
@@ -2713,7 +2713,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		} elseif ( 'create_snapshot' == $action ) { // < 100% backed up _OR_ ( we are on a step other than daily_init and the last_activity is more recent than the php runtime )
 			if ( true === backupbuddy_api::runLiveSnapshot() ) {
-				//pb_backupbuddy::alert( '<h3>' . __( 'Verifying everything is up to date before Snapshot', 'it-l10n-backupbuddy' ) . '</h3><p class="description" style="max-width: 700px; display: inline-block;">' . __( 'Please wait while we verify your backup is completely up to date before we create the Snapshot. This may take a few minutes...', 'it-l10n-backupbuddy' ) . '</p>', false, '', 'backupbuddy_live_snapshot_verify_uptodate' );
+				// pb_backupbuddy::alert( '<h3>' . __( 'Verifying everything is up to date before Snapshot', 'it-l10n-backupbuddy' ) . '</h3><p class="description" style="max-width: 700px; display: inline-block;">' . __( 'Please wait while we verify your backup is completely up to date before we create the Snapshot. This may take a few minutes...', 'it-l10n-backupbuddy' ) . '</p>', false, '', 'backupbuddy_live_snapshot_verify_uptodate' );
 				$message = '<h3>' . __( 'Verifying everything is up to date before Snapshot', 'it-l10n-backupbuddy' ) . '</h3><p class="description" style="max-width: 700px; display: inline-block;">' . __( 'Please wait while we verify your backup is completely up to date before we create the Snapshot. This may take a few minutes...', 'it-l10n-backupbuddy' ) . '</p>';
 				require pb_backupbuddy::plugin_path() . '/destinations/live/_manual_snapshot.php';
 			}
@@ -2721,7 +2721,7 @@ class MainWP_Child_Back_Up_Buddy {
 		} elseif ( 'pause_periodic' == $action ) {
 			backupbuddy_api::setLiveStatus( $pause_continuous = '', $pause_periodic = true );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
-			//pb_backupbuddy::disalert( '', __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'it-l10n-backupbuddy' ) );
+			// pb_backupbuddy::disalert( '', __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'it-l10n-backupbuddy' ) );
 			$message = __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'it-l10n-backupbuddy' );
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
 		} elseif ( 'resume_periodic' == $action ) {
@@ -2733,20 +2733,20 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			backupbuddy_api::setLiveStatus( $pause_continuous = '', $pause_periodic = false, $start_run );
-			//pb_backupbuddy::disalert( '', __( 'Live File Backup has resumed.', 'it-l10n-backupbuddy' ) . $launchNowText );
+			// pb_backupbuddy::disalert( '', __( 'Live File Backup has resumed.', 'it-l10n-backupbuddy' ) . $launchNowText );
 			$message = __( 'Live File Backup has resumed.', 'it-l10n-backupbuddy' ) . $launchNowText;
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
 		} elseif ( 'pause_continuous' == $action ) {
 			backupbuddy_api::setLiveStatus( $pause_continuous = true, $pause_periodic = '' );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
-			//pb_backupbuddy::disalert( '', __( 'Live Database Backup paused.', 'it-l10n-backupbuddy' ) );
+			// pb_backupbuddy::disalert( '', __( 'Live Database Backup paused.', 'it-l10n-backupbuddy' ) );
 			$message = __( 'Live Database Backup paused.', 'it-l10n-backupbuddy' );
 		} elseif ( 'resume_continuous' == $action ) {
 			backupbuddy_api::setLiveStatus( $pause_continuous = false, $pause_periodic = '' );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
-			//pb_backupbuddy::disalert( '', __( 'Live Database Backup resumed.', 'it-l10n-backupbuddy' ) );
+			// pb_backupbuddy::disalert( '', __( 'Live Database Backup resumed.', 'it-l10n-backupbuddy' ) );
 			$message = __( 'Live Database Backup resumed.', 'it-l10n-backupbuddy' );
 		} else {
 			$error = 'Error #1000. Invalid request.';
@@ -2795,7 +2795,7 @@ class MainWP_Child_Back_Up_Buddy {
 			$site_only  = true;
 		}
 
-		$files = pb_backupbuddy_destination_stash2::listFiles( $settings, '', $site_only ); //2nd param was $remotePath.
+		$files = pb_backupbuddy_destination_stash2::listFiles( $settings, '', $site_only ); // 2nd param was $remotePath.
 		if ( ! is_array( $files ) ) {
 			return array( 'error' => 'Error #892329c: ' . $files );
 		}

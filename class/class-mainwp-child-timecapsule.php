@@ -428,7 +428,7 @@ class MainWP_Child_Timecapsule {
 	}
 
 	function get_sibling_files_callback_wptc() {
-		//note that we are getting the ajax function data via $_POST.
+		// note that we are getting the ajax function data via $_POST.
 		$file_name       = $_POST['data']['file_name'];
 		$file_name       = wp_normalize_path($file_name);
 		$backup_id       = $_POST['data']['backup_id'];
@@ -487,7 +487,7 @@ class MainWP_Child_Timecapsule {
 
 		/*
 		 -- Ordering parameters -- */
-		//Parameters that are going to be used to order the result
+		// Parameters that are going to be used to order the result
 		$orderby = ! empty($_POST['orderby']) ? mysql_real_escape_string($_POST['orderby']) : 'id';
 		$order   = ! empty($_POST['order']) ? mysql_real_escape_string($_POST['order']) : 'DESC';
 		if ( ! empty($orderby) & ! empty($order)) {
@@ -495,17 +495,17 @@ class MainWP_Child_Timecapsule {
 
 		/*
 		 -- Pagination parameters -- */
-		//Number of elements in your table?
-		$totalitems = $wpdb->query($query); //return the total number of affected rows
-		//How many to display per page?
+		// Number of elements in your table?
+		$totalitems = $wpdb->query($query); // return the total number of affected rows
+		// How many to display per page?
 		$perpage = 20;
-		//Which page is this?
+		// Which page is this?
 		$paged = ! empty($_POST['paged']) ? $_POST['paged'] : '';
         if (empty($paged) || ! is_numeric($paged) || $paged <= 0) {
 			$paged = 1;} //Page Number
-		//How many pages do we have in total?
-		$totalpages = ceil($totalitems / $perpage); //Total number of pages
-		//adjust the query to take pagination into account
+		// How many pages do we have in total?
+		$totalpages = ceil($totalitems / $perpage); // Total number of pages
+		// adjust the query to take pagination into account
 		if ( ! empty($paged) && ! empty($perpage)) {
 			$offset = ( $paged - 1 ) * $perpage;
 			$query .= ' LIMIT ' . (int) $offset . ',' . (int) $perpage;
@@ -556,20 +556,20 @@ class MainWP_Child_Timecapsule {
 
         return array( 'result' => $detailed );
 
-		//die($detailed);
+		// die($detailed);
     }
 
 
     function get_display_rows( $records) {
 		global $wpdb;
-		//Get the records registered in the prepare_items method
+		// Get the records registered in the prepare_items method
         if ( ! is_array($records)) {
             return '';
         }
 
 		$i     = 0;
 		$limit = WPTC_Factory::get('config')->get_option('activity_log_lazy_load_limit');
-		//Get the columns registered in the get_columns and get_sortable_columns methods
+		// Get the columns registered in the get_columns and get_sortable_columns methods
 		// $columns = $this->get_columns();
 		$timezone = WPTC_Factory::get('config')->get_option('wptc_timezone');
 		if (count($records) > 0) {
@@ -598,7 +598,7 @@ class MainWP_Child_Timecapsule {
 
 					}
 				}
-				//Open the line
+				// Open the line
 				$html     .= '<tr class="act-tr">';
 				$Ldata     = unserialize($rec->log_data);
 				$user_time = WPTC_Factory::get('config')->cnvt_UTC_to_usrTime($Ldata['log_time']);
@@ -609,13 +609,13 @@ class MainWP_Child_Timecapsule {
 				$user_tz_now = date('M d, Y @ g:i:s a', $user_time);
 				$msg         = '';
 				if ( ! ( strpos($rec->type, 'backup') === false )) {
-					//Backup process
+					// Backup process
 					$msg = 'Backup Process';
 				} elseif ( ! ( strpos($rec->type, 'restore') === false )) {
-					//Restore Process
+					// Restore Process
 					$msg = 'Restore Process';
 				} elseif ( ! ( strpos($rec->type, 'staging') === false )) {
-					//Restore Process
+					// Restore Process
 					$msg = 'Staging Process';
 				} else {
 					if ($row_count < 2) {
@@ -636,7 +636,7 @@ class MainWP_Child_Timecapsule {
 				} else {
 					$html .= '</td>';
 				}
-				//Close the line
+				// Close the line
 				$html .= '</tr>';
 
                 $display_rows[ $key ] = $html;
@@ -674,7 +674,7 @@ class MainWP_Child_Timecapsule {
     }
 
     function stop_fresh_backup_tc_callback_wptc() {
-        //for backup during update
+        // for backup during update
         $deactivated_plugin = null;
         $backup             = new WPTC_BackupController();
         $backup->stop($deactivated_plugin);
@@ -1208,7 +1208,7 @@ class MainWP_Child_Timecapsule {
         echo '<tr title="WP_MAX_MEMORY_LIMIT"><td>' . __( 'WP maximum memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( WP_MAX_MEMORY_LIMIT ) . '</td></tr>';
         echo '<tr title=""><td>' . __( 'Memory in use', 'wp-time-capsule' ) . '</td><td>' . size_format( @memory_get_usage( true ), 2 ) . '</td></tr>';
 
-        //disabled PHP functions
+        // disabled PHP functions
         $disabled = esc_html( ini_get( 'disable_functions' ) );
         if ( ! empty( $disabled ) ) {
             $disabledarry = explode( ',', $disabled );
@@ -1217,7 +1217,7 @@ class MainWP_Child_Timecapsule {
             echo '</td></tr>';
         }
 
-        //Loaded PHP Extensions
+        // Loaded PHP Extensions
         echo '<tr title=""><td>' . __( 'Loaded PHP Extensions:', 'wp-time-capsule' ) . '</td><td>';
         $extensions = get_loaded_extensions();
         sort( $extensions );
