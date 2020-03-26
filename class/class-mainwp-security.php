@@ -353,7 +353,7 @@ class MainWP_Security {
 	public static function admin_user_ok() {
 		$user = get_user_by( 'login', 'admin' );
 		if ( ! $user ) {
-return true;
+			return true;
         }
 
 		if ( 10 !== $user->wp_user_level && ( ! isset( $user->user_level ) || 10 !== $user->user_level ) && ! user_can( $user, 'level_10' ) ) {

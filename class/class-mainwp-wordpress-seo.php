@@ -86,24 +86,24 @@ class MainWP_Wordpress_SEO {
                 if ( is_array( $options ) && array() !== $options ) {
 
                      $old_wpseo_version = null;
-                     if ( isset( $options['wpseo']['version'] ) && '' !== $options['wpseo']['version'] ) {
-                         $old_wpseo_version = $options['wpseo']['version'];
-                     }
-                     foreach ( $options as $name => $optgroup ) {
-                         if ( 'wpseo_taxonomy_meta' === $name ) {
-                             $optgroup = json_decode( urldecode( $optgroup['wpseo_taxonomy_meta'] ), true );
-                         }
-                         // Make sure that the imported options are cleaned/converted on import
-                         $option_instance = WPSEO_Options::get_option_instance( $name );
-                         if ( is_object( $option_instance ) && method_exists( $option_instance, 'import' ) ) {
-                             $optgroup = $option_instance->import( $optgroup, $old_wpseo_version, $options );
-                         }
-                     }
+					if ( isset( $options['wpseo']['version'] ) && '' !== $options['wpseo']['version'] ) {
+						$old_wpseo_version = $options['wpseo']['version'];
+					}
+					foreach ( $options as $name => $optgroup ) {
+						if ( 'wpseo_taxonomy_meta' === $name ) {
+							$optgroup = json_decode( urldecode( $optgroup['wpseo_taxonomy_meta'] ), true );
+						}
+						// Make sure that the imported options are cleaned/converted on import
+						$option_instance = WPSEO_Options::get_option_instance( $name );
+						if ( is_object( $option_instance ) && method_exists( $option_instance, 'import' ) ) {
+							$optgroup = $option_instance->import( $optgroup, $old_wpseo_version, $options );
+						}
+					}
                      $information['success'] = true;
 
-                 } else {
-                     throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
-                 }
+				} else {
+					throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
+				}
             } catch ( Exception $e ) {
                 $information['error'] = $e->getMessage();
             }

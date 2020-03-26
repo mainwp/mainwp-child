@@ -40,9 +40,9 @@ class MainWP_Child_Timecapsule {
 
 
 	public function init() {
-         if ( ! $this->is_plugin_installed) {
+		if ( ! $this->is_plugin_installed) {
             return;
-         }
+		}
 
 		if ( get_option( 'mainwp_time_capsule_ext_enabled' ) !== 'Y' ) {
             return;
@@ -60,16 +60,16 @@ class MainWP_Child_Timecapsule {
 
 
 	public function action() {
-            if ( ! $this->is_plugin_installed) {
-                 MainWP_Helper::write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
-            }
+		if ( ! $this->is_plugin_installed) {
+			 MainWP_Helper::write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
+		}
 
-            try {
-                $this->require_files();
-            } catch ( Exception $e) {
-                $error = $e->getMessage();
-                MainWP_Helper::write( array( 'error' => $error ) );
-            }
+		try {
+			$this->require_files();
+		} catch ( Exception $e) {
+			$error = $e->getMessage();
+			MainWP_Helper::write( array( 'error' => $error ) );
+		}
 
             $information = array();
 
@@ -78,158 +78,158 @@ class MainWP_Child_Timecapsule {
             $is_user_logged_in = $options->get_option('is_user_logged_in');
             $privileges_wptc   = $options_helper->get_unserialized_privileges();
 
-            if ( isset( $_POST['mwp_action'] ) ) {
+		if ( isset( $_POST['mwp_action'] ) ) {
 
-                if ((
-                            $_POST['mwp_action'] == 'save_settings' ||
-                            $_POST['mwp_action'] == 'get_staging_details_wptc' ||
-                            $_POST['mwp_action'] == 'progress_wptc'
-                    ) && ( ! $is_user_logged_in || ! $privileges_wptc )
-                    ) {
-                        MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
-                }
+			if ((
+						$_POST['mwp_action'] == 'save_settings' ||
+						$_POST['mwp_action'] == 'get_staging_details_wptc' ||
+						$_POST['mwp_action'] == 'progress_wptc'
+				) && ( ! $is_user_logged_in || ! $privileges_wptc )
+				) {
+					MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
+			}
 
-                switch ( $_POST['mwp_action'] ) {
-                    case 'set_showhide':
-                            $information = $this->set_showhide();
-                        break;
-                    case 'get_root_files':
-                            $information = $this->get_root_files();
-                        break;
-                    case 'get_tables':
-                            $information = $this->get_tables();
-                        break;
-                    case 'exclude_file_list':
-                            $information = $this->exclude_file_list();
-                        break;
-                    case 'exclude_table_list':
-                            $information = $this->exclude_table_list();
-                        break;
-                    case 'include_table_list':
-                            $information = $this->include_table_list();
-                        break;
-                    case 'include_table_structure_only':
-                            $information = $this->include_table_structure_only();
-                        break;
-                    case 'include_file_list':
-                            $information = $this->include_file_list();
-                        break;
-                    case 'get_files_by_key':
-                            $information = $this->get_files_by_key();
-                        break;
-                    case 'wptc_login':
-                            $information = $this->process_wptc_login();
-                        break;
-                    case 'get_installed_plugins':
-                            $information = $this->get_installed_plugins();
-                        break;
-                    case 'get_installed_themes':
-                            $information = $this->get_installed_themes();
-                        break;
-                    case 'is_staging_need_request':
-                            $information = $this->is_staging_need_request();
-                        break;
-                    case 'get_staging_details_wptc':
-                            $information = $this->get_staging_details_wptc();
-                        break;
-                    case 'start_fresh_staging_wptc':
-                            $information = $this->start_fresh_staging_wptc();
-                        break;
-                    case 'get_staging_url_wptc':
-                            $information = $this->get_staging_url_wptc();
-                        break;
-                    case 'stop_staging_wptc':
-                            $information = $this->stop_staging_wptc();
-                        break;
-                    case 'continue_staging_wptc':
-                            $information = $this->continue_staging_wptc();
-                        break;
-                    case 'delete_staging_wptc':
-                            $information = $this->delete_staging_wptc();
-                        break;
-                    case 'copy_staging_wptc':
-                            $information = $this->copy_staging_wptc();
-                        break;
-                    case 'get_staging_current_status_key':
-                            $information = $this->get_staging_current_status_key();
-                        break;
-                    case 'wptc_sync_purchase':
-                            $information = $this->wptc_sync_purchase();
-                        break;
-                    case 'init_restore':
-                            $information = $this->init_restore();
-                        break;
-                    case 'save_settings':
-                            $information = $this->save_settings_wptc();
-                        break;
-                    case 'analyze_inc_exc':
-                            $information = $this->analyze_inc_exc();
-                        break;
-                    case 'get_enabled_plugins':
-                            $information = $this->get_enabled_plugins();
-                        break;
-                    case 'get_enabled_themes':
-                            $information = $this->get_enabled_themes();
-                        break;
-                    case 'get_system_info':
-                            $information = $this->get_system_info();
-                        break;
-                    case 'update_vulns_settings':
-                            $information = $this->update_vulns_settings();
-                        break;
-                    case 'start_fresh_backup':
-                            $information = $this->start_fresh_backup_tc_callback_wptc();
-                        break;
-                    case 'save_manual_backup_name':
-                            $information = $this->save_manual_backup_name_wptc();
-                        break;
-                    case 'progress_wptc':
-                            $information = $this->progress_wptc();
-                        break;
-                    case 'stop_fresh_backup':
-                            $information = $this->stop_fresh_backup_tc_callback_wptc();
-                        break;
-                    case 'wptc_cron_status':
-                            $information = $this->wptc_cron_status();
-                        break;
-                    case 'get_this_backups_html':
-                            $information = $this->get_this_backups_html();
-                        break;
-                    case 'start_restore_tc_wptc':
-                            $information = $this->start_restore_tc_callback_wptc();
-                        break;
-                    case 'get_sibling_files':
-                            $information = $this->get_sibling_files_callback_wptc();
-                        break;
-                    case 'get_logs_rows':
-                            $information = $this->get_logs_rows();
-                        break;
-                    case 'clear_logs':
-                            $information = $this->clear_wptc_logs();
-                        break;
-                    case 'send_issue_report':
-                            $information = $this->send_issue_report();
-                        break;
-                    case 'lazy_load_activity_log':
-                            $information = $this->lazy_load_activity_log_wptc();
-                        break;
-                }
-            }
+			switch ( $_POST['mwp_action'] ) {
+				case 'set_showhide':
+						$information = $this->set_showhide();
+					break;
+				case 'get_root_files':
+						$information = $this->get_root_files();
+					break;
+				case 'get_tables':
+						$information = $this->get_tables();
+					break;
+				case 'exclude_file_list':
+						$information = $this->exclude_file_list();
+					break;
+				case 'exclude_table_list':
+						$information = $this->exclude_table_list();
+					break;
+				case 'include_table_list':
+						$information = $this->include_table_list();
+					break;
+				case 'include_table_structure_only':
+						$information = $this->include_table_structure_only();
+					break;
+				case 'include_file_list':
+						$information = $this->include_file_list();
+					break;
+				case 'get_files_by_key':
+						$information = $this->get_files_by_key();
+					break;
+				case 'wptc_login':
+						$information = $this->process_wptc_login();
+					break;
+				case 'get_installed_plugins':
+						$information = $this->get_installed_plugins();
+					break;
+				case 'get_installed_themes':
+						$information = $this->get_installed_themes();
+					break;
+				case 'is_staging_need_request':
+						$information = $this->is_staging_need_request();
+					break;
+				case 'get_staging_details_wptc':
+						$information = $this->get_staging_details_wptc();
+					break;
+				case 'start_fresh_staging_wptc':
+						$information = $this->start_fresh_staging_wptc();
+					break;
+				case 'get_staging_url_wptc':
+						$information = $this->get_staging_url_wptc();
+					break;
+				case 'stop_staging_wptc':
+						$information = $this->stop_staging_wptc();
+					break;
+				case 'continue_staging_wptc':
+						$information = $this->continue_staging_wptc();
+					break;
+				case 'delete_staging_wptc':
+						$information = $this->delete_staging_wptc();
+					break;
+				case 'copy_staging_wptc':
+						$information = $this->copy_staging_wptc();
+					break;
+				case 'get_staging_current_status_key':
+						$information = $this->get_staging_current_status_key();
+					break;
+				case 'wptc_sync_purchase':
+						$information = $this->wptc_sync_purchase();
+					break;
+				case 'init_restore':
+						$information = $this->init_restore();
+					break;
+				case 'save_settings':
+						$information = $this->save_settings_wptc();
+					break;
+				case 'analyze_inc_exc':
+						$information = $this->analyze_inc_exc();
+					break;
+				case 'get_enabled_plugins':
+						$information = $this->get_enabled_plugins();
+					break;
+				case 'get_enabled_themes':
+						$information = $this->get_enabled_themes();
+					break;
+				case 'get_system_info':
+						$information = $this->get_system_info();
+					break;
+				case 'update_vulns_settings':
+						$information = $this->update_vulns_settings();
+					break;
+				case 'start_fresh_backup':
+						$information = $this->start_fresh_backup_tc_callback_wptc();
+					break;
+				case 'save_manual_backup_name':
+						$information = $this->save_manual_backup_name_wptc();
+					break;
+				case 'progress_wptc':
+						$information = $this->progress_wptc();
+					break;
+				case 'stop_fresh_backup':
+						$information = $this->stop_fresh_backup_tc_callback_wptc();
+					break;
+				case 'wptc_cron_status':
+						$information = $this->wptc_cron_status();
+					break;
+				case 'get_this_backups_html':
+						$information = $this->get_this_backups_html();
+					break;
+				case 'start_restore_tc_wptc':
+						$information = $this->start_restore_tc_callback_wptc();
+					break;
+				case 'get_sibling_files':
+						$information = $this->get_sibling_files_callback_wptc();
+					break;
+				case 'get_logs_rows':
+						$information = $this->get_logs_rows();
+					break;
+				case 'clear_logs':
+						$information = $this->clear_wptc_logs();
+					break;
+				case 'send_issue_report':
+						$information = $this->send_issue_report();
+					break;
+				case 'lazy_load_activity_log':
+						$information = $this->lazy_load_activity_log_wptc();
+					break;
+			}
+		}
             MainWP_Helper::write( $information );
     }
 
 
     public function require_files() {
-            if ( ! class_exists('WPTC_Base_Factory') && defined('WPTC_PLUGIN_DIR') ) {
-                if ( MainWP_Helper::check_files_exists(WPTC_PLUGIN_DIR . 'Base/Factory.php') ) {
-                    include_once WPTC_PLUGIN_DIR . 'Base/Factory.php';
-                }
-            }
-            if ( ! class_exists('Wptc_Options_Helper') && defined('WPTC_PLUGIN_DIR') ) {
-                if ( MainWP_Helper::check_files_exists(WPTC_PLUGIN_DIR . 'Views/wptc-options-helper.php') ) {
-                    include_once WPTC_PLUGIN_DIR . 'Views/wptc-options-helper.php';
-                }
-            }
+		if ( ! class_exists('WPTC_Base_Factory') && defined('WPTC_PLUGIN_DIR') ) {
+			if ( MainWP_Helper::check_files_exists(WPTC_PLUGIN_DIR . 'Base/Factory.php') ) {
+				include_once WPTC_PLUGIN_DIR . 'Base/Factory.php';
+			}
+		}
+		if ( ! class_exists('Wptc_Options_Helper') && defined('WPTC_PLUGIN_DIR') ) {
+			if ( MainWP_Helper::check_files_exists(WPTC_PLUGIN_DIR . 'Views/wptc-options-helper.php') ) {
+				include_once WPTC_PLUGIN_DIR . 'Views/wptc-options-helper.php';
+			}
+		}
 	}
 
     function set_showhide() {
@@ -272,7 +272,7 @@ class MainWP_Child_Timecapsule {
             $backups_count = 0;
             if (is_array($all_backups)) {
                 $formatted_backups = array();
-               foreach ($all_backups as $key => $value) {
+				foreach ($all_backups as $key => $value) {
                     $value_array                                     = (array) $value;
                     $formatted_backups[ $value_array['backupID'] ][] = $value_array;
                 }
@@ -414,31 +414,31 @@ class MainWP_Child_Timecapsule {
     }
 
 
-function start_restore_tc_callback_wptc() {
+	function start_restore_tc_callback_wptc() {
 
-	if (apply_filters('is_restore_to_staging_wptc', '')) {
-		$request = apply_filters('get_restore_to_staging_request_wptc', '');
-	} else {
-		$request = $_POST['data'];
+		if (apply_filters('is_restore_to_staging_wptc', '')) {
+			$request = apply_filters('get_restore_to_staging_request_wptc', '');
+		} else {
+			$request = $_POST['data'];
+		}
+
+		include_once WPTC_CLASSES_DIR . 'class-prepare-restore-bridge.php';
+
+		new WPTC_Prepare_Restore_Bridge($request);
 	}
 
-    include_once WPTC_CLASSES_DIR . 'class-prepare-restore-bridge.php';
+	function get_sibling_files_callback_wptc() {
+		//note that we are getting the ajax function data via $_POST.
+		$file_name       = $_POST['data']['file_name'];
+		$file_name       = wp_normalize_path($file_name);
+		$backup_id       = $_POST['data']['backup_id'];
+		$recursive_count = $_POST['data']['recursive_count'];
+		// //getting the backups
 
-	new WPTC_Prepare_Restore_Bridge($request);
-}
-
-function get_sibling_files_callback_wptc() {
-    //note that we are getting the ajax function data via $_POST.
-	$file_name       = $_POST['data']['file_name'];
-	$file_name       = wp_normalize_path($file_name);
-	$backup_id       = $_POST['data']['backup_id'];
-	$recursive_count = $_POST['data']['recursive_count'];
-	// //getting the backups
-
-    $processed_files = WPTC_Factory::get('processed-files');
-	echo $processed_files->get_this_backups_html($backup_id, $file_name, $type = 'sibling', (int) $recursive_count);
-    die();
-}
+		$processed_files = WPTC_Factory::get('processed-files');
+		echo $processed_files->get_this_backups_html($backup_id, $file_name, $type = 'sibling', (int) $recursive_count);
+		die();
+	}
 
     function send_issue_report() {
         WPTC_Base_Factory::get('Wptc_App_Functions')->send_report();
@@ -458,26 +458,26 @@ function get_sibling_files_callback_wptc() {
 		if (isset($_POST['type'])) {
 			$type = $_POST['type'];
 			switch ($type) {
-			case 'backups':
-				$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE '%backup%' AND show_user = 1 GROUP BY action_id";
+				case 'backups':
+					$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE '%backup%' AND show_user = 1 GROUP BY action_id";
 				    break;
-			case 'restores':
-				$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'restore%' GROUP BY action_id";
+				case 'restores':
+					$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'restore%' GROUP BY action_id";
 				    break;
-            case 'staging':
-				$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'staging%' GROUP BY action_id";
+				case 'staging':
+					$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'staging%' GROUP BY action_id";
 				    break;
-            case 'backup_and_update':
-				$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'backup_and_update%' GROUP BY action_id";
+				case 'backup_and_update':
+					$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'backup_and_update%' GROUP BY action_id";
 				    break;
-            case 'auto_update':
-				$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'auto_update%' GROUP BY action_id";
+				case 'auto_update':
+					$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type LIKE 'auto_update%' GROUP BY action_id";
 				    break;
-			case 'others':
-				$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type NOT LIKE 'restore%' AND type NOT LIKE 'backup%' AND show_user = 1";
+				case 'others':
+					$query = 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE type NOT LIKE 'restore%' AND type NOT LIKE 'backup%' AND show_user = 1";
 				    break;
-			default:
-				$query = 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log GROUP BY action_id UNION SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id='' AND show_user = 1";
+				default:
+					$query = 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log GROUP BY action_id UNION SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id='' AND show_user = 1";
 				    break;
 			}
 		} else {
@@ -491,7 +491,7 @@ function get_sibling_files_callback_wptc() {
 		$orderby = ! empty($_POST['orderby']) ? mysql_real_escape_string($_POST['orderby']) : 'id';
 		$order   = ! empty($_POST['order']) ? mysql_real_escape_string($_POST['order']) : 'DESC';
 		if ( ! empty($orderby) & ! empty($order)) {
-$query .= ' ORDER BY ' . $orderby . ' ' . $order;}
+			$query .= ' ORDER BY ' . $orderby . ' ' . $order;}
 
 		/*
 		 -- Pagination parameters -- */
@@ -502,7 +502,7 @@ $query .= ' ORDER BY ' . $orderby . ' ' . $order;}
 		//Which page is this?
 		$paged = ! empty($_POST['paged']) ? $_POST['paged'] : '';
         if (empty($paged) || ! is_numeric($paged) || $paged <= 0) {
-$paged = 1;} //Page Number
+			$paged = 1;} //Page Number
 		//How many pages do we have in total?
 		$totalpages = ceil($totalitems / $perpage); //Total number of pages
 		//adjust the query to take pagination into account
@@ -712,7 +712,7 @@ $paged = 1;} //Page Number
     public function do_reports_log( $ext = '') {
 
         if ( $ext !== 'wptimecapsule' ) {
-return;
+			return;
         }
 
         if ( ! $this->is_plugin_installed) {

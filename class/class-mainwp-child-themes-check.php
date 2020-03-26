@@ -178,7 +178,7 @@ class MainWP_Child_Themes_Check {
 
 		foreach ( $themes_to_scan as $slug => $v ) {
             if ( in_array( $slug, $avoid_themes ) ) {
-continue;
+				continue;
             }
 
 			$body = $this->try_get_response_body( $slug, false );

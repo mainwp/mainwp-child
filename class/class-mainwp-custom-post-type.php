@@ -20,10 +20,10 @@ class MainWP_Custom_Post_Type {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
 				$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
-//				die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
+				//              die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
 			} else {
 				$data = self::$information;
-//				die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
+				//              die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
 			}
 
 			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {

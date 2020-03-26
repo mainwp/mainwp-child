@@ -232,7 +232,7 @@ class MainWP_Child_Links_Checker {
 	function get_links_data() {
 
         if ( ! defined('BLC_DIRECTORY')) {
-return;
+			return;
         }
 
         $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
@@ -293,7 +293,7 @@ return;
 
 	function get_count_links() {
         if ( ! defined('BLC_DIRECTORY')) {
-return;
+			return;
         }
 
         $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';

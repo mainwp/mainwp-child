@@ -143,7 +143,7 @@ class MainWP_Child_WPvivid_BackupRestore {
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->prepare_backup($_POST['backup']);
         return $ret;
-            }
+	}
 
     public function backup_now() {
         global $wpvivid_plugin;
@@ -164,112 +164,112 @@ class MainWP_Child_WPvivid_BackupRestore {
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->get_backup_schedule();
         return $ret;
-        }
+	}
 
     public function get_backup_list() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->get_backup_list();
         return $ret;
-            }
+	}
 
     public function get_default_remote() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->get_default_remote();
             return $ret;
-        }
+	}
 
     public function delete_backup() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->delete_backup($_POST['backup_id'], $_POST['force']);
         return $ret;
-        }
+	}
 
     public function delete_backup_array() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->delete_backup_array($_POST['backup_id']);
         return $ret;
-        }
+	}
 
     public function set_security_lock() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->set_security_lock($_POST['backup_id'], $_POST['lock']);
         return $ret;
-        }
+	}
 
     public function view_log() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->view_log($_POST['id']);
         return $ret;
-        }
+	}
 
     public function read_last_backup_log() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->read_last_backup_log($_POST['log_file_name']);
         return $ret;
-        }
+	}
 
     public function view_backup_task_log() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->view_backup_task_log($_POST['id']);
         return $ret;
-        }
+	}
 
     public function backup_cancel() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->backup_cancel($_POST['task_id']);
         return $ret;
-        }
+	}
 
     public function init_download_page() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->init_download_page($_POST['backup_id']);
         return $ret;
-        }
+	}
 
     public function prepare_download_backup() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->prepare_download_backup($_POST['backup_id'], $_POST['file_name']);
         return $ret;
-        }
+	}
 
     public function get_download_task() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->get_download_task($_POST['backup_id']);
                 return $ret;
-            }
+	}
 
     public function download_backup() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->download_backup($_POST['backup_id'], $_POST['file_name']);
         return $ret;
-        }
+	}
 
     public function set_general_setting() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->set_general_setting($_POST['setting']);
         return $ret;
-                }
+	}
 
     public function set_schedule() {
         global $wpvivid_plugin;
         $wpvivid_plugin->ajax_check_security();
         $ret = $this->public_intetface->set_schedule($_POST['schedule']);
         return $ret;
-                }
+	}
 
     public function set_remote() {
         global $wpvivid_plugin;

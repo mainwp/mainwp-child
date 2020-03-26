@@ -34,9 +34,9 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	public function init() {
-//		if ( get_option( 'mainwp_wprocket_ext_enabled' ) !== 'Y' ) {
-//			return;
-//		}
+		//      if ( get_option( 'mainwp_wprocket_ext_enabled' ) !== 'Y' ) {
+		//          return;
+		//      }
 
         if ( ! $this->is_plugin_installed ) {
             return;
@@ -207,9 +207,9 @@ class MainWP_Child_WP_Rocket {
         if ( ! $this->is_plugin_installed ) {
             return false;
         }
-//		if ( ! defined( 'WP_ROCKET_VERSION' ) || ! defined( 'WP_ROCKET_SLUG' ) ) {
-//			return false;
-//		}
+		//      if ( ! defined( 'WP_ROCKET_VERSION' ) || ! defined( 'WP_ROCKET_SLUG' ) ) {
+		//          return false;
+		//      }
 
 		return true;
 	}
@@ -252,7 +252,7 @@ class MainWP_Child_WP_Rocket {
 		$information = array();
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-//			MainWP_Helper::update_option( 'mainwp_wprocket_ext_enabled', 'Y' );
+			//          MainWP_Helper::update_option( 'mainwp_wprocket_ext_enabled', 'Y' );
             try {
                 switch ( $_POST['mwp_action'] ) {
                     case 'set_showhide':
