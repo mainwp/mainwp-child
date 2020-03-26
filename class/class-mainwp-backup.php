@@ -118,7 +118,7 @@ class MainWP_Backup {
 		@ini_set( 'max_execution_time', $this->timeout );
 		// @codingStandardsIgnoreEnd
 
-		if ( !is_array( $files ) ) {
+		if ( ! is_array( $files ) ) {
 			$files = array( $files );
 		}
 
@@ -168,7 +168,7 @@ class MainWP_Backup {
 			}
 		}
 
-		return !$error;
+		return ! $error;
 	}
 
 	/**

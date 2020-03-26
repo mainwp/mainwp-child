@@ -151,14 +151,12 @@ class MainWP_Child_Plugins_Check {
 		$plugin_info = get_transient( $this->tran_name_plugin_timestamps );
 
 		//Sanity check the response
-		if( false === $plugin_info || ! is_array( $plugin_info ) && 0 === count( $plugin_info ) )
-		{
+		if ( false === $plugin_info || ! is_array( $plugin_info ) && 0 === count( $plugin_info ) ) {
 			return $plugin_meta;
 		}
 
 		//See if this specific plugin is in the known list
-		if( array_key_exists( $plugin_file, $plugin_info ) )
-		{
+		if ( array_key_exists( $plugin_file, $plugin_info ) ) {
 			//Get now
 			$now = new \DateTime();
 			$last_updated = $plugin_info[ $plugin_file ]['last_updated'];
@@ -173,12 +171,9 @@ class MainWP_Child_Plugins_Check {
 			$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 			//If we're outside the window for tolerance show a message
-			if( $diff_in_days > $tolerance_in_days )
-			{
+			if ( $diff_in_days > $tolerance_in_days ) {
 				$plugin_meta[] = sprintf( '<strong style="color: #f00;">This plugin has not been updated by the author in %1$d days!</strong>', $diff_in_days );
-			}
-			else
-			{
+			} else {
 				$plugin_meta[] = sprintf( '<span style="color: #090;">This plugin was last updated by the author in %1$d days ago.</span>', $diff_in_days );
 			}
 		}

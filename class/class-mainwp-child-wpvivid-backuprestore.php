@@ -6,8 +6,7 @@ class MainWP_Child_WPvivid_BackupRestore {
     public $is_plugin_installed = false;
     public $public_intetface;
     static function Instance() {
-        if ( null === self::$instance )
-        {
+        if ( null === self::$instance ) {
             self::$instance = new MainWP_Child_WPvivid_BackupRestore();
         }
 
@@ -16,12 +15,11 @@ class MainWP_Child_WPvivid_BackupRestore {
 
     public function __construct() {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        if ( is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) && defined('WPVIVID_PLUGIN_DIR'))
-        {
+        if ( is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) && defined('WPVIVID_PLUGIN_DIR')) {
             $this->is_plugin_installed = true;
         }
 
-        if (!$this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed) {
             return;
         }
 
@@ -33,19 +31,18 @@ class MainWP_Child_WPvivid_BackupRestore {
     }
 
     function syncOthersData( $information, $data = array() ) {
-        try{
+        try {
 
-            if ( isset( $data['syncWPvividData'] ))
-            {
-                $information['syncWPvividData']=1;
+            if ( isset( $data['syncWPvividData'] )) {
+                $information['syncWPvividData'] = 1;
                 $data = WPvivid_Setting::get_sync_data();
-                $information['syncWPvividSettingData']=$data['setting'];
-                $information['syncWPvividRemoteData']=$data['remote'];
-                $information['syncWPvividScheduleData']=$data['schedule'];
+                $information['syncWPvividSettingData'] = $data['setting'];
+                $information['syncWPvividRemoteData'] = $data['remote'];
+                $information['syncWPvividScheduleData'] = $data['schedule'];
                 $information['syncWPvividSetting'] = $data;
             }
 
-        } catch(Exception $e) {
+        } catch (Exception $e) {
 
         }
 
@@ -54,14 +51,12 @@ class MainWP_Child_WPvivid_BackupRestore {
 
     public function action() {
         $information = array();
-        if ( ! $this->is_plugin_installed )
-        {
+        if ( ! $this->is_plugin_installed ) {
             $information['error'] = 'NO_WPVIVIDBACKUP';
             MainWP_Helper::write( $information );
         }
 
-        if ( isset( $_POST['mwp_action'] ) )
-        {
+        if ( isset( $_POST['mwp_action'] ) ) {
             try {
                 switch ($_POST['mwp_action']) {
                     case 'prepare_backup':
@@ -139,7 +134,7 @@ class MainWP_Child_WPvivid_BackupRestore {
     public function post_mainwp_data( $data) {
         global $wpvivid_plugin;
 
-        $ret =$wpvivid_plugin->wpvivid_handle_mainwp_action($data);
+        $ret = $wpvivid_plugin->wpvivid_handle_mainwp_action($data);
         return $ret;
     }
 

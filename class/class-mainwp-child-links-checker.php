@@ -32,7 +32,7 @@ class MainWP_Child_Links_Checker {
                     $this->is_plugin_installed = true;
 		}
 
-        if ( !$this->is_plugin_installed ) {
+        if ( ! $this->is_plugin_installed ) {
             return;
         }
 
@@ -82,7 +82,7 @@ class MainWP_Child_Links_Checker {
                 }
             }
             MainWP_Helper::write( $information );
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
         }
 	}
@@ -210,9 +210,9 @@ class MainWP_Child_Links_Checker {
     // ok
     public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {
-            try{
+            try {
                 $information['syncBrokenLinksCheckerData'] = $this->get_sync_data();
-            } catch(Exception $e) {
+            } catch (Exception $e) {
 
             }
         }
@@ -231,7 +231,8 @@ class MainWP_Child_Links_Checker {
 
 	function get_links_data() {
 
-        if (!defined('BLC_DIRECTORY')) { return;
+        if ( ! defined('BLC_DIRECTORY')) {
+return;
         }
 
         $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
@@ -267,7 +268,7 @@ class MainWP_Child_Links_Checker {
 		$link_data = $this->links_checker_data($params);
 
 		$total_sync = 0;
-		if ($offset){
+		if ($offset) {
 			$total_sync = $offset;
 		}
 		$total_sync += ( is_array($link_data) ? count($link_data) : 0 );
@@ -291,7 +292,8 @@ class MainWP_Child_Links_Checker {
 	}
 
 	function get_count_links() {
-        if (!defined('BLC_DIRECTORY')) { return;
+        if ( ! defined('BLC_DIRECTORY')) {
+return;
         }
 
         $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';

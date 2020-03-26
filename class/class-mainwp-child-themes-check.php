@@ -177,7 +177,8 @@ class MainWP_Child_Themes_Check {
 		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		foreach ( $themes_to_scan as $slug => $v ) {
-            if ( in_array( $slug, $avoid_themes ) ) { continue;
+            if ( in_array( $slug, $avoid_themes ) ) {
+continue;
             }
 
 			$body = $this->try_get_response_body( $slug, false );

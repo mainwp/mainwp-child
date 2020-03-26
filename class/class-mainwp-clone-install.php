@@ -654,7 +654,7 @@ class MainWP_Clone_Install {
 		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
 		try {
 
-			if ( is_string( $data ) && is_serialized( $data ) && !is_serialized_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
+			if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
 				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
 			} elseif ( is_array( $data ) ) {
 				$_tmp = array();
@@ -673,7 +673,7 @@ class MainWP_Clone_Install {
 
 				$data = $_tmp;
 				unset( $_tmp );
-			}  elseif (is_serialized_string($data) && is_serialized($data)) {
+			} elseif (is_serialized_string($data) && is_serialized($data)) {
                 // TODO: apply solution like phpmyadmin project have!
 				if ( ( $data = @unserialize( $data ) ) !== false ) {
 					$data = str_replace( $from, $to, $data );

@@ -275,7 +275,7 @@ class MainWP_Security {
 	public static function remove_registered_versions() {
         if ( self::get_security_option( 'registered_versions' ) ) {
 			global $wp_styles;
-			if ( $wp_styles instanceof WP_Styles )  {
+			if ( $wp_styles instanceof WP_Styles ) {
 				foreach ( $wp_styles->registered as $handle => $style ) {
                     $wp_styles->registered[ $handle ]->ver = null;
                 }
@@ -352,7 +352,8 @@ class MainWP_Security {
 	//Admin user name is not admin
 	public static function admin_user_ok() {
 		$user = get_user_by( 'login', 'admin' );
-		if ( ! $user ) { return true;
+		if ( ! $user ) {
+return true;
         }
 
 		if ( 10 !== $user->wp_user_level && ( ! isset( $user->user_level ) || 10 !== $user->user_level ) && ! user_can( $user, 'level_10' ) ) {
@@ -364,7 +365,7 @@ class MainWP_Security {
 
 	public static function update_security_option( $key, $value ) {
 		$security = get_option( 'mainwp_security' );
-		if ( !empty($key) ) {
+		if ( ! empty($key) ) {
 			$security[ $key ] = $value;
         }
 		MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );

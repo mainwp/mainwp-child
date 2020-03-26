@@ -175,12 +175,10 @@ class MainWP_Wordpress_SEO {
 			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_INDEX );
 			$title = __( 'Post is set to noindex.', 'wordpress-seo' );
 			WPSEO_Meta::set_value( 'linkdex', 0, $post_id );
-		}
-		elseif ( '' === WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
+		} elseif ( '' === WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
 			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_FOCUS );
 			$title = __( 'Focus keyword not set.', 'wordpress-seo' );
-		}
-		else {
+		} else {
 			$score = (int) WPSEO_Meta::get_value( 'linkdex', $post_id );
 			$rank  = WPSEO_Rank::from_numeric_score( $score );
 			$title = $rank->get_label();
