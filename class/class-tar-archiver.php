@@ -1,6 +1,6 @@
 <?php
 
-//todo: BZ2; support fseek!
+// todo: BZ2; support fseek!
 
 class Tar_Archiver {
 	const IDLE   = 0;
@@ -16,16 +16,16 @@ class Tar_Archiver {
 
 	protected $debug;
 
-	protected $chunk     = ''; //1024 * 1024 * 4
-	protected $chunkSize = 4194304; //1024 * 1024 * 4
+	protected $chunk     = ''; // 1024 * 1024 * 4
+	protected $chunkSize = 4194304; // 1024 * 1024 * 4
 
 	/** @var $backup MainWP_Backup */
 	protected $backup;
 
 	protected $type;
-	protected $pidFile; //filepath of pid file
-	protected $pidContent; //content of pid file
-	protected $pidUpdated; //last updated pid file
+	protected $pidFile; // filepath of pid file
+	protected $pidContent; // content of pid file
+	protected $pidUpdated; // last updated pid file
 
 	protected $mode = self::IDLE;
 
@@ -127,19 +127,19 @@ class Tar_Archiver {
 	}
 
 	public function createFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
-		//$this->logHandle = fopen($filepath . ".log", "a+");
+		// $this->logHandle = fopen($filepath . ".log", "a+");
 		$this->createPidFile( $filepath );
 
 		$this->excludeZip = $excludezip;
 
 		$this->archivePath = $filepath;
 
-		//        if (!file_exists($filepath))
-		//        {
-		//            $this->limit = true;
-		//        }
+		// if (!file_exists($filepath))
+		// {
+		// $this->limit = true;
+		// }
 
-		if ( $append && @file_exists( $filepath ) ) { //todo: use wpFS
+		if ( $append && @file_exists( $filepath ) ) { // todo: use wpFS
 			$this->mode = self::APPEND;
 			$this->prepareAppend( $filepath );
 		} else {
@@ -255,9 +255,9 @@ class Tar_Archiver {
 					'themes'  => $themes,
 				) ) );
 
-				//                $configFile = dirname($filepath) . DIRECTORY_SEPARATOR . time() . 'config.txt';
-				//                $fh = fopen($filepath, 'w'); //or error;
-				//                dirname($filepath) . DIRECTORY_SEPARATOR
+				// $configFile = dirname($filepath) . DIRECTORY_SEPARATOR . time() . 'config.txt';
+				// $fh = fopen($filepath, 'w'); //or error;
+				// dirname($filepath) . DIRECTORY_SEPARATOR
 				$this->addEmptyDirectory( 'clone', 0, 0, 0, time() );
 				$this->addFileFromString( 'clone/config.txt', $string );
 			}
@@ -328,11 +328,11 @@ class Tar_Archiver {
 		}
 
 		if ( 'tar.gz' == $this->type ) {
-			//if (@fwrite($this->archive, $data, strlen($data)) === false)
+			// if (@fwrite($this->archive, $data, strlen($data)) === false)
 			if ( false === @gzwrite( $this->archive, $data, strlen( $data ) ) ) {
 				throw new Exception( 'Could not write to archive' );
 			}
-			//@fflush($this->archive);
+			// @fflush($this->archive);
 		} elseif ( 'tar.bz2' == $this->type ) {
 			if ( false === @bzwrite( $this->archive, $data, strlen( $data ) ) ) {
 				throw new Exception( 'Could not write to archive' );
@@ -351,12 +351,12 @@ class Tar_Archiver {
 			return;
 		}
 
-		//        if ($this->cnt++ > 3)
-		//        {
-		//            $this->log('error?');
-		//            $this->cnt = 0;
-		//            throw new Exception('error!');
-		//        }
+		// if ($this->cnt++ > 3)
+		// {
+		// $this->log('error?');
+		// $this->cnt = 0;
+		// throw new Exception('error!');
+		// }
 
 		if ( 'tar.gz' == $this->type ) {
 			$this->log( 'writing & flushing ' . $len );
@@ -467,7 +467,7 @@ class Tar_Archiver {
 	protected $tempContent;
 	protected $gcCnt = 0;
 
-	//    protected $limit;
+	// protected $limit;
 	protected $cnt = 0;
 
 	private function addFile( $path, $entryName ) {
@@ -483,12 +483,12 @@ class Tar_Archiver {
 
 		$this->log( 'Adding ' . $path );
 
-		//        if ($this->limit)
-		//        {
-		//            $this->cnt++;
+		// if ($this->limit)
+		// {
+		// $this->cnt++;
 		//
-		//            if ($this->cnt > 250) throw new Exception('Some error..' . $this->archivePath);
-		//        }
+		// if ($this->cnt > 250) throw new Exception('Some error..' . $this->archivePath);
+		// }
 
 		$this->updatePidFile();
 
@@ -519,7 +519,7 @@ class Tar_Archiver {
 		$stat = @stat( $path );
 		$fp   = @fopen( $path, 'rb' );
 		if ( ! $fp ) {
-			//todo: add some error feedback!
+			// todo: add some error feedback!
 			return;
 		}
 
@@ -616,7 +616,7 @@ class Tar_Archiver {
 		}
 
 		while ( ! feof( $fp ) ) {
-			//0.1MB = 1024 000
+			// 0.1MB = 1024 000
 			$this->tempContent = fread( $fp, 1024000 * 5 );
 
 			$read   = strlen( $this->tempContent );
@@ -630,7 +630,7 @@ class Tar_Archiver {
 
 			$this->updatePidFile();
 
-			//            if ($this->limit) throw new Exception('Some error..' . $entryName);
+			// if ($this->limit) throw new Exception('Some error..' . $entryName);
 		}
 
 		@fclose( $fp );
@@ -725,14 +725,14 @@ class Tar_Archiver {
 	private function checkBeforeAppend( $entryName ) {
 		$rslt = $this->isNextFile( $entryName );
 
-		//Correct file
+		// Correct file
 		if ( true === $rslt ) {
 			return true;
 		}
 
 		$out = false;
 
-		//close, reopen with append & ftruncate
+		// close, reopen with append & ftruncate
 		$this->close( false );
 		$this->log( 'Reopen archive to append from here' );
 		$this->append( $this->archivePath );
@@ -744,7 +744,7 @@ class Tar_Archiver {
 			} elseif ( 'tar.gz' == $this->type ) {
 				$readOffset = $rslt['readOffset'];
 				$bytesRead  = $rslt['bytesRead'];
-				//@fseek($this->archive, $readOffset + $bytesRead);
+				// @fseek($this->archive, $readOffset + $bytesRead);
 
 				$out = array( 'bytesRead' => $bytesRead );
 			}
@@ -753,7 +753,7 @@ class Tar_Archiver {
 				@fseek( $this->archive, 0, SEEK_END );
 			}
 		} else {
-			//todo: check for tar.gz & tar!
+			// todo: check for tar.gz & tar!
 			@fseek( $this->archive, $rslt );
 			@ftruncate( $this->archive, $rslt );
 		}
@@ -790,7 +790,7 @@ class Tar_Archiver {
 			}
 
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			//Check for long file!!
+			// Check for long file!!
 			if ( 'L' == $temp['type'] ) {
 				$fname          = trim( @fread( $this->archive, 512 ) );
 				$block          = @fread( $this->archive, 512 );
@@ -904,7 +904,7 @@ class Tar_Archiver {
 		}
 
 		if ( 'tar.gz' == $this->type ) {
-			//$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
+			// $this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
 			$this->archive = @gzopen( $filepath, 'wb' );
 		} elseif ( 'tar.bz2' == $this->type ) {
 			$this->archive = @bzopen( $filepath, 'w' );
@@ -926,7 +926,7 @@ class Tar_Archiver {
 		}
 
 		if ( 'tar.gz' == $this->type ) {
-			//$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
+			// $this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
 			$this->archive = @gzopen( $filepath, 'ab' );
 		} elseif ( $this->type == 'tar.bz2' ) {
 			$this->archive = @bzopen( $filepath, 'a' );
@@ -942,9 +942,9 @@ class Tar_Archiver {
 	function prepareAppend( $filepath ) {
 		if ( $this->debug ) {
 			if ( 'tar.gz' == substr( $filepath, - 6 ) ) {
-				$text = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ); //magic header!!
+				$text = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ); // magic header!!
 
-				//Check if valid, if not, crop to valid!
+				// Check if valid, if not, crop to valid!
 				$fh          = @fopen( $filepath, 'rb' );
 				$read        = '';
 				$lastCorrect = 0;
@@ -972,7 +972,7 @@ class Tar_Archiver {
 					@fclose( $fh );
 				} catch ( Exception $e ) {
 					@fclose( $fh );
-					//reopen & truncate
+					// reopen & truncate
 					$fh = @fopen( $filepath, 'ab+' );
 					@fseek( $fh, $lastCorrect );
 					@ftruncate( $fh, $lastCorrect );
@@ -990,7 +990,7 @@ class Tar_Archiver {
 
 		if ( 'tar.gz' == substr( $filepath, - 6 ) ) {
 			$this->type = 'tar.gz';
-			//            $this->archive = @fopen('compress.zlib://' . $filepath, 'rb');
+			// $this->archive = @fopen('compress.zlib://' . $filepath, 'rb');
 			$this->archive = @gzopen( $filepath, 'r' );
 		} elseif ( 'tar.bz2' == substr( $filepath, - 7 ) ) {
 			$this->type    = 'tar.bz2';
@@ -1009,7 +1009,7 @@ class Tar_Archiver {
 	}
 
 	function close( $closeLog = true ) {
-		//Write chunk if it's not empty..
+		// Write chunk if it's not empty..
 		$this->writeChunk();
 
 		$this->log( 'Closing archive' );
@@ -1020,7 +1020,7 @@ class Tar_Archiver {
 
 		if ( $this->archive ) {
 			if ( 'tar.gz' == $this->type ) {
-				//@fclose($this->archive);
+				// @fclose($this->archive);
 				@gzclose( $this->archive );
 			} elseif ( 'tar.bz2' == $this->type ) {
 				@bzclose( $this->archive );
@@ -1041,7 +1041,7 @@ class Tar_Archiver {
 		@fseek( $this->archive, 0 );
 		while ( $block = @fread( $this->archive, 512 ) ) {
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			//Check for long file!!
+			// Check for long file!!
 			if ( 'L' == $temp['type'] ) {
 				$fname          = trim( @fread( $this->archive, 512 ) );
 				$block          = @fread( $this->archive, 512 );
@@ -1066,7 +1066,7 @@ class Tar_Archiver {
 			if ( $file['checksum'] == 0x00000000 ) {
 				break;
 			} elseif ( substr( $file['magic'], 0, 5 ) != 'ustar' ) {
-				//                $this->error[] = "This script does not support extracting this type of tar file.";
+				// $this->error[] = "This script does not support extracting this type of tar file.";
 				break;
 			}
 
@@ -1075,8 +1075,8 @@ class Tar_Archiver {
 			for ( $i = 0; $i < 512; $i ++ ) {
 				$checksum += ord( substr( $block, $i, 1 ) );
 			}
-			//            if ($file['checksum'] != $checksum)
-			//                $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
+			// if ($file['checksum'] != $checksum)
+			// $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
 
 			if ( 0 == $file['type'] ) {
 				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
@@ -1110,7 +1110,7 @@ class Tar_Archiver {
 		@fseek( $this->archive, 0 );
 		while ( $block = @fread( $this->archive, 512 ) ) {
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			//Check for long file!!
+			// Check for long file!!
 			if ( 'L' == $temp['type'] ) {
 				$fname          = trim( @fread( $this->archive, 512 ) );
 				$block          = @fread( $this->archive, 512 );
@@ -1135,7 +1135,7 @@ class Tar_Archiver {
 			if ( $file['checksum'] == 0x00000000 ) {
 				break;
 			} elseif ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
-				//                $this->error[] = "This script does not support extracting this type of tar file.";
+				// $this->error[] = "This script does not support extracting this type of tar file.";
 				break;
 			}
 
@@ -1144,8 +1144,8 @@ class Tar_Archiver {
 			for ( $i = 0; $i < 512; $i ++ ) {
 				$checksum += ord( substr( $block, $i, 1 ) );
 			}
-			//            if ($file['checksum'] != $checksum)
-			//                $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
+			// if ($file['checksum'] != $checksum)
+			// $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
 
 			if ( 5 == $file['type'] ) {
 				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
@@ -1174,7 +1174,7 @@ class Tar_Archiver {
 		@fseek( $this->archive, 0 );
 		while ( $block = fread( $this->archive, 512 ) ) {
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			//Check for long file!!
+			// Check for long file!!
 			if ( 'L' == $temp['type'] ) {
 				$fname          = trim( @fread( $this->archive, 512 ) );
 				$block          = @fread( $this->archive, 512 );
@@ -1199,7 +1199,7 @@ class Tar_Archiver {
 			if ( $file['checksum'] == 0x00000000 ) {
 				break;
 			} elseif ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
-				//                $this->error[] = "This script does not support extracting this type of tar file.";
+				// $this->error[] = "This script does not support extracting this type of tar file.";
 				break;
 			}
 			$block    = substr_replace( $block, '        ', 148, 8 );
@@ -1207,8 +1207,8 @@ class Tar_Archiver {
 			for ( $i = 0; $i < 512; $i ++ ) {
 				$checksum += ord( substr( $block, $i, 1 ) );
 			}
-			//            if ($file['checksum'] != $checksum)
-			//                $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
+			// if ($file['checksum'] != $checksum)
+			// $this->error[] = "Could not extract from {$this->options['name']}, it is corrupt.";
 			if ( 5 == $file['type'] ) {
 				if ( ! is_dir( $to . $file['name'] ) ) {
 					if ( ! empty( $wp_filesystem ) ) {
@@ -1302,7 +1302,7 @@ if ( class_exists( 'SplHeap' ) ) {
 			$dirnameA = ( is_file( $pathA ) ? dirname( $pathA ) : $pathA );
 			$dirnameB = ( is_file( $pathB ) ? dirname( $pathB ) : $pathB );
 
-			//if both are in the same folder, first show the files, then the directories
+			// if both are in the same folder, first show the files, then the directories
 			if ( dirname( $pathA ) == dirname( $pathB ) ) {
 				if ( is_file( $pathA ) && ! is_file( $pathB ) ) {
 					return - 1;

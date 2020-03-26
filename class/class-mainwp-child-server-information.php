@@ -515,7 +515,7 @@ class MainWP_Child_Server_Information {
 		if ( ! self::check( '>=', '10000', 'getOutputBufferSize' ) ) {
 			$i ++;
 		}
-		//        if (!self::check('=', true, 'getSSLSupport')) $i++;
+		// if (!self::check('=', true, 'getSSLSupport')) $i++;
 
 		if ( ! self::checkDirectoryMainWPDirectory( false ) ) {
 			$i ++;
@@ -879,7 +879,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function mainwpRequiredFunctions() {
-		//error_reporting(E_ALL);
+		// error_reporting(E_ALL);
 		$disabled_functions = ini_get( 'disable_functions' );
 		if ( '' !== $disabled_functions ) {
 			$arr = explode( ',', $disabled_functions );

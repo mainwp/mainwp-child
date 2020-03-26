@@ -167,12 +167,12 @@ class MainWP_Child_Staging {
             'disableAdminLogin',
             'querySRLimit',
             'maxFileSize',
-            //'wpSubDirectory', // removed
+            // 'wpSubDirectory', // removed
             'debugMode',
             'unInstallOnDelete',
             'checkDirectorySize',
 			'optimizer',
-			//'loginSlug' // removed
+			// 'loginSlug' // removed
         );
 
         $save_fields = array();

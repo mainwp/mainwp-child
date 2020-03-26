@@ -81,7 +81,7 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_fileContents',
         'scansEnabled_fileContentsGSB',
 		'scan_include_extra',
-		//'scansEnabled_heartbleed',
+		// 'scansEnabled_heartbleed',
         'scansEnabled_checkHowGetIPs',
 		'scansEnabled_highSense',
         'lowResourceScansEnabled',
@@ -96,7 +96,7 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_themes',
 		'scheduledScansEnabled',
 		'securityLevel',
-		//'scheduleScan' // NOTE: filtered, not save
+		// 'scheduleScan' // NOTE: filtered, not save
 		'blockFakeBots',
 		'neverBlockBG',
 		'maxGlobalRequests',
@@ -134,15 +134,15 @@ class MainWP_Child_Wordfence {
 		'disableCookies',
 		'liveActivityPauseEnabled',
 		'startScansRemotely',
-		//'disableConfigCaching',
-		//'addCacheComment', // removed
+		// 'disableConfigCaching',
+		// 'addCacheComment', // removed
 		'disableCodeExecutionUploads',
-		//'isPaid',
+		// 'isPaid',
 		'advancedCommentScanning',
         'scansEnabled_checkGSB',
 		'checkSpamIP',
 		'spamvertizeCheck',
-		//'scansEnabled_public',
+		// 'scansEnabled_public',
 		'email_summary_enabled',
 		'email_summary_dashboard_widget_enabled',
 		'ssl_verify',
@@ -151,8 +151,8 @@ class MainWP_Child_Wordfence {
 		'allowed404s',
         'wafAlertWhitelist',
         'wafAlertOnAttacks',
-        //'ajaxWatcherDisabled_front', // do not update those values when save settings
-        //'ajaxWatcherDisabled_admin'  // those values saved in the ['changes'] in the saveOptions function
+        // 'ajaxWatcherDisabled_front', // do not update those values when save settings
+        // 'ajaxWatcherDisabled_admin'  // those values saved in the ['changes'] in the saveOptions function
         'howGetIPs_trusted_proxies',
         'other_bypassLitespeedNoabort',
         'disableWAFIPBlocking',
@@ -168,11 +168,11 @@ class MainWP_Child_Wordfence {
 
     // for separated saving this values
     public static $diagnosticParams = array(
-		//'addCacheComment',
+		// 'addCacheComment',
 		'debugOn',
 		'startScansRemotely',
 		'ssl_verify',
-		//'disableConfigCaching',
+		// 'disableConfigCaching',
 		'betaThreatDefenseFeed',
 	);
 
@@ -542,8 +542,8 @@ class MainWP_Child_Wordfence {
         );
 
         $scan_opts        = array(
-            'scansEnabled_checkGSB', //paid
-            'spamvertizeCheck', //paid
+            'scansEnabled_checkGSB', // paid
+            'spamvertizeCheck', // paid
             'checkSpamIP', // paid
             'scansEnabled_checkHowGetIPs',
             'scansEnabled_checkReadableConfig',
@@ -629,7 +629,7 @@ class MainWP_Child_Wordfence {
     private function kill_scan() {
 		wordfence::status(1, 'info', 'Scan kill request received.');
 		wordfence::status(10, 'info', 'SUM_KILLED:A request was received to kill the previous scan.');
-		wfUtils::clearScanLock(); //Clear the lock now because there may not be a scan running to pick up the kill request and clear the lock
+		wfUtils::clearScanLock(); // Clear the lock now because there may not be a scan running to pick up the kill request and clear the lock
 		wfScanEngine::requestKill();
 		return array(
             'ok' => 1,
@@ -1183,40 +1183,40 @@ SQL
                 }
             }
 
-			//            $to_fix_boolean_values = array(
-			//                'scansEnabled_checkGSB',
-			//                'spamvertizeCheck',
-			//                'checkSpamIP',
-			//                'scansEnabled_checkHowGetIPs',
-			//                'scansEnabled_checkReadableConfig',
-			//                'scansEnabled_suspectedFiles',
-			//                'scansEnabled_core',
-			//                'scansEnabled_themes',
-			//                'scansEnabled_plugins',
-			//                'scansEnabled_coreUnknown',
-			//                'scansEnabled_malware',
-			//                'scansEnabled_fileContents',
-			//                'scansEnabled_fileContentsGSB',
-			//                'scansEnabled_posts',
-			//                'scansEnabled_comments',
-			//                'scansEnabled_suspiciousOptions',
-			//                'scansEnabled_oldVersions',
-			//                'scansEnabled_suspiciousAdminUsers',
-			//                'scansEnabled_passwds',
-			//                'scansEnabled_diskSpace',
-			//                'scansEnabled_dns',
-			//                'other_scanOutside',
-			//                'scansEnabled_scanImages',
-			//                'scansEnabled_highSense',
-			//                'scheduledScansEnabled',
-			//                'lowResourceScansEnabled',
-			//            );
+			// $to_fix_boolean_values = array(
+			// 'scansEnabled_checkGSB',
+			// 'spamvertizeCheck',
+			// 'checkSpamIP',
+			// 'scansEnabled_checkHowGetIPs',
+			// 'scansEnabled_checkReadableConfig',
+			// 'scansEnabled_suspectedFiles',
+			// 'scansEnabled_core',
+			// 'scansEnabled_themes',
+			// 'scansEnabled_plugins',
+			// 'scansEnabled_coreUnknown',
+			// 'scansEnabled_malware',
+			// 'scansEnabled_fileContents',
+			// 'scansEnabled_fileContentsGSB',
+			// 'scansEnabled_posts',
+			// 'scansEnabled_comments',
+			// 'scansEnabled_suspiciousOptions',
+			// 'scansEnabled_oldVersions',
+			// 'scansEnabled_suspiciousAdminUsers',
+			// 'scansEnabled_passwds',
+			// 'scansEnabled_diskSpace',
+			// 'scansEnabled_dns',
+			// 'other_scanOutside',
+			// 'scansEnabled_scanImages',
+			// 'scansEnabled_highSense',
+			// 'scheduledScansEnabled',
+			// 'lowResourceScansEnabled',
+			// );
 			//
             // save the settings
 			foreach ( $opts as $key => $val ) {
                 // check saving section fields
                 if ( in_array( $key, $saving_opts ) ) {
-                    if ( 'apiKey' == $key ) { //Don't save API key yet
+                    if ( 'apiKey' == $key ) { // Don't save API key yet
                         continue;
                     }
                     if (in_array( $key, self::$firewall_options_filter ) ) {
@@ -1283,7 +1283,7 @@ SQL
             }
 
             // Finished saving settings
-            /////////////////////
+            //
 
 			$result['cacheType']  = wfConfig::get( 'cacheType' );
 			$result['paidKeyMsg'] = false;
@@ -1323,17 +1323,17 @@ SQL
 						$res = $api->call('check_api_key', array(), array( 'previousLicense' => $existingAPIKey ));
 						if ( $res['ok'] && isset( $res['isPaid'] ) ) {
 
-							//                              wfConfig::set( 'apiKey', $apiKey );
-							//                              wfConfig::set( 'isPaid', $res['isPaid'] ); //res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
-							//                              $result['apiKey'] = $apiKey;
-							//                              $result['isPaid'] = $res['isPaid'];
-							//                              if ( $res['isPaid'] ) {
-							//                                  $result['paidKeyMsg'] = true;
-							//                              }
+							// wfConfig::set( 'apiKey', $apiKey );
+							// wfConfig::set( 'isPaid', $res['isPaid'] ); //res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
+							// $result['apiKey'] = $apiKey;
+							// $result['isPaid'] = $res['isPaid'];
+							// if ( $res['isPaid'] ) {
+							// $result['paidKeyMsg'] = true;
+							// }
 
 							$isPaid = wfUtils::truthyToBoolean($res['isPaid']);
 							wfConfig::set('apiKey', $apiKey);
-							wfConfig::set('isPaid', $isPaid); //res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
+							wfConfig::set('isPaid', $isPaid); // res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
 							wordfence::licenseStatusChanged();
 							if ( ! $isPaid) {
 								wfConfig::set('keyType', wfAPI::KEY_TYPE_FREE);
@@ -1472,7 +1472,7 @@ SQL
 
 			foreach ( $opts as $key => $val ) {
 				if ( in_array( $key, self::$options_filter ) ) {
-					if ( 'apiKey' !== $key ) { //Don't save API key yet
+					if ( 'apiKey' !== $key ) { // Don't save API key yet
 						wfConfig::set( $key, $val );
 					}
 				}
@@ -1524,7 +1524,7 @@ SQL
 			$result['cacheType']  = wfConfig::get( 'cacheType' );
 			$result['paidKeyMsg'] = false;
 			$apiKey               = trim( $_POST['apiKey'] );
-			if ( ! $apiKey ) { //Empty API key (after trim above), then try to get one.
+			if ( ! $apiKey ) { // Empty API key (after trim above), then try to get one.
 				$api = new wfAPI( '', wfUtils::getWPVersion() );
 				try {
 					$keyData = $api->call( 'get_anon_api_key' );
@@ -1548,7 +1548,7 @@ SQL
 					$res = $api->call( 'check_api_key', array(), array() );
 					if ( $res['ok'] && isset( $res['isPaid'] ) ) {
 						wfConfig::set( 'apiKey', $apiKey );
-						wfConfig::set( 'isPaid', $res['isPaid'] ); //res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
+						wfConfig::set( 'isPaid', $res['isPaid'] ); // res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
 						$result['apiKey'] = $apiKey;
 						$result['isPaid'] = $res['isPaid'];
 						if ( $res['isPaid'] ) {
@@ -1584,19 +1584,19 @@ SQL
 
         $export = array();
 
-		//Basic Options
+		// Basic Options
 		$keys = wfConfig::getExportableOptionsKeys();
 		foreach ($keys as $key) {
 			$export[ $key ] = wfConfig::get($key, '');
 		}
 
-		//Serialized Options
+		// Serialized Options
 		$export['scanSched'] = wfConfig::get_ser('scanSched', array());
 
-		//Table-based Options
+		// Table-based Options
 		$export['blocks'] = wfBlock::exportBlocks();
 
-		//Make the API call
+		// Make the API call
 		try {
 			$api = new wfAPI(wfConfig::get('apiKey'), wfUtils::getWPVersion());
 			$res = $api->call('export_options', array(), array( 'export' => json_encode($export) ));
@@ -1627,7 +1627,7 @@ SQL
 					return array( 'errorImport' => __('An error occurred: Invalid options format received.', 'wordfence') );
 				}
 
-				//Basic Options
+				// Basic Options
 				$keys  = wfConfig::getExportableOptionsKeys();
 				$toSet = array();
 				foreach ($keys as $key) {
@@ -1650,14 +1650,14 @@ SQL
 					wfConfig::save(wfConfig::clean($toSet));
 				}
 
-				//Serialized Options
+				// Serialized Options
 				if (isset($import['scanSched']) && is_array($import['scanSched'])) {
 					wfConfig::set_ser('scanSched', $import['scanSched']);
 					wfScanner::shared()->scheduleScans();
 					$totalSet++;
 				}
 
-				//Table-based Options
+				// Table-based Options
 				if (isset($import['blocks']) && is_array($import['blocks'])) {
 					wfBlock::importBlocks($import['blocks']);
 					$totalSet += count($import['blocks']);
@@ -1684,7 +1684,7 @@ SQL
 		foreach ($keys as $key) {
 			$settings[ $key ] = wfConfig::get($key, '');
 		}
-		$settings['apiKey'] = wfConfig::get('apiKey');  //get more apiKey
+		$settings['apiKey'] = wfConfig::get('apiKey');  // get more apiKey
 		$settings['isPaid'] = wfConfig::get('isPaid');
 		return $settings;
 	}
@@ -1726,7 +1726,7 @@ SQL
 			}
 		}
 		$jsonData['events']    = $events;
-		$jsonData['alsoGet']   = $alsoGet; //send it back so we don't load data if panel has changed
+		$jsonData['alsoGet']   = $alsoGet; // send it back so we don't load data if panel has changed
 		$jsonData['cacheType'] = wfConfig::get( 'cacheType' );
         return $jsonData;
 	}
@@ -2050,7 +2050,7 @@ SQL
 				wfConfig::set( 'isPaid', 0 );
 				$return['apiKey'] = $keyData['apiKey'];
 				$return['isPaid'] = 0;
-				//When downgrading we must disable all two factor authentication because it can lock an admin out if we don't.
+				// When downgrading we must disable all two factor authentication because it can lock an admin out if we don't.
 				wfConfig::set_ser( 'twoFactorUsers', array() );
 			} else {
 				throw new Exception( 'Could not understand the response we received from the Wordfence servers when applying for a free API key.' );
@@ -2127,7 +2127,7 @@ SQL
 			}
 		}
 
-		//Mainly we clear the cache here so that any footer cache diagnostic comments are rebuilt. We could just leave it intact unless caching is being disabled.
+		// Mainly we clear the cache here so that any footer cache diagnostic comments are rebuilt. We could just leave it intact unless caching is being disabled.
 		if ($cacheType != wfConfig::get('cacheType', false)) {
 			wfCache::scheduleCacheClear();
 		}
@@ -2161,7 +2161,7 @@ SQL
 				}
 			}
 			wfConfig::set('cacheType', 'falcon');
-			wfCache::scheduleUpdateBlockedIPs(); //Runs every 5 mins until we change cachetype
+			wfCache::scheduleUpdateBlockedIPs(); // Runs every 5 mins until we change cachetype
 			return array(
 				'ok'      => 1,
 				'heading' => 'Wordfence Falcon Engine Activated!',
@@ -2240,7 +2240,7 @@ SQL
 			$changed = true;
 		}
 		wfConfig::set('allowHTTPSCaching', $_POST['allowHTTPSCaching'] == '1' ? 1 : 0);
-		//wfConfig::set('addCacheComment', $_POST['addCacheComment'] == 1 ? '1' : 0);
+		// wfConfig::set('addCacheComment', $_POST['addCacheComment'] == 1 ? '1' : 0);
 		wfConfig::set('clearCacheSched', $_POST['clearCacheSched'] == 1 ? '1' : 0);
 		if ($changed && wfConfig::get('cacheType', false) == 'falcon') {
 			$err = wfCache::addHtaccessCode('add');
@@ -2340,7 +2340,7 @@ SQL
 		wfConfig::set('cacheExclusions', serialize($ex));
 		wfCache::scheduleCacheClear();
 		if (wfConfig::get('cacheType', false) == 'falcon' && preg_match('/^(?:uac|uaeq|cc)$/', $_POST['patternType'])) {
-			if (wfCache::addHtaccessCode('add')) { //rewrites htaccess rules
+			if (wfCache::addHtaccessCode('add')) { // rewrites htaccess rules
 				return array(
 					'errorMsg' => 'We added the rule you requested but could not modify your .htaccess file. Please delete this rule, check the permissions on your .htaccess file and then try again.',
 					'ex'       => $ex,
@@ -2380,7 +2380,7 @@ SQL
 					$rewriteHtaccess = true;
 				}
 				array_splice($ex, $i, 1);
-				//Dont break in case of dups
+				// Dont break in case of dups
 				$removed = true;
 			}
 		}
@@ -2391,7 +2391,7 @@ SQL
 		}
 
 		wfConfig::set('cacheExclusions', serialize($ex));
-		if ($rewriteHtaccess && wfCache::addHtaccessCode('add')) { //rewrites htaccess rules
+		if ($rewriteHtaccess && wfCache::addHtaccessCode('add')) { // rewrites htaccess rules
 			$return['errorMsg'] = "We removed that rule but could not rewrite your .htaccess file. You're going to have to manually remove this rule from your .htaccess file. Please reload this page now.";
 			return $return;
 		}
@@ -2962,7 +2962,7 @@ SQL
 		<?php
 		global $wpdb;
 		$wfdb = new wfDB();
-		//This must be done this way because MySQL with InnoDB tables does a full regeneration of all metadata if we don't. That takes a long time with a large table count.
+		// This must be done this way because MySQL with InnoDB tables does a full regeneration of all metadata if we don't. That takes a long time with a large table count.
 		$tables = $wfdb->querySelect('SELECT SQL_CALC_FOUND_ROWS TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME ASC LIMIT 250');
 		$total  = $wfdb->querySingle('SELECT FOUND_ROWS()');
 		foreach ($tables as &$t) {
@@ -3130,7 +3130,7 @@ SQL
 		$event->setWaf(wfWAF::getInstance());
 		$event->fire();
 		$isPaid = (bool) wfConfig::get('isPaid', 0);
-		//return self::_getWAFData();
+		// return self::_getWAFData();
 		return array(
 			'ok'     => 1,
 			'isPaid' => $isPaid,

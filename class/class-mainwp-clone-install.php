@@ -41,8 +41,8 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function checkZipConsole() {
-		//todo: implement
-		//        return function_exists('system');
+		// todo: implement
+		// return function_exists('system');
 		return false;
 	}
 
@@ -59,7 +59,7 @@ class MainWP_Clone_Install {
 		if ( null !== $this->archiver ) {
 
 		} elseif ( $this->checkZipConsole() ) {
-			//todo: implement
+			// todo: implement
 		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
@@ -73,7 +73,7 @@ class MainWP_Clone_Install {
 
 			return false;
 		} else {
-			//use pclzip
+			// use pclzip
 			$zip   = new PclZip( $this->file );
 			$list  = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
 			$list2 = $zip->delete( PCLZIP_OPT_BY_NAME, 'clone' );
@@ -115,7 +115,7 @@ class MainWP_Clone_Install {
 
 			return $this->archiver->file_exists( $file );
 		} elseif ( $this->checkZipConsole() ) {
-			//todo: implement
+			// todo: implement
 		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
@@ -236,7 +236,7 @@ class MainWP_Clone_Install {
 				$readline = '';
 				while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
 					if ( time() - $lastRun > 20 ) {
-						@set_time_limit( 0 ); //reset timer..
+						@set_time_limit( 0 ); // reset timer..
 						$lastRun = time();
 					}
 
@@ -373,14 +373,14 @@ class MainWP_Clone_Install {
 			return $content;
 		} else {
 			if ( $this->checkZipConsole() ) {
-				//todo: implement
+				// todo: implement
 			} elseif ( $this->checkZipSupport() ) {
 				$zip    = new ZipArchive();
 				$zipRes = $zip->open( $this->file );
 				if ( $zipRes ) {
 					$content = $zip->getFromName( 'clone/config.txt' );
-					//                $zip->deleteName('clone/config.txt');
-					//                $zip->deleteName('clone/');
+					// $zip->deleteName('clone/config.txt');
+					// $zip->deleteName('clone/');
 					$zip->close();
 
 					return $content;
@@ -388,7 +388,7 @@ class MainWP_Clone_Install {
 
 				return false;
 			} else {
-				//use pclzip
+				// use pclzip
 				$zip     = new PclZip( $this->file );
 				$content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt',
 				PCLZIP_OPT_EXTRACT_AS_STRING );
@@ -484,8 +484,8 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function extractZipConsoleBackup() {
-		//todo implement
-		//system('zip');
+		// todo implement
+		// system('zip');
 		return false;
 	}
 

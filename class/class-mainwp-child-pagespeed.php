@@ -240,17 +240,17 @@ class MainWP_Child_Pagespeed {
 
 		$result = $this->get_sync_data( $strategy );
 
-		//      if ( isset( $_POST['doaction'] ) && ( 'check_new_pages' === $_POST['doaction'] || 'recheck_all_pages' === $_POST['doaction'] ) ) {
-		//          if ( 'recheck_all_pages' === $_POST['doaction'] ) {
-		//              $recheck = true;
-		//          } else {
-		//              $recheck = false;
-		//          }
+		// if ( isset( $_POST['doaction'] ) && ( 'check_new_pages' === $_POST['doaction'] || 'recheck_all_pages' === $_POST['doaction'] ) ) {
+		// if ( 'recheck_all_pages' === $_POST['doaction'] ) {
+		// $recheck = true;
+		// } else {
+		// $recheck = false;
+		// }
 		//
 		//
-		//          if ($this->do_check_pages($recheck))
-		//              $information['checked_pages'] = 1;
-		//      }
+		// if ($this->do_check_pages($recheck))
+		// $information['checked_pages'] = 1;
+		// }
 		$information['data'] = $result['data'];
 		return $information;
 	}
@@ -276,7 +276,7 @@ class MainWP_Child_Pagespeed {
 			if ( $checkstatus ) {
 				$information['error'] = __( 'The API is busy checking other pages, please try again later.', 'gpagespeedi' );
 			} else {
-				//do_action( 'googlepagespeedinsightsworker', array(), $forceRecheck );
+				// do_action( 'googlepagespeedinsightsworker', array(), $forceRecheck );
                 do_action( 'run_gpi', $forceRecheck ); // to fix
 				$information['checked_pages'] = 1;
 			}
@@ -343,7 +343,7 @@ class MainWP_Child_Pagespeed {
 		}
 
 		$score_column = $strategy . '_score';
-		//$page_stats_column = $strategy . '_page_stats';
+		// $page_stats_column = $strategy . '_page_stats';
 
 		$data_typestocheck = self::get_filter_options( 'all' );
 
@@ -400,9 +400,9 @@ class MainWP_Child_Pagespeed {
 		// Not Null check for Report List scores
 		switch ( $strategy ) {
 
-			//            case 'both':
-			//                $nullcheck = 'desktop_score IS NOT NULL AND mobile_score IS NOT NULL';
-			//                break;
+			// case 'both':
+			// $nullcheck = 'desktop_score IS NOT NULL AND mobile_score IS NOT NULL';
+			// break;
 
 			case 'mobile':
 				$nullcheck = 'mobile_score IS NOT NULL';

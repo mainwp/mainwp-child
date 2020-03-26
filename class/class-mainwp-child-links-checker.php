@@ -137,13 +137,13 @@ class MainWP_Child_Links_Checker {
 		global $wpdb;
 		/** @var wpdb $wpdb */
 
-		//Delete all discovered instances
+		// Delete all discovered instances
 		$wpdb->query( "TRUNCATE {$wpdb->prefix}blc_instances" );
 
-		//Delete all discovered links
+		// Delete all discovered links
 		$wpdb->query( "TRUNCATE {$wpdb->prefix}blc_links" );
 
-		//Mark all posts, custom fields and bookmarks for processing.
+		// Mark all posts, custom fields and bookmarks for processing.
 		blc_resynch( true );
 	}
 
@@ -158,18 +158,18 @@ class MainWP_Child_Links_Checker {
 		}
 		blc_init();
 
-		//Get the container type matching the type of the deleted post
+		// Get the container type matching the type of the deleted post
 		$post = get_post( $post_id );
 		if ( ! $post ) {
 			return;
 		}
-		//Get the associated container object
+		// Get the associated container object
 		$post_container = blcContainerHelper::get_container( array( $post->post_type, intval( $post_id ) ) );
 
 		if ( $post_container ) {
-			//Delete it
+			// Delete it
 			$post_container->delete();
-			//Clean up any dangling links
+			// Clean up any dangling links
 			blc_cleanup_links();
 		}
 	}
@@ -345,7 +345,7 @@ class MainWP_Child_Links_Checker {
 			'last_success',
 			'may_recheck',
 			'false_positive',
-			//'result_hash',
+			// 'result_hash',
 			'dismissed',
 			'status_text',
 			'status_code',
@@ -374,7 +374,7 @@ class MainWP_Child_Links_Checker {
 
 				$days_broken = 0;
 				if ( $link->broken ) {
-					//Add a highlight to broken links that appear to be permanently broken
+					// Add a highlight to broken links that appear to be permanently broken
 					$days_broken = intval( ( time() - $link->first_failure ) / ( 3600 * 24 ) );
 					if ( $days_broken >= $blc_option['failure_duration_threshold'] ) {
 						$extra_info['permanently_broken'] = 1;
@@ -433,7 +433,7 @@ class MainWP_Child_Links_Checker {
 					$link_texts     = $can_edit_text ? $editable_link_texts : $non_editable_link_texts;
 					$data_link_text = '';
 					if ( count( $link_texts ) === 1 ) {
-						//All instances have the same text - use it.
+						// All instances have the same text - use it.
 						$link_text      = key( $link_texts );
 						$data_link_text = esc_attr( $link_text );
 					}
@@ -462,14 +462,14 @@ class MainWP_Child_Links_Checker {
 
 			return $information;
 		}
-		//Load the link
+		// Load the link
 		$link = new blcLink( intval( $_POST['link_id'] ) );
 		if ( ! $link->valid() ) {
 			$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link
 			return $information;
 		}
 
-		//Validate the new URL.
+		// Validate the new URL.
 		$new_url = stripslashes( $_POST['new_url'] );
 		$parsed  = @parse_url( $new_url );
 		if ( ! $parsed ) {
@@ -482,7 +482,7 @@ class MainWP_Child_Links_Checker {
 			$new_text = null;
 		}
 		if ( ! empty( $new_text ) && ! current_user_can( 'unfiltered_html' ) ) {
-			$new_text = stripslashes( wp_filter_post_kses( addslashes( $new_text ) ) ); //wp_filter_post_kses expects slashed data.
+			$new_text = stripslashes( wp_filter_post_kses( addslashes( $new_text ) ) ); // wp_filter_post_kses expects slashed data.
 		}
 
 		$rez = $link->edit( $new_url, $new_text );
@@ -515,7 +515,7 @@ class MainWP_Child_Links_Checker {
 				'ui_link_text' => isset( $new_text ) ? $ui_link_text : null,
 				'errors'       => array(),
 			);
-			//url, status text, status code, link text, editable link text
+			// url, status text, status code, link text, editable link text
 
 			foreach ( $rez['errors'] as $error ) {
 				/** @var $error WP_Error */
@@ -535,7 +535,7 @@ class MainWP_Child_Links_Checker {
 		}
 
 		if ( isset( $_POST['link_id'] ) ) {
-			//Load the link
+			// Load the link
 			$link = new blcLink( intval( $_POST['link_id'] ) );
 
 			if ( ! $link->valid() ) {
@@ -543,7 +543,7 @@ class MainWP_Child_Links_Checker {
 				return $information;
 			}
 
-			//Try and unlink it
+			// Try and unlink it
 			$rez = $link->unlink();
 
 			if ( false === $rez ) {
@@ -580,7 +580,7 @@ class MainWP_Child_Links_Checker {
 		}
 
 		if ( isset( $_POST['link_id'] ) ) {
-			//Load the link
+			// Load the link
 			$link = new blcLink( intval( $_POST['link_id'] ) );
 
 			if ( ! $link->valid() ) {
@@ -590,7 +590,7 @@ class MainWP_Child_Links_Checker {
 
 			$link->dismissed = $dismiss;
 
-			//Save the changes
+			// Save the changes
 			if ( $link->save() ) {
 				$information = 'OK';
 			} else {
@@ -613,7 +613,7 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 		if ( isset( $_POST['link_id'] ) ) {
-			//Load the link
+			// Load the link
 			$link = new blcLink( intval( $_POST['link_id'] ) );
 
 			if ( ! $link->valid() ) {
@@ -621,13 +621,13 @@ class MainWP_Child_Links_Checker {
 				return $information;
 			}
 
-			//Make it appear "not broken"
+			// Make it appear "not broken"
 			$link->broken             = false;
 			$link->false_positive     = true;
 			$link->last_check_attempt = time();
 			$link->log                = __( 'This link was manually marked as working by the user.', 'mainwp-child' );
 
-			//Save the changes
+			// Save the changes
 			if ( $link->save() ) {
 				$information['status']             = 'OK';
 				$information['last_check_attempt'] = $link->last_check_attempt;
@@ -652,7 +652,7 @@ class MainWP_Child_Links_Checker {
 	}
 
 	function ui_get_source_comment( $container, $container_field = '' ) {
-		//Display a comment icon.
+		// Display a comment icon.
 		if ( 'comment_author_url' === $container_field ) {
 			$image = 'font-awesome/font-awesome-user.png';
 		} else {
@@ -665,7 +665,7 @@ class MainWP_Child_Links_Checker {
 
         $comment = $container->get_wrapped_object();
 
-		//Display a small text sample from the comment
+		// Display a small text sample from the comment
 		$text_sample = strip_tags( $comment->comment_content );
 		$text_sample = blcUtility::truncate( $text_sample, 65 );
 
