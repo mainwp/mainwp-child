@@ -32,6 +32,9 @@
                 <!-- Disable Strict comparison in array check. Not applicable in the mojority of cases. -->               
                 <exclude name="WordPress.PHP.StrictInArray"/>
                 
+		<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
+		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
+		<exclude name="Squiz.Commenting.InlineComment"/>
 	</rule>
 
 	<!-- Enforce PSR1 compatible namespaces. -->
