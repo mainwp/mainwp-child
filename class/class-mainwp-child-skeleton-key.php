@@ -19,7 +19,7 @@ class MainWP_Child_Skeleton_Key {
 		error_reporting( 0 );
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
-			if ( isset( $error['type'] ) && in_array($error['type'], array(1, 4, 16, 64, 256) ) && isset( $error['message'] ) ) {
+			if ( isset( $error['type'] ) && in_array($error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 			// to fix issue double <mainwp></mainwp> header in response
@@ -84,8 +84,14 @@ class MainWP_Child_Skeleton_Key {
 		$post_args['redirection'] = 5;
 		$post_args['decompress']  = false; // For gzinflate() data error bug
 		$post_args['cookies']     = array(
-			new WP_Http_Cookie( array( 'name' => $auth_cookie_name, 'value' => $auth_cookie ) ),
-			new WP_Http_Cookie( array( 'name' => LOGGED_IN_COOKIE, 'value' => $logged_in_cookie ) ),
+			new WP_Http_Cookie( array(
+				'name'  => $auth_cookie_name,
+				'value' => $auth_cookie,
+			) ),
+			new WP_Http_Cookie( array(
+				'name'  => LOGGED_IN_COOKIE,
+				'value' => $logged_in_cookie,
+			) ),
 		);
 
 		if ( isset( $args['get'] ) ) {
@@ -190,7 +196,7 @@ class MainWP_Child_Skeleton_Key {
 		$settings = isset($_POST['settings']) ? $_POST['settings'] : array();
 
 		if (!is_array($settings) || empty($settings)) {
-			return array('error' => 'Invalid data. Please check and try again.');
+			return array( 'error' => 'Invalid data. Please check and try again.' );
         }
 
 		$whitelist_options = array(
@@ -211,7 +217,7 @@ class MainWP_Child_Skeleton_Key {
 		}
 
 		//$whitelist_options = apply_filters( 'whitelist_options', $whitelist_options );
-		$whitelist_general = $whitelist_options[ 'general' ];
+		$whitelist_general = $whitelist_options['general'];
 
 		// Handle translation install.
 		if ( ! empty( $settings['WPLANG'] ) ) {
@@ -240,7 +246,7 @@ class MainWP_Child_Skeleton_Key {
 			return false;
         }
 
-		return array('result' => 'ok');
+		return array( 'result' => 'ok' );
 	}
 
 }

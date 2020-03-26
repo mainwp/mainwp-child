@@ -56,81 +56,81 @@ class MainWP_Child_WP_Rocket {
 
 	function get_rocket_default_options() {
 		  return array(
-			  'cache_mobile'             => 1,
-			  'do_caching_mobile_files'     => 0,
-			  'cache_logged_user'        => 0,
-			  'cache_ssl'                => 0,
-			  'emoji'                   => 0,
-			  'embeds'                   => 1,
-			  'control_heartbeat' => 0,
-			  'heartbeat_site_behavior'     => 'reduce_periodicity',
-			  'heartbeat_admin_behavior'    => 'reduce_periodicity',
-			  'heartbeat_editor_behavior'   => 'reduce_periodicity',
-			  'varnish_auto_purge' => 0,
-			  'manual_preload' => 0,
-			  'automatic_preload' => 0,
-			  'sitemap_preload' => 0,
-			  'sitemap_preload_url_crawl' => 500000,
-			  'sitemaps' => array(),
-			  'database_revisions' => 0,
-			  'database_auto_drafts' => 0,
-			  'database_trashed_posts' => 0,
-			  'database_spam_comments' => 0,
-			  'database_trashed_comments' => 0,
-			  'database_expired_transients' => 0,
-			  'database_all_transients' => 0,
-			  'database_optimize_tables' => 0,
-			  'schedule_automatic_cleanup' => 0,
-			  'automatic_cleanup_frequency' => '',
-			  'cache_reject_uri'         => array(),
-			  'cache_reject_cookies'     => array(),
-			  'cache_reject_ua'          => array(),
-			  'cache_query_strings'      => array(),
-			  'cache_purge_pages'        => array(),
-			  'purge_cron_interval'      => 10,
-			  'purge_cron_unit'          => 'HOUR_IN_SECONDS',
-			  'exclude_css'              => array(),
-			  'exclude_js'               => array(),
-			  'exclude_inline_js'               => array(),
-			  'async_css'                 => 0,
-			  'defer_all_js'              => 0,
-			  'defer_all_js_safe'         => 1,
-			  'critical_css'              => '',
-			  'deferred_js_files'        => array(),
-			  'lazyload'                 => 0,
-			  'lazyload_iframes'         => 0,
-			  'lazyload_youtube'          =>0,
-			  'minify_css'               => 0,
+			  'cache_mobile'                           => 1,
+			  'do_caching_mobile_files'                => 0,
+			  'cache_logged_user'                      => 0,
+			  'cache_ssl'                              => 0,
+			  'emoji'                                  => 0,
+			  'embeds'                                 => 1,
+			  'control_heartbeat'                      => 0,
+			  'heartbeat_site_behavior'                => 'reduce_periodicity',
+			  'heartbeat_admin_behavior'               => 'reduce_periodicity',
+			  'heartbeat_editor_behavior'              => 'reduce_periodicity',
+			  'varnish_auto_purge'                     => 0,
+			  'manual_preload'                         => 0,
+			  'automatic_preload'                      => 0,
+			  'sitemap_preload'                        => 0,
+			  'sitemap_preload_url_crawl'              => 500000,
+			  'sitemaps'                               => array(),
+			  'database_revisions'                     => 0,
+			  'database_auto_drafts'                   => 0,
+			  'database_trashed_posts'                 => 0,
+			  'database_spam_comments'                 => 0,
+			  'database_trashed_comments'              => 0,
+			  'database_expired_transients'            => 0,
+			  'database_all_transients'                => 0,
+			  'database_optimize_tables'               => 0,
+			  'schedule_automatic_cleanup'             => 0,
+			  'automatic_cleanup_frequency'            => '',
+			  'cache_reject_uri'                       => array(),
+			  'cache_reject_cookies'                   => array(),
+			  'cache_reject_ua'                        => array(),
+			  'cache_query_strings'                    => array(),
+			  'cache_purge_pages'                      => array(),
+			  'purge_cron_interval'                    => 10,
+			  'purge_cron_unit'                        => 'HOUR_IN_SECONDS',
+			  'exclude_css'                            => array(),
+			  'exclude_js'                             => array(),
+			  'exclude_inline_js'                      => array(),
+			  'async_css'                              => 0,
+			  'defer_all_js'                           => 0,
+			  'defer_all_js_safe'                      => 1,
+			  'critical_css'                           => '',
+			  'deferred_js_files'                      => array(),
+			  'lazyload'                               => 0,
+			  'lazyload_iframes'                       => 0,
+			  'lazyload_youtube'                       =>0,
+			  'minify_css'                             => 0,
 			  //                'minify_css_key'           => $minify_css_key,
-							  'minify_concatenate_css'      => 0,
+							  'minify_concatenate_css' => 0,
 			  //'minify_css_combine_all'   => 0,
-			  'minify_css_legacy'           => 0,
-			  'minify_js'                => 0,
+			  'minify_css_legacy'                      => 0,
+			  'minify_js'                              => 0,
 			  //                'minify_js_key'            => $minify_js_key,
-							  'minify_js_in_footer'      => array(),
-			  'minify_concatenate_js'       => 0,
-			  'minify_js_combine_all'    => 0,
+							  'minify_js_in_footer'    => array(),
+			  'minify_concatenate_js'                  => 0,
+			  'minify_js_combine_all'                  => 0,
 			  //'minify_js_legacy'			  => 0,
-			  'minify_google_fonts'      => 0,
-			  'minify_html'              => 0,
-			  'remove_query_strings'     => 0,
-			  'dns_prefetch'             => 0,
-			  'cdn'                      => 0,
-			  'cdn_cnames'               => array(),
-			  'cdn_zone'                 => array(),
+			  'minify_google_fonts'                    => 0,
+			  'minify_html'                            => 0,
+			  'remove_query_strings'                   => 0,
+			  'dns_prefetch'                           => 0,
+			  'cdn'                                    => 0,
+			  'cdn_cnames'                             => array(),
+			  'cdn_zone'                               => array(),
 			  //'cdn_ssl'                  => 0,
-			  'cdn_reject_files'         => array(),
-			  'do_cloudflare'            => 0,
-			  'cloudflare_email'         => '',
-			  'cloudflare_api_key'       => '',
-			  'cloudflare_domain'        => '',
+			  'cdn_reject_files'                       => array(),
+			  'do_cloudflare'                          => 0,
+			  'cloudflare_email'                       => '',
+			  'cloudflare_api_key'                     => '',
+			  'cloudflare_domain'                      => '',
 			  //'cloudflare_zone_id'          => '',
-			  'cloudflare_devmode'       => 0,
-			  'cloudflare_protocol_rewrite' => 0,
-			  'cloudflare_auto_settings' => 0,
-			  'cloudflare_old_settings'  => 0,
-			  'do_beta'                  => 0,
-			  'analytics_enabled'        => 1,
+			  'cloudflare_devmode'                     => 0,
+			  'cloudflare_protocol_rewrite'            => 0,
+			  'cloudflare_auto_settings'               => 0,
+			  'cloudflare_old_settings'                => 0,
+			  'do_beta'                                => 0,
+			  'analytics_enabled'                      => 1,
 		  );
 	}
 
@@ -138,7 +138,7 @@ class MainWP_Child_WP_Rocket {
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
             try{
-                $data = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ));
+                $data = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );
                 $information['syncWPRocketData'] = $data;
             } catch(Exception $e) {
             }
@@ -305,9 +305,9 @@ class MainWP_Child_WP_Rocket {
         if ( function_exists( 'opcache_reset' ) ) {
             @opcache_reset();
         } else {
-            return array('error' => 'The host do not support the function reset opcache.');
+            return array( 'error' => 'The host do not support the function reset opcache.' );
         }
-        return array('result' => 'SUCCESS');
+        return array( 'result' => 'SUCCESS' );
     }
 
 	function purge_cloudflare() {
@@ -361,7 +361,7 @@ class MainWP_Child_WP_Rocket {
         MainWP_Helper::check_classes_exists('WP_Rocket\Preload\Full_Process');
 
         $preload_process = new WP_Rocket\Preload\Full_Process();
-        MainWP_Helper::check_methods($preload_process, array( 'is_process_running'));
+        MainWP_Helper::check_methods($preload_process, array( 'is_process_running' ));
 
         if ( $preload_process->is_process_running() ) {
             return array( 'result' => 'RUNNING' );
@@ -374,11 +374,12 @@ class MainWP_Child_WP_Rocket {
 	}
 
     function generate_critical_css() {
-        MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber',
-                                                    'WP_Rocket\Optimization\CSS\Critical_CSS',
-                                                    'WP_Rocket\Optimization\CSS\Critical_CSS_Generation',
-                                                    'WP_Rocket\Admin\Options',
-                                                    'WP_Rocket\Admin\Options_Data',
+        MainWP_Helper::check_classes_exists( array(
+			'WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber',
+			'WP_Rocket\Optimization\CSS\Critical_CSS',
+			'WP_Rocket\Optimization\CSS\Critical_CSS_Generation',
+			'WP_Rocket\Admin\Options',
+			'WP_Rocket\Admin\Options_Data',
 		));
 
         $critical_css = new WP_Rocket\Optimization\CSS\Critical_CSS( new WP_Rocket\Optimization\CSS\Critical_CSS_Generation() );
@@ -421,10 +422,11 @@ class MainWP_Child_WP_Rocket {
 
 	function optimize_database() {
 
-         MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Admin\Database\Optimization',
-                                                    'WP_Rocket\Admin\Database\Optimization_Process',
-                                                    'WP_Rocket\Admin\Options',
-                                                    'WP_Rocket\Admin\Options_Data',
+         MainWP_Helper::check_classes_exists( array(
+			 'WP_Rocket\Admin\Database\Optimization',
+			 'WP_Rocket\Admin\Database\Optimization_Process',
+			 'WP_Rocket\Admin\Options',
+			 'WP_Rocket\Admin\Options_Data',
 		 ));
 
         $process = new WP_Rocket\Admin\Database\Optimization_Process();
@@ -446,8 +448,9 @@ class MainWP_Child_WP_Rocket {
 
 	function get_optimize_info() {
 
-        MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Admin\Database\Optimization',
-                                                    'WP_Rocket\Admin\Database\Optimization_Process',
+        MainWP_Helper::check_classes_exists( array(
+			'WP_Rocket\Admin\Database\Optimization',
+			'WP_Rocket\Admin\Database\Optimization_Process',
 		));
 
         $process = new WP_Rocket\Admin\Database\Optimization_Process();
@@ -455,10 +458,10 @@ class MainWP_Child_WP_Rocket {
         MainWP_Helper::check_methods($optimization, 'count_cleanup_items');
 
         $information['optimize_info'] = array(
-            'total_revisions'         => $optimization->count_cleanup_items( 'database_revisions' ),
+            'total_revisions'          => $optimization->count_cleanup_items( 'database_revisions' ),
             'total_auto_draft'         => $optimization->count_cleanup_items( 'database_auto_drafts' ),
             'total_trashed_posts'      => $optimization->count_cleanup_items( 'database_trashed_posts' ),
-            'total_spam_comments'     => $optimization->count_cleanup_items( 'database_spam_comments' ),
+            'total_spam_comments'      => $optimization->count_cleanup_items( 'database_spam_comments' ),
             'total_trashed_comments'   => $optimization->count_cleanup_items( 'database_trashed_comments' ),
             'total_expired_transients' => $optimization->count_cleanup_items( 'database_expired_transients' ),
             'total_all_transients'     => $optimization->count_cleanup_items( 'database_all_transients' ),
@@ -471,7 +474,10 @@ class MainWP_Child_WP_Rocket {
 
 	function load_existing_settings() {
 		$options = get_option( WP_ROCKET_SLUG );
-		return array('result' => 'SUCCESS', 'options' => $options);
+		return array(
+			'result'  => 'SUCCESS',
+			'options' => $options,
+		);
 	}
 
 }

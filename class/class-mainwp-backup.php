@@ -119,7 +119,7 @@ class MainWP_Backup {
 		// @codingStandardsIgnoreEnd
 
 		if ( !is_array( $files ) ) {
-			$files = array ( $files );
+			$files = array( $files );
 		}
 
 		if ( null !== $this->archiver ) {

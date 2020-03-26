@@ -61,14 +61,14 @@ class MainWP_Child_Timecapsule {
 
 	public function action() {
             if (!$this->is_plugin_installed) {
-                 MainWP_Helper::write( array('error' => 'Please install WP Time Capsule plugin on child website') );
+                 MainWP_Helper::write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
             }
 
             try {
                 $this->require_files();
             } catch ( Exception $e) {
                 $error = $e->getMessage();
-                MainWP_Helper::write( array('error' => $error) );
+                MainWP_Helper::write( array( 'error' => $error ) );
             }
 
             $information = array();
@@ -84,9 +84,9 @@ class MainWP_Child_Timecapsule {
                             $_POST['mwp_action'] == 'save_settings' ||
                             $_POST['mwp_action'] == 'get_staging_details_wptc' ||
                             $_POST['mwp_action'] == 'progress_wptc'
-                    ) && (!$is_user_logged_in || !$privileges_wptc )
+                    ) && ( !$is_user_logged_in || !$privileges_wptc )
                     ) {
-                        MainWP_Helper::write( array('error' => 'You are not login to your WP Time Capsule account.') );
+                        MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
                 }
 
                 switch ( $_POST['mwp_action'] ) {
@@ -254,7 +254,7 @@ class MainWP_Child_Timecapsule {
     public function get_sync_data() {
         try {
             $this->require_files();
-            MainWP_Helper::check_classes_exists(array('Wptc_Options_Helper', 'WPTC_Base_Factory', 'WPTC_Factory'));
+            MainWP_Helper::check_classes_exists(array( 'Wptc_Options_Helper', 'WPTC_Base_Factory', 'WPTC_Factory' ));
 
             $config = WPTC_Factory::get('config');
             MainWP_Helper::check_methods($config, 'get_option');
@@ -265,8 +265,8 @@ class MainWP_Child_Timecapsule {
 
             $options_helper = new Wptc_Options_Helper();
 
-            MainWP_Helper::check_methods($options_helper, array( 'get_plan_interval_from_subs_info', 'get_is_user_logged_in'));
-            MainWP_Helper::check_methods($wptc_settings, array( 'get_connected_cloud_info'));
+            MainWP_Helper::check_methods($options_helper, array( 'get_plan_interval_from_subs_info', 'get_is_user_logged_in' ));
+            MainWP_Helper::check_methods($wptc_settings, array( 'get_connected_cloud_info' ));
 
             $all_backups = $this->getBackups();
             $backups_count = 0;
@@ -274,19 +274,19 @@ class MainWP_Child_Timecapsule {
                 $formatted_backups = array();
                foreach ($all_backups as $key => $value) {
                     $value_array = (array) $value;
-                    $formatted_backups[$value_array['backupID']][] = $value_array;
+                    $formatted_backups[ $value_array['backupID'] ][] = $value_array;
                 }
                 $backups_count = count($formatted_backups);
             }
 
             $return = array(
 				'main_account_email' => $main_account_email_var,
-				'signed_in_repos' =>   $wptc_settings->get_connected_cloud_info(),
-				'plan_name' => $options_helper->get_plan_interval_from_subs_info(),
-				'plan_interval' => $options_helper->get_plan_interval_from_subs_info(),
-				'lastbackup_time' => !empty($last_backup_time) ? $last_backup_time : 0,
-				'is_user_logged_in' => $options_helper->get_is_user_logged_in(),
-				'backups_count' => $backups_count,
+				'signed_in_repos'    =>   $wptc_settings->get_connected_cloud_info(),
+				'plan_name'          => $options_helper->get_plan_interval_from_subs_info(),
+				'plan_interval'      => $options_helper->get_plan_interval_from_subs_info(),
+				'lastbackup_time'    => !empty($last_backup_time) ? $last_backup_time : 0,
+				'is_user_logged_in'  => $options_helper->get_is_user_logged_in(),
+				'backups_count'      => $backups_count,
             );
             return $return;
         } catch ( Exception $e) {
@@ -319,7 +319,7 @@ class MainWP_Child_Timecapsule {
 
     public function exclude_file_list() {
         if (!isset($_POST['data'])) {
-			wptc_die_with_json_encode( array('status' => 'no data found') );
+			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
         $category = $_POST['category'];
         $exclude_class_obj = new Wptc_ExcludeOption($category);
@@ -397,7 +397,7 @@ class MainWP_Child_Timecapsule {
                 $status['cron_url'] = $cron_status['cron_url'];
                 $status['ips'] = $cron_status['ips'];
             }
-            return array('result' => $status);
+            return array( 'result' => $status );
         }
         return false;
     }
@@ -505,13 +505,14 @@ function get_sibling_files_callback_wptc() {
 		$totalpages = ceil($totalitems / $perpage); //Total number of pages
 		//adjust the query to take pagination into account
 		if (!empty($paged) && !empty($perpage)) {
-			$offset = ($paged - 1) * $perpage;
+			$offset = ( $paged - 1 ) * $perpage;
 			$query .= ' LIMIT ' . (int) $offset . ',' . (int) $perpage;
 		}
 
-        return array(   'items' => $wpdb->get_results($query),
-                        'totalitems' => $totalitems,
-                        'perpage' => $perpage,
+        return array(
+			'items'      => $wpdb->get_results($query),
+			'totalitems' => $totalitems,
+			'perpage'    => $perpage,
 		);
     }
 
@@ -551,7 +552,7 @@ function get_sibling_files_callback_wptc() {
 			$detailed .= '<tr><td></td><td><a style="cursor:pointer; position:relative" class="wptc_activity_log_load_more" action_id="' . esc_attr( $action_id ) . '" limit="' . esc_attr( $to_limit ) . '">Load more</a></td><td></td></tr>';
 		}
 
-        return array( 'result' => $detailed);
+        return array( 'result' => $detailed );
 
 		//die($detailed);
     }
@@ -605,13 +606,13 @@ function get_sibling_files_callback_wptc() {
 				// $user_tz_now = $user_tz->format("M d, Y @ g:i:s a");
 				$user_tz_now = date('M d, Y @ g:i:s a', $user_time);
 				$msg = '';
-				if (!(strpos($rec->type, 'backup') === false)) {
+				if (!( strpos($rec->type, 'backup') === false )) {
 					//Backup process
 					$msg = 'Backup Process';
-				} elseif (!(strpos($rec->type, 'restore') === false)) {
+				} elseif (!( strpos($rec->type, 'restore') === false )) {
 					//Restore Process
 					$msg = 'Restore Process';
-				} elseif (!(strpos($rec->type, 'staging') === false)) {
+				} elseif (!( strpos($rec->type, 'staging') === false )) {
 					//Restore Process
 					$msg = 'Staging Process';
 				} else {
@@ -636,7 +637,7 @@ function get_sibling_files_callback_wptc() {
 				//Close the line
 				$html .= '</tr>';
 
-                $display_rows[$key] = $html;
+                $display_rows[ $key ] = $html;
 			}
 
 		}
@@ -667,7 +668,7 @@ function get_sibling_files_callback_wptc() {
         } else {
             $result = 'no';
         }
-        return array('result' => $result);
+        return array( 'result' => $result );
     }
 
     function stop_fresh_backup_tc_callback_wptc() {
@@ -675,7 +676,7 @@ function get_sibling_files_callback_wptc() {
         $deactivated_plugin = null;
         $backup = new WPTC_BackupController();
         $backup->stop($deactivated_plugin);
-        return array('result' => 'ok');
+        return array( 'result' => 'ok' );
     }
 
 
@@ -689,7 +690,7 @@ function get_sibling_files_callback_wptc() {
 
     public function exclude_table_list() {
         if (!isset($_POST['data'])) {
-			wptc_die_with_json_encode( array('status' => 'no data found') );
+			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
         $category = $_POST['data']['category'];
         $exclude_class_obj = new Wptc_ExcludeOption($category);
@@ -716,7 +717,7 @@ function get_sibling_files_callback_wptc() {
         }
 
         try {
-             MainWP_Helper::check_classes_exists(array( 'WPTC_Factory'));
+             MainWP_Helper::check_classes_exists(array( 'WPTC_Factory' ));
 
             $config = WPTC_Factory::get('config');
 
@@ -740,7 +741,7 @@ function get_sibling_files_callback_wptc() {
                 $formatted_backups = array();
                 foreach ($all_last_backups as $key => $value) {
                     $value_array = (array) $value;
-                    $formatted_backups[$value_array['backupID']][] = $value_array;
+                    $formatted_backups[ $value_array['backupID'] ][] = $value_array;
                 }
                 $message = 'WP Time Capsule backup finished';
                 $backup_type = 'WP Time Capsule backup';
@@ -759,7 +760,7 @@ function get_sibling_files_callback_wptc() {
 
     public function include_table_list() {
         if (!isset($_POST['data'])) {
-			wptc_die_with_json_encode( array('status' => 'no data found') );
+			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
         $category = $_POST['data']['category'];
         $exclude_class_obj = new Wptc_ExcludeOption($category);
@@ -770,7 +771,7 @@ function get_sibling_files_callback_wptc() {
     public function include_table_structure_only() {
 
         if (!isset($_POST['data'])) {
-			wptc_die_with_json_encode( array('status' => 'no data found') );
+			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
 
         $category = $_POST['data']['category'];
@@ -782,7 +783,7 @@ function get_sibling_files_callback_wptc() {
     public function include_file_list() {
 
         if (!isset($_POST['data'])) {
-			wptc_die_with_json_encode( array('status' => 'no data found') );
+			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
         $category = $_POST['category'];
         $exclude_class_obj = new Wptc_ExcludeOption($category);
@@ -803,7 +804,7 @@ function get_sibling_files_callback_wptc() {
 
         if($options_helper->get_is_user_logged_in()){
             return array(
-                'result' => 'is_user_logged_in',
+                'result'    => 'is_user_logged_in',
                 'sync_data' => $this->get_sync_data(),
             );
         }
@@ -812,7 +813,7 @@ function get_sibling_files_callback_wptc() {
         $pwd = $_POST['acc_pwd'];
 
         if (empty( $email ) || empty($pwd)) {
-            return array('error' => 'Username and password cannot be empty');
+            return array( 'error' => 'Username and password cannot be empty' );
         }
 
         $config = WPTC_Base_Factory::get('Wptc_InitialSetup_Config');
@@ -836,9 +837,12 @@ function get_sibling_files_callback_wptc() {
         $is_user_logged_in  = $options->get_option('is_user_logged_in');
 
 		if (!$is_user_logged_in) {
-			return array('error' => 'Login failed.');
+			return array( 'error' => 'Login failed.' );
 		}
-        return array('result' => 'ok', 'sync_data' => $this->get_sync_data());
+        return array(
+			'result'    => 'ok',
+			'sync_data' => $this->get_sync_data(),
+		);
 	}
 
     function get_installed_plugins() {
@@ -847,9 +851,9 @@ function get_sibling_files_callback_wptc() {
         $plugins = $backup_before_auto_update_settings->get_installed_plugins();
 
 		if ($plugins) {
-			return array('results' =>$plugins );
+			return array( 'results' =>$plugins );
 		}
-        return array( 'results' => array());
+        return array( 'results' => array() );
     }
 
     function get_installed_themes() {
@@ -858,9 +862,9 @@ function get_sibling_files_callback_wptc() {
 
         $plugins = $backup_before_auto_update_settings->get_installed_themes();
 		if ($plugins) {
-			return array('results' =>$plugins );
+			return array( 'results' =>$plugins );
 		}
-        return array('results' => array() );
+        return array( 'results' => array() );
     }
 
     function is_staging_need_request() {
@@ -880,7 +884,10 @@ function get_sibling_files_callback_wptc() {
         $staging = WPTC_Pro_Factory::get('Wptc_Staging');
 
 		if (empty($_POST['path'])) {
-			wptc_die_with_json_encode( array('status' => 'error', 'msg' => 'path is missing') );
+			wptc_die_with_json_encode( array(
+				'status' => 'error',
+				'msg'    => 'path is missing',
+			) );
 		}
 
 		$staging->choose_action($_POST['path'], $reqeust_type = 'fresh');
@@ -941,7 +948,7 @@ function get_sibling_files_callback_wptc() {
     public function init_restore() {
 
 		if (empty($_POST)) {
-			return ( array('error' => 'Backup id is empty !') );
+			return ( array( 'error' => 'Backup id is empty !' ) );
 		}
         $restore_to_staging = WPTC_Base_Factory::get('Wptc_Restore_To_Staging');
 		$restore_to_staging->init_restore($_POST);
@@ -956,7 +963,7 @@ function get_sibling_files_callback_wptc() {
         if( !$options_helper->get_is_user_logged_in() ){
             return array(
                 'sync_data' => $this->get_sync_data(),
-                'error' => 'Login to your WP Time Capsule account first',
+                'error'     => 'Login to your WP Time Capsule account first',
             );
         }
 
@@ -1087,10 +1094,10 @@ function get_sibling_files_callback_wptc() {
         }
 
         if ( ! $saved ) {
-            return array('error' => 'Error: Not saved settings');
+            return array( 'error' => 'Error: Not saved settings' );
         }
 
-        return array('result' => 'ok');
+        return array( 'result' => 'ok' );
     }
 
 	private function filter_plugins( $included_plugins) {
@@ -1125,14 +1132,14 @@ function get_sibling_files_callback_wptc() {
 		$plugins = $vulns_obj->get_enabled_plugins();
         $plugins = WPTC_Base_Factory::get('Wptc_App_Functions')->fancytree_format($plugins, 'plugins');
 
-        return array('results' => $plugins);
+        return array( 'results' => $plugins );
 	}
 
     public function get_enabled_themes() {
         $vulns_obj = WPTC_Base_Factory::get('Wptc_Vulns');
 		$themes = $vulns_obj->get_enabled_themes();
         $themes = WPTC_Base_Factory::get('Wptc_App_Functions')->fancytree_format($themes, 'themes');
-        return array('results' => $themes);
+        return array( 'results' => $themes );
 	}
 
     public function get_system_info() {
@@ -1160,15 +1167,15 @@ function get_sibling_files_callback_wptc() {
 
         if ( function_exists( 'curl_version' ) ) {
             $curlversion = curl_version();
-            echo '<tr title=""><td>' . __( 'cURL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion[ 'version' ] ) . '</td></tr>';
-            echo '<tr title=""><td>' . __( 'cURL SSL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion[ 'ssl_version' ] ) . '</td></tr>';
+            echo '<tr title=""><td>' . __( 'cURL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion['version'] ) . '</td></tr>';
+            echo '<tr title=""><td>' . __( 'cURL SSL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion['ssl_version'] ) . '</td></tr>';
         }
         else {
             echo '<tr title=""><td>' . __( 'cURL version', 'wp-time-capsule' ) . '</td><td>' . __( 'unavailable', 'wp-time-capsule' ) . '</td></tr>';
         }
 
         echo '</td></tr>';
-        echo '<tr title=""><td>' . __( 'Server', 'wp-time-capsule' ) . '</td><td>' . esc_html( $_SERVER[ 'SERVER_SOFTWARE' ] ) . '</td></tr>';
+        echo '<tr title=""><td>' . __( 'Server', 'wp-time-capsule' ) . '</td><td>' . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . '</td></tr>';
         echo '<tr title=""><td>' . __( 'Operating System', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_OS ) . '</td></tr>';
         echo '<tr title=""><td>' . __( 'PHP SAPI', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_SAPI ) . '</td></tr>';
 
@@ -1187,7 +1194,7 @@ function get_sibling_files_callback_wptc() {
         }
 
         $now = localtime( time(), true );
-        echo '<tr title=""><td>' . __( 'Server Time', 'wp-time-capsule' ) . '</td><td>' . esc_html( $now[ 'tm_hour' ] . ':' . $now[ 'tm_min' ] ) . '</td></tr>';
+        echo '<tr title=""><td>' . __( 'Server Time', 'wp-time-capsule' ) . '</td><td>' . esc_html( $now['tm_hour'] . ':' . $now['tm_min'] ) . '</td></tr>';
         echo '<tr title=""><td>' . __( 'Blog Time', 'wp-time-capsule' ) . '</td><td>' . date( 'H:i', current_time( 'timestamp' ) ) . '</td></tr>';
         echo '<tr title="WPLANG"><td>' . __( 'Blog language', 'wp-time-capsule' ) . '</td><td>' . get_bloginfo( 'language' ) . '</td></tr>';
         echo '<tr title="utf8"><td>' . __( 'MySQL Client encoding', 'wp-time-capsule' ) . '</td><td>';
@@ -1217,7 +1224,7 @@ function get_sibling_files_callback_wptc() {
         echo '</table>';
 
         $html = ob_get_clean();
-        return array( 'result' => $html);
+        return array( 'result' => $html );
 	}
 
 
@@ -1233,7 +1240,7 @@ function get_sibling_files_callback_wptc() {
 
     function start_fresh_backup_tc_callback_wptc() {
         start_fresh_backup_tc_callback_wptc($type = '', $args = null, $test_connection = true, $ajax_check = false);
-        return array('result' => 'success');
+        return array( 'result' => 'success' );
     }
 
     public function save_manual_backup_name_wptc() {

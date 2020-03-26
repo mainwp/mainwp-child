@@ -78,7 +78,7 @@ class MainWP_Child_Staging {
 
     public function action() {
             if (!$this->is_plugin_installed) {
-                 MainWP_Helper::write( array('error' => 'Please install WP Staging plugin on child website') );
+                 MainWP_Helper::write( array( 'error' => 'Please install WP Staging plugin on child website' ) );
             }
 
             if (!class_exists( 'WPStaging\WPStaging' )){
@@ -177,12 +177,12 @@ class MainWP_Child_Staging {
 
         $save_fields = array();
         foreach($filters as $field) {
-            if (isset($settings[$field])) {
-                $save_fields[$field]  = $settings[$field];
+            if (isset($settings[ $field ])) {
+                $save_fields[ $field ]  = $settings[ $field ];
             }
         }
         update_option('wpstg_settings', $save_fields );
-        return array('result' => 'success');
+        return array( 'result' => 'success' );
     }
 
     public function get_overview() {
@@ -201,9 +201,9 @@ class MainWP_Child_Staging {
         $options = $scan->getOptions();
 
         $return = array(
-            'options' => serialize($options),
+            'options'          => serialize($options),
             'directoryListing' => $scan->directoryListing(),
-            'prefix' => WPStaging\WPStaging::getTablePrefix(),
+            'prefix'           => WPStaging\WPStaging::getTablePrefix(),
         );
         return $return;
    }
@@ -217,17 +217,17 @@ class MainWP_Child_Staging {
       // Check clone name length
       if( $cloneNameLength < 1 || $cloneNameLength > 16 ) {
          echo array(
-             'status' => 'failed',
+             'status'  => 'failed',
              'message' => 'Clone name must be between 1 - 16 characters',
          );
       } elseif( array_key_exists( $cloneName, $clones ) ) {
          return array(
-             'status' => 'failed',
+             'status'  => 'failed',
              'message' => 'Clone name is already in use, please choose an another clone name',
          );
       }
 
-      return array('status' => 'success');
+      return array( 'status' => 'success' );
    }
 
    public function ajaxStartClone() {
@@ -302,7 +302,7 @@ class MainWP_Child_Staging {
       $delete->setData();
       $clone = $delete->getClone();
       $result = array(
-		  'clone' => $clone,
+		  'clone'        => $clone,
 		  'deleteTables' => $delete->getTables(),
 	  );
       return $result;
@@ -384,13 +384,13 @@ class MainWP_Child_Staging {
             return '';
         }
 
-        $units  = array('B', 'KB', 'MB', 'GB', 'TB');
+        $units  = array( 'B', 'KB', 'MB', 'GB', 'TB' );
 
         $bytes  = (float) $bytes;
         $base   = log($bytes) / log(1000); // 1024 would be for MiB KiB etc
         $pow    = pow(1000, $base - floor($base)); // Same rule for 1000
 
-        return round($pow, $precision) . ' ' . $units[ (int) floor($base)];
+        return round($pow, $precision) . ' ' . $units[ (int) floor($base) ];
     }
 
 

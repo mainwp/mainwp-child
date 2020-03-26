@@ -63,7 +63,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
                         // To fix verify nonce conflict #1
                         // this is fake post field to fix some conflict of wp_verify_nonce()
                         // just return false to unverify nonce, does not exit
-                        if ( isset($_POST[$action]) && ($_POST[$action] == 'mainwp-bsm-unverify-nonce')) {
+                        if ( isset($_POST[ $action ]) && ( $_POST[ $action ] == 'mainwp-bsm-unverify-nonce' )) {
                             return false;
                         }
 
@@ -71,7 +71,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 						@ob_start();
                         @debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
                         $stackTrace = "\n" . @ob_get_clean();
-						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace) ) ) . '</mainwp>' );
+						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' );
 					}
 
                     // To fix verify nonce conflict #2
@@ -99,7 +99,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
                     // To fix verify nonce conflict #3
                     // this is fake post field to fix some conflict of wp_verify_nonce()
                     // just return false to unverify nonce, does not exit
-                    if ( isset($_POST[$action]) && ($_POST[$action] == 'mainwp-bsm-unverify-nonce')) {
+                    if ( isset($_POST[ $action ]) && ( $_POST[ $action ] == 'mainwp-bsm-unverify-nonce' )) {
                         return false;
                     }
 
@@ -108,7 +108,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
                     $stackTrace = "\n" . @ob_get_clean();
 
 					// Invalid nonce
-					die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace) ) ) . '</mainwp>' );
+					die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' );
 				}
 			endif;
 		}
@@ -177,7 +177,7 @@ class MainWP_Child {
 		'wp_rocket'             => 'wp_rocket',
 		'settings_tools'        => 'settings_tools',
 		'skeleton_key'          => 'skeleton_key',
-		'custom_post_type'  => 'custom_post_type',
+		'custom_post_type'      => 'custom_post_type',
         'backup_buddy'          => 'backup_buddy',
         'get_site_icon'         => 'get_site_icon',
         'vulner_checker'        => 'vulner_checker',
@@ -185,8 +185,8 @@ class MainWP_Child {
 		'disconnect'            => 'disconnect',
 		'time_capsule'          => 'time_capsule',
         'extra_excution'        => 'extra_execution', // deprecated
-        'extra_execution'        => 'extra_execution',
-        'wpvivid_backuprestore'=>'wpvivid_backuprestore',
+        'extra_execution'       => 'extra_execution',
+        'wpvivid_backuprestore' =>'wpvivid_backuprestore',
 	);
 
 	private $FTP_ERROR = 'Failed! Please, add FTP details for automatic updates.';
@@ -259,7 +259,7 @@ class MainWP_Child {
 
 		//WP-Cron
 		if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
-			if ( isset($_GET[ 'mainwp_child_run' ]) && ! empty( $_GET[ 'mainwp_child_run' ] ) ) {
+			if ( isset($_GET['mainwp_child_run']) && ! empty( $_GET['mainwp_child_run'] ) ) {
 				add_action( 'init', array( $this, 'cron_active' ), PHP_INT_MAX );
 			}
 		}
@@ -333,7 +333,7 @@ class MainWP_Child {
 			if ( is_array( $alloptions_db ) ) {
 				foreach ( (array) $alloptions_db as $o ) {
 					$alloptions[ $o->option_name ] = $o->option_value;
-					unset($options[array_search($o->option_name, $options)]);
+					unset($options[ array_search($o->option_name, $options) ]);
 				}
 				foreach ($options as $option ) {
 					$notoptions[ $option ] = true;
@@ -479,30 +479,30 @@ class MainWP_Child {
             if ( ! is_array( get_option( 'mainwp_child_branding_settings' ) ) ) {
                 // to fix: reduce number of options
                 $brandingOptions = array(
-                    'hide' => 'mainwp_branding_child_hide',
-                    'extra_settings'      => 'mainwp_branding_extra_settings',
-                    'branding_disconnected' => 'mainwp_child_branding_disconnected',
-                    'preserve_branding'      => 'mainwp_branding_preserve_branding',
-                    'branding_header'      => 'mainwp_branding_plugin_header',
-                    'support_email'      => 'mainwp_branding_support_email',
-                    'support_message'      => 'mainwp_branding_support_message',
-                    'remove_restore'      => 'mainwp_branding_remove_restore',
-                    'remove_setting'      => 'mainwp_branding_remove_setting',
-                    'remove_server_info'      => 'mainwp_branding_remove_server_info',
-                    'remove_connection_detail'      => 'mainwp_branding_remove_connection_detail',
-                    'remove_wp_tools'      => 'mainwp_branding_remove_wp_tools',
-                    'remove_wp_setting'      => 'mainwp_branding_remove_wp_setting',
-                    'remove_permalink'      => 'mainwp_branding_remove_permalink',
-                    'contact_label'      => 'mainwp_branding_button_contact_label',
-                    'email_message'      => 'mainwp_branding_send_email_message',
-                    'message_return_sender'      => 'mainwp_branding_message_return_sender',
+                    'hide'                     => 'mainwp_branding_child_hide',
+                    'extra_settings'           => 'mainwp_branding_extra_settings',
+                    'branding_disconnected'    => 'mainwp_child_branding_disconnected',
+                    'preserve_branding'        => 'mainwp_branding_preserve_branding',
+                    'branding_header'          => 'mainwp_branding_plugin_header',
+                    'support_email'            => 'mainwp_branding_support_email',
+                    'support_message'          => 'mainwp_branding_support_message',
+                    'remove_restore'           => 'mainwp_branding_remove_restore',
+                    'remove_setting'           => 'mainwp_branding_remove_setting',
+                    'remove_server_info'       => 'mainwp_branding_remove_server_info',
+                    'remove_connection_detail' => 'mainwp_branding_remove_connection_detail',
+                    'remove_wp_tools'          => 'mainwp_branding_remove_wp_tools',
+                    'remove_wp_setting'        => 'mainwp_branding_remove_wp_setting',
+                    'remove_permalink'         => 'mainwp_branding_remove_permalink',
+                    'contact_label'            => 'mainwp_branding_button_contact_label',
+                    'email_message'            => 'mainwp_branding_send_email_message',
+                    'message_return_sender'    => 'mainwp_branding_message_return_sender',
                     'submit_button_title'      => 'mainwp_branding_submit_button_title',
                     'disable_wp_branding'      => 'mainwp_branding_disable_wp_branding',
-                    'show_support' => 'mainwp_branding_show_support',
-                    'disable_change' => 'mainwp_branding_disable_change',
-                    'disable_switching_theme' => 'mainwp_branding_disable_switching_theme',
+                    'show_support'             => 'mainwp_branding_show_support',
+                    'disable_change'           => 'mainwp_branding_disable_change',
+                    'disable_switching_theme'  => 'mainwp_branding_disable_switching_theme',
                     //'hide_child_reports'                => 'mainwp_creport_branding_stream_hide',
-                    'branding_ext_enabled'  => 'mainwp_branding_ext_enabled',
+                    'branding_ext_enabled'     => 'mainwp_branding_ext_enabled',
                 );
 
                 $convertBranding = array();
@@ -522,7 +522,7 @@ class MainWP_Child {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
 			return;
 		}
-		if ( empty( $_GET[ 'mainwp_child_run' ] ) || 'test' !== $_GET[ 'mainwp_child_run' ] ) {
+		if ( empty( $_GET['mainwp_child_run'] ) || 'test' !== $_GET['mainwp_child_run'] ) {
 			return;
 		}
 		@session_write_close();
@@ -530,7 +530,7 @@ class MainWP_Child {
 		@header( 'X-Robots-Tag: noindex, nofollow', true );
 		@header( 'X-MainWP-Child-Version: ' . self::$version, true );
 		nocache_headers();
-		if ( $_GET[ 'mainwp_child_run' ] == 'test' ) {
+		if ( $_GET['mainwp_child_run'] == 'test' ) {
 			die( 'MainWP Test' );
 		}
 		die( '' );
@@ -720,8 +720,8 @@ class MainWP_Child {
 
 			add_action( 'admin_print_scripts-' . $settingsPage, array( 'MainWP_Clone', 'print_scripts' ) );
 			$subpageargs = array(
-				'child_slug' => 'options-general.php', // to backwards compatible
-				'branding'   => (self::$brandingTitle === null) ? 'MainWP' : self::$brandingTitle,
+				'child_slug'  => 'options-general.php', // to backwards compatible
+				'branding'    => ( self::$brandingTitle === null ) ? 'MainWP' : self::$brandingTitle,
 				'parent_menu' => $settingsPage,
 			);
 			do_action( 'mainwp-child-subpages', $subpageargs ); // to compatible
@@ -801,7 +801,7 @@ class MainWP_Child {
 		self::render_header($shownPage, false);
 		?>
 		<?php if (!$hide_settings ) { ?>
-			<div class="mainwp-child-setting-tab settings" <?php echo ('settings' !==  $shownPage) ? $hide_style : ''; ?>>
+			<div class="mainwp-child-setting-tab settings" <?php echo ( 'settings' !==  $shownPage ) ? $hide_style : ''; ?>>
 				<?php $this->settings(); ?>
 			</div>
 		<?php } ?>
@@ -828,13 +828,13 @@ class MainWP_Child {
 		<?php } ?>
 
 		<?php if ( !$hide_server_info  ) { ?>
-			<div class="mainwp-child-setting-tab server-info" <?php echo ('server-info' !==  $shownPage) ? $hide_style : ''; ?>>
+			<div class="mainwp-child-setting-tab server-info" <?php echo ( 'server-info' !==  $shownPage ) ? $hide_style : ''; ?>>
 				<?php MainWP_Child_Server_Information::renderPage(); ?>
 			</div>
 		<?php } ?>
 
                 <?php if ( !$hide_connection_detail  ) { ?>
-			<div class="mainwp-child-setting-tab connection-detail" <?php echo ('connection-detail' !==  $shownPage) ? $hide_style : ''; ?>>
+			<div class="mainwp-child-setting-tab connection-detail" <?php echo ( 'connection-detail' !==  $shownPage ) ? $hide_style : ''; ?>>
                             <?php MainWP_Child_Server_Information::renderConnectionDetails(); ?>
 			</div>
 		<?php } ?>
@@ -1746,7 +1746,10 @@ class MainWP_Child {
 				remove_filter( 'http_request_args', array( &$this, 'noSSLFilterFunction' ), 99 );
 			}
 
-			$args = array( 'success' => 1, 'action' => 'install' );
+			$args = array(
+				'success' => 1,
+				'action'  => 'install',
+			);
 			if ( 'plugin' === $_POST['type'] ) {
 				$path     = $result['destination'];
 				$fileName = '';
@@ -1935,10 +1938,10 @@ class MainWP_Child {
 		$result = count( $language_updates ) == 0 ? false : $upgrader->bulk_upgrade( $language_updates );
 		if ( ! empty( $result ) ) {
 			for ( $i = 0; $i < count( $result ); $i++ ) {
-				if ( empty( $result[$i] ) || is_wp_error( $result[$i] ) ) {
-					$information['upgrades'][ $language_updates[$i]->slug ] = false;
+				if ( empty( $result[ $i ] ) || is_wp_error( $result[ $i ] ) ) {
+					$information['upgrades'][ $language_updates[ $i ]->slug ] = false;
 				} else {
-					$information['upgrades'][ $language_updates[$i]->slug ] = true;
+					$information['upgrades'][ $language_updates[ $i ]->slug ] = true;
 				}
 			}
 		} else {
@@ -2061,7 +2064,7 @@ class MainWP_Child {
                             if ( !is_wp_error( $api ) && !empty($api)) {
                                 if ( isset($api->download_link) ) {
                                     $res = $upgrader->install($api->download_link);
-                                    if ( !is_wp_error( $res ) && !(is_null( $res )) ) {
+                                    if ( !is_wp_error( $res ) && !( is_null( $res ) ) ) {
                                         $information['upgrades'][ $plugin ] = true;
                                     }
                                 }
@@ -2508,13 +2511,17 @@ class MainWP_Child {
             } else {
                 if ( 'future' == $post_current->post_status ) {
                     wp_publish_post( $postId ); // to fix: fail when publish future page
-                    wp_update_post(array('ID' => $postId,
-                        'post_date'     => current_time( 'mysql', false ),
-                        'post_date_gmt' => current_time( 'mysql', true ),
+                    wp_update_post(array(
+						'ID'                  => $postId,
+                        'post_date'           => current_time( 'mysql', false ),
+                        'post_date_gmt'       => current_time( 'mysql', true ),
                     ));
                 } else {
                     // to fix error post slug
-                    wp_update_post(array('ID' => $postId, 'post_status' => 'publish' ));
+                    wp_update_post(array(
+						'ID'          => $postId,
+						'post_status' => 'publish',
+					));
                 }
             }
 		} elseif ( 'update' === $action ) {
@@ -2601,12 +2608,12 @@ class MainWP_Child {
 		            $attachment = get_post( $attachment_id );
 		            if ( $attachment ) {
 			            $post_gallery_images[] = array(
-				            'id' => $attachment_id,
-				            'alt' => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
-				            'caption' => $attachment->post_excerpt,
+				            'id'          => $attachment_id,
+				            'alt'         => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
+				            'caption'     => $attachment->post_excerpt,
 				            'description' => $attachment->post_content,
-				            'src' => $attachment->guid,
-				            'title' => $attachment->post_title,
+				            'src'         => $attachment->guid,
+				            'title'       => $attachment->post_title,
 			            );
 		            }
 	            }
@@ -2644,7 +2651,7 @@ class MainWP_Child {
 	            'post_category'       => base64_encode( $post_category ),
 	            'post_featured_image' => base64_encode( $post_featured_image ),
 	            'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ),
-	            'child_upload_dir'   => base64_encode( serialize( $child_upload_dir ) ),
+	            'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ),
             );
             return $post_data;
 
@@ -2663,16 +2670,16 @@ class MainWP_Child {
 
             $new_post = array(
 				'edit_id'        => $id,
-				'post_title' => $post->post_title,
-				'post_content' => $post->post_content,
-				'post_status' => $post->post_status,
-				'post_date' => $post->post_date,
-				'post_date_gmt' => $post->post_date_gmt,
-				'post_type' => 'page',
-				'post_name' => $post->post_name,
-				'post_excerpt' => $post->post_excerpt,
+				'post_title'     => $post->post_title,
+				'post_content'   => $post->post_content,
+				'post_status'    => $post->post_status,
+				'post_date'      => $post->post_date,
+				'post_date_gmt'  => $post->post_date_gmt,
+				'post_type'      => 'page',
+				'post_name'      => $post->post_name,
+				'post_excerpt'   => $post->post_excerpt,
 				'comment_status' => $post->comment_status,
-				'ping_status' => $post->ping_status,
+				'ping_status'    => $post->ping_status,
             );
 
             if ( $post_featured_image != null ) { //Featured image is set, retrieve URL
@@ -2689,12 +2696,12 @@ class MainWP_Child {
                             $attachment = get_post( $attachment_id );
                             if ( $attachment ) {
                                     $post_gallery_images[] = array(
-										'id' => $attachment_id,
-										'alt' => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
-										'caption' => $attachment->post_excerpt,
+										'id'          => $attachment_id,
+										'alt'         => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
+										'caption'     => $attachment->post_excerpt,
 										'description' => $attachment->post_content,
-										'src' => $attachment->guid,
-										'title' => $attachment->post_title,
+										'src'         => $attachment->guid,
+										'title'       => $attachment->post_title,
                                     );
                             }
                     }
@@ -2704,11 +2711,11 @@ class MainWP_Child {
             wp_set_post_lock($id);
 
             $post_data = array(
-				'new_post' => base64_encode( serialize( $new_post ) ),
-				'post_custom' => base64_encode( serialize( $post_custom ) ),
+				'new_post'            => base64_encode( serialize( $new_post ) ),
+				'post_custom'         => base64_encode( serialize( $post_custom ) ),
 				'post_featured_image' => base64_encode( $post_featured_image ),
 				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ),
-				'child_upload_dir' => base64_encode( serialize( $child_upload_dir ) ),
+				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ),
             );
             return $post_data;
         }
@@ -2751,8 +2758,8 @@ class MainWP_Child {
                         $my_user =  $_POST['extra'];
                         if (is_array($my_user)) {
                             foreach($my_user as $idx => $val) {
-                                if ($val === 'donotupdate' || (empty($val) && $idx !== 'role')) {
-                                    unset($my_user[$idx]);
+                                if ($val === 'donotupdate' || ( empty($val) && $idx !== 'role' )) {
+                                    unset($my_user[ $idx ]);
                                 }
                             }
                             $result = $this->edit_user( $userId, $my_user );
@@ -2791,7 +2798,7 @@ class MainWP_Child {
                         $userdata = get_userdata( $user_id );
                         $user->user_login = wp_slash( $userdata->user_login );
                 } else {
-                        return array('error' => 'ERROR: Empty user id.');
+                        return array( 'error' => 'ERROR: Empty user id.' );
                 }
 
                 $pass1 = $pass2 = '';
@@ -2804,17 +2811,17 @@ class MainWP_Child {
 
                 if ( isset( $data['role'] ) && current_user_can( 'edit_users' ) ) {
                         $new_role = sanitize_text_field( $data['role'] );
-                        $potential_role = isset($wp_roles->role_objects[$new_role]) ? $wp_roles->role_objects[$new_role] : false;
+                        $potential_role = isset($wp_roles->role_objects[ $new_role ]) ? $wp_roles->role_objects[ $new_role ] : false;
                         // Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
                         // Multisite super admins can freely edit their blog roles -- they possess all caps.
-                        if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || $user_id != get_current_user_id() || ($potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
+                        if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || $user_id != get_current_user_id() || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
                                 $user->role = $new_role;
                         }
 
                         // If the new role isn't editable by the logged-in user die with error
                         $editable_roles = get_editable_roles();
-                        if ( ! empty( $new_role ) && empty( $editable_roles[$new_role] ) ) {
-                            return array('error' => 'You can&#8217;t give users that role.');
+                        if ( ! empty( $new_role ) && empty( $editable_roles[ $new_role ] ) ) {
+                            return array( 'error' => 'You can&#8217;t give users that role.' );
                         }
                 }
 
@@ -2963,7 +2970,7 @@ class MainWP_Child {
                 $edit_data['user_email'] = $profileuser->user_email;
                 $edit_data['user_url'] = $profileuser->user_url;
                 foreach ( wp_get_user_contact_methods( $profileuser ) as $name => $desc ) {
-                    $edit_data['contact_methods'][$name] = $profileuser->$name;
+                    $edit_data['contact_methods'][ $name ] = $profileuser->$name;
                 }
                 $edit_data['description'] =  $profileuser->description;
             }
@@ -3039,7 +3046,10 @@ class MainWP_Child {
 		$user         = get_user_by( 'login', $_POST['user'] );
 		require_once ABSPATH . WPINC . '/registration.php';
 
-		$id = wp_update_user( array( 'ID' => $user->ID, 'user_pass' => $new_password['user_pass'] ) );
+		$id = wp_update_user( array(
+			'ID'        => $user->ID,
+			'user_pass' => $new_password['user_pass'],
+		) );
 		if ( $id !== $user->ID ) {
 			if ( is_wp_error( $id ) ) {
 				MainWP_Helper::error( $id->get_error_message() );
@@ -3660,14 +3670,14 @@ class MainWP_Child {
 		$information['wpe']   =  MainWP_Helper::is_wp_engine() ? 1 : 0;
 		$theme_name = wp_get_theme()->get( 'Name' );
 	    $information['site_info']   = array(
-	        'wpversion' => $wp_version,
-            'debug_mode' => (defined('WP_DEBUG') && true === WP_DEBUG) ? true : false,
-	        'phpversion' => phpversion(),
-	        'child_version' => self::$version,
-	        'memory_limit' => MainWP_Child_Server_Information::getPHPMemoryLimit(),
-	        'mysql_version' => MainWP_Child_Server_Information::getMySQLVersion(),
+	        'wpversion'      => $wp_version,
+            'debug_mode'     => ( defined('WP_DEBUG') && true === WP_DEBUG ) ? true : false,
+	        'phpversion'     => phpversion(),
+	        'child_version'  => self::$version,
+	        'memory_limit'   => MainWP_Child_Server_Information::getPHPMemoryLimit(),
+	        'mysql_version'  => MainWP_Child_Server_Information::getMySQLVersion(),
 			'themeactivated' => $theme_name,
-	        'ip' => $_SERVER['SERVER_ADDR'],
+	        'ip'             => $_SERVER['SERVER_ADDR'],
 	    );
 
 		//Try to switch to SSL if SSL is enabled in between!
@@ -3876,10 +3886,12 @@ class MainWP_Child {
 			$information['translation_updates'] = array();
 			foreach ($translation_updates as $translation_update)
 			{
-				$new_translation_update = array('type' => $translation_update->type,
-				                                'slug' => $translation_update->slug,
-				                                'language' => $translation_update->language,
-				                                'version' => $translation_update->version, );
+				$new_translation_update = array(
+					'type'     => $translation_update->type,
+					'slug'     => $translation_update->slug,
+					'language' => $translation_update->language,
+					'version'  => $translation_update->version,
+				);
 				if ( 'plugin' === $translation_update->type ) {
 					$all_plugins = get_plugins();
 					foreach ( $all_plugins as $file => $plugin ) {
@@ -3965,7 +3977,11 @@ class MainWP_Child {
 
 		//Directory listings!
 		$information['directories'] = $this->scanDir( ABSPATH, 3 );
-		$cats                       = get_categories( array( 'hide_empty' => 0, 'hierarchical' => true, 'number' => 300 ) );
+		$cats                       = get_categories( array(
+			'hide_empty'   => 0,
+			'hierarchical' => true,
+			'number'       => 300,
+		) );
 		$categories                 = array();
 		foreach ( $cats as $cat ) {
 			$categories[] = $cat->name;
@@ -4324,9 +4340,9 @@ class MainWP_Child {
                 if ($wp_seo_enabled) {
                     $post_id = $post->ID;
                     $outPost['seo_data'] = array(
-                        'count_seo_links' => $link_count->get( $post_id, 'internal_link_count' ),
-                        'count_seo_linked' => $link_count->get( $post_id, 'incoming_link_count' ),
-                        'seo_score' => MainWP_Wordpress_SEO::Instance()->parse_column_score($post_id),
+                        'count_seo_links'   => $link_count->get( $post_id, 'internal_link_count' ),
+                        'count_seo_linked'  => $link_count->get( $post_id, 'incoming_link_count' ),
+                        'seo_score'         => MainWP_Wordpress_SEO::Instance()->parse_column_score($post_id),
                         'readability_score' => MainWP_Wordpress_SEO::Instance()->parse_column_score_readability($post_id),
                     );
                 }
@@ -4345,7 +4361,7 @@ class MainWP_Child {
 	}
 
 	function get_all_posts() {
-		$post_type = (isset($_POST['post_type']) ? $_POST['post_type'] : 'post');
+		$post_type = ( isset($_POST['post_type']) ? $_POST['post_type'] : 'post' );
 		$this->get_all_posts_by_type( $post_type );
 	}
 
@@ -4709,7 +4725,10 @@ class MainWP_Child {
 					if ( null !== $theTheme && '' !== $theTheme ) {
 						$tmp['theme'] = $theTheme['Template'];
 						if ( true === $themeUpgrader->delete_old_theme( null, null, null, $tmp ) ) {
-							$args = array( 'action' => 'delete', 'Name' => $theTheme['Name'] );
+							$args = array(
+								'action' => 'delete',
+								'Name'   => $theTheme['Name'],
+							);
 							do_action( 'mainwp_child_theme_action', $args );
 						}
 					}
@@ -4830,7 +4849,10 @@ class MainWP_Child {
 	                    }
 	                    $tmp['plugin'] = $plugin;
 						if ( true === $pluginUpgrader->delete_old_plugin( null, null, null, $tmp ) ) {
-							$args = array( 'action' => 'delete', 'Name' => $all_plugins[ $plugin ]['Name'] );
+							$args = array(
+								'action' => 'delete',
+								'Name'   => $all_plugins[ $plugin ]['Name'],
+							);
 							do_action( 'mainwp_child_plugin_action', $args );
 						}
 					}
@@ -4867,7 +4889,7 @@ class MainWP_Child {
 
 			foreach ( $plugins as $pluginslug => $plugin ) {
 				$out                = array();
-				$out['mainwp']    = ($pluginslug == $this->plugin_slug ? 'T' : 'F');
+				$out['mainwp']    = ( $pluginslug == $this->plugin_slug ? 'T' : 'F' );
 				$out['name']        = $plugin['Name'];
 				$out['slug']        = $pluginslug;
 				$out['description'] = $plugin['Description'];
@@ -4889,7 +4911,7 @@ class MainWP_Child {
 		if ( is_array( $muplugins ) ) {
 			foreach ( $muplugins as $pluginslug => $plugin ) {
 				$out                = array();
-				$out['mainwp']    = ($pluginslug == $this->plugin_slug ? 'T' : 'F');
+				$out['mainwp']    = ( $pluginslug == $this->plugin_slug ? 'T' : 'F' );
 				$out['name']        = $plugin['Name'];
 				$out['slug']        = $pluginslug;
 				$out['description'] = $plugin['Description'];

@@ -140,7 +140,7 @@ class MainWP_Child_iThemes_Security {
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
 			add_action( 'admin_head', array( &$this, 'custom_admin_css' ) );
-			if ( isset($_GET['page']) && ($_GET['page'] == 'itsec' || $_GET['page'] == 'itsec-security-check') ) {
+			if ( isset($_GET['page']) && ( $_GET['page'] == 'itsec' || $_GET['page'] == 'itsec-security-check' ) ) {
 				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
 			}
@@ -219,7 +219,7 @@ class MainWP_Child_iThemes_Security {
 				} elseif ($module == 'global') {
 					$keep_olds = array( 'did_upgrade', 'log_info', 'show_new_dashboard_notice', 'show_security_check', 'nginx_file' );
 					foreach($keep_olds as $key) {
-						$settings[$key] = ITSEC_Modules::get_setting( $module, $key ); // not update
+						$settings[ $key ] = ITSEC_Modules::get_setting( $module, $key ); // not update
 					}
 
 					if (!isset($settings['log_location']) || empty($settings['log_location']) ) {
@@ -280,14 +280,14 @@ class MainWP_Child_iThemes_Security {
 				} elseif ($module == 'notification-center') {
                     $current_settings = ITSEC_Modules::get_settings( $module );
                     if (isset($settings['notifications'])) {
-                        $update_fields = array( 'schedule', 'enabled', 'subject');
+                        $update_fields = array( 'schedule', 'enabled', 'subject' );
                         if (isset($_POST['is_individual']) && $_POST['is_individual']) {
-                            $update_fields = array_merge($update_fields, array('user_list', 'email_list'));
+                            $update_fields = array_merge($update_fields, array( 'user_list', 'email_list' ));
                         }
                         foreach ($settings['notifications'] as $key => $val) {
                             foreach ($update_fields as $field) {
-                                if(isset($val[$field])) {
-                                    $current_settings['notifications'][$key][$field] = $val[$field];
+                                if(isset($val[ $field ])) {
+                                    $current_settings['notifications'][ $key ][ $field ] = $val[ $field ];
                                 }
                             }
                         }
@@ -307,7 +307,7 @@ class MainWP_Child_iThemes_Security {
         if ( isset( $update_settings['itsec_active_modules'] ) ) {
             $current_val = get_site_option( 'itsec_active_modules', array() );
             foreach ($update_settings['itsec_active_modules'] as $mod => $val) {
-                $current_val[$mod] = $val;
+                $current_val[ $mod ] = $val;
             }
             update_site_option( 'itsec_active_modules', $current_val );
         }
@@ -326,10 +326,10 @@ class MainWP_Child_iThemes_Security {
 			'lockouts_host'         => $this->get_lockouts( 'host', true ),
 			'lockouts_user'         => $this->get_lockouts( 'user', true ),
 			'lockouts_username'     => $this->get_lockouts( 'username', true ),
-			'default_log_location'     => ITSEC_Modules::get_default( 'global', 'log_location' ),
-			'default_location'     => ITSEC_Modules::get_default( 'backup', 'location' ),
-			'excludable_tables' => $this->get_excludable_tables(),
-            'users_and_roles' => $this->get_available_admin_users_and_roles(),
+			'default_log_location'  => ITSEC_Modules::get_default( 'global', 'log_location' ),
+			'default_location'      => ITSEC_Modules::get_default( 'backup', 'location' ),
+			'excludable_tables'     => $this->get_excludable_tables(),
+            'users_and_roles'       => $this->get_available_admin_users_and_roles(),
 		);
 
  		$return = array(
@@ -670,7 +670,7 @@ class MainWP_Child_iThemes_Security {
 		<br />
 	<?php
 		$html = ob_get_clean();
-		return array('html' => $html);
+		return array( 'html' => $html );
 	}
 
 	public function file_change() {
@@ -867,7 +867,11 @@ class MainWP_Child_iThemes_Security {
 			'rule'        => "define( 'WP_CONTENT_DIR', '" . $new_dir . "' );",
 		);
 
-		$rules_array[] = array( 'type' => 'wpconfig', 'name' => 'Content Directory', 'rules' => $rules );
+		$rules_array[] = array(
+			'type'  => 'wpconfig',
+			'name'  => 'Content Directory',
+			'rules' => $rules,
+		);
 
 		return $rules_array;
 	}
@@ -1113,18 +1117,18 @@ class MainWP_Child_iThemes_Security {
 
         $current_val = get_site_option( 'itsec_active_modules', array() );
         foreach ($active_modules as $mod => $val) {
-            $current_val[$mod] = $val;
+            $current_val[ $mod ] = $val;
         }
 
 		update_site_option( 'itsec_active_modules', $current_val );
-		return array('result' => 'success');
+		return array( 'result' => 'success' );
 	}
 
 	private function reload_backup_exclude() {
 		return array(
-			'exclude' => ITSEC_Modules::get_setting( 'backup', 'exclude' ),
+			'exclude'           => ITSEC_Modules::get_setting( 'backup', 'exclude' ),
 			'excludable_tables' => $this->get_excludable_tables(),
-			'result' => 'success',
+			'result'            => 'success',
 		);
 	}
 
@@ -1161,7 +1165,7 @@ class MainWP_Child_iThemes_Security {
 				continue;
 			}
 
-			$excludes[$short_table] = $table[0];
+			$excludes[ $short_table ] = $table[0];
 		}
 
 		return $excludes;
@@ -1175,7 +1179,10 @@ class MainWP_Child_iThemes_Security {
         ob_start();
         ITSEC_Security_Check_Feedback_Renderer::render( $results );
 		$response = ob_get_clean();
-		return array('result' => 'success', 'response' => $response);
+		return array(
+			'result'   => 'success',
+			'response' => $response,
+		);
 	}
 
     // source from itheme plugin
@@ -1192,7 +1199,7 @@ class MainWP_Child_iThemes_Security {
 
 		foreach ( $roles->roles as $role => $details ) {
 			if ( isset( $details['capabilities']['manage_options'] ) && ( true === $details['capabilities']['manage_options'] ) ) {
-				$available_roles["role:$role"] = translate_user_role( $details['name'] );
+				$available_roles[ "role:$role" ] = translate_user_role( $details['name'] );
 
 				$users = get_users( array( 'role' => $role ) );
 

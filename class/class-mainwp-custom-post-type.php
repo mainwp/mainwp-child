@@ -67,7 +67,7 @@ class MainWP_Custom_Post_Type {
 		if ( empty( $data ) || ! is_array( $data ) || ! isset( $data['post'] ) ) {
 			return array( 'error' => __( 'Cannot decode data', $this->plugin_translate ) );
 		}
-        $edit_id = (isset($_POST['post_id']) && !empty($_POST['post_id'])) ? $_POST['post_id'] : 0;
+        $edit_id = ( isset($_POST['post_id']) && !empty($_POST['post_id']) ) ? $_POST['post_id'] : 0;
 		$return = $this->_insert_post($data, $edit_id, $parent_id = 0);
         if (isset($return['success']) && $return['success'] == 1) {
             if (isset($data['product_variation']) && is_array($data['product_variation'])) {
@@ -177,7 +177,7 @@ class MainWP_Custom_Post_Type {
 		//$data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'] );
 
 		$is_woocomerce = false;
-		if ( ($data_insert['post_type'] == 'product' || $data_insert['post_type'] == 'product_variation' )&& function_exists( 'wc_product_has_unique_sku' ) ) {
+		if ( ( $data_insert['post_type'] == 'product' || $data_insert['post_type'] == 'product_variation' )&& function_exists( 'wc_product_has_unique_sku' ) ) {
 			$is_woocomerce = true;
 		}
 
@@ -337,6 +337,9 @@ class MainWP_Custom_Post_Type {
 			}
 		}
 
-		return array( 'success' => 1, 'post_id' => $post_id );
+		return array(
+			'success' => 1,
+			'post_id' => $post_id,
+		);
 	}
 }

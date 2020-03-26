@@ -234,7 +234,13 @@ class MainWP_Child_Themes_Check {
 			$url = set_url_scheme( $url, 'https' );
 		}
 
-		$args = array( 'slug' => $theme, 'fields' => array( 'sections' => false, 'tags' => false ) );
+		$args = array(
+			'slug'   => $theme,
+			'fields' => array(
+				'sections' => false,
+				'tags'     => false,
+			),
+		);
 		$args = (object) $args;
 
 		$http_args = array(
