@@ -35,7 +35,6 @@
 		<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
 		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
 		<exclude name="Squiz.Commenting.InlineComment"/>
-		<exclude name="Generic.WhiteSpace.ScopeIndent"/>
 		
 		<exclude name="Squiz.ControlStructures.ControlSignature"/>
 	</rule>
