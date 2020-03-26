@@ -43,10 +43,10 @@
 		<exclude name="WordPress.Arrays.ArrayKeySpacingRestrictions"/>
 		<exclude name="WordPress.Arrays.MultipleStatementAlignment"/>
 		<exclude name="Generic.WhiteSpace.ArbitraryParenthesesSpacing"/>
-		<exclude name="PSR2.ControlStructures.ElseIfDeclaration"/>
-		<exclude name="PEAR.Files.IncludingFile"/>
-		<exclude name="WordPress.Arrays.ArrayIndentation"/>
-		<exclude name="Generic.ControlStructures.InlineControlStructure"/>
+		<!--<exclude name="PSR2.ControlStructures.ElseIfDeclaration"/>-->
+		<!--<exclude name="PEAR.Files.IncludingFile"/>-->
+		<!--<exclude name="WordPress.Arrays.ArrayIndentation"/>-->
+		<!--<exclude name="Generic.ControlStructures.InlineControlStructure"/>-->
                 
 	</rule>
 
