@@ -2,16 +2,16 @@
 
 class MainWP_Security {
 	public static function fixAll() {
-		MainWP_Security::remove_wp_version();
-		MainWP_Security::remove_rsd();
-		MainWP_Security::remove_wlw();
+		self::remove_wp_version();
+		self::remove_rsd();
+		self::remove_wlw();
 		//        MainWP_Security::remove_core_update();
 		//        MainWP_Security::remove_plugin_update();
 		//        MainWP_Security::remove_theme_update();
-		MainWP_Security::remove_php_reporting();
-		MainWP_Security::remove_registered_versions();
-		MainWP_Security::remove_generator_version();
-		MainWP_Security::remove_readme();
+		self::remove_php_reporting();
+		self::remove_registered_versions();
+		self::remove_generator_version();
+		self::remove_readme();
 
 		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_script_versions' ), PHP_INT_MAX );
 		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_theme_versions' ), PHP_INT_MAX );
@@ -23,9 +23,9 @@ class MainWP_Security {
 	private static $listingDirectories = null;
 
 	private static function init_listingDirectories() {
-		if ( null === MainWP_Security::$listingDirectories ) {
+		if ( null === self::$listingDirectories ) {
 			$wp_upload_dir                      = wp_upload_dir();
-			MainWP_Security::$listingDirectories = array(
+			self::$listingDirectories = array(
 				WP_CONTENT_DIR,
 				WP_PLUGIN_DIR,
 				get_theme_root(),
@@ -35,8 +35,8 @@ class MainWP_Security {
 	}
 
 	public static function prevent_listing_ok() {
-		MainWP_Security::init_listingDirectories();
-		foreach ( MainWP_Security::$listingDirectories as $directory ) {
+		self::init_listingDirectories();
+		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! file_exists( $file ) ) {
 				return false;
@@ -47,8 +47,8 @@ class MainWP_Security {
 	}
 
 	public static function prevent_listing() {
-		MainWP_Security::init_listingDirectories();
-		foreach ( MainWP_Security::$listingDirectories as $directory ) {
+		self::init_listingDirectories();
+		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! file_exists( $file ) ) {
 				$h = fopen( $file, 'w' );
@@ -179,8 +179,8 @@ class MainWP_Security {
 	private static $permission_checks = null;
 
 	private static function init_permission_checks() {
-		if ( null === MainWP_Security::$permission_checks ) {
-			MainWP_Security::$permission_checks = array(
+		if ( null === self::$permission_checks ) {
+			self::$permission_checks = array(
 				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../'            => '0755',
 				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../wp-includes' => '0755',
 				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../.htaccess'   => '0644',

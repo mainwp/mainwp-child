@@ -29,11 +29,11 @@ class MainWP_Child_Themes_Check {
 	private $option_name_last_daily_run = 'mainwp_child_theme_last_daily_run';
 
 	public static function Instance() {
-		if ( null === MainWP_Child_Themes_Check::$instance ) {
-			MainWP_Child_Themes_Check::$instance = new MainWP_Child_Themes_Check();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Themes_Check();
 		}
 
-		return MainWP_Child_Themes_Check::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
@@ -49,7 +49,6 @@ class MainWP_Child_Themes_Check {
 
             add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
         }
-
 	}
 
 	private function cleanup_basic() {
@@ -118,7 +117,6 @@ class MainWP_Child_Themes_Check {
 		if ( ! wp_next_scheduled( $this->cron_name_watcher ) ) {
 			wp_schedule_event( time(), 'hourly', $this->cron_name_watcher );
 		}
-
 	}
 
 	public function get_themes_outdate_info() {
@@ -198,7 +196,6 @@ class MainWP_Child_Themes_Check {
 				$theme_last_updated_date = new \DateTime( '@' . $last_updated );
 
 				$diff_in_days = $now->diff( $theme_last_updated_date )->format( '%a' );
-
 
 				if ( $diff_in_days < $tolerance_in_days ) {
 					continue;

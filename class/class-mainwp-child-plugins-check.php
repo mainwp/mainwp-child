@@ -29,11 +29,11 @@ class MainWP_Child_Plugins_Check {
 	private $option_name_last_daily_run = 'mainwp_child_plugin_last_daily_run';
 
 	public static function Instance() {
-		if ( null === MainWP_Child_Plugins_Check::$instance ) {
-			MainWP_Child_Plugins_Check::$instance = new MainWP_Child_Plugins_Check();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Plugins_Check();
 		}
 
-		return MainWP_Child_Plugins_Check::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
@@ -119,7 +119,6 @@ class MainWP_Child_Plugins_Check {
 		if ( ! wp_next_scheduled( $this->cron_name_watcher ) ) {
 			wp_schedule_event( time(), 'hourly', $this->cron_name_watcher );
 		}
-
 	}
 
 	public function get_plugins_outdate_info() {
@@ -143,7 +142,6 @@ class MainWP_Child_Plugins_Check {
 		}
 
 		return $plugins_outdate;
-
 	}
 
 	// for testing

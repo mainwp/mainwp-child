@@ -20,11 +20,11 @@ class MainWP_Child_WP_Rocket {
     public $is_plugin_installed = false;
 
 	public static function Instance() {
-		if ( null === MainWP_Child_WP_Rocket::$instance ) {
-			MainWP_Child_WP_Rocket::$instance = new MainWP_Child_WP_Rocket();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_WP_Rocket();
 		}
 
-		return MainWP_Child_WP_Rocket::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
@@ -60,7 +60,7 @@ class MainWP_Child_WP_Rocket {
 				'do_caching_mobile_files'     => 0,
                 'cache_logged_user'        => 0,
                 'cache_ssl'                => 0,
-				'emoji'					  => 0,
+				'emoji'                   => 0,
                 'embeds'                   => 1,
                 'control_heartbeat' => 0,
                 'heartbeat_site_behavior'     => 'reduce_periodicity',
@@ -92,23 +92,23 @@ class MainWP_Child_WP_Rocket {
                 'exclude_css'              => array(),
                 'exclude_js'               => array(),
                 'exclude_inline_js'               => array(),
-				'async_css'					=> 0,
+				'async_css'                 => 0,
             	'defer_all_js'              => 0,
-				'defer_all_js_safe'			=> 1,
+				'defer_all_js_safe'         => 1,
                 'critical_css'              => '',
                 'deferred_js_files'        => array(),
-                'lazyload'          	   => 0,
+                'lazyload'                 => 0,
                 'lazyload_iframes'         => 0,
-				'lazyload_youtube'			=>0,
+				'lazyload_youtube'          =>0,
                 'minify_css'               => 0,
 //                'minify_css_key'           => $minify_css_key,
-                'minify_concatenate_css'	  => 0,
+                'minify_concatenate_css'      => 0,
                 //'minify_css_combine_all'   => 0,
-                'minify_css_legacy'			  => 0,
+                'minify_css_legacy'           => 0,
                 'minify_js'                => 0,
 //                'minify_js_key'            => $minify_js_key,
                 'minify_js_in_footer'      => array(),
-                'minify_concatenate_js'		  => 0,
+                'minify_concatenate_js'       => 0,
                 'minify_js_combine_all'    => 0,
                 //'minify_js_legacy'			  => 0,
                 'minify_google_fonts'      => 0,
@@ -120,12 +120,12 @@ class MainWP_Child_WP_Rocket {
                 'cdn_zone'                 => array(),
                 //'cdn_ssl'                  => 0,
                 'cdn_reject_files'         => array(),
-                'do_cloudflare'		   	   => 0,
-                'cloudflare_email'		   => '',
-                'cloudflare_api_key'	   => '',
-                'cloudflare_domain'	   	   => '',
+                'do_cloudflare'            => 0,
+                'cloudflare_email'         => '',
+                'cloudflare_api_key'       => '',
+                'cloudflare_domain'        => '',
                 //'cloudflare_zone_id'          => '',
-                'cloudflare_devmode'	   => 0,
+                'cloudflare_devmode'       => 0,
                 'cloudflare_protocol_rewrite' => 0,
                 'cloudflare_auto_settings' => 0,
                 'cloudflare_old_settings'  => 0,
@@ -251,7 +251,6 @@ class MainWP_Child_WP_Rocket {
 
 		$information = array();
 
-
 		if ( isset( $_POST['mwp_action'] ) ) {
 //			MainWP_Helper::update_option( 'mainwp_wprocket_ext_enabled', 'Y' );
             try {
@@ -274,7 +273,7 @@ class MainWP_Child_WP_Rocket {
                     case 'save_settings':
                         $information = $this->save_settings();
                         break;
-                    case "load_existing_settings":
+                    case 'load_existing_settings':
                         $information = $this->load_existing_settings();
                         break;
                     case 'optimize_database':
@@ -342,7 +341,7 @@ class MainWP_Child_WP_Rocket {
 
 			// to fix
 			include_once( ABSPATH . '/wp-admin/includes/template.php' );
-			
+
 			// Generate a new random key for minify cache file
 			$options                   = get_option( WP_ROCKET_SLUG );
 			$options['minify_css_key'] = create_rocket_uniqid();
@@ -379,7 +378,7 @@ class MainWP_Child_WP_Rocket {
                                                     'WP_Rocket\Optimization\CSS\Critical_CSS',
                                                     'WP_Rocket\Optimization\CSS\Critical_CSS_Generation',
                                                     'WP_Rocket\Admin\Options',
-                                                    'WP_Rocket\Admin\Options_Data'
+                                                    'WP_Rocket\Admin\Options_Data',
                                                 ));
 
         $critical_css = new WP_Rocket\Optimization\CSS\Critical_CSS( new WP_Rocket\Optimization\CSS\Critical_CSS_Generation() );
@@ -411,7 +410,6 @@ class MainWP_Child_WP_Rocket {
 			}
 		}
 
-
 		update_option( WP_ROCKET_SLUG, $options );
 
         if (isset($_POST['do_database_optimization']) && !empty($_POST['do_database_optimization'])) {
@@ -426,7 +424,7 @@ class MainWP_Child_WP_Rocket {
          MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Admin\Database\Optimization',
                                                     'WP_Rocket\Admin\Database\Optimization_Process',
                                                     'WP_Rocket\Admin\Options',
-                                                    'WP_Rocket\Admin\Options_Data'
+                                                    'WP_Rocket\Admin\Options_Data',
                                                 ));
 
         $process = new WP_Rocket\Admin\Database\Optimization_Process();
@@ -436,7 +434,7 @@ class MainWP_Child_WP_Rocket {
         $options_api = new WP_Rocket\Admin\Options( 'wp_rocket_' );
     	$options     = new WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
 
-        $items = array_filter( array_keys( $optimization->get_options() ), [ $options, 'get' ] );
+        $items = array_filter( array_keys( $optimization->get_options() ), array( $options, 'get' ) );
 
 		if ( !empty( $items ) ) {
             $optimization->process_handler( $items );
@@ -449,7 +447,7 @@ class MainWP_Child_WP_Rocket {
 	function get_optimize_info() {
 
         MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Admin\Database\Optimization',
-                                                    'WP_Rocket\Admin\Database\Optimization_Process'
+                                                    'WP_Rocket\Admin\Database\Optimization_Process',
                                                 ));
 
         $process = new WP_Rocket\Admin\Database\Optimization_Process();
@@ -464,7 +462,7 @@ class MainWP_Child_WP_Rocket {
             'total_trashed_comments'   => $optimization->count_cleanup_items( 'database_trashed_comments' ),
             'total_expired_transients' => $optimization->count_cleanup_items( 'database_expired_transients' ),
             'total_all_transients'     => $optimization->count_cleanup_items( 'database_all_transients' ),
-            'total_optimize_tables'    => $optimization->count_cleanup_items( 'database_optimize_tables' )
+            'total_optimize_tables'    => $optimization->count_cleanup_items( 'database_optimize_tables' ),
         );
 
         $information['result'] = 'SUCCESS';

@@ -19,11 +19,11 @@ class MainWP_Child_Links_Checker {
     public $is_plugin_installed = false;
 
 	static function Instance() {
-		if ( null === MainWP_Child_Links_Checker::$instance ) {
-			MainWP_Child_Links_Checker::$instance = new MainWP_Child_Links_Checker();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Links_Checker();
 		}
 
-		return MainWP_Child_Links_Checker::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
@@ -36,7 +36,6 @@ class MainWP_Child_Links_Checker {
             return;
 
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
-
 	}
 
 	public function action() {
@@ -248,13 +247,12 @@ class MainWP_Child_Links_Checker {
 
 		$total         = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 
-
 		$max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 50;
 		$offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
 
 		$params      = array(
 							array( 'load_instances' => true ),
-							'max_results' => $max_results
+							'max_results' => $max_results,
 						);
 
 		if (empty($offset)) {
@@ -316,7 +314,7 @@ class MainWP_Child_Links_Checker {
 		return $data;
 	}
 
-	function links_checker_data($params) {
+	function links_checker_data( $params) {
 
         MainWP_Helper::check_functions('blc_get_links');
         MainWP_Helper::check_classes_exists('blcLink');
@@ -345,7 +343,7 @@ class MainWP_Child_Links_Checker {
 			'dismissed',
 			'status_text',
 			'status_code',
-			'log'
+			'log',
 		);
 		$return     = array();
 
@@ -449,7 +447,6 @@ class MainWP_Child_Links_Checker {
 		}
 
 		return $return;
-
 	}
 
 	function edit_link() {
@@ -680,7 +677,7 @@ class MainWP_Child_Links_Checker {
 	function ui_get_source_post( $container, $container_field = '' ) {
 		return array(
 			'post_title'        => get_the_title( $container->container_id ),
-			'post_status'		=> get_post_status($container->container_id),
+			'post_status'       => get_post_status($container->container_id),
 			'container_anypost' => true,
 		);
 	}

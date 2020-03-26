@@ -3,14 +3,14 @@
 class MainWP_Custom_Post_Type {
 	public static $instance = null;
 	public static $information = array();
-	public $plugin_translate = "mainwp-child";
+	public $plugin_translate = 'mainwp-child';
 
 	static function Instance() {
-		if ( MainWP_Custom_Post_Type::$instance == null ) {
-			MainWP_Custom_Post_Type::$instance = new MainWP_Custom_Post_Type();
+		if ( self::$instance == null ) {
+			self::$instance = new MainWP_Custom_Post_Type();
 		}
 
-		return MainWP_Custom_Post_Type::$instance;
+		return self::$instance;
 	}
 
 	public function action() {
@@ -22,20 +22,20 @@ class MainWP_Custom_Post_Type {
 				$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
 //				die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
 			} else {
-				$data = MainWP_Custom_Post_Type::$information;
+				$data = self::$information;
 //				die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
 			}
-			
+
 			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
 				$data = json_encode( $data );
 			} else {
 				$data = serialize( $data );
 			}
-			
+
 			die('<mainwp>' . base64_encode( $data ) . '</mainwp>');
 		}
 
-		register_shutdown_function( "mainwp_custom_post_type_handle_fatal_error" );
+		register_shutdown_function( 'mainwp_custom_post_type_handle_fatal_error' );
 
 		$information = array();
 		switch ( $_POST['action'] ) {
@@ -48,7 +48,7 @@ class MainWP_Custom_Post_Type {
 
 		}
 
-		MainWP_Custom_Post_Type::$information = $information;
+		self::$information = $information;
 
 		exit();
 	}
@@ -104,7 +104,7 @@ class MainWP_Custom_Post_Type {
 				}
 
 				try {
-					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl , array(), $check_image );
+					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl, array(), $check_image );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -159,7 +159,7 @@ class MainWP_Custom_Post_Type {
 			'post_modified_gmt',
 			'post_content_filtered',
 			'menu_order',
-			'post_type'
+			'post_type',
 		);
 
 		foreach ( $data_keys as $key ) {
@@ -190,7 +190,7 @@ class MainWP_Custom_Post_Type {
 			if ( is_null( $old_post ) ) {
 				return array(
 					'delete_connection' => 1,
-					'error'             => __( 'Cannot get old post. Probably is deleted now. Please try again for create new post', $this->plugin_translate )
+					'error'             => __( 'Cannot get old post. Probably is deleted now. Please try again for create new post', $this->plugin_translate ),
 				);
 			}
 
@@ -313,7 +313,7 @@ class MainWP_Custom_Post_Type {
 				// @todo missing alias_of which means term_group
 				$term = wp_insert_term( $key['name'], $key['taxonomy'], array(
 					'description' => $key['description'],
-					'slug'        => $key['slug']
+					'slug'        => $key['slug'],
 				) );
 
 				$term_taxonomy_id = 0;
