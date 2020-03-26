@@ -176,7 +176,7 @@ class Tar_Archiver {
 				foreach ( $nodes as $key => $node ) {
 					if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
 						unset( $nodes[ $key ] );
-					} else if ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+					} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 						unset( $nodes[ $key ] );
 					} else {
 						foreach ( $coreFiles as $coreFile ) {
@@ -209,7 +209,7 @@ class Tar_Archiver {
 				if ( ! MainWP_Helper::inExcludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
 					if ( is_dir( $node ) ) {
 						$this->addDir( $node, $excludes );
-					} else if ( is_file( $node ) ) {
+					} elseif ( is_file( $node ) ) {
 						$this->addFile( $node, str_replace( ABSPATH, '', $node ) );
 					}
 				}
@@ -333,7 +333,7 @@ class Tar_Archiver {
 				throw new Exception( 'Could not write to archive' );
 			}
 			//@fflush($this->archive);
-		} else if ( 'tar.bz2' == $this->type ) {
+		} elseif ( 'tar.bz2' == $this->type ) {
 			if ( false === @bzwrite( $this->archive, $data, strlen( $data ) ) ) {
 				throw new Exception( 'Could not write to archive' );
 			}
@@ -365,7 +365,7 @@ class Tar_Archiver {
 				throw new Exception( 'Could not write to archive' );
 			}
 			@fflush( $this->archive );
-		} else if ( 'tar.bz2' == $this->type ) {
+		} elseif ( 'tar.bz2' == $this->type ) {
 			if ( false === @bzwrite( $this->archive, $this->chunk, strlen( $len ) ) ) {
 				throw new Exception( 'Could not write to archive' );
 			}
@@ -741,14 +741,14 @@ class Tar_Archiver {
 				$startOffset = $rslt['startOffset'];
 				@fseek( $this->archive, $startOffset );
 				@ftruncate( $this->archive, $startOffset );
-			} else if ( 'tar.gz' == $this->type ) {
+			} elseif ( 'tar.gz' == $this->type ) {
 				$readOffset = $rslt['readOffset'];
 				$bytesRead  = $rslt['bytesRead'];
 				//@fseek($this->archive, $readOffset + $bytesRead);
 
 				$out = array( 'bytesRead' => $bytesRead );
 			}
-		} else if ( false === $rslt ) {
+		} elseif ( false === $rslt ) {
 			if ( 'tar' == $this->type ) {
 				@fseek( $this->archive, 0, SEEK_END );
 			}
@@ -820,7 +820,7 @@ class Tar_Archiver {
 				} else {
 					throw new Exception( 'Unexpected directory [' . $file['name'] . ']' );
 				}
-			} else if ( 0 == $file['type'] ) {
+			} elseif ( 0 == $file['type'] ) {
 				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					$previousFtell = @ftell( $this->archive );
 
@@ -862,7 +862,7 @@ class Tar_Archiver {
 
 							return $rslt;
 						}
-					} else if ( ( 'tar' == $this->type ) && ( ( false === $ftell ) || ( -1 == $ftell ) ) ) {
+					} elseif ( ( 'tar' == $this->type ) && ( ( false === $ftell ) || ( -1 == $ftell ) ) ) {
 						$this->log( 'Will append this: ' . print_r( $rslt, 1 ) );
 
 						return $rslt;
@@ -906,7 +906,7 @@ class Tar_Archiver {
 		if ( 'tar.gz' == $this->type ) {
 			//$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
 			$this->archive = @gzopen( $filepath, 'wb' );
-		} else if ( 'tar.bz2' == $this->type ) {
+		} elseif ( 'tar.bz2' == $this->type ) {
 			$this->archive = @bzopen( $filepath, 'w' );
 		} else {
 			$this->archive = @fopen( $filepath, 'wb+' );
@@ -928,7 +928,7 @@ class Tar_Archiver {
 		if ( 'tar.gz' == $this->type ) {
 			//$this->archive = @fopen('compress.zlib://' . $filepath, 'ab');
 			$this->archive = @gzopen( $filepath, 'ab' );
-		} else if ( $this->type == 'tar.bz2' ) {
+		} elseif ( $this->type == 'tar.bz2' ) {
 			$this->archive = @bzopen( $filepath, 'a' );
 		} else {
 			$this->archive = @fopen( $filepath, 'ab+' );
@@ -992,7 +992,7 @@ class Tar_Archiver {
 			$this->type = 'tar.gz';
 			//            $this->archive = @fopen('compress.zlib://' . $filepath, 'rb');
 			$this->archive = @gzopen( $filepath, 'r' );
-		} else if ( 'tar.bz2' == substr( $filepath, - 7 ) ) {
+		} elseif ( 'tar.bz2' == substr( $filepath, - 7 ) ) {
 			$this->type    = 'tar.bz2';
 			$this->archive = @bzopen( $filepath, 'r' );
 		} else {
@@ -1022,7 +1022,7 @@ class Tar_Archiver {
 			if ( 'tar.gz' == $this->type ) {
 				//@fclose($this->archive);
 				@gzclose( $this->archive );
-			} else if ( 'tar.bz2' == $this->type ) {
+			} elseif ( 'tar.bz2' == $this->type ) {
 				@bzclose( $this->archive );
 			} else {
 				@fclose( $this->archive );
@@ -1065,7 +1065,7 @@ class Tar_Archiver {
 
 			if ( $file['checksum'] == 0x00000000 ) {
 				break;
-			} else if ( substr( $file['magic'], 0, 5 ) != 'ustar' ) {
+			} elseif ( substr( $file['magic'], 0, 5 ) != 'ustar' ) {
 				//                $this->error[] = "This script does not support extracting this type of tar file.";
 				break;
 			}
@@ -1134,7 +1134,7 @@ class Tar_Archiver {
 
 			if ( $file['checksum'] == 0x00000000 ) {
 				break;
-			} else if ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
+			} elseif ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
 				//                $this->error[] = "This script does not support extracting this type of tar file.";
 				break;
 			}
@@ -1151,7 +1151,7 @@ class Tar_Archiver {
 				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					return true;
 				}
-			} else if ( 0 == $file['type'] ) {
+			} elseif ( 0 == $file['type'] ) {
 				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					return true;
 				} else {
@@ -1198,7 +1198,7 @@ class Tar_Archiver {
 
 			if ( $file['checksum'] == 0x00000000 ) {
 				break;
-			} else if ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
+			} elseif ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
 				//                $this->error[] = "This script does not support extracting this type of tar file.";
 				break;
 			}
@@ -1217,7 +1217,7 @@ class Tar_Archiver {
 						mkdir( $to . $file['name'], 0777, true );
 					}
 				}
-			} else if ( 0 == $file['type'] ) {
+			} elseif ( 0 == $file['type'] ) {
 				if ( ! is_dir( dirname( $to . $file['name'] ) ) ) {
 					if ( ! empty( $wp_filesystem ) ) {
 						$wp_filesystem->mkdir( dirname( $to . $file['name'] ), FS_CHMOD_DIR );
@@ -1306,16 +1306,16 @@ if ( class_exists( 'SplHeap' ) ) {
 			if ( dirname( $pathA ) == dirname( $pathB ) ) {
 				if ( is_file( $pathA ) && ! is_file( $pathB ) ) {
 					return - 1;
-				} else if ( ! is_file( $pathA ) && is_file( $pathB ) ) {
+				} elseif ( ! is_file( $pathA ) && is_file( $pathB ) ) {
 					return 1;
 				}
 
 				return strcmp( $pathA, $pathB );
-			} else if ( $dirnameA == $dirnameB ) {
+			} elseif ( $dirnameA == $dirnameB ) {
 				return strcmp( $pathA, $pathB );
-			} else if ( MainWP_Helper::startsWith( $dirnameA, $dirnameB ) ) {
+			} elseif ( MainWP_Helper::startsWith( $dirnameA, $dirnameB ) ) {
 				return 1;
-			} else if ( MainWP_Helper::startsWith( $dirnameB, $dirnameA ) ) {
+			} elseif ( MainWP_Helper::startsWith( $dirnameB, $dirnameA ) ) {
 				return - 1;
 			} else {
 				$cmp = strcmp( $dirnameA, $dirnameB );

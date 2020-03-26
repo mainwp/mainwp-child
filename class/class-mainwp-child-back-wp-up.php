@@ -66,7 +66,7 @@ class MainWP_Child_Back_WP_Up {
 	}
 
 	public function __construct() {
-		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
         try {
 
@@ -80,14 +80,14 @@ class MainWP_Child_Back_WP_Up {
 				}
 
                 MainWP_Helper::check_files_exists(array( $file_path1, $file_path2 ));
-                require_once(  $file_path1 );
-                require_once(  $file_path2 );
+                require_once $file_path1;
+                require_once $file_path2;
                 $this->is_backwpup_installed = true;
                 $this->is_backwpup_pro       = true;
-            } else if ( is_plugin_active( 'backwpup/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php' ) ) {
+            } elseif ( is_plugin_active( 'backwpup/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php' ) ) {
                 $file_path = plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php';
                 MainWP_Helper::check_files_exists(array( $file_path ));
-                require_once(  $file_path );
+                require_once $file_path;
                 $this->is_backwpup_installed = true;
             }
 
@@ -119,7 +119,7 @@ class MainWP_Child_Back_WP_Up {
 			$info = self::$information;
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
-			} else if ( ! empty( $info ) ) {
+			} elseif ( ! empty( $info ) ) {
 				MainWP_Helper::write( self::$information );
 			} else {
 				MainWP_Helper::write( array( 'error' => 'Missing information array inside fatal_error' ) );
@@ -218,8 +218,9 @@ class MainWP_Child_Back_WP_Up {
 
 	public function init() {
 
-		if (!$this->is_backwpup_installed)
+		if (!$this->is_backwpup_installed) {
 			return;
+        }
 
 		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 
@@ -238,9 +239,11 @@ class MainWP_Child_Back_WP_Up {
 	}
     // ok
 	public function do_reports_log( $ext = '') {
-		if ( $ext !== 'backwpup' ) return;
-		if (!$this->is_backwpup_installed)
+		if ( $ext !== 'backwpup' ) { return;
+        }
+		if (!$this->is_backwpup_installed) {
 			return;
+        }
 
         try {
 
@@ -269,8 +272,9 @@ class MainWP_Child_Back_WP_Up {
             $log_items = array();
             foreach ( $logfiles as $mtime => $logfile ) {
                 $meta = BackWPup_Job::read_logheader( $log_folder . '/' . $logfile );
-                if (!isset($meta['logtime']) || $meta['logtime'] < $lasttime_logged)
+                if (!isset($meta['logtime']) || $meta['logtime'] < $lasttime_logged) {
                     continue;
+                }
 
                 if (isset($meta['errors']) && !empty($meta['errors'])) {
                     continue; // do not logging backups have errors
@@ -313,8 +317,9 @@ class MainWP_Child_Back_WP_Up {
                     $message = 'BackWPup backup finished (' . $backup_type . ')';
                     do_action( 'mainwp_reports_backwpup_backup', $message, $backup_type, $backup_time );
 
-                    if ($new_lasttime_logged < $backup_time)
+                    if ($new_lasttime_logged < $backup_time) {
                         $new_lasttime_logged = $backup_time;
+                    }
                 }
 
                 if ($new_lasttime_logged > $lasttime_logged ) {
@@ -744,7 +749,7 @@ class MainWP_Child_Back_WP_Up {
 					$temp_array['website_id'] = $website_id;
 					$array[]                  = $temp_array;
 				}
-			} else if ( $type == 'backups' ) {
+			} elseif ( $type == 'backups' ) {
 				$without_dupes = array();
 				foreach ( $output->items as $key ) {
 					$temp_array                = $key;
@@ -973,7 +978,7 @@ class MainWP_Child_Back_WP_Up {
 		}
 
 		if ( ! class_exists( 'WP_List_Table' ) ) {
-			require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
+			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 		}
 	}
 
@@ -1136,9 +1141,9 @@ class MainWP_Child_Back_WP_Up {
 				if ( $dir = @opendir( $main_folder_name ) ) {
 					while ( ( $file = readdir( $dir ) ) !== false ) {
 						if ( ! in_array( $file, array(
-								'.',
-								'..',
-							) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) )
+							'.',
+							'..',
+						) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) )
 						) {
 							$folder_size = ' (' . size_format( BackWPup_File::get_folder_size( $main_folder_name . '/' . $file ), 2 ) . ')';
 
@@ -1394,7 +1399,7 @@ class MainWP_Child_Back_WP_Up {
 				$url = BackWPup_Job::get_jobrun_url( 'runnowlink', $job_id );
 				BackWPup_Admin::message( sprintf( __( 'Changes for job <i>%s</i> saved.', 'backwpup' ), BackWPup_Option::get( $job_id, 'name' ) ) . ' <a href="' . network_admin_url( 'admin.php' ) . '?page=backwpupjobs">' . __( 'Jobs overview', 'backwpup' ) . '</a> | <a href="' . $url['url'] . '">' . __( 'Run now', 'backwpup' ) . '</a>' );
 			}
-		} else if ($settings['tab'] == 'dest-DROPBOX') {
+		} elseif ($settings['tab'] == 'dest-DROPBOX') {
             unset($settings['value']); // do not save dropbox settings
 			BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
 		} else {
@@ -1436,7 +1441,7 @@ class MainWP_Child_Back_WP_Up {
 					if ( ! in_array( $key, $this->exclusions[ $settings['tab'] ] ) && strcmp( $temp_value, $val ) != 0 ) {
 						$changes_array[ $key ] = $temp_value;
 					}
-				} else if ( strcmp( $temp_value, $val ) != 0 ) {
+				} elseif ( strcmp( $temp_value, $val ) != 0 ) {
 					$changes_array[ $key ] = $temp_value;
 				}
 			}
@@ -1518,7 +1523,7 @@ class MainWP_Child_Back_WP_Up {
 
 		if ( isset( $message['error'] ) ) {
 			return array( 'error' => implode( ', ', $message['error'] ) );
-		} else if ( isset( $message['updated'] ) ) {
+		} elseif ( isset( $message['updated'] ) ) {
 			return array( 'message' => $message['updated'] );
 		} else {
 			return array( 'error' => 'Generic error' );

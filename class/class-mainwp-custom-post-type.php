@@ -114,7 +114,7 @@ class MainWP_Custom_Post_Type {
 							$serverHref        = 'href="' . $serverHost;
 							$replaceServerHref = 'href="' . parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . parse_url( $localUrl, PHP_URL_HOST );
 							$post_content      = str_replace( $serverHref, $replaceServerHref, $post_content );
-						} else if ( strpos( $hrefLink, 'http' ) !== false ) {
+						} elseif ( strpos( $hrefLink, 'http' ) !== false ) {
 							$lnkToReplace = dirname( $hrefLink );
 							if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
 								$post_content = str_replace( $lnkToReplace, $linkToReplaceWith, $post_content );
@@ -286,7 +286,7 @@ class MainWP_Custom_Post_Type {
 		// MainWP Categories
 		if ( ! empty( $data['categories'] ) && is_array( $data['categories'] ) ) {
 			// Contains wp_create_categories
-			include_once( ABSPATH . 'wp-admin/includes/taxonomy.php' );
+			include_once ABSPATH . 'wp-admin/includes/taxonomy.php';
 			$categories = $data['categories'];
 			if ( $data['post_only_existing'] == '0' ) {
 				$post_category = wp_create_categories( $categories, $post_id );

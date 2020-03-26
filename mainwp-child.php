@@ -8,7 +8,7 @@
   Text Domain: mainwp-child
   Version: 4.0.7
  */
-include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from WordPress
+require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; //Version information from WordPress
 
 define( 'MAINWP_DEBUG', false );
 
@@ -25,7 +25,7 @@ function mainwp_child_autoload( $class_name ) {
 	$autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
 
 	if ( file_exists( $autoload_path ) ) {
-		require_once( $autoload_path );
+		require_once $autoload_path;
 	}
 }
 

@@ -29,26 +29,29 @@ class MainWP_Child_Staging {
     }
 
     public function __construct() {
-        require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'wp-staging/wp-staging.php' ) && defined('WPSTG_PLUGIN_DIR')) {
             $this->is_plugin_installed = true;
-		} else if ( is_plugin_active( 'wp-staging-pro/wp-staging-pro.php' ) ) {
+		} elseif ( is_plugin_active( 'wp-staging-pro/wp-staging-pro.php' ) ) {
             $this->is_plugin_installed = true;
 		}
 
-        if (!$this->is_plugin_installed)
+        if (!$this->is_plugin_installed) {
             return;
+        }
 
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
     }
 
 
 	public function init() {
-		if ( get_option( 'mainwp_wp_staging_ext_enabled' ) !== 'Y' )
+		if ( get_option( 'mainwp_wp_staging_ext_enabled' ) !== 'Y' ) {
             return;
+        }
 
-        if (!$this->is_plugin_installed)
+        if (!$this->is_plugin_installed) {
             return;
+        }
 
 		if ( get_option( 'mainwp_wp_staging_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
@@ -299,9 +302,9 @@ class MainWP_Child_Staging {
       $delete->setData();
       $clone = $delete->getClone();
       $result = array(
-                    'clone' => $clone,
-                    'deleteTables' => $delete->getTables(),
-                );
+		  'clone' => $clone,
+		  'deleteTables' => $delete->getTables(),
+	  );
       return $result;
    }
 

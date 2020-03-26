@@ -279,7 +279,7 @@ class MainWP_Child_Plugins_Check {
 		//Some of this code is lifted from class-wp-upgrader
 
 		//Get the WordPress current version to be polite in the API call
-		include( ABSPATH . WPINC . '/version.php' );
+		include ABSPATH . WPINC . '/version.php';
 
 		global $wp_version;
 
