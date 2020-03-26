@@ -83,7 +83,7 @@ class MainWP_Child_Links_Checker {
             }
             MainWP_Helper::write( $information );
         } catch(Exception $e) {
-            MainWP_Helper::write( array('error' => $e->getMessage()) );
+            MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
         }
 	}
 
@@ -270,9 +270,9 @@ class MainWP_Child_Links_Checker {
 		if ($offset){
 			$total_sync = $offset;
 		}
-		$total_sync += (is_array($link_data) ? count($link_data) : 0);
+		$total_sync += ( is_array($link_data) ? count($link_data) : 0 );
 
-		$information = array('links_data' => $link_data);
+		$information = array( 'links_data' => $link_data );
 
 		if ($first_sync) {
 			$information['data'] = $this->get_count_links();
@@ -393,7 +393,7 @@ class MainWP_Child_Links_Checker {
 				if ( ! empty( $instances ) ) {
                     $first_instance      = reset( $instances );
 
-                    MainWP_Helper::check_methods($first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable') );
+                    MainWP_Helper::check_methods($first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable' ) );
 
 					$new_link->link_text = $first_instance->ui_get_link_text();
 					$extra_info['count_instance'] = count( $instances );
@@ -657,7 +657,7 @@ class MainWP_Child_Links_Checker {
 			$image = 'font-awesome/font-awesome-comment-alt.png';
 		}
 
-        if (true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object'), true )) {
+        if (true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object' ), true )) {
             return false;
         }
 

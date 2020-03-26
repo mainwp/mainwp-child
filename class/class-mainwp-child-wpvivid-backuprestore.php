@@ -129,7 +129,7 @@ class MainWP_Child_WPvivid_BackupRestore {
                         break;
                 }
             } catch (Exception $e) {
-                $information = array('error' => $e->getMessage());
+                $information = array( 'error' => $e->getMessage() );
             }
 
             MainWP_Helper::write($information);

@@ -247,7 +247,7 @@ class MainWP_Child_Back_WP_Up {
 
         try {
 
-            MainWP_Helper::check_classes_exists(array('BackWPup_File', 'BackWPup_Job'));
+            MainWP_Helper::check_classes_exists(array( 'BackWPup_File', 'BackWPup_Job' ));
             MainWP_Helper::check_methods('BackWPup_File', array( 'get_absolute_path' ));
             MainWP_Helper::check_methods('BackWPup_Job', array( 'read_logheader' ));
 
@@ -280,23 +280,23 @@ class MainWP_Child_Back_WP_Up {
                     continue; // do not logging backups have errors
                 }
 
-                $log_items[$mtime] = $meta;
-                $log_items[$mtime]['file'] = $logfile;
+                $log_items[ $mtime ] = $meta;
+                $log_items[ $mtime ]['file'] = $logfile;
             }
 
             if ( !empty( $log_items ) ) {
                 $job_types = array(
-                    'DBDUMP' => __('Database backup', 'mainwp-child'),
-                    'FILE' => __('File backup', 'mainwp-child'),
-                    'WPEXP' => __('WordPress XML export', 'mainwp-child'),
+                    'DBDUMP'   => __('Database backup', 'mainwp-child'),
+                    'FILE'     => __('File backup', 'mainwp-child'),
+                    'WPEXP'    => __('WordPress XML export', 'mainwp-child'),
                     'WPPLUGIN' => __('Installed plugins list', 'mainwp-child'),
-                    'DBCHECK' => __('Check database tables', 'mainwp-child'),
+                    'DBCHECK'  => __('Check database tables', 'mainwp-child'),
                 );
 
                 $new_lasttime_logged = $lasttime_logged;
 
                 foreach ($log_items as $log) {
-                    $backup_time = $log[ 'logtime' ];
+                    $backup_time = $log['logtime'];
                     if ($backup_time < $lasttime_logged) {
                          // small than last backup time then skip
                         continue;
@@ -304,8 +304,8 @@ class MainWP_Child_Back_WP_Up {
                     $job_job_types = explode('+', $log['type']);
                     $backup_type = '';
                     foreach($job_job_types as $typeid) {
-                        if (isset( $job_types[$typeid] )) {
-                            $backup_type .= ' + ' . $job_types[$typeid];
+                        if (isset( $job_types[ $typeid ] )) {
+                            $backup_type .= ' + ' . $job_types[ $typeid ];
                         }
                     }
 
@@ -347,7 +347,7 @@ class MainWP_Child_Back_WP_Up {
     }
 
 	function get_destinations_list() {
-        MainWP_Helper::check_classes_exists(array('BackWPup', 'BackWPup_Option'));
+        MainWP_Helper::check_classes_exists(array( 'BackWPup', 'BackWPup_Option' ));
         MainWP_Helper::check_methods('BackWPup', array( 'get_registered_destinations', 'get_destination' ));
         MainWP_Helper::check_methods('BackWPup_Option', array( 'get_job_ids', 'get' ));
 
@@ -360,7 +360,7 @@ class MainWP_Child_Back_WP_Up {
 			}
 			$dests = BackWPup_Option::get( $jobid, 'destinations' );
 			foreach ( $dests as $dest ) {
-				if ( ! $destinations[ $dest ][ 'class' ] ) {
+				if ( ! $destinations[ $dest ]['class'] ) {
 					continue;
 				}
 
@@ -368,7 +368,7 @@ class MainWP_Child_Back_WP_Up {
                 if ($dest_class && method_exists($dest_class, 'file_get_list')) {
                     $can_do_dest = $dest_class->file_get_list( $jobid . '_' . $dest );
                     if ( ! empty( $can_do_dest ) ) {
-                        $jobdest[ ] = $jobid . '_' . $dest;
+                        $jobdest[] = $jobid . '_' . $dest;
                     }
                 }
 			}
@@ -537,7 +537,10 @@ class MainWP_Child_Back_WP_Up {
 
 		ob_end_clean();
 
-		return array( 'success' => 1, 'response' => $output );
+		return array(
+			'success'  => 1,
+			'response' => $output,
+		);
 	}
 
 	protected function delete_log() {
@@ -606,11 +609,17 @@ class MainWP_Child_Back_WP_Up {
 			if ( is_array( $file ) && $file['file'] == $backupfile ) {
 				$dest_class->file_delete( $dest, $backupfile );
 
-				return array( 'success' => 1, 'response' => 'DELETED' );
+				return array(
+					'success'  => 1,
+					'response' => 'DELETED',
+				);
 			}
 		}
 
-		return array( 'success' => 1, 'response' => 'Not found' );
+		return array(
+			'success'  => 1,
+			'response' => 'Not found',
+		);
 	}
 
 	protected function view_log() {
@@ -640,7 +649,10 @@ class MainWP_Child_Back_WP_Up {
 			}
 		}
 
-		return array( 'success' => 1, 'response' => $output );
+		return array(
+			'success'  => 1,
+			'response' => $output,
+		);
 	}
 
 	protected function tables() {
@@ -666,7 +678,10 @@ class MainWP_Child_Back_WP_Up {
                 $log_folder = untrailingslashit( $log_folder );
 
 				if ( ! is_dir( $log_folder ) ) {
-					return array( 'success' => 1, 'response' => $array );
+					return array(
+						'success'  => 1,
+						'response' => $array,
+					);
 				}
 				update_user_option( get_current_user_id(), 'backwpuplogs_per_page', 99999999 );
 				$output = new BackWPup_Page_Logs();
@@ -697,7 +712,7 @@ class MainWP_Child_Back_WP_Up {
 								foreach ( $items as $item ) {
 									$temp_single_item         = $item;
 									$temp_single_item['dest'] = $jobid . '_' . $dest;
-                                    $temp_single_item['timeloc'] = sprintf( __( '%1$s at %2$s', 'backwpup' ), date_i18n( get_option( 'date_format' ), $temp_single_item[ 'time' ], true ), date_i18n( get_option( 'time_format' ), $temp_single_item[ 'time' ], true ) );
+                                    $temp_single_item['timeloc'] = sprintf( __( '%1$s at %2$s', 'backwpup' ), date_i18n( get_option( 'date_format' ), $temp_single_item['time'], true ), date_i18n( get_option( 'time_format' ), $temp_single_item['time'], true ) );
 									$output->items[]          = $temp_single_item;
 								}
 							}
@@ -785,7 +800,10 @@ class MainWP_Child_Back_WP_Up {
 			}
 		}
 
-		return array( 'success' => 1, 'response' => $array );
+		return array(
+			'success'  => 1,
+			'response' => $array,
+		);
 	}
 
 	public function init_download_backup() {
@@ -902,7 +920,10 @@ class MainWP_Child_Back_WP_Up {
 
 		ob_end_clean();
 
-		return array( 'success' => 1, 'response' => $output );
+		return array(
+			'success'  => 1,
+			'response' => $output,
+		);
 	}
 
 	protected function backup_now() {
@@ -938,7 +959,10 @@ class MainWP_Child_Back_WP_Up {
 					'logfile'  => basename( $job_object->logfile ),
 				);
 			} else {
-				return array( 'success' => 1, 'response' => $output['message'] );
+				return array(
+					'success'  => 1,
+					'response' => $output['message'],
+				);
 			}
 		}
 	}
@@ -960,7 +984,10 @@ class MainWP_Child_Back_WP_Up {
 		if ( isset( $output['error'] ) ) {
 			return array( 'error' => 'Cannot abort: ' . $output['error'] );
 		} else {
-			return array( 'success' => 1, 'response' => $output['message'] );
+			return array(
+				'success'  => 1,
+				'response' => $output['message'],
+			);
 		}
 	}
 
@@ -993,7 +1020,10 @@ class MainWP_Child_Back_WP_Up {
 
 			ob_end_clean();
 
-			return array( 'success' => 1, 'response' => $output );
+			return array(
+				'success'  => 1,
+				'response' => $output,
+			);
 		} else {
 			return array( 'error' => 'Missing BackWPup_Pro_Wizard_SystemTest' );
 		}
@@ -1092,7 +1122,10 @@ class MainWP_Child_Back_WP_Up {
 			}
 		}
 
-		return array( 'success' => 1, 'message' => $message );
+		return array(
+			'success' => 1,
+			'message' => $message,
+		);
 	}
 
 	protected function get_job_files() {
@@ -1158,11 +1191,18 @@ class MainWP_Child_Back_WP_Up {
 					@closedir( $dir );
 				}
 
-				$return[ $key ] = array( 'size' => $main_folder_size, 'name' => $folder, 'folders' => $return_temp );
+				$return[ $key ] = array(
+					'size'    => $main_folder_size,
+					'name'    => $folder,
+					'folders' => $return_temp,
+				);
 			}
 		}
 
-		return array( 'success' => 1, 'folders' => $return );
+		return array(
+			'success' => 1,
+			'folders' => $return,
+		);
 	}
 
 	protected function get_child_tables() {
@@ -1217,7 +1257,10 @@ class MainWP_Child_Back_WP_Up {
 		if (isset($settings['job_id'])) {
 			$return['dbdumpexclude'] = BackWPup_Option::get( $settings['job_id'], 'dbdumpexclude' );
 		}
-		return array( 'success' => 1, 'return' => $return );
+		return array(
+			'success' => 1,
+			'return'  => $return,
+		);
 	}
 
 	protected function insert_or_update_jobs_global() {
@@ -1298,7 +1341,7 @@ class MainWP_Child_Back_WP_Up {
 		$to_exclude_parsed = array();
 		foreach ( $to_exclude as $key => $value ) {
 			$normalized = wp_normalize_path( trim( $value ) );
-			$normalized and $to_exclude_parsed[$key] = $normalized;
+			$normalized and $to_exclude_parsed[ $key ] = $normalized;
 		}
 		sort( $to_exclude_parsed );
 		BackWPup_Option::update( $id, 'fileexclude', implode( ',', $to_exclude_parsed ) );
@@ -1313,7 +1356,7 @@ class MainWP_Child_Back_WP_Up {
 			$normalized = trailingslashit( wp_normalize_path( trim( $value ) ) );
 			$normalized and $normalized = filter_var( $normalized, FILTER_SANITIZE_URL );
 			$realpath = $normalized && $normalized !== '/' ? realpath( $normalized ) : false;
-			$realpath and $to_include_parsed[$key] = $realpath;
+			$realpath and $to_include_parsed[ $key ] = $realpath;
 		}
 		sort( $to_include_parsed );
 		BackWPup_Option::update( $id, 'dirinclude', implode( ',', $to_include_parsed ) );
@@ -1332,18 +1375,33 @@ class MainWP_Child_Back_WP_Up {
 		);
 
 		foreach( $boolean_fields_def as $key => $value ) {
-			BackWPup_Option::update( $id, $key, ! empty( $post_data[$key] ) );
+			BackWPup_Option::update( $id, $key, ! empty( $post_data[ $key ] ) );
 		}
 		// Parse and save directories to exclude
 		$exclude_dirs_def = array(
-			'backuprootexcludedirs'    => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
-			'backuppluginsexcludedirs' => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
-			'backupcontentexcludedirs'    => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
-			'backupthemesexcludedirs'  => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
-			'backupuploadsexcludedirs' => array( 'filter' => FILTER_SANITIZE_URL, 'flags' => FILTER_FORCE_ARRAY ),
+			'backuprootexcludedirs'    => array(
+				'filter' => FILTER_SANITIZE_URL,
+				'flags'  => FILTER_FORCE_ARRAY,
+			),
+			'backuppluginsexcludedirs' => array(
+				'filter' => FILTER_SANITIZE_URL,
+				'flags'  => FILTER_FORCE_ARRAY,
+			),
+			'backupcontentexcludedirs' => array(
+				'filter' => FILTER_SANITIZE_URL,
+				'flags'  => FILTER_FORCE_ARRAY,
+			),
+			'backupthemesexcludedirs'  => array(
+				'filter' => FILTER_SANITIZE_URL,
+				'flags'  => FILTER_FORCE_ARRAY,
+			),
+			'backupuploadsexcludedirs' => array(
+				'filter' => FILTER_SANITIZE_URL,
+				'flags'  => FILTER_FORCE_ARRAY,
+			),
 		);
 		foreach( $exclude_dirs_def as $key => $filter ) {
-			$value = ! empty( $post_data[$key] ) && is_array( $post_data[$key] ) ? $post_data[$key] : array();
+			$value = ! empty( $post_data[ $key ] ) && is_array( $post_data[ $key ] ) ? $post_data[ $key ] : array();
 			BackWPup_Option::update( $id, $key, $value );
 		}
 	}
@@ -1514,7 +1572,11 @@ class MainWP_Child_Back_WP_Up {
 			}
 		}
 
-		return array( 'success' => 1, 'changes' => $changes_array, 'message' => $return['message'] );
+		return array(
+			'success' => 1,
+			'changes' => $changes_array,
+			'message' => $return['message'],
+		);
 	}
 
 	protected function check_backwpup_messages() {

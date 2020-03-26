@@ -675,7 +675,7 @@ class MainWP_Clone_Install {
 				unset( $_tmp );
 			}  elseif (is_serialized_string($data) && is_serialized($data)) {
                 // TODO: apply solution like phpmyadmin project have!
-				if ( ($data = @unserialize( $data )) !== false ) {
+				if ( ( $data = @unserialize( $data ) ) !== false ) {
 					$data = str_replace( $from, $to, $data );
                     $data = serialize( $data );
 				}

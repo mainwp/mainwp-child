@@ -693,7 +693,7 @@ class MainWP_Child_Wordfence {
         $scan_time = array();
         if ( $rows ) {
             while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
-                $scan_time[$row['ctime']] = $row['msg'];
+                $scan_time[ $row['ctime'] ] = $row['msg'];
             }
         }
 
@@ -795,17 +795,17 @@ class MainWP_Child_Wordfence {
 		$counts = $i->getIssueCounts();
 
 		return array(
-			'issuesLists'       => $iss,
-            'issueCounts'   => $counts,
-			'lastScanCompleted' => wfConfig::get( 'lastScanCompleted' ),
-			'apiKey'            => wfConfig::get( 'apiKey' ),
-			'isPaid' => wfConfig::get('isPaid'),
+			'issuesLists'        => $iss,
+            'issueCounts'        => $counts,
+			'lastScanCompleted'  => wfConfig::get( 'lastScanCompleted' ),
+			'apiKey'             => wfConfig::get( 'apiKey' ),
+			'isPaid'             => wfConfig::get('isPaid'),
 			'lastscan_timestamp' => $this->get_lastscan(),
-            'isNginx' => wfUtils::isNginx() ? 1 : 0,
-            'todayAttBlocked' => $this->count_attacks_blocked(1),
-            'weekAttBlocked' => $this->count_attacks_blocked(7),
-            'monthAttBlocked' => $this->count_attacks_blocked(30),
-            'wafData' => $this->_getWAFData(),
+            'isNginx'            => wfUtils::isNginx() ? 1 : 0,
+            'todayAttBlocked'    => $this->count_attacks_blocked(1),
+            'weekAttBlocked'     => $this->count_attacks_blocked(7),
+            'monthAttBlocked'    => $this->count_attacks_blocked(30),
+            'wafData'            => $this->_getWAFData(),
 		);
 	}
 
@@ -817,16 +817,16 @@ class MainWP_Child_Wordfence {
 		$iss = $i->getIssues($offset, $limit);
 		$counts = $i->getIssueCounts();
 		$return = array(
-			'issuesLists' => $iss,
-			'issueCounts' => $counts,
-			'lastScanCompleted' => wfConfig::get('lastScanCompleted'),
-			'apiKey'            => wfConfig::get( 'apiKey' ),
-			'isPaid' => wfConfig::get('isPaid'),
+			'issuesLists'        => $iss,
+			'issueCounts'        => $counts,
+			'lastScanCompleted'  => wfConfig::get('lastScanCompleted'),
+			'apiKey'             => wfConfig::get( 'apiKey' ),
+			'isPaid'             => wfConfig::get('isPaid'),
 			'lastscan_timestamp' => self::Instance()->get_lastscan(),
-            'todayAttBlocked' => self::Instance()->count_attacks_blocked(1),
-            'weekAttBlocked' => self::Instance()->count_attacks_blocked(7),
-            'monthAttBlocked' => self::Instance()->count_attacks_blocked(30),
-            'issueCount' => $i->getIssueCount(),
+            'todayAttBlocked'    => self::Instance()->count_attacks_blocked(1),
+            'weekAttBlocked'     => self::Instance()->count_attacks_blocked(7),
+            'monthAttBlocked'    => self::Instance()->count_attacks_blocked(30),
+            'issueCount'         => $i->getIssueCount(),
         );
         return $return;
 	}
@@ -834,8 +834,8 @@ class MainWP_Child_Wordfence {
     public function load_wafData() {
 
 		$return = array(
-            'wafData' => $this->_getWAFData(),
-            'ip' => wfUtils::getIP(),
+            'wafData'                   => $this->_getWAFData(),
+            'ip'                        => wfUtils::getIP(),
             'ajaxWatcherDisabled_front' => (bool) wfConfig::get('ajaxWatcherDisabled_front'),
             'ajaxWatcherDisabled_admin' => (bool) wfConfig::get('ajaxWatcherDisabled_admin'),
 		);
@@ -888,14 +888,14 @@ SQL
 		$status = $_POST['status'];
 		$issueID = $_POST['id'];
 		if(! preg_match('/^(?:new|delete|ignoreP|ignoreC)$/', $status)){
-			return array('errorMsg' => 'An invalid status was specified when trying to update that issue.');
+			return array( 'errorMsg' => 'An invalid status was specified when trying to update that issue.' );
 		}
 		$wfIssues->updateIssue($issueID, $status);
 		wfScanEngine::refreshScanNotification($wfIssues);
 
 		$counts = $wfIssues->getIssueCounts();
 		return array(
-			'ok' => 1,
+			'ok'          => 1,
 			'issueCounts' => $counts,
 		);
     }
@@ -1004,7 +1004,11 @@ SQL
 				$bodyMsg = "We didn't $verb2 anything and no errors were found.";
 			}
 
-			return array( 'ok' => 1, 'bulkHeading' => $headMsg, 'bulkBody' => $bodyMsg );
+			return array(
+				'ok'          => 1,
+				'bulkHeading' => $headMsg,
+				'bulkBody'    => $bodyMsg,
+			);
 		} else {
 			return array( 'errorMsg' => 'Invalid bulk operation selected' );
 		}
@@ -1101,10 +1105,10 @@ SQL
 		for( $i = 0; $i < strlen($string); $i++){
 			$c = ord(substr($string, $i));
 			if($action == 'encrypt'){
-				$c += ord(substr($key, (($i + 1) % strlen($key))));
+				$c += ord(substr($key, ( ( $i + 1 ) % strlen($key) )));
 				$res .= chr($c & 0xFF);
 			}else{
-				$c -= ord(substr($key, (($i + 1) % strlen($key))));
+				$c -= ord(substr($key, ( ( $i + 1 ) % strlen($key) )));
 				$res .= chr(abs($c) & 0xFF);
 			}
 		}
@@ -1313,7 +1317,7 @@ SQL
 					} elseif ( !empty( $apiKey ) && $existingAPIKey != $apiKey ) {
                         $api = new wfAPI( $apiKey, wfUtils::getWPVersion() );
                         try {
-							$res = $api->call('check_api_key', array(), array('previousLicense' => $existingAPIKey));
+							$res = $api->call('check_api_key', array(), array( 'previousLicense' => $existingAPIKey ));
                             if ( $res['ok'] && isset( $res['isPaid'] ) ) {
 
 //								wfConfig::set( 'apiKey', $apiKey );
@@ -1357,7 +1361,10 @@ SQL
 						$api = new wfAPI($apiKey, wfUtils::getWPVersion());
                         try {
 							$keyType = wfAPI::KEY_TYPE_FREE;
-							$keyData = $api->call('ping_api_key', array(), array('supportHash' => wfConfig::get('supportHash', ''), 'whitelistHash' => wfConfig::get('whitelistHash', '')));
+							$keyData = $api->call('ping_api_key', array(), array(
+								'supportHash'   => wfConfig::get('supportHash', ''),
+								'whitelistHash' => wfConfig::get('whitelistHash', ''),
+							));
 							if (isset($keyData['_isPaidKey'])) {
 								$keyType = wfConfig::get('keyType');
 							}
@@ -1577,7 +1584,7 @@ SQL
 		//Basic Options
 		$keys = wfConfig::getExportableOptionsKeys();
 		foreach ($keys as $key) {
-			$export[$key] = wfConfig::get($key, '');
+			$export[ $key ] = wfConfig::get($key, '');
 		}
 
 		//Serialized Options
@@ -1589,22 +1596,22 @@ SQL
 		//Make the API call
 		try {
 			$api = new wfAPI(wfConfig::get('apiKey'), wfUtils::getWPVersion());
-			$res = $api->call('export_options', array(), array('export' => json_encode($export)));
+			$res = $api->call('export_options', array(), array( 'export' => json_encode($export) ));
 			if ($res['ok'] && $res['token']) {
 				return array(
-					'ok' => 1,
+					'ok'    => 1,
 					'token' => $res['token'],
 				);
 			}
 			elseif ($res['err']) {
-				return array('errorExport' => __('An error occurred: ', 'wordfence') . $res['err']);
+				return array( 'errorExport' => __('An error occurred: ', 'wordfence') . $res['err'] );
 			}
 			else {
 				throw new Exception(__('Invalid response: ', 'wordfence') . var_export($res, true));
 			}
 		}
 		catch (Exception $e) {
-			return array('errorExport' => __('An error occurred: ', 'wordfence') . $e->getMessage());
+			return array( 'errorExport' => __('An error occurred: ', 'wordfence') . $e->getMessage() );
 		}
 	}
 
@@ -1612,20 +1619,20 @@ SQL
 		$token = $_POST['token'];
         try {
 			$api = new wfAPI(wfConfig::get('apiKey'), wfUtils::getWPVersion());
-			$res = $api->call('import_options', array(), array('token' => $token));
+			$res = $api->call('import_options', array(), array( 'token' => $token ));
 			if ($res['ok'] && $res['export']) {
 				$totalSet = 0;
 				$import = @json_decode($res['export'], true);
 				if (!is_array($import)) {
-					return array('errorImport' => __('An error occurred: Invalid options format received.', 'wordfence'));
+					return array( 'errorImport' => __('An error occurred: Invalid options format received.', 'wordfence') );
 				}
 
 				//Basic Options
 				$keys = wfConfig::getExportableOptionsKeys();
 				$toSet = array();
 				foreach ($keys as $key) {
-					if (isset($import[$key])) {
-						$toSet[$key] = $import[$key];
+					if (isset($import[ $key ])) {
+						$toSet[ $key ] = $import[ $key ];
 					}
 				}
 
@@ -1634,8 +1641,8 @@ SQL
 					$skipped = array();
 					if ($validation !== true) {
 						foreach ($validation as $error) {
-							$skipped[$error['option']] = $error['error'];
-							unset($toSet[$error['option']]);
+							$skipped[ $error['option'] ] = $error['error'];
+							unset($toSet[ $error['option'] ]);
 						}
 					}
 
@@ -1657,20 +1664,20 @@ SQL
 				}
 
 				return array(
-					'ok' => 1,
+					'ok'       => 1,
 					'totalSet' => $totalSet,
                     'settings' => $this->get_settings(),
 				);
 			}
 			elseif ($res['err']) {
-				return array('errorImport' => 'An error occurred: ' . $res['err']);
+				return array( 'errorImport' => 'An error occurred: ' . $res['err'] );
 			}
 			else {
 				throw new Exception('Invalid response: ' . var_export($res, true));
 			}
 		}
 		catch (Exception $e) {
-			return array('errorImport' => 'An error occurred: ' . $e->getMessage());
+			return array( 'errorImport' => 'An error occurred: ' . $e->getMessage() );
 		}
 	}
 
@@ -1678,7 +1685,7 @@ SQL
 		$keys = wfConfig::getExportableOptionsKeys();
 		$settings = array();
 		foreach($keys as $key){
-			$settings[$key] = wfConfig::get($key, '');
+			$settings[ $key ] = wfConfig::get($key, '');
 		}
 		$settings['apiKey'] = wfConfig::get('apiKey');  //get more apiKey
 		$settings['isPaid'] = wfConfig::get('isPaid');
@@ -1693,9 +1700,9 @@ SQL
         $table_wfStatus = wfDB::networkTable('wfStatus');
 
 		$jsonData   = array(
-			'serverTime' => $serverTime,
+			'serverTime'      => $serverTime,
             'serverMicrotime' => microtime(true),
-            'msg'        => $wfdb->querySingle( "select msg from {$table_wfStatus} where level < 3 order by ctime desc limit 1" ),
+            'msg'             => $wfdb->querySingle( "select msg from {$table_wfStatus} where level < 3 order by ctime desc limit 1" ),
 		);
 
 		$events     = array();
@@ -1845,7 +1852,7 @@ SQL
 		$data['rules'] = wfWAF::getInstance()->getRules();
 		/** @var wfWAFRule $rule */
 		foreach ($data['rules'] as $ruleID => $rule) {
-			$data['rules'][$ruleID] = $rule->toArray();
+			$data['rules'][ $ruleID ] = $rule->toArray();
 		}
 
 		$whitelistedURLParams = wfWAF::getInstance()->getStorageEngine()->getConfig('whitelistedURLParams', array());
@@ -1899,12 +1906,15 @@ SQL
 			$res[ $ip ] = wfUtils::reverseLookup( $ip );
 		}
 
-		return array( 'ok' => 1, 'ips' => $res );
+		return array(
+			'ok'  => 1,
+			'ips' => $res,
+		);
 	}
 
 
     public function saveOptions() {
-        if (!empty($_POST['changes']) && ($changes = json_decode(stripslashes($_POST['changes']), true)) !== false) {
+        if (!empty($_POST['changes']) && ( $changes = json_decode(stripslashes($_POST['changes']), true) ) !== false) {
 			try {
                 if (is_array($changes) && isset($changes['whitelistedURLParams']) && isset($changes['whitelistedURLParams']['add'])) {
                     $user = wp_get_current_user();
@@ -1945,7 +1955,7 @@ SQL
 				}
 
 				wfConfig::save($changes);
-				return array('success' => true);
+				return array( 'success' => true );
 			}
 			catch (wfWAFStorageFileException $e) {
 				return array(
@@ -2002,7 +2012,7 @@ SQL
 
     public static function saveCountryBlocking() {
 		if(! wfConfig::get('isPaid')){
-			return array('error' => 'Sorry but this feature is only available for paid customers.');
+			return array( 'error' => 'Sorry but this feature is only available for paid customers.' );
 		}
         $settings = $_POST['settings'];
 		wfConfig::set('cbl_action', $settings['blockAction']);
@@ -2014,7 +2024,7 @@ SQL
 		wfConfig::set('cbl_bypassRedirURL', $settings['bypassRedirURL']);
 		wfConfig::set('cbl_bypassRedirDest', $settings['bypassRedirDest']);
 		wfConfig::set('cbl_bypassViewURL', $settings['bypassViewURL']);
-		return array('ok' => 1);
+		return array( 'ok' => 1 );
 	}
 
 	public function load_static_panel() {
@@ -2030,7 +2040,10 @@ SQL
 			$results = $wfLog->getThrottledIPs();
 		}
 
-		return array( 'ok' => 1, 'results' => $results );
+		return array(
+			'ok'      => 1,
+			'results' => $results,
+		);
 	}
 
 	public function downgrade_license() {
@@ -2089,16 +2102,16 @@ SQL
 				}
 			}
 			if(count($badPlugins) > 0){
-				return array('errorMsg' => 'You can not enable caching in Wordfence with other caching plugins enabled. This may cause conflicts. You need to disable other caching plugins first. Wordfence caching is very fast and does not require other caching plugins to be active. The plugins you have that conflict are: ' . implode(', ', $badPlugins) . '. Disable these plugins, then return to this page and enable Wordfence caching.');
+				return array( 'errorMsg' => 'You can not enable caching in Wordfence with other caching plugins enabled. This may cause conflicts. You need to disable other caching plugins first. Wordfence caching is very fast and does not require other caching plugins to be active. The plugins you have that conflict are: ' . implode(', ', $badPlugins) . '. Disable these plugins, then return to this page and enable Wordfence caching.' );
 			}
 			$siteURL = site_url();
 			if(preg_match('/^https?:\/\/[^\/]+\/[^\/]+\/[^\/]+\/.+/i', $siteURL)){
-				return array('errorMsg' => "Wordfence caching currently does not support sites that are installed in a subdirectory and have a home page that is more than 2 directory levels deep. e.g. we don't support sites who's home page is http://example.com/levelOne/levelTwo/levelThree");
+				return array( 'errorMsg' => "Wordfence caching currently does not support sites that are installed in a subdirectory and have a home page that is more than 2 directory levels deep. e.g. we don't support sites who's home page is http://example.com/levelOne/levelTwo/levelThree" );
 			}
 		}
 		if($cacheType == 'falcon'){
 			if(! get_option('permalink_structure', '')){
-				return array('errorMsg' => 'You need to enable Permalinks for your site to use Falcon Engine. You can enable Permalinks in WordPress by going to the Settings - Permalinks menu and enabling it there. Permalinks change your site URL structure from something that looks like /p=123 to pretty URLs like /my-new-post-today/ that are generally more search engine friendly.');
+				return array( 'errorMsg' => 'You need to enable Permalinks for your site to use Falcon Engine. You can enable Permalinks in WordPress by going to the Settings - Permalinks menu and enabling it there. Permalinks change your site URL structure from something that looks like /p=123 to pretty URLs like /my-new-post-today/ that are generally more search engine friendly.' );
 			}
 		}
 		$warnHtaccess = false;
@@ -2112,7 +2125,11 @@ SQL
 		if($cacheType == 'php' || $cacheType == 'falcon'){
 			$err = wfCache::cacheDirectoryTest();
 			if($err){
-				return array('ok' => 1, 'heading' => 'Could not write to cache directory', 'body' => "To enable caching, Wordfence needs to be able to create and write to the /wp-content/wfcache/ directory. We did some tests that indicate this is not possible. You need to manually create the /wp-content/wfcache/ directory and make it writable by Wordfence. The error we encountered was during our tests was: $err");
+				return array(
+					'ok'      => 1,
+					'heading' => 'Could not write to cache directory',
+					'body'    => "To enable caching, Wordfence needs to be able to create and write to the /wp-content/wfcache/ directory. We did some tests that indicate this is not possible. You need to manually create the /wp-content/wfcache/ directory and make it writable by Wordfence. The error we encountered was during our tests was: $err",
+				);
 			}
 		}
 
@@ -2126,55 +2143,80 @@ SQL
 		}
 		if($cacheType == 'disable'){
 			wfConfig::set('cacheType', false);
-			return array('ok' => 1, 'heading' => 'Caching successfully disabled.', 'body' => "{$htMsg}Caching has been disabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
+			return array(
+				'ok'      => 1,
+				'heading' => 'Caching successfully disabled.',
+				'body'    => "{$htMsg}Caching has been disabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>",
+			);
 		} elseif($cacheType == 'php'){
 			wfConfig::set('cacheType', 'php');
-			return array('ok' => 1, 'heading' => 'Wordfence Basic Caching Enabled', 'body' => "{$htMsg}Wordfence basic caching has been enabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
+			return array(
+				'ok'      => 1,
+				'heading' => 'Wordfence Basic Caching Enabled',
+				'body'    => "{$htMsg}Wordfence basic caching has been enabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>",
+			);
 		} elseif($cacheType == 'falcon'){
 			if($noEditHtaccess != '1'){
 				$err = wfCache::addHtaccessCode('add');
 				if($err){
-					return array('ok' => 1, 'heading' => 'Wordfence could not edit .htaccess', 'body' => 'Wordfence could not edit your .htaccess code. The error was: ' . $err);
+					return array(
+						'ok'      => 1,
+						'heading' => 'Wordfence could not edit .htaccess',
+						'body'    => 'Wordfence could not edit your .htaccess code. The error was: ' . $err,
+					);
 				}
 			}
 			wfConfig::set('cacheType', 'falcon');
 			wfCache::scheduleUpdateBlockedIPs(); //Runs every 5 mins until we change cachetype
-			return array('ok' => 1, 'heading' => 'Wordfence Falcon Engine Activated!', 'body' => "Wordfence Falcon Engine has been activated on your system. You will see this icon appear on the Wordfence admin pages as long as Falcon is active indicating your site is running in high performance mode:<div class='wfFalconImage'></div><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
+			return array(
+				'ok'      => 1,
+				'heading' => 'Wordfence Falcon Engine Activated!',
+				'body'    => "Wordfence Falcon Engine has been activated on your system. You will see this icon appear on the Wordfence admin pages as long as Falcon is active indicating your site is running in high performance mode:<div class='wfFalconImage'></div><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>",
+			);
 		}
-		return array('errorMsg' => 'An error occurred.');
+		return array( 'errorMsg' => 'An error occurred.' );
 	}
 
 	public static function checkFalconHtaccess() {
 		if(wfUtils::isNginx()){
-			return array('nginx' => 1);
+			return array( 'nginx' => 1 );
 		}
 		$file = wfCache::getHtaccessPath();
 		if(! $file){
-			return array('err' => 'We could not find your .htaccess file to modify it.', 'code' => wfCache::getHtaccessCode() );
+			return array(
+				'err'  => 'We could not find your .htaccess file to modify it.',
+				'code' => wfCache::getHtaccessCode(),
+			);
 		}
 		$fh = @fopen($file, 'r+');
 		if(! $fh){
 			$err = error_get_last();
-			return array('err' => 'We found your .htaccess file but could not open it for writing: ' . $err['message'], 'code' => wfCache::getHtaccessCode() );
+			return array(
+				'err'  => 'We found your .htaccess file but could not open it for writing: ' . $err['message'],
+				'code' => wfCache::getHtaccessCode(),
+			);
 		}
 		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . MainWP_Helper::create_nonce_without_session( 'mainwp_download_htaccess' );
-		return array( 'ok' => 1, 'download_url' => $download_url );
+		return array(
+			'ok'           => 1,
+			'download_url' => $download_url,
+		);
 	}
 
     public static function checkHtaccess() {
 		if(wfUtils::isNginx()){
-			return array('nginx' => 1);
+			return array( 'nginx' => 1 );
 		}
 		$file = wfCache::getHtaccessPath();
 		if(! $file){
-			return array('err' => 'We could not find your .htaccess file to modify it.');
+			return array( 'err' => 'We could not find your .htaccess file to modify it.' );
 		}
 		$fh = @fopen($file, 'r+');
 		if(! $fh){
 			$err = error_get_last();
-			return array('err' => 'We found your .htaccess file but could not open it for writing: ' . $err['message']);
+			return array( 'err' => 'We found your .htaccess file but could not open it for writing: ' . $err['message'] );
 		}
-		return array('ok' => 1);
+		return array( 'ok' => 1 );
 	}
 
 	public static function downloadHtaccess() {
@@ -2209,30 +2251,45 @@ SQL
 		if($changed && wfConfig::get('cacheType', false) == 'falcon'){
 			$err = wfCache::addHtaccessCode('add');
 			if($err){
-				return array('updateErr' => 'Wordfence could not edit your .htaccess file. The error was: ' . $err, 'code' => wfCache::getHtaccessCode() );
+				return array(
+					'updateErr' => 'Wordfence could not edit your .htaccess file. The error was: ' . $err,
+					'code'      => wfCache::getHtaccessCode(),
+				);
 			}
 		}
 		wfCache::scheduleCacheClear();
-		return array('ok' => 1);
+		return array( 'ok' => 1 );
 	}
 
 	public static function clearPageCache() {
 		$stats = wfCache::clearPageCache();
 		if($stats['error']){
 			$body = 'A total of ' . $stats['totalErrors'] . ' errors occurred while trying to clear your cache. The last error was: ' . $stats['error'];
-			return array('ok' => 1, 'heading' => 'Error occurred while clearing cache', 'body' => $body );
+			return array(
+				'ok'      => 1,
+				'heading' => 'Error occurred while clearing cache',
+				'body'    => $body,
+			);
 		}
 		$body = 'A total of ' . $stats['filesDeleted'] . ' files were deleted and ' . $stats['dirsDeleted'] . ' directories were removed. We cleared a total of ' . $stats['totalData'] . 'KB of data in the cache.';
 		if($stats['totalErrors'] > 0){
 			$body .=  ' A total of ' . $stats['totalErrors'] . ' errors were encountered. This probably means that we could not remove some of the files or directories in the cache. Please use your CPanel or file manager to remove the rest of the files in the directory: ' . WP_CONTENT_DIR . '/wfcache/';
 		}
-		return array('ok' => 1, 'heading' => 'Page Cache Cleared', 'body' => $body );
+		return array(
+			'ok'      => 1,
+			'heading' => 'Page Cache Cleared',
+			'body'    => $body,
+		);
 	}
 
 	public static function getCacheStats() {
 		$s = wfCache::getCacheStats();
 		if($s['files'] == 0){
-			return array('ok' => 1, 'heading' => 'Cache Stats', 'body' => 'The cache is currently empty. It may be disabled or it may have been recently cleared.');
+			return array(
+				'ok'      => 1,
+				'heading' => 'Cache Stats',
+				'body'    => 'The cache is currently empty. It may be disabled or it may have been recently cleared.',
+			);
 		}
 		$body = 'Total files in cache: ' . $s['files'] .
 		        '<br />Total directories in cache: ' . $s['dirs'] .
@@ -2249,7 +2306,7 @@ SQL
 		if($s['oldestFile'] !== false){
 			$body .= '<br />Oldest file in cache created ';
 			if(time() - $s['oldestFile'] < 300){
-				$body .= (time() - $s['oldestFile']) . ' seconds ago';
+				$body .= ( time() - $s['oldestFile'] ) . ' seconds ago';
 			} else {
 				$body .= human_time_diff($s['oldestFile']) . ' ago.';
 			}
@@ -2257,13 +2314,17 @@ SQL
 		if($s['newestFile'] !== false){
 			$body .= '<br />Newest file in cache created ';
 			if(time() - $s['newestFile'] < 300){
-				$body .= (time() - $s['newestFile']) . ' seconds ago';
+				$body .= ( time() - $s['newestFile'] ) . ' seconds ago';
 			} else {
 				$body .= human_time_diff($s['newestFile']) . ' ago.';
 			}
 		}
 
-		return array('ok' => 1, 'heading' => 'Cache Stats', 'body' => $body);
+		return array(
+			'ok'      => 1,
+			'heading' => 'Cache Stats',
+			'body'    => $body,
+		);
 	}
 
 	public static function addCacheExclusion() {
@@ -2278,7 +2339,7 @@ SQL
 		} else {
 			$ex[] = array(
 				'pt' => $_POST['patternType'],
-				'p' => $_POST['pattern'],
+				'p'  => $_POST['pattern'],
 				'id' => $_POST['id'],
 			);
 		}
@@ -2286,33 +2347,42 @@ SQL
 		wfCache::scheduleCacheClear();
 		if(wfConfig::get('cacheType', false) == 'falcon' && preg_match('/^(?:uac|uaeq|cc)$/', $_POST['patternType'])){
 			if(wfCache::addHtaccessCode('add')){ //rewrites htaccess rules
-				return array('errorMsg' => 'We added the rule you requested but could not modify your .htaccess file. Please delete this rule, check the permissions on your .htaccess file and then try again.', 'ex' => $ex);
+				return array(
+					'errorMsg' => 'We added the rule you requested but could not modify your .htaccess file. Please delete this rule, check the permissions on your .htaccess file and then try again.',
+					'ex'       => $ex,
+				);
 			}
 		}
-		return array('ok' => 1, 'ex' => $ex);
+		return array(
+			'ok' => 1,
+			'ex' => $ex,
+		);
 	}
 
 	public static function loadCacheExclusions() {
 		$ex = wfConfig::get('cacheExclusions', false);
 		if(! $ex){
-			return array('ex' => false);
+			return array( 'ex' => false );
 		}
 		$ex = unserialize($ex);
-		return array('ok' => 1, 'ex' => $ex);
+		return array(
+			'ok' => 1,
+			'ex' => $ex,
+		);
 	}
 
 	public static function removeCacheExclusion() {
 		$id = $_POST['id'];
 		$ex = wfConfig::get('cacheExclusions', false);
 		if(! $ex){
-			return array('ok' => 1);
+			return array( 'ok' => 1 );
 		}
 		$ex = unserialize($ex);
 		$rewriteHtaccess = false;
 		$removed = false;
 		for($i = 0; $i < sizeof($ex); $i++){
-			if( (string) $ex[$i]['id'] == (string) $id){
-				if(wfConfig::get('cacheType', false) == 'falcon' && preg_match('/^(?:uac|uaeq|cc)$/', $ex[$i]['pt'])){
+			if( (string) $ex[ $i ]['id'] == (string) $id){
+				if(wfConfig::get('cacheType', false) == 'falcon' && preg_match('/^(?:uac|uaeq|cc)$/', $ex[ $i ]['pt'])){
 					$rewriteHtaccess = true;
 				}
 				array_splice($ex, $i, 1);
@@ -2320,7 +2390,7 @@ SQL
 				$removed = true;
 			}
 		}
-		$return = array('ex' => $ex);
+		$return = array( 'ex' => $ex );
 		if (!$removed) {
 			$return['error'] = 'Not found the cache exclusion.';
 			return $return;
@@ -2385,7 +2455,7 @@ SQL
 										'code'   => array(),
 										'strong' => array(),
 										'em'     => array(),
-										'a'      => array('href' => true),
+										'a'      => array( 'href' => true ),
 									))
                                 ?>
                                 </td>
@@ -2403,8 +2473,8 @@ SQL
 			<?php else: ?>
 				<div class="wf-block
                 <?php
-                echo (wfPersistenceController::shared()->isActive($key) ? ' wf-active' : '') .
-					($hasFailingTest ? ' wf-diagnostic-fail' : '')
+                echo ( wfPersistenceController::shared()->isActive($key) ? ' wf-active' : '' ) .
+					( $hasFailingTest ? ' wf-diagnostic-fail' : '' )
                     ?>
                     " data-persistence-key="<?php echo esc_attr($key); ?>">
 					<div class="wf-block-header">
@@ -2429,7 +2499,7 @@ SQL
 												'code'   => array(),
 												'strong' => array(),
 												'em'     => array(),
-												'a'      => array('href' => true),
+												'a'      => array( 'href' => true ),
 											))
                                         ?>
                                         </div>
@@ -2456,13 +2526,13 @@ SQL
 			'HTTP_X_REAL_IP'        => 'X-Real-IP',
 			'HTTP_X_FORWARDED_FOR'  => 'X-Forwarded-For',
 		) as $variable => $label) {
-			if (!($currentServerVarForIP && $currentServerVarForIP === $variable) && $howGet === $variable) {
+			if (!( $currentServerVarForIP && $currentServerVarForIP === $variable ) && $howGet === $variable) {
 				$howGetHasErrors = true;
 				break;
 			}
 		}
 		?>
-		<div class="wf-block<?php echo ($howGetHasErrors ? ' wf-diagnostic-fail' : '') . (wfPersistenceController::shared()->isActive('wf-diagnostics-client-ip') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-client-ip'); ?>">
+		<div class="wf-block<?php echo ( $howGetHasErrors ? ' wf-diagnostic-fail' : '' ) . ( wfPersistenceController::shared()->isActive('wf-diagnostics-client-ip') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-client-ip'); ?>">
 			<div class="wf-block-header">
 				<div class="wf-block-header-content">
 					<div class="wf-block-title">
@@ -2502,9 +2572,9 @@ SQL
 								if (!array_key_exists($variable, $_SERVER)) {
 									echo '(not set)';
 								} else {
-									if (strpos($_SERVER[$variable], ',') !== false) {
+									if (strpos($_SERVER[ $variable ], ',') !== false) {
 										$trustedProxies = explode("\n", wfConfig::get('howGetIPs_trusted_proxies', ''));
-										$items = preg_replace('/[\s,]/', '', explode(',', $_SERVER[$variable]));
+										$items = preg_replace('/[\s,]/', '', explode(',', $_SERVER[ $variable ]));
 										$items = array_reverse($items);
 										$output = '';
 										$markedSelectedAddress = false;
@@ -2528,7 +2598,7 @@ SQL
 
 										echo substr($output, 0, -2);
 									} else {
-										echo esc_html($_SERVER[$variable]);
+										echo esc_html($_SERVER[ $variable ]);
 									}
 								}
 								?>
@@ -2548,7 +2618,7 @@ SQL
 			</div>
 		</div>
 
-		<div class="wf-block<?php echo(wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-constants') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-constants'); ?>">
+		<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-constants') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-constants'); ?>">
 			<div class="wf-block-header">
 				<div class="wf-block-header-content">
 					<div class="wf-block-title">
@@ -2565,58 +2635,154 @@ SQL
 					<tbody>
 					<?php
 					require ABSPATH . 'wp-includes/version.php';
-					$postRevisions = (defined('WP_POST_REVISIONS') ? WP_POST_REVISIONS : true);
+					$postRevisions = ( defined('WP_POST_REVISIONS') ? WP_POST_REVISIONS : true );
 					$wordPressValues = array(
-						'WordPress Version'            => array('description' => '', 'value' => $wp_version),
-						'WP_DEBUG'                     => array('description' => 'WordPress debug mode', 'value' => (defined('WP_DEBUG') && WP_DEBUG ? 'On' : 'Off')),
-						'WP_DEBUG_LOG'                 => array('description' => 'WordPress error logging override', 'value' => defined('WP_DEBUG_LOG') ? (WP_DEBUG_LOG ? 'Enabled' : 'Disabled') : '(not set)'),
-						'WP_DEBUG_DISPLAY'             => array('description' => 'WordPress error display override', 'value' => defined('WP_DEBUG_DISPLAY') ? (WP_DEBUG_LOG ? 'Enabled' : 'Disabled') : '(not set)'),
-						'SCRIPT_DEBUG'                 => array('description' => 'WordPress script debug mode', 'value' => (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? 'On' : 'Off')),
-						'SAVEQUERIES'                  => array('description' => 'WordPress query debug mode', 'value' => (defined('SAVEQUERIES') && SAVEQUERIES ? 'On' : 'Off')),
+						'WordPress Version'            => array(
+							'description' => '',
+							'value'       => $wp_version,
+						),
+						'WP_DEBUG'                     => array(
+							'description' => 'WordPress debug mode',
+							'value'       => ( defined('WP_DEBUG') && WP_DEBUG ? 'On' : 'Off' ),
+						),
+						'WP_DEBUG_LOG'                 => array(
+							'description' => 'WordPress error logging override',
+							'value'       => defined('WP_DEBUG_LOG') ? ( WP_DEBUG_LOG ? 'Enabled' : 'Disabled' ) : '(not set)',
+						),
+						'WP_DEBUG_DISPLAY'             => array(
+							'description' => 'WordPress error display override',
+							'value'       => defined('WP_DEBUG_DISPLAY') ? ( WP_DEBUG_LOG ? 'Enabled' : 'Disabled' ) : '(not set)',
+						),
+						'SCRIPT_DEBUG'                 => array(
+							'description' => 'WordPress script debug mode',
+							'value'       => ( defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? 'On' : 'Off' ),
+						),
+						'SAVEQUERIES'                  => array(
+							'description' => 'WordPress query debug mode',
+							'value'       => ( defined('SAVEQUERIES') && SAVEQUERIES ? 'On' : 'Off' ),
+						),
 						'DB_CHARSET'                   => 'Database character set',
 						'DB_COLLATE'                   => 'Database collation',
 						'WP_SITEURL'                   => 'Explicitly set site URL',
 						'WP_HOME'                      => 'Explicitly set blog URL',
-						'WP_CONTENT_DIR'               => array('description' => '"wp-content" folder is in default location', 'value' => (realpath(WP_CONTENT_DIR) === realpath(ABSPATH . 'wp-content') ? 'Yes' : 'No')),
+						'WP_CONTENT_DIR'               => array(
+							'description' => '"wp-content" folder is in default location',
+							'value'       => ( realpath(WP_CONTENT_DIR) === realpath(ABSPATH . 'wp-content') ? 'Yes' : 'No' ),
+						),
 						'WP_CONTENT_URL'               => 'URL to the "wp-content" folder',
-						'WP_PLUGIN_DIR'                => array('description' => '"plugins" folder is in default location', 'value' => (realpath(WP_PLUGIN_DIR) === realpath(ABSPATH . 'wp-content/plugins') ? 'Yes' : 'No')),
-						'WP_LANG_DIR'                  => array('description' => '"languages" folder is in default location', 'value' => (realpath(WP_LANG_DIR) === realpath(ABSPATH . 'wp-content/languages') ? 'Yes' : 'No')),
+						'WP_PLUGIN_DIR'                => array(
+							'description' => '"plugins" folder is in default location',
+							'value'       => ( realpath(WP_PLUGIN_DIR) === realpath(ABSPATH . 'wp-content/plugins') ? 'Yes' : 'No' ),
+						),
+						'WP_LANG_DIR'                  => array(
+							'description' => '"languages" folder is in default location',
+							'value'       => ( realpath(WP_LANG_DIR) === realpath(ABSPATH . 'wp-content/languages') ? 'Yes' : 'No' ),
+						),
 						'WPLANG'                       => 'Language choice',
 						'UPLOADS'                      => 'Custom upload folder location',
-						'TEMPLATEPATH'                 => array('description' => 'Theme template folder override', 'value' => (defined('TEMPLATEPATH') && realpath(get_template_directory()) !== realpath(TEMPLATEPATH) ? 'Overridden' : '(not set)')),
-						'STYLESHEETPATH'               => array('description' => 'Theme stylesheet folder override', 'value' => (defined('STYLESHEETPATH') && realpath(get_stylesheet_directory()) !== realpath(STYLESHEETPATH) ? 'Overridden' : '(not set)')),
+						'TEMPLATEPATH'                 => array(
+							'description' => 'Theme template folder override',
+							'value'       => ( defined('TEMPLATEPATH') && realpath(get_template_directory()) !== realpath(TEMPLATEPATH) ? 'Overridden' : '(not set)' ),
+						),
+						'STYLESHEETPATH'               => array(
+							'description' => 'Theme stylesheet folder override',
+							'value'       => ( defined('STYLESHEETPATH') && realpath(get_stylesheet_directory()) !== realpath(STYLESHEETPATH) ? 'Overridden' : '(not set)' ),
+						),
 						'AUTOSAVE_INTERVAL'            => 'Post editing automatic saving interval',
-						'WP_POST_REVISIONS'            => array('description' => 'Post revisions saved by WordPress', 'value' => is_numeric($postRevisions) ? $postRevisions : ($postRevisions ? 'Unlimited' : 'None')),
+						'WP_POST_REVISIONS'            => array(
+							'description' => 'Post revisions saved by WordPress',
+							'value'       => is_numeric($postRevisions) ? $postRevisions : ( $postRevisions ? 'Unlimited' : 'None' ),
+						),
 						'COOKIE_DOMAIN'                => 'WordPress cookie domain',
 						'COOKIEPATH'                   => 'WordPress cookie path',
 						'SITECOOKIEPATH'               => 'WordPress site cookie path',
 						'ADMIN_COOKIE_PATH'            => 'WordPress admin cookie path',
 						'PLUGINS_COOKIE_PATH'          => 'WordPress plugins cookie path',
-						'WP_ALLOW_MULTISITE'           => array('description' => 'Multisite/network ability enabled', 'value' => (defined('WP_ALLOW_MULTISITE') && WP_ALLOW_MULTISITE ? 'Yes' : 'No')),
+						'WP_ALLOW_MULTISITE'           => array(
+							'description' => 'Multisite/network ability enabled',
+							'value'       => ( defined('WP_ALLOW_MULTISITE') && WP_ALLOW_MULTISITE ? 'Yes' : 'No' ),
+						),
 						'NOBLOGREDIRECT'               => 'URL redirected to if the visitor tries to access a nonexistent blog',
-						'CONCATENATE_SCRIPTS'          => array('description' => 'Concatenate JavaScript files', 'value' => (defined('CONCATENATE_SCRIPTS') && CONCATENATE_SCRIPTS ? 'Yes' : 'No')),
+						'CONCATENATE_SCRIPTS'          => array(
+							'description' => 'Concatenate JavaScript files',
+							'value'       => ( defined('CONCATENATE_SCRIPTS') && CONCATENATE_SCRIPTS ? 'Yes' : 'No' ),
+						),
 						'WP_MEMORY_LIMIT'              => 'WordPress memory limit',
 						'WP_MAX_MEMORY_LIMIT'          => 'Administrative memory limit',
-						'WP_CACHE'                     => array('description' => 'Built-in caching', 'value' => (defined('WP_CACHE') && WP_CACHE ? 'Enabled' : 'Disabled')),
-						'CUSTOM_USER_TABLE'            => array('description' => 'Custom "users" table', 'value' => (defined('CUSTOM_USER_TABLE') ? 'Set' : '(not set)')),
-						'CUSTOM_USER_META_TABLE'       => array('description' => 'Custom "usermeta" table', 'value' => (defined('CUSTOM_USER_META_TABLE') ? 'Set' : '(not set)')),
-						'FS_CHMOD_DIR'                 => array('description' => 'Overridden permissions for a new folder', 'value' => defined('FS_CHMOD_DIR') ? decoct(FS_CHMOD_DIR) : '(not set)'),
-						'FS_CHMOD_FILE'                => array('description' => 'Overridden permissions for a new file', 'value' => defined('FS_CHMOD_FILE') ? decoct(FS_CHMOD_FILE) : '(not set)'),
-						'ALTERNATE_WP_CRON'            => array('description' => 'Alternate WP cron', 'value' => (defined('ALTERNATE_WP_CRON') && ALTERNATE_WP_CRON ? 'Enabled' : 'Disabled')),
-						'DISABLE_WP_CRON'              => array('description' => 'WP cron status', 'value' => (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON ? 'Disabled' : 'Enabled')),
+						'WP_CACHE'                     => array(
+							'description' => 'Built-in caching',
+							'value'       => ( defined('WP_CACHE') && WP_CACHE ? 'Enabled' : 'Disabled' ),
+						),
+						'CUSTOM_USER_TABLE'            => array(
+							'description' => 'Custom "users" table',
+							'value'       => ( defined('CUSTOM_USER_TABLE') ? 'Set' : '(not set)' ),
+						),
+						'CUSTOM_USER_META_TABLE'       => array(
+							'description' => 'Custom "usermeta" table',
+							'value'       => ( defined('CUSTOM_USER_META_TABLE') ? 'Set' : '(not set)' ),
+						),
+						'FS_CHMOD_DIR'                 => array(
+							'description' => 'Overridden permissions for a new folder',
+							'value'       => defined('FS_CHMOD_DIR') ? decoct(FS_CHMOD_DIR) : '(not set)',
+						),
+						'FS_CHMOD_FILE'                => array(
+							'description' => 'Overridden permissions for a new file',
+							'value'       => defined('FS_CHMOD_FILE') ? decoct(FS_CHMOD_FILE) : '(not set)',
+						),
+						'ALTERNATE_WP_CRON'            => array(
+							'description' => 'Alternate WP cron',
+							'value'       => ( defined('ALTERNATE_WP_CRON') && ALTERNATE_WP_CRON ? 'Enabled' : 'Disabled' ),
+						),
+						'DISABLE_WP_CRON'              => array(
+							'description' => 'WP cron status',
+							'value'       => ( defined('DISABLE_WP_CRON') && DISABLE_WP_CRON ? 'Disabled' : 'Enabled' ),
+						),
 						'WP_CRON_LOCK_TIMEOUT'         => 'Cron running frequency lock',
-						'EMPTY_TRASH_DAYS'             => array('description' => 'Interval the trash is automatically emptied at in days', 'value' => (EMPTY_TRASH_DAYS > 0 ? EMPTY_TRASH_DAYS : 'Never')),
-						'WP_ALLOW_REPAIR'              => array('description' => 'Automatic database repair', 'value' => (defined('WP_ALLOW_REPAIR') && WP_ALLOW_REPAIR ? 'Enabled' : 'Disabled')),
-						'DO_NOT_UPGRADE_GLOBAL_TABLES' => array('description' => 'Do not upgrade global tables', 'value' => (defined('DO_NOT_UPGRADE_GLOBAL_TABLES') && DO_NOT_UPGRADE_GLOBAL_TABLES ? 'Yes' : 'No')),
-						'DISALLOW_FILE_EDIT'           => array('description' => 'Disallow plugin/theme editing', 'value' => (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT ? 'Yes' : 'No')),
-						'DISALLOW_FILE_MODS'           => array('description' => 'Disallow plugin/theme update and installation', 'value' => (defined('DISALLOW_FILE_MODS') && DISALLOW_FILE_MODS ? 'Yes' : 'No')),
-						'IMAGE_EDIT_OVERWRITE'         => array('description' => 'Overwrite image edits when restoring the original', 'value' => (defined('IMAGE_EDIT_OVERWRITE') && IMAGE_EDIT_OVERWRITE ? 'Yes' : 'No')),
-						'FORCE_SSL_ADMIN'              => array('description' => 'Force SSL for administrative logins', 'value' => (defined('FORCE_SSL_ADMIN') && FORCE_SSL_ADMIN ? 'Yes' : 'No')),
-						'WP_HTTP_BLOCK_EXTERNAL'       => array('description' => 'Block external URL requests', 'value' => (defined('WP_HTTP_BLOCK_EXTERNAL') && WP_HTTP_BLOCK_EXTERNAL ? 'Yes' : 'No')),
+						'EMPTY_TRASH_DAYS'             => array(
+							'description' => 'Interval the trash is automatically emptied at in days',
+							'value'       => ( EMPTY_TRASH_DAYS > 0 ? EMPTY_TRASH_DAYS : 'Never' ),
+						),
+						'WP_ALLOW_REPAIR'              => array(
+							'description' => 'Automatic database repair',
+							'value'       => ( defined('WP_ALLOW_REPAIR') && WP_ALLOW_REPAIR ? 'Enabled' : 'Disabled' ),
+						),
+						'DO_NOT_UPGRADE_GLOBAL_TABLES' => array(
+							'description' => 'Do not upgrade global tables',
+							'value'       => ( defined('DO_NOT_UPGRADE_GLOBAL_TABLES') && DO_NOT_UPGRADE_GLOBAL_TABLES ? 'Yes' : 'No' ),
+						),
+						'DISALLOW_FILE_EDIT'           => array(
+							'description' => 'Disallow plugin/theme editing',
+							'value'       => ( defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT ? 'Yes' : 'No' ),
+						),
+						'DISALLOW_FILE_MODS'           => array(
+							'description' => 'Disallow plugin/theme update and installation',
+							'value'       => ( defined('DISALLOW_FILE_MODS') && DISALLOW_FILE_MODS ? 'Yes' : 'No' ),
+						),
+						'IMAGE_EDIT_OVERWRITE'         => array(
+							'description' => 'Overwrite image edits when restoring the original',
+							'value'       => ( defined('IMAGE_EDIT_OVERWRITE') && IMAGE_EDIT_OVERWRITE ? 'Yes' : 'No' ),
+						),
+						'FORCE_SSL_ADMIN'              => array(
+							'description' => 'Force SSL for administrative logins',
+							'value'       => ( defined('FORCE_SSL_ADMIN') && FORCE_SSL_ADMIN ? 'Yes' : 'No' ),
+						),
+						'WP_HTTP_BLOCK_EXTERNAL'       => array(
+							'description' => 'Block external URL requests',
+							'value'       => ( defined('WP_HTTP_BLOCK_EXTERNAL') && WP_HTTP_BLOCK_EXTERNAL ? 'Yes' : 'No' ),
+						),
 						'WP_ACCESSIBLE_HOSTS'          => 'Whitelisted hosts',
-						'WP_AUTO_UPDATE_CORE'          => array('description' => 'Automatic WP Core updates', 'value' => defined('WP_AUTO_UPDATE_CORE') ? (is_bool(WP_AUTO_UPDATE_CORE) ? (WP_AUTO_UPDATE_CORE ? 'Everything' : 'None') : WP_AUTO_UPDATE_CORE) : 'Default'),
-						'WP_PROXY_HOST'                => array('description' => 'Hostname for a proxy server', 'value' => defined('WP_PROXY_HOST') ? WP_PROXY_HOST : '(not set)'),
-						'WP_PROXY_PORT'                => array('description' => 'Port for a proxy server', 'value' => defined('WP_PROXY_PORT') ? WP_PROXY_PORT : '(not set)'),
+						'WP_AUTO_UPDATE_CORE'          => array(
+							'description' => 'Automatic WP Core updates',
+							'value'       => defined('WP_AUTO_UPDATE_CORE') ? ( is_bool(WP_AUTO_UPDATE_CORE) ? ( WP_AUTO_UPDATE_CORE ? 'Everything' : 'None' ) : WP_AUTO_UPDATE_CORE ) : 'Default',
+						),
+						'WP_PROXY_HOST'                => array(
+							'description' => 'Hostname for a proxy server',
+							'value'       => defined('WP_PROXY_HOST') ? WP_PROXY_HOST : '(not set)',
+						),
+						'WP_PROXY_PORT'                => array(
+							'description' => 'Port for a proxy server',
+							'value'       => defined('WP_PROXY_PORT') ? WP_PROXY_PORT : '(not set)',
+						),
 					);
 
 					foreach ($wordPressValues as $settingName => $settingData):
@@ -2646,7 +2812,7 @@ SQL
 			</div>
 		</div>
 
-		<div class="wf-block<?php echo(wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-plugins') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-plugins'); ?>">
+		<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-plugins') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-plugins'); ?>">
 			<div class="wf-block-header">
 				<div class="wf-block-header-content">
 					<div class="wf-block-title">
@@ -2682,7 +2848,7 @@ SQL
 				</table>
 			</div>
 		</div>
-		<div class="wf-block<?php echo(wfPersistenceController::shared()->isActive('wf-diagnostics-mu-wordpress-plugins') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-mu-wordpress-plugins'); ?>">
+		<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive('wf-diagnostics-mu-wordpress-plugins') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-mu-wordpress-plugins'); ?>">
 			<div class="wf-block-header">
 				<div class="wf-block-header-content">
 					<div class="wf-block-title">
@@ -2721,7 +2887,7 @@ SQL
 				</table>
 			</div>
 		</div>
-		<div class="wf-block<?php echo(wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-themes') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-themes'); ?>">
+		<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-themes') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-themes'); ?>">
 			<div class="wf-block-header">
 				<div class="wf-block-header-content">
 					<div class="wf-block-title">
@@ -2761,7 +2927,7 @@ SQL
 				</table>
 			</div>
 		</div>
-		<div class="wf-block<?php echo(wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-cron-jobs') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-cron-jobs'); ?>">
+		<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive('wf-diagnostics-wordpress-cron-jobs') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-wordpress-cron-jobs'); ?>">
 			<div class="wf-block-header">
 				<div class="wf-block-header-content">
 					<div class="wf-block-title">
@@ -2813,7 +2979,7 @@ SQL
 		if ($q):
 			$databaseCols = count($q[0]);
 			?>
-			<div class="wf-block<?php echo(wfPersistenceController::shared()->isActive('wf-diagnostics-database-tables') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-database-tables'); ?>">
+			<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive('wf-diagnostics-database-tables') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-database-tables'); ?>">
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
@@ -2868,7 +3034,7 @@ SQL
 				</div>
 			</div>
 		<?php endif ?>
-		<div class="wf-block<?php echo(wfPersistenceController::shared()->isActive('wf-diagnostics-log-files') ? ' wf-active' : ''); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-log-files'); ?>">
+		<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive('wf-diagnostics-log-files') ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr('wf-diagnostics-log-files'); ?>">
 			<div class="wf-block-header">
 				<div class="wf-block-header-content">
 					<div class="wf-block-title">
@@ -2903,7 +3069,7 @@ SQL
                             ?>
 								<tr>
 									<td style="width: 100%"><?php echo esc_html($log) . ' (' . wfUtils::formatBytes(filesize($log)) . ')'; ?></td>
-									<td style="white-space: nowrap; text-align: right;"><?php echo($readable ? '<a href="#" data-logfile="' . esc_html($log) . '" class="downloadLogFile" target="_blank" rel="noopener noreferrer">Download</a>' : '<em>Requires downloading from the server directly</em>'); ?></td>
+									<td style="white-space: nowrap; text-align: right;"><?php echo( $readable ? '<a href="#" data-logfile="' . esc_html($log) . '" class="downloadLogFile" target="_blank" rel="noopener noreferrer">Download</a>' : '<em>Requires downloading from the server directly</em>' ); ?></td>
 								</tr>
 							<?php
                             endforeach;
@@ -2959,7 +3125,10 @@ SQL
 
 		<?php
 		$html = ob_get_clean();
-		return array('ok' => 1, 'html' => $html);
+		return array(
+			'ok'   => 1,
+			'html' => $html,
+		);
 	}
 
 	public static function updateWAFRules() {
@@ -2968,7 +3137,10 @@ SQL
 		$event->fire();
 		$isPaid = (bool) wfConfig::get('isPaid', 0);
 		//return self::_getWAFData();
-		return array('ok' => 1, 'isPaid' => $isPaid );
+		return array(
+			'ok'     => 1,
+			'isPaid' => $isPaid,
+		);
 	}
 
     public static function updateWAFRules_New() {
@@ -2982,10 +3154,10 @@ SQL
     public static function save_debugging_config() {
 		$settings = $_POST['settings'];
 		foreach (self::$diagnosticParams as $param) {
-                    if (isset($settings[$param])) {
-                        wfConfig::set( $param, $settings[$param] );
+                    if (isset($settings[ $param ])) {
+                        wfConfig::set( $param, $settings[ $param ] );
                     }
 		}
-		return array('ok' => 1 );
+		return array( 'ok' => 1 );
 	}
 }

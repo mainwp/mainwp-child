@@ -465,7 +465,7 @@ class MainWP_Child_WooCommerce_Status {
 			$background_updater->save()->dispatch();
 		}
 
-        return array('result' => 'success');
+        return array( 'result' => 'success' );
 	}
 
 }

@@ -146,8 +146,8 @@ class MainWP_Child_Branding {
         );
 
         foreach($brandingOptions_empty as $opt) {
-            if (isset($this->child_branding_options[$opt])) {
-                $this->child_branding_options[$opt] = '';
+            if (isset($this->child_branding_options[ $opt ])) {
+                $this->child_branding_options[ $opt ] = '';
             }
         }
         MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
@@ -233,8 +233,8 @@ class MainWP_Child_Branding {
 			'remove_widget_activity'          => $settings['child_remove_widget_activity'],
 			'remove_widget_quick'             => $settings['child_remove_widget_quick'],
 			'remove_widget_news'              => $settings['child_remove_widget_news'],
-			'login_image_link'              => $settings['child_login_image_link'],
-			'login_image_title'              => $settings['child_login_image_title'],
+			'login_image_link'                => $settings['child_login_image_link'],
+			'login_image_title'               => $settings['child_login_image_title'],
 			'site_generator'                  => $settings['child_site_generator'],
 			'generator_link'                  => $settings['child_generator_link'],
 			'admin_css'                       => $settings['child_admin_css'],
@@ -268,7 +268,10 @@ class MainWP_Child_Branding {
 				try {
 					$upload = $this->uploadImage( $settings['child_login_image_url'] ); //Upload image to WP
 					if ( null !== $upload ) {
-						$extra_setting['login_image'] = array( 'path' => $upload['path'], 'url' => $upload['url'] );
+						$extra_setting['login_image'] = array(
+							'path' => $upload['path'],
+							'url'  => $upload['url'],
+						);
 						if ( isset( $current_extra_setting['login_image']['path'] ) ) {
 							$old_file = $current_extra_setting['login_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
@@ -291,7 +294,10 @@ class MainWP_Child_Branding {
 				try {
 					$upload = $this->uploadImage( $settings['child_favico_image_url'] ); //Upload image to WP
 					if ( null !== $upload ) {
-						$extra_setting['favico_image'] = array( 'path' => $upload['path'], 'url' => $upload['url'] );
+						$extra_setting['favico_image'] = array(
+							'path' => $upload['path'],
+							'url'  => $upload['url'],
+						);
 						if ( isset( $current_extra_setting['favico_image']['path'] ) ) {
 							$old_file = $current_extra_setting['favico_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
@@ -364,7 +370,10 @@ class MainWP_Child_Branding {
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 			$moved          = @rename( $temporary_file, $local_img_path );
 			if ( $moved ) {
-				return array( 'path' => $local_img_path, 'url' => $local_img_url );
+				return array(
+					'path' => $local_img_path,
+					'url'  => $local_img_url,
+				);
 			}
 		}
 		if ( file_exists( $temporary_file ) ) {
@@ -431,7 +440,7 @@ class MainWP_Child_Branding {
 			}
 
 			add_action( 'admin_head', array( &$this, 'admin_head_hide_elements' ), 15 );
-			add_action( 'admin_menu', array($this, 'branding_redirect' ), 9);
+			add_action( 'admin_menu', array( $this, 'branding_redirect' ), 9);
 		}
 
 		// to fix
@@ -458,7 +467,7 @@ class MainWP_Child_Branding {
 			}
 
 			if ( isset( $extra_setting['hide_nag'] ) && ! empty( $extra_setting['hide_nag'] ) ) {
-				add_action( 'admin_init', array($this, 'admin_init'));
+				add_action( 'admin_init', array( $this, 'admin_init' ));
 			}
 
 			add_action( 'admin_menu', array( &$this, 'remove_default_post_metaboxes' ) );
@@ -989,7 +998,7 @@ class MainWP_Child_Branding {
     }
 
     public function save_branding_options( $name, $val ) {
-        $this->child_branding_options[$name] = $val;
+        $this->child_branding_options[ $name ] = $val;
         MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
     }
 

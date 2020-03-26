@@ -1148,7 +1148,7 @@ class MainWP_Child_Back_Up_Wordpress {
             }
         }
 
-        return array('result' => 'SUCCESS');
+        return array( 'result' => 'SUCCESS' );
     }
 
 

@@ -82,7 +82,7 @@ class MainWP_Child_Pagespeed {
 
 		if ( get_option( 'mainwp_pagespeed_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'hide_plugin' ) );
-			add_action('admin_menu', array($this, 'hide_menu'), 999);
+			add_action('admin_menu', array( $this, 'hide_menu' ), 999);
 		}
 		$this->init_cron();
 	}
@@ -130,7 +130,7 @@ class MainWP_Child_Pagespeed {
 		if (isset($submenu['tools.php'])) {
 			foreach($submenu['tools.php'] as $key => $menu) {
 				if ($menu[2] == 'google-pagespeed-insights') {
-					unset($submenu['tools.php'][$key]);
+					unset($submenu['tools.php'][ $key ]);
 					break;
 				}
 			}
@@ -483,7 +483,7 @@ class MainWP_Child_Pagespeed {
 						if($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
 							if($post_type == $restrict_type) {
 								$typestocheck[] = 'type = %s';
-								$types[1][] = $custom_post_types[$post_type];
+								$types[1][] = $custom_post_types[ $post_type ];
 							}
 						}
 					}
@@ -492,7 +492,7 @@ class MainWP_Child_Pagespeed {
 					{
 						if($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
 							$typestocheck[] = 'type = %s';
-							$types[1][] = $custom_post_types[$post_type];
+							$types[1][] = $custom_post_types[ $post_type ];
 						}
 					}
 				}

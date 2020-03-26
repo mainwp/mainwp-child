@@ -1210,11 +1210,11 @@ class MainWP_Clone {
 			global $wp_version;
 			$method = ( function_exists( 'gzopen' ) ? 'tar.gz' : 'zip' );
 			$result = MainWP_Helper::fetchUrl( $url, array(
-				'cloneFunc' => 'createCloneBackup',
-				'key'       => $key,
-				'f'         => $rand,
-				'wpversion' => $wp_version,
-				'zipmethod' => $method,
+				'cloneFunc'   => 'createCloneBackup',
+				'key'         => $key,
+				'f'           => $rand,
+				'wpversion'   => $wp_version,
+				'zipmethod'   => $method,
 				'json_result' => true,
 			) );
 
@@ -1226,7 +1226,10 @@ class MainWP_Clone {
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $result['plugins'] );
 			MainWP_Helper::update_option( 'mainwp_temp_clone_themes', $result['themes'] );
 
-			$output = array( 'url' => $result['backup'], 'size' => round( $result['size'] / 1024, 0 ) );
+			$output = array(
+				'url'  => $result['backup'],
+				'size' => round( $result['size'] / 1024, 0 ),
+			);
 		} catch ( Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
@@ -1257,9 +1260,9 @@ class MainWP_Clone {
 			MainWP_Helper::endSession();
 			//Send request to the childsite!
 			$result = MainWP_Helper::fetchUrl( $url, array(
-				'cloneFunc' => 'createCloneBackupPoll',
-				'key'       => $key,
-				'f'         => $rand,
+				'cloneFunc'   => 'createCloneBackupPoll',
+				'key'         => $key,
+				'f'           => $rand,
 				'json_result' => true,
 			) );
 
@@ -1320,7 +1323,11 @@ class MainWP_Clone {
 
 			$filename = $backupdir . $filename;
 
-			$response = wp_remote_get( $url, array( 'timeout' => 300000, 'stream' => true, 'filename' => $filename ) );
+			$response = wp_remote_get( $url, array(
+				'timeout'  => 300000,
+				'stream'   => true,
+				'filename' => $filename,
+			) );
 
 			if ( is_wp_error( $response ) ) {
 				unlink( $filename );
@@ -1345,9 +1352,9 @@ class MainWP_Clone {
 						$siteToClone = $sitesToClone[ $siteId ];
 
 						MainWP_Helper::fetchUrl( $siteToClone['url'], array(
-							'cloneFunc' => 'deleteCloneBackup',
-							'key'       => $siteToClone['extauth'],
-							'f'         => $_POST['file'],
+							'cloneFunc'   => 'deleteCloneBackup',
+							'key'         => $siteToClone['extauth'],
+							'f'           => $_POST['file'],
 							'json_result' => true,
 						) );
 					}

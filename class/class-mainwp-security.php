@@ -181,15 +181,15 @@ class MainWP_Security {
 	private static function init_permission_checks() {
 		if ( null === self::$permission_checks ) {
 			self::$permission_checks = array(
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../'            => '0755',
+				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../' => '0755',
 				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../wp-includes' => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../.htaccess'   => '0644',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'index.php'      => '0644',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'js/'            => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'themes'         => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'plugins'        => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../wp-admin'    => '0755',
-				WP_CONTENT_DIR                                          => '0755',
+				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../.htaccess' => '0644',
+				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'index.php' => '0644',
+				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'js/' => '0755',
+				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'themes' => '0755',
+				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'plugins' => '0755',
+				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../wp-admin' => '0755',
+				WP_CONTENT_DIR => '0755',
 			);
 		}
 	}
@@ -365,7 +365,7 @@ class MainWP_Security {
 	public static function update_security_option( $key, $value ) {
 		$security = get_option( 'mainwp_security' );
 		if ( !empty($key) ) {
-			$security[$key] = $value;
+			$security[ $key ] = $value;
         }
 		MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
 	}

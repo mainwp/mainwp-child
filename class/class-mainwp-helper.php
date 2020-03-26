@@ -15,7 +15,7 @@ class MainWP_Helper {
 	public static function utf8ize( $mixed) {
 		if (is_array($mixed)) {
 			foreach ($mixed as $key => $value) {
-				$mixed[$key] = self::utf8ize($value);
+				$mixed[ $key ] = self::utf8ize($value);
 			}
 		} elseif (is_string($mixed)) {
 			if ( function_exists( 'mb_convert_encoding' )) {
@@ -83,24 +83,24 @@ class MainWP_Helper {
 		$ordered = array();
 		for($i=0;$i<count($blocks[0]);$i++){
 			// If @media-block, strip declaration and parenthesis
-			if(substr($blocks[0][$i], 0, 6) === '@media')
+			if(substr($blocks[0][ $i ], 0, 6) === '@media')
 			{
-				$ordered_key = preg_replace('/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][$i]);
-				$ordered_value = preg_replace('/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][$i]);
+				$ordered_key = preg_replace('/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ]);
+				$ordered_value = preg_replace('/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][ $i ]);
 			}
 			// Rule-blocks of the sort @import or @font-face
-			elseif(substr($blocks[0][$i], 0, 1) === '@')
+			elseif(substr($blocks[0][ $i ], 0, 1) === '@')
 			{
-				$ordered_key = $blocks[0][$i];
-				$ordered_value = $blocks[0][$i];
+				$ordered_key = $blocks[0][ $i ];
+				$ordered_value = $blocks[0][ $i ];
 			}
 			else
 			{
 				$ordered_key = 'main';
-				$ordered_value = $blocks[0][$i];
+				$ordered_value = $blocks[0][ $i ];
 			}
 			// Split by parenthesis, ignoring those inside content-quotes
-			$ordered[$ordered_key] = preg_split('/([^\'"\{\}]*?[\'"].*?(?<!\\\)[\'"][^\'"\{\}]*?)[\{\}]|([^\'"\{\}]*?)[\{\}]/', trim($ordered_value, " \r\n\t"), -1, PREG_SPLIT_NO_EMPTY|PREG_SPLIT_DELIM_CAPTURE);
+			$ordered[ $ordered_key ] = preg_split('/([^\'"\{\}]*?[\'"].*?(?<!\\\)[\'"][^\'"\{\}]*?)[\{\}]|([^\'"\{\}]*?)[\{\}]/', trim($ordered_value, " \r\n\t"), -1, PREG_SPLIT_NO_EMPTY|PREG_SPLIT_DELIM_CAPTURE);
 		}
 
 		// Beginning to rebuild new slim CSS-Array
@@ -108,12 +108,12 @@ class MainWP_Helper {
 			$new = array();
 			for($i = 0; $i<count($val); $i++){
 				// Split selectors and rules and split properties and values
-				$selector = trim($val[$i], " \r\n\t");
+				$selector = trim($val[ $i ], " \r\n\t");
 
 				if(!empty($selector)){
-					if(!isset($new[$selector])) { $new[$selector] = array();
+					if(!isset($new[ $selector ])) { $new[ $selector ] = array();
                     }
-					$rules = explode(';', $val[++$i]);
+					$rules = explode(';', $val[ ++$i ]);
 					foreach($rules as $rule){
 						$rule = trim($rule, " \r\n\t");
 						if(!empty($rule)){
@@ -121,14 +121,14 @@ class MainWP_Helper {
 							$property = trim(array_pop($rule), " \r\n\t");
 							$value = implode(':', array_reverse($rule));
 
-							if(!isset($new[$selector][$property]) || !preg_match('/!important/', $new[$selector][$property])) { $new[$selector][$property] = $value;
-							} elseif(preg_match('/!important/', $new[$selector][$property]) && preg_match('/!important/', $value)) { $new[$selector][$property] = $value;
+							if(!isset($new[ $selector ][ $property ]) || !preg_match('/!important/', $new[ $selector ][ $property ])) { $new[ $selector ][ $property ] = $value;
+							} elseif(preg_match('/!important/', $new[ $selector ][ $property ]) && preg_match('/!important/', $value)) { $new[ $selector ][ $property ] = $value;
                             }
 						}
 					}
 				}
 			}
-			$ordered[$key] = $new;
+			$ordered[ $key ] = $new;
 		}
 		$parsed = $ordered;
 
@@ -188,7 +188,10 @@ class MainWP_Helper {
                                 if ( file_exists( $temporary_file ) ) {
                                     unlink( $temporary_file );
                                 }
-                                return array( 'id' => $attach->ID, 'url' => $local_img_url );
+                                return array(
+									'id'  => $attach->ID,
+									'url' => $local_img_url,
+								);
                             }
                         }
                     }
@@ -202,12 +205,15 @@ class MainWP_Helper {
                             $basedir = $upload_dir['basedir'];
                             $baseurl = $upload_dir['baseurl'];
                             $local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
-                            if ( file_exists($local_img_path) && (filesize( $local_img_path ) == filesize( $temporary_file )) ) { // file exited
+                            if ( file_exists($local_img_path) && ( filesize( $local_img_path ) == filesize( $temporary_file ) ) ) { // file exited
 
                                 if ( file_exists( $temporary_file ) ) {
                                     unlink( $temporary_file );
                                 }
-                                return array( 'id' => $attach->ID, 'url' => $attach->guid );
+                                return array(
+									'id'  => $attach->ID,
+									'url' => $attach->guid,
+								);
                             }
                         }
                     }
@@ -227,9 +233,9 @@ class MainWP_Helper {
 					'post_mime_type' => $wp_filetype['type'],
 					'post_title'     => isset( $img_data['title'] ) && !empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
 					'post_content'   => isset( $img_data['description'] ) && !empty( $img_data['description'] ) ? $img_data['description'] : '',
-					'post_excerpt' => isset( $img_data['caption'] ) && !empty( $img_data['caption'] ) ? $img_data['caption'] : '',
+					'post_excerpt'   => isset( $img_data['caption'] ) && !empty( $img_data['caption'] ) ? $img_data['caption'] : '',
 					'post_status'    => 'inherit',
-                    'guid' => $local_img_url, // to fix
+                    'guid'           => $local_img_url, // to fix
 				);
 
                 // for post attachments, thumbnail
@@ -244,7 +250,10 @@ class MainWP_Helper {
 				if ( isset( $img_data['alt'] ) && !empty( $img_data['alt'] ) ) {
 					update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
                 }
-				return array( 'id' => $attach_id, 'url' => $local_img_url );
+				return array(
+					'id'  => $attach_id,
+					'url' => $local_img_url,
+				);
 			}
 		}
 		if ( file_exists( $temporary_file ) ) {
@@ -425,7 +434,7 @@ class MainWP_Helper {
 			if ( $user_id = wp_check_post_lock( $edit_post_id ) ) {
 				$user = get_userdata( $user_id );
 				$error = sprintf( __( 'This content is currently locked. %s is currently editing.' ), $user->display_name );
-				return array( 'error' => $error);
+				return array( 'error' => $error );
 			}
 		}
 
@@ -496,7 +505,7 @@ class MainWP_Helper {
 								try {
 									$upload = self::uploadImage( $gallery['src'], $gallery ); //Upload image to WP
 									if ( null !== $upload ) {
-										$replaceAttachedIds[$gallery['id']] = $upload['id'];
+										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
 									}
 								} catch ( Exception $e ) {
 
@@ -511,8 +520,8 @@ class MainWP_Helper {
 						$idsToReplaceWith = '';
 						$originalIds = explode(',', $idsToReplace);
 						foreach($originalIds as $attached_id) {
-							if (!empty($originalIds) && isset($replaceAttachedIds[$attached_id])) {
-								$idsToReplaceWith .= $replaceAttachedIds[$attached_id] . ',';
+							if (!empty($originalIds) && isset($replaceAttachedIds[ $attached_id ])) {
+								$idsToReplaceWith .= $replaceAttachedIds[ $attached_id ] . ',';
 							}
 						}
 						$idsToReplaceWith = rtrim($idsToReplaceWith, ',');
@@ -587,11 +596,14 @@ class MainWP_Helper {
 			return $wp_error->get_error_message();
 		}
 		if ( empty( $new_post_id ) ) {
-			return array( 'error' => 'Empty post id');
+			return array( 'error' => 'Empty post id' );
 		}
 
 		if ( !$edit_post_id ) {
-		wp_update_post( array( 'ID' => $new_post_id, 'post_status' => $post_status ) );
+		wp_update_post( array(
+			'ID'          => $new_post_id,
+			'post_status' => $post_status,
+		) );
         }
 
 		if ( ! empty( $terms ) ) {
@@ -732,10 +744,11 @@ class MainWP_Helper {
                     if (isset($others['featured_image_data'])) {
                         $_image_data = $others['featured_image_data'];
                         update_post_meta( $upload['id'], '_wp_attachment_image_alt', $_image_data['alt'] );
-                        wp_update_post( array( 'ID' => $upload['id'],
-                                            'post_excerpt' => $_image_data['caption'],
-                                            'post_content' => $_image_data['description'],
-                                            'post_title' => $_image_data['title'],
+                        wp_update_post( array(
+							'ID'           => $upload['id'],
+							'post_excerpt' => $_image_data['caption'],
+							'post_content' => $_image_data['description'],
+							'post_title'   => $_image_data['title'],
 						)
                                     );
                     }
@@ -767,14 +780,20 @@ class MainWP_Helper {
 				if ( count( $random_post_authors ) > 0 ) {
 					shuffle( $random_post_authors );
 					$key = array_rand( $random_post_authors );
-					wp_update_post( array( 'ID' => $new_post_id, 'post_author' => $random_post_authors[ $key ] ) );
+					wp_update_post( array(
+						'ID'          => $new_post_id,
+						'post_author' => $random_post_authors[ $key ],
+					) );
 				}
 			}
 
 			$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
 			$random_category = is_array( $random_category ) ? current( $random_category ) : null;
 			if ( ! empty( $random_category ) ) {
-				$cats        = get_categories( array( 'type' => 'post', 'hide_empty' => 0 ) );
+				$cats        = get_categories( array(
+					'type'       => 'post',
+					'hide_empty' => 0,
+				) );
 				$random_cats = array();
 				if ( is_array( $cats ) ) {
 					foreach ( $cats as $cat ) {
@@ -793,7 +812,10 @@ class MainWP_Helper {
 		// to support custom post author
 		$custom_post_author = apply_filters('mainwp_create_post_custom_author', false, $new_post_id);
 		if ( !empty( $custom_post_author ) ) {
-			wp_update_post( array( 'ID' => $new_post_id, 'post_author' => $custom_post_author ) );
+			wp_update_post( array(
+				'ID'          => $new_post_id,
+				'post_author' => $custom_post_author,
+			) );
 		}
 
 		// MainWP Robot
@@ -1242,7 +1264,7 @@ class MainWP_Helper {
 	}
 
 	static function update_lasttime_backup( $by, $time ) {
-		$backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule');
+		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
 
 		if (!in_array($by, $backup_by)) {
 			return false;
@@ -1707,7 +1729,7 @@ static function remove_filters_with_method_name( $hook_name = '', $method_name =
         }
 
         if (isset($_POST['function']) && isset($_POST['mainwpsignature']) &&
-                (isset($_POST['mwp_action']) || 'wordpress_seo' == $_POST['function']) // wordpress_seo for WordPress SEO
+                ( isset($_POST['mwp_action']) || 'wordpress_seo' == $_POST['function'] ) // wordpress_seo for WordPress SEO
             ) {
             register_shutdown_function( 'handle_shutdown' );
         }

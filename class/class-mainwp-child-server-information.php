@@ -1056,10 +1056,10 @@ class MainWP_Child_Server_Information {
 				<td><?php echo( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
 			<?php } elseif ( $whatType == 'curlssl' ) { ?>
 				<td><?php echo( self::curlssl_compare( $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
-			<?php } elseif (($pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime') && $currentVersion == -1) { ?>
+			<?php } elseif (( $pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime' ) && $currentVersion == -1) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
-				<td><?php echo (version_compare($currentVersion, $pVersion, $pCompare) || (($pExtraCompare != null) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare)) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType )); ?></td>
+				<td><?php echo ( version_compare($currentVersion, $pVersion, $pCompare) || ( ( $pExtraCompare != null ) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
 			<?php } ?>
 		</tr>
 		<?php
@@ -1329,11 +1329,12 @@ class MainWP_Child_Server_Information {
 
 	protected static function serverSelfConnect() {
 		$url = site_url( 'wp-cron.php' );
-		$query_args = array('mainwp_child_run' => 'test');
+		$query_args = array( 'mainwp_child_run' => 'test' );
 		$url = add_query_arg( $query_args, $url );
-		$args = array(  'blocking'      => true,
-		                  'sslverify'       => apply_filters( 'https_local_ssl_verify', true ),
-		                  'timeout'         => 15,
+		$args = array(
+			'blocking'        => true,
+			'sslverify'       => apply_filters( 'https_local_ssl_verify', true ),
+			'timeout'         => 15,
 		);
 		$response =  wp_remote_post( $url, $args );
 		$test_result = '';
@@ -1637,32 +1638,32 @@ class MainWP_Child_Server_Information {
                 'siteurl' => array(
 					'title' => __('Site URL', 'mainwp-child'),
 					'value' => get_bloginfo( 'url' ),
-					'desc' => get_bloginfo( 'url' ),
+					'desc'  => get_bloginfo( 'url' ),
 				),
                 'adminuser' => array(
 					'title' => __('Administrator name', 'mainwp-child'),
 					'value' => $current_user->user_login,
-					'desc' => __('This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child'),
+					'desc'  => __('This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child'),
 				),
                 'friendly_name' => array(
 					'title' => __('Friendly site name', 'mainwp-child'),
 					'value' => get_bloginfo( 'name' ),
-					'desc' => __('For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child'),
+					'desc'  => __('For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child'),
 				),
                 'uniqueid' => array(
 					'title' => __('Child unique security id', 'mainwp-child'),
 					'value' => !empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
-					'desc' => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child'), stripslashes( $branding_title ) ),
+					'desc'  => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child'), stripslashes( $branding_title ) ),
 				),
                 'verify_ssl' => array(
 					'title' => __('Verify certificate', 'mainwp-child'),
 					'value' =>  __('Yes', 'mainwp-child'),
-					'desc' => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child'),
+					'desc'  => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child'),
 				),
                 'ssl_version' => array(
 					'title' => __('SSL version', 'mainwp-child'),
 					'value' => __('Auto Detect', 'mainwp-child'),
-					'desc' => __('Auto Detect', 'mainwp-child'),
+					'desc'  => __('Auto Detect', 'mainwp-child'),
 				),
 
             );
