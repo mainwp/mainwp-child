@@ -19,11 +19,11 @@ class MainWP_Child_Server_Information {
 			}
 
 			if ( $_POST['what'] == 'warning' ) {
-                            if (isset($_POST['warnings'])) {
-                                $warnings = intval($_POST['warnings']);
-                            } else {
-                                $warnings = self::getWarnings();
-                            }
+				if (isset($_POST['warnings'])) {
+					$warnings = intval($_POST['warnings']);
+				} else {
+					$warnings = self::getWarnings();
+				}
                             $dismissWarnings['warnings'] = $warnings;
 			}
 			MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
@@ -476,8 +476,8 @@ class MainWP_Child_Server_Information {
 			<div class="mwp_server_info_box">
 				<h2><?php esc_html_e( 'Server Information' ); ?></h2>
                                       <?php
-				self::render();
-				?>
+										self::render();
+										?>
                 <h2><?php esc_html_e( 'Cron Schedules' ); ?></h2>
                 <?php
 				self::renderCron();
@@ -1626,69 +1626,69 @@ class MainWP_Child_Server_Information {
 		<?php
 	}
 
-        public static function renderConnectionDetails() {
-            $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-            if ($branding_title == '') {
-                $branding_title = 'MainWP';
-            }
+	public static function renderConnectionDetails() {
+		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+		if ($branding_title == '') {
+			$branding_title = 'MainWP';
+		}
 
-            global $current_user;
-	        $uniqueId = get_option('mainwp_child_uniqueId');
-            $details  = array(
-                'siteurl' => array(
-					'title' => __('Site URL', 'mainwp-child'),
-					'value' => get_bloginfo( 'url' ),
-					'desc'  => get_bloginfo( 'url' ),
-				),
-                'adminuser' => array(
-					'title' => __('Administrator name', 'mainwp-child'),
-					'value' => $current_user->user_login,
-					'desc'  => __('This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child'),
-				),
-                'friendly_name' => array(
-					'title' => __('Friendly site name', 'mainwp-child'),
-					'value' => get_bloginfo( 'name' ),
-					'desc'  => __('For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child'),
-				),
-                'uniqueid' => array(
-					'title' => __('Child unique security id', 'mainwp-child'),
-					'value' => ! empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
-					'desc'  => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child'), stripslashes( $branding_title ) ),
-				),
-                'verify_ssl' => array(
-					'title' => __('Verify certificate', 'mainwp-child'),
-					'value' => __('Yes', 'mainwp-child'),
-					'desc'  => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child'),
-				),
-                'ssl_version' => array(
-					'title' => __('SSL version', 'mainwp-child'),
-					'value' => __('Auto Detect', 'mainwp-child'),
-					'desc'  => __('Auto Detect', 'mainwp-child'),
-				),
+		global $current_user;
+		$uniqueId = get_option('mainwp_child_uniqueId');
+		$details  = array(
+			'siteurl' => array(
+				'title' => __('Site URL', 'mainwp-child'),
+				'value' => get_bloginfo( 'url' ),
+				'desc'  => get_bloginfo( 'url' ),
+			),
+			'adminuser' => array(
+				'title' => __('Administrator name', 'mainwp-child'),
+				'value' => $current_user->user_login,
+				'desc'  => __('This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child'),
+			),
+			'friendly_name' => array(
+				'title' => __('Friendly site name', 'mainwp-child'),
+				'value' => get_bloginfo( 'name' ),
+				'desc'  => __('For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child'),
+			),
+			'uniqueid' => array(
+				'title' => __('Child unique security id', 'mainwp-child'),
+				'value' => ! empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
+				'desc'  => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child'), stripslashes( $branding_title ) ),
+			),
+			'verify_ssl' => array(
+				'title' => __('Verify certificate', 'mainwp-child'),
+				'value' => __('Yes', 'mainwp-child'),
+				'desc'  => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child'),
+			),
+			'ssl_version' => array(
+				'title' => __('SSL version', 'mainwp-child'),
+				'value' => __('Auto Detect', 'mainwp-child'),
+				'desc'  => __('Auto Detect', 'mainwp-child'),
+			),
 
-            );
+		);
 		?>
 		<div class="postbox" id="connection_detail">
 			<h3 class="mainwp_box_title"><span><?php _e( 'Connection details', 'mainwp-child' ); ?></span></h3>
 			<div class="inside">
                             <div class="mainwp-postbox-actions-top mainwp-padding-5">
-                            <?php
-                                echo sprintf(__('If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child'), stripslashes( $branding_title ));
-                            ?>
+						<?php
+							echo sprintf(__('If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child'), stripslashes( $branding_title ));
+						?>
                             </div>
                             <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
                                 <tbody>
-                                    <?php
-                                        foreach ($details as $row) {
-                                        ?>
+								<?php
+								foreach ($details as $row) {
+									?>
                                             <tr>
                                                 <th style="width: 20%"><strong><?php echo esc_html($row['title']); ?></strong></th>
                                                 <td style="width: 20%"><strong><?php echo esc_html($row['value']); ?></strong></td>
                                                 <td><?php echo esc_html($row['desc']); ?></td>
                                             </tr>
-                                        <?php
-                                        }
-                                    ?>
+									<?php
+								}
+								?>
                                 </tbody>
                             </table>
 			</div>

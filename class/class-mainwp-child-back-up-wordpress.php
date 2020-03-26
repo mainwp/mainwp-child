@@ -44,7 +44,7 @@ class MainWP_Child_Back_Up_Wordpress {
         }
 
 		if ( ! $this->is_plugin_installed) {
-return;
+			return;
         }
 
         add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
@@ -204,10 +204,10 @@ return;
     // ok
     public function do_reports_log( $ext = '') {
         if ( $ext !== 'backupwordpress' ) {
-return;
+			return;
         }
         if ( ! $this->is_plugin_installed) {
-return;
+			return;
         }
 
         try {
@@ -477,7 +477,7 @@ return;
 
 				}
 			} else {
-            ?>
+				?>
 
 				<tr>
 					<td class="hmbkp-no-backups"
@@ -539,7 +539,7 @@ return;
 						<a href="#"
 						   onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);"
 						   class="download-action"><?php esc_html_e( 'Download', 'backupwordpress' ); ?></a> |
-					<?php
+						<?php
                     };
 				} elseif (function_exists('HM\BackUpWordPress\is_path_accessible') ) {
 					if (HM\BackUpWordPress\is_path_accessible(HM\BackUpWordPress\Path::get_path())) {
@@ -547,7 +547,7 @@ return;
 						<a href="#"
 						   onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);"
 						   class="download-action"><?php esc_html_e( 'Download', 'backupwordpress' ); ?></a> |
-					<?php
+						<?php
                     };
 				}
 				?>
@@ -560,7 +560,7 @@ return;
 
 		</tr>
 
-	<?php
+		<?php
     }
 
 	function get_excluded( $browse_dir = null ) {
@@ -633,7 +633,7 @@ return;
                             }
 
 							if ( $is_default_rule ) :
-                            ?>
+								?>
 								<?php esc_html_e( 'Default rule', 'backupwordpress' ); ?>
 
 							<?php elseif ( defined( 'HMBKP_EXCLUDE' ) && false !== strpos( HMBKP_EXCLUDE, $exclude ) ) : ?>
@@ -695,7 +695,7 @@ return;
 			}
 
 			if ( $files ) {
-            ?>
+				?>
 
 				<table class="widefat">
 					<thead>
@@ -729,7 +729,7 @@ return;
                                 $parents = array_filter( explode( '/', str_replace( trailingslashit( $root_dir ), '', trailingslashit( dirname( $directory ) ) ) ) );
 
 								foreach ( $parents as $directory_basename ) {
-                                ?>
+									?>
 
 									<a href="#"
 									   onclick="event.preventDefault(); mainwp_backupwp_directory_browse('<?php echo urlencode( substr( $directory, 0, strpos( $directory, $directory_basename ) ) . $directory_basename ); ?>', this)"><?php echo esc_html( $directory_basename ); ?></a>
@@ -857,7 +857,7 @@ return;
 								<?php
 								if ($new_version) {
 									if ( $is_unreadable ) {
-                                    ?>
+										?>
 
 										<code class="strikethrough"
 										      title="<?php echo esc_attr( wp_normalize_path( $file->getRealPath() ) ); ?>"><?php echo esc_html( $file->getBasename() ); ?></code>
@@ -873,11 +873,11 @@ return;
 												onclick="event.preventDefault(); mainwp_backupwp_directory_browse('<?php echo urlencode( wp_normalize_path( $file->getPathname()) ); ?>', this)"><?php echo esc_html( $file->getBasename() ); ?></a></code>
 
 
-									<?php
+										<?php
                                     }
 								} else {
 									if ( $is_unreadable ) {
-                                    ?>
+										?>
 
 										<code class="strikethrough"
 										      title="<?php echo esc_attr( $file->getRealPath() ); ?>"><?php echo esc_html( $file->getBasename() ); ?></code>
@@ -887,7 +887,7 @@ return;
 										<code
 											title="<?php echo esc_attr( $file->getRealPath() ); ?>"><?php echo esc_html( $file->getBasename() ); ?></code>
 
-									<?php
+										<?php
                                     } elseif ( $file->isDir() ) {
 										//echo add_query_arg( 'hmbkp_directory_browse', urlencode( $file->getPathname() ) );
 										?>
@@ -895,7 +895,7 @@ return;
 												href="#"
 												onclick="event.preventDefault(); mainwp_backupwp_directory_browse('<?php echo urlencode( $file->getPathname() ); ?>', this)"><?php echo esc_html( $file->getBasename() ); ?></a></code>
 
-									<?php
+										<?php
                                     }
 								}
 								?>
@@ -944,7 +944,7 @@ return;
 
 										<code>--</code>
 
-									<?php
+										<?php
                                     }
 								endif;
 								?>
@@ -962,7 +962,7 @@ return;
 									<span
 										title="<?php echo esc_attr( wp_normalize_path( $file->GetRealPath() ) ); ?>"><?php esc_html_e( 'Symlink', 'backupwordpress' ); ?></span>
 
-								<?php
+									<?php
                                 elseif ( $file->isDir() ) :
 
 									esc_html_e( 'Folder', 'backupwordpress' );
@@ -1136,16 +1136,16 @@ return;
                     $exclude_rule_to_remove = trim($exclude_rule_to_remove);
                     $exclude_rule_to_remove = trim($exclude_rule_to_remove, '/');
 
-                    if (empty($exclude_rule_to_remove)) {
-                        continue;
-                    }
+				if (empty($exclude_rule_to_remove)) {
+					continue;
+				}
 
                     $excludes = $schedule->get_excludes();
-                    if (method_exists($excludes, 'get_user_excludes')) {
-                        $schedule->set_excludes( array_diff( $excludes->get_user_excludes(), (array) $exclude_rule_to_remove ) );
-                    } else {
-                        $schedule->set_excludes( array_diff( $excludes, $exclude_rule_to_remove ) );
-                    }
+				if (method_exists($excludes, 'get_user_excludes')) {
+					$schedule->set_excludes( array_diff( $excludes->get_user_excludes(), (array) $exclude_rule_to_remove ) );
+				} else {
+					$schedule->set_excludes( array_diff( $excludes, $exclude_rule_to_remove ) );
+				}
                     $schedule->save();
             }
         }
@@ -1163,11 +1163,11 @@ return;
 			return array( 'error' => 'Error: Schedule data' );
 		}
 
-//		$current_value = get_option( 'hmbkp_schedule_' . $sch_id );
-//		if ( is_array( $current_value ) && isset( $current_value['excludes'] ) ) {
-//			// do not update 'excludes' value
-//			$options['excludes'] = $current_value['excludes'];
-//		}
+		//      $current_value = get_option( 'hmbkp_schedule_' . $sch_id );
+		//      if ( is_array( $current_value ) && isset( $current_value['excludes'] ) ) {
+		//          // do not update 'excludes' value
+		//          $options['excludes'] = $current_value['excludes'];
+		//      }
 
 		$filter_opts = array(
 			'type',

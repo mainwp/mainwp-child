@@ -240,7 +240,7 @@ class MainWP_Child_Back_WP_Up {
     // ok
 	public function do_reports_log( $ext = '') {
 		if ( $ext !== 'backwpup' ) {
-return;
+			return;
         }
 		if ( ! $this->is_backwpup_installed) {
 			return;
@@ -846,10 +846,10 @@ return;
 			$dest_class->file_download( (int) $_GET['jobid'], $_GET['file'] );
 		} else {
 			die( '-5' );
-			}
+		}
 
 		die();
-		}
+	}
 
 	protected function create_nonce_without_session( $action = - 1 ) {
 		$user = wp_get_current_user();
