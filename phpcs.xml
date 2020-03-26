@@ -33,9 +33,10 @@
                 <exclude name="WordPress.PHP.StrictInArray"/>
 		
 		<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
-<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
-<exclude name="Squiz.Commenting.InlineComment"/>
-<exclude name="Generic.WhiteSpace.ScopeIndent"/>
+		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
+		<exclude name="Squiz.Commenting.InlineComment"/>
+		<exclude name="Generic.WhiteSpace.ScopeIndent"/>
+		<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
 	</rule>
 
 	<!-- Enforce PSR1 compatible namespaces. -->
