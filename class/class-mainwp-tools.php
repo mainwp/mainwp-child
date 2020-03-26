@@ -15,5 +15,5 @@ class MainWP_Tools {
 			$return['result'] = $output;
 		}
 		return $return;
-	}	
+	}
 }

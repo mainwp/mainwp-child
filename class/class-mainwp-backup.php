@@ -583,7 +583,6 @@ class MainWP_Backup {
 
 		$iterator = null;
 		unset( $iterator );
-
 	}
 
 	public function pclZipAddDir( $path, $excludes ) {
@@ -808,7 +807,6 @@ class MainWP_Backup {
 				//todo: throw exception!
 			}
 		}
-
 
 		return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );
 	}

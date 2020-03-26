@@ -8,9 +8,9 @@
   Text Domain: mainwp-child
   Version: 4.0.7
  */
-include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from wordpress
+include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from WordPress
 
-define( 'MAINWP_DEBUG', FALSE );
+define( 'MAINWP_DEBUG', false );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 	define( 'MAINWP_CHILD_FILE', __FILE__ );

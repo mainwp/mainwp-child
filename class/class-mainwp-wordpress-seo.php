@@ -19,11 +19,11 @@ class MainWP_Wordpress_SEO {
 	public static $instance = null;
 
 	static function Instance() {
-		if ( null === MainWP_Wordpress_SEO::$instance ) {
-			MainWP_Wordpress_SEO::$instance = new MainWP_Wordpress_SEO();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Wordpress_SEO();
 		}
 
-		return MainWP_Wordpress_SEO::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {

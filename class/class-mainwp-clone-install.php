@@ -331,16 +331,16 @@ class MainWP_Clone_Install {
 		}
 		$token = $data[0];
 		switch ( $token ) {
-			case 's' :
+			case 's':
 				if ( '"' !== $data[ $length - 2 ] ) {
 					return false;
 				}
-			case 'a' :
-			case 'O' :
+			case 'a':
+			case 'O':
 				return (bool) preg_match( "/^{$token}:[0-9]+:/s", $data );
-			case 'b' :
-			case 'i' :
-			case 'd' :
+			case 'b':
+			case 'i':
+			case 'd':
 				return (bool) preg_match( "/^{$token}:[0-9.E-]+;\$/", $data );
 		}
 
@@ -536,10 +536,10 @@ class MainWP_Clone_Install {
 	 * We split large tables into 50,000 row blocks when dealing with them to save
 	 * on memmory consumption.
 	 *
-	 * @param mysql $connection The db connection object
+	 * @param mysql  $connection The db connection object
 	 * @param string $search What we want to replace
 	 * @param string $replace What we want to replace it with.
-	 * @param array $tables The tables we want to look at.
+	 * @param array  $tables The tables we want to look at.
 	 *
 	 * @return array    Collection of information gathered during the run.
 	 */
@@ -647,7 +647,7 @@ class MainWP_Clone_Install {
 	 *
 	 * @return array    The original array with all elements replaced as needed.
 	 */
-    
+
     /* Fixed serialize issue */
 	function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
 

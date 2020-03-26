@@ -153,13 +153,17 @@ class MainWP_Clone {
 
 		<?php
 		if ( $uploadFile ) {
-			esc_html_e( 'Upload successful.', 'mainwp-child' ); ?> <a href="#" id="mainwp-child_uploadclonebutton"
+			esc_html_e( 'Upload successful.', 'mainwp-child' );
+            ?>
+             <a href="#" id="mainwp-child_uploadclonebutton"
                                                               class="button-primary"
-			                                                  file="<?php echo esc_attr( $uploadFile ); ?>"><?php esc_html_e( 'Clone/Restore website', 'mainwp-child' ); ?></a><?php
+			                                                  file="<?php echo esc_attr( $uploadFile ); ?>"><?php esc_html_e( 'Clone/Restore website', 'mainwp-child' ); ?></a>
+                                                                               <?php
 		} else {
 			if ( $uploadError ) {
 				?>
-				<div class="mainwp-child_info-box-red"><?php echo esc_html( $uploadError ); ?></div><?php
+				<div class="mainwp-child_info-box-red"><?php echo esc_html( $uploadError ); ?></div>
+                                                                  <?php
 			}
 
 			if ( empty( $sitesToClone ) ) {
@@ -287,10 +291,13 @@ class MainWP_Clone {
 	        </div>
 			<?php
 			if ( $uploadFile ) {
-				esc_html_e( 'Upload successful.', 'mainwp-child' ); ?> <a href="#"
+				esc_html_e( 'Upload successful.', 'mainwp-child' );
+                ?>
+                 <a href="#"
 																		  id="mainwp-child_uploadclonebutton"
                                                               			  class="button-primary"
-			                                                  			  file="<?php echo esc_attr( $uploadFile ); ?>"><?php esc_html_e( 'Restore Website', 'mainwp-child' ); ?></a><?php
+			                                                  			  file="<?php echo esc_attr( $uploadFile ); ?>"><?php esc_html_e( 'Restore Website', 'mainwp-child' ); ?></a>
+                                                                                           <?php
 			} else {
 			if ( $uploadError ) {
 				?>
@@ -307,7 +314,7 @@ class MainWP_Clone {
                             $branding_msg = esc_html__( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
                         }
                         ?>
-                        <em> <?php echo $branding_msg ; ?> <br/>
+                        <em> <?php echo $branding_msg; ?> <br/>
 				<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?></em><br/><br/>
 			<form action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>"
 				  method="post"
@@ -448,7 +455,7 @@ class MainWP_Clone {
                             <div class="clonesite_select_site_item">
                                 <div class="mainwp-child_name_label">
 									<a href="<?php echo esc_url( add_query_arg( array( 'dir' => rawurlencode( $parent ) ), $url ) ); ?>"
-									   title="<?php echo esc_attr( dirname( $current_dir ) ) ?>"><?php esc_html_e( 'Parent Folder', 'mainwp-child' ) ?></a>
+									   title="<?php echo esc_attr( dirname( $current_dir ) ); ?>"><?php esc_html_e( 'Parent Folder', 'mainwp-child' ); ?></a>
                                 </div>
                             </div>
 
@@ -459,7 +466,7 @@ class MainWP_Clone {
 								?>
                                 <div class="clonesite_select_site_item">
                                     <div class="mainwp-child_name_label">
-										<a href="<?php echo esc_attr( $folder_url ) ?>"><?php echo esc_html( rtrim( $filename, '/' ) . DIRECTORY_SEPARATOR ); ?></a>
+										<a href="<?php echo esc_attr( $folder_url ); ?>"><?php echo esc_html( rtrim( $filename, '/' ) . DIRECTORY_SEPARATOR ); ?></a>
                                     </div>
                                 </div>
 								<?php
@@ -469,7 +476,7 @@ class MainWP_Clone {
 								?>
                                 <div class="clonesite_select_site_item">
                                     <div class="mainwp-child_name_label">
-										<span><?php echo esc_html( $file ) ?></span>
+										<span><?php echo esc_html( $file ); ?></span>
                                     </div>
                                 </div>
 								<?php
@@ -479,7 +486,7 @@ class MainWP_Clone {
 								?>
                                 <div class="mainwp_rejected_files">
                                     <div class="mainwp-child_name_label">
-										<span><?php echo esc_html( $file ) ?></span>
+										<span><?php echo esc_html( $file ); ?></span>
                                     </div>
                                 </div>
 								<?php
@@ -510,10 +517,10 @@ class MainWP_Clone {
         <script language="javascript">
             var child_security_nonces = [];
             <?php
-				$security_nonces = MainWP_Clone::get()->getSecurityNonces();
+				$security_nonces = self::get()->getSecurityNonces();
 				foreach ($security_nonces as $k => $v)
 				{
-					echo 'child_security_nonces['."'" .$k . "'". '] = ' . "'" . $v . "';\n";
+					echo 'child_security_nonces[' . "'" . $k . "'" . '] = ' . "'" . $v . "';\n";
 				}
 			?>
 
@@ -585,8 +592,8 @@ class MainWP_Clone {
             var translations = [];
 			translations['large_site'] = "<?php esc_html_e( 'This is a large site (%dMB), the restore process will more than likely fail.', 'mainwp-child' ); ?>";
 			translations['continue_anyway'] = "<?php esc_html_e( 'Continue Anyway?', 'mainwp-child' ); ?>";
-			translations['creating_backup'] = "<?php esc_html_e( 'Creating backup on %s expected size: %dMB (estimated time: %d seconds)', 'mainwp-child' ); ?>";
-			translations['backup_created'] = "<?php esc_html_e( 'Backup created on %s total size to download: %dMB', 'mainwp-child' ); ?>";
+			translations['creating_backup'] = "<?php esc_html_e( 'Creating backup on %1$s expected size: %2$dMB (estimated time: %3$d seconds)', 'mainwp-child' ); ?>";
+			translations['backup_created'] = "<?php esc_html_e( 'Backup created on %1$s total size to download: %2$dMB', 'mainwp-child' ); ?>";
 			translations['downloading_backup'] = "<?php esc_html_e( 'Downloading backup', 'mainwp-child' ); ?>";
 			translations['backup_downloaded'] = "<?php esc_html_e( 'Backup downloaded', 'mainwp-child' ); ?>";
 			translations['extracting_backup'] = "<?php esc_html_e( 'Extracting backup and updating your database, this might take a while. Please be patient.', 'mainwp-child' ); ?>";
@@ -1208,7 +1215,7 @@ class MainWP_Clone {
 				'f'         => $rand,
 				'wpversion' => $wp_version,
 				'zipmethod' => $method,
-				'json_result' => true
+				'json_result' => true,
 			) );
 
 			if ( ! $result['backup'] ) {
@@ -1253,7 +1260,7 @@ class MainWP_Clone {
 				'cloneFunc' => 'createCloneBackupPoll',
 				'key'       => $key,
 				'f'         => $rand,
-				'json_result' => true
+				'json_result' => true,
 			) );
 
 			if ( ! isset( $result['size'] ) ) {
@@ -1341,7 +1348,7 @@ class MainWP_Clone {
 							'cloneFunc' => 'deleteCloneBackup',
 							'key'       => $siteToClone['extauth'],
 							'f'         => $_POST['file'],
-							'json_result' => true
+							'json_result' => true,
 						) );
 					}
 				}
@@ -1558,11 +1565,15 @@ class MainWP_Clone {
                 clear: both;
             }
         </style>
-		<div class="mainwp-child_info-box-green"><?php if ( get_option( 'mainwp_child_restore_permalink' ) ) {
+		<div class="mainwp-child_info-box-green">
+        <?php
+        if ( get_option( 'mainwp_child_restore_permalink' ) ) {
 				esc_html_e( 'Restore process completed successfully! Check and re-save permalinks ', 'mainwp-child' );
 } else {
 				esc_html_e( 'Cloning process completed successfully! Check and re-save permalinks ', 'mainwp-child' );
-} ?> <a
+}
+?>
+ <a
 				href="<?php echo esc_attr( admin_url( 'options-permalink.php' ) ); ?>"><?php esc_html_e( 'here', 'mainwp-child' ); ?></a>.
         </div>
 		<?php

@@ -7,11 +7,11 @@ class MainWP_Child_Skeleton_Key {
 	public $plugin_translate = 'mainwp-child';
 
 	static function Instance() {
-		if ( null === MainWP_Child_Skeleton_Key::$instance ) {
-			MainWP_Child_Skeleton_Key::$instance = new MainWP_Child_Skeleton_Key();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Skeleton_Key();
 		}
 
-		return MainWP_Child_Skeleton_Key::$instance;
+		return self::$instance;
 	}
 
 	public function action() {
@@ -66,7 +66,6 @@ class MainWP_Child_Skeleton_Key {
 		$expiration = time() + 600;
 		$manager    = WP_Session_Tokens::get_instance( $current_user->ID );
 		$token      = $manager->create( $expiration );
-
 
 		$secure = is_ssl();
 		if ( $secure ) {

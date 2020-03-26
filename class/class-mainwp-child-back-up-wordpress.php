@@ -21,11 +21,11 @@ class MainWP_Child_Back_Up_Wordpress {
 	public static $instance = null;
     public $is_plugin_installed = false;
 	static function Instance() {
-		if ( null === MainWP_Child_Back_Up_Wordpress::$instance ) {
-			MainWP_Child_Back_Up_Wordpress::$instance = new MainWP_Child_Back_Up_Wordpress();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Back_Up_Wordpress();
 		}
 
-		return MainWP_Child_Back_Up_Wordpress::$instance;
+		return self::$instance;
 	}
 
     public function __construct() {
@@ -36,7 +36,6 @@ class MainWP_Child_Back_Up_Wordpress {
                 add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
             }
 		}
-
     }
 
 	public function init() {
@@ -201,7 +200,7 @@ class MainWP_Child_Back_Up_Wordpress {
     }
 
     // ok
-    public function do_reports_log($ext = '') {
+    public function do_reports_log( $ext = '') {
         if ( $ext !== 'backupwordpress' ) return;
         if (!$this->is_plugin_installed) return;
 
@@ -219,12 +218,12 @@ class MainWP_Child_Back_Up_Wordpress {
                 foreach($schedules as $schedule) {
                     foreach ( $schedule->get_backups() as $file ) {
                         $backup_type =  $schedule->get_type();
-                        $message = "BackupWordpres backup " .  $backup_type . ' finished';
-                        $destination = "N/A";
+                        $message = 'BackupWordpres backup ' . $backup_type . ' finished';
+                        $destination = 'N/A';
                         if ( file_exists( $file ) ) {
                             $date = @filemtime( $file );
                             if ( !empty( $date ) ) {
-                                do_action( "mainwp_reports_backupwordpress_backup", $destination, $message, 'finished', $backup_type, $date );
+                                do_action( 'mainwp_reports_backupwordpress_backup', $destination, $message, 'finished', $backup_type, $date );
                                 MainWP_Helper::update_lasttime_backup('backupwordpress', $date); // to support backup before update feature
                             }
                         }
@@ -261,7 +260,6 @@ class MainWP_Child_Back_Up_Wordpress {
 	function hmbkp_request_cancel_backup() {
 		$schedule_id = $this->check_schedule();
 		$schedule    = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( urldecode( $schedule_id ) ) );
-
 
 		// Delete the running backup
 		if (method_exists($schedule, 'get_running_backup_filename' )) {
@@ -445,7 +443,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 			<tr>
 
-				<th scope="col"><?php function_exists('hmbkp_backups_number') ? hmbkp_backups_number( $schedule ) : ( function_exists('backups_number') ? backups_number( $schedule ) : "" ) ; ?></th>
+				<th scope="col"><?php function_exists('hmbkp_backups_number') ? hmbkp_backups_number( $schedule ) : ( function_exists('backups_number') ? backups_number( $schedule ) : '' ); ?></th>
 				<th scope="col"><?php esc_html_e( 'Size', 'mainwp-backupwordpress-extension' ); ?></th>
 				<th scope="col"><?php esc_html_e( 'Type', 'mainwp-backupwordpress-extension' ); ?></th>
 				<th scope="col"><?php esc_html_e( 'Actions', 'mainwp-backupwordpress-extension' ); ?></th>
@@ -456,7 +454,8 @@ class MainWP_Child_Back_Up_Wordpress {
 
 			<tbody>
 
-			<?php if ( $schedule->get_backups() ) {
+			<?php
+            if ( $schedule->get_backups() ) {
 
 				$schedule->delete_old_backups();
 
@@ -469,7 +468,8 @@ class MainWP_Child_Back_Up_Wordpress {
 					$this->hmbkp_get_backup_row( $file, $schedule );
 
 				}
-			} else { ?>
+			} else {
+            ?>
 
 				<tr>
 					<td class="hmbkp-no-backups"
@@ -501,7 +501,6 @@ class MainWP_Child_Back_Up_Wordpress {
 		}
 
 		return sprintf( '(<code class="calculating" title="' . __( 'this shouldn\'t take long&hellip;', 'mainwp-backupwordpress-extension' ) . '">' . __( 'calculating the size of your backup&hellip;', 'mainwp-backupwordpress-extension' ) . '</code>)' );
-
 	}
 
 	function hmbkp_get_backup_row( $file, HM\BackUpWordPress\Scheduled_Backup $schedule ) {
@@ -525,20 +524,23 @@ class MainWP_Child_Back_Up_Wordpress {
 
 			<td>
 
-				<?php if (function_exists('hmbkp_is_path_accessible')) {
+				<?php
+                if (function_exists('hmbkp_is_path_accessible')) {
 					if ( hmbkp_is_path_accessible( hmbkp_path() ) ) {
 						?>
 						<a href="#"
 						   onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);"
 						   class="download-action"><?php esc_html_e( 'Download', 'backupwordpress' ); ?></a> |
-					<?php };
+					<?php
+                    };
 				} else if (function_exists('HM\BackUpWordPress\is_path_accessible') ) {
 					if (HM\BackUpWordPress\is_path_accessible(HM\BackUpWordPress\Path::get_path())) {
 						?>
 						<a href="#"
 						   onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);"
 						   class="download-action"><?php esc_html_e( 'Download', 'backupwordpress' ); ?></a> |
-					<?php };
+					<?php
+                    };
 				}
 				?>
 
@@ -550,7 +552,8 @@ class MainWP_Child_Back_Up_Wordpress {
 
 		</tr>
 
-	<?php }
+	<?php
+    }
 
 	function get_excluded( $browse_dir = null ) {
 
@@ -618,9 +621,10 @@ class MainWP_Child_Back_Up_Wordpress {
 							if ($new_version)
 								$is_default_rule = ( in_array( $exclude, $excludes->get_default_excludes() ) ) || ( HM\BackUpWordPress\Path::get_path() === trailingslashit( HM\BackUpWordPress\Path::get_root() ) . untrailingslashit( $exclude ) );
 							else
-								$is_default_rule =  ( in_array( $exclude, $schedule->backup->default_excludes() ) ) || ( hmbkp_path() === untrailingslashit( $exclude ) ) ;
+								$is_default_rule =  ( in_array( $exclude, $schedule->backup->default_excludes() ) ) || ( hmbkp_path() === untrailingslashit( $exclude ) );
 
-							if ( $is_default_rule ) : ?>
+							if ( $is_default_rule ) :
+                            ?>
 								<?php esc_html_e( 'Default rule', 'backupwordpress' ); ?>
 
 							<?php elseif ( defined( 'HMBKP_EXCLUDE' ) && false !== strpos( HMBKP_EXCLUDE, $exclude ) ) : ?>
@@ -668,7 +672,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			// Kick off a recursive filesize scan
 			if ($new_version) {
 
-				$site_size = new HM\BackUpWordPress\Site_Size;
+				$site_size = new HM\BackUpWordPress\Site_Size();
 
 				$exclude_string = implode( '|', $excludes->get_excludes_for_regex() );
 
@@ -680,7 +684,8 @@ class MainWP_Child_Back_Up_Wordpress {
 				$exclude_string = $schedule->backup->exclude_string( 'regex' );
 			}
 
-			if ( $files ) { ?>
+			if ( $files ) {
+            ?>
 
 				<table class="widefat">
 					<thead>
@@ -702,16 +707,19 @@ class MainWP_Child_Back_Up_Wordpress {
 
 						<th scope="col">
 
-							<?php if ( $root_dir !== $directory ) {
+							<?php
+                            if ( $root_dir !== $directory ) {
 								// echo esc_url( remove_query_arg( 'hmbkp_directory_browse' ) );
 								?>
 								<a href="#"
 								   onclick="event.preventDefault(); mainwp_backupwp_directory_browse('', this)"><?php echo esc_html( $root_dir ); ?></a>
 								<code>/</code>
 
-								<?php $parents = array_filter( explode( '/', str_replace( trailingslashit( $root_dir ), '', trailingslashit( dirname( $directory ) ) ) ) );
+								<?php
+                                $parents = array_filter( explode( '/', str_replace( trailingslashit( $root_dir ), '', trailingslashit( dirname( $directory ) ) ) ) );
 
-								foreach ( $parents as $directory_basename ) { ?>
+								foreach ( $parents as $directory_basename ) {
+                                ?>
 
 									<a href="#"
 									   onclick="event.preventDefault(); mainwp_backupwp_directory_browse('<?php echo urlencode( substr( $directory, 0, strpos( $directory, $directory_basename ) ) . $directory_basename ); ?>', this)"><?php echo esc_html( $directory_basename ); ?></a>
@@ -793,7 +801,8 @@ class MainWP_Child_Back_Up_Wordpress {
 
 					<tbody>
 
-					<?php foreach ( $files as $size => $file ) {
+					<?php
+                    foreach ( $files as $size => $file ) {
 
 						$is_excluded = $is_unreadable = false;
 
@@ -811,7 +820,8 @@ class MainWP_Child_Back_Up_Wordpress {
 						// Skip unreadable files
 						if ( ! @realpath( $file->getPathname() ) || ! $file->isReadable() ) {
 							$is_unreadable = true;
-						} ?>
+						}
+                        ?>
 
 						<tr>
 
@@ -836,7 +846,8 @@ class MainWP_Child_Back_Up_Wordpress {
 							<td>
 								<?php
 								if ($new_version) {
-									if ( $is_unreadable ) { ?>
+									if ( $is_unreadable ) {
+                                    ?>
 
 										<code class="strikethrough"
 										      title="<?php echo esc_attr( wp_normalize_path( $file->getRealPath() ) ); ?>"><?php echo esc_html( $file->getBasename() ); ?></code>
@@ -852,9 +863,11 @@ class MainWP_Child_Back_Up_Wordpress {
 												onclick="event.preventDefault(); mainwp_backupwp_directory_browse('<?php echo urlencode( wp_normalize_path( $file->getPathname()) ); ?>', this)"><?php echo esc_html( $file->getBasename() ); ?></a></code>
 
 
-									<?php }
+									<?php
+                                    }
 								} else {
-									if ( $is_unreadable ) { ?>
+									if ( $is_unreadable ) {
+                                    ?>
 
 										<code class="strikethrough"
 										      title="<?php echo esc_attr( $file->getRealPath() ); ?>"><?php echo esc_html( $file->getBasename() ); ?></code>
@@ -864,14 +877,16 @@ class MainWP_Child_Back_Up_Wordpress {
 										<code
 											title="<?php echo esc_attr( $file->getRealPath() ); ?>"><?php echo esc_html( $file->getBasename() ); ?></code>
 
-									<?php } elseif ( $file->isDir() ) {
+									<?php
+                                    } elseif ( $file->isDir() ) {
 										//echo add_query_arg( 'hmbkp_directory_browse', urlencode( $file->getPathname() ) );
 										?>
 										<code title="<?php echo esc_attr( $file->getRealPath() ); ?>"><a
 												href="#"
 												onclick="event.preventDefault(); mainwp_backupwp_directory_browse('<?php echo urlencode( $file->getPathname() ); ?>', this)"><?php echo esc_html( $file->getBasename() ); ?></a></code>
 
-									<?php }
+									<?php
+                                    }
 								}
 								?>
 
@@ -897,7 +912,8 @@ class MainWP_Child_Back_Up_Wordpress {
 
 										if ( ! $size ) {
 											$size = '0 B';
-										} ?>
+										}
+                                        ?>
 
 										<code>
 
@@ -918,7 +934,8 @@ class MainWP_Child_Back_Up_Wordpress {
 
 										<code>--</code>
 
-									<?php }
+									<?php
+                                    }
 								endif;
 								?>
 
@@ -935,7 +952,8 @@ class MainWP_Child_Back_Up_Wordpress {
 									<span
 										title="<?php echo esc_attr( wp_normalize_path( $file->GetRealPath() ) ); ?>"><?php esc_html_e( 'Symlink', 'backupwordpress' ); ?></span>
 
-								<?php elseif ( $file->isDir() ) :
+								<?php
+                                elseif ( $file->isDir() ) :
 
 									esc_html_e( 'Folder', 'backupwordpress' );
 
@@ -999,7 +1017,6 @@ class MainWP_Child_Back_Up_Wordpress {
 		$information['e'] = $output;
 
 		return $information;
-
 	}
 
 	function directory_browse() {
@@ -1038,7 +1055,6 @@ class MainWP_Child_Back_Up_Wordpress {
 		$out['current_browse_dir'] = $_POST['browse_dir'];
 
 		return $out;
-
 	}
 
 	function hmbkp_remove_exclude_rule() {
@@ -1100,7 +1116,6 @@ class MainWP_Child_Back_Up_Wordpress {
                 }
             }
         }
-
 
         $un_exclude_paths = urldecode( $_POST['un_exclude_paths'] );
         $un_exclude_paths = explode("\n", $un_exclude_paths);

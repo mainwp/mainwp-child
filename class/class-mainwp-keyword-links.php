@@ -13,11 +13,11 @@ class MainWP_Keyword_Links {
 	protected $link_case_sensitive = 1;
 
 	static function Instance() {
-		if ( null === MainWP_Keyword_Links::$instance ) {
-			MainWP_Keyword_Links::$instance = new MainWP_Keyword_Links();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Keyword_Links();
 		}
 
-		return MainWP_Keyword_Links::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
@@ -387,7 +387,7 @@ class MainWP_Keyword_Links {
 		return $content;
 	}
 
-    private function usort_callback_func($a, $b) {
+    private function usort_callback_func( $a, $b) {
 		return strlen($a)<strlen($b);
 	}
 
@@ -571,7 +571,7 @@ class MainWP_Keyword_Links {
 			if ( in_array( $result->post_name, (array) $paths_blocked ) ) {
 				continue;
 			}
-			$link = new stdClass;
+			$link = new stdClass();
 			// This is on-fly link so have not ID
 			//$link->id = $result->ID;
 			$link->name = $result->post_title;
@@ -616,7 +616,7 @@ class MainWP_Keyword_Links {
 		if ( ! preg_match( '|^[a-z0-9-~+_.?#=!&;,/:%@$\|*\'()\\x80-\\xff]+$|i', $request ) ) {
 			return;
 		}
-		// Check to see if Wordpress is installed in sub folder
+		// Check to see if WordPress is installed in sub folder
 		$siteurl        = parse_url( $this->siteurl );
 		$sitepath       = ( isset( $siteurl['path'] ) ) ? $siteurl['path'] : '';
 		$filter_request = preg_replace( '|^' . $sitepath . '/?|i', '', $request );
@@ -885,7 +885,7 @@ class MainWP_Keyword_Links {
 			}
 
 			$old                   = $this->get_link( $link_id );
-			$link                  = new stdClass;
+			$link                  = new stdClass();
 			$link->id              = intval( $link_id );
 			$link->name            = sanitize_text_field( $_POST['name'] );
 			$link->destination_url = esc_url( $_POST['destination_url'] );

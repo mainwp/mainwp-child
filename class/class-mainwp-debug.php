@@ -4,7 +4,7 @@ class MainWP_Debug {
 	/**
 	 * @param $mainwpChild MainWP_Child
 	 */
-	public static function process(&$mainwpChild) {
+	public static function process( &$mainwpChild) {
 		if ( ! isset( $_GET['mainwpdebug'] ) || ! defined( 'MAINWP_DEBUG' ) || ( MAINWP_DEBUG !== true ) ) {
 			return;
 		}
@@ -26,7 +26,6 @@ class MainWP_Debug {
 		} else {
 			print_r( $mainwpChild->getSiteStats( array(), false ) );
 		}
-
 
 		$stop = microtime( true );
 		die( "\n\n\n" . 'duration: ' . ( $stop - $start ) . 's</pre>' );

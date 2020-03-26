@@ -4,11 +4,11 @@ class MainWP_Child_Robot {
 	public static $instance = null;
 
 	static function Instance() {
-		if ( null === MainWP_Child_Robot::$instance ) {
-			MainWP_Child_Robot::$instance = new MainWP_Child_Robot();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Robot();
 		}
 
-		return MainWP_Child_Robot::$instance;
+		return self::$instance;
 	}
 
 	public function wpr_insertcomments( $postid, $comments ) {

@@ -21,11 +21,11 @@ class MainWP_Child_Pagespeed {
 	public $is_plugin_installed = false;
 
 	static function Instance() {
-		if ( null === MainWP_Child_Pagespeed::$instance ) {
-			MainWP_Child_Pagespeed::$instance = new MainWP_Child_Pagespeed();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Pagespeed();
 		}
 
-		return MainWP_Child_Pagespeed::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
@@ -60,7 +60,7 @@ class MainWP_Child_Pagespeed {
 				case 'sync_data':
 					$information = $this->get_sync_data();
 					break;
-				case "check_pages":
+				case 'check_pages':
 					$information = $this->check_pages();
 					break;
 			}
@@ -267,7 +267,7 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
-	function do_check_pages($forceRecheck = false) {
+	function do_check_pages( $forceRecheck = false) {
 		$information = array();
 		if ( defined( 'GPI_DIRECTORY' ) ) {
 			$checkstatus = apply_filters( 'gpi_check_status', false );
@@ -342,7 +342,6 @@ class MainWP_Child_Pagespeed {
 
 		$score_column      = $strategy . '_score';
 		//$page_stats_column = $strategy . '_page_stats';
-
 
 		$data_typestocheck = self::get_filter_options( 'all' );
 
@@ -437,7 +436,7 @@ class MainWP_Child_Pagespeed {
 		);
 	}
 
-	static function get_filter_options($restrict_type = 'all') {
+	static function get_filter_options( $restrict_type = 'all') {
 
 		$types = array();
 		$gpi_options =  get_option('gpagespeedi_options');
@@ -446,21 +445,21 @@ class MainWP_Child_Pagespeed {
 		if($gpi_options['check_pages']) {
 			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'pages') {
 				$typestocheck[] = 'type = %s';
-				$types[1][] = "page";
+				$types[1][] = 'page';
 			}
 		}
 
 		if($gpi_options['check_posts']) {
 			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'posts') {
 				$typestocheck[] = 'type = %s';
-				$types[1][] = "post";
+				$types[1][] = 'post';
 			}
 		}
 
 		if($gpi_options['check_categories']) {
 			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'categories') {
 				$typestocheck[] = 'type = %s';
-				$types[1][] = "category";
+				$types[1][] = 'category';
 			}
 		}
 		if($gpi_options['cpt_whitelist']) {
@@ -472,9 +471,9 @@ class MainWP_Child_Pagespeed {
 				}
 				$args=array(
 					'public'   => true,
-					'_builtin' => false
+					'_builtin' => false,
 				);
-				$custom_post_types = get_post_types($args,'names','and');
+				$custom_post_types = get_post_types($args, 'names', 'and');
 				if($restrict_type != 'gpi_custom_posts' && $restrict_type != 'all' && $restrict_type != 'ignored') {
 					$restrict_type = str_replace('gpi_custom_posts-', '', $restrict_type);
 					foreach($custom_post_types as $post_type)
