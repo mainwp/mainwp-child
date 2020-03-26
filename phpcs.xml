@@ -33,12 +33,12 @@
                 <exclude name="WordPress.PHP.StrictInArray"/>
 		
 		<!--<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>-->
-		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
-		<exclude name="Squiz.Commenting.InlineComment"/>
-		<exclude name="Generic.WhiteSpace.ScopeIndent"/>
-		<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
-		<exclude name="WordPress.WhiteSpace.OperatorSpacing"/>
-		<exclude name="Squiz.ControlStructures.ControlSignature"/>
+		<!--<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>-->
+		<!--<exclude name="Squiz.Commenting.InlineComment"/>-->
+		<!--<exclude name="Generic.WhiteSpace.ScopeIndent"/>-->
+		<!--<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
+		<!--<exclude name="WordPress.WhiteSpace.OperatorSpacing"/>-->
+		<!--<exclude name="Squiz.ControlStructures.ControlSignature"/>-->
 		<!--<exclude name="WordPress.Arrays.ArrayDeclarationSpacing"/>-->
 		<!--<exclude name="WordPress.Arrays.ArrayKeySpacingRestrictions"/>-->
 		<!--<exclude name="WordPress.Arrays.MultipleStatementAlignment"/>-->
