@@ -9,7 +9,7 @@ class MainWP_Keyword_Links {
 	protected $link_temp;
 	protected $link_count_temp;
 	protected $link_count_each_temp;
-	protected $link_exact_match = 1;
+	protected $link_exact_match    = 1;
 	protected $link_case_sensitive = 1;
 
 	static function Instance() {
@@ -75,7 +75,7 @@ class MainWP_Keyword_Links {
 			$home_root = '/';
 		}
 
-		$rules = "<IfModule mod_rewrite.c>\n";
+		$rules  = "<IfModule mod_rewrite.c>\n";
 		$rules .= "RewriteEngine On\n";
 		$rules .= "RewriteBase $home_root\n";
 
@@ -453,7 +453,7 @@ class MainWP_Keyword_Links {
 		$regular_link = false;
 		if ( empty( $this->link_temp->cloak_path ) ) {
 			$regular_link = true;
-			$class .= ' kwl-regular-link';
+			$class       .= ' kwl-regular-link';
 		}
 
 		//return '{MAINWP_LINK HREF="' . ( $this->link_temp->cloak_path ? $this->siteurl . $redirection_folder . '/' . $this->link_temp->cloak_path : $this->link_temp->destination_url) . '" TARGET="' . $target . '" REL="' . $rel . '" LINK-ID="' . (isset($this->link_temp->id) ? $this->link_temp->id : 0) . '" CLASS="' . $class . '" TEXT="' . $matches[1] . '"}';
@@ -461,7 +461,7 @@ class MainWP_Keyword_Links {
 	}
 
 	public function keyword_replace( $matches ) {
-		$a = '<a href="' . $matches[1] . '"';
+		$a  = '<a href="' . $matches[1] . '"';
 		$a .= ( $matches[2] ) ? ' target="' . $matches[2] . '"' : '';
 		$a .= ( $matches[3] ) ? ' rel="' . $matches[3] . '"' : '';
 		$a .= ( $matches[4] ) ? ' link-id="' . $matches[4] . '"' : '';

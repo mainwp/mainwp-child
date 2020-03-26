@@ -2,7 +2,7 @@
 
 class MainWP_Child_WPvivid_BackupRestore {
 
-    public static $instance = null;
+    public static $instance     = null;
     public $is_plugin_installed = false;
     public $public_intetface;
     static function Instance() {
@@ -34,12 +34,12 @@ class MainWP_Child_WPvivid_BackupRestore {
         try {
 
             if ( isset( $data['syncWPvividData'] )) {
-                $information['syncWPvividData'] = 1;
-                $data = WPvivid_Setting::get_sync_data();
-                $information['syncWPvividSettingData'] = $data['setting'];
-                $information['syncWPvividRemoteData'] = $data['remote'];
+                $information['syncWPvividData']         = 1;
+                $data                                   = WPvivid_Setting::get_sync_data();
+                $information['syncWPvividSettingData']  = $data['setting'];
+                $information['syncWPvividRemoteData']   = $data['remote'];
                 $information['syncWPvividScheduleData'] = $data['schedule'];
-                $information['syncWPvividSetting'] = $data;
+                $information['syncWPvividSetting']      = $data;
             }
 
         } catch (Exception $e) {

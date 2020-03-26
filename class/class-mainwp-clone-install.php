@@ -665,7 +665,7 @@ class MainWP_Clone_Install {
 				$data = $_tmp;
 				unset( $_tmp );
 			} elseif ( is_object( $data ) ) {
-				$_tmp = $data;
+				$_tmp  = $data;
                 $props = get_object_vars( $data );
 				foreach ( $props as $key => $value ) {
 					$_tmp->{$key} = $this->recursive_unserialize_replace( $from, $to, $value, false );

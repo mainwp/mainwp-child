@@ -2,7 +2,7 @@
 
 class MainWP_Child_Server_Information {
 	const WARNING = 1;
-	const ERROR = 2;
+	const ERROR   = 2;
 
 	public static function init() {
 		add_action( 'wp_ajax_mainwp-child_dismiss_warnings', array(
@@ -35,7 +35,7 @@ class MainWP_Child_Server_Information {
 			return;
 		}
 
-		$warnings  = self::getWarnings();
+		$warnings = self::getWarnings();
 
 		$dismissWarnings = get_option( 'mainwp_child_dismiss_warnings' );
 		if ( ! is_array( $dismissWarnings ) ) {
@@ -544,10 +544,10 @@ class MainWP_Child_Server_Information {
 
 	public static function render() {
         $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-        $isBranding = true;
+        $isBranding     = true;
 		if ( $branding_title == '' ) {
             $branding_title = 'MainWP Child';
-            $isBranding = false;
+            $isBranding     = false;
 		}
 
 		?>
@@ -579,7 +579,7 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<?php
 			self::checkDirectoryMainWPDirectory();
-			$server       = get_option( 'mainwp_child_server' );
+			$server = get_option( 'mainwp_child_server' );
 			?>
 			<tr>
 				<td></td>
@@ -1134,9 +1134,9 @@ class MainWP_Child_Server_Information {
 
 	protected static function getSSLWarning() {
 		$conf = array( 'private_key_bits' => 2048 );
-		$str = '';
+		$str  = '';
 		if ( function_exists( 'openssl_pkey_new' ) ) {
-			$res  = @openssl_pkey_new( $conf );
+			$res = @openssl_pkey_new( $conf );
 			@openssl_pkey_export( $res, $privkey );
 
 			$str = openssl_error_string();
@@ -1328,15 +1328,15 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function serverSelfConnect() {
-		$url = site_url( 'wp-cron.php' );
-		$query_args = array( 'mainwp_child_run' => 'test' );
-		$url = add_query_arg( $query_args, $url );
-		$args = array(
+		$url         = site_url( 'wp-cron.php' );
+		$query_args  = array( 'mainwp_child_run' => 'test' );
+		$url         = add_query_arg( $query_args, $url );
+		$args        = array(
 			'blocking'        => true,
 			'sslverify'       => apply_filters( 'https_local_ssl_verify', true ),
 			'timeout'         => 15,
 		);
-		$response = wp_remote_post( $url, $args );
+		$response    = wp_remote_post( $url, $args );
 		$test_result = '';
 		if ( is_wp_error( $response ) ) {
 			$test_result .= sprintf( __( 'The HTTP response test get an error "%s"', 'mainwp-child' ), $response->get_error_message() );
@@ -1556,7 +1556,7 @@ class MainWP_Child_Server_Information {
 			// read them to $data and then move the file pointer
 			// back to where we were.
 			fseek( $fh, - $can_read, SEEK_CUR );
-			$data = fread( $fh, $can_read );
+			$data  = fread( $fh, $can_read );
 			$data .= $leftover;
 			fseek( $fh, - $can_read, SEEK_CUR );
 
@@ -1590,7 +1590,7 @@ class MainWP_Child_Server_Information {
 				if ( file_exists( ABSPATH . 'wp-config.php' ) ) {
 					@show_source( ABSPATH . 'wp-config.php' );
 				} else {
-					$files = @get_included_files();
+					$files       = @get_included_files();
 					$configFound = false;
 					if ( is_array( $files ) ) {
 						foreach ( $files as $file ) {
@@ -1634,7 +1634,7 @@ class MainWP_Child_Server_Information {
 
             global $current_user;
 	        $uniqueId = get_option('mainwp_child_uniqueId');
-            $details = array(
+            $details  = array(
                 'siteurl' => array(
 					'title' => __('Site URL', 'mainwp-child'),
 					'value' => get_bloginfo( 'url' ),

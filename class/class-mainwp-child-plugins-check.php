@@ -158,7 +158,7 @@ class MainWP_Child_Plugins_Check {
 		//See if this specific plugin is in the known list
 		if ( array_key_exists( $plugin_file, $plugin_info ) ) {
 			//Get now
-			$now = new \DateTime();
+			$now          = new \DateTime();
 			$last_updated = $plugin_info[ $plugin_file ]['last_updated'];
 
 			//Last updated is stored as timestamp, get a real date
@@ -216,7 +216,7 @@ class MainWP_Child_Plugins_Check {
 
 		$avoid_plugins = array( 'sitepress-multilingual-cms/sitepress.php' );
 		//Grab a small number of plugins to scan
-		$plugins_to_scan = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
+		$plugins_to_scan   = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
 		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		//Loop through each known plugin

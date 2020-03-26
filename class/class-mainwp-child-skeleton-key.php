@@ -2,9 +2,9 @@
 
 
 class MainWP_Child_Skeleton_Key {
-	public static $instance = null;
+	public static $instance    = null;
 	public static $information = array();
-	public $plugin_translate = 'mainwp-child';
+	public $plugin_translate   = 'mainwp-child';
 
 	static function Instance() {
 		if ( null === self::$instance ) {
@@ -70,20 +70,20 @@ class MainWP_Child_Skeleton_Key {
 		$secure = is_ssl();
 		if ( $secure ) {
 			$auth_cookie_name = SECURE_AUTH_COOKIE;
-			$scheme = 'secure_auth';
+			$scheme           = 'secure_auth';
 		} else {
 			$auth_cookie_name = AUTH_COOKIE;
-			$scheme = 'auth';
+			$scheme           = 'auth';
 		}
-		$auth_cookie   = wp_generate_auth_cookie( $current_user->ID, $expiration, $scheme, $token );
-		$logged_in_cookie = wp_generate_auth_cookie( $current_user->ID, $expiration, 'logged_in', $token );
-		$_COOKIE[ $auth_cookie_name ]      = $auth_cookie;
-		$_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in_cookie;
-		$post_args                = array();
-		$post_args['body']        = array();
-		$post_args['redirection'] = 5;
-		$post_args['decompress']  = false; // For gzinflate() data error bug
-		$post_args['cookies']     = array(
+		$auth_cookie                  = wp_generate_auth_cookie( $current_user->ID, $expiration, $scheme, $token );
+		$logged_in_cookie             = wp_generate_auth_cookie( $current_user->ID, $expiration, 'logged_in', $token );
+		$_COOKIE[ $auth_cookie_name ] = $auth_cookie;
+		$_COOKIE[ LOGGED_IN_COOKIE ]  = $logged_in_cookie;
+		$post_args                    = array();
+		$post_args['body']            = array();
+		$post_args['redirection']     = 5;
+		$post_args['decompress']      = false; // For gzinflate() data error bug
+		$post_args['cookies']         = array(
 			new WP_Http_Cookie( array(
 				'name'  => $auth_cookie_name,
 				'value' => $auth_cookie,

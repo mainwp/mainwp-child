@@ -18,7 +18,7 @@
 
 class MainWP_Child_Staging {
 
-    public static $instance = null;
+    public static $instance     = null;
     public $is_plugin_installed = false;
 
     static function Instance() {
@@ -158,7 +158,7 @@ class MainWP_Child_Staging {
 
     function save_settings() {
         $settings = $_POST['settings'];
-        $filters = array(
+        $filters  = array(
             'queryLimit',
             'fileLimit',
             'batchSize',
@@ -178,7 +178,7 @@ class MainWP_Child_Staging {
         $save_fields = array();
         foreach ($filters as $field) {
             if (isset($settings[ $field ])) {
-                $save_fields[ $field ]  = $settings[ $field ];
+                $save_fields[ $field ] = $settings[ $field ];
             }
         }
         update_option('wpstg_settings', $save_fields );
@@ -210,9 +210,9 @@ class MainWP_Child_Staging {
 
 
     public function ajaxCheckCloneName() {
-      $cloneName = sanitize_key( $_POST['cloneID'] );
+      $cloneName       = sanitize_key( $_POST['cloneID'] );
       $cloneNameLength = strlen( $cloneName );
-      $clones = get_option( 'wpstg_existing_clones_beta', array() );
+      $clones          = get_option( 'wpstg_existing_clones_beta', array() );
 
       // Check clone name length
       if ( $cloneNameLength < 1 || $cloneNameLength > 16 ) {
@@ -233,7 +233,7 @@ class MainWP_Child_Staging {
    public function ajaxStartClone() {
 
 	   $this->url = ''; // to fix warning
-      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+      $cloning    = new WPStaging\Backend\Modules\Jobs\Cloning();
 
       if ( ! $cloning->save() ) {
          return;
@@ -285,9 +285,9 @@ class MainWP_Child_Staging {
     */
    public function ajaxFinish() {
 
-      $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
-      $this->url = ''; // to fix warning
-      $return = $cloning->start();
+      $cloning              = new WPStaging\Backend\Modules\Jobs\Cloning();
+      $this->url            = ''; // to fix warning
+      $return               = $cloning->start();
       $return->blogInfoName = get_bloginfo('name');
 
       return $return;
@@ -300,7 +300,7 @@ class MainWP_Child_Staging {
 
       $delete = new WPStaging\Backend\Modules\Jobs\Delete();
       $delete->setData();
-      $clone = $delete->getClone();
+      $clone  = $delete->getClone();
       $result = array(
 		  'clone'        => $clone,
 		  'deleteTables' => $delete->getTables(),
@@ -383,11 +383,11 @@ class MainWP_Child_Staging {
             return '';
         }
 
-        $units  = array( 'B', 'KB', 'MB', 'GB', 'TB' );
+        $units = array( 'B', 'KB', 'MB', 'GB', 'TB' );
 
-        $bytes  = (float) $bytes;
-        $base   = log($bytes) / log(1000); // 1024 would be for MiB KiB etc
-        $pow    = pow(1000, $base - floor($base)); // Same rule for 1000
+        $bytes = (float) $bytes;
+        $base  = log($bytes) / log(1000); // 1024 would be for MiB KiB etc
+        $pow   = pow(1000, $base - floor($base)); // Same rule for 1000
 
         return round($pow, $precision) . ' ' . $units[ (int) floor($base) ];
     }

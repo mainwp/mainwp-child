@@ -15,19 +15,19 @@
 */
 
 class MainWP_Child_Wordfence {
-	public static $instance = null;
+	public static $instance        = null;
 	public $is_wordfence_installed = false;
-	public $plugin_translate = 'mainwp-child';
+	public $plugin_translate       = 'mainwp-child';
 
-    const OPTIONS_TYPE_GLOBAL = 'global';
-	const OPTIONS_TYPE_FIREWALL = 'firewall';
-	const OPTIONS_TYPE_BLOCKING = 'blocking';
-	const OPTIONS_TYPE_SCANNER = 'scanner';
-	const OPTIONS_TYPE_TWO_FACTOR = 'twofactor';
+    const OPTIONS_TYPE_GLOBAL       = 'global';
+	const OPTIONS_TYPE_FIREWALL     = 'firewall';
+	const OPTIONS_TYPE_BLOCKING     = 'blocking';
+	const OPTIONS_TYPE_SCANNER      = 'scanner';
+	const OPTIONS_TYPE_TWO_FACTOR   = 'twofactor';
 	const OPTIONS_TYPE_LIVE_TRAFFIC = 'livetraffic';
 	const OPTIONS_TYPE_COMMENT_SPAM = 'commentspam';
-	const OPTIONS_TYPE_DIAGNOSTICS = 'diagnostics';
-    const OPTIONS_TYPE_ALL = 'alloptions';
+	const OPTIONS_TYPE_DIAGNOSTICS  = 'diagnostics';
+    const OPTIONS_TYPE_ALL          = 'alloptions';
 
 	public static $options_filter = array(
 		'alertEmails',
@@ -541,7 +541,7 @@ class MainWP_Child_Wordfence {
             'learningModeGracePeriod',
         );
 
-        $scan_opts = array(
+        $scan_opts        = array(
             'scansEnabled_checkGSB', //paid
             'spamvertizeCheck', //paid
             'checkSpamIP', // paid
@@ -689,7 +689,7 @@ return;
         $table_wfStatus = wfDB::networkTable('wfStatus');
 
         // to fix prepare sql empty
-        $sql = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
+        $sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
         $sql .= " 'Scan Complete.%';";
         $rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
 
@@ -703,11 +703,11 @@ return;
         if ($scan_time) {
             $message = 'Wordfence scan completed';
             foreach ($scan_time as $ctime => $details) {
-                $sql = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg
+                $sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg
                 $sql .= " 'SUM_FINAL:Scan complete.%';";
 
                 $sum_rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
-                $result = '';
+                $result   = '';
                 if ($sum_rows) {
                     $sum_row = MainWP_Child_DB::fetch_array( $sum_rows );
                     if (is_array($sum_row) && isset($sum_row['msg'])) {
@@ -770,7 +770,7 @@ return;
 		$information = array();
 		$wfLog       = wordfence::getLog();
 		if ( $wfLog ) {
-			$information['events']  = $wfLog->getStatusEvents( 0 );
+			$information['events'] = $wfLog->getStatusEvents( 0 );
 
             if (method_exists($wfLog, 'getSummaryEvents')) {
                 $information['summary'] = $wfLog->getSummaryEvents();
@@ -791,10 +791,10 @@ return;
     // not used
 	public function load_issues() {
 		$offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
-		$limit = isset($_POST['limit']) ? intval($_POST['limit']) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
+		$limit  = isset($_POST['limit']) ? intval($_POST['limit']) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
 
-		$i = new wfIssues();
-		$iss = $i->getIssues($offset, $limit);
+		$i      = new wfIssues();
+		$iss    = $i->getIssues($offset, $limit);
 		$counts = $i->getIssueCounts();
 
 		return array(
@@ -814,10 +814,10 @@ return;
 
     public static function ajax_loadIssues_callback() {
 		$offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
-		$limit = isset($_POST['limit']) ? intval($_POST['limit']) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
+		$limit  = isset($_POST['limit']) ? intval($_POST['limit']) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
 
-		$i = new wfIssues();
-		$iss = $i->getIssues($offset, $limit);
+		$i      = new wfIssues();
+		$iss    = $i->getIssues($offset, $limit);
 		$counts = $i->getIssueCounts();
 		$return = array(
 			'issuesLists'        => $iss,
@@ -844,7 +844,7 @@ return;
 		);
 
         if (class_exists('wfFirewall')) {
-            $firewall = new wfFirewall();
+            $firewall                             = new wfFirewall();
             $return['isSubDirectoryInstallation'] = $firewall->isSubDirectoryInstallation();
         }
         return $return;
@@ -853,7 +853,7 @@ return;
     public function count_attacks_blocked( $maxAgeDays) {
             global $wpdb;
             $table_wfBlockedIPLog = wfDB::networkTable('wfBlockedIPLog');
-            $interval = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
+            $interval             = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
             return $wpdb->get_var(<<<SQL
 SELECT SUM(blockCount) as blockCount
 FROM {$table_wfBlockedIPLog}
@@ -864,9 +864,9 @@ SQL
 
 
 	function get_lastscan() {
-		$wfdb = new wfDB();
+		$wfdb           = new wfDB();
         $table_wfStatus = wfDB::networkTable('wfStatus');
-		$ctime = $wfdb->querySingle("SELECT MAX(ctime) FROM {$table_wfStatus} WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'");
+		$ctime          = $wfdb->querySingle("SELECT MAX(ctime) FROM {$table_wfStatus} WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'");
 		return $ctime;
 	}
 
@@ -888,8 +888,8 @@ SQL
 
     function updateIssueStatus() {
         $wfIssues = new wfIssues();
-		$status = $_POST['status'];
-		$issueID = $_POST['id'];
+		$status   = $_POST['status'];
+		$issueID  = $_POST['id'];
 		if ( ! preg_match('/^(?:new|delete|ignoreP|ignoreC)$/', $status)) {
 			return array( 'errorMsg' => 'An invalid status was specified when trying to update that issue.' );
 		}
@@ -1108,10 +1108,10 @@ SQL
 		for ( $i = 0; $i < strlen($string); $i++) {
 			$c = ord(substr($string, $i));
 			if ($action == 'encrypt') {
-				$c += ord(substr($key, ( ( $i + 1 ) % strlen($key) )));
+				$c   += ord(substr($key, ( ( $i + 1 ) % strlen($key) )));
 				$res .= chr($c & 0xFF);
 			} else {
-				$c -= ord(substr($key, ( ( $i + 1 ) % strlen($key) )));
+				$c   -= ord(substr($key, ( ( $i + 1 ) % strlen($key) )));
 				$res .= chr(abs($c) & 0xFF);
 			}
 		}
@@ -1129,15 +1129,15 @@ SQL
 			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 		}
 
-        $section = isset($_POST['savingSection']) ? $_POST['savingSection'] : '';
+        $section     = isset($_POST['savingSection']) ? $_POST['savingSection'] : '';
         $saving_opts = self::getSectionSettings($section);
 
-        $result       = array();
+        $result = array();
 
         if ( is_array( $settings ) && count( $settings ) > 0 && count($saving_opts) > 0 ) {
 
-			$reload       = '';
-			$opts         = $settings;
+			$reload = '';
+			$opts   = $settings;
 
             // if saving then validate data
             if (in_array('liveTraf_ignoreUsers', $saving_opts)) {
@@ -1169,7 +1169,7 @@ SQL
             // if saving then validate data
             if (in_array('other_WFNet', $saving_opts)) {
                 if ( ! $opts['other_WFNet'] ) {
-                    $wfdb = new wfDB();
+                    $wfdb            = new wfDB();
                     $table_wfBlocks7 = wfDB::networkTable('wfBlocks7');
                     $wfdb->queryWrite( "delete from {$table_wfBlocks7} where wfsn=1 and permanent=0" );
                 }
@@ -1291,8 +1291,8 @@ SQL
             // if saving then validate data
             if (in_array('apiKey', $saving_opts)) {
 
-                    $apiKey               = trim( $_POST['apiKey'] );
-					$apiKey = strtolower(trim($apiKey));
+                    $apiKey         = trim( $_POST['apiKey'] );
+					$apiKey         = strtolower(trim($apiKey));
 					$existingAPIKey = wfConfig::get('apiKey', '');
 
 					$ping = false;
@@ -1345,7 +1345,7 @@ SQL
                                     $result['paidKeyMsg'] = true;
                                 }
 
-								$ping = true;
+								$ping   = true;
                                 $reload = 'reload';
                             } else {
                                 throw new Exception( 'We could not understand the Wordfence API server reply when updating your API key.' );
@@ -1355,7 +1355,7 @@ SQL
                             return $result;
                         }
                     } else {
-						$ping = true;
+						$ping   = true;
 						$apiKey = $existingAPIKey;
 					}
 
@@ -1393,7 +1393,7 @@ SQL
 							wfConfig::set('keyType', $keyType);
 
 							if ( ! isset($result['apiKey'])) {
-								$isPaid = ( $keyType == wfAPI::KEY_TYPE_FREE ) ? false : true;
+								$isPaid           = ( $keyType == wfAPI::KEY_TYPE_FREE ) ? false : true;
 								$result['apiKey'] = $apiKey;
 								$result['isPaid'] = $isPaid;
 								if ( $isPaid ) {
@@ -1460,7 +1460,7 @@ SQL
 			}
 
 			if ( ! $opts['other_WFNet'] ) {
-				$wfdb = new wfDB();
+				$wfdb            = new wfDB();
                 $table_wfBlocks7 = wfDB::networkTable('wfBlocks7');
 				$wfdb->queryWrite( "delete from {$table_wfBlocks7} where wfsn=1 and permanent=0" );
 			}
@@ -1622,13 +1622,13 @@ SQL
 			$res = $api->call('import_options', array(), array( 'token' => $token ));
 			if ($res['ok'] && $res['export']) {
 				$totalSet = 0;
-				$import = @json_decode($res['export'], true);
+				$import   = @json_decode($res['export'], true);
 				if ( ! is_array($import)) {
 					return array( 'errorImport' => __('An error occurred: Invalid options format received.', 'wordfence') );
 				}
 
 				//Basic Options
-				$keys = wfConfig::getExportableOptionsKeys();
+				$keys  = wfConfig::getExportableOptionsKeys();
 				$toSet = array();
 				foreach ($keys as $key) {
 					if (isset($import[ $key ])) {
@@ -1638,7 +1638,7 @@ SQL
 
 				if (count($toSet)) {
 					$validation = wfConfig::validate($toSet);
-					$skipped = array();
+					$skipped    = array();
 					if ($validation !== true) {
 						foreach ($validation as $error) {
 							$skipped[ $error['option'] ] = $error['error'];
@@ -1679,7 +1679,7 @@ SQL
 	}
 
 	function get_settings() {
-		$keys = wfConfig::getExportableOptionsKeys();
+		$keys     = wfConfig::getExportableOptionsKeys();
 		$settings = array();
 		foreach ($keys as $key) {
 			$settings[ $key ] = wfConfig::get($key, '');
@@ -1696,14 +1696,14 @@ SQL
 
         $table_wfStatus = wfDB::networkTable('wfStatus');
 
-		$jsonData   = array(
+		$jsonData = array(
 			'serverTime'      => $serverTime,
             'serverMicrotime' => microtime(true),
             'msg'             => $wfdb->querySingle( "select msg from {$table_wfStatus} where level < 3 order by ctime desc limit 1" ),
 		);
 
-		$events     = array();
-		$alsoGet    = $_POST['alsoGet'];
+		$events  = array();
+		$alsoGet = $_POST['alsoGet'];
 		if ( preg_match( '/^logList_(404|hit|human|ruser|crawler|gCrawler|loginLogout)$/', $alsoGet, $m ) ) {
 			$type            = $m[1];
 			$newestEventTime = $_POST['otherParams'];
@@ -1720,7 +1720,7 @@ SQL
 				wordfence::syncAttackData(false);
 			}
 			$results = wordfence::ajax_loadLiveTraffic_callback();
-			$events = $results['data'];
+			$events  = $results['data'];
 			if (isset($results['sql'])) {
 				$jsonData['sql'] = $results['sql'];
 			}
@@ -1732,10 +1732,10 @@ SQL
 	}
 
     public static function loadLiveTraffic() {
-        $wfdb = new wfDB();
-        $serverTime = $wfdb->querySingle( 'select unix_timestamp()' );
-        $return = wordfence::ajax_loadLiveTraffic_callback();
-        $return['serverTime'] = $serverTime;
+        $wfdb                      = new wfDB();
+        $serverTime                = $wfdb->querySingle( 'select unix_timestamp()' );
+        $return                    = wordfence::ajax_loadLiveTraffic_callback();
+        $return['serverTime']      = $serverTime;
         $return['serverMicrotime'] = microtime(true);
         return $return;
     }
@@ -1846,17 +1846,17 @@ SQL
         // end if custom
 
 		$data['learningMode'] = wfWAF::getInstance()->isInLearningMode();
-		$data['rules'] = wfWAF::getInstance()->getRules();
+		$data['rules']        = wfWAF::getInstance()->getRules();
 		/** @var wfWAFRule $rule */
 		foreach ($data['rules'] as $ruleID => $rule) {
 			$data['rules'][ $ruleID ] = $rule->toArray();
 		}
 
-		$whitelistedURLParams = wfWAF::getInstance()->getStorageEngine()->getConfig('whitelistedURLParams', array());
+		$whitelistedURLParams         = wfWAF::getInstance()->getStorageEngine()->getConfig('whitelistedURLParams', array());
 		$data['whitelistedURLParams'] = array();
 		foreach ($whitelistedURLParams as $urlParamKey => $rules) {
 			list($path, $paramKey) = explode('|', $urlParamKey);
-			$whitelistData = null;
+			$whitelistData         = null;
 			foreach ($rules as $ruleID => $whitelistedData) {
 				if ($whitelistData === null) {
 					$whitelistData = $whitelistedData;
@@ -2078,7 +2078,7 @@ SQL
 
 		$cacheType = $_POST['cacheType'];
 		if ($cacheType == 'falcon' || $cacheType == 'php') {
-			$plugins = get_plugins();
+			$plugins    = get_plugins();
 			$badPlugins = array();
 			foreach ($plugins as $pluginFile => $data) {
 				if (is_plugin_active($pluginFile)) {
@@ -2110,7 +2110,7 @@ SQL
 		}
 		$warnHtaccess = false;
 		if ($cacheType == 'disable' || $cacheType == 'php') {
-			$removeError = wfCache::addHtaccessCode('remove');
+			$removeError  = wfCache::addHtaccessCode('remove');
 			$removeError2 = wfCache::updateBlockedIPs('remove');
 			if ($removeError || $removeError2) {
 				$warnHtaccess = true;
@@ -2371,9 +2371,9 @@ SQL
 		if ( ! $ex) {
 			return array( 'ok' => 1 );
 		}
-		$ex = unserialize($ex);
+		$ex              = unserialize($ex);
 		$rewriteHtaccess = false;
-		$removed = false;
+		$removed         = false;
 		for ($i = 0; $i < sizeof($ex); $i++) {
 			if ( (string) $ex[ $i ]['id'] == (string) $id) {
 				if (wfConfig::get('cacheType', false) == 'falcon' && preg_match('/^(?:uac|uaeq|cc)$/', $ex[ $i ]['pt'])) {
@@ -2402,14 +2402,14 @@ SQL
 
 	public function getDiagnostics() {
 
-		$diagnostic = new wfDiagnostic();
-		$plugins = get_plugins();
-		$activePlugins = array_flip(get_option('active_plugins'));
+		$diagnostic           = new wfDiagnostic();
+		$plugins              = get_plugins();
+		$activePlugins        = array_flip(get_option('active_plugins'));
 		$activeNetworkPlugins = is_multisite() ? array_flip(wp_get_active_network_plugins()) : array();
-		$muPlugins = get_mu_plugins();
-		$themes = wp_get_themes();
-		$currentTheme = wp_get_theme();
-		$cols = 3;
+		$muPlugins            = get_mu_plugins();
+		$themes               = wp_get_themes();
+		$currentTheme         = wp_get_theme();
+		$cols                 = 3;
 
 		$w = new wfConfig();
 
@@ -2422,7 +2422,7 @@ SQL
 	<form id="wfConfigForm" style="overflow-x: auto;">
 		<?php
         foreach ($diagnostic->getResults() as $title => $tests) :
-			$key = sanitize_key('wf-diagnostics-' . $title);
+			$key            = sanitize_key('wf-diagnostics-' . $title);
 			$hasFailingTest = false;
 			foreach ($tests['results'] as $result) {
 				if ( ! $result['test']) {
@@ -2511,9 +2511,9 @@ SQL
 
 		<?php endforeach ?>
 		<?php
-		$howGet = wfConfig::get('howGetIPs', false);
+		$howGet                                  = wfConfig::get('howGetIPs', false);
 		list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVariable();
-		$howGetHasErrors = false;
+		$howGetHasErrors                         = false;
 		foreach (array(
 			'REMOTE_ADDR'           => 'REMOTE_ADDR',
 			'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',
@@ -2550,7 +2550,7 @@ SQL
 					</tbody>
 					<tbody>
 					<?php
-					$howGet = wfConfig::get('howGetIPs', false);
+					$howGet                                  = wfConfig::get('howGetIPs', false);
 					list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVariable();
 					foreach (array(
 						'REMOTE_ADDR'           => 'REMOTE_ADDR',
@@ -2567,10 +2567,10 @@ SQL
 									echo '(not set)';
 								} else {
 									if (strpos($_SERVER[ $variable ], ',') !== false) {
-										$trustedProxies = explode("\n", wfConfig::get('howGetIPs_trusted_proxies', ''));
-										$items = preg_replace('/[\s,]/', '', explode(',', $_SERVER[ $variable ]));
-										$items = array_reverse($items);
-										$output = '';
+										$trustedProxies        = explode("\n", wfConfig::get('howGetIPs_trusted_proxies', ''));
+										$items                 = preg_replace('/[\s,]/', '', explode(',', $_SERVER[ $variable ]));
+										$items                 = array_reverse($items);
+										$output                = '';
 										$markedSelectedAddress = false;
 										foreach ($items as $index => $i) {
 											foreach ($trustedProxies as $proxy) {
@@ -2583,7 +2583,7 @@ SQL
 											}
 
 											if ( ! $markedSelectedAddress) {
-												$output = '<strong>' . esc_html($i) . '</strong>, ' . $output;
+												$output                = '<strong>' . esc_html($i) . '</strong>, ' . $output;
 												$markedSelectedAddress = true;
 											} else {
 												$output = esc_html($i) . ', ' . $output;
@@ -2629,7 +2629,7 @@ SQL
 					<tbody>
 					<?php
 					require ABSPATH . 'wp-includes/version.php';
-					$postRevisions = ( defined('WP_POST_REVISIONS') ? WP_POST_REVISIONS : true );
+					$postRevisions   = ( defined('WP_POST_REVISIONS') ? WP_POST_REVISIONS : true );
 					$wordPressValues = array(
 						'WordPress Version'            => array(
 							'description' => '',
@@ -2780,9 +2780,9 @@ SQL
 					);
 
 					foreach ($wordPressValues as $settingName => $settingData) :
-						$escapedName = esc_html($settingName);
+						$escapedName        = esc_html($settingName);
 						$escapedDescription = '';
-						$escapedValue = '(not set)';
+						$escapedValue       = '(not set)';
 						if (is_array($settingData)) {
 							$escapedDescription = esc_html($settingData['description']);
 							if (isset($settingData['value'])) {
@@ -2964,7 +2964,7 @@ SQL
 		$wfdb = new wfDB();
 		//This must be done this way because MySQL with InnoDB tables does a full regeneration of all metadata if we don't. That takes a long time with a large table count.
 		$tables = $wfdb->querySelect('SELECT SQL_CALC_FOUND_ROWS TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME ASC LIMIT 250');
-		$total = $wfdb->querySingle('SELECT FOUND_ROWS()');
+		$total  = $wfdb->querySingle('SELECT FOUND_ROWS()');
 		foreach ($tables as &$t) {
 			$t = "'" . esc_sql($t['TABLE_NAME']) . "'";
 		}

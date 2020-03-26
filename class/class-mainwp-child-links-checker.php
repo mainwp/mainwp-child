@@ -15,7 +15,7 @@
 
 class MainWP_Child_Links_Checker {
 
-	public static $instance = null;
+	public static $instance     = null;
     public $is_plugin_installed = false;
 
 	static function Instance() {
@@ -114,8 +114,8 @@ class MainWP_Child_Links_Checker {
 	}
 
 	function save_settings() {
-		$information           = array();
-		$check_threshold   = intval( $_POST['check_threshold'] );
+		$information     = array();
+		$check_threshold = intval( $_POST['check_threshold'] );
 		if ( $check_threshold > 0 ) {
 			$conf                             = blc_get_configuration();
 			$conf->options['check_threshold'] = $check_threshold;
@@ -245,16 +245,16 @@ return;
         MainWP_Helper::check_classes_exists('blcLinkQuery');
         MainWP_Helper::check_methods('blcLinkQuery', 'getInstance');
 
-		$blc_link_query      = blcLinkQuery::getInstance();
+		$blc_link_query = blcLinkQuery::getInstance();
 
         MainWP_Helper::check_methods($blc_link_query, 'get_filter_links');
 
-		$total         = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
+		$total = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 
 		$max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 50;
-		$offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+		$offset      = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
 
-		$params      = array(
+		$params = array(
 			array( 'load_instances' => true ),
 			'max_results' => $max_results,
 		);
@@ -282,9 +282,9 @@ return;
 		if ($total > $offset + $max_results ) {
 			$information['sync_offset'] = $offset + $max_results;
 		} else {
-			$information['last_sync'] = 1;
+			$information['last_sync']  = 1;
 			$information['total_sync'] = $total_sync;
-			$information['data'] = $this->get_count_links();
+			$information['data']       = $this->get_count_links();
 		}
 
 		$information['result'] = 'success';
@@ -307,16 +307,16 @@ return;
         MainWP_Helper::check_classes_exists('blcLinkQuery');
         MainWP_Helper::check_methods('blcLinkQuery', 'getInstance');
 
-		$data = array();
-		$blc_link_query      = blcLinkQuery::getInstance();
+		$data           = array();
+		$blc_link_query = blcLinkQuery::getInstance();
 
         MainWP_Helper::check_methods($blc_link_query, 'get_filter_links');
 
-		$data['broken']      = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
-		$data['redirects']   = $blc_link_query->get_filter_links( 'redirects', array( 'count_only' => true ) );
-		$data['dismissed']   = $blc_link_query->get_filter_links( 'dismissed', array( 'count_only' => true ) );
+		$data['broken']    = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
+		$data['redirects'] = $blc_link_query->get_filter_links( 'redirects', array( 'count_only' => true ) );
+		$data['dismissed'] = $blc_link_query->get_filter_links( 'dismissed', array( 'count_only' => true ) );
 		$data['warning']   = $blc_link_query->get_filter_links( 'warning', array( 'count_only' => true ) );
-		$data['all']         = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
+		$data['all']       = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 		return $data;
 	}
 
@@ -325,7 +325,7 @@ return;
         MainWP_Helper::check_functions('blc_get_links');
         MainWP_Helper::check_classes_exists('blcLink');
 
-		$links      = blc_get_links( $params );
+		$links = blc_get_links( $params );
 
 		$filter_fields = array(
 			'link_id',
@@ -351,7 +351,7 @@ return;
 			'status_code',
 			'log',
 		);
-		$return     = array();
+		$return        = array();
 
 		$blc_option = get_option( 'wsblc_options' );
 
@@ -384,7 +384,7 @@ return;
 					}
 				}
 				$extra_info['days_broken'] = $days_broken;
-				$instances = false;
+				$instances                 = false;
 
 				$get_link = new blcLink( intval( $link->link_id ) );
 				if ( $get_link->valid() ) {
@@ -393,13 +393,13 @@ return;
 				}
 
 				if ( ! empty( $instances ) ) {
-                    $first_instance      = reset( $instances );
+                    $first_instance = reset( $instances );
 
                     MainWP_Helper::check_methods($first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable' ) );
 
-					$new_link->link_text = $first_instance->ui_get_link_text();
+					$new_link->link_text          = $first_instance->ui_get_link_text();
 					$extra_info['count_instance'] = count( $instances );
-					$container           = $first_instance->get_container();
+					$container                    = $first_instance->get_container();
 
 					/** @var blcContainer $container */
 
@@ -407,8 +407,8 @@ return;
                         if (true === MainWP_Helper::check_properties($first_instance, array( 'container_field' ), true )) {
                             if (true === MainWP_Helper::check_properties($container, array( 'container_type', 'container_id' ), true )) {
                                 $extra_info['container_type'] = $container->container_type;
-                                $extra_info['container_id'] = $container->container_id;
-                                $extra_info['source_data'] = $this->ui_get_source( $container, $first_instance->container_field );
+                                $extra_info['container_id']   = $container->container_id;
+                                $extra_info['source_data']    = $this->ui_get_source( $container, $first_instance->container_field );
                             }
                         }
 					}
@@ -438,15 +438,15 @@ return;
 						$data_link_text = esc_attr( $link_text );
 					}
 					$extra_info['data_link_text'] = $data_link_text;
-					$extra_info['can_edit_url'] = $can_edit_url;
-					$extra_info['can_edit_text'] = $can_edit_text;
+					$extra_info['can_edit_url']   = $can_edit_url;
+					$extra_info['can_edit_text']  = $can_edit_text;
 				} else {
-					$new_link->link_text = '';
+					$new_link->link_text          = '';
 					$extra_info['count_instance'] = 0;
 				}
 				$new_link->extra_info = base64_encode(serialize($extra_info));
-				$new_link->synced = 1;
-				$return[] = $new_link;
+				$new_link->synced     = 1;
+				$return[]             = $new_link;
 			}
 		} else {
 			return array();
