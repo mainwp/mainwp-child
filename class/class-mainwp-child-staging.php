@@ -36,7 +36,7 @@ class MainWP_Child_Staging {
             $this->is_plugin_installed = true;
 		}
 
-        if (!$this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed) {
             return;
         }
 
@@ -49,7 +49,7 @@ class MainWP_Child_Staging {
             return;
         }
 
-        if (!$this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed) {
             return;
         }
 
@@ -63,9 +63,9 @@ class MainWP_Child_Staging {
 
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncWPStaging'] ) && $data['syncWPStaging'] ) {
-            try{
+            try {
                 $information['syncWPStaging'] = $this->get_sync_data();
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 // do not exit
             }
         }
@@ -77,11 +77,11 @@ class MainWP_Child_Staging {
     }
 
     public function action() {
-            if (!$this->is_plugin_installed) {
+            if ( ! $this->is_plugin_installed) {
                  MainWP_Helper::write( array( 'error' => 'Please install WP Staging plugin on child website' ) );
             }
 
-            if (!class_exists( 'WPStaging\WPStaging' )){
+            if ( ! class_exists( 'WPStaging\WPStaging' )) {
                 require_once WPSTG_PLUGIN_DIR . 'apps/Core/WPStaging.php';
             }
              \WPStaging\WPStaging::getInstance();
@@ -176,7 +176,7 @@ class MainWP_Child_Staging {
         );
 
         $save_fields = array();
-        foreach($filters as $field) {
+        foreach ($filters as $field) {
             if (isset($settings[ $field ])) {
                 $save_fields[ $field ]  = $settings[ $field ];
             }
@@ -187,7 +187,7 @@ class MainWP_Child_Staging {
 
     public function get_overview() {
         $return = array(
-            'availableClones' =>  get_option( 'wpstg_existing_clones_beta', array()),
+            'availableClones' => get_option( 'wpstg_existing_clones_beta', array()),
         );
         return $return;
     }
@@ -215,12 +215,12 @@ class MainWP_Child_Staging {
       $clones = get_option( 'wpstg_existing_clones_beta', array() );
 
       // Check clone name length
-      if( $cloneNameLength < 1 || $cloneNameLength > 16 ) {
+      if ( $cloneNameLength < 1 || $cloneNameLength > 16 ) {
          echo array(
              'status'  => 'failed',
              'message' => 'Clone name must be between 1 - 16 characters',
          );
-      } elseif( array_key_exists( $cloneName, $clones ) ) {
+      } elseif ( array_key_exists( $cloneName, $clones ) ) {
          return array(
              'status'  => 'failed',
              'message' => 'Clone name is already in use, please choose an another clone name',
@@ -235,7 +235,7 @@ class MainWP_Child_Staging {
 	   $this->url = ''; // to fix warning
       $cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
 
-      if( !$cloning->save() ) {
+      if ( ! $cloning->save() ) {
          return;
       }
 
@@ -334,7 +334,7 @@ class MainWP_Child_Staging {
 
 		$cloning = new WPStaging\Backend\Modules\Jobs\Updating();
 
-		if( !$cloning->save() ) {
+		if ( ! $cloning->save() ) {
 		   return;
 		}
 
@@ -350,11 +350,11 @@ class MainWP_Child_Staging {
 
     // from wp-staging plugin
     public function hasFreeDiskSpace() {
-      if( !function_exists( 'disk_free_space' ) ) {
+      if ( ! function_exists( 'disk_free_space' ) ) {
          return null;
       }
       $freeSpace = @disk_free_space( ABSPATH );
-      if( false === $freeSpace ) {
+      if ( false === $freeSpace ) {
          $data = array(
              'freespace' => false,
              'usedspace' => $this->formatSize($this->getDirectorySizeInclSubdirs(ABSPATH)),
@@ -379,8 +379,7 @@ class MainWP_Child_Staging {
 
     // from wp-staging plugin
     public function formatSize( $bytes, $precision = 2) {
-        if ( (float) $bytes < 1)
-        {
+        if ( (float) $bytes < 1) {
             return '';
         }
 
@@ -424,7 +423,7 @@ class MainWP_Child_Staging {
 			return $value;
 		}
 
-        if (! MainWP_Helper::is_screen_with_update()) {
+        if ( ! MainWP_Helper::is_screen_with_update()) {
             return $value;
         }
 

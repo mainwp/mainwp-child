@@ -34,7 +34,7 @@ class MainWP_Child_Pagespeed {
 			$this->is_plugin_installed = true;
 		}
 
-        if (!$this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed) {
             return;
         }
 
@@ -76,7 +76,7 @@ class MainWP_Child_Pagespeed {
 	}
 
 	public function init() {
-        if (!$this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed) {
             return;
         }
 
@@ -128,7 +128,7 @@ class MainWP_Child_Pagespeed {
 	public function hide_menu() {
 		global $submenu;
 		if (isset($submenu['tools.php'])) {
-			foreach($submenu['tools.php'] as $key => $menu) {
+			foreach ($submenu['tools.php'] as $key => $menu) {
 				if ($menu[2] == 'google-pagespeed-insights') {
 					unset($submenu['tools.php'][ $key ]);
 					break;
@@ -257,7 +257,7 @@ class MainWP_Child_Pagespeed {
 
 
 	function check_pages() {
-		if (isset($_POST['force_recheck']) && !empty($_POST['force_recheck'])) {
+		if (isset($_POST['force_recheck']) && ! empty($_POST['force_recheck'])) {
 			$recheck = true;
 		} else {
 			$recheck = false;
@@ -286,9 +286,9 @@ class MainWP_Child_Pagespeed {
 
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {
-            try{
+            try {
                 $information['syncPageSpeedData'] = $this->get_sync_data();
-            } catch(Exception $e) {
+            } catch (Exception $e) {
 
             }
         }
@@ -312,7 +312,7 @@ class MainWP_Child_Pagespeed {
 
 		if ( 'both' === $strategy || 'desktop' === $strategy ) {
 			$result                        = self::cal_pagespeed_data( 'desktop' );
-            if ( !empty($result) && is_array($result) ) {
+            if ( ! empty($result) && is_array($result) ) {
                 $data['desktop_score']         = $result['average_score'];
                 $data['desktop_total_pages']   = $result['total_pages'];
                 $data['desktop_last_modified'] = $result['last_modified'];
@@ -320,7 +320,7 @@ class MainWP_Child_Pagespeed {
 		}
 		if ( 'both' === $strategy || 'mobile' === $strategy ) {
 			$result                       = self::cal_pagespeed_data( 'mobile' );
-            if ( !empty($result) && is_array($result) ) {
+            if ( ! empty($result) && is_array($result) ) {
                 $data['mobile_score']         = $result['average_score'];
                 $data['mobile_total_pages']   = $result['total_pages'];
                 $data['mobile_last_modified'] = $result['last_modified'];
@@ -441,56 +441,54 @@ class MainWP_Child_Pagespeed {
 	static function get_filter_options( $restrict_type = 'all') {
 
 		$types = array();
-		$gpi_options =  get_option('gpagespeedi_options');
+		$gpi_options = get_option('gpagespeedi_options');
 		$typestocheck = array();
 
-		if($gpi_options['check_pages']) {
-			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'pages') {
+		if ($gpi_options['check_pages']) {
+			if ($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'pages') {
 				$typestocheck[] = 'type = %s';
 				$types[1][] = 'page';
 			}
 		}
 
-		if($gpi_options['check_posts']) {
-			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'posts') {
+		if ($gpi_options['check_posts']) {
+			if ($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'posts') {
 				$typestocheck[] = 'type = %s';
 				$types[1][] = 'post';
 			}
 		}
 
-		if($gpi_options['check_categories']) {
-			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'categories') {
+		if ($gpi_options['check_categories']) {
+			if ($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'categories') {
 				$typestocheck[] = 'type = %s';
 				$types[1][] = 'category';
 			}
 		}
-		if($gpi_options['cpt_whitelist']) {
-			if($restrict_type == 'all' || $restrict_type == 'ignored' || stristr($restrict_type, 'gpi_custom_posts')) {
+		if ($gpi_options['cpt_whitelist']) {
+			if ($restrict_type == 'all' || $restrict_type == 'ignored' || stristr($restrict_type, 'gpi_custom_posts')) {
 
 				$cpt_whitelist_arr = false;
-				if(!empty($gpi_options['cpt_whitelist'])) {
+				if ( ! empty($gpi_options['cpt_whitelist'])) {
 					$cpt_whitelist_arr = unserialize($gpi_options['cpt_whitelist']);
 				}
-				$args=array(
+				$args = array(
 					'public'   => true,
 					'_builtin' => false,
 				);
 				$custom_post_types = get_post_types($args, 'names', 'and');
-				if($restrict_type != 'gpi_custom_posts' && $restrict_type != 'all' && $restrict_type != 'ignored') {
+				if ($restrict_type != 'gpi_custom_posts' && $restrict_type != 'all' && $restrict_type != 'ignored') {
 					$restrict_type = str_replace('gpi_custom_posts-', '', $restrict_type);
-					foreach($custom_post_types as $post_type)
-					{
-						if($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
-							if($post_type == $restrict_type) {
+					foreach ($custom_post_types as $post_type) {
+						if ($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
+							if ($post_type == $restrict_type) {
 								$typestocheck[] = 'type = %s';
 								$types[1][] = $custom_post_types[ $post_type ];
 							}
 						}
 					}
 				} else {
-					foreach($custom_post_types as $post_type)
-					{
-						if($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
+					foreach ($custom_post_types as $post_type) {
+						if ($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
 							$typestocheck[] = 'type = %s';
 							$types[1][] = $custom_post_types[ $post_type ];
 						}
@@ -518,15 +516,13 @@ class MainWP_Child_Pagespeed {
 			}
 		}
 
-		if(!empty($typestocheck)) {
+		if ( ! empty($typestocheck)) {
 			$types[0] = '';
-			foreach($typestocheck as $type)
-			{
-				if(!is_array($type)) {
+			foreach ($typestocheck as $type) {
+				if ( ! is_array($type)) {
 					$types[0] .= $type . ' OR ';
 				} else {
-					foreach($type as $custom_post_type)
-					{
+					foreach ($type as $custom_post_type) {
 						$types[0] .= 'type = %s OR ';
 						$types[1][] = $custom_post_type;
 					}

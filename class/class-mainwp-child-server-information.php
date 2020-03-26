@@ -1336,13 +1336,13 @@ class MainWP_Child_Server_Information {
 			'sslverify'       => apply_filters( 'https_local_ssl_verify', true ),
 			'timeout'         => 15,
 		);
-		$response =  wp_remote_post( $url, $args );
+		$response = wp_remote_post( $url, $args );
 		$test_result = '';
 		if ( is_wp_error( $response ) ) {
 			$test_result .= sprintf( __( 'The HTTP response test get an error "%s"', 'mainwp-child' ), $response->get_error_message() );
 		}
 		$response_code = wp_remote_retrieve_response_code( $response );
-		if ( $response_code < 200  && $response_code > 204 ) {
+		if ( $response_code < 200 && $response_code > 204 ) {
 			$test_result .= sprintf( __( 'The HTTP response test get a false http status (%s)', 'mainwp-child' ), wp_remote_retrieve_response_code( $response ) );
 		} else {
 			$response_body = wp_remote_retrieve_body( $response );
@@ -1602,7 +1602,7 @@ class MainWP_Child_Server_Information {
 						}
 					}
 
-					if ( !$configFound ) {
+					if ( ! $configFound ) {
 						_e( 'wp-config.php not found', 'mainwp' );
 					}
 				}
@@ -1652,12 +1652,12 @@ class MainWP_Child_Server_Information {
 				),
                 'uniqueid' => array(
 					'title' => __('Child unique security id', 'mainwp-child'),
-					'value' => !empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
+					'value' => ! empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
 					'desc'  => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child'), stripslashes( $branding_title ) ),
 				),
                 'verify_ssl' => array(
 					'title' => __('Verify certificate', 'mainwp-child'),
-					'value' =>  __('Yes', 'mainwp-child'),
+					'value' => __('Yes', 'mainwp-child'),
 					'desc'  => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child'),
 				),
                 'ssl_version' => array(

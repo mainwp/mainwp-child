@@ -99,7 +99,7 @@ class MainWP_Child_WP_Rocket {
 			  'deferred_js_files'                      => array(),
 			  'lazyload'                               => 0,
 			  'lazyload_iframes'                       => 0,
-			  'lazyload_youtube'                       =>0,
+			  'lazyload_youtube'                       => 0,
 			  'minify_css'                             => 0,
 			  //                'minify_css_key'           => $minify_css_key,
 							  'minify_concatenate_css' => 0,
@@ -137,10 +137,10 @@ class MainWP_Child_WP_Rocket {
     // ok
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
-            try{
+            try {
                 $data = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );
                 $information['syncWPRocketData'] = $data;
-            } catch(Exception $e) {
+            } catch (Exception $e) {
             }
         }
 		return $information;
@@ -192,7 +192,7 @@ class MainWP_Child_WP_Rocket {
 			return $value;
 		}
 
-        if (! MainWP_Helper::is_screen_with_update()) {
+        if ( ! MainWP_Helper::is_screen_with_update()) {
             return $value;
         }
 
@@ -286,7 +286,7 @@ class MainWP_Child_WP_Rocket {
                         $information = $this->do_admin_post_rocket_purge_opcache();
                         break;
                 }
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 $information = array( 'error' => $e->getMessage() );
             }
 		}
@@ -335,7 +335,7 @@ class MainWP_Child_WP_Rocket {
 				rocket_clean_cache_busting();
 			}
 
-            if ( !function_exists( 'rocket_dismiss_boxes' ) && defined('WP_ROCKET_ADMIN_PATH')) {
+            if ( ! function_exists( 'rocket_dismiss_boxes' ) && defined('WP_ROCKET_ADMIN_PATH')) {
 				require_once WP_ROCKET_ADMIN_PATH . 'admin.php';
 			}
 
@@ -413,7 +413,7 @@ class MainWP_Child_WP_Rocket {
 
 		update_option( WP_ROCKET_SLUG, $options );
 
-        if (isset($_POST['do_database_optimization']) && !empty($_POST['do_database_optimization'])) {
+        if (isset($_POST['do_database_optimization']) && ! empty($_POST['do_database_optimization'])) {
 			$this->optimize_database();
 		}
 
@@ -438,7 +438,7 @@ class MainWP_Child_WP_Rocket {
 
         $items = array_filter( array_keys( $optimization->get_options() ), array( $options, 'get' ) );
 
-		if ( !empty( $items ) ) {
+		if ( ! empty( $items ) ) {
             $optimization->process_handler( $items );
 		}
 

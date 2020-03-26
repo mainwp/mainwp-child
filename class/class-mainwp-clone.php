@@ -518,8 +518,7 @@ class MainWP_Clone {
             var child_security_nonces = [];
             <?php
 				$security_nonces = self::get()->getSecurityNonces();
-				foreach ($security_nonces as $k => $v)
-				{
+				foreach ($security_nonces as $k => $v) {
 					echo 'child_security_nonces[' . "'" . $k . "'" . '] = ' . "'" . $v . "';\n";
 				}
 			?>
