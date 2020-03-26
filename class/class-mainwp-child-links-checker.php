@@ -27,13 +27,14 @@ class MainWP_Child_Links_Checker {
 	}
 
 	public function __construct() {
-        require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'broken-link-checker/broken-link-checker.php' ) ) {
                     $this->is_plugin_installed = true;
 		}
 
-        if ( !$this->is_plugin_installed )
+        if ( !$this->is_plugin_installed ) {
             return;
+        }
 
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 	}
@@ -222,14 +223,16 @@ class MainWP_Child_Links_Checker {
 	function get_sync_data( $strategy = '' ) {
 		$information = array();
 		$data        = $this->get_count_links();
-        if (is_array($data))
+        if (is_array($data)) {
             $information['data'] = $data;
+        }
 		return $information;
 	}
 
 	function get_links_data() {
 
-        if (!defined('BLC_DIRECTORY')) return;
+        if (!defined('BLC_DIRECTORY')) { return;
+        }
 
         $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
         $file_path2 = BLC_DIRECTORY . '/includes/modules.php';
@@ -251,9 +254,9 @@ class MainWP_Child_Links_Checker {
 		$offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
 
 		$params      = array(
-							array( 'load_instances' => true ),
-							'max_results' => $max_results,
-						);
+			array( 'load_instances' => true ),
+			'max_results' => $max_results,
+		);
 
 		if (empty($offset)) {
 			$first_sync = true;
@@ -288,7 +291,8 @@ class MainWP_Child_Links_Checker {
 	}
 
 	function get_count_links() {
-        if (!defined('BLC_DIRECTORY')) return;
+        if (!defined('BLC_DIRECTORY')) { return;
+        }
 
         $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
         $file_path2 = BLC_DIRECTORY . '/includes/modules.php';
@@ -638,7 +642,7 @@ class MainWP_Child_Links_Checker {
 	function ui_get_source( $container, $container_field = '' ) {
 		if ( 'comment' === $container->container_type ) {
 			return $this->ui_get_source_comment( $container, $container_field );
-		} else if ( $container instanceof blcAnyPostContainer ) {
+		} elseif ( $container instanceof blcAnyPostContainer ) {
 			return $this->ui_get_source_post( $container, $container_field );
 		}
 
@@ -653,8 +657,9 @@ class MainWP_Child_Links_Checker {
 			$image = 'font-awesome/font-awesome-comment-alt.png';
 		}
 
-        if (true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object'), true ))
+        if (true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object'), true )) {
             return false;
+        }
 
         $comment = $container->get_wrapped_object();
 

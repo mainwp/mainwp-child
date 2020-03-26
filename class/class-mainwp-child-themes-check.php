@@ -125,7 +125,7 @@ class MainWP_Child_Themes_Check {
 			$themes_outdate = array();
 		}
 		if ( ! function_exists( 'wp_get_themes' ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/theme.php' );
+			require_once ABSPATH . '/wp-admin/includes/theme.php';
 		}
 		$themes = wp_get_themes();
 		$update = false;
@@ -144,7 +144,7 @@ class MainWP_Child_Themes_Check {
 
 	public function run_check() {
 		if ( ! function_exists( 'wp_get_themes' ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/theme.php' );
+			require_once ABSPATH . '/wp-admin/includes/theme.php';
 		}
 
 		//Get our previous results
@@ -177,7 +177,8 @@ class MainWP_Child_Themes_Check {
 		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		foreach ( $themes_to_scan as $slug => $v ) {
-            if ( in_array( $slug, $avoid_themes ) ) continue;
+            if ( in_array( $slug, $avoid_themes ) ) { continue;
+            }
 
 			$body = $this->try_get_response_body( $slug, false );
 
@@ -226,7 +227,7 @@ class MainWP_Child_Themes_Check {
 
 	private function try_get_response_body( $theme ) {
 		//Get the WordPress current version to be polite in the API call
-		include( ABSPATH . WPINC . '/version.php' );
+		include ABSPATH . WPINC . '/version.php';
 
 		$url = $http_url = 'http://api.wordpress.org/themes/info/1.0/';
 		if ( $ssl = wp_http_supports( array( 'ssl' ) ) ) {

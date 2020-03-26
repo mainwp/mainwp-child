@@ -195,11 +195,11 @@ class MainWP_Child_Wordfence {
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'deactivation' ) );
 
-		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
         // ok
         if ( is_plugin_active( 'wordfence/wordfence.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../wordfence/wordfence.php' ) ) {
-            require_once( plugin_dir_path( __FILE__ ) . '../../wordfence/wordfence.php' );
+            require_once plugin_dir_path( __FILE__ ) . '../../wordfence/wordfence.php';
             $this->is_wordfence_installed = true;
         }
 
@@ -619,8 +619,9 @@ class MainWP_Child_Wordfence {
 
 	private function start_scan() {
         $information = wordfence::ajax_scan_callback();
-        if ( is_array($information) && isset($information['ok']) )
+        if ( is_array($information) && isset($information['ok']) ) {
             $information['result'] = 'SUCCESS';
+        }
 
         return $information;
 	}
@@ -653,7 +654,8 @@ class MainWP_Child_Wordfence {
 
 	public function wordfence_init() {
 
-        if ( ! $this->is_wordfence_installed ) return;
+        if ( ! $this->is_wordfence_installed ) { return;
+        }
 
         add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 		if ( get_option( 'mainwp_wordfence_hide_plugin' ) === 'hide' ) {
@@ -669,8 +671,10 @@ class MainWP_Child_Wordfence {
 	}
     // ok
     public function do_reports_log( $ext = '') {
-        if ( $ext !== 'wordfence' ) return;
-        if ( ! $this->is_wordfence_installed ) return;
+        if ( $ext !== 'wordfence' ) { return;
+        }
+        if ( ! $this->is_wordfence_installed ) { return;
+        }
 
         global $wpdb;
 
@@ -868,9 +872,9 @@ SQL
 		$i  = new wfIssues();
 		if ( 'deleteIgnored' === $op ) {
 			$i->deleteIgnored();
-		} else if ( 'deleteNew' === $op ) {
+		} elseif ( 'deleteNew' === $op ) {
 			$i->deleteNew();
-		} else if ( 'ignoreAllNew' === $op ) {
+		} elseif ( 'ignoreAllNew' === $op ) {
 			$i->ignoreAllNew();
 		} else {
 			return array( 'errorMsg' => 'An invalid operation was called.' );
@@ -893,7 +897,7 @@ SQL
 		return array(
 			'ok' => 1,
 			'issueCounts' => $counts,
-			);
+		);
     }
 
 	function update_issues_status() {
@@ -944,13 +948,13 @@ SQL
 						$err      = error_get_last();
 						$errors[] = 'Could not delete file ' . htmlentities( $file ) . '. Error was: ' . htmlentities( $err['message'] );
 					}
-				} else if ( 'repair' === $op ) {
+				} elseif ( 'repair' === $op ) {
 					$dat    = $issue['data'];
 					$result = wordfence::getWPFileContent( $dat['file'], $dat['cType'], $dat['cName'], $dat['cVersion'] );
 					if ( $result['cerrorMsg'] ) {
 						$errors[] = $result['cerrorMsg'];
 						continue;
-					} else if ( ! $result['fileContent'] ) {
+					} elseif ( ! $result['fileContent'] ) {
 						$errors[] = 'We could not get the original file of ' . htmlentities( $file ) . ' to do a repair.';
 						continue;
 					}
@@ -989,10 +993,10 @@ SQL
 			if ( $filesWorkedOn > 0 && count( $errors ) > 0 ) {
 				$headMsg = "$verb some files with errors";
 				$bodyMsg = "$verb $filesWorkedOn files but we encountered the following errors with other files: " . implode( '<br />', $errors );
-			} else if ( $filesWorkedOn > 0 ) {
+			} elseif ( $filesWorkedOn > 0 ) {
 				$headMsg = "$verb $filesWorkedOn files successfully";
 				$bodyMsg = "$verb $filesWorkedOn files successfully. No errors were encountered.";
-			} else if ( count( $errors ) > 0 ) {
+			} elseif ( count( $errors ) > 0 ) {
 				$headMsg = "Could not $verb2 files";
 				$bodyMsg = "We could not $verb2 any of the files you selected. We encountered the following errors: " . implode( '<br />', $errors );
 			} else {
@@ -1053,7 +1057,7 @@ SQL
 		$file   = $dat['file'];
 		if ( isset( $result['cerrorMsg'] ) && $result['cerrorMsg'] ) {
 			return $result;
-		} else if ( ! $result['fileContent'] ) {
+		} elseif ( ! $result['fileContent'] ) {
 			return array( 'cerrorMsg' => 'We could not get the original file to do a repair.' );
 		}
 
@@ -1112,9 +1116,9 @@ SQL
 	}
 
     function save_settings_new() {
-        if (isset($_POST['encrypted']))
+        if (isset($_POST['encrypted'])) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost
-		else {
+		} else {
 			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 		}
 
@@ -1224,7 +1228,7 @@ SQL
             if (in_array('autoUpdate', $saving_opts)) {
                 if ( '1' === $opts['autoUpdate'] ) {
                     wfConfig::enableAutoUpdate();
-                } else if ( '0' === $opts['autoUpdate'] ) {
+                } elseif ( '0' === $opts['autoUpdate'] ) {
                     wfConfig::disableAutoUpdate();
                 }
             }
@@ -1306,7 +1310,7 @@ SQL
                             return $result;
                         }
 
-					} else if ( !empty( $apiKey ) && $existingAPIKey != $apiKey ) {
+					} elseif ( !empty( $apiKey ) && $existingAPIKey != $apiKey ) {
                         $api = new wfAPI( $apiKey, wfUtils::getWPVersion() );
                         try {
 							$res = $api->call('check_api_key', array(), array('previousLicense' => $existingAPIKey));
@@ -1411,9 +1415,9 @@ SQL
 	}
 
 	function save_setting() {
-		if (isset($_POST['encrypted']))
+		if (isset($_POST['encrypted'])) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost
-		else {
+		} else {
 			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 		}
 
@@ -1470,7 +1474,7 @@ SQL
 
 			if ( '1' === $opts['autoUpdate'] ) {
 				wfConfig::enableAutoUpdate();
-			} else if ( '0' === $opts['autoUpdate'] ) {
+			} elseif ( '0' === $opts['autoUpdate'] ) {
 				wfConfig::disableAutoUpdate();
 			}
 
@@ -1528,7 +1532,7 @@ SQL
 
 					return $result;
 				}
-			} else if ( wfConfig::get( 'apiKey' ) !== $apiKey ) {
+			} elseif ( wfConfig::get( 'apiKey' ) !== $apiKey ) {
 				$api = new wfAPI( $apiKey, wfUtils::getWPVersion() );
 				try {
 					$res = $api->call( 'check_api_key', array(), array() );
@@ -1592,7 +1596,7 @@ SQL
 					'token' => $res['token'],
 				);
 			}
-			else if ($res['err']) {
+			elseif ($res['err']) {
 				return array('errorExport' => __('An error occurred: ', 'wordfence') . $res['err']);
 			}
 			else {
@@ -1658,7 +1662,7 @@ SQL
                     'settings' => $this->get_settings(),
 				);
 			}
-			else if ($res['err']) {
+			elseif ($res['err']) {
 				return array('errorImport' => 'An error occurred: ' . $res['err']);
 			}
 			else {
@@ -1704,10 +1708,10 @@ SQL
 				$listType = 'logins';
 			}
 			$events = wordfence::getLog()->getHits( $listType, $type, $newestEventTime );
-		} else if ( 'perfStats' === $alsoGet ) {
+		} elseif ( 'perfStats' === $alsoGet ) {
 			$newestEventTime = $_POST['otherParams'];
 			$events          = wordfence::getLog()->getPerfStats( $newestEventTime );
-		} else if ($alsoGet == 'liveTraffic') {
+		} elseif ($alsoGet == 'liveTraffic') {
 			if (get_site_option('wordfence_syncAttackDataAttempts') > 10) {
 				wordfence::syncAttackData(false);
 			}
@@ -1832,8 +1836,9 @@ SQL
     // credit of Wordfence
     private static function _getWAFData( $updated = null) {
         // custom
-        if(!class_exists('wfWAF'))
+        if(!class_exists('wfWAF')) {
             return false;
+        }
         // end if custom
 
 		$data['learningMode'] = wfWAF::getInstance()->isInLearningMode();
@@ -1924,7 +1929,7 @@ SQL
 							'error' => sprintf(__('An error occurred while saving the configuration: %s', 'wordfence'), $errors[0]['error']),
 						);
 					}
-					else if (count($errors) > 1) {
+					elseif (count($errors) > 1) {
 						$compoundMessage = array();
 						foreach ($errors as $e) {
 							$compoundMessage[] = $e['error'];
@@ -2017,11 +2022,11 @@ SQL
 		$wfLog = wordfence::getLog();
 		if ( 'topScanners' === $mode || 'topLeechers' === $mode ) {
 			$results = $wfLog->getLeechers( $mode );
-		} else if ( 'blockedIPs' === $mode ) {
+		} elseif ( 'blockedIPs' === $mode ) {
 			$results = $wfLog->getBlockedIPs();
-		} else if ( 'lockedOutIPs' === $mode ) {
+		} elseif ( 'lockedOutIPs' === $mode ) {
 			$results = $wfLog->getLockedOutIPs();
-		} else if ( 'throttledIPs' === $mode ) {
+		} elseif ( 'throttledIPs' === $mode ) {
 			$results = $wfLog->getThrottledIPs();
 		}
 
@@ -2057,9 +2062,10 @@ SQL
 		$noEditHtaccess = '1';
 		if (isset($_POST['needToCheckFalconHtaccess']) && !empty($_POST['needToCheckFalconHtaccess'])) {
 			$checkHtaccess = self::checkFalconHtaccess();
-			if (isset($checkHtaccess['ok']))
+			if (isset($checkHtaccess['ok'])) {
 				$noEditHtaccess = '0';
-		} else if (isset($_POST['noEditHtaccess'])) {
+            }
+		} elseif (isset($_POST['noEditHtaccess'])) {
 			$noEditHtaccess = $_POST['noEditHtaccess'];
 		}
 
@@ -2071,13 +2077,13 @@ SQL
 				if(is_plugin_active($pluginFile)){
 					if($pluginFile == 'w3-total-cache/w3-total-cache.php'){
 						$badPlugins[] = 'W3 Total Cache';
-					} else if($pluginFile == 'quick-cache/quick-cache.php'){
+					} elseif($pluginFile == 'quick-cache/quick-cache.php'){
 						$badPlugins[] = 'Quick Cache';
-					} else if($pluginFile == 'wp-super-cache/wp-cache.php'){
+					} elseif($pluginFile == 'wp-super-cache/wp-cache.php'){
 						$badPlugins[] = 'WP Super Cache';
-					} else if($pluginFile == 'wp-fast-cache/wp-fast-cache.php'){
+					} elseif($pluginFile == 'wp-fast-cache/wp-fast-cache.php'){
 						$badPlugins[] = 'WP Fast Cache';
-					} else if($pluginFile == 'wp-fastest-cache/wpFastestCache.php'){
+					} elseif($pluginFile == 'wp-fastest-cache/wpFastestCache.php'){
 						$badPlugins[] = 'WP Fastest Cache';
 					}
 				}
@@ -2121,10 +2127,10 @@ SQL
 		if($cacheType == 'disable'){
 			wfConfig::set('cacheType', false);
 			return array('ok' => 1, 'heading' => 'Caching successfully disabled.', 'body' => "{$htMsg}Caching has been disabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
-		} else if($cacheType == 'php'){
+		} elseif($cacheType == 'php'){
 			wfConfig::set('cacheType', 'php');
 			return array('ok' => 1, 'heading' => 'Wordfence Basic Caching Enabled', 'body' => "{$htMsg}Wordfence basic caching has been enabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>");
-		} else if($cacheType == 'falcon'){
+		} elseif($cacheType == 'falcon'){
 			if($noEditHtaccess != '1'){
 				$err = wfCache::addHtaccessCode('add');
 				if($err){
@@ -2376,11 +2382,11 @@ SQL
 									colspan="<?php echo $cols - 1; ?>">
                                                         <?php
                                     echo wp_kses($result['label'], array(
-									'code'   => array(),
-									'strong' => array(),
-									'em'     => array(),
-									'a'      => array('href' => true),
-								))
+										'code'   => array(),
+										'strong' => array(),
+										'em'     => array(),
+										'a'      => array('href' => true),
+									))
                                 ?>
                                 </td>
 							<td>
@@ -2420,11 +2426,11 @@ SQL
 											colspan="<?php echo $cols - 1; ?>">
                                                                 <?php
                                             echo wp_kses($result['label'], array(
-											'code'   => array(),
-											'strong' => array(),
-											'em'     => array(),
-											'a'      => array('href' => true),
-										))
+												'code'   => array(),
+												'strong' => array(),
+												'em'     => array(),
+												'a'      => array('href' => true),
+											))
                                         ?>
                                         </div>
 									<?php if ($result['test']): ?>
@@ -2445,11 +2451,11 @@ SQL
 		list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVariable();
 		$howGetHasErrors = false;
 		foreach (array(
-			         'REMOTE_ADDR'           => 'REMOTE_ADDR',
-			         'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',
-			         'HTTP_X_REAL_IP'        => 'X-Real-IP',
-			         'HTTP_X_FORWARDED_FOR'  => 'X-Forwarded-For',
-		         ) as $variable => $label) {
+			'REMOTE_ADDR'           => 'REMOTE_ADDR',
+			'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',
+			'HTTP_X_REAL_IP'        => 'X-Real-IP',
+			'HTTP_X_FORWARDED_FOR'  => 'X-Forwarded-For',
+		) as $variable => $label) {
 			if (!($currentServerVarForIP && $currentServerVarForIP === $variable) && $howGet === $variable) {
 				$howGetHasErrors = true;
 				break;
@@ -2483,11 +2489,11 @@ SQL
 					$howGet = wfConfig::get('howGetIPs', false);
 					list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVariable();
 					foreach (array(
-						         'REMOTE_ADDR'           => 'REMOTE_ADDR',
-						         'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',
-						         'HTTP_X_REAL_IP'        => 'X-Real-IP',
-						         'HTTP_X_FORWARDED_FOR'  => 'X-Forwarded-For',
-					         ) as $variable => $label):
+						'REMOTE_ADDR'           => 'REMOTE_ADDR',
+						'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',
+						'HTTP_X_REAL_IP'        => 'X-Real-IP',
+						'HTTP_X_FORWARDED_FOR'  => 'X-Forwarded-For',
+					) as $variable => $label):
                              ?>
 						<tr>
 							<td><?php echo $label; ?></td>
@@ -2558,7 +2564,7 @@ SQL
 				<table class="wf-striped-table"<?php echo !empty($inEmail) ? ' border=1' : ''; ?>>
 					<tbody>
 					<?php
-					require(ABSPATH . 'wp-includes/version.php');
+					require ABSPATH . 'wp-includes/version.php';
 					$postRevisions = (defined('WP_POST_REVISIONS') ? WP_POST_REVISIONS : true);
 					$wordPressValues = array(
 						'WordPress Version'            => array('description' => '', 'value' => $wp_version),

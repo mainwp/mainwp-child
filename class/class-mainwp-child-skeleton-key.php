@@ -189,18 +189,21 @@ class MainWP_Child_Skeleton_Key {
 	public function save_settings() {
 		$settings = isset($_POST['settings']) ? $_POST['settings'] : array();
 
-		if (!is_array($settings) || empty($settings))
+		if (!is_array($settings) || empty($settings)) {
 			return array('error' => 'Invalid data. Please check and try again.');
+        }
 
 		$whitelist_options = array(
 			'general' => array( 'blogname', 'blogdescription', 'gmt_offset', 'date_format', 'time_format', 'start_of_week', 'timezone_string', 'WPLANG' ),
 		);
 
 		if ( !is_multisite() ) {
-			if ( !defined( 'WP_SITEURL' ) )
+			if ( !defined( 'WP_SITEURL' ) ) {
 				$whitelist_options['general'][] = 'siteurl';
-			if ( !defined( 'WP_HOME' ) )
+            }
+			if ( !defined( 'WP_HOME' ) ) {
 				$whitelist_options['general'][] = 'home';
+            }
 
 			$whitelist_options['general'][] = 'admin_email';
 			$whitelist_options['general'][] = 'users_can_register';
@@ -212,7 +215,7 @@ class MainWP_Child_Skeleton_Key {
 
 		// Handle translation install.
 		if ( ! empty( $settings['WPLANG'] ) ) {
-			require_once( ABSPATH . 'wp-admin/includes/translation-install.php' );
+			require_once ABSPATH . 'wp-admin/includes/translation-install.php';
 			if ( wp_can_install_language_pack() ) {
 				$language = wp_download_language_pack( $settings['WPLANG'] );
 				if ( $language ) {
@@ -224,16 +227,18 @@ class MainWP_Child_Skeleton_Key {
 		$updated = false;
 		foreach($settings as $option => $value) {
 			if (in_array($option, $whitelist_general)) {
-				if ( ! is_array( $value ) )
+				if ( ! is_array( $value ) ) {
 					$value = trim( $value );
+                }
 				$value = wp_unslash( $value );
 				update_option($option, $value);
 				$updated = true;
 			}
 		}
 
-		if (!$updated)
+		if (!$updated) {
 			return false;
+        }
 
 		return array('result' => 'ok');
 	}

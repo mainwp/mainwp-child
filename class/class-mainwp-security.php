@@ -320,8 +320,9 @@ class MainWP_Security {
     public static function remove_readme( $force = false ) {
 
         // to prevent remove readme.html file on WPE hosts
-        if ( MainWP_Helper::is_wp_engine() )
+        if ( MainWP_Helper::is_wp_engine() ) {
             return true;
+        }
 
 		if ( $force || self::get_security_option( 'readme' ) ) {
 			if ( @file_exists( ABSPATH . 'readme.html' ) ) {
@@ -351,7 +352,8 @@ class MainWP_Security {
 	//Admin user name is not admin
 	public static function admin_user_ok() {
 		$user = get_user_by( 'login', 'admin' );
-		if ( ! $user ) return true;
+		if ( ! $user ) { return true;
+        }
 
 		if ( 10 !== $user->wp_user_level && ( ! isset( $user->user_level ) || 10 !== $user->user_level ) && ! user_can( $user, 'level_10' ) ) {
 			return true;
@@ -362,8 +364,9 @@ class MainWP_Security {
 
 	public static function update_security_option( $key, $value ) {
 		$security = get_option( 'mainwp_security' );
-		if ( !empty($key) )
+		if ( !empty($key) ) {
 			$security[$key] = $value;
+        }
 		MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
 	}
 }

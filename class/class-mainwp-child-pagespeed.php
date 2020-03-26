@@ -29,13 +29,14 @@ class MainWP_Child_Pagespeed {
 	}
 
 	public function __construct() {
-		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'google-pagespeed-insights/google-pagespeed-insights.php' ) ) {
 			$this->is_plugin_installed = true;
 		}
 
-        if (!$this->is_plugin_installed)
+        if (!$this->is_plugin_installed) {
             return;
+        }
 
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 
@@ -75,8 +76,9 @@ class MainWP_Child_Pagespeed {
 	}
 
 	public function init() {
-        if (!$this->is_plugin_installed)
+        if (!$this->is_plugin_installed) {
             return;
+        }
 
 		if ( get_option( 'mainwp_pagespeed_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'hide_plugin' ) );

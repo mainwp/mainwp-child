@@ -18,7 +18,7 @@ class MainWP_Clone {
 		}
 
 		if ( ! function_exists( 'wp_create_nonce' ) ) {
-			include_once( ABSPATH . WPINC . '/pluggable.php' );
+			include_once ABSPATH . WPINC . '/pluggable.php';
 		}
 		$this->security_nonces[ $action ] = wp_create_nonce( $action );
 	}
@@ -112,7 +112,7 @@ class MainWP_Clone {
 		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
-					require_once( ABSPATH . 'wp-admin/includes/file.php' );
+					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
 				$uploadedfile     = $_FILES['file'];
 				$upload_overrides = array( 'test_form' => false );
@@ -254,7 +254,7 @@ class MainWP_Clone {
 		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
-					require_once( ABSPATH . 'wp-admin/includes/file.php' );
+					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
 				$uploadedfile     = $_FILES['file'];
 				$upload_overrides = array( 'test_form' => false );
@@ -1414,7 +1414,7 @@ class MainWP_Clone {
 					throw new Exception( __( 'No download file found', 'mainwp-child' ) );
 				}
 				$file = $archiveFile;
-			} else if ( file_exists( $file ) ) {
+			} elseif ( file_exists( $file ) ) {
 				$testFull = true;
 			} else {
 				$file = ABSPATH . $file;

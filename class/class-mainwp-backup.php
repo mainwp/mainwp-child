@@ -158,7 +158,7 @@ class MainWP_Backup {
 
 	public function _zipFilePcl( $files, $archive ) {
 		//Zip this backup folder..
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $archive );
 
 		$error = false;
@@ -336,7 +336,7 @@ class MainWP_Backup {
 	 * @return bool
 	 */
 	public function createZipPclFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles ) {
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $filepath );
 		$nodes     = glob( ABSPATH . '*' );
 		if ( ! $includeCoreFiles ) {
@@ -531,7 +531,7 @@ class MainWP_Backup {
 		unset( $nodes );
 
 		//Zip this backup folder..
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $filepath );
 		$this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
 		if ( $addConfig ) {

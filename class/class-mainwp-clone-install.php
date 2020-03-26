@@ -12,16 +12,16 @@ class MainWP_Clone_Install {
 	 * @param string $file The zip backup file path
 	 */
 	public function __construct( $file ) {
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 
 		$this->file = $file;
 		if ( '.zip' === substr( $this->file, - 4 ) ) {
 			$this->archiver = null;
-		} else if ( '.tar.gz' === substr( $this->file, - 7 ) ) {
+		} elseif ( '.tar.gz' === substr( $this->file, - 7 ) ) {
 			$this->archiver = new Tar_Archiver( null, 'tar.gz' );
-		} else if ( '.tar.bz2' === substr( $this->file, - 8 ) ) {
+		} elseif ( '.tar.bz2' === substr( $this->file, - 8 ) ) {
 			$this->archiver = new Tar_Archiver( null, 'tar.bz2' );
-		} else if ( '.tar' === substr( $this->file, - 4 ) ) {
+		} elseif ( '.tar' === substr( $this->file, - 4 ) ) {
 			$this->archiver = new Tar_Archiver( null, 'tar' );
 		}
 	}
@@ -58,9 +58,9 @@ class MainWP_Clone_Install {
 
 		if ( null !== $this->archiver ) {
 
-		} else if ( $this->checkZipConsole() ) {
+		} elseif ( $this->checkZipConsole() ) {
 			//todo: implement
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
@@ -114,9 +114,9 @@ class MainWP_Clone_Install {
 			}
 
 			return $this->archiver->file_exists( $file );
-		} else if ( $this->checkZipConsole() ) {
+		} elseif ( $this->checkZipConsole() ) {
 			//todo: implement
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
@@ -374,7 +374,7 @@ class MainWP_Clone_Install {
 		} else {
 			if ( $this->checkZipConsole() ) {
 				//todo: implement
-			} else if ( $this->checkZipSupport() ) {
+			} elseif ( $this->checkZipSupport() ) {
 				$zip    = new ZipArchive();
 				$zipRes = $zip->open( $this->file );
 				if ( $zipRes ) {
@@ -419,13 +419,13 @@ class MainWP_Clone_Install {
 			}
 
 			return $this->archiver->extractTo( ABSPATH );
-		} else if ( ( filesize( $this->file ) >= 50000000 ) && $this->checkWPZip() ) {
+		} elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->checkWPZip() ) {
 			return $this->extractWPZipBackup();
-		} else if ( $this->checkZipConsole() ) {
+		} elseif ( $this->checkZipConsole() ) {
 			return $this->extractZipConsoleBackup();
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipSupport() ) {
 			return $this->extractZipBackup();
-		} else if ( ( filesize( $this->file ) < 50000000 ) && $this->checkWPZip() ) {
+		} elseif ( ( filesize( $this->file ) < 50000000 ) && $this->checkWPZip() ) {
 			return $this->extractWPZipBackup();
 		} else {
 			return $this->extractZipPclBackup();
