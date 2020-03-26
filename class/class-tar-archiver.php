@@ -3,7 +3,7 @@
 //todo: BZ2; support fseek!
 
 class Tar_Archiver {
-	const IDLE = 0;
+	const IDLE   = 0;
 	const APPEND = 1;
 	const CREATE = 2;
 
@@ -16,7 +16,7 @@ class Tar_Archiver {
 
 	protected $debug;
 
-	protected $chunk = ''; //1024 * 1024 * 4
+	protected $chunk     = ''; //1024 * 1024 * 4
 	protected $chunkSize = 4194304; //1024 * 1024 * 4
 
 	/** @var $backup MainWP_Backup */
@@ -843,14 +843,14 @@ class Tar_Archiver {
 									break;
 								}
 
-								$bytesRead += $bytesCurrentlyRead;
+								$bytesRead   += $bytesCurrentlyRead;
 								$bytesToRead -= $bytesCurrentlyRead;
 							}
 
 							if ( 0 == $bytesToRead ) {
 								$toRead = ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
 								if ( $toRead > 0 ) {
-									$read = strlen( fread( $this->archive, $toRead ) );
+									$read       = strlen( fread( $this->archive, $toRead ) );
 									$bytesRead += $read;
 								}
 							}
@@ -961,7 +961,7 @@ class Tar_Archiver {
 							}
 
 							$lastCorrect += $pos;
-							$read = substr( $read, $pos );
+							$read         = substr( $read, $pos );
 						}
 					}
 
@@ -1230,8 +1230,8 @@ class Tar_Archiver {
 					$contents    = '';
 					$bytesToRead = $file['stat'][7];
 					while ( $bytesToRead > 0 ) {
-						$readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-						$contents .= fread( $this->archive, $readNow );
+						$readNow      = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+						$contents    .= fread( $this->archive, $readNow );
 						$bytesToRead -= $readNow;
 					}
 

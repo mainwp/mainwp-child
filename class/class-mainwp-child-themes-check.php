@@ -158,7 +158,7 @@ class MainWP_Child_Themes_Check {
 		//If there wasn't a previous cache
 		if ( false === $all_themes || ! is_array( $all_themes ) ) {
 			$all_themes = array();
-			$themes = wp_get_themes();
+			$themes     = wp_get_themes();
 			if ( is_array( $themes ) ) {
 				foreach ( $themes as $theme ) {
 					$slug                = $theme->get_stylesheet();
@@ -172,8 +172,8 @@ class MainWP_Child_Themes_Check {
 			$responses = array();
 		}
 
-        $avoid_themes = array( 'superstore' );
-		$themes_to_scan = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
+        $avoid_themes      = array( 'superstore' );
+		$themes_to_scan    = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
 		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		foreach ( $themes_to_scan as $slug => $v ) {

@@ -84,15 +84,15 @@ class MainWP_Helper {
 		for ($i = 0;$i < count($blocks[0]);$i++) {
 			// If @media-block, strip declaration and parenthesis
 			if (substr($blocks[0][ $i ], 0, 6) === '@media') {
-				$ordered_key = preg_replace('/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ]);
+				$ordered_key   = preg_replace('/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ]);
 				$ordered_value = preg_replace('/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][ $i ]);
 			}
 			// Rule-blocks of the sort @import or @font-face
 			elseif (substr($blocks[0][ $i ], 0, 1) === '@') {
-				$ordered_key = $blocks[0][ $i ];
+				$ordered_key   = $blocks[0][ $i ];
 				$ordered_value = $blocks[0][ $i ];
 			} else {
-				$ordered_key = 'main';
+				$ordered_key   = 'main';
 				$ordered_value = $blocks[0][ $i ];
 			}
 			// Split by parenthesis, ignoring those inside content-quotes
@@ -114,9 +114,9 @@ $new[ $selector ] = array();
 					foreach ($rules as $rule) {
 						$rule = trim($rule, " \r\n\t");
 						if ( ! empty($rule)) {
-							$rule = array_reverse(explode(':', $rule));
+							$rule     = array_reverse(explode(':', $rule));
 							$property = trim(array_pop($rule), " \r\n\t");
-							$value = implode(':', array_reverse($rule));
+							$value    = implode(':', array_reverse($rule));
 
 							if ( ! isset($new[ $selector ][ $property ]) || ! preg_match('/!important/', $new[ $selector ][ $property ])) {
 $new[ $selector ][ $property ] = $value;
@@ -135,7 +135,7 @@ $new[ $selector ][ $property ] = $value;
 		foreach ($parsed as $media => $content) {
 			if (substr($media, 0, 6) === '@media') {
 				$output .= $media . " {\n";
-				$prefix = "\t";
+				$prefix  = "\t";
 			} else {
 $prefix = '';
             }
@@ -162,14 +162,14 @@ $prefix = '';
 			$img_data = array();
         }
 		include_once ABSPATH . 'wp-admin/includes/file.php'; //Contains download_url
-		$upload_dir     = wp_upload_dir();
+		$upload_dir = wp_upload_dir();
 		//Download $img_url
 		$temporary_file = download_url( $img_url );
 
 		if ( is_wp_error( $temporary_file ) ) {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
-            $filename = basename( $img_url );
+            $filename       = basename( $img_url );
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename; //Local name
             $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
@@ -201,8 +201,8 @@ $prefix = '';
                     if ( is_array( $result ) ) {  // found attachment
                         $attach = current($result);
                         if (is_object($attach)) {
-                            $basedir = $upload_dir['basedir'];
-                            $baseurl = $upload_dir['baseurl'];
+                            $basedir        = $upload_dir['basedir'];
+                            $baseurl        = $upload_dir['baseurl'];
                             $local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
                             if ( file_exists($local_img_path) && ( filesize( $local_img_path ) == filesize( $temporary_file ) ) ) { // file exited
 
@@ -224,7 +224,7 @@ $prefix = '';
                 $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
             }
 
-			$moved          = @rename( $temporary_file, $local_img_path );
+			$moved = @rename( $temporary_file, $local_img_path );
 
 			if ( $moved ) {
 				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); //Get the filetype to set the mimetype
@@ -242,7 +242,7 @@ $prefix = '';
                     $attachment['post_parent'] = $parent_id;
                 }
 
-				$attach_id   = wp_insert_attachment( $attachment, $local_img_path ); //Insert the image in the database
+				$attach_id = wp_insert_attachment( $attachment, $local_img_path ); //Insert the image in the database
 				require_once ABSPATH . 'wp-admin/includes/image.php';
 				$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
 				wp_update_attachment_metadata( $attach_id, $attach_data ); //Update generated metadata
@@ -278,7 +278,7 @@ $prefix = '';
 	static function uploadFile( $file_url, $path, $file_name ) {
         // to fix uploader extension rename htaccess file issue
         if ( $file_name != '.htaccess' && $file_name != '.htpasswd' ) {
-            $file_name      = sanitize_file_name( $file_name );
+            $file_name = sanitize_file_name( $file_name );
         }
 
 		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
@@ -409,8 +409,8 @@ $prefix = '';
 
 		if ( $is_ezine_post || $is_post_plus ) {
 			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && $new_post['post_date_gmt'] != '0000-00-00 00:00:00' ) {
-				$post_date_timestamp     = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
-				$new_post['post_date']   = date( 'Y-m-d H:i:s', $post_date_timestamp );
+				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
+				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp );
 				//$new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
 			}
 //            else {
@@ -431,7 +431,7 @@ $prefix = '';
         require_once ABSPATH . 'wp-admin/includes/post.php';
         if ($edit_post_id) {
 			if ( $user_id = wp_check_post_lock( $edit_post_id ) ) {
-				$user = get_userdata( $user_id );
+				$user  = get_userdata( $user_id );
 				$error = sprintf( __( 'This content is currently locked. %s is currently editing.' ), $user->display_name );
 				return array( 'error' => $error );
 			}
@@ -515,9 +515,9 @@ $prefix = '';
 				}
 				if (count($replaceAttachedIds) > 0) {
 					foreach ( $matches as $match ) {
-						$idsToReplace = $match[1];
+						$idsToReplace     = $match[1];
 						$idsToReplaceWith = '';
-						$originalIds = explode(',', $idsToReplace);
+						$originalIds      = explode(',', $idsToReplace);
 						foreach ($originalIds as $attached_id) {
 							if ( ! empty($originalIds) && isset($replaceAttachedIds[ $attached_id ])) {
 								$idsToReplaceWith .= $replaceAttachedIds[ $attached_id ] . ',';
@@ -562,10 +562,10 @@ $prefix = '';
 					$random_date_to   = $tmp;
 				}
 
-				$random_timestamp        = rand( $random_date_from, $random_date_to );
+				$random_timestamp = rand( $random_date_from, $random_date_to );
 //				$post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
 //				$new_post['post_status'] = $post_status;
-				$new_post['post_date']   = date( 'Y-m-d H:i:s', $random_timestamp );
+				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp );
 			}
 		}
 
@@ -588,7 +588,7 @@ $prefix = '';
 			$new_post['post_status'] = $post_status; // child reports: to logging as update post
 		}
 
-		$new_post_id             = wp_insert_post( $new_post, $wp_error );
+		$new_post_id = wp_insert_post( $new_post, $wp_error );
 
 		//Show errors if something went wrong
 		if ( is_wp_error( $wp_error ) ) {
@@ -1100,7 +1100,7 @@ $prefix = '';
 	public static function return_bytes( $val ) {
 		$val  = trim( $val );
 		$last = $val[ strlen( $val ) - 1 ];
-		$val = rtrim($val, $last);
+		$val  = rtrim($val, $last);
 		$last = strtolower( $last );
 		switch ( $last ) {
 			// The 'G' modifier is available since PHP 5.1.0
@@ -1346,19 +1346,19 @@ $prefix = '';
 		if ( ! is_array( $results ) || 0 === count( $results ) ) {
 			return;
 		}
-		$count_deleted = 0;
+		$count_deleted  = 0;
 		$results_length = count( $results );
 		for ( $i = 0; $i < $results_length; $i ++ ) {
 			$number_to_delete = $results[ $i ]->cnt - $max_revisions;
-			$count_deleted += $number_to_delete;
-			$sql_get       = "
+			$count_deleted   += $number_to_delete;
+			$sql_get          = "
                     SELECT `ID`, `post_modified`
                     FROM  $wpdb->posts
                     WHERE `post_parent`=" . $results[ $i ]->post_parent . "
                     AND `post_type`='revision'
                     ORDER BY `post_modified` ASC
                 ";
-			$results_posts = $wpdb->get_results( $sql_get );
+			$results_posts    = $wpdb->get_results( $sql_get );
 
 			$delete_ids = array();
 			if ( is_array( $results_posts ) && count( $results_posts ) > 0 ) {

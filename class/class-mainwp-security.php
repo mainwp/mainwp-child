@@ -24,7 +24,7 @@ class MainWP_Security {
 
 	private static function init_listingDirectories() {
 		if ( null === self::$listingDirectories ) {
-			$wp_upload_dir                      = wp_upload_dir();
+			$wp_upload_dir            = wp_upload_dir();
 			self::$listingDirectories = array(
 				WP_CONTENT_DIR,
 				WP_PLUGIN_DIR,

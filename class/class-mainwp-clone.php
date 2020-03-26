@@ -409,7 +409,7 @@ class MainWP_Clone {
 		$quick_links = array();
 		foreach ( $quick_dirs as $dir ) {
 			list( $text, $adir ) = $dir;
-			$adir = str_replace( '\\', '/', strtolower( $adir ) );
+			$adir                = str_replace( '\\', '/', strtolower( $adir ) );
 			if ( strlen( $adir ) > 1 ) {
 				$adir = ltrim( $adir, '/' );
 			}

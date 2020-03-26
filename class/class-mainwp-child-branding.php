@@ -33,8 +33,8 @@ class MainWP_Child_Branding {
                 $label = stripslashes( $label );
             }
 
-            $opts['contact_label'] = $label;
-            $opts['extra_settings']        = get_option( 'mainwp_branding_extra_settings' );
+            $opts['contact_label']  = $label;
+            $opts['extra_settings'] = get_option( 'mainwp_branding_extra_settings' );
             MainWP_Helper::update_option( 'mainwp_child_branding_settings', $opts  );
         }
 
@@ -42,11 +42,11 @@ class MainWP_Child_Branding {
             $opts['contact_label'] = 'Contact Support';
         }
 
-        $disconnected = isset( $opts['branding_disconnected'] ) ? $opts['branding_disconnected'] : '';
-        $preserve_branding = isset( $opts['preserve_branding'] ) ? $opts['preserve_branding'] : '';
+        $disconnected       = isset( $opts['branding_disconnected'] ) ? $opts['branding_disconnected'] : '';
+        $preserve_branding  = isset( $opts['preserve_branding'] ) ? $opts['preserve_branding'] : '';
         $cancelled_branding = ( $disconnected === 'yes' ) && ! $preserve_branding;
 
-        $opts['cancelled_branding'] = $cancelled_branding;
+        $opts['cancelled_branding']      = $cancelled_branding;
         $opts['branding_preserve_title'] = '';
 
         if ( ! $cancelled_branding ) {
@@ -171,7 +171,7 @@ class MainWP_Child_Branding {
 			return $information;
 		}
 
-        $current_settings = $this->child_branding_options;
+        $current_settings      = $this->child_branding_options;
         $current_extra_setting = $this->child_branding_options['extra_settings'];
 
 		//MainWP_Helper::update_option( 'mainwp_branding_ext_enabled', 'Y' );
@@ -204,21 +204,21 @@ class MainWP_Child_Branding {
 //			MainWP_Helper::update_option( 'mainwp_branding_disable_wp_branding', $settings['child_disable_wp_branding'] );
 //		}
 
-        $current_settings['preserve_branding'] = $settings['child_preserve_branding'];
-        $current_settings['branding_header'] = $header;
-        $current_settings['support_email'] = $settings['child_support_email'];
-        $current_settings['support_message'] = $settings['child_support_message'];
-        $current_settings['remove_restore'] = $settings['child_remove_restore'];
-        $current_settings['remove_setting'] = $settings['child_remove_setting'];
-        $current_settings['remove_server_info'] = $settings['child_remove_server_info'];
+        $current_settings['preserve_branding']        = $settings['child_preserve_branding'];
+        $current_settings['branding_header']          = $header;
+        $current_settings['support_email']            = $settings['child_support_email'];
+        $current_settings['support_message']          = $settings['child_support_message'];
+        $current_settings['remove_restore']           = $settings['child_remove_restore'];
+        $current_settings['remove_setting']           = $settings['child_remove_setting'];
+        $current_settings['remove_server_info']       = $settings['child_remove_server_info'];
         $current_settings['remove_connection_detail'] = isset($settings['child_remove_connection_detail']) ? $settings['child_remove_connection_detail'] : 0;
-        $current_settings['remove_wp_tools'] = $settings['child_remove_wp_tools'];
-        $current_settings['remove_wp_setting'] = $settings['child_remove_wp_setting'];
-        $current_settings['remove_permalink'] = $settings['child_remove_permalink'];
-        $current_settings['contact_label'] = $settings['child_button_contact_label'];
-        $current_settings['email_message'] = $settings['child_send_email_message'];
-        $current_settings['return_sender'] = $settings['child_message_return_sender'];
-        $current_settings['submit_button_title'] = $settings['child_submit_button_title'];
+        $current_settings['remove_wp_tools']          = $settings['child_remove_wp_tools'];
+        $current_settings['remove_wp_setting']        = $settings['child_remove_wp_setting'];
+        $current_settings['remove_permalink']         = $settings['child_remove_permalink'];
+        $current_settings['contact_label']            = $settings['child_button_contact_label'];
+        $current_settings['email_message']            = $settings['child_send_email_message'];
+        $current_settings['return_sender']            = $settings['child_message_return_sender'];
+        $current_settings['submit_button_title']      = $settings['child_submit_button_title'];
 
         if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
 			$current_settings['disable_wp_branding'] = $settings['child_disable_wp_branding'];
@@ -341,9 +341,9 @@ class MainWP_Child_Branding {
 //			MainWP_Helper::update_option( 'mainwp_branding_disable_switching_theme', '' );
 //		}
 
-        $current_settings['hide'] = $settings['child_plugin_hide'] ? 'T' : '';
-        $current_settings['show_support'] = ( $settings['child_show_support_button'] && ! empty($settings['child_support_email']) ) ? 'T' : '';
-        $current_settings['disable_change'] = $settings['child_disable_change'] ? 'T' : '';
+        $current_settings['hide']                    = $settings['child_plugin_hide'] ? 'T' : '';
+        $current_settings['show_support']            = ( $settings['child_show_support_button'] && ! empty($settings['child_support_email']) ) ? 'T' : '';
+        $current_settings['disable_change']          = $settings['child_disable_change'] ? 'T' : '';
         $current_settings['disable_switching_theme'] = $settings['child_disable_switching_theme'] ? 'T' : '';
 
         MainWP_Helper::update_option( 'mainwp_child_branding_settings', $current_settings );
@@ -807,11 +807,11 @@ class MainWP_Child_Branding {
 
 	public function send_support_mail() {
 		$email   = $this->child_branding_options['support_email'];
-		$sub = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
-        $from = trim($_POST['mainwp_branding_contact_send_from']);
+		$sub     = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
+        $from    = trim($_POST['mainwp_branding_contact_send_from']);
 		$subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
 		$content = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_content'] ) ) );
-        $mail = $headers = '';
+        $mail    = $headers = '';
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 			global $current_user;
 			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
@@ -886,7 +886,7 @@ class MainWP_Child_Branding {
 
 			$support_message = $opts['support_message'];
 			$support_message = nl2br( stripslashes( $support_message ) );
-            $from_email = $current_user ? $current_user->user_email : '';
+            $from_email      = $current_user ? $current_user->user_email : '';
 			?>
 			<form action="" method="post">
 				<div style="width: 99%;">
@@ -968,9 +968,9 @@ class MainWP_Child_Branding {
             return false;
         }
 
-        $is_hide = isset( $opts['hide'] ) ? $opts['hide'] : '';
+        $is_hide            = isset( $opts['hide'] ) ? $opts['hide'] : '';
         $cancelled_branding = $opts['cancelled_branding'];
-        $branding_header = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
+        $branding_header    = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
 
         if ( $cancelled_branding ) {
             return false;
@@ -1147,9 +1147,9 @@ class MainWP_Child_Branding {
 	public function modify_plugin_header( $plugins ) {
         $opts = $this->child_branding_options;
         if ( is_array($opts) ) {
-            $is_hide = isset( $opts['hide'] ) ? $opts['hide'] : '';
+            $is_hide            = isset( $opts['hide'] ) ? $opts['hide'] : '';
             $cancelled_branding = $opts['cancelled_branding'];
-            $branding_header = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
+            $branding_header    = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
 
             if ( $cancelled_branding ) {
                 return $plugins;
