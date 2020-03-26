@@ -69,7 +69,7 @@ class MainWP_Backup {
 		}
 
 		if ( ( false !== $fileSuffix ) && ! empty( $fileSuffix ) ) {
-			//Append already contains extension!
+			// Append already contains extension!
 			$file = $fileSuffix . ( true === $append ? '' : $ext );
 		} else {
 			$file = 'backup-' . $filePrefix . $timestamp . $ext;
@@ -157,7 +157,7 @@ class MainWP_Backup {
 	}
 
 	public function _zipFilePcl( $files, $archive ) {
-		//Zip this backup folder..
+		// Zip this backup folder..
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $archive );
 
@@ -469,16 +469,16 @@ class MainWP_Backup {
 	}
 
 	public function createZipPclFullBackup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
-		//Create backup folder
+		// Create backup folder
 		$backupFolder = dirname( $filepath ) . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
 		// @codingStandardsIgnoreStart
 		@mkdir( $backupFolder );
 		// @codingStandardsIgnoreEnd
 
-		//Create DB backup
+		// Create DB backup
 		$db_files = $this->createBackupDB( $backupFolder . 'dbBackup' );
 
-		//Copy installation to backup folder
+		// Copy installation to backup folder
 		$nodes = glob( ABSPATH . '*' );
 		if ( ! $includeCoreFiles ) {
 			$coreFiles = array(
@@ -530,7 +530,7 @@ class MainWP_Backup {
 		// @codingStandardsIgnoreEnd
 		unset( $nodes );
 
-		//Zip this backup folder..
+		// Zip this backup folder..
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $filepath );
 		$this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
@@ -546,7 +546,7 @@ class MainWP_Backup {
 
 			$this->addFileFromStringToPCLZip( 'clone/config.txt', $string, $filepath );
 		}
-		//Remove backup folder
+		// Remove backup folder
 		MainWP_Helper::delete_dir( $backupFolder );
 
 		return true;
@@ -660,7 +660,7 @@ class MainWP_Backup {
 		$this->zipArchiveSizeCount += filesize( $path );
 		$this->gcCnt ++;
 
-		//5 mb limit!
+		// 5 mb limit!
 		if ( ! $this->loadFilesBeforeZip || ( filesize( $path ) > 5 * 1024 * 1024 ) ) {
 			$this->zipArchiveFileCount ++;
 			$added = $this->zip->addFile( $path, $zipEntryName );
@@ -686,7 +686,7 @@ class MainWP_Backup {
 			$this->gcCnt = 0;
 		}
 
-		//Over limits?
+		// Over limits?
 		if ( ( ( $this->file_descriptors > 0 ) && ( $this->zipArchiveFileCount > $this->file_descriptors ) ) ) { // || $this->zipArchiveSizeCount >= (31457280 * 2))
 			$this->zip->close();
 			$this->zip = null;
@@ -725,7 +725,7 @@ class MainWP_Backup {
 		global $wpdb;
 
 		$db_files = array();
-		//Get all the tables
+		// Get all the tables
 		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
 		foreach ( $tables_db as $curr_table ) {
 			if ( null !== $archiver ) {
@@ -739,11 +739,11 @@ class MainWP_Backup {
 			if ( file_exists( $currentfile ) ) {
 				continue;
 			}
-			$fh = fopen( $currentfile . '.tmp', 'w' ); //or error;
+			$fh = fopen( $currentfile . '.tmp', 'w' ); // or error;
 
 			fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-			//todo fix this
-			//$table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
+			// todo fix this
+			// $table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
 			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N );
 			fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );
 
@@ -804,7 +804,7 @@ class MainWP_Backup {
 					@unlink( $db_file );
 				}
 			} else {
-				//todo: throw exception!
+				// todo: throw exception!
 			}
 		}
 

@@ -586,7 +586,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		?>
 		<div class="hmbkp-exclude-settings">
 
-			<?php //if ( $schedule->get_excludes() ) : ?>
+			<?php // if ( $schedule->get_excludes() ) : ?>
 
 			<h3>
 				<?php esc_html_e( 'Currently Excluded', 'backupwordpress' ); ?>
@@ -658,7 +658,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 			</table>
 
-			<?php //endif; ?>
+			<?php // endif; ?>
 
 			<h3 id="directory-listing"><?php esc_html_e( 'Your Site', 'backupwordpress' ); ?></h3>
 
@@ -889,7 +889,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 										<?php
                                     } elseif ( $file->isDir() ) {
-										//echo add_query_arg( 'hmbkp_directory_browse', urlencode( $file->getPathname() ) );
+										// echo add_query_arg( 'hmbkp_directory_browse', urlencode( $file->getPathname() ) );
 										?>
 										<code title="<?php echo esc_attr( $file->getRealPath() ); ?>"><a
 												href="#"
@@ -1163,11 +1163,11 @@ class MainWP_Child_Back_Up_Wordpress {
 			return array( 'error' => 'Error: Schedule data' );
 		}
 
-		//      $current_value = get_option( 'hmbkp_schedule_' . $sch_id );
-		//      if ( is_array( $current_value ) && isset( $current_value['excludes'] ) ) {
-		//          // do not update 'excludes' value
-		//          $options['excludes'] = $current_value['excludes'];
-		//      }
+		// $current_value = get_option( 'hmbkp_schedule_' . $sch_id );
+		// if ( is_array( $current_value ) && isset( $current_value['excludes'] ) ) {
+		// do not update 'excludes' value
+		// $options['excludes'] = $current_value['excludes'];
+		// }
 
 		$filter_opts = array(
 			'type',

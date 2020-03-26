@@ -161,16 +161,16 @@ class MainWP_Helper {
 		if ( ! is_array($img_data) ) {
 			$img_data = array();
         }
-		include_once ABSPATH . 'wp-admin/includes/file.php'; //Contains download_url
+		include_once ABSPATH . 'wp-admin/includes/file.php'; // Contains download_url
 		$upload_dir = wp_upload_dir();
-		//Download $img_url
+		// Download $img_url
 		$temporary_file = download_url( $img_url );
 
 		if ( is_wp_error( $temporary_file ) ) {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
             $filename       = basename( $img_url );
-			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename; //Local name
+			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename; // Local name
             $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
             $gen_unique_fn = true;
@@ -227,7 +227,7 @@ class MainWP_Helper {
 			$moved = @rename( $temporary_file, $local_img_path );
 
 			if ( $moved ) {
-				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); //Get the filetype to set the mimetype
+				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype
 				$attachment  = array(
 					'post_mime_type' => $wp_filetype['type'],
 					'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
@@ -242,10 +242,10 @@ class MainWP_Helper {
                     $attachment['post_parent'] = $parent_id;
                 }
 
-				$attach_id = wp_insert_attachment( $attachment, $local_img_path ); //Insert the image in the database
+				$attach_id = wp_insert_attachment( $attachment, $local_img_path ); // Insert the image in the database
 				require_once ABSPATH . 'wp-admin/includes/image.php';
 				$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
-				wp_update_attachment_metadata( $attach_id, $attach_data ); //Update generated metadata
+				wp_update_attachment_metadata( $attach_id, $attach_data ); // Update generated metadata
 				if ( isset( $img_data['alt'] ) && ! empty( $img_data['alt'] ) ) {
 					update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
                 }
@@ -281,7 +281,7 @@ class MainWP_Helper {
             $file_name = sanitize_file_name( $file_name );
         }
 
-		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
+		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name; // Local name
 
 		$response = wp_remote_get( $file_url, array(
 			'timeout'  => 10 * 60 * 60,
@@ -365,9 +365,9 @@ class MainWP_Helper {
 
         // current user may be connected admin or alternative admin
         $current_uid = $current_user->ID;
-		//Set up a new post (adding addition information)
-		//$usr = get_user_by( 'login', $_POST['user'] );
-		//$new_post['post_author'] = $current_user->ID;
+		// Set up a new post (adding addition information)
+		// $usr = get_user_by( 'login', $_POST['user'] );
+		// $new_post['post_author'] = $current_user->ID;
 
 		$is_robot_post = false; // retirement soon
 		if ( isset( $_POST['isMainWPRobot'] ) && ! empty( $_POST['isMainWPRobot'] ) ) {
@@ -411,11 +411,11 @@ class MainWP_Helper {
 			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && $new_post['post_date_gmt'] != '0000-00-00 00:00:00' ) {
 				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp );
-				//$new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
+				// $new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
 			}
-			//            else {
-			//              $new_post['post_status'] = 'publish';
-			//          }
+			// else {
+			// $new_post['post_status'] = 'publish';
+			// }
 		}
 
 		$wpr_options = isset( $_POST['wpr_options'] ) ? $_POST['wpr_options'] : array();
@@ -442,11 +442,11 @@ class MainWP_Helper {
             $check_image_existed = true; // if editing post then will check if image existed
         }
 
-		//Search for all the images added to the new post
-		//some images have a href tag to click to navigate to the image.. we need to replace this too
+		// Search for all the images added to the new post
+		// some images have a href tag to click to navigate to the image.. we need to replace this too
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
 		if ( ( $foundMatches > 0 || ( $is_robot_post && isset( $wpr_options['wpr_save_images'] ) && 'Yes' === $wpr_options['wpr_save_images'] ) ) && ( ! $is_ezine_post ) ) {
-			//We found images, now to download them so we can start balbal
+			// We found images, now to download them so we can start balbal
 			foreach ( $matches as $match ) {
 				$hrefLink = $match[2];
 				$imgUrl   = $match[4];
@@ -476,12 +476,12 @@ class MainWP_Helper {
 							$new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
 						}
 						// To fix bug
-						//                      else if ( strpos( $hrefLink, 'http' ) !== false ) {
-						//                          $lnkToReplace = dirname( $hrefLink );
-						//                          if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
-						//                              $new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
-						//                          }
-						//                      }
+						// else if ( strpos( $hrefLink, 'http' ) !== false ) {
+						// $lnkToReplace = dirname( $hrefLink );
+						// if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
+						// $new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
+						// }
+						// }
 					}
 					$lnkToReplace = dirname( $imgUrl );
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
@@ -502,7 +502,7 @@ class MainWP_Helper {
 						foreach ($post_gallery_images as $gallery) {
 							if (isset($gallery['src'])) {
 								try {
-									$upload = self::uploadImage( $gallery['src'], $gallery ); //Upload image to WP
+									$upload = self::uploadImage( $gallery['src'], $gallery ); // Upload image to WP
 									if ( null !== $upload ) {
 										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
 									}
@@ -563,8 +563,8 @@ class MainWP_Helper {
 				}
 
 				$random_timestamp = rand( $random_date_from, $random_date_to );
-				//              $post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
-				//              $new_post['post_status'] = $post_status;
+				// $post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
+				// $new_post['post_status'] = $post_status;
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp );
 			}
 		}
@@ -573,7 +573,7 @@ class MainWP_Helper {
 			$new_post['tags_input'] = $post_tags;
 		}
 
-		//Save the post to the wp
+		// Save the post to the wp
 		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html
 		$post_status             = $new_post['post_status'];
 		$new_post['post_status'] = 'auto-draft'; // child reports: to logging as created post
@@ -590,7 +590,7 @@ class MainWP_Helper {
 
 		$new_post_id = wp_insert_post( $new_post, $wp_error );
 
-		//Show errors if something went wrong
+		// Show errors if something went wrong
 		if ( is_wp_error( $wp_error ) ) {
 			return $wp_error->get_error_message();
 		}
@@ -616,7 +616,7 @@ class MainWP_Helper {
 			$seo_ext_activated = true;
 		}
 
-		//Set custom fields
+		// Set custom fields
 		$not_allowed   = array(
 			'_slug',
 			'_tags',
@@ -700,9 +700,9 @@ class MainWP_Helper {
 			// upload image if it on the server
 			if ( ! empty( $_seo_opengraph_image ) && strpos( $_seo_opengraph_image, $_server_domain ) !== false ) {
 				try {
-					$upload = self::uploadImage( $_seo_opengraph_image ); //Upload image to WP
+					$upload = self::uploadImage( $_seo_opengraph_image ); // Upload image to WP
 					if ( null !== $upload ) {
-						update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); //Add the image to the post!
+						update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
 					}
 				} catch ( Exception $e ) {
 
@@ -711,8 +711,8 @@ class MainWP_Helper {
 			}
 		}
 
-		//If categories exist, create them (second parameter of wp_create_categories adds the categories to the post)
-		include_once ABSPATH . 'wp-admin/includes/taxonomy.php'; //Contains wp_create_categories
+		// If categories exist, create them (second parameter of wp_create_categories adds the categories to the post)
+		include_once ABSPATH . 'wp-admin/includes/taxonomy.php'; // Contains wp_create_categories
 		if ( isset( $post_category ) && '' !== $post_category ) {
 			$categories = explode( ',', $post_category );
 			if ( count( $categories ) > 0 ) {
@@ -733,12 +733,12 @@ class MainWP_Helper {
 		}
 
 		$featured_image_exist = false;
-		//If featured image exists - set it
+		// If featured image exists - set it
 		if ( null !== $post_featured_image ) {
 			try {
-				$upload = self::uploadImage( $post_featured_image, array(), $check_image_existed, $new_post_id); //Upload image to WP
+				$upload = self::uploadImage( $post_featured_image, array(), $check_image_existed, $new_post_id); // Upload image to WP
 				if ( null !== $upload ) {
-					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); //Add the thumbnail to the post!
+					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); // Add the thumbnail to the post!
 					$featured_image_exist = true;
                     if (isset($others['featured_image_data'])) {
                         $_image_data = $others['featured_image_data'];
@@ -949,9 +949,9 @@ class MainWP_Helper {
 
 		if ( empty( $wp_filesystem ) ) {
 			ob_start();
-			//          if ( file_exists( ABSPATH . '/wp-admin/includes/deprecated.php' ) ) {
-			//              include_once( ABSPATH . '/wp-admin/includes/deprecated.php' );
-			//          }
+			// if ( file_exists( ABSPATH . '/wp-admin/includes/deprecated.php' ) ) {
+			// include_once( ABSPATH . '/wp-admin/includes/deprecated.php' );
+			// }
 			if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 				include_once ABSPATH . '/wp-admin/includes/screen.php';
 			}
@@ -1049,7 +1049,7 @@ class MainWP_Helper {
 	}
 
 	public static function _fetchUrl( $url, $postdata ) {
-		//$agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
+		// $agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
 
 		if ( ! is_array( $postdata )) {
@@ -1075,7 +1075,7 @@ class MainWP_Helper {
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
 			$result_base = base64_decode( $result );
-			//$information = maybe_unserialize( $result_base );
+			// $information = maybe_unserialize( $result_base );
 			$information = json_decode( $result_base, true ); // it is json_encode result
 
 			return $information;

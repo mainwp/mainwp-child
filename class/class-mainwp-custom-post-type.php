@@ -20,10 +20,10 @@ class MainWP_Custom_Post_Type {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
 				$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
-				//              die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
+				// die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
 			} else {
 				$data = self::$information;
-				//              die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
+				// die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
 			}
 
 			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
@@ -174,7 +174,7 @@ class MainWP_Custom_Post_Type {
 			return array( 'error' => __( 'Please install', $this->plugin_translate ) . ' ' . $data_insert['post_type'] . ' ' . __( 'on child and try again', $this->plugin_translate ) );
 		}
 
-		//$data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'] );
+		// $data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'] );
 
 		$is_woocomerce = false;
 		if ( ( $data_insert['post_type'] == 'product' || $data_insert['post_type'] == 'product_variation' ) && function_exists( 'wc_product_has_unique_sku' ) ) {
@@ -303,7 +303,7 @@ class MainWP_Custom_Post_Type {
 			}
 		}
 
-		//Insert post terms except categories
+		// Insert post terms except categories
 		if ( ! empty( $data['terms'] ) && is_array( $data['terms'] ) ) {
 			foreach ( $data['terms'] as $key ) {
 				if ( ! taxonomy_exists( $key['taxonomy'] ) ) {

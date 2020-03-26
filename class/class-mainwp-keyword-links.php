@@ -31,7 +31,7 @@ class MainWP_Keyword_Links {
 		if ( empty( $this->keyword_links ) ) {
 			$this->keyword_links = array();
 		}
-		//print_r($this->keyword_links);
+		// print_r($this->keyword_links);
 		$this->siteurl = get_option( 'home' );
 		add_action( 'permalink_structure_changed', array( &$this, 'permalinkChanged' ), 10, 2 );
 	}
@@ -79,7 +79,7 @@ class MainWP_Keyword_Links {
 		$rules .= "RewriteEngine On\n";
 		$rules .= "RewriteBase $home_root\n";
 
-		//add in the rules that don't redirect to WP's index.php (and thus shouldn't be handled by WP at all)
+		// add in the rules that don't redirect to WP's index.php (and thus shouldn't be handled by WP at all)
 		foreach ( $pRules as $match => $query ) {
 			// Apache 1.3 does not support the reluctant (non-greedy) modifier.
 			$match = str_replace( '.+?', '.+', $match );
@@ -131,9 +131,9 @@ class MainWP_Keyword_Links {
 			if ( empty( $redirection_folder ) ) {
 				$rules = $this->get_cloak_rules();
 				$rules = $this->mod_rewrite_rules( $rules );
-				//self::clear_htaccess();
+				// self::clear_htaccess();
 			} else {
-				//Create rewrite ruler
+				// Create rewrite ruler
 				$rules = $this->mod_rewrite_rules( array( $redirection_folder . '/' => 'index.php' ) );
 			}
 			$home_path     = ABSPATH;
@@ -297,7 +297,7 @@ class MainWP_Keyword_Links {
 			if ( is_array( $specific_link ) && count( $specific_link ) > 0 ) {
 				$specific_link          = current( $specific_link );
 				$specific_link->post_id = $post->ID;
-				//update_post_meta($post->ID, '_mainwp_kwl_specific_link_save', array($specific_link->id => $specific_link));
+				// update_post_meta($post->ID, '_mainwp_kwl_specific_link_save', array($specific_link->id => $specific_link));
 				update_post_meta( $post->ID, '_mainwp_kwl_specific_link_id', $specific_link->id );
 				if ( $this->set_link( $specific_link->id, $specific_link ) ) {
 					update_post_meta( $post->ID, '_mainwp_kwl_specific_link', '<saved>' );
@@ -312,11 +312,11 @@ class MainWP_Keyword_Links {
 		}
 
 		// print_r($this->keyword_links);
-		//        if ($post->ID == 751) {
-		//            //print_r($links);
-		//            $custom = get_post_custom($post->ID);
-		//            print_r($custom);
-		//        }
+		// if ($post->ID == 751) {
+		// print_r($links);
+		// $custom = get_post_custom($post->ID);
+		// print_r($custom);
+		// }
 
 		if ( empty( $links ) ) {
 			return $content;
@@ -343,10 +343,10 @@ class MainWP_Keyword_Links {
 			$this->link_exact_match     = $link->exact_match;
 			$this->link_case_sensitive  = $link->case_sensitive;
 			$keywords                   = $this->explode_multi( $link->keyword );
-			//usort( $keywords, create_function( '$a,$b', 'return strlen($a)<strlen($b);' ) );
+			// usort( $keywords, create_function( '$a,$b', 'return strlen($a)<strlen($b);' ) );
             usort( $keywords, array( $this, 'usort_callback_func' ) );
 			$replace_cs = $link->case_sensitive ? 's' : 'is';
-			//print_r($keywords);
+			// print_r($keywords);
 			foreach ( $keywords as $keyword ) {
 				$keyword = trim( $keyword );
 				if ( empty( $keyword ) ) {
@@ -361,15 +361,15 @@ class MainWP_Keyword_Links {
 				$keyword = preg_replace( '/([$^\/?+.*\]\[)(}{])/is', '\\\\\1', $keyword );
 
 				if ( ( $link->case_sensitive && strpos( $content, $keyword ) !== false ) || ( ! $link->case_sensitive && stripos( $content, $keyword ) !== false ) ) {
-					//Replace keyword in H tag
+					// Replace keyword in H tag
 					if ( $this->get_option( 'replace_keyword_in_h_tag' ) ) {
-						//$content = preg_replace_callback('/(<a[^>]*>.*?'.$keyword.'.*?<\/a>|<[^>]*'.$keyword.'[^>]*>|\{[^}]*'.$keyword.'[^}]*\}|\w*('.$keyword.')\w*)/is', array(&$this, 'keyword_mark'), $content);
+						// $content = preg_replace_callback('/(<a[^>]*>.*?'.$keyword.'.*?<\/a>|<[^>]*'.$keyword.'[^>]*>|\{[^}]*'.$keyword.'[^}]*\}|\w*('.$keyword.')\w*)/is', array(&$this, 'keyword_mark'), $content);
 						$content = preg_replace_callback( '/(<a[^>]*>[^<]*?' . $keyword . '[^<]*?<\/a>|<[^>]*' . $keyword . '[^>]*>|\{[^\}]*' . $keyword . '[^\}]*\}|\w*(' . $keyword . ')\w*)/' . $replace_cs, array(
 							&$this,
 							'keyword_mark',
 						), $content );
 					} else {
-						//$content = preg_replace_callback('/(<h[123456][^>]*>.*?'.$keyword.'.*?<\/h[123456]>|<a[^>]*>.*?'.$keyword.'.*?<\/a>|<[^>]*'.$keyword.'[^>]*>|\{[^}]*'.$keyword.'[^}]*\}|\w*('.$keyword.')\w*)/is', array(&$this, 'keyword_mark'), $content);
+						// $content = preg_replace_callback('/(<h[123456][^>]*>.*?'.$keyword.'.*?<\/h[123456]>|<a[^>]*>.*?'.$keyword.'.*?<\/a>|<[^>]*'.$keyword.'[^>]*>|\{[^}]*'.$keyword.'[^}]*\}|\w*('.$keyword.')\w*)/is', array(&$this, 'keyword_mark'), $content);
 						$content = preg_replace_callback( '/(<h[123456][^>]*>[^<]*?' . $keyword . '[^<]*?<\/h[123456]>|<a[^>]*>[^<]*?' . $keyword . '[^<]*?<\/a>|<[^>]*' . $keyword . '[^>]*>|\{[^\}]*' . $keyword . '[^\}]*\}|\w*(' . $keyword . ')\w*)/' . $replace_cs, array(
 							&$this,
 							'keyword_mark',
@@ -378,7 +378,7 @@ class MainWP_Keyword_Links {
 				}
 			}
 		}
-		//$content = preg_replace_callback('/\{MAINWP_LINK +HREF="(.*?)" +TARGET="(.*?)" +REL="(.*?)" +LINK-ID="(.*?)" +CLASS="(.*?)" +TEXT="(.*?)" *\}/is', array(&$this, 'keyword_replace'), $content);
+		// $content = preg_replace_callback('/\{MAINWP_LINK +HREF="(.*?)" +TARGET="(.*?)" +REL="(.*?)" +LINK-ID="(.*?)" +CLASS="(.*?)" +TEXT="(.*?)" *\}/is', array(&$this, 'keyword_replace'), $content);
 		$content = preg_replace_callback( '/\{MAINWP_LINK +HREF="(.*?)" +TARGET="(.*?)" +REL="(.*?)" +LINK-ID="(.*?)" +CLASS="(.*?)" +TEXT="(.*?)" +FULL_TEXT="(.*?)" *\}/is', array(
 			&$this,
 			'keyword_replace',
@@ -415,19 +415,19 @@ class MainWP_Keyword_Links {
 			$this->link_count_each_temp --;
 		}
 
-		//        if (isset($this->link_temp->type) && $this->link_temp->type == 'post_type') {
-		////            $post = get_post($this->link_temp->id);
-		////            if ($post) {
-		////                $disable_linking = $this->get_option('disable_linking_automatically', array());
-		////                if (in_array($post->post_name, $disable_linking[$post->post_type]))
-		////                    return $matches[1]; // do not link to this post
-		////            }
-		//            $link_target = get_post_meta($this->link_temp->id, '_mainwp_kl_link_newtab', true);
-		//            $this->link_temp->link_target = ( $link_target != -1 && $link_target == 1 ? '_blank' : '' );
-		//            $link_rel = get_post_meta($this->link_temp->id, '_mainwp_kl_link_nofollow', true);
-		//            $this->link_temp->link_rel = ( $link_rel != -1 && $link_rel == 1 ? 'nofollow' : '' );
-		//            $this->link_temp->link_class = get_post_meta($this->link_temp->id, '_mainwp_kl_link_class', true);
-		//        }
+		// if (isset($this->link_temp->type) && $this->link_temp->type == 'post_type') {
+		// $post = get_post($this->link_temp->id);
+		// if ($post) {
+		// $disable_linking = $this->get_option('disable_linking_automatically', array());
+		// if (in_array($post->post_name, $disable_linking[$post->post_type]))
+		// return $matches[1]; // do not link to this post
+		// }
+		// $link_target = get_post_meta($this->link_temp->id, '_mainwp_kl_link_newtab', true);
+		// $this->link_temp->link_target = ( $link_target != -1 && $link_target == 1 ? '_blank' : '' );
+		// $link_rel = get_post_meta($this->link_temp->id, '_mainwp_kl_link_nofollow', true);
+		// $this->link_temp->link_rel = ( $link_rel != -1 && $link_rel == 1 ? 'nofollow' : '' );
+		// $this->link_temp->link_class = get_post_meta($this->link_temp->id, '_mainwp_kl_link_class', true);
+		// }
 		if ( '-1' !== $this->link_temp->link_target ) {
 			$target = $this->link_temp->link_target;
 		} else {
@@ -456,7 +456,7 @@ class MainWP_Keyword_Links {
 			$class       .= ' kwl-regular-link';
 		}
 
-		//return '{MAINWP_LINK HREF="' . ( $this->link_temp->cloak_path ? $this->siteurl . $redirection_folder . '/' . $this->link_temp->cloak_path : $this->link_temp->destination_url) . '" TARGET="' . $target . '" REL="' . $rel . '" LINK-ID="' . (isset($this->link_temp->id) ? $this->link_temp->id : 0) . '" CLASS="' . $class . '" TEXT="' . $matches[1] . '"}';
+		// return '{MAINWP_LINK HREF="' . ( $this->link_temp->cloak_path ? $this->siteurl . $redirection_folder . '/' . $this->link_temp->cloak_path : $this->link_temp->destination_url) . '" TARGET="' . $target . '" REL="' . $rel . '" LINK-ID="' . (isset($this->link_temp->id) ? $this->link_temp->id : 0) . '" CLASS="' . $class . '" TEXT="' . $matches[1] . '"}';
 		return '{MAINWP_LINK HREF="' . ( $this->link_temp->cloak_path ? $this->siteurl . $redirection_folder . '/' . $this->link_temp->cloak_path : $this->link_temp->destination_url ) . '" TARGET="' . $target . '" REL="' . $rel . '" LINK-ID="' . ( isset( $this->link_temp->id ) ? $this->link_temp->id : 0 ) . '" CLASS="' . $class . '" TEXT="' . $matches[2] . '" FULL_TEXT="' . $matches[1] . '"}';
 	}
 
@@ -483,16 +483,16 @@ class MainWP_Keyword_Links {
 			$post = get_post( $post_id );
 		}
 		$links = array();
-		//        $disable_add_links = $this->get_option('disable_add_links_automatically');
-		//        // if disabled add links automatically in this post, avoid
-		//        if (in_array($post->post_name, (array) $disable_add_links[$post->post_type])) {
-		//            return $links;
-		//        }
+		// $disable_add_links = $this->get_option('disable_add_links_automatically');
+		// if disabled add links automatically in this post, avoid
+		// if (in_array($post->post_name, (array) $disable_add_links[$post->post_type])) {
+		// return $links;
+		// }
 
 		// Check if this post was disabled with this function, come back
-		//        $disable = get_post_meta($post->ID, '_mainwp_kl_disable', true);
-		//        if ($disable == 1)
-		//            return $links;
+		// $disable = get_post_meta($post->ID, '_mainwp_kl_disable', true);
+		// if ($disable == 1)
+		// return $links;
 		// count replace max and max keyword allowed.
 		$replace_max         = intval( $this->get_option( 'replace_max' ) );
 		$replace_max_keyword = intval( $this->get_option( 'replace_max_keyword' ) );
@@ -514,7 +514,7 @@ class MainWP_Keyword_Links {
 			} else {
 				$links_post_type = (array) $this->get_post_keywords( $post_type );
 			}
-			//print_r($links_post_type);
+			// print_r($links_post_type);
 			if ( count( $links_post_type ) > 0 ) {
 				$links = array_merge( $links, $links_post_type );
 			}
@@ -557,7 +557,7 @@ class MainWP_Keyword_Links {
 			$join  = "JOIN $wpdb->term_relationships tr ON tr.object_id = p.ID";
 			$where = " AND (tr.term_taxonomy_id = '" . implode( "' OR tr.term_taxonomy_id = '", $cats ) . "')";
 		}
-		//$results = $wpdb->get_results(sprintf("SELECT * FROM $wpdb->posts as p LEFT JOIN $wpdb->postmeta as pm ON p.ID=pm.post_id $join WHERE p.post_status='publish' AND p.post_type='%s' AND pm.meta_key='_mainwp_kl_post_keyword' $where", $post_type));
+		// $results = $wpdb->get_results(sprintf("SELECT * FROM $wpdb->posts as p LEFT JOIN $wpdb->postmeta as pm ON p.ID=pm.post_id $join WHERE p.post_status='publish' AND p.post_type='%s' AND pm.meta_key='_mainwp_kl_post_keyword' $where", $post_type));
 		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $wpdb->posts as p $join WHERE p.post_status='publish' AND p.post_type= %s $where", $post_type ) );
 		$links   = array();
 		if ( ! is_array( $results ) ) {
@@ -573,12 +573,12 @@ class MainWP_Keyword_Links {
 			}
 			$link = new stdClass();
 			// This is on-fly link so have not ID
-			//$link->id = $result->ID;
+			// $link->id = $result->ID;
 			$link->name = $result->post_title;
-			//if ($result->post_type == 'page')
-			//    $link->destination_url = get_permalink($result->ID);
-			//else
-			//    $link->destination_url = $result->guid;
+			// if ($result->post_type == 'page')
+			// $link->destination_url = get_permalink($result->ID);
+			// else
+			// $link->destination_url = $result->guid;
 			$link->destination_url = get_permalink( $result->ID );
 			$link->cloak_path      = '';
 			$link->keyword         = ( 1 === (int) $this->get_option( 'post_match_title' ) ? $result->post_title : '' );
@@ -625,7 +625,7 @@ class MainWP_Keyword_Links {
 		$redirection_folder = $this->get_option( 'redirection_folder', '' );
 
 		if ( ! empty( $redirection_folder ) ) {
-			//if the request doesn't' containt the redirection folder we will return immediately
+			// if the request doesn't' containt the redirection folder we will return immediately
 			if ( strpos( $filter_request, $redirection_folder . '/' ) === false ) {
 				return;
 			}
@@ -677,21 +677,21 @@ class MainWP_Keyword_Links {
 		}
 	}
 
-	//    public function get_statistic() {
-	//        global $wpdb;
-	//        $link_id = $_POST['link_id'];
-	//        if ($link_id) {
-	//            $stat_data = get_option('mainwp_kwl_statistic_data_' . $link_id, array());
-	//            if ($stat_data) {
-	//                $return['stat_data'] = $stat_data;
-	//                //$wpdb->query("UPDATE {$wpdb->prefix}options SET option_name = 'mainwp_kwl_statistic_data_done_" . $link_id . "' WHERE option_name = 'mainwp_kwl_statistic_data_" . $link_id . "'");
-	//                update_option('mainwp_kwl_statistic_data_' . $link_id, '');
-	//            } else
-	//                $return['stat_data'] = 'EMPTY';
-	//            $return['status'] = 'SUCCESS';
-	//        }
-	//        return $return;
-	//    }
+	// public function get_statistic() {
+	// global $wpdb;
+	// $link_id = $_POST['link_id'];
+	// if ($link_id) {
+	// $stat_data = get_option('mainwp_kwl_statistic_data_' . $link_id, array());
+	// if ($stat_data) {
+	// $return['stat_data'] = $stat_data;
+	// $wpdb->query("UPDATE {$wpdb->prefix}options SET option_name = 'mainwp_kwl_statistic_data_done_" . $link_id . "' WHERE option_name = 'mainwp_kwl_statistic_data_" . $link_id . "'");
+	// update_option('mainwp_kwl_statistic_data_' . $link_id, '');
+	// } else
+	// $return['stat_data'] = 'EMPTY';
+	// $return['status'] = 'SUCCESS';
+	// }
+	// return $return;
+	// }
 
 	public function action() {
 		$result = array();

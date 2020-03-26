@@ -58,7 +58,7 @@ class MainWP_Wordpress_SEO {
             $file_url       = base64_decode( $_POST['file_url'] );
             $temporary_file = '';
             try {
-                include_once ABSPATH . 'wp-admin/includes/file.php'; //Contains download_url
+                include_once ABSPATH . 'wp-admin/includes/file.php'; // Contains download_url
                 $temporary_file = download_url( $file_url );
 
                 if ( is_wp_error( $temporary_file ) ) {

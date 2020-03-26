@@ -96,7 +96,7 @@ class MainWP_Child_Back_WP_Up {
                 MainWP_Helper::check_methods('get_instance');
                 BackWPup::get_instance();
 
-                //add_action( 'wp_ajax_mainwp_backwpup_download_backup', array( $this, 'download_backup' ) );
+                // add_action( 'wp_ajax_mainwp_backwpup_download_backup', array( $this, 'download_backup' ) );
 				add_action( 'admin_init', array( $this, 'init_download_backup' ) );
                 add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
             }
@@ -258,7 +258,7 @@ class MainWP_Child_Back_WP_Up {
             $log_folder = BackWPup_File::get_absolute_path( $log_folder );
             $log_folder = untrailingslashit( $log_folder );
 
-            //load logs
+            // load logs
             $logfiles = array();
             if ( is_readable( $log_folder ) && $dir = opendir( $log_folder ) ) {
                 while ( ( $file = readdir( $dir ) ) !== false ) {
@@ -518,7 +518,7 @@ class MainWP_Child_Back_WP_Up {
 		echo '<tr title="WP_MEMORY_LIMIT"><td>' . __( 'WP memory limit', 'backwpup' ) . '</td><td>' . esc_html( WP_MEMORY_LIMIT ) . '</td></tr>';
 		echo '<tr title="WP_MAX_MEMORY_LIMIT"><td>' . __( 'WP maximum memory limit', 'backwpup' ) . '</td><td>' . esc_html( WP_MAX_MEMORY_LIMIT ) . '</td></tr>';
 		echo '<tr title=""><td>' . __( 'Memory in use', 'backwpup' ) . '</td><td>' . esc_html( size_format( @memory_get_usage( true ), 2 ) ) . '</td></tr>';
-		//disabled PHP functions
+		// disabled PHP functions
 		$disabled = ini_get( 'disable_functions' );
 		if ( ! empty( $disabled ) ) {
 			$disabledarry = explode( ',', $disabled );
@@ -526,7 +526,7 @@ class MainWP_Child_Back_WP_Up {
 			echo esc_html( implode( ', ', $disabledarry ) );
 			echo '</td></tr>';
 		}
-		//Loaded PHP Extensions
+		// Loaded PHP Extensions
 		echo '<tr title=""><td>' . __( 'Loaded PHP Extensions:', 'backwpup' ) . '</td><td>';
 		$extensions = get_loaded_extensions();
 		sort( $extensions );
@@ -1049,7 +1049,7 @@ class MainWP_Child_Back_WP_Up {
 
 			// From BackWPup_Destination_Email::edit_ajax
 			if ( $emailmethod ) {
-				//do so if i'm the wp_mail to get the settings
+				// do so if i'm the wp_mail to get the settings
 				global $phpmailer;
 				// (Re)create it, if it's gone missing
 				if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {
@@ -1057,10 +1057,10 @@ class MainWP_Child_Back_WP_Up {
 					require_once ABSPATH . WPINC . '/class-smtp.php';
 					$phpmailer = new PHPMailer( true );
 				}
-				//only if PHPMailer really used
+				// only if PHPMailer really used
 				if ( is_object( $phpmailer ) ) {
 					do_action_ref_array( 'phpmailer_init', array( &$phpmailer ) );
-					//get settings from PHPMailer
+					// get settings from PHPMailer
 					$emailmethod   = $phpmailer->Mailer;
 					$emailsendmail = $phpmailer->Sendmail;
 					$emailhost     = $phpmailer->Host;
@@ -1071,7 +1071,7 @@ class MainWP_Child_Back_WP_Up {
 				}
 			}
 
-			//Generate mail with Swift Mailer
+			// Generate mail with Swift Mailer
 			if ( ! class_exists( 'Swift', false ) ) {
 				require BackWPup::get_plugin_data( 'plugindir' ) . '/vendor/SwiftMailer/swift_required.php';
 			}
@@ -1430,7 +1430,7 @@ class MainWP_Child_Back_WP_Up {
 		if ( $settings['job_id'] > 0 ) {
 			$job_id = intval( $settings['job_id'] );
 		} else {
-			//generate jobid if not exists
+			// generate jobid if not exists
 			$newjobid = BackWPup_Option::get_job_ids();
 			sort( $newjobid );
 			$job_id = end( $newjobid ) + 1;
@@ -1452,7 +1452,7 @@ class MainWP_Child_Back_WP_Up {
 		if ($settings['tab'] == 'jobtype-FILE') {
 			// to fix
 			$this->edit_form_post_save($settings['value'], $job_id);
-			//saved message
+			// saved message
 			$messages = BackWPup_Admin::get_messages();
 			if ( empty( $messages['error'] ) ) {
 				$url = BackWPup_Job::get_jobrun_url( 'runnowlink', $job_id );
