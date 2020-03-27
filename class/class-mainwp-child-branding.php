@@ -50,7 +50,7 @@ class MainWP_Child_Branding {
         $opts['branding_preserve_title'] = '';
 
         if ( ! $cancelled_branding ) {
-            if (isset($opts['branding_header'])) {
+            if ( isset($opts['branding_header']) ) {
                 $branding_header = $opts['branding_header'];
                 if ( is_array( $branding_header ) && isset( $branding_header['name'] ) && ! empty( $branding_header['name'] ) ) {
                     $opts['branding_preserve_title'] = stripslashes( $branding_header['name'] );
@@ -64,9 +64,9 @@ class MainWP_Child_Branding {
 
     function get_extra_options() {
         $extra = array();
-        if (is_array($this->child_branding_options) && isset($this->child_branding_options['extra_settings'])) {
+        if ( is_array($this->child_branding_options) && isset($this->child_branding_options['extra_settings']) ) {
             $extra = $this->child_branding_options['extra_settings'];
-            if ( ! is_array($extra)) {
+            if ( ! is_array($extra) ) {
                 $extra = array();
             }
         }
@@ -145,8 +145,8 @@ class MainWP_Child_Branding {
             'branding_ext_enabled',
         );
 
-        foreach ($brandingOptions_empty as $opt) {
-            if (isset($this->child_branding_options[ $opt ])) {
+        foreach ( $brandingOptions_empty as $opt ) {
+            if ( isset($this->child_branding_options[ $opt ]) ) {
                 $this->child_branding_options[ $opt ] = '';
             }
         }
@@ -389,10 +389,10 @@ class MainWP_Child_Branding {
 		$extra_setting = $this->get_extra_options();
 
         // to hide updates notice
-        if (is_admin()) {
+        if ( is_admin() ) {
             // back end
             add_action( 'in_admin_footer', array( $this, 'in_admin_footer' ) );
-        } elseif (is_user_logged_in()) {
+        } elseif ( is_user_logged_in() ) {
             // front end
             add_action( 'wp_after_admin_bar_render', array( $this, 'after_admin_bar_render' ));
         }
@@ -417,7 +417,7 @@ class MainWP_Child_Branding {
 
 		add_filter( 'map_meta_cap', array( $this, 'branding_map_meta_cap' ), 10, 5 );
 
-		if ( 'T' === $opts['disable_change']) {
+		if ( 'T' === $opts['disable_change'] ) {
 
 			// Disable the WordPress plugin update notifications
 			remove_action('load-update-core.php', 'wp_update_plugins');
@@ -425,14 +425,14 @@ class MainWP_Child_Branding {
 
 			// Disable the WordPress theme update notifications
 			remove_action('load-update-core.php', 'wp_update_themes');
-			add_filter('pre_site_transient_update_themes', ( $func = function( $a) {
+			add_filter('pre_site_transient_update_themes', ( $func = function( $a ) {
 				return null;
 			} ));
 
 			// Disable the WordPress core update notifications
 			add_action('after_setup_theme', 'remove_core_updates');
 			function remove_core_updates() {
-				add_action('init', ( $func = function( $a) {
+				add_action('init', ( $func = function( $a ) {
 					remove_action( 'wp_version_check', 'wp_version_check' );
 				} ), 2);
 				add_filter('pre_option_update_core', '__return_null');
@@ -814,7 +814,7 @@ class MainWP_Child_Branding {
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 			global $current_user;
 			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
-            if ( ! empty($from)) {
+            if ( ! empty($from) ) {
                 $headers .= 'From: "' . $from . '" <' . $from . ">\r\n";
             }
 			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
@@ -963,7 +963,7 @@ class MainWP_Child_Branding {
 	public function is_branding() {
         $opts = $this->child_branding_options;
 
-        if ( ! isset($opts['branding_ext_enabled']) || $opts['branding_ext_enabled'] !== 'Y') {
+        if ( ! isset($opts['branding_ext_enabled']) || $opts['branding_ext_enabled'] !== 'Y' ) {
             return false;
         }
 
@@ -1005,30 +1005,30 @@ class MainWP_Child_Branding {
 
         $hide_slugs = apply_filters('mainwp_child_hide_update_notice', array());
 
-        if ( ! is_array($hide_slugs)) {
+        if ( ! is_array($hide_slugs) ) {
             $hide_slugs = array();
         }
 
-        if (count($hide_slugs) == 0) {
+        if ( count($hide_slugs) == 0 ) {
             return;
         }
 
-        if ( ! function_exists('get_plugin_updates')) {
+        if ( ! function_exists('get_plugin_updates') ) {
             include_once ABSPATH . '/wp-admin/includes/update.php';
         }
 
         $count_hide = 0;
 
         $updates = get_plugin_updates();
-        if (is_array($updates)) {
-            foreach ($updates as $slug => $data) {
-                if (in_array($slug, $hide_slugs)) {
+        if ( is_array($updates) ) {
+            foreach ( $updates as $slug => $data ) {
+                if ( in_array($slug, $hide_slugs) ) {
                     $count_hide++;
                 }
             }
         }
 
-        if ( $count_hide == 0) {
+        if ( $count_hide == 0 ) {
             return;
         }
         // js for front end
@@ -1058,22 +1058,22 @@ class MainWP_Child_Branding {
 
         $hide_slugs = apply_filters('mainwp_child_hide_update_notice', array());
 
-        if ( ! is_array($hide_slugs)) {
+        if ( ! is_array($hide_slugs) ) {
             $hide_slugs = array();
         }
 
         $count_hide = 0;
 
         $updates = get_plugin_updates();
-        if (is_array($updates)) {
-            foreach ($updates as $slug => $data) {
-                if (in_array($slug, $hide_slugs)) {
+        if ( is_array($updates) ) {
+            foreach ( $updates as $slug => $data ) {
+                if ( in_array($slug, $hide_slugs) ) {
                     $count_hide++;
                 }
             }
         }
 
-        if ( $count_hide == 0) {
+        if ( $count_hide == 0 ) {
             return;
         }
 
@@ -1086,7 +1086,7 @@ class MainWP_Child_Branding {
                 if (typeof(pagenow) !== 'undefined' && pagenow == 'plugins') {
                     <?php
                     // hide update notice row
-                    if (in_array('mainwp-child/mainwp-child.php', $hide_slugs)) {
+                    if ( in_array('mainwp-child/mainwp-child.php', $hide_slugs) ) {
                         ?>
                         var el = document.querySelector('tr#mainwp-child-update');
                         if (typeof(el) !== 'undefined' && el !== null) {
@@ -1095,7 +1095,7 @@ class MainWP_Child_Branding {
                         <?php
                     }
                     // hide update notice row
-                    if (in_array('mainwp-child-reports/mainwp-child-reports.php', $hide_slugs)) {
+                    if ( in_array('mainwp-child-reports/mainwp-child-reports.php', $hide_slugs) ) {
                         ?>
                         var el = document.querySelector('tr#mainwp-child-reports-update');
                         if (typeof(el) !== 'undefined' && el !== null) {
@@ -1185,7 +1185,7 @@ class MainWP_Child_Branding {
 			return $value;
 		}
 
-        if ( ! MainWP_Helper::is_screen_with_update()) {
+        if ( ! MainWP_Helper::is_screen_with_update() ) {
             return $value;
         }
 

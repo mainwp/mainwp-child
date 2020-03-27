@@ -3,25 +3,25 @@
 class MainWP_Helper {
 
 	static function write( $val ) {
-		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
+		if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true ) :
 			$output = self::safe_json_encode( $val );
 		else :
 			$output = serialize( $val );
-		endif;			
-		
+		endif;
+
 		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>');
 	}
-	
+
 	public static function json_valid_check( $data ) {
-		
-		if (is_array( $data )) {
+
+		if ( is_array( $data ) ) {
 			$output = array();
-			foreach ( $data as $key => $value) {
+			foreach ( $data as $key => $value ) {
 				if ( is_string( $key ) ) {
 					$id = self::json_convert_string( $key );
 				} else {
 					$id = $key;
-			}
+				}
 				if ( is_array( $value ) || is_object( $value ) ) {
 					$output[ $id ] = self::json_valid_check( $value );
 				} elseif ( is_string( $value ) ) {
@@ -30,9 +30,9 @@ class MainWP_Helper {
 					$output[ $id ] = $value;
 				}
 			}
-		} 
+		}
 		elseif ( is_object( $data ) ) {
-			$output = new stdClass;
+			$output = new stdClass();
 			foreach ( $data as $key => $value ) {
 				if ( is_string( $key ) ) {
 					$id = self::json_convert_string( $key );
@@ -47,39 +47,39 @@ class MainWP_Helper {
 					$output->$id = $value;
 				}
 			}
-		} 
-		elseif (is_string( $data )) {
+		}
+		elseif ( is_string( $data ) ) {
 			return self::json_convert_string( $data );
 		} else {
 			return $data;
 		}
-		
+
 		return $output;
 	}
-	
-	public function json_convert_string( $str ) {
-			if ( function_exists( 'mb_convert_encoding' )) {				
-			$encoding = mb_detect_encoding( $str, mb_detect_order(), true );
-				if ( $encoding ) {
-				return mb_convert_encoding( $str, 'UTF-8', $encoding );
-				} else {
-				return mb_convert_encoding( $str, 'UTF-8', 'UTF-8' );
-				}				
-			}
-		return $str;
-		}
 
-	public static function safe_json_encode( $value, $options = 0, $depth = 512) {
-		$encoded = @json_encode($value, $options, $depth);
-		if ($encoded === false && !empty( $value ) && json_last_error() == JSON_ERROR_UTF8 ) { 			
-			$encoded = @json_encode(self::json_valid_check($value), $options, $depth);			
+	public function json_convert_string( $str ) {
+		if ( function_exists( 'mb_convert_encoding' ) ) {
+			$encoding = mb_detect_encoding( $str, mb_detect_order(), true );
+			if ( $encoding ) {
+				return mb_convert_encoding( $str, 'UTF-8', $encoding );
+			} else {
+				return mb_convert_encoding( $str, 'UTF-8', 'UTF-8' );
+			}
 		}
-		return $encoded ;
+		return $str;
+	}
+
+	public static function safe_json_encode( $value, $options = 0, $depth = 512 ) {
+		$encoded = @json_encode($value, $options, $depth);
+		if ( $encoded === false && ! empty( $value ) && json_last_error() == JSON_ERROR_UTF8 ) {
+			$encoded = @json_encode(self::json_valid_check($value), $options, $depth);
+		}
+		return $encoded;
 	}
 
 	static function close_connection( $val = null ) {
 
-		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
+		if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true ) :
 			$output = self::safe_json_encode( $val );
 		else :
 			$output = serialize( $val );
@@ -102,7 +102,7 @@ class MainWP_Helper {
 
 	static function error( $error, $code = null ) {
 		$information['error'] = $error;
-		if (null !== $code) {
+		if ( null !== $code ) {
 			$information['error_code'] = $code;
         }
 		self::write( $information );
@@ -114,7 +114,7 @@ class MainWP_Helper {
 	 * CSSPARSER
 	 * Copyright (C) 2009 Peter Kröner
 	 */
-	public static function parse_css( $css) {
+	public static function parse_css( $css ) {
 
 		// Remove CSS-Comments
 		$css = preg_replace('/\/\*.*?\*\//ms', '', $css);
@@ -125,14 +125,14 @@ class MainWP_Helper {
 		// Append the rest to $blocks
 		array_push($blocks[0], preg_replace('/@.+?\}[^\}]*?\}/ms', '', $css));
 		$ordered = array();
-		for ($i = 0;$i < count($blocks[0]);$i++) {
+		for ( $i = 0;$i < count($blocks[0]);$i++ ) {
 			// If @media-block, strip declaration and parenthesis
-			if (substr($blocks[0][ $i ], 0, 6) === '@media') {
+			if ( substr($blocks[0][ $i ], 0, 6) === '@media' ) {
 				$ordered_key   = preg_replace('/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ]);
 				$ordered_value = preg_replace('/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][ $i ]);
 			}
 			// Rule-blocks of the sort @import or @font-face
-			elseif (substr($blocks[0][ $i ], 0, 1) === '@') {
+			elseif ( substr($blocks[0][ $i ], 0, 1) === '@' ) {
 				$ordered_key   = $blocks[0][ $i ];
 				$ordered_value = $blocks[0][ $i ];
 			} else {
@@ -144,27 +144,27 @@ class MainWP_Helper {
 		}
 
 		// Beginning to rebuild new slim CSS-Array
-		foreach ($ordered as $key => $val) {
+		foreach ( $ordered as $key => $val ) {
 			$new = array();
-			for ($i = 0; $i < count($val); $i++) {
+			for ( $i = 0; $i < count($val); $i++ ) {
 				// Split selectors and rules and split properties and values
 				$selector = trim($val[ $i ], " \r\n\t");
 
-				if ( ! empty($selector)) {
-					if ( ! isset($new[ $selector ])) {
+				if ( ! empty($selector) ) {
+					if ( ! isset($new[ $selector ]) ) {
 						$new[ $selector ] = array();
                     }
 					$rules = explode(';', $val[ ++$i ]);
-					foreach ($rules as $rule) {
+					foreach ( $rules as $rule ) {
 						$rule = trim($rule, " \r\n\t");
-						if ( ! empty($rule)) {
+						if ( ! empty($rule) ) {
 							$rule     = array_reverse(explode(':', $rule));
 							$property = trim(array_pop($rule), " \r\n\t");
 							$value    = implode(':', array_reverse($rule));
 
-							if ( ! isset($new[ $selector ][ $property ]) || ! preg_match('/!important/', $new[ $selector ][ $property ])) {
+							if ( ! isset($new[ $selector ][ $property ]) || ! preg_match('/!important/', $new[ $selector ][ $property ]) ) {
 								$new[ $selector ][ $property ] = $value;
-							} elseif (preg_match('/!important/', $new[ $selector ][ $property ]) && preg_match('/!important/', $value)) {
+							} elseif ( preg_match('/!important/', $new[ $selector ][ $property ]) && preg_match('/!important/', $value) ) {
 								$new[ $selector ][ $property ] = $value;
                             }
 						}
@@ -176,23 +176,23 @@ class MainWP_Helper {
 		$parsed = $ordered;
 
 		$output = '';
-		foreach ($parsed as $media => $content) {
-			if (substr($media, 0, 6) === '@media') {
+		foreach ( $parsed as $media => $content ) {
+			if ( substr($media, 0, 6) === '@media' ) {
 				$output .= $media . " {\n";
 				$prefix  = "\t";
 			} else {
 				$prefix = '';
             }
 
-			foreach ($content as $selector => $rules) {
+			foreach ( $content as $selector => $rules ) {
 				$output .= $prefix . $selector . " {\n";
-				foreach ($rules as $property => $value) {
+				foreach ( $rules as $property => $value ) {
 					$output .= $prefix . "\t" . $property . ': ' . $value;
 					$output .= ";\n";
 				}
 				$output .= $prefix . "}\n\n";
 			}
-			if (substr($media, 0, 6) === '@media') {
+			if ( substr($media, 0, 6) === '@media' ) {
 				$output .= "}\n\n";
 			}
 		}
@@ -217,7 +217,7 @@ class MainWP_Helper {
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename; // Local name
             $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
-            //$gen_unique_fn = true;
+            // $gen_unique_fn = true;
 
             // to fix issue re-create new attachment
             if ( $check_file_existed ) {
@@ -227,7 +227,7 @@ class MainWP_Helper {
                         $result = self::get_maybe_existed_attached_id( $local_img_url );
                         if ( is_array($result) ) { // found attachment
                             $attach = current($result);
-                            if (is_object($attach)) {
+                            if ( is_object($attach) ) {
                                 if ( file_exists( $temporary_file ) ) {
                                     unlink( $temporary_file );
                                 }
@@ -238,13 +238,12 @@ class MainWP_Helper {
                             }
                         }
                     }
-
-                } else { // find in other path
+				} else { // find in other path
                     $result = self::get_maybe_existed_attached_id( $filename, false );
 
                     if ( is_array( $result ) ) {  // found attachment
                         $attach = current($result);
-                        if (is_object($attach)) {
+                        if ( is_object($attach) ) {
                             $basedir        = $upload_dir['basedir'];
                             $baseurl        = $upload_dir['baseurl'];
                             $local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
@@ -259,13 +258,13 @@ class MainWP_Helper {
 								);
                             }
                         }
-                    }
+					}
                 }
             }
 
             // file exists, do not overwrite, generate unique file name
 			// this may causing of issue incorrect source of image in post content
-			if ( file_exists( $local_img_path ) ) { 
+			if ( file_exists( $local_img_path ) ) {
                 $local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
                 $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
             }
@@ -470,12 +469,12 @@ class MainWP_Helper {
 
 		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
 			$edit_post_id = current($post_custom['_mainwp_edit_post_id']);
-        } elseif (isset( $new_post['ID'] ) && $new_post['ID']) {
+        } elseif ( isset( $new_post['ID'] ) && $new_post['ID'] ) {
             $edit_post_id = $new_post['ID'];
         }
 
         require_once ABSPATH . 'wp-admin/includes/post.php';
-        if ($edit_post_id) {
+        if ( $edit_post_id ) {
 			if ( $user_id = wp_check_post_lock( $edit_post_id ) ) {
 				$user  = get_userdata( $user_id );
 				$error = sprintf( __( 'This content is currently locked. %s is currently editing.' ), $user->display_name );
@@ -544,9 +543,9 @@ class MainWP_Helper {
 				$replaceAttachedIds = array();
 				if ( isset( $_POST['post_gallery_images'] ) ) {
 					$post_gallery_images = unserialize(base64_decode( $_POST['post_gallery_images'] ));
-					if (is_array($post_gallery_images)) {
-						foreach ($post_gallery_images as $gallery) {
-							if (isset($gallery['src'])) {
+					if ( is_array($post_gallery_images) ) {
+						foreach ( $post_gallery_images as $gallery ) {
+							if ( isset($gallery['src']) ) {
 								try {
 									$upload = self::uploadImage( $gallery['src'], $gallery ); // Upload image to WP
 									if ( null !== $upload ) {
@@ -559,18 +558,18 @@ class MainWP_Helper {
 						}
 					}
 				}
-				if (count($replaceAttachedIds) > 0) {
+				if ( count($replaceAttachedIds) > 0 ) {
 					foreach ( $matches as $match ) {
 						$idsToReplace     = $match[1];
 						$idsToReplaceWith = '';
 						$originalIds      = explode(',', $idsToReplace);
-						foreach ($originalIds as $attached_id) {
-							if ( ! empty($originalIds) && isset($replaceAttachedIds[ $attached_id ])) {
+						foreach ( $originalIds as $attached_id ) {
+							if ( ! empty($originalIds) && isset($replaceAttachedIds[ $attached_id ]) ) {
 								$idsToReplaceWith .= $replaceAttachedIds[ $attached_id ] . ',';
 							}
 						}
 						$idsToReplaceWith = rtrim($idsToReplaceWith, ',');
-						if ( ! empty($idsToReplaceWith)) {
+						if ( ! empty($idsToReplaceWith) ) {
 							$new_post['post_content'] = str_replace( '"' . $idsToReplace . '"', '"' . $idsToReplaceWith . '"', $new_post['post_content'] );
 						}
 					}
@@ -702,11 +701,11 @@ class MainWP_Helper {
 
 		$post_to_only_existing_categories = false;
 
-        if (is_array($post_custom)) {
+        if ( is_array($post_custom) ) {
             foreach ( $post_custom as $meta_key => $meta_values ) {
 				if ( ! in_array( $meta_key, $not_allowed ) ) {
 					foreach ( $meta_values as $meta_value ) {
-						if (strpos($meta_key, '_mainwp_spinner_') === 0) {
+						if ( strpos($meta_key, '_mainwp_spinner_') === 0 ) {
 							continue; // not save
 						}
 
@@ -753,7 +752,6 @@ class MainWP_Helper {
 				} catch ( Exception $e ) {
 
 				}
-
 			}
 		}
 
@@ -786,7 +784,7 @@ class MainWP_Helper {
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); // Add the thumbnail to the post!
 					$featured_image_exist = true;
-                    if (isset($others['featured_image_data'])) {
+                    if ( isset($others['featured_image_data']) ) {
                         $_image_data = $others['featured_image_data'];
                         update_post_meta( $upload['id'], '_wp_attachment_image_alt', $_image_data['alt'] );
                         wp_update_post( array(
@@ -870,7 +868,7 @@ class MainWP_Helper {
 		}
 
         // unlock if edit post
-        if ($edit_post_id) {
+        if ( $edit_post_id ) {
             update_post_meta( $edit_post_id, '_edit_lock', '' );
         }
 
@@ -1098,7 +1096,7 @@ class MainWP_Helper {
 		// $agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
 
-		if ( ! is_array( $postdata )) {
+		if ( ! is_array( $postdata ) ) {
 			$postdata = array();
         }
 
@@ -1311,7 +1309,7 @@ class MainWP_Helper {
 	static function update_lasttime_backup( $by, $time ) {
 		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
 
-		if ( ! in_array($by, $backup_by)) {
+		if ( ! in_array($by, $backup_by) ) {
 			return false;
         }
 
@@ -1324,17 +1322,17 @@ class MainWP_Helper {
 	}
 
 	static function get_lasttime_backup( $by ) {
-		if ($by == 'backupwp') { // to compatible
+		if ( $by == 'backupwp' ) { // to compatible
 			$by = 'backupwordpress';
         }
-		switch ($by) {
+		switch ( $by ) {
 			case 'backupbuddy':
-				if ( ! is_plugin_active( 'backupbuddy/backupbuddy.php' ) && ! is_plugin_active( 'Backupbuddy/backupbuddy.php' )) {
+				if ( ! is_plugin_active( 'backupbuddy/backupbuddy.php' ) && ! is_plugin_active( 'Backupbuddy/backupbuddy.php' ) ) {
 					return 0;
 				}
 				break;
 			case 'backupwordpress':
-				if ( ! is_plugin_active( 'backupwordpress/backupwordpress.php' )) {
+				if ( ! is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
 					return 0;
 				}
 				break;
@@ -1344,12 +1342,12 @@ class MainWP_Helper {
 				}
 				break;
 			case 'updraftplus':
-				if ( ! is_plugin_active( 'updraftplus/updraftplus.php' )) {
+				if ( ! is_plugin_active( 'updraftplus/updraftplus.php' ) ) {
 					return 0;
 				}
 				break;
 			case 'wptimecapsule':
-				if ( ! is_plugin_active( 'wp-time-capsule/wp-time-capsule.php'  )) {
+				if ( ! is_plugin_active( 'wp-time-capsule/wp-time-capsule.php'  ) ) {
 					return 0;
 				}
 				break;
@@ -1523,7 +1521,7 @@ class MainWP_Helper {
 	}
 
 	public static function sanitize_filename( $filename ) {
-		if ( ! function_exists('mb_ereg_replace')) {
+		if ( ! function_exists('mb_ereg_replace') ) {
 			return sanitize_file_name($filename);
         }
 
@@ -1608,10 +1606,10 @@ class MainWP_Helper {
             return false;
         }
 
-        if (function_exists('get_current_screen')) {
+        if ( function_exists('get_current_screen') ) {
             $screen = get_current_screen();
             if ( $screen ) {
-                if ( $screen->base == 'update-core' && $screen->parent_file == 'index.php'  ) {
+                if ( $screen->base == 'update-core' && $screen->parent_file == 'index.php' ) {
                     return true;
                 }
             }
@@ -1625,21 +1623,21 @@ class MainWP_Helper {
 
     public static function check_files_exists( $files = array(), $return = false ) {
             $missing = array();
-		if (is_array($files)) {
-			foreach ($files as $name) {
-				if ( ! file_exists( $name )) {
+		if ( is_array($files) ) {
+			foreach ( $files as $name ) {
+				if ( ! file_exists( $name ) ) {
 					$missing[] = $name;
 				}
 			}
 		} else {
-			if ( ! file_exists( $files )) {
+			if ( ! file_exists( $files ) ) {
 					$missing[] = $files;
 			}
 		}
 
-		if ( ! empty($missing)) {
+		if ( ! empty($missing) ) {
 			$message = 'Missing file(s): ' . implode(',', $missing);
-			if ($return) {
+			if ( $return ) {
 				return $message;
 			} else {
 				throw new Exception( $message );
@@ -1648,11 +1646,11 @@ class MainWP_Helper {
             return true;
 	}
 
-	public static function check_classes_exists( $classes = array(), $return = false) {
+	public static function check_classes_exists( $classes = array(), $return = false ) {
             $missing = array();
-		if (is_array($classes)) {
-			foreach ($classes as $name) {
-				if ( ! class_exists( $name )) {
+		if ( is_array($classes) ) {
+			foreach ( $classes as $name ) {
+				if ( ! class_exists( $name ) ) {
 					$missing[] = $name;
 				}
 			}
@@ -1664,7 +1662,7 @@ class MainWP_Helper {
 
 		if ( ! empty($missing) ) {
 			$message = 'Missing classes: ' . implode(',', $missing);
-			if ($return) {
+			if ( $return ) {
 				return $message;
 			} else {
 				throw new Exception( $message );
@@ -1673,25 +1671,24 @@ class MainWP_Helper {
             return true;
 	}
 
-    public static function check_methods( $object, $methods = array(), $return = false) {
+    public static function check_methods( $object, $methods = array(), $return = false ) {
             $missing = array();
-		if (is_array($methods)) {
+		if ( is_array($methods) ) {
 				$missing = array();
-			foreach ($methods as $name) {
+			foreach ( $methods as $name ) {
 				if ( ! method_exists($object, $name) ) {
 					$missing[] = $name;
 				}
 			}
-		} elseif ( ! empty($methods)) {
+		} elseif ( ! empty($methods) ) {
 			if ( ! method_exists($object, $methods) ) {
 				$missing[] = $methods;
 			}
-
 		}
 
 		if ( ! empty($missing) ) {
 			$message = 'Missing method: ' . implode(',', $missing);
-			if ($return) {
+			if ( $return ) {
 				return $message;
 			} else {
 				throw new Exception( $message );
@@ -1701,24 +1698,23 @@ class MainWP_Helper {
             return true;
 	}
 
-    public static function check_properties( $object, $properties = array(), $return = false) {
+    public static function check_properties( $object, $properties = array(), $return = false ) {
              $missing = array();
-		if (is_array($properties)) {
-			foreach ($properties as $name) {
+		if ( is_array($properties) ) {
+			foreach ( $properties as $name ) {
 				if ( ! property_exists($object, $name) ) {
 					$missing[] = $name;
 				}
 			}
-		} elseif ( ! empty($properties)) {
+		} elseif ( ! empty($properties) ) {
 			if ( ! property_exists($object, $properties) ) {
 				$missing[] = $properties;
 			}
-
 		}
 
 		if ( ! empty($missing) ) {
 			$message = 'Missing properties: ' . implode(',', $missing);
-			if ($return) {
+			if ( $return ) {
 				return $message;
 			} else {
 				throw new Exception( $message );
@@ -1728,24 +1724,23 @@ class MainWP_Helper {
             return true;
 	}
 
-    public static function check_functions( $funcs = array(), $return = false) {
+    public static function check_functions( $funcs = array(), $return = false ) {
             $missing = array();
-		if (is_array($funcs)) {
-			foreach ($funcs as $name) {
+		if ( is_array($funcs) ) {
+			foreach ( $funcs as $name ) {
 				if ( ! function_exists( $name) ) {
 					$missing[] = $name;
 				}
 			}
-		} elseif ( ! empty($funcs)) {
+		} elseif ( ! empty($funcs) ) {
 			if ( ! function_exists($funcs) ) {
 				$missing[] = $funcs;
 			}
-
 		}
 
 		if ( ! empty($missing) ) {
 			$message = 'Missing functions: ' . implode(',', $missing);
-			if ($return) {
+			if ( $return ) {
 				return $message;
 			} else {
 				throw new Exception( $message );
@@ -1774,7 +1769,7 @@ class MainWP_Helper {
             }
         }
 
-        if (isset($_POST['function']) && isset($_POST['mainwpsignature']) &&
+        if ( isset($_POST['function']) && isset($_POST['mainwpsignature']) &&
                 ( isset($_POST['mwp_action']) || 'wordpress_seo' == $_POST['function'] ) // wordpress_seo for WordPress SEO
             ) {
             register_shutdown_function( 'handle_shutdown' );
