@@ -302,7 +302,7 @@ class MainWP_Child_Timecapsule {
         global $wpdb;
         $all_backups = $wpdb->get_results(
             $wpdb->prepare("
-            SELECT *
+            SELECT backupID
             FROM {$wpdb->base_prefix}wptc_processed_files
             WHERE backupID > %s ", $last_time)
         );

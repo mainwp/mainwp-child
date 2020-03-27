@@ -2,35 +2,79 @@
 
 class MainWP_Helper {
 
-	static function write( $val ) {
+	static function write( $val ) {		
 		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
-			$output = self::safe_json_encode( $val );
-		else :
+			$output = self::safe_json_encode( $val );			
+		else:
 			$output = serialize( $val );
-		endif;
-
-		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' );
+		endif;			
+		
+		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>');
 	}
-
-	public static function utf8ize( $mixed) {
-		if (is_array($mixed)) {
-			foreach ($mixed as $key => $value) {
-				$mixed[ $key ] = self::utf8ize($value);
+	
+	public static function json_valid_check( $data ) {
+		
+		if (is_array( $data )) {
+			$output = array();
+			foreach ( $data as $key => $value) {
+				if ( is_string( $key ) ) {
+					$id = self::json_convert_string( $key );
+				} else {
+					$id = $key;
 			}
-		} elseif (is_string($mixed)) {
-			if ( function_exists( 'mb_convert_encoding' )) {
-				return mb_convert_encoding($mixed, 'UTF-8', 'UTF-8');
+				if ( is_array( $value ) || is_object( $value ) ) {
+					$output[ $id ] = self::json_valid_check( $value );
+				} elseif ( is_string( $value ) ) {
+					$output[ $id ] = self::json_convert_string( $value );
+				} else {
+					$output[ $id ] = $value;
+				}
 			}
+		} 
+		elseif ( is_object( $data ) ) {
+			$output = new stdClass;
+			foreach ( $data as $key => $value ) {
+				if ( is_string( $key ) ) {
+					$id = self::json_convert_string( $key );
+				} else {
+					$id = $key;
+				}
+				if ( is_array( $value ) || is_object( $value ) ) {
+					$output->$id = self::json_valid_check($value);
+				} elseif ( is_string( $value ) ) {
+					$output->$id = self::json_convert_string( $value );
+				} else {
+					$output->$id = $value;
+				}
+			}
+		} 
+		elseif (is_string( $data )) {
+			return self::json_convert_string( $data );
+		} else {
+			return $data;
 		}
-		return $mixed;
+		
+		return $output;
 	}
+	
+	public function json_convert_string( $str ) {
+			if ( function_exists( 'mb_convert_encoding' )) {				
+			$encoding = mb_detect_encoding( $str, mb_detect_order(), true );
+				if ( $encoding ) {
+				return mb_convert_encoding( $str, 'UTF-8', $encoding );
+				} else {
+				return mb_convert_encoding( $str, 'UTF-8', 'UTF-8' );
+				}				
+			}
+		return $str;
+		}
 
 	public static function safe_json_encode( $value, $options = 0, $depth = 512) {
 		$encoded = @json_encode($value, $options, $depth);
-		if ($encoded === false && $value && json_last_error() == JSON_ERROR_UTF8) {
-			$encoded = @json_encode(self::utf8ize($value), $options, $depth);
+		if ($encoded === false && !empty( $value ) && json_last_error() == JSON_ERROR_UTF8 ) { 			
+			$encoded = @json_encode(self::json_valid_check($value), $options, $depth);			
 		}
-		return $encoded;
+		return $encoded ;
 	}
 
 	static function close_connection( $val = null ) {
@@ -173,7 +217,7 @@ class MainWP_Helper {
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename; // Local name
             $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
-            $gen_unique_fn = true;
+            //$gen_unique_fn = true;
 
             // to fix issue re-create new attachment
             if ( $check_file_existed ) {
@@ -219,7 +263,9 @@ class MainWP_Helper {
                 }
             }
 
-            if ( $gen_unique_fn ) {
+            // file exists, do not overwrite, generate unique file name
+			// this may causing of issue incorrect source of image in post content
+			if ( file_exists( $local_img_path ) ) { 
                 $local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
                 $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
             }

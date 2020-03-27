@@ -339,9 +339,65 @@ class MainWP_Client_Report {
 		if ( ! is_array( $records ) ) {
 			$records = array();
 		}
-
-		// to fix invalid data
+		
+		
+		// to fix invalid data, or skip records
 		$skip_records = array();
+		
+		// to fix for incorrect posts created logging		
+		// query created posts from WP posts data to simulate records logging for created posts		
+		if ( isset($_POST['direct_posts']) && !empty($_POST['direct_posts']) ) {			
+			$query_string = array(
+				'post_type' => 'post', 
+				'date_query' => array(
+				  'column' => 'post_date',
+				  'after' => $args['date_from'],
+				  'before' => $args['date_to']
+				),				
+				'post_status' => 'publish'
+			  );
+
+			$records_created_posts = query_posts( $query_string );
+			
+			if ($records_created_posts) {		
+				
+				for( $i = 0; $i < count($records); $i++ ) {
+					$record = $records[$i];
+					if ($record->connector == 'posts' && $record->context == 'post' && $record->action == 'created') {
+						if (!in_array($record->ID, $skip_records)) {
+							$skip_records[] = $record->ID; // so avoid this created logging, will use logging query from posts data
+						}
+					}
+				}
+				
+				$post_authors = array();
+				
+				foreach( $records_created_posts as $_post){
+					$au_id = $_post->post_author;
+					if ( !isset($post_authors[$au_id]) ) {
+						$au = get_user_by( 'id', $au_id );
+						$post_authors[$au_id] = $au->display_name;
+					}
+					$au_name = $post_authors[$au_id];
+		
+					//simulate logging created posts record
+					$stdObj = new stdClass;
+					$stdObj->ID = 0; // simulate ID value
+					$stdObj->connector = 'posts';
+					$stdObj->context = 'post';
+					$stdObj->action = 'created';
+					$stdObj->created = $_post->post_date;		
+					$stdObj->meta = array(
+						'post_title' => array( $_post->post_title ),
+						'user_meta' =>  array( $au_name )
+					);					
+					
+					$records[] = $stdObj;
+				}
+			}
+
+		}
+		
 		if ( isset( $other_tokens['header'] ) && is_array( $other_tokens['header'] ) ) {
 			$other_tokens_data['header'] = $this->get_other_tokens_data( $records, $other_tokens['header'], $skip_records);
 		}
@@ -428,20 +484,23 @@ class MainWP_Client_Report {
 					case 'count':
 						$count = 0;
 						foreach ( $records as $record ) {
-
-							// check connector
-							if ( $record->connector == 'editor' ) {
-								if ( ! in_array( $context, array( 'plugins', 'themes' ) ) || $action !== 'updated' ) {
+							
+							// check connector							
+							if ( $record->connector == 'editor' ) {				
+								if ( !in_array( $context, array('plugins', 'themes') ) || $action !== 'updated' )
+									continue;				
+							} else if ( $connector !== $record->connector ) {
+								continue;
+							}				
+							
+							// check context			
+							if ( $context == 'comments' ) { // multi values									
+								$comment_contexts = array( 'post', 'page' );					
+								if ( ! in_array( $record->context, $comment_contexts ) ) {
 									continue;
 								}
-							} elseif ( $connector !== $record->connector ) {
-								continue;
-							}
-
-							// check context
-							if ( $context == 'comments' ) { // multi values
-								$comment_contexts = array( 'post', 'page' );
-								if ( ! in_array( $record->context, $comment_contexts ) ) {
+							} else if ( 'post' === $context && 'created' === $action ) {
+								if ( in_array($record->ID, $skip_records) ) {
 									continue;
 								}
 							} elseif ( $context == 'menus' ) {
@@ -503,8 +562,8 @@ class MainWP_Client_Report {
 											}
 											continue;
 										}
-									}
-								}
+									}									
+								} 
 							}
 							$count ++;
 						}
@@ -823,8 +882,8 @@ class MainWP_Client_Report {
 
 			if ( isset( $meta[ $meta_key ] ) ) {
 				$value = $meta[ $meta_key ];
-				$value = current( $value );
-
+				$value = ( $meta_key == 'user_meta' && isset($value[1]) ) ? $value[1] : current( $value ); // display name				
+				
 				// to compatible with old meta data
 				if ( 'author_meta' === $meta_key ) {
 					$value = maybe_unserialize( $value );
