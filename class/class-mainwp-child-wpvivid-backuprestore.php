@@ -15,11 +15,11 @@ class MainWP_Child_WPvivid_BackupRestore {
 
     public function __construct() {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        if ( is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) && defined('WPVIVID_PLUGIN_DIR')) {
+        if ( is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) && defined('WPVIVID_PLUGIN_DIR') ) {
             $this->is_plugin_installed = true;
         }
 
-        if ( ! $this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed ) {
             return;
         }
 
@@ -33,7 +33,7 @@ class MainWP_Child_WPvivid_BackupRestore {
     function syncOthersData( $information, $data = array() ) {
         try {
 
-            if ( isset( $data['syncWPvividData'] )) {
+            if ( isset( $data['syncWPvividData'] ) ) {
                 $information['syncWPvividData']         = 1;
                 $data                                   = WPvivid_Setting::get_sync_data();
                 $information['syncWPvividSettingData']  = $data['setting'];
@@ -41,8 +41,7 @@ class MainWP_Child_WPvivid_BackupRestore {
                 $information['syncWPvividScheduleData'] = $data['schedule'];
                 $information['syncWPvividSetting']      = $data;
             }
-
-        } catch (Exception $e) {
+		} catch ( Exception $e ) {
 
         }
 
@@ -58,7 +57,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 
         if ( isset( $_POST['mwp_action'] ) ) {
             try {
-                switch ($_POST['mwp_action']) {
+                switch ( $_POST['mwp_action'] ) {
                     case 'prepare_backup':
                         $information = $this->prepare_backup();
                         break;
@@ -123,7 +122,7 @@ class MainWP_Child_WPvivid_BackupRestore {
                         $information = $this->post_mainwp_data($_POST);
                         break;
                 }
-            } catch (Exception $e) {
+            } catch ( Exception $e ) {
                 $information = array( 'error' => $e->getMessage() );
             }
 
@@ -131,7 +130,7 @@ class MainWP_Child_WPvivid_BackupRestore {
         }
     }
 
-    public function post_mainwp_data( $data) {
+    public function post_mainwp_data( $data ) {
         global $wpvivid_plugin;
 
         $ret = $wpvivid_plugin->wpvivid_handle_mainwp_action($data);

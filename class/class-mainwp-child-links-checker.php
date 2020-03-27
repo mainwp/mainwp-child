@@ -82,7 +82,7 @@ class MainWP_Child_Links_Checker {
                 }
             }
             MainWP_Helper::write( $information );
-        } catch (Exception $e) {
+        } catch ( Exception $e ) {
             MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
         }
 	}
@@ -212,7 +212,7 @@ class MainWP_Child_Links_Checker {
         if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {
             try {
                 $information['syncBrokenLinksCheckerData'] = $this->get_sync_data();
-            } catch (Exception $e) {
+            } catch ( Exception $e ) {
 
             }
         }
@@ -223,7 +223,7 @@ class MainWP_Child_Links_Checker {
 	function get_sync_data( $strategy = '' ) {
 		$information = array();
 		$data        = $this->get_count_links();
-        if (is_array($data)) {
+        if ( is_array($data) ) {
             $information['data'] = $data;
         }
 		return $information;
@@ -231,7 +231,7 @@ class MainWP_Child_Links_Checker {
 
 	function get_links_data() {
 
-        if ( ! defined('BLC_DIRECTORY')) {
+        if ( ! defined('BLC_DIRECTORY') ) {
 			return;
         }
 
@@ -259,7 +259,7 @@ class MainWP_Child_Links_Checker {
 			'max_results' => $max_results,
 		);
 
-		if (empty($offset)) {
+		if ( empty($offset) ) {
 			$first_sync = true;
 		} else {
 			$params['offset'] = $offset;
@@ -268,18 +268,18 @@ class MainWP_Child_Links_Checker {
 		$link_data = $this->links_checker_data($params);
 
 		$total_sync = 0;
-		if ($offset) {
+		if ( $offset ) {
 			$total_sync = $offset;
 		}
 		$total_sync += ( is_array($link_data) ? count($link_data) : 0 );
 
 		$information = array( 'links_data' => $link_data );
 
-		if ($first_sync) {
+		if ( $first_sync ) {
 			$information['data'] = $this->get_count_links();
 		}
 
-		if ($total > $offset + $max_results ) {
+		if ( $total > $offset + $max_results ) {
 			$information['sync_offset'] = $offset + $max_results;
 		} else {
 			$information['last_sync']  = 1;
@@ -292,7 +292,7 @@ class MainWP_Child_Links_Checker {
 	}
 
 	function get_count_links() {
-        if ( ! defined('BLC_DIRECTORY')) {
+        if ( ! defined('BLC_DIRECTORY') ) {
 			return;
         }
 
@@ -320,7 +320,7 @@ class MainWP_Child_Links_Checker {
 		return $data;
 	}
 
-	function links_checker_data( $params) {
+	function links_checker_data( $params ) {
 
         MainWP_Helper::check_functions('blc_get_links');
         MainWP_Helper::check_classes_exists('blcLink');
@@ -404,8 +404,8 @@ class MainWP_Child_Links_Checker {
 					/** @var blcContainer $container */
 
 					if ( ! empty( $container ) /* && ($container instanceof blcAnyPostContainer) */ ) {
-                        if (true === MainWP_Helper::check_properties($first_instance, array( 'container_field' ), true )) {
-                            if (true === MainWP_Helper::check_properties($container, array( 'container_type', 'container_id' ), true )) {
+                        if ( true === MainWP_Helper::check_properties($first_instance, array( 'container_field' ), true ) ) {
+                            if ( true === MainWP_Helper::check_properties($container, array( 'container_type', 'container_id' ), true ) ) {
                                 $extra_info['container_type'] = $container->container_type;
                                 $extra_info['container_id']   = $container->container_id;
                                 $extra_info['source_data']    = $this->ui_get_source( $container, $first_instance->container_field );
@@ -659,7 +659,7 @@ class MainWP_Child_Links_Checker {
 			$image = 'font-awesome/font-awesome-comment-alt.png';
 		}
 
-        if (true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object' ), true )) {
+        if ( true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object' ), true ) ) {
             return false;
         }
 
