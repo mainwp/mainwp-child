@@ -273,18 +273,18 @@ class MainWP_Security {
 	}
 
 	public static function remove_registered_versions() {
-        if ( self::get_security_option( 'registered_versions' ) ) {
+		if ( self::get_security_option( 'registered_versions' ) ) {
 			global $wp_styles;
 			if ( $wp_styles instanceof WP_Styles ) {
 				foreach ( $wp_styles->registered as $handle => $style ) {
-                    $wp_styles->registered[ $handle ]->ver = null;
-                }
+					$wp_styles->registered[ $handle ]->ver = null;
+				}
 			}
-            global $wp_scripts;
+			global $wp_scripts;
 			if ( $wp_scripts instanceof WP_Scripts ) {
 				foreach ( $wp_scripts->registered as $handle => $script ) {
-                    $wp_scripts->registered[ $handle ]->ver = null;
-                }
+					$wp_scripts->registered[ $handle ]->ver = null;
+				}
 			}
 		}
 	}
@@ -317,12 +317,12 @@ class MainWP_Security {
 		return $src;
 	}
 
-    public static function remove_readme( $force = false ) {
+	public static function remove_readme( $force = false ) {
 
-        // to prevent remove readme.html file on WPE hosts
-        if ( MainWP_Helper::is_wp_engine() ) {
-            return true;
-        }
+		// to prevent remove readme.html file on WPE hosts
+		if ( MainWP_Helper::is_wp_engine() ) {
+			return true;
+		}
 
 		if ( $force || self::get_security_option( 'readme' ) ) {
 			if ( @file_exists( ABSPATH . 'readme.html' ) ) {
@@ -354,7 +354,7 @@ class MainWP_Security {
 		$user = get_user_by( 'login', 'admin' );
 		if ( ! $user ) {
 			return true;
-        }
+		}
 
 		if ( 10 !== $user->wp_user_level && ( ! isset( $user->user_level ) || 10 !== $user->user_level ) && ! user_can( $user, 'level_10' ) ) {
 			return true;
@@ -367,7 +367,7 @@ class MainWP_Security {
 		$security = get_option( 'mainwp_security' );
 		if ( ! empty($key) ) {
 			$security[ $key ] = $value;
-        }
+		}
 		MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
 	}
 }

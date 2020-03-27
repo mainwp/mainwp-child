@@ -130,8 +130,8 @@ class MainWP_Child_Skeleton_Key {
 
 		$full_url = add_query_arg( $get_args, get_site_url() . $url );
 
-        global $mainWPChild;
-        add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+		global $mainWPChild;
+		add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
 		$response = wp_remote_post( $full_url, $post_args );
 
@@ -197,7 +197,7 @@ class MainWP_Child_Skeleton_Key {
 
 		if ( ! is_array($settings) || empty($settings) ) {
 			return array( 'error' => 'Invalid data. Please check and try again.' );
-        }
+		}
 
 		$whitelist_options = array(
 			'general' => array( 'blogname', 'blogdescription', 'gmt_offset', 'date_format', 'time_format', 'start_of_week', 'timezone_string', 'WPLANG' ),
@@ -206,10 +206,10 @@ class MainWP_Child_Skeleton_Key {
 		if ( ! is_multisite() ) {
 			if ( ! defined( 'WP_SITEURL' ) ) {
 				$whitelist_options['general'][] = 'siteurl';
-            }
+			}
 			if ( ! defined( 'WP_HOME' ) ) {
 				$whitelist_options['general'][] = 'home';
-            }
+			}
 
 			$whitelist_options['general'][] = 'admin_email';
 			$whitelist_options['general'][] = 'users_can_register';
@@ -235,7 +235,7 @@ class MainWP_Child_Skeleton_Key {
 			if ( in_array($option, $whitelist_general) ) {
 				if ( ! is_array( $value ) ) {
 					$value = trim( $value );
-                }
+				}
 				$value = wp_unslash( $value );
 				update_option($option, $value);
 				$updated = true;
@@ -244,7 +244,7 @@ class MainWP_Child_Skeleton_Key {
 
 		if ( ! $updated ) {
 			return false;
-        }
+		}
 
 		return array( 'result' => 'ok' );
 	}

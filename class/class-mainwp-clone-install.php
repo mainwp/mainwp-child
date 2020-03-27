@@ -648,7 +648,7 @@ class MainWP_Clone_Install {
 	 * @return array    The original array with all elements replaced as needed.
 	 */
 
-    /* Fixed serialize issue */
+	/* Fixed serialize issue */
 	function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
 
 		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
@@ -666,7 +666,7 @@ class MainWP_Clone_Install {
 				unset( $_tmp );
 			} elseif ( is_object( $data ) ) {
 				$_tmp  = $data;
-                $props = get_object_vars( $data );
+				$props = get_object_vars( $data );
 				foreach ( $props as $key => $value ) {
 					$_tmp->{$key} = $this->recursive_unserialize_replace( $from, $to, $value, false );
 				}
@@ -674,10 +674,10 @@ class MainWP_Clone_Install {
 				$data = $_tmp;
 				unset( $_tmp );
 			} elseif ( is_serialized_string($data) && is_serialized($data) ) {
-                // TODO: apply solution like phpmyadmin project have!
+				// TODO: apply solution like phpmyadmin project have!
 				if ( ( $data = @unserialize( $data ) ) !== false ) {
 					$data = str_replace( $from, $to, $data );
-                    $data = serialize( $data );
+					$data = serialize( $data );
 				}
 			} else {
 				if ( is_string( $data ) ) {

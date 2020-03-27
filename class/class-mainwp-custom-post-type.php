@@ -67,16 +67,16 @@ class MainWP_Custom_Post_Type {
 		if ( empty( $data ) || ! is_array( $data ) || ! isset( $data['post'] ) ) {
 			return array( 'error' => __( 'Cannot decode data', $this->plugin_translate ) );
 		}
-        $edit_id = ( isset($_POST['post_id']) && ! empty($_POST['post_id']) ) ? $_POST['post_id'] : 0;
+		$edit_id = ( isset($_POST['post_id']) && ! empty($_POST['post_id']) ) ? $_POST['post_id'] : 0;
 		$return  = $this->_insert_post($data, $edit_id, $parent_id = 0);
-        if ( isset($return['success']) && $return['success'] == 1 ) {
-            if ( isset($data['product_variation']) && is_array($data['product_variation']) ) {
-                foreach ( $data['product_variation'] as $product_variation ) {
-                    $return_variantion = $this->_insert_post($product_variation, 0, $return['post_id']);
-                }
-            }
-        }
-        return $return;
+		if ( isset($return['success']) && $return['success'] == 1 ) {
+			if ( isset($data['product_variation']) && is_array($data['product_variation']) ) {
+				foreach ( $data['product_variation'] as $product_variation ) {
+					$return_variantion = $this->_insert_post($product_variation, 0, $return['post_id']);
+				}
+			}
+		}
+		return $return;
 	}
 
 
@@ -135,7 +135,7 @@ class MainWP_Custom_Post_Type {
 		return $post_content;
 	}
 
-    private function _insert_post( $data, $edit_id, $parent_id = 0 ) {
+	private function _insert_post( $data, $edit_id, $parent_id = 0 ) {
 
 		// Insert post
 		$data_insert                = array();
@@ -181,7 +181,7 @@ class MainWP_Custom_Post_Type {
 			$is_woocomerce = true;
 		}
 
-        $check_image_existed = false;
+		$check_image_existed = false;
 
 		// Support post_edit
 		if ( ! empty( $edit_id ) ) {
@@ -197,7 +197,7 @@ class MainWP_Custom_Post_Type {
 			if ( get_post_status( $old_post_id ) == 'trash' ) {
 				return array( 'error' => __( 'This post is inside trash on child website. Please try publish it manually and try again.', $this->plugin_translate ) );
 			}
-            $check_image_existed = true;
+			$check_image_existed = true;
 			// Set id
 			$data_insert['ID'] = $old_post_id;
 
@@ -213,11 +213,11 @@ class MainWP_Custom_Post_Type {
 			wp_delete_object_term_relationships( $old_post_id, get_object_taxonomies( $data_insert['post_type'] ) );
 		}
 
-        $data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'], $check_image_existed );
+		$data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'], $check_image_existed );
 
-        if ( ! empty($parent_id) ) {
-            $data_insert['post_parent'] = $parent_id; // for product variation
-        }
+		if ( ! empty($parent_id) ) {
+			$data_insert['post_parent'] = $parent_id; // for product variation
+		}
 		$post_id = wp_insert_post( $data_insert, true );
 		if ( is_wp_error( $post_id ) ) {
 			return array( 'error' => __( 'Error when insert new post:', $this->plugin_translate ) . ' ' . $post_id->get_error_message() );
@@ -275,7 +275,7 @@ class MainWP_Custom_Post_Type {
 						}
 					}
 
-                    $meta_value = maybe_unserialize( $key['meta_value'] );
+					$meta_value = maybe_unserialize( $key['meta_value'] );
 					if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
 						return array( 'error' => __( 'Error when adding post meta', $this->plugin_translate ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
 					}

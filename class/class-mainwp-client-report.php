@@ -487,7 +487,7 @@ class MainWP_Client_Report {
 							if ( $record->connector == 'editor' ) {
 								if ( ! in_array( $context, array( 'plugins', 'themes' ) ) || $action !== 'updated' ) {
 									continue;
-                                }
+								}
 							} elseif ( $connector !== $record->connector ) {
 								continue;
 							}
