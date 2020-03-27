@@ -1154,7 +1154,7 @@ class MainWP_Child_Server_Information {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
-		return $wpdb->get_var( 'SHOW VARIABLES LIKE "version"', 1 );
+		return $wpdb->get_var( "SHOW VARIABLES LIKE 'version'", 1 );
 	}
 
 	protected static function getMaxInputTime() {

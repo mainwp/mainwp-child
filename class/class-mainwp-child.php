@@ -7,7 +7,7 @@ if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === TRUE ) {
 	if (isset($_REQUEST['mainwpsignature'])) {
 		@ini_set( 'display_errors', FALSE );
 		@error_reporting( 0 );
-}
+	}
 }
 
 define( 'MAINWP_CHILD_NR_OF_COMMENTS', 50 );
@@ -4623,9 +4623,9 @@ class MainWP_Child {
 					$outComment['author_url']   = get_comment_author_url( $comment->comment_ID );
 					$outComment['author_ip']    = get_comment_author_IP( $comment->comment_ID );
 					$outComment['author_email'] = $email = apply_filters( 'comment_email', $comment->comment_author_email );
-					if ( ( ! empty( $outComment['author_email'] ) ) && ( '@' !== $outComment['author_email'] ) ) {
-						$outComment['author_email'] = '<a href="mailto:' . $outComment['author_email'] . '">' . $outComment['author_email'] . '</a>';
-					}
+//					if ( ( ! empty( $outComment['author_email'] ) ) && ( '@' !== $outComment['author_email'] ) ) {
+//						$outComment['author_email'] = '<a href="mailto:' . $outComment['author_email'] . '">' . $outComment['author_email'] . '</a>';
+//					}
 					$outComment['postId']        = $comment->comment_post_ID;
 					$outComment['postName']      = $post->post_title;
 					$outComment['comment_count'] = $post->comment_count;
