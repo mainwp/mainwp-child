@@ -43,7 +43,7 @@ class MainWP_Child_Back_Up_Wordpress {
             return;
         }
 
-		if ( ! $this->is_plugin_installed) {
+		if ( ! $this->is_plugin_installed ) {
 			return;
         }
 
@@ -67,7 +67,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			return $value;
 		}
 
-        if ( ! MainWP_Helper::is_screen_with_update()) {
+        if ( ! MainWP_Helper::is_screen_with_update() ) {
             return $value;
         }
 		if ( isset( $value->response['backupwordpress/backupwordpress.php'] ) ) {
@@ -155,7 +155,7 @@ class MainWP_Child_Back_Up_Wordpress {
         if ( isset( $data['syncBackUpWordPress'] ) && $data['syncBackUpWordPress'] ) {
             try {
                 $information['syncBackUpWordPress'] = $this->get_sync_data();
-            } catch (Exception $e) {
+            } catch ( Exception $e ) {
 
             }
         }
@@ -171,7 +171,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		$schedules    = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
 		$backups_time = array();
 
-        if (is_array($schedules) && count($schedules)) {
+        if ( is_array($schedules) && count($schedules) ) {
             $check = current($schedules);
             MainWP_Helper::check_methods($check, array( 'get_backups' ) );
 
@@ -194,7 +194,7 @@ class MainWP_Child_Back_Up_Wordpress {
 	}
 
     function do_site_stats() {
-        if (has_action('mainwp_child_reports_log')) {
+        if ( has_action('mainwp_child_reports_log') ) {
             do_action( 'mainwp_child_reports_log', 'backupwordpress');
         } else {
             $this->do_reports_log('backupwordpress');
@@ -202,11 +202,11 @@ class MainWP_Child_Back_Up_Wordpress {
     }
 
     // ok
-    public function do_reports_log( $ext = '') {
+    public function do_reports_log( $ext = '' ) {
         if ( $ext !== 'backupwordpress' ) {
 			return;
         }
-        if ( ! $this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed ) {
 			return;
         }
 
@@ -217,11 +217,11 @@ class MainWP_Child_Back_Up_Wordpress {
             // Refresh the schedules from the database to make sure we have the latest changes
             HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
             $schedules = HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
-            if (is_array($schedules) && count($schedules) > 0) {
+            if ( is_array($schedules) && count($schedules) > 0 ) {
                 $check = current($schedules);
                 MainWP_Helper::check_methods($check, array( 'get_backups', 'get_type' ));
 
-                foreach ($schedules as $schedule) {
+                foreach ( $schedules as $schedule ) {
                     foreach ( $schedule->get_backups() as $file ) {
                         $backup_type = $schedule->get_type();
                         $message     = 'BackupWordpres backup ' . $backup_type . ' finished';
@@ -236,7 +236,7 @@ class MainWP_Child_Back_Up_Wordpress {
                     }
                 }
             }
-        } catch (Exception $e) {
+        } catch ( Exception $e ) {
 
         }
     }
@@ -268,7 +268,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		$schedule    = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( urldecode( $schedule_id ) ) );
 
 		// Delete the running backup
-		if (method_exists($schedule, 'get_running_backup_filename' )) {
+		if ( method_exists($schedule, 'get_running_backup_filename' ) ) {
 			if ( $schedule->get_running_backup_filename() && file_exists( trailingslashit( hmbkp_path() ) . $schedule->get_running_backup_filename() ) ) {
 				unlink( trailingslashit( hmbkp_path() ) . $schedule->get_running_backup_filename() );
 			}
@@ -284,12 +284,11 @@ class MainWP_Child_Back_Up_Wordpress {
 			if ( file_exists( $status->get_status_filepath() ) ) {
 				unlink( $status->get_status_filepath() );
 			}
-
 		}
 
 		HM\BackUpWordPress\Path::get_instance()->cleanup();
 
-		if ($status === null) {
+		if ( $status === null ) {
 			$information['scheduleStatus'] = $schedule->get_status();
 		} else {
 			$information['scheduleStatus'] = $status->get_status();
@@ -304,7 +303,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		$schedule_id = $this->check_schedule();
 		$schedule    = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( urldecode( $schedule_id ) ) );
 
-		if (method_exists($schedule, 'get_running_backup_filename' )) {
+		if ( method_exists($schedule, 'get_running_backup_filename' ) ) {
 			$information['scheduleStatus'] = $schedule->get_status();
 		} else {
 			$status                        = $schedule->get_status();
@@ -318,9 +317,9 @@ class MainWP_Child_Back_Up_Wordpress {
 
 	function run_schedule() {
 		$schedule_id = $this->check_schedule();
-		if (function_exists('hmbkp_run_schedule_async')) {
+		if ( function_exists('hmbkp_run_schedule_async') ) {
 			hmbkp_run_schedule_async($schedule_id);
-		} elseif (function_exists('\HM\BackUpWordPress\run_schedule_async')) {
+		} elseif ( function_exists('\HM\BackUpWordPress\run_schedule_async') ) {
 			HM\BackUpWordPress\Path::get_instance()->cleanup();
 			// Fixes an issue on servers which only allow a single session per client
 			session_write_close();
@@ -361,7 +360,7 @@ class MainWP_Child_Back_Up_Wordpress {
 				'started_ago'    => human_time_diff( $started_ago ),
 			);
 
-			if (method_exists($schedule, 'get_running_backup_filename' )) {
+			if ( method_exists($schedule, 'get_running_backup_filename' ) ) {
 				$out['scheduleStatus'] = $schedule->get_status();
 			} else {
 				$status                = $schedule->get_status();
@@ -389,7 +388,7 @@ class MainWP_Child_Back_Up_Wordpress {
 						'scheduleStatus' => $schedule->get_status(),
 						'started_ago'    => human_time_diff( $started_ago ),
 					);
-					if (method_exists($schedule, 'get_running_backup_filename' )) {
+					if ( method_exists($schedule, 'get_running_backup_filename' ) ) {
 						$send_back_schedules['scheduleStatus'] = $schedule->get_status();
 					} else {
 						$status                                = $schedule->get_status();
@@ -399,7 +398,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			}
 		}
 
-		if (function_exists('HM\BackUpWordPress\Backup::get_home_path')) {
+		if ( function_exists('HM\BackUpWordPress\Backup::get_home_path') ) {
 			$backups_path = str_replace( HM\BackUpWordPress\Backup::get_home_path(), '', hmbkp_path() );
 		} else {
 			$backups_path = str_replace( HM\BackUpWordPress\Path::get_home_path(), '', HM\BackUpWordPress\Path::get_path() );
@@ -433,7 +432,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			'count'          => count( $schedule->get_backups() ),
 			'file_size_text' => $this->hmbkp_get_site_size_text( $schedule ),
 		);
-		if (method_exists($schedule, 'get_running_backup_filename' )) {
+		if ( method_exists($schedule, 'get_running_backup_filename' ) ) {
 			$ret['scheduleStatus'] = $schedule->get_status();
 		} else {
 			$status                = $schedule->get_status();
@@ -497,7 +496,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 
 	function hmbkp_get_site_size_text( HM\BackUpWordPress\Scheduled_Backup $schedule ) {
-		if (method_exists($schedule, 'is_site_size_cached')) {
+		if ( method_exists($schedule, 'is_site_size_cached') ) {
 			if ( ( 'database' === $schedule->get_type() ) || $schedule->is_site_size_cached() ) {
 				return sprintf( '(<code title="' . __( 'Backups will be compressed and should be smaller than this.', 'mainwp-backupwordpress-extension' ) . '">%s</code>)', esc_attr( $schedule->get_formatted_site_size() ) );
 			}
@@ -533,7 +532,7 @@ class MainWP_Child_Back_Up_Wordpress {
 			<td>
 
 				<?php
-                if (function_exists('hmbkp_is_path_accessible')) {
+                if ( function_exists('hmbkp_is_path_accessible') ) {
 					if ( hmbkp_is_path_accessible( hmbkp_path() ) ) {
 						?>
 						<a href="#"
@@ -541,8 +540,8 @@ class MainWP_Child_Back_Up_Wordpress {
 						   class="download-action"><?php esc_html_e( 'Download', 'backupwordpress' ); ?></a> |
 						<?php
                     };
-				} elseif (function_exists('HM\BackUpWordPress\is_path_accessible') ) {
-					if (HM\BackUpWordPress\is_path_accessible(HM\BackUpWordPress\Path::get_path())) {
+				} elseif ( function_exists('HM\BackUpWordPress\is_path_accessible') ) {
+					if ( HM\BackUpWordPress\is_path_accessible(HM\BackUpWordPress\Path::get_path()) ) {
 						?>
 						<a href="#"
 						   onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);"
@@ -569,7 +568,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		$schedule    = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( urldecode( $schedule_id ) ) );
 
 		$new_version = true;
-		if (method_exists($schedule, 'get_running_backup_filename' )) {
+		if ( method_exists($schedule, 'get_running_backup_filename' ) ) {
 			$new_version        = false;
 			$user_excludes      = array_diff( $schedule->get_excludes(), $schedule->backup->default_excludes() );
 			$root_dir           = $schedule->backup->get_root();
@@ -626,7 +625,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 						<td>
 							<?php
-							if ($new_version) {
+							if ( $new_version ) {
 								$is_default_rule = ( in_array( $exclude, $excludes->get_default_excludes() ) ) || ( HM\BackUpWordPress\Path::get_path() === trailingslashit( HM\BackUpWordPress\Path::get_root() ) . untrailingslashit( $exclude ) );
 							} else {
 								$is_default_rule = ( in_array( $exclude, $schedule->backup->default_excludes() ) ) || ( hmbkp_path() === untrailingslashit( $exclude ) );
@@ -679,16 +678,15 @@ class MainWP_Child_Back_Up_Wordpress {
 			}
 
 			// Kick off a recursive filesize scan
-			if ($new_version) {
+			if ( $new_version ) {
 
 				$site_size = new HM\BackUpWordPress\Site_Size();
 
 				$exclude_string = implode( '|', $excludes->get_excludes_for_regex() );
 
-				if (function_exists('HM\BackUpWordPress\list_directory_by_total_filesize')) {
+				if ( function_exists('HM\BackUpWordPress\list_directory_by_total_filesize') ) {
 					$files = HM\BackUpWordPress\list_directory_by_total_filesize( $directory, $excludes );
                 }
-
 			} else {
 				$files          = $schedule->list_directory_by_total_filesize( $directory );
 				$exclude_string = $schedule->backup->exclude_string( 'regex' );
@@ -758,7 +756,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 								$root = new SplFileInfo( $root_dir );
 
-								if ($new_version) {
+								if ( $new_version ) {
 									$size = $site_size->filesize( $root );
 								} else {
 									$size = $schedule->filesize( $root, true );
@@ -817,7 +815,7 @@ class MainWP_Child_Back_Up_Wordpress {
 						$is_excluded = $is_unreadable = false;
 
 						// Check if the file is excluded
-						if ($new_version) {
+						if ( $new_version ) {
 							if ( $exclude_string && preg_match( '(' . $exclude_string . ')', str_ireplace( trailingslashit( $root_dir ), '', wp_normalize_path( $file->getPathname() ) ) ) ) {
 								$is_excluded = true;
 							}
@@ -855,7 +853,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 							<td>
 								<?php
-								if ($new_version) {
+								if ( $new_version ) {
 									if ( $is_unreadable ) {
 										?>
 
@@ -910,7 +908,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 									<?php
 								else :
-									if ($new_version) {
+									if ( $new_version ) {
 										$size = $site_size->filesize( $file );
 									} else {
 										$size = $schedule->filesize( $file );
@@ -1079,7 +1077,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		$excludes               = $schedule->get_excludes();
 		$exclude_rule_to_remove = stripslashes( sanitize_text_field( $_POST['remove_rule'] ) );
 
-		if (method_exists($excludes, 'get_user_excludes')) {
+		if ( method_exists($excludes, 'get_user_excludes') ) {
 			$schedule->set_excludes( array_diff( $excludes->get_user_excludes(), (array) $exclude_rule_to_remove ) );
 		} else {
 			$schedule->set_excludes( array_diff( $excludes, $exclude_rule_to_remove ) );
@@ -1109,19 +1107,19 @@ class MainWP_Child_Back_Up_Wordpress {
 
         $exclude_paths = urldecode( $_POST['exclude_paths'] );
         $exclude_paths = explode("\n", $exclude_paths);
-        if (is_array($exclude_paths) && count($exclude_paths) > 0) {
+        if ( is_array($exclude_paths) && count($exclude_paths) > 0 ) {
             foreach ( $exclude_paths as $excl_rule ) {
                 $excl_rule = trim($excl_rule);
                 $excl_rule = trim($excl_rule, '/');
 
-                if (empty($excl_rule)) {
+                if ( empty($excl_rule) ) {
                         continue;
                 }
 
                 $exclude_rule = ABSPATH . $excl_rule;
                 $path         = realpath($exclude_rule);
                 // If it exist
-                if ($path !== false) {
+                if ( $path !== false ) {
                     $schedule->set_excludes( $exclude_rule, true );
                     $schedule->save();
                 }
@@ -1131,17 +1129,17 @@ class MainWP_Child_Back_Up_Wordpress {
         $un_exclude_paths = urldecode( $_POST['un_exclude_paths'] );
         $un_exclude_paths = explode("\n", $un_exclude_paths);
 
-        if (is_array($un_exclude_paths) && count(get_user_excludes) > 0) {
+        if ( is_array($un_exclude_paths) && count(get_user_excludes) > 0 ) {
             foreach ( $un_exclude_paths as $exclude_rule_to_remove ) {
                     $exclude_rule_to_remove = trim($exclude_rule_to_remove);
                     $exclude_rule_to_remove = trim($exclude_rule_to_remove, '/');
 
-				if (empty($exclude_rule_to_remove)) {
+				if ( empty($exclude_rule_to_remove) ) {
 					continue;
 				}
 
                     $excludes = $schedule->get_excludes();
-				if (method_exists($excludes, 'get_user_excludes')) {
+				if ( method_exists($excludes, 'get_user_excludes') ) {
 					$schedule->set_excludes( array_diff( $excludes->get_user_excludes(), (array) $exclude_rule_to_remove ) );
 				} else {
 					$schedule->set_excludes( array_diff( $excludes, $exclude_rule_to_remove ) );
@@ -1221,7 +1219,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		}
 
 		$out = array();
-		foreach ($schedules as $sch_id => $sch) {
+		foreach ( $schedules as $sch_id => $sch ) {
 			if ( empty($sch_id) || ! isset( $sch['options'] ) || ! is_array( $sch['options'] ) ) {
 				continue;
             }

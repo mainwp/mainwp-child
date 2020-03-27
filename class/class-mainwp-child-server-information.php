@@ -19,7 +19,7 @@ class MainWP_Child_Server_Information {
 			}
 
 			if ( $_POST['what'] == 'warning' ) {
-				if (isset($_POST['warnings'])) {
+				if ( isset($_POST['warnings']) ) {
 					$warnings = intval($_POST['warnings']);
 				} else {
 					$warnings = self::getWarnings();
@@ -31,7 +31,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function showWarnings() {
-		if ( stristr( $_SERVER['REQUEST_URI'], 'mainwp_child_tab' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-page' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-settings' )) {
+		if ( stristr( $_SERVER['REQUEST_URI'], 'mainwp_child_tab' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-page' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-settings' ) ) {
 			return;
 		}
 
@@ -822,12 +822,12 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<?php
 			$all_plugins = get_plugins();
-			foreach ( $all_plugins as $slug => $plugin) {
+			foreach ( $all_plugins as $slug => $plugin ) {
                 if ( $slug == 'mainwp-child/mainwp-child.php' || $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
                     if ( $isBranding ) {
                         if ( $slug == 'mainwp-child/mainwp-child.php' ) {
                             $plugin['Name'] = esc_html( stripslashes( $branding_title ) );
-                        } elseif ($slug == 'mainwp-child-reports/mainwp-child-reports.php') {
+                        } elseif ( $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
                             $plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
                         }
                     }
@@ -967,7 +967,7 @@ class MainWP_Child_Server_Information {
 
 	protected static function checkDirectoryMainWPDirectory( $write = true ) {
         $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-        if ($branding_title == '') {
+        if ( $branding_title == '' ) {
             $branding_title = 'MainWP';
         }
 
@@ -1056,7 +1056,7 @@ class MainWP_Child_Server_Information {
 				<td><?php echo( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
 			<?php } elseif ( $whatType == 'curlssl' ) { ?>
 				<td><?php echo( self::curlssl_compare( $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
-			<?php } elseif (( $pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime' ) && $currentVersion == -1) { ?>
+			<?php } elseif ( ( $pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime' ) && $currentVersion == -1 ) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
 				<td><?php echo ( version_compare($currentVersion, $pVersion, $pCompare) || ( ( $pExtraCompare != null ) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
@@ -1065,8 +1065,8 @@ class MainWP_Child_Server_Information {
 		<?php
 	}
 
-	private static function getWarningHTML( $errorType = self::WARNING) {
-		if (self::WARNING == $errorType) {
+	private static function getWarningHTML( $errorType = self::WARNING ) {
+		if ( self::WARNING == $errorType ) {
 			return '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>';
 		}
 		return '<span class="mainwp-fail"><i class="fa fa-exclamation-circle"></i> Fail</span>';
@@ -1090,10 +1090,10 @@ class MainWP_Child_Server_Information {
 		return version_compare( $value1, $value2, $operator );
 	}
 
-	protected static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false) {
+	protected static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
 		$currentVersion = call_user_func( array( 'MainWP_Child_Server_Information', $pGetter ) );
 
-		if ($sizeCompare) {
+		if ( $sizeCompare ) {
 			return self::filesize_compare( $currentVersion, $pVersion, $pCompare );
 		} else {
 			return ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null !== $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) );
@@ -1482,7 +1482,7 @@ class MainWP_Child_Server_Information {
 
 		if ( empty( $lines ) ) {
             $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-            if ($branding_title == '') {
+            if ( $branding_title == '' ) {
                 $branding_title = 'MainWP';
             }
             $msg = esc_html( stripslashes( $branding_title ) ) . ' is unable to find your error logs, please contact your host for server error logs.';
@@ -1628,7 +1628,7 @@ class MainWP_Child_Server_Information {
 
 	public static function renderConnectionDetails() {
 		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-		if ($branding_title == '') {
+		if ( $branding_title == '' ) {
 			$branding_title = 'MainWP';
 		}
 
@@ -1679,7 +1679,7 @@ class MainWP_Child_Server_Information {
                             <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
                                 <tbody>
 								<?php
-								foreach ($details as $row) {
+								foreach ( $details as $row ) {
 									?>
                                             <tr>
                                                 <th style="width: 20%"><strong><?php echo esc_html($row['title']); ?></strong></th>

@@ -33,7 +33,7 @@ class MainWP_Child_iThemes_Security {
             $this->is_plugin_installed = true;
 		}
 
-        if ( ! $this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed ) {
             return;
         }
 
@@ -46,7 +46,7 @@ class MainWP_Child_iThemes_Security {
                 $information['syncIThemeData'] = array(
                     'users_and_roles' => $this->get_available_admin_users_and_roles(),
                 );
-            } catch (Exception $e) {
+            } catch ( Exception $e ) {
                 error_log($e->getMessage());
             }
 		}
@@ -55,7 +55,7 @@ class MainWP_Child_iThemes_Security {
 
 	public function action() {
 		$information = array();
-		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists('ITSEC_Modules')) {
+		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists('ITSEC_Modules') ) {
 			$information['error'] = 'NO_ITHEME';
 			MainWP_Helper::write( $information );
 		}
@@ -131,7 +131,7 @@ class MainWP_Child_iThemes_Security {
 	}
 
 	public function ithemes_init() {
-        if ( ! $this->is_plugin_installed) {
+        if ( ! $this->is_plugin_installed ) {
 			return;
         }
 
@@ -211,14 +211,14 @@ class MainWP_Child_iThemes_Security {
 
 		$update_settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
 
-		foreach ($update_settings as $module => $settings) {
+		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
-			if (in_array($module, $_itsec_modules)) {
-				if ($module == 'wordpress-salts') {
+			if ( in_array($module, $_itsec_modules) ) {
+				if ( $module == 'wordpress-salts' ) {
 					$settings['last_generated'] = ITSEC_Modules::get_setting( $module, 'last_generated' ); // not update
-				} elseif ($module == 'global') {
+				} elseif ( $module == 'global' ) {
 					$keep_olds = array( 'did_upgrade', 'log_info', 'show_new_dashboard_notice', 'show_security_check', 'nginx_file' );
-					foreach ($keep_olds as $key) {
+					foreach ( $keep_olds as $key ) {
 						$settings[ $key ] = ITSEC_Modules::get_setting( $module, $key ); // not update
 					}
 
@@ -226,18 +226,17 @@ class MainWP_Child_iThemes_Security {
 						$settings['log_location'] = ITSEC_Modules::get_setting( $module, 'log_location' );
 					} else {
 						$result = $this->validate_directory('log_location', $settings['log_location']);
-						if ($result !== true) {
+						if ( $result !== true ) {
 							$errors[]                 = $result;
 							$settings['log_location'] = ITSEC_Modules::get_setting( $module, 'log_location' ); // no change
 						}
 					}
-
-				} elseif ($module == 'backup') {
+				} elseif ( $module == 'backup' ) {
 					if ( ! isset($settings['location']) || empty($settings['location']) ) {
 						$settings['location'] = ITSEC_Modules::get_setting( $module, 'location' );
 					} else {
 						$result = $this->validate_directory('location', $settings['location']);
-						if ($result !== true) {
+						if ( $result !== true ) {
 							$errors[]             = $result;
 							$settings['location'] = ITSEC_Modules::get_setting( $module, 'location' ); // no change
 						}
@@ -246,8 +245,8 @@ class MainWP_Child_iThemes_Security {
 						$settings['exclude'] = ITSEC_Modules::get_setting( $module, 'exclude' );
 
 					}
-				} elseif ($module == 'hide-backend') {
-					if (isset($settings['enabled']) && ! empty($settings['enabled'])) {
+				} elseif ( $module == 'hide-backend' ) {
+					if ( isset($settings['enabled']) && ! empty($settings['enabled']) ) {
 						$permalink_structure = get_option( 'permalink_structure', false );
 						if ( empty( $permalink_structure ) && ! is_multisite() ) {
 							$errors[]           = __( 'You must change <strong>WordPress permalinks</strong> to a setting other than "Plain" in order to use "Hide Backend" feature.', 'better-wp-security' );
@@ -255,11 +254,11 @@ class MainWP_Child_iThemes_Security {
 							$do_not_save        = true;
 						}
 					}
-				} elseif ($module == 'network-brute-force') {
+				} elseif ( $module == 'network-brute-force' ) {
 
 					if ( isset( $settings['email'] ) ) {
 						$result = $this->activate_api_key($settings);
-						if ($result === false) {
+						if ( $result === false ) {
 							$nbf_settings = $settings;
 							$errors[]     = 'Error: Active iThemes Network Brute Force Protection Api Key';
 						} else {
@@ -268,7 +267,7 @@ class MainWP_Child_iThemes_Security {
 					} else {
 						$previous_settings = ITSEC_Modules::get_settings( $module );
 						// update 'enable_ban' field only
-						if (isset($settings['enable_ban'])) {
+						if ( isset($settings['enable_ban']) ) {
 							$previous_settings['enable_ban'] = $settings['enable_ban'];
 							$nbf_settings                    = $previous_settings;
 						} else {
@@ -277,16 +276,16 @@ class MainWP_Child_iThemes_Security {
 						}
 					}
 					$settings = $nbf_settings;
-				} elseif ($module == 'notification-center') {
+				} elseif ( $module == 'notification-center' ) {
                     $current_settings = ITSEC_Modules::get_settings( $module );
-                    if (isset($settings['notifications'])) {
+                    if ( isset($settings['notifications']) ) {
                         $update_fields = array( 'schedule', 'enabled', 'subject' );
-                        if (isset($_POST['is_individual']) && $_POST['is_individual']) {
+                        if ( isset($_POST['is_individual']) && $_POST['is_individual'] ) {
                             $update_fields = array_merge($update_fields, array( 'user_list', 'email_list' ));
                         }
-                        foreach ($settings['notifications'] as $key => $val) {
-                            foreach ($update_fields as $field) {
-                                if (isset($val[ $field ])) {
+                        foreach ( $settings['notifications'] as $key => $val ) {
+                            foreach ( $update_fields as $field ) {
+                                if ( isset($val[ $field ]) ) {
                                     $current_settings['notifications'][ $key ][ $field ] = $val[ $field ];
                                 }
                             }
@@ -306,7 +305,7 @@ class MainWP_Child_iThemes_Security {
 
         if ( isset( $update_settings['itsec_active_modules'] ) ) {
             $current_val = get_site_option( 'itsec_active_modules', array() );
-            foreach ($update_settings['itsec_active_modules'] as $mod => $val) {
+            foreach ( $update_settings['itsec_active_modules'] as $mod => $val ) {
                 $current_val[ $mod ] = $val;
             }
             update_site_option( 'itsec_active_modules', $current_val );
@@ -336,17 +335,17 @@ class MainWP_Child_iThemes_Security {
 			'site_status' => $values,
 		);
 
-		if ($require_permalinks) {
+		if ( $require_permalinks ) {
 			$return['require_permalinks'] = 1;
 		}
 
 		$return['nbf_settings'] = $nbf_settings;
 
-		if ( ! empty($errors)) {
+		if ( ! empty($errors) ) {
 			$return['extra_message'] = $errors;
 		}
 
-		if ($updated) {
+		if ( $updated ) {
 			$return['result'] = 'success';
 		} else {
 			$return['error'] = __('Not Updated', 'mainwp-child' );
@@ -358,7 +357,7 @@ class MainWP_Child_iThemes_Security {
 	public static function activate_network_brute_force() {
 		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) );
 		$information = array();
-		if (is_array($data)) {
+		if ( is_array($data) ) {
 			$settings                  = ITSEC_Modules::get_settings( 'network-brute-force' );
 			$settings['email']         = $data['email'];
 			$settings['updates_optin'] = $data['updates_optin'];
@@ -372,14 +371,14 @@ class MainWP_Child_iThemes_Security {
 				// ITSEC_Response::set_response( '<p>' . __( 'Your site is now using Network Brute Force Protection.', 'better-wp-security' ) . '</p>' );
 			}
 		}
-		if ($nbf_settings !== null) {
+		if ( $nbf_settings !== null ) {
 			$information['nbf_settings'] = $nbf_settings;
 			$information['result']       = 'success';
 		}
 		return $information;
 	}
 
-	private function validate_directory( $name, $folder) {
+	private function validate_directory( $name, $folder ) {
 		require_once ITSEC_Core::get_core_dir() . 'lib/class-itsec-lib-directory.php';
 		$error = null;
 		if ( ! ITSEC_Lib_Directory::is_dir( $folder ) ) {
@@ -402,7 +401,7 @@ class MainWP_Child_iThemes_Security {
 		}
 	}
 
-	private function activate_api_key( $settings) {
+	private function activate_api_key( $settings ) {
 		global $mainwp_itsec_modules_path;
 		require_once $mainwp_itsec_modules_path . 'ipcheck/utilities.php';
 
@@ -521,7 +520,7 @@ class MainWP_Child_iThemes_Security {
 			$str_error = sprintf( __( 'The backup request returned an unexpected response. It returned a response of type <code>%1$s</code>.', 'better-wp-security' ), gettype( $result ) );
 		}
 
-		if ( ! empty($str_error)) {
+		if ( ! empty($str_error) ) {
 			$return['error'] = $str_error;
 		}
 
@@ -548,7 +547,7 @@ class MainWP_Child_iThemes_Security {
 			$last_generated    = ITSEC_Core::get_current_time_gmt();
 			ITSEC_Modules::set_setting( 'wordpress-salts', 'last_generated', $last_generated );
 		}
-		if ( ! empty($str_error)) {
+		if ( ! empty($str_error) ) {
 			$return['error'] = $str_error;
 		}
 		return $return;
@@ -679,7 +678,7 @@ class MainWP_Child_iThemes_Security {
 			require_once $mainwp_itsec_modules_path . 'file-change/scanner.php';
 		}
 		$result = ITSEC_File_Change_Scanner::run_scan( false );
-		if ($result === false || $result === true || $result === -1) {
+		if ( $result === false || $result === true || $result === -1 ) {
 			$return['result']      = 'success';
 			$return['scan_result'] = $result;
 		}
@@ -690,7 +689,7 @@ class MainWP_Child_iThemes_Security {
 
 		$settings = $_POST['settings'];
 
-		if ( ! is_array($settings)) {
+		if ( ! is_array($settings) ) {
 			$settings = array();
         }
 
@@ -706,11 +705,11 @@ class MainWP_Child_iThemes_Security {
 		$username_exists = username_exists( 'admin' );
 		$user_id_exists  = ITSEC_Lib::user_id_exists( 1 );
 		$msg             = '';
-        if ( strlen( $new_username ) >= 1) {
+        if ( strlen( $new_username ) >= 1 ) {
             global $current_user;
             if ( ! $username_exists ) {
                 $msg = __( 'Admin user already changes.', 'mainwp-child' );
-            } elseif ($current_user->user_login == 'admin') {
+            } elseif ( $current_user->user_login == 'admin' ) {
                 $return['result'] = 'CHILD_ADMIN';
                 return $return;
             }
@@ -886,8 +885,8 @@ class MainWP_Child_iThemes_Security {
 		if ( isset( $_POST['change_prefix'] ) && 'yes' === $_POST['change_prefix'] ) {
 			$result = ITSEC_Database_Prefix_Utility::change_database_prefix();
 			$return = $result['errors'];
-			if (is_array($result['errors'])) {
-				foreach ($result['errors'] as $error) {
+			if ( is_array($result['errors']) ) {
+				foreach ( $result['errors'] as $error ) {
 					$arr_errors = ITSEC_Response::get_error_strings( $error );
 					foreach ( $arr_errors as $er ) {
 						$str_error .= $er . '<br />';
@@ -1111,12 +1110,12 @@ class MainWP_Child_iThemes_Security {
 
 		$active_modules = $_POST['active_modules'];
 
-		if ( ! is_array($active_modules)) {
+		if ( ! is_array($active_modules) ) {
 			$active_modules = array();
         }
 
         $current_val = get_site_option( 'itsec_active_modules', array() );
-        foreach ($active_modules as $mod => $val) {
+        foreach ( $active_modules as $mod => $val ) {
             $current_val[ $mod ] = $val;
         }
 
