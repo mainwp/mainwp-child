@@ -35,6 +35,8 @@
 		<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
 		
 		<exclude name="Squiz.ControlStructures.ControlSignature"/>
+		
+		<exclude name="WordPress.Arrays.ArrayIndentation"/>
 	</rule>
 
 	<!-- Enforce PSR1 compatible namespaces. -->
