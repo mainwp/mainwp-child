@@ -38,17 +38,17 @@ class MainWP_Child_Themes_Check {
 
 	public function __construct() {
 
-        if ( get_option('mainwp_child_plugintheme_days_outdate') ) {
-            $this->schedule_watchdog();
-            add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
-            add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
+		if ( get_option('mainwp_child_plugintheme_days_outdate') ) {
+			$this->schedule_watchdog();
+			add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
+			add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
 
-            add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
+			add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
 
-            add_filter( 'themes_api_args', array( $this, 'modify_theme_api_search_query' ), 10, 2 );
+			add_filter( 'themes_api_args', array( $this, 'modify_theme_api_search_query' ), 10, 2 );
 
-            add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
-        }
+			add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
+		}
 	}
 
 	private function cleanup_basic() {
@@ -172,14 +172,14 @@ class MainWP_Child_Themes_Check {
 			$responses = array();
 		}
 
-        $avoid_themes      = array( 'superstore' );
+		$avoid_themes      = array( 'superstore' );
 		$themes_to_scan    = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
 		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		foreach ( $themes_to_scan as $slug => $v ) {
-            if ( in_array( $slug, $avoid_themes ) ) {
+			if ( in_array( $slug, $avoid_themes ) ) {
 				continue;
-            }
+			}
 
 			$body = $this->try_get_response_body( $slug, false );
 

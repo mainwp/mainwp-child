@@ -24,7 +24,7 @@ class MainWP_Child_Server_Information {
 				} else {
 					$warnings = self::getWarnings();
 				}
-                            $dismissWarnings['warnings'] = $warnings;
+							$dismissWarnings['warnings'] = $warnings;
 			}
 			MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
 		}
@@ -67,7 +67,7 @@ class MainWP_Child_Server_Information {
 				var data = {
 					action: 'mainwp-child_dismiss_warnings',
 					what: pAction,
-                    warnings: <?php echo intval($warnings); ?>
+					warnings: <?php echo intval($warnings); ?>
 				};
 
 				jQuery.ajax( {
@@ -475,15 +475,15 @@ class MainWP_Child_Server_Information {
 			<br/>
 			<div class="mwp_server_info_box">
 				<h2><?php esc_html_e( 'Server Information' ); ?></h2>
-                                      <?php
+									  <?php
 										self::render();
 										?>
-                <h2><?php esc_html_e( 'Cron Schedules' ); ?></h2>
-                <?php
+				<h2><?php esc_html_e( 'Cron Schedules' ); ?></h2>
+				<?php
 				self::renderCron();
 				?>
-                <h2><?php esc_html_e( 'Error Log' ); ?></h2>
-                <?php
+				<h2><?php esc_html_e( 'Error Log' ); ?></h2>
+				<?php
 				self::renderErrorLogPage();
 				?>
 			</div>
@@ -543,11 +543,11 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function render() {
-        $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-        $isBranding     = true;
+		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+		$isBranding     = true;
 		if ( $branding_title == '' ) {
-            $branding_title = 'MainWP Child';
-            $isBranding     = false;
+			$branding_title = 'MainWP Child';
+			$isBranding     = false;
 		}
 
 		?>
@@ -556,11 +556,11 @@ class MainWP_Child_Server_Information {
 			<thead>
 			<tr>
 				<th scope="col" class="manage-column column-posts mwp-not-generate-row"
-				    style="width: 1px;"></th>
+					style="width: 1px;"></th>
 				<th scope="col" class="manage-column column-posts" style="">
 					<span><?php esc_html_e( 'Server configuration', 'mainwp-child' ); ?></span></th>
 				<th scope="col" class="manage-column column-posts"
-				    style=""><?php esc_html_e( 'Required value', 'mainwp-child' ); ?></th>
+					style=""><?php esc_html_e( 'Required value', 'mainwp-child' ); ?></th>
 				<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
 				<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
 			</tr>
@@ -591,7 +591,7 @@ class MainWP_Child_Server_Information {
 			<tr>
 				<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WordPress', 'mainwp-child' ); ?></td>
 			</tr>
-            <?php
+			<?php
 			self::renderRow( 'WordPress Version', '>=', '3.4', 'getWordpressVersion' );
 			self::renderRow( 'WordPress Memory Limit', '>=', '64M', 'getWordpressMemoryLimit' );
 			self::renderRow( 'MultiSite Disabled', '=', true, 'checkIfMultisite' );
@@ -605,9 +605,9 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<tr>
 				<td style="background: #333; color: #fff;"
-				    colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
+					colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
 			</tr>
-            <?php
+			<?php
 			self::renderRow( 'PHP Version', '>=', '5.6', 'getPHPVersion' );
 			?>
 			<tr>
@@ -636,16 +636,16 @@ class MainWP_Child_Server_Information {
 			?>
 			<tr>
 				<td style="background: #333; color: #fff;"
-				    colspan="5"><?php esc_html_e( 'MySQL SETTINGS', 'mainwp-child' ); ?></td>
+					colspan="5"><?php esc_html_e( 'MySQL SETTINGS', 'mainwp-child' ); ?></td>
 			</tr>
-            <?php
+			<?php
 			self::renderRow( 'MySQL Version', '>=', '5.0', 'getMySQLVersion' );
 			?>
 			<tr>
 				<td style="background: #333; color: #fff;"
-				    colspan="5"><?php esc_html_e( 'BACKUP ARCHIVE INFORMATION', 'mainwp-child' ); ?></td>
+					colspan="5"><?php esc_html_e( 'BACKUP ARCHIVE INFORMATION', 'mainwp-child' ); ?></td>
 			</tr>
-            <?php
+			<?php
 			self::renderRow( 'ZipArchive enabled in PHP', '=', true, 'getZipArchiveEnabled' );
 			self::renderRow( 'Tar GZip supported', '=', true, 'getGZipEnabled' );
 			self::renderRow( 'Tar BZip2 supported', '=', true, 'getBZipEnabled' );
@@ -653,7 +653,7 @@ class MainWP_Child_Server_Information {
 
 			<tr>
 				<td style="background: #333; color: #fff;"
-				    colspan="5"><?php esc_html_e( 'SERVER INFORMATION', 'mainwp-child' ); ?></td>
+					colspan="5"><?php esc_html_e( 'SERVER INFORMATION', 'mainwp-child' ); ?></td>
 			</tr>
 			<tr>
 				<td></td>
@@ -805,7 +805,7 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<tr>
 				<td style="background: #333; color: #fff;"
-				    colspan="5"><?php esc_html_e( 'MySQL INFORMATION', 'mainwp-child' ); ?></td>
+					colspan="5"><?php esc_html_e( 'MySQL INFORMATION', 'mainwp-child' ); ?></td>
 			</tr>
 			<tr>
 				<td></td>
@@ -823,20 +823,20 @@ class MainWP_Child_Server_Information {
 			<?php
 			$all_plugins = get_plugins();
 			foreach ( $all_plugins as $slug => $plugin ) {
-                if ( $slug == 'mainwp-child/mainwp-child.php' || $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
-                    if ( $isBranding ) {
-                        if ( $slug == 'mainwp-child/mainwp-child.php' ) {
-                            $plugin['Name'] = esc_html( stripslashes( $branding_title ) );
-                        } elseif ( $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
-                            $plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
-                        }
-                    }
-                }
+				if ( $slug == 'mainwp-child/mainwp-child.php' || $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
+					if ( $isBranding ) {
+						if ( $slug == 'mainwp-child/mainwp-child.php' ) {
+							$plugin['Name'] = esc_html( stripslashes( $branding_title ) );
+						} elseif ( $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
+							$plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
+						}
+					}
+				}
 
 				?>
 				<tr>
 					<td>&nbsp;</td>
-                    <td><?php echo esc_html($plugin['Name']); ?></td>
+					<td><?php echo esc_html($plugin['Name']); ?></td>
 					<td><?php echo esc_html($plugin['Version']); ?></td>
 					<td><?php echo is_plugin_active($slug) ? 'Active' : 'Inactive'; ?></td>
 					<td>&nbsp;</td>
@@ -966,10 +966,10 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function checkDirectoryMainWPDirectory( $write = true ) {
-        $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-        if ( $branding_title == '' ) {
-            $branding_title = 'MainWP';
-        }
+		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+		if ( $branding_title == '' ) {
+			$branding_title = 'MainWP';
+		}
 
 		$branding_title .= ' Upload Directory';
 
@@ -1181,9 +1181,9 @@ class MainWP_Child_Server_Information {
 
 	protected static function getArchitecture() {
 		echo esc_html( PHP_INT_SIZE * 8 )
-        ?>
-        &nbsp;bit 
-        <?php
+		?>
+		&nbsp;bit 
+		<?php
 	}
 
 	protected static function memoryUsage() {
@@ -1263,7 +1263,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getServerGetawayInterface() {
-        $gate = isset($_SERVER['GATEWAY_INTERFACE']) ? $_SERVER['GATEWAY_INTERFACE'] : '';
+		$gate = isset($_SERVER['GATEWAY_INTERFACE']) ? $_SERVER['GATEWAY_INTERFACE'] : '';
 		echo esc_html( $gate );
 	}
 
@@ -1354,7 +1354,7 @@ class MainWP_Child_Server_Information {
 			_e( 'Response Test O.K.', 'mainwp-child' );
 		} else {
 			echo $test_result;
-        }
+		}
 	}
 
 
@@ -1430,15 +1430,15 @@ class MainWP_Child_Server_Information {
 
 
 	/*
-    *Plugin-Name: Error Log Dashboard Widget
-    *Plugin URI: http://wordpress.org/extend/plugins/error-log-dashboard-widget/
-    *Description: Robust zero-configuration and low-memory way to keep an eye on error log.
-    *Author: Andrey "Rarst" Savchenko
-    *Author URI: http://www.rarst.net/
-    *Version: 1.0.2
-    *License: GPLv2 or later
+	*Plugin-Name: Error Log Dashboard Widget
+	*Plugin URI: http://wordpress.org/extend/plugins/error-log-dashboard-widget/
+	*Description: Robust zero-configuration and low-memory way to keep an eye on error log.
+	*Author: Andrey "Rarst" Savchenko
+	*Author URI: http://www.rarst.net/
+	*Version: 1.0.2
+	*License: GPLv2 or later
 
-    *Includes last_lines() function by phant0m, licensed under cc-wiki and GPLv2+
+	*Includes last_lines() function by phant0m, licensed under cc-wiki and GPLv2+
 	*/
 
 	public static function renderErrorLogPage() {
@@ -1481,11 +1481,11 @@ class MainWP_Child_Server_Information {
 		$lines = array_filter( $lines );
 
 		if ( empty( $lines ) ) {
-            $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-            if ( $branding_title == '' ) {
-                $branding_title = 'MainWP';
-            }
-            $msg = esc_html( stripslashes( $branding_title ) ) . ' is unable to find your error logs, please contact your host for server error logs.';
+			$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+			if ( $branding_title == '' ) {
+				$branding_title = 'MainWP';
+			}
+			$msg = esc_html( stripslashes( $branding_title ) ) . ' is unable to find your error logs, please contact your host for server error logs.';
 			echo '<tr><td colspan="2">' . $msg . '</td></tr>';
 			return;
 		}
@@ -1671,26 +1671,26 @@ class MainWP_Child_Server_Information {
 		<div class="postbox" id="connection_detail">
 			<h3 class="mainwp_box_title"><span><?php _e( 'Connection details', 'mainwp-child' ); ?></span></h3>
 			<div class="inside">
-                            <div class="mainwp-postbox-actions-top mainwp-padding-5">
+							<div class="mainwp-postbox-actions-top mainwp-padding-5">
 						<?php
 							echo sprintf(__('If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child'), stripslashes( $branding_title ));
 						?>
-                            </div>
-                            <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
-                                <tbody>
+							</div>
+							<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
+								<tbody>
 								<?php
 								foreach ( $details as $row ) {
 									?>
-                                            <tr>
-                                                <th style="width: 20%"><strong><?php echo esc_html($row['title']); ?></strong></th>
-                                                <td style="width: 20%"><strong><?php echo esc_html($row['value']); ?></strong></td>
-                                                <td><?php echo esc_html($row['desc']); ?></td>
-                                            </tr>
+											<tr>
+												<th style="width: 20%"><strong><?php echo esc_html($row['title']); ?></strong></th>
+												<td style="width: 20%"><strong><?php echo esc_html($row['value']); ?></strong></td>
+												<td><?php echo esc_html($row['desc']); ?></td>
+											</tr>
 									<?php
 								}
 								?>
-                                </tbody>
-                            </table>
+								</tbody>
+							</table>
 			</div>
 		</div>
 		<?php

@@ -48,7 +48,7 @@ class MainWP_Child_WooCommerce_Status {
 				case 'report_data':
 					$information = ! $is_ver220 ? $this->report_data() : $this->report_data_two();
 					break;
-                case 'update_wc_db':
+				case 'update_wc_db':
 					$information = $this->update_wc_db();
 					break;
 			}
@@ -189,8 +189,8 @@ class MainWP_Child_WooCommerce_Status {
 		$start_date = $_POST['start_date'];
 		$end_date   = $_POST['end_date'];
 
-        $start_date = date( 'Y-m-d H:i:s', $start_date );
-        $end_date   = date( 'Y-m-d H:i:s', $end_date );
+		$start_date = date( 'Y-m-d H:i:s', $start_date );
+		$end_date   = date( 'Y-m-d H:i:s', $end_date );
 
 		// Get sales
 		$sales = $wpdb->get_var( "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
@@ -298,12 +298,12 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	function sync_data_two() {
-        // sync data for current month
-        $start_date = date( 'Y-m-01 00:00:00', time() );
-        $end_date   = date( 'Y-m-d H:i:s', time() );
+		// sync data for current month
+		$start_date = date( 'Y-m-01 00:00:00', time() );
+		$end_date   = date( 'Y-m-d H:i:s', time() );
 
-        $start_date = strtotime( $start_date );
-        $end_date   = strtotime( $end_date );
+		$start_date = strtotime( $start_date );
+		$end_date   = strtotime( $end_date );
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
@@ -315,11 +315,11 @@ class MainWP_Child_WooCommerce_Status {
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
 
-    function check_db_update() {
+	function check_db_update() {
 		if ( version_compare( get_option( 'woocommerce_db_version' ), WC_VERSION, '<' ) ) {
-            return true;
-        }
-        return false;
+			return true;
+		}
+		return false;
 	}
 
 	function get_woocom_data( $start_date, $end_date ) {
@@ -331,8 +331,8 @@ class MainWP_Child_WooCommerce_Status {
 			return false;
 		}
 
-        $start_date = date( 'Y-m-d H:i:s', $start_date );
-        $end_date   = date( 'Y-m-d H:i:s', $end_date );
+		$start_date = date( 'Y-m-d H:i:s', $start_date );
+		$end_date   = date( 'Y-m-d H:i:s', $end_date );
 
 		$reports = new WC_Admin_Report();
 		// Sales
@@ -436,12 +436,12 @@ class MainWP_Child_WooCommerce_Status {
 			'outstock'       => $outofstock_count,
 		);
 		$information['data']           = $data;
-        $information['need_db_update'] = $this->check_db_update();
+		$information['need_db_update'] = $this->check_db_update();
 		return $information;
 	}
 
-    private static function update_wc_db() {
-        include_once WC()->plugin_path() . '/includes/class-wc-background-updater.php';
+	private static function update_wc_db() {
+		include_once WC()->plugin_path() . '/includes/class-wc-background-updater.php';
 		$background_updater = new WC_Background_Updater();
 
 		$current_db_version = get_option( 'woocommerce_db_version' );
@@ -465,7 +465,7 @@ class MainWP_Child_WooCommerce_Status {
 			$background_updater->save()->dispatch();
 		}
 
-        return array( 'result' => 'success' );
+		return array( 'result' => 'success' );
 	}
 
 }

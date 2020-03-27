@@ -344,7 +344,7 @@ class MainWP_Keyword_Links {
 			$this->link_case_sensitive  = $link->case_sensitive;
 			$keywords                   = $this->explode_multi( $link->keyword );
 			// usort( $keywords, create_function( '$a,$b', 'return strlen($a)<strlen($b);' ) );
-            usort( $keywords, array( $this, 'usort_callback_func' ) );
+			usort( $keywords, array( $this, 'usort_callback_func' ) );
 			$replace_cs = $link->case_sensitive ? 's' : 'is';
 			// print_r($keywords);
 			foreach ( $keywords as $keyword ) {
@@ -387,7 +387,7 @@ class MainWP_Keyword_Links {
 		return $content;
 	}
 
-    private function usort_callback_func( $a, $b ) {
+	private function usort_callback_func( $a, $b ) {
 		return strlen($a) < strlen($b);
 	}
 
