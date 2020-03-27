@@ -18,25 +18,23 @@ class MainWP_Child_WooCommerce_Status {
 	public static $instance = null;
 
 	static function Instance() {
-		if ( null === MainWP_Child_WooCommerce_Status::$instance ) {
-			MainWP_Child_WooCommerce_Status::$instance = new MainWP_Child_WooCommerce_Status();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_WooCommerce_Status();
 		}
 
-		return MainWP_Child_WooCommerce_Status::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
-
 	}
 
 	public function child_deactivation() {
-
 	}
 
 	public function action() {
 		$information = array();
-		if ( ! class_exists( 'WooCommerce' ) || !defined('WC_VERSION')) {
+		if ( ! class_exists( 'WooCommerce' ) || ! defined('WC_VERSION')) {
 			$information['error'] = 'NO_WOOCOMMERCE';
 			MainWP_Helper::write( $information );
 		}
@@ -66,7 +64,7 @@ class MainWP_Child_WooCommerce_Status {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
-			include_once( $file );
+			include_once $file;
 		} else {
 			return false;
 		}
@@ -83,16 +81,14 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-				'completed',
-				'processing',
-				'on-hold',
-			) ) ) . "' )
+		'completed',
+		'processing',
+		'on-hold',
+) ) ) . "' )
                 AND 	postmeta.meta_key   = '_order_total'
                 AND 	posts.post_date >= %s
                 AND 	posts.post_date <= %s
         ", date( 'Y-m-01', $start_date ), date( 'Y-m-d H:i:s', $end_date ) ) );
-
-
 
 		// Get top seller
 		$top_seller = $wpdb->get_row( $wpdb->prepare(  "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
@@ -107,10 +103,10 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-				'completed',
-				'processing',
-				'on-hold',
-			) ) ) . "' )
+		'completed',
+		'processing',
+		'on-hold',
+) ) ) . "' )
                 AND 	order_item_meta.meta_key = '_qty'
                 AND 	order_item_meta_2.meta_key = '_product_id'
                 AND 	posts.post_date >= %s
@@ -118,7 +114,7 @@ class MainWP_Child_WooCommerce_Status {
                 GROUP BY product_id
                 ORDER BY qty DESC
                 LIMIT   1
-        ", date( 'Y-m-01', $start_date ),  date( 'Y-m-d H:i:s', $end_date )) );
+        ", date( 'Y-m-01', $start_date ), date( 'Y-m-d H:i:s', $end_date )) );
 
 		if ( ! empty( $top_seller ) ) {
 			$top_seller->name = get_the_title( $top_seller->product_id );
@@ -184,7 +180,7 @@ class MainWP_Child_WooCommerce_Status {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
-			include_once( $file );
+			include_once $file;
 		} else {
 			return false;
 		}
@@ -194,7 +190,7 @@ class MainWP_Child_WooCommerce_Status {
 		$end_date   = $_POST['end_date'];
 
         $start_date = date( 'Y-m-d H:i:s', $start_date );
-        $end_date = date( 'Y-m-d H:i:s', $end_date );
+        $end_date   = date( 'Y-m-d H:i:s', $end_date );
 
 		// Get sales
 		$sales = $wpdb->get_var( "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
@@ -206,17 +202,14 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-					'completed',
-					'processing',
-					'on-hold',
-				) ) ) . "' )
+		'completed',
+		'processing',
+		'on-hold',
+) ) ) . "' )
                 AND 	postmeta.meta_key   = '_order_total'
                 AND 	posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
                 AND 	posts.post_date <= STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')
         " );
-
-
-
 
 		// Get top seller
 		$top_seller = $wpdb->get_row( "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
@@ -231,10 +224,10 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-					'completed',
-					'processing',
-					'on-hold',
-				) ) ) . "' )
+		'completed',
+		'processing',
+		'on-hold',
+) ) ) . "' )
                 AND 	order_item_meta.meta_key = '_qty'
                 AND 	order_item_meta_2.meta_key = '_product_id'
                 AND 	posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
@@ -307,10 +300,10 @@ class MainWP_Child_WooCommerce_Status {
 	function sync_data_two() {
         // sync data for current month
         $start_date = date( 'Y-m-01 00:00:00', time() );
-        $end_date = date( 'Y-m-d H:i:s', time() );
+        $end_date   = date( 'Y-m-d H:i:s', time() );
 
         $start_date = strtotime( $start_date );
-        $end_date = strtotime( $end_date );
+        $end_date   = strtotime( $end_date );
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
@@ -333,13 +326,13 @@ class MainWP_Child_WooCommerce_Status {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
-			include_once( $file );
+			include_once $file;
 		} else {
 			return false;
 		}
 
         $start_date = date( 'Y-m-d H:i:s', $start_date );
-        $end_date = date( 'Y-m-d H:i:s', $end_date );
+        $end_date   = date( 'Y-m-d H:i:s', $end_date );
 
 		$reports = new WC_Admin_Report();
 		// Sales
@@ -348,39 +341,38 @@ class MainWP_Child_WooCommerce_Status {
 		$query['join']   = "INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id ";
 		$query['where']  = "WHERE posts.post_type IN ( '" . implode( "','", wc_get_order_types( 'reports' ) ) . "' ) ";
 		$query['where'] .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array(
-				'completed',
-				'processing',
-				'on-hold',
-			) ) ) . "' ) ";
+			'completed',
+			'processing',
+			'on-hold',
+		) ) ) . "' ) ";
 		$query['where'] .= "AND postmeta.meta_key   = '_order_total' ";
-		$query['where'] .= "AND posts.post_date >=  STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
-		$query['where'] .= "AND posts.post_date <=  STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s') ";
+		$query['where'] .= 'AND posts.post_date >=  STR_TO_DATE(' . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
+		$query['where'] .= 'AND posts.post_date <=  STR_TO_DATE(' . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s') ";
 
 		$sales = $wpdb->get_var( implode( ' ', apply_filters( 'woocommerce_dashboard_status_widget_sales_query', $query ) ) );
 
 		// Get top seller
-		$query           = array();
-		$query['fields'] = "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
+		$query            = array();
+		$query['fields']  = "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
                 FROM {$wpdb->posts} as posts";
-		$query['join']   = "INNER JOIN {$wpdb->prefix}woocommerce_order_items AS order_items ON posts.ID = order_id ";
-		$query['join'] .= "INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id ";
-		$query['join'] .= "INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_2 ON order_items.order_item_id = order_item_meta_2.order_item_id ";
-		$query['where'] = "WHERE posts.post_type IN ( '" . implode( "','", wc_get_order_types( 'order-count' ) ) . "' ) ";
-		$query['where'] .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array(
-				'completed',
-				'processing',
-				'on-hold',
-			) ) ) . "' ) ";
-		$query['where'] .= "AND order_item_meta.meta_key = '_qty' ";
-		$query['where'] .= "AND order_item_meta_2.meta_key = '_product_id' ";
-		$query['where'] .= "AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
-		$query['where'] .= "AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')  ";
+		$query['join']    = "INNER JOIN {$wpdb->prefix}woocommerce_order_items AS order_items ON posts.ID = order_id ";
+		$query['join']   .= "INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id ";
+		$query['join']   .= "INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_2 ON order_items.order_item_id = order_item_meta_2.order_item_id ";
+		$query['where']   = "WHERE posts.post_type IN ( '" . implode( "','", wc_get_order_types( 'order-count' ) ) . "' ) ";
+		$query['where']  .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array(
+			'completed',
+			'processing',
+			'on-hold',
+		) ) ) . "' ) ";
+		$query['where']  .= "AND order_item_meta.meta_key = '_qty' ";
+		$query['where']  .= "AND order_item_meta_2.meta_key = '_product_id' ";
+		$query['where']  .= 'AND posts.post_date >= STR_TO_DATE(' . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
+		$query['where']  .= 'AND posts.post_date <= STR_TO_DATE(' . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')  ";
 		$query['groupby'] = 'GROUP BY product_id';
 		$query['orderby'] = 'ORDER BY qty DESC';
 		$query['limits']  = 'LIMIT 1';
 
-		$top_seller = $wpdb->get_row( implode( ' ',  $query ) );
-
+		$top_seller = $wpdb->get_row( implode( ' ', $query ) );
 
 		if ( ! empty( $top_seller ) ) {
 			$top_seller->name = get_the_title( $top_seller->product_id );
@@ -391,8 +383,8 @@ class MainWP_Child_WooCommerce_Status {
 		$processing_count = 0;
 
 		foreach ( wc_get_order_types( 'order-count' ) as $type ) {
-			$counts = (array) wp_count_posts( $type );
-			$on_hold_count += isset( $counts['wc-on-hold'] ) ? $counts['wc-on-hold'] : 0;
+			$counts            = (array) wp_count_posts( $type );
+			$on_hold_count    += isset( $counts['wc-on-hold'] ) ? $counts['wc-on-hold'] : 0;
 			$processing_count += isset( $counts['wc-processing'] ) ? $counts['wc-processing'] : 0;
 		}
 
@@ -432,7 +424,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );
 
-		$data                = array(
+		$data                          = array(
 			'sales'          => $sales,
 			'formated_sales' => wc_price( $sales ),
 			'top_seller'     => $top_seller,
@@ -441,15 +433,15 @@ class MainWP_Child_WooCommerce_Status {
 			'stock'          => $stock,
 			'nostock'        => $nostock,
 			'lowstock'       => $lowinstock_count,
-			'outstock'       => $outofstock_count
+			'outstock'       => $outofstock_count,
 		);
-		$information['data'] = $data;
+		$information['data']           = $data;
         $information['need_db_update'] = $this->check_db_update();
 		return $information;
 	}
 
     private static function update_wc_db() {
-        include_once( WC()->plugin_path() . '/includes/class-wc-background-updater.php' );
+        include_once WC()->plugin_path() . '/includes/class-wc-background-updater.php';
 		$background_updater = new WC_Background_Updater();
 
 		$current_db_version = get_option( 'woocommerce_db_version' );
@@ -473,7 +465,7 @@ class MainWP_Child_WooCommerce_Status {
 			$background_updater->save()->dispatch();
 		}
 
-        return array('result' => 'success');
+        return array( 'result' => 'success' );
 	}
 
 }

@@ -16,15 +16,15 @@
 */
 
 class MainWP_Child_WP_Rocket {
-	public static $instance = null;
+	public static $instance     = null;
     public $is_plugin_installed = false;
 
 	public static function Instance() {
-		if ( null === MainWP_Child_WP_Rocket::$instance ) {
-			MainWP_Child_WP_Rocket::$instance = new MainWP_Child_WP_Rocket();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_WP_Rocket();
 		}
 
-		return MainWP_Child_WP_Rocket::$instance;
+		return self::$instance;
 	}
 
 	public function __construct() {
@@ -34,9 +34,9 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	public function init() {
-//		if ( get_option( 'mainwp_wprocket_ext_enabled' ) !== 'Y' ) {
-//			return;
-//		}
+		// if ( get_option( 'mainwp_wprocket_ext_enabled' ) !== 'Y' ) {
+		// return;
+		// }
 
         if ( ! $this->is_plugin_installed ) {
             return;
@@ -56,91 +56,91 @@ class MainWP_Child_WP_Rocket {
 
 	function get_rocket_default_options() {
 		  return array(
-                'cache_mobile'             => 1,
-				'do_caching_mobile_files'     => 0,
-                'cache_logged_user'        => 0,
-                'cache_ssl'                => 0,
-				'emoji'					  => 0,
-                'embeds'                   => 1,
-                'control_heartbeat' => 0,
-                'heartbeat_site_behavior'     => 'reduce_periodicity',
-				'heartbeat_admin_behavior'    => 'reduce_periodicity',
-				'heartbeat_editor_behavior'   => 'reduce_periodicity',
-				'varnish_auto_purge' => 0,
-				'manual_preload' => 0,
-				'automatic_preload' => 0,
-				'sitemap_preload' => 0,
-				'sitemap_preload_url_crawl' => 500000,
-				'sitemaps' => array(),
-				'database_revisions' => 0,
-				'database_auto_drafts' => 0,
-				'database_trashed_posts' => 0,
-				'database_spam_comments' => 0,
-				'database_trashed_comments' => 0,
-				'database_expired_transients' => 0,
-				'database_all_transients' => 0,
-				'database_optimize_tables' => 0,
-				'schedule_automatic_cleanup' => 0,
-				'automatic_cleanup_frequency' => '',
-                'cache_reject_uri'         => array(),
-                'cache_reject_cookies'     => array(),
-                'cache_reject_ua'          => array(),
-                'cache_query_strings'      => array(),
-                'cache_purge_pages'        => array(),
-                'purge_cron_interval'      => 10,
-                'purge_cron_unit'          => 'HOUR_IN_SECONDS',
-                'exclude_css'              => array(),
-                'exclude_js'               => array(),
-                'exclude_inline_js'               => array(),
-				'async_css'					=> 0,
-            	'defer_all_js'              => 0,
-				'defer_all_js_safe'			=> 1,
-                'critical_css'              => '',
-                'deferred_js_files'        => array(),
-                'lazyload'          	   => 0,
-                'lazyload_iframes'         => 0,
-				'lazyload_youtube'			=>0,
-                'minify_css'               => 0,
-//                'minify_css_key'           => $minify_css_key,
-                'minify_concatenate_css'	  => 0,
-                //'minify_css_combine_all'   => 0,
-                'minify_css_legacy'			  => 0,
-                'minify_js'                => 0,
-//                'minify_js_key'            => $minify_js_key,
-                'minify_js_in_footer'      => array(),
-                'minify_concatenate_js'		  => 0,
-                'minify_js_combine_all'    => 0,
-                //'minify_js_legacy'			  => 0,
-                'minify_google_fonts'      => 0,
-                'minify_html'              => 0,
-                'remove_query_strings'     => 0,
-                'dns_prefetch'             => 0,
-                'cdn'                      => 0,
-                'cdn_cnames'               => array(),
-                'cdn_zone'                 => array(),
-                //'cdn_ssl'                  => 0,
-                'cdn_reject_files'         => array(),
-                'do_cloudflare'		   	   => 0,
-                'cloudflare_email'		   => '',
-                'cloudflare_api_key'	   => '',
-                'cloudflare_domain'	   	   => '',
-                //'cloudflare_zone_id'          => '',
-                'cloudflare_devmode'	   => 0,
-                'cloudflare_protocol_rewrite' => 0,
-                'cloudflare_auto_settings' => 0,
-                'cloudflare_old_settings'  => 0,
-                'do_beta'                  => 0,
-			    'analytics_enabled'        => 1,
-        );
+			  'cache_mobile'                           => 1,
+			  'do_caching_mobile_files'                => 0,
+			  'cache_logged_user'                      => 0,
+			  'cache_ssl'                              => 0,
+			  'emoji'                                  => 0,
+			  'embeds'                                 => 1,
+			  'control_heartbeat'                      => 0,
+			  'heartbeat_site_behavior'                => 'reduce_periodicity',
+			  'heartbeat_admin_behavior'               => 'reduce_periodicity',
+			  'heartbeat_editor_behavior'              => 'reduce_periodicity',
+			  'varnish_auto_purge'                     => 0,
+			  'manual_preload'                         => 0,
+			  'automatic_preload'                      => 0,
+			  'sitemap_preload'                        => 0,
+			  'sitemap_preload_url_crawl'              => 500000,
+			  'sitemaps'                               => array(),
+			  'database_revisions'                     => 0,
+			  'database_auto_drafts'                   => 0,
+			  'database_trashed_posts'                 => 0,
+			  'database_spam_comments'                 => 0,
+			  'database_trashed_comments'              => 0,
+			  'database_expired_transients'            => 0,
+			  'database_all_transients'                => 0,
+			  'database_optimize_tables'               => 0,
+			  'schedule_automatic_cleanup'             => 0,
+			  'automatic_cleanup_frequency'            => '',
+			  'cache_reject_uri'                       => array(),
+			  'cache_reject_cookies'                   => array(),
+			  'cache_reject_ua'                        => array(),
+			  'cache_query_strings'                    => array(),
+			  'cache_purge_pages'                      => array(),
+			  'purge_cron_interval'                    => 10,
+			  'purge_cron_unit'                        => 'HOUR_IN_SECONDS',
+			  'exclude_css'                            => array(),
+			  'exclude_js'                             => array(),
+			  'exclude_inline_js'                      => array(),
+			  'async_css'                              => 0,
+			  'defer_all_js'                           => 0,
+			  'defer_all_js_safe'                      => 1,
+			  'critical_css'                           => '',
+			  'deferred_js_files'                      => array(),
+			  'lazyload'                               => 0,
+			  'lazyload_iframes'                       => 0,
+			  'lazyload_youtube'                       => 0,
+			  'minify_css'                             => 0,
+			  // 'minify_css_key'           => $minify_css_key,
+							  'minify_concatenate_css' => 0,
+			  // 'minify_css_combine_all'   => 0,
+			  'minify_css_legacy'                      => 0,
+			  'minify_js'                              => 0,
+			  // 'minify_js_key'            => $minify_js_key,
+							  'minify_js_in_footer'    => array(),
+			  'minify_concatenate_js'                  => 0,
+			  'minify_js_combine_all'                  => 0,
+			  // 'minify_js_legacy'            => 0,
+			  'minify_google_fonts'                    => 0,
+			  'minify_html'                            => 0,
+			  'remove_query_strings'                   => 0,
+			  'dns_prefetch'                           => 0,
+			  'cdn'                                    => 0,
+			  'cdn_cnames'                             => array(),
+			  'cdn_zone'                               => array(),
+			  // 'cdn_ssl'                  => 0,
+			  'cdn_reject_files'                       => array(),
+			  'do_cloudflare'                          => 0,
+			  'cloudflare_email'                       => '',
+			  'cloudflare_api_key'                     => '',
+			  'cloudflare_domain'                      => '',
+			  // 'cloudflare_zone_id'          => '',
+			  'cloudflare_devmode'                     => 0,
+			  'cloudflare_protocol_rewrite'            => 0,
+			  'cloudflare_auto_settings'               => 0,
+			  'cloudflare_old_settings'                => 0,
+			  'do_beta'                                => 0,
+			  'analytics_enabled'                      => 1,
+		  );
 	}
 
     // ok
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
-            try{
-                $data = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ));
+            try {
+                $data                            = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );
                 $information['syncWPRocketData'] = $data;
-            } catch(Exception $e) {
+            } catch (Exception $e) {
             }
         }
 		return $information;
@@ -192,7 +192,7 @@ class MainWP_Child_WP_Rocket {
 			return $value;
 		}
 
-        if (! MainWP_Helper::is_screen_with_update()) {
+        if ( ! MainWP_Helper::is_screen_with_update()) {
             return $value;
         }
 
@@ -207,9 +207,9 @@ class MainWP_Child_WP_Rocket {
         if ( ! $this->is_plugin_installed ) {
             return false;
         }
-//		if ( ! defined( 'WP_ROCKET_VERSION' ) || ! defined( 'WP_ROCKET_SLUG' ) ) {
-//			return false;
-//		}
+		// if ( ! defined( 'WP_ROCKET_VERSION' ) || ! defined( 'WP_ROCKET_SLUG' ) ) {
+		// return false;
+		// }
 
 		return true;
 	}
@@ -251,9 +251,8 @@ class MainWP_Child_WP_Rocket {
 
 		$information = array();
 
-
 		if ( isset( $_POST['mwp_action'] ) ) {
-//			MainWP_Helper::update_option( 'mainwp_wprocket_ext_enabled', 'Y' );
+			// MainWP_Helper::update_option( 'mainwp_wprocket_ext_enabled', 'Y' );
             try {
                 switch ( $_POST['mwp_action'] ) {
                     case 'set_showhide':
@@ -274,7 +273,7 @@ class MainWP_Child_WP_Rocket {
                     case 'save_settings':
                         $information = $this->save_settings();
                         break;
-                    case "load_existing_settings":
+                    case 'load_existing_settings':
                         $information = $this->load_existing_settings();
                         break;
                     case 'optimize_database':
@@ -287,7 +286,7 @@ class MainWP_Child_WP_Rocket {
                         $information = $this->do_admin_post_rocket_purge_opcache();
                         break;
                 }
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 $information = array( 'error' => $e->getMessage() );
             }
 		}
@@ -306,9 +305,9 @@ class MainWP_Child_WP_Rocket {
         if ( function_exists( 'opcache_reset' ) ) {
             @opcache_reset();
         } else {
-            return array('error' => 'The host do not support the function reset opcache.');
+            return array( 'error' => 'The host do not support the function reset opcache.' );
         }
-        return array('result' => 'SUCCESS');
+        return array( 'result' => 'SUCCESS' );
     }
 
 	function purge_cloudflare() {
@@ -336,13 +335,13 @@ class MainWP_Child_WP_Rocket {
 				rocket_clean_cache_busting();
 			}
 
-            if ( !function_exists( 'rocket_dismiss_boxes' ) && defined('WP_ROCKET_ADMIN_PATH')) {
+            if ( ! function_exists( 'rocket_dismiss_boxes' ) && defined('WP_ROCKET_ADMIN_PATH')) {
 				require_once WP_ROCKET_ADMIN_PATH . 'admin.php';
 			}
 
 			// to fix
-			include_once( ABSPATH . '/wp-admin/includes/template.php' );
-			
+			include_once ABSPATH . '/wp-admin/includes/template.php';
+
 			// Generate a new random key for minify cache file
 			$options                   = get_option( WP_ROCKET_SLUG );
 			$options['minify_css_key'] = create_rocket_uniqid();
@@ -362,7 +361,7 @@ class MainWP_Child_WP_Rocket {
         MainWP_Helper::check_classes_exists('WP_Rocket\Preload\Full_Process');
 
         $preload_process = new WP_Rocket\Preload\Full_Process();
-        MainWP_Helper::check_methods($preload_process, array( 'is_process_running'));
+        MainWP_Helper::check_methods($preload_process, array( 'is_process_running' ));
 
         if ( $preload_process->is_process_running() ) {
             return array( 'result' => 'RUNNING' );
@@ -375,16 +374,17 @@ class MainWP_Child_WP_Rocket {
 	}
 
     function generate_critical_css() {
-        MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber',
-                                                    'WP_Rocket\Optimization\CSS\Critical_CSS',
-                                                    'WP_Rocket\Optimization\CSS\Critical_CSS_Generation',
-                                                    'WP_Rocket\Admin\Options',
-                                                    'WP_Rocket\Admin\Options_Data'
-                                                ));
+        MainWP_Helper::check_classes_exists( array(
+			'WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber',
+			'WP_Rocket\Optimization\CSS\Critical_CSS',
+			'WP_Rocket\Optimization\CSS\Critical_CSS_Generation',
+			'WP_Rocket\Admin\Options',
+			'WP_Rocket\Admin\Options_Data',
+		));
 
         $critical_css = new WP_Rocket\Optimization\CSS\Critical_CSS( new WP_Rocket\Optimization\CSS\Critical_CSS_Generation() );
-        $options_api = new WP_Rocket\Admin\Options( 'wp_rocket_' );
-    	$options     = new WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
+        $options_api  = new WP_Rocket\Admin\Options( 'wp_rocket_' );
+    	$options      = new WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
 
         $sitemap_preload = new WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber( $critical_css, $options );
 
@@ -411,10 +411,9 @@ class MainWP_Child_WP_Rocket {
 			}
 		}
 
-
 		update_option( WP_ROCKET_SLUG, $options );
 
-        if (isset($_POST['do_database_optimization']) && !empty($_POST['do_database_optimization'])) {
+        if (isset($_POST['do_database_optimization']) && ! empty($_POST['do_database_optimization'])) {
 			$this->optimize_database();
 		}
 
@@ -423,22 +422,23 @@ class MainWP_Child_WP_Rocket {
 
 	function optimize_database() {
 
-         MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Admin\Database\Optimization',
-                                                    'WP_Rocket\Admin\Database\Optimization_Process',
-                                                    'WP_Rocket\Admin\Options',
-                                                    'WP_Rocket\Admin\Options_Data'
-                                                ));
+         MainWP_Helper::check_classes_exists( array(
+			 'WP_Rocket\Admin\Database\Optimization',
+			 'WP_Rocket\Admin\Database\Optimization_Process',
+			 'WP_Rocket\Admin\Options',
+			 'WP_Rocket\Admin\Options_Data',
+		 ));
 
-        $process = new WP_Rocket\Admin\Database\Optimization_Process();
+        $process      = new WP_Rocket\Admin\Database\Optimization_Process();
         $optimization = new WP_Rocket\Admin\Database\Optimization( $process );
         MainWP_Helper::check_methods( $optimization, array( 'process_handler', 'get_options' ) );
 
         $options_api = new WP_Rocket\Admin\Options( 'wp_rocket_' );
     	$options     = new WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
 
-        $items = array_filter( array_keys( $optimization->get_options() ), [ $options, 'get' ] );
+        $items = array_filter( array_keys( $optimization->get_options() ), array( $options, 'get' ) );
 
-		if ( !empty( $items ) ) {
+		if ( ! empty( $items ) ) {
             $optimization->process_handler( $items );
 		}
 
@@ -448,23 +448,24 @@ class MainWP_Child_WP_Rocket {
 
 	function get_optimize_info() {
 
-        MainWP_Helper::check_classes_exists( array( 'WP_Rocket\Admin\Database\Optimization',
-                                                    'WP_Rocket\Admin\Database\Optimization_Process'
-                                                ));
+        MainWP_Helper::check_classes_exists( array(
+			'WP_Rocket\Admin\Database\Optimization',
+			'WP_Rocket\Admin\Database\Optimization_Process',
+		));
 
-        $process = new WP_Rocket\Admin\Database\Optimization_Process();
+        $process      = new WP_Rocket\Admin\Database\Optimization_Process();
         $optimization = new WP_Rocket\Admin\Database\Optimization( $process );
         MainWP_Helper::check_methods($optimization, 'count_cleanup_items');
 
         $information['optimize_info'] = array(
-            'total_revisions'         => $optimization->count_cleanup_items( 'database_revisions' ),
+            'total_revisions'          => $optimization->count_cleanup_items( 'database_revisions' ),
             'total_auto_draft'         => $optimization->count_cleanup_items( 'database_auto_drafts' ),
             'total_trashed_posts'      => $optimization->count_cleanup_items( 'database_trashed_posts' ),
-            'total_spam_comments'     => $optimization->count_cleanup_items( 'database_spam_comments' ),
+            'total_spam_comments'      => $optimization->count_cleanup_items( 'database_spam_comments' ),
             'total_trashed_comments'   => $optimization->count_cleanup_items( 'database_trashed_comments' ),
             'total_expired_transients' => $optimization->count_cleanup_items( 'database_expired_transients' ),
             'total_all_transients'     => $optimization->count_cleanup_items( 'database_all_transients' ),
-            'total_optimize_tables'    => $optimization->count_cleanup_items( 'database_optimize_tables' )
+            'total_optimize_tables'    => $optimization->count_cleanup_items( 'database_optimize_tables' ),
         );
 
         $information['result'] = 'SUCCESS';
@@ -473,7 +474,10 @@ class MainWP_Child_WP_Rocket {
 
 	function load_existing_settings() {
 		$options = get_option( WP_ROCKET_SLUG );
-		return array('result' => 'SUCCESS', 'options' => $options);
+		return array(
+			'result'  => 'SUCCESS',
+			'options' => $options,
+		);
 	}
 
 }

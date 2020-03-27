@@ -12,16 +12,16 @@ class MainWP_Clone_Install {
 	 * @param string $file The zip backup file path
 	 */
 	public function __construct( $file ) {
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 
 		$this->file = $file;
 		if ( '.zip' === substr( $this->file, - 4 ) ) {
 			$this->archiver = null;
-		} else if ( '.tar.gz' === substr( $this->file, - 7 ) ) {
+		} elseif ( '.tar.gz' === substr( $this->file, - 7 ) ) {
 			$this->archiver = new Tar_Archiver( null, 'tar.gz' );
-		} else if ( '.tar.bz2' === substr( $this->file, - 8 ) ) {
+		} elseif ( '.tar.bz2' === substr( $this->file, - 8 ) ) {
 			$this->archiver = new Tar_Archiver( null, 'tar.bz2' );
-		} else if ( '.tar' === substr( $this->file, - 4 ) ) {
+		} elseif ( '.tar' === substr( $this->file, - 4 ) ) {
 			$this->archiver = new Tar_Archiver( null, 'tar' );
 		}
 	}
@@ -41,8 +41,8 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function checkZipConsole() {
-		//todo: implement
-		//        return function_exists('system');
+		// todo: implement
+		// return function_exists('system');
 		return false;
 	}
 
@@ -58,9 +58,9 @@ class MainWP_Clone_Install {
 
 		if ( null !== $this->archiver ) {
 
-		} else if ( $this->checkZipConsole() ) {
-			//todo: implement
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipConsole() ) {
+			// todo: implement
+		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
@@ -73,7 +73,7 @@ class MainWP_Clone_Install {
 
 			return false;
 		} else {
-			//use pclzip
+			// use pclzip
 			$zip   = new PclZip( $this->file );
 			$list  = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
 			$list2 = $zip->delete( PCLZIP_OPT_BY_NAME, 'clone' );
@@ -114,9 +114,9 @@ class MainWP_Clone_Install {
 			}
 
 			return $this->archiver->file_exists( $file );
-		} else if ( $this->checkZipConsole() ) {
-			//todo: implement
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipConsole() ) {
+			// todo: implement
+		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
@@ -236,7 +236,7 @@ class MainWP_Clone_Install {
 				$readline = '';
 				while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
 					if ( time() - $lastRun > 20 ) {
-						@set_time_limit( 0 ); //reset timer..
+						@set_time_limit( 0 ); // reset timer..
 						$lastRun = time();
 					}
 
@@ -331,16 +331,16 @@ class MainWP_Clone_Install {
 		}
 		$token = $data[0];
 		switch ( $token ) {
-			case 's' :
+			case 's':
 				if ( '"' !== $data[ $length - 2 ] ) {
 					return false;
 				}
-			case 'a' :
-			case 'O' :
+			case 'a':
+			case 'O':
 				return (bool) preg_match( "/^{$token}:[0-9]+:/s", $data );
-			case 'b' :
-			case 'i' :
-			case 'd' :
+			case 'b':
+			case 'i':
+			case 'd':
 				return (bool) preg_match( "/^{$token}:[0-9.E-]+;\$/", $data );
 		}
 
@@ -373,14 +373,14 @@ class MainWP_Clone_Install {
 			return $content;
 		} else {
 			if ( $this->checkZipConsole() ) {
-				//todo: implement
-			} else if ( $this->checkZipSupport() ) {
+				// todo: implement
+			} elseif ( $this->checkZipSupport() ) {
 				$zip    = new ZipArchive();
 				$zipRes = $zip->open( $this->file );
 				if ( $zipRes ) {
 					$content = $zip->getFromName( 'clone/config.txt' );
-					//                $zip->deleteName('clone/config.txt');
-					//                $zip->deleteName('clone/');
+					// $zip->deleteName('clone/config.txt');
+					// $zip->deleteName('clone/');
 					$zip->close();
 
 					return $content;
@@ -388,7 +388,7 @@ class MainWP_Clone_Install {
 
 				return false;
 			} else {
-				//use pclzip
+				// use pclzip
 				$zip     = new PclZip( $this->file );
 				$content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt',
 				PCLZIP_OPT_EXTRACT_AS_STRING );
@@ -419,13 +419,13 @@ class MainWP_Clone_Install {
 			}
 
 			return $this->archiver->extractTo( ABSPATH );
-		} else if ( ( filesize( $this->file ) >= 50000000 ) && $this->checkWPZip() ) {
+		} elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->checkWPZip() ) {
 			return $this->extractWPZipBackup();
-		} else if ( $this->checkZipConsole() ) {
+		} elseif ( $this->checkZipConsole() ) {
 			return $this->extractZipConsoleBackup();
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipSupport() ) {
 			return $this->extractZipBackup();
-		} else if ( ( filesize( $this->file ) < 50000000 ) && $this->checkWPZip() ) {
+		} elseif ( ( filesize( $this->file ) < 50000000 ) && $this->checkWPZip() ) {
 			return $this->extractWPZipBackup();
 		} else {
 			return $this->extractZipPclBackup();
@@ -484,8 +484,8 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function extractZipConsoleBackup() {
-		//todo implement
-		//system('zip');
+		// todo implement
+		// system('zip');
 		return false;
 	}
 
@@ -536,10 +536,10 @@ class MainWP_Clone_Install {
 	 * We split large tables into 50,000 row blocks when dealing with them to save
 	 * on memmory consumption.
 	 *
-	 * @param mysql $connection The db connection object
+	 * @param mysql  $connection The db connection object
 	 * @param string $search What we want to replace
 	 * @param string $replace What we want to replace it with.
-	 * @param array $tables The tables we want to look at.
+	 * @param array  $tables The tables we want to look at.
 	 *
 	 * @return array    Collection of information gathered during the run.
 	 */
@@ -647,14 +647,14 @@ class MainWP_Clone_Install {
 	 *
 	 * @return array    The original array with all elements replaced as needed.
 	 */
-    
+
     /* Fixed serialize issue */
 	function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
 
 		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
 		try {
 
-			if ( is_string( $data ) && is_serialized( $data ) && !is_serialized_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
+			if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
 				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
 			} elseif ( is_array( $data ) ) {
 				$_tmp = array();
@@ -665,7 +665,7 @@ class MainWP_Clone_Install {
 				$data = $_tmp;
 				unset( $_tmp );
 			} elseif ( is_object( $data ) ) {
-				$_tmp = $data;
+				$_tmp  = $data;
                 $props = get_object_vars( $data );
 				foreach ( $props as $key => $value ) {
 					$_tmp->{$key} = $this->recursive_unserialize_replace( $from, $to, $value, false );
@@ -673,9 +673,9 @@ class MainWP_Clone_Install {
 
 				$data = $_tmp;
 				unset( $_tmp );
-			}  elseif (is_serialized_string($data) && is_serialized($data)) {
+			} elseif (is_serialized_string($data) && is_serialized($data)) {
                 // TODO: apply solution like phpmyadmin project have!
-				if ( ($data = @unserialize( $data )) !== false ) {
+				if ( ( $data = @unserialize( $data ) ) !== false ) {
 					$data = str_replace( $from, $to, $data );
                     $data = serialize( $data );
 				}

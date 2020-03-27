@@ -43,7 +43,7 @@ class MainWP_Backup {
 			$pid = trailingslashit( $backupdir ) . 'backup-' . $pid . '.pid';
 		}
 
-		//Verify if another backup is running, if so, return an error
+		// Verify if another backup is running, if so, return an error
 		$files = glob( $backupdir . '*.pid' );
 		foreach ( $files as $file ) {
 			if ( basename( $file ) == basename( $pid ) ) {
@@ -68,38 +68,23 @@ class MainWP_Backup {
 			$ext            = $this->archiver->getExtension();
 		}
 
-		//        throw new Exception('Test 1 2 : ' . print_r($append,1));
 		if ( ( false !== $fileSuffix ) && ! empty( $fileSuffix ) ) {
-			$file = $fileSuffix . ( true === $append ? '' : $ext ); //Append already contains extension!
+			// Append already contains extension!
+			$file = $fileSuffix . ( true === $append ? '' : $ext );
 		} else {
 			$file = 'backup-' . $filePrefix . $timestamp . $ext;
 		}
 		$filepath = $backupdir . $file;
 		$fileurl  = $file;
 
-		//        if (!$append)
-		//        {
-		//            if ($dh = opendir($backupdir))
-		//            {
-		//                while (($file = readdir($dh)) !== false)
-		//                {
-		//                    if ($file != '.' && $file != '..' && preg_match('/(.*).(zip|tar|tar.gz|tar.bz2|pid|done)$/', $file))
-		//                    {
-		//                        @unlink($backupdir . $file);
-		//                    }
-		//                }
-		//                closedir($dh);
-		//            }
-		//        }
-
 		if ( ! $addConfig ) {
-			if ( ! in_array( str_replace( ABSPATH, '', WP_CONTENT_DIR ), $excludes ) && ! in_array( 'wp-admin', $excludes ) && ! in_array( WPINC, $excludes ) ) {
+			if ( ! in_array( str_replace( ABSPATH, '', WP_CONTENT_DIR ), $excludes, true ) && ! in_array( 'wp-admin', $excludes, true ) && ! in_array( WPINC, $excludes, true ) ) {
 				$addConfig        = true;
 				$includeCoreFiles = true;
 			}
 		}
 
-		$this->timeout = 20 * 60 * 60; /*20 minutes*/
+		$this->timeout = 20 * 60 * 60;
 		$mem           = '512M';
 		// @codingStandardsIgnoreStart
 		@ini_set( 'memory_limit', $mem );
@@ -109,9 +94,9 @@ class MainWP_Backup {
 
 		if ( null !== $this->archiver ) {
 			$success = $this->archiver->createFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append );
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipSupport() ) {
 			$success = $this->createZipFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
-		} else if ( $this->checkZipConsole() ) {
+		} elseif ( $this->checkZipConsole() ) {
 			$success = $this->createZipConsoleFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
 		} else {
 			$success = $this->createZipPclFullBackup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
@@ -125,7 +110,7 @@ class MainWP_Backup {
 	}
 
 	public function zipFile( $files, $archive ) {
-		$this->timeout = 20 * 60 * 60; /*20 minutes*/
+		$this->timeout = 20 * 60 * 60;
 		$mem           = '512M';
 		// @codingStandardsIgnoreStart
 		@ini_set( 'memory_limit', $mem );
@@ -133,15 +118,15 @@ class MainWP_Backup {
 		@ini_set( 'max_execution_time', $this->timeout );
 		// @codingStandardsIgnoreEnd
 
-		if ( !is_array( $files ) ) {
-			$files = array ($files );
+		if ( ! is_array( $files ) ) {
+			$files = array( $files );
 		}
 
 		if ( null !== $this->archiver ) {
 			$success = $this->archiver->zipFile( $files, $archive );
-		} else if ( $this->checkZipSupport() ) {
+		} elseif ( $this->checkZipSupport() ) {
 			$success = $this->_zipFile( $files, $archive );
-		} else if ( $this->checkZipConsole() ) {
+		} elseif ( $this->checkZipConsole() ) {
 			$success = $this->_zipFileConsole( $files, $archive );
 		} else {
 			$success = $this->_zipFilePcl( $files, $archive );
@@ -172,8 +157,8 @@ class MainWP_Backup {
 	}
 
 	public function _zipFilePcl( $files, $archive ) {
-		//Zip this backup folder..
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		// Zip this backup folder..
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $archive );
 
 		$error = false;
@@ -183,7 +168,7 @@ class MainWP_Backup {
 			}
 		}
 
-		return !$error;
+		return ! $error;
 	}
 
 	/**
@@ -202,7 +187,6 @@ class MainWP_Backup {
 	 */
 	public function checkZipConsole() {
 		return false;
-		//        return function_exists('system');
 	}
 
 	/**
@@ -248,7 +232,7 @@ class MainWP_Backup {
 				foreach ( $nodes as $key => $node ) {
 					if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
 						unset( $nodes[ $key ] );
-					} else if ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+					} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 						unset( $nodes[ $key ] );
 					} else {
 						foreach ( $coreFiles as $coreFile ) {
@@ -280,7 +264,7 @@ class MainWP_Backup {
 				if ( ! MainWP_Helper::inExcludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
 					if ( is_dir( $node ) ) {
 						$this->zipAddDir( $node, $excludes );
-					} else if ( is_file( $node ) ) {
+					} elseif ( is_file( $node ) ) {
 						$this->addFileToZip( $node, str_replace( ABSPATH, '', $node ) );
 					}
 				}
@@ -352,7 +336,7 @@ class MainWP_Backup {
 	 * @return bool
 	 */
 	public function createZipPclFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles ) {
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $filepath );
 		$nodes     = glob( ABSPATH . '*' );
 		if ( ! $includeCoreFiles ) {
@@ -382,7 +366,7 @@ class MainWP_Backup {
 			foreach ( $nodes as $key => $node ) {
 				if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
 					unset( $nodes[ $key ] );
-				} else if ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+				} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 					unset( $nodes[ $key ] );
 				} else {
 					foreach ( $coreFiles as $coreFile ) {
@@ -396,7 +380,7 @@ class MainWP_Backup {
 		}
 
 		$db_files = $this->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
-		$error = false;
+		$error    = false;
 		foreach ( $db_files as $db_file ) {
 			if ( 0 === ( $rslt = $this->zip->add( $db_file, PCLZIP_OPT_REMOVE_PATH, dirname( $db_file ), PCLZIP_OPT_ADD_PATH, basename( WP_CONTENT_DIR ) ) ) ) {
 				$error = true;
@@ -408,13 +392,13 @@ class MainWP_Backup {
 		}
 		if ( ! $error ) {
 			foreach ( $nodes as $node ) {
-				if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes ) ) {
+				if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes, true ) ) {
 					if ( is_dir( $node ) ) {
 						if ( ! $this->pclZipAddDir( $node, $excludes ) ) {
 							$error = true;
 							break;
 						}
-					} else if ( is_file( $node ) ) {
+					} elseif ( is_file( $node ) ) {
 						if ( 0 === ( $rslt = $this->zip->add( $node, PCLZIP_OPT_REMOVE_PATH, ABSPATH ) ) ) {
 							$error = true;
 							break;
@@ -471,7 +455,7 @@ class MainWP_Backup {
 					$newnodes = glob( $node . DIRECTORY_SEPARATOR . '*' );
 					$this->copy_dir( $newnodes, $excludes, $backupfolder, $excludenonwp, false );
 					unset( $newnodes );
-				} else if ( is_file( $node ) ) {
+				} elseif ( is_file( $node ) ) {
 					if ( $this->excludeZip && MainWP_Helper::endsWith( $node, '.zip' ) ) {
 						continue;
 					}
@@ -485,16 +469,16 @@ class MainWP_Backup {
 	}
 
 	public function createZipPclFullBackup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
-		//Create backup folder
+		// Create backup folder
 		$backupFolder = dirname( $filepath ) . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
 		// @codingStandardsIgnoreStart
 		@mkdir( $backupFolder );
 		// @codingStandardsIgnoreEnd
 
-		//Create DB backup
+		// Create DB backup
 		$db_files = $this->createBackupDB( $backupFolder . 'dbBackup' );
 
-		//Copy installation to backup folder
+		// Copy installation to backup folder
 		$nodes = glob( ABSPATH . '*' );
 		if ( ! $includeCoreFiles ) {
 			$coreFiles = array(
@@ -523,7 +507,7 @@ class MainWP_Backup {
 			foreach ( $nodes as $key => $node ) {
 				if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
 					unset( $nodes[ $key ] );
-				} else if ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+				} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 					unset( $nodes[ $key ] );
 				} else {
 					foreach ( $coreFiles as $coreFile ) {
@@ -546,8 +530,8 @@ class MainWP_Backup {
 		// @codingStandardsIgnoreEnd
 		unset( $nodes );
 
-		//Zip this backup folder..
-		require_once( ABSPATH . 'wp-admin/includes/class-pclzip.php' );
+		// Zip this backup folder..
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 		$this->zip = new PclZip( $filepath );
 		$this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
 		if ( $addConfig ) {
@@ -562,7 +546,7 @@ class MainWP_Backup {
 
 			$this->addFileFromStringToPCLZip( 'clone/config.txt', $string, $filepath );
 		}
-		//Remove backup folder
+		// Remove backup folder
 		MainWP_Helper::delete_dir( $backupFolder );
 
 		return true;
@@ -599,24 +583,6 @@ class MainWP_Backup {
 
 		$iterator = null;
 		unset( $iterator );
-
-		//        $nodes = glob(rtrim($path, '/') . '/*');
-		//        if (empty($nodes)) return true;
-		//
-		//        foreach ($nodes as $node)
-		//        {
-		//            if (!MainWP_Helper::inExcludes($excludes, str_replace(ABSPATH, '', $node)))
-		//            {
-		//                if (is_dir($node))
-		//                {
-		//                    $this->zipAddDir($node, $excludes);
-		//                }
-		//                else if (is_file($node))
-		//                {
-		//                    $this->addFileToZip($node, str_replace(ABSPATH, '', $node));
-		//                }
-		//            }
-		//        }
 	}
 
 	public function pclZipAddDir( $path, $excludes ) {
@@ -627,13 +593,13 @@ class MainWP_Backup {
 		}
 
 		foreach ( $nodes as $node ) {
-			if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes ) ) {
+			if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes, true ) ) {
 				if ( is_dir( $node ) ) {
 					if ( ! $this->pclZipAddDir( $node, $excludes ) ) {
 						$error = true;
 						break;
 					}
-				} else if ( is_file( $node ) ) {
+				} elseif ( is_file( $node ) ) {
 					if ( 0 === ( $rslt = $this->zip->add( $node, PCLZIP_OPT_REMOVE_PATH, ABSPATH ) ) ) {
 						$error = true;
 						break;
@@ -657,7 +623,8 @@ class MainWP_Backup {
 			$this->zip->delete( PCLZIP_OPT_BY_NAME, $file );
 			$add = $this->zip->add( $tmpfilename,
 				PCLZIP_OPT_REMOVE_PATH, dirname( $filepath ),
-			PCLZIP_OPT_ADD_PATH, $localpath );
+				PCLZIP_OPT_ADD_PATH, $localpath
+			);
 			unlink( $tmpfilename );
 			if ( ! empty( $add ) ) {
 				return true;
@@ -693,7 +660,7 @@ class MainWP_Backup {
 		$this->zipArchiveSizeCount += filesize( $path );
 		$this->gcCnt ++;
 
-		//5 mb limit!
+		// 5 mb limit!
 		if ( ! $this->loadFilesBeforeZip || ( filesize( $path ) > 5 * 1024 * 1024 ) ) {
 			$this->zipArchiveFileCount ++;
 			$added = $this->zip->addFile( $path, $zipEntryName );
@@ -719,7 +686,7 @@ class MainWP_Backup {
 			$this->gcCnt = 0;
 		}
 
-		//Over limits?
+		// Over limits?
 		if ( ( ( $this->file_descriptors > 0 ) && ( $this->zipArchiveFileCount > $this->file_descriptors ) ) ) { // || $this->zipArchiveSizeCount >= (31457280 * 2))
 			$this->zip->close();
 			$this->zip = null;
@@ -742,13 +709,11 @@ class MainWP_Backup {
 	}
 
 	public function createZipConsoleFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
-		// @TODO to work with 'zip' from system if PHP Zip library not available
-		//system('zip');
 		return false;
 	}
 
 	public function createBackupDB( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
-		$timeout = 20 * 60 * 60; //20minutes
+		$timeout = 20 * 60 * 60;
 		// @codingStandardsIgnoreStart
 		@set_time_limit( $timeout );
 		@ini_set( 'max_execution_time', $timeout );
@@ -760,7 +725,7 @@ class MainWP_Backup {
 		global $wpdb;
 
 		$db_files = array();
-		//Get all the tables
+		// Get all the tables
 		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
 		foreach ( $tables_db as $curr_table ) {
 			if ( null !== $archiver ) {
@@ -770,15 +735,15 @@ class MainWP_Backup {
 			$table = $curr_table[0];
 
 			$currentfile = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql';
-			$db_files[] = $currentfile;
+			$db_files[]  = $currentfile;
 			if ( file_exists( $currentfile ) ) {
 				continue;
 			}
-			$fh = fopen( $currentfile . '.tmp', 'w' ); //or error;
+			$fh = fopen( $currentfile . '.tmp', 'w' ); // or error;
 
 			fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-			//todo fix this
-			//$table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
+			// todo fix this
+			// $table_create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %s', $table ), ARRAY_N );
 			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N );
 			fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );
 
@@ -839,10 +804,9 @@ class MainWP_Backup {
 					@unlink( $db_file );
 				}
 			} else {
-				//todo: throw exception!
+				// todo: throw exception!
 			}
 		}
-
 
 		return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );
 	}

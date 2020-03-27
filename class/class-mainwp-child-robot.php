@@ -4,11 +4,11 @@ class MainWP_Child_Robot {
 	public static $instance = null;
 
 	static function Instance() {
-		if ( null === MainWP_Child_Robot::$instance ) {
-			MainWP_Child_Robot::$instance = new MainWP_Child_Robot();
+		if ( null === self::$instance ) {
+			self::$instance = new MainWP_Child_Robot();
 		}
 
-		return MainWP_Child_Robot::$instance;
+		return self::$instance;
 	}
 
 	public function wpr_insertcomments( $postid, $comments ) {
@@ -23,12 +23,12 @@ class MainWP_Child_Robot {
 			$comment_author       = $comment['author'];
 			$comment_author_url   = '';
 			$comment_content      = '';
-			$comment_content .= $comment['content'];
-			$comment_type     = '';
-			$user_ID          = '';
-			$comment_approved = 1;
-			$commentdata      = compact( 'comment_post_ID', 'comment_date', 'comment_date_gmt', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_content', 'comment_type', 'user_ID', 'comment_approved' );
-			$comment_id       = wp_insert_comment( $commentdata );
+			$comment_content     .= $comment['content'];
+			$comment_type         = '';
+			$user_ID              = '';
+			$comment_approved     = 1;
+			$commentdata          = compact( 'comment_post_ID', 'comment_date', 'comment_date_gmt', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_content', 'comment_type', 'user_ID', 'comment_approved' );
+			$comment_id           = wp_insert_comment( $commentdata );
 		}
 	}
 }

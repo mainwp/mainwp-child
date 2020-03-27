@@ -1,5 +1,5 @@
 sudo: false
-dist: trusty
+dist: xenial
 
 language: php
 
@@ -19,7 +19,7 @@ cache:
 matrix:
   include:
     - php: 7.4
-      env: WP_VERSION=latest
+      env: WP_TRAVISCI=phpcs WP_VERSION=latest
     - php: 7.3
       env: WP_VERSION=latest
     - php: 7.2
@@ -28,12 +28,7 @@ matrix:
       env: WP_VERSION=latest
     - php: 7.0
       env: WP_VERSION=latest
-    - php: 5.6
-      env: WP_VERSION=latest
-    - php: 5.6
-      env: WP_VERSION=trunk
-      dist: precise
-
+      
 before_script:
   - export PATH="$HOME/.composer/vendor/bin:$PATH"
   - |
