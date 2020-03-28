@@ -387,7 +387,7 @@ class MainWP_Keyword_Links {
 		return $content;
 	}
 
-    private function usort_callback_func( $a, $b) {
+    private function usort_callback_func( $a, $b ) {
 		return strlen($a) < strlen($b);
 	}
 
