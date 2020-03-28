@@ -69,9 +69,9 @@ class MainWP_Custom_Post_Type {
 		}
         $edit_id = ( isset($_POST['post_id']) && ! empty($_POST['post_id']) ) ? $_POST['post_id'] : 0;
 		$return  = $this->_insert_post($data, $edit_id, $parent_id = 0);
-        if (isset($return['success']) && $return['success'] == 1) {
-            if (isset($data['product_variation']) && is_array($data['product_variation'])) {
-                foreach ($data['product_variation'] as $product_variation) {
+        if ( isset($return['success']) && $return['success'] == 1 ) {
+            if ( isset($data['product_variation']) && is_array($data['product_variation']) ) {
+                foreach ( $data['product_variation'] as $product_variation ) {
                     $return_variantion = $this->_insert_post($product_variation, 0, $return['post_id']);
                 }
             }
@@ -84,7 +84,7 @@ class MainWP_Custom_Post_Type {
 	/**
 	 * Search image inside post content and upload it to child
 	 **/
-	private function _search_images( $post_content, $upload_dir, $check_image = false  ) {
+	private function _search_images( $post_content, $upload_dir, $check_image = false ) {
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $post_content, $matches, PREG_SET_ORDER );
 		if ( $foundMatches > 0 ) {
 			foreach ( $matches as $match ) {
@@ -215,7 +215,7 @@ class MainWP_Custom_Post_Type {
 
         $data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'], $check_image_existed );
 
-        if ( ! empty($parent_id)) {
+        if ( ! empty($parent_id) ) {
             $data_insert['post_parent'] = $parent_id; // for product variation
         }
 		$post_id = wp_insert_post( $data_insert, true );
