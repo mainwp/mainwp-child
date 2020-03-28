@@ -77,8 +77,7 @@ class MainWP_Wordpress_SEO {
             if ( file_exists( $temporary_file ) ) {
                 unlink( $temporary_file );
             }
-
-        } elseif ( isset( $_POST['settings'] ) ) {
+		} elseif ( isset( $_POST['settings'] ) ) {
             try {
                 $settings = base64_decode( $_POST['settings'] );
                  // @codingStandardsIgnoreLine
@@ -104,9 +103,9 @@ class MainWP_Wordpress_SEO {
 				} else {
 					throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
 				}
-            } catch ( Exception $e ) {
+			} catch ( Exception $e ) {
                 $information['error'] = $e->getMessage();
-            }
+			}
         }
 
 		MainWP_Helper::write( $information );
