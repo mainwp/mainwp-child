@@ -10,8 +10,7 @@
  *
  * The code is used for the MainWP UpdraftPlus Extension
  * Extension URL: https://mainwp.com/extension/updraftplus/
- *
-*/
+ */
 
 class MainWP_Child_Updraft_Plus_Backups {
 	public static $instance     = null;
@@ -1655,7 +1654,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 								$foreign_known[ $backups[ $timestamp ]['meta_foreign'] ],
 								&$mess,
 								&$warn,
-								&$err
+								&$err,
 							),
 						)
 					);
@@ -3446,7 +3445,7 @@ ENDHERE;
 			while ( ( $file = readdir( $handle ) ) !== false ) {
 				if ( '.' !== $file && '..' !== $file ) {
 					$spath = ( '' === $suffix_directory ) ? $file : $suffix_directory . '/' . $file;
-					$fkey = array_search( $spath, $exclude );
+					$fkey  = array_search( $spath, $exclude );
 					if ( false !== $fkey ) {
 						unset( $exclude[ $fkey ] );
 						continue;
@@ -3802,7 +3801,7 @@ ENDHERE;
 	private function download_status( $timestamp, $type, $findex ) {
 		global $updraftplus;
 		$response = array( 'm' => $updraftplus->jobdata_get( 'dlmessage_' . $timestamp . '_' . $type . '_' . $findex ) . '<br>' );
-		$file = $updraftplus->jobdata_get( 'dlfile_' . $timestamp . '_' . $type . '_' . $findex );
+		$file     = $updraftplus->jobdata_get( 'dlfile_' . $timestamp . '_' . $type . '_' . $findex );
 		if ( $file ) {
 			if ( 'failed' === $file ) {
 				$response['e'] = __( 'Download failed', 'updraftplus' ) . '<br>';
