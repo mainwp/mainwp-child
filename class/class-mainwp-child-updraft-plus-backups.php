@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Credits
  *
@@ -52,10 +51,11 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 		return $last_backup;
 	}
-	// ok
+
 	function syncOthersData( $information, $data = array() ) {
 		try {
-			if ( isset( $data['syncUpdraftData'] ) && $info = $data['syncUpdraftData'] ) {
+			if ( isset( $data['syncUpdraftData'] ) ) {
+				$info = $data['syncUpdraftData'];
 				if ( $this->is_plugin_installed ) {
 					$with_hist = true;
 					if ( version_compare( $info, '1.7', '>=' ) ) {
@@ -70,7 +70,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				}
 			}
 		} catch ( Exception $e ) {
-
+			// ok.
 		}
 
 		return $information;
@@ -145,7 +145,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 					case 'restore_alldownloaded':
 						$information = $this->restore_alldownloaded();
 						break;
-					case 'restorebackup': // not used
+					case 'restorebackup': // not used!
 						$information = $this->restoreBackup();
 						break;
 					case 'extradbtestconnection':
@@ -294,20 +294,21 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 
-	// Returns either true (in which case the Vault token will be stored), or false|WP_Error
+	// Returns either true (in which case the Vault token will be stored), or false|WP_Error.
 	private function vault_connect( $email, $password ) {
 		global $updraftplus;
 		$vault_mothership = 'https://vault.updraftplus.com/plugin-info/';
 
-		// Use SSL to prevent snooping
-		$result = wp_remote_post( $vault_mothership . '/?udm_action=vault_connect',
+		// Use SSL to prevent snooping.
+		$result = wp_remote_post(
+			$vault_mothership . '/?udm_action=vault_connect',
 			array(
 				'timeout' => 20,
 				'body'    => array(
 					'e'   => $email,
-					'p'   => base64_encode( $password ),
+					'p'   => base64_encode( $password ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 					'sid' => $updraftplus->siteid(),
-					'su'  => base64_encode( home_url() ),
+					'su'  => base64_encode( home_url() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 				),
 			)
 		);
@@ -329,7 +330,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		switch ( $response['loggedin'] ) {
 			case 'connected':
 				if ( ! empty( $response['token'] ) ) {
-					// Store it
+					// Store it.
 					$vault_settings = UpdraftPlus_Options::get_updraft_option( 'updraft_updraftvault' );
 					if ( ! is_array( $vault_settings ) ) {
 						$vault_settings = array();
@@ -369,7 +370,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return true;
 	}
 
-	// This method also gets called directly, so don't add code that assumes that it's definitely an AJAX situation
+	// This method also gets called directly, so don't add code that assumes that it's definitely an AJAX situation.
 	public function vault_disconnect() {
 		$vault_settings = UpdraftPlus_Options::get_updraft_option( 'updraft_updraftvault' );
 		UpdraftPlus_Options::update_updraft_option( 'updraft_updraftvault', array() );
@@ -379,10 +380,11 @@ class MainWP_Child_Updraft_Plus_Backups {
 		delete_transient( 'udvault_last_config' );
 		delete_transient( 'updraftvault_quota_text' );
 
-		MainWP_Helper::close_connection( array(
-			'disconnected' => 1,
-			'html'         => $this->connected_html(),
-		)
+		MainWP_Helper::close_connection(
+			array(
+				'disconnected' => 1,
+				'html'         => $this->connected_html(),
+			)
 		);
 
 		// If $_POST['reset_hash'] is set, then we were alerted by updraftplus.com - no need to notify back.
@@ -390,7 +392,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$post_body = array(
 				'e'   => (string) $vault_settings['email'],
 				'sid' => $updraftplus->siteid(),
-				'su'  => base64_encode( home_url() ),
+				'su'  => base64_encode( home_url() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			);
 
 			if ( ! empty( $vault_settings['token'] ) ) {
@@ -421,7 +423,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 	function save_settings() {
-		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
+		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
 		$keys_filter = $this->get_settings_keys();
 
@@ -678,7 +680,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			}
 		}
 
-		$addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) );
+		$addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		if ( ! is_array( $addons_options ) ) {
 			$addons_options = array();
 		}
@@ -938,7 +940,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		if ( ! empty( $_REQUEST['oneshot'] ) ) {
-			$job_id = get_site_option( 'updraft_oneshotnonce', false );
+			$job_id      = get_site_option( 'updraft_oneshotnonce', false );
 			$active_jobs = ( false === $job_id ) ? '' : $this->print_active_job( $job_id, true );
 		} elseif ( ! empty( $_REQUEST['thisjobonly'] ) ) {
 			$active_jobs = $this->print_active_jobs( $_REQUEST['thisjobonly'] );
@@ -1033,8 +1035,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		// UNIX timestamp.
-		$next_scheduled_backup     = wp_next_scheduled( 'updraft_backup' );
-		$next_scheduled_backup_gmt = $next_scheduled_backup_database_gmt = 0;
+		$next_scheduled_backup              = wp_next_scheduled( 'updraft_backup' );
+		$next_scheduled_backup_gmt          = 0;
+		$next_scheduled_backup_database_gmt = 0;
 		if ( $next_scheduled_backup ) {
 			// Convert to GMT.
 			$next_scheduled_backup_gmt = gmdate( 'Y-m-d H:i:s', $next_scheduled_backup );
@@ -1104,11 +1107,11 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	private function next_scheduled_backups() {
 		global $updraftplus;
-
-		$next_scheduled_backup_gmt = $next_scheduled_backup_database_gmt = 0;
-
 		// UNIX timestamp.
-		$next_scheduled_backup = wp_next_scheduled( 'updraft_backup' );
+		$next_scheduled_backup              = wp_next_scheduled( 'updraft_backup' );
+		$next_scheduled_backup_gmt          = 0;
+		$next_scheduled_backup_database_gmt = 0;
+
 		if ( $next_scheduled_backup ) {
 			// Convert to GMT.
 			$next_scheduled_backup_gmt = gmdate( 'Y-m-d H:i:s', $next_scheduled_backup );
@@ -1230,7 +1233,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				$services = is_string( $backups[ $timestamp ]['service'] ) ? array( $backups[ $timestamp ]['service'] ) : $backups[ $timestamp ]['service'];
 				if ( is_array( $services ) ) {
 					foreach ( $services as $service ) {
-						if ( $service != 'none' ) {
+						if ( 'none' != $service ) {
 							$delete_from_service[] = $service;
 						}
 					}
@@ -1288,9 +1291,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 						$remote_obj = new $objname();
 						$deleted    = $remote_obj->delete( $files );
 					}
-					if ( $deleted === - 1 ) {
+					if ( -1 === $deleted ) {
 
-					} elseif ( $deleted !== false ) {
+					} elseif ( false !== $deleted ) {
 						$remote_deleted = $remote_deleted + count( $files );
 					} else {
 						// Do nothing.
@@ -1347,8 +1350,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 	public function historystatus( $remotescan = null, $rescan = null ) {
 		global $updraftplus;
 
-		$remotescan = ( $remotescan !== null ) ? $remotescan : $_POST['remotescan'];
-		$rescan     = ( $rescan !== null ) ? $rescan : $_POST['rescan'];
+		$remotescan = ( null !== $remotescan ) ? $remotescan : $_POST['remotescan'];
+		$rescan     = ( null !== $rescan ) ? $rescan : $_POST['rescan'];
 
 		if ( $rescan ) {
 			$messages = $this->rebuildBackupHistory( $remotescan );
@@ -1446,7 +1449,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			return 'deleted';
 		}
 
-		// Note that log() assumes that the data is in _POST, not _GET
+		// Note that log() assumes that the data is in _POST, not _GET.
 		if ( $debug_mode ) {
 			$updraftplus->logfile_open( $updraftplus->nonce );
 		}
@@ -1494,7 +1497,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 					continue;
 				}
 				$download = $this->download_file( $file, $service );
-				if ( is_readable( $fullpath ) && $download !== false ) {
+				if ( is_readable( $fullpath ) && false !== $download ) {
 					clearstatcache();
 					$updraftplus->log( 'Remote fetch was successful (file size: ' . round( filesize( $fullpath ) / 1024, 1 ) . ' Kb)' );
 					$is_downloaded = true;
@@ -1644,10 +1647,18 @@ class MainWP_Child_Updraft_Plus_Backups {
 					$err[] = sprintf( __( 'Backup created by unknown source (%s) - cannot be restored.', 'updraftplus' ), $backups[ $timestamp ]['meta_foreign'] );
 				} else {
 					// For some reason, on PHP 5.5 passing by reference in a single array stopped working with apply_filters_ref_array (though not with do_action_ref_array).
-					$backupable_plus_db = apply_filters_ref_array( 'updraftplus_importforeign_backupable_plus_db', array(
-						$backupable_plus_db,
-						array( $foreign_known[ $backups[ $timestamp ]['meta_foreign'] ], &$mess, &$warn, &$err ),
-					) );
+					$backupable_plus_db = apply_filters_ref_array(
+						'updraftplus_importforeign_backupable_plus_db',
+						array(
+							$backupable_plus_db,
+							array(
+								$foreign_known[ $backups[ $timestamp ]['meta_foreign'] ],
+								&$mess,
+								&$warn,
+								&$err
+							),
+						)
+					);
 				}
 			}
 
@@ -1681,12 +1692,15 @@ class MainWP_Child_Updraft_Plus_Backups {
 								$warn[] = sprintf( __( 'File (%1$s) was found, but has a different size (%2$s) from what was expected (%3$s) - it may be corrupt.', 'updraftplus' ), $file, filesize( $updraft_dir . '/' . $file ), $backups[ $timestamp ][ $type . $itext . '-size' ] );
 							}
 						}
-						do_action_ref_array( "updraftplus_checkzip_$type", array(
-							$updraft_dir . '/' . $file,
-							&$mess,
-							&$warn,
-							&$err,
-						) );
+						do_action_ref_array(
+							"updraftplus_checkzip_$type",
+							array(
+								$updraft_dir . '/' . $file,
+								&$mess,
+								&$warn,
+								&$err,
+							)
+						);
 					}
 					$expected_index ++;
 				}
@@ -2361,7 +2375,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 		// Don't set too high - we want a timely response returned to the browser.
 		@set_time_limit( 90 );
 
-		while ( ( ( $is_plain && ! feof( $dbhandle ) ) || ( ! $is_plain && ! gzeof( $dbhandle ) ) ) && ( $line < 100 || ( ! $header_only && count( $wanted_tables ) > 0 ) ) ) {
+		$count_wanted_tables = count( $wanted_tables );
+
+		while ( ( ( $is_plain && ! feof( $dbhandle ) ) || ( ! $is_plain && ! gzeof( $dbhandle ) ) ) && ( $line < 100 || ( ! $header_only && $count_wanted_tables > 0 ) ) ) {
 			$line ++;
 			// Up to 1Mb.
 			$buffer = ( $is_plain ) ? rtrim( fgets( $dbhandle, 1048576 ) ) : rtrim( gzgets( $dbhandle, 1048576 ) );
@@ -2370,7 +2386,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				if ( '' === $old_siteurl && preg_match( '/^\# Backup of: (http(.*))$/', $buffer, $matches ) ) {
 					$old_siteurl = untrailingslashit( $matches[1] );
 					$mess[]      = __( 'Backup of:', 'updraftplus' ) . ' ' . htmlspecialchars( $old_siteurl ) . ( ( ! empty( $old_wp_version ) ) ? ' ' . sprintf( __( '(version: %s)', 'updraftplus' ), $old_wp_version ) : '' );
-					// Check for should-be migration
+					// Check for should-be migration.
 					if ( ! $migration_warning && untrailingslashit( site_url() ) !== $old_siteurl ) {
 						$migration_warning = true;
 						$powarn            = apply_filters( 'updraftplus_dbscan_urlchange', sprintf( __( 'Warning: %s', 'updraftplus' ), '<a href="http://updraftplus.com/shop/migrator/">' . __( 'This backup set is from a different site - this is not a restoration, but a migration. You need the Migrator add-on in order to make this work.', 'updraftplus' ) . '</a>' ), $old_siteurl, $res );
@@ -2582,7 +2598,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$db_collates_found                                       = array();
 		$db_supported_charset_related_to_unsupported_collation   = false;
 		$db_supported_charsets_related_to_unsupported_collations = array();
-		while ( ( ( $is_plain && ! feof( $dbhandle ) ) || ( ! $is_plain && ! gzeof( $dbhandle ) ) ) && ( $line < 100 || ( ! $header_only && count( $wanted_tables ) > 0 ) || ( ( microtime( true ) - $charset_scan_start_time ) < $db_charset_collate_scan_timeout && ! empty( $db_supported_character_sets ) ) ) ) {
+		$count_wanted_tables                                     = count( $wanted_tables );
+		while ( ( ( $is_plain && ! feof( $dbhandle ) ) || ( ! $is_plain && ! gzeof( $dbhandle ) ) ) && ( $line < 100 || ( ! $header_only && $count_wanted_tables > 0 ) || ( ( microtime( true ) - $charset_scan_start_time ) < $db_charset_collate_scan_timeout && ! empty( $db_supported_character_sets ) ) ) ) {
 			$line++;
 			// Up to 1MB.
 			$buffer = ( $is_plain ) ? rtrim( fgets( $dbhandle, 1048576 ) ) : rtrim( gzgets( $dbhandle, 1048576 ) );
@@ -2899,7 +2916,10 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 			return false;
 		}
-		if ( false === ( $dbhandle = gzopen( $file, 'r' ) ) ) {
+
+		$dbhandle = gzopen( $file, 'r' );
+
+		if ( false === $dbhandle ) {
 			return false;
 		}
 
@@ -2907,11 +2927,13 @@ class MainWP_Child_Updraft_Plus_Backups {
 			return $dbhandle;
 		}
 
-		if ( false === ( $bytes = gzread( $dbhandle, 3 ) ) ) {
+		$bytes = gzread( $dbhandle, 3 );
+
+		if ( false === $bytes ) {
 			return false;
 		}
 		// Double-gzipped?
-		if ( 'H4sI' !== base64_encode( $bytes ) ) {
+		if ( 'H4sI' !== base64_encode( $bytes ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			if ( 0 === gzseek( $dbhandle, 0 ) ) {
 				return $dbhandle;
 			} else {
@@ -2926,8 +2948,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$mess           = __( 'The database file appears to have been compressed twice - probably the website you downloaded it from had a mis-configured webserver.', 'updraftplus' );
 		$messkey        = 'doublecompress';
 		$err_msg        = '';
-
-		if ( false === ( $fnew = fopen( $file . '.tmp', 'w' ) ) || ! is_resource( $fnew ) ) {
+		$fnew           = fopen( $file . '.tmp', 'w' );
+		if ( false === ( $fnew ) || ! is_resource( $fnew ) ) {
 
 			@gzclose( $dbhandle );
 			$err_msg = __( 'The attempt to undo the double-compression failed.', 'updraftplus' );
@@ -3419,11 +3441,13 @@ ENDHERE;
 			return 0;
 		}
 
-		if ( $handle = opendir( $directory ) ) {
+		$handle = opendir( $directory );
+		if ( $handle ) {
 			while ( ( $file = readdir( $handle ) ) !== false ) {
 				if ( '.' !== $file && '..' !== $file ) {
 					$spath = ( '' === $suffix_directory ) ? $file : $suffix_directory . '/' . $file;
-					if ( false !== ( $fkey = array_search( $spath, $exclude ) ) ) {
+					$fkey = array_search( $spath, $exclude );
+					if ( false !== $fkey ) {
 						unset( $exclude[ $fkey ] );
 						continue;
 					}
@@ -3471,7 +3495,7 @@ ENDHERE;
 	// A value for $this_job_only also causes something to always be returned (to allow detection of the job having started on the front-end).
 	private function print_active_jobs( $this_job_only = false ) {
 		$cron = $this->get_cron();
-		$ret = '';
+		$ret  = '';
 
 		foreach ( $cron as $time => $job ) {
 			if ( isset( $job['updraft_backup_resume'] ) ) {
@@ -3778,7 +3802,8 @@ ENDHERE;
 	private function download_status( $timestamp, $type, $findex ) {
 		global $updraftplus;
 		$response = array( 'm' => $updraftplus->jobdata_get( 'dlmessage_' . $timestamp . '_' . $type . '_' . $findex ) . '<br>' );
-		if ( $file = $updraftplus->jobdata_get( 'dlfile_' . $timestamp . '_' . $type . '_' . $findex ) ) {
+		$file = $updraftplus->jobdata_get( 'dlfile_' . $timestamp . '_' . $type . '_' . $findex );
+		if ( $file ) {
 			if ( 'failed' === $file ) {
 				$response['e'] = __( 'Download failed', 'updraftplus' ) . '<br>';
 				$errs          = $updraftplus->jobdata_get( 'dlerrors_' . $timestamp . '_' . $type . '_' . $findex );
@@ -3825,13 +3850,13 @@ ENDHERE;
 
 	private function close_browser_connection( $txt = '' ) {
 
-		if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true ) :
+		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = json_encode( $txt );
 		else :
 			$output = serialize( $txt );
 		endif;
 
-		$txt = '<mainwp>' . base64_encode( $output ) . '</mainwp>';
+		$txt = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		// Close browser connection so that it can resume AJAX polling.
 		header( 'Content-Length: ' . ( ( ! empty( $txt ) ) ? strlen( $txt ) : '0' ) );
 		header( 'Connection: close' );
@@ -3894,7 +3919,7 @@ ENDHERE;
 			foreach ( $nodes as $node ) {
 				if ( is_array( $nodes ) ) {
 					foreach ( $nodes as $node ) {
-						if ( 'updraft_admin_node' === $node->parent || ( $node->id = 'updraft_admin_node' ) ) {
+						if ( 'updraft_admin_node' === $node->parent || ( 'updraft_admin_node' === $node->id ) ) {
 							$wp_admin_bar->remove_node( $node->id );
 						}
 					}
