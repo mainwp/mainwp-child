@@ -71,7 +71,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 						@ob_start();
 						@debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
 						$stackTrace = "\n" . @ob_get_clean();
-						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' );
+						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 					}
 
 					// To fix verify nonce conflict #2.
@@ -108,7 +108,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 					$stackTrace = "\n" . @ob_get_clean();
 
 					// Invalid nonce.
-					die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' );
+					die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 				}
 			endif;
 		}
@@ -318,7 +318,7 @@ class MainWP_Child {
 				$query .= "'" . $option . "', ";
 			}
 			$query  = substr( $query, 0, strlen( $query ) - 2 );
-			$query .= ")";
+			$query .= ")"; // phpcs:ignore
 
 			$alloptions_db = $wpdb->get_results( $query );
 			$wpdb->suppress_errors( $suppress );
@@ -535,7 +535,7 @@ class MainWP_Child {
 	public function detect_premium_themesplugins_updates() {
 
 		if ( isset( $_GET['_detect_plugins_updates'] ) && 'yes' == $_GET['_detect_plugins_updates'] ) {
-			 // to fix some premium plugins update notification.
+			// to fix some premium plugins update notification.
 			$current = get_site_transient( 'update_plugins' );
 			set_site_transient( 'update_plugins', $current );
 
@@ -663,7 +663,8 @@ class MainWP_Child {
 		if ( ( ! $remove_all_child_menu && 'T' !== $is_hide ) || $cancelled_branding ) {
 			$branding_header = isset( $branding_opts['branding_header'] ) ? $branding_opts['branding_header'] : array();
 			if ( ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) && ! $cancelled_branding ) {
-				self::$brandingTitle = $child_menu_title = stripslashes( $branding_header['name'] );
+				self::$brandingTitle = stripslashes( $branding_header['name'] );
+				$child_menu_title    = stripslashes( $branding_header['name'] );
 				$child_page_title    = $child_menu_title . ' Settings';
 			} else {
 				$child_menu_title = 'MainWP Child';
@@ -1009,16 +1010,13 @@ class MainWP_Child {
 				<form method="post" action="options-general.php?page=mainwp_child_tab">
 					<div class="howto"><?php esc_html_e( 'The unique security ID adds additional protection between the child plugin and your Dashboard. The unique security ID will need to match when being added to the Dashboard. This is additional security and should not be needed in most situations.', 'mainwp-child' ); ?></div>
 					<div style="margin: 1em 0 4em 0;">
-						<input name="requireUniqueSecurityId"
-							   type="checkbox"
-							   id="requireUniqueSecurityId"
-							   <?php
-								if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
-									echo 'checked'; }
-								?>
- />
-						<label for="requireUniqueSecurityId"
-							   style="font-size: 15px;"><?php esc_html_e( 'Require unique security ID', 'mainwp-child' ); ?></label>
+						<input name="requireUniqueSecurityId" type="checkbox" id="requireUniqueSecurityId"
+						<?php
+						if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
+							echo 'checked'; }
+						?>
+						/>
+						<label for="requireUniqueSecurityId" style="font-size: 15px;"><?php esc_html_e( 'Require unique security ID', 'mainwp-child' ); ?></label>
 					</div>
 					<div>
 						<?php
@@ -1028,11 +1026,7 @@ class MainWP_Child {
 						?>
 					</div>
 					<p class="submit" style="margin-top: 4em;">
-						<input type="submit"
-							   name="submit"
-							   id="submit"
-							   class="button button-primary button-hero"
-							   value="<?php esc_html_e( 'Save changes', 'mainwp-child' ); ?>">
+						<input type="submit" name="submit" id="submit" class="button button-primary button-hero" value="<?php esc_attr_e( 'Save changes', 'mainwp-child' ); ?>">
 					</p>
 					<input type="hidden" name="nonce" value="<?php echo wp_create_nonce( 'child-settings' ); ?>">
 				</form>
@@ -1385,7 +1379,7 @@ class MainWP_Child {
 			// to support open not wp-admin url.
 			$open_location = isset( $_REQUEST['open_location'] ) ? $_REQUEST['open_location'] : '';
 			if ( ! empty( $open_location ) ) {
-				$open_location = base64_decode( $open_location );
+				$open_location = base64_decode( $open_location ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 				$_vars         = MainWP_Helper::parse_query( $open_location );
 				$_path         = parse_url( $open_location, PHP_URL_PATH );
 				if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
@@ -1577,9 +1571,9 @@ class MainWP_Child {
 			$serverNoSsl = ( isset( $pNossl ) && 1 === (int) $pNossl );
 
 			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
-				$auth = hash_equals( md5( $func . $nonce . get_option( 'mainwp_child_nossl_key' ) ), base64_decode( $signature ) );
+				$auth = hash_equals( md5( $func . $nonce . get_option( 'mainwp_child_nossl_key' ) ), base64_decode( $signature ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			} else {
-				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) );
+				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 				if ( 1 !== $auth ) {
 					$auth = false;
 				}
@@ -1632,7 +1626,7 @@ class MainWP_Child {
 	public function http_request_reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
 		if ( isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) && isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ) {
-			$auth                          = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] );
+			$auth                          = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			$r['headers']['Authorization'] = "Basic $auth";
 		}
 		return $r;
@@ -1743,7 +1737,7 @@ class MainWP_Child {
 				if ( ! empty( $fileName ) ) {
 					do_action( 'mainwp_child_installPluginTheme', $args );
 					if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
-						 // to fix activate issue.
+						// to fix activate issue.
 						if ( 'quotes-collection/quotes-collection.php' == $args['slug'] ) {
 							activate_plugin( $path . $fileName, '', false, true );
 						} else {
@@ -2184,7 +2178,7 @@ class MainWP_Child {
 
 				if ( isset( $update['url'] ) ) {
 					$installer = new WP_Upgrader();
-					$result                           = $installer->run(
+					$result    = $installer->run(
 						array(
 							'package'           => $update['url'],
 							'destination'       => ( 'plugin' === $update['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
@@ -2342,7 +2336,7 @@ class MainWP_Child {
 			}
 		}
 
-		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // Save the public key.
+		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] ); // Save the public key.
 		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 ); // Save the nonce.
 
@@ -2360,20 +2354,20 @@ class MainWP_Child {
 	}
 
 	public function newPost() {
-		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) );
-		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) );
-		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null );
+		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$post_tags           = rawurldecode( isset( $new_post['post_tags'] ) ? $new_post['post_tags'] : null );
-		$post_featured_image = base64_decode( $_POST['post_featured_image'] );
-		$upload_dir          = maybe_unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) );
+		$post_featured_image = base64_decode( $_POST['post_featured_image'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$upload_dir          = maybe_unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
 		if ( isset( $_POST['_ezin_post_category'] ) ) {
-			$new_post['_ezin_post_category'] = maybe_unserialize( base64_decode( $_POST['_ezin_post_category'] ) );
+			$new_post['_ezin_post_category'] = maybe_unserialize( base64_decode( $_POST['_ezin_post_category'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		}
 
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) && ! empty( $_POST['featured_image_data'] ) ) {
-			$others['featured_image_data'] = unserialize( base64_decode( $_POST['featured_image_data'] ) );
+			$others['featured_image_data'] = unserialize( base64_decode( $_POST['featured_image_data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		}
 
 		$res = MainWP_Helper::createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
@@ -2441,7 +2435,7 @@ class MainWP_Child {
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
 		} elseif ( 'update_meta' === $action ) {
-			$values     = maybe_unserialize( base64_decode( $_POST['values'] ) );
+			$values     = maybe_unserialize( base64_decode( $_POST['values'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			$meta_key   = $values['meta_key'];
 			$meta_value = $values['meta_value'];
 			$check_prev = $values['check_prev'];
@@ -2546,12 +2540,12 @@ class MainWP_Child {
 			wp_set_post_lock( $id );
 
 			$post_data = array(
-				'new_post'            => base64_encode( serialize( $new_post ) ),
-				'post_custom'         => base64_encode( serialize( $post_custom ) ),
-				'post_category'       => base64_encode( $post_category ),
-				'post_featured_image' => base64_encode( $post_featured_image ),
-				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ),
-				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ),
+				'new_post'            => base64_encode( serialize( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'post_custom'         => base64_encode( serialize( $post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'post_category'       => base64_encode( $post_category ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'post_featured_image' => base64_encode( $post_featured_image ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			);
 			return $post_data;
 
@@ -2610,11 +2604,11 @@ class MainWP_Child {
 			wp_set_post_lock( $id );
 
 			$post_data = array(
-				'new_post'            => base64_encode( serialize( $new_post ) ),
-				'post_custom'         => base64_encode( serialize( $post_custom ) ),
-				'post_featured_image' => base64_encode( $post_featured_image ),
-				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ),
-				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ),
+				'new_post'            => base64_encode( serialize( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'post_custom'         => base64_encode( serialize( $post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'post_featured_image' => base64_encode( $post_featured_image ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			);
 			return $post_data;
 		}
@@ -2684,127 +2678,129 @@ class MainWP_Child {
 	}
 
 	public function edit_user( $user_id, $data ) {
-			$wp_roles = wp_roles();
-			$user     = new stdClass();
+		$wp_roles = wp_roles();
+		$user     = new stdClass();
 
-			$update = true;
+		$update = true;
 
 		if ( $user_id ) {
-				$user->ID         = (int) $user_id;
-				$userdata         = get_userdata( $user_id );
-				$user->user_login = wp_slash( $userdata->user_login );
+			$user->ID         = (int) $user_id;
+			$userdata         = get_userdata( $user_id );
+			$user->user_login = wp_slash( $userdata->user_login );
 		} else {
-				return array( 'error' => 'ERROR: Empty user id.' );
+			return array( 'error' => 'ERROR: Empty user id.' );
 		}
 
-			$pass1 = $pass2 = '';
+		$pass1 = '';
+		$pass2 = '';
+
 		if ( isset( $data['pass1'] ) ) {
-				$pass1 = $data['pass1'];
+			$pass1 = $data['pass1'];
 		}
+
 		if ( isset( $data['pass2'] ) ) {
 				$pass2 = $data['pass2'];
 		}
 
 		if ( isset( $data['role'] ) && current_user_can( 'edit_users' ) ) {
-				$new_role       = sanitize_text_field( $data['role'] );
-				$potential_role = isset( $wp_roles->role_objects[ $new_role ] ) ? $wp_roles->role_objects[ $new_role ] : false;
-				// Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
-				// Multisite super admins can freely edit their blog roles -- they possess all caps.
+			$new_role       = sanitize_text_field( $data['role'] );
+			$potential_role = isset( $wp_roles->role_objects[ $new_role ] ) ? $wp_roles->role_objects[ $new_role ] : false;
+			// Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
+			// Multisite super admins can freely edit their blog roles -- they possess all caps.
 			if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || get_current_user_id() != $user_id || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
 					$user->role = $new_role;
 			}
-
-				// If the new role isn't editable by the logged-in user die with error.
-				$editable_roles = get_editable_roles();
+			// If the new role isn't editable by the logged-in user die with error.
+			$editable_roles = get_editable_roles();
 			if ( ! empty( $new_role ) && empty( $editable_roles[ $new_role ] ) ) {
 				return array( 'error' => 'You can&#8217;t give users that role.' );
 			}
 		}
 
-			$email = '';
+		$email = '';
 		if ( isset( $data['email'] ) ) {
 			$email = trim( $data['email'] );
 		}
 
 		if ( ! empty( $email ) ) {
-				$user->user_email = sanitize_text_field( wp_unslash( $email ) );
+			$user->user_email = sanitize_text_field( wp_unslash( $email ) );
 		} else {
-				$user->user_email = $userdata->user_email;
+			$user->user_email = $userdata->user_email;
 		}
 
 		if ( isset( $data['url'] ) ) {
 			if ( empty( $data['url'] ) || 'http://' == $data['url'] ) {
-					$user->user_url = '';
+				$user->user_url = '';
 			} else {
-					$user->user_url = esc_url_raw( $data['url'] );
-					$protocols      = implode( '|', array_map( 'preg_quote', wp_allowed_protocols() ) );
-					$user->user_url = preg_match( '/^(' . $protocols . '):/is', $user->user_url ) ? $user->user_url : 'http://' . $user->user_url;
+				$user->user_url = esc_url_raw( $data['url'] );
+				$protocols      = implode( '|', array_map( 'preg_quote', wp_allowed_protocols() ) );
+				$user->user_url = preg_match( '/^(' . $protocols . '):/is', $user->user_url ) ? $user->user_url : 'http://' . $user->user_url;
 			}
 		}
 
 		if ( isset( $data['first_name'] ) ) {
-				$user->first_name = sanitize_text_field( $data['first_name'] );
+			$user->first_name = sanitize_text_field( $data['first_name'] );
 		}
 		if ( isset( $data['last_name'] ) ) {
-				$user->last_name = sanitize_text_field( $data['last_name'] );
+			$user->last_name = sanitize_text_field( $data['last_name'] );
 		}
 		if ( isset( $data['nickname'] ) && ! empty( $data['nickname'] ) ) {
-				$user->nickname = sanitize_text_field( $data['nickname'] );
+			$user->nickname = sanitize_text_field( $data['nickname'] );
 		}
 		if ( isset( $data['display_name'] ) ) {
-				$user->display_name = sanitize_text_field( $data['display_name'] );
+			$user->display_name = sanitize_text_field( $data['display_name'] );
 		}
 		if ( isset( $data['description'] ) ) {
-				$user->description = trim( $data['description'] );
+			$user->description = trim( $data['description'] );
 		}
 
-			$errors = new WP_Error();
+		$errors = new WP_Error();
 
 		// checking that username has been typed.
 		if ( '' == $user->user_login ) {
-				$errors->add( 'user_login', __( '<strong>ERROR</strong>: Please enter a username.' ) );
+			$errors->add( 'user_login', __( '<strong>ERROR</strong>: Please enter a username.' ) );
 		}
 
-			do_action_ref_array( 'check_passwords', array( $user->user_login, &$pass1, &$pass2 ) );
+		do_action_ref_array( 'check_passwords', array( $user->user_login, &$pass1, &$pass2 ) );
 
 		if ( ! empty( $pass1 ) || ! empty( $pass2 ) ) {
 			// Check for blank password when adding a user.
 			if ( ! $update && empty( $pass1 ) ) {
-					$errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter a password.' ), array( 'form-field' => 'pass1' ) );
+				$errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter a password.' ), array( 'form-field' => 'pass1' ) );
 			}
-
 			// Check for "\" in password.
 			if ( false !== strpos( wp_unslash( $pass1 ), '\\' ) ) {
-					$errors->add( 'pass', __( '<strong>ERROR</strong>: Passwords may not contain the character "\\".' ), array( 'form-field' => 'pass1' ) );
+				$errors->add( 'pass', __( '<strong>ERROR</strong>: Passwords may not contain the character "\\".' ), array( 'form-field' => 'pass1' ) );
 			}
-
 			// Checking the password has been typed twice the same.
 			if ( ( $update || ! empty( $pass1 ) ) && $pass1 != $pass2 ) {
-					$errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter the same password in both password fields.' ), array( 'form-field' => 'pass1' ) );
+				$errors->add( 'pass', __( '<strong>ERROR</strong>: Please enter the same password in both password fields.' ), array( 'form-field' => 'pass1' ) );
 			}
 
 			if ( ! empty( $pass1 ) ) {
-					$user->user_pass = $pass1;
+				$user->user_pass = $pass1;
 			}
 		} else {
-					$user->user_pass = $userdata->user_pass;
+			$user->user_pass = $userdata->user_pass;
 		}
 
 		$illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
 
 		if ( in_array( strtolower( $user->user_login ), array_map( 'strtolower', $illegal_logins ) ) ) {
-				$errors->add( 'invalid_username', __( '<strong>ERROR</strong>: Sorry, that username is not allowed.' ) );
+			$errors->add( 'invalid_username', __( '<strong>ERROR</strong>: Sorry, that username is not allowed.' ) );
 		}
+
+		$owner_id = email_exists( $user->user_email );
 
 		if ( empty( $user->user_email ) ) {
-				$errors->add( 'empty_email', __( '<strong>ERROR</strong>: Please enter an email address.' ), array( 'form-field' => 'email' ) );
+			$errors->add( 'empty_email', __( '<strong>ERROR</strong>: Please enter an email address.' ), array( 'form-field' => 'email' ) );
 		} elseif ( ! is_email( $user->user_email ) ) {
-				$errors->add( 'invalid_email', __( '<strong>ERROR</strong>: The email address isn&#8217;t correct.' ), array( 'form-field' => 'email' ) );
-		} elseif ( ( $owner_id = email_exists( $user->user_email ) ) && ( ! $update || ( $owner_id != $user->ID ) ) ) {
-				$errors->add( 'email_exists', __( '<strong>ERROR</strong>: This email is already registered, please choose another one.' ), array( 'form-field' => 'email' ) );
+			$errors->add( 'invalid_email', __( '<strong>ERROR</strong>: The email address isn&#8217;t correct.' ), array( 'form-field' => 'email' ) );
+		} elseif ( ( $owner_id ) && ( ! $update || ( $owner_id != $user->ID ) ) ) {
+			$errors->add( 'email_exists', __( '<strong>ERROR</strong>: This email is already registered, please choose another one.' ), array( 'form-field' => 'email' ) );
 		}
 
-			do_action_ref_array( 'user_profile_update_errors', array( &$errors, $update, &$user ) );
+		do_action_ref_array( 'user_profile_update_errors', array( &$errors, $update, &$user ) );
 
 		if ( $errors->get_error_codes() ) {
 			$error_str = '';
@@ -2816,9 +2812,9 @@ class MainWP_Child {
 			return array( 'error' => $error_str );
 		}
 
-			$user_id = wp_update_user( $user );
+		$user_id = wp_update_user( $user );
 
-			return $user_id;
+		return $user_id;
 	}
 
 	public function get_user_to_edit( $user_id ) {
@@ -2930,7 +2926,7 @@ class MainWP_Child {
 
 
 	public function newAdminPassword() {
-		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) );
+		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$user         = get_user_by( 'login', $_POST['user'] );
 		require_once ABSPATH . WPINC . '/registration.php';
 
@@ -2953,7 +2949,7 @@ class MainWP_Child {
 	}
 
 	public function newUser() {
-		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) );
+		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$send_password = $_POST['send_password'];
 		if ( isset( $new_user['role'] ) ) {
 			if ( ! get_role( $new_user['role'] ) ) {
@@ -3258,7 +3254,9 @@ class MainWP_Child {
 
 		$filepath_prefix = $dir . 'dbBackup-' . $fileName . $timestamp;
 
-		if ( $dh = opendir( $dir ) ) {
+		$dh = opendir( $dir );
+
+		if ( $dh ) {
 			while ( ( $file = readdir( $dh ) ) !== false ) {
 				if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
 					@unlink( $dir . $file );
@@ -3413,14 +3411,13 @@ class MainWP_Child {
 	public function getSecurityStats() {
 		$information = array();
 
-		$information['listing']    = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
-		$information['wp_version'] = ( ! MainWP_Security::remove_wp_version_ok() ? 'N' : 'Y' );
-		$information['rsd']        = ( ! MainWP_Security::remove_rsd_ok() ? 'N' : 'Y' );
-		$information['wlw']        = ( ! MainWP_Security::remove_wlw_ok() ? 'N' : 'Y' );
+		$information['listing']             = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
+		$information['wp_version']          = ( ! MainWP_Security::remove_wp_version_ok() ? 'N' : 'Y' );
+		$information['rsd']                 = ( ! MainWP_Security::remove_rsd_ok() ? 'N' : 'Y' );
+		$information['wlw']                 = ( ! MainWP_Security::remove_wlw_ok() ? 'N' : 'Y' );
 		$information['db_reporting']        = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
 		$information['php_reporting']       = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
-		$information['versions']            = ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok() || ! MainWP_Security::remove_generator_version_ok()
-			? 'N' : 'Y' );
+		$information['versions']            = ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok() || ! MainWP_Security::remove_generator_version_ok() ? 'N' : 'Y' );
 		$information['registered_versions'] = ( MainWP_Security::remove_registered_versions_ok() ? 'Y' : 'N' );
 		$information['admin']               = ( MainWP_Security::admin_user_ok() ? 'Y' : 'N' );
 		$information['readme']              = ( MainWP_Security::remove_readme_ok() ? 'Y' : 'N' );
@@ -3746,7 +3743,7 @@ class MainWP_Child {
 		}
 
 		$information['recent_posts'] = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
-		$information['recent_pages'] = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future', ), $recent_number, 'page' );
+		$information['recent_pages'] = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
 
 		$securityIssuess = 0;
 		if ( ! MainWP_Security::prevent_listing_ok() ) {
@@ -3894,7 +3891,8 @@ class MainWP_Child {
 		}
 
 		if ( function_exists( 'get_site_icon_url' ) && has_site_icon() ) {
-			$favi = $favi_url = get_site_icon_url();
+			$favi     = get_site_icon_url();
+			$favi_url = $favi;
 		}
 
 		if ( empty( $favi ) ) {
@@ -3961,8 +3959,8 @@ class MainWP_Child {
 			if ( 0 === $pLvl ) {
 				return empty( $output ) ? null : $output;
 			}
-
-			if ( $files = $this->intScanDir( $pDir ) ) {
+			$files = $this->intScanDir( $pDir );
+			if ( $files ) {
 				foreach ( $files as $file ) {
 					if ( ( '.' === $file ) || ( '..' === $file ) ) {
 						continue;
@@ -3982,7 +3980,8 @@ class MainWP_Child {
 	}
 
 	public function intScanDir( $dir ) {
-		if ( @is_dir( $dir ) && ( $dh = @opendir( $dir ) ) ) {
+		$dh = @opendir( $dir );
+		if ( @is_dir( $dir ) && $dh ) {
 			$cnt = 0;
 			$out = array();
 			while ( ( $file = @readdir( $dh ) ) !== false ) {
@@ -4090,11 +4089,11 @@ class MainWP_Child {
 				$link_count->set( $post_ids );
 			}
 			foreach ( $posts as $post ) {
-				$outPost              = array();
-				$outPost['id']        = $post->ID;
-				$outPost['post_type'] = $post->post_type;
-				$outPost['status']    = $post->post_status;
-				$outPost['title']     = $post->post_title;
+				$outPost                  = array();
+				$outPost['id']            = $post->ID;
+				$outPost['post_type']     = $post->post_type;
+				$outPost['status']        = $post->post_status;
+				$outPost['title']         = $post->post_title;
 				$outPost['comment_count'] = $post->comment_count;
 				if ( isset( $extra['where_post_date'] ) && ! empty( $extra['where_post_date'] ) ) {
 					$outPost['dts'] = strtotime( $post->post_date_gmt );
@@ -4171,15 +4170,15 @@ class MainWP_Child {
 	}
 
 	public function get_terms() {
-		$taxonomy = base64_decode( $_POST['taxonomy'] );
+		$taxonomy = base64_decode( $_POST['taxonomy'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$rslt     = get_terms( taxonomy_exists( $taxonomy ) ? $taxonomy : 'category', 'hide_empty=0' );
 		MainWP_Helper::write( $rslt );
 	}
 
 	public function set_terms() {
-		$id       = base64_decode( $_POST['id'] );
-		$terms    = base64_decode( $_POST['terms'] );
-		$taxonomy = base64_decode( $_POST['taxonomy'] );
+		$id       = base64_decode( $_POST['id'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$terms    = base64_decode( $_POST['terms'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$taxonomy = base64_decode( $_POST['taxonomy'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
 		if ( '' !== trim( $terms ) ) {
 			$terms = explode( ',', $terms );
@@ -4191,7 +4190,7 @@ class MainWP_Child {
 
 	public function insert_comment() {
 		$postId   = $_POST['id'];
-		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) );
+		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$ids      = array();
 		foreach ( $comments as $comment ) {
 			$ids[] = wp_insert_comment(
@@ -4210,7 +4209,7 @@ class MainWP_Child {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 		$postId     = $_POST['id'];
-		$keys       = base64_decode( unserialize( $_POST['keys'] ) );
+		$keys       = base64_decode( unserialize( $_POST['keys'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$meta_value = $_POST['value'];
 
 		$where = '';
@@ -4232,9 +4231,9 @@ class MainWP_Child {
 	public function get_total_ezine_post() {
 		/** @var $wpdb wpdb */
 		global $wpdb;
-		$start_date   = base64_decode( $_POST['start_date'] );
-		$end_date     = base64_decode( $_POST['end_date'] );
-		$keyword_meta = base64_decode( $_POST['keyword_meta'] );
+		$start_date   = base64_decode( $_POST['start_date'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$end_date     = base64_decode( $_POST['end_date'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$keyword_meta = base64_decode( $_POST['keyword_meta'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$where        = ' WHERE ';
 		if ( ! empty( $start_date ) && ! empty( $end_date ) ) {
 			$where .= "  p.post_date>='$start_date' AND p.post_date<='$end_date' AND ";
@@ -4397,7 +4396,7 @@ class MainWP_Child {
 
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
-			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) );
+			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			$extra['extract_post_type'] = $_POST['extract_post_type'];
 		}
 
@@ -4464,14 +4463,15 @@ class MainWP_Child {
 			$comments = get_comments( $params );
 			if ( is_array( $comments ) ) {
 				foreach ( $comments as $comment ) {
-					$post                       = get_post( $comment->comment_post_ID );
-					$outComment                 = array();
-					$outComment['id']           = $comment->comment_ID;
-					$outComment['status']       = wp_get_comment_status( $comment->comment_ID );
-					$outComment['author']       = $comment->comment_author;
-					$outComment['author_url']   = get_comment_author_url( $comment->comment_ID );
-					$outComment['author_ip']    = get_comment_author_IP( $comment->comment_ID );
-					$outComment['author_email'] = $email = apply_filters( 'comment_email', $comment->comment_author_email );
+					$post                        = get_post( $comment->comment_post_ID );
+					$email                       = apply_filters( 'comment_email', $comment->comment_author_email );
+					$outComment                  = array();
+					$outComment['id']            = $comment->comment_ID;
+					$outComment['status']        = wp_get_comment_status( $comment->comment_ID );
+					$outComment['author']        = $comment->comment_author;
+					$outComment['author_url']    = get_comment_author_url( $comment->comment_ID );
+					$outComment['author_ip']     = get_comment_author_IP( $comment->comment_ID );
+					$outComment['author_email']  = apply_filters( 'comment_email', $comment->comment_author_email );
 					$outComment['postId']        = $comment->comment_post_ID;
 					$outComment['postName']      = $post->post_title;
 					$outComment['comment_count'] = $post->comment_count;
@@ -5168,7 +5168,8 @@ class MainWP_Child {
 		if ( ! empty( $performed_what ) && has_action( 'mainwp_reports_maintenance' ) ) {
 			$details  = implode( ',', $performed_what );
 			$log_time = time();
-			$message  = $result = 'Maintenance Performed';
+			$message  = 'Maintenance Performed';
+			$result   = 'Maintenance Performed';
 			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result );
 		}
 
@@ -5268,7 +5269,7 @@ class MainWP_Child {
 			'MainWP - 404 Alert: ' . $blog,
 			MainWP_Helper::formatEmail( $email, $mail ),
 			array(
-			'content-type: text/html',
+				'content-type: text/html',
 			)
 		);
 	}
@@ -5386,7 +5387,7 @@ class MainWP_Child {
 
 
 	public function uploader_action() {
-		$file_url    = base64_decode( $_POST['url'] );
+		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$path        = $_POST['path'];
 		$filename    = $_POST['filename'];
 		$information = array();
@@ -5522,7 +5523,8 @@ class MainWP_Child {
 		header( 'Cache-Control: must-revalidate' );
 		header( 'Pragma: public' );
 		header( 'Content-Length: ' . filesize( $backupdir . $file ) );
-		while ( @ob_end_flush() ) {;
+		while ( @ob_end_flush() ) {
+			;
 		}
 		$this->readfile_chunked( $backupdir . $file, $offset );
 	}
