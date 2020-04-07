@@ -233,8 +233,8 @@ class MainWP_Child {
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
 		add_action( 'admin_head', array( &$this, 'admin_head' ) );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
-		add_action( 'pre_current_active_plugins', array( &$this, 'detect_premium_themesplugins_updates' ) ); // to support detect premium plugins update
-		add_action( 'core_upgrade_preamble', array( &$this, 'detect_premium_themesplugins_updates' ) ); // to support detect premium themes
+		add_action( 'pre_current_active_plugins', array( &$this, 'detect_premium_themesplugins_updates' ) ); // to support detect premium plugins update.
+		add_action( 'core_upgrade_preamble', array( &$this, 'detect_premium_themesplugins_updates' ) ); // to support detect premium themes.
 
 		if ( is_admin() ) {
 			MainWP_Helper::update_option( 'mainwp_child_plugin_version', self::$version, 'yes' );
@@ -606,7 +606,7 @@ class MainWP_Child {
 		}
 
 		if ( ! isset( $auths['last'] ) || $auths['last'] < mktime( 0, 0, 0, date( 'm' ), date( 'd' ), date( 'Y' ) ) ) {
-			// Generate code for today..
+			// Generate code for today.
 			for ( $i = 0; $i < $this->maxHistory; $i ++ ) {
 				if ( ! isset( $auths[ $i + 1 ] ) ) {
 					continue;
@@ -702,11 +702,11 @@ class MainWP_Child {
 
 			add_action( 'admin_print_scripts-' . $settingsPage, array( 'MainWP_Clone', 'print_scripts' ) );
 			$subpageargs = array(
-				'child_slug'  => 'options-general.php', // to backwards compatible
+				'child_slug'  => 'options-general.php',
 				'branding'    => ( self::$brandingTitle === null ) ? 'MainWP' : self::$brandingTitle,
 				'parent_menu' => $settingsPage,
 			);
-			do_action( 'mainwp-child-subpages', $subpageargs ); // to compatible
+			do_action( 'mainwp-child-subpages', $subpageargs );
 
 			$sub_pages = array();
 
@@ -738,7 +738,6 @@ class MainWP_Child {
 				}
 				self::$subPages       = $sub_pages;
 				self::$subPagesLoaded = true;
-				// MainWP_Helper::update_option( 'mainwp_child_subpages', self::$subPages ); // to fix error for some case
 			}
 			add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
 			add_action( 'mainwp-child-pagefooter', array( __CLASS__, 'render_footer' ) );
@@ -1138,10 +1137,10 @@ class MainWP_Child {
 
 		$auth_user = false;
 		if ( $auth ) {
-			// disable duo auth for mainwp
+			// disable duo auth for mainwp.
 			remove_action( 'init', 'duo_verify_auth', 10 );
 
-			// Check if the user exists & is an administrator
+			// Check if the user exists & is an administrator.
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
 
 				$user = null;
@@ -1153,9 +1152,9 @@ class MainWP_Child {
 					}
 				}
 
-				// if not valid alternative admin
+				// if not valid alternative admin.
 				if ( ! $user ) {
-					// check connected admin existed
+					// check connected admin existed.
 					$user      = get_user_by( 'login', $_POST['user'] );
 					$auth_user = $_POST['user'];
 				}
@@ -1477,9 +1476,9 @@ class MainWP_Child {
 					}
 				}
 
-				// if alternative admin not existed
+				// if alternative admin not existed.
 				if ( ! $user ) {
-					// check connected admin existed
+					// check connected admin existed.
 					$user      = get_user_by( 'login', $_POST['user'] );
 					$auth_user = $_POST['user'];
 				}
@@ -1534,15 +1533,12 @@ class MainWP_Child {
 		MainWP_Child_WPvivid_BackupRestore::Instance()->init();
 		global $_wp_submenu_nopriv;
 		if ( $_wp_submenu_nopriv === null ) {
-			$_wp_submenu_nopriv = array(); // fix warning
+			$_wp_submenu_nopriv = array();
 		}
 
-		// Call the function required
+		// Call the function required.
 		if ( $auth && isset( $_POST['function'] ) && isset( $this->callableFunctions[ $_POST['function'] ] ) ) {
 			define( 'DOING_CRON', true );
-			// ob_start();
-			// require_once( ABSPATH . 'wp-admin/admin.php' );
-			// ob_end_clean();
 
 			MainWP_Helper::handle_fatal_error();
 			self::fix_for_custom_themes();
@@ -1709,30 +1705,29 @@ class MainWP_Child {
 			}
 			add_filter( 'http_request_args', array( &$this, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
-			$result = $installer->run( array(
-				'package'           => $url,
-				'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR
-					: WP_CONTENT_DIR . '/themes' ),
-				'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
-				// overwrite files?
-				'clear_working'     => true,
-				'hook_extra'        => array(),
-			) );
+			$result = $installer->run(
+				array(
+					'package'           => $url,
+					'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+					'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
+					'clear_working'     => true,
+					'hook_extra'        => array(),
+				)
+			);
 
 			if ( is_wp_error( $result ) ) {
 				if ( true == $ssl_verify && strpos( $url, 'https://' ) === 0 ) {
-					// retry
 					add_filter( 'http_request_args', array( &$this, 'noSSLFilterFunction' ), 99, 2 );
 					$ssl_verify = false;
-					$result     = $installer->run( array(
-						'package'           => $url,
-						'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR
-							: WP_CONTENT_DIR . '/themes' ),
-						'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
-						// overwrite files?
-						'clear_working'     => true,
-						'hook_extra'        => array(),
-					) );
+					$result     = $installer->run(
+						array(
+							'package'           => $url,
+							'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+							'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
+							'clear_working'     => true,
+							'hook_extra'        => array(),
+						)
+					);
 				}
 
 				if ( is_wp_error( $result ) ) {
@@ -2059,7 +2054,7 @@ class MainWP_Child {
 			}
 
 			remove_filter( 'pre_site_transient_update_plugins', array( $this, 'set_cached_update_plugins' ), 10 );
-			delete_site_transient( 'mainwp_update_plugins_cached' ); // to fix cached update info
+			delete_site_transient( 'mainwp_update_plugins_cached' ); // fix cached update info.
 
 			if ( count( $premiumPlugins ) > 0 ) {
 				$mwp_premium_updates = apply_filters( 'mwp_premium_perform_update', array() );
@@ -2094,13 +2089,10 @@ class MainWP_Child {
 				add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			}
 
-			// $last_update = get_site_transient( 'update_themes' );
-			// $originalLastChecked = !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ? $last_update->last_checked : 0;
-
 			@wp_update_themes();
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
 
-			// to support cached premium themes update info, hooking in the bulk_upgrade()
+			// to support cached premium themes update info, hooking in the bulk_upgrade().
 			add_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ) );
 
 			$information['theme_updates'] = $this->upgrade_get_theme_updates();
@@ -2120,14 +2112,13 @@ class MainWP_Child {
 			}
 
 			if ( count( $themes ) > 0 ) {
-				// To fix: optimizePressTheme update
+				// To fix: optimizePressTheme update.
 				$addFilterToFixUpdate_optimizePressTheme = false;
 				if ( in_array( 'optimizePressTheme', $themes ) ) {
 					$addFilterToFixUpdate_optimizePressTheme = true;
 					add_filter( 'site_transient_update_themes', array( $this, 'hookFixOptimizePressThemeUpdate' ), 99 );
 				}
 
-				// @see wp-admin/update.php
 				if ( null !== $this->filterFunction ) {
 					remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 				}
@@ -2168,15 +2159,7 @@ class MainWP_Child {
 			}
 
 			remove_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ), 10 );
-			delete_site_transient( 'mainwp_update_themes_cached' ); // to fix cached update info
-
-			// $last_update = get_site_transient( 'update_themes' );
-			// if ( !empty( $last_update ) && property_exists( $last_update, 'last_checked' ) ) {
-			// $last_update->last_checked = $originalLastChecked;
-			// set_site_transient( 'update_themes', $last_update );
-			// }
-
-			// @wp_update_themes();
+			delete_site_transient( 'mainwp_update_themes_cached' ); // fix cached update info.
 
 			if ( count( $premiumThemes ) > 0 ) {
 				$mwp_premium_updates            = apply_filters( 'mwp_premium_perform_update', array() );
@@ -2224,27 +2207,30 @@ class MainWP_Child {
 				}
 			}
 
-			// Upgrade via callback
+			// Upgrade via callback.
 			foreach ( $mwp_premium_updates_todo as $update ) {
 				$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
 
 				if ( isset( $update['url'] ) ) {
 					$installer = new WP_Upgrader();
-					// @see wp-admin/includes/class-wp-upgrader.php
-					$result                           = $installer->run( array(
-						'package'           => $update['url'],
-						'destination'       => ( 'plugin' === $update['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
-						'clear_destination' => true,
-						'clear_working'     => true,
-						'hook_extra'        => array(),
-					) );
+					$result                           = $installer->run(
+						array(
+							'package'           => $update['url'],
+							'destination'       => ( 'plugin' === $update['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+							'clear_destination' => true,
+							'clear_working'     => true,
+							'hook_extra'        => array(),
+						)
+					);
 					$information['upgrades'][ $slug ] = ( ! is_wp_error( $result ) && ! empty( $result ) );
 				} elseif ( isset( $update['callback'] ) ) {
 					if ( is_array( $update['callback'] ) && isset( $update['callback'][0] ) && isset( $update['callback'][1] ) ) {
-						$update_result                    = @call_user_func( array(
-							$update['callback'][0],
-							$update['callback'][1],
-						) );
+						$update_result                    = @call_user_func(
+							array(
+								$update['callback'][0],
+								$update['callback'][1],
+							)
+						);
 						$information['upgrades'][ $slug ] = $update_result && true;
 					} elseif ( is_string( $update['callback'] ) ) {
 						$update_result                    = @call_user_func( $update['callback'] );
@@ -2608,7 +2594,6 @@ class MainWP_Child {
 		$post = get_post( $id );
 		if ( $post ) {
 			$post_custom = get_post_custom( $id );
-			// post_slug = base64_decode( get_post_meta( $id, '_slug', true ) );
 			include_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'post-thumbnail-template.php';
 			$post_featured_image = get_post_thumbnail_id( $id );
 			$child_upload_dir    = wp_upload_dir();
@@ -2808,7 +2793,7 @@ class MainWP_Child {
 
 			$errors = new WP_Error();
 
-			/* checking that username has been typed */
+		// checking that username has been typed.
 		if ( $user->user_login == '' ) {
 				$errors->add( 'user_login', __( '<strong>ERROR</strong>: Please enter a username.' ) );
 		}
@@ -2838,14 +2823,12 @@ class MainWP_Child {
 					$user->user_pass = $userdata->user_pass;
 		}
 
-			/** This filter is documented in wp-includes/user.php */
-			$illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
+		$illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
 
 		if ( in_array( strtolower( $user->user_login ), array_map( 'strtolower', $illegal_logins ) ) ) {
 				$errors->add( 'invalid_username', __( '<strong>ERROR</strong>: Sorry, that username is not allowed.' ) );
 		}
 
-			/* checking email address */
 		if ( empty( $user->user_email ) ) {
 				$errors->add( 'empty_email', __( '<strong>ERROR</strong>: Please enter an email address.' ), array( 'form-field' => 'email' ) );
 		} elseif ( ! is_email( $user->user_email ) ) {
@@ -2989,10 +2972,12 @@ class MainWP_Child {
 		$user         = get_user_by( 'login', $_POST['user'] );
 		require_once ABSPATH . WPINC . '/registration.php';
 
-		$id = wp_update_user( array(
-			'ID'        => $user->ID,
-			'user_pass' => $new_password['user_pass'],
-		) );
+		$id = wp_update_user(
+			array(
+				'ID'        => $user->ID,
+				'user_pass' => $new_password['user_pass'],
+			)
+		);
 		if ( $id !== $user->ID ) {
 			if ( is_wp_error( $id ) ) {
 				MainWP_Helper::error( $id->get_error_message() );
@@ -3006,10 +2991,10 @@ class MainWP_Child {
 	}
 
 	function newUser() {
-		// Read form data
+		// Read form data.
 		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) );
 		$send_password = $_POST['send_password'];
-		// check role existed
+		// check role existed.
 		if ( isset( $new_user['role'] ) ) {
 			if ( ! get_role( $new_user['role'] ) ) {
 				$new_user['role'] = 'subscriber';
@@ -3637,7 +3622,7 @@ class MainWP_Child {
 		add_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 		add_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
-		// First check for new premium updates
+		// First check for new premium updates.
 		$update_check = apply_filters( 'mwp_premium_update_check', array() );
 		if ( ! empty( $update_check ) ) {
 			foreach ( $update_check as $updateFeedback ) {
@@ -3879,11 +3864,13 @@ class MainWP_Child {
 
 		// Directory listings!
 		$information['directories'] = $this->scanDir( ABSPATH, 3 );
-		$cats                       = get_categories( array(
-			'hide_empty'   => 0,
-			'hierarchical' => true,
-			'number'       => 300,
-		) );
+		$cats                       = get_categories(
+			array(
+				'hide_empty'   => 0,
+				'hierarchical' => true,
+				'number'       => 300,
+			)
+		);
 		$categories                 = array();
 		foreach ( $cats as $cat ) {
 			$categories[] = $cat->name;
@@ -4290,12 +4277,14 @@ class MainWP_Child {
 		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) );
 		$ids      = array();
 		foreach ( $comments as $comment ) {
-			$ids[] = wp_insert_comment( array(
-				'comment_post_ID' => $postId,
-				'comment_author'  => $comment['author'],
-				'comment_content' => $comment['content'],
-				'comment_date'    => $comment['date'],
-			) );
+			$ids[] = wp_insert_comment(
+				array(
+					'comment_post_ID' => $postId,
+					'comment_author'  => $comment['author'],
+					'comment_content' => $comment['content'],
+					'comment_date'    => $comment['date'],
+				)
+			);
 		}
 		MainWP_Helper::write( $ids );
 	}
@@ -4335,11 +4324,8 @@ class MainWP_Child {
 		} elseif ( ! empty( $start_date ) && empty( $end_date ) ) {
 			$where .= "  p.post_date='$start_date' AND ";
 		}
-		$where .= " ( p.post_status='publish' OR p.post_status='future' OR p.post_status='draft' )
-                                AND  (pm.meta_key='_ezine_keyword' AND pm.meta_value='$keyword_meta')";
-		$total  = $wpdb->get_var( "SELECT COUNT(*)
-								 FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id
-								 $where  " );
+		$where .= " ( p.post_status='publish' OR p.post_status='future' OR p.post_status='draft' ) AND  (pm.meta_key='_ezine_keyword' AND pm.meta_value='$keyword_meta')";
+		$total  = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where  " );
 		MainWP_Helper::write( $total );
 	}
 
@@ -4351,9 +4337,12 @@ class MainWP_Child {
 		$information = array();
 		if ( $postId > 0 ) {
 			if ( 'yes' === get_post_meta( $postId, '_is_auto_generate_content', true ) ) {
-				$post = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $wpdb->posts
-											WHERE ID = %d
-											AND post_status = 'future'", $postId ) );
+				$post = $wpdb->get_row(
+					$wpdb->prepare(
+						"SELECT * FROM $wpdb->posts WHERE ID = %d AND post_status = 'future'",
+						$postId
+					)
+				);
 				if ( $post ) {
 					$result = wp_trash_post( $postId );
 				} else {
@@ -4366,7 +4355,7 @@ class MainWP_Child {
 		} elseif ( $cancel_all ) {
 			$post_type = $_POST['post_type'];
 			$where     = " WHERE p.post_status='future' AND p.post_type = %s AND  pm.meta_key = '_is_auto_generate_content' AND pm.meta_value = 'yes' ";
-			$posts     = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where ", $post_type) );
+			$posts     = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where ", $post_type ) );
 			$count     = 0;
 			if ( is_array( $posts ) ) {
 				foreach ( $posts as $post ) {
@@ -4399,17 +4388,21 @@ class MainWP_Child {
 		try {
 			global $wpdb;
 			$ct        = current_time( 'mysql' );
-			$next_post = $wpdb->get_row( $wpdb->prepare( '
-                    SELECT *
-                    FROM ' . $wpdb->posts . ' p JOIN ' . $wpdb->postmeta . " pm ON p.ID=pm.post_id
+			$next_post = $wpdb->get_row(
+				$wpdb->prepare(
+					'SELECT *
+					FROM ' . $wpdb->posts . ' p JOIN ' . $wpdb->postmeta . " pm ON p.ID=pm.post_id
 					WHERE
-						pm.meta_key='_is_auto_generate_content' AND
-						pm.meta_value='yes' AND
-						p.post_status='future' AND
-						p.post_type= %s AND
-						p.post_date > NOW()
+					pm.meta_key='_is_auto_generate_content' AND
+					pm.meta_value='yes' AND
+					p.post_status='future' AND
+					p.post_type= %s AND
+					p.post_date > NOW()
 					ORDER BY p.post_date
-					LIMIT 1", $post_type) );
+					LIMIT 1",
+					$post_type
+				)
+			);
 
 			if ( ! $next_post ) {
 				$information['error'] = __( 'No scheduled posts.', 'mainwp-child' );
@@ -4899,7 +4892,7 @@ class MainWP_Child {
 
 		if ( isset( $_POST['role'] ) && ! empty( $_POST['role'] ) ) {
 			$check_users_role = true;
-			$all_users_role   = $this->get_all_users(true);
+			$all_users_role   = $this->get_all_users( true );
 			foreach ( $all_users_role as $user ) {
 				$search_user_role[] = $user['id'];
 			}
@@ -4915,13 +4908,15 @@ class MainWP_Child {
 				continue;
 			}
 
-			$user_query = new WP_User_Query( array(
-				'search'         => $_POST['search'],
-				'fields'         => 'all_with_meta',
-				'search_columns' => array( $col ),
-				'query_orderby'  => array( $col ),
-				'exclude'        => $exclude,
-			) );
+			$user_query = new WP_User_Query(
+				array(
+					'search'         => $_POST['search'],
+					'fields'         => 'all_with_meta',
+					'search_columns' => array( $col ),
+					'query_orderby'  => array( $col ),
+					'exclude'        => $exclude,
+				)
+			);
 			if ( ! empty( $user_query->results ) ) {
 				foreach ( $user_query->results as $new_user ) {
 					if ( $check_users_role ) {
@@ -4952,7 +4947,7 @@ class MainWP_Child {
 		MainWP_Helper::write( $allusers );
 	}
 
-	// Show stats without login - only allowed while no account is added yet
+	// Show stats without login - only allowed while no account is added yet.
 	function getSiteStatsNoAuth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
 			$hint = '<br/>' . __( 'Hint: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.', 'mainwp-child' );
@@ -4966,7 +4961,7 @@ class MainWP_Child {
 		MainWP_Helper::write( $information );
 	}
 
-	// Deactivating the plugin
+	// Deactivating the plugin.
 	function deactivate() {
 		include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		deactivate_plugins( $this->plugin_slug, true );
@@ -4998,7 +4993,7 @@ class MainWP_Child {
 
 		MainWP_Helper::update_option( 'mainwp_child_activated_once', true );
 
-		// delete bad data if existed
+		// delete bad data if existed.
 		$to_delete = array( 'mainwp_ext_snippets_enabled', 'mainwp_ext_code_snippets' );
 		foreach ( $to_delete as $delete ) {
 			delete_option( $delete );
@@ -5186,58 +5181,46 @@ class MainWP_Child {
 			$maint_options         = array();
 		}
 
-		// $this->options = array(
-		// 'revisions'    => __( 'Delete all post revisions', 'mainwp-maintenance-extension' ),
-		// 'autodraft'    => __( 'Delete all auto draft posts',                   'mainwp-maintenance-extension' ),
-		// 'trashpost'    => __( 'Delete trash posts',                            'mainwp-maintenance-extension' ),
-		// 'spam'         => __( 'Delete spam comments',                          'mainwp-maintenance-extension' ),
-		// 'pending'      => __( 'Delete pending comments',                       'mainwp-maintenance-extension' ),
-		// 'trashcomment' => __( 'Delete trash comments',                         'mainwp-maintenance-extension' ),
-		// 'tags'         => __( 'Delete tags with 0 posts associated',           'mainwp-maintenance-extension' ),
-		// 'categories'   => __( 'Delete categories with 0 posts associated',     'mainwp-maintenance-extension' ),
-		// 'optimize'     => __( 'Optimize database tables',                      'mainwp-maintenance-extension' )
-		// );
-
 		$performed_what = array();
 		if ( empty( $max_revisions ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
 			$wpdb->query( $sql_clean );
-			// to fix issue of meta_value short length
-			$performed_what[] = 'revisions'; // 'Posts revisions deleted';
+			// to fix issue of meta_value short length.
+			$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
 		} else {
 			$results          = MainWP_Helper::getRevisions( $max_revisions );
 			$count_deleted    = MainWP_Helper::deleteRevisions( $results, $max_revisions );
-			$performed_what[] = 'revisions'; // 'Posts revisions deleted';
+			$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
 		}
 
 		if ( in_array( 'autodraft', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'";
 			$wpdb->query( $sql_clean );
-			$performed_what[] = 'autodraft'; // 'Auto draft posts deleted';
+			$performed_what[] = 'autodraft'; // 'Auto draft posts deleted'.
 		}
 
 		if ( in_array( 'trashpost', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'trash'";
 			$wpdb->query( $sql_clean );
-			$performed_what[] = 'trashpost'; // 'Trash posts deleted';
+			$performed_what[] = 'trashpost'; // 'Trash posts deleted'.
 		}
 
 		if ( in_array( 'spam', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'spam'";
 			$wpdb->query( $sql_clean );
-			$performed_what[] = 'spam'; // 'Spam comments deleted';
+			$performed_what[] = 'spam'; // 'Spam comments deleted'.
 		}
 
 		if ( in_array( 'pending', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = '0'";
 			$wpdb->query( $sql_clean );
-			$performed_what[] = 'pending'; // 'Pending comments deleted';
+			$performed_what[] = 'pending'; // 'Pending comments deleted'.
 		}
 
 		if ( in_array( 'trashcomment', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'trash'";
 			$wpdb->query( $sql_clean );
-			$performed_what[] = 'trashcomment'; // 'Trash comments deleted';
+			$performed_what[] = 'trashcomment'; // 'Trash comments deleted'.
 		}
 
 		if ( in_array( 'tags', $maint_options ) ) {
@@ -5249,7 +5232,7 @@ class MainWP_Child {
 					}
 				}
 			}
-			$performed_what[] = 'tags'; // 'Tags with 0 posts associated deleted';
+			$performed_what[] = 'tags'; // 'Tags with 0 posts associated deleted'.
 		}
 
 		if ( in_array( 'categories', $maint_options ) ) {
@@ -5261,12 +5244,12 @@ class MainWP_Child {
 					}
 				}
 			}
-			$performed_what[] = 'categories'; // 'Categories with 0 posts associated deleted';
+			$performed_what[] = 'categories'; // 'Categories with 0 posts associated deleted'.
 		}
 
 		if ( in_array( 'optimize', $maint_options ) ) {
 			$this->maintenance_optimize();
-			$performed_what[] = 'optimize'; // 'Database optimized';
+			$performed_what[] = 'optimize'; // 'Database optimized'.
 		}
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
@@ -5276,7 +5259,7 @@ class MainWP_Child {
 			$details  = implode( ',', $performed_what );
 			$log_time = time();
 			$message  = $result = 'Maintenance Performed';
-			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result);
+			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result );
 		}
 
 		MainWP_Helper::write( $information );
@@ -5351,13 +5334,13 @@ class MainWP_Child {
 		} else {
 			$agent = 'undefined';
 		}
-		// identity
+		// identity.
 		if ( isset( $_SERVER['REMOTE_IDENT'] ) ) {
 			$remote = MainWP_Helper::clean( $_SERVER['REMOTE_IDENT'] );
 		} else {
 			$remote = 'undefined';
 		}
-		// log time
+		// log time.
 		$time = MainWP_Helper::clean( date( 'F jS Y, h:ia', time() ) );
 
 		$mail = '<div>' . 'TIME: ' . $time . '</div>' .
@@ -5370,10 +5353,14 @@ class MainWP_Child {
 				'<div>' . 'USER AGENT: ' . $agent . '</div>';
 		$mail = '<div>404 alert</div>
                 <div></div>' . $mail;
-		@wp_mail( $email, 'MainWP - 404 Alert: ' . $blog, MainWP_Helper::formatEmail( $email, $mail ), array(
-			// 'From: "' . $from_email . '" <' . $from_email . '>',
+		@wp_mail(
+			$email,
+			'MainWP - 404 Alert: ' . $blog,
+			MainWP_Helper::formatEmail( $email, $mail ),
+			array(
 			'content-type: text/html',
-		) );
+			)
+		);
 	}
 
 	public function keyword_links_action() {
@@ -5404,7 +5391,7 @@ class MainWP_Child {
 				$snippets = array();
 			}
 
-			if ( 'C' === $type ) {// save into wp-config file
+			if ( 'C' === $type ) { // save into wp-config file.
 				if ( false !== $this->snippetUpdateWPConfig( 'save', $slug, $code ) ) {
 					$information['status'] = 'SUCCESS';
 				}
@@ -5423,7 +5410,7 @@ class MainWP_Child {
 			if ( ! is_array( $snippets ) ) {
 				$snippets = array();
 			}
-			if ( 'C' === $type ) {// delete in wp-config file
+			if ( 'C' === $type ) { // delete in wp-config file.
 				if ( false !== $this->snippetUpdateWPConfig( 'delete', $slug ) ) {
 					$information['status'] = 'SUCCESS';
 				}
@@ -5631,7 +5618,7 @@ class MainWP_Child {
 	}
 
 	function readfile_chunked( $filename, $offset ) {
-		$chunksize = 1024; // how many bytes per chunk
+		$chunksize = 1024; // how many bytes per chunk?
 		$handle    = @fopen( $filename, 'rb' );
 		if ( false === $handle ) {
 			return false;
@@ -5709,7 +5696,7 @@ class MainWP_Child {
 	}
 
 	function disconnect() {
-		$this->deactivation(false);
+		$this->deactivation( false );
 		MainWP_Helper::write( array( 'result' => 'success' ) );
 	}
 
