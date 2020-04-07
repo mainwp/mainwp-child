@@ -60,24 +60,24 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 
 					if ( empty( $nonce ) ) {
 
-						// To fix verify nonce conflict #1
-						// this is fake post field to fix some conflict of wp_verify_nonce()
-						// just return false to unverify nonce, does not exit
-						if ( isset( $_POST[ $action ] ) && ( $_POST[ $action ] == 'mainwp-bsm-unverify-nonce' ) ) {
+						// To fix verify nonce conflict #1.
+						// this is fake post field to fix some conflict of wp_verify_nonce().
+						// just return false to unverify nonce, does not exit.
+						if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
 							return false;
 						}
 
-						// to help tracing the conflict verify nonce with other plugins
+						// to help tracing the conflict verify nonce with other plugins.
 						@ob_start();
-						@debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+						@debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
 						$stackTrace = "\n" . @ob_get_clean();
 						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' );
 					}
 
-					// To fix verify nonce conflict #2
-					// this is fake nonce to fix some conflict of wp_verify_nonce()
-					// just return false to unverify nonce, does not exit
-					if ( $nonce == 'mainwp-bsm-unverify-nonce' ) {
+					// To fix verify nonce conflict #2.
+					// this is fake nonce to fix some conflict of wp_verify_nonce().
+					// just return false to unverify nonce, does not exit.
+					if ( 'mainwp-bsm-unverify-nonce' == $nonce ) {
 						return false;
 					}
 
@@ -99,12 +99,12 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 					// To fix verify nonce conflict #3.
 					// this is fake post field to fix some conflict of wp_verify_nonce().
 					// just return false to unverify nonce, does not exit.
-					if ( isset( $_POST[ $action ] ) && ( $_POST[ $action ] == 'mainwp-bsm-unverify-nonce' ) ) {
+					if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
 						return false;
 					}
 
 					@ob_start();
-					@debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+					@debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
 					$stackTrace = "\n" . @ob_get_clean();
 
 					// Invalid nonce.
@@ -184,7 +184,7 @@ class MainWP_Child {
 		'wp_staging'            => 'wp_staging',
 		'disconnect'            => 'disconnect',
 		'time_capsule'          => 'time_capsule',
-		'extra_excution'        => 'extra_execution', // deprecated
+		'extra_excution'        => 'extra_execution', // deprecated!
 		'extra_execution'       => 'extra_execution',
 		'wpvivid_backuprestore' => 'wpvivid_backuprestore',
 	);
@@ -212,7 +212,7 @@ class MainWP_Child {
 		$this->update();
 		$this->load_all_options();
 		$this->filterFunction = function( $a ) {
-			if ( $a == null ) {
+			if ( null == $a ) {
 				return false; }
 			if ( is_object( $a ) && property_exists( $a, 'last_checked' ) && ! property_exists( $a, 'checked' ) ) {
 				return false;
@@ -524,7 +524,7 @@ class MainWP_Child {
 		@header( 'X-Robots-Tag: noindex, nofollow', true );
 		@header( 'X-MainWP-Child-Version: ' . self::$version, true );
 		nocache_headers();
-		if ( $_GET['mainwp_child_run'] == 'test' ) {
+		if ( 'test' == $_GET['mainwp_child_run'] ) {
 			die( 'MainWP Test' );
 		}
 		die( '' );
@@ -534,8 +534,8 @@ class MainWP_Child {
 		// Admin Notice...
 		if ( ! get_option( 'mainwp_child_pubkey' ) && MainWP_Helper::isAdmin() && is_admin() ) {
 			$branding_opts  = MainWP_Child_Branding::Instance()->get_branding_options();
-			$child_name     = ( $branding_opts['branding_preserve_title'] === '' ) ? 'MainWP Child' : $branding_opts['branding_preserve_title'];
-			$dashboard_name = ( $branding_opts['branding_preserve_title'] === '' ) ? 'MainWP Dashboard' : $branding_opts['branding_preserve_title'] . ' Dashboard';
+			$child_name     = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Child' : $branding_opts['branding_preserve_title'];
+			$dashboard_name = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Dashboard' : $branding_opts['branding_preserve_title'] . ' Dashboard';
 
 			$msg  = '<div class="wrap"><div class="postbox" style="margin-top: 4em;"><p style="background: #a00; color: #fff; font-size: 22px; font-weight: bold; margin: 0; padding: .3em;">';
 			$msg .= __( 'Attention!', 'mainwp-child' );
@@ -562,7 +562,7 @@ class MainWP_Child {
 
 	public function detect_premium_themesplugins_updates() {
 
-		if ( isset( $_GET['_detect_plugins_updates'] ) && $_GET['_detect_plugins_updates'] == 'yes' ) {
+		if ( isset( $_GET['_detect_plugins_updates'] ) && 'yes' == $_GET['_detect_plugins_updates'] ) {
 			 // to fix some premium plugins update notification.
 			$current = get_site_transient( 'update_plugins' );
 			set_site_transient( 'update_plugins', $current );
@@ -571,19 +571,19 @@ class MainWP_Child {
 			$plugins = get_plugin_updates();
 			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 
-			set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS);
+			set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS );
 		}
 
-		if ( isset( $_GET['_detect_themes_updates'] ) && $_GET['_detect_themes_updates'] == 'yes' ) {
+		if ( isset( $_GET['_detect_themes_updates'] ) && 'yes' == $_GET['_detect_themes_updates'] ) {
 			add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			$themes = get_theme_updates();
 			remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 
-			set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS);
+			set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS );
 		}
 
 		$type = isset( $_GET['_request_update_premiums_type'] ) ? $_GET['_request_update_premiums_type'] : '';
-		if ( $type == 'plugin' || $type == 'theme' ) {
+		if ( 'plugin' == $type || 'theme' == $type ) {
 			$list = isset( $_GET['list'] ) ? $_GET['list'] : '';
 			if ( ! empty( $list ) ) {
 				// to call function upgradePluginTheme().
@@ -688,7 +688,7 @@ class MainWP_Child {
 		}
 
 		// if preserve branding and do not hide menus.
-		if ( ( ! $remove_all_child_menu && $is_hide !== 'T' ) || $cancelled_branding ) {
+		if ( ( ! $remove_all_child_menu && 'T' !== $is_hide ) || $cancelled_branding ) {
 			$branding_header = isset( $branding_opts['branding_header'] ) ? $branding_opts['branding_header'] : array();
 			if ( ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) && ! $cancelled_branding ) {
 				self::$brandingTitle = $child_menu_title = stripslashes( $branding_header['name'] );
@@ -703,7 +703,7 @@ class MainWP_Child {
 			add_action( 'admin_print_scripts-' . $settingsPage, array( 'MainWP_Clone', 'print_scripts' ) );
 			$subpageargs = array(
 				'child_slug'  => 'options-general.php',
-				'branding'    => ( self::$brandingTitle === null ) ? 'MainWP' : self::$brandingTitle,
+				'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
 				'parent_menu' => $settingsPage,
 			);
 			do_action( 'mainwp-child-subpages', $subpageargs );
@@ -767,7 +767,7 @@ class MainWP_Child {
 
 		$hide_style = 'style="display:none"';
 
-		if ( $shownPage == '' ) {
+		if ( '' == $shownPage ) {
 			if ( ! $hide_settings ) {
 					$shownPage = 'settings';
 			} elseif ( ! $hide_restore ) {
@@ -901,13 +901,13 @@ class MainWP_Child {
 		</style>
 
 		<div class="wrap">
-		<h2><i class="fa fa-file"></i> <?php echo ( self::$brandingTitle === null ? 'MainWP Child' : self::$brandingTitle ); ?></h2>
+		<h2><i class="fa fa-file"></i> <?php echo ( null === self::$brandingTitle ? 'MainWP Child' : self::$brandingTitle ); ?></h2>
 		<div style="clear: both;"></div><br/>
 		<div class="mainwp-tabs" id="mainwp-tabs">
 			<?php if ( ! $hide_settings ) { ?>
 				<a class="nav-tab pos-nav-tab
 				<?php
-				if ( $shownPage === 'settings' ) {
+				if ( 'settings' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
 " tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php _e( 'Settings', 'mainwp-child' ); ?></a>
@@ -915,7 +915,7 @@ class MainWP_Child {
 			<?php if ( ! $hide_restore ) { ?>
 				<a class="nav-tab pos-nav-tab
 				<?php
-				if ( $shownPage === 'restore-clone' ) {
+				if ( 'restore-clone' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
 " tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? __( 'Restore / Clone', 'mainwp-child' ) : __( 'Restore', 'mainwp-child' ); ?></a>
@@ -923,7 +923,7 @@ class MainWP_Child {
 			<?php if ( ! $hide_server_info ) { ?>
 				<a class="nav-tab pos-nav-tab
 				<?php
-				if ( $shownPage === 'server-info' ) {
+				if ( 'server-info' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
 " tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php _e( 'Server information', 'mainwp-child' ); ?></a>
@@ -931,7 +931,7 @@ class MainWP_Child {
 						<?php if ( ! $hide_connection_detail ) { ?>
 				<a class="nav-tab pos-nav-tab
 							<?php
-							if ( $shownPage === 'connection-detail' ) {
+							if ( 'connection-detail' === $shownPage ) {
 								echo 'nav-tab-active'; }
 							?>
 " tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php _e( 'Connection Details', 'mainwp-child' ); ?></a>
@@ -995,7 +995,7 @@ class MainWP_Child {
 	}
 
 	function admin_head() {
-		if ( isset( $_GET['page'] ) && $_GET['page'] == 'mainwp_child_tab' ) {
+		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) {
 			?>
 			<style type="text/css">
 				.mainwp-postbox-actions-top {
@@ -1083,7 +1083,7 @@ class MainWP_Child {
 		$rules .= "RewriteEngine On\n";
 		$rules .= "RewriteBase $home_root\n";
 
-		// add in the rules that don't redirect to WP's index.php (and thus shouldn't be handled by WP at all)
+		// add in the rules that don't redirect to WP's index.php (and thus shouldn't be handled by WP at all).
 		foreach ( $pRules as $match => $query ) {
 			// Apache 1.3 does not support the reluctant (non-greedy) modifier.
 			$match = str_replace( '.+?', '.+', $match );
@@ -1255,7 +1255,7 @@ class MainWP_Child {
 				$uploadDir        = $uploadDir[0];
 				$excludes[]       = str_replace( ABSPATH, '', $uploadDir );
 				$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
-				if ( version_compare(phpversion(), '5.3.0' ) >= 0 || ! ini_get( 'safe_mode' ) ) {
+				if ( version_compare( phpversion(), '5.3.0' ) >= 0 || ! ini_get( 'safe_mode' ) ) {
 					@set_time_limit( 6000 );
 				}
 
@@ -1277,7 +1277,6 @@ class MainWP_Child {
 					$information['size']   = $res['filesize'];
 				}
 
-				// todo: RS: Remove this when the .18 is out
 				$plugins = array();
 				$dir     = WP_CONTENT_DIR . '/plugins/';
 				$fh      = @opendir( $dir );
@@ -1374,10 +1373,10 @@ class MainWP_Child {
 
 				global $current_user;
 				if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
-					// if is not alternative admin login
-					// it is connected admin login
+					// if is not alternative admin login.
+					// it is connected admin login.
 					if ( ! $alter_login_required ) {
-						// log out if connected admin is not admin level 10
+						// log out if connected admin is not admin level 10.
 						do_action( 'wp_logout' );
 
 						return;
@@ -1411,7 +1410,7 @@ class MainWP_Child {
 				$_SESSION['size'] = $_POST['size'];
 			}
 
-			// to support open not wp-admin url
+			// to support open not wp-admin url.
 			$open_location = isset( $_REQUEST['open_location'] ) ? $_REQUEST['open_location'] : '';
 			if ( ! empty( $open_location ) ) {
 				$open_location = base64_decode( $open_location );
@@ -1465,7 +1464,7 @@ class MainWP_Child {
 
 		$auth_user = false;
 		if ( $auth ) {
-			// Check if the user exists & is an administrator
+			// Check if the user exists & is an administrator.
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
 
 				$user = null;
@@ -1507,16 +1506,15 @@ class MainWP_Child {
 				}
 			}
 
-			// Redirect to the admin part if needed
+			// Redirect to the admin part if needed.
 			if ( isset( $_POST['admin'] ) && '1' === $_POST['admin'] ) {
 				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/' );
 				die();
 			}
 		}
 
-		// Init extensions
-		// Handle fatal errors for those init if needed
-		// OK
+		// Init extensions.
+		// Handle fatal errors for those init if needed.
 		MainWP_Child_iThemes_Security::Instance()->ithemes_init();
 		MainWP_Child_Updraft_Plus_Backups::Instance()->updraftplus_init();
 		MainWP_Child_Back_Up_Wordpress::Instance()->init();
@@ -1532,7 +1530,7 @@ class MainWP_Child {
 		MainWP_Child_Links_Checker::Instance()->init();
 		MainWP_Child_WPvivid_BackupRestore::Instance()->init();
 		global $_wp_submenu_nopriv;
-		if ( $_wp_submenu_nopriv === null ) {
+		if ( null === $_wp_submenu_nopriv ) {
 			$_wp_submenu_nopriv = array();
 		}
 
@@ -1556,33 +1554,33 @@ class MainWP_Child {
 			if ( ! is_admin() ) {
 				add_filter( 'the_content', array( MainWP_Keyword_Links::Instance(), 'filter_content' ), 100 );
 			}
-			MainWP_Keyword_Links::Instance()->update_htaccess(); // if needed
+			MainWP_Keyword_Links::Instance()->update_htaccess();
 			MainWP_Keyword_Links::Instance()->redirect_cloak();
 		} elseif ( 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
-			MainWP_Keyword_Links::clear_htaccess(); // force clear
+			MainWP_Keyword_Links::clear_htaccess();
 		}
 	}
 
-	// Check to support login by alternative admin
-	// return false will login by connected admin user
-	// return true will try to login as alternative user
+	// Check to support login by alternative admin.
+	// return false will login by connected admin user.
+	// return true will try to login as alternative user.
 	function check_login_as( $alter_login ) {
 
 		if ( ! empty( $alter_login ) ) {
-			// check alternative admin existed
+			// check alternative admin existed.
 			$user = get_user_by( 'login', $alter_login );
 
 			if ( ! $user ) {
-				// That administrator username was not found on this child site
+				// That administrator username was not found on this child site.
 				return false;
 			}
 
 			if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
-				// That user is not an administrator
+				// That user is not an administrator.
 				return false;
 			}
 
-			return true; // ok, will try to login by alternative user
+			return true; // ok, will try to login by alternative user.
 		}
 
 		return false;
@@ -1610,7 +1608,7 @@ class MainWP_Child {
 				$auth = hash_equals( md5( $func . $nonce . get_option( 'mainwp_child_nossl_key' ) ), base64_decode( $signature ) );
 			} else {
 				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) );
-				if ( $auth !== 1 ) {
+				if ( 1 !== $auth ) {
 					$auth = false;
 				}
 			}
@@ -1619,15 +1617,15 @@ class MainWP_Child {
 		return $auth;
 	}
 
-	// Login..
+	// Login.
 	function login( $username, $doAction = false ) {
 		global $current_user;
 
-		// Logout if required
+		// Logout if required.
 		if ( isset( $current_user->user_login ) ) {
 			if ( $current_user->user_login === $username ) {
 
-				// to fix issue multi user session
+				// to fix issue multi user session.
 				$user_id = wp_validate_auth_cookie();
 				if ( $user_id && $user_id === $current_user->ID ) {
 					return true;
@@ -1773,13 +1771,12 @@ class MainWP_Child {
 				if ( ! empty( $fileName ) ) {
 					do_action( 'mainwp_child_installPluginTheme', $args );
 					if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
-						 // to fix activate issue
+						 // to fix activate issue.
 						if ( 'quotes-collection/quotes-collection.php' == $args['slug'] ) {
 							activate_plugin( $path . $fileName, '', false, true );
 						} else {
-							activate_plugin( $path . $fileName, '' /* false, true */ );
+							activate_plugin( $path . $fileName, '' );
 						}
-						// do_action( 'activate_plugin', $args['slug'], null );
 					}
 				}
 			} else {
@@ -1827,7 +1824,7 @@ class MainWP_Child {
 			foreach ( $core_updates as $core_update ) {
 				if ( 'latest' === $core_update->response ) {
 					$information['upgrade'] = 'SUCCESS';
-				} elseif ( 'upgrade' === $core_update->response && $core_update->locale === get_locale() && version_compare( $wp_version, $core_update->current, '<=' ) ) {
+				} elseif ( 'upgrade' === $core_update->response && get_locale() === $core_update->locale && version_compare( $wp_version, $core_update->current, '<=' ) ) {
 					// Upgrade!
 					$upgrade = false;
 					if ( class_exists( 'Core_Upgrader' ) ) {
@@ -1883,7 +1880,7 @@ class MainWP_Child {
 	}
 
 	function upgradeTranslation() {
-		// Prevent disable/re-enable at upgrade
+		// Prevent disable/re-enable at upgrade.
 		define( 'DOING_CRON', true );
 
 		MainWP_Helper::getWPFilesystem();
@@ -1901,7 +1898,6 @@ class MainWP_Child {
 
 		include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
-		// to fix
 		@wp_version_check();
 		@wp_update_themes();
 		@wp_update_plugins();
@@ -2112,7 +2108,6 @@ class MainWP_Child {
 			}
 
 			if ( count( $themes ) > 0 ) {
-				// To fix: optimizePressTheme update.
 				$addFilterToFixUpdate_optimizePressTheme = false;
 				if ( in_array( 'optimizePressTheme', $themes ) ) {
 					$addFilterToFixUpdate_optimizePressTheme = true;
@@ -2151,10 +2146,14 @@ class MainWP_Child {
 				set_site_transient( 'update_themes', $last_update2 );
 
 				if ( $addFilterToFixUpdate_optimizePressTheme ) {
-					remove_filter( 'site_transient_update_themes', array(
-						$this,
-						'hookFixOptimizePressThemeUpdate',
-					), 99 );
+					remove_filter(
+						'site_transient_update_themes',
+						array(
+							$this,
+							'hookFixOptimizePressThemeUpdate',
+						),
+						99
+					);
 				}
 			}
 
@@ -2264,7 +2263,7 @@ class MainWP_Child {
 			}
 		}
 
-		if ( $pre == false ) {
+		if ( false == $pre ) {
 			return $false;
 		}
 
@@ -2288,7 +2287,7 @@ class MainWP_Child {
 			}
 		}
 
-		if ( $pre == false ) {
+		if ( false == $pre ) {
 			return $false;
 		}
 
@@ -2354,12 +2353,12 @@ class MainWP_Child {
 			}
 		}
 
-		// Check SSL Requirement
+		// Check SSL Requirement.
 		if ( ! MainWP_Helper::isSSLEnabled() && ( ! defined( 'MAINWP_ALLOW_NOSSL_CONNECT' ) || ! MAINWP_ALLOW_NOSSL_CONNECT ) ) {
 			MainWP_Helper::error( __( 'SSL is required on the child site to set up a secure connection.', 'mainwp-child' ) );
 		}
 
-		// Login
+		// Login.
 		if ( isset( $_POST['user'] ) ) {
 			if ( ! $this->login( $_POST['user'] ) ) {
 				$hint = '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
@@ -2371,9 +2370,9 @@ class MainWP_Child {
 			}
 		}
 
-		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // Save the public key
-		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] ); // Save the public key
-		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 ); // Save the nonce
+		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // Save the public key.
+		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] ); // Save the public key.
+		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 ); // Save the nonce.
 
 		MainWP_Helper::update_option( 'mainwp_child_nossl', ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::isSSLEnabled() ? 1 : 0 ), 'yes' );
 		$information['nossl'] = ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::isSSLEnabled() ? 1 : 0 );
@@ -2389,7 +2388,6 @@ class MainWP_Child {
 	}
 
 	function newPost() {
-		// Read form data
 		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) );
 		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) );
 		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null );
@@ -2427,7 +2425,6 @@ class MainWP_Child {
 	}
 
 	function post_action() {
-		// Read form data.
 		$action  = $_POST['action'];
 		$postId  = $_POST['id'];
 		$my_post = array();
@@ -2487,7 +2484,7 @@ class MainWP_Child {
 		} elseif ( 'get_edit' === $action ) {
 			$postId    = $_POST['id'];
 			$post_type = $_POST['post_type'];
-			if ( $post_type == 'post' ) {
+			if ( 'post' == $post_type ) {
 				$my_post = $this->get_post_edit( $postId );
 			} else {
 				$my_post = $this->get_page_edit( $postId );
@@ -2568,7 +2565,7 @@ class MainWP_Child {
 				'ping_status'    => $post->ping_status,
 			);
 
-			if ( $post_featured_image != null ) { // Featured image is set, retrieve URL
+			if ( null != $post_featured_image ) { // Featured image is set, retrieve URL.
 				$img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
 				$post_featured_image = $img[0];
 			}
@@ -2612,7 +2609,7 @@ class MainWP_Child {
 				'ping_status'    => $post->ping_status,
 			);
 
-			if ( $post_featured_image != null ) {
+			if ( null != $post_featured_image ) {
 					$img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
 					$post_featured_image = $img[0];
 			}
@@ -2654,7 +2651,6 @@ class MainWP_Child {
 
 
 	function user_action() {
-		// Read form data
 		$action    = $_POST['action'];
 		$extra     = $_POST['extra'];
 		$userId    = $_POST['id'];
@@ -2688,7 +2684,7 @@ class MainWP_Child {
 						$my_user = $_POST['extra'];
 			if ( is_array( $my_user ) ) {
 				foreach ( $my_user as $idx => $val ) {
-					if ( $val === 'donotupdate' || ( empty( $val ) && $idx !== 'role' ) ) {
+					if ( 'donotupdate' === $val || ( empty( $val ) && 'role' !== $idx ) ) {
 						unset( $my_user[ $idx ] );
 					}
 				}
@@ -2743,11 +2739,11 @@ class MainWP_Child {
 				$potential_role = isset( $wp_roles->role_objects[ $new_role ] ) ? $wp_roles->role_objects[ $new_role ] : false;
 				// Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
 				// Multisite super admins can freely edit their blog roles -- they possess all caps.
-			if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || $user_id != get_current_user_id() || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
+			if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || get_current_user_id() != $user_id || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
 					$user->role = $new_role;
 			}
 
-				// If the new role isn't editable by the logged-in user die with error
+				// If the new role isn't editable by the logged-in user die with error.
 				$editable_roles = get_editable_roles();
 			if ( ! empty( $new_role ) && empty( $editable_roles[ $new_role ] ) ) {
 				return array( 'error' => 'You can&#8217;t give users that role.' );
@@ -2766,7 +2762,7 @@ class MainWP_Child {
 		}
 
 		if ( isset( $data['url'] ) ) {
-			if ( empty ( $data['url'] ) || $data['url'] == 'http://' ) {
+			if ( empty( $data['url'] ) || 'http://' == $data['url'] ) {
 					$user->user_url = '';
 			} else {
 					$user->user_url = esc_url_raw( $data['url'] );
@@ -2794,7 +2790,7 @@ class MainWP_Child {
 			$errors = new WP_Error();
 
 		// checking that username has been typed.
-		if ( $user->user_login == '' ) {
+		if ( '' == $user->user_login ) {
 				$errors->add( 'user_login', __( '<strong>ERROR</strong>: Please enter a username.' ) );
 		}
 
@@ -2903,9 +2899,7 @@ class MainWP_Child {
 		return $edit_data;
 	}
 
-	// todo: backwards compatible: wp_set_comment_status ?
 	function comment_action() {
-		// Read form data
 		$action    = $_POST['action'];
 		$commentId = $_POST['id'];
 
@@ -2934,9 +2928,7 @@ class MainWP_Child {
 		MainWP_Helper::write( $information );
 	}
 
-	// todo: backwards compatible: wp_set_comment_status ?
 	function comment_bulk_action() {
-		// Read form data
 		$action                 = $_POST['action'];
 		$commentIds             = explode( ',', $_POST['ids'] );
 		$information['success'] = 0;
@@ -2967,7 +2959,6 @@ class MainWP_Child {
 
 
 	function newAdminPassword() {
-		// Read form data
 		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) );
 		$user         = get_user_by( 'login', $_POST['user'] );
 		require_once ABSPATH . WPINC . '/registration.php';
@@ -2991,10 +2982,8 @@ class MainWP_Child {
 	}
 
 	function newUser() {
-		// Read form data.
 		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) );
 		$send_password = $_POST['send_password'];
-		// check role existed.
 		if ( isset( $new_user['role'] ) ) {
 			if ( ! get_role( $new_user['role'] ) ) {
 				$new_user['role'] = 'subscriber';
@@ -3136,7 +3125,7 @@ class MainWP_Child {
 	}
 
 	function backup( $pWrite = true ) {
-		$timeout = 20 * 60 * 60; // 20minutes
+		$timeout = 20 * 60 * 60;
 		@set_time_limit( $timeout );
 		@ini_set( 'max_execution_time', $timeout );
 		MainWP_Helper::endSession();
@@ -3151,7 +3140,6 @@ class MainWP_Child {
 		MainWP_Helper::getWPFilesystem();
 
 		$files = glob( $backupdir . '*' );
-		// Find old files (changes > 3 hr)
 		foreach ( $files as $file ) {
 			if ( MainWP_Helper::endsWith( $file, '/index.php' ) | MainWP_Helper::endsWith( $file, '/.htaccess' ) ) {
 				continue;
@@ -3208,62 +3196,30 @@ class MainWP_Child {
 			$excludenonwp  = ( isset( $_POST['excludenonwp'] ) && '1' == $_POST['excludenonwp'] );
 
 			if ( $excludebackup ) {
-				// Backup buddy
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_backups';
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_temp';
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/pb_backupbuddy';
-
-				// ManageWP
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/managewp';
-
-				// InfiniteWP
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/infinitewp';
-
-				// WordPress Backup to Dropbox
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-
-				// BackUpWordpress
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-
-				// BackWPUp
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backwpup*';
-
-				// WP Complete Backup
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/plugins/wp-complete-backup/storage';
-
-				// WordPress EZ Backup
-				// This one may be hard to do since they add random text at the end for example, feel free to skip if you need to
-				// backup_randomkyfkj where kyfkj is random
-
-				// Online Backup for WordPress
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-
-				// XCloner
 				$newExcludes[] = '/administrator/backups';
 			}
 
 			if ( $excludecache ) {
-				// W3 Total Cache
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc-cache';
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc';
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/config';
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/minify';
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/page_enhanced';
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/tmp';
-
-				// WP Super Cache
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/supercache';
-
-				// Quick Cache
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/quick-cache';
-
-				// Hyper Cache
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/hyper-cache/cache';
-
-				// WP Fastest Cache
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/all';
-
-				// WP-Rocket
 				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/wp-rocket';
 			}
 
@@ -3354,7 +3310,6 @@ class MainWP_Child {
 	function doSecurityFix() {
 		$sync = false;
 		if ( 'all' === $_POST['feature'] ) {
-			// fix all
 			$sync = true;
 		}
 
@@ -3533,7 +3488,7 @@ class MainWP_Child {
 		}
 	}
 
-	// Show stats
+	// Show stats.
 	function getSiteStats( $information = array(), $exit = true ) {
 		global $wp_version;
 
@@ -3586,11 +3541,11 @@ class MainWP_Child {
 
 		include_once ABSPATH . '/wp-admin/includes/update.php';
 
-		$timeout = 3 * 60 * 60; // 3minutes
+		$timeout = 3 * 60 * 60;
 		@set_time_limit( $timeout );
 		@ini_set( 'max_execution_time', $timeout );
 
-		// Check for new versions
+		// Check for new versions.
 		if ( null !== $this->filterFunction ) {
 			add_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
 		}
@@ -3693,7 +3648,7 @@ class MainWP_Child {
 					continue;
 				}
 
-				// to fix incorrect info
+				// to fix incorrect info.
 				if ( ! property_exists( $plugin_update, 'update' ) || ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
 					continue;
 				}
@@ -3706,7 +3661,7 @@ class MainWP_Child {
 			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
-		// to fix premium plugs update
+		// to fix premium plugs update.
 		$cached_plugins_update = get_site_transient( 'mainwp_update_plugins_cached' );
 		if ( is_array( $cached_plugins_update ) && ( count( $cached_plugins_update ) > 0 ) ) {
 			if ( ! isset( $information['plugin_updates'] ) ) {
@@ -3714,9 +3669,9 @@ class MainWP_Child {
 			}
 			foreach ( $cached_plugins_update as $slug => $plugin_update ) {
 
-				// to fix incorrect info
+				// to fix incorrect info.
 				if ( ! property_exists( $plugin_update, 'new_version' ) || empty( $plugin_update->new_version ) ) { // may do not need to check this?
-					// to fix for some premiums update info
+					// to fix for some premiums update info.
 					if ( property_exists( $plugin_update, 'update' ) ) {
 						if ( ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
 							continue;
@@ -3808,7 +3763,7 @@ class MainWP_Child {
 
 		if ( isset( $_POST ) && isset( $_POST['recent_number'] ) ) {
 			$recent_number = $_POST['recent_number'];
-			if ( $recent_number != get_option( 'mainwp_child_recent_number', 5 ) ) {
+			if ( get_option( 'mainwp_child_recent_number', 5 ) != $recent_number ) {
 				update_option( 'mainwp_child_recent_number', $recent_number );
 			}
 		} else {
@@ -3820,13 +3775,7 @@ class MainWP_Child {
 		}
 
 		$information['recent_posts'] = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
-		$information['recent_pages'] = $this->get_recent_posts( array(
-			'publish',
-			'draft',
-			'pending',
-			'trash',
-			'future',
-		), $recent_number, 'page' );
+		$information['recent_pages'] = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future', ), $recent_number, 'page' );
 
 		$securityIssuess = 0;
 		if ( ! MainWP_Security::prevent_listing_ok() ) {
@@ -3967,7 +3916,7 @@ class MainWP_Child {
 	function get_favicon( $parse_page = false ) {
 
 				$favi_url = '';
-		$favi             = ''; // to compatible
+		$favi             = '';
 
 				$site_url = get_option( 'siteurl' );
 		if ( substr( $site_url, - 1 ) != '/' ) {
@@ -4176,16 +4125,14 @@ class MainWP_Child {
 				$outPost['post_type'] = $post->post_type;
 				$outPost['status']    = $post->post_status;
 				$outPost['title']     = $post->post_title;
-				// $outPost['content']       = $post->post_content; // to fix overload memory
 				$outPost['comment_count'] = $post->comment_count;
-				// to support extract urls extension
 				if ( isset( $extra['where_post_date'] ) && ! empty( $extra['where_post_date'] ) ) {
 					$outPost['dts'] = strtotime( $post->post_date_gmt );
 				} else {
 					$outPost['dts'] = strtotime( $post->post_modified_gmt );
 				}
 
-				if ( $post->post_status == 'future' ) {
+				if ( 'future' == $post->post_status ) {
 					$outPost['dts'] = strtotime( $post->post_date_gmt );
 				}
 
@@ -4442,9 +4389,9 @@ class MainWP_Child {
 		} else {
 			if ( isset( $_POST['keyword'] ) ) {
 				$search_on = isset( $_POST['search_on'] ) ? $_POST['search_on'] : '';
-				if ( $search_on == 'title' ) {
+				if ( 'title' == $search_on ) {
 					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
-				} elseif ( $search_on == 'content' ) {
+				} elseif ( 'content' == $search_on ) {
 					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' )";
 				} else {
 					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' OR $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
@@ -4555,9 +4502,6 @@ class MainWP_Child {
 					$outComment['author_url']   = get_comment_author_url( $comment->comment_ID );
 					$outComment['author_ip']    = get_comment_author_IP( $comment->comment_ID );
 					$outComment['author_email'] = $email = apply_filters( 'comment_email', $comment->comment_author_email );
-					// if ( ( ! empty( $outComment['author_email'] ) ) && ( '@' !== $outComment['author_email'] ) ) {
-					// $outComment['author_email'] = '<a href="mailto:' . $outComment['author_email'] . '">' . $outComment['author_email'] . '</a>';
-					// }
 					$outComment['postId']        = $comment->comment_post_ID;
 					$outComment['postName']      = $post->post_title;
 					$outComment['comment_count'] = $post->comment_count;
@@ -4572,7 +4516,6 @@ class MainWP_Child {
 	}
 
 	function theme_action() {
-		// Read form data
 		$action = $_POST['action'];
 		$theme  = $_POST['theme'];
 
@@ -4667,7 +4610,7 @@ class MainWP_Child {
 					if ( '' == $keyword || stristr( $out['title'], $keyword ) ) {
 						$rslt[] = $out;
 					}
-				} elseif ( $out['active'] === ( ( 'active' === $status ) ? 1 : 0 ) ) {
+				} elseif ( ( ( 'active' === $status ) ? 1 : 0 ) === $out['active'] ) {
 					if ( '' == $keyword || stristr( $out['title'], $keyword ) ) {
 						$rslt[] = $out;
 					}
@@ -4679,7 +4622,6 @@ class MainWP_Child {
 	}
 
 	function plugin_action() {
-		// Read form data
 		$action  = $_POST['action'];
 		$plugins = explode( '||', $_POST['plugin'] );
 
@@ -4690,10 +4632,8 @@ class MainWP_Child {
 				if ( $plugin !== $this->plugin_slug ) {
 					$thePlugin = get_plugin_data( $plugin );
 					if ( null !== $thePlugin && '' !== $thePlugin ) {
-						// to fix activate issue
 						if ( 'quotes-collection/quotes-collection.php' == $plugin ) {
 							activate_plugin( $plugin, '', false, true );
-							// do_action( 'activate_plugin', $plugin, null );
 						} else {
 							activate_plugin( $plugin );
 						}
@@ -4791,7 +4731,7 @@ class MainWP_Child {
 					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
 						$rslt[] = $out;
 					}
-				} elseif ( $out['active'] == ( ( $status == 'active' ) ? 1 : 0 ) ) {
+				} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
 					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
 						$rslt[] = $out;
 					}
@@ -4814,7 +4754,7 @@ class MainWP_Child {
 					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
 						$rslt[] = $out;
 					}
-				} elseif ( $out['active'] == ( ( $status == 'active' ) ? 1 : 0 ) ) {
+				} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
 					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
 						$rslt[] = $out;
 					}
@@ -5294,41 +5234,41 @@ class MainWP_Child {
 			return;
 		}
 
-		// set status
+		// set status.
 		header( 'HTTP/1.1 404 Not Found' );
 		header( 'Status: 404 Not Found' );
 
-		// site info
+		// site info.
 		$blog       = get_bloginfo( 'name' );
 		$site       = get_bloginfo( 'url' ) . '/';
 		$from_email = get_bloginfo( 'admin_email' );
 
-		// referrer
+		// referrer.
 		if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
 			$referer = MainWP_Helper::clean( $_SERVER['HTTP_REFERER'] );
 		} else {
 			$referer = 'undefined';
 		}
 		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
-		// request URI
+		// request URI.
 		if ( isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ) {
 			$request = MainWP_Helper::clean( $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		} else {
 			$request = 'undefined';
 		}
-		// query string
+		// query string.
 		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
 			$string = MainWP_Helper::clean( $_SERVER['QUERY_STRING'] );
 		} else {
 			$string = 'undefined';
 		}
-		// IP address
+		// IP address.
 		if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
 			$address = MainWP_Helper::clean( $_SERVER['REMOTE_ADDR'] );
 		} else {
 			$address = 'undefined';
 		}
-		// user agent
+		// user agent.
 		if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
 			$agent = MainWP_Helper::clean( $_SERVER['HTTP_USER_AGENT'] );
 		} else {
