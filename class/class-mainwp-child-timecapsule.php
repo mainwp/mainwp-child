@@ -9,7 +9,6 @@
  *
  * The code is used for the MainWP Time Capsule Extension
  * Extension URL: https://mainwp.com/extension/time-capsule/
- *
  */
 
 class MainWP_Child_Timecapsule {
@@ -482,8 +481,8 @@ class MainWP_Child_Timecapsule {
 		}
 
 		$totalitems = $wpdb->query( $query );
-		$perpage = 20;
-		$paged = ! empty( $_POST['paged'] ) ? $_POST['paged'] : '';
+		$perpage    = 20;
+		$paged      = ! empty( $_POST['paged'] ) ? $_POST['paged'] : '';
 		if ( empty( $paged ) || ! is_numeric( $paged ) || $paged <= 0 ) {
 			$paged = 1;
 		}
