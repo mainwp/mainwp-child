@@ -9,7 +9,8 @@
  *
  * The code is used for the MainWP Wordfence Extension
  * Extension URL: https://mainwp.com/extension/wordfence/
- */
+ *
+*/
 
 class MainWP_Child_Wordfence {
 	public static $instance        = null;
@@ -78,7 +79,6 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_fileContents',
 		'scansEnabled_fileContentsGSB',
 		'scan_include_extra',
-		// 'scansEnabled_heartbleed',
 		'scansEnabled_checkHowGetIPs',
 		'scansEnabled_highSense',
 		'lowResourceScansEnabled',
@@ -93,7 +93,6 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_themes',
 		'scheduledScansEnabled',
 		'securityLevel',
-		// 'scheduleScan' // NOTE: filtered, not save
 		'blockFakeBots',
 		'neverBlockBG',
 		'maxGlobalRequests',
@@ -131,15 +130,11 @@ class MainWP_Child_Wordfence {
 		'disableCookies',
 		'liveActivityPauseEnabled',
 		'startScansRemotely',
-		// 'disableConfigCaching',
-		// 'addCacheComment', // removed
 		'disableCodeExecutionUploads',
-		// 'isPaid',
 		'advancedCommentScanning',
 		'scansEnabled_checkGSB',
 		'checkSpamIP',
 		'spamvertizeCheck',
-		// 'scansEnabled_public',
 		'email_summary_enabled',
 		'email_summary_dashboard_widget_enabled',
 		'ssl_verify',
@@ -148,8 +143,6 @@ class MainWP_Child_Wordfence {
 		'allowed404s',
 		'wafAlertWhitelist',
 		'wafAlertOnAttacks',
-		// 'ajaxWatcherDisabled_front', // do not update those values when save settings
-		// 'ajaxWatcherDisabled_admin'  // those values saved in the ['changes'] in the saveOptions function
 		'howGetIPs_trusted_proxies',
 		'other_bypassLitespeedNoabort',
 		'disableWAFIPBlocking',
@@ -157,19 +150,17 @@ class MainWP_Child_Wordfence {
 		'displayTopLevelBlocking',
 		'betaThreatDefenseFeed',
 		'scanType',
-		'schedMode', // paid, if free then auto
+		'schedMode',
 		'wafStatus',
 		'learningModeGracePeriodEnabled',
 		'learningModeGracePeriod',
 	);
 
-	// for separated saving this values
+	// for separated saving this values.
 	public static $diagnosticParams = array(
-		// 'addCacheComment',
 		'debugOn',
 		'startScansRemotely',
 		'ssl_verify',
-		// 'disableConfigCaching',
 		'betaThreatDefenseFeed',
 	);
 
@@ -179,7 +170,6 @@ class MainWP_Child_Wordfence {
 		'learningModeGracePeriod',
 	);
 
-
 	static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Wordfence();
@@ -188,13 +178,11 @@ class MainWP_Child_Wordfence {
 		return self::$instance;
 	}
 
-
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'deactivation' ) );
 
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
-		// ok
 		if ( is_plugin_active( 'wordfence/wordfence.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../wordfence/wordfence.php' ) ) {
 			require_once plugin_dir_path( __FILE__ ) . '../../wordfence/wordfence.php';
 			$this->is_wordfence_installed = true;
@@ -206,11 +194,11 @@ class MainWP_Child_Wordfence {
 	}
 
 	public function deactivation() {
-		if ( $sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' ) ) {
+		$sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
+		if ( $sched ) {
 			wp_unschedule_event( $sched, 'mainwp_child_wordfence_cron_scan' );
 		}
 	}
-
 
 	public function action() {
 		$information = array();
@@ -247,7 +235,7 @@ class MainWP_Child_Wordfence {
 				case 'update_log':
 					$information = $this->update_log();
 					break;
-				case 'load_issues': // not used in from version 2.0 of WF ext
+				case 'load_issues': // not used in from version 2.0 of WF ext!
 					$information = $this->load_issues();
 					break;
 				case 'loadIssues':
@@ -271,7 +259,7 @@ class MainWP_Child_Wordfence {
 				case 'bulk_operation':
 					$information = $this->bulk_operation();
 					break;
-				case 'bulkOperation': // new
+				case 'bulkOperation':
 					$information = $this->bulkOperation();
 					break;
 				case 'delete_file':
@@ -280,7 +268,7 @@ class MainWP_Child_Wordfence {
 				case 'restore_file':
 					$information = $this->restore_file();
 					break;
-				case 'save_setting': // to compatible
+				case 'save_setting':
 					$information = $this->save_setting();
 					break;
 				case 'save_settings_new':
@@ -298,13 +286,13 @@ class MainWP_Child_Wordfence {
 				case 'reverse_lookup':
 					$information = $this->reverse_lookup();
 					break;
-				case 'block_ip': // old block ip
+				case 'block_ip':
 					$information = $this->ajax_blockIP_callback();
 					break;
 				case 'whois':
 					$information = $this->whois();
 					break;
-				case 'createBlock': // new version blockIP, blockIPUARange
+				case 'createBlock':
 					$information = $this->ajax_createBlock_callback();
 					break;
 				case 'getBlocks':
@@ -455,10 +443,10 @@ class MainWP_Child_Wordfence {
 			'other_bypassLitespeedNoabort',
 			'deleteTablesOnDeact',
 			'notification_updatesNeeded',
-			'notification_securityAlerts', // paid
-			'notification_promotions', // paid
-			'notification_blogHighlights', // paid
-			'notification_productUpdates', // paid
+			'notification_securityAlerts',
+			'notification_promotions',
+			'notification_blogHighlights',
+			'notification_productUpdates',
 			'notification_scanStatus',
 			'alertOn_update',
 			'alertOn_wordfenceDeactivated',
@@ -480,7 +468,7 @@ class MainWP_Child_Wordfence {
 			'email_summary_dashboard_widget_enabled',
 			'other_noAnonMemberComments',
 			'other_scanComments',
-			'advancedCommentScanning', // paid
+			'advancedCommentScanning',
 		);
 
 		$traffic_opts = array(
@@ -539,9 +527,9 @@ class MainWP_Child_Wordfence {
 		);
 
 		$scan_opts        = array(
-			'scansEnabled_checkGSB', // paid
-			'spamvertizeCheck', // paid
-			'checkSpamIP', // paid
+			'scansEnabled_checkGSB',
+			'spamvertizeCheck',
+			'checkSpamIP',
 			'scansEnabled_checkHowGetIPs',
 			'scansEnabled_checkReadableConfig',
 			'scansEnabled_suspectedFiles',
@@ -642,7 +630,7 @@ class MainWP_Child_Wordfence {
 	}
 
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( $_POST['showhide'] === 'hide' ) ? 'hide' : '';
+		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_wordfence_hide_plugin', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
 
@@ -669,7 +657,7 @@ class MainWP_Child_Wordfence {
 	}
 
 	public function do_reports_log( $ext = '' ) {
-		if ( $ext !== 'wordfence' ) {
+		if ( 'wordfence' !== $ext ) {
 			return;
 		}
 		if ( ! $this->is_wordfence_installed ) {
@@ -725,11 +713,7 @@ class MainWP_Child_Wordfence {
 	public function init_cron() {
 		$sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
 		$sch   = get_option( 'mainwp_child_wordfence_cron_time' );
-		if ( 'twicedaily' === $sch ||
-			 'daily' === $sch ||
-			 'weekly' === $sch ||
-			 'monthly' === $sch
-		) {
+		if ( 'twicedaily' === $sch || 'daily' === $sch || 'weekly' === $sch || 'monthly' === $sch ) {
 			add_action( 'mainwp_child_wordfence_cron_scan', array( $this, 'wfc_cron_scan' ) );
 			if ( false === $sched ) {
 				$sched = wp_schedule_event( time(), $sch, 'mainwp_child_wordfence_cron_scan' );
@@ -823,16 +807,15 @@ class MainWP_Child_Wordfence {
 			'apiKey'             => wfConfig::get( 'apiKey' ),
 			'isPaid'             => wfConfig::get( 'isPaid' ),
 			'lastscan_timestamp' => self::Instance()->get_lastscan(),
-			'todayAttBlocked'    => self::Instance()->count_attacks_blocked(1),
-			'weekAttBlocked'     => self::Instance()->count_attacks_blocked(7),
-			'monthAttBlocked'    => self::Instance()->count_attacks_blocked(30),
+			'todayAttBlocked'    => self::Instance()->count_attacks_blocked( 1 ),
+			'weekAttBlocked'     => self::Instance()->count_attacks_blocked( 7 ),
+			'monthAttBlocked'    => self::Instance()->count_attacks_blocked( 30 ),
 			'issueCount'         => $i->getIssueCount(),
 		);
 		return $return;
 	}
 
 	public function load_wafData() {
-
 		$return = array(
 			'wafData'                   => $this->_getWAFData(),
 			'ip'                        => wfUtils::getIP(),
@@ -848,23 +831,24 @@ class MainWP_Child_Wordfence {
 	}
 
 	public function count_attacks_blocked( $maxAgeDays ) {
-			global $wpdb;
-			$table_wfBlockedIPLog = wfDB::networkTable( 'wfBlockedIPLog' );
-			$interval             = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
-			return $wpdb->get_var(
-				<<<SQL
-				SELECT SUM(blockCount) as blockCount FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval}
-				SQL );
+		global $wpdb;
+		$table_wfBlockedIPLog = wfDB::networkTable( 'wfBlockedIPLog' );
+		$interval             = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
+		return $wpdb->get_var(
+			<<<SQL
+			SELECT SUM(blockCount) as blockCount FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval}
+			SQL
+		);
 	}
 
-	function get_lastscan() {
+	public function get_lastscan() {
 		$wfdb           = new wfDB();
 		$table_wfStatus = wfDB::networkTable( 'wfStatus' );
 		$ctime          = $wfdb->querySingle( "SELECT MAX(ctime) FROM {$table_wfStatus} WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'" );
 		return $ctime;
 	}
 
-	function update_all_issues() {
+	public function update_all_issues() {
 		$op = $_POST['op'];
 		$i  = new wfIssues();
 		if ( 'deleteIgnored' === $op ) {
@@ -880,7 +864,7 @@ class MainWP_Child_Wordfence {
 		return array( 'ok' => 1 );
 	}
 
-	function updateIssueStatus() {
+	public function updateIssueStatus() {
 		$wfIssues = new wfIssues();
 		$status   = $_POST['status'];
 		$issueID  = $_POST['id'];
@@ -897,7 +881,7 @@ class MainWP_Child_Wordfence {
 		);
 	}
 
-	function update_issues_status() {
+	public function update_issues_status() {
 		$wfIssues = new wfIssues();
 		$status   = $_POST['status'];
 		$issueID  = $_POST['id'];
@@ -909,7 +893,7 @@ class MainWP_Child_Wordfence {
 		return array( 'ok' => 1 );
 	}
 
-	function delete_issues() {
+	public function delete_issues() {
 		$wfIssues = new wfIssues();
 		$issueID  = $_POST['id'];
 		$wfIssues->deleteIssue( $issueID );
@@ -917,7 +901,7 @@ class MainWP_Child_Wordfence {
 		return array( 'ok' => 1 );
 	}
 
-	function bulk_operation() {
+	public function bulk_operation() {
 		$op = $_POST['op'];
 		if ( 'del' === $op || 'repair' === $op ) {
 			$ids           = $_POST['ids'];
@@ -1011,11 +995,11 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
-	function bulkOperation() {
+	public function bulkOperation() {
 		return wordfence::ajax_bulkOperation_callback();
 	}
 
-	function delete_file() {
+	public function delete_file() {
 		$issueID  = $_POST['issueID'];
 		$wfIssues = new wfIssues();
 		$issue    = $wfIssues->getIssueByID( $issueID );
@@ -1046,7 +1030,7 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
-	function restore_file() {
+	public function restore_file() {
 		$issueID  = $_POST['issueID'];
 		$wfIssues = new wfIssues();
 		$issue    = $wfIssues->getIssueByID( $issueID );
@@ -1092,16 +1076,17 @@ class MainWP_Child_Wordfence {
 		);
 	}
 
-	function simple_crypt( $key, $data, $action = 'encrypt' ) {
+	public function simple_crypt( $key, $data, $action = 'encrypt' ) {
 		$res = '';
-		if ( $action == 'encrypt' ) {
-			$string = base64_encode( serialize( $data ) );
+		if ( 'encrypt' == $action ) {
+			$string = base64_encode( serialize( $data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		} else {
 			$string = $data;
 		}
-		for ( $i = 0; $i < strlen( $string ); $i++ ) {
+		$string_lenght = strlen( $string );
+		for ( $i = 0; $i < $string_lenght; $i++ ) {
 			$c = ord( substr( $string, $i ) );
-			if ( $action == 'encrypt' ) {
+			if ( 'encrypt' == $action ) {
 				$c   += ord( substr( $key, ( ( $i + 1 ) % strlen( $key ) ) ) );
 				$res .= chr( $c & 0xFF );
 			} else {
@@ -1110,17 +1095,17 @@ class MainWP_Child_Wordfence {
 			}
 		}
 
-		if ( $action !== 'encrypt' ) {
-			$res = unserialize( base64_decode( $res ) );
+		if ( 'encrypt' !== $action ) {
+			$res = unserialize( base64_decode( $res ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		}
 		return $res;
 	}
 
-	function save_settings_new() {
+	public function save_settings_new() {
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
+			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		}
 
 		$section     = isset( $_POST['savingSection'] ) ? $_POST['savingSection'] : '';
@@ -1267,11 +1252,12 @@ class MainWP_Child_Wordfence {
 							wfConfig::set( 'isPaid', 0 );
 							wfConfig::set( 'keyType', wfAPI::KEY_TYPE_FREE );
 							wordfence::licenseStatusChanged();
-							$result['apiKey'] = $apiKey = $keyData['apiKey'];
+							$result['apiKey'] = $keyData['apiKey'];
+							$apiKey           = $keyData['apiKey'];
 							$result['isPaid'] = 0;
 							$reload           = 'reload';
 						} else {
-							throw new Exception("The Wordfence server's response did not contain the expected elements.");
+							throw new Exception( "The Wordfence server's response did not contain the expected elements." );
 						}
 					} catch ( Exception $e ) {
 						$result['error'] = 'Your options have been saved, but you left your license key blank, so we tried to get you a free license key from the Wordfence servers. There was a problem fetching the free key: ' . wp_kses( $e->getMessage(), array() );
@@ -1349,7 +1335,7 @@ class MainWP_Child_Wordfence {
 						wfConfig::set( 'keyType', $keyType );
 
 						if ( ! isset( $result['apiKey'] ) ) {
-							$isPaid           = ( $keyType == wfAPI::KEY_TYPE_FREE ) ? false : true;
+							$isPaid           = ( wfAPI::KEY_TYPE_FREE == $keyType ) ? false : true;
 							$result['apiKey'] = $apiKey;
 							$result['isPaid'] = $isPaid;
 							if ( $isPaid ) {
@@ -1378,11 +1364,11 @@ class MainWP_Child_Wordfence {
 		return wordfence::ajax_recentTraffic_callback();
 	}
 
-	function save_setting() {
+	public function save_setting() {
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
+			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		}
 
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
@@ -1425,7 +1411,7 @@ class MainWP_Child_Wordfence {
 
 			foreach ( $opts as $key => $val ) {
 				if ( in_array( $key, self::$options_filter ) ) {
-					if ( 'apiKey' !== $key ) { // Don't save API key yet
+					if ( 'apiKey' !== $key ) { // Don't save API key yet!
 						wfConfig::set( $key, $val );
 					}
 				}
@@ -1592,7 +1578,7 @@ class MainWP_Child_Wordfence {
 				if ( count( $toSet ) ) {
 					$validation = wfConfig::validate( $toSet );
 					$skipped    = array();
-					if ( $validation !== true ) {
+					if ( true !== $validation ) {
 						foreach ( $validation as $error ) {
 							$skipped[ $error['option'] ] = $error['error'];
 							unset( $toSet[ $error['option'] ] );
@@ -1631,7 +1617,7 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
-	function get_settings() {
+	public function get_settings() {
 		$keys     = wfConfig::getExportableOptionsKeys();
 		$settings = array();
 		foreach ( $keys as $key ) {
@@ -1642,7 +1628,7 @@ class MainWP_Child_Wordfence {
 		return $settings;
 	}
 
-	function ticker() {
+	public function ticker() {
 		$wfdb = new wfDB();
 
 		$serverTime = $wfdb->querySingle( 'select unix_timestamp()' );
@@ -1668,7 +1654,7 @@ class MainWP_Child_Wordfence {
 		} elseif ( 'perfStats' === $alsoGet ) {
 			$newestEventTime = $_POST['otherParams'];
 			$events          = wordfence::getLog()->getPerfStats( $newestEventTime );
-		} elseif ( $alsoGet == 'liveTraffic' ) {
+		} elseif ( 'liveTraffic' == $alsoGet ) {
 			if ( get_site_option( 'wordfence_syncAttackDataAttempts' ) > 10 ) {
 				wordfence::syncAttackData( false );
 			}
@@ -1693,12 +1679,12 @@ class MainWP_Child_Wordfence {
 		return $return;
 	}
 
-	function whitelistWAFParamKey() {
+	public function whitelistWAFParamKey() {
 		$return = wordfence::ajax_whitelistWAFParamKey_callback();
 		return $return;
 	}
 
-	function hideFileHtaccess() {
+	public function hideFileHtaccess() {
 		$return = wordfence::ajax_hideFileHtaccess_callback();
 		return $return;
 	}
@@ -1806,13 +1792,13 @@ class MainWP_Child_Wordfence {
 		$data['whitelistedURLParams'] = array();
 		foreach ( $whitelistedURLParams as $urlParamKey => $rules ) {
 			list( $path, $paramKey ) = explode( '|', $urlParamKey );
-			$whitelistData           = null;
+			$whitelistData         = null;
 			foreach ( $rules as $ruleID => $whitelistedData ) {
-				if ( $whitelistData === null ) {
+				if ( null === $whitelistData ) {
 					$whitelistData = $whitelistedData;
 					continue;
 				}
-				if ( $ruleID === 'all' ) {
+				if ( 'all' === $ruleID ) {
 					$whitelistData = $whitelistedData;
 					break;
 				}
@@ -1834,7 +1820,8 @@ class MainWP_Child_Wordfence {
 		}
 
 		$data['disabledRules'] = (array) wfWAF::getInstance()->getStorageEngine()->getConfig( 'disabledRules' );
-		if ( $lastUpdated = wfWAF::getInstance()->getStorageEngine()->getConfig( 'rulesLastUpdated' ) ) {
+		$lastUpdated = wfWAF::getInstance()->getStorageEngine()->getConfig( 'rulesLastUpdated' );
+		if ( $lastUpdated ) {
 			$data['rulesLastUpdated'] = $lastUpdated;
 		}
 		$data['isPaid'] = (bool) wfConfig::get( 'isPaid', 0 );
@@ -1846,7 +1833,7 @@ class MainWP_Child_Wordfence {
 	}
 
 
-	function reverse_lookup() {
+	public function reverse_lookup() {
 		$ips = explode( ',', $_POST['ips'] );
 		$res = array();
 		foreach ( $ips as $ip ) {
@@ -1861,7 +1848,8 @@ class MainWP_Child_Wordfence {
 
 
 	public function saveOptions() {
-		if ( ! empty( $_POST['changes'] ) && ( $changes = json_decode( stripslashes( $_POST['changes'] ), true ) ) !== false ) {
+		$changes = json_decode( stripslashes( $_POST['changes'] ), true );
+		if ( ! empty( $_POST['changes'] ) && false !== $changes ) {
 			try {
 				if ( is_array( $changes ) && isset( $changes['whitelistedURLParams'] ) && isset( $changes['whitelistedURLParams']['add'] ) ) {
 					$user = wp_get_current_user();
@@ -1945,7 +1933,7 @@ class MainWP_Child_Wordfence {
 		return wordfence::ajax_whois_callback();
 	}
 
-	function unblock_ip() {
+	public function unblock_ip() {
 		if ( isset( $_POST['IP'] ) ) {
 			$IP = $_POST['IP'];
 			wfBlock::unblockIP( $IP );
@@ -2185,11 +2173,11 @@ class MainWP_Child_Wordfence {
 
 	public static function saveCacheOptions() {
 		$changed = false;
-		if ( $_POST['allowHTTPSCaching'] != wfConfig::get( 'allowHTTPSCaching', false ) ) {
+		if ( wfConfig::get( 'allowHTTPSCaching', false ) != $_POST['allowHTTPSCaching'] ) {
 			$changed = true;
 		}
-		wfConfig::set( 'allowHTTPSCaching', $_POST['allowHTTPSCaching'] == '1' ? 1 : 0 );
-		wfConfig::set( 'clearCacheSched', $_POST['clearCacheSched'] == 1 ? '1' : 0 );
+		wfConfig::set( 'allowHTTPSCaching', '1' == $_POST['allowHTTPSCaching'] ? 1 : 0 );
+		wfConfig::set( 'clearCacheSched', 1 == $_POST['clearCacheSched'] ? '1' : 0 );
 		if ( $changed && wfConfig::get( 'cacheType', false ) == 'falcon' ) {
 			$err = wfCache::addHtaccessCode( 'add' );
 			if ( $err ) {
@@ -2226,7 +2214,7 @@ class MainWP_Child_Wordfence {
 
 	public static function getCacheStats() {
 		$s = wfCache::getCacheStats();
-		if ( $s['files'] == 0 ) {
+		if ( 0 == $s['files'] ) {
 			return array(
 				'ok'      => 1,
 				'heading' => 'Cache Stats',
@@ -2245,7 +2233,7 @@ class MainWP_Child_Wordfence {
 		if ( $s['largestFile'] > 0 ) {
 			$body .= '<br />Largest file: ' . $s['largestFile'] . 'KB';
 		}
-		if ( $s['oldestFile'] !== false ) {
+		if ( false !== $s['oldestFile'] ) {
 			$body .= '<br />Oldest file in cache created ';
 			if ( time() - $s['oldestFile'] < 300 ) {
 				$body .= ( time() - $s['oldestFile'] ) . ' seconds ago';
@@ -2253,7 +2241,7 @@ class MainWP_Child_Wordfence {
 				$body .= human_time_diff( $s['oldestFile'] ) . ' ago.';
 			}
 		}
-		if ( $s['newestFile'] !== false ) {
+		if ( false !== $s['newestFile'] ) {
 			$body .= '<br />Newest file in cache created ';
 			if ( time() - $s['newestFile'] < 300 ) {
 				$body .= ( time() - $s['newestFile'] ) . ' seconds ago';
@@ -2322,7 +2310,8 @@ class MainWP_Child_Wordfence {
 		$ex              = unserialize( $ex );
 		$rewriteHtaccess = false;
 		$removed         = false;
-		for ( $i = 0; $i < sizeof( $ex ); $i++ ) {
+		$count_ex        = count( $ex );
+		for ( $i = 0; $i < $count_ex; $i++ ) {
 			if ( (string) $ex[ $i ]['id'] == (string) $id ) {
 				if ( wfConfig::get( 'cacheType', false ) == 'falcon' && preg_match( '/^(?:uac|uaeq|cc)$/', $ex[ $i ]['pt'] ) ) {
 					$rewriteHtaccess = true;
@@ -2368,17 +2357,17 @@ class MainWP_Child_Wordfence {
 		<div id="wf-diagnostics">
 			<form id="wfConfigForm" style="overflow-x: auto;">
 			<?php
-			foreach ( $diagnostic->getResults() as $title => $tests ) :
-				$key            = sanitize_key( 'wf-diagnostics-' . $title );
-				$hasFailingTest = false;
-				foreach ( $tests['results'] as $result ) {
-					if ( ! $result['test'] ) {
-						$hasFailingTest = true;
-						break;
+				foreach ( $diagnostic->getResults() as $title => $tests ) :
+					$key            = sanitize_key( 'wf-diagnostics-' . $title );
+					$hasFailingTest = false;
+					foreach ( $tests['results'] as $result ) {
+						if ( ! $result['test'] ) {
+							$hasFailingTest = true;
+							break;
+						}
 					}
-				}
 
-				if ( $inEmail ) :
+					if ( $inEmail ) :
 					?>
 					<table>
 						<thead>
@@ -2414,7 +2403,7 @@ class MainWP_Child_Wordfence {
 					</tbody>
 				</table>
 				<?php else : ?>
-					<div class="wf-block <?php echo ( wfPersistenceController::shared()->isActive( $key ) ? ' wf-active' : '' ) . ( $hasFailingTest ? ' wf-diagnostic-fail' : '' ); ?>" data-persistence-key="<?php echo esc_attr( $key ); ?>">
+					<div class="wf-block <?php echo ( wfPersistenceController::shared()->isActive( $key ) ? ' wf-active' : '' ) . ( $hasFailingTest ? ' wf-diagnostic-fail' : '' ) ?>" data-persistence-key="<?php echo esc_attr( $key ); ?>">
 						<div class="wf-block-header">
 							<div class="wf-block-header-content">
 								<div class="wf-block-title">
@@ -2908,7 +2897,7 @@ class MainWP_Child_Wordfence {
 			$q = $wfdb->querySelect( 'SHOW TABLE STATUS WHERE Name IN (' . implode( ',', $tables ) . ')' );
 			if ( $q ) :
 				$databaseCols = count( $q[0] );
-				?>
+			?>
 			<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive( 'wf-diagnostics-database-tables' ) ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr( 'wf-diagnostics-database-tables' ); ?>">
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
