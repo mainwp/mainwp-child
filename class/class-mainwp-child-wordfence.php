@@ -9,8 +9,7 @@
  *
  * The code is used for the MainWP Wordfence Extension
  * Extension URL: https://mainwp.com/extension/wordfence/
- *
-*/
+ */
 
 class MainWP_Child_Wordfence {
 	public static $instance        = null;
@@ -1807,7 +1806,7 @@ class MainWP_Child_Wordfence {
 		$data['whitelistedURLParams'] = array();
 		foreach ( $whitelistedURLParams as $urlParamKey => $rules ) {
 			list( $path, $paramKey ) = explode( '|', $urlParamKey );
-			$whitelistData         = null;
+			$whitelistData           = null;
 			foreach ( $rules as $ruleID => $whitelistedData ) {
 				if ( $whitelistData === null ) {
 					$whitelistData = $whitelistedData;
@@ -2369,17 +2368,17 @@ class MainWP_Child_Wordfence {
 		<div id="wf-diagnostics">
 			<form id="wfConfigForm" style="overflow-x: auto;">
 			<?php
-				foreach ( $diagnostic->getResults() as $title => $tests ) :
-					$key            = sanitize_key( 'wf-diagnostics-' . $title );
-					$hasFailingTest = false;
-					foreach ( $tests['results'] as $result ) {
-						if ( ! $result['test'] ) {
-							$hasFailingTest = true;
-							break;
-						}
+			foreach ( $diagnostic->getResults() as $title => $tests ) :
+				$key            = sanitize_key( 'wf-diagnostics-' . $title );
+				$hasFailingTest = false;
+				foreach ( $tests['results'] as $result ) {
+					if ( ! $result['test'] ) {
+						$hasFailingTest = true;
+						break;
 					}
+				}
 
-					if ( $inEmail ) :
+				if ( $inEmail ) :
 					?>
 					<table>
 						<thead>
@@ -2415,7 +2414,7 @@ class MainWP_Child_Wordfence {
 					</tbody>
 				</table>
 				<?php else : ?>
-					<div class="wf-block <?php echo ( wfPersistenceController::shared()->isActive( $key ) ? ' wf-active' : '' ) . ( $hasFailingTest ? ' wf-diagnostic-fail' : '' ) ?>" data-persistence-key="<?php echo esc_attr( $key ); ?>">
+					<div class="wf-block <?php echo ( wfPersistenceController::shared()->isActive( $key ) ? ' wf-active' : '' ) . ( $hasFailingTest ? ' wf-diagnostic-fail' : '' ); ?>" data-persistence-key="<?php echo esc_attr( $key ); ?>">
 						<div class="wf-block-header">
 							<div class="wf-block-header-content">
 								<div class="wf-block-title">
@@ -2909,7 +2908,7 @@ class MainWP_Child_Wordfence {
 			$q = $wfdb->querySelect( 'SHOW TABLE STATUS WHERE Name IN (' . implode( ',', $tables ) . ')' );
 			if ( $q ) :
 				$databaseCols = count( $q[0] );
-			?>
+				?>
 			<div class="wf-block<?php echo( wfPersistenceController::shared()->isActive( 'wf-diagnostics-database-tables' ) ? ' wf-active' : '' ); ?>" data-persistence-key="<?php echo esc_attr( 'wf-diagnostics-database-tables' ); ?>">
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
