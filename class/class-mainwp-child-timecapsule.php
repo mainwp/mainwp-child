@@ -291,10 +291,11 @@ class MainWP_Child_Timecapsule {
 		}
 		global $wpdb;
 		$all_backups = $wpdb->get_results(
-			$wpdb->prepare( "
-				SELECT backupID
+			$wpdb->prepare(
+				"SELECT backupID
 				FROM {$wpdb->base_prefix}wptc_processed_files
-				WHERE backupID > %s ", $last_time
+				WHERE backupID > %s ",
+				$last_time
 			)
 		);
 
@@ -438,7 +439,7 @@ class MainWP_Child_Timecapsule {
 
 	public function get_logs_rows() {
 		$result                 = $this->prepare_items();
-		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) );
+		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		return $result;
 	}
 
@@ -487,7 +488,7 @@ class MainWP_Child_Timecapsule {
 			$paged = 1;
 		}
 		$totalpages = ceil( $totalitems / $perpage );
-		if ( ! empty( $paged) && ! empty( $perpage ) ) {
+		if ( ! empty( $paged ) && ! empty( $perpage ) ) {
 			$offset = ( $paged - 1 ) * $perpage;
 			$query .= ' LIMIT ' . (int) $offset . ',' . (int) $perpage;
 		}
@@ -791,8 +792,8 @@ class MainWP_Child_Timecapsule {
 		$config  = WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
 		$options = WPTC_Factory::get( 'config' );
 
-		$config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) );
-		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) );
+		$config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$config->set_option( 'wptc_token', false );
 
 		$options->request_service(
@@ -856,10 +857,12 @@ class MainWP_Child_Timecapsule {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 
 		if ( empty( $_POST['path'] ) ) {
-			wptc_die_with_json_encode( array(
-				'status' => 'error',
-				'msg'    => 'path is missing',
-			) );
+			wptc_die_with_json_encode(
+				array(
+					'status' => 'error',
+					'msg'    => 'path is missing',
+				)
+			);
 		}
 
 		$staging->choose_action( $_POST['path'], $reqeust_type = 'fresh' );
@@ -939,7 +942,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$data = unserialize( base64_decode( $_POST['data'] ) );
+		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
 		$tabName    = $_POST['tabname'];
 		$is_general = $_POST['is_general'];
