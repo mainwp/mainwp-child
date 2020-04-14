@@ -144,7 +144,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 				$backup = &$backup->options;
 
-				if ( ! isset( $backup['serial'] ) || ( '' == $backup['serial']) ) {
+				if ( ! isset( $backup['serial'] ) || ( '' == $backup['serial'] ) ) {
 					continue;
 				}
 
@@ -378,7 +378,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		$type = isset( $_POST['type'] ) ? $_POST['type'] : '';
 
-		if ( 'general_settings'  !== $type && 'advanced_settings' !== $type && 'all' !== $type ) {
+		if ( 'general_settings' !== $type && 'advanced_settings' !== $type && 'all' !== $type ) {
 			return array( 'error' => __( 'Invalid data. Please check and try again.' ) );
 		}
 
@@ -849,7 +849,7 @@ class MainWP_Child_Back_Up_Buddy {
 		require_once pb_backupbuddy::plugin_path() . '/classes/fileoptions.php';
 		pb_backupbuddy::status( 'details', 'Fileoptions instance #24.' );
 		$backup_options = new pb_backupbuddy_fileoptions( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt' );
-		 $result = $backup_options->is_ok();
+		 $result        = $backup_options->is_ok();
 		if ( true === $result ) {
 			$backup_options->options['integrity']['comment'] = $note;
 			$backup_options->save();
@@ -930,7 +930,7 @@ class MainWP_Child_Back_Up_Buddy {
 				continue;
 			}
 			$unrooted_file = substr( $file[0], $root_len );
-			$pos = strpos( $unrooted_file, '/' ) ;
+			$pos           = strpos( $unrooted_file, '/' );
 			if ( false !== $pos ) {
 				$subdir = substr( $unrooted_file, 0, ( $pos + 1 ) );
 				if ( ! in_array( $subdir, $subdirs ) ) {
@@ -1516,7 +1516,7 @@ class MainWP_Child_Back_Up_Buddy {
 		pb_backupbuddy::status( 'details', 'Fileoptions instance #27.' );
 		$optionsFile    = backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt';
 		$backup_options = new pb_backupbuddy_fileoptions( $optionsFile, $read_only = true );
-		$result = $backup_options->is_ok();
+		$result         = $backup_options->is_ok();
 		if ( true !== $result ) {
 			return array( 'error' => __( 'Unable to access fileoptions data file.', 'mainwp-child' ) . ' Error: ' . $result );
 		}
@@ -1650,7 +1650,7 @@ class MainWP_Child_Back_Up_Buddy {
 						$step_name = 'Zip archive creation (Write speed: ' . $write_speed . ')';
 					} elseif ( 'post_backup' == $step['function'] ) {
 						$step_name = 'Post-backup cleanup';
-					} elseif ( 'integrity_check' == $step['function']  ) {
+					} elseif ( 'integrity_check' == $step['function'] ) {
 						$step_name = 'Integrity Check';
 					} else {
 						$step_name = $step['function'];
@@ -2095,7 +2095,7 @@ class MainWP_Child_Back_Up_Buddy {
 					pb_backupbuddy::status( 'details', 'Fileoptions instance #383.' );
 
 					$backup_options = new pb_backupbuddy_fileoptions( $file, $read_only = false );
-					$result = $backup_options->is_ok();
+					$result         = $backup_options->is_ok();
 					if ( true !== $result ) {
 						pb_backupbuddy::status( 'error', 'Error retrieving fileoptions file `' . $file . '`. Err 335353266.' );
 					} else {
