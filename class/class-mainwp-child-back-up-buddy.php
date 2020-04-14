@@ -10,8 +10,7 @@
  *
  * The code is used for the MainWP Buddy Extension
  * Extension URL: https://mainwp.com/extension/mainwpbuddy/
- *
-*/
+ */
 
 class MainWP_Child_Back_Up_Buddy {
 	public static $instance          = null;
@@ -931,7 +930,7 @@ class MainWP_Child_Back_Up_Buddy {
 			if ( false !== ( $pos = strpos( $unrooted_file, '/' ) ) ) {
 				$subdir = substr( $unrooted_file, 0, ( $pos + 1 ) );
 				if ( ! in_array( $subdir, $subdirs ) ) {
-					$subdirs[] = $subdir;
+					$subdirs[]        = $subdir;
 					$files[ $key ][0] = $subdir;
 				} else {
 					unset( $files[ $key ] );
@@ -2642,7 +2641,7 @@ class MainWP_Child_Back_Up_Buddy {
 		} elseif ( 'pause_periodic' == $action ) {
 			backupbuddy_api::setLiveStatus( $pause_continuous = '', $pause_periodic = true );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
-			$message = __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'mainwp-child' );
+			$message     = __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'mainwp-child' );
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php';
 		} elseif ( 'resume_periodic' == $action ) {
 			$launchNowText = ' ' . __( 'Unpaused but not running now.', 'mainwp-child' );
