@@ -30,8 +30,7 @@ class MainWP_Helper {
 					$output[ $id ] = $value;
 				}
 			}
-		}
-		elseif ( is_object( $data ) ) {
+		} elseif ( is_object( $data ) ) {
 			$output = new stdClass();
 			foreach ( $data as $key => $value ) {
 				if ( is_string( $key ) ) {
@@ -47,8 +46,7 @@ class MainWP_Helper {
 					$output->$id = $value;
 				}
 			}
-		}
-		elseif ( is_string( $data ) ) {
+		} elseif ( is_string( $data ) ) {
 			return self::json_convert_string( $data );
 		} else {
 			return $data;
@@ -124,7 +122,7 @@ class MainWP_Helper {
 		preg_match_all( '/@.+?\}[^\}]*?\}/ms', $css, $blocks );
 		// Append the rest to $blocks.
 		array_push( $blocks[0], preg_replace( '/@.+?\}[^\}]*?\}/ms', '', $css ) );
-		$ordered = array();
+		$ordered      = array();
 		$count_blocks = count( $blocks[0] );
 		for ( $i = 0; $i < $count_blocks; $i++ ) {
 			// If @media-block, strip declaration and parenthesis.
@@ -146,7 +144,7 @@ class MainWP_Helper {
 
 		// Beginning to rebuild new slim CSS-Array.
 		foreach ( $ordered as $key => $val ) {
-			$new = array();
+			$new       = array();
 			$count_val = count( $val );
 			for ( $i = 0; $i < $count_val; $i++ ) {
 				// Split selectors and rules and split properties and values.
@@ -208,7 +206,7 @@ class MainWP_Helper {
 			$img_data = array();
 		}
 		include_once ABSPATH . 'wp-admin/includes/file.php';
-		$upload_dir = wp_upload_dir();
+		$upload_dir     = wp_upload_dir();
 		$temporary_file = download_url( $img_url );
 
 		if ( is_wp_error( $temporary_file ) ) {
@@ -593,7 +591,7 @@ class MainWP_Helper {
 					$random_date_to   = $tmp;
 				}
 
-				$random_timestamp = rand( $random_date_from, $random_date_to );
+				$random_timestamp      = rand( $random_date_from, $random_date_to );
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp );
 			}
 		}
@@ -823,7 +821,7 @@ class MainWP_Helper {
 			$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
 			$random_category = is_array( $random_category ) ? current( $random_category ) : null;
 			if ( ! empty( $random_category ) ) {
-				$cats = get_categories(
+				$cats        = get_categories(
 					array(
 						'type'       => 'post',
 						'hide_empty' => 0,
@@ -1389,7 +1387,7 @@ class MainWP_Helper {
 			}
 
 			if ( count( $delete_ids ) > 0 ) {
-				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ")";
+				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ')';
 				$wpdb->get_results( $sql_delete );
 			}
 		}
