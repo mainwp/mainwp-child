@@ -3,13 +3,13 @@
 class MainWP_Helper {
 
 	public static function write( $val ) {
-		if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true ) :
+		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = self::safe_json_encode( $val );
 		else :
-			$output = serialize( $val );
+			$output = serialize( $val ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
 		endif;
 
-		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' );
+		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 	}
 
 	public static function json_valid_check( $data ) {
@@ -69,7 +69,7 @@ class MainWP_Helper {
 
 	public static function safe_json_encode( $value, $options = 0, $depth = 512 ) {
 		$encoded = @json_encode( $value, $options, $depth );
-		if ( $encoded === false && ! empty( $value ) && json_last_error() == JSON_ERROR_UTF8 ) {
+		if ( false === $encoded && ! empty( $value ) && JSON_ERROR_UTF8 == json_last_error() ) {
 			$encoded = @json_encode( self::json_valid_check( $value ), $options, $depth );
 		}
 		return $encoded;
@@ -77,14 +77,14 @@ class MainWP_Helper {
 
 	public static function close_connection( $val = null ) {
 
-		if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true ) :
+		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = self::safe_json_encode( $val );
 		else :
-			$output = serialize( $val );
+			$output = serialize( $val ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
 		endif;
 
-		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>';
-		// Close browser connection so that it can resume AJAX polling
+		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		// Close browser connection so that it can resume AJAX polling.
 		header( 'Content-Length: ' . strlen( $output ) );
 		header( 'Connection: close' );
 		header( 'Content-Encoding: none' );
@@ -408,7 +408,7 @@ class MainWP_Helper {
 
 		// current user may be connected admin or alternative admin.
 		$current_uid = $current_user->ID;
-		// Set up a new post (adding addition information)
+		// Set up a new post (adding addition information).
 
 		$is_robot_post = false;
 		if ( isset( $_POST['isMainWPRobot'] ) && ! empty( $_POST['isMainWPRobot'] ) ) {
@@ -467,7 +467,8 @@ class MainWP_Helper {
 
 		require_once ABSPATH . 'wp-admin/includes/post.php';
 		if ( $edit_post_id ) {
-			if ( $user_id = wp_check_post_lock( $edit_post_id ) ) {
+			$user_id = wp_check_post_lock( $edit_post_id );
+			if ( $user_id ) {
 				$user  = get_userdata( $user_id );
 				$error = sprintf( __( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
 				return array( 'error' => $error );
@@ -536,7 +537,7 @@ class MainWP_Helper {
 										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
 									}
 								} catch ( Exception $e ) {
-
+									// ok!
 								}
 							}
 						}
@@ -617,7 +618,7 @@ class MainWP_Helper {
 
 		$new_post_id = wp_insert_post( $new_post, $wp_error );
 
-		// Show errors if something went wrong
+		// Show errors if something went wrong.
 		if ( is_wp_error( $wp_error ) ) {
 			return $wp_error->get_error_message();
 		}
@@ -750,7 +751,8 @@ class MainWP_Helper {
 				} else {
 					$cat_ids = array();
 					foreach ( $categories as $cat ) {
-						if ( $id = category_exists( $cat ) ) {
+						$id = category_exists( $cat );
+						if ( $id ) {
 							$cat_ids[] = $id;
 						}
 					}
@@ -858,7 +860,7 @@ class MainWP_Helper {
 			MainWP_Child_Robot::Instance()->wpr_insertcomments( $new_post_id, $all_comments );
 		}
 
-		// unlock if edit post
+		// unlock if edit post.
 		if ( $edit_post_id ) {
 			update_post_meta( $edit_post_id, '_edit_lock', '' );
 		}
@@ -935,7 +937,7 @@ class MainWP_Helper {
 			try {
 				self::checkDir( $dir, false );
 			} catch ( Exception $e ) {
-
+				// ok!
 			}
 			if ( ! empty( $wp_filesystem ) ) {
 				if ( $wp_filesystem->is_writable( $dir ) ) {
@@ -1332,7 +1334,7 @@ class MainWP_Helper {
 				}
 				break;
 			case 'wptimecapsule':
-				if ( ! is_plugin_active( 'wp-time-capsule/wp-time-capsule.php'  ) ) {
+				if ( ! is_plugin_active( 'wp-time-capsule/wp-time-capsule.php' ) ) {
 					return 0;
 				}
 				break;
@@ -1387,7 +1389,8 @@ class MainWP_Helper {
 			}
 
 			if ( count( $delete_ids ) > 0 ) {
-				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ')';
+				// phpcs:ignore
+				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ")";
 				$wpdb->get_results( $sql_delete );
 			}
 		}
@@ -1468,7 +1471,7 @@ class MainWP_Helper {
 	 * Credit to the : wp-filters-extras
 	 */
 
-	static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
+	public static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
 
 		global $wp_filter;
 		// Take only filters on right hook name and priority.
@@ -1553,11 +1556,11 @@ class MainWP_Helper {
 
 	public static function isAdmin() {
 		global $current_user;
-		if ( $current_user->ID == 0 ) {
+		if ( 0 == $current_user->ID ) {
 			return false;
 		}
 
-		if ( $current_user->wp_user_level == 10 || ( isset( $current_user->user_level ) && $current_user->user_level == 10 ) || current_user_can( 'level_10' ) ) {
+		if ( 10 == $current_user->wp_user_level || ( isset( $current_user->user_level ) && 10 == $current_user->user_level ) || current_user_can( 'level_10' ) ) {
 			return true;
 		}
 
