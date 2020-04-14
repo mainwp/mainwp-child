@@ -1,7 +1,5 @@
 <?php
-
-/*
- *
+/**
  * Credits
  *
  * Plugin-Name: BackupBuddy
@@ -28,9 +26,8 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
 	public function __construct() {
-		// To fix bug run dashboard on local machine
-		// if ( is_plugin_active( 'backupbuddy/backupbuddy.php' )) {
-		if ( class_exists('pb_backupbuddy') ) {
+		// To fix bug run dashboard on local machine.
+		if ( class_exists( 'pb_backupbuddy' ) ) {
 			$this->is_backupbuddy_installed = true;
 		}
 
@@ -97,13 +94,13 @@ class MainWP_Child_Back_Up_Buddy {
 
 
 	function do_site_stats() {
-		if ( has_action('mainwp_child_reports_log') ) {
-			do_action( 'mainwp_child_reports_log', 'backupbuddy');
+		if ( has_action( 'mainwp_child_reports_log' ) ) {
+			do_action( 'mainwp_child_reports_log', 'backupbuddy' );
 		} else {
-			$this->do_reports_log('backupbuddy');
+			$this->do_reports_log( 'backupbuddy' );
 		}
 	}
-	// ok
+
 	function do_reports_log( $ext = '' ) {
 		if ( $ext !== 'backupbuddy' ) {
 			return;
@@ -115,22 +112,21 @@ class MainWP_Child_Back_Up_Buddy {
 
 		try {
 
-			MainWP_Helper::check_methods( 'pb_backupbuddy', array( 'plugin_path' ));
+			MainWP_Helper::check_methods( 'pb_backupbuddy', array( 'plugin_path' ) );
 
 			if ( ! class_exists( 'backupbuddy_core' ) ) {
-				if ( file_exists(pb_backupbuddy::plugin_path() . '/classes/core.php') ) {
+				if ( file_exists( pb_backupbuddy::plugin_path() . '/classes/core.php' ) ) {
 					require_once pb_backupbuddy::plugin_path() . '/classes/core.php';
 				}
 			}
 
-			if ( file_exists(pb_backupbuddy::plugin_path() . '/classes/fileoptions.php') ) {
+			if ( file_exists( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' ) ) {
 				require_once pb_backupbuddy::plugin_path() . '/classes/fileoptions.php';
 			}
 
-			MainWP_Helper::check_classes_exists(array( 'backupbuddy_core', 'pb_backupbuddy_fileoptions' ));
-			MainWP_Helper::check_methods('backupbuddy_core', 'getLogDirectory');
+			MainWP_Helper::check_classes_exists( array( 'backupbuddy_core', 'pb_backupbuddy_fileoptions' ) );
+			MainWP_Helper::check_methods( 'backupbuddy_core', 'getLogDirectory' );
 
-			// Backup type.
 			$pretty_type = array(
 				'full'  => 'Full',
 				'db'    => 'Database',
@@ -142,7 +138,7 @@ class MainWP_Child_Back_Up_Buddy {
 			foreach ( $recentBackups_list as $backup_fileoptions ) {
 
 				$backup = new pb_backupbuddy_fileoptions( $backup_fileoptions, $read_only = true );
-				if ( method_exists($backup, 'is_ok') && true !== ( $result = $backup->is_ok() ) ) {
+				if ( method_exists( $backup, 'is_ok' ) && true !== ( $result = $backup->is_ok() ) ) {
 					continue;
 				}
 
@@ -153,20 +149,20 @@ class MainWP_Child_Back_Up_Buddy {
 				}
 
 				if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
-					// it is ok
+					// ok!
 				} else {
 					continue;
 				}
 
 				$backupType = '';
 				if ( isset( $backup['profile'] ) && isset( $backup['profile']['type'] ) ) {
-					if ( true === MainWP_Helper::check_properties('pb_backupbuddy', 'format', true) ) {
-						if ( true === MainWP_Helper::check_methods(pb_backupbuddy::$format, array( 'prettify' ), true) ) {
+					if ( true === MainWP_Helper::check_properties( 'pb_backupbuddy', 'format', true ) ) {
+						if ( true === MainWP_Helper::check_methods( pb_backupbuddy::$format, array( 'prettify' ), true ) ) {
 							$backupType = pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type );
 						}
 					}
 				} else {
-					if ( true === MainWP_Helper::check_methods('backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true) ) {
+					if ( true === MainWP_Helper::check_methods( 'backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true ) ) {
 						$backupType = backupbuddy_core::pretty_backup_type( backupbuddy_core::getBackupTypeFromFile( $backup['archive_file'] ) );
 					}
 				}
@@ -177,29 +173,29 @@ class MainWP_Child_Back_Up_Buddy {
 
 				$finish_time = $backup['finish_time'];
 				$message     = 'BackupBuddy ' . $backupType . ' finished';
-				if ( ! empty($finish_time) ) {
-					do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
+				if ( ! empty( $finish_time ) ) {
+					do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time );
 				}
 			}
 
-			if ( file_exists(pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php') ) {
+			if ( file_exists( pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php' ) ) {
 				require_once pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php';
 
-				MainWP_Helper::check_classes_exists(array( 'backupbuddy_live_periodic' ));
-				MainWP_Helper::check_methods('backupbuddy_live_periodic', 'get_stats');
+				MainWP_Helper::check_classes_exists( array( 'backupbuddy_live_periodic' ) );
+				MainWP_Helper::check_methods( 'backupbuddy_live_periodic', 'get_stats' );
 
 				$state = backupbuddy_live_periodic::get_stats();
-				if ( is_array($state) && isset($state['stats']) ) {
+				if ( is_array( $state ) && isset( $state['stats'] ) ) {
 
-					if ( is_array($state['stats'] ) && isset( $state['stats']['last_remote_snapshot'] ) ) {
+					if ( is_array( $state['stats'] ) && isset( $state['stats']['last_remote_snapshot'] ) ) {
 						if ( isset( $state['stats']['last_remote_snapshot_response'] ) ) {
 							$resp = $state['stats']['last_remote_snapshot_response'];
 							if ( isset( $resp['success'] ) && $resp['success'] ) {
 								$finish_time = $state['stats']['last_remote_snapshot'];
 								$backupType  = 'Live Backup to cloud';
 								$message     = 'BackupBuddy ' . $backupType . ' finished';
-								if ( ! empty($finish_time) ) {
-									do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time);
+								if ( ! empty( $finish_time ) ) {
+									do_action( 'mainwp_reports_backupbuddy_backup', $message, $backupType, $finish_time );
 								}
 							}
 						}
@@ -380,10 +376,10 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function save_settings() {
 
-		$type = isset($_POST['type']) ? $_POST['type'] : '';
+		$type = isset( $_POST['type'] ) ? $_POST['type'] : '';
 
 		if ( $type !== 'general_settings' && $type !== 'advanced_settings' && $type !== 'all' ) {
-			return array( 'error' => __('Invalid data. Please check and try again.') );
+			return array( 'error' => __( 'Invalid data. Please check and try again.' ) );
 		}
 
 		$filter_advanced_settings = array(
@@ -414,14 +410,14 @@ class MainWP_Child_Back_Up_Buddy {
 			'disable_https_local_ssl_verify',
 			'prevent_flush',
 			'save_comment_meta',
-			'integrity_check', // profiles#0
+			'integrity_check',
 			'backup_cron_rescheduling',
 			'skip_spawn_cron_call',
 			'backup_cron_passed_force_time',
 			'php_runtime_test_minimum_interval',
 			'php_memory_test_minimum_interval',
 			'database_method_strategy',
-			'skip_database_dump', // profiles#0
+			'skip_database_dump',
 			'breakout_tables',
 			'force_single_db_file',
 			'phpmysqldump_maxrows',
@@ -452,10 +448,10 @@ class MainWP_Child_Back_Up_Buddy {
 			'archive_limit_files',
 			'title_multisite',
 			'multisite_export',
-			'backup_nonwp_tables', // profiles#0
-			'mysqldump_additional_includes', // profiles#0
-			'mysqldump_additional_excludes', // profiles#0
-			'excludes', // profiles#0
+			'backup_nonwp_tables',
+			'mysqldump_additional_includes',
+			'mysqldump_additional_excludes',
+			'excludes',
 			'email_notify_scheduled_start',
 			'email_notify_scheduled_start_subject',
 			'email_notify_scheduled_start_body',
@@ -481,14 +477,14 @@ class MainWP_Child_Back_Up_Buddy {
 			'backup_nonwp_tables',
 		);
 
-		$settings = unserialize(base64_decode($_POST['options']));
+		$settings = unserialize( base64_decode( $_POST['options'] ) );
 
 		$save_settings = array();
 
-		if ( is_array($settings) ) {
+		if ( is_array( $settings ) ) {
 			if ( $type === 'all' || 'general_settings' === $type ) {
 				foreach ( $filter_general_settings as $field ) {
-					if ( isset($settings[ $field ]) ) {
+					if ( isset( $settings[ $field ] ) ) {
 						$save_settings[ $field ] = $settings[ $field ];
 					}
 				}
@@ -496,25 +492,25 @@ class MainWP_Child_Back_Up_Buddy {
 
 			if ( $type === 'all' || 'advanced_settings' === $type ) {
 				foreach ( $filter_advanced_settings as $field ) {
-					if ( isset($settings[ $field ]) ) {
+					if ( isset( $settings[ $field ] ) ) {
 						$save_settings[ $field ] = $settings[ $field ];
 					}
 				}
 			}
 		}
 
-		if ( ! empty($save_settings) ) {
+		if ( ! empty( $save_settings ) ) {
 			$newOptions = pb_backupbuddy::$options;
 
 			foreach ( $newOptions as $key => $val ) {
-				if ( isset($save_settings[ $key ]) ) {
+				if ( isset( $save_settings[ $key ] ) ) {
 					$newOptions[ $key ] = $save_settings[ $key ];
 				}
 			}
 
-			if ( isset($newOptions['profiles']) && isset($newOptions['profiles'][0]) ) {
+			if ( isset( $newOptions['profiles'] ) && isset( $newOptions['profiles'][0] ) ) {
 				foreach ( $filter_profile0_values as $field ) {
-					if ( isset($settings[ $field ]) ) {
+					if ( isset( $settings[ $field ] ) ) {
 						$newOptions['profiles'][0][ $field ] = $settings[ $field ];
 					}
 				}
@@ -529,7 +525,7 @@ class MainWP_Child_Back_Up_Buddy {
 			$newOptions = sanitize_option( $option, $newOptions );
 			$newOptions = maybe_serialize( $newOptions );
 
-			add_site_option( $option, $newOptions, '', 'no'); // 'No' prevents autoload if we wont always need the data loaded.
+			add_site_option( $option, $newOptions, '', 'no' ); // 'No' prevents autoload if we wont always need the data loaded.
 			$wpdb->update( $wpdb->options, array( 'option_value' => $newOptions ), array( 'option_name' => $option ) );
 
 			$information['backupDirectoryDefault'] = backupbuddy_core::_getBackupDirectoryDefault();
@@ -580,12 +576,12 @@ class MainWP_Child_Back_Up_Buddy {
 			// Determine last run.
 			if ( isset( $schedule['last_run'] ) ) { // backward compatibility before last run tracking added. Pre v2.2.11. Eventually remove this.
 				if ( $schedule['last_run'] == 0 ) {
-					$last_run = '<i>' . __( 'Never', 'it-l10n-backupbuddy' ) . '</i>';
+					$last_run = '<i>' . __( 'Never', 'mainwp-child' ) . '</i>';
 				} else {
 					$last_run = pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $schedule['last_run'] ) );
 				}
 			} else { // backward compatibility for before last run tracking was added.
-				$last_run = '<i> ' . __( 'Unknown', 'it-l10n-backupbuddy' ) . '</i>';
+				$last_run = '<i> ' . __( 'Unknown', 'mainwp-child' ) . '</i>';
 			}
 
 			// Determine next run.
@@ -613,8 +609,8 @@ class MainWP_Child_Back_Up_Buddy {
 		$information['next_schedule_index'] = pb_backupbuddy::$options['next_schedule_index'];
 		$information['schedules_run_time']  = $this->get_schedules_run_time();
 
-		// to fix missing destination notice
-		if ( isset(pb_backupbuddy::$options['remote_destinations']) ) { // update
+		// to fix missing destination notice.
+		if ( isset( pb_backupbuddy::$options['remote_destinations'] ) ) {
 			$information['remote_destinations'] = pb_backupbuddy::$options['remote_destinations'];
 		}
 
@@ -625,7 +621,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function run_scheduled_backup() {
 		if ( ! is_main_site() ) { // Only run for main site or standalone. Multisite subsites do not allow schedules.
-			return array( 'error' => __('Only run for main site or standalone. Multisite subsites do not allow schedules', 'mainwp-child') );
+			return array( 'error' => __( 'Only run for main site or standalone. Multisite subsites do not allow schedules', 'mainwp-child' ) );
 		}
 
 		$schedule_id = (int) $_POST['schedule_id'];
@@ -634,8 +630,7 @@ class MainWP_Child_Back_Up_Buddy {
 			return array( 'error' => __( 'Error: not found the backup schedule or invalid data', 'mainwp-child' ) );
 		}
 
-		pb_backupbuddy::alert( 'Manually running scheduled backup "' . pb_backupbuddy::$options['schedules'][ $schedule_id ]['title'] . '" in the background.' . '<br>' .
-							   __( 'Note: If there is no site activity there may be delays between steps in the backup. Access the site or use a 3rd party service, such as a free pinging service, to generate site activity.', 'it-l10n-backupbuddy' ) );
+		pb_backupbuddy::alert( 'Manually running scheduled backup "' . pb_backupbuddy::$options['schedules'][ $schedule_id ]['title'] . '" in the background.' . '<br>' . __( 'Note: If there is no site activity there may be delays between steps in the backup. Access the site or use a 3rd party service, such as a free pinging service, to generate site activity.', 'mainwp-child' ) );
 		pb_backupbuddy_cron::_run_scheduled_backup( $schedule_id );
 
 		$information['result'] = 'SUCCESS';
@@ -645,15 +640,15 @@ class MainWP_Child_Back_Up_Buddy {
 
 
 	function save_scheduled_backup() {
-		$schedule_id = intval($_POST['schedule_id']);
-		$schedule    = unserialize(base64_decode($_POST['data']));
+		$schedule_id = intval( $_POST['schedule_id'] );
+		$schedule    = unserialize( base64_decode( $_POST['data'] ) );
 
-		if ( ! is_array($schedule) ) {
+		if ( ! is_array( $schedule ) ) {
 			return array( 'error' => __( 'Invalid schedule data', 'mainwp-child' ) );
 		}
 		$information = array();
-		// add new
-		if ( ! isset(pb_backupbuddy::$options['schedules'][ $schedule_id ]) ) {
+
+		if ( ! isset( pb_backupbuddy::$options['schedules'][ $schedule_id ] ) ) {
 			$next_index = pb_backupbuddy::$options['next_schedule_index'];
 			pb_backupbuddy::$options['next_schedule_index']++; // This change will be saved in savesettings function below.
 			pb_backupbuddy::$options['schedules'][ $schedule_id ] = $schedule;
@@ -679,9 +674,9 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function save_profile() {
 		$profile_id = $_POST['profile_id'];
-		$profile    = unserialize(base64_decode($_POST['data']));
+		$profile    = unserialize( base64_decode( $_POST['data'] ) );
 
-		if ( ! is_array($profile) ) {
+		if ( ! is_array( $profile ) ) {
 			return array( 'error' => __( 'Invalid profile data', 'mainwp-child' ) );
 		}
 
@@ -696,8 +691,8 @@ class MainWP_Child_Back_Up_Buddy {
 	function delete_profile() {
 		$profile_id = $_POST['profile_id'];
 
-		if ( isset(pb_backupbuddy::$options['profiles'][ $profile_id ]) ) {
-			unset(pb_backupbuddy::$options['profiles'][ $profile_id ]);
+		if ( isset( pb_backupbuddy::$options['profiles'][ $profile_id ] ) ) {
+			unset( pb_backupbuddy::$options['profiles'][ $profile_id ] );
 		}
 
 		pb_backupbuddy::save();
@@ -707,7 +702,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function delete_backup( $type = 'default', $subsite_mode = false ) {
 		$item_ids    = $_POST['item_ids'];
-		$item_ids    = explode(',', $item_ids);
+		$item_ids    = explode( ',', $item_ids );
 		$information = array();
 		if ( is_array( $item_ids ) && count( $item_ids ) > 0 ) {
 			$needs_save    = false;
@@ -736,47 +731,44 @@ class MainWP_Child_Back_Up_Buddy {
 							$needs_save = true;
 						}
 					}
-				} // End if file exists.
-			} // End foreach.
+				}
+			}
 			if ( $needs_save === true ) {
 				pb_backupbuddy::save();
 			}
 
 			$information['result'] = 'SUCCESS';
 
-		} // End if deleting backup(s).
+		}
 		return $information;
 	}
 
-	// ok
 	public function syncOthersData( $information, $data = array() ) {
 		if ( isset( $data['syncBackupBuddy'] ) && $data['syncBackupBuddy'] ) {
 			try {
 				$information['syncBackupBuddy'] = $this->get_sync_data();
 			} catch ( Exception $e ) {
-
+				// ok!
 			}
 		}
 		return $information;
 	}
 
-	// ok
 	public function get_sync_data() {
-
 		try {
 			if ( ! class_exists( 'backupbuddy_core' ) ) {
-				MainWP_Helper::check_classes_exists('pb_backupbuddy');
-				MainWP_Helper::check_methods('pb_backupbuddy', array( 'plugin_path' ) );
+				MainWP_Helper::check_classes_exists( 'pb_backupbuddy' );
+				MainWP_Helper::check_methods( 'pb_backupbuddy', array( 'plugin_path' ) );
 
 				$plugin_path = pb_backupbuddy::plugin_path();
-				if ( file_exists($plugin_path . '/classes/core.php') ) {
+				if ( file_exists( $plugin_path . '/classes/core.php' ) ) {
 					require_once $plugin_path . '/classes/core.php';
 				}
 			}
 
-			MainWP_Helper::check_classes_exists(array( 'backupbuddy_core', 'backupbuddy_api' ));
-			MainWP_Helper::check_methods('backupbuddy_core', array( 'get_plugins_root', 'get_themes_root', 'get_media_root' ) );
-			MainWP_Helper::check_methods('backupbuddy_api', array( 'getOverview' ) );
+			MainWP_Helper::check_classes_exists( array( 'backupbuddy_core', 'backupbuddy_api' ) );
+			MainWP_Helper::check_methods( 'backupbuddy_core', array( 'get_plugins_root', 'get_themes_root', 'get_media_root' ) );
+			MainWP_Helper::check_methods( 'backupbuddy_api', array( 'getOverview' ) );
 
 			$data                      = array();
 			$data['plugins_root']      = backupbuddy_core::get_plugins_root();
@@ -791,16 +783,16 @@ class MainWP_Child_Back_Up_Buddy {
 			if ( isset( $getOverview['lastBackupStats']['finish'] ) ) {
 				$finish_time             = $getOverview['lastBackupStats']['finish'];
 				$time                    = $this->localize_time( $finish_time );
-				$data['lastBackupStats'] = date('M j - g:i A', $time);
+				$data['lastBackupStats'] = date( 'M j - g:i A', $time );
 				$data['lasttime_backup'] = $finish_time;
-				MainWP_Helper::update_lasttime_backup('backupbuddy', $finish_time); // to support Require Backup Before Update feature
+				MainWP_Helper::update_lasttime_backup( 'backupbuddy', $finish_time ); // support Require Backup Before Update feature.
 			} else {
 				$data['lastBackupStats'] = 'Unknown';
 			}
 
 			return $data;
 		} catch ( Exception $e ) {
-			// not exit here
+			// not exit here!
 		}
 
 		return false;
@@ -817,10 +809,9 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function backup_list() {
 		require_once pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php';
-		$information                       = array();
-		$information['backup_list']        = $this->get_backup_list();
-		$information['recent_backup_list'] = $this->get_recent_backup_list();
-		// $information['destinations_list'] = pb_backupbuddy_destinations::get_destinations_list();
+		$information                                  = array();
+		$information['backup_list']                   = $this->get_backup_list();
+		$information['recent_backup_list']            = $this->get_recent_backup_list();
 		$backup_directory                             = backupbuddy_core::getBackupDirectory();
 		$backup_directory                             = str_replace( '\\', '/', $backup_directory );
 		$backup_directory                             = rtrim( $backup_directory, '/\\' ) . '/';
@@ -845,8 +836,6 @@ class MainWP_Child_Back_Up_Buddy {
 		$comment         = backupbuddy_core::normalize_comment_data( $old_comment );
 		$comment['note'] = $note;
 
-		// $new_comment = base64_encode( serialize( $comment ) );
-
 		$comment_result = pb_backupbuddy::$classes['zipbuddy']->set_comment( $backup_file, $comment );
 
 		$information = array();
@@ -870,7 +859,7 @@ class MainWP_Child_Back_Up_Buddy {
 	function get_hash() {
 		$callback_data = $_POST['callback_data'];
 		$file          = backupbuddy_core::getBackupDirectory() . $callback_data;
-		if ( file_exists($file) ) {
+		if ( file_exists( $file ) ) {
 			return array(
 				'result' => 'SUCCESS',
 				'hash'   => md5_file( $file ),
@@ -882,17 +871,17 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function zip_viewer() {
 
-		// How long to cache the specific backup file tree information for (seconds)
+		// How long to cache the specific backup file tree information for (seconds).
 		$max_cache_time = 86400;
 
-		// This is the root directory we want the listing for
+		// This is the root directory we want the listing for.
 		$root     = $_POST['dir'];
 		$root_len = strlen( $root );
 
-		// This will identify the backup zip file we want to list
+		// This will identify the backup zip file we want to list.
 		$serial = $_POST['serial'];
 		$alerts = array();
-		// The fileoptions file that contains the file tree information
+		// The fileoptions file that contains the file tree information.
 		require_once pb_backupbuddy::plugin_path() . '/classes/fileoptions.php';
 		$fileoptions_file = backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '-filetree.txt';
 
@@ -906,7 +895,7 @@ class MainWP_Child_Back_Up_Buddy {
 		pb_backupbuddy::status( 'details', 'Fileoptions instance #28.' );
 		$fileoptions = new pb_backupbuddy_fileoptions( $fileoptions_file );
 		$zip_viewer  = $_POST['zip_viewer'];
-		// Either we are getting cached file tree information or we need to create afresh
+		// Either we are getting cached file tree information or we need to create afresh.
 		if ( true !== ( $result = $fileoptions->is_ok() ) ) {
 			// Get file listing.
 			require_once pb_backupbuddy::plugin_path() . '/lib/zipbuddy/zipbuddy.php';
@@ -918,91 +907,46 @@ class MainWP_Child_Back_Up_Buddy {
 			$files = &$fileoptions->options;
 		}
 
-		// Just make sure we have a sensible files listing
 		if ( ! is_array( $files ) ) {
 			return array( 'error' => 'Error #548484.  Unable to retrieve file listing from backup file `' . htmlentities( $zip_viewer ) . '`.' );
 		}
-
-		// To record subdirs of this root
 		$subdirs = array();
 
-		// Strip out any files/subdirs that are not actually directly under the given root
 		foreach ( $files as $key => $file ) {
-
-			// If shorter than root length then certainly is not within this (root) directory.
-			// It's a quick test that is more effective the longer the root (the deeper you go
-			// into the tree)
 			if ( strlen( $file[0] ) < $root_len ) {
-
 				unset( $files[ $key ] );
 				continue;
-
 			}
 
-			// The root must be prefix of this file	otherwise it's not under the root
-			// e.g., with root=this/dir/path/
-			// these will fail: file=this/dir/file; file=this/dir/otherpath/; file=that/dir/path/file
-			// and these would succeed: file=this/dir/path/; file=this/dir/path/file; file=this/dir/path/otherpath/
 			if ( substr( $file[0], 0, $root_len ) != $root ) {
-
 				unset( $files[ $key ] );
 				continue;
-
 			}
 
-			// If the file _is_ the root then we don't want to list it
-			// Don't want to do this on _every_ file as very specific so do it here after we have
-			// weeded out files for more common reasons
 			if ( 0 == strcmp( $file[0], $root ) ) {
-
 				unset( $files[ $key ] );
 				continue;
-
 			}
-
-			// Interesting file, get the path with the root prefix removed
-			// Note: root may be empty in which case the result will be the original filename
 			$unrooted_file = substr( $file[0], $root_len );
-
-			// We must ensure that we list the subdir/ even if subdir/ does not appear
-			// as a distinct entry in the list but only subdir/file or subdir/subsubdir/ or
-			// subdir/subsubdir/file. Find if we have any directory separator(s) in the filename
-			// and if so remember where the first is
 			if ( false !== ( $pos = strpos( $unrooted_file, '/' ) ) ) {
-
-				// Get the subdir/ prefix part, discarding everything after the first /
 				$subdir = substr( $unrooted_file, 0, ( $pos + 1 ) );
-
-				// Have we already seen it
 				if ( ! in_array( $subdir, $subdirs ) ) {
-
-					// Not already seen so record we have seen it and modify this entry to be
-					// specific for the subdir/
 					$subdirs[] = $subdir;
-
-					// Replace the original (rooted) file name
 					$files[ $key ][0] = $subdir;
-
 				} else {
-
-					// We already know about the subdir/ so remove this entry
 					unset( $files[ $key ] );
 					continue;
 
 				}
 			} else {
-
-				// This is just like file within the root
-				// Replace the original (rooted) file name
 				$files[ $key ][0] = $unrooted_file;
-
 			}
 		}
 
 		return array(
 			'result'  => 'SUCCESS',
 			'files'   => $files,
-			'message' => implode('<br/>', $alerts),
+			'message' => implode( '<br/>', $alerts ),
 		);
 	}
 
@@ -1043,7 +987,7 @@ class MainWP_Child_Back_Up_Buddy {
 							$return .= '<div class="pb_backupbuddy_treeselect_control">';
 							$return .= '<img src="' . pb_backupbuddy::plugin_url() . '/images/redminus.png" style="vertical-align: -3px;" title="Add to exclusions..." class="pb_backupbuddy_filetree_exclude">';
 							$return .= '</div>';
-							echo '<a href="#" rel="' . htmlentities( str_replace( ABSPATH, '', $root ) . $file) . '/" title="Toggle expand...">' . htmlentities($file) . $return . '</a>';
+							echo '<a href="#" rel="' . htmlentities( str_replace( ABSPATH, '', $root ) . $file) . '/" title="Toggle expand...">' . htmlentities( $file ) . $return . '</a>';
 							echo '</li>';
 						} else { // File.
 							echo '<li class="file collapsed">';
@@ -1051,7 +995,7 @@ class MainWP_Child_Back_Up_Buddy {
 							$return .= '<div class="pb_backupbuddy_treeselect_control">';
 							$return .= '<img src="' . pb_backupbuddy::plugin_url() . '/images/redminus.png" style="vertical-align: -3px;" title="Add to exclusions..." class="pb_backupbuddy_filetree_exclude">';
 							$return .= '</div>';
-							echo '<a href="#" rel="' . htmlentities( str_replace( ABSPATH, '', $root ) . $file) . '">' . htmlentities($file) . $return . '</a>';
+							echo '<a href="#" rel="' . htmlentities( str_replace( ABSPATH, '', $root ) . $file) . '">' . htmlentities( $file ) . $return . '</a>';
 							echo '</li>';
 						}
 					}
@@ -1070,13 +1014,12 @@ class MainWP_Child_Back_Up_Buddy {
 		}
 	}
 
-	// ok
 	function pb_additional_tables( $display_size = false ) {
 
-		MainWP_Helper::check_classes_exists('pb_backupbuddy');
-		MainWP_Helper::check_methods('pb_backupbuddy', 'plugin_url');
-		MainWP_Helper::check_properties('pb_backupbuddy', 'format');
-		MainWP_Helper::check_methods(pb_backupbuddy::$format, 'file_size');
+		MainWP_Helper::check_classes_exists( 'pb_backupbuddy' );
+		MainWP_Helper::check_methods( 'pb_backupbuddy', 'plugin_url' );
+		MainWP_Helper::check_properties( 'pb_backupbuddy', 'format' );
+		MainWP_Helper::check_methods( pb_backupbuddy::$format, 'file_size' );
 
 		$return      = '';
 		$size_string = '';
@@ -1145,16 +1088,13 @@ class MainWP_Child_Back_Up_Buddy {
 		unset( $temp_dir );
 
 		$message = 'Extracting "' . $file . '" from archive "' . $archive_file . '" into temporary file "' . $destination . '". ';
-		// echo '<!-- ';
 		pb_backupbuddy::status( 'details', $message );
-		// echo $message;
 
 		$file_content = '';
 
 		$extractions    = array( $file => $temp_file );
 		$extract_result = $zipbuddy->extract( backupbuddy_core::getBackupDirectory() . $archive_file, $destination, $extractions );
 		if ( false === $extract_result ) { // failed.
-			// echo ' -->';
 			$error = 'Error #584984458. Unable to extract.';
 			pb_backupbuddy::status( 'error', $error );
 			return array( 'error' => $error );
@@ -1269,7 +1209,7 @@ class MainWP_Child_Back_Up_Buddy {
 					'plugins'   => 'Plugins',
 				);
 
-				// Defaults...
+				// Defaults.
 				$detected_type = '';
 				$file_size     = '';
 				$modified      = '';
@@ -1307,7 +1247,7 @@ class MainWP_Child_Back_Up_Buddy {
 					$modified_time = $backup_integrity['modified'];
 					if ( isset( $backup_integrity['status'] ) ) { // Pre-v4.0.
 						$status = $backup_integrity['status'];
-					} else { // v4.0+
+					} else { // v4.0+.
 						$status = $backup_integrity['is_ok'];
 					}
 
@@ -1338,7 +1278,7 @@ class MainWP_Child_Back_Up_Buddy {
 					if ( file_exists( $sumLogFile ) ) {
 						$integrity .= '<div class="row-actions"><a title="' . __( 'View Backup Log', 'mainwp-child' ) . '" href="#" serial="' . $serial . '" class="mainwp_bb_view_log_lnk thickbox">' . __( 'View Log', 'mainwp-child' ) . '</a></div>';
 					}
-				} // end if is_array( $backup_options ).
+				}
 
 				// No integrity check for themes or plugins types.
 				$raw_type = backupbuddy_core::getBackupTypeFromFile( $file );
@@ -1355,8 +1295,8 @@ class MainWP_Child_Back_Up_Buddy {
 
 				$backup_sort_dates[ basename( $file) ] = $modified_time;
 
-			} // End foreach().
-		} // End if.
+			}
+		}
 
 		// Sort backup by date.
 		arsort( $backup_sort_dates );
@@ -1368,7 +1308,7 @@ class MainWP_Child_Back_Up_Buddy {
 		}
 		unset( $backups );
 		return $sorted_backups;
-	} // End backups_list().
+	}
 
 	function get_recent_backup_list() {
 		$recentBackups_list = glob( backupbuddy_core::getLogDirectory() . 'fileoptions/*.txt' );
@@ -1392,7 +1332,7 @@ class MainWP_Child_Back_Up_Buddy {
 				pb_backupbuddy::status( 'details', 'Fileoptions instance #1.' );
 				$backup = new pb_backupbuddy_fileoptions( $backup_fileoptions, $read_only = true );
 				if ( true !== ( $result = $backup->is_ok() ) ) {
-					pb_backupbuddy::status( 'error', __('Unable to access fileoptions data file.', 'mainwp-child' ) . ' Error: ' . $result );
+					pb_backupbuddy::status( 'error', __( 'Unable to access fileoptions data file.', 'mainwp-child' ) . ' Error: ' . $result );
 					continue;
 				}
 				$backup = &$backup->options;
@@ -1471,21 +1411,21 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			$columns = array(
-				__('Recently Made Backups (Start Time)', 'mainwp-child' ),
-				__('Type | Profile', 'mainwp-child' ),
-				__('File Size', 'mainwp-child' ),
-				__('Trigger', 'mainwp-child' ),
-				__('Status', 'mainwp-child' ) . ' <span class="description">(hover for options)</span>',
+				__( 'Recently Made Backups (Start Time)', 'mainwp-child' ),
+				__( 'Type | Profile', 'mainwp-child' ),
+				__( 'File Size', 'mainwp-child' ),
+				__( 'Trigger', 'mainwp-child' ),
+				__( 'Status', 'mainwp-child' ) . ' <span class="description">(hover for options)</span>',
 			);
 
 			function pb_backupbuddy_aasort( &$array, $key ) {
 				$sorter = array();
 				$ret    = array();
-				reset($array);
+				reset( $array );
 				foreach ( $array as $ii => $va ) {
 					$sorter[ $ii ] = $va[ $key ];
 				}
-				asort($sorter);
+				asort( $sorter );
 				foreach ( $sorter as $ii => $va ) {
 					$ret[ $ii ] = $array[ $ii ];
 				}
@@ -1501,9 +1441,9 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function delete_scheduled_backup() {
 		$schedule_ids = $_POST['schedule_ids'];
-		$schedule_ids = explode(',', $schedule_ids);
+		$schedule_ids = explode( ',', $schedule_ids );
 
-		if ( empty($schedule_ids) ) {
+		if ( empty( $schedule_ids ) ) {
 			return array( 'error' => __( 'Empty schedule ids', 'mainwp-child' ) );
 		}
 		foreach ( $schedule_ids as $sch_id ) {
@@ -1533,10 +1473,9 @@ class MainWP_Child_Back_Up_Buddy {
 		<?php
 		foreach ( (array) $lines as $rawline ) {
 			$line = json_decode( $rawline, true );
-			// print_r( $line );
 			if ( is_array( $line ) ) {
 				$u = '';
-				if ( isset( $line['u'] ) ) { // As off v4.2.15.6. TODO: Remove this in a couple of versions once old logs without this will have cycled out.
+				if ( isset( $line['u'] ) ) {
 					$u = '.' . $line['u'];
 				}
 				echo pb_backupbuddy::$format->date( $line['time'], 'G:i:s' ) . $u . "\t\t";
@@ -1576,7 +1515,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$optionsFile    = backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt';
 		$backup_options = new pb_backupbuddy_fileoptions( $optionsFile, $read_only = true );
 		if ( true !== ( $result = $backup_options->is_ok() ) ) {
-			return array( 'error' => __('Unable to access fileoptions data file.', 'mainwp-child' ) . ' Error: ' . $result );
+			return array( 'error' => __( 'Unable to access fileoptions data file.', 'mainwp-child' ) . ' Error: ' . $result );
 		}
 		ob_start();
 		$integrity = $backup_options->options['integrity'];
@@ -1593,7 +1532,7 @@ class MainWP_Child_Back_Up_Buddy {
 		}
 
 		// ***** BEGIN TESTS AND RESULTS.
-		if ( isset( $integrity['status_details'] ) ) { // $integrity['status_details'] is NOT array (old, pre-3.1.9).
+		if ( isset( $integrity['status_details'] ) ) {
 			echo '<h3>Integrity Technical Details</h3>';
 			echo '<textarea style="width: 100%; height: 175px;" wrap="off">';
 			foreach ( $integrity as $item_name => $item_value ) {
@@ -1603,7 +1542,7 @@ class MainWP_Child_Back_Up_Buddy {
 				echo $item_name . ' => ' . $item_value . "\n";
 			}
 			echo '</textarea><br><br><b>Note:</b> It is normal to see several "file not found" entries as BackupBuddy checks for expected files in multiple locations, expecting to only find each file once in one of those locations.';
-		} else { // $integrity['status_details'] is array.
+		} else {
 
 			echo '<br>';
 
@@ -1616,7 +1555,7 @@ class MainWP_Child_Back_Up_Buddy {
 					}
 				}
 
-				// The tests & their status..
+				// The tests & their status.
 				$tests   = array();
 				$tests[] = array( 'BackupBackup data file exists', pb_pretty_results( $integrity['status_details']['found_dat'] ) );
 				$tests[] = array( 'Database SQL file exists', pb_pretty_results( $integrity['status_details']['found_sql'] ) );
@@ -1654,13 +1593,13 @@ class MainWP_Child_Back_Up_Buddy {
 				)
 			);
 
-		} // end $integrity['status_details'] is an array.
+		}
 		echo '<br><br>';
 		// ***** END TESTS AND RESULTS.
 
 		// Output meta info table (if any).
 		$metaInfo = array();
-		if ( isset( $integrity['file'] ) && ( false === ( $metaInfo = backupbuddy_core::getZipMeta( backupbuddy_core::getBackupDirectory() . $integrity['file'] ) ) ) ) { // $backup_options->options['archive_file']
+		if ( isset( $integrity['file'] ) && ( false === ( $metaInfo = backupbuddy_core::getZipMeta( backupbuddy_core::getBackupDirectory() . $integrity['file'] ) ) ) ) {
 			echo '<i>No meta data found in zip comment. Skipping meta information display.</i>';
 		} else {
 			pb_backupbuddy::$ui->list_table(
@@ -1729,10 +1668,10 @@ class MainWP_Child_Back_Up_Buddy {
 					);
 
 				}
-			} // End foreach.
-		} else { // End if serial in array is set.
+			}
+		} else {
 			$step_times[] = 'unknown';
-		} // End if serial in array is NOT set.
+		}
 
 		// Total overall time from initiation to end.
 		if ( isset( $backup_options->options['finish_time'] ) && isset( $backup_options->options['start_time'] ) && ( $backup_options->options['finish_time'] != 0 ) && ( $backup_options->options['start_time'] != 0 ) ) {
@@ -1865,7 +1804,7 @@ class MainWP_Child_Back_Up_Buddy {
 	function create_backup() {
 		$requested_profile = $_POST['profile_id'];
 
-		if ( ! isset(pb_backupbuddy::$options['profiles'][ $requested_profile ]) ) {
+		if ( ! isset( pb_backupbuddy::$options['profiles'][ $requested_profile ] ) ) {
 			return array( 'error' => 'Invalid Profile. Not found.' );
 		}
 
@@ -1877,16 +1816,16 @@ class MainWP_Child_Back_Up_Buddy {
 
 		if ( $newBackup->start_backup_process(
 				$profile_array,
-				'manual', // trigger
+				'manual',
 				array(),
-				isset($_POST['post_backup_steps']) && is_array($_POST['post_backup_steps']) ? $_POST['post_backup_steps'] : array(),
+				isset( $_POST['post_backup_steps'] ) && is_array( $_POST['post_backup_steps'] ) ? $_POST['post_backup_steps'] : array(),
 				'',
 				$serial_override,
-				'', // export_plugins
-				'', // direction
-				'' // deployDestination
+				'',
+				'',
+				''
 			) !== true ) {
-			return array( 'error' => __('Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'it-l10n-backupbuddy' ) );
+			return array( 'error' => __( 'Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'mainwp-child' ) );
 		}
 		return array( 'result' => 'SUCCESS' );
 	}
@@ -1895,19 +1834,19 @@ class MainWP_Child_Back_Up_Buddy {
 		require_once pb_backupbuddy::plugin_path() . '/classes/backup.php';
 		$newBackup = new pb_backupbuddy_backup();
 		$data      = $_POST['data'];
-		if ( is_array($data) && isset($data['serial_override']) ) {
+		if ( is_array( $data ) && isset( $data['serial_override'] ) ) {
 			if ( $newBackup->start_backup_process(
 					$data['profile_array'],
 					$data['trigger'],
 					array(),
-					isset($data['post_backup_steps']) && is_array($data['post_backup_steps']) ? $data['post_backup_steps'] : array(),
+					isset( $data['post_backup_steps'] ) && is_array( $data['post_backup_steps'] ) ? $data['post_backup_steps'] : array(),
 					'',
 					$data['serial_override'],
-					isset($data['export_plugins']) ? $data['export_plugins'] : '',
+					isset( $data['export_plugins'] ) ? $data['export_plugins'] : '',
 					$data['direction'],
-					isset($data['deployDestination']) ? $data['deployDestination'] : ''
+					isset( $data['deployDestination'] ) ? $data['deployDestination'] : ''
 				) !== true ) {
-				return array( 'error' => __('Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'it-l10n-backupbuddy' ) );
+				return array( 'error' => __( 'Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'mainwp-child' ) );
 			}
 		} else {
 			return array( 'error' => 'Invalid backup request.' );
@@ -1919,7 +1858,7 @@ class MainWP_Child_Back_Up_Buddy {
 	function backup_status() {
 		$data   = $_POST['data'];
 		$result = '';
-		if ( is_array($data) && isset($data['serial']) ) {
+		if ( is_array( $data ) && isset( $data['serial'] ) ) {
 			ob_start();
 			backupbuddy_api::getBackupStatus( $data['serial'], $data['specialAction'], $data['initwaitretrycount'], $data['sqlFile'], $echo = true );
 			$result = ob_get_clean();
@@ -1939,10 +1878,10 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
 	function remote_save() {
-		$data           = isset($_POST['data']) ? $_POST['data'] : false;
-		$destination_id = isset($_POST['destination_id']) ? $_POST['destination_id'] : 0;
+		$data           = isset( $_POST['data'] ) ? $_POST['data'] : false;
+		$destination_id = isset( $_POST['destination_id'] ) ? $_POST['destination_id'] : 0;
 
-		if ( is_array($data) && isset($data['do_not_override']) ) {
+		if ( is_array( $data ) && isset( $data['do_not_override'] ) ) {
 
 			if ( true == $data['do_not_override'] ) {
 				if ( ( $data['type'] == 's32' || $data['type'] == 's33' ) ) {
@@ -1953,20 +1892,20 @@ class MainWP_Child_Back_Up_Buddy {
 						'region',
 					);
 					foreach ( $not_override as $opt ) {
-						if ( isset($data[ $opt ]) ) {
-							unset($data[ $opt ]);
+						if ( isset( $data[ $opt ] ) ) {
+							unset( $data[ $opt ] );
 						}
 					}
 				}
 			}
 
-			unset($data['do_not_override']);
+			unset( $data['do_not_override'] );
 		}
 
-		if ( is_array($data) ) {
-			if ( isset(pb_backupbuddy::$options['remote_destinations'][ $destination_id ]) ) { // update
+		if ( is_array( $data ) ) {
+			if ( isset( pb_backupbuddy::$options['remote_destinations'][ $destination_id ] ) ) {
 				pb_backupbuddy::$options['remote_destinations'][ $destination_id ] = array_merge( pb_backupbuddy::$options['remote_destinations'][ $destination_id ], $data );
-			} else { // add new
+			} else {
 				$data['token'] = pb_backupbuddy::$options['dropboxtemptoken'];
 				pb_backupbuddy::$options['remote_destinations'][ $destination_id ] = $data;
 			}
@@ -1979,7 +1918,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function remote_list() {
 		$information = array();
-		if ( isset(pb_backupbuddy::$options['remote_destinations']) ) { // update
+		if ( isset( pb_backupbuddy::$options['remote_destinations'] ) ) {
 			$information['remote_destinations'] = pb_backupbuddy::$options['remote_destinations'];
 		}
 		$information['result'] = 'SUCCESS';
@@ -1987,7 +1926,7 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
 	function remote_delete() {
-		$destination_id = isset($_POST['destination_id']) ? $_POST['destination_id'] : null;
+		$destination_id = isset( $_POST['destination_id'] ) ? $_POST['destination_id'] : null;
 		if ( $destination_id !== null ) {
 			require_once pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php';
 			$delete_response = pb_backupbuddy_destinations::delete_destination( $destination_id, true );
@@ -2004,9 +1943,9 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function remote_send() {
 
-		$destination_id = isset($_POST['destination_id']) ? $_POST['destination_id'] : null;
-		$file           = isset($_POST['file']) ? $_POST['file'] : null;
-		$trigger        = isset($_POST['trigger']) ? $_POST['trigger'] : 'manual';
+		$destination_id = isset( $_POST['destination_id'] ) ? $_POST['destination_id'] : null;
+		$file           = isset( $_POST['file'] ) ? $_POST['file'] : null;
+		$trigger        = isset( $_POST['trigger'] ) ? $_POST['trigger'] : 'manual';
 
 		if ( $file != 'importbuddy.php' ) {
 			$backup_file = backupbuddy_core::getBackupDirectory() . $file;
@@ -2024,7 +1963,7 @@ class MainWP_Child_Back_Up_Buddy {
 			$backup_file = '';
 		}
 
-		if ( isset($_POST['send_importbuddy']) && $_POST['send_importbuddy'] == '1' ) {
+		if ( isset( $_POST['send_importbuddy'] ) && $_POST['send_importbuddy'] == '1' ) {
 			$send_importbuddy = true;
 			pb_backupbuddy::status( 'details', 'Cron send to be scheduled with importbuddy sending.' );
 		} else {
@@ -2032,7 +1971,7 @@ class MainWP_Child_Back_Up_Buddy {
 			pb_backupbuddy::status( 'details', 'Cron send to be scheduled WITHOUT importbuddy sending.' );
 		}
 
-		if ( isset($_POST['delete_after']) && $_POST['delete_after'] == '1' ) {
+		if ( isset( $_POST['delete_after'] ) && $_POST['delete_after'] == '1' ) {
 			$delete_after = true;
 			pb_backupbuddy::status( 'details', 'Remote send set to delete after successful send.' );
 		} else {
@@ -2073,7 +2012,7 @@ class MainWP_Child_Back_Up_Buddy {
 					$success_output = true;
 				}
 			}
-		} // end if Stash.
+		}
 
 		pb_backupbuddy::status( 'details', 'Scheduling cron to send to this remote destination...' );
 
@@ -2098,7 +2037,7 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( file_exists( $log_file ) ) {
 			readfile( $log_file );
 		} else {
-			echo __('Nothing has been logged.', 'it-l10n-backupbuddy' );
+			echo __( 'Nothing has been logged.', 'mainwp-child' );
 		}
 		$result = ob_get_clean();
 		return array( 'result' => $result );
@@ -2201,7 +2140,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 
 		<?php
-		pb_backupbuddy::$ui->start_metabox( __( 'Malware Scan URL', 'it-l10n-backupbuddy' ), true, 'width: 100%;' );
+		pb_backupbuddy::$ui->start_metabox( __( 'Malware Scan URL', 'mainwp-child' ), true, 'width: 100%;' );
 
 		?>
 
@@ -2211,7 +2150,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		$continue_1 = true;
 		if ( $url == 'http://localhost' ) {
-			_e('ERROR: You are currently running your site locally. Your site must be internet accessible to scan.', 'it-l10n-backupbuddy' );
+			_e( 'ERROR: You are currently running your site locally. Your site must be internet accessible to scan.', 'mainwp-child' );
 			$continue_1 = false;
 		}
 
@@ -2221,7 +2160,6 @@ class MainWP_Child_Back_Up_Buddy {
 				delete_transient( 'pb_backupbuddy_malwarescan' );
 			}
 
-			// echo '<br />Scanning `' . $url . '`.<br /><br />';
 			if ( ! defined( 'pluginbuddy_importbuddy' ) ) {
 				$scan = get_transient( 'pb_backupbuddy_malwarescan' );
 			} else {
@@ -2246,7 +2184,7 @@ class MainWP_Child_Back_Up_Buddy {
 				);
 
 				if ( is_wp_error( $scan ) ) {
-					pb_backupbuddy::alert( __('ERROR #24452. Unable to load Malware Scan results. Details:', 'it-l10n-backupbuddy' ) . ' ' . $scan->get_error_message(), true );
+					pb_backupbuddy::alert( __( 'ERROR #24452. Unable to load Malware Scan results. Details:', 'mainwp-child' ) . ' ' . $scan->get_error_message(), true );
 					$scan = 'N;';
 				} else {
 					$scan = $scan['body'];
@@ -2256,25 +2194,16 @@ class MainWP_Child_Back_Up_Buddy {
 
 			$continue_2 = true;
 			if ( substr( $scan, 0, 2 ) == 'N;' ) {
-				echo __('An error was encountered attempting to scan this site.', 'it-l10n-backupbuddy' ), '<br />';
-				echo __('An internet connection is required and this site must be accessible on the public internet.', 'it-l10n-backupbuddy' );
+				echo __( 'An error was encountered attempting to scan this site.', 'mainwp-child' ), '<br />';
+				echo __( 'An internet connection is required and this site must be accessible on the public internet.', 'mainwp-child' );
 				echo '<br>';
 				$scan       = array();
 				$continue_2 = false;
 			} else {
 				$scan = maybe_unserialize( $scan );
-				// echo '<pre>';
-				// print_r( $scan );
-				// echo '</pre>';
 			}
 		}
-
 		pb_backupbuddy::$ui->end_metabox();
-		?>
-
-
-
-		<?php
 
 		if ( $continue_2 === true ) {
 			function lined_array( $array ) {
@@ -2284,7 +2213,6 @@ class MainWP_Child_Back_Up_Buddy {
 							$array[ $array_key ] = lined_array( $array_item );
 						}
 					}
-					// return implode( '<br />', $array );
 					$return = '';
 					foreach ( $array as $array_item ) {
 						$return .= $array_item . '<br />';
@@ -2292,7 +2220,7 @@ class MainWP_Child_Back_Up_Buddy {
 					return $return;
 				} else {
 					if ( empty( $array ) ) {
-						return '<i>' . __('none', 'it-l10n-backupbuddy' ) . '</i><br />';
+						return '<i>' . __( 'none', 'mainwp-child' ) . '</i><br />';
 					} else {
 						return $array . '<br />';
 					}
@@ -2300,27 +2228,24 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			if ( ! empty( $scan['MALWARE'] ) && ( $scan['MALWARE'] != 'E' ) ) {
-				echo '<table><tr><td><i class="fa fa-exclamation-circle fa-5x" style="color: red"></i></td><td><h1>', __('Warning: Possible Malware Detected!', 'it-l10n-backupbuddy' ), '</h1>',__('See details below.', 'it-l10n-backupbuddy' ), '</td></tr></table>';
+				echo '<table><tr><td><i class="fa fa-exclamation-circle fa-5x" style="color: red"></i></td><td><h1>', __('Warning: Possible Malware Detected!', 'mainwp-child' ), '</h1>', __( 'See details below.', 'mainwp-child' ), '</td></tr></table>';
 			}
-
 			?>
-
-
 			<div class="postbox-container" style="width: 100%; min-width: 750px;">
 				<div class="metabox-holder">
 					<div class="meta-box-sortables">
 
 						<div id="breadcrumbslike" class="postbox">
-							<div class="handlediv" title="<?php _e('Click to toggle', 'it-l10n-backupbuddy' ); ?>"><br /></div>
-							<h3 class="hndle"><span><?php _e('Malware Detection', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<div class="handlediv" title="<?php _e( 'Click to toggle', 'mainwp-child' ); ?>"><br /></div>
+							<h3 class="hndle"><span><?php _e( 'Malware Detection', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
-								<label><?php _e('Malware', 'it-l10n-backupbuddy' ); ?></label>
+								<label><?php _e( 'Malware', 'mainwp-child' ); ?></label>
 								<?php
 								if ( ! empty( $scan['MALWARE']['WARN'] ) ) { // Malware found.
 									echo lined_array( $scan['MALWARE']['WARN'] );
-									backupbuddy_core::addNotification( 'malware_found', 'Malware detected on `' . $url . '`.', 'A malware scan was run on the site and detected malware.', array(), true ); // Urgent
+									backupbuddy_core::addNotification( 'malware_found', 'Malware detected on `' . $url . '`.', 'A malware scan was run on the site and detected malware.', array(), true );
 								} else { // No malware found.
-									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />';
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
 									backupbuddy_core::addNotification( 'malware_not_found', 'No malware detected on `' . $url . '`.', 'A malware scan was run on the site and did not detect malware.' );
 								}
 								?>
@@ -2329,160 +2254,172 @@ class MainWP_Child_Back_Up_Buddy {
 						</div>
 
 						<div id="breadcrumbslike" class="postbox">
-							<div class="handlediv" title="<?php _e('Click to toggle', 'it-l10n-backupbuddy' ); ?>"><br /></div>
-							<h3 class="hndle"><span><?php _e('Web server details', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<div class="handlediv" title="<?php _e( 'Click to toggle', 'mainwp-child' ); ?>"><br /></div>
+							<h3 class="hndle"><span><?php _e( 'Web server details', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
-								<label><?php _e('Site', 'it-l10n-backupbuddy' ); ?></label> 
-														<?php
-														if ( ! empty( $scan['SCAN']['SITE'] ) ) {
-															echo lined_array( $scan['SCAN']['SITE'] );
-														} else {
-															echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-														?>
-<br />
-								<label><?php _e('Hostname', 'it-l10n-backupbuddy' ); ?></label> 
-															<?php
-															if ( ! empty( $scan['SCAN']['DOMAIN'] ) ) {
-																echo lined_array( $scan['SCAN']['DOMAIN'] );
-															} else {
-																echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-															?>
-<br />
-								<label><?php _e('IP Address', 'it-l10n-backupbuddy' ); ?></label> 
-															  <?php
-																if ( ! empty( $scan['SCAN']['IP'] ) ) {
-																	echo lined_array( $scan['SCAN']['IP'] );
-																} else {
-																	echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-																?>
-<br />
-								<label><?php _e('System details', 'it-l10n-backupbuddy' ); ?></label> 
-																  <?php
-																	if ( ! empty( $scan['SYSTEM']['NOTICE'] ) ) {
-																		echo lined_array( $scan['SYSTEM']['NOTICE'] );
-																	} else {
-																		echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-																	?>
-<br />
-								<label><?php _e('Information', 'it-l10n-backupbuddy' ); ?></label> 
-															   <?php
-																if ( ! empty( $scan['SYSTEM']['INFO'] ) ) {
-																	echo lined_array( $scan['SYSTEM']['INFO'] );
-																} else {
-																	echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-																?>
-<br />
+								<label><?php _e( 'Site', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['SCAN']['SITE'] ) ) {
+									echo lined_array( $scan['SCAN']['SITE'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
+								<label><?php _e( 'Hostname', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['SCAN']['DOMAIN'] ) ) {
+									echo lined_array( $scan['SCAN']['DOMAIN'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
+								<label><?php _e( 'IP Address', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['SCAN']['IP'] ) ) {
+									echo lined_array( $scan['SCAN']['IP'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
+								<label><?php _e( 'System details', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['SYSTEM']['NOTICE'] ) ) {
+									echo lined_array( $scan['SYSTEM']['NOTICE'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
+								<label><?php _e( 'Information', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['SYSTEM']['INFO'] ) ) {
+									echo lined_array( $scan['SYSTEM']['INFO'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
 							</div>
 						</div>
-
 						<div id="breadcrumbslike" class="postbox">
 							<div class="handlediv" title="Click to toggle"><br /></div>
-							<h3 class="hndle"><span><?php _e('Web application', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<h3 class="hndle"><span><?php _e( 'Web application', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
-								<label><?php _e('Details', 'it-l10n-backupbuddy' ); ?></label> 
-														   <?php
-															if ( ! empty( $scan['WEBAPP']['INFO'] ) ) {
-																echo lined_array( $scan['WEBAPP']['INFO'] );
-															} else {
-																echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-															?>
-<br />
-								<label><?php _e('Versions', 'it-l10n-backupbuddy' ); ?></label> 
-															<?php
-															if ( ! empty( $scan['WEBAPP']['VERSION'] ) ) {
-																echo lined_array( $scan['WEBAPP']['VERSION'] );
-															} else {
-																echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-															?>
-<br />
-								<label><?php _e('Notices', 'it-l10n-backupbuddy' ); ?></label> 
-														   <?php
-															if ( ! empty( $scan['WEBAPP']['NOTICE'] ) ) {
-																echo lined_array( $scan['WEBAPP']['NOTICE'] );
-															} else {
-																echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-															?>
-<br />
-								<label><?php _e('Errors', 'it-l10n-backupbuddy' ); ?></label> 
-														  <?php
-															if ( ! empty( $scan['WEBAPP']['ERROR'] ) ) {
-																echo lined_array( $scan['WEBAPP']['ERROR'] );
-															} else {
-																echo '<i>',__('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
-															?>
-<br />
-								<label><?php _e('Warnings', 'it-l10n-backupbuddy' ); ?></label> 
-															<?php
-															if ( ! empty( $scan['WEBAPP']['WARN'] ) ) {
-																echo lined_array( $scan['WEBAPP']['WARN'] );
-															} else {
-																echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
-															?>
-<br />
+								<label><?php _e( 'Details', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['WEBAPP']['INFO'] ) ) {
+									echo lined_array( $scan['WEBAPP']['INFO'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
+								<label><?php _e( 'Versions', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['WEBAPP']['VERSION'] ) ) {
+									echo lined_array( $scan['WEBAPP']['VERSION'] );
+								} else {
+									echo '<i>',__( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
+								<label><?php _e( 'Notices', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['WEBAPP']['NOTICE'] ) ) {
+									echo lined_array( $scan['WEBAPP']['NOTICE'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />'; }
+								?>
+								<br />
+								<label><?php _e( 'Errors', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['WEBAPP']['ERROR'] ) ) {
+									echo lined_array( $scan['WEBAPP']['ERROR'] );
+								} else {
+									echo '<i>',__( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
+								<label><?php _e( 'Warnings', 'mainwp-child' ); ?></label>
+								<?php
+								if ( ! empty( $scan['WEBAPP']['WARN'] ) ) {
+									echo lined_array( $scan['WEBAPP']['WARN'] );
+								} else {
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
+								?>
+								<br />
 							</div>
 						</div>
 
 						<div id="breadcrumbslike" class="postbox">
-							<div class="handlediv" title="<?php _e('Click to toggle', 'it-l10n-backupbuddy' ); ?>"><br /></div>
-							<h3 class="hndle"><span><?php _e('Links', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<div class="handlediv" title="<?php _e( 'Click to toggle', 'mainwp-child' ); ?>"><br /></div>
+							<h3 class="hndle"><span><?php _e( 'Links', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
 								<?php
 								if ( ! empty( $scan['LINKS']['URL'] ) ) {
 									echo lined_array( $scan['LINKS']['URL'] );
 								} else {
-									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
 								?>
 							</div>
 						</div>
 
 						<div id="breadcrumbslike" class="postbox">
-							<div class="handlediv" title="<?php _e('Click to toggle', 'it-l10n-backupbuddy' ); ?>"><br /></div>
-							<h3 class="hndle"><span><?php _e('Local Javascript', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<div class="handlediv" title="<?php _e( 'Click to toggle', 'mainwp-child' ); ?>"><br /></div>
+							<h3 class="hndle"><span><?php _e( 'Local Javascript', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
 								<?php
 								if ( ! empty( $scan['LINKS']['JSLOCAL'] ) ) {
 									echo lined_array( $scan['LINKS']['JSLOCAL'] );
 								} else {
-									echo '<i>', __('none', 'it-l10n-backupbuddy' ),'</i><br />'; }
+									echo '<i>', __( 'none', 'mainwp-child' ),'</i><br />';
+								}
 								?>
 							</div>
 						</div>
 
 						<div id="breadcrumbslike" class="postbox">
-							<div class="handlediv" title="<?php _e('Click to toggle', 'it-l10n-backupbuddy' ); ?>"><br /></div>
-							<h3 class="hndle"><span><?php _e('External Javascript', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<div class="handlediv" title="<?php _e( 'Click to toggle', 'mainwp-child' ); ?>"><br /></div>
+							<h3 class="hndle"><span><?php _e( 'External Javascript', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
 								<?php
 								if ( ! empty( $scan['LINKS']['JSEXTERNAL'] ) ) {
 									echo lined_array( $scan['LINKS']['JSEXTERNAL'] );
 								} else {
-									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />'; }
 								?>
 							</div>
 						</div>
 
 						<div id="breadcrumbslike" class="postbox">
-							<div class="handlediv" title="<?php _e('Click to toggle', 'it-l10n-backupbuddy' ); ?>"><br /></div>
-							<h3 class="hndle"><span><?php _e('Iframes Included', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<div class="handlediv" title="<?php esc_attr_e( 'Click to toggle', 'mainwp-child' ); ?>"><br /></div>
+							<h3 class="hndle"><span><?php esc_html_e( 'Iframes Included', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
 								<?php
 								if ( ! empty( $scan['LINKS']['IFRAME'] ) ) {
 									echo lined_array( $scan['LINKS']['IFRAME'] );
 								} else {
-									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
 								?>
 							</div>
 						</div>
 
 						<div id="breadcrumbslike" class="postbox">
-							<div class="handlediv" title="<?php _e('Click to toggle', 'it-l10n-backupbuddy' ); ?>"><br /></div>
-							<h3 class="hndle"><span><?php _e('Blacklisting Status', 'it-l10n-backupbuddy' ); ?></span></h3>
+							<div class="handlediv" title="<?php esc_attr_e( 'Click to toggle', 'mainwp-child' ); ?>"><br /></div>
+							<h3 class="hndle"><span><?php esc_html_e( ' Blacklisting Status', 'mainwp-child' ); ?></span></h3>
 							<div class="inside">
 								<?php
 								if ( ! empty( $scan['BLACKLIST']['INFO'] ) ) {
 									echo lined_array( $scan['BLACKLIST']['INFO'] );
 								} else {
-									echo '<i>', __('none', 'it-l10n-backupbuddy' ), '</i><br />'; }
+									echo '<i>', __( 'none', 'mainwp-child' ), '</i><br />';
+								}
 								?>
 							</div>
 						</div>
@@ -2504,10 +2441,10 @@ class MainWP_Child_Back_Up_Buddy {
 		$errors = array();
 
 		$archive_types = array(
-			'db'      => __( 'Database Backup', 'it-l10n-backupbuddy' ),
-			'full'    => __( 'Full Backup', 'it-l10n-backupbuddy' ),
-			'plugins' => __( 'Plugins Backup', 'it-l10n-backupbuddy' ),
-			'themes'  => __( 'Themes Backup', 'it-l10n-backupbuddy' ),
+			'db'      => __( 'Database Backup', 'mainwp-child' ),
+			'full'    => __( 'Full Backup', 'mainwp-child' ),
+			'plugins' => __( 'Plugins Backup', 'mainwp-child' ),
+			'themes'  => __( 'Themes Backup', 'mainwp-child' ),
 		);
 
 		$archive_periods = array(
@@ -2623,25 +2560,24 @@ class MainWP_Child_Back_Up_Buddy {
 		require_once pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php';
 
 		$destination_id       = backupbuddy_live::getLiveID();
-		$destination_settings = isset(pb_backupbuddy::$options['remote_destinations'][ $destination_id ]) ? pb_backupbuddy::$options['remote_destinations'][ $destination_id ] : array();
+		$destination_settings = isset( pb_backupbuddy::$options['remote_destinations'][ $destination_id ] ) ? pb_backupbuddy::$options['remote_destinations'][ $destination_id ] : array();
 
-		$check_current = ! empty($destination_settings) ? true : false;
+		$check_current = ! empty( $destination_settings ) ? true : false;
 
 		$error = '';
-		if ( $new_destination_id && is_array($data) ) {
-			$itxapi_username                         = isset($destination_settings['itxapi_username']) ? $destination_settings['itxapi_username'] : '';
-			$itxapi_token                            = isset($destination_settings['itxapi_token']) ? $destination_settings['itxapi_token'] : '';
+		if ( $new_destination_id && is_array( $data ) ) {
+			$itxapi_username                         = isset( $destination_settings['itxapi_username'] ) ? $destination_settings['itxapi_username'] : '';
+			$itxapi_token                            = isset( $destination_settings['itxapi_token'] ) ? $destination_settings['itxapi_token'] : '';
 			$destination_settings                    = array_merge( $destination_settings, $data );
 			$destination_settings['itxapi_username'] = $itxapi_username;
 			$destination_settings['itxapi_token']    = $itxapi_token;
 			pb_backupbuddy::$options['remote_destinations'][ $new_destination_id ] = $destination_settings;
 
 			if ( $check_current && $destination_id != $new_destination_id ) {
-				unset(pb_backupbuddy::$options['remote_destinations'][ $destination_id ]);
+				unset( pb_backupbuddy::$options['remote_destinations'][ $destination_id ] );
 			}
 
 			pb_backupbuddy::save();
-			// pb_backupbuddy::alert( __( 'Settings saved. Restarting Live process so they take immediate effect.', 'it-l10n-backupbuddy' ) );
 			set_transient( 'backupbuddy_live_jump', array( 'daily_init', array() ), 60 * 60 * 48 ); // Tells Live process to restart from the beginning (if mid-process) so new settigns apply.
 
 			backupbuddy_live::send_trim_settings();
@@ -2658,7 +2594,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		$return = array();
 		if ( $liveDestinationID ) {
-			if ( isset(pb_backupbuddy::$options['remote_destinations'][ $liveDestinationID ]) ) {
+			if ( isset( pb_backupbuddy::$options['remote_destinations'][ $liveDestinationID ] ) ) {
 				// Clear destination settings.
 				unset( pb_backupbuddy::$options['remote_destinations'][ $liveDestinationID ] );
 				pb_backupbuddy::save();
@@ -2673,7 +2609,7 @@ class MainWP_Child_Back_Up_Buddy {
 			$error = 'Error: Empty destination id.';
 		}
 
-		if ( ! empty($error) ) {
+		if ( ! empty( $error ) ) {
 			$return['error'] = $error;
 		}
 
@@ -2698,20 +2634,18 @@ class MainWP_Child_Back_Up_Buddy {
 			} else {
 				$message = 'Log file cleared.';
 			}
-		} elseif ( 'create_snapshot' == $action ) { // < 100% backed up _OR_ ( we are on a step other than daily_init and the last_activity is more recent than the php runtime )
+		} elseif ( 'create_snapshot' == $action ) { // < 100% backed up _OR_ ( we are on a step other than daily_init and the last_activity is more recent than the php runtime ).
 			if ( true === backupbuddy_api::runLiveSnapshot() ) {
-				// pb_backupbuddy::alert( '<h3>' . __( 'Verifying everything is up to date before Snapshot', 'it-l10n-backupbuddy' ) . '</h3><p class="description" style="max-width: 700px; display: inline-block;">' . __( 'Please wait while we verify your backup is completely up to date before we create the Snapshot. This may take a few minutes...', 'it-l10n-backupbuddy' ) . '</p>', false, '', 'backupbuddy_live_snapshot_verify_uptodate' );
-				$message = '<h3>' . __( 'Verifying everything is up to date before Snapshot', 'it-l10n-backupbuddy' ) . '</h3><p class="description" style="max-width: 700px; display: inline-block;">' . __( 'Please wait while we verify your backup is completely up to date before we create the Snapshot. This may take a few minutes...', 'it-l10n-backupbuddy' ) . '</p>';
+				$message = '<h3>' . __( 'Verifying everything is up to date before Snapshot', 'mainwp-child' ) . '</h3><p class="description" style="max-width: 700px; display: inline-block;">' . __( 'Please wait while we verify your backup is completely up to date before we create the Snapshot. This may take a few minutes...', 'mainwp-child' ) . '</p>';
 				require pb_backupbuddy::plugin_path() . '/destinations/live/_manual_snapshot.php';
 			}
 		} elseif ( 'pause_periodic' == $action ) {
 			backupbuddy_api::setLiveStatus( $pause_continuous = '', $pause_periodic = true );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
-			// pb_backupbuddy::disalert( '', __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'it-l10n-backupbuddy' ) );
-			$message = __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'it-l10n-backupbuddy' );
-			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
+			$message = __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'mainwp-child' );
+			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php';
 		} elseif ( 'resume_periodic' == $action ) {
-			$launchNowText = ' ' . __( 'Unpaused but not running now.', 'it-l10n-backupbuddy' );
+			$launchNowText = ' ' . __( 'Unpaused but not running now.', 'mainwp-child' );
 			$start_run     = false;
 			if ( '1' != pb_backupbuddy::_GET( 'skip_run_live_now' ) ) {
 				$launchNowText = '';
@@ -2719,21 +2653,18 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			backupbuddy_api::setLiveStatus( $pause_continuous = '', $pause_periodic = false, $start_run );
-			// pb_backupbuddy::disalert( '', __( 'Live File Backup has resumed.', 'it-l10n-backupbuddy' ) . $launchNowText );
-			$message = __( 'Live File Backup has resumed.', 'it-l10n-backupbuddy' ) . $launchNowText;
-			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
+			$message = __( 'Live File Backup has resumed.', 'mainwp-child' ) . $launchNowText;
+			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php';
 		} elseif ( 'pause_continuous' == $action ) {
 			backupbuddy_api::setLiveStatus( $pause_continuous = true, $pause_periodic = '' );
-			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
+			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ];
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
-			// pb_backupbuddy::disalert( '', __( 'Live Database Backup paused.', 'it-l10n-backupbuddy' ) );
-			$message = __( 'Live Database Backup paused.', 'it-l10n-backupbuddy' );
+			$message = __( 'Live Database Backup paused.', 'mainwp-child' );
 		} elseif ( 'resume_continuous' == $action ) {
 			backupbuddy_api::setLiveStatus( $pause_continuous = false, $pause_periodic = '' );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
-			// pb_backupbuddy::disalert( '', __( 'Live Database Backup resumed.', 'it-l10n-backupbuddy' ) );
-			$message = __( 'Live Database Backup resumed.', 'it-l10n-backupbuddy' );
+			$message = __( 'Live Database Backup resumed.', 'mainwp-child' );
 		} else {
 			$error = 'Error #1000. Invalid request.';
 		}
@@ -2773,11 +2704,11 @@ class MainWP_Child_Back_Up_Buddy {
 		$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ];
 
 		if ( 'live' == $destination['type'] ) {
-			$remotePath = 'snapshot-';// . backupbuddy_core::backup_prefix();
+			$remotePath = 'snapshot-';
 			$site_only  = true;
 		} else {
 			// Get list of files for this site.
-			$remotePath = 'backup-';// . backupbuddy_core::backup_prefix();
+			$remotePath = 'backup-';
 			$site_only  = true;
 		}
 
@@ -2946,7 +2877,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	function save_license_settings() {
 		$settings = $_POST['settings'];
-		if ( is_array($settings) && isset($GLOBALS['ithemes-updater-settings']) ) {
+		if ( is_array( $settings ) && isset( $GLOBALS['ithemes-updater-settings'] ) ) {
 			$GLOBALS['ithemes-updater-settings']->update_options( $settings );
 			return array( 'ok' => 1 );
 		}
@@ -2956,7 +2887,7 @@ class MainWP_Child_Back_Up_Buddy {
 	function load_products_license() {
 		$packages      = array();
 		$packages_name = array();
-		if ( isset($GLOBALS['ithemes_updater_path']) ) {
+		if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
 
 			require_once $GLOBALS['ithemes_updater_path'] . '/functions.php';
 			require_once $GLOBALS['ithemes_updater_path'] . '/api.php';
@@ -2965,8 +2896,8 @@ class MainWP_Child_Back_Up_Buddy {
 			require_once $GLOBALS['ithemes_updater_path'] . '/packages.php';
 
 			$details  = Ithemes_Updater_Packages::get_full_details();
-			$packages = isset($details['packages']) ? $details['packages'] : array();
-			if ( is_array($packages) ) {
+			$packages = isset( $details['packages'] ) ? $details['packages'] : array();
+			if ( is_array( $packages ) ) {
 				foreach ( $packages as $path => $data ) {
 					$packages_name[ $path ] = Ithemes_Updater_Functions::get_package_name( $data['package'] );
 				}
@@ -2986,7 +2917,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$packages = $_POST['packages'];
 
 		$return = array( 'ok' => 1 );
-		if ( isset($GLOBALS['ithemes_updater_path']) ) {
+		if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
 
 			require_once $GLOBALS['ithemes_updater_path'] . '/functions.php';
 			require_once $GLOBALS['ithemes_updater_path'] . '/api.php';
@@ -3003,7 +2934,7 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			if ( empty( $response['packages'] ) ) {
-				$errors[]         = __( 'An unknown server error occurred. Please try to license your products again at another time.', 'it-l10n-backupbuddy' );
+				$errors[]         = __( 'An unknown server error occurred. Please try to license your products again at another time.', 'mainwp-child' );
 				$return['errors'] = $errors;
 				return $return;
 			}
@@ -3024,27 +2955,27 @@ class MainWP_Child_Back_Up_Buddy {
 				if ( ! empty( $data['key'] ) ) {
 					$success[] = $name;
 				} elseif ( ! empty( $data['status'] ) && ( 'expired' == $data['status'] ) ) {
-					$warn[ $name ] = __( 'Your product subscription has expired', 'it-l10n-backupbuddy' );
+					$warn[ $name ] = __( 'Your product subscription has expired', 'mainwp-child' );
 				} else {
 					$fail[ $name ] = $data['error']['message'];
 				}
 			}
 
 			if ( ! empty( $success ) ) {
-				$messages[]         = wp_sprintf( __( 'Successfully licensed %l.', 'it-l10n-backupbuddy' ), $success );
+				$messages[]         = wp_sprintf( __( 'Successfully licensed %l.', 'mainwp-child' ), $success );
 				$return['messages'] = $messages;
 			}
 
 			if ( ! empty( $fail ) ) {
 				foreach ( $fail as $name => $reason ) {
-					$errors[] = sprintf( __( 'Unable to license %1$s. Reason: %2$s', 'it-l10n-backupbuddy' ), $name, $reason );
+					$errors[] = sprintf( __( 'Unable to license %1$s. Reason: %2$s', 'mainwp-child' ), $name, $reason );
 				}
 				$return['errors'] = $errors;
 			}
 
 			if ( ! empty( $warn ) ) {
 				foreach ( $warn as $name => $reason ) {
-					$soft_errors[] = sprintf( __( 'Unable to license %1$s. Reason: %2$s', 'it-l10n-backupbuddy' ), $name, $reason );
+					$soft_errors[] = sprintf( __( 'Unable to license %1$s. Reason: %2$s', 'mainwp-child' ), $name, $reason );
 				}
 				$return['soft_errors'] = $soft_errors;
 			}
@@ -3060,7 +2991,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		$return = array( 'ok' => 1 );
 
-		if ( isset($GLOBALS['ithemes_updater_path']) ) {
+		if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
 
 			require_once $GLOBALS['ithemes_updater_path'] . '/functions.php';
 			require_once $GLOBALS['ithemes_updater_path'] . '/api.php';
@@ -3068,7 +2999,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 			require_once $GLOBALS['ithemes_updater_path'] . '/packages.php';
 
-			$response = Ithemes_Updater_API::deactivate_package($username, $password, $packages );
+			$response = Ithemes_Updater_API::deactivate_package( $username, $password, $packages );
 
 			if ( is_wp_error( $response ) ) {
 				$errors[]         = $this->get_error_explanation( $response );
@@ -3157,4 +3088,3 @@ class MainWP_Child_Back_Up_Buddy {
 
 
 }
-
