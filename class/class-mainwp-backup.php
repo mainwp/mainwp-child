@@ -716,7 +716,7 @@ class MainWP_Backup {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
-		$db_files = array();
+		$db_files  = array();
 		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
 		foreach ( $tables_db as $curr_table ) {
 			if ( null !== $archiver ) {
