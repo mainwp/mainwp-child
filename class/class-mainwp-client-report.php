@@ -31,7 +31,7 @@ class MainWP_Client_Report {
 	public function syncOthersData( $information, $data = array() ) {
 		if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {
 			$creport_sync_data = array();
-			$firsttime = get_option( 'mainwp_creport_first_time_activated' );
+			$firsttime         = get_option( 'mainwp_creport_first_time_activated' );
 			if ( false !== $firsttime ) {
 				$creport_sync_data['firsttime_activated'] = $firsttime;
 			}
