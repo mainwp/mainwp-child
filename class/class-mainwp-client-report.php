@@ -503,7 +503,7 @@ class MainWP_Client_Report {
 								// ok, pass, do not check context.
 							} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
 								// ok, pass, don't check context.
-							} elseif ( $context !== strtolower( $record->context ) ) {
+							} elseif ( strtolower( $record->context ) !== $context ) {
 								continue;
 							}
 
@@ -639,7 +639,7 @@ class MainWP_Client_Report {
 			} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
 				// ok, pass, don't check context.
 				//
-			} elseif ( $context !== strtolower( $record->context ) ) {
+			} elseif ( strtolower( $record->context ) !== $context ) {
 				continue;
 			}
 
@@ -794,7 +794,7 @@ class MainWP_Client_Report {
 
 							$details = array();
 
-							if ( is_array( $meta_value) ) {
+							if ( is_array( $meta_value ) ) {
 								foreach ( $meta_value as $mt ) {
 									if ( isset( $maintenance_details[ $mt ] ) ) {
 										$details[] = $maintenance_details[ $mt ];
@@ -886,7 +886,7 @@ class MainWP_Client_Report {
 		return $value;
 	}
 
-	function set_showhide() {
+	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Child_Branding::Instance()->save_branding_options( 'hide_child_reports', $hide );
 		$information['result'] = 'SUCCESS';
