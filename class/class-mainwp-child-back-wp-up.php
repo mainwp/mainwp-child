@@ -1320,14 +1320,14 @@ class MainWP_Child_Back_WP_Up {
 	// From BackWPup_JobType_File::edit_form_post_save with some tweaks.
 	public function edit_form_post_save( $post_data, $id ) {
 		// Parse and save files to exclude.
-		$exclude_input                        = $post_data['fileexclude'];
-		$to_exclude_list                      = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
-		$to_exclude_list && $to_exclude_list  = sanitize_text_field( stripslashes( $to_exclude_list ) );
-		$to_exclude                           = $to_exclude_list ? explode( ',', $to_exclude_list ) : array();
-		$to_exclude_parsed                    = array();
+		$exclude_input                       = $post_data['fileexclude'];
+		$to_exclude_list                     = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
+		$to_exclude_list && $to_exclude_list = sanitize_text_field( stripslashes( $to_exclude_list ) );
+		$to_exclude                          = $to_exclude_list ? explode( ',', $to_exclude_list ) : array();
+		$to_exclude_parsed                   = array();
 		foreach ( $to_exclude as $key => $value ) {
-			$normalized                                = wp_normalize_path( trim( $value ) );
-			$normalized && $to_exclude_parsed[ $key ]  = $normalized;
+			$normalized                               = wp_normalize_path( trim( $value ) );
+			$normalized && $to_exclude_parsed[ $key ] = $normalized;
 		}
 		sort( $to_exclude_parsed );
 		BackWPup_Option::update( $id, 'fileexclude', implode( ',', $to_exclude_parsed ) );
@@ -1339,10 +1339,10 @@ class MainWP_Child_Back_WP_Up {
 		$to_include        = $include_list ? explode( ',', $include_list ) : array();
 		$to_include_parsed = array();
 		foreach ( $to_include as $key => $value ) {
-			$normalized                              = trailingslashit( wp_normalize_path( trim( $value ) ) );
-			$normalized && $normalized               = filter_var( $normalized, FILTER_SANITIZE_URL );
-			$realpath                                = $normalized && $normalized !== '/' ? realpath( $normalized ) : false;
-			$realpath && $to_include_parsed[ $key ]  = $realpath;
+			$normalized                             = trailingslashit( wp_normalize_path( trim( $value ) ) );
+			$normalized && $normalized              = filter_var( $normalized, FILTER_SANITIZE_URL );
+			$realpath                               = $normalized && $normalized !== '/' ? realpath( $normalized ) : false;
+			$realpath && $to_include_parsed[ $key ] = $realpath;
 		}
 		sort( $to_include_parsed );
 		BackWPup_Option::update( $id, 'dirinclude', implode( ',', $to_include_parsed ) );
