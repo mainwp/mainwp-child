@@ -34,7 +34,7 @@ class MainWP_Child_Branding {
 
 			$opts['contact_label']  = $label;
 			$opts['extra_settings'] = get_option( 'mainwp_branding_extra_settings' );
-			MainWP_Helper::update_option( 'mainwp_child_branding_settings', $opts  );
+			MainWP_Helper::update_option( 'mainwp_child_branding_settings', $opts );
 		}
 
 		if ( ! isset( $opts['contact_label'] ) || empty( $opts['contact_label'] ) ) {
@@ -61,11 +61,11 @@ class MainWP_Child_Branding {
 		return $opts;
 	}
 
-	function get_extra_options() {
+	public function get_extra_options() {
 		$extra = array();
 		if ( is_array( $this->child_branding_options ) && isset( $this->child_branding_options['extra_settings'] ) ) {
 			$extra = $this->child_branding_options['extra_settings'];
-			if ( ! is_array($extra) ) {
+			if ( ! is_array( $extra ) ) {
 				$extra = array();
 			}
 		}
@@ -142,7 +142,7 @@ class MainWP_Child_Branding {
 		);
 
 		foreach ( $brandingOptions_empty as $opt ) {
-			if ( isset($this->child_branding_options[ $opt ]) ) {
+			if ( isset( $this->child_branding_options[ $opt ] ) ) {
 				$this->child_branding_options[ $opt ] = '';
 			}
 		}
@@ -444,7 +444,7 @@ class MainWP_Child_Branding {
 	}
 
 	// prevent conflicts with other plugins.
-	function admin_menu() {
+	public function admin_menu() {
 		$allow_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
 		if ( $allow_contact ) {
 			// skip!
@@ -453,7 +453,7 @@ class MainWP_Child_Branding {
 		}
 
 		$extra_setting = $this->get_extra_options();
-		if ( empty ( $extra_setting ) ) {
+		if ( empty( $extra_setting ) ) {
 			return false;
 		}
 		$opts = $this->child_branding_options;
@@ -586,7 +586,7 @@ class MainWP_Child_Branding {
 		}
 	}
 
-	function custom_pages_columns( $defaults ) {
+	public function custom_pages_columns( $defaults ) {
 		$extra_setting = $this->get_extra_options();
 
 		if ( isset( $extra_setting['hide_metabox_page_comments'] ) && $extra_setting['hide_metabox_page_comments'] ) {
@@ -800,7 +800,8 @@ class MainWP_Child_Branding {
 			$mail .= "<p>Support Text:</p>\r\n\r\n";
 			$mail .= '<p>' . $content . "</p>\r\n\r\n";
 
-			if ( @wp_mail( $email, $subject, $mail, $headers ) ) {;
+			if ( @wp_mail( $email, $subject, $mail, $headers ) ) {
+				;
 			}
 
 			return true;
@@ -1047,7 +1048,7 @@ class MainWP_Child_Branding {
 		$count_hide = 0;
 
 		$updates = get_plugin_updates();
-		if ( is_array($updates) ) {
+		if ( is_array( $updates ) ) {
 			foreach ( $updates as $slug => $data ) {
 				if ( in_array( $slug, $hide_slugs ) ) {
 					$count_hide++;
