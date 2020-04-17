@@ -7,15 +7,14 @@
  * Author: Vendi Advertising (Chris Haas)
  * Author URI: https://wp-staging.com
  * License: GPLv2
- *
-*/
+ */
 class MainWP_Child_Themes_Check {
-	public static $instance = null;
-	private $cron_name_watcher = 'mainwp_child_cron_theme_health_check_watcher';
-	private $cron_name_daily = 'mainwp_child_cron_theme_health_check_daily';
-	private $cron_name_batching = 'mainwp_child_cron_theme_health_check_batching';
+	public static $instance             = null;
+	private $cron_name_watcher          = 'mainwp_child_cron_theme_health_check_watcher';
+	private $cron_name_daily            = 'mainwp_child_cron_theme_health_check_daily';
+	private $cron_name_batching         = 'mainwp_child_cron_theme_health_check_batching';
 	private $tran_name_theme_timestamps = 'mainwp_child_tran_name_theme_timestamps';
-	private $tran_name_themes_to_batch = 'mainwp_child_tran_name_themes_to_batch';
+	private $tran_name_themes_to_batch  = 'mainwp_child_tran_name_themes_to_batch';
 	private $option_name_last_daily_run = 'mainwp_child_theme_last_daily_run';
 
 	public static function Instance() {
