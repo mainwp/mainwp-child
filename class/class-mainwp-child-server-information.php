@@ -589,10 +589,20 @@ class MainWP_Child_Server_Information {
 				self::renderRowSec( 'cURL Timeout', '>=', '300', 'getCurlTimeout', 'seconds', '=', '0' );
 				if ( function_exists( 'curl_version' ) ) {
 					self::renderRowSec( 'cURL Version', '>=', '7.18.1', 'getCurlVersion', '', '', null );
-					self::renderRowSec( 'cURL SSL Version', '>=', array(
-						'version_number' => 0x009080cf,
-						'version'        => 'OpenSSL/0.9.8l',
-					), 'getCurlSSLVersion', '', '', null, '', 'curlssl' );
+					self::renderRowSec(
+						'cURL SSL Version',
+						'>=',
+						array(
+							'version_number' => 0x009080cf,
+							'version'        => 'OpenSSL/0.9.8l',
+						),
+						'getCurlSSLVersion',
+						'',
+						'',
+						null,
+						'',
+						'curlssl'
+					);
 				}
 				?>
 				<tr>
@@ -1148,7 +1158,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getPHPSafeMode() {
-		if ( version_compare(phpversion(), '5.3.0' ) < 0 && ini_get( 'safe_mode' ) ) {
+		if ( version_compare( phpversion(), '5.3.0' ) < 0 && ini_get( 'safe_mode' ) ) {
 			$safe_mode = __( 'ON', 'mainwp-child' );
 		} else {
 			$safe_mode = __( 'OFF', 'mainwp-child' );
@@ -1425,7 +1435,7 @@ class MainWP_Child_Server_Information {
 
 		if ( empty( $lines ) ) {
 			$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-			if ( $branding_title == '' ) {
+			if ( '' == $branding_title ) {
 				$branding_title = 'MainWP';
 			}
 			$msg = esc_html( stripslashes( $branding_title ) ) . ' is unable to find your error logs, please contact your host for server error logs.';
