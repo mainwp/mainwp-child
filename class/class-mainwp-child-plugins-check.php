@@ -8,7 +8,6 @@
  * Author URI: https://wp-staging.com
  * License: GPLv2
  */
-
 class MainWP_Child_Plugins_Check {
 	public static $instance = null;
 
@@ -285,7 +284,6 @@ class MainWP_Child_Plugins_Check {
 
 			// Make sure that it isn't empty and also not an empty serialized object.
 			if ( '' !== $body && 'N;' !== $body ) {
-				// If valid, return that!
 				return $body;
 			}
 		}
