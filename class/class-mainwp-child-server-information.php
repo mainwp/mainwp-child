@@ -5,10 +5,13 @@ class MainWP_Child_Server_Information {
 	const ERROR   = 2;
 
 	public static function init() {
-		add_action( 'wp_ajax_mainwp-child_dismiss_warnings', array(
-			'MainWP_Child_Server_Information',
-			'dismissWarnings',
-		) );
+		add_action(
+			'wp_ajax_mainwp-child_dismiss_warnings',
+			array(
+				'MainWP_Child_Server_Information',
+				'dismissWarnings',
+			)
+		);
 	}
 
 	public static function dismissWarnings() {
@@ -17,14 +20,13 @@ class MainWP_Child_Server_Information {
 			if ( ! is_array( $dismissWarnings ) ) {
 				$dismissWarnings = array();
 			}
-
-			if ( $_POST['what'] == 'warning' ) {
-				if ( isset($_POST['warnings']) ) {
-					$warnings = intval($_POST['warnings']);
+			if ( 'warning' == $_POST['what'] ) {
+				if ( isset( $_POST['warnings'] ) ) {
+					$warnings = intval( $_POST['warnings'] );
 				} else {
 					$warnings = self::getWarnings();
 				}
-							$dismissWarnings['warnings'] = $warnings;
+				$dismissWarnings['warnings'] = $warnings;
 			}
 			MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
 		}
@@ -67,17 +69,15 @@ class MainWP_Child_Server_Information {
 				var data = {
 					action: 'mainwp-child_dismiss_warnings',
 					what: pAction,
-					warnings: <?php echo intval($warnings); ?>
+					warnings: <?php echo intval( $warnings ); ?>
 				};
 
 				jQuery.ajax( {
 					type: "POST",
 					url: ajaxurl,
 					data: data,
-					success: function ( resp ) {
-					},
-					error: function () {
-					},
+					success: function ( resp ) {},
+					error: function () {},
 					dataType: 'json'
 				} );
 
@@ -102,7 +102,7 @@ class MainWP_Child_Server_Information {
 				border-radius: 3px;
 				margin: 1em 0 !important;
 
-				background-image: url('<?php echo esc_url( plugins_url( 'images/mainwp-icon-orange.png', dirname( __FILE__ ) ) ); ?>') !important;
+				background-image: url( '<?php echo esc_url( plugins_url( 'images/mainwp-icon-orange.png', dirname( __FILE__ ) ) ); ?>' ) !important;
 				background-position: 1.5em 50% !important;
 				background-repeat: no-repeat !important;
 				background-size: 30px !important;
@@ -123,9 +123,8 @@ class MainWP_Child_Server_Information {
 				<tbody id="the-sites-list" class="list:sites">
 				<?php
 				$warning = '';
-
 				if ( $warnings > 0 ) {
-					$warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=mainwp_child_tab">MainWP server information page</a> to review and <a href="http://docs.mainwp.com/child-site-issues/">check here for more information on possible fixes</a></td><td style="text-align: right;"><a href="#" id="mainwp-child-connect-warning-dismiss">Dismiss</a></td></tr>';
+					$warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=mainwp_child_tab">MainWP server information page</a>.</td><td style="text-align: right;"><a href="#" id="mainwp-child-connect-warning-dismiss">Dismiss</a></td></tr>';
 				}
 				echo $warning;
 				?>
@@ -145,22 +144,19 @@ class MainWP_Child_Server_Information {
 			 *
 			 * By Eli Grey, http://eligrey.com
 			 * License: X11/MIT
-			 *   See LICENSE.md
+			 * See LICENSE.md
 			 */
 
 			/*global self */
-			/*jslint bitwise: true, regexp: true, confusion: true, es5: true, vars: true, white: true,
-			 plusplus: true */
+			/*jslint bitwise: true, regexp: true, confusion: true, es5: true, vars: true, white: true, plusplus: true */
 
 			/*! @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js */
 
 			var childSaveAs = childSaveAs
-				|| (navigator.msSaveBlob && navigator.msSaveBlob.bind(navigator))
-				|| (function(view) {
+				|| ( navigator.msSaveBlob && navigator.msSaveBlob.bind( navigator ) )
+				|| ( function( view ) {
 					"use strict";
-					var
-						doc = view.document
-					// only get URL when necessary in case BlobBuilder.js hasn't overridden it yet
+					var doc = view.document
 						, get_URL = function() {
 							return view.URL || view.webkitURL || view;
 						}
@@ -189,13 +185,13 @@ class MainWP_Child_Server_Information {
 							var i = deletion_queue.length;
 							while (i--) {
 								var file = deletion_queue[i];
-								if (typeof file === "string") { // file is an object URL
+								if (typeof file === "string") {
 									URL.revokeObjectURL(file);
-								} else { // file is a File
+								} else {
 									file.remove();
 								}
 							}
-							deletion_queue.length = 0; // clear queue
+							deletion_queue.length = 0;
 						}
 						, dispatch = function(filesaver, event_types, event) {
 							event_types = [].concat(event_types);
@@ -211,8 +207,7 @@ class MainWP_Child_Server_Information {
 								}
 							}
 						}
-						, FileSaver = function(blob, name) {
-							// First try a.download, then web filesystem, then object URLs
+						, FileSaver = function( blob, name ) {
 							var
 								filesaver = this
 								, type = blob.type
@@ -225,13 +220,11 @@ class MainWP_Child_Server_Information {
 									return object_url;
 								}
 								, dispatch_all = function() {
-									dispatch(filesaver, "writestart progress write writeend".split(" "));
+									dispatch( filesaver, "writestart progress write writeend".split( " " ) );
 								}
-							// on any filesys errors revert to saving with object URLs
 								, fs_error = function() {
-									// don't create more object URLs than needed
-									if (blob_changed || !object_url) {
-										object_url = get_object_url(blob);
+									if ( blob_changed || !object_url ) {
+										object_url = get_object_url( blob );
 									}
 									if (target_view) {
 										target_view.location.href = object_url;
@@ -250,34 +243,28 @@ class MainWP_Child_Server_Information {
 								, slice
 								;
 							filesaver.readyState = filesaver.INIT;
-							if (!name) {
+							if ( !name ) {
 								name = "download";
 							}
-							if (can_use_save_link) {
-								object_url = get_object_url(blob);
+							if ( can_use_save_link ) {
+								object_url = get_object_url( blob );
 								save_link.href = object_url;
 								save_link.download = name;
-								if (click(save_link)) {
+								if ( click( save_link ) ) {
 									filesaver.readyState = filesaver.DONE;
 									dispatch_all();
 									return;
 								}
 							}
-							// Object and web filesystem URLs have a problem saving in Google Chrome when
-							// viewed in a tab, so I force save with application/octet-stream
-							// http://code.google.com/p/chromium/issues/detail?id=91158
-							if (view.chrome && type && type !== force_saveable_type) {
+							if ( view.chrome && type && type !== force_saveable_type ) {
 								slice = blob.slice || blob.webkitSlice;
-								blob = slice.call(blob, 0, blob.size, force_saveable_type);
+								blob = slice.call( blob, 0, blob.size, force_saveable_type );
 								blob_changed = true;
 							}
-							// Since I can't be sure that the guessed media type will trigger a download
-							// in WebKit, I append .download to the filename.
-							// https://bugs.webkit.org/show_bug.cgi?id=65440
 							if (webkit_req_fs && name !== "download") {
 								name += ".download";
 							}
-							if (type === force_saveable_type || webkit_req_fs) {
+							if ( type === force_saveable_type || webkit_req_fs ) {
 								target_view = view;
 							} else {
 								target_view = view.open();
@@ -317,7 +304,6 @@ class MainWP_Child_Server_Information {
 										}), fs_error);
 									};
 									dir.getFile(name, {create: false}, abortable(function(file) {
-										// delete file if it already exists
 										file.remove();
 										save();
 									}), abortable(function(ex) {
@@ -362,8 +348,7 @@ class MainWP_Child_Server_Information {
 				var o = i.toString();
 				if (!s) { s = '0'; }
 				while (o.length < parseInt(l)) {
-					// empty
-					if(w == 'undefined'){
+					if( w == 'undefined' ){
 						o = s + o;
 					}else{
 						o = o + s;
@@ -371,65 +356,62 @@ class MainWP_Child_Server_Information {
 				}
 				return o;
 			};
-			jQuery('a.mwp-child-get-system-report-btn').live('click', function(){
+			jQuery( 'a.mwp-child-get-system-report-btn' ).live( 'click', function() {
 				var report = "";
-				jQuery('.mwp_server_info_box thead, .mwp_server_info_box tbody').each(function(){
+				jQuery( '.mwp_server_info_box thead, .mwp_server_info_box tbody' ).each( function() {
 					var td_len = [35, 55, 45, 12, 12];
 					var th_count = 0;
 					var i;
-					if ( jQuery( this ).is('thead') ) {
+					if ( jQuery( this ).is( 'thead' ) ) {
 						i = 0;
 						report = report + "\n### ";
-						th_count = jQuery( this ).find('th:not(".mwp-not-generate-row")').length;
-						jQuery( this ).find('th:not(".mwp-not-generate-row")').each(function(){
+						th_count = jQuery( this ).find( 'th:not(".mwp-not-generate-row")' ).length;
+						jQuery( this ).find( 'th:not(".mwp-not-generate-row")' ).each( function() {
 							var len = td_len[i];
-							if (i == 0 || i == th_count -1)
+							if ( i == 0 || i == th_count -1 )
 								len = len - 4;
-							report =  report + mwp_child_strCut(jQuery.trim( jQuery( this ).text()), len, ' ' );
+								report =  report + mwp_child_strCut( jQuery.trim( jQuery( this ).text() ), len, ' ' );
 							i++;
-						});
+						} );
 						report = report + " ###\n\n";
 					} else {
-						jQuery('tr', jQuery( this )).each(function(){
-							if (jQuery( this ).hasClass('mwp-not-generate-row'))
+						jQuery( 'tr', jQuery( this ) ).each( function() {
+							if ( jQuery( this ).hasClass( 'mwp-not-generate-row' ) )
 								return;
 							i = 0;
-							jQuery( this ).find('td:not(".mwp-not-generate-row")').each(function(){
-								if (jQuery( this ).hasClass('mwp-hide-generate-row')) {
-									report =  report + mwp_child_strCut(' ', td_len[i], ' ' );
+							jQuery( this ).find( 'td:not(".mwp-not-generate-row")' ).each( function() {
+								if (jQuery( this ).hasClass( 'mwp-hide-generate-row' ) ) {
+									report =  report + mwp_child_strCut( ' ', td_len[i], ' ' );
 									i++;
 									return;
 								}
-								report =  report + mwp_child_strCut(jQuery.trim( jQuery( this ).text()), td_len[i], ' ' );
+								report =  report + mwp_child_strCut( jQuery.trim( jQuery( this ).text() ), td_len[i], ' ' );
 								i++;
-							});
+							} );
 							report = report + "\n";
-						});
-
+						} );
 					}
 				} );
-
 				try {
-					jQuery("#mwp-server-information").slideDown();
-					jQuery("#mwp-server-information textarea").val( report ).focus().select();
-					jQuery(this).fadeOut();
-					jQuery('.mwp_child_close_srv_info').show();
+					jQuery( "#mwp-server-information" ).slideDown();
+					jQuery( "#mwp-server-information textarea" ).val( report ).focus().select();
+					jQuery( this ).fadeOut();
+					jQuery( '.mwp_child_close_srv_info' ).show();
 					return false;
 				} catch(e){ }
-			});
+			} );
 
-			jQuery('a#mwp_child_close_srv_info').live('click', function(){
-				jQuery('#mwp-server-information').hide();
-				jQuery('.mwp_child_close_srv_info').hide();
-				jQuery('a.mwp-child-get-system-report-btn').show();
+			jQuery( 'a#mwp_child_close_srv_info' ).live( 'click', function() {
+				jQuery( '#mwp-server-information' ).hide();
+				jQuery( '.mwp_child_close_srv_info' ).hide();
+				jQuery( 'a.mwp-child-get-system-report-btn' ).show();
 				return false;
-			});
-			jQuery('#mwp_child_download_srv_info').live('click', function () {
-				var server_info = jQuery('#mwp-server-information textarea').val();
-				var blob = new Blob([server_info], {type: "text/plain;charset=utf-8"});
-				childSaveAs(blob, "server_child_information.txt");
-			});
-
+			} );
+			jQuery( '#mwp_child_download_srv_info' ).live( 'click', function() {
+				var server_info = jQuery( '#mwp-server-information textarea' ).val();
+				var blob = new Blob( [server_info], {type: "text/plain;charset=utf-8"} );
+				childSaveAs( blob, "server_child_information.txt" );
+			} );
 		</script>
 		<style type="text/css">
 			#mwp-server-information {
@@ -462,30 +444,23 @@ class MainWP_Child_Server_Information {
 		</style>
 		<div class="wrap">
 			<div class="updated below-h2">
-				<p><?php _e( 'Please include this information when requesting support:', 'mainwp-child' ); ?></p>
-				<span class="mwp_child_close_srv_info"><a href="#" id="mwp_child_download_srv_info"><?php _e( 'Download', 'mainwp-child' ); ?></a> | <a href="#" id="mwp_child_close_srv_info"><i class="fa fa-eye-slash"></i> <?php _e( 'Hide', 'mainwp-child' ); ?>
-					</a></span>
-
+				<p><?php esc_html_e( 'Please include this information when requesting support:', 'mainwp-child' ); ?></p>
+				<span class="mwp_child_close_srv_info">
+					<a href="#" id="mwp_child_download_srv_info"><?php esc_html_e( 'Download', 'mainwp-child' ); ?></a> | <a href="#" id="mwp_child_close_srv_info"><i class="fa fa-eye-slash"></i> <?php _e( 'Hide', 'mainwp-child' ); ?></a>
+				</span>
 				<p class="submit">
-					<a class="button-primary mwp-child-get-system-report-btn" href="#"><?php _e( 'Get system report', 'mainwp-child' ); ?></a>
+					<a class="button-primary mwp-child-get-system-report-btn" href="#"><?php esc_html_e( 'Get system report', 'mainwp-child' ); ?></a>
 				</p>
-
 				<div id="mwp-server-information"><textarea readonly="readonly" wrap="off"></textarea></div>
 			</div>
 			<br/>
 			<div class="mwp_server_info_box">
-				<h2><?php esc_html_e( 'Server Information' ); ?></h2>
-									  <?php
-										self::render();
-										?>
-				<h2><?php esc_html_e( 'Cron Schedules' ); ?></h2>
-				<?php
-				self::renderCron();
-				?>
-				<h2><?php esc_html_e( 'Error Log' ); ?></h2>
-				<?php
-				self::renderErrorLogPage();
-				?>
+				<h2><?php esc_html_e( 'Server Information', 'mainwp-child' ); ?></h2>
+				<?php self::render(); ?>
+				<h2><?php esc_html_e( 'Cron Schedules', 'mainwp-child' ); ?></h2>
+				<?php self::renderCron(); ?>
+				<h2><?php esc_html_e( 'Error Log', 'mainwp-child' ); ?></h2>
+				<?php self::renderErrorLogPage(); ?>
 			</div>
 		</div>
 		<?php
@@ -493,7 +468,6 @@ class MainWP_Child_Server_Information {
 
 	public static function getWarnings() {
 		$i = 0;
-
 		if ( ! self::check( '>=', '3.4', 'getWordpressVersion' ) ) {
 			$i ++;
 		}
@@ -515,8 +489,6 @@ class MainWP_Child_Server_Information {
 		if ( ! self::check( '>=', '10000', 'getOutputBufferSize' ) ) {
 			$i ++;
 		}
-		// if (!self::check('=', true, 'getSSLSupport')) $i++;
-
 		if ( ! self::checkDirectoryMainWPDirectory( false ) ) {
 			$i ++;
 		}
@@ -545,305 +517,285 @@ class MainWP_Child_Server_Information {
 	public static function render() {
 		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
 		$isBranding     = true;
-		if ( $branding_title == '' ) {
+		if ( '' == $branding_title ) {
 			$branding_title = 'MainWP Child';
 			$isBranding     = false;
 		}
-
 		?>
 
 		<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
 			<thead>
-			<tr>
-				<th scope="col" class="manage-column column-posts mwp-not-generate-row"
-					style="width: 1px;"></th>
-				<th scope="col" class="manage-column column-posts" style="">
-					<span><?php esc_html_e( 'Server configuration', 'mainwp-child' ); ?></span></th>
-				<th scope="col" class="manage-column column-posts"
-					style=""><?php esc_html_e( 'Required value', 'mainwp-child' ); ?></th>
-				<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
-				<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
-			</tr>
-			</thead>
-
-			<tbody id="the-sites-list" class="list:sites">
-			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php echo esc_html( strtoupper( stripslashes( $branding_title ) ) ); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php echo esc_html( stripslashes( $branding_title ) ); ?> Version</td>
-				<td><?php echo esc_html( self::getMainWPVersion() ); ?></td>
-				<td><?php echo esc_html( self::getCurrentVersion() ); ?></td>
-				<td><?php echo esc_html( self::getMainWPVersionCheck() ); ?></td>
-			</tr>
-			<?php
-			self::checkDirectoryMainWPDirectory();
-			$server = get_option( 'mainwp_child_server' );
-			?>
-			<tr>
-				<td></td>
-				<td><?php _e( 'Currently connected to dashboard URL', 'mainwp-child' ); ?></td>
-				<td><?php echo esc_html( $server ); ?></td>
-				<td></td>
-				<td></td>
-			</tr>
-			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WordPress', 'mainwp-child' ); ?></td>
-			</tr>
-			<?php
-			self::renderRow( 'WordPress Version', '>=', '3.4', 'getWordpressVersion' );
-			self::renderRow( 'WordPress Memory Limit', '>=', '64M', 'getWordpressMemoryLimit' );
-			self::renderRow( 'MultiSite Disabled', '=', true, 'checkIfMultisite' );
-			?>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'FileSystem Method', 'mainwp-child' ); ?></td>
-				<td><?php echo esc_html( '= direct' ); ?></td>
-				<td><?php echo esc_html( self::getFileSystemMethod() ); ?></td>
-				<td><?php echo esc_html( self::getFileSystemMethodCheck() ); ?></td>
-			</tr>
-			<tr>
-				<td style="background: #333; color: #fff;"
-					colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
-			</tr>
-			<?php
-			self::renderRow( 'PHP Version', '>=', '5.6', 'getPHPVersion' );
-			?>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'PHP Safe Mode Disabled', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getPHPSafeMode(); ?></td>
-			</tr>
-			<?php
-			self::renderRowSec( 'PHP Max Execution Time', '>=', '30', 'getMaxExecutionTime', 'seconds', '=', '0' );
-			self::renderRowSec( 'PHP Max Input Time', '>=', '30', 'getMaxInputTime', 'seconds', '=', '0' );
-			self::renderRow( 'PHP Memory Limit', '>=', '128M', 'getPHPMemoryLimit', '(256M+ best for big backups)', null, null, true );
-			self::renderRow( 'PCRE Backtracking Limit', '>=', '10000', 'getOutputBufferSize' );
-			self::renderRow( 'PHP Upload Max Filesize', '>=', '2M', 'getUploadMaxFilesize', '(2MB+ best for upload of big plugins)', null, null, true );
-			self::renderRow( 'PHP Post Max Size', '>=', '2M', 'getPostMaxSize', '(2MB+ best for upload of big plugins)', null, null, true );
-			self::renderRow( 'SSL Extension Enabled', '=', true, 'getSSLSupport' );
-			self::renderRowSec( 'SSL Warnings', '=', '', 'getSSLWarning', 'empty', '' );
-			self::renderRowSec( 'cURL Extension Enabled', '=', true, 'getCurlSupport', '', '', null, '', null, self::ERROR );
-			self::renderRowSec( 'cURL Timeout', '>=', '300', 'getCurlTimeout', 'seconds', '=', '0' );
-			if ( function_exists( 'curl_version' ) ) {
-				self::renderRowSec( 'cURL Version', '>=', '7.18.1', 'getCurlVersion', '', '', null );
-				self::renderRowSec( 'cURL SSL Version', '>=', array(
-					'version_number' => 0x009080cf,
-					'version'        => 'OpenSSL/0.9.8l',
-				), 'getCurlSSLVersion', '', '', null, '', 'curlssl' );
-			}
-			?>
-			<tr>
-				<td style="background: #333; color: #fff;"
-					colspan="5"><?php esc_html_e( 'MySQL SETTINGS', 'mainwp-child' ); ?></td>
-			</tr>
-			<?php
-			self::renderRow( 'MySQL Version', '>=', '5.0', 'getMySQLVersion' );
-			?>
-			<tr>
-				<td style="background: #333; color: #fff;"
-					colspan="5"><?php esc_html_e( 'BACKUP ARCHIVE INFORMATION', 'mainwp-child' ); ?></td>
-			</tr>
-			<?php
-			self::renderRow( 'ZipArchive enabled in PHP', '=', true, 'getZipArchiveEnabled' );
-			self::renderRow( 'Tar GZip supported', '=', true, 'getGZipEnabled' );
-			self::renderRow( 'Tar BZip2 supported', '=', true, 'getBZipEnabled' );
-			?>
-
-			<tr>
-				<td style="background: #333; color: #fff;"
-					colspan="5"><?php esc_html_e( 'SERVER INFORMATION', 'mainwp-child' ); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'WordPress Root Directory', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getWPRoot(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Server Name', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerName(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Server Software', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerSoftware(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Operating System', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getOS(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Architecture', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getArchitecture(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Server IP', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerIP(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Server Protocol', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerProtocol(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'HTTP Host', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getHTTPHost(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'HTTPS', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getHTTPS(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Server self connect', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::serverSelfConnect(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'User Agent', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getUserAgent(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Server Port', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerPort(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Gateway Interface', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerGetawayInterface(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Memory Usage', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::memoryUsage(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Complete URL', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getCompleteURL(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Request Time', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerRequestTime(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Accept Content', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerHTTPAccept(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Accept-Charset Content', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getServerAcceptCharset(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Currently Executing Script Pathname', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getScriptFileName(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Current Page URI', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getCurrentPageURI(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Remote Address', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getRemoteAddress(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Remote Host', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getRemoteHost(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'Remote Port', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getRemotePort(); ?></td>
-			</tr>
-			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'PHP INFORMATION', 'mainwp-child' ); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'PHP Allow URL fopen', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getPHPAllowUrlFopen(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'PHP Exif Support', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getPHPExif(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'PHP IPTC Support', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getPHPIPTC(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'PHP XML Support', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getPHPXML(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'PHP Disabled Functions', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::mainwpRequiredFunctions(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'PHP Loaded Extensions', 'mainwp-child' ); ?></td>
-				<td colspan="3" style="width: 73% !important;"><?php self::getLoadedPHPExtensions(); ?></td>
-			</tr>
-			<tr>
-				<td style="background: #333; color: #fff;"
-					colspan="5"><?php esc_html_e( 'MySQL INFORMATION', 'mainwp-child' ); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'MySQL Mode', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php self::getSQLMode(); ?></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td><?php esc_html_e( 'MySQL Client Encoding', 'mainwp-child' ); ?></td>
-				<td colspan="3"><?php echo esc_html( defined( 'DB_CHARSET' ) ? DB_CHARSET : '' ); ?></td>
-			</tr>
-			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WordPress PLUGINS', 'mainwp-child' ); ?></td>
-			</tr>
-			<?php
-			$all_plugins = get_plugins();
-			foreach ( $all_plugins as $slug => $plugin ) {
-				if ( $slug == 'mainwp-child/mainwp-child.php' || $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
-					if ( $isBranding ) {
-						if ( $slug == 'mainwp-child/mainwp-child.php' ) {
-							$plugin['Name'] = esc_html( stripslashes( $branding_title ) );
-						} elseif ( $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
-							$plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
-						}
-					}
-				}
-
-				?>
 				<tr>
-					<td>&nbsp;</td>
-					<td><?php echo esc_html($plugin['Name']); ?></td>
-					<td><?php echo esc_html($plugin['Version']); ?></td>
-					<td><?php echo is_plugin_active($slug) ? 'Active' : 'Inactive'; ?></td>
-					<td>&nbsp;</td>
+					<th scope="col" class="manage-column column-posts mwp-not-generate-row" style="width: 1px;"></th>
+					<th scope="col" class="manage-column column-posts" style=""><span><?php esc_html_e( 'Server configuration', 'mainwp-child' ); ?></span></th>
+					<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Required value', 'mainwp-child' ); ?></th>
+					<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
+					<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
+				</tr>
+			</thead>
+			<tbody id="the-sites-list" class="list:sites">
+				<tr>
+					<td style="background: #333; color: #fff;" colspan="5"><?php echo esc_html( strtoupper( stripslashes( $branding_title ) ) ); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php echo esc_html( stripslashes( $branding_title ) ) . ' ' . __( 'Version', 'mainwp-chil' ); ?></td>
+					<td><?php echo esc_html( self::getMainWPVersion() ); ?></td>
+					<td><?php echo esc_html( self::getCurrentVersion() ); ?></td>
+					<td><?php echo esc_html( self::getMainWPVersionCheck() ); ?></td>
+				</tr>
+				<?php self::checkDirectoryMainWPDirectory(); ?>
+				<?php $server = get_option( 'mainwp_child_server' ); ?>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Currently connected to dashboard URL', 'mainwp-child' ); ?></td>
+					<td><?php echo esc_html( $server ); ?></td>
+					<td></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WordPress', 'mainwp-child' ); ?></td>
+				</tr>
+				<?php self::renderRow( 'WordPress Version', '>=', '3.4', 'getWordpressVersion' ); ?>
+				<?php self::renderRow( 'WordPress Memory Limit', '>=', '64M', 'getWordpressMemoryLimit' ); ?>
+				<?php self::renderRow( 'MultiSite Disabled', '=', true, 'checkIfMultisite' ); ?>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'FileSystem Method', 'mainwp-child' ); ?></td>
+					<td><?php echo esc_html( '= direct' ); ?></td>
+					<td><?php echo esc_html( self::getFileSystemMethod() ); ?></td>
+					<td><?php echo esc_html( self::getFileSystemMethodCheck() ); ?></td>
+				</tr>
+				<tr>
+					<td style="background: #333; color: #fff;"
+						colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
+				</tr>
+				<?php self::renderRow( 'PHP Version', '>=', '5.6', 'getPHPVersion' ); ?>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'PHP Safe Mode Disabled', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getPHPSafeMode(); ?></td>
 				</tr>
 				<?php
-			}
-			?>
+				self::renderRowSec( 'PHP Max Execution Time', '>=', '30', 'getMaxExecutionTime', 'seconds', '=', '0' );
+				self::renderRowSec( 'PHP Max Input Time', '>=', '30', 'getMaxInputTime', 'seconds', '=', '0' );
+				self::renderRow( 'PHP Memory Limit', '>=', '128M', 'getPHPMemoryLimit', '(256M+ best for big backups)', null, null, true );
+				self::renderRow( 'PCRE Backtracking Limit', '>=', '10000', 'getOutputBufferSize' );
+				self::renderRow( 'PHP Upload Max Filesize', '>=', '2M', 'getUploadMaxFilesize', '(2MB+ best for upload of big plugins)', null, null, true );
+				self::renderRow( 'PHP Post Max Size', '>=', '2M', 'getPostMaxSize', '(2MB+ best for upload of big plugins)', null, null, true );
+				self::renderRow( 'SSL Extension Enabled', '=', true, 'getSSLSupport' );
+				self::renderRowSec( 'SSL Warnings', '=', '', 'getSSLWarning', 'empty', '' );
+				self::renderRowSec( 'cURL Extension Enabled', '=', true, 'getCurlSupport', '', '', null, '', null, self::ERROR );
+				self::renderRowSec( 'cURL Timeout', '>=', '300', 'getCurlTimeout', 'seconds', '=', '0' );
+				if ( function_exists( 'curl_version' ) ) {
+					self::renderRowSec( 'cURL Version', '>=', '7.18.1', 'getCurlVersion', '', '', null );
+					self::renderRowSec( 'cURL SSL Version', '>=', array(
+						'version_number' => 0x009080cf,
+						'version'        => 'OpenSSL/0.9.8l',
+					), 'getCurlSSLVersion', '', '', null, '', 'curlssl' );
+				}
+				?>
+				<tr>
+					<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'MySQL SETTINGS', 'mainwp-child' ); ?></td>
+				</tr>
+				<?php self::renderRow( 'MySQL Version', '>=', '5.0', 'getMySQLVersion' ); ?>
+				<tr>
+					<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'BACKUP ARCHIVE INFORMATION', 'mainwp-child' ); ?></td>
+				</tr>
+				<?php self::renderRow( 'ZipArchive enabled in PHP', '=', true, 'getZipArchiveEnabled' ); ?>
+				<?php self::renderRow( 'Tar GZip supported', '=', true, 'getGZipEnabled' ); ?>
+				<?php self::renderRow( 'Tar BZip2 supported', '=', true, 'getBZipEnabled' ); ?>
+				<tr>
+					<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'SERVER INFORMATION', 'mainwp-child' ); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'WordPress Root Directory', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getWPRoot(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Server Name', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerName(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Server Software', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerSoftware(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Operating System', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getOS(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Architecture', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getArchitecture(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Server IP', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerIP(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Server Protocol', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerProtocol(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'HTTP Host', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getHTTPHost(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'HTTPS', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getHTTPS(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Server self connect', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::serverSelfConnect(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'User Agent', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getUserAgent(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Server Port', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerPort(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Gateway Interface', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerGetawayInterface(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Memory Usage', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::memoryUsage(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Complete URL', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getCompleteURL(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Request Time', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerRequestTime(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Accept Content', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerHTTPAccept(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Accept-Charset Content', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getServerAcceptCharset(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Currently Executing Script Pathname', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getScriptFileName(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Current Page URI', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getCurrentPageURI(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Remote Address', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getRemoteAddress(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Remote Host', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getRemoteHost(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'Remote Port', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getRemotePort(); ?></td>
+				</tr>
+				<tr>
+					<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'PHP INFORMATION', 'mainwp-child' ); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'PHP Allow URL fopen', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getPHPAllowUrlFopen(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'PHP Exif Support', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getPHPExif(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'PHP IPTC Support', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getPHPIPTC(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'PHP XML Support', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getPHPXML(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'PHP Disabled Functions', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::mainwpRequiredFunctions(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'PHP Loaded Extensions', 'mainwp-child' ); ?></td>
+					<td colspan="3" style="width: 73% !important;"><?php self::getLoadedPHPExtensions(); ?></td>
+				</tr>
+				<tr>
+					<td style="background: #333; color: #fff;"
+						colspan="5"><?php esc_html_e( 'MySQL INFORMATION', 'mainwp-child' ); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'MySQL Mode', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php self::getSQLMode(); ?></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><?php esc_html_e( 'MySQL Client Encoding', 'mainwp-child' ); ?></td>
+					<td colspan="3"><?php echo esc_html( defined( 'DB_CHARSET' ) ? DB_CHARSET : '' ); ?></td>
+				</tr>
+				<tr>
+					<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WordPress PLUGINS', 'mainwp-child' ); ?></td>
+				</tr>
+				<?php
+				$all_plugins = get_plugins();
+				foreach ( $all_plugins as $slug => $plugin ) {
+					if ( 'mainwp-child/mainwp-child.php' == $slug || 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) {
+						if ( $isBranding ) {
+							if ( 'mainwp-child/mainwp-child.php' == $slug ) {
+								$plugin['Name'] = esc_html( stripslashes( $branding_title ) );
+							} elseif ( 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) {
+								$plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
+							}
+						}
+					}
+					?>
+					<tr>
+						<td></td>
+						<td><?php echo esc_html( $plugin['Name'] ); ?></td>
+						<td><?php echo esc_html( $plugin['Version'] ); ?></td>
+						<td><?php echo is_plugin_active( $slug ) ? __( 'Active', 'mainwp-child' ) : __( 'Inactive', 'mainwp-child' ); ?></td>
+						<td></td>
+					</tr>
+					<?php
+				}
+				?>
 			</tbody>
 		</table>
 		<br/>
@@ -879,7 +831,6 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function mainwpRequiredFunctions() {
-		// error_reporting(E_ALL);
 		$disabled_functions = ini_get( 'disable_functions' );
 		if ( '' !== $disabled_functions ) {
 			$arr = explode( ',', $disabled_functions );
@@ -907,11 +858,14 @@ class MainWP_Child_Server_Information {
 
 	protected static function getMainwpVersion() {
 		include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
-		$api = plugins_api( 'plugin_information', array(
-			'slug'    => 'mainwp-child',
-			'fields'  => array( 'sections' => false ),
-			'timeout' => 60,
-		) );
+		$api = plugins_api(
+			'plugin_information',
+			array(
+				'slug'    => 'mainwp-child',
+				'fields'  => array( 'sections' => false ),
+				'timeout' => 60,
+			)
+		);
 		if ( is_object( $api ) && isset( $api->version ) ) {
 			return $api->version;
 		}
@@ -935,14 +889,11 @@ class MainWP_Child_Server_Information {
 		?>
 		<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
 			<thead>
-			<tr>
-				<th scope="col" class="manage-column column-posts" style="">
-					<span><?php esc_html_e( 'Next due', 'mainwp-child' ); ?></span></th>
-				<th scope="col" class="manage-column column-posts" style="">
-					<span><?php esc_html_e( 'Schedule', 'mainwp-child' ); ?></span></th>
-				<th scope="col" class="manage-column column-posts" style="">
-					<span><?php esc_html_e( 'Hook', 'mainwp-child' ); ?></span></th>
-			</tr>
+				<tr>
+					<th scope="col" class="manage-column column-posts"><span><?php esc_html_e( 'Next due', 'mainwp-child' ); ?></span></th>
+					<th scope="col" class="manage-column column-posts"><span><?php esc_html_e( 'Schedule', 'mainwp-child' ); ?></span></th>
+					<th scope="col" class="manage-column column-posts"><span><?php esc_html_e( 'Hook', 'mainwp-child' ); ?></span></th>
+				</tr>
 			</thead>
 			<tbody id="the-sites-list" class="list:sites">
 			<?php
@@ -967,7 +918,7 @@ class MainWP_Child_Server_Information {
 
 	protected static function checkDirectoryMainWPDirectory( $write = true ) {
 		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-		if ( $branding_title == '' ) {
+		if ( '' == $branding_title ) {
 			$branding_title = 'MainWP';
 		}
 
@@ -989,6 +940,7 @@ class MainWP_Child_Server_Information {
 		}
 
 		$hasWPFileSystem = MainWP_Helper::getWPFilesystem();
+
 		global $wp_filesystem;
 
 		if ( $hasWPFileSystem && ! empty( $wp_filesystem ) ) {
@@ -1020,8 +972,7 @@ class MainWP_Child_Server_Information {
 		?>
 		<tr class="mwp-not-generate-row">
 			<td></td>
-			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::Instance()->is_branding() ) ? '' : $pDirectory ); ?>
-			</td>
+			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::Instance()->is_branding() ) ? '' : $pDirectory ); ?></td>
 			<td><?php echo esc_html( $pCheck ); ?></td>
 			<td><?php echo esc_html( $pResult ); ?></td>
 			<td><?php echo ( $pPassed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
@@ -1050,16 +1001,16 @@ class MainWP_Child_Server_Information {
 		<tr>
 			<td></td>
 			<td><?php echo $pConfig; ?></td>
-			<td><?php echo $pCompare; ?><?php echo ( $pVersion === true ? 'true' : ( is_array( $pVersion ) && isset( $pVersion['version'] ) ? $pVersion['version'] : $pVersion ) ) . ' ' . $pExtraText; ?></td>
-			<td><?php echo( $currentVersion === true ? 'true' : $currentVersion ); ?></td>
-			<?php if ( $whatType == 'filesize' ) { ?>
+			<td><?php echo $pCompare; ?><?php echo ( true === $pVersion ? 'true' : ( is_array( $pVersion ) && isset( $pVersion['version'] ) ? $pVersion['version'] : $pVersion ) ) . ' ' . $pExtraText; ?></td>
+			<td><?php echo( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
+			<?php if ( 'filesize' === $whatType ) { ?>
 				<td><?php echo( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
-			<?php } elseif ( $whatType == 'curlssl' ) { ?>
+			<?php } elseif ( 'curlssl' === $whatType ) { ?>
 				<td><?php echo( self::curlssl_compare( $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
-			<?php } elseif ( ( $pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime' ) && $currentVersion == -1 ) { ?>
+			<?php } elseif ( ( 'getMaxInputTime' === $pGetter || 'getMaxExecutionTime' === $pGetter ) && -1 == $currentVersion ) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
-				<td><?php echo ( version_compare($currentVersion, $pVersion, $pCompare) || ( ( $pExtraCompare != null ) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
+				<td><?php echo ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null != $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
 			<?php } ?>
 		</tr>
 		<?php
@@ -1073,18 +1024,18 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function filesize_compare( $value1, $value2, $operator = null ) {
-		if ( strpos( $value1, 'G' ) !== false ) {
+		if ( false !== strpos( $value1, 'G' ) ) {
 			$value1 = preg_replace( '/[A-Za-z]/', '', $value1 );
-			$value1 = intval( $value1 ) * 1024; // Megabyte number
+			$value1 = intval( $value1 ) * 1024;
 		} else {
-			$value1 = preg_replace( '/[A-Za-z]/', '', $value1 ); // Megabyte number
+			$value1 = preg_replace( '/[A-Za-z]/', '', $value1 );
 		}
 
-		if ( strpos( $value2, 'G' ) !== false ) {
+		if ( false !== strpos( $value2, 'G' ) ) {
 			$value2 = preg_replace( '/[A-Za-z]/', '', $value2 );
-			$value2 = intval( $value2 ) * 1024; // Megabyte number
+			$value2 = intval( $value2 ) * 1024;
 		} else {
-			$value2 = preg_replace( '/[A-Za-z]/', '', $value2 ); // Megabyte number
+			$value2 = preg_replace( '/[A-Za-z]/', '', $value2 );
 		}
 
 		return version_compare( $value1, $value2, $operator );
@@ -1180,17 +1131,14 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getArchitecture() {
-		echo esc_html( PHP_INT_SIZE * 8 )
-		?>
-		&nbsp;bit 
-		<?php
+		echo esc_html( PHP_INT_SIZE * 8 ) . ' bit';
 	}
 
 	protected static function memoryUsage() {
 		if ( function_exists( 'memory_get_usage' ) ) {
-			$memory_usage = round( memory_get_usage() / 1024 / 1024, 2 ) . __( ' MB' );
+			$memory_usage = round( memory_get_usage() / 1024 / 1024, 2 ) . ' MB';
 		} else {
-			$memory_usage = __( 'N/A' );
+			$memory_usage = __( 'N/A', 'mainwp-child' );
 		}
 		echo esc_html( $memory_usage );
 	}
@@ -1200,10 +1148,10 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getPHPSafeMode() {
-		if ( version_compare(phpversion(), '5.3.0') < 0 && ini_get( 'safe_mode' ) ) {
-			$safe_mode = __( 'ON' );
+		if ( version_compare(phpversion(), '5.3.0' ) < 0 && ini_get( 'safe_mode' ) ) {
+			$safe_mode = __( 'ON', 'mainwp-child' );
 		} else {
-			$safe_mode = __( 'OFF' );
+			$safe_mode = __( 'OFF', 'mainwp-child' );
 		}
 		echo esc_html( $safe_mode );
 	}
@@ -1215,55 +1163,53 @@ class MainWP_Child_Server_Information {
 			$sql_mode = $mysqlinfo[0]->Value;
 		}
 		if ( empty( $sql_mode ) ) {
-			$sql_mode = __( 'NOT SET' );
+			$sql_mode = __( 'NOT SET', 'mainwp-child' );
 		}
 		echo esc_html( $sql_mode );
 	}
 
 	protected static function getPHPAllowUrlFopen() {
 		if ( ini_get( 'allow_url_fopen' ) ) {
-			$allow_url_fopen = __( 'ON' );
+			$allow_url_fopen = __( 'ON', 'mainwp-child' );
 		} else {
-			$allow_url_fopen = __( 'OFF' );
+			$allow_url_fopen = __( 'OFF', 'mainwp-child' );
 		}
 		echo esc_html( $allow_url_fopen );
 	}
 
 	protected static function getPHPExif() {
 		if ( is_callable( 'exif_read_data' ) ) {
-			$exif = __( 'YES' ) . ' ( V' . substr( phpversion( 'exif' ), 0, 4 ) . ')';
+			$exif = __( 'YES', 'mainwp-child' ) . ' ( V' . substr( phpversion( 'exif' ), 0, 4 ) . ')';
 		} else {
-			$exif = __( 'NO' );
+			$exif = __( 'NO', 'mainwp-child' );
 		}
 		echo esc_html( $exif );
 	}
 
 	protected static function getPHPIPTC() {
 		if ( is_callable( 'iptcparse' ) ) {
-			$iptc = __( 'YES' );
+			$iptc = __( 'YES', 'mainwp-child' );
 		} else {
-			$iptc = __( 'NO' );
+			$iptc = __( 'NO', 'mainwp-child' );
 		}
 		echo esc_html( $iptc );
 	}
 
 	protected static function getPHPXML() {
 		if ( is_callable( 'xml_parser_create' ) ) {
-			$xml = __( 'YES' );
+			$xml = __( 'YES', 'mainwp-child' );
 		} else {
-			$xml = __( 'NO' );
+			$xml = __( 'NO', 'mainwp-child' );
 		}
 		echo esc_html( $xml );
 	}
-
-	// new
 
 	protected static function getCurrentlyExecutingScript() {
 		echo esc_html( $_SERVER['PHP_SELF'] );
 	}
 
 	protected static function getServerGetawayInterface() {
-		$gate = isset($_SERVER['GATEWAY_INTERFACE']) ? $_SERVER['GATEWAY_INTERFACE'] : '';
+		$gate = isset( $_SERVER['GATEWAY_INTERFACE'] ) ? $_SERVER['GATEWAY_INTERFACE'] : '';
 		echo esc_html( $gate );
 	}
 
@@ -1410,7 +1356,7 @@ class MainWP_Child_Server_Information {
 		echo esc_html( ABSPATH );
 	}
 
-	function formatSizeUnits( $bytes ) {
+	public function formatSizeUnits( $bytes ) {
 		if ( $bytes >= 1073741824 ) {
 			$bytes = number_format( $bytes / 1073741824, 2 ) . ' GB';
 		} elseif ( $bytes >= 1048576 ) {
@@ -1445,15 +1391,13 @@ class MainWP_Child_Server_Information {
 		?>
 		<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
 			<thead title="Click to Toggle" style="cursor: pointer;">
-			<tr>
-				<th scope="col" class="manage-column column-posts" style="width: 10%">
-					<span><?php esc_html_e( 'Time', 'mainwp-child' ); ?></span></th>
-				<th scope="col" class="manage-column column-posts" style="">
-					<span><?php esc_html_e( 'Error', 'mainwp-child' ); ?></span></th>
-			</tr>
+				<tr>
+					<th scope="col" class="manage-column column-posts" style="width: 10%"><?php esc_html_e( 'Time', 'mainwp-child' ); ?></th>
+					<th scope="col" class="manage-column column-posts"><?php esc_html_e( 'Error', 'mainwp-child' ); ?></th>
+				</tr>
 			</thead>
 			<tbody class="list:sites" id="mainwp-error-log-table">
-			<?php self::renderErrorLog(); ?>
+				<?php self::renderErrorLog(); ?>
 			</tbody>
 		</table>
 		<?php
@@ -1471,7 +1415,6 @@ class MainWP_Child_Server_Information {
 		$lines     = array();
 
 		foreach ( $logs as $log ) {
-
 			if ( is_readable( $log ) ) {
 				$lines = array_merge( $lines, self::last_lines( $log, $count ) );
 			}
@@ -1520,7 +1463,7 @@ class MainWP_Child_Server_Information {
 		}
 	}
 
-	static function time_compare( $a, $b ) {
+	public static function time_compare( $a, $b ) {
 		if ( $a === $b ) {
 			return 0;
 		}
@@ -1528,20 +1471,20 @@ class MainWP_Child_Server_Information {
 		return ( strtotime( $a['time'] ) > strtotime( $b['time'] ) ) ? - 1 : 1;
 	}
 
-	static function last_lines( $path, $line_count, $block_size = 512 ) {
+	public static function last_lines( $path, $line_count, $block_size = 512 ) {
 		$lines = array();
 
-		// we will always have a fragment of a non-complete line
+		// we will always have a fragment of a non-complete line.
 		// keep this in here till we have our next entire line.
 		$leftover = '';
 
 		$fh = fopen( $path, 'r' );
-		// go to the end of the file
+		// go to the end of the file.
 		fseek( $fh, 0, SEEK_END );
 
+		$count_lines = count( $lines );
 		do {
-			// need to know whether we can actually go back
-			// $block_size bytes
+			// need to know whether we can actually go back.
 			$can_read = $block_size;
 
 			if ( ftell( $fh ) <= $block_size ) {
@@ -1552,23 +1495,20 @@ class MainWP_Child_Server_Information {
 				break;
 			}
 
-			// go back as many bytes as we can
-			// read them to $data and then move the file pointer
+			// go back as many bytes as we can.
+			// read them to $data and then move the file pointer.
 			// back to where we were.
 			fseek( $fh, - $can_read, SEEK_CUR );
 			$data  = fread( $fh, $can_read );
 			$data .= $leftover;
 			fseek( $fh, - $can_read, SEEK_CUR );
 
-			// split lines by \n. Then reverse them,
-			// now the last line is most likely not a complete
-			// line which is why we do not directly add it, but
-			// append it to the data read the next time.
+			// split lines by \n. Then reverse them, now the last line is most likely not a complete line which is why we do not directly add it, but append it to the data read the next time.
 			$split_data = array_reverse( explode( "\n", $data ) );
 			$new_lines  = array_slice( $split_data, 0, - 1 );
 			$lines      = array_merge( $lines, $new_lines );
 			$leftover   = $split_data[ count( $split_data ) - 1 ];
-		} while ( count( $lines ) < $line_count && 0 !== ftell( $fh ) );
+		} while ( $count_lines < $line_count && 0 !== ftell( $fh ) );
 
 		if ( 0 === ftell( $fh ) ) {
 			$lines[] = $leftover;
@@ -1584,7 +1524,6 @@ class MainWP_Child_Server_Information {
 		?>
 		<div class="postbox" id="mainwp-code-display">
 			<h3 class="hndle" style="padding: 8px 12px; font-size: 14px;"><span>WP-Config.php</span></h3>
-
 			<div style="padding: 1em;">
 				<?php
 				if ( file_exists( ABSPATH . 'wp-config.php' ) ) {
@@ -1616,54 +1555,49 @@ class MainWP_Child_Server_Information {
 		?>
 		<div class="postbox" id="mainwp-code-display">
 			<h3 class="hndle" style="padding: 8px 12px; font-size: 14px;"><span><?php _e( '.htaccess', 'mainwp-child' ); ?></span></h3>
-
-			<div style="padding: 1em;">
-				<?php
-				@show_source( ABSPATH . '.htaccess' );
-				?>
-			</div>
+			<div style="padding: 1em;"><?php @show_source( ABSPATH . '.htaccess' ); ?></div>
 		</div>
 		<?php
 	}
 
 	public static function renderConnectionDetails() {
 		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-		if ( $branding_title == '' ) {
+		if ( '' == $branding_title ) {
 			$branding_title = 'MainWP';
 		}
 
 		global $current_user;
-		$uniqueId = get_option('mainwp_child_uniqueId');
+		$uniqueId = get_option( 'mainwp_child_uniqueId' );
 		$details  = array(
 			'siteurl' => array(
-				'title' => __('Site URL', 'mainwp-child'),
+				'title' => __( 'Site URL', 'mainwp-child' ),
 				'value' => get_bloginfo( 'url' ),
 				'desc'  => get_bloginfo( 'url' ),
 			),
 			'adminuser' => array(
-				'title' => __('Administrator name', 'mainwp-child'),
+				'title' => __( 'Administrator name', 'mainwp-child' ),
 				'value' => $current_user->user_login,
-				'desc'  => __('This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child'),
+				'desc'  => __( 'This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child' ),
 			),
 			'friendly_name' => array(
-				'title' => __('Friendly site name', 'mainwp-child'),
+				'title' => __( 'Friendly site name', 'mainwp-child' ),
 				'value' => get_bloginfo( 'name' ),
-				'desc'  => __('For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child'),
+				'desc'  => __( 'For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child' ),
 			),
 			'uniqueid' => array(
-				'title' => __('Child unique security id', 'mainwp-child'),
-				'value' => ! empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
-				'desc'  => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child'), stripslashes( $branding_title ) ),
+				'title' => __( 'Child unique security id', 'mainwp-child' ),
+				'value' => ! empty( $uniqueId ) ? $uniqueId : __( 'Leave the field blank', 'mainwp-child' ),
+				'desc'  => sprintf( __( 'Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child' ), stripslashes( $branding_title ) ),
 			),
 			'verify_ssl' => array(
-				'title' => __('Verify certificate', 'mainwp-child'),
-				'value' => __('Yes', 'mainwp-child'),
-				'desc'  => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child'),
+				'title' => __( 'Verify certificate', 'mainwp-child' ),
+				'value' => __( 'Yes', 'mainwp-child' ),
+				'desc'  => __( 'If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child' ),
 			),
 			'ssl_version' => array(
-				'title' => __('SSL version', 'mainwp-child'),
-				'value' => __('Auto Detect', 'mainwp-child'),
-				'desc'  => __('Auto Detect', 'mainwp-child'),
+				'title' => __( 'SSL version', 'mainwp-child' ),
+				'value' => __( 'Auto Detect', 'mainwp-child' ),
+				'desc'  => __( 'Auto Detect', 'mainwp-child' ),
 			),
 
 		);
@@ -1671,26 +1605,24 @@ class MainWP_Child_Server_Information {
 		<div class="postbox" id="connection_detail">
 			<h3 class="mainwp_box_title"><span><?php _e( 'Connection details', 'mainwp-child' ); ?></span></h3>
 			<div class="inside">
-							<div class="mainwp-postbox-actions-top mainwp-padding-5">
+				<div class="mainwp-postbox-actions-top mainwp-padding-5">
+					<?php echo sprintf( __( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), stripslashes( $branding_title ) ); ?>
+				</div>
+				<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
+					<tbody>
 						<?php
-							echo sprintf(__('If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child'), stripslashes( $branding_title ));
+							foreach ( $details as $row ) {
+							?>
+							<tr>
+								<th style="width: 20%"><strong><?php echo esc_html( $row['title'] ); ?></strong></th>
+								<td style="width: 20%"><strong><?php echo esc_html( $row['value'] ); ?></strong></td>
+								<td><?php echo esc_html( $row['desc'] ); ?></td>
+							</tr>
+							<?php
+							}
 						?>
-							</div>
-							<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
-								<tbody>
-								<?php
-								foreach ( $details as $row ) {
-									?>
-											<tr>
-												<th style="width: 20%"><strong><?php echo esc_html($row['title']); ?></strong></th>
-												<td style="width: 20%"><strong><?php echo esc_html($row['value']); ?></strong></td>
-												<td><?php echo esc_html($row['desc']); ?></td>
-											</tr>
-									<?php
-								}
-								?>
-								</tbody>
-							</table>
+					</tbody>
+				</table>
 			</div>
 		</div>
 		<?php
