@@ -421,7 +421,7 @@ class MainWP_Child_Pagespeed {
 		}
 
 		if ( $gpi_options['check_posts'] ) {
-			if ( $restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'posts' ) {
+			if ( 'all' == $restrict_type || 'ignored' == $restrict_type || 'posts' == $restrict_type ) {
 				$typestocheck[] = 'type = %s';
 				$types[1][]     = 'post';
 			}
