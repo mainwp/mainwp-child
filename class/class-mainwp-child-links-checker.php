@@ -7,8 +7,7 @@
  * Author: Janis Elsts, Vladimir Prelovac
  *
  * The code is used for the MainWP Broken Links Checker Extension (Retired Extension)
- *
-*/
+ */
 
 class MainWP_Child_Links_Checker {
 
