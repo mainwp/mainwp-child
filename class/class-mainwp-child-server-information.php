@@ -1611,7 +1611,7 @@ class MainWP_Child_Server_Information {
 				<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
 					<tbody>
 						<?php
-							foreach ( $details as $row ) {
+						foreach ( $details as $row ) {
 							?>
 							<tr>
 								<th style="width: 20%"><strong><?php echo esc_html( $row['title'] ); ?></strong></th>
@@ -1619,7 +1619,7 @@ class MainWP_Child_Server_Information {
 								<td><?php echo esc_html( $row['desc'] ); ?></td>
 							</tr>
 							<?php
-							}
+						}
 						?>
 					</tbody>
 				</table>
