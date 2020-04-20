@@ -81,9 +81,9 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-		'completed',
-		'processing',
-		'on-hold',
+	'completed',
+	'processing',
+	'on-hold',
 ) ) ) . "' )
                 AND 	postmeta.meta_key   = '_order_total'
                 AND 	posts.post_date >= %s
@@ -103,9 +103,9 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-		'completed',
-		'processing',
-		'on-hold',
+	'completed',
+	'processing',
+	'on-hold',
 ) ) ) . "' )
                 AND 	order_item_meta.meta_key = '_qty'
                 AND 	order_item_meta_2.meta_key = '_product_id'
@@ -202,9 +202,9 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-		'completed',
-		'processing',
-		'on-hold',
+	'completed',
+	'processing',
+	'on-hold',
 ) ) ) . "' )
                 AND 	postmeta.meta_key   = '_order_total'
                 AND 	posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
@@ -224,9 +224,9 @@ class MainWP_Child_WooCommerce_Status {
                 AND 	posts.post_status 	= 'publish'
                 AND 	tax.taxonomy		= 'shop_order_status'
                 AND		term.slug			IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array(
-		'completed',
-		'processing',
-		'on-hold',
+	'completed',
+	'processing',
+	'on-hold',
 ) ) ) . "' )
                 AND 	order_item_meta.meta_key = '_qty'
                 AND 	order_item_meta_2.meta_key = '_product_id'
