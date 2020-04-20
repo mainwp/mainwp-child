@@ -27,7 +27,6 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	public function child_deactivation() {
-
 	}
 
 	public function action() {
@@ -79,7 +78,7 @@ class MainWP_Child_WooCommerce_Status {
 			WHERE posts.post_type = 'shop_order'
 			AND posts.post_status = 'publish'
 			AND tax.taxonomy = 'shop_order_status'
-			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold', ) ) ) . "' )
+			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
 			AND postmeta.meta_key = '_order_total'
 			AND posts.post_date >= %s
 			AND posts.post_date <= %s
@@ -98,7 +97,7 @@ class MainWP_Child_WooCommerce_Status {
 			WHERE posts.post_type = 'shop_order'
 			AND posts.post_status = 'publish'
 			AND tax.taxonomy = 'shop_order_status'
-			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold', ) ) ) . "' )
+			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
 			AND order_item_meta.meta_key = '_qty'
 			AND order_item_meta_2.meta_key = '_product_id'
 			AND posts.post_date >= %s
@@ -170,7 +169,7 @@ class MainWP_Child_WooCommerce_Status {
 			WHERE posts.post_type = 'shop_order'
 			AND posts.post_status = 'publish'
 			AND tax.taxonomy = 'shop_order_status'
-			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold', ) ) ) . "' )
+			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
 			AND postmeta.meta_key = '_order_total'
 			AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
 			AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')
@@ -189,7 +188,7 @@ class MainWP_Child_WooCommerce_Status {
 			WHERE posts.post_type = 'shop_order'
 			AND posts.post_status = 'publish'
 			AND tax.taxonomy = 'shop_order_status'
-			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold', ) ) ) . "' )
+			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
 			AND order_item_meta.meta_key = '_qty'
 			AND order_item_meta_2.meta_key = '_product_id'
 			AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
@@ -278,7 +277,7 @@ class MainWP_Child_WooCommerce_Status {
 		$query['fields'] = "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts";
 		$query['join']   = "INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id ";
 		$query['where']  = "WHERE posts.post_type IN ( '" . implode( "','", wc_get_order_types( 'reports' ) ) . "' ) ";
-		$query['where'] .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold', ) ) ) . "' ) ";
+		$query['where'] .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) ";
 		$query['where'] .= "AND postmeta.meta_key = '_order_total' ";
 		$query['where'] .= 'AND posts.post_date >=  STR_TO_DATE(' . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
 		$query['where'] .= 'AND posts.post_date <=  STR_TO_DATE(' . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s') ";
@@ -286,13 +285,13 @@ class MainWP_Child_WooCommerce_Status {
 		$sales = $wpdb->get_var( implode( ' ', apply_filters( 'woocommerce_dashboard_status_widget_sales_query', $query ) ) );
 
 		// Get top seller.
-		$query = array();
+		$query            = array();
 		$query['fields']  = "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id FROM {$wpdb->posts} as posts";
 		$query['join']    = "INNER JOIN {$wpdb->prefix}woocommerce_order_items AS order_items ON posts.ID = order_id ";
 		$query['join']   .= "INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id ";
 		$query['join']   .= "INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_2 ON order_items.order_item_id = order_item_meta_2.order_item_id ";
 		$query['where']   = "WHERE posts.post_type IN ( '" . implode( "','", wc_get_order_types( 'order-count' ) ) . "' ) ";
-		$query['where']  .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold', ) ) ) . "' ) ";
+		$query['where']  .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) ";
 		$query['where']  .= "AND order_item_meta.meta_key = '_qty' ";
 		$query['where']  .= "AND order_item_meta_2.meta_key = '_product_id' ";
 		$query['where']  .= 'AND posts.post_date >= STR_TO_DATE(' . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
