@@ -634,8 +634,8 @@ class MainWP_Clone_Install {
 	 *
 	 * @param string $from String we're looking to replace.
 	 * @param string $to What we want it to be replaced with
-	 * @param array $data Used to pass any subordinate arrays back to in.
-	 * @param bool $serialised Does the array passed via $data need serialising.
+	 * @param array  $data Used to pass any subordinate arrays back to in.
+	 * @param bool   $serialised Does the array passed via $data need serialising.
 	 *
 	 * @return array    The original array with all elements replaced as needed.
 	 */
