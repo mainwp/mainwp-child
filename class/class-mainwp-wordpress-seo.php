@@ -76,7 +76,7 @@ class MainWP_Wordpress_SEO {
 		} elseif ( isset( $_POST['settings'] ) ) {
 			try {
 				$settings = base64_decode( $_POST['settings'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				$options = parse_ini_string( $settings, true, INI_SCANNER_RAW );
+				$options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
 				if ( is_array( $options ) && array() !== $options ) {
 
 					$old_wpseo_version = null;
