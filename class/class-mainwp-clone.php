@@ -285,12 +285,12 @@ class MainWP_Clone {
 					<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
 					<?php
 						$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-						if ( $branding_title != '' ) {
-							$branding_msg = 'If you have a FULL backup created by basic ' . esc_html( stripslashes( $branding_title ) ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
-						} else {
-							$branding_msg = esc_html__( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
-						}
-						?>
+					if ( $branding_title != '' ) {
+						$branding_msg = 'If you have a FULL backup created by basic ' . esc_html( stripslashes( $branding_title ) ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
+					} else {
+						$branding_msg = esc_html__( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
+					}
+					?>
 						<em>
 							<?php echo $branding_msg; ?><br/>
 							<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?>
@@ -357,8 +357,8 @@ class MainWP_Clone {
 		}
 		MainWP_Helper::update_option( 'mainwp_child_clone_from_server_last_folder', rtrim( $current_dir, '/' ) );
 
-		$parts    = explode( '/', ltrim( $current_dir, '/' ) );
-		$dirparts = '';
+		$parts       = explode( '/', ltrim( $current_dir, '/' ) );
+		$dirparts    = '';
 		$count_parts = count( $parts );
 		for ( $i = $count_parts - 1; $i >= 0; $i -- ) {
 			$part = $parts[ $i ];
