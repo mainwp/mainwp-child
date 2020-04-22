@@ -1162,7 +1162,7 @@ class MainWP_Child_Back_WP_Up {
 				$dir = @opendir( $main_folder_name );
 				if ( $dir ) {
 					while ( false !== ( $file = readdir( $dir ) ) ) {
-						if ( ! in_array( $file, array( '.', '..', ) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) ) ) {
+						if ( ! in_array( $file, array( '.', '..' ) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) ) ) {
 							$folder_size   = ' (' . size_format( BackWPup_File::get_folder_size( $main_folder_name . '/' . $file ), 2 ) . ')';
 							$return_temp[] = array(
 								'size' => $folder_size,
