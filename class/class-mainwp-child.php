@@ -2806,7 +2806,7 @@ class MainWP_Child {
 			$error_str = '';
 			foreach ( $errors->get_error_messages() as $message ) {
 				if ( is_string( $message ) ) {
-					$error_str .= ' ' . esc_html( wp_strip_tags( $message ) );
+					$error_str .= ' ' . esc_html( wp_strip_all_tags( $message ) );
 				}
 			}
 			return array( 'error' => $error_str );
@@ -5523,7 +5523,7 @@ class MainWP_Child {
 		header( 'Cache-Control: must-revalidate' );
 		header( 'Pragma: public' );
 		header( 'Content-Length: ' . filesize( $backupdir . $file ) );
-		while ( @ob_end_flush() ) {;
+		while ( @ob_end_flush() ) {; // phpcs:ignore
 		}
 		$this->readfile_chunked( $backupdir . $file, $offset );
 	}

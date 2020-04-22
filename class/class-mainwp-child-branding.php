@@ -800,8 +800,7 @@ class MainWP_Child_Branding {
 			$mail .= "<p>Support Text:</p>\r\n\r\n";
 			$mail .= '<p>' . $content . "</p>\r\n\r\n";
 
-			if ( @wp_mail( $email, $subject, $mail, $headers ) ) {;
-			}
+			wp_mail( $email, $subject, $mail, $headers );
 
 			return true;
 		}
