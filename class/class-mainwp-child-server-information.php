@@ -1303,7 +1303,7 @@ class MainWP_Child_Server_Information {
 		} else {
 			$response_body = wp_remote_retrieve_body( $response );
 			if ( false === strstr( $response_body, 'MainWP Test' ) ) {
-				$test_result .= sprintf( __( 'Not expected HTTP response body: %s', 'mainwp-child' ), esc_attr( strip_tags( $response_body ) ) );
+				$test_result .= sprintf( __( 'Not expected HTTP response body: %s', 'mainwp-child' ), esc_attr( wp_strip_tags( $response_body ) ) );
 			}
 		}
 		if ( empty( $test_result ) ) {

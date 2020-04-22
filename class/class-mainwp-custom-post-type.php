@@ -105,10 +105,10 @@ class MainWP_Custom_Post_Type {
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
 						$server     = get_option( 'mainwp_child_server' );
-						$serverHost = parse_url( $server, PHP_URL_HOST );
+						$serverHost = wp_parse_url( $server, PHP_URL_HOST );
 						if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
 							$serverHref        = 'href="' . $serverHost;
-							$replaceServerHref = 'href="' . parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . parse_url( $localUrl, PHP_URL_HOST );
+							$replaceServerHref = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
 							$post_content      = str_replace( $serverHref, $replaceServerHref, $post_content );
 						} elseif ( strpos( $hrefLink, 'http' ) !== false ) {
 							$lnkToReplace = dirname( $hrefLink );

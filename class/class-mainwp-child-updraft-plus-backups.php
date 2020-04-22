@@ -2616,9 +2616,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 							if ( UpdraftPlus_Manipulation_Functions::normalise_url( $old_siteurl ) == UpdraftPlus_Manipulation_Functions::normalise_url( site_url() ) ) {
 								// Same site migration with only http/https difference.
 								$info['same_url']      = false;
-								$old_siteurl_parsed    = parse_url( $old_siteurl );
-								$actual_siteurl_parsed = parse_url( site_url() );
-								if ( ( stripos( $old_siteurl_parsed['host'], 'www.' ) === 0 && stripos( $actual_siteurl_parsed['host'], 'www.' ) !== 0 ) || ( stripos( $old_siteurl_parsed['host'], 'www.' ) !== 0 && stripos( $actual_siteurl_parsed['host'], 'www.' ) === 0 ) ) {
+								$old_siteurl_parsed    = wp_parse_url( $old_siteurl );
+								$actual_siteurl_parsed = wp_parse_url( site_url() );
+								if ( ( 0 === stripos( $old_siteurl_parsed['host'], 'www.' ) && 0 !== stripos( $actual_siteurl_parsed['host'], 'www.' ) ) || ( stripos( $old_siteurl_parsed['host'], 'www.' ) !== 0 && stripos( $actual_siteurl_parsed['host'], 'www.' ) === 0 ) ) {
 									$powarn = sprintf( __( 'The website address in the backup set (%1$s) is slightly different from that of the site now (%2$s). This is not expected to be a problem for restoring the site, as long as visits to the former address still reach the site.', 'updraftplus' ), $old_siteurl, site_url() ) . ' ';
 								} else {
 									$powarn = '';

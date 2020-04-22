@@ -1038,7 +1038,7 @@ class MainWP_Child {
 
 	public function mod_rewrite_rules( $pRules ) {
 
-		$home_root = parse_url( home_url() );
+		$home_root = wp_parse_url( home_url() );
 		if ( isset( $home_root['path'] ) ) {
 			$home_root = trailingslashit( $home_root['path'] );
 		} else {
@@ -1381,7 +1381,7 @@ class MainWP_Child {
 			if ( ! empty( $open_location ) ) {
 				$open_location = base64_decode( $open_location ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 				$_vars         = MainWP_Helper::parse_query( $open_location );
-				$_path         = parse_url( $open_location, PHP_URL_PATH );
+				$_path         = wp_parse_url( $open_location, PHP_URL_PATH );
 				if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
 					$_vars[ $_vars['_mwpNoneName'] ] = wp_create_nonce( $_vars['_mwpNoneValue'] );
 					unset( $_vars['_mwpNoneName'] );
@@ -2806,7 +2806,7 @@ class MainWP_Child {
 			$error_str = '';
 			foreach ( $errors->get_error_messages() as $message ) {
 				if ( is_string( $message ) ) {
-					$error_str .= ' ' . esc_html( strip_tags( $message ) );
+					$error_str .= ' ' . esc_html( wp_strip_tags( $message ) );
 				}
 			}
 			return array( 'error' => $error_str );

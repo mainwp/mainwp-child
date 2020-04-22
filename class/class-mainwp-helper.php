@@ -506,10 +506,10 @@ class MainWP_Helper {
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
 						$server     = get_option( 'mainwp_child_server' );
-						$serverHost = parse_url( $server, PHP_URL_HOST );
+						$serverHost = wp_parse_url( $server, PHP_URL_HOST );
 						if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
 							$serverHref               = 'href="' . $serverHost;
-							$replaceServerHref        = 'href="' . parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . parse_url( $localUrl, PHP_URL_HOST );
+							$replaceServerHref        = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
 							$new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
 						}
 					}
@@ -592,7 +592,7 @@ class MainWP_Helper {
 					$random_date_to   = $tmp;
 				}
 
-				$random_timestamp      = rand( $random_date_from, $random_date_to );
+				$random_timestamp      = wp_rand( $random_date_from, $random_date_to );
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp );
 			}
 		}
@@ -1124,7 +1124,7 @@ class MainWP_Helper {
 		$str   = '';
 		$count = strlen( $charset );
 		while ( $length -- ) {
-			$str .= $charset[ mt_rand( 0, $count - 1 ) ];
+			$str .= $charset[ wp_rand( 0, $count - 1 ) ];
 		}
 
 		return $str;
@@ -1426,7 +1426,7 @@ class MainWP_Helper {
 
 	public static function parse_query( $var ) {
 
-		$var = parse_url( $var, PHP_URL_QUERY );
+		$var = wp_parse_url( $var, PHP_URL_QUERY );
 		$var = html_entity_decode( $var );
 		$var = explode( '&', $var );
 		$arr = array();
