@@ -761,13 +761,17 @@ class MainWP_Child_Back_WP_Up {
 				$without_dupes = array();
 				foreach ( $output->items as $key ) {
 					$temp_array                = $key;
-					$temp_array['downloadurl'] = str_replace( array(
-						'&amp;',
-						network_admin_url( 'admin.php' ) . '?page=backwpupbackups&action=',
-					), array(
-						'&',
-						admin_url( 'admin-ajax.php' ) . '?action=mainwp_backwpup_download_backup&type=',
-					), $temp_array['downloadurl'] . '&_wpnonce=' . $this->create_nonce_without_session( 'mainwp_download_backup' ) );
+					$temp_array['downloadurl'] = str_replace(
+						array(
+							'&amp;',
+							network_admin_url( 'admin.php' ) . '?page=backwpupbackups&action=',
+						),
+						array(
+							'&',
+							admin_url( 'admin-ajax.php' ) . '?action=mainwp_backwpup_download_backup&type=',
+						),
+						$temp_array['downloadurl'] . '&_wpnonce=' . $this->create_nonce_without_session( 'mainwp_download_backup' )
+					);
 
 					$temp_array['downloadurl_id'] = '/wp-admin/admin.php?page=backwpupbackups';
 					if ( preg_match( '/.*&jobid=([^&]+)&.*/is', $temp_array['downloadurl'], $matches ) ) {
@@ -1157,14 +1161,9 @@ class MainWP_Child_Back_WP_Up {
 
 				$dir = @opendir( $main_folder_name );
 				if ( $dir ) {
-					while ( ( $file = readdir( $dir ) ) !== false ) {
-						if ( ! in_array( $file, array(
-							'.',
-							'..',
-						) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) )
-						) {
-							$folder_size = ' (' . size_format( BackWPup_File::get_folder_size( $main_folder_name . '/' . $file ), 2 ) . ')';
-
+					while ( false !== ( $file = readdir( $dir ) ) ) {
+						if ( ! in_array( $file, array( '.', '..', ) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) ) ) {
+							$folder_size   = ' (' . size_format( BackWPup_File::get_folder_size( $main_folder_name . '/' . $file ), 2 ) . ')';
 							$return_temp[] = array(
 								'size' => $folder_size,
 								'name' => $file,
@@ -1346,7 +1345,7 @@ class MainWP_Child_Back_WP_Up {
 		}
 		sort( $to_include_parsed );
 		BackWPup_Option::update( $id, 'dirinclude', implode( ',', $to_include_parsed ) );
-		unset( $include_input, $include_list, $to_include, $to_include_parsed, $normalized, $realpath  );
+		unset( $include_input, $include_list, $to_include, $to_include_parsed, $normalized, $realpath );
 
 		// Parse and save boolean fields.
 		$boolean_fields_def = array(

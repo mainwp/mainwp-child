@@ -1198,12 +1198,15 @@ class MainWP_Clone {
 
 			MainWP_Helper::endSession();
 			// Send request to the childsite!
-			$result = MainWP_Helper::fetchUrl( $url, array(
-				'cloneFunc'   => 'createCloneBackupPoll',
-				'key'         => $key,
-				'f'           => $rand,
-				'json_result' => true,
-			) );
+			$result = MainWP_Helper::fetchUrl(
+				$url,
+				array(
+					'cloneFunc'   => 'createCloneBackupPoll',
+					'key'         => $key,
+					'f'           => $rand,
+					'json_result' => true,
+				)
+			);
 
 			if ( ! isset( $result['size'] ) ) {
 				throw new Exception( __( 'Invalid response', 'mainwp-child' ) );
@@ -1314,7 +1317,7 @@ class MainWP_Clone {
 
 	public function cloneBackupDownloadPoll() {
 		try {
-			$this->secure_request('mainwp-child_clone_backupdownloadpoll');
+			$this->secure_request( 'mainwp-child_clone_backupdownloadpoll' );
 
 			MainWP_Helper::endSession();
 
@@ -1341,7 +1344,7 @@ class MainWP_Clone {
 
 	public function cloneBackupExtract() {
 		try {
-			$this->secure_request('mainwp-child_clone_backupextract');
+			$this->secure_request( 'mainwp-child_clone_backupextract' );
 
 			MainWP_Helper::endSession();
 

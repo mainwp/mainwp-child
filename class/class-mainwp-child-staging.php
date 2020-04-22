@@ -182,7 +182,7 @@ class MainWP_Child_Staging {
 
 	public function get_overview() {
 		$return = array(
-			'availableClones' => get_option( 'wpstg_existing_clones_beta', array()),
+			'availableClones' => get_option( 'wpstg_existing_clones_beta', array() ),
 		);
 		return $return;
 	}

@@ -1818,17 +1818,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$profile_array   = pb_backupbuddy::$options['profiles'][ $requested_profile ];
 		$serial_override = pb_backupbuddy::random_string( 10 );
 
-		if ( $newBackup->start_backup_process(
-			$profile_array,
-			'manual',
-			array(),
-			isset( $_POST['post_backup_steps'] ) && is_array( $_POST['post_backup_steps'] ) ? $_POST['post_backup_steps'] : array(),
-			'',
-			$serial_override,
-			'',
-			'',
-			''
-			) !== true ) {
+		if ( true !== $newBackup->start_backup_process( $profile_array, 'manual', array(), isset( $_POST['post_backup_steps'] ) && is_array( $_POST['post_backup_steps'] ) ? $_POST['post_backup_steps'] : array(), '', $serial_override, '', '', '' ) ) {
 			return array( 'error' => __( 'Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'mainwp-child' ) );
 		}
 		return array( 'result' => 'SUCCESS' );
@@ -2233,7 +2223,7 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			if ( ! empty( $scan['MALWARE'] ) && ( 'E' != $scan['MALWARE'] ) ) {
-				echo '<table><tr><td><i class="fa fa-exclamation-circle fa-5x" style="color: red"></i></td><td><h1>', __('Warning: Possible Malware Detected!', 'mainwp-child' ), '</h1>', __( 'See details below.', 'mainwp-child' ), '</td></tr></table>';
+				echo '<table><tr><td><i class="fa fa-exclamation-circle fa-5x" style="color: red"></i></td><td><h1>', __( 'Warning: Possible Malware Detected!', 'mainwp-child' ), '</h1>', __( 'See details below.', 'mainwp-child' ), '</td></tr></table>';
 			}
 			?>
 			<div class="postbox-container" style="width: 100%; min-width: 750px;">

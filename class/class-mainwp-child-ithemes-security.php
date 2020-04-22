@@ -776,17 +776,20 @@ class MainWP_Child_iThemes_Security {
 
 			$wpdb->query( 'DELETE FROM `' . $wpdb->users . '` WHERE ID = 1;' );
 
-			$wpdb->insert( $wpdb->users, array(
-				'user_login'          => $user_login,
-				'user_pass'           => $user_object->user_pass,
-				'user_nicename'       => $user_object->user_nicename,
-				'user_email'          => $user_object->user_email,
-				'user_url'            => $user_object->user_url,
-				'user_registered'     => $user_object->user_registered,
-				'user_activation_key' => $user_object->user_activation_key,
-				'user_status'         => $user_object->user_status,
-				'display_name'        => $user_object->display_name,
-			) );
+			$wpdb->insert(
+				$wpdb->users,
+				array(
+					'user_login'          => $user_login,
+					'user_pass'           => $user_object->user_pass,
+					'user_nicename'       => $user_object->user_nicename,
+					'user_email'          => $user_object->user_email,
+					'user_url'            => $user_object->user_url,
+					'user_registered'     => $user_object->user_registered,
+					'user_activation_key' => $user_object->user_activation_key,
+					'user_status'         => $user_object->user_status,
+					'display_name'        => $user_object->display_name,
+				)
+			);
 
 			if ( is_multisite() && null !== $username && validate_username( $new_user ) ) {
 

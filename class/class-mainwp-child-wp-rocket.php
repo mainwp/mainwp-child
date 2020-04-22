@@ -310,7 +310,7 @@ class MainWP_Child_WP_Rocket {
 			if ( function_exists( 'rocket_clean_cache_busting' ) ) {
 				rocket_clean_cache_busting();
 			}
-			if ( ! function_exists( 'rocket_dismiss_boxes' ) && defined('WP_ROCKET_ADMIN_PATH') ) {
+			if ( ! function_exists( 'rocket_dismiss_boxes' ) && defined( 'WP_ROCKET_ADMIN_PATH' ) ) {
 				require_once WP_ROCKET_ADMIN_PATH . 'admin.php';
 			}
 			include_once ABSPATH . '/wp-admin/includes/template.php';
@@ -328,10 +328,10 @@ class MainWP_Child_WP_Rocket {
 
 	public function preload_cache() {
 		MainWP_Helper::check_functions( array( 'run_rocket_sitemap_preload', 'run_rocket_bot' ) );
-		MainWP_Helper::check_classes_exists('WP_Rocket\Preload\Full_Process');
+		MainWP_Helper::check_classes_exists( 'WP_Rocket\Preload\Full_Process' );
 
 		$preload_process = new WP_Rocket\Preload\Full_Process();
-		MainWP_Helper::check_methods($preload_process, array( 'is_process_running' ));
+		MainWP_Helper::check_methods( $preload_process, array( 'is_process_running' ) );
 
 		if ( $preload_process->is_process_running() ) {
 			return array( 'result' => 'RUNNING' );
