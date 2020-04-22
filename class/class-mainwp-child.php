@@ -5523,8 +5523,7 @@ class MainWP_Child {
 		header( 'Cache-Control: must-revalidate' );
 		header( 'Pragma: public' );
 		header( 'Content-Length: ' . filesize( $backupdir . $file ) );
-		while ( @ob_end_flush() ) {
-			;
+		while ( @ob_end_flush() ) {;
 		}
 		$this->readfile_chunked( $backupdir . $file, $offset );
 	}
