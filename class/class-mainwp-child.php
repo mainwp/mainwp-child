@@ -2177,8 +2177,8 @@ class MainWP_Child {
 				$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
 
 				if ( isset( $update['url'] ) ) {
-					$installer = new WP_Upgrader();
-					$result    = $installer->run(
+					$installer                        = new WP_Upgrader();
+					$result                           = $installer->run(
 						array(
 							'package'           => $update['url'],
 							'destination'       => ( 'plugin' === $update['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
