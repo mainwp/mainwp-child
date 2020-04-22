@@ -453,7 +453,7 @@ class Tar_Archiver {
 	protected $block;
 	protected $tempContent;
 	protected $gcCnt = 0;
-	protected $cnt = 0;
+	protected $cnt   = 0;
 
 	private function addFile( $path, $entryName ) {
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
@@ -961,7 +961,7 @@ class Tar_Archiver {
 		$this->archiveSize = false;
 
 		if ( 'tar.gz' == substr( $filepath, - 6 ) ) {
-			$this->type = 'tar.gz';
+			$this->type    = 'tar.gz';
 			$this->archive = @gzopen( $filepath, 'r' );
 		} elseif ( 'tar.bz2' == substr( $filepath, - 7 ) ) {
 			$this->type    = 'tar.bz2';
