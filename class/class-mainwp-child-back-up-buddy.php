@@ -17,7 +17,7 @@ class MainWP_Child_Back_Up_Buddy {
 	public $plugin_translate         = 'mainwp-child';
 	public $is_backupbuddy_installed = false;
 
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Back_Up_Buddy();
 		}
@@ -2636,7 +2636,9 @@ class MainWP_Child_Back_Up_Buddy {
 				require pb_backupbuddy::plugin_path() . '/destinations/live/_manual_snapshot.php';
 			}
 		} elseif ( 'pause_periodic' == $action ) {
-			backupbuddy_api::setLiveStatus( $pause_continuous = '', $pause_periodic = true );
+			$pause_continuous = '';
+			$pause_periodic   = true;
+			backupbuddy_api::setLiveStatus( $pause_continuous, $pause_periodic );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
 			$message     = __( 'Live File Backup paused. It may take a moment for current processes to finish.', 'mainwp-child' );
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php';
@@ -2647,17 +2649,22 @@ class MainWP_Child_Back_Up_Buddy {
 				$launchNowText = '';
 				$start_run     = true;
 			}
-
-			backupbuddy_api::setLiveStatus( $pause_continuous = '', $pause_periodic = false, $start_run );
+			$pause_continuous = '';
+			$pause_periodic   = false;
+			backupbuddy_api::setLiveStatus( $pause_continuous, $pause_periodic, $start_run );
 			$message = __( 'Live File Backup has resumed.', 'mainwp-child' ) . $launchNowText;
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php';
 		} elseif ( 'pause_continuous' == $action ) {
-			backupbuddy_api::setLiveStatus( $pause_continuous = true, $pause_periodic = '' );
+			$pause_continuous = true;
+			$pause_periodic   = '';
+			backupbuddy_api::setLiveStatus( $pause_continuous, $pause_periodic );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ];
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
 			$message = __( 'Live Database Backup paused.', 'mainwp-child' );
 		} elseif ( 'resume_continuous' == $action ) {
-			backupbuddy_api::setLiveStatus( $pause_continuous = false, $pause_periodic = '' );
+			$pause_continuous = false;
+			$pause_periodic   = '';
+			backupbuddy_api::setLiveStatus( $pause_continuous, $pause_periodic );
 			$destination = pb_backupbuddy::$options['remote_destinations'][ $destination_id ]; // Update local var.
 			include pb_backupbuddy::plugin_path() . '/destinations/live/_stats.php'; // Recalculate stats.
 			$message = __( 'Live Database Backup resumed.', 'mainwp-child' );

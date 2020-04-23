@@ -57,7 +57,7 @@ class MainWP_Child_WooCommerce_Status {
 		return version_compare( WC()->version, '2.2.0', '>=' );
 	}
 
-	function sync_data() {
+	public function sync_data() {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {

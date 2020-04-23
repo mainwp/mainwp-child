@@ -4,7 +4,7 @@ class MainWP_Client_Report {
 
 	public static $instance = null;
 
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Client_Report();
 		}

@@ -735,7 +735,8 @@ class MainWP_Child_Back_WP_Up {
 					}
 
 					if ( BackWPup_Option::get( $val, 'activetype' ) == 'wpcron' ) {
-						if ( $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'id' => $val ) ) + ( get_option( 'gmt_offset' ) * 3600 ) ) {
+						$nextrun = wp_next_scheduled( 'backwpup_cron', array( 'id' => $val ) );
+						if ( $nextrun + ( get_option( 'gmt_offset' ) * 3600 ) ) {
 							$temp_array['nextrun'] = sprintf( __( '%1$s at %2$s by WP-Cron', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $nextrun, true ), date_i18n( get_option( 'time_format' ), $nextrun, true ) );
 						} else {
 							$temp_array['nextrun'] = __( 'Not scheduled!', 'mainwp-child' );
@@ -743,7 +744,6 @@ class MainWP_Child_Back_WP_Up {
 					} else {
 						$temp_array['nextrun'] = __( 'Inactive', 'mainwp-child' );
 					}
-
 					if ( BackWPup_Option::get( $val, 'lastrun' ) ) {
 						$lastrun               = BackWPup_Option::get( $val, 'lastrun' );
 						$temp_array['lastrun'] = sprintf( __( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $lastrun, true ), date_i18n( get_option( 'time_format' ), $lastrun, true ) );

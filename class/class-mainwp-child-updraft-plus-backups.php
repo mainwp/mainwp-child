@@ -15,7 +15,7 @@
 class MainWP_Child_Updraft_Plus_Backups {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Updraft_Plus_Backups();
 		}
@@ -51,7 +51,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return $last_backup;
 	}
 
-	function syncOthersData( $information, $data = array() ) {
+	public function syncOthersData( $information, $data = array() ) {
 		try {
 			if ( isset( $data['syncUpdraftData'] ) ) {
 				$info = $data['syncUpdraftData'];
@@ -167,7 +167,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		MainWP_Helper::write( $information );
 	}
 
-	function set_showhide() {
+	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_updraftplus_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
@@ -409,7 +409,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 	}
 
-	function required_files() {
+	public function required_files() {
 		if ( defined( 'UPDRAFTPLUS_DIR' ) ) {
 			if ( ! class_exists( 'UpdraftPlus' ) && file_exists( UPDRAFTPLUS_DIR . '/class-updraftplus.php' ) ) {
 				require_once UPDRAFTPLUS_DIR . '/class-updraftplus.php';
@@ -421,7 +421,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 	}
 
-	function save_settings() {
+	public function save_settings() {
 		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
 		$keys_filter = $this->get_settings_keys();
@@ -652,7 +652,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return $out;
 	}
 
-	function replace_tokens( $str = '' ) {
+	public function replace_tokens( $str = '' ) {
 		if ( stripos( $str, '%sitename%' ) !== false ) {
 			$replace_token = get_bloginfo( 'name' );
 			$replace_token = sanitize_file_name( $replace_token );
@@ -669,7 +669,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return $str;
 	}
 
-	function addons_connect() {
+	public function addons_connect() {
 		if ( ! defined( 'UDADDONS2_SLUG' ) ) {
 			if ( is_file( UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php' ) ) {
 				require_once UPDRAFTPLUS_DIR . '/udaddons/updraftplus-addons.php';
@@ -887,7 +887,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return $a[0];
 	}
 
-	function backup_now() {
+	public function backup_now() {
 		global $updraftplus;
 		$backupnow_nocloud = ( empty( $_REQUEST['backupnow_nocloud'] ) ) ? false : true;
 		$event             = ( ! empty( $_REQUEST['backupnow_nofiles'] ) ) ? 'updraft_backupnow_backup_database' : ( ( ! empty( $_REQUEST['backupnow_nodb'] ) ) ? 'updraft_backupnow_backup' : 'updraft_backupnow_backup_all' );
@@ -918,7 +918,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		die;
 	}
 
-	function activejobs_list() {
+	public function activejobs_list() {
 		global $updraftplus;
 		$download_status = array();
 		if ( ! empty( $_REQUEST['downloaders'] ) ) {
@@ -3363,7 +3363,7 @@ ENDHERE;
 	}
 
 
-	function diskspaceused() {
+	public function diskspaceused() {
 		global $updraftplus;
 		$out = array();
 		if ( 'updraft' === $_POST['entity'] ) {
@@ -3886,7 +3886,7 @@ ENDHERE;
 		}
 	}
 
-	function remove_notices() {
+	public function remove_notices() {
 		$remove_hooks['all_admin_notices'] = array(
 			'UpdraftPlus'                          => array(
 				'show_admin_warning_unreadablelog'  => 10,
@@ -3910,7 +3910,7 @@ ENDHERE;
 		}
 	}
 
-	function wp_before_admin_bar_render() {
+	public function wp_before_admin_bar_render() {
 		global $wp_admin_bar;
 
 		$nodes = $wp_admin_bar->get_nodes();
@@ -3927,12 +3927,12 @@ ENDHERE;
 		}
 	}
 
-	function hide_update_notice( $slugs ) {
+	public function hide_update_notice( $slugs ) {
 		$slugs[] = 'updraftplus/updraftplus.php';
 		return $slugs;
 	}
 
-	function remove_update_nag( $value ) {
+	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}

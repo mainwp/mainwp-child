@@ -92,9 +92,9 @@ class MainWP_Clone {
 		$ui      = $wp_scripts->query( 'jquery-ui-core' );
 		$version = $ui->ver;
 		if ( MainWP_Helper::startsWith( $version, '1.10' ) ) {
-			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', dirname( __FILE__ ) ) );
+			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', dirname( __FILE__ ) ), array(), null, 'all' );
 		} else {
-			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ) );
+			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ), array(), null, 'all' );
 		}
 	}
 
@@ -285,7 +285,7 @@ class MainWP_Clone {
 					<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
 					<?php
 						$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-					if ( $branding_title != '' ) {
+					if ( '' != $branding_title ) {
 						$branding_msg = 'If you have a FULL backup created by basic ' . esc_html( stripslashes( $branding_title ) ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
 					} else {
 						$branding_msg = esc_html__( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
@@ -374,7 +374,8 @@ class MainWP_Clone {
 		$quick_dirs   = array();
 		$quick_dirs[] = array( __( 'Site Root', 'mainwp-child' ), ABSPATH );
 		$quick_dirs[] = array( __( 'Backup', 'mainwp-child' ), $backup_dir );
-		if ( ( $uploads = wp_upload_dir() ) && false === $uploads['error'] ) {
+		$uploads = wp_upload_dir();
+		if ( $uploads && false === $uploads['error'] ) {
 			$quick_dirs[] = array( __( 'Uploads Folder', 'mainwp-child' ), $uploads['path'] );
 		}
 		$quick_dirs[] = array( __( 'Content Folder', 'mainwp-child' ), WP_CONTENT_DIR );
@@ -1251,9 +1252,10 @@ class MainWP_Clone {
 			$filename  = 'download-' . basename( $file );
 			$dirs      = MainWP_Helper::getMainWPDir( 'backup', false );
 			$backupdir = $dirs[0];
-
-			if ( $dh = opendir( $backupdir ) ) {
-				while ( ( $file = readdir( $dh ) ) !== false ) {
+			$dh        = opendir( $backupdir );
+			if ( $dh ) {
+				$file = readdir( $dh );
+				while ( false !== $file ) {
 					if ( '.' !== $file && '..' !== $file && MainWP_Helper::isArchive( $file, 'download-' ) ) {
 						@unlink( $backupdir . $file );
 					}

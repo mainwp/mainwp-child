@@ -86,7 +86,7 @@ class MainWP_Child_DB {
 		}
 	}
 
-	static function get_size() {
+	public static function get_size() {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 

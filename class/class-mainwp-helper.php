@@ -129,9 +129,7 @@ class MainWP_Helper {
 			if ( '@media' === substr( $blocks[0][ $i ], 0, 6 ) ) {
 				$ordered_key   = preg_replace( '/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ] );
 				$ordered_value = preg_replace( '/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][ $i ] );
-			}
-			// Rule-blocks of the sort @import or @font-face.
-			elseif ( '@' === substr( $blocks[0][ $i ], 0, 1 ) ) {
+			} elseif ( '@' === substr( $blocks[0][ $i ], 0, 1 ) ) {
 				$ordered_key   = $blocks[0][ $i ];
 				$ordered_value = $blocks[0][ $i ];
 			} else {
@@ -424,7 +422,9 @@ class MainWP_Helper {
 				if ( $user_author ) {
 					$post_author = $user_author->ID;
 				} else {
-					$random_password = wp_generate_password( $length = 12, $include_standard_special_chars = false );
+					$length                         = 12;
+					$include_standard_special_chars = false;
+					$random_password = wp_generate_password( $length, $include_standard_special_chars );
 					$post_author     = wp_create_user( $post_author, $random_password, $post_author . '@asdf.com' );
 				}
 			}

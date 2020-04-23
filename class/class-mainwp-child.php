@@ -5261,8 +5261,7 @@ class MainWP_Child {
 				'<div>' . 'REMOTE ADDRESS: ' . $address . '</div>' .
 				'<div>' . 'REMOTE IDENTITY: ' . $remote . '</div>' .
 				'<div>' . 'USER AGENT: ' . $agent . '</div>';
-		$mail = '<div>404 alert</div>
-                <div></div>' . $mail;
+		$mail = '<div>404 alert</div><div></div>' . $mail;
 		@wp_mail(
 			$email,
 			'MainWP - 404 Alert: ' . $blog,
@@ -5610,7 +5609,7 @@ class MainWP_Child {
 		MainWP_Helper::write( array( 'result' => 'success' ) );
 	}
 
-	static function fix_for_custom_themes() {
+	public static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
 		}

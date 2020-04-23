@@ -169,7 +169,7 @@ class MainWP_Child_Wordfence {
 		'learningModeGracePeriod',
 	);
 
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Wordfence();
 		}
