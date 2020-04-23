@@ -550,7 +550,6 @@ class MainWP_Child_Timecapsule {
 		$i     = 0;
 		$limit = WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
 		// Get the columns registered in the get_columns and get_sortable_columns methods.
-		// $columns = $this->get_columns();
 		$timezone = WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
 		if ( count( $records ) > 0 ) {
 

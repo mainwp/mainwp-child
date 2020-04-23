@@ -1340,7 +1340,7 @@ class MainWP_Child_Back_WP_Up {
 		foreach ( $to_include as $key => $value ) {
 			$normalized                             = trailingslashit( wp_normalize_path( trim( $value ) ) );
 			$normalized && $normalized              = filter_var( $normalized, FILTER_SANITIZE_URL );
-			$realpath                               = $normalized && $normalized !== '/' ? realpath( $normalized ) : false;
+			$realpath                               = $normalized && '/' !== $normalized ? realpath( $normalized ) : false;
 			$realpath && $to_include_parsed[ $key ] = $realpath;
 		}
 		sort( $to_include_parsed );

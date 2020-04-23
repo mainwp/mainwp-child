@@ -849,7 +849,7 @@ class MainWP_Child_Back_Up_Buddy {
 		require_once pb_backupbuddy::plugin_path() . '/classes/fileoptions.php';
 		pb_backupbuddy::status( 'details', 'Fileoptions instance #24.' );
 		$backup_options = new pb_backupbuddy_fileoptions( backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt' );
-		 $result        = $backup_options->is_ok();
+		$result         = $backup_options->is_ok();
 		if ( true === $result ) {
 			$backup_options->options['integrity']['comment'] = $note;
 			$backup_options->save();
@@ -1839,7 +1839,7 @@ class MainWP_Child_Back_Up_Buddy {
 				isset( $data['export_plugins'] ) ? $data['export_plugins'] : '',
 				$data['direction'],
 				isset( $data['deployDestination'] ) ? $data['deployDestination'] : ''
-				) !== true ) {
+			) !== true ) {
 				return array( 'error' => __( 'Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'mainwp-child' ) );
 			}
 		} else {
@@ -2200,7 +2200,7 @@ class MainWP_Child_Back_Up_Buddy {
 		}
 		pb_backupbuddy::$ui->end_metabox();
 
-		if ( $continue_2 === true ) {
+		if ( true === $continue_2 ) {
 			function lined_array( $array ) {
 				if ( is_array( $array ) ) {
 					foreach ( $array as $array_key => $array_item ) {

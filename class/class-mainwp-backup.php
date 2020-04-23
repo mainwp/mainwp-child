@@ -667,7 +667,7 @@ class MainWP_Backup {
 			$this->zipArchiveFileCount ++;
 
 			$this->testContent = file_get_contents( $path );
-			if ( $this->testContent === false ) {
+			if ( false === $this->testContent ) {
 				return false;
 			}
 			$added = $this->zip->addFromString( $zipEntryName, $this->testContent );
@@ -747,7 +747,7 @@ class MainWP_Backup {
 					// @codingStandardsIgnoreEnd
 					$query = $table_insert;
 					foreach ( $row as $value ) {
-						if ( $value === null ) {
+						if ( null === $value ) {
 							$query .= 'NULL, ';
 						} else {
 							$query .= '"' . MainWP_Child_DB::real_escape_string( $value ) . '", ';

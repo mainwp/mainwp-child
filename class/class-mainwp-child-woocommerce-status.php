@@ -179,8 +179,8 @@ class MainWP_Child_WooCommerce_Status {
 			AND tax.taxonomy = 'shop_order_status'
 			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
 			AND postmeta.meta_key = '_order_total'
-			AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s')
-			AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')"
+			AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare( '%s', $start_date ) . ", '%Y-%m-%d %H:%i:%s')
+			AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare( '%s', $end_date ) . ", '%Y-%m-%d %H:%i:%s')"
 		);
 
 		// Get top seller.
@@ -302,8 +302,8 @@ class MainWP_Child_WooCommerce_Status {
 		$query['where']  .= "AND posts.post_status IN ( 'wc-" . implode( "','wc-", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) ";
 		$query['where']  .= "AND order_item_meta.meta_key = '_qty' ";
 		$query['where']  .= "AND order_item_meta_2.meta_key = '_product_id' ";
-		$query['where']  .= 'AND posts.post_date >= STR_TO_DATE(' . $wpdb->prepare('%s', $start_date) . ", '%Y-%m-%d %H:%i:%s') ";
-		$query['where']  .= 'AND posts.post_date <= STR_TO_DATE(' . $wpdb->prepare('%s', $end_date) . ", '%Y-%m-%d %H:%i:%s')  ";
+		$query['where']  .= 'AND posts.post_date >= STR_TO_DATE(' . $wpdb->prepare( '%s', $start_date ) . ", '%Y-%m-%d %H:%i:%s') ";
+		$query['where']  .= 'AND posts.post_date <= STR_TO_DATE(' . $wpdb->prepare( '%s', $end_date ) . ", '%Y-%m-%d %H:%i:%s')  ";
 		$query['groupby'] = 'GROUP BY product_id';
 		$query['orderby'] = 'ORDER BY qty DESC';
 		$query['limits']  = 'LIMIT 1';

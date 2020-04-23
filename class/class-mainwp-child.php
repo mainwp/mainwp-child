@@ -1821,8 +1821,7 @@ class MainWP_Child {
 						}
 						// If this does not work - add code from /wp-admin/includes/class-wp-upgrader.php in the newer versions
 						// So users can upgrade older versions too.
-						// 3rd option: 'wp_update_core'
-
+						// 3rd option: 'wp_update_core'.
 						if ( ! is_wp_error( $upgrade ) ) {
 							$information['upgrade'] = 'SUCCESS';
 						} else {
@@ -1881,7 +1880,8 @@ class MainWP_Child {
 
 		$result = count( $language_updates ) == 0 ? false : $upgrader->bulk_upgrade( $language_updates );
 		if ( ! empty( $result ) ) {
-			for ( $i = 0; $i < count( $result ); $i++ ) {
+			$count_result = count( $result );
+			for ( $i = 0; $i < $count_result; $i++ ) {
 				if ( empty( $result[ $i ] ) || is_wp_error( $result[ $i ] ) ) {
 					$information['upgrades'][ $language_updates[ $i ]->slug ] = false;
 				} else {
@@ -3861,7 +3861,7 @@ class MainWP_Child {
 			try {
 				$information = apply_filters( 'mainwp-site-sync-others-data', $information, $othersData );
 			} catch ( Exception $e ) {
-				// do not exit!
+				// ok!
 			}
 		}
 
@@ -4741,7 +4741,6 @@ class MainWP_Child {
 		if ( is_array( $roles ) ) {
 			foreach ( $roles as $role ) {
 				$new_users = get_users( 'role=' . $role );
-				// $allusers[$role] = array();
 				foreach ( $new_users as $new_user ) {
 					$usr                 = array();
 					$usr['id']           = $new_user->ID;
