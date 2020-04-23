@@ -424,8 +424,8 @@ class MainWP_Helper {
 				} else {
 					$length                         = 12;
 					$include_standard_special_chars = false;
-					$random_password = wp_generate_password( $length, $include_standard_special_chars );
-					$post_author     = wp_create_user( $post_author, $random_password, $post_author . '@asdf.com' );
+					$random_password                = wp_generate_password( $length, $include_standard_special_chars );
+					$post_author                    = wp_create_user( $post_author, $random_password, $post_author . '@asdf.com' );
 				}
 			}
 		} elseif ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
