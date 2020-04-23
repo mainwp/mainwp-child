@@ -1124,7 +1124,7 @@ class MainWP_Helper {
 		$str   = '';
 		$count = strlen( $charset );
 		while ( $length -- ) {
-			$str .= $charset[ wp_rand( 0, $count - 1 ) ];
+			$str .= $charset[ mt_rand( 0, $count - 1 ) ]; // phpcs:ignore
 		}
 
 		return $str;
