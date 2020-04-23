@@ -1181,7 +1181,7 @@ class MainWP_Child_Timecapsule {
 		echo '<tr title="&gt;=128M"><td>' . __( 'PHP Memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( ini_get( 'memory_limit' ) ) . '</td></tr>';
 		echo '<tr title="WP_MEMORY_LIMIT"><td>' . __( 'WP memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( WP_MEMORY_LIMIT ) . '</td></tr>';
 		echo '<tr title="WP_MAX_MEMORY_LIMIT"><td>' . __( 'WP maximum memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( WP_MAX_MEMORY_LIMIT ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Memory in use', 'wp-time-capsule' ) . '</td><td>' . size_format( @memory_get_usage( true ), 2 ) . '</td></tr>';
+		echo '<tr title=""><td>' . __( 'Memory in use', 'wp-time-capsule' ) . '</td><td>' . size_format( memory_get_usage( true ), 2 ) . '</td></tr>';
 
 		// disabled PHP functions.
 		$disabled = esc_html( ini_get( 'disable_functions' ) );

@@ -137,9 +137,9 @@ class MainWP_Security {
 
 	public static function remove_php_reporting( $force = false ) {
 		if ( $force || self::get_security_option( 'php_reporting' ) ) {
-			@error_reporting( 0 );
-			@ini_set( 'display_errors', 'off' );
-			@ini_set( 'display_startup_errors', 0 );
+			error_reporting( 0 );
+			ini_set( 'display_errors', 'off' );
+			ini_set( 'display_startup_errors', 0 );
 		}
 	}
 
@@ -216,13 +216,13 @@ class MainWP_Security {
 		}
 
 		if ( $force || self::get_security_option( 'readme' ) ) {
-			if ( @file_exists( ABSPATH . 'readme.html' ) ) {
-				if ( ! @unlink( ABSPATH . 'readme.html' ) ) {
+			if ( file_exists( ABSPATH . 'readme.html' ) ) {
+				if ( ! unlink( ABSPATH . 'readme.html' ) ) {
 					MainWP_Helper::getWPFilesystem();
 					global $wp_filesystem;
 					if ( ! empty( $wp_filesystem ) ) {
 						$wp_filesystem->delete( ABSPATH . 'readme.html' );
-						if ( @file_exists( ABSPATH . 'readme.html' ) ) {
+						if ( file_exists( ABSPATH . 'readme.html' ) ) {
 							// prevent repeat delete.
 							self::update_security_option( 'readme', false );
 						}

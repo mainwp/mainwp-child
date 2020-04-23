@@ -121,7 +121,7 @@ class MainWP_Wordpress_SEO {
 			$unzipped = unzip_file( $file, $p_path );
 			if ( ! is_wp_error( $unzipped ) ) {
 				$filename = $p_path . 'settings.ini';
-				if ( @is_file( $filename ) && is_readable( $filename ) ) {
+				if ( is_file( $filename ) && is_readable( $filename ) ) {
 					$options = parse_ini_file( $filename, true );
 
 					if ( is_array( $options ) && array() !== $options ) {
@@ -147,13 +147,13 @@ class MainWP_Wordpress_SEO {
 				} else {
 					throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
-				@unlink( $filename );
-				@unlink( $p_path );
+				unlink( $filename );
+				unlink( $p_path );
 			} else {
 				throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( __( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) );
 			}
 			unset( $zip, $unzipped );
-			@unlink( $file );
+			unlink( $file );
 		} else {
 			throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . __( 'Upload failed.', 'mainwp-child' ) );
 		}

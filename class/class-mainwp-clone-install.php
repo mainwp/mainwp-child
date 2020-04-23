@@ -150,12 +150,12 @@ class MainWP_Clone_Install {
 	}
 
 	public function testDatabase() {
-		$link = @MainWP_Child_DB::connect( $this->config['dbHost'], $this->config['dbUser'], $this->config['dbPass'] );
+		$link = MainWP_Child_DB::connect( $this->config['dbHost'], $this->config['dbUser'], $this->config['dbPass'] );
 		if ( ! $link ) {
 			throw new Exception( __( 'Invalid database host or user/password.', 'mainwp-child' ) );
 		}
 
-		$db_selected = @MainWP_Child_DB::select_db( $this->config['dbName'], $link );
+		$db_selected = MainWP_Child_DB::select_db( $this->config['dbName'], $link );
 		if ( ! $db_selected ) {
 			throw new Exception( __( 'Invalid database name.', 'mainwp-child' ) );
 		}
@@ -164,13 +164,13 @@ class MainWP_Clone_Install {
 	public function clean() {
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
-			@unlink( $file );
+			unlink( $file );
 		}
 		if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
-			@unlink( ABSPATH . 'clone/config.txt' );
+			unlink( ABSPATH . 'clone/config.txt' );
 		}
 		if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
-			@rmdir( ABSPATH . 'clone' );
+			rmdir( ABSPATH . 'clone' );
 		}
 
 		try {
@@ -180,7 +180,7 @@ class MainWP_Clone_Install {
 			$files = glob( $backupdir . '*' );
 			foreach ( $files as $file ) {
 				if ( MainWP_Helper::isArchive( $file ) ) {
-					@unlink( $file );
+					unlink( $file );
 				}
 			}
 		} catch ( Exception $e ) {
@@ -225,14 +225,14 @@ class MainWP_Clone_Install {
 
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
-			$handle = @fopen( $file, 'r' );
+			$handle = fopen( $file, 'r' );
 
 			$lastRun = 0;
 			if ( $handle ) {
 				$readline = '';
 				while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
 					if ( time() - $lastRun > 20 ) {
-						@set_time_limit( 0 ); // reset timer..
+						set_time_limit( 0 ); // reset timer..
 						$lastRun = time();
 					}
 
@@ -350,7 +350,7 @@ class MainWP_Clone_Install {
 		// Clean up!
 		$files = glob( '../dbBackup*.sql' );
 		foreach ( $files as $file ) {
-			@unlink( $file );
+			unlink( $file );
 		}
 	}
 
@@ -434,7 +434,7 @@ class MainWP_Clone_Install {
 		$zip    = new ZipArchive();
 		$zipRes = $zip->open( $this->file );
 		if ( $zipRes ) {
-			@$zip->extractTo( ABSPATH );
+			$zip->extractTo( ABSPATH );
 			$zip->close();
 
 			return true;
@@ -643,7 +643,7 @@ class MainWP_Clone_Install {
 
 		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
 		try {
-			$unserialized = @unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+			$unserialized = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
 			if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
 				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
 			} elseif ( is_array( $data ) ) {
@@ -663,7 +663,7 @@ class MainWP_Clone_Install {
 				$data = $_tmp;
 				unset( $_tmp );
 			} elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
-				$data = @unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+				$data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
 				if ( false !== $data ) {
 					$data = str_replace( $from, $to, $data );
 					$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.

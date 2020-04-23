@@ -1097,8 +1097,8 @@ class MainWP_Child_Server_Information {
 		$conf = array( 'private_key_bits' => 2048 );
 		$str  = '';
 		if ( function_exists( 'openssl_pkey_new' ) ) {
-			$res = @openssl_pkey_new( $conf );
-			@openssl_pkey_export( $res, $privkey );
+			$res = openssl_pkey_new( $conf );
+			openssl_pkey_export( $res, $privkey );
 
 			$str = openssl_error_string();
 		}
@@ -1537,15 +1537,15 @@ class MainWP_Child_Server_Information {
 			<div style="padding: 1em;">
 				<?php
 				if ( file_exists( ABSPATH . 'wp-config.php' ) ) {
-					@show_source( ABSPATH . 'wp-config.php' );
+					show_source( ABSPATH . 'wp-config.php' );
 				} else {
-					$files       = @get_included_files();
+					$files       = get_included_files();
 					$configFound = false;
 					if ( is_array( $files ) ) {
 						foreach ( $files as $file ) {
 							if ( stristr( $file, 'wp-config.php' ) ) {
 								$configFound = true;
-								@show_source( $file );
+								show_source( $file );
 								break;
 							}
 						}
@@ -1565,7 +1565,7 @@ class MainWP_Child_Server_Information {
 		?>
 		<div class="postbox" id="mainwp-code-display">
 			<h3 class="hndle" style="padding: 8px 12px; font-size: 14px;"><span><?php _e( '.htaccess', 'mainwp-child' ); ?></span></h3>
-			<div style="padding: 1em;"><?php @show_source( ABSPATH . '.htaccess' ); ?></div>
+			<div style="padding: 1em;"><?php show_source( ABSPATH . '.htaccess' ); ?></div>
 		</div>
 		<?php
 	}

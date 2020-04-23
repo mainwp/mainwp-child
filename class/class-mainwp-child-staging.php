@@ -341,7 +341,7 @@ class MainWP_Child_Staging {
 		if ( ! function_exists( 'disk_free_space' ) ) {
 			return null;
 		}
-		$freeSpace = @disk_free_space( ABSPATH );
+		$freeSpace = disk_free_space( ABSPATH );
 		if ( false === $freeSpace ) {
 			$data = array(
 				'freespace' => false,

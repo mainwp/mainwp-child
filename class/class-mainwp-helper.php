@@ -68,9 +68,9 @@ class MainWP_Helper {
 	}
 
 	public static function safe_json_encode( $value, $options = 0, $depth = 512 ) {
-		$encoded = @json_encode( $value, $options, $depth );
+		$encoded = json_encode( $value, $options, $depth );
 		if ( false === $encoded && ! empty( $value ) && JSON_ERROR_UTF8 == json_last_error() ) {
-			$encoded = @json_encode( self::json_valid_check( $value ), $options, $depth );
+			$encoded = json_encode( self::json_valid_check( $value ), $options, $depth );
 		}
 		return $encoded;
 	}
@@ -262,7 +262,7 @@ class MainWP_Helper {
 				$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 			}
 
-			$moved = @rename( $temporary_file, $local_img_path );
+			$moved = rename( $temporary_file, $local_img_path );
 
 			if ( $moved ) {
 				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
@@ -331,22 +331,22 @@ class MainWP_Helper {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			@unlink( $full_file_name );
+			unlink( $full_file_name );
 			throw new Exception( 'Error: ' . $response->get_error_message() );
 		}
 
 		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			@unlink( $full_file_name );
+			unlink( $full_file_name );
 			throw new Exception( 'Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ) );
 		}
 		if ( '.phpfile.txt' === substr( $file_name, - 12 ) ) {
 			$new_file_name = substr( $file_name, 0, - 12 ) . '.php';
 			$new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
-			$moved         = @rename( $full_file_name, $new_file_name );
+			$moved         = rename( $full_file_name, $new_file_name );
 			if ( $moved ) {
 				return array( 'path' => $new_file_name );
 			} else {
-				@unlink( $full_file_name );
+				unlink( $full_file_name );
 				throw new Exception( 'Error: Copy file.' );
 			}
 		}
@@ -877,7 +877,7 @@ class MainWP_Helper {
 		$dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
 		self::checkDir( $dir, $dieOnError );
 		if ( ! file_exists( $dir . 'index.php' ) ) {
-			@touch( $dir . 'index.php' );
+			touch( $dir . 'index.php' );
 		}
 		$url = $upload_dir['baseurl'] . '/mainwp/';
 
@@ -885,14 +885,14 @@ class MainWP_Helper {
 			$dir .= 'backup' . DIRECTORY_SEPARATOR;
 			self::checkDir( $dir, $dieOnError );
 			if ( ! file_exists( $dir . 'index.php' ) ) {
-				@touch( $dir . 'index.php' );
+				touch( $dir . 'index.php' );
 			}
 
 			$another_name = '.htaccess';
 			if ( ! file_exists( $dir . $another_name ) ) {
-				$file = @fopen( $dir . $another_name, 'w+' );
-				@fwrite( $file, 'deny from all' );
-				@fclose( $file );
+				$file = fopen( $dir . $another_name, 'w+' );
+				fwrite( $file, 'deny from all' );
+				fclose( $file );
 			}
 			$url .= 'backup/';
 		}
@@ -905,7 +905,7 @@ class MainWP_Helper {
 		global $wp_filesystem;
 		if ( ! file_exists( $dir ) ) {
 			if ( empty( $wp_filesystem ) ) {
-				@mkdir( $dir, $chmod, true );
+				mkdir( $dir, $chmod, true );
 			} else {
 				if ( ( 'ftpext' === $wp_filesystem->method ) && defined( 'FTP_BASE' ) ) {
 					$ftpBase = FTP_BASE;
@@ -948,7 +948,7 @@ class MainWP_Helper {
 
 		if ( ! $done ) {
 			if ( ! file_exists( $dir ) ) {
-				@mkdirs( $dir );
+				mkdirs( $dir );
 			}
 			if ( is_writable( $dir ) ) {
 				$done = true;
@@ -1061,8 +1061,8 @@ class MainWP_Helper {
 	}
 
 	public static function endSession() {
-		@session_write_close();
-		@ob_end_flush();
+		session_write_close();
+		ob_end_flush();
 	}
 
 	public static function fetchUrl( $url, $postdata ) {
@@ -1151,7 +1151,7 @@ class MainWP_Helper {
 		$size   = array( 'B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB' );
 		$factor = floor( ( strlen( $bytes ) - 1 ) / 3 );
 
-		return sprintf( "%.{$decimals}f", $bytes / pow( 1024, $factor ) ) . @$size[ $factor ];
+		return sprintf( "%.{$decimals}f", $bytes / pow( 1024, $factor ) ) . $size[ $factor ];
 	}
 
 	public static function is_dir_empty( $dir ) {
@@ -1170,11 +1170,11 @@ class MainWP_Helper {
 				if ( is_dir( $node ) ) {
 					self::delete_dir( $node . DIRECTORY_SEPARATOR );
 				} else {
-					@unlink( $node );
+					unlink( $node );
 				}
 			}
 		}
-		@rmdir( $dir );
+		rmdir( $dir );
 	}
 
 	public static function function_exists( $func ) {
@@ -1183,7 +1183,7 @@ class MainWP_Helper {
 		}
 
 		if ( extension_loaded( 'suhosin' ) ) {
-			$suhosin = @ini_get( 'suhosin.executor.func.blacklist' );
+			$suhosin = ini_get( 'suhosin.executor.func.blacklist' );
 			if ( ! empty( $suhosin ) ) {
 				$suhosin = explode( ',', $suhosin );
 				$suhosin = array_map( 'trim', $suhosin );

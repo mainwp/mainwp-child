@@ -222,7 +222,7 @@ class MainWP_Child_Back_Up_Wordpress {
 						$message     = 'BackupWordpres backup ' . $backup_type . ' finished';
 						$destination = 'N/A';
 						if ( file_exists( $file ) ) {
-							$date = @filemtime( $file );
+							$date = filemtime( $file );
 							if ( ! empty( $date ) ) {
 								do_action( 'mainwp_reports_backupwordpress_backup', $destination, $message, 'finished', $backup_type, $date );
 								MainWP_Helper::update_lasttime_backup( 'backupwordpress', $date ); // to support backup before update feature.
@@ -494,10 +494,10 @@ class MainWP_Child_Back_Up_Wordpress {
 		?>
 		<tr class="hmbkp_manage_backups_row">
 			<th scope="row">
-				<?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' - ' . get_option( 'time_format' ), @filemtime( $file ) + $offset ) ); ?>
+				<?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' - ' . get_option( 'time_format' ), filemtime( $file ) + $offset ) ); ?>
 			</th>
 			<td class="code">
-				<?php echo esc_html( size_format( @filesize( $file ) ) ); ?>
+				<?php echo esc_html( size_format( filesize( $file ) ) ); ?>
 			</td>
 			<td><?php echo function_exists( 'hmbkp_human_get_type' ) ? esc_html( hmbkp_human_get_type( $file, $schedule ) ) : esc_html( HM\BackUpWordPress\human_get_type( $file, $schedule ) ); ?></td>
 			<td>
@@ -696,7 +696,7 @@ class MainWP_Child_Back_Up_Wordpress {
 							}
 						}
 						// Skip unreadable files.
-						if ( ! @realpath( $file->getPathname() ) || ! $file->isReadable() ) {
+						if ( ! realpath( $file->getPathname() ) || ! $file->isReadable() ) {
 							$is_unreadable = true;
 						}
 						?>

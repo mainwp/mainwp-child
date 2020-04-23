@@ -509,7 +509,7 @@ class MainWP_Child_Back_WP_Up {
 		echo '<tr title="&gt;=128M"><td>' . __( 'PHP Memory limit', 'mainwp-child' ) . '</td><td>' . esc_html( ini_get( 'memory_limit' ) ) . '</td></tr>';
 		echo '<tr title="WP_MEMORY_LIMIT"><td>' . __( 'WP memory limit', 'mainwp-child' ) . '</td><td>' . esc_html( WP_MEMORY_LIMIT ) . '</td></tr>';
 		echo '<tr title="WP_MAX_MEMORY_LIMIT"><td>' . __( 'WP maximum memory limit', 'mainwp-child' ) . '</td><td>' . esc_html( WP_MAX_MEMORY_LIMIT ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Memory in use', 'mainwp-child' ) . '</td><td>' . esc_html( size_format( @memory_get_usage( true ), 2 ) ) . '</td></tr>';
+		echo '<tr title=""><td>' . __( 'Memory in use', 'mainwp-child' ) . '</td><td>' . esc_html( size_format( memory_get_usage( true ), 2 ) ) . '</td></tr>';
 
 		$disabled = ini_get( 'disable_functions' );
 		if ( ! empty( $disabled ) ) {
@@ -1159,7 +1159,7 @@ class MainWP_Child_Back_WP_Up {
 				$main_folder_name = untrailingslashit( str_replace( '\\', '/', $main_folder_name ) );
 				$main_folder_size = '(' . size_format( BackWPup_File::get_folder_size( $main_folder_name, false ), 2 ) . ')';
 
-				$dir = @opendir( $main_folder_name );
+				$dir = opendir( $main_folder_name );
 				if ( $dir ) {
 					while ( false !== ( $file = readdir( $dir ) ) ) {
 						if ( ! in_array( $file, array( '.', '..' ) ) && is_dir( $main_folder_name . '/' . $file ) && ! in_array( trailingslashit( $main_folder_name . '/' . $file ), mainwp_backwpup_get_exclude_dirs( $main_folder_name ) ) ) {
@@ -1172,7 +1172,7 @@ class MainWP_Child_Back_WP_Up {
 						}
 					}
 
-					@closedir( $dir );
+					closedir( $dir );
 				}
 
 				$return[ $key ] = array(
@@ -1197,7 +1197,7 @@ class MainWP_Child_Back_WP_Up {
 		$settings = $_POST['settings'];
 
 		if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
-			$mysqli = @new mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) );
+			$mysqli = new mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) );
 
 			if ( $mysqli->connect_error ) {
 				$return['message'] = $mysqli->connect_error;

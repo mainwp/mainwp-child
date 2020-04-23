@@ -709,7 +709,7 @@ class MainWP_Child_Back_Up_Buddy {
 			$deleted_files = array();
 			foreach ( $item_ids as $item ) {
 				if ( file_exists( backupbuddy_core::getBackupDirectory() . $item ) ) {
-					if ( @unlink( backupbuddy_core::getBackupDirectory() . $item ) === true ) {
+					if ( unlink( backupbuddy_core::getBackupDirectory() . $item ) === true ) {
 						$deleted_files[] = $item;
 
 						// Cleanup any related fileoptions files.
@@ -723,10 +723,10 @@ class MainWP_Child_Back_Up_Buddy {
 							$this_serial      = backupbuddy_core::get_serial_from_file( $item );
 							$fileoptions_file = backupbuddy_core::getLogDirectory() . 'fileoptions/' . $this_serial . '.txt';
 							if ( file_exists( $fileoptions_file ) ) {
-								@unlink( $fileoptions_file );
+								unlink( $fileoptions_file );
 							}
 							if ( file_exists( $fileoptions_file . '.lock' ) ) {
-								@unlink( $fileoptions_file . '.lock' );
+								unlink( $fileoptions_file . '.lock' );
 							}
 							$needs_save = true;
 						}
@@ -1784,7 +1784,7 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( '1' == pb_backupbuddy::$options['lock_archives_directory'] ) {
 
 			if ( file_exists( backupbuddy_core::getBackupDirectory() . '.htaccess' ) ) {
-				$unlink_status = @unlink( backupbuddy_core::getBackupDirectory() . '.htaccess' );
+				$unlink_status = unlink( backupbuddy_core::getBackupDirectory() . '.htaccess' );
 				if ( false === $unlink_status ) {
 					die( 'Error #844594. Unable to temporarily remove .htaccess security protection on archives directory to allow downloading. Please verify permissions of the BackupBuddy archives directory or manually download via FTP.' );
 				}
@@ -1795,7 +1795,7 @@ class MainWP_Child_Back_Up_Buddy {
 			flush();
 			sleep( 8 );
 
-			$htaccess_creation_status = @file_put_contents( backupbuddy_core::getBackupDirectory() . '.htaccess', 'deny from all' );
+			$htaccess_creation_status = file_put_contents( backupbuddy_core::getBackupDirectory() . '.htaccess', 'deny from all' );
 			if ( false === $htaccess_creation_status ) {
 				die( 'Error #344894545. Security Warning! Unable to create security file (.htaccess) in backups archive directory. This file prevents unauthorized downloading of backups should someone be able to guess the backup location and filenames. This is unlikely but for best security should be in place. Please verify permissions on the backups directory.' );
 			}
@@ -2059,7 +2059,7 @@ class MainWP_Child_Back_Up_Buddy {
 		} elseif ( 'reset_log' == $other_action ) {
 			$log_file = backupbuddy_core::getLogDirectory() . 'log-' . pb_backupbuddy::$options['log_serial'] . '.txt';
 			if ( file_exists( $log_file ) ) {
-				@unlink( $log_file );
+				unlink( $log_file );
 			}
 			if ( file_exists( $log_file ) ) { // Didnt unlink.
 				$error = 'Unable to clear log file. Please verify permissions on file `' . $log_file . '`.';
@@ -2624,7 +2624,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		if ( 'clear_log' == $action ) {
 			$sumLogFile = backupbuddy_core::getLogDirectory() . 'status-live_periodic_' . pb_backupbuddy::$options['log_serial'] . '.txt';
-			@unlink( $sumLogFile );
+			unlink( $sumLogFile );
 			if ( file_exists( $sumLogFile ) ) {
 				$error = 'Error #893489322: Unable to clear log file `' . $sumLogFile . '`. Check permissions or manually delete.';
 			} else {

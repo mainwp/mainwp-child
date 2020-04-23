@@ -1271,7 +1271,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			}
 			foreach ( $files as $file ) {
 				if ( is_file( $updraft_dir . '/' . $file ) ) {
-					if ( @unlink( $updraft_dir . '/' . $file ) ) {
+					if ( unlink( $updraft_dir . '/' . $file ) ) {
 						$local_deleted ++;
 					}
 				}
@@ -1379,7 +1379,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 	public function updraft_download_backup() {
 
-		@set_time_limit( 900 );
+		set_time_limit( 900 );
 
 		global $updraftplus;
 
@@ -1442,7 +1442,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		if ( isset( $_POST['stage'] ) && 'delete' == $_POST['stage'] ) {
-			@unlink( $fullpath );
+			unlink( $fullpath );
 			$updraftplus->log( 'The file has been deleted' );
 
 			return 'deleted';
@@ -1502,8 +1502,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 					$is_downloaded = true;
 				} else {
 					clearstatcache();
-					if ( 0 === @filesize( $fullpath ) ) {
-						@unlink( $fullpath );
+					if ( 0 === filesize( $fullpath ) ) {
+						unlink( $fullpath );
 					}
 					$updraftplus->log( 'Remote fetch failed' );
 				}
@@ -1525,9 +1525,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		restore_error_handler();
 
-		@fclose( $updraftplus->logfile_handle );
+		fclose( $updraftplus->logfile_handle );
 		if ( ! $debug_mode ) {
-			@unlink( $updraftplus->logfile_name );
+			unlink( $updraftplus->logfile_name );
 		}
 
 		return array( 'result' => 'OK' );
@@ -1538,7 +1538,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		global $updraftplus;
 
-		@set_time_limit( 900 );
+		set_time_limit( 900 );
 
 		$updraftplus->log( "Requested file from remote service: $service: $file" );
 
@@ -1604,8 +1604,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$warn = array();
 			$err  = array();
 
-			@set_time_limit( 900 );
-			$max_execution_time = (int) @ini_get( 'max_execution_time' );
+			set_time_limit( 900 );
+			$max_execution_time = (int) ini_get( 'max_execution_time' );
 
 			if ( $max_execution_time > 0 && $max_execution_time < 61 ) {
 				$warn[] = sprintf( __( 'The PHP setup on this webserver allows only %s seconds for PHP to run, and does not allow this limit to be raised. If you have a lot of data to import, and if the restore operation times out, then you will need to ask your web hosting company for ways to raise this limit (or attempt the restoration piece-by-piece).', 'updraftplus' ), $max_execution_time );
@@ -1784,7 +1784,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	// not used.
 	private function restore_backup( $timestamp ) {
 
-		@set_time_limit( 900 );
+		set_time_limit( 900 );
 
 		global $wp_filesystem, $updraftplus;
 		$backup_history = UpdraftPlus_Backup_History::get_history();
@@ -1963,7 +1963,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				if ( isset( $backup_history[ $timestamp ][ $type . $index . '-size' ] ) ) {
 					$fs = $backup_history[ $timestamp ][ $type . $index . '-size' ];
 					echo esc_html__( 'Archive is expected to be size:', 'updraftplus' ) . ' ' . esc_html( round( $fs / 1024, 1 ) ) . ' Kb: ';
-					$as = @filesize( $fullpath );
+					$as = filesize( $fullpath );
 					if ( $as === $fs ) {
 						echo esc_html__( 'OK', 'updraftplus' ) . '<br>';
 					} else {
@@ -2372,7 +2372,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$migration_warning = false;
 
 		// Don't set too high - we want a timely response returned to the browser.
-		@set_time_limit( 90 );
+		set_time_limit( 90 );
 
 		$count_wanted_tables = count( $wanted_tables );
 
@@ -2466,9 +2466,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 
 		if ( $is_plain ) {
-			@fclose( $dbhandle );
+			fclose( $dbhandle );
 		} else {
-			@gzclose( $dbhandle );
+			gzclose( $dbhandle );
 		}
 
 		$missing_tables = array();
@@ -2583,7 +2583,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		$default_dbscan_timeout = ( filesize( $db_file ) < 31457280 ) ? 120 : 240;
 		$dbscan_timeout         = ( defined( 'UPDRAFTPLUS_DBSCAN_TIMEOUT' ) && is_numeric( UPDRAFTPLUS_DBSCAN_TIMEOUT ) ) ? UPDRAFTPLUS_DBSCAN_TIMEOUT : $default_dbscan_timeout;
-		@set_time_limit( $dbscan_timeout );
+		set_time_limit( $dbscan_timeout );
 
 		// We limit the time that we spend scanning the file for character sets.
 		$db_charset_collate_scan_timeout                         = ( defined( 'UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT' ) && is_numeric( UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT ) ) ? UPDRAFTPLUS_DB_CHARSET_COLLATE_SCAN_TIMEOUT : 10;
@@ -2765,9 +2765,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 			}
 		}
 		if ( $is_plain ) {
-			@fclose( $dbhandle );
+			fclose( $dbhandle );
 		} else {
-			@gzclose( $dbhandle );
+			gzclose( $dbhandle );
 		}
 		if ( ! empty( $db_supported_character_sets ) ) {
 			$db_charsets_found_unique = array_unique( $db_charsets_found );
@@ -2936,7 +2936,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			if ( 0 === gzseek( $dbhandle, 0 ) ) {
 				return $dbhandle;
 			} else {
-				@gzclose( $dbhandle );
+				gzclose( $dbhandle );
 
 				return gzopen( $file, 'r' );
 			}
@@ -2950,15 +2950,15 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$fnew           = fopen( $file . '.tmp', 'w' );
 		if ( false === ( $fnew ) || ! is_resource( $fnew ) ) {
 
-			@gzclose( $dbhandle );
+			gzclose( $dbhandle );
 			$err_msg = __( 'The attempt to undo the double-compression failed.', 'updraftplus' );
 
 		} else {
 
-			@fwrite( $fnew, $bytes );
+			fwrite( $fnew, $bytes );
 			$emptimes = 0;
 			while ( ! gzeof( $dbhandle ) ) {
-				$bytes = @gzread( $dbhandle, 131072 );
+				$bytes = gzread( $dbhandle, 131072 );
 				if ( empty( $bytes ) ) {
 					global $updraftplus;
 					$emptimes ++;
@@ -2967,7 +2967,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						break;
 					}
 				} else {
-					@fwrite( $fnew, $bytes );
+					fwrite( $fnew, $bytes );
 				}
 			}
 
@@ -3406,7 +3406,7 @@ ENDHERE;
 
 			foreach ( $directories as $dir ) {
 				if ( is_file( $dir ) ) {
-					$size += @filesize( $dir );
+					$size += filesize( $dir );
 				} else {
 					$suffix = ( '' !== $basedir ) ? ( ( 0 === strpos( $dir, $basedir . '/' ) ) ? substr( $dir, 1 + strlen( $basedir ) ) : '' ) : '';
 					$size  += $this->recursive_directory_size_raw( $basedir, $exclude, $suffix );

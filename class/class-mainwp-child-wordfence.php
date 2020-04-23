@@ -921,7 +921,7 @@ class MainWP_Child_Wordfence {
 					continue;
 				}
 				if ( 'del' === $op ) {
-					if ( @unlink( $localFile ) ) {
+					if ( unlink( $localFile ) ) {
 						$issues->updateIssue( $id, 'delete' );
 						$filesWorkedOn ++;
 					} else {
@@ -1014,7 +1014,7 @@ class MainWP_Child_Wordfence {
 		if ( strpos( $localFile, ABSPATH ) !== 0 ) {
 			return array( 'errorMsg' => 'An invalid file was requested for deletion.' );
 		}
-		if ( @unlink( $localFile ) ) {
+		if ( unlink( $localFile ) ) {
 			$wfIssues->updateIssue( $issueID, 'delete' );
 
 			return array(
@@ -1560,7 +1560,7 @@ class MainWP_Child_Wordfence {
 			$res = $api->call( 'import_options', array(), array( 'token' => $token ) );
 			if ( $res['ok'] && $res['export'] ) {
 				$totalSet = 0;
-				$import   = @json_decode( $res['export'], true );
+				$import   = json_decode( $res['export'], true );
 				if ( ! is_array( $import ) ) {
 					return array( 'errorImport' => __( 'An error occurred: Invalid options format received.', 'wordfence' ) );
 				}
@@ -2118,7 +2118,7 @@ class MainWP_Child_Wordfence {
 				'code' => wfCache::getHtaccessCode(),
 			);
 		}
-		$fh = @fopen( $file, 'r+' );
+		$fh = fopen( $file, 'r+' );
 		if ( ! $fh ) {
 			$err = error_get_last();
 			return array(
@@ -2141,7 +2141,7 @@ class MainWP_Child_Wordfence {
 		if ( ! $file ) {
 			return array( 'err' => 'We could not find your .htaccess file to modify it.' );
 		}
-		$fh = @fopen( $file, 'r+' );
+		$fh = fopen( $file, 'r+' );
 		if ( ! $fh ) {
 			$err = error_get_last();
 			return array( 'err' => 'We found your .htaccess file but could not open it for writing: ' . $err['message'] );

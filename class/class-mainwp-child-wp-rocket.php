@@ -286,7 +286,7 @@ class MainWP_Child_WP_Rocket {
 
 	public function do_admin_post_rocket_purge_opcache() {
 		if ( function_exists( 'opcache_reset' ) ) {
-			@opcache_reset();
+			opcache_reset();
 		} else {
 			return array( 'error' => 'The host do not support the function reset opcache.' );
 		}

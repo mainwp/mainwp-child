@@ -1161,7 +1161,7 @@ class MainWP_Clone {
 			if ( ! $result['backup'] ) {
 				throw new Exception( __( 'Could not create backupfile on child', 'mainwp-child' ) );
 			}
-			@session_start();
+			session_start();
 
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $result['plugins'] );
 			MainWP_Helper::update_option( 'mainwp_temp_clone_themes', $result['themes'] );
@@ -1257,7 +1257,7 @@ class MainWP_Clone {
 				$file = readdir( $dh );
 				while ( false !== $file ) {
 					if ( '.' !== $file && '..' !== $file && MainWP_Helper::isArchive( $file, 'download-' ) ) {
-						@unlink( $backupdir . $file );
+						unlink( $backupdir . $file );
 					}
 				}
 				closedir( $dh );
@@ -1427,8 +1427,8 @@ class MainWP_Clone {
 				$out = array();
 				if ( is_array( $plugins ) ) {
 					$dir = WP_CONTENT_DIR . '/plugins/';
-					$fh  = @opendir( $dir );
-					while ( $entry = @readdir( $fh ) ) {
+					$fh  = opendir( $dir );
+					while ( $entry = readdir( $fh ) ) {
 						if ( ! is_dir( $dir . $entry ) ) {
 							continue;
 						}
@@ -1439,7 +1439,7 @@ class MainWP_Clone {
 							MainWP_Helper::delete_dir( $dir . $entry );
 						}
 					}
-					@closedir( $fh );
+					closedir( $fh );
 				}
 
 				delete_option( 'mainwp_temp_clone_plugins' );
@@ -1448,8 +1448,8 @@ class MainWP_Clone {
 				$out = array();
 				if ( is_array( $themes ) ) {
 					$dir = WP_CONTENT_DIR . '/themes/';
-					$fh  = @opendir( $dir );
-					while ( $entry = @readdir( $fh ) ) {
+					$fh  = opendir( $dir );
+					while ( $entry = readdir( $fh ) ) {
 						if ( ! is_dir( $dir . $entry ) ) {
 							continue;
 						}
@@ -1460,7 +1460,7 @@ class MainWP_Clone {
 							MainWP_Helper::delete_dir( $dir . $entry );
 						}
 					}
-					@closedir( $fh );
+					closedir( $fh );
 				}
 				delete_option( 'mainwp_temp_clone_themes' );
 			}
@@ -1515,7 +1515,7 @@ class MainWP_Clone {
 
 	public static function renderRestore() {
 		if ( '' === session_id() ) {
-			@session_start();
+			session_start();
 		}
 		$file = null;
 		$size = null;

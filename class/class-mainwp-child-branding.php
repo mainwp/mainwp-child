@@ -253,7 +253,7 @@ class MainWP_Child_Branding {
 						if ( isset( $current_extra_setting['login_image']['path'] ) ) {
 							$old_file = $current_extra_setting['login_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
-								@unlink( $old_file );
+								unlink( $old_file );
 							}
 						}
 					}
@@ -279,7 +279,7 @@ class MainWP_Child_Branding {
 						if ( isset( $current_extra_setting['favico_image']['path'] ) ) {
 							$old_file = $current_extra_setting['favico_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
-								@unlink( $old_file );
+								unlink( $old_file );
 							}
 						}
 					}
@@ -325,7 +325,7 @@ class MainWP_Child_Branding {
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url );
 			$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
-			$moved          = @rename( $temporary_file, $local_img_path );
+			$moved          = rename( $temporary_file, $local_img_path );
 			if ( $moved ) {
 				return array(
 					'path' => $local_img_path,
