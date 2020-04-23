@@ -374,7 +374,7 @@ class MainWP_Clone {
 		$quick_dirs   = array();
 		$quick_dirs[] = array( __( 'Site Root', 'mainwp-child' ), ABSPATH );
 		$quick_dirs[] = array( __( 'Backup', 'mainwp-child' ), $backup_dir );
-		$uploads = wp_upload_dir();
+		$uploads      = wp_upload_dir();
 		if ( $uploads && false === $uploads['error'] ) {
 			$quick_dirs[] = array( __( 'Uploads Folder', 'mainwp-child' ), $uploads['path'] );
 		}
