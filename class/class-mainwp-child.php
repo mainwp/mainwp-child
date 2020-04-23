@@ -1,12 +1,12 @@
 <?php
 if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === true ) {
-	@error_reporting( E_ALL );
-	@ini_set( 'display_errors', true );
-	@ini_set( 'display_startup_errors', true );
+	error_reporting( E_ALL );
+	ini_set( 'display_errors', true );
+	ini_set( 'display_startup_errors', true );
 } else {
 	if ( isset( $_REQUEST['mainwpsignature'] ) ) {
-		@ini_set( 'display_errors', false );
-		@error_reporting( 0 );
+		ini_set( 'display_errors', false );
+		error_reporting( 0 );
 	}
 }
 
@@ -68,9 +68,9 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 						}
 
 						// to help tracing the conflict verify nonce with other plugins.
-						@ob_start();
-						@debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
-						$stackTrace = "\n" . @ob_get_clean();
+						ob_start();
+						debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
+						$stackTrace = "\n" . ob_get_clean();
 						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 					}
 
@@ -103,9 +103,9 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 						return false;
 					}
 
-					@ob_start();
-					@debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
-					$stackTrace = "\n" . @ob_get_clean();
+					ob_start();
+					debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
+					$stackTrace = "\n" . ob_get_clean();
 
 					// Invalid nonce.
 					die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
@@ -491,7 +491,7 @@ class MainWP_Child {
 		if ( empty( $_GET['mainwp_child_run'] ) || 'test' !== $_GET['mainwp_child_run'] ) {
 			return;
 		}
-		@session_write_close();
+		session_write_close();
 		@header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ), true );
 		@header( 'X-Robots-Tag: noindex, nofollow', true );
 		@header( 'X-MainWP-Child-Version: ' . self::$version, true );
@@ -764,7 +764,7 @@ class MainWP_Child {
 			<div class="mainwp-child-setting-tab restore-clone" <?php echo ( 'restore-clone' !== $shownPage ) ? $hide_style : ''; ?>>
 				<?php
 				if ( '' === session_id() ) {
-					@session_start();
+					session_start();
 				}
 
 				if ( isset( $_SESSION['file'] ) ) {
@@ -1180,7 +1180,7 @@ class MainWP_Child {
 					return;
 				}
 
-				@unlink( $result[0] );
+				unlink( $result[0] );
 				MainWP_Helper::write( array( 'result' => 'ok' ) );
 			} elseif ( 'createCloneBackupPoll' === $_POST['cloneFunc'] ) {
 				$dirs        = MainWP_Helper::getMainWPDir( 'backup' );
@@ -1203,13 +1203,13 @@ class MainWP_Child {
 
 				$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 				foreach ( $files as $file ) {
-					@unlink( $file );
+					unlink( $file );
 				}
 				if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
-					@unlink( ABSPATH . 'clone/config.txt' );
+					unlink( ABSPATH . 'clone/config.txt' );
 				}
 				if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
-					@rmdir( ABSPATH . 'clone' );
+					rmdir( ABSPATH . 'clone' );
 				}
 
 				$wpversion = $_POST['wpversion'];
@@ -1222,7 +1222,7 @@ class MainWP_Child {
 				$excludes[]       = str_replace( ABSPATH, '', $uploadDir );
 				$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
 				if ( version_compare( phpversion(), '5.3.0' ) >= 0 || ! ini_get( 'safe_mode' ) ) {
-					@set_time_limit( 6000 );
+					set_time_limit( 6000 );
 				}
 
 				$newExcludes = array();
@@ -1245,8 +1245,9 @@ class MainWP_Child {
 
 				$plugins = array();
 				$dir     = WP_CONTENT_DIR . '/plugins/';
-				$fh      = @opendir( $dir );
-				while ( $entry = @readdir( $fh ) ) {
+				$fh      = opendir( $dir );
+				$entry   = readdir( $fh );
+				while ( $entry ) {
 					if ( ! is_dir( $dir . $entry ) ) {
 						continue;
 					}
@@ -1255,13 +1256,13 @@ class MainWP_Child {
 					}
 					$plugins[] = $entry;
 				}
-				@closedir( $fh );
+				closedir( $fh );
 				$information['plugins'] = $plugins;
 
 				$themes = array();
 				$dir    = WP_CONTENT_DIR . '/themes/';
-				$fh     = @opendir( $dir );
-				while ( $entry = @readdir( $fh ) ) {
+				$fh     = opendir( $dir );
+				while ( $entry = readdir( $fh ) ) {
 					if ( ! is_dir( $dir . $entry ) ) {
 						continue;
 					}
@@ -1270,7 +1271,7 @@ class MainWP_Child {
 					}
 					$themes[] = $entry;
 				}
-				@closedir( $fh );
+				closedir( $fh );
 				$information['themes'] = $themes;
 
 				MainWP_Helper::write( $information );
@@ -1783,7 +1784,7 @@ class MainWP_Child {
 		}
 
 		// Check for new versions.
-		@wp_version_check();
+		wp_version_check();
 
 		$core_updates = get_core_updates();
 		if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
@@ -1863,9 +1864,9 @@ class MainWP_Child {
 
 		include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
-		@wp_version_check();
-		@wp_update_themes();
-		@wp_update_plugins();
+		wp_version_check();
+		wp_update_themes();
+		wp_update_plugins();
 
 		$upgrader             = new Language_Pack_Upgrader( new Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
 		$translations         = explode( ',', urldecode( $_POST['list'] ) );
@@ -1953,7 +1954,7 @@ class MainWP_Child {
 
 			global $wp_current_filter;
 			$wp_current_filter[] = 'load-plugins.php';
-			@wp_update_plugins();
+			wp_update_plugins();
 
 			// trick to prevent some premium plugins re-create update info.
 			remove_all_filters( 'pre_set_site_transient_update_plugins' );
@@ -2051,7 +2052,7 @@ class MainWP_Child {
 				add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			}
 
-			@wp_update_themes();
+			wp_update_themes();
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
 
 			// to support cached premium themes update info, hooking in the bulk_upgrade().
@@ -2190,7 +2191,7 @@ class MainWP_Child {
 					$information['upgrades'][ $slug ] = ( ! is_wp_error( $result ) && ! empty( $result ) );
 				} elseif ( isset( $update['callback'] ) ) {
 					if ( is_array( $update['callback'] ) && isset( $update['callback'][0] ) && isset( $update['callback'][1] ) ) {
-						$update_result                    = @call_user_func(
+						$update_result                    = call_user_func(
 							array(
 								$update['callback'][0],
 								$update['callback'][1],
@@ -2198,7 +2199,7 @@ class MainWP_Child {
 						);
 						$information['upgrades'][ $slug ] = $update_result && true;
 					} elseif ( is_string( $update['callback'] ) ) {
-						$update_result                    = @call_user_func( $update['callback'] );
+						$update_result                    = call_user_func( $update['callback'] );
 						$information['upgrades'][ $slug ] = $update_result && true;
 					} else {
 						$information['upgrades'][ $slug ] = false;
@@ -2980,7 +2981,7 @@ class MainWP_Child {
 			$message .= sprintf( __( 'Password: %s' ), $new_user['user_pass'] ) . "\r\n";
 			$message .= wp_login_url() . "\r\n";
 
-			@wp_mail( $user_email, sprintf( __( '[%s] Your username and password' ), $blogname ), $message, '' );
+			wp_mail( $user_email, sprintf( __( '[%s] Your username and password' ), $blogname ), $message, '' );
 		}
 		$information['added'] = true;
 		MainWP_Helper::write( $information );
@@ -3083,7 +3084,7 @@ class MainWP_Child {
 			$file                  = $wp_filesystem->get_contents( $doneFile );
 			$information['status'] = 'done';
 			$information['file']   = basename( $file );
-			$information['size']   = @filesize( $file );
+			$information['size']   = filesize( $file );
 		} else {
 			$information['status'] = 'invalid';
 		}
@@ -3093,8 +3094,8 @@ class MainWP_Child {
 
 	public function backup( $pWrite = true ) {
 		$timeout = 20 * 60 * 60;
-		@set_time_limit( $timeout );
-		@ini_set( 'max_execution_time', $timeout );
+		set_time_limit( $timeout );
+		ini_set( 'max_execution_time', $timeout );
 		MainWP_Helper::endSession();
 
 		// Cleanup pid files!
@@ -3113,7 +3114,7 @@ class MainWP_Child {
 			}
 
 			if ( ( time() - filemtime( $file ) ) > ( 60 * 60 * 3 ) ) {
-				@unlink( $file );
+				unlink( $file );
 			}
 		}
 
@@ -3127,7 +3128,7 @@ class MainWP_Child {
 			$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
 
 			if ( function_exists( 'posix_uname' ) ) {
-				$uname = @posix_uname();
+				$uname = posix_uname();
 				if ( is_array( $uname ) && isset( $uname['nodename'] ) ) {
 					if ( stristr( $uname['nodename'], 'hostgator' ) ) {
 						if ( ! isset( $_POST['file_descriptors'] ) || '0' == $_POST['file_descriptors'] || $_POST['file_descriptors'] > 1000 ) {
@@ -3143,7 +3144,7 @@ class MainWP_Child {
 			$file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? $_POST['file_descriptors_auto'] : 0 );
 			if ( 1 === (int) $file_descriptors_auto ) {
 				if ( function_exists( 'posix_getrlimit' ) ) {
-					$result = @posix_getrlimit();
+					$result = posix_getrlimit();
 					if ( isset( $result['soft openfiles'] ) ) {
 						$file_descriptors = $result['soft openfiles'];
 					}
@@ -3259,7 +3260,7 @@ class MainWP_Child {
 		if ( $dh ) {
 			while ( ( $file = readdir( $dh ) ) !== false ) {
 				if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
-					@unlink( $dir . $file );
+					unlink( $dir . $file );
 				}
 			}
 			closedir( $dh );
@@ -3430,7 +3431,7 @@ class MainWP_Child {
 
 		if ( isset( $_POST['cloneSites'] ) ) {
 			if ( '0' !== $_POST['cloneSites'] ) {
-				$arr = @json_decode( urldecode( $_POST['cloneSites'] ), 1 );
+				$arr = json_decode( urldecode( $_POST['cloneSites'] ), 1 );
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', ( ! is_array( $arr ) ? array() : $arr ) );
 			} else {
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', '0' );
@@ -3510,8 +3511,8 @@ class MainWP_Child {
 		include_once ABSPATH . '/wp-admin/includes/update.php';
 
 		$timeout = 3 * 60 * 60;
-		@set_time_limit( $timeout );
-		@ini_set( 'max_execution_time', $timeout );
+		set_time_limit( $timeout );
+		ini_set( 'max_execution_time', $timeout );
 
 		// Check for new versions.
 		if ( null !== $this->filterFunction ) {
@@ -3520,7 +3521,7 @@ class MainWP_Child {
 		if ( null !== $this->filterFunction ) {
 			add_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
-		@wp_version_check();
+		wp_version_check();
 		$core_updates = get_core_updates();
 		if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
 			foreach ( $core_updates as $core_update ) {
@@ -3550,9 +3551,9 @@ class MainWP_Child {
 		if ( ! empty( $update_check ) ) {
 			foreach ( $update_check as $updateFeedback ) {
 				if ( is_array( $updateFeedback['callback'] ) && isset( $updateFeedback['callback'][0] ) && isset( $updateFeedback['callback'][1] ) ) {
-					@call_user_func( array( $updateFeedback['callback'][0], $updateFeedback['callback'][1] ) );
+					call_user_func( array( $updateFeedback['callback'][0], $updateFeedback['callback'][1] ) );
 				} elseif ( is_string( $updateFeedback['callback'] ) ) {
-					@call_user_func( $updateFeedback['callback'] );
+					call_user_func( $updateFeedback['callback'] );
 				}
 			}
 		}
@@ -3604,7 +3605,7 @@ class MainWP_Child {
 		global $wp_current_filter;
 		$wp_current_filter[] = 'load-plugins.php';
 
-		@wp_update_plugins();
+		wp_update_plugins();
 		include_once ABSPATH . '/wp-admin/includes/plugin.php';
 
 		$plugin_updates = get_plugin_updates();
@@ -3658,7 +3659,7 @@ class MainWP_Child {
 		if ( null !== $this->filterFunction ) {
 			add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 		}
-		@wp_update_themes();
+		wp_update_themes();
 		include_once ABSPATH . '/wp-admin/includes/theme.php';
 		$theme_updates = $this->upgrade_get_theme_updates();
 		if ( is_array( $theme_updates ) ) {
@@ -3966,7 +3967,7 @@ class MainWP_Child {
 						continue;
 					}
 					$newDir = $pDir . $file . DIRECTORY_SEPARATOR;
-					if ( @is_dir( $newDir ) ) {
+					if ( is_dir( $newDir ) ) {
 						$output[ $file ] = $this->scanDir( $newDir, $pLvl - 1, false );
 					}
 				}
@@ -3980,13 +3981,14 @@ class MainWP_Child {
 	}
 
 	public function intScanDir( $dir ) {
-		$dh = @opendir( $dir );
-		if ( @is_dir( $dir ) && $dh ) {
-			$cnt = 0;
-			$out = array();
-			while ( ( $file = @readdir( $dh ) ) !== false ) {
+		$dh = opendir( $dir );
+		if ( is_dir( $dir ) && $dh ) {
+			$cnt  = 0;
+			$out  = array();
+			$file = readdir( $dh );
+			while ( false !== $file ) {
 				$newDir = $dir . $file . DIRECTORY_SEPARATOR;
-				if ( ! @is_dir( $newDir ) ) {
+				if ( ! is_dir( $newDir ) ) {
 					continue;
 				}
 
@@ -3995,7 +3997,7 @@ class MainWP_Child {
 					return $out;
 				}
 			}
-			@closedir( $dh );
+			closedir( $dh );
 
 			return $out;
 		}
@@ -4975,10 +4977,10 @@ class MainWP_Child {
 			if ( MainWP_Helper::function_exists( 'popen' ) ) {
 				$uploadDir   = MainWP_Helper::getMainWPDir();
 				$uploadDir   = $uploadDir[0];
-				$popenHandle = @popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' );
+				$popenHandle = popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' );
 				if ( 'resource' === gettype( $popenHandle ) ) {
-					$size = @fread( $popenHandle, 1024 );
-					@pclose( $popenHandle );
+					$size = fread( $popenHandle, 1024 );
+					pclose( $popenHandle );
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
 					if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
 						return $size / 1024;
@@ -4989,7 +4991,7 @@ class MainWP_Child {
 			if ( MainWP_Helper::function_exists( 'shell_exec' ) ) {
 				$uploadDir = MainWP_Helper::getMainWPDir();
 				$uploadDir = $uploadDir[0];
-				$size      = @shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' );
+				$size      = shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' );
 				if ( null !== $size ) {
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
 					if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
@@ -5028,26 +5030,26 @@ class MainWP_Child {
 	}
 
 	public function serverInformation() {
-		@ob_start();
+		ob_start();
 		MainWP_Child_Server_Information::render();
-		$output['information'] = @ob_get_contents();
-		@ob_end_clean();
-		@ob_start();
+		$output['information'] = ob_get_contents();
+		ob_end_clean();
+		ob_start();
 		MainWP_Child_Server_Information::renderCron();
-		$output['cron'] = @ob_get_contents();
-		@ob_end_clean();
-		@ob_start();
+		$output['cron'] = ob_get_contents();
+		ob_end_clean();
+		ob_start();
 		MainWP_Child_Server_Information::renderErrorLogPage();
-		$output['error'] = @ob_get_contents();
-		@ob_end_clean();
-		@ob_start();
+		$output['error'] = ob_get_contents();
+		ob_end_clean();
+		ob_start();
 		MainWP_Child_Server_Information::renderWPConfig();
-		$output['wpconfig'] = @ob_get_contents();
-		@ob_end_clean();
-		@ob_start();
+		$output['wpconfig'] = ob_get_contents();
+		ob_end_clean();
+		ob_start();
 		MainWP_Child_Server_Information::renderhtaccess();
-		$output['htaccess'] = @ob_get_contents();
-		@ob_end_clean();
+		$output['htaccess'] = ob_get_contents();
+		ob_end_clean();
 
 		MainWP_Helper::write( $output );
 	}
@@ -5178,8 +5180,8 @@ class MainWP_Child {
 	public function maintenance_optimize() {
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
-		$result = @MainWP_Child_DB::_query( $sql, $wpdb->dbh );
-		if ( @MainWP_Child_DB::num_rows( $result ) && @MainWP_Child_DB::is_result( $result ) ) {
+		$result = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
+		if ( MainWP_Child_DB::num_rows( $result ) && MainWP_Child_DB::is_result( $result ) ) {
 			while ( $row = MainWP_Child_DB::fetch_array( $result ) ) {
 				if ( strpos( $row['Name'], $table_prefix ) !== false ) {
 					$sql = 'OPTIMIZE TABLE ' . $row['Name'];
@@ -5262,7 +5264,7 @@ class MainWP_Child {
 				'<div>' . 'REMOTE IDENTITY: ' . $remote . '</div>' .
 				'<div>' . 'USER AGENT: ' . $agent . '</div>';
 		$mail = '<div>404 alert</div><div></div>' . $mail;
-		@wp_mail(
+		wp_mail(
 			$email,
 			'MainWP - 404 Alert: ' . $blog,
 			MainWP_Helper::formatEmail( $email, $mail ),
@@ -5343,7 +5345,7 @@ class MainWP_Child {
 		if ( file_exists( ABSPATH . 'wp-config.php' ) ) {
 			// The config file resides in ABSPATH.
 			$config_file = ABSPATH . 'wp-config.php';
-		} elseif ( @file_exists( dirname( ABSPATH ) . '/wp-config.php' ) && ! @file_exists( dirname( ABSPATH ) . '/wp-settings.php' ) ) {
+		} elseif ( file_exists( dirname( ABSPATH ) . '/wp-config.php' ) && ! file_exists( dirname( ABSPATH ) . '/wp-settings.php' ) ) {
 			// The config file resides one level above ABSPATH but is not part of another install.
 			$config_file = dirname( ABSPATH ) . '/wp-config.php';
 		}
@@ -5411,7 +5413,7 @@ class MainWP_Child {
 		}
 
 		if ( ! file_exists( $dir ) ) {
-			if ( false === @mkdir( $dir, 0777, true ) ) {
+			if ( false === mkdir( $dir, 0777, true ) ) {
 				$information['error'] = 'ERRORCREATEDIR';
 				MainWP_Helper::write( $information );
 
@@ -5490,8 +5492,8 @@ class MainWP_Child {
 
 		$file = $_REQUEST['del'];
 
-		if ( @file_exists( $backupdir . $file ) ) {
-			@unlink( $backupdir . $file );
+		if ( file_exists( $backupdir . $file ) ) {
+			unlink( $backupdir . $file );
 		}
 
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
@@ -5521,29 +5523,29 @@ class MainWP_Child {
 		header( 'Cache-Control: must-revalidate' );
 		header( 'Pragma: public' );
 		header( 'Content-Length: ' . filesize( $backupdir . $file ) );
-		while ( @ob_end_flush() ) {; // phpcs:ignore
+		while ( ob_end_flush() ) {; // phpcs:ignore
 		}
 		$this->readfile_chunked( $backupdir . $file, $offset );
 	}
 
 	public function readfile_chunked( $filename, $offset ) {
 		$chunksize = 1024; // how many bytes per chunk?
-		$handle    = @fopen( $filename, 'rb' );
+		$handle    = fopen( $filename, 'rb' );
 		if ( false === $handle ) {
 			return false;
 		}
 
-		@fseek( $handle, $offset );
+		fseek( $handle, $offset );
 
-		while ( ! @feof( $handle ) ) {
-			$buffer = @fread( $handle, $chunksize );
+		while ( ! feof( $handle ) ) {
+			$buffer = fread( $handle, $chunksize );
 			echo $buffer;
-			@ob_flush();
-			@flush();
+			ob_flush();
+			flush();
 			$buffer = null;
 		}
 
-		return @fclose( $handle );
+		return fclose( $handle );
 	}
 
 	public function settings_tools() {
