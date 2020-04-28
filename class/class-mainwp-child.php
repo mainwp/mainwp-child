@@ -1565,14 +1565,15 @@ class MainWP_Child {
 	}
 
 	public function auth( $signature, $func, $nonce, $pNossl ) {
-		if ( ! isset( $signature ) || ! isset( $func ) || ( ! get_option( 'mainwp_child_pubkey' ) && ! get_option( 'mainwp_child_nossl_key' ) ) ) {
+		if ( empty( $signature ) || ! isset( $func ) || ( ! get_option( 'mainwp_child_pubkey' ) && ! get_option( 'mainwp_child_nossl_key' ) ) ) {
 			$auth = false;
 		} else {
 			$nossl       = get_option( 'mainwp_child_nossl' );
 			$serverNoSsl = ( isset( $pNossl ) && 1 === (int) $pNossl );
 
 			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
-				$auth = hash_equals( md5( $func . $nonce . get_option( 'mainwp_child_nossl_key' ) ), base64_decode( $signature ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				$nossl_key = get_option( 'mainwp_child_nossl_key' );				
+				$auth = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.								
 			} else {
 				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 				if ( 1 !== $auth ) {
@@ -2343,7 +2344,12 @@ class MainWP_Child {
 
 		MainWP_Helper::update_option( 'mainwp_child_nossl', ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::isSSLEnabled() ? 1 : 0 ), 'yes' );
 		$information['nossl'] = ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::isSSLEnabled() ? 1 : 0 );
-		$nossl_key            = uniqid( '', true );
+		if ( function_exists( 'random_bytes' ) ) {
+			$nossl_key            = random_bytes( 32 );
+			$nossl_key            = bin2hex( $nossl_key );
+		} else {
+			$nossl_key            = uniqid( '', true );
+		}
 		MainWP_Helper::update_option( 'mainwp_child_nossl_key', $nossl_key, 'yes' );
 		$information['nosslkey'] = $nossl_key;
 
