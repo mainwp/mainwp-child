@@ -2,26 +2,26 @@
 
 class MainWP_Helper {
 
-	public static function write( $val ) {
-		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-			$output = self::safe_json_encode( $val );
-		else :
-			$output = serialize( $val ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
-		endif;
-
-		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+	static function write( $val ) {		
+		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
+			$output = self::safe_json_encode( $val );			
+		else:
+			$output = serialize( $val );
+		endif;			
+		
+		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' );
 	}
-
+	
 	public static function json_valid_check( $data ) {
-
-		if ( is_array( $data ) ) {
+		
+		if (is_array( $data )) {
 			$output = array();
-			foreach ( $data as $key => $value ) {
+			foreach ( $data as $key => $value) {
 				if ( is_string( $key ) ) {
 					$id = self::json_convert_string( $key );
 				} else {
 					$id = $key;
-				}
+			}
 				if ( is_array( $value ) || is_object( $value ) ) {
 					$output[ $id ] = self::json_valid_check( $value );
 				} elseif ( is_string( $value ) ) {
@@ -30,8 +30,9 @@ class MainWP_Helper {
 					$output[ $id ] = $value;
 				}
 			}
-		} elseif ( is_object( $data ) ) {
-			$output = new stdClass();
+		} 
+		elseif ( is_object( $data ) ) {
+			$output = new stdClass;
 			foreach ( $data as $key => $value ) {
 				if ( is_string( $key ) ) {
 					$id = self::json_convert_string( $key );
@@ -39,52 +40,53 @@ class MainWP_Helper {
 					$id = $key;
 				}
 				if ( is_array( $value ) || is_object( $value ) ) {
-					$output->$id = self::json_valid_check( $value );
+					$output->$id = self::json_valid_check($value);
 				} elseif ( is_string( $value ) ) {
 					$output->$id = self::json_convert_string( $value );
 				} else {
 					$output->$id = $value;
 				}
 			}
-		} elseif ( is_string( $data ) ) {
+		} 
+		elseif (is_string( $data )) {
 			return self::json_convert_string( $data );
 		} else {
 			return $data;
 		}
-
+		
 		return $output;
 	}
-
+	
 	public function json_convert_string( $str ) {
-		if ( function_exists( 'mb_convert_encoding' ) ) {
+			if ( function_exists( 'mb_convert_encoding' )) {
 			$encoding = mb_detect_encoding( $str, mb_detect_order(), true );
-			if ( $encoding ) {
+				if ( $encoding ) {
 				return mb_convert_encoding( $str, 'UTF-8', $encoding );
-			} else {
+				} else {
 				return mb_convert_encoding( $str, 'UTF-8', 'UTF-8' );
 			}
 		}
 		return $str;
 	}
 
-	public static function safe_json_encode( $value, $options = 0, $depth = 512 ) {
-		$encoded = @json_encode( $value, $options, $depth );
-		if ( false === $encoded && ! empty( $value ) && JSON_ERROR_UTF8 == json_last_error() ) {
-			$encoded = @json_encode( self::json_valid_check( $value ), $options, $depth );
+	public static function safe_json_encode($value, $options = 0, $depth = 512) {
+		$encoded = @json_encode($value, $options, $depth);
+		if ($encoded === false && !empty( $value ) && json_last_error() == JSON_ERROR_UTF8 ) { 			
+			$encoded = @json_encode(self::json_valid_check($value), $options, $depth);			
 		}
 		return $encoded;
 	}
 
-	public static function close_connection( $val = null ) {
-
-		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-			$output = self::safe_json_encode( $val );
-		else :
-			$output = serialize( $val ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+	static function close_connection( $val = null ) {
+		
+		if (isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] == true) :
+			$output = self::safe_json_encode( $val );	
+		else:
+			$output = serialize( $val );
 		endif;
-
-		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		// Close browser connection so that it can resume AJAX polling.
+		
+		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>';
+		// Close browser connection so that it can resume AJAX polling
 		header( 'Content-Length: ' . strlen( $output ) );
 		header( 'Connection: close' );
 		header( 'Content-Encoding: none' );
@@ -98,12 +100,11 @@ class MainWP_Helper {
 		flush();
 	}
 
-	public static function error( $error, $code = null ) {
+	static function error( $error, $code = null ) {
 		$information['error'] = $error;
-		if ( null !== $code ) {
+		if (null !== $code)
 			$information['error_code'] = $code;
-		}
-		self::write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	/**
@@ -112,187 +113,184 @@ class MainWP_Helper {
 	 * CSSPARSER
 	 * Copyright (C) 2009 Peter Kröner
 	 */
-	public static function parse_css( $css ) {
+	public static function parse_css($css){
 
-		// Remove CSS-Comments.
-		$css = preg_replace( '/\/\*.*?\*\//ms', '', $css );
-		// Remove HTML-Comments.
-		$css = preg_replace( '/([^\'"]+?)(\<!--|--\>)([^\'"]+?)/ms', '$1$3', $css );
-		// Extract @media-blocks into $blocks.
-		preg_match_all( '/@.+?\}[^\}]*?\}/ms', $css, $blocks );
-		// Append the rest to $blocks.
-		array_push( $blocks[0], preg_replace( '/@.+?\}[^\}]*?\}/ms', '', $css ) );
-		$ordered      = array();
-		$count_blocks = count( $blocks[0] );
-		for ( $i = 0; $i < $count_blocks; $i++ ) {
-			// If @media-block, strip declaration and parenthesis.
-			if ( '@media' === substr( $blocks[0][ $i ], 0, 6 ) ) {
-				$ordered_key   = preg_replace( '/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ] );
-				$ordered_value = preg_replace( '/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][ $i ] );
+		// Remove CSS-Comments
+		$css = preg_replace('/\/\*.*?\*\//ms', '', $css);
+		// Remove HTML-Comments
+		$css = preg_replace('/([^\'"]+?)(\<!--|--\>)([^\'"]+?)/ms', '$1$3', $css);
+		// Extract @media-blocks into $blocks
+		preg_match_all('/@.+?\}[^\}]*?\}/ms',$css, $blocks);
+		// Append the rest to $blocks
+		array_push($blocks[0],preg_replace('/@.+?\}[^\}]*?\}/ms','',$css));
+		$ordered = array();
+		for($i=0;$i<count($blocks[0]);$i++){
+			// If @media-block, strip declaration and parenthesis
+			if(substr($blocks[0][$i],0,6) === '@media')
+			{
+				$ordered_key = preg_replace('/^(@media[^\{]+)\{.*\}$/ms','$1',$blocks[0][$i]);
+				$ordered_value = preg_replace('/^@media[^\{]+\{(.*)\}$/ms','$1',$blocks[0][$i]);
 			}
-			// Rule-blocks of the sort @import or @font-face.
-			elseif ( '@' === substr( $blocks[0][ $i ], 0, 1 ) ) {
-				$ordered_key   = $blocks[0][ $i ];
-				$ordered_value = $blocks[0][ $i ];
-			} else {
-				$ordered_key   = 'main';
-				$ordered_value = $blocks[0][ $i ];
+			// Rule-blocks of the sort @import or @font-face
+			elseif(substr($blocks[0][$i],0,1) === '@')
+			{
+				$ordered_key = $blocks[0][$i];
+				$ordered_value = $blocks[0][$i];
 			}
-			// Split by parenthesis, ignoring those inside content-quotes.
-			$ordered[ $ordered_key ] = preg_split( '/([^\'"\{\}]*?[\'"].*?(?<!\\\)[\'"][^\'"\{\}]*?)[\{\}]|([^\'"\{\}]*?)[\{\}]/', trim( $ordered_value, " \r\n\t" ), -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE );
+			else
+			{
+				$ordered_key = 'main';
+				$ordered_value = $blocks[0][$i];
+			}
+			// Split by parenthesis, ignoring those inside content-quotes
+			$ordered[$ordered_key] = preg_split('/([^\'"\{\}]*?[\'"].*?(?<!\\\)[\'"][^\'"\{\}]*?)[\{\}]|([^\'"\{\}]*?)[\{\}]/',trim($ordered_value," \r\n\t"),-1,PREG_SPLIT_NO_EMPTY|PREG_SPLIT_DELIM_CAPTURE);
 		}
 
-		// Beginning to rebuild new slim CSS-Array.
-		foreach ( $ordered as $key => $val ) {
-			$new       = array();
-			$count_val = count( $val );
-			for ( $i = 0; $i < $count_val; $i++ ) {
-				// Split selectors and rules and split properties and values.
-				$selector = trim( $val[ $i ], " \r\n\t" );
+		// Beginning to rebuild new slim CSS-Array
+		foreach($ordered as $key => $val){
+			$new = array();
+			for($i = 0; $i<count($val); $i++){
+				// Split selectors and rules and split properties and values
+				$selector = trim($val[$i]," \r\n\t");
 
-				if ( ! empty( $selector ) ) {
-					if ( ! isset( $new[ $selector ] ) ) {
-						$new[ $selector ] = array();
-					}
-					$rules = explode( ';', $val[ ++$i ] );
-					foreach ( $rules as $rule ) {
-						$rule = trim( $rule, " \r\n\t" );
-						if ( ! empty( $rule ) ) {
-							$rule     = array_reverse( explode( ':', $rule ) );
-							$property = trim( array_pop( $rule ), " \r\n\t" );
-							$value    = implode( ':', array_reverse( $rule ) );
+				if(!empty($selector)){
+					if(!isset($new[$selector])) $new[$selector] = array();
+					$rules = explode(';',$val[++$i]);
+					foreach($rules as $rule){
+						$rule = trim($rule," \r\n\t");
+						if(!empty($rule)){
+							$rule = array_reverse(explode(':', $rule));
+							$property = trim(array_pop($rule)," \r\n\t");
+							$value = implode(':', array_reverse($rule));
 
-							if ( ! isset( $new[ $selector ][ $property ] ) || ! preg_match( '/!important/', $new[ $selector ][ $property ] ) ) {
-								$new[ $selector ][ $property ] = $value;
-							} elseif ( preg_match( '/!important/', $new[ $selector ][ $property ] ) && preg_match( '/!important/', $value ) ) {
-								$new[ $selector ][ $property ] = $value;
-							}
+							if(!isset($new[$selector][$property]) || !preg_match('/!important/',$new[$selector][$property])) $new[$selector][$property] = $value;
+							elseif(preg_match('/!important/',$new[$selector][$property]) && preg_match('/!important/',$value)) $new[$selector][$property] = $value;
 						}
 					}
 				}
 			}
-			$ordered[ $key ] = $new;
+			$ordered[$key] = $new;
 		}
 		$parsed = $ordered;
 
 		$output = '';
-		foreach ( $parsed as $media => $content ) {
-			if ( '@media' === substr( $media, 0, 6 ) ) {
+		foreach($parsed as $media => $content){
+			if(substr($media,0,6) === '@media'){
 				$output .= $media . " {\n";
-				$prefix  = "\t";
-			} else {
-				$prefix = '';
+				$prefix = "\t";
 			}
+			else $prefix = "";
 
-			foreach ( $content as $selector => $rules ) {
-				$output .= $prefix . $selector . " {\n";
-				foreach ( $rules as $property => $value ) {
-					$output .= $prefix . "\t" . $property . ': ' . $value;
+			foreach($content as $selector => $rules){
+				$output .= $prefix.$selector . " {\n";
+				foreach($rules as $property => $value){
+					$output .= $prefix."\t".$property.': '.$value;
 					$output .= ";\n";
 				}
-				$output .= $prefix . "}\n\n";
+				$output .= $prefix."}\n\n";
 			}
-			if ( '@media' === substr( $media, 0, 6 ) ) {
+			if(substr($media,0,6) === '@media'){
 				$output .= "}\n\n";
 			}
 		}
 		return $output;
+
 	}
 
-	// $check_file_existed: to support checking if file existed.
-	// $parent_id: optional.
-	public static function uploadImage( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {
-		if ( ! is_array( $img_data ) ) {
+    // $check_file_existed: to support checking if file existed
+    // $parent_id: optional
+	static function uploadImage( $img_url, $img_data = array() , $check_file_existed = false, $parent_id = 0 ) {
+		if ( !is_array($img_data) )
 			$img_data = array();
-		}
-		include_once ABSPATH . 'wp-admin/includes/file.php';
+		
+		global $mainWPChild;
+		 
+		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
 		$upload_dir     = wp_upload_dir();
-		$temporary_file = download_url( $img_url );
+		add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+		//Download $img_url
+		$temporary_file = download_url( $img_url );		
+		remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
 		if ( is_wp_error( $temporary_file ) ) {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
-			$filename       = basename( $img_url );
-			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename;
-			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+            $filename = basename( $img_url );
+			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename; //Local name
+            $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
-			// to fix issue re-create new attachment.
-			if ( $check_file_existed ) {
-				if ( file_exists( $local_img_path ) ) {
+            //$gen_unique_fn = true;
 
-					if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
-						$result = self::get_maybe_existed_attached_id( $local_img_url );
-						if ( is_array( $result ) ) {
-							$attach = current( $result );
-							if ( is_object( $attach ) ) {
-								if ( file_exists( $temporary_file ) ) {
-									unlink( $temporary_file );
-								}
-								return array(
-									'id'  => $attach->ID,
-									'url' => $local_img_url,
-								);
-							}
-						}
-					}
-				} else {
-					$result = self::get_maybe_existed_attached_id( $filename, false );
-					if ( is_array( $result ) ) {
-						$attach = current( $result );
-						if ( is_object( $attach ) ) {
-							$basedir        = $upload_dir['basedir'];
-							$baseurl        = $upload_dir['baseurl'];
-							$local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
-							if ( file_exists( $local_img_path ) && ( filesize( $local_img_path ) == filesize( $temporary_file ) ) ) {
-								if ( file_exists( $temporary_file ) ) {
-									unlink( $temporary_file );
-								}
-								return array(
-									'id'  => $attach->ID,
-									'url' => $attach->guid,
-								);
-							}
-						}
-					}
-				}
-			}
+            // to fix issue re-create new attachment
+            if ( $check_file_existed ) {
+                if ( file_exists( $local_img_path ) ) {
 
-			// file exists, do not overwrite, generate unique file name.
-			// this may causing of issue incorrect source of image in post content.
-			if ( file_exists( $local_img_path ) ) {
-				$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
-				$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
-			}
+                    if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) { // file exited
+                        $result = self::get_maybe_existed_attached_id( $local_img_url );
+                        if ( is_array($result) ) { // found attachment
+                            $attach = current($result);
+                            if (is_object($attach)) {
+                                if ( file_exists( $temporary_file ) ) {
+                                    unlink( $temporary_file );
+                                }
+                                return array( 'id' => $attach->ID, 'url' => $local_img_url );
+                            }
+                        }
+                    }
 
-			$moved = @rename( $temporary_file, $local_img_path );
+                } else { // find in other path
+                    $result = self::get_maybe_existed_attached_id( $filename, false );
+
+                    if ( is_array( $result ) ) {  // found attachment
+                        $attach = current($result);
+                        if (is_object($attach)) {
+                            $basedir = $upload_dir['basedir'];
+                            $baseurl = $upload_dir['baseurl'];
+                            $local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
+                            if ( file_exists($local_img_path) && (filesize( $local_img_path ) == filesize( $temporary_file )) ) { // file exited
+
+                                if ( file_exists( $temporary_file ) ) {
+                                    unlink( $temporary_file );
+                                }
+                                return array( 'id' => $attach->ID, 'url' => $attach->guid );
+                            }
+                        }
+                    }
+                }
+            }
+
+            // file exists, do not overwrite, generate unique file name
+			// this may causing of issue incorrect source of image in post content
+			if ( file_exists( $local_img_path ) ) { 
+                $local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
+                $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+            }
+
+			$moved          = @rename( $temporary_file, $local_img_path );
 
 			if ( $moved ) {
-				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
+				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); //Get the filetype to set the mimetype
 				$attachment  = array(
 					'post_mime_type' => $wp_filetype['type'],
-					'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
-					'post_content'   => isset( $img_data['description'] ) && ! empty( $img_data['description'] ) ? $img_data['description'] : '',
-					'post_excerpt'   => isset( $img_data['caption'] ) && ! empty( $img_data['caption'] ) ? $img_data['caption'] : '',
+					'post_title'     => isset( $img_data['title'] ) && !empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
+					'post_content'   => isset( $img_data['description'] ) && !empty( $img_data['description'] ) ? $img_data['description'] : '',
+					'post_excerpt' => isset( $img_data['caption'] ) && !empty( $img_data['caption'] ) ? $img_data['caption'] : '',
 					'post_status'    => 'inherit',
-					'guid'           => $local_img_url,
+                    'guid' => $local_img_url // to fix
 				);
 
-				// for post attachments, thumbnail.
-				if ( $parent_id ) {
-					$attachment['post_parent'] = $parent_id;
-				}
+                // for post attachments, thumbnail
+                if ( $parent_id ) {
+                    $attachment['post_parent'] = $parent_id;
+                }
 
-				$attach_id = wp_insert_attachment( $attachment, $local_img_path ); // Insert the image in the database.
-				require_once ABSPATH . 'wp-admin/includes/image.php';
+				$attach_id   = wp_insert_attachment( $attachment, $local_img_path ); //Insert the image in the database
+				require_once( ABSPATH . 'wp-admin/includes/image.php' );
 				$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
-				wp_update_attachment_metadata( $attach_id, $attach_data ); // Update generated metadata.
-				if ( isset( $img_data['alt'] ) && ! empty( $img_data['alt'] ) ) {
+				wp_update_attachment_metadata( $attach_id, $attach_data ); //Update generated metadata
+				if ( isset( $img_data['alt'] ) && !empty( $img_data['alt'] ) )
 					update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
-				}
-				return array(
-					'id'  => $attach_id,
-					'url' => $local_img_url,
-				);
+				return array( 'id' => $attach_id, 'url' => $local_img_url );
 			}
 		}
 		if ( file_exists( $temporary_file ) ) {
@@ -302,35 +300,32 @@ class MainWP_Helper {
 		return null;
 	}
 
-	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
-		global $wpdb;
-		if ( $full_guid ) {
-			$sql = $wpdb->prepare(
-				"SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s",
-				$filename
-			);
-		} else {
-			$sql = "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE '%/" . $filename . "'";
-		}
-		return $wpdb->get_results( $sql );
+	static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
+        global $wpdb;
+        if ( $full_guid ) {
+            $sql = $wpdb->prepare(
+                "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s",
+                $filename
+            );
+        } else {
+            $sql = "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE '%/" . $filename . "'";
+        }
+        return $wpdb->get_results( $sql );
 	}
 
-	public static function uploadFile( $file_url, $path, $file_name ) {
-		// to fix uploader extension rename htaccess file issue.
-		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
-			$file_name = sanitize_file_name( $file_name );
-		}
+	static function uploadFile( $file_url, $path, $file_name ) {
+        // to fix uploader extension rename htaccess file issue
+        if ( $file_name != '.htaccess' && $file_name != '.htpasswd' ) {
+            $file_name      = sanitize_file_name( $file_name );
+        }
 
-		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name;
+		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name; //Local name
 
-		$response = wp_remote_get(
-			$file_url,
-			array(
-				'timeout'  => 10 * 60 * 60,
-				'stream'   => true,
-				'filename' => $full_file_name,
-			)
-		);
+		$response = wp_remote_get( $file_url, array(
+			'timeout'  => 10 * 60 * 60,
+			'stream'   => true,
+			'filename' => $full_file_name,
+		) );
 
 		if ( is_wp_error( $response ) ) {
 			@unlink( $full_file_name );
@@ -356,21 +351,21 @@ class MainWP_Helper {
 		return array( 'path' => $full_file_name );
 	}
 
-	public static function createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
+	static function createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
 		global $current_user;
 
-		/**
-		* Hook: `mainwp_before_post_update`
-		*
-		* Runs before creating or updating a post via MainWP dashboard.
-		*
-		* @param array  $new_post      – Post data array.
-		* @param array  $post_custom   – Post custom meta data.
-		* @param string $post_category – Post categories.
-		* @param string $post_tags     – Post tags.
-		*/
+        /**
+        * Hook: `mainwp_before_post_update`
+        *
+        * Runs before creating or updating a post via MainWP dashboard.
+        *
+        * @param array  $new_post      – Post data array.
+        * @param array  $post_custom   – Post custom meta data.
+        * @param string $post_category – Post categories.
+        * @param string $post_tags     – Post tags.
+        */
 
-		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
+        do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
 
 		// Options fields.
 		$wprocket_fields = array(
@@ -389,9 +384,9 @@ class MainWP_Helper {
 			if ( function_exists( 'get_rocket_option' ) ) {
 				$wprocket_activated = true;
 				foreach ( $wprocket_fields as $field ) {
-					if ( ! isset( $post_custom[ '_rocket_exclude_' . $field ] ) ) {
+					if ( ! isset( $post_custom[ '_rocket_exclude_' . $field ] ) ) {  // check not exclude only
 						if ( ! get_rocket_option( $field ) ) {
-							$post_custom[ '_rocket_exclude_' . $field ] = array( true );
+							$post_custom[ '_rocket_exclude_' . $field ] = array( true ); // set as excluded
 						}
 					}
 				}
@@ -406,31 +401,31 @@ class MainWP_Helper {
 			}
 		}
 
-		// current user may be connected admin or alternative admin.
-		$current_uid = $current_user->ID;
-		// Set up a new post (adding addition information).
+        // current user may be connected admin or alternative admin
+        $current_uid = $current_user->ID;
+		//Set up a new post (adding addition information)
+		//$usr = get_user_by( 'login', $_POST['user'] );
+		//$new_post['post_author'] = $current_user->ID;
 
-		$is_robot_post = false;
+		$is_robot_post = false; // retirement soon
 		if ( isset( $_POST['isMainWPRobot'] ) && ! empty( $_POST['isMainWPRobot'] ) ) {
 			$is_robot_post = true;
 		}
 
 		$post_author = isset( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
-		if ( $is_robot_post ) {
+		if ( $is_robot_post ) { // retirement soon
 			if ( 1 === $post_author ) {
 				$new_post['post_author'] = $current_uid;
-			} elseif ( ! is_numeric( $post_author ) ) {
+			} else if ( ! is_numeric( $post_author ) ) {
 				$user_author = get_user_by( 'login', $post_author );
 				if ( $user_author ) {
 					$post_author = $user_author->ID;
 				} else {
-					$length                         = 12;
-					$include_standard_special_chars = false;
-					$random_password = wp_generate_password( $length, $include_standard_special_chars );
+					$random_password = wp_generate_password( $length = 12, $include_standard_special_chars = false );
 					$post_author     = wp_create_user( $post_author, $random_password, $post_author . '@asdf.com' );
 				}
 			}
-		} elseif ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
+		} else if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
 			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
 			if ( ! empty( $_author ) ) {
 				$new_post['post_author'] = $_author->ID;
@@ -444,17 +439,21 @@ class MainWP_Helper {
 		$new_post['post_author'] = $post_author;
 
 		$is_ezine_post = ! empty( $post_custom['_ezine_post_article_source'] ) ? true : false;
-		$terms         = isset( $new_post['_ezin_post_category'] ) ? $new_post['_ezin_post_category'] : false;
+		$terms         = isset( $new_post['_ezin_post_category'] ) ? $new_post['_ezin_post_category'] : false ;
 		unset( $new_post['_ezin_post_category'] );
 		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 
 		$wp_error = null;
 
 		if ( $is_ezine_post || $is_post_plus ) {
-			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' != $new_post['post_date_gmt'] ) {
-				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
-				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp );
+			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && $new_post['post_date_gmt'] != '0000-00-00 00:00:00' ) {
+				$post_date_timestamp     = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
+				$new_post['post_date']   = date( 'Y-m-d H:i:s', $post_date_timestamp );
+				//$new_post['post_status'] = ( $post_date_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
 			}
+//            else {
+//				$new_post['post_status'] = 'publish';
+//			}
 		}
 
 		$wpr_options = isset( $_POST['wpr_options'] ) ? $_POST['wpr_options'] : array();
@@ -462,30 +461,30 @@ class MainWP_Helper {
 		$edit_post_id = 0;
 
 		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
-			$edit_post_id = current( $post_custom['_mainwp_edit_post_id'] );
-		} elseif ( isset( $new_post['ID'] ) && $new_post['ID'] ) {
-			$edit_post_id = $new_post['ID'];
-		}
+			$edit_post_id = current($post_custom['_mainwp_edit_post_id']);
+        } else if (isset( $new_post['ID'] ) && $new_post['ID']) {
+            $edit_post_id = $new_post['ID'];
+        }
 
-		require_once ABSPATH . 'wp-admin/includes/post.php';
-		if ( $edit_post_id ) {
-			$user_id = wp_check_post_lock( $edit_post_id );
-			if ( $user_id ) {
-				$user  = get_userdata( $user_id );
-				$error = sprintf( __( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
-				return array( 'error' => $error );
+
+        require_once ABSPATH . 'wp-admin/includes/post.php';
+        if ($edit_post_id) {
+			if ( $user_id = wp_check_post_lock( $edit_post_id ) ) {
+				$user = get_userdata( $user_id );
+				$error = sprintf( __( 'This content is currently locked. %s is currently editing.' ), $user->display_name );
+				return array( 'error' => $error);
 			}
 		}
 
-		$check_image_existed = false;
-		if ( $edit_post_id ) {
-			$check_image_existed = true; // if editing post then will check if image existed.
-		}
+        $check_image_existed = false;
+        if ( $edit_post_id )
+            $check_image_existed = true; // if editing post then will check if image existed
 
-		// Search for all the images added to the new post. Some images have a href tag to click to navigate to the image.. we need to replace this too.
+		//Search for all the images added to the new post
+		//some images have a href tag to click to navigate to the image.. we need to replace this too
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
 		if ( ( $foundMatches > 0 || ( $is_robot_post && isset( $wpr_options['wpr_save_images'] ) && 'Yes' === $wpr_options['wpr_save_images'] ) ) && ( ! $is_ezine_post ) ) {
-			// We found images, now to download them so we can start balbal.
+			//We found images, now to download them so we can start balbal
 			foreach ( $matches as $match ) {
 				$hrefLink = $match[2];
 				$imgUrl   = $match[4];
@@ -503,7 +502,7 @@ class MainWP_Helper {
 				}
 
 				try {
-					$downloadfile      = self::uploadImage( $originalImgUrl, array(), $check_image_existed );
+					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl, array(), $check_image_existed );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -514,13 +513,20 @@ class MainWP_Helper {
 							$replaceServerHref        = 'href="' . parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . parse_url( $localUrl, PHP_URL_HOST );
 							$new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
 						}
+						// To fix bug
+//						else if ( strpos( $hrefLink, 'http' ) !== false ) {
+//							$lnkToReplace = dirname( $hrefLink );
+//							if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
+//								$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
+//							}
+//						}
 					}
 					$lnkToReplace = dirname( $imgUrl );
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
 						$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
 					}
 				} catch ( Exception $e ) {
-					// ok!
+					error_log( $e->getMessage() );
 				}
 			}
 		}
@@ -529,35 +535,35 @@ class MainWP_Helper {
 			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
 				$replaceAttachedIds = array();
 				if ( isset( $_POST['post_gallery_images'] ) ) {
-					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-					if ( is_array( $post_gallery_images ) ) {
-						foreach ( $post_gallery_images as $gallery ) {
-							if ( isset( $gallery['src'] ) ) {
+					$post_gallery_images = unserialize(base64_decode( $_POST['post_gallery_images'] ));
+					if (is_array($post_gallery_images)) {
+						foreach($post_gallery_images as $gallery){
+							if (isset($gallery['src'])) {
 								try {
-									$upload = self::uploadImage( $gallery['src'], $gallery ); // Upload image to WP.
+									$upload = MainWP_Helper::uploadImage( $gallery['src'], $gallery ); //Upload image to WP
 									if ( null !== $upload ) {
-										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
+										$replaceAttachedIds[$gallery['id']] = $upload['id'];
 									}
 								} catch ( Exception $e ) {
-									// ok!
+
 								}
 							}
 						}
 					}
 				}
-				if ( count( $replaceAttachedIds ) > 0 ) {
+				if (count($replaceAttachedIds) > 0) {
 					foreach ( $matches as $match ) {
-						$idsToReplace     = $match[1];
-						$idsToReplaceWith = '';
-						$originalIds      = explode( ',', $idsToReplace );
-						foreach ( $originalIds as $attached_id ) {
-							if ( ! empty( $originalIds ) && isset( $replaceAttachedIds[ $attached_id ] ) ) {
-								$idsToReplaceWith .= $replaceAttachedIds[ $attached_id ] . ',';
+						$idsToReplace = $match[1];
+						$idsToReplaceWith = "";
+						$originalIds = explode(',', $idsToReplace);
+						foreach($originalIds as $attached_id) {
+							if (!empty($originalIds) && isset($replaceAttachedIds[$attached_id])) {
+								$idsToReplaceWith .= $replaceAttachedIds[$attached_id].",";
 							}
 						}
-						$idsToReplaceWith = rtrim( $idsToReplaceWith, ',' );
-						if ( ! empty( $idsToReplaceWith ) ) {
-							$new_post['post_content'] = str_replace( '"' . $idsToReplace . '"', '"' . $idsToReplaceWith . '"', $new_post['post_content'] );
+						$idsToReplaceWith = rtrim($idsToReplaceWith,",");
+						if (!empty($idsToReplaceWith)) {
+							$new_post['post_content'] = str_replace( '"' . $idsToReplace . '"', '"'.$idsToReplaceWith.'"', $new_post['post_content'] );
 						}
 					}
 				}
@@ -594,8 +600,10 @@ class MainWP_Helper {
 					$random_date_to   = $tmp;
 				}
 
-				$random_timestamp      = rand( $random_date_from, $random_date_to );
-				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp );
+				$random_timestamp        = rand( $random_date_from, $random_date_to );
+//				$post_status             = ( $random_timestamp <= current_time( 'timestamp' ) ) ? 'publish' : 'future';
+//				$new_post['post_status'] = $post_status;
+				$new_post['post_date']   = date( 'Y-m-d H:i:s', $random_timestamp );
 			}
 		}
 
@@ -603,39 +611,33 @@ class MainWP_Helper {
 			$new_post['tags_input'] = $post_tags;
 		}
 
-		// Save the post to the WP.
-		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html.
+		//Save the post to the wp
+		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html
 		$post_status             = $new_post['post_status'];
-		$new_post['post_status'] = 'auto-draft'; // child reports: to logging as created post.
+		$new_post['post_status'] = 'auto-draft'; // child reports: to logging as created post		
 
-		// update post.
+		// update post
 		if ( $edit_post_id ) {
-			// check if post existed.
-			$current_post = get_post( $edit_post_id );
-			if ( $current_post && ( ( ! isset( $new_post['post_type'] ) && 'post' == $current_post->post_type ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] == $current_post->post_type ) ) ) {
+			// check if post existed
+			$current_post = get_post($edit_post_id);
+			if ( $current_post && ( ( !isset( $new_post['post_type'] ) && $current_post->post_type == 'post' ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] == $current_post->post_type ) ) ) {
 				$new_post['ID'] = $edit_post_id;
 			}
-			$new_post['post_status'] = $post_status; // child reports: to logging as update post.
+			$new_post['post_status'] = $post_status; // child reports: to logging as update post		
 		}
 
-		$new_post_id = wp_insert_post( $new_post, $wp_error );
+		$new_post_id             = wp_insert_post( $new_post, $wp_error );
 
-		// Show errors if something went wrong.
+		//Show errors if something went wrong
 		if ( is_wp_error( $wp_error ) ) {
 			return $wp_error->get_error_message();
 		}
 		if ( empty( $new_post_id ) ) {
-			return array( 'error' => 'Empty post id' );
+			return array( 'error' => 'Empty post id');
 		}
 
-		if ( ! $edit_post_id ) {
-			wp_update_post(
-				array(
-					'ID'          => $new_post_id,
-					'post_status' => $post_status,
-				)
-			);
-		}
+		if ( !$edit_post_id )
+		wp_update_post( array( 'ID' => $new_post_id, 'post_status' => $post_status ) );
 
 		if ( ! empty( $terms ) ) {
 			wp_set_object_terms( $new_post_id, array_map( intval, $terms ), 'category' );
@@ -644,12 +646,11 @@ class MainWP_Helper {
 		$permalink = get_permalink( $new_post_id );
 
 		$seo_ext_activated = false;
-
 		if ( class_exists( 'WPSEO_Meta' ) && class_exists( 'WPSEO_Admin' ) ) {
 			$seo_ext_activated = true;
 		}
 
-		// Set custom fields.
+		//Set custom fields
 		$not_allowed   = array(
 			'_slug',
 			'_tags',
@@ -660,9 +661,9 @@ class MainWP_Helper {
 			'_categories',
 			'_edit_last',
 			'_sticky',
-			'_mainwp_post_dripper',
-			'_bulkpost_do_not_del',
-			'_mainwp_spin_me',
+            '_mainwp_post_dripper',
+            '_bulkpost_do_not_del',
+            '_mainwp_spin_me'
 		);
 		$not_allowed[] = '_mainwp_boilerplate_sites_posts';
 		$not_allowed[] = '_ezine_post_keyword';
@@ -689,38 +690,37 @@ class MainWP_Helper {
 
 		$post_to_only_existing_categories = false;
 
-		if ( is_array( $post_custom ) ) {
-			foreach ( $post_custom as $meta_key => $meta_values ) {
-				if ( ! in_array( $meta_key, $not_allowed ) ) {
-					foreach ( $meta_values as $meta_value ) {
-						if ( 0 === strpos( $meta_key, '_mainwp_spinner_' ) ) {
-							continue;
-						}
+        if (is_array($post_custom)) {
+            foreach ( $post_custom as $meta_key => $meta_values ) {
+			if ( ! in_array( $meta_key, $not_allowed ) ) {
+				foreach ( $meta_values as $meta_value ) {
+					if (strpos($meta_key, "_mainwp_spinner_") === 0)
+						continue; // not save
 
-						if ( ! $seo_ext_activated ) {
-							// if WordPress SEO plugin is not activated do not save yoast post meta.
-							if ( false === strpos( $meta_key, '_yoast_wpseo_' ) ) {
-								update_post_meta( $new_post_id, $meta_key, $meta_value );
-							}
-						} else {
+					if ( ! $seo_ext_activated ) {
+						// if Wordpress SEO plugin is not activated do not save yoast post meta
+						if ( strpos( $meta_key, '_yoast_wpseo_' ) === false ) {
 							update_post_meta( $new_post_id, $meta_key, $meta_value );
 						}
+					} else {
+						update_post_meta( $new_post_id, $meta_key, $meta_value );
 					}
-				} elseif ( '_sticky' === $meta_key ) {
-					foreach ( $meta_values as $meta_value ) {
-						if ( 'sticky' === base64_decode( $meta_value ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-							stick_post( $new_post_id );
-						}
+				}
+			} else if ( '_sticky' === $meta_key ) {
+				foreach ( $meta_values as $meta_value ) {
+					if ( 'sticky' === base64_decode( $meta_value ) ) {
+						stick_post( $new_post_id );
 					}
-				} elseif ( '_post_to_only_existing_categories' === $meta_key ) {
-					if ( isset( $meta_values[0] ) && $meta_values[0] ) {
-						$post_to_only_existing_categories = true;
-					}
+				}
+			} else if ( '_post_to_only_existing_categories' === $meta_key ) {
+				if ( isset( $meta_values[0] ) && $meta_values[0] ) {
+					$post_to_only_existing_categories = true;
 				}
 			}
 		}
+        }
 
-		// yoast seo extension.
+		// yoast seo extension
 		if ( $seo_ext_activated ) {
 			$_seo_opengraph_image = isset( $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
 			$_seo_opengraph_image = current( $_seo_opengraph_image );
@@ -730,21 +730,22 @@ class MainWP_Helper {
 				$_server_domain = isset( $matchs[1] ) ? $matchs[1] : '';
 			}
 
-			// upload image if it on the server.
-			if ( ! empty( $_seo_opengraph_image ) && false !== strpos( $_seo_opengraph_image, $_server_domain ) ) {
+			// upload image if it on the server
+			if ( ! empty( $_seo_opengraph_image ) && strpos( $_seo_opengraph_image, $_server_domain ) !== false ) {
 				try {
-					$upload = self::uploadImage( $_seo_opengraph_image ); // Upload image to WP.
+					$upload = MainWP_Helper::uploadImage( $_seo_opengraph_image ); //Upload image to WP
 					if ( null !== $upload ) {
-						update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
+						update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); //Add the image to the post!
 					}
 				} catch ( Exception $e ) {
-					// ok!
+
 				}
+
 			}
 		}
 
-		// If categories exist, create them (second parameter of wp_create_categories adds the categories to the post).
-		include_once ABSPATH . 'wp-admin/includes/taxonomy.php'; // Contains wp_create_categories.
+		//If categories exist, create them (second parameter of wp_create_categories adds the categories to the post)
+		include_once( ABSPATH . 'wp-admin/includes/taxonomy.php' ); //Contains wp_create_categories
 		if ( isset( $post_category ) && '' !== $post_category ) {
 			$categories = explode( ',', $post_category );
 			if ( count( $categories ) > 0 ) {
@@ -753,8 +754,7 @@ class MainWP_Helper {
 				} else {
 					$cat_ids = array();
 					foreach ( $categories as $cat ) {
-						$id = category_exists( $cat );
-						if ( $id ) {
+						if ( $id = category_exists( $cat ) ) {
 							$cat_ids[] = $id;
 						}
 					}
@@ -766,40 +766,38 @@ class MainWP_Helper {
 		}
 
 		$featured_image_exist = false;
-		// If featured image exists - set it.
+		//If featured image exists - set it
 		if ( null !== $post_featured_image ) {
 			try {
-				$upload = self::uploadImage( $post_featured_image, array(), $check_image_existed, $new_post_id ); // Upload image to WP.
+				$upload = MainWP_Helper::uploadImage( $post_featured_image, array(), $check_image_existed, $new_post_id); //Upload image to WP
 				if ( null !== $upload ) {
-					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); // Add the thumbnail to the post!
+					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); //Add the thumbnail to the post!
 					$featured_image_exist = true;
-					if ( isset( $others['featured_image_data'] ) ) {
-						$_image_data = $others['featured_image_data'];
-						update_post_meta( $upload['id'], '_wp_attachment_image_alt', $_image_data['alt'] );
-						wp_update_post(
-							array(
-								'ID'           => $upload['id'],
-								'post_excerpt' => $_image_data['caption'],
-								'post_content' => $_image_data['description'],
-								'post_title'   => $_image_data['title'],
-							)
-						);
-					}
+                    if (isset($others['featured_image_data'])) {
+                        $_image_data = $others['featured_image_data'];
+                        update_post_meta( $upload['id'], '_wp_attachment_image_alt', $_image_data['alt'] );
+                        wp_update_post( array( 'ID' => $upload['id'],
+                                            'post_excerpt' => $_image_data['caption'],
+                                            'post_content' => $_image_data['description'],
+                                            'post_title' => $_image_data['title']
+                                        )
+                                    );
+                    }
 				}
 			} catch ( Exception $e ) {
-				// ok!
+
 			}
 		}
 
-		if ( ! $featured_image_exist ) {
+		if ( !$featured_image_exist ) {
 			delete_post_meta( $new_post_id, '_thumbnail_id' );
 		}
 
-		// post plus extension process.
+		// post plus extension process
 		if ( $is_post_plus ) {
 			$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
 			$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
-			$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$random_privelege_base = base64_decode( $random_privelege );
 			$random_privelege      = maybe_unserialize( $random_privelege_base );
 
 			if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
@@ -813,24 +811,14 @@ class MainWP_Helper {
 				if ( count( $random_post_authors ) > 0 ) {
 					shuffle( $random_post_authors );
 					$key = array_rand( $random_post_authors );
-					wp_update_post(
-						array(
-							'ID'          => $new_post_id,
-							'post_author' => $random_post_authors[ $key ],
-						)
-					);
+					wp_update_post( array( 'ID' => $new_post_id, 'post_author' => $random_post_authors[ $key ] ) );
 				}
 			}
 
 			$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
 			$random_category = is_array( $random_category ) ? current( $random_category ) : null;
 			if ( ! empty( $random_category ) ) {
-				$cats        = get_categories(
-					array(
-						'type'       => 'post',
-						'hide_empty' => 0,
-					)
-				);
+				$cats        = get_categories( array( 'type' => 'post', 'hide_empty' => 0 ) );
 				$random_cats = array();
 				if ( is_array( $cats ) ) {
 					foreach ( $cats as $cat ) {
@@ -843,29 +831,25 @@ class MainWP_Helper {
 					wp_set_post_categories( $new_post_id, array( $random_cats[ $key ] ), false );
 				}
 			}
-		} // end of post plus.
+		}
+		// end of post plus
 
-		// to support custom post author.
-		$custom_post_author = apply_filters( 'mainwp_create_post_custom_author', false, $new_post_id );
-		if ( ! empty( $custom_post_author ) ) {
-			wp_update_post(
-				array(
-					'ID'          => $new_post_id,
-					'post_author' => $custom_post_author,
-				)
-			);
+		// to support custom post author
+		$custom_post_author = apply_filters('mainwp_create_post_custom_author', false, $new_post_id);
+		if ( !empty( $custom_post_author ) ) {
+			wp_update_post( array( 'ID' => $new_post_id, 'post_author' => $custom_post_author ) );
 		}
 
-		// MainWP Robot.
+		// MainWP Robot
 		if ( $is_robot_post ) {
 			$all_comments = $post_custom['_mainwp_robot_post_comments'];
 			MainWP_Child_Robot::Instance()->wpr_insertcomments( $new_post_id, $all_comments );
 		}
 
-		// unlock if edit post.
-		if ( $edit_post_id ) {
-			update_post_meta( $edit_post_id, '_edit_lock', '' );
-		}
+        // unlock if edit post
+        if ($edit_post_id) {
+            update_post_meta( $edit_post_id, '_edit_lock', '' );
+        }
 
 		$ret['success']  = true;
 		$ret['link']     = $permalink;
@@ -874,7 +858,7 @@ class MainWP_Helper {
 		return $ret;
 	}
 
-	public static function getMainWPDir( $what = null, $dieOnError = true ) {
+	static function getMainWPDir( $what = null, $dieOnError = true ) {
 		$upload_dir = wp_upload_dir();
 		$dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
 		self::checkDir( $dir, $dieOnError );
@@ -902,8 +886,8 @@ class MainWP_Helper {
 		return array( $dir, $url );
 	}
 
-	public static function checkDir( $dir, $dieOnError, $chmod = 0755 ) {
-		self::getWPFilesystem();
+	static function checkDir( $dir, $dieOnError, $chmod = 0755 ) {
+		MainWP_Helper::getWPFilesystem();
 		global $wp_filesystem;
 		if ( ! file_exists( $dir ) ) {
 			if ( empty( $wp_filesystem ) ) {
@@ -932,14 +916,14 @@ class MainWP_Helper {
 
 	public static function validateMainWPDir() {
 		$done = false;
-		$dir  = self::getMainWPDir();
+		$dir  = MainWP_Helper::getMainWPDir();
 		$dir  = $dir[0];
-		if ( self::getWPFilesystem() ) {
+		if ( MainWP_Helper::getWPFilesystem() ) {
 			global $wp_filesystem;
 			try {
-				self::checkDir( $dir, false );
+				MainWP_Helper::checkDir( $dir, false );
 			} catch ( Exception $e ) {
-				// ok!
+
 			}
 			if ( ! empty( $wp_filesystem ) ) {
 				if ( $wp_filesystem->is_writable( $dir ) ) {
@@ -960,7 +944,7 @@ class MainWP_Helper {
 		return $done;
 	}
 
-	public static function search( $array, $key ) {
+	static function search( $array, $key ) {
 		if ( is_object( $array ) ) {
 			$array = (array) $array;
 		}
@@ -988,11 +972,14 @@ class MainWP_Helper {
 
 		if ( empty( $wp_filesystem ) ) {
 			ob_start();
+//			if ( file_exists( ABSPATH . '/wp-admin/includes/deprecated.php' ) ) {
+//				include_once( ABSPATH . '/wp-admin/includes/deprecated.php' );
+//			}
 			if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
-				include_once ABSPATH . '/wp-admin/includes/screen.php';
+				include_once( ABSPATH . '/wp-admin/includes/screen.php' );
 			}
 			if ( file_exists( ABSPATH . '/wp-admin/includes/template.php' ) ) {
-				include_once ABSPATH . '/wp-admin/includes/template.php';
+				include_once( ABSPATH . '/wp-admin/includes/template.php' );
 			}
 			$creds = request_filesystem_credentials( 'test' );
 			ob_end_clean();
@@ -1030,7 +1017,7 @@ class MainWP_Helper {
 			if ( ! $showHttp ) {
 				$url = substr( $url, 7 );
 			}
-		} elseif ( self::startsWith( $pUrl, 'https://' ) ) {
+		} else if ( self::startsWith( $pUrl, 'https://' ) ) {
 			if ( ! $showHttp ) {
 				$url = substr( $url, 8 );
 			}
@@ -1067,7 +1054,7 @@ class MainWP_Helper {
 		@ob_end_flush();
 	}
 
-	public static function fetchUrl( $url, $postdata ) {
+	static function fetchUrl( $url, $postdata ) {
 		try {
 			$tmpUrl = $url;
 			if ( '/' !== substr( $tmpUrl, - 1 ) ) {
@@ -1085,14 +1072,14 @@ class MainWP_Helper {
 	}
 
 	public static function _fetchUrl( $url, $postdata ) {
+		//$agent = 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)';
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
-
-		if ( ! is_array( $postdata ) ) {
+		
+		if (!is_array( $postdata )) 
 			$postdata = array();
-		}
-
-		$postdata['json_result'] = true; // forced all response in json format.
-
+		
+		$postdata['json_result'] = true; // forced all response in json format
+		
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, $url );
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
@@ -1107,14 +1094,14 @@ class MainWP_Helper {
 
 		if ( ( false === $data ) && ( 0 === $http_status ) ) {
 			throw new Exception( 'Http Error: ' . $err );
-		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
+		} else if ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
-			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-
-			$information = json_decode( $result_base, true ); // it is json_encode result.
+			$result_base = base64_decode( $result );
+			//$information = maybe_unserialize( $result_base );
+			$information = json_decode( $result_base, true ); // it is json_encode result
 
 			return $information;
-		} elseif ( '' === $data ) {
+		} else if ( '' === $data ) {
 			throw new Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
 		} else {
 			throw new Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
@@ -1135,9 +1122,10 @@ class MainWP_Helper {
 	public static function return_bytes( $val ) {
 		$val  = trim( $val );
 		$last = $val[ strlen( $val ) - 1 ];
-		$val  = rtrim( $val, $last );
+		$val = rtrim($val, $last);
 		$last = strtolower( $last );
 		switch ( $last ) {
+			// The 'G' modifier is available since PHP 5.1.0
 			case 'g':
 				$val *= 1024;
 			case 'm':
@@ -1276,7 +1264,7 @@ class MainWP_Helper {
 <br>';
 	}
 
-	public static function update_option( $option_name, $option_value, $autoload = 'no' ) {
+	static function update_option( $option_name, $option_value, $autoload = 'no' ) {
 		$success = add_option( $option_name, $option_value, '', $autoload );
 
 		if ( ! $success ) {
@@ -1286,7 +1274,7 @@ class MainWP_Helper {
 		return $success;
 	}
 
-	public static function fix_option( $option_name, $autoload = 'no' ) {
+	static function fix_option( $option_name, $autoload = 'no' ) {
 		global $wpdb;
 
 		if ( $autoload != $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM $wpdb->options WHERE option_name = %s", $option_name ) ) ) {
@@ -1296,47 +1284,46 @@ class MainWP_Helper {
 		}
 	}
 
-	public static function update_lasttime_backup( $by, $time ) {
-		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
-		if ( ! in_array( $by, $backup_by ) ) {
-			return false;
-		}
+	static function update_lasttime_backup( $by, $time ) {
+		$backup_by = array('backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule');
 
-		$lasttime = get_option( 'mainwp_lasttime_backup_' . $by );
+		if (!in_array($by, $backup_by))
+			return false;
+
+		$lasttime = get_option('mainwp_lasttime_backup_' . $by);
 		if ( $time > $lasttime ) {
-			update_option( 'mainwp_lasttime_backup_' . $by, $time );
+			update_option('mainwp_lasttime_backup_' . $by, $time);
 		}
 
 		return true;
 	}
 
-	public static function get_lasttime_backup( $by ) {
-		if ( 'backupwp' == $by ) {
+	static function get_lasttime_backup( $by ) {
+		if ($by == 'backupwp') // to compatible
 			$by = 'backupwordpress';
-		}
-		switch ( $by ) {
+		switch($by) {
 			case 'backupbuddy':
-				if ( ! is_plugin_active( 'backupbuddy/backupbuddy.php' ) && ! is_plugin_active( 'Backupbuddy/backupbuddy.php' ) ) {
+				if ( !is_plugin_active( 'backupbuddy/backupbuddy.php' ) && !is_plugin_active( 'Backupbuddy/backupbuddy.php' )) {
 					return 0;
 				}
 				break;
 			case 'backupwordpress':
-				if ( ! is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
+				if ( !is_plugin_active( 'backupwordpress/backupwordpress.php' )) {
 					return 0;
 				}
 				break;
 			case 'backwpup':
-				if ( ! is_plugin_active( 'backwpup/backwpup.php' ) && ! is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
+				if ( !is_plugin_active( 'backwpup/backwpup.php' ) && !is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
 					return 0;
 				}
 				break;
 			case 'updraftplus':
-				if ( ! is_plugin_active( 'updraftplus/updraftplus.php' ) ) {
+				if ( !is_plugin_active( 'updraftplus/updraftplus.php' )) {
 					return 0;
 				}
 				break;
 			case 'wptimecapsule':
-				if ( ! is_plugin_active( 'wp-time-capsule/wp-time-capsule.php' ) ) {
+				if ( !is_plugin_active( 'wp-time-capsule/wp-time-capsule.php'  )) {
 					return 0;
 				}
 				break;
@@ -1344,11 +1331,11 @@ class MainWP_Helper {
 				return 0;
 				break;
 		}
-		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
+		return get_option('mainwp_lasttime_backup_' . $by, 0);
 	}
 
 
-	public static function containsAll( $haystack, $needle ) {
+	static function containsAll( $haystack, $needle ) {
 		if ( ! is_array( $haystack ) || ! is_array( $needle ) ) {
 			return false;
 		}
@@ -1364,7 +1351,11 @@ class MainWP_Helper {
 
 	public static function getRevisions( $max_revisions ) {
 		global $wpdb;
-		$sql = " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > " . $max_revisions;
+		$sql = " SELECT	`post_parent`, COUNT(*) cnt
+                FROM $wpdb->posts
+                WHERE `post_type` = 'revision'
+                GROUP BY `post_parent`
+                HAVING COUNT(*) > " . $max_revisions;
 
 		return $wpdb->get_results( $sql );
 	}
@@ -1375,13 +1366,19 @@ class MainWP_Helper {
 		if ( ! is_array( $results ) || 0 === count( $results ) ) {
 			return;
 		}
-		$count_deleted  = 0;
+		$count_deleted = 0;
 		$results_length = count( $results );
 		for ( $i = 0; $i < $results_length; $i ++ ) {
 			$number_to_delete = $results[ $i ]->cnt - $max_revisions;
-			$count_deleted   += $number_to_delete;
-			$sql_get          = "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`=" . $results[ $i ]->post_parent . " AND `post_type`='revision' ORDER BY `post_modified` ASC";
-			$results_posts    = $wpdb->get_results( $sql_get );
+			$count_deleted += $number_to_delete;
+			$sql_get       = "
+                    SELECT `ID`, `post_modified`
+                    FROM  $wpdb->posts
+                    WHERE `post_parent`=" . $results[ $i ]->post_parent . "
+                    AND `post_type`='revision'
+                    ORDER BY `post_modified` ASC
+                ";
+			$results_posts = $wpdb->get_results( $sql_get );
 
 			$delete_ids = array();
 			if ( is_array( $results_posts ) && count( $results_posts ) > 0 ) {
@@ -1391,8 +1388,9 @@ class MainWP_Helper {
 			}
 
 			if ( count( $delete_ids ) > 0 ) {
-				// phpcs:ignore
-				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ")";
+				$sql_delete = " DELETE FROM $wpdb->posts
+                                WHERE `ID` IN (" . implode( ',', $delete_ids ) . ')
+                            ';
 				$wpdb->get_results( $sql_delete );
 			}
 		}
@@ -1407,13 +1405,13 @@ class MainWP_Helper {
 
 		if ( null != $excludes ) {
 			foreach ( $excludes as $exclude ) {
-				if ( self::endsWith( $exclude, '*' ) ) {
-					if ( self::startsWith( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
+				if ( MainWP_Helper::endsWith( $exclude, '*' ) ) {
+					if ( MainWP_Helper::startsWith( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
 						return true;
 					}
-				} elseif ( $value == $exclude ) {
+				} else if ( $value == $exclude ) {
 					return true;
-				} elseif ( self::startsWith( $value, $exclude . '/' ) ) {
+				} else if ( MainWP_Helper::startsWith( $value, $exclude . '/' ) ) {
 					return true;
 				}
 			}
@@ -1450,14 +1448,14 @@ class MainWP_Helper {
 	public static function remove_filters_for_anonymous_class( $hook_name = '', $class_name = '', $method_name = '', $priority = 0 ) {
 		global $wp_filter;
 
-		// Take only filters on right hook name and priority.
+		// Take only filters on right hook name and priority
 		if ( ! isset( $wp_filter[ $hook_name ] ) || ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
 			return false;
 		}
 
-		// Loop on filters registered.
+		// Loop on filters registered
 		foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
-			// Test if filter is an array ! (always for class/method).
+			// Test if filter is an array ! (always for class/method)
 			if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
 				// Test if object is a class, class and method is equal to param !
 				if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) === $class_name && $filter_array['function'][1] === $method_name ) {
@@ -1473,47 +1471,47 @@ class MainWP_Helper {
 	 * Credit to the : wp-filters-extras
 	 */
 
-	public static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
+static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
 
-		global $wp_filter;
-		// Take only filters on right hook name and priority.
-		if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
-			return false;
-		}
-		// Loop on filters registered.
-		foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
-			// Test if filter is an array ! (always for class/method).
-			if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
-				// Test if object is a class and method is equal to param !
-				if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && $filter_array['function'][1] == $method_name ) {
-					// Test for WordPress >= 4.7 WP_Hook class.
-					if ( is_a( $wp_filter[ $hook_name ], 'WP_Hook' ) ) {
-						unset( $wp_filter[ $hook_name ]->callbacks[ $priority ][ $unique_id ] );
-					} else {
-						unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
-					}
+    global $wp_filter;
+	// Take only filters on right hook name and priority
+	if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
+		return false;
+	}
+	// Loop on filters registered
+	foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
+		// Test if filter is an array ! (always for class/method)
+		if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
+			// Test if object is a class and method is equal to param !
+			if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && $filter_array['function'][1] == $method_name ) {
+				// Test for WordPress >= 4.7 WP_Hook class
+				if ( is_a( $wp_filter[ $hook_name ], 'WP_Hook' ) ) {
+					unset( $wp_filter[ $hook_name ]->callbacks[ $priority ][ $unique_id ] );
+				} else {
+					unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
 				}
 			}
 		}
-		return false;
 	}
+	return false;
+}
 
 	public static function sanitize_filename( $filename ) {
-		if ( ! function_exists( 'mb_ereg_replace' ) ) {
-			return sanitize_file_name( $filename );
-		}
+		if (!function_exists('mb_ereg_replace')) return sanitize_file_name($filename);
 
-		// Remove anything which isn't a word, whitespace, number or any of the following caracters -_~,;:[]().
-		// If you don't need to handle multi-byte characters you can use preg_replace rather than mb_ereg_replace.
+		// Remove anything which isn't a word, whitespace, number
+		// or any of the following caracters -_~,;:[]().
+		// If you don't need to handle multi-byte characters
+		// you can use preg_replace rather than mb_ereg_replace
 		// Thanks @Łukasz Rysiak!
-		$filename = mb_ereg_replace( '([^\w\s\d\-_~,;:\[\]\(\).])', '', $filename );
-		// Remove any runs of periods (thanks falstro!).
-		$filename = mb_ereg_replace( '([\.]{2,})', '', $filename );
+		$filename = mb_ereg_replace( "([^\w\s\d\-_~,;:\[\]\(\).])", '', $filename );
+		// Remove any runs of periods (thanks falstro!)
+		$filename = mb_ereg_replace( "([\.]{2,})", '', $filename );
 
 		return $filename;
 	}
 
-	public static function ctype_digit( $str ) {
+	static function ctype_digit( $str ) {
 		return ( is_string( $str ) || is_int( $str ) || is_float( $str ) ) && preg_match( '/^\d+\z/', $str );
 	}
 
@@ -1558,194 +1556,196 @@ class MainWP_Helper {
 
 	public static function isAdmin() {
 		global $current_user;
-		if ( 0 == $current_user->ID ) {
+		if ( $current_user->ID == 0 ) {
 			return false;
 		}
 
-		if ( 10 == $current_user->wp_user_level || ( isset( $current_user->user_level ) && 10 == $current_user->user_level ) || current_user_can( 'level_10' ) ) {
+		if ( $current_user->wp_user_level == 10 || ( isset( $current_user->user_level ) && $current_user->user_level == 10 ) || current_user_can( 'level_10' ) ) {
 			return true;
 		}
 
 		return false;
 	}
 
-	public static function isSSLEnabled() {
-		if ( defined( 'MAINWP_NOSSL' ) ) {
-			return ! MAINWP_NOSSL;
-		}
+	public static function isSSLEnabled()
+	{
+		if ( defined( 'MAINWP_NOSSL' ) ) return !MAINWP_NOSSL;
 		return function_exists( 'openssl_verify' );
 	}
 
-	public static function is_screen_with_update() {
+    public static function is_screen_with_update() {
 
-		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
-			return false;
-		}
+        if ( ( defined('DOING_AJAX') && DOING_AJAX )  || ( defined('DOING_CRON') && DOING_CRON ) )
+            return false;
 
-		if ( function_exists( 'get_current_screen' ) ) {
-			$screen = get_current_screen();
-			if ( $screen ) {
-				if ( 'update-core' == $screen->base && 'index.php' == $screen->parent_file ) {
-					return true;
-				}
-			}
-		}
-		return false;
+        if (function_exists('get_current_screen')) {
+            $screen = get_current_screen();
+            if ( $screen ) {
+                if ( $screen->base == 'update-core' && $screen->parent_file == 'index.php'  ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static function is_wp_engine() {
+        return function_exists( 'is_wpe' ) && is_wpe();
+    }
+
+    public static function check_files_exists( $files = array(), $return = false ) {
+            $missing = array();
+            if (is_array($files)) {
+                    foreach($files as $name) {
+                            if (!file_exists( $name )) {
+                                    $missing[] = $name;
+                            }
+                    }
+            } else {
+                if (!file_exists( $files )) {
+                        $missing[] = $files;
+                }
+            }
+
+            if (!empty($missing)) {
+                $message = 'Missing file(s): ' . implode(',', $missing);
+                if ($return)
+                    return $message;
+                else
+                    throw new Exception( $message );
+            }
+            return true;
 	}
 
-	public static function is_wp_engine() {
-		return function_exists( 'is_wpe' ) && is_wpe();
+	public static function check_classes_exists($classes = array(), $return = false) {
+            $missing = array();
+            if (is_array($classes)) {
+                    foreach($classes as $name) {
+                            if (!class_exists( $name )) {
+                                    $missing[] = $name;
+                            }
+                    }
+            } else {
+                if ( !class_exists($classes) )
+                    $missing[] = $classes;
+            }
+
+            if ( !empty($missing) ) {
+                $message = 'Missing classes: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );
+                }
+            }
+            return true;
 	}
 
-	public static function check_files_exists( $files = array(), $return = false ) {
-			$missing = array();
-		if ( is_array( $files ) ) {
-			foreach ( $files as $name ) {
-				if ( ! file_exists( $name ) ) {
-					$missing[] = $name;
-				}
-			}
-		} else {
-			if ( ! file_exists( $files ) ) {
-					$missing[] = $files;
-			}
-		}
+    public static function check_methods($object, $methods = array(), $return = false) {
+            $missing = array();
+            if (is_array($methods)) {
+                    $missing = array();
+                    foreach($methods as $name) {
+                            if ( !method_exists($object, $name) ) {
+                                $missing[] = $name;
+                            }
+                    }
+            } else if (!empty($methods)) {
+                if ( !method_exists($object, $methods) )
+                    $missing[] = $methods;
 
-		if ( ! empty( $missing ) ) {
-			$message = 'Missing file(s): ' . implode( ',', $missing );
-			if ( $return ) {
-				return $message;
-			} else {
-				throw new Exception( $message );
-			}
-		}
-		return true;
+            }
+
+            if ( !empty($missing) ) {
+                $message = 'Missing method: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );
+                }
+            }
+
+            return true;
 	}
 
-	public static function check_classes_exists( $classes = array(), $return = false ) {
-		$missing = array();
-		if ( is_array( $classes ) ) {
-			foreach ( $classes as $name ) {
-				if ( ! class_exists( $name ) ) {
-					$missing[] = $name;
-				}
-			}
-		} else {
-			if ( ! class_exists( $classes ) ) {
-				$missing[] = $classes;
-			}
-		}
+    public static function check_properties($object, $properties = array(), $return = false) {
+             $missing = array();
+            if (is_array($properties)) {
+                    foreach($properties as $name) {
+                            if ( !property_exists($object, $name) ) {
+                                $missing[] = $name;
+                            }
+                    }
+            } else if (!empty($properties)) {
+                if ( !property_exists($object, $properties) )
+                    $missing[] = $properties;
 
-		if ( ! empty( $missing ) ) {
-			$message = 'Missing classes: ' . implode( ',', $missing );
-			if ( $return ) {
-				return $message;
-			} else {
-				throw new Exception( $message );
-			}
-		}
-		return true;
+            }
+
+            if ( !empty($missing) ) {
+                $message = 'Missing properties: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );
+                }
+            }
+
+            return true;
 	}
 
-	public static function check_methods( $object, $methods = array(), $return = false ) {
-		$missing = array();
-		if ( is_array( $methods ) ) {
-				$missing = array();
-			foreach ( $methods as $name ) {
-				if ( ! method_exists( $object, $name ) ) {
-					$missing[] = $name;
-				}
-			}
-		} elseif ( ! empty( $methods ) ) {
-			if ( ! method_exists( $object, $methods ) ) {
-				$missing[] = $methods;
-			}
-		}
+    public static function check_functions($funcs = array(), $return = false) {
+            $missing = array();
+            if (is_array($funcs)) {
+                    foreach($funcs as $name) {
+                            if ( !function_exists( $name) ) {
+                                $missing[] = $name;
+                        }
+                    }
+            } else if (!empty($funcs)) {
+                if ( !function_exists($funcs) )
+                    $missing[] = $funcs;
 
-		if ( ! empty( $missing ) ) {
-			$message = 'Missing method: ' . implode( ',', $missing );
-			if ( $return ) {
-				return $message;
-			} else {
-				throw new Exception( $message );
-			}
-		}
+            }
 
-		return true;
-	}
+            if ( !empty($missing) ) {
+                $message = 'Missing functions: ' . implode(',', $missing);
+                if ($return) {
+                    return $message;
+                } else {
+                    throw new Exception( $message );
+                }
+            }
 
-	public static function check_properties( $object, $properties = array(), $return = false ) {
-		$missing = array();
-		if ( is_array( $properties ) ) {
-			foreach ( $properties as $name ) {
-				if ( ! property_exists( $object, $name ) ) {
-					$missing[] = $name;
-				}
-			}
-		} elseif ( ! empty( $properties ) ) {
-			if ( ! property_exists( $object, $properties ) ) {
-				$missing[] = $properties;
-			}
-		}
-
-		if ( ! empty( $missing ) ) {
-			$message = 'Missing properties: ' . implode( ',', $missing );
-			if ( $return ) {
-				return $message;
-			} else {
-				throw new Exception( $message );
-			}
-		}
-
-		return true;
-	}
-
-	public static function check_functions( $funcs = array(), $return = false ) {
-		$missing = array();
-		if ( is_array( $funcs ) ) {
-			foreach ( $funcs as $name ) {
-				if ( ! function_exists( $name ) ) {
-					$missing[] = $name;
-				}
-			}
-		} elseif ( ! empty( $funcs ) ) {
-			if ( ! function_exists( $funcs ) ) {
-				$missing[] = $funcs;
-			}
-		}
-
-		if ( ! empty( $missing ) ) {
-			$message = 'Missing functions: ' . implode( ',', $missing );
-			if ( $return ) {
-				return $message;
-			} else {
-				throw new Exception( $message );
-			}
-		}
-
-		return true;
-	}
+            return true;
+    }
 
 
-	/**
+    /**
 	 * Handle fatal error for requests from the dashboard
-	 * mwp_action requests
-	 * wordpress_seo requests
-	 * This will do not handle fatal error for sync request from the dashboard
+     * mwp_action requests
+     * wordpress_seo requests
+     * This will do not handle fatal error for sync request from the dashboard
 	 */
-	public static function handle_fatal_error() {
+    public static function handle_fatal_error() {
 
-		function handle_shutdown() {
-			// handle fatal errors and compile errors.
-			$error = error_get_last();
-			if ( isset( $error['type'] ) && isset( $error['message'] ) && ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] ) ) {
-				self::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
-			}
-		}
+        function handle_shutdown() {
+            // handle fatal errors and compile errors
+            $error = error_get_last();
+            if ( isset( $error['type'] )  && isset( $error['message'] )  &&
+                    ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] )
+                )
+            {
+               MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+            }
 
-		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
-			register_shutdown_function( 'handle_shutdown' );
-		}
-	}
+        }
+
+        if (isset($_POST['function']) && isset($_POST['mainwpsignature']) &&
+                (isset($_POST['mwp_action']) || 'wordpress_seo' == $_POST['function']) // wordpress_seo for Wordpress SEO
+            ) {
+            register_shutdown_function( 'handle_shutdown' );
+        }
+    }
 
 }

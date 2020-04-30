@@ -2,16 +2,16 @@
 
 
 class MainWP_Child_Skeleton_Key {
-	public static $instance    = null;
+	public static $instance = null;
 	public static $information = array();
-	public $plugin_translate   = 'mainwp-child';
+	public $plugin_translate = 'mainwp-child';
 
 	static function Instance() {
-		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Skeleton_Key();
+		if ( null === MainWP_Child_Skeleton_Key::$instance ) {
+			MainWP_Child_Skeleton_Key::$instance = new MainWP_Child_Skeleton_Key();
 		}
 
-		return self::$instance;
+		return MainWP_Child_Skeleton_Key::$instance;
 	}
 
 	public function action() {
@@ -19,13 +19,13 @@ class MainWP_Child_Skeleton_Key {
 		error_reporting( 0 );
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
-			if ( isset( $error['type'] ) && in_array($error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {
+			if ( isset( $error['type'] ) && in_array($error['type'], array(1, 4, 16, 64, 256) ) && isset( $error['message'] ) ) {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 			// to fix issue double <mainwp></mainwp> header in response
-			// else {
-			// MainWP_Helper::write(  MainWP_Child_Skeleton_Key::$information );
-			// }
+//			else {
+//				MainWP_Helper::write(  MainWP_Child_Skeleton_Key::$information );
+//			}
 		}
 
 		register_shutdown_function( 'mainwp_skeleton_key_handle_fatal_error' );
@@ -42,7 +42,7 @@ class MainWP_Child_Skeleton_Key {
 		}
 
 		MainWP_Helper::write( $information );
-		// MainWP_Child_Skeleton_Key::$information = $information;
+		//MainWP_Child_Skeleton_Key::$information = $information;
 		exit();
 	}
 
@@ -67,31 +67,26 @@ class MainWP_Child_Skeleton_Key {
 		$manager    = WP_Session_Tokens::get_instance( $current_user->ID );
 		$token      = $manager->create( $expiration );
 
+
 		$secure = is_ssl();
 		if ( $secure ) {
 			$auth_cookie_name = SECURE_AUTH_COOKIE;
-			$scheme           = 'secure_auth';
+			$scheme = 'secure_auth';
 		} else {
 			$auth_cookie_name = AUTH_COOKIE;
-			$scheme           = 'auth';
+			$scheme = 'auth';
 		}
-		$auth_cookie                  = wp_generate_auth_cookie( $current_user->ID, $expiration, $scheme, $token );
-		$logged_in_cookie             = wp_generate_auth_cookie( $current_user->ID, $expiration, 'logged_in', $token );
-		$_COOKIE[ $auth_cookie_name ] = $auth_cookie;
-		$_COOKIE[ LOGGED_IN_COOKIE ]  = $logged_in_cookie;
-		$post_args                    = array();
-		$post_args['body']            = array();
-		$post_args['redirection']     = 5;
-		$post_args['decompress']      = false; // For gzinflate() data error bug
-		$post_args['cookies']         = array(
-			new WP_Http_Cookie( array(
-				'name'  => $auth_cookie_name,
-				'value' => $auth_cookie,
-			) ),
-			new WP_Http_Cookie( array(
-				'name'  => LOGGED_IN_COOKIE,
-				'value' => $logged_in_cookie,
-			) ),
+		$auth_cookie   = wp_generate_auth_cookie( $current_user->ID, $expiration, $scheme, $token );
+		$logged_in_cookie = wp_generate_auth_cookie( $current_user->ID, $expiration, 'logged_in', $token );
+		$_COOKIE[ $auth_cookie_name ]      = $auth_cookie;
+		$_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in_cookie;
+		$post_args                = array();
+		$post_args['body']        = array();
+		$post_args['redirection'] = 5;
+		$post_args['decompress']  = false; // For gzinflate() data error bug
+		$post_args['cookies']     = array(
+			new WP_Http_Cookie( array( 'name' => $auth_cookie_name, 'value' => $auth_cookie ) ),
+			new WP_Http_Cookie( array( 'name' => LOGGED_IN_COOKIE, 'value' => $logged_in_cookie ) ),
 		);
 
 		if ( isset( $args['get'] ) ) {
@@ -195,33 +190,30 @@ class MainWP_Child_Skeleton_Key {
 	public function save_settings() {
 		$settings = isset($_POST['settings']) ? $_POST['settings'] : array();
 
-		if ( ! is_array($settings) || empty($settings) ) {
-			return array( 'error' => 'Invalid data. Please check and try again.' );
-        }
+		if (!is_array($settings) || empty($settings))
+			return array('error' => 'Invalid data. Please check and try again.');
 
 		$whitelist_options = array(
 			'general' => array( 'blogname', 'blogdescription', 'gmt_offset', 'date_format', 'time_format', 'start_of_week', 'timezone_string', 'WPLANG' ),
 		);
 
-		if ( ! is_multisite() ) {
-			if ( ! defined( 'WP_SITEURL' ) ) {
+		if ( !is_multisite() ) {
+			if ( !defined( 'WP_SITEURL' ) )
 				$whitelist_options['general'][] = 'siteurl';
-            }
-			if ( ! defined( 'WP_HOME' ) ) {
+			if ( !defined( 'WP_HOME' ) )
 				$whitelist_options['general'][] = 'home';
-            }
 
 			$whitelist_options['general'][] = 'admin_email';
 			$whitelist_options['general'][] = 'users_can_register';
 			$whitelist_options['general'][] = 'default_role';
 		}
 
-		// $whitelist_options = apply_filters( 'whitelist_options', $whitelist_options );
-		$whitelist_general = $whitelist_options['general'];
+		//$whitelist_options = apply_filters( 'whitelist_options', $whitelist_options );
+		$whitelist_general = $whitelist_options[ 'general' ];
 
 		// Handle translation install.
 		if ( ! empty( $settings['WPLANG'] ) ) {
-			require_once ABSPATH . 'wp-admin/includes/translation-install.php';
+			require_once( ABSPATH . 'wp-admin/includes/translation-install.php' );
 			if ( wp_can_install_language_pack() ) {
 				$language = wp_download_language_pack( $settings['WPLANG'] );
 				if ( $language ) {
@@ -231,22 +223,20 @@ class MainWP_Child_Skeleton_Key {
 		}
 
 		$updated = false;
-		foreach ( $settings as $option => $value ) {
-			if ( in_array($option, $whitelist_general) ) {
-				if ( ! is_array( $value ) ) {
+		foreach($settings as $option => $value) {
+			if (in_array($option, $whitelist_general)) {
+				if ( ! is_array( $value ) )
 					$value = trim( $value );
-                }
 				$value = wp_unslash( $value );
 				update_option($option, $value);
 				$updated = true;
 			}
 		}
 
-		if ( ! $updated ) {
+		if (!$updated)
 			return false;
-        }
 
-		return array( 'result' => 'ok' );
+		return array('result' => 'ok');
 	}
 
 }

@@ -6,11 +6,11 @@
   Author: MainWP
   Author URI: https://mainwp.com
   Text Domain: mainwp-child
-  Version: 4.0.7
+  Version: 4.0.7.1
  */
-require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress
+include_once( ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php' ); //Version information from wordpress
 
-define( 'MAINWP_DEBUG', false );
+define( 'MAINWP_DEBUG', FALSE );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 	define( 'MAINWP_CHILD_FILE', __FILE__ );
@@ -25,7 +25,7 @@ function mainwp_child_autoload( $class_name ) {
 	$autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
 
 	if ( file_exists( $autoload_path ) ) {
-		require_once $autoload_path;
+		require_once( $autoload_path );
 	}
 }
 

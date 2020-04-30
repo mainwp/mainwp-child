@@ -1,16 +1,16 @@
 <?php
 
 class MainWP_Custom_Post_Type {
-	public static $instance    = null;
+	public static $instance = null;
 	public static $information = array();
-	public $plugin_translate   = 'mainwp-child';
+	public $plugin_translate = "mainwp-child";
 
 	static function Instance() {
-		if ( self::$instance == null ) {
-			self::$instance = new MainWP_Custom_Post_Type();
+		if ( MainWP_Custom_Post_Type::$instance == null ) {
+			MainWP_Custom_Post_Type::$instance = new MainWP_Custom_Post_Type();
 		}
 
-		return self::$instance;
+		return MainWP_Custom_Post_Type::$instance;
 	}
 
 	public function action() {
@@ -20,22 +20,22 @@ class MainWP_Custom_Post_Type {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
 				$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
-				// die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
+//				die( '<mainwp>' . base64_encode( serialize(  ) ) . '</mainwp>' );
 			} else {
-				$data = self::$information;
-				// die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
+				$data = MainWP_Custom_Post_Type::$information;
+//				die( '<mainwp>' . base64_encode( serialize( MainWP_Custom_Post_Type::$information ) ) . '</mainwp>' );
 			}
-
+			
 			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
 				$data = json_encode( $data );
 			} else {
 				$data = serialize( $data );
 			}
-
+			
 			die('<mainwp>' . base64_encode( $data ) . '</mainwp>');
 		}
 
-		register_shutdown_function( 'mainwp_custom_post_type_handle_fatal_error' );
+		register_shutdown_function( "mainwp_custom_post_type_handle_fatal_error" );
 
 		$information = array();
 		switch ( $_POST['action'] ) {
@@ -48,7 +48,7 @@ class MainWP_Custom_Post_Type {
 
 		}
 
-		self::$information = $information;
+		MainWP_Custom_Post_Type::$information = $information;
 
 		exit();
 	}
@@ -67,8 +67,8 @@ class MainWP_Custom_Post_Type {
 		if ( empty( $data ) || ! is_array( $data ) || ! isset( $data['post'] ) ) {
 			return array( 'error' => __( 'Cannot decode data', $this->plugin_translate ) );
 		}
-        $edit_id = ( isset($_POST['post_id']) && ! empty($_POST['post_id']) ) ? $_POST['post_id'] : 0;
-		$return  = $this->_insert_post($data, $edit_id, $parent_id = 0);
+        $edit_id = (isset($_POST['post_id']) && !empty($_POST['post_id'])) ? $_POST['post_id'] : 0;
+		$return = $this->_insert_post($data, $edit_id, $parent_id = 0);
         if (isset($return['success']) && $return['success'] == 1) {
             if (isset($data['product_variation']) && is_array($data['product_variation'])) {
                 foreach ($data['product_variation'] as $product_variation) {
@@ -104,7 +104,7 @@ class MainWP_Custom_Post_Type {
 				}
 
 				try {
-					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl, array(), $check_image );
+					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl , array(), $check_image );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -114,7 +114,7 @@ class MainWP_Custom_Post_Type {
 							$serverHref        = 'href="' . $serverHost;
 							$replaceServerHref = 'href="' . parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . parse_url( $localUrl, PHP_URL_HOST );
 							$post_content      = str_replace( $serverHref, $replaceServerHref, $post_content );
-						} elseif ( strpos( $hrefLink, 'http' ) !== false ) {
+						} else if ( strpos( $hrefLink, 'http' ) !== false ) {
 							$lnkToReplace = dirname( $hrefLink );
 							if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
 								$post_content = str_replace( $lnkToReplace, $linkToReplaceWith, $post_content );
@@ -159,7 +159,7 @@ class MainWP_Custom_Post_Type {
 			'post_modified_gmt',
 			'post_content_filtered',
 			'menu_order',
-			'post_type',
+			'post_type'
 		);
 
 		foreach ( $data_keys as $key ) {
@@ -174,23 +174,23 @@ class MainWP_Custom_Post_Type {
 			return array( 'error' => __( 'Please install', $this->plugin_translate ) . ' ' . $data_insert['post_type'] . ' ' . __( 'on child and try again', $this->plugin_translate ) );
 		}
 
-		// $data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'] );
+		//$data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'] );
 
 		$is_woocomerce = false;
-		if ( ( $data_insert['post_type'] == 'product' || $data_insert['post_type'] == 'product_variation' ) && function_exists( 'wc_product_has_unique_sku' ) ) {
+		if ( ($data_insert['post_type'] == 'product' || $data_insert['post_type'] == 'product_variation' )&& function_exists( 'wc_product_has_unique_sku' ) ) {
 			$is_woocomerce = true;
 		}
 
         $check_image_existed = false;
 
 		// Support post_edit
-		if ( ! empty( $edit_id ) ) {
+		if ( !empty( $edit_id ) ) {
 			$old_post_id = (int) $edit_id;
 			$old_post    = get_post( $old_post_id, ARRAY_A );
 			if ( is_null( $old_post ) ) {
 				return array(
 					'delete_connection' => 1,
-					'error'             => __( 'Cannot get old post. Probably is deleted now. Please try again for create new post', $this->plugin_translate ),
+					'error'             => __( 'Cannot get old post. Probably is deleted now. Please try again for create new post', $this->plugin_translate )
 				);
 			}
 
@@ -215,7 +215,7 @@ class MainWP_Custom_Post_Type {
 
         $data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'], $check_image_existed );
 
-        if ( ! empty($parent_id)) {
+        if (!empty($parent_id)) {
             $data_insert['post_parent'] = $parent_id; // for product variation
         }
 		$post_id = wp_insert_post( $data_insert, true );
@@ -286,7 +286,7 @@ class MainWP_Custom_Post_Type {
 		// MainWP Categories
 		if ( ! empty( $data['categories'] ) && is_array( $data['categories'] ) ) {
 			// Contains wp_create_categories
-			include_once ABSPATH . 'wp-admin/includes/taxonomy.php';
+			include_once( ABSPATH . 'wp-admin/includes/taxonomy.php' );
 			$categories = $data['categories'];
 			if ( $data['post_only_existing'] == '0' ) {
 				$post_category = wp_create_categories( $categories, $post_id );
@@ -303,7 +303,7 @@ class MainWP_Custom_Post_Type {
 			}
 		}
 
-		// Insert post terms except categories
+		//Insert post terms except categories
 		if ( ! empty( $data['terms'] ) && is_array( $data['terms'] ) ) {
 			foreach ( $data['terms'] as $key ) {
 				if ( ! taxonomy_exists( $key['taxonomy'] ) ) {
@@ -313,7 +313,7 @@ class MainWP_Custom_Post_Type {
 				// @todo missing alias_of which means term_group
 				$term = wp_insert_term( $key['name'], $key['taxonomy'], array(
 					'description' => $key['description'],
-					'slug'        => $key['slug'],
+					'slug'        => $key['slug']
 				) );
 
 				$term_taxonomy_id = 0;
@@ -337,9 +337,6 @@ class MainWP_Custom_Post_Type {
 			}
 		}
 
-		return array(
-			'success' => 1,
-			'post_id' => $post_id,
-		);
+		return array( 'success' => 1, 'post_id' => $post_id );
 	}
 }

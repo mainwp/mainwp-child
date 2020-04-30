@@ -29,11 +29,11 @@ class MainWP_Child_Themes_Check {
 	private $option_name_last_daily_run = 'mainwp_child_theme_last_daily_run';
 
 	public static function Instance() {
-		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Themes_Check();
+		if ( null === MainWP_Child_Themes_Check::$instance ) {
+			MainWP_Child_Themes_Check::$instance = new MainWP_Child_Themes_Check();
 		}
 
-		return self::$instance;
+		return MainWP_Child_Themes_Check::$instance;
 	}
 
 	public function __construct() {
@@ -49,6 +49,7 @@ class MainWP_Child_Themes_Check {
 
             add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
         }
+
 	}
 
 	private function cleanup_basic() {
@@ -95,7 +96,7 @@ class MainWP_Child_Themes_Check {
 				$last_run = new \DateTime( '@' . $last_run );
 			}
 
-			// Get now
+			//Get now
 			$now = new \DateTime();
 
 			if ( false === $last_run || (int) $now->diff( $last_run )->format( '%h' ) >= 24 ) {
@@ -110,13 +111,14 @@ class MainWP_Child_Themes_Check {
 	}
 
 	public function schedule_watchdog() {
-		// For testing
-		// $this->cleanup_deactivation();
+		//For testing
+		//$this->cleanup_deactivation();
 
-		// Schedule a global watching cron just in case both other crons get killed
+		//Schedule a global watching cron just in case both other crons get killed
 		if ( ! wp_next_scheduled( $this->cron_name_watcher ) ) {
 			wp_schedule_event( time(), 'hourly', $this->cron_name_watcher );
 		}
+
 	}
 
 	public function get_themes_outdate_info() {
@@ -125,7 +127,7 @@ class MainWP_Child_Themes_Check {
 			$themes_outdate = array();
 		}
 		if ( ! function_exists( 'wp_get_themes' ) ) {
-			require_once ABSPATH . '/wp-admin/includes/theme.php';
+			require_once( ABSPATH . '/wp-admin/includes/theme.php' );
 		}
 		$themes = wp_get_themes();
 		$update = false;
@@ -144,10 +146,10 @@ class MainWP_Child_Themes_Check {
 
 	public function run_check() {
 		if ( ! function_exists( 'wp_get_themes' ) ) {
-			require_once ABSPATH . '/wp-admin/includes/theme.php';
+			require_once( ABSPATH . '/wp-admin/includes/theme.php' );
 		}
 
-		// Get our previous results
+		//Get our previous results
 		$responses = get_transient( $this->tran_name_theme_timestamps );
 
 		if ( false === $responses || ! is_array( $responses ) ) {
@@ -155,10 +157,10 @@ class MainWP_Child_Themes_Check {
 		}
 
 		$all_themes = get_transient( $this->tran_name_themes_to_batch );
-		// If there wasn't a previous cache
+		//If there wasn't a previous cache
 		if ( false === $all_themes || ! is_array( $all_themes ) ) {
 			$all_themes = array();
-			$themes     = wp_get_themes();
+			$themes = wp_get_themes();
 			if ( is_array( $themes ) ) {
 				foreach ( $themes as $theme ) {
 					$slug                = $theme->get_stylesheet();
@@ -172,14 +174,12 @@ class MainWP_Child_Themes_Check {
 			$responses = array();
 		}
 
-        $avoid_themes      = array( 'superstore' );
-		$themes_to_scan    = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
+        $avoid_themes = array( 'superstore' );
+		$themes_to_scan = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
 		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
 		foreach ( $themes_to_scan as $slug => $v ) {
-            if ( in_array( $slug, $avoid_themes ) ) {
-				continue;
-            }
+            if ( in_array( $slug, $avoid_themes ) ) continue;
 
 			$body = $this->try_get_response_body( $slug, false );
 
@@ -187,17 +187,18 @@ class MainWP_Child_Themes_Check {
 				continue;
 			}
 
-			// Deserialize the response
+			//Deserialize the response
 			$obj = maybe_unserialize( $body );
 
 			$now = new \DateTime();
 
-			// Sanity check that deserialization worked and that our property exists
+			//Sanity check that deserialization worked and that our property exists
 			if ( false !== $obj && is_object( $obj ) && property_exists( $obj, 'last_updated' ) ) {
 				$last_updated            = strtotime( $obj->last_updated );
 				$theme_last_updated_date = new \DateTime( '@' . $last_updated );
 
 				$diff_in_days = $now->diff( $theme_last_updated_date )->format( '%a' );
+
 
 				if ( $diff_in_days < $tolerance_in_days ) {
 					continue;
@@ -213,7 +214,7 @@ class MainWP_Child_Themes_Check {
 			define( 'DAY_IN_SECONDS', 24 * 60 * 60 );
 		}
 
-		// Store the master response for usage in the plugin table
+		//Store the master response for usage in the plugin table
 		set_transient( $this->tran_name_theme_timestamps, $responses, DAY_IN_SECONDS );
 
 		if ( 0 === count( $all_themes ) ) {
@@ -227,21 +228,15 @@ class MainWP_Child_Themes_Check {
 
 
 	private function try_get_response_body( $theme ) {
-		// Get the WordPress current version to be polite in the API call
-		include ABSPATH . WPINC . '/version.php';
+		//Get the WordPress current version to be polite in the API call
+		include( ABSPATH . WPINC . '/version.php' );
 
 		$url = $http_url = 'http://api.wordpress.org/themes/info/1.0/';
 		if ( $ssl = wp_http_supports( array( 'ssl' ) ) ) {
 			$url = set_url_scheme( $url, 'https' );
 		}
 
-		$args = array(
-			'slug'   => $theme,
-			'fields' => array(
-				'sections' => false,
-				'tags'     => false,
-			),
-		);
+		$args = array( 'slug' => $theme, 'fields' => array( 'sections' => false, 'tags' => false ) );
 		$args = (object) $args;
 
 		$http_args = array(
@@ -254,20 +249,20 @@ class MainWP_Child_Themes_Check {
 		$raw_response = wp_remote_post( $url, $http_args );
 
 		if ( ! is_wp_error( $raw_response ) && 200 === (int) wp_remote_retrieve_response_code( $raw_response ) ) {
-			// Get the actual body
-			// Requires WP 2.7.0
+			//Get the actual body
+			//Requires WP 2.7.0
 			$body = wp_remote_retrieve_body( $raw_response );
 
-			// Make sure that it isn't empty and also not an empty serialized object
+			//Make sure that it isn't empty and also not an empty serialized object
 			if ( '' !== $body && 'N;' !== $body ) {
-				// If valid, return that
+				//If valid, return that
 				return $body;
 			}
 		}
 
-		// The above valid
-		// If we previously tried an SSL version try without SSL
-		// Code below same as above block
+		//The above valid
+		//If we previously tried an SSL version try without SSL
+		//Code below same as above block
 		if ( $ssl ) {
 			$raw_response = wp_remote_post( $http_url, $http_args );
 
@@ -279,7 +274,7 @@ class MainWP_Child_Themes_Check {
 			}
 		}
 
-		// Everything above failed, bail
+		//Everything above failed, bail
 		return false;
 	}
 }

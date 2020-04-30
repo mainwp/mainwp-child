@@ -1,7 +1,7 @@
 <?php
 
 class MainWP_Child_DB {
-	// Support old & new versions of WordPress (3.9+)
+	//Support old & new versions of wordpress (3.9+)
 	public static function use_mysqli() {
 		/** @var $wpdb wpdb */
 		if ( ! function_exists( 'mysqli_connect' ) ) {
@@ -90,9 +90,9 @@ class MainWP_Child_DB {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
-		$rows = self::_query( 'SHOW table STATUS', $wpdb->dbh );
+		$rows = MainWP_Child_DB::_query( 'SHOW table STATUS', $wpdb->dbh );
 		$size = 0;
-		while ( $row = self::fetch_array( $rows ) ) {
+		while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
 			$size += $row['Data_length'];
 		}
 

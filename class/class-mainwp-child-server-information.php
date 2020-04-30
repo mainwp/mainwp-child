@@ -2,7 +2,7 @@
 
 class MainWP_Child_Server_Information {
 	const WARNING = 1;
-	const ERROR   = 2;
+	const ERROR = 2;
 
 	public static function init() {
 		add_action( 'wp_ajax_mainwp-child_dismiss_warnings', array(
@@ -19,11 +19,10 @@ class MainWP_Child_Server_Information {
 			}
 
 			if ( $_POST['what'] == 'warning' ) {
-				if ( isset($_POST['warnings']) ) {
-					$warnings = intval($_POST['warnings']);
-				} else {
-					$warnings = self::getWarnings();
-				}
+                            if (isset($_POST['warnings']))
+                                $warnings = intval($_POST['warnings']);
+                            else
+                                $warnings = self::getWarnings();
                             $dismissWarnings['warnings'] = $warnings;
 			}
 			MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
@@ -31,11 +30,11 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function showWarnings() {
-		if ( stristr( $_SERVER['REQUEST_URI'], 'mainwp_child_tab' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-page' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-settings' ) ) {
+		if ( stristr( $_SERVER['REQUEST_URI'], 'mainwp_child_tab' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-page' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-settings' )) {
 			return;
 		}
 
-		$warnings = self::getWarnings();
+		$warnings  = self::getWarnings();
 
 		$dismissWarnings = get_option( 'mainwp_child_dismiss_warnings' );
 		if ( ! is_array( $dismissWarnings ) ) {
@@ -474,17 +473,12 @@ class MainWP_Child_Server_Information {
 			</div>
 			<br/>
 			<div class="mwp_server_info_box">
-				<h2><?php esc_html_e( 'Server Information' ); ?></h2>
-                                      <?php
-										self::render();
-										?>
-                <h2><?php esc_html_e( 'Cron Schedules' ); ?></h2>
-                <?php
-				self::renderCron();
-				?>
-                <h2><?php esc_html_e( 'Error Log' ); ?></h2>
-                <?php
-				self::renderErrorLogPage();
+				<h2><?php esc_html_e( 'Server Information' ); ?></h2><?php
+				MainWP_Child_Server_Information::render();
+				?><h2><?php esc_html_e( 'Cron Schedules' ); ?></h2><?php
+				MainWP_Child_Server_Information::renderCron();
+				?><h2><?php esc_html_e( 'Error Log' ); ?></h2><?php
+				MainWP_Child_Server_Information::renderErrorLogPage();
 				?>
 			</div>
 		</div>
@@ -515,7 +509,7 @@ class MainWP_Child_Server_Information {
 		if ( ! self::check( '>=', '10000', 'getOutputBufferSize' ) ) {
 			$i ++;
 		}
-		// if (!self::check('=', true, 'getSSLSupport')) $i++;
+		//        if (!self::check('=', true, 'getSSLSupport')) $i++;
 
 		if ( ! self::checkDirectoryMainWPDirectory( false ) ) {
 			$i ++;
@@ -544,10 +538,10 @@ class MainWP_Child_Server_Information {
 
 	public static function render() {
         $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-        $isBranding     = true;
+        $isBranding = true;
 		if ( $branding_title == '' ) {
             $branding_title = 'MainWP Child';
-            $isBranding     = false;
+            $isBranding = false;
 		}
 
 		?>
@@ -579,7 +573,7 @@ class MainWP_Child_Server_Information {
 			</tr>
 			<?php
 			self::checkDirectoryMainWPDirectory();
-			$server = get_option( 'mainwp_child_server' );
+			$server       = get_option( 'mainwp_child_server' );
 			?>
 			<tr>
 				<td></td>
@@ -589,9 +583,8 @@ class MainWP_Child_Server_Information {
 				<td></td>
 			</tr>
 			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WordPress', 'mainwp-child' ); ?></td>
-			</tr>
-            <?php
+				<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WORDPRESS', 'mainwp-child' ); ?></td>
+			</tr><?php
 			self::renderRow( 'WordPress Version', '>=', '3.4', 'getWordpressVersion' );
 			self::renderRow( 'WordPress Memory Limit', '>=', '64M', 'getWordpressMemoryLimit' );
 			self::renderRow( 'MultiSite Disabled', '=', true, 'checkIfMultisite' );
@@ -606,8 +599,7 @@ class MainWP_Child_Server_Information {
 			<tr>
 				<td style="background: #333; color: #fff;"
 				    colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
-			</tr>
-            <?php
+			</tr><?php
 			self::renderRow( 'PHP Version', '>=', '5.6', 'getPHPVersion' );
 			?>
 			<tr>
@@ -637,15 +629,13 @@ class MainWP_Child_Server_Information {
 			<tr>
 				<td style="background: #333; color: #fff;"
 				    colspan="5"><?php esc_html_e( 'MySQL SETTINGS', 'mainwp-child' ); ?></td>
-			</tr>
-            <?php
+			</tr><?php
 			self::renderRow( 'MySQL Version', '>=', '5.0', 'getMySQLVersion' );
 			?>
 			<tr>
 				<td style="background: #333; color: #fff;"
 				    colspan="5"><?php esc_html_e( 'BACKUP ARCHIVE INFORMATION', 'mainwp-child' ); ?></td>
-			</tr>
-            <?php
+			</tr><?php
 			self::renderRow( 'ZipArchive enabled in PHP', '=', true, 'getZipArchiveEnabled' );
 			self::renderRow( 'Tar GZip supported', '=', true, 'getGZipEnabled' );
 			self::renderRow( 'Tar BZip2 supported', '=', true, 'getBZipEnabled' );
@@ -818,16 +808,16 @@ class MainWP_Child_Server_Information {
 				<td colspan="3"><?php echo esc_html( defined( 'DB_CHARSET' ) ? DB_CHARSET : '' ); ?></td>
 			</tr>
 			<tr>
-				<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WordPress PLUGINS', 'mainwp-child' ); ?></td>
+				<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WORDPRESS PLUGINS', 'mainwp-child' ); ?></td>
 			</tr>
 			<?php
 			$all_plugins = get_plugins();
-			foreach ( $all_plugins as $slug => $plugin ) {
+			foreach ( $all_plugins as $slug => $plugin) {
                 if ( $slug == 'mainwp-child/mainwp-child.php' || $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
                     if ( $isBranding ) {
                         if ( $slug == 'mainwp-child/mainwp-child.php' ) {
                             $plugin['Name'] = esc_html( stripslashes( $branding_title ) );
-                        } elseif ( $slug == 'mainwp-child-reports/mainwp-child-reports.php' ) {
+                        } else if ($slug == 'mainwp-child-reports/mainwp-child-reports.php') {
                             $plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
                         }
                     }
@@ -879,7 +869,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	public static function mainwpRequiredFunctions() {
-		// error_reporting(E_ALL);
+		//error_reporting(E_ALL);
 		$disabled_functions = ini_get( 'disable_functions' );
 		if ( '' !== $disabled_functions ) {
 			$arr = explode( ',', $disabled_functions );
@@ -906,7 +896,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getMainwpVersion() {
-		include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
+		include_once( ABSPATH . '/wp-admin/includes/plugin-install.php' );
 		$api = plugins_api( 'plugin_information', array(
 			'slug'    => 'mainwp-child',
 			'fields'  => array( 'sections' => false ),
@@ -967,9 +957,8 @@ class MainWP_Child_Server_Information {
 
 	protected static function checkDirectoryMainWPDirectory( $write = true ) {
         $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-        if ( $branding_title == '' ) {
+        if ($branding_title == '')
             $branding_title = 'MainWP';
-        }
 
 		$branding_title .= ' Upload Directory';
 
@@ -1054,19 +1043,20 @@ class MainWP_Child_Server_Information {
 			<td><?php echo( $currentVersion === true ? 'true' : $currentVersion ); ?></td>
 			<?php if ( $whatType == 'filesize' ) { ?>
 				<td><?php echo( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
-			<?php } elseif ( $whatType == 'curlssl' ) { ?>
+			<?php } else if ( $whatType == 'curlssl' ) { ?>
 				<td><?php echo( self::curlssl_compare( $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
-			<?php } elseif ( ( $pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime' ) && $currentVersion == -1 ) { ?>
+			<?php } else if (($pGetter == 'getMaxInputTime' || $pGetter == 'getMaxExecutionTime') && $currentVersion == -1) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
-				<td><?php echo ( version_compare($currentVersion, $pVersion, $pCompare) || ( ( $pExtraCompare != null ) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType ) ); ?></td>
+				<td><?php echo (version_compare($currentVersion, $pVersion, $pCompare) || (($pExtraCompare != null) && version_compare($currentVersion, $pExtraVersion, $pExtraCompare)) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::getWarningHTML( $errorType )); ?></td>
 			<?php } ?>
 		</tr>
 		<?php
 	}
 
-	private static function getWarningHTML( $errorType = self::WARNING ) {
-		if ( self::WARNING == $errorType ) {
+	private static function getWarningHTML($errorType = self::WARNING)
+	{
+		if (self::WARNING == $errorType) {
 			return '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>';
 		}
 		return '<span class="mainwp-fail"><i class="fa fa-exclamation-circle"></i> Fail</span>';
@@ -1090,10 +1080,10 @@ class MainWP_Child_Server_Information {
 		return version_compare( $value1, $value2, $operator );
 	}
 
-	protected static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
+	protected static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false) {
 		$currentVersion = call_user_func( array( 'MainWP_Child_Server_Information', $pGetter ) );
 
-		if ( $sizeCompare ) {
+		if ($sizeCompare) {
 			return self::filesize_compare( $currentVersion, $pVersion, $pCompare );
 		} else {
 			return ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null !== $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) );
@@ -1134,9 +1124,9 @@ class MainWP_Child_Server_Information {
 
 	protected static function getSSLWarning() {
 		$conf = array( 'private_key_bits' => 2048 );
-		$str  = '';
+		$str = '';
 		if ( function_exists( 'openssl_pkey_new' ) ) {
-			$res = @openssl_pkey_new( $conf );
+			$res  = @openssl_pkey_new( $conf );
 			@openssl_pkey_export( $res, $privkey );
 
 			$str = openssl_error_string();
@@ -1180,10 +1170,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function getArchitecture() {
-		echo esc_html( PHP_INT_SIZE * 8 )
-        ?>
-        &nbsp;bit 
-        <?php
+		echo esc_html( PHP_INT_SIZE * 8 ) ?>&nbsp;bit <?php
 	}
 
 	protected static function memoryUsage() {
@@ -1328,33 +1315,31 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function serverSelfConnect() {
-		$url         = site_url( 'wp-cron.php' );
-		$query_args  = array( 'mainwp_child_run' => 'test' );
-		$url         = add_query_arg( $query_args, $url );
-		$args        = array(
-			'blocking'        => true,
-			'sslverify'       => apply_filters( 'https_local_ssl_verify', true ),
-			'timeout'         => 15,
+		$url = site_url( 'wp-cron.php' );
+		$query_args = array('mainwp_child_run' => 'test');
+		$url = add_query_arg( $query_args, $url );
+		$args = array(	'blocking'   	=> TRUE,
+		                  'sslverify'		=> apply_filters( 'https_local_ssl_verify', true ),
+		                  'timeout' 		=> 15
 		);
-		$response    = wp_remote_post( $url, $args );
+		$response =  wp_remote_post( $url, $args );
 		$test_result = '';
 		if ( is_wp_error( $response ) ) {
-			$test_result .= sprintf( __( 'The HTTP response test get an error "%s"', 'mainwp-child' ), $response->get_error_message() );
+			$test_result .= sprintf( __( 'The HTTP response test get an error "%s"','mainwp-child' ), $response->get_error_message() );
 		}
 		$response_code = wp_remote_retrieve_response_code( $response );
-		if ( $response_code < 200 && $response_code > 204 ) {
-			$test_result .= sprintf( __( 'The HTTP response test get a false http status (%s)', 'mainwp-child' ), wp_remote_retrieve_response_code( $response ) );
+		if ( $response_code < 200  && $response_code > 204 ) {
+			$test_result .= sprintf( __( 'The HTTP response test get a false http status (%s)','mainwp-child' ), wp_remote_retrieve_response_code( $response ) );
 		} else {
 			$response_body = wp_remote_retrieve_body( $response );
-			if ( false === strstr( $response_body, 'MainWP Test' ) ) {
-				$test_result .= sprintf( __( 'Not expected HTTP response body: %s', 'mainwp-child' ), esc_attr( strip_tags( $response_body ) ) );
+			if ( FALSE === strstr( $response_body, 'MainWP Test' ) ) {
+				$test_result .= sprintf( __( 'Not expected HTTP response body: %s','mainwp-child' ), esc_attr( strip_tags( $response_body ) ) );
 			}
 		}
 		if ( empty( $test_result ) ) {
 			_e( 'Response Test O.K.', 'mainwp-child' );
-		} else {
+		} else
 			echo $test_result;
-        }
 	}
 
 
@@ -1426,6 +1411,7 @@ class MainWP_Child_Server_Information {
 		}
 
 		return $bytes;
+
 	}
 
 
@@ -1482,11 +1468,11 @@ class MainWP_Child_Server_Information {
 
 		if ( empty( $lines ) ) {
             $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-            if ( $branding_title == '' ) {
+            if ($branding_title == '') {
                 $branding_title = 'MainWP';
             }
             $msg = esc_html( stripslashes( $branding_title ) ) . ' is unable to find your error logs, please contact your host for server error logs.';
-			echo '<tr><td colspan="2">' . $msg . '</td></tr>';
+			echo '<tr><td colspan="2">' . $msg  . '</td></tr>';
 			return;
 		}
 
@@ -1518,6 +1504,7 @@ class MainWP_Child_Server_Information {
 				echo wp_kses_post( "<tr><td>{$time}</td><td>{$error}</td></tr>" );
 			}
 		}
+
 	}
 
 	static function time_compare( $a, $b ) {
@@ -1556,7 +1543,7 @@ class MainWP_Child_Server_Information {
 			// read them to $data and then move the file pointer
 			// back to where we were.
 			fseek( $fh, - $can_read, SEEK_CUR );
-			$data  = fread( $fh, $can_read );
+			$data = fread( $fh, $can_read );
 			$data .= $leftover;
 			fseek( $fh, - $can_read, SEEK_CUR );
 
@@ -1590,7 +1577,7 @@ class MainWP_Child_Server_Information {
 				if ( file_exists( ABSPATH . 'wp-config.php' ) ) {
 					@show_source( ABSPATH . 'wp-config.php' );
 				} else {
-					$files       = @get_included_files();
+					$files = @get_included_files();
 					$configFound = false;
 					if ( is_array( $files ) ) {
 						foreach ( $files as $file ) {
@@ -1602,7 +1589,7 @@ class MainWP_Child_Server_Information {
 						}
 					}
 
-					if ( ! $configFound ) {
+					if ( !$configFound ) {
 						_e( 'wp-config.php not found', 'mainwp' );
 					}
 				}
@@ -1626,69 +1613,68 @@ class MainWP_Child_Server_Information {
 		<?php
 	}
 
-	public static function renderConnectionDetails() {
-		$branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
-		if ( $branding_title == '' ) {
-			$branding_title = 'MainWP';
-		}
+        public static function renderConnectionDetails() {
+            $branding_title = MainWP_Child_Branding::Instance()->get_branding_title();
+            if ($branding_title == '')
+                $branding_title = 'MainWP';
 
-		global $current_user;
-		$uniqueId = get_option('mainwp_child_uniqueId');
-		$details  = array(
-			'siteurl' => array(
-				'title' => __('Site URL', 'mainwp-child'),
-				'value' => get_bloginfo( 'url' ),
-				'desc'  => get_bloginfo( 'url' ),
-			),
-			'adminuser' => array(
-				'title' => __('Administrator name', 'mainwp-child'),
-				'value' => $current_user->user_login,
-				'desc'  => __('This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child'),
-			),
-			'friendly_name' => array(
-				'title' => __('Friendly site name', 'mainwp-child'),
-				'value' => get_bloginfo( 'name' ),
-				'desc'  => __('For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child'),
-			),
-			'uniqueid' => array(
-				'title' => __('Child unique security id', 'mainwp-child'),
-				'value' => ! empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
-				'desc'  => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child'), stripslashes( $branding_title ) ),
-			),
-			'verify_ssl' => array(
-				'title' => __('Verify certificate', 'mainwp-child'),
-				'value' => __('Yes', 'mainwp-child'),
-				'desc'  => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child'),
-			),
-			'ssl_version' => array(
-				'title' => __('SSL version', 'mainwp-child'),
-				'value' => __('Auto Detect', 'mainwp-child'),
-				'desc'  => __('Auto Detect', 'mainwp-child'),
-			),
+            global $current_user;
+	        $uniqueId = get_option('mainwp_child_uniqueId');
+            $details = array(
+                'siteurl' => array(
+                                'title' => __('Site URL', 'mainwp-child'),
+                                'value' => get_bloginfo( 'url' ),
+                                'desc' => get_bloginfo( 'url' )
+                            ),
+                'adminuser' => array(
+                                'title' => __('Administrator name', 'mainwp-child'),
+                                'value' => $current_user->user_login,
+                                'desc' => __('This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child')
+                            ),
+                'friendly_name' => array(
+                                'title' => __('Friendly site name', 'mainwp-child'),
+                                'value' => get_bloginfo( 'name' ),
+                                'desc' => __('For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child')
+                            ),
+                'uniqueid' => array(
+                                'title' => __('Child unique security id', 'mainwp-child'),
+                                'value' => !empty($uniqueId) ? $uniqueId : __('Leave the field blank', 'mainwp-child'),
+                                'desc' => sprintf(__('Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child') , stripslashes( $branding_title ) )
+                            ),
+                'verify_ssl' => array(
+                                'title' => __('Verify certificate', 'mainwp-child'),
+                                'value' =>  __('Yes', 'mainwp-child'),
+                                'desc' => __('If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child')
+                            ),
+                'ssl_version' => array(
+                                'title' => __('SSL version', 'mainwp-child'),
+                                'value' => __('Auto Detect', 'mainwp-child'),
+                                'desc' => __('Auto Detect', 'mainwp-child'),
+                            ),
 
-		);
+            );
 		?>
 		<div class="postbox" id="connection_detail">
 			<h3 class="mainwp_box_title"><span><?php _e( 'Connection details', 'mainwp-child' ); ?></span></h3>
 			<div class="inside">
                             <div class="mainwp-postbox-actions-top mainwp-padding-5">
-						<?php
-							echo sprintf(__('If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child'), stripslashes( $branding_title ));
-						?>
+                            <?php
+                                echo sprintf(__('If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child') , stripslashes( $branding_title ));
+                            ?>
                             </div>
                             <table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
                                 <tbody>
-								<?php
-								foreach ( $details as $row ) {
-									?>
+                                    <?php
+                                        foreach ($details as $row) {
+                                        ?>
                                             <tr>
                                                 <th style="width: 20%"><strong><?php echo esc_html($row['title']); ?></strong></th>
                                                 <td style="width: 20%"><strong><?php echo esc_html($row['value']); ?></strong></td>
                                                 <td><?php echo esc_html($row['desc']); ?></td>
                                             </tr>
-									<?php
-								}
-								?>
+                                        <?php
+                                        }
+                                    ?>
                                 </tbody>
                             </table>
 			</div>

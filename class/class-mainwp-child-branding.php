@@ -7,10 +7,10 @@ class MainWP_Child_Branding {
 	public $child_branding_options = null;
 
 	static function Instance() {
-		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Branding();
+		if ( null === MainWP_Child_Branding::$instance ) {
+			MainWP_Child_Branding::$instance = new MainWP_Child_Branding();
 		}
-		return self::$instance;
+		return MainWP_Child_Branding::$instance;
 	}
 
 	public function __construct() {
@@ -20,11 +20,11 @@ class MainWP_Child_Branding {
         $this->child_branding_options = $this->init_options();
 	}
 
-    function init_options() {
+    function init_options(){
 
         $opts = get_option( 'mainwp_child_branding_settings' );
 
-        if ( ! is_array( $opts ) ) {
+        if ( !is_array( $opts ) ) {
             // compatible with old code
             $opts = array();
 
@@ -33,42 +33,41 @@ class MainWP_Child_Branding {
                 $label = stripslashes( $label );
             }
 
-            $opts['contact_label']  = $label;
-            $opts['extra_settings'] = get_option( 'mainwp_branding_extra_settings' );
+            $opts['contact_label'] = $label;
+            $opts['extra_settings']        = get_option( 'mainwp_branding_extra_settings' );
             MainWP_Helper::update_option( 'mainwp_child_branding_settings', $opts  );
         }
 
-        if ( ! isset($opts['contact_label']) || empty($opts['contact_label']) ) {
+        if ( !isset($opts['contact_label']) || empty($opts['contact_label']) ) {
             $opts['contact_label'] = 'Contact Support';
         }
 
-        $disconnected       = isset( $opts['branding_disconnected'] ) ? $opts['branding_disconnected'] : '';
-        $preserve_branding  = isset( $opts['preserve_branding'] ) ? $opts['preserve_branding'] : '';
+        $disconnected = isset( $opts['branding_disconnected'] ) ? $opts['branding_disconnected'] : '';
+        $preserve_branding = isset( $opts['preserve_branding'] ) ? $opts['preserve_branding'] : '';
         $cancelled_branding = ( $disconnected === 'yes' ) && ! $preserve_branding;
 
-        $opts['cancelled_branding']      = $cancelled_branding;
+        $opts['cancelled_branding'] = $cancelled_branding;
         $opts['branding_preserve_title'] = '';
 
         if ( ! $cancelled_branding ) {
-            if ( isset($opts['branding_header']) ) {
+            if (isset($opts['branding_header'])) {
                 $branding_header = $opts['branding_header'];
                 if ( is_array( $branding_header ) && isset( $branding_header['name'] ) && ! empty( $branding_header['name'] ) ) {
                     $opts['branding_preserve_title'] = stripslashes( $branding_header['name'] );
                 }
             }
-		}
-
-		$opts = apply_filters( 'mainwp_child_branding_init_options', $opts );
+		}		
+		
+		$opts = apply_filters( 'mainwp_child_branding_init_options', $opts );		
         return $opts;
     }
 
     function get_extra_options() {
         $extra = array();
-        if ( is_array($this->child_branding_options) && isset($this->child_branding_options['extra_settings']) ) {
+        if (is_array($this->child_branding_options) && isset($this->child_branding_options['extra_settings'])) {
             $extra = $this->child_branding_options['extra_settings'];
-            if ( ! is_array($extra) ) {
+            if (!is_array($extra))
                 $extra = array();
-            }
         }
 
         return $extra;
@@ -110,7 +109,7 @@ class MainWP_Child_Branding {
 			'mainwp_branding_remove_wp_tools',
 			'mainwp_branding_remove_wp_setting',
 			'mainwp_branding_remove_permalink',
-			// 'mainwp_branding_plugin_header', // don't remove header
+			//'mainwp_branding_plugin_header', // don't remove header
 			'mainwp_branding_button_contact_label',
 			'mainwp_branding_send_email_message',
 			'mainwp_branding_message_return_sender',
@@ -136,7 +135,7 @@ class MainWP_Child_Branding {
             'remove_wp_tools',
             'remove_wp_setting',
             'remove_permalink',
-            // 'branding_header', // don't remove header
+            //'branding_header', // don't remove header
             'contact_label',
             'email_message',
             'message_return_sender',
@@ -145,12 +144,13 @@ class MainWP_Child_Branding {
             'branding_ext_enabled',
         );
 
-        foreach ( $brandingOptions_empty as $opt ) {
-            if ( isset($this->child_branding_options[ $opt ]) ) {
-                $this->child_branding_options[ $opt ] = '';
+        foreach($brandingOptions_empty as $opt) {
+            if (isset($this->child_branding_options[$opt])) {
+                $this->child_branding_options[$opt] = '';
             }
         }
         MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
+
 	}
 
 
@@ -171,10 +171,10 @@ class MainWP_Child_Branding {
 			return $information;
 		}
 
-        $current_settings      = $this->child_branding_options;
+        $current_settings = $this->child_branding_options;
         $current_extra_setting = $this->child_branding_options['extra_settings'];
 
-		// MainWP_Helper::update_option( 'mainwp_branding_ext_enabled', 'Y' );
+		//MainWP_Helper::update_option( 'mainwp_branding_ext_enabled', 'Y' );
         $current_settings['branding_ext_enabled'] = 'Y';
 
 		$header = array(
@@ -187,41 +187,41 @@ class MainWP_Child_Branding {
 
 		MainWP_Helper::update_option( 'mainwp_branding_preserve_branding', $settings['child_preserve_branding'], 'yes' );  // to compatible with old version of child report plugin
 		MainWP_Helper::update_option( 'mainwp_branding_plugin_header', $header, 'yes' ); // to compatible
-		// MainWP_Helper::update_option( 'mainwp_branding_support_email', $settings['child_support_email'] );
-		// MainWP_Helper::update_option( 'mainwp_branding_support_message', $settings['child_support_message'] );
-		// MainWP_Helper::update_option( 'mainwp_branding_remove_restore', $settings['child_remove_restore'] );
-		// MainWP_Helper::update_option( 'mainwp_branding_remove_setting', $settings['child_remove_setting'], 'yes' );
-		// MainWP_Helper::update_option( 'mainwp_branding_remove_server_info', $settings['child_remove_server_info'] );
-		// MainWP_Helper::update_option( 'mainwp_branding_remove_connection_detail', (isset($settings['child_remove_connection_detail']) ? $settings['child_remove_connection_detail'] : 0) );
-		// MainWP_Helper::update_option( 'mainwp_branding_remove_wp_tools', $settings['child_remove_wp_tools'], 'yes' );
-		// MainWP_Helper::update_option( 'mainwp_branding_remove_wp_setting', $settings['child_remove_wp_setting'], 'yes' );
-		// MainWP_Helper::update_option( 'mainwp_branding_remove_permalink', $settings['child_remove_permalink'], 'yes' );
-		// MainWP_Helper::update_option( 'mainwp_branding_button_contact_label', $settings['child_button_contact_label'], 'yes' );
-		// MainWP_Helper::update_option( 'mainwp_branding_send_email_message', $settings['child_send_email_message'] );
-		// MainWP_Helper::update_option( 'mainwp_branding_message_return_sender', $settings['child_message_return_sender'] );
-		// MainWP_Helper::update_option( 'mainwp_branding_submit_button_title', $settings['child_submit_button_title'] );
-		// if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
-		// MainWP_Helper::update_option( 'mainwp_branding_disable_wp_branding', $settings['child_disable_wp_branding'] );
-		// }
+//		MainWP_Helper::update_option( 'mainwp_branding_support_email', $settings['child_support_email'] );
+//		MainWP_Helper::update_option( 'mainwp_branding_support_message', $settings['child_support_message'] );
+//		MainWP_Helper::update_option( 'mainwp_branding_remove_restore', $settings['child_remove_restore'] );
+//		MainWP_Helper::update_option( 'mainwp_branding_remove_setting', $settings['child_remove_setting'], 'yes' );
+//		MainWP_Helper::update_option( 'mainwp_branding_remove_server_info', $settings['child_remove_server_info'] );
+//		MainWP_Helper::update_option( 'mainwp_branding_remove_connection_detail', (isset($settings['child_remove_connection_detail']) ? $settings['child_remove_connection_detail'] : 0) );
+//		MainWP_Helper::update_option( 'mainwp_branding_remove_wp_tools', $settings['child_remove_wp_tools'], 'yes' );
+//		MainWP_Helper::update_option( 'mainwp_branding_remove_wp_setting', $settings['child_remove_wp_setting'], 'yes' );
+//		MainWP_Helper::update_option( 'mainwp_branding_remove_permalink', $settings['child_remove_permalink'], 'yes' );
+//		MainWP_Helper::update_option( 'mainwp_branding_button_contact_label', $settings['child_button_contact_label'], 'yes' );
+//		MainWP_Helper::update_option( 'mainwp_branding_send_email_message', $settings['child_send_email_message'] );
+//		MainWP_Helper::update_option( 'mainwp_branding_message_return_sender', $settings['child_message_return_sender'] );
+//		MainWP_Helper::update_option( 'mainwp_branding_submit_button_title', $settings['child_submit_button_title'] );
+//		if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
+//			MainWP_Helper::update_option( 'mainwp_branding_disable_wp_branding', $settings['child_disable_wp_branding'] );
+//		}
 
-        $current_settings['preserve_branding']        = $settings['child_preserve_branding'];
-        $current_settings['branding_header']          = $header;
-        $current_settings['support_email']            = $settings['child_support_email'];
-        $current_settings['support_message']          = $settings['child_support_message'];
-        $current_settings['remove_restore']           = $settings['child_remove_restore'];
-        $current_settings['remove_setting']           = $settings['child_remove_setting'];
-        $current_settings['remove_server_info']       = $settings['child_remove_server_info'];
-        $current_settings['remove_connection_detail'] = isset($settings['child_remove_connection_detail']) ? $settings['child_remove_connection_detail'] : 0;
-        $current_settings['remove_wp_tools']          = $settings['child_remove_wp_tools'];
-        $current_settings['remove_wp_setting']        = $settings['child_remove_wp_setting'];
-        $current_settings['remove_permalink']         = $settings['child_remove_permalink'];
-        $current_settings['contact_label']            = $settings['child_button_contact_label'];
-        $current_settings['email_message']            = $settings['child_send_email_message'];
-        $current_settings['return_sender']            = $settings['child_message_return_sender'];
-        $current_settings['submit_button_title']      = $settings['child_submit_button_title'];
+        $current_settings['preserve_branding'] =  $settings['child_preserve_branding'];
+        $current_settings['branding_header'] =  $header;
+        $current_settings['support_email'] =  $settings['child_support_email'];
+        $current_settings['support_message'] =  $settings['child_support_message'];
+        $current_settings['remove_restore'] =  $settings['child_remove_restore'];
+        $current_settings['remove_setting'] =  $settings['child_remove_setting'];
+        $current_settings['remove_server_info'] =  $settings['child_remove_server_info'];
+        $current_settings['remove_connection_detail'] =  isset($settings['child_remove_connection_detail']) ? $settings['child_remove_connection_detail'] : 0 ;
+        $current_settings['remove_wp_tools'] =  $settings['child_remove_wp_tools'];
+        $current_settings['remove_wp_setting'] =  $settings['child_remove_wp_setting'];
+        $current_settings['remove_permalink'] =  $settings['child_remove_permalink'];
+        $current_settings['contact_label'] =  $settings['child_button_contact_label'];
+        $current_settings['email_message'] =  $settings['child_send_email_message'];
+        $current_settings['return_sender'] =  $settings['child_message_return_sender'];
+        $current_settings['submit_button_title'] =  $settings['child_submit_button_title'];
 
         if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
-			$current_settings['disable_wp_branding'] = $settings['child_disable_wp_branding'];
+			$current_settings['disable_wp_branding'] =  $settings['child_disable_wp_branding'];
 		}
 
 		$extra_setting = array(
@@ -233,8 +233,8 @@ class MainWP_Child_Branding {
 			'remove_widget_activity'          => $settings['child_remove_widget_activity'],
 			'remove_widget_quick'             => $settings['child_remove_widget_quick'],
 			'remove_widget_news'              => $settings['child_remove_widget_news'],
-			'login_image_link'                => $settings['child_login_image_link'],
-			'login_image_title'               => $settings['child_login_image_title'],
+			'login_image_link'              => $settings['child_login_image_link'],
+			'login_image_title'              => $settings['child_login_image_title'],
 			'site_generator'                  => $settings['child_site_generator'],
 			'generator_link'                  => $settings['child_generator_link'],
 			'admin_css'                       => $settings['child_admin_css'],
@@ -266,12 +266,9 @@ class MainWP_Child_Branding {
 				$extra_setting['login_image'] = array();
 			} else {
 				try {
-					$upload = $this->uploadImage( $settings['child_login_image_url'] ); // Upload image to WP
+					$upload = $this->uploadImage( $settings['child_login_image_url'] ); //Upload image to WP
 					if ( null !== $upload ) {
-						$extra_setting['login_image'] = array(
-							'path' => $upload['path'],
-							'url'  => $upload['url'],
-						);
+						$extra_setting['login_image'] = array( 'path' => $upload['path'], 'url' => $upload['url'] );
 						if ( isset( $current_extra_setting['login_image']['path'] ) ) {
 							$old_file = $current_extra_setting['login_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
@@ -283,7 +280,7 @@ class MainWP_Child_Branding {
 					$information['error']['login_image'] = $e->getMessage();
 				}
 			}
-		} elseif ( isset( $current_extra_setting['login_image'] ) ) {
+		} else if ( isset( $current_extra_setting['login_image'] ) ) {
 			$extra_setting['login_image'] = $current_extra_setting['login_image'];
 		}
 
@@ -292,12 +289,9 @@ class MainWP_Child_Branding {
 				$extra_setting['favico_image'] = array();
 			} else {
 				try {
-					$upload = $this->uploadImage( $settings['child_favico_image_url'] ); // Upload image to WP
+					$upload = $this->uploadImage( $settings['child_favico_image_url'] ); //Upload image to WP
 					if ( null !== $upload ) {
-						$extra_setting['favico_image'] = array(
-							'path' => $upload['path'],
-							'url'  => $upload['url'],
-						);
+						$extra_setting['favico_image'] = array( 'path' => $upload['path'], 'url' => $upload['url'] );
 						if ( isset( $current_extra_setting['favico_image']['path'] ) ) {
 							$old_file = $current_extra_setting['favico_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
@@ -309,11 +303,11 @@ class MainWP_Child_Branding {
 					$information['error']['favico_image'] = $e->getMessage();
 				}
 			}
-		} elseif ( isset( $current_extra_setting['favico_image'] ) ) {
+		} else if ( isset( $current_extra_setting['favico_image'] ) ) {
 			$extra_setting['favico_image'] = $current_extra_setting['favico_image'];
 		}
 
-		// MainWP_Helper::update_option( 'mainwp_branding_extra_settings', $extra_setting, 'yes' );
+		//MainWP_Helper::update_option( 'mainwp_branding_extra_settings', $extra_setting, 'yes' );
         $current_settings['extra_settings'] = $extra_setting;
 
         // keep it to compatible with old version of child reports plugin
@@ -322,28 +316,28 @@ class MainWP_Child_Branding {
 		} else {
 			MainWP_Helper::update_option( 'mainwp_branding_child_hide', '' );
 		}
-		//
-		// if ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) {
-		// MainWP_Helper::update_option( 'mainwp_branding_show_support', 'T' );
-		// } else {
-		// MainWP_Helper::update_option( 'mainwp_branding_show_support', '' );
-		// }
+//
+//		if ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) {
+//			MainWP_Helper::update_option( 'mainwp_branding_show_support', 'T' );
+//		} else {
+//			MainWP_Helper::update_option( 'mainwp_branding_show_support', '' );
+//		}
 
-		// if ( $settings['child_disable_change'] ) {
-		// MainWP_Helper::update_option( 'mainwp_branding_disable_change', 'T' );
-		// } else {
-		// MainWP_Helper::update_option( 'mainwp_branding_disable_change', '' );
-		// }
+//		if ( $settings['child_disable_change'] ) {
+//			MainWP_Helper::update_option( 'mainwp_branding_disable_change', 'T' );
+//		} else {
+//			MainWP_Helper::update_option( 'mainwp_branding_disable_change', '' );
+//		}
 
-		// if ( $settings['child_disable_switching_theme'] ) {
-		// MainWP_Helper::update_option( 'mainwp_branding_disable_switching_theme', 'T' );
-		// } else {
-		// MainWP_Helper::update_option( 'mainwp_branding_disable_switching_theme', '' );
-		// }
+//		if ( $settings['child_disable_switching_theme'] ) {
+//			MainWP_Helper::update_option( 'mainwp_branding_disable_switching_theme', 'T' );
+//		} else {
+//			MainWP_Helper::update_option( 'mainwp_branding_disable_switching_theme', '' );
+//		}
 
-        $current_settings['hide']                    = $settings['child_plugin_hide'] ? 'T' : '';
-        $current_settings['show_support']            = ( $settings['child_show_support_button'] && ! empty($settings['child_support_email']) ) ? 'T' : '';
-        $current_settings['disable_change']          = $settings['child_disable_change'] ? 'T' : '';
+        $current_settings['hide'] = $settings['child_plugin_hide'] ? 'T' : '';
+        $current_settings['show_support'] = ( $settings['child_show_support_button'] && !empty($settings['child_support_email']) ) ? 'T' : '';
+        $current_settings['disable_change'] = $settings['child_disable_change'] ? 'T' : '';
         $current_settings['disable_switching_theme'] = $settings['child_disable_switching_theme'] ? 'T' : '';
 
         MainWP_Helper::update_option( 'mainwp_child_branding_settings', $current_settings );
@@ -354,10 +348,10 @@ class MainWP_Child_Branding {
 	}
 
 	static function uploadImage( $img_url ) {
-		include_once ABSPATH . 'wp-admin/includes/file.php'; // Contains download_url
+		include_once( ABSPATH . 'wp-admin/includes/file.php' ); //Contains download_url
 		 global $mainWPChild;
         add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
-		// Download $img_url
+		//Download $img_url
 		$temporary_file = download_url( $img_url );
         remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
@@ -365,15 +359,12 @@ class MainWP_Child_Branding {
 			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
 			$upload_dir     = wp_upload_dir();
-			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url ); // Local name
+			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url ); //Local name
 			$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 			$moved          = @rename( $temporary_file, $local_img_path );
 			if ( $moved ) {
-				return array(
-					'path' => $local_img_path,
-					'url'  => $local_img_url,
-				);
+				return array( 'path' => $local_img_path, 'url' => $local_img_url );
 			}
 		}
 		if ( file_exists( $temporary_file ) ) {
@@ -389,10 +380,10 @@ class MainWP_Child_Branding {
 		$extra_setting = $this->get_extra_options();
 
         // to hide updates notice
-        if ( is_admin() ) {
+        if (is_admin()) {
             // back end
             add_action( 'in_admin_footer', array( $this, 'in_admin_footer' ) );
-        } elseif ( is_user_logged_in() ) {
+        } else if (is_user_logged_in()) {
             // front end
             add_action( 'wp_after_admin_bar_render', array( $this, 'after_admin_bar_render' ));
         }
@@ -411,40 +402,37 @@ class MainWP_Child_Branding {
             add_filter( 'mainwp_child_hide_update_notice', array( &$this, 'hide_update_notice' ) );
 		}
 
-        if ( ! isset($opts['branding_ext_enabled']) || $opts['branding_ext_enabled'] !== 'Y' ) {
+        if ( !isset($opts['branding_ext_enabled']) || $opts['branding_ext_enabled'] !== 'Y' ) {
 			return;
 		}
 
 		add_filter( 'map_meta_cap', array( $this, 'branding_map_meta_cap' ), 10, 5 );
 
-		if ( 'T' === $opts['disable_change'] ) {
+		if ( 'T' === $opts['disable_change']) {
 
-			// Disable the WordPress plugin update notifications
+			// Disable the wordpress plugin update notifications
 			remove_action('load-update-core.php', 'wp_update_plugins');
 			add_filter('pre_site_transient_update_plugins', '__return_null');
 
-			// Disable the WordPress theme update notifications
+			// Disable the wordpress theme update notifications
 			remove_action('load-update-core.php', 'wp_update_themes');
-			add_filter('pre_site_transient_update_themes', ( $func = function( $a ) {
-				return null;
-			} ));
+			add_filter('pre_site_transient_update_themes', ( $func = function($a){ return null;} ));
 
-			// Disable the WordPress core update notifications
+			// Disable the wordpress core update notifications
 			add_action('after_setup_theme', 'remove_core_updates');
 			function remove_core_updates() {
-				add_action('init', ( $func = function( $a ) {
-					remove_action( 'wp_version_check', 'wp_version_check' );
-				} ), 2);
+				add_action('init', ( $func = function($a){ remove_action( 'wp_version_check', 'wp_version_check' );} ), 2);
 				add_filter('pre_option_update_core', '__return_null');
 				add_filter('pre_site_transient_update_core', '__return_null');
 			}
 
 			add_action( 'admin_head', array( &$this, 'admin_head_hide_elements' ), 15 );
-			add_action( 'admin_menu', array( $this, 'branding_redirect' ), 9);
+			add_action( 'admin_menu', array($this, 'branding_redirect' ), 9);
 		}
 
 		// to fix
-		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );      if ( ! isset($opts['disable_wp_branding']) || $opts['disable_wp_branding'] !== 'Y' ) {
+		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );//
+		if ( !isset($opts['disable_wp_branding']) || $opts['disable_wp_branding'] !== 'Y' ) {
 			add_filter( 'wp_footer', array( &$this, 'branding_global_footer' ), 15 );
 			add_action( 'wp_dashboard_setup', array( &$this, 'custom_dashboard_widgets' ), 999 );
 			// branding site generator
@@ -460,13 +448,13 @@ class MainWP_Child_Branding {
 			add_filter( 'login_headertext', array( &$this, 'custom_login_headertitle' ) );
 			add_action( 'wp_head', array( &$this, 'custom_favicon_frontend' ) );
 			if ( isset( $extra_setting['dashboard_footer'] ) && ! empty( $extra_setting['dashboard_footer'] ) ) {
-				// remove_filter( 'update_footer', 'core_update_footer' );
+				//remove_filter( 'update_footer', 'core_update_footer' );
 				add_filter( 'update_footer', array( &$this, 'core_update_footer' ), 14 );
                 add_filter( 'admin_footer_text', array( &$this, 'admin_footer_text' ), 14 );
 			}
 
 			if ( isset( $extra_setting['hide_nag'] ) && ! empty( $extra_setting['hide_nag'] ) ) {
-				add_action( 'admin_init', array( $this, 'admin_init' ));
+				add_action( 'admin_init', array($this, 'admin_init'));
 			}
 
 			add_action( 'admin_menu', array( &$this, 'remove_default_post_metaboxes' ) );
@@ -482,8 +470,9 @@ class MainWP_Child_Branding {
     // to fix conflict with other plugin
     function admin_menu() {
         $allow_contact = apply_filters('mainwp_branding_role_cap_enable_contact_form', false);
-        if ( $allow_contact ) {; // ok
-        } elseif ( ! current_user_can( 'administrator' ) ) {
+        if ( $allow_contact ) {
+            ; // ok
+        } else if ( !current_user_can( 'administrator' ) ) {
 			return false;
 		}
 
@@ -511,6 +500,7 @@ class MainWP_Child_Branding {
 				add_action( 'admin_bar_menu', array( $this, 'add_support_button_in_top_admin_bar' ), 100 );
 			}
 		}
+
 	}
 
 	function remove_default_post_metaboxes() {
@@ -640,8 +630,7 @@ class MainWP_Child_Branding {
 					el.parentElement.innerHTML = '';
 				}
 			});
-		</script>
-        <?php
+		</script><?php
 	}
 
 	function core_update_footer() {
@@ -806,24 +795,24 @@ class MainWP_Child_Branding {
 
 	public function send_support_mail() {
 		$email   = $this->child_branding_options['support_email'];
-		$sub     = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
-        $from    = trim($_POST['mainwp_branding_contact_send_from']);
-		$subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
+		$sub = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
+        $from = trim($_POST['mainwp_branding_contact_send_from']);
+		$subject = !empty( $sub ) ? $sub : "MainWP - Support Contact";
 		$content = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_content'] ) ) );
-        $mail    = $headers = '';
+        $mail = $headers = '';
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 			global $current_user;
 			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
-            if ( ! empty($from) ) {
-                $headers .= 'From: "' . $from . '" <' . $from . ">\r\n";
-            }
+            if (!empty($from))
+                $headers .= "From: \"" . $from . "\" <" . $from . ">\r\n";
 			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
-			$mail .= '<p>Sent from WordPress page: ' . ( ! empty( $_POST['mainwp_branding_send_from_page'] ) ? "<a href='" . esc_url( $_POST['mainwp_branding_send_from_page'] ) . "'>" . esc_url( $_POST['mainwp_branding_send_from_page'] ) . "</a></p>\r\n\r\n" : '' );
-			$mail .= '<p>Client Email: ' . $current_user->user_email . " </p>\r\n\r\n";
+			$mail .= "<p>Sent from WordPress page: " . ( ! empty( $_POST["mainwp_branding_send_from_page"] ) ? "<a href='" . esc_url( $_POST["mainwp_branding_send_from_page"] ) . "'>" . esc_url( $_POST["mainwp_branding_send_from_page"] ) . "</a></p>\r\n\r\n" : "" );
+			$mail .= "<p>Client Email: " . $current_user->user_email . " </p>\r\n\r\n";
 			$mail .= "<p>Support Text:</p>\r\n\r\n";
-			$mail .= '<p>' . $content . "</p>\r\n\r\n";
+			$mail .= "<p>" . $content . "</p>\r\n\r\n";
 
-			if ( @wp_mail( $email, $subject, $mail, $headers ) ) {;
+			if ( @wp_mail( $email, $subject, $mail, $headers ) ) {
+				;
 			}
 
 			return true;
@@ -871,8 +860,7 @@ class MainWP_Child_Branding {
 			}
 			?>
 			<div
-				class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>
-                                                          <?php
+				class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . "&nbsp;&nbsp" . $back_link; ?></div><?php
 		} else {
 			$from_page = '';
 			if ( isset( $_GET['from_page'] ) ) {
@@ -885,7 +873,7 @@ class MainWP_Child_Branding {
 
 			$support_message = $opts['support_message'];
 			$support_message = nl2br( stripslashes( $support_message ) );
-            $from_email      = $current_user ? $current_user->user_email : '';
+            $from_email = $current_user ? $current_user->user_email : '';
 			?>
 			<form action="" method="post">
 				<div style="width: 99%;">
@@ -902,12 +890,12 @@ class MainWP_Child_Branding {
 							<?php
 							remove_editor_styles(); // stop custom theme styling interfering with the editor
 							wp_editor( '', 'mainwp_branding_contact_message_content', array(
-								'textarea_name' => 'mainwp_branding_contact_message_content',
-								'textarea_rows' => 10,
-								'teeny'         => true,
-								'wpautop'       => true,
-								'media_buttons' => false,
-							)
+									'textarea_name' => 'mainwp_branding_contact_message_content',
+									'textarea_rows' => 10,
+									'teeny'         => true,
+									'wpautop'       => true,
+									'media_buttons' => false,
+								)
 							);
 							?>
 						</div>
@@ -925,8 +913,7 @@ class MainWP_Child_Branding {
 				       value="<?php echo esc_url( $from_page ); ?>"/>
 				<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( '_contactNonce' ) ); ?>"/>
 			</form>
-			<?php
-        }
+		<?php }
 	}
 
 	/**
@@ -934,8 +921,9 @@ class MainWP_Child_Branding {
 	 */
 	public function add_support_button_in_top_admin_bar( $wp_admin_bar ) {
         $allow_contact = apply_filters('mainwp_branding_role_cap_enable_contact_form', false);
-        if ( $allow_contact ) {; // ok
-        } elseif ( ! current_user_can( 'administrator' ) ) {
+        if ( $allow_contact ) {
+            ; // ok
+        } else if ( !current_user_can( 'administrator' ) ) {
 			return false;
 		}
 
@@ -963,13 +951,13 @@ class MainWP_Child_Branding {
 	public function is_branding() {
         $opts = $this->child_branding_options;
 
-        if ( ! isset($opts['branding_ext_enabled']) || $opts['branding_ext_enabled'] !== 'Y' ) {
+        if (!isset($opts['branding_ext_enabled']) || $opts['branding_ext_enabled'] !== 'Y') {
             return false;
         }
 
-        $is_hide            = isset( $opts['hide'] ) ? $opts['hide'] : '';
+        $is_hide = isset( $opts['hide'] ) ? $opts['hide'] : '';
         $cancelled_branding = $opts['cancelled_branding'];
-        $branding_header    = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
+        $branding_header = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
 
         if ( $cancelled_branding ) {
             return false;
@@ -978,7 +966,7 @@ class MainWP_Child_Branding {
         if ( 'T' === $is_hide ) {
             return true;
         }
-        if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) {
+        if ( is_array( $branding_header ) && !empty( $branding_header['name'] ) ) {
             return true;
         }
         return false;
@@ -997,38 +985,37 @@ class MainWP_Child_Branding {
     }
 
     public function save_branding_options( $name, $val ) {
-        $this->child_branding_options[ $name ] = $val;
+        $this->child_branding_options[$name] = $val;
         MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
     }
 
     public function after_admin_bar_render() {
 
-        $hide_slugs = apply_filters('mainwp_child_hide_update_notice', array());
+        $hide_slugs = apply_filters('mainwp_child_hide_update_notice' , array());
 
-        if ( ! is_array($hide_slugs) ) {
+        if (!is_array($hide_slugs))
             $hide_slugs = array();
-        }
 
-        if ( count($hide_slugs) == 0 ) {
+        if (count($hide_slugs) == 0) {
             return;
         }
 
-        if ( ! function_exists('get_plugin_updates') ) {
-            include_once ABSPATH . '/wp-admin/includes/update.php';
+        if (!function_exists('get_plugin_updates')) {
+            include_once( ABSPATH . '/wp-admin/includes/update.php' );
         }
 
         $count_hide = 0;
 
         $updates = get_plugin_updates();
-        if ( is_array($updates) ) {
-            foreach ( $updates as $slug => $data ) {
-                if ( in_array($slug, $hide_slugs) ) {
+        if (is_array($updates)) {
+            foreach($updates as $slug => $data) {
+                if (in_array($slug, $hide_slugs)) {
                     $count_hide++;
                 }
             }
         }
 
-        if ( $count_hide == 0 ) {
+        if ( $count_hide == 0) {
             return;
         }
         // js for front end
@@ -1050,30 +1037,29 @@ class MainWP_Child_Branding {
                     $adminBarUpdates.textContent = itemCount;
                 }
 			});
-		</script>
-        <?php
+		</script><?php
+
     }
 
     public function in_admin_footer() {
 
-        $hide_slugs = apply_filters('mainwp_child_hide_update_notice', array());
+        $hide_slugs = apply_filters('mainwp_child_hide_update_notice' , array());
 
-        if ( ! is_array($hide_slugs) ) {
+        if (!is_array($hide_slugs))
             $hide_slugs = array();
-        }
 
         $count_hide = 0;
 
         $updates = get_plugin_updates();
-        if ( is_array($updates) ) {
-            foreach ( $updates as $slug => $data ) {
-                if ( in_array($slug, $hide_slugs) ) {
+        if (is_array($updates)) {
+            foreach($updates as $slug => $data) {
+                if (in_array($slug, $hide_slugs)) {
                     $count_hide++;
                 }
             }
         }
 
-        if ( $count_hide == 0 ) {
+        if ( $count_hide == 0) {
             return;
         }
 
@@ -1086,7 +1072,7 @@ class MainWP_Child_Branding {
                 if (typeof(pagenow) !== 'undefined' && pagenow == 'plugins') {
                     <?php
                     // hide update notice row
-                    if ( in_array('mainwp-child/mainwp-child.php', $hide_slugs) ) {
+                    if (in_array('mainwp-child/mainwp-child.php', $hide_slugs)) {
                         ?>
                         var el = document.querySelector('tr#mainwp-child-update');
                         if (typeof(el) !== 'undefined' && el !== null) {
@@ -1095,7 +1081,7 @@ class MainWP_Child_Branding {
                         <?php
                     }
                     // hide update notice row
-                    if ( in_array('mainwp-child-reports/mainwp-child-reports.php', $hide_slugs) ) {
+                    if (in_array('mainwp-child-reports/mainwp-child-reports.php', $hide_slugs)) {
                         ?>
                         var el = document.querySelector('tr#mainwp-child-reports-update');
                         if (typeof(el) !== 'undefined' && el !== null) {
@@ -1129,8 +1115,7 @@ class MainWP_Child_Branding {
                     });
                 }
 			});
-		</script>
-        <?php
+		</script><?php
     }
 
 	public function branding_map_meta_cap( $caps, $cap, $user_id, $args ) {
@@ -1146,9 +1131,9 @@ class MainWP_Child_Branding {
 	public function modify_plugin_header( $plugins ) {
         $opts = $this->child_branding_options;
         if ( is_array($opts) ) {
-            $is_hide            = isset( $opts['hide'] ) ? $opts['hide'] : '';
+            $is_hide = isset( $opts['hide'] ) ? $opts['hide'] : '';
             $cancelled_branding = $opts['cancelled_branding'];
-            $branding_header    = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
+            $branding_header = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
 
             if ( $cancelled_branding ) {
                 return $plugins;
@@ -1164,7 +1149,7 @@ class MainWP_Child_Branding {
                 return $plugins;
             }
 
-            if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) {
+			if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) && is_array( $plugins ) ) {
                 return $this->update_plugin_header( $plugins, $branding_header );
             } else {
                 return $plugins;
@@ -1185,7 +1170,7 @@ class MainWP_Child_Branding {
 			return $value;
 		}
 
-        if ( ! MainWP_Helper::is_screen_with_update() ) {
+        if (! MainWP_Helper::is_screen_with_update()) {
             return $value;
         }
 

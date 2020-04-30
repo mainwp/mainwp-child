@@ -17,26 +17,25 @@
 
 class MainWP_Child_Pagespeed {
 
-	public static $instance     = null;
+	public static $instance = null;
 	public $is_plugin_installed = false;
 
 	static function Instance() {
-		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Pagespeed();
+		if ( null === MainWP_Child_Pagespeed::$instance ) {
+			MainWP_Child_Pagespeed::$instance = new MainWP_Child_Pagespeed();
 		}
 
-		return self::$instance;
+		return MainWP_Child_Pagespeed::$instance;
 	}
 
 	public function __construct() {
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 		if ( is_plugin_active( 'google-pagespeed-insights/google-pagespeed-insights.php' ) ) {
 			$this->is_plugin_installed = true;
 		}
 
-        if ( ! $this->is_plugin_installed ) {
+        if (!$this->is_plugin_installed)
             return;
-        }
 
         add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 
@@ -61,7 +60,7 @@ class MainWP_Child_Pagespeed {
 				case 'sync_data':
 					$information = $this->get_sync_data();
 					break;
-				case 'check_pages':
+				case "check_pages":
 					$information = $this->check_pages();
 					break;
 			}
@@ -76,13 +75,12 @@ class MainWP_Child_Pagespeed {
 	}
 
 	public function init() {
-        if ( ! $this->is_plugin_installed ) {
+        if (!$this->is_plugin_installed)
             return;
-        }
 
 		if ( get_option( 'mainwp_pagespeed_hide_plugin' ) === 'hide' ) {
 			add_filter( 'all_plugins', array( $this, 'hide_plugin' ) );
-			add_action('admin_menu', array( $this, 'hide_menu' ), 999);
+			add_action('admin_menu', array($this, 'hide_menu'), 999);
 		}
 		$this->init_cron();
 	}
@@ -127,10 +125,10 @@ class MainWP_Child_Pagespeed {
 
 	public function hide_menu() {
 		global $submenu;
-		if ( isset($submenu['tools.php']) ) {
-			foreach ( $submenu['tools.php'] as $key => $menu ) {
-				if ( $menu[2] == 'google-pagespeed-insights' ) {
-					unset($submenu['tools.php'][ $key ]);
+		if (isset($submenu['tools.php'])) {
+			foreach($submenu['tools.php'] as $key => $menu) {
+				if ($menu[2] == 'google-pagespeed-insights') {
+					unset($submenu['tools.php'][$key]);
 					break;
 				}
 			}
@@ -159,7 +157,7 @@ class MainWP_Child_Pagespeed {
 
 	function save_settings() {
 		$current_values = get_option( 'gpagespeedi_options' );
-		$checkstatus    = apply_filters( 'gpi_check_status', false );
+		$checkstatus = apply_filters( 'gpi_check_status', false );
 		if ( $checkstatus ) {
 			return array( 'result' => 'RUNNING' );
 		}
@@ -216,9 +214,9 @@ class MainWP_Child_Pagespeed {
 
 			if ( isset( $settings['check_report'] ) ) {
 				if ( is_array( $settings['check_report'] ) ) {
-					$current_values['check_pages']       = in_array( 'page', $settings['check_report'] ) ? true : false;
-					$current_values['check_posts']       = in_array( 'post', $settings['check_report'] ) ? true : false;
-					$current_values['check_categories']  = in_array( 'category', $settings['check_report'] ) ? true : false;
+					$current_values['check_pages']      = in_array( 'page', $settings['check_report'] ) ? true : false;
+					$current_values['check_posts']      = in_array( 'post', $settings['check_report'] ) ? true : false;
+					$current_values['check_categories'] = in_array( 'category', $settings['check_report'] ) ? true : false;
                     $current_values['check_custom_urls'] = in_array( 'custom_urls', $settings['check_report'] ) ? true : false;
 				} else {
 					$current_values['check_pages'] = $current_values['check_posts'] = $current_values['check_categories'] = $current_values['check_custom_urls'] = false;
@@ -240,43 +238,43 @@ class MainWP_Child_Pagespeed {
 
 		$result = $this->get_sync_data( $strategy );
 
-		// if ( isset( $_POST['doaction'] ) && ( 'check_new_pages' === $_POST['doaction'] || 'recheck_all_pages' === $_POST['doaction'] ) ) {
-		// if ( 'recheck_all_pages' === $_POST['doaction'] ) {
-		// $recheck = true;
-		// } else {
-		// $recheck = false;
-		// }
-		//
-		//
-		// if ($this->do_check_pages($recheck))
-		// $information['checked_pages'] = 1;
-		// }
+//		if ( isset( $_POST['doaction'] ) && ( 'check_new_pages' === $_POST['doaction'] || 'recheck_all_pages' === $_POST['doaction'] ) ) {
+//			if ( 'recheck_all_pages' === $_POST['doaction'] ) {
+//				$recheck = true;
+//			} else {
+//				$recheck = false;
+//			}
+//
+//
+//			if ($this->do_check_pages($recheck))
+//				$information['checked_pages'] = 1;
+//		}
 		$information['data'] = $result['data'];
 		return $information;
 	}
 
 
 	function check_pages() {
-		if ( isset($_POST['force_recheck']) && ! empty($_POST['force_recheck']) ) {
+		if (isset($_POST['force_recheck']) && !empty($_POST['force_recheck'])) {
 			$recheck = true;
 		} else {
 			$recheck = false;
 		}
 		$information = $this->do_check_pages($recheck);
-		if ( isset($information['checked_pages']) && $information['checked_pages'] ) {
+		if (isset($information['checked_pages']) && $information['checked_pages']) {
 			$information['result'] = 'SUCCESS';
 		}
 		return $information;
 	}
 
-	function do_check_pages( $forceRecheck = false ) {
+	function do_check_pages($forceRecheck = false) {
 		$information = array();
 		if ( defined( 'GPI_DIRECTORY' ) ) {
 			$checkstatus = apply_filters( 'gpi_check_status', false );
 			if ( $checkstatus ) {
 				$information['error'] = __( 'The API is busy checking other pages, please try again later.', 'gpagespeedi' );
 			} else {
-				// do_action( 'googlepagespeedinsightsworker', array(), $forceRecheck );
+				//do_action( 'googlepagespeedinsightsworker', array(), $forceRecheck );
                 do_action( 'run_gpi', $forceRecheck ); // to fix
 				$information['checked_pages'] = 1;
 			}
@@ -286,9 +284,9 @@ class MainWP_Child_Pagespeed {
 
 	public function syncOthersData( $information, $data = array() ) {
         if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {
-            try {
+            try{
                 $information['syncPageSpeedData'] = $this->get_sync_data();
-            } catch ( Exception $e ) {
+            } catch(Exception $e) {
 
             }
         }
@@ -301,7 +299,7 @@ class MainWP_Child_Pagespeed {
 		}
 
 		$current_values = get_option( 'gpagespeedi_options' );
-		$checkstatus    = apply_filters( 'gpi_check_status', false );
+		$checkstatus = apply_filters( 'gpi_check_status', false );
 		if ( $checkstatus ) {
 			return array( 'result' => 'RUNNING' );
 		}
@@ -311,16 +309,16 @@ class MainWP_Child_Pagespeed {
 		$data        = array( 'bad_api_key' => $bad_key );
 
 		if ( 'both' === $strategy || 'desktop' === $strategy ) {
-			$result = self::cal_pagespeed_data( 'desktop' );
-            if ( ! empty($result) && is_array($result) ) {
+			$result                        = self::cal_pagespeed_data( 'desktop' );
+            if ( !empty($result) && is_array($result) ) {
                 $data['desktop_score']         = $result['average_score'];
                 $data['desktop_total_pages']   = $result['total_pages'];
                 $data['desktop_last_modified'] = $result['last_modified'];
             }
 		}
 		if ( 'both' === $strategy || 'mobile' === $strategy ) {
-			$result = self::cal_pagespeed_data( 'mobile' );
-            if ( ! empty($result) && is_array($result) ) {
+			$result                       = self::cal_pagespeed_data( 'mobile' );
+            if ( !empty($result) && is_array($result) ) {
                 $data['mobile_score']         = $result['average_score'];
                 $data['mobile_total_pages']   = $result['total_pages'];
                 $data['mobile_last_modified'] = $result['last_modified'];
@@ -342,8 +340,9 @@ class MainWP_Child_Pagespeed {
 			return false;
 		}
 
-		$score_column = $strategy . '_score';
-		// $page_stats_column = $strategy . '_page_stats';
+		$score_column      = $strategy . '_score';
+		//$page_stats_column = $strategy . '_page_stats';
+
 
 		$data_typestocheck = self::get_filter_options( 'all' );
 
@@ -400,9 +399,9 @@ class MainWP_Child_Pagespeed {
 		// Not Null check for Report List scores
 		switch ( $strategy ) {
 
-			// case 'both':
-			// $nullcheck = 'desktop_score IS NOT NULL AND mobile_score IS NOT NULL';
-			// break;
+			//            case 'both':
+			//                $nullcheck = 'desktop_score IS NOT NULL AND mobile_score IS NOT NULL';
+			//                break;
 
 			case 'mobile':
 				$nullcheck = 'mobile_score IS NOT NULL';
@@ -438,59 +437,61 @@ class MainWP_Child_Pagespeed {
 		);
 	}
 
-	static function get_filter_options( $restrict_type = 'all' ) {
+	static function get_filter_options($restrict_type = 'all') {
 
-		$types        = array();
-		$gpi_options  = get_option('gpagespeedi_options');
+		$types = array();
+		$gpi_options =  get_option('gpagespeedi_options');
 		$typestocheck = array();
 
-		if ( $gpi_options['check_pages'] ) {
-			if ( $restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'pages' ) {
+		if($gpi_options['check_pages']) {
+			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'pages') {
 				$typestocheck[] = 'type = %s';
-				$types[1][]     = 'page';
+				$types[1][] = "page";
 			}
 		}
 
-		if ( $gpi_options['check_posts'] ) {
-			if ( $restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'posts' ) {
+		if($gpi_options['check_posts']) {
+			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'posts') {
 				$typestocheck[] = 'type = %s';
-				$types[1][]     = 'post';
+				$types[1][] = "post";
 			}
 		}
 
-		if ( $gpi_options['check_categories'] ) {
-			if ( $restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'categories' ) {
+		if($gpi_options['check_categories']) {
+			if($restrict_type == 'all' || $restrict_type == 'ignored' || $restrict_type == 'categories') {
 				$typestocheck[] = 'type = %s';
-				$types[1][]     = 'category';
+				$types[1][] = "category";
 			}
 		}
-		if ( $gpi_options['cpt_whitelist'] ) {
-			if ( $restrict_type == 'all' || $restrict_type == 'ignored' || stristr($restrict_type, 'gpi_custom_posts') ) {
+		if($gpi_options['cpt_whitelist']) {
+			if($restrict_type == 'all' || $restrict_type == 'ignored' || stristr($restrict_type, 'gpi_custom_posts')) {
 
 				$cpt_whitelist_arr = false;
-				if ( ! empty($gpi_options['cpt_whitelist']) ) {
+				if(!empty($gpi_options['cpt_whitelist'])) {
 					$cpt_whitelist_arr = unserialize($gpi_options['cpt_whitelist']);
 				}
-				$args              = array(
+				$args=array(
 					'public'   => true,
-					'_builtin' => false,
+					'_builtin' => false
 				);
-				$custom_post_types = get_post_types($args, 'names', 'and');
-				if ( $restrict_type != 'gpi_custom_posts' && $restrict_type != 'all' && $restrict_type != 'ignored' ) {
+				$custom_post_types = get_post_types($args,'names','and');
+				if($restrict_type != 'gpi_custom_posts' && $restrict_type != 'all' && $restrict_type != 'ignored') {
 					$restrict_type = str_replace('gpi_custom_posts-', '', $restrict_type);
-					foreach ( $custom_post_types as $post_type ) {
-						if ( $cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr) ) {
-							if ( $post_type == $restrict_type ) {
+					foreach($custom_post_types as $post_type)
+					{
+						if($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
+							if($post_type == $restrict_type) {
 								$typestocheck[] = 'type = %s';
-								$types[1][]     = $custom_post_types[ $post_type ];
+								$types[1][] = $custom_post_types[$post_type];
 							}
 						}
 					}
 				} else {
-					foreach ( $custom_post_types as $post_type ) {
-						if ( $cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr) ) {
+					foreach($custom_post_types as $post_type)
+					{
+						if($cpt_whitelist_arr && in_array($post_type, $cpt_whitelist_arr)) {
 							$typestocheck[] = 'type = %s';
-							$types[1][]     = $custom_post_types[ $post_type ];
+							$types[1][] = $custom_post_types[$post_type];
 						}
 					}
 				}
@@ -500,7 +501,7 @@ class MainWP_Child_Pagespeed {
         if ( $gpi_options['check_custom_urls'] ) {
 			global $wpdb;
 
-			$gpi_custom_urls  = $wpdb->prefix . 'gpi_custom_urls';
+			$gpi_custom_urls = $wpdb->prefix . 'gpi_custom_urls';
 			$custom_url_types = $wpdb->get_col(
 				"
 				SELECT DISTINCT type
@@ -511,19 +512,21 @@ class MainWP_Child_Pagespeed {
 			if ( ! empty( $custom_url_types ) ) {
 				foreach ( $custom_url_types as $custom_url_type ) {
                     $typestocheck[] = 'type = %s';
-                    $types[1][]     = $custom_url_type;
+                    $types[1][] = $custom_url_type;
 				}
 			}
 		}
 
-		if ( ! empty($typestocheck) ) {
+		if(!empty($typestocheck)) {
 			$types[0] = '';
-			foreach ( $typestocheck as $type ) {
-				if ( ! is_array($type) ) {
+			foreach($typestocheck as $type)
+			{
+				if(!is_array($type)) {
 					$types[0] .= $type . ' OR ';
 				} else {
-					foreach ( $type as $custom_post_type ) {
-						$types[0]  .= 'type = %s OR ';
+					foreach($type as $custom_post_type)
+					{
+						$types[0] .= 'type = %s OR ';
 						$types[1][] = $custom_post_type;
 					}
 				}
