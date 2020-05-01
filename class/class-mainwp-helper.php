@@ -205,7 +205,7 @@ class MainWP_Helper {
 		}
 		global $mainWPChild;
 		include_once ABSPATH . 'wp-admin/includes/file.php';
-		$upload_dir     = wp_upload_dir();
+		$upload_dir = wp_upload_dir();
 		add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 		$temporary_file = download_url( $img_url );
 		remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
