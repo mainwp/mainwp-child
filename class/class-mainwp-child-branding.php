@@ -960,7 +960,7 @@ class MainWP_Child_Branding {
 		if ( 'T' === $is_hide ) {
 			return true;
 		}
-		
+
 		if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) && is_array( $plugins ) ) {
 			return true;
 		}
