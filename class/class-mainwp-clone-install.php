@@ -41,15 +41,12 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function checkZipConsole() {
-		// todo: implement
-		// return function_exists('system');
 		return false;
 	}
 
 	public function checkWPZip() {
 		return function_exists( 'unzip_file' );
 	}
-
 
 	public function removeConfigFile() {
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
@@ -59,7 +56,7 @@ class MainWP_Clone_Install {
 		if ( null !== $this->archiver ) {
 
 		} elseif ( $this->checkZipConsole() ) {
-			// todo: implement
+			// skip.
 		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
@@ -73,7 +70,6 @@ class MainWP_Clone_Install {
 
 			return false;
 		} else {
-			// use pclzip
 			$zip   = new PclZip( $this->file );
 			$list  = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
 			$list2 = $zip->delete( PCLZIP_OPT_BY_NAME, 'clone' );
@@ -115,7 +111,7 @@ class MainWP_Clone_Install {
 
 			return $this->archiver->file_exists( $file );
 		} elseif ( $this->checkZipConsole() ) {
-			// todo: implement
+			// skip.
 		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
@@ -139,7 +135,7 @@ class MainWP_Clone_Install {
 		if ( false === $configContents ) {
 			throw new Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
-		$this->config = maybe_unserialize( base64_decode( $configContents ) );
+		$this->config = maybe_unserialize( base64_decode( $configContents ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
 		if ( isset( $this->config['plugins'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $this->config['plugins'] );
@@ -154,12 +150,12 @@ class MainWP_Clone_Install {
 	}
 
 	public function testDatabase() {
-		$link = @MainWP_Child_DB::connect( $this->config['dbHost'], $this->config['dbUser'], $this->config['dbPass'] );
+		$link = MainWP_Child_DB::connect( $this->config['dbHost'], $this->config['dbUser'], $this->config['dbPass'] );
 		if ( ! $link ) {
 			throw new Exception( __( 'Invalid database host or user/password.', 'mainwp-child' ) );
 		}
 
-		$db_selected = @MainWP_Child_DB::select_db( $this->config['dbName'], $link );
+		$db_selected = MainWP_Child_DB::select_db( $this->config['dbName'], $link );
 		if ( ! $db_selected ) {
 			throw new Exception( __( 'Invalid database name.', 'mainwp-child' ) );
 		}
@@ -168,13 +164,13 @@ class MainWP_Clone_Install {
 	public function clean() {
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
-			@unlink( $file );
+			unlink( $file );
 		}
 		if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
-			@unlink( ABSPATH . 'clone/config.txt' );
+			unlink( ABSPATH . 'clone/config.txt' );
 		}
 		if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
-			@rmdir( ABSPATH . 'clone' );
+			rmdir( ABSPATH . 'clone' );
 		}
 
 		try {
@@ -184,11 +180,11 @@ class MainWP_Clone_Install {
 			$files = glob( $backupdir . '*' );
 			foreach ( $files as $file ) {
 				if ( MainWP_Helper::isArchive( $file ) ) {
-					@unlink( $file );
+					unlink( $file );
 				}
 			}
 		} catch ( Exception $e ) {
-
+			// ok!
 		}
 	}
 
@@ -205,11 +201,11 @@ class MainWP_Clone_Install {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
-		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name) );
+		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name ) );
 		if ( null === $var ) {
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '")', $name) );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '")', $name ) );
 		} else {
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '" WHERE option_name = %s', $name) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '" WHERE option_name = %s', $name ) );
 		}
 	}
 
@@ -220,7 +216,7 @@ class MainWP_Clone_Install {
 		$table_prefix = $this->config['prefix'];
 		$home         = get_option( 'home' );
 		$site_url     = get_option( 'siteurl' );
-		// Install database
+		// Install database!
 		define( 'WP_INSTALLING', true );
 		define( 'WP_DEBUG', false );
 		$query     = '';
@@ -229,14 +225,14 @@ class MainWP_Clone_Install {
 
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
-			$handle = @fopen( $file, 'r' );
+			$handle = fopen( $file, 'r' );
 
 			$lastRun = 0;
 			if ( $handle ) {
 				$readline = '';
 				while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
 					if ( time() - $lastRun > 20 ) {
-						@set_time_limit( 0 ); // reset timer..
+						set_time_limit( 0 ); // reset timer..
 						$lastRun = time();
 					}
 
@@ -269,15 +265,14 @@ class MainWP_Clone_Install {
 		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
 
 		foreach ( $tables_db as $curr_table ) {
-			// fix for more table prefix in one database
-			if ( ( strpos( $curr_table[0], $wpdb->prefix ) !== false ) || ( strpos( $curr_table[0], $table_prefix ) !== false ) ) {
+			// fix for more table prefix in one database.
+			if ( ( false !== strpos( $curr_table[0], $wpdb->prefix ) ) || ( false !== strpos( $curr_table[0], $table_prefix ) ) ) {
 				$tables[] = $curr_table[0];
 			}
 		}
-		// Replace importance data first so if other replace failed, the website still work
+		// Replace importance data first so if other replace failed, the website still work.
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "siteurl"', $site_url ) );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "home"', $home ) );
-		// Replace others
 		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['home'], $home, $tables );
 		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['siteurl'], $site_url, $tables );
 
@@ -287,10 +282,14 @@ class MainWP_Clone_Install {
 	}
 
 	protected function recalculateSerializedLengths( $pObject ) {
-		return preg_replace_callback( '|s:(\d+):"(.*?)";|', array(
-			$this,
-			'recalculateSerializedLengths_callback',
-		), $pObject );
+		return preg_replace_callback(
+			'|s:(\d+):"(.*?)";|',
+			array(
+				$this,
+				'recalculateSerializedLengths_callback',
+			),
+			$pObject
+		);
 	}
 
 	protected function recalculateSerializedLengths_callback( $matches ) {
@@ -309,8 +308,8 @@ class MainWP_Clone_Install {
 	 *
 	 * @return bool False if not serialized and true if it was.
 	 */
-	function is_serialized( $data ) {
-		// if it isn't a string, it isn't serialized
+	public function is_serialized( $data ) {
+		// if it isn't a string, it isn't serialized.
 		if ( ! is_string( $data ) ) {
 			return false;
 		}
@@ -351,7 +350,7 @@ class MainWP_Clone_Install {
 		// Clean up!
 		$files = glob( '../dbBackup*.sql' );
 		foreach ( $files as $file ) {
-			@unlink( $file );
+			unlink( $file );
 		}
 	}
 
@@ -373,14 +372,11 @@ class MainWP_Clone_Install {
 			return $content;
 		} else {
 			if ( $this->checkZipConsole() ) {
-				// todo: implement
 			} elseif ( $this->checkZipSupport() ) {
 				$zip    = new ZipArchive();
 				$zipRes = $zip->open( $this->file );
 				if ( $zipRes ) {
 					$content = $zip->getFromName( 'clone/config.txt' );
-					// $zip->deleteName('clone/config.txt');
-					// $zip->deleteName('clone/');
 					$zip->close();
 
 					return $content;
@@ -388,10 +384,8 @@ class MainWP_Clone_Install {
 
 				return false;
 			} else {
-				// use pclzip
 				$zip     = new PclZip( $this->file );
-				$content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt',
-				PCLZIP_OPT_EXTRACT_AS_STRING );
+				$content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt', PCLZIP_OPT_EXTRACT_AS_STRING );
 				if ( ! is_array( $content ) || ! isset( $content[0]['content'] ) ) {
 					return false;
 				}
@@ -417,7 +411,6 @@ class MainWP_Clone_Install {
 			if ( ! $this->archiver->isOpen() ) {
 				$this->archiver->read( $this->file );
 			}
-
 			return $this->archiver->extractTo( ABSPATH );
 		} elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->checkWPZip() ) {
 			return $this->extractWPZipBackup();
@@ -441,7 +434,7 @@ class MainWP_Clone_Install {
 		$zip    = new ZipArchive();
 		$zipRes = $zip->open( $this->file );
 		if ( $zipRes ) {
-			@$zip->extractTo( ABSPATH );
+			$zip->extractTo( ABSPATH );
 			$zip->close();
 
 			return true;
@@ -471,7 +464,7 @@ class MainWP_Clone_Install {
 		if ( 0 === $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
 			return false;
 		}
-		if ( $zip->error_code !== PCLZIP_ERR_NO_ERROR ) {
+		if ( PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {
 			throw new Exception( $zip->errorInfo( true ) );
 		}
 
@@ -484,8 +477,6 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function extractZipConsoleBackup() {
-		// todo implement
-		// system('zip');
 		return false;
 	}
 
@@ -515,7 +506,7 @@ class MainWP_Clone_Install {
 		return preg_replace( '/(\$' . $varname . ' *= *[\'"])(.*?)([\'"] *;)/is', '${1}' . $value . '${3}', $content );
 	}
 
-	function recurse_chmod( $mypath, $arg ) {
+	public function recurse_chmod( $mypath, $arg ) {
 		$d = opendir( $mypath );
 		while ( ( $file = readdir( $d ) ) !== false ) {
 			if ( '.' !== $file && '..' !== $file ) {
@@ -543,7 +534,7 @@ class MainWP_Clone_Install {
 	 *
 	 * @return array    Collection of information gathered during the run.
 	 */
-	function icit_srdb_replacer( $connection, $search = '', $replace = '', $tables = array() ) {
+	public function icit_srdb_replacer( $connection, $search = '', $replace = '', $tables = array() ) {
 		global $guid, $exclude_cols;
 
 		$report = array(
@@ -561,14 +552,14 @@ class MainWP_Clone_Install {
 
 				$columns = array();
 
-				// Get a list of columns in this table
+				// Get a list of columns in this table.
 				$fields = MainWP_Child_DB::_query( 'DESCRIBE ' . $table, $connection );
 				while ( $column = MainWP_Child_DB::fetch_array( $fields ) ) {
 					$columns[ $column['Field'] ] = 'PRI' === $column['Key'] ? true : false;
 				}
 
-				// Count the number of rows we have in the table if large we'll split into blocks, This is a mod from Simon Wheatley
-				$row_count   = MainWP_Child_DB::_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection ); // to fix bug
+				// Count the number of rows we have in the table if large we'll split into blocks, This is a mod from Simon Wheatley.
+				$row_count   = MainWP_Child_DB::_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection );
 				$rows_result = MainWP_Child_DB::fetch_array( $row_count );
 				$row_count   = $rows_result['count'];
 				if ( 0 === $row_count ) {
@@ -581,7 +572,7 @@ class MainWP_Clone_Install {
 					$current_row = 0;
 					$start       = $page * $page_size;
 					$end         = $start + $page_size;
-					// Grab the content of the table
+					// Grab the content of the table.
 					$data = MainWP_Child_DB::_query( sprintf( 'SELECT * FROM %s LIMIT %d, %d', $table, $start, $end ), $connection );
 					if ( ! $data ) {
 						$report['errors'][] = MainWP_Child_DB::error();
@@ -589,7 +580,7 @@ class MainWP_Clone_Install {
 
 					while ( $row = MainWP_Child_DB::fetch_array( $data ) ) {
 
-						$report['rows'] ++; // Increment the row counter
+						$report['rows'] ++; // Increment the row counter.
 						$current_row ++;
 
 						$update_sql = array();
@@ -601,10 +592,11 @@ class MainWP_Clone_Install {
 								continue;
 							}
 
-							$edited_data = $data_to_fix = $row[ $column ];
+							$edited_data = $row[ $column ];
+							$data_to_fix = $edited_data;
 							// Run a search replace on the data that'll respect the serialisation.
 							$edited_data = $this->recursive_unserialize_replace( $search, $replace, $data_to_fix );
-							// Something was changed
+							// Something was changed.
 							if ( $edited_data !== $data_to_fix ) {
 								$report['change'] ++;
 								$update_sql[] = $column . ' = "' . MainWP_Child_DB::real_escape_string( $edited_data ) . '"';
@@ -642,42 +634,39 @@ class MainWP_Clone_Install {
 	 *
 	 * @param string $from String we're looking to replace.
 	 * @param string $to What we want it to be replaced with
-	 * @param array $data Used to pass any subordinate arrays back to in.
-	 * @param bool $serialised Does the array passed via $data need serialising.
+	 * @param array  $data Used to pass any subordinate arrays back to in.
+	 * @param bool   $serialised Does the array passed via $data need serialising.
 	 *
 	 * @return array    The original array with all elements replaced as needed.
 	 */
+	public function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
 
-    /* Fixed serialize issue */
-	function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
-
-		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
+		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
 		try {
-
-			if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
+			$unserialized = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+			if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
 				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
 			} elseif ( is_array( $data ) ) {
 				$_tmp = array();
 				foreach ( $data as $key => $value ) {
 					$_tmp[ $key ] = $this->recursive_unserialize_replace( $from, $to, $value, false );
 				}
-
 				$data = $_tmp;
 				unset( $_tmp );
 			} elseif ( is_object( $data ) ) {
 				$_tmp  = $data;
-                $props = get_object_vars( $data );
+				$props = get_object_vars( $data );
 				foreach ( $props as $key => $value ) {
 					$_tmp->{$key} = $this->recursive_unserialize_replace( $from, $to, $value, false );
 				}
 
 				$data = $_tmp;
 				unset( $_tmp );
-			} elseif (is_serialized_string($data) && is_serialized($data)) {
-                // TODO: apply solution like phpmyadmin project have!
-				if ( ( $data = @unserialize( $data ) ) !== false ) {
+			} elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
+				$data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+				if ( false !== $data ) {
 					$data = str_replace( $from, $to, $data );
-                    $data = serialize( $data );
+					$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
 				}
 			} else {
 				if ( is_string( $data ) ) {
@@ -686,10 +675,10 @@ class MainWP_Clone_Install {
 			}
 
 			if ( $serialised ) {
-				return serialize( $data );
+				return serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
 			}
 		} catch ( Exception $error ) {
-
+			// ok!
 		}
 
 		return $data;

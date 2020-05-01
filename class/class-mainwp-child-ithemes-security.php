@@ -1,10 +1,9 @@
 <?php
-
-/*
+/**
  *
  * Credits
  *
- * Plugin-Name: iThemes Security
+ * Plugin Name: iThemes Security
  * Plugin URI: https://ithemes.com/security
  * Author: iThemes
  * Author URI: https://ithemes.com
@@ -12,14 +11,13 @@
  *
  * The code is used for the MainWP iThemes Security Extension
  * Extension URL: https://mainwp.com/extension/ithemes-security/
- *
-*/
+ */
 
 class MainWP_Child_iThemes_Security {
 	public static $instance     = null;
-    public $is_plugin_installed = false;
+	public $is_plugin_installed = false;
 
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_iThemes_Security();
 		}
@@ -28,34 +26,34 @@ class MainWP_Child_iThemes_Security {
 	}
 
 	public function __construct() {
-        require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		if ( is_plugin_active( 'better-wp-security/better-wp-security.php') || is_plugin_active( 'ithemes-security-pro/ithemes-security-pro.php' ) ) {
-            $this->is_plugin_installed = true;
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		if ( is_plugin_active( 'better-wp-security/better-wp-security.php' ) || is_plugin_active( 'ithemes-security-pro/ithemes-security-pro.php' ) ) {
+			$this->is_plugin_installed = true;
 		}
 
-        if ( ! $this->is_plugin_installed) {
-            return;
-        }
+		if ( ! $this->is_plugin_installed ) {
+			return;
+		}
 
 		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 	}
-    // ok
-	function syncOthersData( $information, $data = array() ) {
+
+	public function syncOthersData( $information, $data = array() ) {
 		if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
-            try {
-                $information['syncIThemeData'] = array(
-                    'users_and_roles' => $this->get_available_admin_users_and_roles(),
-                );
-            } catch (Exception $e) {
-                error_log($e->getMessage());
-            }
+			try {
+				$information['syncIThemeData'] = array(
+					'users_and_roles' => $this->get_available_admin_users_and_roles(),
+				);
+			} catch ( Exception $e ) {
+				error_log( $e->getMessage() );
+			}
 		}
 		return $information;
 	}
 
 	public function action() {
 		$information = array();
-		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists('ITSEC_Modules')) {
+		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists( 'ITSEC_Modules' ) ) {
 			$information['error'] = 'NO_ITHEME';
 			MainWP_Helper::write( $information );
 		}
@@ -122,7 +120,7 @@ class MainWP_Child_iThemes_Security {
 		MainWP_Helper::write( $information );
 	}
 
-	function set_showhide() {
+	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_ithemes_hide_plugin', $hide );
 		$information['result'] = 'success';
@@ -131,16 +129,16 @@ class MainWP_Child_iThemes_Security {
 	}
 
 	public function ithemes_init() {
-        if ( ! $this->is_plugin_installed) {
+		if ( ! $this->is_plugin_installed ) {
 			return;
-        }
+		}
 
-		if ( get_option( 'mainwp_ithemes_hide_plugin' ) === 'hide' ) {
+		if ( 'hide' === get_option( 'mainwp_ithemes_hide_plugin' ) ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
 			add_action( 'admin_head', array( &$this, 'custom_admin_css' ) );
-			if ( isset($_GET['page']) && ( $_GET['page'] == 'itsec' || $_GET['page'] == 'itsec-security-check' ) ) {
+			if ( isset( $_GET['page'] ) && ( 'itsec' == $_GET['page'] || 'itsec-security-check' == $_GET['page'] ) ) {
 				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
 			}
@@ -166,7 +164,7 @@ class MainWP_Child_iThemes_Security {
 		remove_menu_page( 'itsec' );
 	}
 
-	function custom_admin_css() {
+	public function custom_admin_css() {
 		?>
 		<style type="text/css">
 			#wp-admin-bar-itsec_admin_bar_menu{
@@ -176,7 +174,7 @@ class MainWP_Child_iThemes_Security {
 		<?php
 	}
 
-	function save_settings() {
+	public function save_settings() {
 
 		if ( ! class_exists( 'ITSEC_Lib' ) ) {
 			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
@@ -194,14 +192,11 @@ class MainWP_Child_iThemes_Security {
 			'404-detection',
 			'network-brute-force',
 			'ssl',
-			// 'strong-passwords',
-            'password-requirements',
+			'password-requirements',
 			'system-tweaks',
 			'wordpress-tweaks',
 			'multisite-tweaks',
-            'notification-center',
-			// 'salts',
-			// 'content-directory',
+			'notification-center',
 		);
 
 		$require_permalinks = false;
@@ -209,57 +204,56 @@ class MainWP_Child_iThemes_Security {
 		$errors             = array();
 		$nbf_settings       = array();
 
-		$update_settings = maybe_unserialize( base64_decode( $_POST['settings'] ) );
+		$update_settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
-		foreach ($update_settings as $module => $settings) {
+		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
-			if (in_array($module, $_itsec_modules)) {
-				if ($module == 'wordpress-salts') {
-					$settings['last_generated'] = ITSEC_Modules::get_setting( $module, 'last_generated' ); // not update
-				} elseif ($module == 'global') {
+			if ( in_array( $module, $_itsec_modules ) ) {
+				if ( 'wordpress-salts' == $module ) {
+					$settings['last_generated'] = ITSEC_Modules::get_setting( $module, 'last_generated' );
+				} elseif ( 'global' == $module ) {
 					$keep_olds = array( 'did_upgrade', 'log_info', 'show_new_dashboard_notice', 'show_security_check', 'nginx_file' );
-					foreach ($keep_olds as $key) {
-						$settings[ $key ] = ITSEC_Modules::get_setting( $module, $key ); // not update
+					foreach ( $keep_olds as $key ) {
+						$settings[ $key ] = ITSEC_Modules::get_setting( $module, $key );
 					}
 
-					if ( ! isset($settings['log_location']) || empty($settings['log_location']) ) {
+					if ( ! isset( $settings['log_location'] ) || empty( $settings['log_location'] ) ) {
 						$settings['log_location'] = ITSEC_Modules::get_setting( $module, 'log_location' );
 					} else {
-						$result = $this->validate_directory('log_location', $settings['log_location']);
-						if ($result !== true) {
+						$result = $this->validate_directory( 'log_location', $settings['log_location'] );
+						if ( true !== $result ) {
 							$errors[]                 = $result;
-							$settings['log_location'] = ITSEC_Modules::get_setting( $module, 'log_location' ); // no change
+							$settings['log_location'] = ITSEC_Modules::get_setting( $module, 'log_location' );
 						}
 					}
-
-				} elseif ($module == 'backup') {
-					if ( ! isset($settings['location']) || empty($settings['location']) ) {
+				} elseif ( 'backup' == $module ) {
+					if ( ! isset( $settings['location'] ) || empty( $settings['location'] ) ) {
 						$settings['location'] = ITSEC_Modules::get_setting( $module, 'location' );
 					} else {
-						$result = $this->validate_directory('location', $settings['location']);
-						if ($result !== true) {
+						$result = $this->validate_directory( 'location', $settings['location'] );
+						if ( true !== $result ) {
 							$errors[]             = $result;
-							$settings['location'] = ITSEC_Modules::get_setting( $module, 'location' ); // no change
+							$settings['location'] = ITSEC_Modules::get_setting( $module, 'location' );
 						}
 					}
-					if ( ! isset($settings['exclude']) ) {
+					if ( ! isset( $settings['exclude'] ) ) {
 						$settings['exclude'] = ITSEC_Modules::get_setting( $module, 'exclude' );
 
 					}
-				} elseif ($module == 'hide-backend') {
-					if (isset($settings['enabled']) && ! empty($settings['enabled'])) {
+				} elseif ( 'hide-backend' == $module ) {
+					if ( isset( $settings['enabled'] ) && ! empty( $settings['enabled'] ) ) {
 						$permalink_structure = get_option( 'permalink_structure', false );
 						if ( empty( $permalink_structure ) && ! is_multisite() ) {
-							$errors[]           = __( 'You must change <strong>WordPress permalinks</strong> to a setting other than "Plain" in order to use "Hide Backend" feature.', 'better-wp-security' );
+							$errors[]           = __( 'You must change <strong>WordPress permalinks</strong> to a setting other than "Plain" in order to use "Hide Backend" feature.', 'mainwp-child' );
 							$require_permalinks = true;
 							$do_not_save        = true;
 						}
 					}
-				} elseif ($module == 'network-brute-force') {
+				} elseif ( 'network-brute-force' == $module ) {
 
 					if ( isset( $settings['email'] ) ) {
-						$result = $this->activate_api_key($settings);
-						if ($result === false) {
+						$result = $this->activate_api_key( $settings );
+						if ( false === $result ) {
 							$nbf_settings = $settings;
 							$errors[]     = 'Error: Active iThemes Network Brute Force Protection Api Key';
 						} else {
@@ -267,8 +261,7 @@ class MainWP_Child_iThemes_Security {
 						}
 					} else {
 						$previous_settings = ITSEC_Modules::get_settings( $module );
-						// update 'enable_ban' field only
-						if (isset($settings['enable_ban'])) {
+						if ( isset( $settings['enable_ban'] ) ) {
 							$previous_settings['enable_ban'] = $settings['enable_ban'];
 							$nbf_settings                    = $previous_settings;
 						} else {
@@ -277,25 +270,25 @@ class MainWP_Child_iThemes_Security {
 						}
 					}
 					$settings = $nbf_settings;
-				} elseif ($module == 'notification-center') {
-                    $current_settings = ITSEC_Modules::get_settings( $module );
-                    if (isset($settings['notifications'])) {
-                        $update_fields = array( 'schedule', 'enabled', 'subject' );
-                        if (isset($_POST['is_individual']) && $_POST['is_individual']) {
-                            $update_fields = array_merge($update_fields, array( 'user_list', 'email_list' ));
-                        }
-                        foreach ($settings['notifications'] as $key => $val) {
-                            foreach ($update_fields as $field) {
-                                if (isset($val[ $field ])) {
-                                    $current_settings['notifications'][ $key ][ $field ] = $val[ $field ];
-                                }
-                            }
-                        }
-                        $updated = true;
-                        ITSEC_Modules::set_settings( $module, $current_settings );
-                    }
-                    continue;
-                }
+				} elseif ( 'notification-center' == $module ) {
+					$current_settings = ITSEC_Modules::get_settings( $module );
+					if ( isset( $settings['notifications'] ) ) {
+						$update_fields = array( 'schedule', 'enabled', 'subject' );
+						if ( isset( $_POST['is_individual'] ) && $_POST['is_individual'] ) {
+							$update_fields = array_merge( $update_fields, array( 'user_list', 'email_list' ) );
+						}
+						foreach ( $settings['notifications'] as $key => $val ) {
+							foreach ( $update_fields as $field ) {
+								if ( isset( $val[ $field ] ) ) {
+									$current_settings['notifications'][ $key ][ $field ] = $val[ $field ];
+								}
+							}
+						}
+						$updated = true;
+						ITSEC_Modules::set_settings( $module, $current_settings );
+					}
+					continue;
+				}
 
 				if ( ! $do_not_save ) {
 					ITSEC_Modules::set_settings( $module, $settings );
@@ -304,13 +297,13 @@ class MainWP_Child_iThemes_Security {
 			}
 		}
 
-        if ( isset( $update_settings['itsec_active_modules'] ) ) {
-            $current_val = get_site_option( 'itsec_active_modules', array() );
-            foreach ($update_settings['itsec_active_modules'] as $mod => $val) {
-                $current_val[ $mod ] = $val;
-            }
-            update_site_option( 'itsec_active_modules', $current_val );
-        }
+		if ( isset( $update_settings['itsec_active_modules'] ) ) {
+			$current_val = get_site_option( 'itsec_active_modules', array() );
+			foreach ( $update_settings['itsec_active_modules'] as $mod => $val ) {
+				$current_val[ $mod ] = $val;
+			}
+			update_site_option( 'itsec_active_modules', $current_val );
+		}
 
 		require_once ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php';
 
@@ -329,36 +322,36 @@ class MainWP_Child_iThemes_Security {
 			'default_log_location'  => ITSEC_Modules::get_default( 'global', 'log_location' ),
 			'default_location'      => ITSEC_Modules::get_default( 'backup', 'location' ),
 			'excludable_tables'     => $this->get_excludable_tables(),
-            'users_and_roles'       => $this->get_available_admin_users_and_roles(),
+			'users_and_roles'       => $this->get_available_admin_users_and_roles(),
 		);
 
- 		$return = array(
+		$return = array(
 			'site_status' => $values,
 		);
 
-		if ($require_permalinks) {
+		if ( $require_permalinks ) {
 			$return['require_permalinks'] = 1;
 		}
 
 		$return['nbf_settings'] = $nbf_settings;
 
-		if ( ! empty($errors)) {
+		if ( ! empty( $errors ) ) {
 			$return['extra_message'] = $errors;
 		}
 
-		if ($updated) {
+		if ( $updated ) {
 			$return['result'] = 'success';
 		} else {
-			$return['error'] = __('Not Updated', 'mainwp-child' );
-        }
+			$return['error'] = __( 'Not Updated', 'mainwp-child' );
+		}
 
 		return $return;
 	}
 
 	public static function activate_network_brute_force() {
-		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) );
+		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$information = array();
-		if (is_array($data)) {
+		if ( is_array( $data ) ) {
 			$settings                  = ITSEC_Modules::get_settings( 'network-brute-force' );
 			$settings['email']         = $data['email'];
 			$settings['updates_optin'] = $data['updates_optin'];
@@ -369,29 +362,28 @@ class MainWP_Child_iThemes_Security {
 			} elseif ( $results['saved'] ) {
 				ITSEC_Modules::activate( 'network-brute-force' );
 				$nbf_settings = ITSEC_Modules::get_settings( 'network-brute-force' );
-				// ITSEC_Response::set_response( '<p>' . __( 'Your site is now using Network Brute Force Protection.', 'better-wp-security' ) . '</p>' );
 			}
 		}
-		if ($nbf_settings !== null) {
+		if ( null !== $nbf_settings ) {
 			$information['nbf_settings'] = $nbf_settings;
 			$information['result']       = 'success';
 		}
 		return $information;
 	}
 
-	private function validate_directory( $name, $folder) {
+	private function validate_directory( $name, $folder ) {
 		require_once ITSEC_Core::get_core_dir() . 'lib/class-itsec-lib-directory.php';
 		$error = null;
 		if ( ! ITSEC_Lib_Directory::is_dir( $folder ) ) {
 			$result = ITSEC_Lib_Directory::create( $folder );
 
 			if ( is_wp_error( $result ) ) {
-				$error = sprintf( _x( 'The directory supplied in %1$s cannot be used as a valid directory. %2$s', '%1$s is the input name. %2$s is the error message.', 'better-wp-security' ), $name, $result->get_error_message() );
+				$error = sprintf( _x( 'The directory supplied in %1$s cannot be used as a valid directory. %2$s', '%1$s is the input name. %2$s is the error message.', 'mainwp-child' ), $name, $result->get_error_message() );
 			}
 		}
 
 		if ( empty( $error ) && ! ITSEC_Lib_Directory::is_writable( $folder ) ) {
-			$error = sprintf( __( 'The directory supplied in %1$s is not writable. Please select a directory that can be written to.', 'better-wp-security' ), $name );
+			$error = sprintf( __( 'The directory supplied in %1$s is not writable. Please select a directory that can be written to.', 'mainwp-child' ), $name );
 		}
 
 		if ( empty( $error ) ) {
@@ -402,22 +394,18 @@ class MainWP_Child_iThemes_Security {
 		}
 	}
 
-	private function activate_api_key( $settings) {
+	private function activate_api_key( $settings ) {
 		global $mainwp_itsec_modules_path;
 		require_once $mainwp_itsec_modules_path . 'ipcheck/utilities.php';
 
 		$key = ITSEC_Network_Brute_Force_Utilities::get_api_key( $settings['email'], $settings['updates_optin'] );
 		if ( is_wp_error( $key ) ) {
 			return false;
-			// $this->set_can_save( false );
-			// $this->add_error( $key );
 		} else {
 			$secret = ITSEC_Network_Brute_Force_Utilities::activate_api_key( $key );
 
 			if ( is_wp_error( $secret ) ) {
 				return false;
-				// $this->set_can_save( false );
-				// $this->add_error( $secret );
 			} else {
 				$settings['api_key']    = $key;
 				$settings['api_secret'] = $secret;
@@ -430,7 +418,7 @@ class MainWP_Child_iThemes_Security {
 		unset( $settings['email'] );
 		return $settings;
 	}
-	function backup_status() {
+	public function backup_status() {
 		$status = 0;
 		if ( ! is_multisite() && class_exists( 'backupbuddy_api' ) && count( backupbuddy_api::getSchedules() ) >= 1 ) {
 			$status = 1;
@@ -481,20 +469,20 @@ class MainWP_Child_iThemes_Security {
 			);
 			add_site_option( 'itsec_temp_whitelist_ip', $response );
 			$response['exp_diff'] = human_time_diff( $itsec_globals['current_time'], $response['exp'] );
-			$response['message1'] = __( 'Your IP Address', 'better-wp-security' );
-			$response['message2'] = __( 'is whitelisted for', 'better-wp-security' );
+			$response['message1'] = __( 'Your IP Address', 'mainwp-child' );
+			$response['message2'] = __( 'is whitelisted for', 'mainwp-child' );
 
 			return $response;
 		}
 	}
 
-	function whitelist_release() {
+	public function whitelist_release() {
 		delete_site_option( 'itsec_temp_whitelist_ip' );
 
 		return 'success';
 	}
 
-	function backup_db() {
+	public function backup_db() {
 		global $itsec_backup, $mainwp_itsec_modules_path;
 
 		if ( ! isset( $itsec_backup ) ) {
@@ -518,10 +506,10 @@ class MainWP_Child_iThemes_Security {
 			$return['result']  = 'success';
 			$return['message'] = $result;
 		} else {
-			$str_error = sprintf( __( 'The backup request returned an unexpected response. It returned a response of type <code>%1$s</code>.', 'better-wp-security' ), gettype( $result ) );
+			$str_error = sprintf( __( 'The backup request returned an unexpected response. It returned a response of type <code>%1$s</code>.', 'mainwp-child' ), gettype( $result ) );
 		}
 
-		if ( ! empty($str_error)) {
+		if ( ! empty( $str_error ) ) {
 			$return['error'] = $str_error;
 		}
 
@@ -544,11 +532,11 @@ class MainWP_Child_iThemes_Security {
 			}
 		} else {
 			$return['result']  = 'success';
-			$return['message'] = __( 'The WordPress salts were successfully regenerated.', 'better-wp-security' );
+			$return['message'] = __( 'The WordPress salts were successfully regenerated.', 'mainwp-child' );
 			$last_generated    = ITSEC_Core::get_current_time_gmt();
 			ITSEC_Modules::set_setting( 'wordpress-salts', 'last_generated', $last_generated );
 		}
-		if ( ! empty($str_error)) {
+		if ( ! empty( $str_error ) ) {
 			$return['error'] = $str_error;
 		}
 		return $return;
@@ -623,10 +611,10 @@ class MainWP_Child_iThemes_Security {
 				$row[]       = sprintf( '%o', $permissions );
 
 				if ( ! $permissions || $permissions != $suggested_permissions ) {
-					$row[] = __( 'WARNING', 'better-wp-security' );
+					$row[] = __( 'WARNING', 'mainwp-child' );
 					$row[] = '<div style="background-color: #FEFF7F; border: 1px solid #E2E2E2;">&nbsp;&nbsp;&nbsp;</div>';
 				} else {
-					$row[] = __( 'OK', 'better-wp-security' );
+					$row[] = __( 'OK', 'mainwp-child' );
 					$row[] = '<div style="background-color: #22EE5B; border: 1px solid #E2E2E2;">&nbsp;&nbsp;&nbsp;</div>';
 				}
 
@@ -636,24 +624,24 @@ class MainWP_Child_iThemes_Security {
 			$class = 'entry-row';
 			ob_start();
 			?>
-		<p><input type="button" id="itsec-file-permissions-reload_file_permissions" name="file-permissions[reload_file_permissions]" class="button-primary itsec-reload-module" value="<?php _e('Reload File Permissions Details', 'mainwp-child'); ?>"></p>
+		<p><input type="button" id="itsec-file-permissions-reload_file_permissions" name="file-permissions[reload_file_permissions]" class="button-primary itsec-reload-module" value="<?php esc_attr_e( 'Reload File Permissions Details', 'mainwp-child' ); ?>"></p>
 		<table class="widefat">
 			<thead>
 				<tr>
-					<th><?php _e( 'Relative Path', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Suggestion', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Value', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Result', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Status', 'better-wp-security' ); ?></th>
+					<th><?php esc_html_e( 'Relative Path', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Suggestion', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Result', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
 				</tr>
 			</thead>
 			<tfoot>
 				<tr>
-					<th><?php _e( 'Relative Path', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Suggestion', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Value', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Result', 'better-wp-security' ); ?></th>
-					<th><?php _e( 'Status', 'better-wp-security' ); ?></th>
+					<th><?php esc_html_e( 'Relative Path', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Suggestion', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Result', 'mainwp-child' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
 				</tr>
 			</tfoot>
 			<tbody>
@@ -679,25 +667,24 @@ class MainWP_Child_iThemes_Security {
 			require_once $mainwp_itsec_modules_path . 'file-change/scanner.php';
 		}
 		$result = ITSEC_File_Change_Scanner::run_scan( false );
-		if ($result === false || $result === true || $result === -1) {
+		if ( false === $result || true === $result || -1 === $result ) {
 			$return['result']      = 'success';
 			$return['scan_result'] = $result;
 		}
 		return $return;
 	}
 
-	function admin_user() {
+	public function admin_user() {
 
 		$settings = $_POST['settings'];
 
-		if ( ! is_array($settings)) {
+		if ( ! is_array( $settings ) ) {
 			$settings = array();
-        }
+		}
 
 		$new_username = isset( $settings['new_username'] ) ? $settings['new_username'] : '';
 		$change_id    = isset( $settings['change_id'] ) && $settings['change_id'] ? true : false;
 
-		// load utility functions
 		if ( ! class_exists( 'ITSEC_Lib' ) ) {
 			global $itsec_globals;
 			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
@@ -706,15 +693,15 @@ class MainWP_Child_iThemes_Security {
 		$username_exists = username_exists( 'admin' );
 		$user_id_exists  = ITSEC_Lib::user_id_exists( 1 );
 		$msg             = '';
-        if ( strlen( $new_username ) >= 1) {
-            global $current_user;
-            if ( ! $username_exists ) {
-                $msg = __( 'Admin user already changes.', 'mainwp-child' );
-            } elseif ($current_user->user_login == 'admin') {
-                $return['result'] = 'CHILD_ADMIN';
-                return $return;
-            }
-        }
+		if ( strlen( $new_username ) >= 1 ) {
+			global $current_user;
+			if ( ! $username_exists ) {
+				$msg = __( 'Admin user already changes.', 'mainwp-child' );
+			} elseif ( 'admin' == $current_user->user_login ) {
+				$return['result'] = 'CHILD_ADMIN';
+				return $return;
+			}
+		}
 
 		if ( true === $change_id && ! $user_id_exists ) {
 			if ( ! empty( $msg ) ) {
@@ -722,14 +709,6 @@ class MainWP_Child_iThemes_Security {
 			}
 			$msg .= __( 'Admin user ID already changes.', 'mainwp-child' );
 		}
-
-		// if ( $change_id ) {
-		// $user = get_user_by( 'login', $new_username );
-		// if ( $user && 1 === (int) $user->ID ) {
-		// $return['result'] = 'CHILD_ADMIN';
-		// return $return;
-		// }
-		// }
 
 		$admin_success = true;
 		$return        = array();
@@ -754,27 +733,21 @@ class MainWP_Child_iThemes_Security {
 		global $wpdb;
 		$itsec_files = ITSEC_Core::get_itsec_files();
 
-        // do not need to check this
-		// if ( $itsec_files->get_file_lock( 'admin_user' ) ) { //make sure it isn't already running
-
-			// sanitize the username
 			$new_user = sanitize_text_field( $username );
 
-			// Get the full user object
 			$user_object = get_user_by( 'id', '1' );
 
-		if ( null !== $username && validate_username( $new_user ) && false === username_exists( $new_user ) ) { // there is a valid username to change
+		if ( null !== $username && validate_username( $new_user ) && false === username_exists( $new_user ) ) {
 
-			if ( true === $id ) { // we're changing the id too so we'll set the username
+			if ( true === $id ) {
 
 				$user_login = $new_user;
 
-			} else { // we're only changing the username
+			} else {
 
-				// query main user table
 				$wpdb->query( 'UPDATE `' . $wpdb->users . "` SET user_login = '" . esc_sql( $new_user ) . "' WHERE user_login='admin';" );
 
-				if ( is_multisite() ) { // process sitemeta if we're in a multi-site situation
+				if ( is_multisite() ) {
 
 					$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
 					$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
@@ -787,35 +760,38 @@ class MainWP_Child_iThemes_Security {
 				return true;
 
 			}
-		} elseif ( null !== $username ) { // username didn't validate
+		} elseif ( null !== $username ) {
 
 			$itsec_files->release_file_lock( 'admin_user' );
 
 			return false;
 
-		} else { // only changing the id
+		} else {
 
 			$user_login = $user_object->user_login;
 
 		}
 
-		if ( true === $id ) { // change the user id
+		if ( true === $id ) {
 
 			$wpdb->query( 'DELETE FROM `' . $wpdb->users . '` WHERE ID = 1;' );
 
-			$wpdb->insert( $wpdb->users, array(
-				'user_login'          => $user_login,
-				'user_pass'           => $user_object->user_pass,
-				'user_nicename'       => $user_object->user_nicename,
-				'user_email'          => $user_object->user_email,
-				'user_url'            => $user_object->user_url,
-				'user_registered'     => $user_object->user_registered,
-				'user_activation_key' => $user_object->user_activation_key,
-				'user_status'         => $user_object->user_status,
-				'display_name'        => $user_object->display_name,
-			) );
+			$wpdb->insert(
+				$wpdb->users,
+				array(
+					'user_login'          => $user_login,
+					'user_pass'           => $user_object->user_pass,
+					'user_nicename'       => $user_object->user_nicename,
+					'user_email'          => $user_object->user_email,
+					'user_url'            => $user_object->user_url,
+					'user_registered'     => $user_object->user_registered,
+					'user_activation_key' => $user_object->user_activation_key,
+					'user_status'         => $user_object->user_status,
+					'display_name'        => $user_object->display_name,
+				)
+			);
 
-			if ( is_multisite() && null !== $username && validate_username( $new_user ) ) { // process sitemeta if we're in a multi-site situation
+			if ( is_multisite() && null !== $username && validate_username( $new_user ) ) {
 
 				$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
 				$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
@@ -836,13 +812,11 @@ class MainWP_Child_iThemes_Security {
 			return true;
 
 		}
-		// }
 
 		return false;
 	}
 
 	public function build_wpconfig_rules( $rules_array, $input = null ) {
-		// Get the rules from the database if input wasn't sent
 		if ( null === $input ) {
 			return $rules_array;
 		}
@@ -886,8 +860,8 @@ class MainWP_Child_iThemes_Security {
 		if ( isset( $_POST['change_prefix'] ) && 'yes' === $_POST['change_prefix'] ) {
 			$result = ITSEC_Database_Prefix_Utility::change_database_prefix();
 			$return = $result['errors'];
-			if (is_array($result['errors'])) {
-				foreach ($result['errors'] as $error) {
+			if ( is_array( $result['errors'] ) ) {
+				foreach ( $result['errors'] as $error ) {
 					$arr_errors = ITSEC_Response::get_error_strings( $error );
 					foreach ( $arr_errors as $er ) {
 						$str_error .= $er . '<br />';
@@ -901,7 +875,7 @@ class MainWP_Child_iThemes_Security {
 				$return['error'] = $str_error;
 			} else {
 				$return['result']  = 'success';
-				$return['message'] = sprintf( __( 'The database table prefix was successfully changed to <code>%1$s</code>.', 'better-wp-security' ), $result['new_prefix'] );
+				$return['message'] = sprintf( __( 'The database table prefix was successfully changed to <code>%1$s</code>.', 'mainwp-child' ), $result['new_prefix'] );
 
 			}
 		}
@@ -936,7 +910,7 @@ class MainWP_Child_iThemes_Security {
 		$information = array();
 		if ( $results['saved'] ) {
 			$information['result']       = 'success';
-			$information['nbf_settings'] = ITSEC_Modules::get_settings( 'network-brute-force');
+			$information['nbf_settings'] = ITSEC_Modules::get_settings( 'network-brute-force' );
 		} elseif ( empty( $results['errors'] ) ) {
 			$information['error_reset_api'] = 1;
 		}
@@ -1078,7 +1052,7 @@ class MainWP_Child_iThemes_Security {
 		}
 
 		$type    = 'updated';
-		$message = __( 'The selected lockouts have been cleared.', 'better-wp-security' );
+		$message = __( 'The selected lockouts have been cleared.', 'mainwp-child' );
 
 		foreach ( $lockout_ids as $value ) {
 			$wpdb->update(
@@ -1111,14 +1085,14 @@ class MainWP_Child_iThemes_Security {
 
 		$active_modules = $_POST['active_modules'];
 
-		if ( ! is_array($active_modules)) {
+		if ( ! is_array( $active_modules ) ) {
 			$active_modules = array();
-        }
+		}
 
-        $current_val = get_site_option( 'itsec_active_modules', array() );
-        foreach ($active_modules as $mod => $val) {
-            $current_val[ $mod ] = $val;
-        }
+		$current_val = get_site_option( 'itsec_active_modules', array() );
+		foreach ( $active_modules as $mod => $val ) {
+			$current_val[ $mod ] = $val;
+		}
 
 		update_site_option( 'itsec_active_modules', $current_val );
 		return array( 'result' => 'success' );
@@ -1171,13 +1145,13 @@ class MainWP_Child_iThemes_Security {
 		return $excludes;
 	}
 
-    private function security_site() {
+	private function security_site() {
 		global $mainwp_itsec_modules_path;
 		require_once $mainwp_itsec_modules_path . 'security-check/scanner.php';
-        require_once $mainwp_itsec_modules_path . 'security-check/feedback-renderer.php';
-        $results = ITSEC_Security_Check_Scanner::get_results();
-        ob_start();
-        ITSEC_Security_Check_Feedback_Renderer::render( $results );
+		require_once $mainwp_itsec_modules_path . 'security-check/feedback-renderer.php';
+		$results = ITSEC_Security_Check_Scanner::get_results();
+		ob_start();
+		ITSEC_Security_Check_Feedback_Renderer::render( $results );
 		$response = ob_get_clean();
 		return array(
 			'result'   => 'success',
@@ -1185,9 +1159,7 @@ class MainWP_Child_iThemes_Security {
 		);
 	}
 
-    // source from itheme plugin
-    // ok
-    public function get_available_admin_users_and_roles() {
+	public function get_available_admin_users_and_roles() {
 		if ( is_callable( 'wp_roles' ) ) {
 			$roles = wp_roles();
 		} else {
@@ -1205,7 +1177,7 @@ class MainWP_Child_iThemes_Security {
 
 				foreach ( $users as $user ) {
 					/* translators: 1: user display name, 2: user login */
-					$available_users[ $user->ID ] = sprintf( __( '%1$s (%2$s)', 'better-wp-security' ), $user->display_name, $user->user_login );
+					$available_users[ $user->ID ] = sprintf( __( '%1$s (%2$s)', 'mainwp-child' ), $user->display_name, $user->user_login );
 				}
 			}
 		}
@@ -1219,4 +1191,3 @@ class MainWP_Child_iThemes_Security {
 	}
 
 }
-

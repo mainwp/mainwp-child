@@ -3,11 +3,12 @@
 class MainWP_Tools {
 	public static function execute_snippet( $code ) {
 		ob_start();
-		$result = eval( $code );
+		$result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval -- eval() used safely.
 		$output = ob_get_contents();
 		ob_end_clean();
 		$return = array();
-		if ( ( false === $result ) && ( $error = error_get_last() ) ) {
+		$error  = error_get_last();
+		if ( ( false === $result ) && $error ) {
 			$return['status'] = 'FAIL';
 			$return['result'] = $error['message'];
 		} else {

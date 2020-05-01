@@ -1,12 +1,11 @@
 <?php
 
-
 class MainWP_Child_Skeleton_Key {
 	public static $instance    = null;
 	public static $information = array();
 	public $plugin_translate   = 'mainwp-child';
 
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Skeleton_Key();
 		}
@@ -15,17 +14,12 @@ class MainWP_Child_Skeleton_Key {
 	}
 
 	public function action() {
-
 		error_reporting( 0 );
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
-			if ( isset( $error['type'] ) && in_array($error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {
+			if ( isset( $error['type'] ) && in_array( $error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
-			// to fix issue double <mainwp></mainwp> header in response
-			// else {
-			// MainWP_Helper::write(  MainWP_Child_Skeleton_Key::$information );
-			// }
 		}
 
 		register_shutdown_function( 'mainwp_skeleton_key_handle_fatal_error' );
@@ -42,7 +36,6 @@ class MainWP_Child_Skeleton_Key {
 		}
 
 		MainWP_Helper::write( $information );
-		// MainWP_Child_Skeleton_Key::$information = $information;
 		exit();
 	}
 
@@ -82,16 +75,20 @@ class MainWP_Child_Skeleton_Key {
 		$post_args                    = array();
 		$post_args['body']            = array();
 		$post_args['redirection']     = 5;
-		$post_args['decompress']      = false; // For gzinflate() data error bug
+		$post_args['decompress']      = false;
 		$post_args['cookies']         = array(
-			new WP_Http_Cookie( array(
-				'name'  => $auth_cookie_name,
-				'value' => $auth_cookie,
-			) ),
-			new WP_Http_Cookie( array(
-				'name'  => LOGGED_IN_COOKIE,
-				'value' => $logged_in_cookie,
-			) ),
+			new WP_Http_Cookie(
+				array(
+					'name'  => $auth_cookie_name,
+					'value' => $auth_cookie,
+				)
+			),
+			new WP_Http_Cookie(
+				array(
+					'name'  => LOGGED_IN_COOKIE,
+					'value' => $logged_in_cookie,
+				)
+			),
 		);
 
 		if ( isset( $args['get'] ) ) {
@@ -130,8 +127,8 @@ class MainWP_Child_Skeleton_Key {
 
 		$full_url = add_query_arg( $get_args, get_site_url() . $url );
 
-        global $mainWPChild;
-        add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+		global $mainWPChild;
+		add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
 		$response = wp_remote_post( $full_url, $post_args );
 
@@ -142,7 +139,7 @@ class MainWP_Child_Skeleton_Key {
 		$received_content = wp_remote_retrieve_body( $response );
 
 		if ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $received_content, $received_result ) > 0 ) {
-			$received_content_mainwp = json_decode( base64_decode( $received_result[1] ), true ); // json format
+			$received_content_mainwp = json_decode( base64_decode( $received_result[1] ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 			if ( isset( $received_content_mainwp['error'] ) ) {
 				return array( 'error' => $received_content_mainwp['error'] );
 			}
@@ -193,11 +190,11 @@ class MainWP_Child_Skeleton_Key {
 	}
 
 	public function save_settings() {
-		$settings = isset($_POST['settings']) ? $_POST['settings'] : array();
+		$settings = isset( $_POST['settings'] ) ? $_POST['settings'] : array();
 
-		if ( ! is_array($settings) || empty($settings)) {
-			return array( 'error' => 'Invalid data. Please check and try again.' );
-        }
+		if ( ! is_array( $settings ) || empty( $settings ) ) {
+			return array( 'error' => __( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
+		}
 
 		$whitelist_options = array(
 			'general' => array( 'blogname', 'blogdescription', 'gmt_offset', 'date_format', 'time_format', 'start_of_week', 'timezone_string', 'WPLANG' ),
@@ -206,20 +203,18 @@ class MainWP_Child_Skeleton_Key {
 		if ( ! is_multisite() ) {
 			if ( ! defined( 'WP_SITEURL' ) ) {
 				$whitelist_options['general'][] = 'siteurl';
-            }
+			}
 			if ( ! defined( 'WP_HOME' ) ) {
 				$whitelist_options['general'][] = 'home';
-            }
+			}
 
 			$whitelist_options['general'][] = 'admin_email';
 			$whitelist_options['general'][] = 'users_can_register';
 			$whitelist_options['general'][] = 'default_role';
 		}
 
-		// $whitelist_options = apply_filters( 'whitelist_options', $whitelist_options );
 		$whitelist_general = $whitelist_options['general'];
 
-		// Handle translation install.
 		if ( ! empty( $settings['WPLANG'] ) ) {
 			require_once ABSPATH . 'wp-admin/includes/translation-install.php';
 			if ( wp_can_install_language_pack() ) {
@@ -231,20 +226,20 @@ class MainWP_Child_Skeleton_Key {
 		}
 
 		$updated = false;
-		foreach ($settings as $option => $value) {
-			if (in_array($option, $whitelist_general)) {
+		foreach ( $settings as $option => $value ) {
+			if ( in_array( $option, $whitelist_general ) ) {
 				if ( ! is_array( $value ) ) {
 					$value = trim( $value );
-                }
+				}
 				$value = wp_unslash( $value );
-				update_option($option, $value);
+				update_option( $option, $value );
 				$updated = true;
 			}
 		}
 
-		if ( ! $updated) {
+		if ( ! $updated ) {
 			return false;
-        }
+		}
 
 		return array( 'result' => 'ok' );
 	}

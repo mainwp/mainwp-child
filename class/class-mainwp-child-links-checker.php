@@ -1,24 +1,20 @@
 <?php
-
-/*
- *
+/**
  * Credits
  *
  * Plugin-Name: Broken Link Checker
  * Plugin URI: https://wordpress.org/plugins/broken-link-checker/
  * Author: Janis Elsts, Vladimir Prelovac
  *
- * The code is used for the MainWP Broken Links Checker Extension
- * Extension URL: https://mainwp.com/extension/broken-links-checker/
- *
-*/
+ * The code is used for the MainWP Broken Links Checker Extension (Retired Extension)
+ */
 
 class MainWP_Child_Links_Checker {
 
 	public static $instance     = null;
-    public $is_plugin_installed = false;
+	public $is_plugin_installed = false;
 
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Links_Checker();
 		}
@@ -27,16 +23,16 @@ class MainWP_Child_Links_Checker {
 	}
 
 	public function __construct() {
-        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'broken-link-checker/broken-link-checker.php' ) ) {
-                    $this->is_plugin_installed = true;
+					$this->is_plugin_installed = true;
 		}
 
-        if ( ! $this->is_plugin_installed ) {
-            return;
-        }
+		if ( ! $this->is_plugin_installed ) {
+			return;
+		}
 
-        add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
 	}
 
 	public function action() {
@@ -47,44 +43,43 @@ class MainWP_Child_Links_Checker {
 		}
 		blc_init();
 
-        MainWP_Helper::update_option( 'mainwp_linkschecker_ext_enabled', 'Y', 'yes' );
-        // need this try()
-        try {
-            if ( isset( $_POST['mwp_action'] ) ) {
-                switch ( $_POST['mwp_action'] ) {
-                    case 'set_showhide':
-                        $information = $this->set_showhide();
-                        break;
-                    case 'sync_data':
-                        $information = $this->get_sync_data();
-                        break;
-                    case 'sync_links_data':
-                        $information = $this->get_links_data();
-                        break;
-                    case 'edit_link':
-                        $information = $this->edit_link();
-                        break;
-                    case 'unlink':
-                        $information = $this->unlink();
-                        break;
-                    case 'set_dismiss':
-                        $information = $this->set_link_dismissed();
-                        break;
-                    case 'discard':
-                        $information = $this->discard();
-                        break;
-                    case 'save_settings':
-                        $information = $this->save_settings();
-                        break;
-                    case 'force_recheck':
-                        $information = $this->force_recheck();
-                        break;
-                }
-            }
-            MainWP_Helper::write( $information );
-        } catch (Exception $e) {
-            MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
-        }
+		MainWP_Helper::update_option( 'mainwp_linkschecker_ext_enabled', 'Y', 'yes' );
+		try {
+			if ( isset( $_POST['mwp_action'] ) ) {
+				switch ( $_POST['mwp_action'] ) {
+					case 'set_showhide':
+						$information = $this->set_showhide();
+						break;
+					case 'sync_data':
+						$information = $this->get_sync_data();
+						break;
+					case 'sync_links_data':
+						$information = $this->get_links_data();
+						break;
+					case 'edit_link':
+						$information = $this->edit_link();
+						break;
+					case 'unlink':
+						$information = $this->unlink();
+						break;
+					case 'set_dismiss':
+						$information = $this->set_link_dismissed();
+						break;
+					case 'discard':
+						$information = $this->discard();
+						break;
+					case 'save_settings':
+						$information = $this->save_settings();
+						break;
+					case 'force_recheck':
+						$information = $this->force_recheck();
+						break;
+				}
+			}
+			MainWP_Helper::write( $information );
+		} catch ( Exception $e ) {
+			MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
+		}
 	}
 
 
@@ -113,7 +108,7 @@ class MainWP_Child_Links_Checker {
 		blc_cleanup_links();
 	}
 
-	function save_settings() {
+	public function save_settings() {
 		$information     = array();
 		$check_threshold = intval( $_POST['check_threshold'] );
 		if ( $check_threshold > 0 ) {
@@ -125,7 +120,7 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	function force_recheck() {
+	public function force_recheck() {
 		$this->initiate_recheck();
 		$information           = array();
 		$information['result'] = 'SUCCESS';
@@ -133,14 +128,14 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	function initiate_recheck() {
+	public function initiate_recheck() {
 		global $wpdb;
 		/** @var wpdb $wpdb */
 
-		// Delete all discovered instances
+		// Delete all discovered instances.
 		$wpdb->query( "TRUNCATE {$wpdb->prefix}blc_instances" );
 
-		// Delete all discovered links
+		// Delete all discovered links.
 		$wpdb->query( "TRUNCATE {$wpdb->prefix}blc_links" );
 
 		// Mark all posts, custom fields and bookmarks for processing.
@@ -158,18 +153,18 @@ class MainWP_Child_Links_Checker {
 		}
 		blc_init();
 
-		// Get the container type matching the type of the deleted post
+		// Get the container type matching the type of the deleted post.
 		$post = get_post( $post_id );
 		if ( ! $post ) {
 			return;
 		}
-		// Get the associated container object
+		// Get the associated container object.
 		$post_container = blcContainerHelper::get_container( array( $post->post_type, intval( $post_id ) ) );
 
 		if ( $post_container ) {
-			// Delete it
+			// Delete it.
 			$post_container->delete();
-			// Clean up any dangling links
+			// Clean up any dangling links.
 			blc_cleanup_links();
 		}
 	}
@@ -186,7 +181,7 @@ class MainWP_Child_Links_Checker {
 		return $plugins;
 	}
 
-	function update_footer( $text ) {
+	public function update_footer( $text ) {
 		?>
 		<script>
 			jQuery( document ).ready( function () {
@@ -199,7 +194,7 @@ class MainWP_Child_Links_Checker {
 	}
 
 
-	function set_showhide() {
+	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_linkschecker_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
@@ -207,79 +202,78 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-    // ok
-    public function syncOthersData( $information, $data = array() ) {
-        if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {
-            try {
-                $information['syncBrokenLinksCheckerData'] = $this->get_sync_data();
-            } catch (Exception $e) {
-
-            }
-        }
+	public function syncOthersData( $information, $data = array() ) {
+		if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {
+			try {
+				$information['syncBrokenLinksCheckerData'] = $this->get_sync_data();
+			} catch ( Exception $e ) {
+				// ok!
+			}
+		}
 		return $information;
 	}
 
 
-	function get_sync_data( $strategy = '' ) {
+	public function get_sync_data( $strategy = '' ) {
 		$information = array();
 		$data        = $this->get_count_links();
-        if (is_array($data)) {
-            $information['data'] = $data;
-        }
+		if ( is_array( $data ) ) {
+			$information['data'] = $data;
+		}
 		return $information;
 	}
 
-	function get_links_data() {
+	public function get_links_data() {
 
-        if ( ! defined('BLC_DIRECTORY')) {
+		if ( ! defined( 'BLC_DIRECTORY' ) ) {
 			return;
-        }
+		}
 
-        $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
-        $file_path2 = BLC_DIRECTORY . '/includes/modules.php';
-        MainWP_Helper::check_files_exists(array( $file_path1, $file_path2 ));
+		$file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
+		$file_path2 = BLC_DIRECTORY . '/includes/modules.php';
+		MainWP_Helper::check_files_exists( array( $file_path1, $file_path2 ) );
 
-        require_once $file_path1;
-        require_once $file_path2;
+		require_once $file_path1;
+		require_once $file_path2;
 
-        MainWP_Helper::check_classes_exists('blcLinkQuery');
-        MainWP_Helper::check_methods('blcLinkQuery', 'getInstance');
+		MainWP_Helper::check_classes_exists( 'blcLinkQuery' );
+		MainWP_Helper::check_methods( 'blcLinkQuery', 'getInstance' );
 
 		$blc_link_query = blcLinkQuery::getInstance();
 
-        MainWP_Helper::check_methods($blc_link_query, 'get_filter_links');
+		MainWP_Helper::check_methods( $blc_link_query, 'get_filter_links' );
 
 		$total = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 
-		$max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 50;
-		$offset      = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+		$max_results = isset( $_POST['max_results'] ) ? intval( $_POST['max_results'] ) : 50;
+		$offset      = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
 
 		$params = array(
 			array( 'load_instances' => true ),
 			'max_results' => $max_results,
 		);
 
-		if (empty($offset)) {
+		if ( empty( $offset ) ) {
 			$first_sync = true;
 		} else {
 			$params['offset'] = $offset;
 		}
 
-		$link_data = $this->links_checker_data($params);
+		$link_data = $this->links_checker_data( $params );
 
 		$total_sync = 0;
-		if ($offset) {
+		if ( $offset ) {
 			$total_sync = $offset;
 		}
-		$total_sync += ( is_array($link_data) ? count($link_data) : 0 );
+		$total_sync += ( is_array( $link_data ) ? count( $link_data ) : 0 );
 
 		$information = array( 'links_data' => $link_data );
 
-		if ($first_sync) {
+		if ( $first_sync ) {
 			$information['data'] = $this->get_count_links();
 		}
 
-		if ($total > $offset + $max_results ) {
+		if ( $total > $offset + $max_results ) {
 			$information['sync_offset'] = $offset + $max_results;
 		} else {
 			$information['last_sync']  = 1;
@@ -291,26 +285,26 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	function get_count_links() {
-        if ( ! defined('BLC_DIRECTORY')) {
+	public function get_count_links() {
+		if ( ! defined( 'BLC_DIRECTORY' ) ) {
 			return;
-        }
+		}
 
-        $file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
-        $file_path2 = BLC_DIRECTORY . '/includes/modules.php';
+		$file_path1 = BLC_DIRECTORY . '/includes/link-query.php';
+		$file_path2 = BLC_DIRECTORY . '/includes/modules.php';
 
-        MainWP_Helper::check_files_exists(array( $file_path1, $file_path2 ));
+		MainWP_Helper::check_files_exists( array( $file_path1, $file_path2 ) );
 
-        require_once $file_path1;
-        require_once $file_path2;
+		require_once $file_path1;
+		require_once $file_path2;
 
-        MainWP_Helper::check_classes_exists('blcLinkQuery');
-        MainWP_Helper::check_methods('blcLinkQuery', 'getInstance');
+		MainWP_Helper::check_classes_exists( 'blcLinkQuery' );
+		MainWP_Helper::check_methods( 'blcLinkQuery', 'getInstance' );
 
 		$data           = array();
 		$blc_link_query = blcLinkQuery::getInstance();
 
-        MainWP_Helper::check_methods($blc_link_query, 'get_filter_links');
+		MainWP_Helper::check_methods( $blc_link_query, 'get_filter_links' );
 
 		$data['broken']    = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
 		$data['redirects'] = $blc_link_query->get_filter_links( 'redirects', array( 'count_only' => true ) );
@@ -320,10 +314,10 @@ class MainWP_Child_Links_Checker {
 		return $data;
 	}
 
-	function links_checker_data( $params) {
+	public function links_checker_data( $params ) {
 
-        MainWP_Helper::check_functions('blc_get_links');
-        MainWP_Helper::check_classes_exists('blcLink');
+		MainWP_Helper::check_functions( 'blc_get_links' );
+		MainWP_Helper::check_classes_exists( 'blcLink' );
 
 		$links = blc_get_links( $params );
 
@@ -345,7 +339,6 @@ class MainWP_Child_Links_Checker {
 			'last_success',
 			'may_recheck',
 			'false_positive',
-			// 'result_hash',
 			'dismissed',
 			'status_text',
 			'status_code',
@@ -374,7 +367,7 @@ class MainWP_Child_Links_Checker {
 
 				$days_broken = 0;
 				if ( $link->broken ) {
-					// Add a highlight to broken links that appear to be permanently broken
+					// Add a highlight to broken links that appear to be permanently broken.
 					$days_broken = intval( ( time() - $link->first_failure ) / ( 3600 * 24 ) );
 					if ( $days_broken >= $blc_option['failure_duration_threshold'] ) {
 						$extra_info['permanently_broken'] = 1;
@@ -388,29 +381,27 @@ class MainWP_Child_Links_Checker {
 
 				$get_link = new blcLink( intval( $link->link_id ) );
 				if ( $get_link->valid() ) {
-                    MainWP_Helper::check_methods($get_link, 'get_instances');
+					MainWP_Helper::check_methods( $get_link, 'get_instances' );
 					$instances = $get_link->get_instances();
 				}
 
 				if ( ! empty( $instances ) ) {
-                    $first_instance = reset( $instances );
+					$first_instance = reset( $instances );
 
-                    MainWP_Helper::check_methods($first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable' ) );
+					MainWP_Helper::check_methods( $first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable' ) );
 
 					$new_link->link_text          = $first_instance->ui_get_link_text();
 					$extra_info['count_instance'] = count( $instances );
 					$container                    = $first_instance->get_container();
 
-					/** @var blcContainer $container */
-
-					if ( ! empty( $container ) /* && ($container instanceof blcAnyPostContainer) */ ) {
-                        if (true === MainWP_Helper::check_properties($first_instance, array( 'container_field' ), true )) {
-                            if (true === MainWP_Helper::check_properties($container, array( 'container_type', 'container_id' ), true )) {
-                                $extra_info['container_type'] = $container->container_type;
-                                $extra_info['container_id']   = $container->container_id;
-                                $extra_info['source_data']    = $this->ui_get_source( $container, $first_instance->container_field );
-                            }
-                        }
+					if ( ! empty( $container ) ) {
+						if ( true === MainWP_Helper::check_properties( $first_instance, array( 'container_field' ), true ) ) {
+							if ( true === MainWP_Helper::check_properties( $container, array( 'container_type', 'container_id' ), true ) ) {
+								$extra_info['container_type'] = $container->container_type;
+								$extra_info['container_id']   = $container->container_id;
+								$extra_info['source_data']    = $this->ui_get_source( $container, $first_instance->container_field );
+							}
+						}
 					}
 
 					$can_edit_text       = false;
@@ -444,7 +435,7 @@ class MainWP_Child_Links_Checker {
 					$new_link->link_text          = '';
 					$extra_info['count_instance'] = 0;
 				}
-				$new_link->extra_info = base64_encode(serialize($extra_info));
+				$new_link->extra_info = base64_encode( serialize( $extra_info ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 				$new_link->synced     = 1;
 				$return[]             = $new_link;
 			}
@@ -455,17 +446,17 @@ class MainWP_Child_Links_Checker {
 		return $return;
 	}
 
-	function edit_link() {
+	public function edit_link() {
 		$information = array();
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
 
 			return $information;
 		}
-		// Load the link
+		// Load the link.
 		$link = new blcLink( intval( $_POST['link_id'] ) );
 		if ( ! $link->valid() ) {
-			$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link
+			$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
 			return $information;
 		}
 
@@ -515,10 +506,9 @@ class MainWP_Child_Links_Checker {
 				'ui_link_text' => isset( $new_text ) ? $ui_link_text : null,
 				'errors'       => array(),
 			);
-			// url, status text, status code, link text, editable link text
+			// url, status text, status code, link text, editable link text.
 
 			foreach ( $rez['errors'] as $error ) {
-				/** @var $error WP_Error */
 				array_push( $response['errors'], implode( ', ', $error->get_error_messages() ) );
 			}
 
@@ -526,7 +516,7 @@ class MainWP_Child_Links_Checker {
 		}
 	}
 
-	function unlink() {
+	public function unlink() {
 		$information = array();
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
@@ -535,15 +525,15 @@ class MainWP_Child_Links_Checker {
 		}
 
 		if ( isset( $_POST['link_id'] ) ) {
-			// Load the link
+			// Load the link.
 			$link = new blcLink( intval( $_POST['link_id'] ) );
 
 			if ( ! $link->valid() ) {
-				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link
+				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
 				return $information;
 			}
 
-			// Try and unlink it
+			// Try and unlink it.
 			$rez = $link->unlink();
 
 			if ( false === $rez ) {
@@ -580,21 +570,21 @@ class MainWP_Child_Links_Checker {
 		}
 
 		if ( isset( $_POST['link_id'] ) ) {
-			// Load the link
+			// Load the link.
 			$link = new blcLink( intval( $_POST['link_id'] ) );
 
 			if ( ! $link->valid() ) {
-				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link
+				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
 				return $information;
 			}
 
 			$link->dismissed = $dismiss;
 
-			// Save the changes
+			// Save the changes.
 			if ( $link->save() ) {
 				$information = 'OK';
 			} else {
-				$information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link
+				$information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link.
 			}
 
 			return $information;
@@ -613,26 +603,26 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 		if ( isset( $_POST['link_id'] ) ) {
-			// Load the link
+			// Load the link.
 			$link = new blcLink( intval( $_POST['link_id'] ) );
 
 			if ( ! $link->valid() ) {
-				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link
+				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
 				return $information;
 			}
 
-			// Make it appear "not broken"
+			// Make it appear "not broken".
 			$link->broken             = false;
 			$link->false_positive     = true;
 			$link->last_check_attempt = time();
 			$link->log                = __( 'This link was manually marked as working by the user.', 'mainwp-child' );
 
-			// Save the changes
+			// Save the changes.
 			if ( $link->save() ) {
 				$information['status']             = 'OK';
 				$information['last_check_attempt'] = $link->last_check_attempt;
 			} else {
-				$information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link
+				$information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link.
 			}
 		} else {
 			$information['error'] = __( 'Error: link_id is not specified.', 'mainwp-child' );
@@ -641,7 +631,7 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	function ui_get_source( $container, $container_field = '' ) {
+	public function ui_get_source( $container, $container_field = '' ) {
 		if ( 'comment' === $container->container_type ) {
 			return $this->ui_get_source_comment( $container, $container_field );
 		} elseif ( $container instanceof blcAnyPostContainer ) {
@@ -651,7 +641,7 @@ class MainWP_Child_Links_Checker {
 		return array();
 	}
 
-	function ui_get_source_comment( $container, $container_field = '' ) {
+	public function ui_get_source_comment( $container, $container_field = '' ) {
 		// Display a comment icon.
 		if ( 'comment_author_url' === $container_field ) {
 			$image = 'font-awesome/font-awesome-user.png';
@@ -659,13 +649,13 @@ class MainWP_Child_Links_Checker {
 			$image = 'font-awesome/font-awesome-comment-alt.png';
 		}
 
-        if (true !== MainWP_Helper::check_methods($container, array( 'get_wrapped_object' ), true )) {
-            return false;
-        }
+		if ( true !== MainWP_Helper::check_methods( $container, array( 'get_wrapped_object' ), true ) ) {
+			return false;
+		}
 
-        $comment = $container->get_wrapped_object();
+		$comment = $container->get_wrapped_object();
 
-		// Display a small text sample from the comment
+		// Display a small text sample from the comment.
 		$text_sample = strip_tags( $comment->comment_content );
 		$text_sample = blcUtility::truncate( $text_sample, 65 );
 
@@ -681,12 +671,11 @@ class MainWP_Child_Links_Checker {
 		);
 	}
 
-	function ui_get_source_post( $container, $container_field = '' ) {
+	public function ui_get_source_post( $container, $container_field = '' ) {
 		return array(
 			'post_title'        => get_the_title( $container->container_id ),
-			'post_status'       => get_post_status($container->container_id),
+			'post_status'       => get_post_status( $container->container_id ),
 			'container_anypost' => true,
 		);
 	}
 }
-

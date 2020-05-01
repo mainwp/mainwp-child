@@ -1,10 +1,8 @@
 <?php
-
-/*
- *
+/**
  * Credits
  *
- * Plugin-Name: Yoast SEO
+ * Plugin Name: Yoast SEO
  * Plugin URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
  * Author: Team Yoast
  * Author URI: https://yoast.com/
@@ -12,13 +10,12 @@
  *
  * The code is used for the MainWP WordPress SEO Extension
  * Extension URL: https://mainwp.com/extension/wordpress-seo/
- *
-*/
+ */
 
 class MainWP_Wordpress_SEO {
 	public static $instance = null;
 
-	static function Instance() {
+	public static function Instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Wordpress_SEO();
 		}
@@ -53,39 +50,36 @@ class MainWP_Wordpress_SEO {
 	}
 
 	public function import_settings() {
-        // to compatible
-        if ( isset($_POST['file_url']) ) {
-            $file_url       = base64_decode( $_POST['file_url'] );
-            $temporary_file = '';
-            try {
-                include_once ABSPATH . 'wp-admin/includes/file.php'; // Contains download_url
-                $temporary_file = download_url( $file_url );
+		if ( isset( $_POST['file_url'] ) ) {
+			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$temporary_file = '';
+			try {
+				include_once ABSPATH . 'wp-admin/includes/file.php';
+				$temporary_file = download_url( $file_url );
 
-                if ( is_wp_error( $temporary_file ) ) {
-                    throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
-                } else {
-                    if ( $this->import_seo_settings( $temporary_file ) ) {
-                        $information['success'] = true;
-                    } else {
-                        throw new Exception( __( 'Settings could not be imported.', 'wordpress-seo' ) );
-                    }
-                }
-            } catch ( Exception $e ) {
-                $information['error'] = $e->getMessage();
-            }
+				if ( is_wp_error( $temporary_file ) ) {
+					throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
+				} else {
+					if ( $this->import_seo_settings( $temporary_file ) ) {
+						$information['success'] = true;
+					} else {
+						throw new Exception( __( 'Settings could not be imported.', 'mainwp-child' ) );
+					}
+				}
+			} catch ( Exception $e ) {
+				$information['error'] = $e->getMessage();
+			}
 
-            if ( file_exists( $temporary_file ) ) {
-                unlink( $temporary_file );
-            }
+			if ( file_exists( $temporary_file ) ) {
+				unlink( $temporary_file );
+			}
+		} elseif ( isset( $_POST['settings'] ) ) {
+			try {
+				$settings = base64_decode( $_POST['settings'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				$options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
+				if ( is_array( $options ) && array() !== $options ) {
 
-        } elseif ( isset( $_POST['settings'] ) ) {
-            try {
-                $settings = base64_decode( $_POST['settings'] );
-                 // @codingStandardsIgnoreLine
-                $options = parse_ini_string( $settings, true, INI_SCANNER_RAW ); // phpcs:ignore PHPCompatibility.FunctionUse.NewFunctions.parse_ini_stringFound -- We won't get to this function if PHP < 5.3 due to the WPSEO_NAMESPACES check above.
-                if ( is_array( $options ) && array() !== $options ) {
-
-                     $old_wpseo_version = null;
+					$old_wpseo_version = null;
 					if ( isset( $options['wpseo']['version'] ) && '' !== $options['wpseo']['version'] ) {
 						$old_wpseo_version = $options['wpseo']['version'];
 					}
@@ -93,21 +87,20 @@ class MainWP_Wordpress_SEO {
 						if ( 'wpseo_taxonomy_meta' === $name ) {
 							$optgroup = json_decode( urldecode( $optgroup['wpseo_taxonomy_meta'] ), true );
 						}
-						// Make sure that the imported options are cleaned/converted on import
 						$option_instance = WPSEO_Options::get_option_instance( $name );
 						if ( is_object( $option_instance ) && method_exists( $option_instance, 'import' ) ) {
 							$optgroup = $option_instance->import( $optgroup, $old_wpseo_version, $options );
 						}
 					}
-                     $information['success'] = true;
+					$information['success'] = true;
 
 				} else {
-					throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
+					throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
-            } catch ( Exception $e ) {
-                $information['error'] = $e->getMessage();
-            }
-        }
+			} catch ( Exception $e ) {
+				$information['error'] = $e->getMessage();
+			}
+		}
 
 		MainWP_Helper::write( $information );
 	}
@@ -128,7 +121,7 @@ class MainWP_Wordpress_SEO {
 			$unzipped = unzip_file( $file, $p_path );
 			if ( ! is_wp_error( $unzipped ) ) {
 				$filename = $p_path . 'settings.ini';
-				if ( @is_file( $filename ) && is_readable( $filename ) ) {
+				if ( is_file( $filename ) && is_readable( $filename ) ) {
 					$options = parse_ini_file( $filename, true );
 
 					if ( is_array( $options ) && array() !== $options ) {
@@ -140,7 +133,6 @@ class MainWP_Wordpress_SEO {
 							if ( 'wpseo_taxonomy_meta' === $name ) {
 								$optgroup = json_decode( urldecode( $optgroup['wpseo_taxonomy_meta'] ), true );
 							}
-							// Make sure that the imported options are cleaned/converted on import
 							$option_instance = WPSEO_Options::get_option_instance( $name );
 							if ( is_object( $option_instance ) && method_exists( $option_instance, 'import' ) ) {
 								$optgroup = $option_instance->import( $optgroup, $old_wpseo_version, $options );
@@ -149,35 +141,34 @@ class MainWP_Wordpress_SEO {
 
 						return true;
 					} else {
-						throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
+						throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
 					}
 					unset( $options, $name, $optgroup );
 				} else {
-					throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) );
+					throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
-				@unlink( $filename );
-				@unlink( $p_path );
+				unlink( $filename );
+				unlink( $p_path );
 			} else {
-				throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) . ' ' . sprintf( __( 'Unzipping failed with error "%s".', 'wordpress-seo' ), $unzipped->get_error_message() ) );
+				throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( __( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) );
 			}
 			unset( $zip, $unzipped );
-			@unlink( $file );
+			unlink( $file );
 		} else {
-			throw new Exception( __( 'Settings could not be imported:', 'wordpress-seo' ) . ' ' . __( 'Upload failed.', 'wordpress-seo' ) );
+			throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . __( 'Upload failed.', 'mainwp-child' ) );
 		}
 
 		return false;
 	}
 
-	// from wordpress-seo plugin
 	public function parse_column_score( $post_id ) {
 		if ( '1' === WPSEO_Meta::get_value( 'meta-robots-noindex', $post_id ) ) {
 			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_INDEX );
-			$title = __( 'Post is set to noindex.', 'wordpress-seo' );
+			$title = __( 'Post is set to noindex.', 'mainwp-child' );
 			WPSEO_Meta::set_value( 'linkdex', 0, $post_id );
 		} elseif ( '' === WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
 			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_FOCUS );
-			$title = __( 'Focus keyword not set.', 'wordpress-seo' );
+			$title = __( 'Focus keyword not set.', 'mainwp-child' );
 		} else {
 			$score = (int) WPSEO_Meta::get_value( 'linkdex', $post_id );
 			$rank  = WPSEO_Rank::from_numeric_score( $score );
@@ -187,7 +178,6 @@ class MainWP_Wordpress_SEO {
 		return $this->render_score_indicator( $rank, $title );
 	}
 
-	// from wordpress-seo plugin
 	public function parse_column_score_readability( $post_id ) {
 		$score = (int) WPSEO_Meta::get_value( 'content_score', $post_id );
 		$rank  = WPSEO_Rank::from_numeric_score( $score );
@@ -195,7 +185,6 @@ class MainWP_Wordpress_SEO {
 		return $this->render_score_indicator( $rank );
 	}
 
-	// from wordpress-seo plugin
 	private function render_score_indicator( $rank, $title = '' ) {
 		if ( empty( $title ) ) {
 			$title = $rank->get_label();

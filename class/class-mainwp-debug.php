@@ -4,7 +4,7 @@ class MainWP_Debug {
 	/**
 	 * @param $mainwpChild MainWP_Child
 	 */
-	public static function process( &$mainwpChild) {
+	public static function process( &$mainwpChild ) {
 		if ( ! isset( $_GET['mainwpdebug'] ) || ! defined( 'MAINWP_DEBUG' ) || ( MAINWP_DEBUG !== true ) ) {
 			return;
 		}
@@ -13,7 +13,6 @@ class MainWP_Debug {
 		$start = microtime( true );
 
 		if ( 'fullbackup' == $_GET['mainwpdebug'] ) {
-			// Full backup
 			$_POST['type']          = 'full';
 			$_POST['excludebackup'] = '1';
 			$_POST['excludecache']  = '1';

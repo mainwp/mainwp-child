@@ -1,7 +1,7 @@
 <?php
 
 class MainWP_Child_DB {
-	// Support old & new versions of WordPress (3.9+)
+	// Support old & new versions of WordPress (3.9+).
 	public static function use_mysqli() {
 		/** @var $wpdb wpdb */
 		if ( ! function_exists( 'mysqli_connect' ) ) {
@@ -86,7 +86,7 @@ class MainWP_Child_DB {
 		}
 	}
 
-	static function get_size() {
+	public static function get_size() {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
