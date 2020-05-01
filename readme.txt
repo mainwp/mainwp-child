@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.3.2
+Tested up to: 5.4.1
 Requires PHP: 5.6
-Stable tag: 4.0.7
+Stable tag: 4.0.7.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -70,6 +70,18 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.7.1 - 4-30-20 =
+* Fixed: JSON decoding issues on specific setups
+* Fixed: an issue with incorrect images URL
+* Fixed: conflict with the Download Manager plugin
+* Fixed: multiple PHP warnings
+* Fixed: MySQL query compatibility problems
+* Fixed: an issue with saving Wordfence settings
+* Fixed: an issue with showing correct post and page creating time
+* Fixed: an issue with displaying correct author in reports
+* Added: support for WPVivid backups in the reporting system
+* Preventative: security improvements
 
 = 4.0.7 - 2-25-20 =
 * Fixed: an issue with saving Bulk Setting Manager keys

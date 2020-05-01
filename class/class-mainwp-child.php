@@ -116,7 +116,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 }
 
 class MainWP_Child {
-	public static $version  = '4.0.7';
+	public static $version  = '4.0.7.1';
 	private $update_version = '1.5';
 
 	private $callableFunctions = array(
@@ -1082,6 +1082,10 @@ class MainWP_Child {
 	}
 
 	public function check_login() {
+		
+		if ( !isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) )
+			return false;
+		
 		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
 			$file = $_REQUEST['f'];
