@@ -654,7 +654,7 @@ class MainWP_Keyword_Links {
 			if ( get_option( 'mainwp_kwl_enable_statistic' ) ) {
 				$this->add_statistic( $link_id, $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_REFERER'] );
 			}
-			wp_redirect( $destination_url );
+			wp_safe_redirect( $destination_url );
 			die();
 		}
 	}

@@ -392,7 +392,7 @@ class MainWP_Child_Back_WP_Up {
 
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=backwpup' );
 		if ( false !== $pos ) {
-			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
 	}
@@ -1047,7 +1047,7 @@ class MainWP_Child_Back_WP_Up {
 				if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {
 					require_once ABSPATH . WPINC . '/class-phpmailer.php';
 					require_once ABSPATH . WPINC . '/class-smtp.php';
-					$phpmailer = new PHPMailer( true );
+					$phpmailer = new PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
 				}
 				if ( is_object( $phpmailer ) ) {
 					do_action_ref_array( 'phpmailer_init', array( &$phpmailer ) );

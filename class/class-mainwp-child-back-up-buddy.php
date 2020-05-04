@@ -86,7 +86,7 @@ class MainWP_Child_Back_Up_Buddy {
 		remove_menu_page( 'pb_backupbuddy_backup' );
 
 		if ( false !== stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=pb_backupbuddy_' ) ) {
-			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
 	}
@@ -783,7 +783,7 @@ class MainWP_Child_Back_Up_Buddy {
 			if ( isset( $getOverview['lastBackupStats']['finish'] ) ) {
 				$finish_time             = $getOverview['lastBackupStats']['finish'];
 				$time                    = $this->localize_time( $finish_time );
-				$data['lastBackupStats'] = date( 'M j - g:i A', $time );
+				$data['lastBackupStats'] = date( 'M j - g:i A', $time ); // phpcs:ignore -- local time
 				$data['lasttime_backup'] = $finish_time;
 				MainWP_Helper::update_lasttime_backup( 'backupbuddy', $finish_time ); // support Require Backup Before Update feature.
 			} else {

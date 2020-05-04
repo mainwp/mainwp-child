@@ -287,7 +287,7 @@ class MainWP_Child_Timecapsule {
 
 	protected function getBackups( $last_time = false ) {
 		if ( empty( $last_time ) ) {
-			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) );
+			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore -- local time
 		}
 		global $wpdb;
 		$all_backups = $wpdb->get_results(
@@ -1172,7 +1172,7 @@ class MainWP_Child_Timecapsule {
 
 		$now = localtime( time(), true );
 		echo '<tr title=""><td>' . __( 'Server Time', 'wp-time-capsule' ) . '</td><td>' . esc_html( $now['tm_hour'] . ':' . $now['tm_min'] ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Blog Time', 'wp-time-capsule' ) . '</td><td>' . date( 'H:i', current_time( 'timestamp' ) ) . '</td></tr>';
+		echo '<tr title=""><td>' . __( 'Blog Time', 'wp-time-capsule' ) . '</td><td>' . date( 'H:i', current_time( 'timestamp' ) ) . '</td></tr>'; // phpcs:ignore -- local time
 		echo '<tr title="WPLANG"><td>' . __( 'Blog language', 'wp-time-capsule' ) . '</td><td>' . get_bloginfo( 'language' ) . '</td></tr>';
 		echo '<tr title="utf8"><td>' . __( 'MySQL Client encoding', 'wp-time-capsule' ) . '</td><td>';
 		echo defined( 'DB_CHARSET' ) ? DB_CHARSET : '';
@@ -1246,7 +1246,7 @@ class MainWP_Child_Timecapsule {
 		remove_menu_page( 'wp-time-capsule-monitor' );
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=wp-time-capsule-monitor' );
 		if ( false !== $pos ) {
-			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
 	}

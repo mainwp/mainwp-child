@@ -632,7 +632,7 @@ class MainWP_Child {
 			remove_menu_page( 'tools.php' );
 			$pos = stripos( $_SERVER['REQUEST_URI'], 'tools.php' ) || stripos( $_SERVER['REQUEST_URI'], 'import.php' ) || stripos( $_SERVER['REQUEST_URI'], 'export.php' );
 			if ( false !== $pos ) {
-				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			}
 		}
 		// if preserve branding and do not remove menus.
@@ -640,7 +640,7 @@ class MainWP_Child {
 			remove_menu_page( 'options-general.php' );
 			$pos = stripos( $_SERVER['REQUEST_URI'], 'options-general.php' ) || stripos( $_SERVER['REQUEST_URI'], 'options-writing.php' ) || stripos( $_SERVER['REQUEST_URI'], 'options-reading.php' ) || stripos( $_SERVER['REQUEST_URI'], 'options-discussion.php' ) || stripos( $_SERVER['REQUEST_URI'], 'options-media.php' ) || stripos( $_SERVER['REQUEST_URI'], 'options-permalink.php' );
 			if ( false !== $pos ) {
-				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
 			}
 		}
@@ -649,7 +649,7 @@ class MainWP_Child {
 			remove_submenu_page( 'options-general.php', 'options-permalink.php' );
 			$pos = stripos( $_SERVER['REQUEST_URI'], 'options-permalink.php' );
 			if ( false !== $pos ) {
-				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
 			}
 		}
@@ -1156,7 +1156,7 @@ class MainWP_Child {
 
 			// Redirect to the admin part if needed.
 			if ( isset( $_POST['admin'] ) && '1' === $_POST['admin'] ) {
-				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/' );
+				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/' );
 				die();
 			}
 		}
@@ -1403,11 +1403,11 @@ class MainWP_Child {
 						$open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . wp_create_nonce( 'wp-ajax' ), $open_location );
 					}
 				}
-				wp_redirect( site_url() . $open_location );
+				wp_safe_redirect( site_url() . $open_location );
 				exit();
 			}
 
-			wp_redirect( admin_url( $where ) );
+			wp_safe_redirect( admin_url( $where ) );
 			exit();
 		}
 
@@ -1480,14 +1480,14 @@ class MainWP_Child {
 
 			// Redirect to the admin part if needed.
 			if ( isset( $_POST['admin'] ) && '1' === $_POST['admin'] ) {
-				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/' );
+				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/' );
 				die();
 			}
 		}
 
 		// Init extensions.
 		// Handle fatal errors for those init if needed.
-		MainWP_Child_iThemes_Security::Instance()->ithemes_init();
+		MainWP_Child_IThemes_Security::Instance()->ithemes_init();
 		MainWP_Child_Updraft_Plus_Backups::Instance()->updraftplus_init();
 		MainWP_Child_Back_Up_Wordpress::Instance()->init();
 		MainWP_Child_WP_Rocket::Instance()->init();
@@ -1501,9 +1501,10 @@ class MainWP_Child {
 		MainWP_Child_Pagespeed::Instance()->init();
 		MainWP_Child_Links_Checker::Instance()->init();
 		MainWP_Child_WPvivid_BackupRestore::Instance()->init();
+		
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
-			$_wp_submenu_nopriv = array();
+			$_wp_submenu_nopriv = array(); // phpcs:ignore -- to fix warning.
 		}
 
 		// Call the function required.
@@ -1959,7 +1960,7 @@ class MainWP_Child {
 			}
 
 			global $wp_current_filter;
-			$wp_current_filter[] = 'load-plugins.php';
+			$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
 			wp_update_plugins();
 
 			// trick to prevent some premium plugins re-create update info.
@@ -3614,7 +3615,7 @@ class MainWP_Child {
 		}
 
 		global $wp_current_filter;
-		$wp_current_filter[] = 'load-plugins.php';
+		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
 
 		wp_update_plugins();
 		include_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -5468,7 +5469,7 @@ class MainWP_Child {
 	}
 
 	public function ithemes() {
-		MainWP_Child_iThemes_Security::Instance()->action();
+		MainWP_Child_IThemes_Security::Instance()->action();
 	}
 
 

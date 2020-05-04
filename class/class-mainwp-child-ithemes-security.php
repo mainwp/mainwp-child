@@ -13,15 +13,14 @@
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  */
 
-class MainWP_Child_iThemes_Security {
+class MainWP_Child_IThemes_Security {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 
 	public static function Instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_iThemes_Security();
+			self::$instance = new self();
 		}
-
 		return self::$instance;
 	}
 
@@ -139,7 +138,7 @@ class MainWP_Child_iThemes_Security {
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
 			add_action( 'admin_head', array( &$this, 'custom_admin_css' ) );
 			if ( isset( $_GET['page'] ) && ( 'itsec' == $_GET['page'] || 'itsec-security-check' == $_GET['page'] ) ) {
-				wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
 			}
 		}
@@ -992,7 +991,7 @@ class MainWP_Child_iThemes_Security {
 				$and = '';
 			}
 
-			$active = $and . " `lockout_active`=1 AND `lockout_expire_gmt` > '" . date( 'Y-m-d H:i:s', $itsec_globals['current_time_gmt'] ) . "'";
+			$active = $and . " `lockout_active`=1 AND `lockout_expire_gmt` > '" . gmdate( 'Y-m-d H:i:s', $itsec_globals['current_time_gmt'] ) . "'"; 
 
 		} else {
 

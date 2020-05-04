@@ -603,7 +603,7 @@ class MainWP_Child_Branding {
 		$pos1 = stripos( $_SERVER['REQUEST_URI'], 'update-core.php' );
 		$pos2 = stripos( $_SERVER['REQUEST_URI'], 'plugins.php' );
 		if ( false !== $pos1 || false !== $pos2 ) {
-			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
 	}
@@ -742,7 +742,7 @@ class MainWP_Child_Branding {
 						$generator = '<!-- generator="' . $extra_setting['site_generator'] . '" -->';
 						break;
 					case 'export':
-						$generator = '<!-- generator="' . $extra_setting['site_generator'] . '" created="' . date( 'Y-m-d H:i' ) . '" -->';
+						$generator = '<!-- generator="' . $extra_setting['site_generator'] . '" created="' . date( 'Y-m-d H:i' ) . '" -->'; //phpcs:ignore -- current local time
 						break;
 				endswitch;
 

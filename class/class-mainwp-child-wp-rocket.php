@@ -211,7 +211,7 @@ class MainWP_Child_WP_Rocket {
 		}
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'options-general.php?page=wprocket' );
 		if ( false !== $pos ) {
-			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
 	}

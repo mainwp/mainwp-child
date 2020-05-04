@@ -1074,7 +1074,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'tools.php?page=backupwordpress' );
 		if ( false !== $pos ) {
-			wp_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
 	}
