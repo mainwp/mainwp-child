@@ -554,8 +554,8 @@ class MainWP_Client_Report {
 											}
 											continue;
 										}
-									}									
-								} 
+									}
+								}
 							}
 							$count ++;
 						}
@@ -860,11 +860,11 @@ class MainWP_Client_Report {
 
 		if ( isset( $record->meta ) ) {
 			$meta = $record->meta;
-						
-			if ( isset( $meta[ $meta_key ] ) ) {								
+
+			if ( isset( $meta[ $meta_key ] ) ) {
 				$value = $meta[ $meta_key ];
 				$value = ( 'user_meta' == $meta_key && isset( $value[1] ) ) ? $value[1] : current( $value );
-				
+
 				if ( 'author_meta' === $meta_key ) {
 					$value = maybe_unserialize( $value );
 					if ( is_array( $value ) ) {

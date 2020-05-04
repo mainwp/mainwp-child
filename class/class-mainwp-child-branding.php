@@ -961,7 +961,7 @@ class MainWP_Child_Branding {
 			return true;
 		}
 
-		if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) {
+		if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) && is_array( $plugins ) ) {
 			return true;
 		}
 
