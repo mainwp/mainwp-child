@@ -1501,7 +1501,7 @@ class MainWP_Child {
 		MainWP_Child_Pagespeed::Instance()->init();
 		MainWP_Child_Links_Checker::Instance()->init();
 		MainWP_Child_WPvivid_BackupRestore::Instance()->init();
-		
+
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
 			$_wp_submenu_nopriv = array(); // phpcs:ignore -- to fix warning.

@@ -991,7 +991,7 @@ class MainWP_Child_IThemes_Security {
 				$and = '';
 			}
 
-			$active = $and . " `lockout_active`=1 AND `lockout_expire_gmt` > '" . gmdate( 'Y-m-d H:i:s', $itsec_globals['current_time_gmt'] ) . "'"; 
+			$active = $and . " `lockout_active`=1 AND `lockout_expire_gmt` > '" . gmdate( 'Y-m-d H:i:s', $itsec_globals['current_time_gmt'] ) . "'";
 
 		} else {
 
