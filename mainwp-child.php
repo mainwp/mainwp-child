@@ -25,16 +25,17 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
 }
 
 function mainwp_child_autoload( $class_name ) {
-	
-	if ( 0 !== strpos( $class_name, 'MainWP\Child' ) ) 
+
+	if ( 0 !== strpos( $class_name, 'MainWP\Child' ) ) {
 		return;
-		
+	}
+
 	// trip the namespace prefix: MainWP\Child\ .
 	$class_name = substr( $class_name, 13 );
 	if ( 0 !== strpos( $class_name, 'MainWP_' ) ) {
 		return;
 	}
-		
+
 	$autoload_dir  = \trailingslashit( dirname( __FILE__ ) . '/class' );
 	$autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
 

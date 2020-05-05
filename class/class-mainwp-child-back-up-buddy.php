@@ -153,9 +153,9 @@ class MainWP_Child_Back_Up_Buddy {
 				$check_finished = false;
 				if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
 					$check_finished = true;
-				} 
-				
-				if ( ! $check_finished ) {				
+				}
+
+				if ( ! $check_finished ) {
 					continue;
 				}
 

@@ -414,7 +414,7 @@ class MainWP_Helper {
 		// Set up a new post (adding addition information).
 
 		$post_author = isset( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
-		
+
 		if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
 			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
 			if ( ! empty( $_author ) ) {
@@ -428,7 +428,7 @@ class MainWP_Helper {
 		$post_author             = ! empty( $post_author ) ? $post_author : $current_uid;
 		$new_post['post_author'] = $post_author;
 
-		$terms         = isset( $new_post['_ezin_post_category'] ) ? $new_post['_ezin_post_category'] : false;
+		$terms = isset( $new_post['_ezin_post_category'] ) ? $new_post['_ezin_post_category'] : false;
 		unset( $new_post['_ezin_post_category'] );
 		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 
@@ -665,7 +665,7 @@ class MainWP_Helper {
 		$not_allowed[] = '_saved_draft_random_publish_date';
 		$not_allowed[] = '_saved_draft_publish_date_from';
 		$not_allowed[] = '_saved_draft_publish_date_to';
-		$not_allowed[] = '_post_to_only_existing_categories';		
+		$not_allowed[] = '_post_to_only_existing_categories';
 		$not_allowed[] = '_mainwp_edit_post_site_id';
 		$not_allowed[] = '_mainwp_edit_post_id';
 		$not_allowed[] = '_edit_post_status';
@@ -1031,7 +1031,7 @@ class MainWP_Helper {
 	public static function clean( $string ) {
 		$string = trim( $string );
 		$string = htmlentities( $string, ENT_QUOTES );
-		$string = str_replace( "\n", '<br>', $string );		
+		$string = str_replace( "\n", '<br>', $string );
 		$string = stripslashes( $string );
 		return $string;
 	}
@@ -1285,12 +1285,12 @@ class MainWP_Helper {
 	}
 
 	public static function get_lasttime_backup( $by ) {
-		
+
 		if ( 'backupwp' == $by ) {
 			$by = 'backupwordpress';
 		}
-		
-		$activated = true;		
+
+		$activated = true;
 		switch ( $by ) {
 			case 'backupbuddy':
 				if ( ! is_plugin_active( 'backupbuddy/backupbuddy.php' ) && ! is_plugin_active( 'Backupbuddy/backupbuddy.php' ) ) {
@@ -1321,12 +1321,12 @@ class MainWP_Helper {
 				$activated = false;
 				break;
 		}
-		
-		if ( ! $activated )
+
+		if ( ! $activated ) {
 			return 0;
-		
+		}
+
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
-		
 	}
 
 
@@ -1732,12 +1732,12 @@ class MainWP_Helper {
 
 	/**
 	 * Method execute_snippet()
-	 * 
+	 *
 	 * Execute snippet code
-	 * 
-	 * @param string $code The code	 * 
-	 * 
-	 * @return array result 
+	 *
+	 * @param string $code The code  *
+	 *
+	 * @return array result
 	 */
 	public static function execute_snippet( $code ) {
 		ob_start();
@@ -1755,5 +1755,5 @@ class MainWP_Helper {
 		}
 		return $return;
 	}
-	
+
 }

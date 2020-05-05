@@ -3,7 +3,7 @@
 namespace MainWP\Child;
 
 class MainWP_Security {
-	
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -14,7 +14,7 @@ class MainWP_Security {
 	public static function get_class_name() {
 		return __CLASS__;
 	}
-	
+
 	public static function fixAll() {
 		self::remove_wp_version();
 		self::remove_rsd();

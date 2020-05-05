@@ -373,7 +373,7 @@ class MainWP_Clone_Install {
 
 			return $content;
 		} else {
-			
+
 			if ( $this->checkZipConsole() ) {
 				return false;
 			} elseif ( $this->checkZipSupport() ) {

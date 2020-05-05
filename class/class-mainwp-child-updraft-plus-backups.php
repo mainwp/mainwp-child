@@ -326,8 +326,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 				return new WP_Error( 'unknown_response', sprintf( __( 'UpdraftPlus.Com returned a response which we could not understand (data: %s)', 'updraftplus' ), $result['body'] ) );
 			}
 		}
-		
-		$return = false;		
+
+		$return = false;
 		switch ( $response['loggedin'] ) {
 			case 'connected':
 				if ( ! empty( $response['token'] ) ) {
@@ -367,7 +367,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				$return = new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
 				break;
 		}
-		
+
 		return $return;
 	}
 
@@ -431,10 +431,10 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$updated = false;
 		if ( is_array( $settings ) ) {
 			if ( class_exists( 'UpdraftPlus_Options' ) ) {
-				foreach ( $keys_filter as $key ) {					
+				foreach ( $keys_filter as $key ) {
 					if ( 'updraft_googledrive' === $key || 'updraft_googlecloud' === $key || 'updraft_onedrive' === $key ) {
 						continue; // skip
-					}					
+					}
 					if ( isset( $settings[ $key ] ) ) {
 						$settings_key = null;
 						if ( 'updraft_dropbox' === $key && is_array( $settings[ $key ] ) ) {
@@ -1289,7 +1289,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						$remote_obj = new $objname();
 						$deleted    = $remote_obj->delete( $files );
 					}
-					
+
 					if ( -1 !== $deleted && false !== $deleted ) {
 						$remote_deleted = $remote_deleted + count( $files );
 					}
@@ -1768,7 +1768,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$updraftplus->log( 'Restore failed' );
 			$updraftplus->list_errors();
 
-		} 
+		}
 
 		$output = ob_get_clean();
 
@@ -3045,10 +3045,10 @@ class MainWP_Child_Updraft_Plus_Backups {
 				$backup['service'] = array( $backup['service'] );
 			}
 			foreach ( $backup['service'] as $service ) {
-				$emptyCheck = ( 'none' === $service || '' === $service || ( is_array( $service ) && ( empty( $service ) || array( 'none' ) === $service || array( '' ) === $service ) ) );				
+				$emptyCheck = ( 'none' === $service || '' === $service || ( is_array( $service ) && ( empty( $service ) || array( 'none' ) === $service || array( '' ) === $service ) ) );
 				if ( ! empty( $emptyCheck ) ) {
 					$remote_storage = ( 'remotesend' === $service ) ? __( 'remote site', 'updraftplus' ) : $updraftplus->backup_methods[ $service ];
-					$service_title = '<br>' . esc_attr( sprintf( __( 'Remote storage: %s', 'updraftplus' ), $remote_storage ) );
+					$service_title  = '<br>' . esc_attr( sprintf( __( 'Remote storage: %s', 'updraftplus' ), $remote_storage ) );
 				}
 			}
 
