@@ -34,7 +34,7 @@ class MainWP_Child_Links_Checker {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
 	public function action() {
@@ -204,7 +204,7 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {
 			try {
 				$information['syncBrokenLinksCheckerData'] = $this->get_sync_data();

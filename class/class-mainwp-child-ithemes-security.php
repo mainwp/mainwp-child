@@ -36,10 +36,10 @@ class MainWP_Child_IThemes_Security {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
 			try {
 				$information['syncIThemeData'] = array(

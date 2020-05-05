@@ -10,12 +10,12 @@ class MainWP_Child_Server_Information {
 			'wp_ajax_mainwp-child_dismiss_warnings',
 			array(
 				'MainWP_Child_Server_Information',
-				'dismissWarnings',
+				'dismiss_warnings',
 			)
 		);
 	}
 
-	public static function dismissWarnings() {
+	public static function dismiss_warnings() {
 		if ( isset( $_POST['what'] ) ) {
 			$dismissWarnings = get_option( 'mainwp_child_dismiss_warnings' );
 			if ( ! is_array( $dismissWarnings ) ) {
@@ -589,7 +589,7 @@ class MainWP_Child_Server_Information {
 				self::renderRowSec( 'cURL Extension Enabled', '=', true, 'getCurlSupport', '', '', null, '', null, self::ERROR );
 				self::renderRowSec( 'cURL Timeout', '>=', '300', 'getCurlTimeout', 'seconds', '=', '0' );
 				if ( function_exists( 'curl_version' ) ) {
-					self::renderRowSec( 'cURL Version', '>=', '7.18.1', 'getCurlVersion', '', '', null );
+					self::renderRowSec( 'cURL Version', '>=', '7.18.1', 'get_curl_version', '', '', null );
 					self::renderRowSec(
 						'cURL SSL Version',
 						'>=',
@@ -597,7 +597,7 @@ class MainWP_Child_Server_Information {
 							'version_number' => 0x009080cf,
 							'version'        => 'OpenSSL/0.9.8l',
 						),
-						'getCurlSSLVersion',
+						'get_curl_ssl_version',
 						'',
 						'',
 						null,
@@ -760,7 +760,7 @@ class MainWP_Child_Server_Information {
 				<tr>
 					<td></td>
 					<td><?php esc_html_e( 'PHP Disabled Functions', 'mainwp-child' ); ?></td>
-					<td colspan="3"><?php self::mainwpRequiredFunctions(); ?></td>
+					<td colspan="3"><?php self::mainwp_required_functions(); ?></td>
 				</tr>
 				<tr>
 					<td></td>
@@ -821,7 +821,7 @@ class MainWP_Child_Server_Information {
 		return ini_get( 'default_socket_timeout' );
 	}
 
-	protected static function getCurlVersion() {
+	protected static function get_curl_version() {
 		$curlversion = curl_version();
 
 		return $curlversion['version'];
@@ -835,13 +835,13 @@ class MainWP_Child_Server_Information {
 		return false;
 	}
 
-	protected static function getCurlSSLVersion() {
+	protected static function get_curl_ssl_version() {
 		$curlversion = curl_version();
 
 		return $curlversion['ssl_version'];
 	}
 
-	public static function mainwpRequiredFunctions() {
+	public static function mainwp_required_functions() {
 		$disabled_functions = ini_get( 'disable_functions' );
 		if ( '' !== $disabled_functions ) {
 			$arr = explode( ',', $disabled_functions );
@@ -913,7 +913,7 @@ class MainWP_Child_Server_Information {
 					foreach ( $cron_info as $key => $schedule ) {
 						?>
 						<tr>
-							<td><?php echo esc_html( MainWP_Helper::formatTimestamp( MainWP_Helper::getTimestamp( $time ) ) ); ?></td>
+							<td><?php echo esc_html( MainWP_Helper::format_timestamp( MainWP_Helper::get_timestamp( $time ) ) ); ?></td>
 							<td><?php echo esc_html( ( isset( $schedule['schedule'] ) && isset( $schedules[ $schedule['schedule'] ] ) && isset( $schedules[ $schedule['schedule'] ]['display'] ) ) ? $schedules[ $schedule['schedule'] ]['display'] : '' ); ?> </td>
 							<td><?php echo esc_html( $hook ); ?></td>
 						</tr>
@@ -936,7 +936,7 @@ class MainWP_Child_Server_Information {
 		$branding_title .= ' Upload Directory';
 
 		try {
-			$dirs = MainWP_Helper::getMainWPDir( null, false );
+			$dirs = MainWP_Helper::get_mainwp_dir( null, false );
 			$path = $dirs[0];
 		} catch ( Exception $e ) {
 			return self::renderDirectoryRow( $branding_title, '', 'Writable', $e->getMessage(), false );
@@ -950,7 +950,7 @@ class MainWP_Child_Server_Information {
 			}
 		}
 
-		$hasWPFileSystem = MainWP_Helper::getWPFilesystem();
+		$hasWPFileSystem = MainWP_Helper::get_wp_filesystem();
 
 		global $wp_filesystem;
 

@@ -37,7 +37,7 @@ class MainWP_Child_WP_Rocket {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 
 		if ( 'hide' === get_option( 'mainwp_wprocket_hide_plugin' ) ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
@@ -123,7 +123,7 @@ class MainWP_Child_WP_Rocket {
 		);
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
 			try {
 				$data                            = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );

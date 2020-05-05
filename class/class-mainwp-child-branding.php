@@ -246,7 +246,7 @@ class MainWP_Child_Branding {
 				$extra_setting['login_image'] = array();
 			} else {
 				try {
-					$upload = $this->uploadImage( $settings['child_login_image_url'] );
+					$upload = $this->upload_image( $settings['child_login_image_url'] );
 					if ( null !== $upload ) {
 						$extra_setting['login_image'] = array(
 							'path' => $upload['path'],
@@ -272,7 +272,7 @@ class MainWP_Child_Branding {
 				$extra_setting['favico_image'] = array();
 			} else {
 				try {
-					$upload = $this->uploadImage( $settings['child_favico_image_url'] );
+					$upload = $this->upload_image( $settings['child_favico_image_url'] );
 					if ( null !== $upload ) {
 						$extra_setting['favico_image'] = array(
 							'path' => $upload['path'],
@@ -313,7 +313,7 @@ class MainWP_Child_Branding {
 		return $information;
 	}
 
-	public static function uploadImage( $img_url ) {
+	public static function upload_image( $img_url ) {
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 		global $mainWPChild;
 		add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );

@@ -35,11 +35,11 @@ class MainWP_Child_Updraft_Plus_Backups {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
-		add_filter( 'updraftplus_save_last_backup', array( __CLASS__, 'hookUpdraftplusSaveLastBackup' ) );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'updraftplus_save_last_backup', array( __CLASS__, 'hook_updraft_plus_save_last_backup' ) );
 	}
 
-	public static function hookUpdraftplusSaveLastBackup( $last_backup ) {
+	public static function hook_updraft_plus_save_last_backup( $last_backup ) {
 		if ( ! is_array( $last_backup ) ) {
 			return $last_backup;
 		}
@@ -53,7 +53,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return $last_backup;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		try {
 			if ( isset( $data['syncUpdraftData'] ) ) {
 				$info = $data['syncUpdraftData'];
@@ -126,7 +126,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						$information = $this->next_scheduled_backups();
 						break;
 					case 'forcescheduledresumption':
-						$information = $this->forceScheduledResumption();
+						$information = $this->force_scheduled_resumption();
 						break;
 					case 'fetch_updraft_log':
 						$information = $this->fetch_updraft_log();
@@ -147,7 +147,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						$information = $this->restore_alldownloaded();
 						break;
 					case 'restorebackup': // not used!
-						$information = $this->restoreBackup();
+						$information = $this->restore_backup();
 						break;
 					case 'extradbtestconnection':
 						$information = $this->extradb_testconnection();
@@ -1349,7 +1349,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$rescan     = ( null !== $rescan ) ? $rescan : $_POST['rescan'];
 
 		if ( $rescan ) {
-			$messages = $this->rebuildBackupHistory( $remotescan );
+			$messages = $this->rebuild_backup_history( $remotescan );
 		}
 
 		$backup_history = UpdraftPlus_Backup_History::get_history();
@@ -1735,7 +1735,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 	// not used.
-	public function restoreBackup() {
+	public function restore_backup() {
 
 		global $updraftplus_admin, $updraftplus;
 		if ( empty( $updraftplus_admin ) ) {
@@ -1745,7 +1745,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$backup_success = $this->restore_backup( $_REQUEST['backup_timestamp'] );
 		if ( empty( $updraftplus->errors ) && true === $backup_success ) {
 			// If we restored the database, then that will have out-of-date information which may confuse the user - so automatically re-scan for them.
-			$this->rebuildBackupHistory();
+			$this->rebuild_backup_history();
 			echo '<p><strong>';
 			$updraftplus->log_e( 'Restore successful!' );
 			echo '</strong></p>';
@@ -3322,7 +3322,7 @@ ENDHERE;
 		}
 	}
 
-	private function rebuildBackupHistory( $remotescan = false ) {
+	private function rebuild_backup_history( $remotescan = false ) {
 		global $updraftplus_admin, $updraftplus;
 		$messages = null;
 		if ( method_exists( $updraftplus, 'rebuild_backup_history' ) ) {
@@ -3334,7 +3334,7 @@ ENDHERE;
 		return $messages;
 	}
 
-	private function forceScheduledResumption() {
+	private function force_scheduled_resumption() {
 		global $updraftplus;
 		// Casting $resumption to int is absolutely necessary, as the WP cron system uses a hashed serialisation of the parameters for identifying jobs. Different type => different hash => does not match.
 		$resumption = (int) $_REQUEST['resumption'];

@@ -25,7 +25,7 @@ class MainWP_Debug {
 		} elseif ( 'test' == $_GET['mainwpdebug'] ) {
 			print_r( get_included_files() );
 		} else {
-			print_r( $mainwpChild->getSiteStats( array(), false ) );
+			print_r( $mainwpChild->get_site_stats( array(), false ) );
 		}
 
 		$stop = microtime( true );

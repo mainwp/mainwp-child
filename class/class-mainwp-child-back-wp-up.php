@@ -95,7 +95,7 @@ class MainWP_Child_Back_WP_Up {
 				BackWPup::get_instance();
 
 				add_action( 'admin_init', array( $this, 'init_download_backup' ) );
-				add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+				add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 			}
 		} catch ( Exception $e ) {
 			$this->is_backwpup_installed = false;
@@ -327,7 +327,7 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
 			try {
 				$lastbackup                      = MainWP_Helper::get_lasttime_backup( 'backwpup' );

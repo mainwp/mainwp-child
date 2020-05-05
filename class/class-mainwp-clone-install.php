@@ -176,12 +176,12 @@ class MainWP_Clone_Install {
 		}
 
 		try {
-			$dirs      = MainWP_Helper::getMainWPDir( 'backup', false );
+			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup', false );
 			$backupdir = $dirs[0];
 
 			$files = glob( $backupdir . '*' );
 			foreach ( $files as $file ) {
-				if ( MainWP_Helper::isArchive( $file ) ) {
+				if ( MainWP_Helper::is_archive( $file ) ) {
 					unlink( $file );
 				}
 			}
@@ -448,7 +448,7 @@ class MainWP_Clone_Install {
 	}
 
 	public function extractWPZipBackup() {
-		MainWP_Helper::getWPFilesystem();
+		MainWP_Helper::get_wp_filesystem();
 		global $wp_filesystem;
 
 		$tmpdir = ABSPATH;

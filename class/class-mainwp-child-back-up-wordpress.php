@@ -32,7 +32,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		if ( is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
 			$this->is_plugin_installed = true;
 			if ( version_compare( phpversion(), '5.3', '>=' ) ) {
-				add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+				add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 			}
 		}
 	}
@@ -150,7 +150,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		return $schedule_id;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncBackUpWordPress'] ) && $data['syncBackUpWordPress'] ) {
 			try {
 				$information['syncBackUpWordPress'] = $this->get_sync_data();

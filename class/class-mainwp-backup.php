@@ -35,7 +35,7 @@ class MainWP_Backup {
 		$this->file_descriptors   = $file_descriptors;
 		$this->loadFilesBeforeZip = $loadFilesBeforeZip;
 
-		$dirs      = MainWP_Helper::getMainWPDir( 'backup' );
+		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 		if ( ! defined( 'PCLZIP_TEMPORARY_DIR' ) ) {
 			define( 'PCLZIP_TEMPORARY_DIR', $backupdir );
@@ -233,9 +233,9 @@ class MainWP_Backup {
 					'xmlrpc.php',
 				);
 				foreach ( $nodes as $key => $node ) {
-					if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
+					if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
 						unset( $nodes[ $key ] );
-					} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+					} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 						unset( $nodes[ $key ] );
 					} else {
 						foreach ( $coreFiles as $coreFile ) {
@@ -259,12 +259,12 @@ class MainWP_Backup {
 
 			foreach ( $nodes as $node ) {
 				if ( $excludenonwp && is_dir( $node ) ) {
-					if ( ! MainWP_Helper::startsWith( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::startsWith( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
+					if ( ! MainWP_Helper::starts_with( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::starts_with( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
 						continue;
 					}
 				}
 
-				if ( ! MainWP_Helper::inExcludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+				if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
 					if ( is_dir( $node ) ) {
 						$this->zipAddDir( $node, $excludes );
 					} elseif ( is_file( $node ) ) {
@@ -371,9 +371,9 @@ class MainWP_Backup {
 				'xmlrpc.php',
 			);
 			foreach ( $nodes as $key => $node ) {
-				if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
+				if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
 					unset( $nodes[ $key ] );
-				} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+				} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 					unset( $nodes[ $key ] );
 				} else {
 					foreach ( $coreFiles as $coreFile ) {
@@ -450,12 +450,12 @@ class MainWP_Backup {
 
 		foreach ( $nodes as $node ) {
 			if ( $excludenonwp && is_dir( $node ) ) {
-				if ( ! MainWP_Helper::startsWith( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::startsWith( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
+				if ( ! MainWP_Helper::starts_with( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::starts_with( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
 					continue;
 				}
 			}
 
-			if ( ! MainWP_Helper::inExcludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+			if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
 				if ( is_dir( $node ) ) {
 					if ( ! file_exists( str_replace( ABSPATH, $backupfolder, $node ) ) ) {
 						mkdir( str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore
@@ -465,7 +465,7 @@ class MainWP_Backup {
 					$this->copy_dir( $newnodes, $excludes, $backupfolder, $excludenonwp, false );
 					unset( $newnodes );
 				} elseif ( is_file( $node ) ) {
-					if ( $this->excludeZip && MainWP_Helper::endsWith( $node, '.zip' ) ) {
+					if ( $this->excludeZip && MainWP_Helper::ends_with( $node, '.zip' ) ) {
 						continue;
 					}
 
@@ -511,9 +511,9 @@ class MainWP_Backup {
 				'xmlrpc.php',
 			);
 			foreach ( $nodes as $key => $node ) {
-				if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
+				if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
 					unset( $nodes[ $key ] );
-				} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+				} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 					unset( $nodes[ $key ] );
 				} else {
 					foreach ( $coreFiles as $coreFile ) {
@@ -578,7 +578,7 @@ class MainWP_Backup {
 				continue;
 			}
 
-			if ( ! MainWP_Helper::inExcludes( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
+			if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
 				if ( $path->isDir() ) {
 					$this->zipAddDir( $name, $excludes );
 				} else {
@@ -655,7 +655,7 @@ class MainWP_Backup {
 			$this->lastRun = time();
 		}
 
-		if ( $this->excludeZip && MainWP_Helper::endsWith( $path, '.zip' ) ) {
+		if ( $this->excludeZip && MainWP_Helper::ends_with( $path, '.zip' ) ) {
 			return false;
 		}
 

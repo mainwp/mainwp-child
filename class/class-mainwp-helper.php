@@ -201,7 +201,7 @@ class MainWP_Helper {
 
 	// $check_file_existed: to support checking if file existed.
 	// $parent_id: optional.
-	public static function uploadImage( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {
+	public static function upload_image( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {
 		if ( ! is_array( $img_data ) ) {
 			$img_data = array();
 		}
@@ -318,7 +318,7 @@ class MainWP_Helper {
 		return $wpdb->get_results( $sql );
 	}
 
-	public static function uploadFile( $file_url, $path, $file_name ) {
+	public static function upload_file( $file_url, $path, $file_name ) {
 		// to fix uploader extension rename htaccess file issue.
 		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
 			$file_name = sanitize_file_name( $file_name );
@@ -359,7 +359,7 @@ class MainWP_Helper {
 		return array( 'path' => $full_file_name );
 	}
 
-	public static function createPost( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
+	public static function create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
 		global $current_user;
 
 		/**
@@ -487,7 +487,7 @@ class MainWP_Helper {
 				}
 
 				try {
-					$downloadfile      = self::uploadImage( $originalImgUrl, array(), $check_image_existed );
+					$downloadfile      = self::upload_image( $originalImgUrl, array(), $check_image_existed );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -518,7 +518,7 @@ class MainWP_Helper {
 						foreach ( $post_gallery_images as $gallery ) {
 							if ( isset( $gallery['src'] ) ) {
 								try {
-									$upload = self::uploadImage( $gallery['src'], $gallery ); // Upload image to WP.
+									$upload = self::upload_image( $gallery['src'], $gallery ); // Upload image to WP.
 									if ( null !== $upload ) {
 										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
 									}
@@ -716,7 +716,7 @@ class MainWP_Helper {
 			// upload image if it on the server.
 			if ( ! empty( $_seo_opengraph_image ) && false !== strpos( $_seo_opengraph_image, $_server_domain ) ) {
 				try {
-					$upload = self::uploadImage( $_seo_opengraph_image ); // Upload image to WP.
+					$upload = self::upload_image( $_seo_opengraph_image ); // Upload image to WP.
 					if ( null !== $upload ) {
 						update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
 					}
@@ -752,7 +752,7 @@ class MainWP_Helper {
 		// If featured image exists - set it.
 		if ( null !== $post_featured_image ) {
 			try {
-				$upload = self::uploadImage( $post_featured_image, array(), $check_image_existed, $new_post_id ); // Upload image to WP.
+				$upload = self::upload_image( $post_featured_image, array(), $check_image_existed, $new_post_id ); // Upload image to WP.
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); // Add the thumbnail to the post!
 					$featured_image_exist = true;
@@ -851,10 +851,10 @@ class MainWP_Helper {
 		return $ret;
 	}
 
-	public static function getMainWPDir( $what = null, $dieOnError = true ) {
+	public static function get_mainwp_dir( $what = null, $dieOnError = true ) {
 		$upload_dir = wp_upload_dir();
 		$dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
-		self::checkDir( $dir, $dieOnError );
+		self::check_dir( $dir, $dieOnError );
 		if ( ! file_exists( $dir . 'index.php' ) ) {
 			touch( $dir . 'index.php' );
 		}
@@ -862,7 +862,7 @@ class MainWP_Helper {
 
 		if ( 'backup' === $what ) {
 			$dir .= 'backup' . DIRECTORY_SEPARATOR;
-			self::checkDir( $dir, $dieOnError );
+			self::check_dir( $dir, $dieOnError );
 			if ( ! file_exists( $dir . 'index.php' ) ) {
 				touch( $dir . 'index.php' );
 			}
@@ -879,8 +879,8 @@ class MainWP_Helper {
 		return array( $dir, $url );
 	}
 
-	public static function checkDir( $dir, $dieOnError, $chmod = 0755 ) {
-		self::getWPFilesystem();
+	public static function check_dir( $dir, $dieOnError, $chmod = 0755 ) {
+		self::get_wp_filesystem();
 		global $wp_filesystem;
 		if ( ! file_exists( $dir ) ) {
 			if ( empty( $wp_filesystem ) ) {
@@ -907,14 +907,14 @@ class MainWP_Helper {
 		}
 	}
 
-	public static function validateMainWPDir() {
+	public static function validate_mainwp_dir() {
 		$done = false;
-		$dir  = self::getMainWPDir();
+		$dir  = self::get_mainwp_dir();
 		$dir  = $dir[0];
-		if ( self::getWPFilesystem() ) {
+		if ( self::get_wp_filesystem() ) {
 			global $wp_filesystem;
 			try {
-				self::checkDir( $dir, false );
+				self::check_dir( $dir, false );
 			} catch ( Exception $e ) {
 				// ok!
 			}
@@ -960,7 +960,7 @@ class MainWP_Helper {
 	/**
 	 * @return WP_Filesystem_Base
 	 */
-	public static function getWPFilesystem() {
+	public static function get_wp_filesystem() {
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
@@ -987,11 +987,11 @@ class MainWP_Helper {
 		return $init;
 	}
 
-	public static function startsWith( $haystack, $needle ) {
+	public static function starts_with( $haystack, $needle ) {
 		return ! strncmp( $haystack, $needle, strlen( $needle ) );
 	}
 
-	public static function endsWith( $haystack, $needle ) {
+	public static function ends_with( $haystack, $needle ) {
 		$length = strlen( $needle );
 		if ( 0 == $length ) {
 			return true;
@@ -1000,14 +1000,14 @@ class MainWP_Helper {
 		return ( substr( $haystack, - $length ) == $needle );
 	}
 
-	public static function getNiceURL( $pUrl, $showHttp = false ) {
+	public static function get_nice_url( $pUrl, $showHttp = false ) {
 		$url = $pUrl;
 
-		if ( self::startsWith( $url, 'http://' ) ) {
+		if ( self::starts_with( $url, 'http://' ) ) {
 			if ( ! $showHttp ) {
 				$url = substr( $url, 7 );
 			}
-		} elseif ( self::startsWith( $pUrl, 'https://' ) ) {
+		} elseif ( self::starts_with( $pUrl, 'https://' ) ) {
 			if ( ! $showHttp ) {
 				$url = substr( $url, 8 );
 			}
@@ -1017,7 +1017,7 @@ class MainWP_Helper {
 			}
 		}
 
-		if ( self::endsWith( $url, '/' ) ) {
+		if ( self::ends_with( $url, '/' ) ) {
 			if ( ! $showHttp ) {
 				$url = substr( $url, 0, strlen( $url ) - 1 );
 			}
@@ -1036,29 +1036,29 @@ class MainWP_Helper {
 		return $string;
 	}
 
-	public static function endSession() {
+	public static function end_session() {
 		session_write_close();
 		ob_end_flush();
 	}
 
-	public static function fetchUrl( $url, $postdata ) {
+	public static function fetch_url( $url, $postdata ) {
 		try {
 			$tmpUrl = $url;
 			if ( '/' !== substr( $tmpUrl, - 1 ) ) {
 				$tmpUrl .= '/';
 			}
 
-			return self::_fetchUrl( $tmpUrl . 'wp-admin/', $postdata );
+			return self::m_fetch_url( $tmpUrl . 'wp-admin/', $postdata );
 		} catch ( Exception $e ) {
 			try {
-				return self::_fetchUrl( $url, $postdata );
+				return self::m_fetch_url( $url, $postdata );
 			} catch ( Exception $ex ) {
 				throw $e;
 			}
 		}
 	}
 
-	public static function _fetchUrl( $url, $postdata ) {
+	public static function m_fetch_url( $url, $postdata ) {
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
 
 		if ( ! is_array( $postdata ) ) {
@@ -1096,7 +1096,7 @@ class MainWP_Helper {
 	}
 
 
-	public static function randString( $length, $charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' ) {
+	public static function rand_string( $length, $charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' ) {
 		$str   = '';
 		$count = strlen( $charset );
 		while ( $length -- ) {
@@ -1172,25 +1172,25 @@ class MainWP_Helper {
 		return true;
 	}
 
-	public static function getTimestamp( $timestamp ) {
+	public static function get_timestamp( $timestamp ) {
 		$gmtOffset = get_option( 'gmt_offset' );
 
 		return ( $gmtOffset ? ( $gmtOffset * HOUR_IN_SECONDS ) + $timestamp : $timestamp );
 	}
 
-	public static function formatDate( $timestamp ) {
+	public static function format_date( $timestamp ) {
 		return date_i18n( get_option( 'date_format' ), $timestamp );
 	}
 
-	public static function formatTime( $timestamp ) {
+	public static function format_time( $timestamp ) {
 		return date_i18n( get_option( 'time_format' ), $timestamp );
 	}
 
-	public static function formatTimestamp( $timestamp ) {
+	public static function format_timestamp( $timestamp ) {
 		return date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp );
 	}
 
-	public static function formatEmail( $to, $body ) {
+	public static function format_email( $to, $body ) {
 		return '<br>
 <div>
             <br>
@@ -1329,29 +1329,14 @@ class MainWP_Helper {
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
 	}
 
-
-	public static function containsAll( $haystack, $needle ) {
-		if ( ! is_array( $haystack ) || ! is_array( $needle ) ) {
-			return false;
-		}
-
-		foreach ( $needle as $item ) {
-			if ( ! in_array( $item, $haystack ) ) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	public static function getRevisions( $max_revisions ) {
+	public static function get_revisions( $max_revisions ) {
 		global $wpdb;
 		$sql = " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > " . $max_revisions;
 
 		return $wpdb->get_results( $sql );
 	}
 
-	public static function deleteRevisions( $results, $max_revisions ) {
+	public static function delete_revisions( $results, $max_revisions ) {
 		global $wpdb;
 
 		if ( ! is_array( $results ) || 0 === count( $results ) ) {
@@ -1382,20 +1367,20 @@ class MainWP_Helper {
 		return $count_deleted;
 	}
 
-	public static function inExcludes( $excludes, $value ) {
+	public static function in_excludes( $excludes, $value ) {
 		if ( empty( $value ) ) {
 			return false;
 		}
 
 		if ( null != $excludes ) {
 			foreach ( $excludes as $exclude ) {
-				if ( self::endsWith( $exclude, '*' ) ) {
-					if ( self::startsWith( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
+				if ( self::ends_with( $exclude, '*' ) ) {
+					if ( self::starts_with( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
 						return true;
 					}
 				} elseif ( $value == $exclude ) {
 					return true;
-				} elseif ( self::startsWith( $value, $exclude . '/' ) ) {
+				} elseif ( self::starts_with( $value, $exclude . '/' ) ) {
 					return true;
 				}
 			}
@@ -1404,7 +1389,7 @@ class MainWP_Helper {
 		return false;
 	}
 
-	public static function isArchive( $pFileName, $pPrefix = '', $pSuffix = '' ) {
+	public static function is_archive( $pFileName, $pPrefix = '', $pSuffix = '' ) {
 		return preg_match( '/' . $pPrefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $pSuffix . '$/', $pFileName );
 	}
 
@@ -1538,7 +1523,7 @@ class MainWP_Helper {
 		return false;
 	}
 
-	public static function isAdmin() {
+	public static function is_admin() {
 		global $current_user;
 		if ( 0 == $current_user->ID ) {
 			return false;
@@ -1551,7 +1536,7 @@ class MainWP_Helper {
 		return false;
 	}
 
-	public static function isSSLEnabled() {
+	public static function is_ssl_enabled() {
 		if ( defined( 'MAINWP_NOSSL' ) ) {
 			return ! MAINWP_NOSSL;
 		}

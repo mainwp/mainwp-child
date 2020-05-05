@@ -25,14 +25,14 @@ class MainWP_Child_WPvivid_BackupRestore {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 		$this->public_intetface = new WPvivid_Public_Interface();
 	}
 
 	public function init() {
 	}
 
-	function syncOthersData( $information, $data = array() ) {
+	function sync_others_data( $information, $data = array() ) {
 		try {
 
 			if ( isset( $data['syncWPvividData'] ) ) {

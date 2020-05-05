@@ -37,7 +37,7 @@ class MainWP_Child_Pagespeed {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
@@ -275,7 +275,7 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {
 			try {
 				$information['syncPageSpeedData'] = $this->get_sync_data();

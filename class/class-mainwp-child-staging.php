@@ -38,7 +38,7 @@ class MainWP_Child_Staging {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
 
@@ -59,7 +59,7 @@ class MainWP_Child_Staging {
 		}
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncWPStaging'] ) && $data['syncWPStaging'] ) {
 			try {
 				$information['syncWPStaging'] = $this->get_sync_data();

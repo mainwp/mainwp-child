@@ -34,7 +34,7 @@ class MainWP_Child_Timecapsule {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
 
@@ -233,7 +233,7 @@ class MainWP_Child_Timecapsule {
 		return $information;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncWPTimeCapsule'] ) && $data['syncWPTimeCapsule'] ) {
 			$information['syncWPTimeCapsule'] = $this->get_sync_data();
 			if ( get_option( 'mainwp_time_capsule_ext_enabled' ) !== 'Y' ) {

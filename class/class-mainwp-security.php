@@ -232,7 +232,7 @@ class MainWP_Security {
 		if ( $force || self::get_security_option( 'readme' ) ) {
 			if ( file_exists( ABSPATH . 'readme.html' ) ) {
 				if ( ! unlink( ABSPATH . 'readme.html' ) ) {
-					MainWP_Helper::getWPFilesystem();
+					MainWP_Helper::get_wp_filesystem();
 					global $wp_filesystem;
 					if ( ! empty( $wp_filesystem ) ) {
 						$wp_filesystem->delete( ABSPATH . 'readme.html' );

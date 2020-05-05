@@ -19,7 +19,7 @@ class MainWP_Client_Report {
 	}
 
 	public function init() {
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
 	}
 
@@ -30,7 +30,7 @@ class MainWP_Client_Report {
 		return $agent;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {
 			$creport_sync_data = array();
 			$firsttime         = get_option( 'mainwp_creport_first_time_activated' );
@@ -487,28 +487,33 @@ class MainWP_Client_Report {
 								continue;
 							}
 
+							$valid_context = false;							
 							// check context.
 							if ( 'comments' == $context ) { // multi values.
 								$comment_contexts = array( 'post', 'page' );
 								if ( ! in_array( $record->context, $comment_contexts ) ) {
 									continue;
 								}
+								$valid_context = true;
 							} elseif ( 'post' === $context && 'created' === $action ) {
 								if ( in_array( $record->ID, $skip_records ) ) {
 									continue;
 								}
+								$valid_context = true;
 							} elseif ( 'menus' == $context ) {
-								// ok, pass, don't check context.
+								$valid_context = true; // ok, pass, don't check context.								
 							} elseif ( 'editor' == $record->connector ) {
-								// ok, pass, checked above.
+								$valid_context = true; // ok, pass, checked above.
 							} elseif ( 'media' == $connector && 'media' == $record->connector ) {
-								// ok, pass, do not check context.
+								$valid_context = true; // ok, pass, do not check context.
 							} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
-								// ok, pass, don't check context.
-							} elseif ( strtolower( $record->context ) !== $context ) {
+								$valid_context = true; // ok, pass, don't check context.
+							} 
+
+							if ( ! $valid_context || strtolower( $record->context ) !== $context ) {
 								continue;
 							}
-
+			
 							// custom action value.
 							if ( 'widgets' == $connector ) {
 								if ( 'deleted' == $action ) {
@@ -707,10 +712,10 @@ class MainWP_Client_Report {
 						$tok_value = $record->ID;
 						break;
 					case 'date':
-						$tok_value = MainWP_Helper::formatDate( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
+						$tok_value = MainWP_Helper::format_date( MainWP_Helper::get_timestamp( strtotime( $record->created ) ) );
 						break;
 					case 'time':
-						$tok_value = MainWP_Helper::formatTime( MainWP_Helper::getTimestamp( strtotime( $record->created ) ) );
+						$tok_value = MainWP_Helper::format_time( MainWP_Helper::get_timestamp( strtotime( $record->created ) ) );
 						break;
 					case 'area':
 						$data      = 'sidebar_name';

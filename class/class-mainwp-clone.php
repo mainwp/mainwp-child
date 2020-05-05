@@ -47,7 +47,7 @@ class MainWP_Clone {
 	}
 
 	public function secure_request( $action = '', $query_arg = 'security' ) {
-		if ( ! MainWP_Helper::isAdmin() ) {
+		if ( ! MainWP_Helper::is_admin() ) {
 			die( 0 );
 		}
 		if ( '' == $action ) {
@@ -105,7 +105,7 @@ class MainWP_Clone {
 		global $wp_scripts;
 		$ui      = $wp_scripts->query( 'jquery-ui-core' );
 		$version = $ui->ver;
-		if ( MainWP_Helper::startsWith( $version, '1.10' ) ) {
+		if ( MainWP_Helper::starts_with( $version, '1.10' ) ) {
 			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.10', 'all' );
 		} else {
 			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.11', 'all' );
@@ -153,7 +153,7 @@ class MainWP_Clone {
 			return;
 		}
 		$error = false;
-		MainWP_Helper::getWPFilesystem();
+		MainWP_Helper::get_wp_filesystem();
 		global $wp_filesystem;
 		if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
 			echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
@@ -193,10 +193,10 @@ class MainWP_Clone {
 									<?php
 									foreach ( $sitesToClone as $siteId => $siteToClone ) {
 										?>
-										<div class="clonesite_select_site_item" id="<?php echo esc_attr( $siteId ); ?>" rand="<?php echo esc_attr( MainWP_Helper::randString( 5 ) ); ?>">
+										<div class="clonesite_select_site_item" id="<?php echo esc_attr( $siteId ); ?>" rand="<?php echo esc_attr( MainWP_Helper::rand_string( 5 ) ); ?>">
 											<div class="mainwp-child_size_label" size="<?php echo esc_attr( $siteToClone['size'] ); ?>"><?php echo esc_html( $siteToClone['size'] ); ?>MB</div>
 											<div class="mainwp-child_name_label"><?php echo esc_html( $siteToClone['name'] ); ?></div>
-											<div class="mainwp-child_url_label"><?php echo esc_html( MainWP_Helper::getNiceURL( $siteToClone['url'] ) ); ?></div>
+											<div class="mainwp-child_url_label"><?php echo esc_html( MainWP_Helper::get_nice_url( $siteToClone['url'] ) ); ?></div>
 										</div>
 										<?php
 									}
@@ -273,7 +273,7 @@ class MainWP_Clone {
 			<h2 class="hndle"><span><strong><?php esc_html_e( 'Option 1:', 'mainwp-child' ); ?></strong> <?php esc_html_e( 'Restore', 'mainwp-child' ); ?></span></h2>
 			<div class="inside">
 				<?php
-				MainWP_Helper::getWPFilesystem();
+				MainWP_Helper::get_wp_filesystem();
 				global $wp_filesystem;
 				if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
 					echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
@@ -337,7 +337,7 @@ class MainWP_Clone {
 		$page         = $_REQUEST['page'];
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 		$url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
-		$dirs         = MainWP_Helper::getMainWPDir( 'backup', false );
+		$dirs         = MainWP_Helper::get_mainwp_dir( 'backup', false );
 		$current_dir  = $dirs[0];
 		$backup_dir   = $current_dir;
 
@@ -420,7 +420,7 @@ class MainWP_Clone {
 			if ( is_dir( $current_dir . '/' . $file ) ) {
 				$directories[] = $file;
 			} else {
-				if ( ! MainWP_Helper::isArchive( $file ) ) {
+				if ( ! MainWP_Helper::is_archive( $file ) ) {
 					$rejected_files[] = $file;
 				} else {
 					$files[] = $file;
@@ -1156,11 +1156,11 @@ class MainWP_Clone {
 			$url         = $siteToClone['url'];
 			$key         = $siteToClone['extauth'];
 
-			MainWP_Helper::endSession();
+			MainWP_Helper::end_session();
 			// Send request to the childsite!
 			global $wp_version;
 			$method = ( function_exists( 'gzopen' ) ? 'tar.gz' : 'zip' );
-			$result = MainWP_Helper::fetchUrl(
+			$result = MainWP_Helper::fetch_url(
 				$url,
 				array(
 					'cloneFunc'   => 'createCloneBackup',
@@ -1211,9 +1211,9 @@ class MainWP_Clone {
 
 			$key = $siteToClone['extauth'];
 
-			MainWP_Helper::endSession();
+			MainWP_Helper::end_session();
 			// Send request to the childsite!
-			$result = MainWP_Helper::fetchUrl(
+			$result = MainWP_Helper::fetch_url(
 				$url,
 				array(
 					'cloneFunc'   => 'createCloneBackupPoll',
@@ -1259,18 +1259,18 @@ class MainWP_Clone {
 			} else {
 				$url = $file;
 			}
-			MainWP_Helper::endSession();
+			MainWP_Helper::end_session();
 			// Send request to the childsite!
 			$split     = explode( '=', $file );
 			$file      = urldecode( $split[ count( $split ) - 1 ] );
 			$filename  = 'download-' . basename( $file );
-			$dirs      = MainWP_Helper::getMainWPDir( 'backup', false );
+			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup', false );
 			$backupdir = $dirs[0];
 			$dh        = opendir( $backupdir );
 			if ( $dh ) {
 				$file = readdir( $dh );
 				while ( false !== $file ) {
-					if ( '.' !== $file && '..' !== $file && MainWP_Helper::isArchive( $file, 'download-' ) ) {
+					if ( '.' !== $file && '..' !== $file && MainWP_Helper::is_archive( $file, 'download-' ) ) {
 						unlink( $backupdir . $file );
 					}
 				}
@@ -1310,7 +1310,7 @@ class MainWP_Clone {
 					if ( is_array( $sitesToClone ) && isset( $sitesToClone[ $siteId ] ) ) {
 						$siteToClone = $sitesToClone[ $siteId ];
 
-						MainWP_Helper::fetchUrl(
+						MainWP_Helper::fetch_url(
 							$siteToClone['url'],
 							array(
 								'cloneFunc'   => 'deleteCloneBackup',
@@ -1335,15 +1335,15 @@ class MainWP_Clone {
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupdownloadpoll' );
 
-			MainWP_Helper::endSession();
+			MainWP_Helper::end_session();
 
-			$dirs        = MainWP_Helper::getMainWPDir( 'backup', false );
+			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
 			$backupdir   = $dirs[0];
 			$files       = glob( $backupdir . 'download-*' );
 			$archiveFile = false;
 
 			foreach ( $files as $file ) {
-				if ( MainWP_Helper::isArchive( $file, 'download-' ) ) {
+				if ( MainWP_Helper::is_archive( $file, 'download-' ) ) {
 					$archiveFile = $file;
 					break;
 				}
@@ -1362,18 +1362,18 @@ class MainWP_Clone {
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupextract' );
 
-			MainWP_Helper::endSession();
+			MainWP_Helper::end_session();
 
 			$file     = ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] );
 			$testFull = false;
 
 			if ( '' === $file ) {
-				$dirs        = MainWP_Helper::getMainWPDir( 'backup', false );
+				$dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
 				$backupdir   = $dirs[0];
 				$files       = glob( $backupdir . 'download-*' );
 				$archiveFile = false;
 				foreach ( $files as $file ) {
-					if ( MainWP_Helper::isArchive( $file, 'download-' ) ) {
+					if ( MainWP_Helper::is_archive( $file, 'download-' ) ) {
 						$archiveFile = $file;
 						break;
 					}
@@ -1428,7 +1428,7 @@ class MainWP_Clone {
 			MainWP_Helper::update_option( 'mainwp_child_nossl', $nossl, 'yes' );
 			MainWP_Helper::update_option( 'mainwp_child_nossl_key', $nossl_key );
 			MainWP_Helper::update_option( 'mainwp_child_clone_sites', $sitesToClone );
-			if ( ! MainWP_Helper::startsWith( basename( $file ), 'download-backup-' ) ) {
+			if ( ! MainWP_Helper::starts_with( basename( $file ), 'download-backup-' ) ) {
 				MainWP_Helper::update_option( 'mainwp_child_restore_permalink', true, 'yes' );
 			} else {
 				MainWP_Helper::update_option( 'mainwp_child_clone_permalink', true, 'yes' );

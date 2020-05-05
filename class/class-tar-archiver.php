@@ -166,9 +166,9 @@ class Tar_Archiver {
 					'xmlrpc.php',
 				);
 				foreach ( $nodes as $key => $node ) {
-					if ( MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
+					if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
 						unset( $nodes[ $key ] );
-					} elseif ( MainWP_Helper::startsWith( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+					} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
 						unset( $nodes[ $key ] );
 					} else {
 						foreach ( $coreFiles as $coreFile ) {
@@ -193,12 +193,12 @@ class Tar_Archiver {
 
 			foreach ( $nodes as $node ) {
 				if ( $excludenonwp && is_dir( $node ) ) {
-					if ( ! MainWP_Helper::startsWith( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::startsWith( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::startsWith( $node, ABSPATH . WPINC ) ) {
+					if ( ! MainWP_Helper::starts_with( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::starts_with( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
 						continue;
 					}
 				}
 
-				if ( ! MainWP_Helper::inExcludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+				if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
 					if ( is_dir( $node ) ) {
 						$this->addDir( $node, $excludes );
 					} elseif ( is_file( $node ) ) {
@@ -293,7 +293,7 @@ class Tar_Archiver {
 				continue;
 			}
 
-			if ( ! MainWP_Helper::inExcludes( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
+			if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
 				if ( $path->isDir() ) {
 					$this->addEmptyDir( $name, str_replace( ABSPATH, '', $name ) );
 				} else {
@@ -460,7 +460,7 @@ class Tar_Archiver {
 			return false;
 		}
 
-		if ( $this->excludeZip && MainWP_Helper::endsWith( $path, '.zip' ) ) {
+		if ( $this->excludeZip && MainWP_Helper::ends_with( $path, '.zip' ) ) {
 			$this->log( 'Skipping ' . $path );
 
 			return false;
@@ -1267,9 +1267,9 @@ if ( class_exists( 'SplHeap' ) ) {
 				return strcmp( $pathA, $pathB );
 			} elseif ( $dirnameA == $dirnameB ) {
 				return strcmp( $pathA, $pathB );
-			} elseif ( MainWP_Helper::startsWith( $dirnameA, $dirnameB ) ) {
+			} elseif ( MainWP_Helper::starts_with( $dirnameA, $dirnameB ) ) {
 				return 1;
-			} elseif ( MainWP_Helper::startsWith( $dirnameB, $dirnameA ) ) {
+			} elseif ( MainWP_Helper::starts_with( $dirnameB, $dirnameA ) ) {
 				return - 1;
 			} else {
 				$cmp = strcmp( $dirnameA, $dirnameB );

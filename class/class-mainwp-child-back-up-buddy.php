@@ -36,7 +36,7 @@ class MainWP_Child_Back_Up_Buddy {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'syncOthersData' ), 10, 2 );
+		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 
 		add_action( 'wp_ajax_mainwp_backupbuddy_download_archive', array( $this, 'download_archive' ) );
 		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
@@ -748,7 +748,7 @@ class MainWP_Child_Back_Up_Buddy {
 		return $information;
 	}
 
-	public function syncOthersData( $information, $data = array() ) {
+	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncBackupBuddy'] ) && $data['syncBackupBuddy'] ) {
 			try {
 				$information['syncBackupBuddy'] = $this->get_sync_data();

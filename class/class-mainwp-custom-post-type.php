@@ -102,7 +102,7 @@ class MainWP_Custom_Post_Type {
 				}
 
 				try {
-					$downloadfile      = MainWP_Helper::uploadImage( $originalImgUrl, array(), $check_image );
+					$downloadfile      = MainWP_Helper::upload_image( $originalImgUrl, array(), $check_image );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -231,7 +231,7 @@ class MainWP_Custom_Post_Type {
 							if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {
 								foreach ( $data['extras']['woocommerce']['product_images'] as $product_image ) {
 									try {
-										$upload_featured_image = MainWP_Helper::uploadImage( $product_image, array(), $check_image_existed );
+										$upload_featured_image = MainWP_Helper::upload_image( $product_image, array(), $check_image_existed );
 
 										if ( null !== $upload_featured_image ) {
 											$product_image_gallery[] = $upload_featured_image['id'];
@@ -252,7 +252,7 @@ class MainWP_Custom_Post_Type {
 					if ( '_thumbnail_id' == $key['meta_key'] ) {
 						if ( isset( $data['extras']['featured_image'] ) ) {
 							try {
-								$upload_featured_image = MainWP_Helper::uploadImage( $data['extras']['featured_image'], array(), $check_image_existed );
+								$upload_featured_image = MainWP_Helper::upload_image( $data['extras']['featured_image'], array(), $check_image_existed );
 
 								if ( null !== $upload_featured_image ) {
 									$key['meta_value'] = $upload_featured_image['id'];
