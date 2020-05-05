@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/wordpress-seo/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Wordpress_SEO {
 	public static $instance = null;
 

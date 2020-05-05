@@ -1,6 +1,20 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Security {
+	
+	/**
+	 * Method get_class_name()
+	 *
+	 * Get Class Name.
+	 *
+	 * @return object
+	 */
+	public static function get_class_name() {
+		return __CLASS__;
+	}
+	
 	public static function fixAll() {
 		self::remove_wp_version();
 		self::remove_rsd();
@@ -10,10 +24,10 @@ class MainWP_Security {
 		self::remove_generator_version();
 		self::remove_readme();
 
-		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_script_versions' ), PHP_INT_MAX );
-		add_filter( 'style_loader_src', array( 'MainWP_Security', 'remove_theme_versions' ), PHP_INT_MAX );
-		add_filter( 'script_loader_src', array( 'MainWP_Security', 'remove_script_versions' ), PHP_INT_MAX );
-		add_filter( 'script_loader_src', array( 'MainWP_Security', 'remove_theme_versions' ), PHP_INT_MAX );
+		add_filter( 'style_loader_src', array( self::get_class_name(), 'remove_script_versions' ), PHP_INT_MAX );
+		add_filter( 'style_loader_src', array( self::get_class_name(), 'remove_theme_versions' ), PHP_INT_MAX );
+		add_filter( 'script_loader_src', array( self::get_class_name(), 'remove_script_versions' ), PHP_INT_MAX );
+		add_filter( 'script_loader_src', array( self::get_class_name(), 'remove_theme_versions' ), PHP_INT_MAX );
 	}
 
 	// Prevent listing wp-content, wp-content/plugins, wp-content/themes, wp-content/uploads.
@@ -49,9 +63,9 @@ class MainWP_Security {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! file_exists( $file ) ) {
 				$h = fopen( $file, 'w' );
-				fwrite( $h, '<?php ' . "\n" );
-				fwrite( $h, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );" . "\n" );
-				fwrite( $h, "die( '403 Forbidden' );" . "\n" );
+				fwrite( $h, "<?php \n" );
+				fwrite( $h, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n" );
+				fwrite( $h, "die( '403 Forbidden' );\n" );
 				fclose( $h );
 			}
 		}

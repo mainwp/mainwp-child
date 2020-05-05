@@ -8,6 +8,9 @@
  * Author URI: https://wp-staging.com
  * License: GPLv2
  */
+
+namespace MainWP\Child;
+
 class MainWP_Child_Plugins_Check {
 	public static $instance = null;
 

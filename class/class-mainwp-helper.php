@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Helper {
 
 	public static function write( $val ) {
@@ -411,27 +413,9 @@ class MainWP_Helper {
 		$current_uid = $current_user->ID;
 		// Set up a new post (adding addition information).
 
-		$is_robot_post = false;
-		if ( isset( $_POST['isMainWPRobot'] ) && ! empty( $_POST['isMainWPRobot'] ) ) {
-			$is_robot_post = true;
-		}
-
 		$post_author = isset( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
-		if ( $is_robot_post ) {
-			if ( 1 === $post_author ) {
-				$new_post['post_author'] = $current_uid;
-			} elseif ( ! is_numeric( $post_author ) ) {
-				$user_author = get_user_by( 'login', $post_author );
-				if ( $user_author ) {
-					$post_author = $user_author->ID;
-				} else {
-					$length                         = 12;
-					$include_standard_special_chars = false;
-					$random_password                = wp_generate_password( $length, $include_standard_special_chars );
-					$post_author                    = wp_create_user( $post_author, $random_password, $post_author . '@asdf.com' );
-				}
-			}
-		} elseif ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
+		
+		if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
 			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
 			if ( ! empty( $_author ) ) {
 				$new_post['post_author'] = $_author->ID;
@@ -444,14 +428,13 @@ class MainWP_Helper {
 		$post_author             = ! empty( $post_author ) ? $post_author : $current_uid;
 		$new_post['post_author'] = $post_author;
 
-		$is_ezine_post = ! empty( $post_custom['_ezine_post_article_source'] ) ? true : false;
 		$terms         = isset( $new_post['_ezin_post_category'] ) ? $new_post['_ezin_post_category'] : false;
 		unset( $new_post['_ezin_post_category'] );
 		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 
 		$wp_error = null;
 
-		if ( $is_ezine_post || $is_post_plus ) {
+		if ( $is_post_plus ) {
 			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' != $new_post['post_date_gmt'] ) {
 				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp );
@@ -485,7 +468,7 @@ class MainWP_Helper {
 
 		// Search for all the images added to the new post. Some images have a href tag to click to navigate to the image.. we need to replace this too.
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
-		if ( ( $foundMatches > 0 || ( $is_robot_post && isset( $wpr_options['wpr_save_images'] ) && 'Yes' === $wpr_options['wpr_save_images'] ) ) && ( ! $is_ezine_post ) ) {
+		if ( $foundMatches > 0 ) {
 			// We found images, now to download them so we can start balbal.
 			foreach ( $matches as $match ) {
 				$hrefLink = $match[2];
@@ -682,8 +665,7 @@ class MainWP_Helper {
 		$not_allowed[] = '_saved_draft_random_publish_date';
 		$not_allowed[] = '_saved_draft_publish_date_from';
 		$not_allowed[] = '_saved_draft_publish_date_to';
-		$not_allowed[] = '_post_to_only_existing_categories';
-		$not_allowed[] = '_mainwp_robot_post_comments';
+		$not_allowed[] = '_post_to_only_existing_categories';		
 		$not_allowed[] = '_mainwp_edit_post_site_id';
 		$not_allowed[] = '_mainwp_edit_post_id';
 		$not_allowed[] = '_edit_post_status';
@@ -855,12 +837,6 @@ class MainWP_Helper {
 					'post_author' => $custom_post_author,
 				)
 			);
-		}
-
-		// MainWP Robot.
-		if ( $is_robot_post ) {
-			$all_comments = $post_custom['_mainwp_robot_post_comments'];
-			MainWP_Child_Robot::Instance()->wpr_insertcomments( $new_post_id, $all_comments );
 		}
 
 		// unlock if edit post.
@@ -1055,11 +1031,8 @@ class MainWP_Helper {
 	public static function clean( $string ) {
 		$string = trim( $string );
 		$string = htmlentities( $string, ENT_QUOTES );
-		$string = str_replace( "\n", '<br>', $string );
-		if ( get_magic_quotes_gpc() ) {
-			$string = stripslashes( $string );
-		}
-
+		$string = str_replace( "\n", '<br>', $string );		
+		$string = stripslashes( $string );
 		return $string;
 	}
 
@@ -1312,40 +1285,48 @@ class MainWP_Helper {
 	}
 
 	public static function get_lasttime_backup( $by ) {
+		
 		if ( 'backupwp' == $by ) {
 			$by = 'backupwordpress';
 		}
+		
+		$activated = true;		
 		switch ( $by ) {
 			case 'backupbuddy':
 				if ( ! is_plugin_active( 'backupbuddy/backupbuddy.php' ) && ! is_plugin_active( 'Backupbuddy/backupbuddy.php' ) ) {
-					return 0;
+					$activated = false;
 				}
 				break;
 			case 'backupwordpress':
 				if ( ! is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
-					return 0;
+					$activated = false;
 				}
 				break;
 			case 'backwpup':
 				if ( ! is_plugin_active( 'backwpup/backwpup.php' ) && ! is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
-					return 0;
+					$activated = false;
 				}
 				break;
 			case 'updraftplus':
 				if ( ! is_plugin_active( 'updraftplus/updraftplus.php' ) ) {
-					return 0;
+					$activated = false;
 				}
 				break;
 			case 'wptimecapsule':
 				if ( ! is_plugin_active( 'wp-time-capsule/wp-time-capsule.php' ) ) {
-					return 0;
+					$activated = false;
 				}
 				break;
 			default:
-				return 0;
+				$activated = false;
 				break;
 		}
+		
+		if ( ! $activated )
+			return 0;
+		
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
+		
 	}
 
 
@@ -1749,4 +1730,30 @@ class MainWP_Helper {
 		}
 	}
 
+	/**
+	 * Method execute_snippet()
+	 * 
+	 * Execute snippet code
+	 * 
+	 * @param string $code The code	 * 
+	 * 
+	 * @return array result 
+	 */
+	public static function execute_snippet( $code ) {
+		ob_start();
+		$result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval -- eval() used safely.
+		$output = ob_get_contents();
+		ob_end_clean();
+		$return = array();
+		$error  = error_get_last();
+		if ( ( false === $result ) && $error ) {
+			$return['status'] = 'FAIL';
+			$return['result'] = $error['message'];
+		} else {
+			$return['status'] = 'SUCCESS';
+			$return['result'] = $output;
+		}
+		return $return;
+	}
+	
 }

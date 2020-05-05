@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/mainwpbuddy/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_Back_Up_Buddy {
 	public static $instance          = null;
 	public $plugin_translate         = 'mainwp-child';
@@ -148,9 +150,12 @@ class MainWP_Child_Back_Up_Buddy {
 					continue;
 				}
 
+				$check_finished = false;
 				if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
-					// ok!
-				} else {
+					$check_finished = true;
+				} 
+				
+				if ( ! $check_finished ) {				
 					continue;
 				}
 
@@ -630,7 +635,7 @@ class MainWP_Child_Back_Up_Buddy {
 			return array( 'error' => __( 'Error: not found the backup schedule or invalid data', 'mainwp-child' ) );
 		}
 
-		pb_backupbuddy::alert( 'Manually running scheduled backup "' . pb_backupbuddy::$options['schedules'][ $schedule_id ]['title'] . '" in the background.' . '<br>' . __( 'Note: If there is no site activity there may be delays between steps in the backup. Access the site or use a 3rd party service, such as a free pinging service, to generate site activity.', 'mainwp-child' ) );
+		pb_backupbuddy::alert( 'Manually running scheduled backup "' . pb_backupbuddy::$options['schedules'][ $schedule_id ]['title'] . '" in the background.<br>' . __( 'Note: If there is no site activity there may be delays between steps in the backup. Access the site or use a 3rd party service, such as a free pinging service, to generate site activity.', 'mainwp-child' ) );
 		pb_backupbuddy_cron::_run_scheduled_backup( $schedule_id );
 
 		$information['result'] = 'SUCCESS';
@@ -2843,9 +2848,7 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( ( ( 0 == $stats['files_total'] ) || ( $stats['files_sent'] < $stats['files_total'] ) ) && ( 'wait_on_transfers' != $stats['current_function'] ) ) { // ( Files to send not yet calculated OR more remain to send ) AND not on the wait_on_transfers step.
 			$time_since_last_activity = microtime( true ) - $stats['last_periodic_activity'];
 
-			if ( $time_since_last_activity < 30 ) { // Don't even bother getting max execution time if it's been less than 30 seconds since run.
-				// do nothing!
-			} else { // More than 30 seconds since last activity.
+			if ( $time_since_last_activity >= 30 ) { // More than 30 seconds since last activity.
 
 				// Detect max PHP execution time. If TESTED value is higher than PHP value then go with that since we want to err on not overlapping processes here.
 				$detected_execution = backupbuddy_core::detectLikelyHighestExecutionTime();

@@ -11,6 +11,8 @@
  * Extension URL: https://mainwp.com/extension/woocommerce-status/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_WooCommerce_Status {
 	public static $instance = null;
 

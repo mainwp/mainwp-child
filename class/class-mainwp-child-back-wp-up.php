@@ -13,6 +13,8 @@
  * Extension URL: https://mainwp.com/extension/backwpup/
  */
 
+namespace MainWP\Child;
+
 if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
 	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
 }

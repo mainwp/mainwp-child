@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Debug {
 	/**
 	 * @param $mainwpChild MainWP_Child

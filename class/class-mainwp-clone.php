@@ -1,9 +1,23 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Clone {
 	protected static $instance = null;
 	protected $security_nonces;
 
+	/**
+	 * Method get_class_name()
+	 *
+	 * Get Class Name.
+	 *
+	 * @return object
+	 */
+	public static function get_class_name() {
+		return __CLASS__;
+	}
+
+	
 	public static function get() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Clone();
@@ -76,9 +90,9 @@ class MainWP_Clone {
 	}
 
 	public function init() {
-		add_action( 'check_admin_referer', array( 'MainWP_Clone', 'permalinkChanged' ) );
+		add_action( 'check_admin_referer', array( MainWP_Clone::get_class_name(), 'permalinkChanged' ) );
 		if ( get_option( 'mainwp_child_clone_permalink' ) || get_option( 'mainwp_child_restore_permalink' ) ) {
-			add_action( 'admin_notices', array( 'MainWP_Clone', 'permalinkAdminNotice' ) );
+			add_action( 'admin_notices', array( MainWP_Clone::get_class_name(), 'permalinkAdminNotice' ) );
 		}
 	}
 
@@ -92,9 +106,9 @@ class MainWP_Clone {
 		$ui      = $wp_scripts->query( 'jquery-ui-core' );
 		$version = $ui->ver;
 		if ( MainWP_Helper::startsWith( $version, '1.10' ) ) {
-			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', dirname( __FILE__ ) ), array(), null, 'all' );
+			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.10', 'all' );
 		} else {
-			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ), array(), null, 'all' );
+			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.11', 'all' );
 		}
 	}
 
@@ -116,7 +130,7 @@ class MainWP_Clone {
 				}
 				$uploadedfile     = $_FILES['file'];
 				$upload_overrides = array( 'test_form' => false );
-				add_filter( 'upload_mimes', array( 'MainWP_Clone', 'upload_mimes' ) );
+				add_filter( 'upload_mimes', array( MainWP_Clone::get_class_name(), 'upload_mimes' ) );
 				$movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
 				if ( $movefile ) {
 					$uploadFile = str_replace( ABSPATH, '', $movefile['file'] );

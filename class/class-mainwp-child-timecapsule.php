@@ -11,6 +11,8 @@
  * Extension URL: https://mainwp.com/extension/time-capsule/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_Timecapsule {
 	public static $instance     = null;
 	public $is_plugin_installed = false;

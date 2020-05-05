@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Clone_Install {
 	protected $file;
 	public $config;
@@ -54,9 +56,9 @@ class MainWP_Clone_Install {
 		}
 
 		if ( null !== $this->archiver ) {
-
+			return false;
 		} elseif ( $this->checkZipConsole() ) {
-			// skip.
+			return false;
 		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
@@ -111,7 +113,7 @@ class MainWP_Clone_Install {
 
 			return $this->archiver->file_exists( $file );
 		} elseif ( $this->checkZipConsole() ) {
-			// skip.
+			return false;
 		} elseif ( $this->checkZipSupport() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
@@ -371,7 +373,9 @@ class MainWP_Clone_Install {
 
 			return $content;
 		} else {
+			
 			if ( $this->checkZipConsole() ) {
+				return false;
 			} elseif ( $this->checkZipSupport() ) {
 				$zip    = new ZipArchive();
 				$zipRes = $zip->open( $this->file );

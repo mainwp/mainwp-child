@@ -11,6 +11,8 @@
  * Extension URL: https://mainwp.com/extension/wordfence/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_Wordfence {
 	public static $instance        = null;
 	public $is_wordfence_installed = false;
@@ -836,7 +838,7 @@ class MainWP_Child_Wordfence {
 		return $wpdb->get_var(
 			<<<SQL
 			SELECT SUM(blockCount) as blockCount FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval}
-			SQL
+SQL
 		);
 	}
 

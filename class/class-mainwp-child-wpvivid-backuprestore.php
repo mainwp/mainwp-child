@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Child_WPvivid_BackupRestore {
 
 	public static $instance     = null;

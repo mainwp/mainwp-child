@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/page-speed/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_Pagespeed {
 
 	public static $instance     = null;

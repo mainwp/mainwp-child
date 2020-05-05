@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Backup {
 	protected static $instance = null;
 	protected $excludeZip;
@@ -790,9 +792,7 @@ class MainWP_Backup {
 				foreach ( $db_files as $db_file ) {
 					unlink( $db_file );
 				}
-			} else {
-				// todo: throw exception!
-			}
+			} 
 		}
 
 		return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );

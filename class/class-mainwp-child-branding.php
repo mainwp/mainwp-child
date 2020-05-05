@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Child_Branding {
 	public static $instance = null;
 
@@ -445,10 +447,9 @@ class MainWP_Child_Branding {
 
 	// prevent conflicts with other plugins.
 	public function admin_menu() {
-		$allow_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
-		if ( $allow_contact ) {
-			// skip!
-		} elseif ( ! current_user_can( 'administrator' ) ) {
+		$enable_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
+		
+		if ( ! $enable_contact && ! current_user_can( 'administrator' ) ) {
 			return false;
 		}
 
@@ -914,10 +915,8 @@ class MainWP_Child_Branding {
 	 * @param WP_Admin_Bar $wp_admin_bar
 	 */
 	public function add_support_button_in_top_admin_bar( $wp_admin_bar ) {
-		$allow_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
-		if ( $allow_contact ) {
-			// skip!
-		} elseif ( ! current_user_can( 'administrator' ) ) {
+		$enable_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
+		if ( ! $enable_contact && ! current_user_can( 'administrator' ) ) {
 			return false;
 		}
 

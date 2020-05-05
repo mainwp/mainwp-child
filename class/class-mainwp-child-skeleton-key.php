@@ -1,4 +1,5 @@
 <?php
+namespace MainWP\Child;
 
 class MainWP_Child_Skeleton_Key {
 	public static $instance    = null;

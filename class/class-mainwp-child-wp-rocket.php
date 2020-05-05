@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/rocket/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_WP_Rocket {
 	public static $instance     = null;
 	public $is_plugin_installed = false;

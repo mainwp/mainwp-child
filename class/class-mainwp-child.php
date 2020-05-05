@@ -1,4 +1,7 @@
 <?php
+
+namespace MainWP\Child;
+
 if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === true ) {
 	error_reporting( E_ALL );
 	ini_set( 'display_errors', true );
@@ -10,110 +13,8 @@ if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === true ) {
 	}
 }
 
-define( 'MAINWP_CHILD_NR_OF_COMMENTS', 50 );
-define( 'MAINWP_CHILD_NR_OF_PAGES', 50 );
-
 require_once ABSPATH . '/wp-admin/includes/file.php';
 require_once ABSPATH . '/wp-admin/includes/plugin.php';
-
-
-if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyuse_nonce_hmac'] ) ) {
-	$skeleton_keyuse_nonce_key  = intval( $_GET['skeleton_keyuse_nonce_key'] );
-	$skeleton_keyuse_nonce_hmac = $_GET['skeleton_keyuse_nonce_hmac'];
-	$skeleton_keycurrent_time   = intval( time() );
-
-	if ( $skeleton_keycurrent_time >= $skeleton_keyuse_nonce_key && $skeleton_keycurrent_time <= ( $skeleton_keyuse_nonce_key + 30 ) ) {
-
-		if ( strcmp( $skeleton_keyuse_nonce_hmac, hash_hmac( 'sha256', $skeleton_keyuse_nonce_key, NONCE_KEY ) ) === 0 ) {
-
-			if ( ! function_exists( 'wp_verify_nonce' ) ) :
-
-				/**
-				 * Verify that correct nonce was used with time limit.
-				 *
-				 * The user is given an amount of time to use the token, so therefore, since the
-				 * UID and $action remain the same, the independent variable is the time.
-				 *
-				 * @since 2.0.3
-				 *
-				 * @param string     $nonce Nonce that was used in the form to verify
-				 * @param string|int $action Should give context to what is taking place and be the same when nonce was created.
-				 *
-				 * @return false|int False if the nonce is invalid, 1 if the nonce is valid and generated between
-				 *                   0-12 hours ago, 2 if the nonce is valid and generated between 12-24 hours ago.
-				 */
-				function wp_verify_nonce( $nonce, $action = - 1 ) {
-					$nonce = (string) $nonce;
-					$user  = wp_get_current_user();
-					$uid   = (int) $user->ID;
-					if ( ! $uid ) {
-						/**
-						 * Filter whether the user who generated the nonce is logged out.
-						 *
-						 * @since 3.5.0
-						 *
-						 * @param int $uid ID of the nonce-owning user.
-						 * @param string $action The nonce action.
-						 */
-						$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
-					}
-
-					if ( empty( $nonce ) ) {
-
-						// To fix verify nonce conflict #1.
-						// this is fake post field to fix some conflict of wp_verify_nonce().
-						// just return false to unverify nonce, does not exit.
-						if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
-							return false;
-						}
-
-						// to help tracing the conflict verify nonce with other plugins.
-						ob_start();
-						debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
-						$stackTrace = "\n" . ob_get_clean();
-						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-					}
-
-					// To fix verify nonce conflict #2.
-					// this is fake nonce to fix some conflict of wp_verify_nonce().
-					// just return false to unverify nonce, does not exit.
-					if ( 'mainwp-bsm-unverify-nonce' == $nonce ) {
-						return false;
-					}
-
-					$token = wp_get_session_token();
-					$i     = wp_nonce_tick();
-
-					// Nonce generated 0-12 hours ago.
-					$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid . '|' . $token, 'nonce' ), - 12, 10 );
-					if ( hash_equals( $expected, $nonce ) ) {
-						return 1;
-					}
-
-					// Nonce generated 12-24 hours ago.
-					$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid . '|' . $token, 'nonce' ), - 12, 10 );
-					if ( hash_equals( $expected, $nonce ) ) {
-						return 2;
-					}
-
-					// To fix verify nonce conflict #3.
-					// this is fake post field to fix some conflict of wp_verify_nonce().
-					// just return false to unverify nonce, does not exit.
-					if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
-						return false;
-					}
-
-					ob_start();
-					debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
-					$stackTrace = "\n" . ob_get_clean();
-
-					// Invalid nonce.
-					die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				}
-			endif;
-		}
-	}
-}
 
 class MainWP_Child {
 	public static $version  = '4.0.7.1';
@@ -492,9 +393,9 @@ class MainWP_Child {
 			return;
 		}
 		session_write_close();
-		@header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ), true );
-		@header( 'X-Robots-Tag: noindex, nofollow', true );
-		@header( 'X-MainWP-Child-Version: ' . self::$version, true );
+		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ), true );
+		header( 'X-Robots-Tag: noindex, nofollow', true );
+		header( 'X-MainWP-Child-Version: ' . self::$version, true );
 		nocache_headers();
 		if ( 'test' == $_GET['mainwp_child_run'] ) {
 			die( 'MainWP Test' );
@@ -673,7 +574,7 @@ class MainWP_Child {
 
 			$settingsPage = add_submenu_page( 'options-general.php', $child_menu_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
 
-			add_action( 'admin_print_scripts-' . $settingsPage, array( 'MainWP_Clone', 'print_scripts' ) );
+			add_action( 'admin_print_scripts-' . $settingsPage, array( MainWP_Clone::get_class_name(), 'print_scripts' ) );
 			$subpageargs = array(
 				'child_slug'  => 'options-general.php',
 				'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
@@ -4400,7 +4301,10 @@ class MainWP_Child {
 			}
 		}
 
-		$maxPages = MAINWP_CHILD_NR_OF_PAGES;
+		$maxPages = 50;
+		if ( defined( 'MAINWP_CHILD_NR_OF_PAGES' ) )
+			$maxPages = MAINWP_CHILD_NR_OF_PAGES;
+		
 		if ( isset( $_POST['maxRecords'] ) ) {
 			$maxPages = $_POST['maxRecords'];
 		}
@@ -4448,7 +4352,10 @@ class MainWP_Child {
 			}
 		}
 
-		$maxComments = MAINWP_CHILD_NR_OF_COMMENTS;
+		$maxComments = 50;		
+		if ( defined( 'MAINWP_CHILD_NR_OF_COMMENTS' ) )
+			$maxComments = MAINWP_CHILD_NR_OF_COMMENTS; // to compatible.
+		
 		if ( isset( $_POST['maxRecords'] ) ) {
 			$maxComments = $_POST['maxRecords'];
 		}
@@ -5267,15 +5174,15 @@ class MainWP_Child {
 		// log time.
 		$time = MainWP_Helper::clean( date( 'F jS Y, h:ia', time() ) );
 
-		$mail = '<div>' . 'TIME: ' . $time . '</div>' .
-				'<div>' . '*404: ' . $request . '</div>' .
-				'<div>' . 'SITE: ' . $site . '</div>' .
-				'<div>' . 'REFERRER: ' . $referer . '</div>' .
-				'<div>' . 'QUERY STRING: ' . $string . '</div>' .
-				'<div>' . 'REMOTE ADDRESS: ' . $address . '</div>' .
-				'<div>' . 'REMOTE IDENTITY: ' . $remote . '</div>' .
-				'<div>' . 'USER AGENT: ' . $agent . '</div>';
-		$mail = '<div>404 alert</div><div></div>' . $mail;
+		$mail = '<div>404 alert</div><div></div>' .
+				'<div>TIME: ' . $time . '</div>' .
+				'<div>*404: ' . $request . '</div>' .
+				'<div>SITE: ' . $site . '</div>' .
+				'<div>REFERRER: ' . $referer . '</div>' .
+				'<div>QUERY STRING: ' . $string . '</div>' .
+				'<div>REMOTE ADDRESS: ' . $address . '</div>' .
+				'<div>REMOTE IDENTITY: ' . $remote . '</div>' .
+				'<div>USER AGENT: ' . $agent . '</div>';		
 		wp_mail(
 			$email,
 			'MainWP - 404 Alert: ' . $blog,
@@ -5304,7 +5211,7 @@ class MainWP_Child {
 		}
 		$code = stripslashes( $_POST['code'] );
 		if ( 'run_snippet' === $action ) {
-			$information = MainWP_Tools::execute_snippet( $code );
+			$information = MainWP_Helper::execute_snippet( $code );
 		} elseif ( 'save_snippet' === $action ) {
 			$type     = $_POST['type'];
 			$slug     = $_POST['slug'];
@@ -5391,7 +5298,7 @@ class MainWP_Child {
 			$snippets = get_option( 'mainwp_ext_code_snippets' );
 			if ( is_array( $snippets ) && count( $snippets ) > 0 ) {
 				foreach ( $snippets as $code ) {
-					MainWP_Tools::execute_snippet( $code );
+					MainWP_Helper::execute_snippet( $code );
 				}
 			}
 		}

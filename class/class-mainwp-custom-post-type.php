@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Custom_Post_Type {
 	public static $instance    = null;
 	public static $information = array();

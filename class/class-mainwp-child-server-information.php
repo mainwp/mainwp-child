@@ -1,4 +1,5 @@
 <?php
+namespace MainWP\Child;
 
 class MainWP_Child_Server_Information {
 	const WARNING = 1;

@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Keyword_Links {
 	public static $instance = null;
 	protected $config;

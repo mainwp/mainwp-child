@@ -9,6 +9,8 @@
  * The code is used for the MainWP Broken Links Checker Extension (Retired Extension)
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_Links_Checker {
 
 	public static $instance     = null;

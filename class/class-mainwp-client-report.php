@@ -1,5 +1,7 @@
 <?php
 
+namespace MainWP\Child;
+
 class MainWP_Client_Report {
 
 	public static $instance = null;
@@ -612,7 +614,7 @@ class MainWP_Client_Report {
 		$loop_count = 0;
 
 		foreach ( $records as $record ) {
-
+			
 			if ( in_array( $record->ID, $skip_records ) ) {
 				continue;
 			}
@@ -625,21 +627,25 @@ class MainWP_Client_Report {
 				continue;
 			}
 
+			$valid_context = false;
+			
 			if ( 'comments' == $context ) {
 				$comment_contexts = array( 'post', 'page' );
 				if ( ! in_array( $record->context, $comment_contexts ) ) {
 					continue;
 				}
+				$valid_context = true; 
 			} elseif ( 'menus' == $context ) {
-				// ok, pass, don't check context.
+				$valid_context = true; // ok, pass, don't check context.
 			} elseif ( 'editor' == $record->connector ) {
-				// ok, pass, checked above.
+				$valid_context = true; // ok, pass, checked above.
 			} elseif ( 'media' == $connector && 'media' == $record->connector ) {
-				// ok, pass, do not check context.
+				$valid_context = true; // ok, pass, do not check context.
 			} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
-				// ok, pass, don't check context.
-				//
-			} elseif ( strtolower( $record->context ) !== $context ) {
+				$valid_context = true; // ok, pass, don't check context.				
+			} 
+			
+			if (  ! $valid_context || strtolower( $record->context ) !== $context ) {
 				continue;
 			}
 

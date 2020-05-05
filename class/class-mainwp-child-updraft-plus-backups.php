@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/updraftplus/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_Updraft_Plus_Backups {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
@@ -324,7 +326,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 				return new WP_Error( 'unknown_response', sprintf( __( 'UpdraftPlus.Com returned a response which we could not understand (data: %s)', 'updraftplus' ), $result['body'] ) );
 			}
 		}
-
+		
+		$return = false;		
 		switch ( $response['loggedin'] ) {
 			case 'connected':
 				if ( ! empty( $response['token'] ) ) {
@@ -357,15 +360,15 @@ class MainWP_Child_Updraft_Plus_Backups {
 					}
 				}
 
-				return new WP_Error( 'authfailed', __( 'Your email address and password were not recognised by UpdraftPlus.Com', 'updraftplus' ) );
+				$return = new WP_Error( 'authfailed', __( 'Your email address and password were not recognised by UpdraftPlus.Com', 'updraftplus' ) );
 				break;
 
 			default:
-				return new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
+				$return = new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
 				break;
 		}
-
-		return true;
+		
+		return $return;
 	}
 
 	// This method also gets called directly, so don't add code that assumes that it's definitely an AJAX situation.
@@ -428,7 +431,10 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$updated = false;
 		if ( is_array( $settings ) ) {
 			if ( class_exists( 'UpdraftPlus_Options' ) ) {
-				foreach ( $keys_filter as $key ) {
+				foreach ( $keys_filter as $key ) {					
+					if ( 'updraft_googledrive' === $key || 'updraft_googlecloud' === $key || 'updraft_onedrive' === $key ) {
+						continue; // skip
+					}					
 					if ( isset( $settings[ $key ] ) ) {
 						$settings_key = null;
 						if ( 'updraft_dropbox' === $key && is_array( $settings[ $key ] ) ) {
@@ -451,12 +457,6 @@ class MainWP_Child_Updraft_Plus_Backups {
 								}
 							}
 							UpdraftPlus_Options::update_updraft_option( $key, $opts );
-						} elseif ( 'updraft_googledrive' === $key ) {
-
-						} elseif ( 'updraft_googlecloud' === $key ) {
-
-						} elseif ( 'updraft_onedrive' === $key ) {
-
 						} elseif ( 'updraft_email' === $key ) {
 							$value = $settings[ $key ];
 							if ( ! is_array( $value ) ) {
@@ -1289,12 +1289,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 						$remote_obj = new $objname();
 						$deleted    = $remote_obj->delete( $files );
 					}
-					if ( -1 === $deleted ) {
-
-					} elseif ( false !== $deleted ) {
+					
+					if ( -1 !== $deleted && false !== $deleted ) {
 						$remote_deleted = $remote_deleted + count( $files );
-					} else {
-						// Do nothing.
 					}
 				}
 			}
@@ -1771,9 +1768,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$updraftplus->log( 'Restore failed' );
 			$updraftplus->list_errors();
 
-		} elseif ( false === $backup_success ) {
-
-		}
+		} 
 
 		$output = ob_get_clean();
 
@@ -2701,7 +2696,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						if ( 'multisite' == $key ) {
 							$info['multisite'] = $val ? true : false;
 							if ( $val ) {
-								$mess[] = '<strong>' . __( 'Site information:', 'updraftplus' ) . '</strong> ' . 'backup is of a WordPress Network';
+								$mess[] = '<strong>' . __( 'Site information:', 'updraftplus' ) . '</strong> backup is of a WordPress Network';
 							}
 						}
 						$old_siteinfo[ $key ] = $val;
@@ -2780,7 +2775,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			}
 			if ( $db_charset_forbidden ) {
 				$db_unsupported_charset_unique = array_unique( $db_unsupported_charset );
-				$warn[]                        = sprintf( _n( "The database server that this WordPress site is running on doesn't support the character set (%s) which you are trying to import.", "The database server that this WordPress site is running on doesn't support the character sets (%s) which you are trying to import.", count( $db_unsupported_charset_unique ), 'updraftplus' ), implode( ', ', $db_unsupported_charset_unique ) ) . ' ' . __( 'You can choose another suitable character set instead and continue with the restoration at your own risk.', 'updraftplus' ) . ' <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __( 'Go here for more information.', 'updraftplus' ) . '</a>' . ' <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __( 'Go here for more information.', 'updraftplus' ) . '</a>';
+				$warn[]                        = sprintf( _n( "The database server that this WordPress site is running on doesn't support the character set (%s) which you are trying to import.", "The database server that this WordPress site is running on doesn't support the character sets (%s) which you are trying to import.", count( $db_unsupported_charset_unique ), 'updraftplus' ), implode( ', ', $db_unsupported_charset_unique ) ) . ' ' . __( 'You can choose another suitable character set instead and continue with the restoration at your own risk.', 'updraftplus' ) . ' <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __( 'Go here for more information.', 'updraftplus' ) . '</a> <a target="_blank" href="https://updraftplus.com/faqs/implications-changing-tables-character-set/">' . __( 'Go here for more information.', 'updraftplus' ) . '</a>';
 				$db_supported_character_sets   = array_keys( $db_supported_character_sets );
 				$similar_type_charset          = UpdraftPlus_Manipulation_Functions::get_matching_str_from_array_elems( $db_unsupported_charset_unique, $db_supported_character_sets, true );
 				if ( empty( $similar_type_charset ) ) {
@@ -3050,11 +3045,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 				$backup['service'] = array( $backup['service'] );
 			}
 			foreach ( $backup['service'] as $service ) {
-				if ( 'none' === $service || '' === $service || ( is_array( $service ) && ( empty( $service ) || array( 'none' ) === $service || array( '' ) === $service ) ) ) {
-					// Do nothing.
-				} else {
+				$emptyCheck = ( 'none' === $service || '' === $service || ( is_array( $service ) && ( empty( $service ) || array( 'none' ) === $service || array( '' ) === $service ) ) );				
+				if ( ! empty( $emptyCheck ) ) {
 					$remote_storage = ( 'remotesend' === $service ) ? __( 'remote site', 'updraftplus' ) : $updraftplus->backup_methods[ $service ];
-
 					$service_title = '<br>' . esc_attr( sprintf( __( 'Remote storage: %s', 'updraftplus' ), $remote_storage ) );
 				}
 			}
@@ -3183,7 +3176,7 @@ ENDHERE;
 									<input type="submit" class="mwp-updraft-backupentitybutton ui button" value="$dbt" />
 								</form>
 							</div>
-						ENDHERE;
+ENDHERE;
 
 		return $ret;
 	}
@@ -3301,7 +3294,7 @@ ENDHERE;
 									<input type="submit" class="mwp-updraft-backupentitybutton ui button" title="$ide" value="$pdescrip" />
 								</form>
 							</div>
-						ENDHERE;
+ENDHERE;
 
 		return $ret;
 	}
@@ -3323,7 +3316,7 @@ ENDHERE;
 									<input type="submit" value="$lt" class="updraft-log-link ui button" onclick="event.preventDefault(); mainwp_updraft_popuplog( '$nval', this );" />
 								</form>
 							</div>
-							ENDHERE;
+ENDHERE;
 
 			return $ret;
 		}

@@ -13,6 +13,8 @@
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  */
 
+namespace MainWP\Child;
+
 class MainWP_Child_IThemes_Security {
 	public static $instance     = null;
 	public $is_plugin_installed = false;

@@ -8,6 +8,9 @@
  * Author URI: https://wp-staging.com
  * License: GPLv2
  */
+
+namespace MainWP\Child;
+
 class MainWP_Child_Themes_Check {
 	public static $instance             = null;
 	private $cron_name_watcher          = 'mainwp_child_cron_theme_health_check_watcher';
