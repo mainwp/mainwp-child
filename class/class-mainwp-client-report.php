@@ -487,7 +487,7 @@ class MainWP_Client_Report {
 								continue;
 							}
 
-							$valid_context = false;							
+							$valid_context = false;
 							// check context.
 							if ( 'comments' == $context ) { // multi values.
 								$comment_contexts = array( 'post', 'page' );
@@ -501,19 +501,19 @@ class MainWP_Client_Report {
 								}
 								$valid_context = true;
 							} elseif ( 'menus' == $context ) {
-								$valid_context = true; // ok, pass, don't check context.								
+								$valid_context = true; // ok, pass, don't check context.
 							} elseif ( 'editor' == $record->connector ) {
 								$valid_context = true; // ok, pass, checked above.
 							} elseif ( 'media' == $connector && 'media' == $record->connector ) {
 								$valid_context = true; // ok, pass, do not check context.
 							} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
 								$valid_context = true; // ok, pass, don't check context.
-							} 
+							}
 
 							if ( ! $valid_context || strtolower( $record->context ) !== $context ) {
 								continue;
 							}
-			
+
 							// custom action value.
 							if ( 'widgets' == $connector ) {
 								if ( 'deleted' == $action ) {
