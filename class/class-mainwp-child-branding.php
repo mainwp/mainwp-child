@@ -448,7 +448,7 @@ class MainWP_Child_Branding {
 	// prevent conflicts with other plugins.
 	public function admin_menu() {
 		$enable_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
-		
+
 		if ( ! $enable_contact && ! current_user_can( 'administrator' ) ) {
 			return false;
 		}

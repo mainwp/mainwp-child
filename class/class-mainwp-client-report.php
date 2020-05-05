@@ -614,7 +614,7 @@ class MainWP_Client_Report {
 		$loop_count = 0;
 
 		foreach ( $records as $record ) {
-			
+
 			if ( in_array( $record->ID, $skip_records ) ) {
 				continue;
 			}
@@ -628,13 +628,13 @@ class MainWP_Client_Report {
 			}
 
 			$valid_context = false;
-			
+
 			if ( 'comments' == $context ) {
 				$comment_contexts = array( 'post', 'page' );
 				if ( ! in_array( $record->context, $comment_contexts ) ) {
 					continue;
 				}
-				$valid_context = true; 
+				$valid_context = true;
 			} elseif ( 'menus' == $context ) {
 				$valid_context = true; // ok, pass, don't check context.
 			} elseif ( 'editor' == $record->connector ) {
@@ -642,10 +642,10 @@ class MainWP_Client_Report {
 			} elseif ( 'media' == $connector && 'media' == $record->connector ) {
 				$valid_context = true; // ok, pass, do not check context.
 			} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
-				$valid_context = true; // ok, pass, don't check context.				
-			} 
-			
-			if (  ! $valid_context || strtolower( $record->context ) !== $context ) {
+				$valid_context = true; // ok, pass, don't check context.
+			}
+
+			if ( ! $valid_context || strtolower( $record->context ) !== $context ) {
 				continue;
 			}
 

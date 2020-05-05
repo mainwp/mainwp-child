@@ -17,7 +17,7 @@ class MainWP_Clone {
 		return __CLASS__;
 	}
 
-	
+
 	public static function get() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Clone();
@@ -90,9 +90,9 @@ class MainWP_Clone {
 	}
 
 	public function init() {
-		add_action( 'check_admin_referer', array( MainWP_Clone::get_class_name(), 'permalinkChanged' ) );
+		add_action( 'check_admin_referer', array( self::get_class_name(), 'permalinkChanged' ) );
 		if ( get_option( 'mainwp_child_clone_permalink' ) || get_option( 'mainwp_child_restore_permalink' ) ) {
-			add_action( 'admin_notices', array( MainWP_Clone::get_class_name(), 'permalinkAdminNotice' ) );
+			add_action( 'admin_notices', array( self::get_class_name(), 'permalinkAdminNotice' ) );
 		}
 	}
 
@@ -130,7 +130,7 @@ class MainWP_Clone {
 				}
 				$uploadedfile     = $_FILES['file'];
 				$upload_overrides = array( 'test_form' => false );
-				add_filter( 'upload_mimes', array( MainWP_Clone::get_class_name(), 'upload_mimes' ) );
+				add_filter( 'upload_mimes', array( self::get_class_name(), 'upload_mimes' ) );
 				$movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
 				if ( $movefile ) {
 					$uploadFile = str_replace( ABSPATH, '', $movefile['file'] );

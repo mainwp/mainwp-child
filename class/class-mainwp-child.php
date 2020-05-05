@@ -1402,7 +1402,7 @@ class MainWP_Child {
 		MainWP_Child_Pagespeed::Instance()->init();
 		MainWP_Child_Links_Checker::Instance()->init();
 		MainWP_Child_WPvivid_BackupRestore::Instance()->init();
-		
+
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
 			$_wp_submenu_nopriv = array(); // phpcs:ignore -- to fix warning.
@@ -4302,9 +4302,10 @@ class MainWP_Child {
 		}
 
 		$maxPages = 50;
-		if ( defined( 'MAINWP_CHILD_NR_OF_PAGES' ) )
+		if ( defined( 'MAINWP_CHILD_NR_OF_PAGES' ) ) {
 			$maxPages = MAINWP_CHILD_NR_OF_PAGES;
-		
+		}
+
 		if ( isset( $_POST['maxRecords'] ) ) {
 			$maxPages = $_POST['maxRecords'];
 		}
@@ -4352,10 +4353,11 @@ class MainWP_Child {
 			}
 		}
 
-		$maxComments = 50;		
-		if ( defined( 'MAINWP_CHILD_NR_OF_COMMENTS' ) )
+		$maxComments = 50;
+		if ( defined( 'MAINWP_CHILD_NR_OF_COMMENTS' ) ) {
 			$maxComments = MAINWP_CHILD_NR_OF_COMMENTS; // to compatible.
-		
+		}
+
 		if ( isset( $_POST['maxRecords'] ) ) {
 			$maxComments = $_POST['maxRecords'];
 		}
@@ -5182,7 +5184,7 @@ class MainWP_Child {
 				'<div>QUERY STRING: ' . $string . '</div>' .
 				'<div>REMOTE ADDRESS: ' . $address . '</div>' .
 				'<div>REMOTE IDENTITY: ' . $remote . '</div>' .
-				'<div>USER AGENT: ' . $agent . '</div>';		
+				'<div>USER AGENT: ' . $agent . '</div>';
 		wp_mail(
 			$email,
 			'MainWP - 404 Alert: ' . $blog,

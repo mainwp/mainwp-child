@@ -792,7 +792,7 @@ class MainWP_Backup {
 				foreach ( $db_files as $db_file ) {
 					unlink( $db_file );
 				}
-			} 
+			}
 		}
 
 		return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );
