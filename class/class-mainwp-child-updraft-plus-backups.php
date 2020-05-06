@@ -145,7 +145,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						break;
 					case 'restore_alldownloaded':
 						$information = $this->restore_alldownloaded();
-						break;					
+						break;
 					case 'extradbtestconnection':
 						$information = $this->extradb_testconnection();
 						break;
