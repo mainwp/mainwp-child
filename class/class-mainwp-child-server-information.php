@@ -15,12 +15,12 @@ class MainWP_Child_Server_Information {
 	public static function get_class_name() {
 		return __CLASS__;
 	}
-	
+
 	public static function init() {
 		add_action(
 			'wp_ajax_mainwp-child_dismiss_warnings',
 			array(
-				MainWP_Child_Server_Information::get_class_name(),
+				self::get_class_name(),
 				'dismiss_warnings',
 			)
 		);
@@ -1004,7 +1004,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function render_row( $pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
-		$currentVersion = call_user_func( array( MainWP_Child_Server_Information::get_class_name(), $pGetter ) );
+		$currentVersion = call_user_func( array( self::get_class_name(), $pGetter ) );
 
 		?>
 		<tr>
@@ -1018,7 +1018,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function render_row_sec( $pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $toolTip = null, $whatType = null, $errorType = self::WARNING ) {
-		$currentVersion = call_user_func( array( MainWP_Child_Server_Information::get_class_name(), $pGetter ) );
+		$currentVersion = call_user_func( array( self::get_class_name(), $pGetter ) );
 		?>
 		<tr>
 			<td></td>
@@ -1064,7 +1064,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
-		$currentVersion = call_user_func( array( MainWP_Child_Server_Information::get_class_name(), $pGetter ) );
+		$currentVersion = call_user_func( array( self::get_class_name(), $pGetter ) );
 
 		if ( $sizeCompare ) {
 			return self::filesize_compare( $currentVersion, $pVersion, $pCompare );
