@@ -658,7 +658,7 @@ class MainWP_Child {
 				session_start();
 			}
 		}
-				
+
 		self::render_header( $shownPage, false );
 		?>
 		<?php if ( ! $hide_settings ) { ?>

@@ -15,7 +15,7 @@
 
 namespace MainWP\Child;
 
-class MainWP_Child_Back_Up_WordPress{
+class MainWP_Child_Back_Up_WordPress {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 
