@@ -7,7 +7,7 @@ class MainWP_Custom_Post_Type {
 	public static $information = array();
 	public $plugin_translate   = 'mainwp-child';
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null == self::$instance ) {
 			self::$instance = new MainWP_Custom_Post_Type();
 		}

@@ -19,7 +19,7 @@ class MainWP_Child_Back_Up_Buddy {
 	public $plugin_translate         = 'mainwp-child';
 	public $is_backupbuddy_installed = false;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Back_Up_Buddy();
 		}

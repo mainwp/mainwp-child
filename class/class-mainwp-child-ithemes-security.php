@@ -19,7 +19,7 @@ class MainWP_Child_IThemes_Security {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}

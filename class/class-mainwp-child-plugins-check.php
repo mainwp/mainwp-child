@@ -21,7 +21,7 @@ class MainWP_Child_Plugins_Check {
 	private $tran_name_plugins_to_batch  = 'mainwp_child_tran_name_plugins_to_batch';
 	private $option_name_last_daily_run  = 'mainwp_child_plugin_last_daily_run';
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Plugins_Check();
 		}

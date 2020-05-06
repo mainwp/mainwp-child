@@ -171,7 +171,7 @@ class MainWP_Child_Wordfence {
 		'learningModeGracePeriod',
 	);
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Wordfence();
 		}
@@ -225,7 +225,7 @@ class MainWP_Child_Wordfence {
 					$information = $this->request_scan();
 					break;
 				case 'killScan':
-					$information = $this->kill_scan();
+					$information = $this->kill_ajax_scan();
 					break;
 				case 'set_showhide':
 					$information = $this->set_showhide();
@@ -261,7 +261,7 @@ class MainWP_Child_Wordfence {
 					$information = $this->bulk_operation();
 					break;
 				case 'bulkOperation':
-					$information = $this->bulk_operation();
+					$information = $this->bulk_ajax_operation(); // new version.
 					break;
 				case 'delete_file':
 					$information = $this->delete_file();
@@ -626,7 +626,7 @@ class MainWP_Child_Wordfence {
 		return wordfence::ajax_scan_callback();
 	}
 
-	private function kill_scan() {
+	private function kill_ajax_scan() {
 		return wordfence::ajax_killScan_callback();
 	}
 
@@ -807,10 +807,10 @@ class MainWP_Child_Wordfence {
 			'lastScanCompleted'  => wfConfig::get( 'lastScanCompleted' ),
 			'apiKey'             => wfConfig::get( 'apiKey' ),
 			'isPaid'             => wfConfig::get( 'isPaid' ),
-			'lastscan_timestamp' => self::Instance()->get_lastscan(),
-			'todayAttBlocked'    => self::Instance()->count_attacks_blocked( 1 ),
-			'weekAttBlocked'     => self::Instance()->count_attacks_blocked( 7 ),
-			'monthAttBlocked'    => self::Instance()->count_attacks_blocked( 30 ),
+			'lastscan_timestamp' => self::instance()->get_lastscan(),
+			'todayAttBlocked'    => self::instance()->count_attacks_blocked( 1 ),
+			'weekAttBlocked'     => self::instance()->count_attacks_blocked( 7 ),
+			'monthAttBlocked'    => self::instance()->count_attacks_blocked( 30 ),
 			'issueCount'         => $i->getIssueCount(),
 		);
 		return $return;
@@ -996,7 +996,7 @@ SQL
 		}
 	}
 
-	public function bulk_operation() {
+	public function bulk_ajax_operation() {
 		return wordfence::ajax_bulkOperation_callback();
 	}
 

@@ -7,7 +7,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 	public $public_intetface;
-	static function Instance() {
+	static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_WPvivid_BackupRestore();
 		}

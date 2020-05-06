@@ -15,7 +15,7 @@ class MainWP_Security {
 		return __CLASS__;
 	}
 
-	public static function fixAll() {
+	public static function fix_all() {
 		self::remove_wp_version();
 		self::remove_rsd();
 		self::remove_wlw();
@@ -33,7 +33,7 @@ class MainWP_Security {
 	// Prevent listing wp-content, wp-content/plugins, wp-content/themes, wp-content/uploads.
 	private static $listingDirectories = null;
 
-	private static function init_listingDirectories() {
+	private static function init_listing_directories() {
 		if ( null === self::$listingDirectories ) {
 			$wp_upload_dir            = wp_upload_dir();
 			self::$listingDirectories = array(
@@ -46,7 +46,7 @@ class MainWP_Security {
 	}
 
 	public static function prevent_listing_ok() {
-		self::init_listingDirectories();
+		self::init_listing_directories();
 		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! file_exists( $file ) ) {
@@ -58,7 +58,7 @@ class MainWP_Security {
 	}
 
 	public static function prevent_listing() {
-		self::init_listingDirectories();
+		self::init_listing_directories();
 		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! file_exists( $file ) ) {

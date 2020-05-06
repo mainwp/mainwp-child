@@ -14,7 +14,7 @@ class MainWP_Keyword_Links {
 	protected $link_exact_match    = 1;
 	protected $link_case_sensitive = 1;
 
-	static function Instance() {
+	static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Keyword_Links();
 		}
@@ -35,7 +35,7 @@ class MainWP_Keyword_Links {
 		}
 		// print_r($this->keyword_links);
 		$this->siteurl = get_option( 'home' );
-		add_action( 'permalink_structure_changed', array( &$this, 'permalinkChanged' ), 10, 2 );
+		add_action( 'permalink_structure_changed', array( &$this, 'permalink_changed' ), 10, 2 );
 	}
 
 
@@ -59,7 +59,7 @@ class MainWP_Keyword_Links {
 	}
 
 
-	public function permalinkChanged( $old_struct, $new_struct ) {
+	public function permalink_changed( $old_struct, $new_struct ) {
 		if ( '1' !== get_option( 'mainwpKeywordLinks' ) ) {
 			if ( 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
 				$this->update_htaccess( false, true ); // force clear

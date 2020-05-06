@@ -17,7 +17,7 @@ namespace MainWP\Child;
 class MainWP_Wordpress_SEO {
 	public static $instance = null;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Wordpress_SEO();
 		}

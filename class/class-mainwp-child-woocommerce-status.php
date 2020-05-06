@@ -16,7 +16,7 @@ namespace MainWP\Child;
 class MainWP_Child_WooCommerce_Status {
 	public static $instance = null;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_WooCommerce_Status();
 		}

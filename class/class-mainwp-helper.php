@@ -388,7 +388,7 @@ class MainWP_Helper {
 		);
 
 		$wprocket_activated = false;
-		if ( MainWP_Child_WP_Rocket::Instance()->isActivated() ) {
+		if ( MainWP_Child_WP_Rocket::instance()->is_activated() ) {
 			if ( function_exists( 'get_rocket_option' ) ) {
 				$wprocket_activated = true;
 				foreach ( $wprocket_fields as $field ) {

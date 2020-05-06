@@ -49,7 +49,7 @@ class Tar_Archiver {
 		}
 	}
 
-	public function getExtension() {
+	public function get_extension() {
 		if ( 'tar.bz2' == $this->type ) {
 			return '.tar.bz2';
 		}
@@ -60,14 +60,14 @@ class Tar_Archiver {
 		return '.tar';
 	}
 
-	public function zipFile( $files, $archive ) {
+	public function zip_file( $files, $archive ) {
 		$this->create( $archive );
 		if ( $this->archive ) {
 			foreach ( $files as $filepath ) {
-				$this->addFile( $filepath, basename( $filepath ) );
+				$this->add_file( $filepath, basename( $filepath ) );
 			}
 
-			$this->addData( pack( 'a1024', '' ) );
+			$this->add_data( pack( 'a1024', '' ) );
 			$this->close();
 
 			return true;
@@ -76,7 +76,7 @@ class Tar_Archiver {
 		return false;
 	}
 
-	private function createPidFile( $file ) {
+	private function create_pid_file( $file ) {
 		if ( false === $this->pidFile ) {
 			return false;
 		}
@@ -92,7 +92,7 @@ class Tar_Archiver {
 		return true;
 	}
 
-	public function updatePidFile() {
+	public function update_pid_file() {
 		if ( false === $this->pidFile ) {
 			return false;
 		}
@@ -109,7 +109,7 @@ class Tar_Archiver {
 		return true;
 	}
 
-	private function completePidFile() {
+	private function complete_pid_file() {
 		if ( false === $this->pidFile ) {
 			return false;
 		}
@@ -124,8 +124,8 @@ class Tar_Archiver {
 		return true;
 	}
 
-	public function createFullBackup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
-		$this->createPidFile( $filepath );
+	public function create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
+		$this->create_pid_file( $filepath );
 
 		$this->excludeZip = $excludezip;
 
@@ -133,7 +133,7 @@ class Tar_Archiver {
 
 		if ( $append && file_exists( $filepath ) ) {
 			$this->mode = self::APPEND;
-			$this->prepareAppend( $filepath );
+			$this->prepare_append( $filepath );
 		} else {
 			$this->mode = self::CREATE;
 			$this->create( $filepath );
@@ -181,14 +181,14 @@ class Tar_Archiver {
 				unset( $coreFiles );
 			}
 
-			$db_files = $this->backup->createBackupDB( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', false, $this );
+			$db_files = $this->backup->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', false, $this );
 
 			foreach ( $db_files as $db_file ) {
-				$this->addFile( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
+				$this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
 			}
 
 			if ( file_exists( ABSPATH . '.htaccess' ) ) {
-				$this->addFile( ABSPATH . '.htaccess', 'mainwp-htaccess' );
+				$this->add_file( ABSPATH . '.htaccess', 'mainwp-htaccess' );
 			}
 
 			foreach ( $nodes as $node ) {
@@ -200,9 +200,9 @@ class Tar_Archiver {
 
 				if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
 					if ( is_dir( $node ) ) {
-						$this->addDir( $node, $excludes );
+						$this->add_dir( $node, $excludes );
 					} elseif ( is_file( $node ) ) {
-						$this->addFile( $node, str_replace( ABSPATH, '', $node ) );
+						$this->add_file( $node, str_replace( ABSPATH, '', $node ) );
 					}
 				}
 			}
@@ -251,17 +251,17 @@ class Tar_Archiver {
 					)
 				);
 
-				$this->addEmptyDirectory( 'clone', 0, 0, 0, time() );
-				$this->addFileFromString( 'clone/config.txt', $string );
+				$this->add_empty_directory( 'clone', 0, 0, 0, time() );
+				$this->add_file_from_string( 'clone/config.txt', $string );
 			}
 
-			$this->addData( pack( 'a1024', '' ) );
+			$this->add_data( pack( 'a1024', '' ) );
 			$this->close();
 			foreach ( $db_files as $db_file ) {
 				unlink( $db_file );
 			}
 
-			$this->completePidFile();
+			$this->complete_pid_file();
 
 			return true;
 		}
@@ -269,15 +269,15 @@ class Tar_Archiver {
 		return false;
 	}
 
-	public function addDir( $path, $excludes ) {
+	public function add_dir( $path, $excludes ) {
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
 			return;
 		}
 
-		$this->addEmptyDir( $path, str_replace( ABSPATH, '', $path ) );
+		$this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
 
 		if ( file_exists( rtrim( $path, '/' ) . '/.htaccess' ) ) {
-			$this->addFile( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
+			$this->add_file( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
 		}
 
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST, RecursiveIteratorIterator::CATCH_GET_CHILD );
@@ -295,9 +295,9 @@ class Tar_Archiver {
 
 			if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
 				if ( $path->isDir() ) {
-					$this->addEmptyDir( $name, str_replace( ABSPATH, '', $name ) );
+					$this->add_empty_dir( $name, str_replace( ABSPATH, '', $name ) );
 				} else {
-					$this->addFile( $name, str_replace( ABSPATH, '', $name ) );
+					$this->add_file( $name, str_replace( ABSPATH, '', $name ) );
 				}
 			}
 			$name = null;
@@ -308,12 +308,12 @@ class Tar_Archiver {
 		unset( $iterator );
 	}
 
-	private function addData( $data ) {
+	private function add_data( $data ) {
 		if ( $this->debug ) {
 			$this->chunk .= $data;
 
 			if ( strlen( $this->chunk ) > $this->chunkSize ) {
-				$this->writeChunk();
+				$this->write_chunk();
 			}
 
 			return;
@@ -335,7 +335,7 @@ class Tar_Archiver {
 		}
 	}
 
-	private function writeChunk() {
+	private function write_chunk() {
 		$len = strlen( $this->chunk );
 		if ( 0 == $len ) {
 			return;
@@ -362,15 +362,15 @@ class Tar_Archiver {
 		$this->chunk = '';
 	}
 
-	private function addEmptyDir( $path, $entryName ) {
+	private function add_empty_dir( $path, $entryName ) {
 		$stat = stat( $path );
 
-		$this->addEmptyDirectory( $entryName, $stat['mode'], $stat['uid'], $stat['gid'], $stat['mtime'] );
+		$this->add_empty_directory( $entryName, $stat['mode'], $stat['uid'], $stat['gid'], $stat['mtime'] );
 	}
 
-	private function addEmptyDirectory( $entryName, $mode, $uid, $gid, $mtime ) {
+	private function add_empty_directory( $entryName, $mode, $uid, $gid, $mtime ) {
 		if ( self::APPEND == $this->mode ) {
-			if ( true === $this->checkBeforeAppend( $entryName ) ) {
+			if ( true === $this->check_before_append( $entryName ) ) {
 				return true;
 			}
 		}
@@ -411,8 +411,8 @@ class Tar_Archiver {
 				$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
 				$block    = substr_replace( $block, $checksum, 148, 8 );
 
-				$this->addData( $block );
-				$this->addData( pack( 'a512', $entryName ) );
+				$this->add_data( $block );
+				$this->add_data( pack( 'a512', $entryName ) );
 				$entryName = substr( $entryName, 0, 100 );
 			}
 		}
@@ -445,7 +445,7 @@ class Tar_Archiver {
 		$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
 		$block    = substr_replace( $block, $checksum, 148, 8 );
 
-		$this->addData( $block );
+		$this->add_data( $block );
 
 		return true;
 	}
@@ -455,7 +455,7 @@ class Tar_Archiver {
 	protected $gcCnt = 0;
 	protected $cnt   = 0;
 
-	private function addFile( $path, $entryName ) {
+	private function add_file( $path, $entryName ) {
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
 			return false;
 		}
@@ -468,11 +468,11 @@ class Tar_Archiver {
 
 		$this->log( 'Adding ' . $path );
 
-		$this->updatePidFile();
+		$this->update_pid_file();
 
 		$rslt = false;
 		if ( self::APPEND == $this->mode ) {
-			$rslt = $this->checkBeforeAppend( $entryName );
+			$rslt = $this->check_before_append( $entryName );
 			if ( true === $rslt ) {
 				return true;
 			}
@@ -537,10 +537,10 @@ class Tar_Archiver {
 				$block    = substr_replace( $block, $checksum, 148, 8 );
 
 				if ( ! isset( $rslt['bytesRead'] ) ) {
-					$this->addData( $block );
+					$this->add_data( $block );
 				}
 				if ( ! isset( $rslt['bytesRead'] ) ) {
-					$this->addData( pack( 'a512', $entryName ) );
+					$this->add_data( pack( 'a512', $entryName ) );
 				}
 				$entryName = substr( $entryName, 0, 100 );
 			}
@@ -575,7 +575,7 @@ class Tar_Archiver {
 		$this->block = substr_replace( $this->block, $checksum, 148, 8 );
 
 		if ( ! isset( $rslt['bytesRead'] ) ) {
-			$this->addData( $this->block );
+			$this->add_data( $this->block );
 		}
 
 		if ( isset( $rslt['bytesRead'] ) ) {
@@ -586,12 +586,12 @@ class Tar_Archiver {
 			if ( $toRead > 0 ) {
 				$this->tempContent = fread( $fp, $toRead );
 
-				$this->addData( $this->tempContent );
+				$this->add_data( $this->tempContent );
 
 				$remainder = 512 - ( strlen( $this->tempContent ) + $alreadyRead );
 				$this->log( 'DEBUG-Added ' . strlen( $this->tempContent ) . '(before: ' . $alreadyRead . ') will pack: ' . $remainder . ' (packed: ' . strlen( pack( 'a' . $remainder, '' ) ) );
 				if ( $remainder > 0 ) {
-					$this->addData( pack( 'a' . $remainder ), '' );
+					$this->add_data( pack( 'a' . $remainder ), '' );
 				}
 			}
 		}
@@ -602,13 +602,13 @@ class Tar_Archiver {
 			$read   = strlen( $this->tempContent );
 			$divide = $read % 512;
 
-			$this->addData( substr( $this->tempContent, 0, $read - $divide ) );
+			$this->add_data( substr( $this->tempContent, 0, $read - $divide ) );
 
 			if ( $divide > 0 ) {
-				$this->addData( pack( 'a512', substr( $this->tempContent, - 1 * $divide ) ) );
+				$this->add_data( pack( 'a512', substr( $this->tempContent, - 1 * $divide ) ) );
 			}
 
-			$this->updatePidFile();
+			$this->update_pid_file();
 		}
 
 		fclose( $fp );
@@ -616,11 +616,11 @@ class Tar_Archiver {
 		return true;
 	}
 
-	private function addFileFromString( $entryName, $content ) {
+	private function add_file_from_string( $entryName, $content ) {
 		$this->log( 'Add from string ' . $entryName );
 
 		if ( self::APPEND == $this->mode ) {
-			if ( true === $this->checkBeforeAppend( $entryName ) ) {
+			if ( true === $this->check_before_append( $entryName ) ) {
 				return true;
 			}
 		}
@@ -661,8 +661,8 @@ class Tar_Archiver {
 				$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
 				$block    = substr_replace( $block, $checksum, 148, 8 );
 
-				$this->addData( $block );
-				$this->addData( pack( 'a512', $entryName ) );
+				$this->add_data( $block );
+				$this->add_data( pack( 'a512', $entryName ) );
 				$entryName = substr( $entryName, 0, 100 );
 			}
 		}
@@ -695,17 +695,17 @@ class Tar_Archiver {
 		$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
 		$block    = substr_replace( $block, $checksum, 148, 8 );
 
-		$this->addData( $block );
+		$this->add_data( $block );
 		$i = 0;
 		while ( ( $line = substr( $content, $i ++ * 512, 512 ) ) != '' ) {
-			$this->addData( pack( 'a512', $line ) );
+			$this->add_data( pack( 'a512', $line ) );
 		}
 
 		return true;
 	}
 
-	private function checkBeforeAppend( $entryName ) {
-		$rslt = $this->isNextFile( $entryName );
+	private function check_before_append( $entryName ) {
+		$rslt = $this->is_next_file( $entryName );
 
 		if ( true === $rslt ) {
 			return true;
@@ -753,7 +753,7 @@ class Tar_Archiver {
 	 * @return array|bool
 	 * @throws Exception
 	 */
-	private function isNextFile( $entryName ) {
+	private function is_next_file( $entryName ) {
 		$currentOffset = ftell( $this->archive );
 		$rslt          = array( 'startOffset' => $currentOffset );
 		try {
@@ -910,11 +910,11 @@ class Tar_Archiver {
 		}
 	}
 
-	public function isOpen() {
+	public function is_open() {
 		return ! empty( $this->archive );
 	}
 
-	public function prepareAppend( $filepath ) {
+	public function prepare_append( $filepath ) {
 		if ( $this->debug ) {
 			if ( 'tar.gz' == substr( $filepath, - 6 ) ) {
 				$text        = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 );
@@ -929,7 +929,7 @@ class Tar_Archiver {
 								echo ord( $read[ $i ] ) . "\n";
 							}
 
-							if ( ! $this->isValidBlock( substr( $read, 10, $pos - 10 ) ) ) {
+							if ( ! $this->is_valid_block( substr( $read, 10, $pos - 10 ) ) ) {
 								throw new Exception( 'invalid!' );
 							}
 
@@ -938,7 +938,7 @@ class Tar_Archiver {
 						}
 					}
 
-					if ( ! $this->isValidBlock( substr( $read, 10 ) ) ) {
+					if ( ! $this->is_valid_block( substr( $read, 10 ) ) ) {
 						throw new Exception( 'invalid!' );
 					}
 
@@ -980,7 +980,7 @@ class Tar_Archiver {
 	}
 
 	public function close( $closeLog = true ) {
-		$this->writeChunk();
+		$this->write_chunk();
 		$this->log( 'Closing archive' );
 
 		if ( $closeLog && $this->logHandle ) {
@@ -998,7 +998,7 @@ class Tar_Archiver {
 		}
 	}
 
-	public function getFromName( $entryName ) {
+	public function get_from_name( $entryName ) {
 		if ( ! $this->archive ) {
 			return false;
 		}
@@ -1125,7 +1125,7 @@ class Tar_Archiver {
 		return false;
 	}
 
-	public function extractTo( $to ) {
+	public function extract_to( $to ) {
 		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
 
@@ -1230,7 +1230,7 @@ class Tar_Archiver {
 		return null;
 	}
 
-	public function isValidBlock( $block ) {
+	public function is_valid_block( $block ) {
 		$test = gzinflate( $block );
 		if ( false === $test ) {
 			return false;

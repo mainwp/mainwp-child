@@ -19,7 +19,7 @@ class MainWP_Child_Back_Up_Wordpress {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Back_Up_Wordpress();
 		}
@@ -78,7 +78,7 @@ class MainWP_Child_Back_Up_Wordpress {
 
 	public function action() {
 		$information = array();
-		if ( ! self::isActivated() ) {
+		if ( ! self::is_activated() ) {
 			$information['error'] = 'NO_BACKUPWORDPRESS';
 			MainWP_Helper::write( $information );
 		}
@@ -1043,7 +1043,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		return $out;
 	}
 
-	public static function isActivated() {
+	public static function is_activated() {
 		if ( ! defined( 'HMBKP_PLUGIN_PATH' ) || ! class_exists( 'HM\BackUpWordPress\Plugin' ) ) {
 			return false;
 		}

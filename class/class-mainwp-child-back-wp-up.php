@@ -56,7 +56,7 @@ class MainWP_Child_Back_WP_Up {
 		'dest-GLACIER'   => array( 'glaciersecretkey' ),
 	);
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null == self::$instance ) {
 			self::$instance = new MainWP_Child_Back_WP_Up();
 		}

@@ -33,7 +33,7 @@ class MainWP_Clone_Install {
 	 *
 	 * @return bool
 	 */
-	public function checkZipSupport() {
+	public function check_zip_support() {
 		return class_exists( 'ZipArchive' );
 	}
 
@@ -42,24 +42,24 @@ class MainWP_Clone_Install {
 	 *
 	 * @return bool
 	 */
-	public function checkZipConsole() {
+	public function check_zip_console() {
 		return false;
 	}
 
-	public function checkWPZip() {
+	public function check_wp_zip() {
 		return function_exists( 'unzip_file' );
 	}
 
-	public function removeConfigFile() {
+	public function remove_config_file() {
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
 			return false;
 		}
 
 		if ( null !== $this->archiver ) {
 			return false;
-		} elseif ( $this->checkZipConsole() ) {
+		} elseif ( $this->check_zip_console() ) {
 			return false;
-		} elseif ( $this->checkZipSupport() ) {
+		} elseif ( $this->check_zip_support() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
@@ -85,7 +85,7 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	public function testDownload() {
+	public function test_download() {
 		if ( ! $this->file_exists( 'wp-content/' ) ) {
 			throw new Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
@@ -107,14 +107,14 @@ class MainWP_Clone_Install {
 		}
 
 		if ( null !== $this->archiver ) {
-			if ( ! $this->archiver->isOpen() ) {
+			if ( ! $this->archiver->is_open() ) {
 				$this->archiver->read( $this->file );
 			}
 
 			return $this->archiver->file_exists( $file );
-		} elseif ( $this->checkZipConsole() ) {
+		} elseif ( $this->check_zip_console() ) {
 			return false;
-		} elseif ( $this->checkZipSupport() ) {
+		} elseif ( $this->check_zip_support() ) {
 			$zip    = new ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
@@ -132,8 +132,8 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	public function readConfigurationFile() {
-		$configContents = $this->getConfigContents();
+	public function read_configuration_file() {
+		$configContents = $this->get_config_contents();
 		if ( false === $configContents ) {
 			throw new Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
@@ -144,22 +144,6 @@ class MainWP_Clone_Install {
 		}
 		if ( isset( $this->config['themes'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_temp_clone_themes', $this->config['themes'] );
-		}
-	}
-
-	public function setConfig( $key, $val ) {
-		$this->config[ $key ] = $val;
-	}
-
-	public function testDatabase() {
-		$link = MainWP_Child_DB::connect( $this->config['dbHost'], $this->config['dbUser'], $this->config['dbPass'] );
-		if ( ! $link ) {
-			throw new Exception( __( 'Invalid database host or user/password.', 'mainwp-child' ) );
-		}
-
-		$db_selected = MainWP_Child_DB::select_db( $this->config['dbName'], $link );
-		if ( ! $db_selected ) {
-			throw new Exception( __( 'Invalid database name.', 'mainwp-child' ) );
 		}
 	}
 
@@ -190,11 +174,11 @@ class MainWP_Clone_Install {
 		}
 	}
 
-	public function updateWPConfig() {
+	public function update_wp_config() {
 		$wpConfig = file_get_contents( ABSPATH . 'wp-config.php' );
-		$wpConfig = $this->replaceVar( 'table_prefix', $this->config['prefix'], $wpConfig );
+		$wpConfig = $this->replace_var( 'table_prefix', $this->config['prefix'], $wpConfig );
 		if ( isset( $this->config['lang'] ) ) {
-			$wpConfig = $this->replaceDefine( 'WPLANG', $this->config['lang'], $wpConfig );
+			$wpConfig = $this->replace_define( 'WPLANG', $this->config['lang'], $wpConfig );
 		}
 		file_put_contents( ABSPATH . 'wp-config.php', $wpConfig );
 	}
@@ -283,21 +267,6 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-	protected function recalculateSerializedLengths( $pObject ) {
-		return preg_replace_callback(
-			'|s:(\d+):"(.*?)";|',
-			array(
-				$this,
-				'recalculateSerializedLengths_callback',
-			),
-			$pObject
-		);
-	}
-
-	protected function recalculateSerializedLengths_callback( $matches ) {
-		return 's:' . strlen( $matches[2] ) . ':"' . $matches[2] . '";';
-	}
-
 	/**
 	 * Check value to find if it was serialized.
 	 *
@@ -356,7 +325,7 @@ class MainWP_Clone_Install {
 		}
 	}
 
-	public function getConfigContents() {
+	public function get_config_contents() {
 		if ( 'extracted' === $this->file ) {
 			return file_get_contents( '../clone/config.txt' );
 		}
@@ -366,21 +335,21 @@ class MainWP_Clone_Install {
 		}
 
 		if ( null !== $this->archiver ) {
-			if ( ! $this->archiver->isOpen() ) {
+			if ( ! $this->archiver->is_open() ) {
 				$this->archiver->read( $this->file );
 			}
-			$content = $this->archiver->getFromName( 'clone/config.txt' );
+			$content = $this->archiver->get_from_name( 'clone/config.txt' );
 
 			return $content;
 		} else {
 
-			if ( $this->checkZipConsole() ) {
+			if ( $this->check_zip_console() ) {
 				return false;
-			} elseif ( $this->checkZipSupport() ) {
+			} elseif ( $this->check_zip_support() ) {
 				$zip    = new ZipArchive();
 				$zipRes = $zip->open( $this->file );
 				if ( $zipRes ) {
-					$content = $zip->getFromName( 'clone/config.txt' );
+					$content = $zip->get_from_name( 'clone/config.txt' );
 					$zip->close();
 
 					return $content;
@@ -406,26 +375,26 @@ class MainWP_Clone_Install {
 	 *
 	 * @return bool
 	 */
-	public function extractBackup() {
+	public function extract_backup() {
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
 			return false;
 		}
 
 		if ( null !== $this->archiver ) {
-			if ( ! $this->archiver->isOpen() ) {
+			if ( ! $this->archiver->is_open() ) {
 				$this->archiver->read( $this->file );
 			}
-			return $this->archiver->extractTo( ABSPATH );
-		} elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->checkWPZip() ) {
-			return $this->extractWPZipBackup();
-		} elseif ( $this->checkZipConsole() ) {
-			return $this->extractZipConsoleBackup();
-		} elseif ( $this->checkZipSupport() ) {
-			return $this->extractZipBackup();
-		} elseif ( ( filesize( $this->file ) < 50000000 ) && $this->checkWPZip() ) {
-			return $this->extractWPZipBackup();
+			return $this->archiver->extract_to( ABSPATH );
+		} elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) {
+			return $this->extract_wp_zip_backup();
+		} elseif ( $this->check_zip_console() ) {
+			return $this->extract_zip_console_backup();
+		} elseif ( $this->check_zip_support() ) {
+			return $this->extract_zip_backup();
+		} elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) {
+			return $this->extract_wp_zip_backup();
 		} else {
-			return $this->extractZipPclBackup();
+			return $this->extract_zip_pcl_backup();
 		}
 	}
 
@@ -434,11 +403,11 @@ class MainWP_Clone_Install {
 	 *
 	 * @return bool
 	 */
-	public function extractZipBackup() {
+	public function extract_zip_backup() {
 		$zip    = new ZipArchive();
 		$zipRes = $zip->open( $this->file );
 		if ( $zipRes ) {
-			$zip->extractTo( ABSPATH );
+			$zip->extract_to( ABSPATH );
 			$zip->close();
 
 			return true;
@@ -447,7 +416,7 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	public function extractWPZipBackup() {
+	public function extract_wp_zip_backup() {
 		MainWP_Helper::get_wp_filesystem();
 		global $wp_filesystem;
 
@@ -463,7 +432,7 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-	public function extractZipPclBackup() {
+	public function extract_zip_pcl_backup() {
 		$zip = new PclZip( $this->file );
 		if ( 0 === $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
 			return false;
@@ -480,7 +449,7 @@ class MainWP_Clone_Install {
 	 *
 	 * @return bool
 	 */
-	public function extractZipConsoleBackup() {
+	public function extract_zip_console_backup() {
 		return false;
 	}
 
@@ -493,7 +462,7 @@ class MainWP_Clone_Install {
 	 *
 	 * @return string Replaced define statement with new value
 	 */
-	protected function replaceDefine( $constant, $value, $content ) {
+	protected function replace_define( $constant, $value, $content ) {
 		return preg_replace( '/(define *\( *[\'"]' . $constant . '[\'"] *, *[\'"])(.*?)([\'"] *\))/is', '${1}' . $value . '${3}', $content );
 	}
 
@@ -506,7 +475,7 @@ class MainWP_Clone_Install {
 	 *
 	 * @return string Replaced variable value with new value
 	 */
-	protected function replaceVar( $varname, $value, $content ) {
+	protected function replace_var( $varname, $value, $content ) {
 		return preg_replace( '/(\$' . $varname . ' *= *[\'"])(.*?)([\'"] *;)/is', '${1}' . $value . '${3}', $content );
 	}
 

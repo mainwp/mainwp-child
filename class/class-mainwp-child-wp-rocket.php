@@ -18,7 +18,7 @@ class MainWP_Child_WP_Rocket {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_WP_Rocket();
 		}
@@ -193,7 +193,7 @@ class MainWP_Child_WP_Rocket {
 		return $value;
 	}
 
-	public function isActivated() {
+	public function is_activated() {
 		if ( ! $this->is_plugin_installed ) {
 			return false;
 		}

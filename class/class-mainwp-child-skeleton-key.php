@@ -6,7 +6,7 @@ class MainWP_Child_Skeleton_Key {
 	public static $information = array();
 	public $plugin_translate   = 'mainwp-child';
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Skeleton_Key();
 		}

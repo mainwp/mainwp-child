@@ -6,7 +6,7 @@ class MainWP_Client_Report {
 
 	public static $instance = null;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Client_Report();
 		}
@@ -47,19 +47,19 @@ class MainWP_Client_Report {
 	public static function do_reports_log( $ext = '' ) {
 		switch ( $ext ) {
 			case 'backupbuddy':
-				MainWP_Child_Back_Up_Buddy::Instance()->do_reports_log( $ext );
+				MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
 				break;
 			case 'backupwordpress':
-				MainWP_Child_Back_Up_Wordpress::Instance()->do_reports_log( $ext );
+				MainWP_Child_Back_Up_Wordpress::instance()->do_reports_log( $ext );
 				break;
 			case 'backwpup':
-				MainWP_Child_Back_WP_Up::Instance()->do_reports_log( $ext );
+				MainWP_Child_Back_WP_Up::instance()->do_reports_log( $ext );
 				break;
 			case 'wordfence':
-				MainWP_Child_Wordfence::Instance()->do_reports_log( $ext );
+				MainWP_Child_Wordfence::instance()->do_reports_log( $ext );
 				break;
 			case 'wptimecapsule':
-				MainWP_Child_Timecapsule::Instance()->do_reports_log( $ext );
+				MainWP_Child_Timecapsule::instance()->do_reports_log( $ext );
 				break;
 		}
 	}
@@ -320,7 +320,7 @@ class MainWP_Client_Report {
 			$args['date_to'] = date( 'Y-m-d', $args['date_to'] );
 		}
 
-		if ( MainWP_Child_Branding::Instance()->is_branding() ) {
+		if ( MainWP_Child_Branding::instance()->is_branding() ) {
 			$args['hide_child_reports'] = 1;
 		}
 
@@ -899,7 +899,7 @@ class MainWP_Client_Report {
 
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
-		MainWP_Child_Branding::Instance()->save_branding_options( 'hide_child_reports', $hide );
+		MainWP_Child_Branding::instance()->save_branding_options( 'hide_child_reports', $hide );
 		$information['result'] = 'SUCCESS';
 
 		return $information;
@@ -907,7 +907,7 @@ class MainWP_Client_Report {
 
 	public function creport_init() {
 
-		$branding_opts = MainWP_Child_Branding::Instance()->get_branding_options();
+		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 		$hide_nag      = false;
 
 		if ( isset( $branding_opts['hide_child_reports'] ) && 'hide' == $branding_opts['hide_child_reports'] ) {
@@ -918,7 +918,7 @@ class MainWP_Client_Report {
 
 		if ( ! $hide_nag ) {
 			// check child branding settings!
-			if ( MainWP_Child_Branding::Instance()->is_branding() ) {
+			if ( MainWP_Child_Branding::instance()->is_branding() ) {
 				$hide_nag = true;
 			}
 		}

@@ -8,7 +8,7 @@ class MainWP_Child_Branding {
 	public $child_plugin_dir;
 	public $child_branding_options = null;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Branding();
 		}

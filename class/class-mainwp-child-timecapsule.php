@@ -17,7 +17,7 @@ class MainWP_Child_Timecapsule {
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Timecapsule();
 		}
@@ -260,7 +260,7 @@ class MainWP_Child_Timecapsule {
 			MainWP_Helper::check_methods( $options_helper, array( 'get_plan_interval_from_subs_info', 'get_is_user_logged_in' ) );
 			MainWP_Helper::check_methods( $wptc_settings, array( 'get_connected_cloud_info' ) );
 
-			$all_backups   = $this->getBackups();
+			$all_backups   = $this->get_backups();
 			$backups_count = 0;
 			if ( is_array( $all_backups ) ) {
 				$formatted_backups = array();
@@ -287,7 +287,7 @@ class MainWP_Child_Timecapsule {
 		return false;
 	}
 
-	protected function getBackups( $last_time = false ) {
+	protected function get_backups( $last_time = false ) {
 		if ( empty( $last_time ) ) {
 			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore -- local time
 		}
@@ -710,7 +710,7 @@ class MainWP_Child_Timecapsule {
 				$last_time = time() - 24 * 7 * 8 * 60 * 60;
 			}
 
-			$all_last_backups = $this->getBackups( $last_time );
+			$all_last_backups = $this->get_backups( $last_time );
 
 			if ( is_array( $all_last_backups ) ) {
 				$formatted_backups = array();

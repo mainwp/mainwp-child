@@ -20,7 +20,7 @@ class MainWP_Child_Themes_Check {
 	private $tran_name_themes_to_batch  = 'mainwp_child_tran_name_themes_to_batch';
 	private $option_name_last_daily_run = 'mainwp_child_theme_last_daily_run';
 
-	public static function Instance() {
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new MainWP_Child_Themes_Check();
 		}
