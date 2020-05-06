@@ -173,7 +173,7 @@ class MainWP_Child_Wordfence {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Wordfence();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -1258,9 +1258,9 @@ SQL
 							$result['isPaid'] = 0;
 							$reload           = 'reload';
 						} else {
-							throw new Exception( "The Wordfence server's response did not contain the expected elements." );
+							throw new \Exception( "The Wordfence server's response did not contain the expected elements." );
 						}
-					} catch ( Exception $e ) {
+					} catch ( \Exception $e ) {
 						$result['error'] = 'Your options have been saved, but you left your license key blank, so we tried to get you a free license key from the Wordfence servers. There was a problem fetching the free key: ' . wp_kses( $e->getMessage(), array() );
 						return $result;
 					}
@@ -1287,9 +1287,9 @@ SQL
 							$ping   = true;
 							$reload = 'reload';
 						} else {
-							throw new Exception( 'We could not understand the Wordfence API server reply when updating your API key.' );
+							throw new \Exception( 'We could not understand the Wordfence API server reply when updating your API key.' );
 						}
-					} catch ( Exception $e ) {
+					} catch ( \Exception $e ) {
 						$result['error'] = 'Your options have been saved. However we noticed you changed your API key and we tried to verify it with the Wordfence servers and received an error: ' . htmlentities( $e->getMessage() );
 						return $result;
 					}
@@ -1343,7 +1343,7 @@ SQL
 								$result['paidKeyMsg'] = true;
 							}
 						}
-					} catch ( Exception $e ) {
+					} catch ( \Exception $e ) {
 						$result['error'] = 'Your options have been saved. However we tried to verify your license key with the Wordfence servers and received an error: ' . wp_kses( $e->getMessage(), array() );
 						return $result;
 					}
@@ -1435,7 +1435,7 @@ SQL
 					} else {
 						wfConfig::removeCodeExecutionProtectionForUploads();
 					}
-				} catch ( wfConfigException $e ) {
+				} catch ( wfConfig\Exception $e ) {
 					return array( 'error' => $e->getMessage() );
 				}
 			}
@@ -1475,9 +1475,9 @@ SQL
 						$result['isPaid'] = 0;
 						$reload           = 'reload';
 					} else {
-						throw new Exception( "We could not understand the Wordfence server's response because it did not contain an 'ok' and 'apiKey' element." );
+						throw new \Exception( "We could not understand the Wordfence server's response because it did not contain an 'ok' and 'apiKey' element." );
 					}
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					$result['error'] = 'Your options have been saved, but we encountered a problem. You left your API key blank, so we tried to get you a free API key from the Wordfence servers. However we encountered a problem fetching the free key: ' . htmlentities( $e->getMessage() );
 
 					return $result;
@@ -1496,9 +1496,9 @@ SQL
 						}
 						$reload = 'reload';
 					} else {
-						throw new Exception( 'We could not understand the Wordfence API server reply when updating your API key.' );
+						throw new \Exception( 'We could not understand the Wordfence API server reply when updating your API key.' );
 					}
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					$result['error'] = 'Your options have been saved. However we noticed you changed your API key and we tried to verify it with the Wordfence servers and received an error: ' . htmlentities( $e->getMessage() );
 
 					return $result;
@@ -1507,7 +1507,7 @@ SQL
 				try {
 					$api = new wfAPI( $apiKey, wfUtils::getWPVersion() );
 					$res = $api->call( 'ping_api_key', array(), array() );
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					$result['error'] = 'Your options have been saved. However we noticed you do not change your API key and we tried to verify it with the Wordfence servers and received an error: ' . htmlentities( $e->getMessage() );
 
 					return $result;
@@ -1548,9 +1548,9 @@ SQL
 			} elseif ( $res['err'] ) {
 				return array( 'errorExport' => __( 'An error occurred: ', 'wordfence' ) . $res['err'] );
 			} else {
-				throw new Exception( __( 'Invalid response: ', 'wordfence' ) . var_export( $res, true ) );
+				throw new \Exception( __( 'Invalid response: ', 'wordfence' ) . var_export( $res, true ) );
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			return array( 'errorExport' => __( 'An error occurred: ', 'wordfence' ) . $e->getMessage() );
 		}
 	}
@@ -1611,9 +1611,9 @@ SQL
 			} elseif ( $res['err'] ) {
 				return array( 'errorImport' => 'An error occurred: ' . $res['err'] );
 			} else {
-				throw new Exception( 'Invalid response: ' . var_export( $res, true ) );
+				throw new \Exception( 'Invalid response: ' . var_export( $res, true ) );
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			return array( 'errorImport' => 'An error occurred: ' . $e->getMessage() );
 		}
 	}
@@ -1891,11 +1891,11 @@ SQL
 
 				wfConfig::save( $changes );
 				return array( 'success' => true );
-			} catch ( wfWAFStorageFileException $e ) {
+			} catch ( wfWAFStorageFile\Exception $e ) {
 				return array(
 					'error' => __( 'An error occurred while saving the configuration.', 'wordfence' ),
 				);
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				return array(
 					'error' => $e->getMessage(),
 				);
@@ -1991,9 +1991,9 @@ SQL
 				// When downgrading we must disable all two factor authentication because it can lock an admin out if we don't.
 				wfConfig::set_ser( 'twoFactorUsers', array() );
 			} else {
-				throw new Exception( 'Could not understand the response we received from the Wordfence servers when applying for a free API key.' );
+				throw new \Exception( 'Could not understand the response we received from the Wordfence servers when applying for a free API key.' );
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$return['errorMsg'] = 'Could not fetch free API key from Wordfence: ' . htmlentities( $e->getMessage() );
 
 			return $return;

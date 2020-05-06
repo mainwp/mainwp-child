@@ -19,7 +19,7 @@ class MainWP_Wordpress_SEO {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Wordpress_SEO();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -62,15 +62,15 @@ class MainWP_Wordpress_SEO {
 				$temporary_file = download_url( $file_url );
 				remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 				if ( is_wp_error( $temporary_file ) ) {
-					throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
+					throw new \Exception( 'Error: ' . $temporary_file->get_error_message() );
 				} else {
 					if ( $this->import_seo_settings( $temporary_file ) ) {
 						$information['success'] = true;
 					} else {
-						throw new Exception( __( 'Settings could not be imported.', 'mainwp-child' ) );
+						throw new \Exception( __( 'Settings could not be imported.', 'mainwp-child' ) );
 					}
 				}
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				$information['error'] = $e->getMessage();
 			}
 
@@ -99,9 +99,9 @@ class MainWP_Wordpress_SEO {
 					$information['success'] = true;
 
 				} else {
-					throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
+					throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				$information['error'] = $e->getMessage();
 			}
 		}
@@ -145,21 +145,21 @@ class MainWP_Wordpress_SEO {
 
 						return true;
 					} else {
-						throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
+						throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
 					}
 					unset( $options, $name, $optgroup );
 				} else {
-					throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
+					throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
 				unlink( $filename );
 				unlink( $p_path );
 			} else {
-				throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( __( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) );
+				throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( __( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) );
 			}
 			unset( $zip, $unzipped );
 			unlink( $file );
 		} else {
-			throw new Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . __( 'Upload failed.', 'mainwp-child' ) );
+			throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . __( 'Upload failed.', 'mainwp-child' ) );
 		}
 
 		return false;

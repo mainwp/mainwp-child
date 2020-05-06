@@ -9,7 +9,7 @@ class MainWP_Custom_Post_Type {
 
 	public static function instance() {
 		if ( null == self::$instance ) {
-			self::$instance = new MainWP_Custom_Post_Type();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -124,7 +124,7 @@ class MainWP_Custom_Post_Type {
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
 						$post_content = str_replace( $lnkToReplace, $linkToReplaceWith, $post_content );
 					}
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					// ok!
 				}
 			}
@@ -238,7 +238,7 @@ class MainWP_Custom_Post_Type {
 										} else {
 											return array( 'error' => __( 'Cannot add product image', $this->plugin_translate ) );
 										}
-									} catch ( Exception $e ) {
+									} catch ( \Exception $e ) {
 										continue;
 									}
 								}
@@ -259,7 +259,7 @@ class MainWP_Custom_Post_Type {
 								} else {
 									return array( 'error' => __( 'Cannot add featured image', $this->plugin_translate ) );
 								}
-							} catch ( Exception $e ) {
+							} catch ( \Exception $e ) {
 								continue;
 							}
 						} else {

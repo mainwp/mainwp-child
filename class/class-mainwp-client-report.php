@@ -8,7 +8,7 @@ class MainWP_Client_Report {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Client_Report();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -50,7 +50,7 @@ class MainWP_Client_Report {
 				MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
 				break;
 			case 'backupwordpress':
-				MainWP_Child_Back_Up_Wordpress::instance()->do_reports_log( $ext );
+				MainWP_Child_Back_Up_WordPress::instance()->do_reports_log( $ext );
 				break;
 			case 'backwpup':
 				MainWP_Child_Back_WP_Up::instance()->do_reports_log( $ext );

@@ -10,7 +10,7 @@ class MainWP_Child_Branding {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Branding();
+			self::$instance = new self();
 		}
 		return self::$instance;
 	}
@@ -259,7 +259,7 @@ class MainWP_Child_Branding {
 							}
 						}
 					}
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					$information['error']['login_image'] = $e->getMessage();
 				}
 			}
@@ -285,7 +285,7 @@ class MainWP_Child_Branding {
 							}
 						}
 					}
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					$information['error']['favico_image'] = $e->getMessage();
 				}
 			}
@@ -321,7 +321,7 @@ class MainWP_Child_Branding {
 		remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
 		if ( is_wp_error( $temporary_file ) ) {
-			throw new Exception( $temporary_file->get_error_message() );
+			throw new \Exception( $temporary_file->get_error_message() );
 		} else {
 			$upload_dir     = wp_upload_dir();
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url );

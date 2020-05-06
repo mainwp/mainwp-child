@@ -19,7 +19,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	public $is_plugin_installed = false;
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Updraft_Plus_Backups();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -70,7 +70,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 					$information['sync_Updraftvault_quota_text'] = $this->connected_html();
 				}
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// ok.
 		}
 
@@ -159,7 +159,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						$information = $this->vault_disconnect();
 						break;
 				}
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				$information = array( 'error' => $e->getMessage() );
 			}
 		}
@@ -291,7 +291,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 
-	// Returns either true (in which case the Vault token will be stored), or false|WP_Error.
+	// Returns either true (in which case the Vault token will be stored), or false|\WP_Error.
 	private function vault_connect( $email, $password ) {
 		global $updraftplus;
 		$vault_mothership = 'https://vault.updraftplus.com/plugin-info/';
@@ -318,9 +318,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		if ( ! is_array( $response ) || ! isset( $response['mothership'] ) || ! isset( $response['loggedin'] ) ) {
 			if ( preg_match( '/has banned your IP address \(([\.:0-9a-f]+)\)/', $result['body'], $matches ) ) {
-				return new WP_Error( 'banned_ip', sprintf( __( "UpdraftPlus.com has responded with 'Access Denied'.", 'updraftplus' ) . '<br>' . __( "It appears that your web server's IP Address (%s) is blocked.", 'updraftplus' ) . ' ' . __( 'This most likely means that you share a webserver with a hacked website that has been used in previous attacks.', 'updraftplus' ) . '<br> <a href="https://updraftplus.com/unblock-ip-address/" target="_blank">' . __( 'To remove the block, please go here.', 'updraftplus' ) . '</a> ', $matches[1] ) );
+				return new \WP_Error( 'banned_ip', sprintf( __( "UpdraftPlus.com has responded with 'Access Denied'.", 'updraftplus' ) . '<br>' . __( "It appears that your web server's IP Address (%s) is blocked.", 'updraftplus' ) . ' ' . __( 'This most likely means that you share a webserver with a hacked website that has been used in previous attacks.', 'updraftplus' ) . '<br> <a href="https://updraftplus.com/unblock-ip-address/" target="_blank">' . __( 'To remove the block, please go here.', 'updraftplus' ) . '</a> ', $matches[1] ) );
 			} else {
-				return new WP_Error( 'unknown_response', sprintf( __( 'UpdraftPlus.Com returned a response which we could not understand (data: %s)', 'updraftplus' ), $result['body'] ) );
+				return new \WP_Error( 'unknown_response', sprintf( __( 'UpdraftPlus.Com returned a response which we could not understand (data: %s)', 'updraftplus' ), $result['body'] ) );
 			}
 		}
 
@@ -342,26 +342,26 @@ class MainWP_Child_Updraft_Plus_Backups {
 					}
 					UpdraftPlus_Options::update_updraft_option( 'updraft_updraftvault', $vault_settings );
 				} elseif ( isset( $response['quota'] ) && ! $response['quota'] ) {
-					return new WP_Error( 'no_quota', __( 'You do not currently have any UpdraftPlus Vault quota', 'updraftplus' ) );
+					return new \WP_Error( 'no_quota', __( 'You do not currently have any UpdraftPlus Vault quota', 'updraftplus' ) );
 				} else {
-					return new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
+					return new \WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
 				}
 				break;
 			case 'authfailed':
 				if ( ! empty( $response['authproblem'] ) ) {
 					if ( 'invalidpassword' == $response['authproblem'] ) {
-						$authfail_error = new WP_Error( 'authfailed', __( 'Your email address was valid, but your password was not recognised by UpdraftPlus.Com.', 'updraftplus' ) . ' <a href="https://updraftplus.com/my-account/lost-password/">' . __( 'If you have forgotten your password, then go here to change your password on updraftplus.com.', 'updraftplus' ) . '</a>' );
+						$authfail_error = new \WP_Error( 'authfailed', __( 'Your email address was valid, but your password was not recognised by UpdraftPlus.Com.', 'updraftplus' ) . ' <a href="https://updraftplus.com/my-account/lost-password/">' . __( 'If you have forgotten your password, then go here to change your password on updraftplus.com.', 'updraftplus' ) . '</a>' );
 						return $authfail_error;
 					} elseif ( 'invaliduser' == $response['authproblem'] ) {
-						return new WP_Error( 'authfailed', __( 'You entered an email address that was not recognised by UpdraftPlus.Com', 'updraftplus' ) );
+						return new \WP_Error( 'authfailed', __( 'You entered an email address that was not recognised by UpdraftPlus.Com', 'updraftplus' ) );
 					}
 				}
 
-				$return = new WP_Error( 'authfailed', __( 'Your email address and password were not recognised by UpdraftPlus.Com', 'updraftplus' ) );
+				$return = new \WP_Error( 'authfailed', __( 'Your email address and password were not recognised by UpdraftPlus.Com', 'updraftplus' ) );
 				break;
 
 			default:
-				$return = new WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
+				$return = new \WP_Error( 'unknown_response', __( 'UpdraftPlus.Com returned a response, but we could not understand it', 'updraftplus' ) );
 				break;
 		}
 
@@ -430,7 +430,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			if ( class_exists( 'UpdraftPlus_Options' ) ) {
 				foreach ( $keys_filter as $key ) {
 					if ( 'updraft_googledrive' === $key || 'updraft_googlecloud' === $key || 'updraft_onedrive' === $key ) {
-						continue; // skip
+						continue;
 					}
 					if ( isset( $settings[ $key ] ) ) {
 						$settings_key = null;

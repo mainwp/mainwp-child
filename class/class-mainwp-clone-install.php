@@ -87,13 +87,13 @@ class MainWP_Clone_Install {
 
 	public function test_download() {
 		if ( ! $this->file_exists( 'wp-content/' ) ) {
-			throw new Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
+			throw new \Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-admin/' ) ) {
-			throw new Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
+			throw new \Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-content/dbBackup.sql' ) ) {
-			throw new Exception( __( 'Database backup is missing.', 'mainwp-child' ) );
+			throw new \Exception( __( 'Database backup is missing.', 'mainwp-child' ) );
 		}
 	}
 
@@ -135,7 +135,7 @@ class MainWP_Clone_Install {
 	public function read_configuration_file() {
 		$configContents = $this->get_config_contents();
 		if ( false === $configContents ) {
-			throw new Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
+			throw new \Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
 		$this->config = maybe_unserialize( base64_decode( $configContents ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 
@@ -169,7 +169,7 @@ class MainWP_Clone_Install {
 					unlink( $file );
 				}
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// ok!
 		}
 	}
@@ -241,7 +241,7 @@ class MainWP_Clone_Install {
 				}
 
 				if ( ! feof( $handle ) ) {
-					throw new Exception( __( 'Error: unexpected end of file for database.', 'mainwp-child' ) );
+					throw new \Exception( __( 'Error: unexpected end of file for database.', 'mainwp-child' ) );
 				}
 				fclose( $handle );
 			}
@@ -438,7 +438,7 @@ class MainWP_Clone_Install {
 			return false;
 		}
 		if ( PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {
-			throw new Exception( $zip->errorInfo( true ) );
+			throw new \Exception( $zip->errorInfo( true ) );
 		}
 
 		return true;
@@ -650,7 +650,7 @@ class MainWP_Clone_Install {
 			if ( $serialised ) {
 				return serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
 			}
-		} catch ( Exception $error ) {
+		} catch ( \Exception $error ) {
 			// ok!
 		}
 

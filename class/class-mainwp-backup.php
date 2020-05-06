@@ -22,7 +22,7 @@ class MainWP_Backup {
 
 	public static function get() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Backup();
+			self::$instance = new self();
 		}
 
 		return self::$instance;

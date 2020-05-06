@@ -653,6 +653,12 @@ class MainWP_Child {
 			}
 		}
 
+		if ( ! $hide_restore ) {
+			if ( '' === session_id() ) {
+				session_start();
+			}
+		}
+				
 		self::render_header( $shownPage, false );
 		?>
 		<?php if ( ! $hide_settings ) { ?>
@@ -664,10 +670,6 @@ class MainWP_Child {
 		<?php if ( ! $hide_restore ) { ?>
 			<div class="mainwp-child-setting-tab restore-clone" <?php echo ( 'restore-clone' !== $shownPage ) ? $hide_style : ''; ?>>
 				<?php
-				if ( '' === session_id() ) {
-					session_start();
-				}
-
 				if ( isset( $_SESSION['file'] ) ) {
 					MainWP_Clone::render_restore();
 				} else {
@@ -1390,7 +1392,7 @@ class MainWP_Child {
 		// Handle fatal errors for those init if needed.
 		MainWP_Child_IThemes_Security::instance()->ithemes_init();
 		MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
-		MainWP_Child_Back_Up_Wordpress::instance()->init();
+		MainWP_Child_Back_Up_WordPress::instance()->init();
 		MainWP_Child_WP_Rocket::instance()->init();
 		MainWP_Child_Back_WP_Up::instance()->init();
 		MainWP_Child_Back_Up_Buddy::instance();
@@ -2668,7 +2670,7 @@ class MainWP_Child {
 			$user->description = trim( $data['description'] );
 		}
 
-		$errors = new WP_Error();
+		$errors = new \WP_Error();
 
 		// checking that username has been typed.
 		if ( '' == $user->user_login ) {
@@ -3755,7 +3757,7 @@ class MainWP_Child {
 
 		try {
 			do_action( 'mainwp_child_site_stats' );
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// ok.
 		}
 
@@ -3774,7 +3776,7 @@ class MainWP_Child {
 
 			try {
 				$information = apply_filters( 'mainwp-site-sync-others-data', $information, $othersData );
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
@@ -4245,7 +4247,7 @@ class MainWP_Child {
 			}
 
 			MainWP_Helper::write( $information );
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$information['error'] = $e->getMessage();
 			MainWP_Helper::write( $information );
 		}
@@ -4945,7 +4947,7 @@ class MainWP_Child {
 				}
 			}
 			return 0;
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			return 0;
 		}
 	}
@@ -5347,7 +5349,7 @@ class MainWP_Child {
 			if ( null !== $upload ) {
 				$information['success'] = true;
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$information['error'] = $e->getMessage();
 		}
 		MainWP_Helper::write( $information );
@@ -5395,7 +5397,7 @@ class MainWP_Child {
 			$error = sprintf( __( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
 			MainWP_Helper::write( array( 'error' => $error ) );
 		}
-		MainWP_Child_Back_Up_Wordpress::instance()->action();
+		MainWP_Child_Back_Up_WordPress::instance()->action();
 	}
 
 	public function wp_rocket() {

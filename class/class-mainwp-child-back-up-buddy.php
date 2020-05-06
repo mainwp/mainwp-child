@@ -21,7 +21,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Back_Up_Buddy();
+			self::$instance = new self();
 		}
 		return self::$instance;
 	}
@@ -207,7 +207,7 @@ class MainWP_Child_Back_Up_Buddy {
 					}
 				}
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// ok!
 		}
 	}
@@ -752,7 +752,7 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( isset( $data['syncBackupBuddy'] ) && $data['syncBackupBuddy'] ) {
 			try {
 				$information['syncBackupBuddy'] = $this->get_sync_data();
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
@@ -796,7 +796,7 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			return $data;
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// not exit here!
 		}
 

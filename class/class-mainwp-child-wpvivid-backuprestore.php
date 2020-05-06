@@ -9,7 +9,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 	public $public_intetface;
 	static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_WPvivid_BackupRestore();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -43,7 +43,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 				$information['syncWPvividScheduleData'] = $data['schedule'];
 				$information['syncWPvividSetting']      = $data;
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 
 		}
 
@@ -124,7 +124,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 						$information = $this->post_mainwp_data($_POST);
 						break;
 				}
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				$information = array( 'error' => $e->getMessage() );
 			}
 

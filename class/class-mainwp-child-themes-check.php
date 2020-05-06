@@ -22,7 +22,7 @@ class MainWP_Child_Themes_Check {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Themes_Check();
+			self::$instance = new self();
 		}
 
 		return self::$instance;

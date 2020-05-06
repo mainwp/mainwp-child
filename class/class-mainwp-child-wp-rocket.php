@@ -20,7 +20,7 @@ class MainWP_Child_WP_Rocket {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_WP_Rocket();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -128,7 +128,7 @@ class MainWP_Child_WP_Rocket {
 			try {
 				$data                            = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );
 				$information['syncWPRocketData'] = $data;
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
@@ -271,7 +271,7 @@ class MainWP_Child_WP_Rocket {
 						$information = $this->do_admin_post_rocket_purge_opcache();
 						break;
 				}
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				$information = array( 'error' => $e->getMessage() );
 			}
 		}

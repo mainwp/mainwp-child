@@ -16,7 +16,7 @@ class MainWP_Keyword_Links {
 
 	static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Keyword_Links();
+			self::$instance = new self();
 		}
 
 		return self::$instance;

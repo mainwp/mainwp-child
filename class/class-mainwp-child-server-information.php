@@ -552,7 +552,7 @@ class MainWP_Child_Server_Information {
 				<tr>
 					<td></td>
 					<td><?php echo esc_html( stripslashes( $branding_title ) ) . ' ' . __( 'Version', 'mainwp-chil' ); ?></td>
-					<td><?php echo esc_html( self::getMainWPVersion() ); ?></td>
+					<td><?php echo esc_html( self::get_mainwp_version() ); ?></td>
 					<td><?php echo esc_html( self::get_current_version() ); ?></td>
 					<td><?php echo esc_html( self::get_mainwp_version_check() ); ?></td>
 				</tr>
@@ -949,7 +949,7 @@ class MainWP_Child_Server_Information {
 		try {
 			$dirs = MainWP_Helper::get_mainwp_dir( null, false );
 			$path = $dirs[0];
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			return self::render_directory_row( $branding_title, '', 'Writable', $e->getMessage(), false );
 		}
 

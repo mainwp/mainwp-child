@@ -19,7 +19,7 @@ class MainWP_Child_Timecapsule {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Timecapsule();
+			self::$instance = new self();
 		}
 		return self::$instance;
 	}
@@ -65,7 +65,7 @@ class MainWP_Child_Timecapsule {
 
 		try {
 			$this->require_files();
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$error = $e->getMessage();
 			MainWP_Helper::write( array( 'error' => $error ) );
 		}
@@ -281,7 +281,7 @@ class MainWP_Child_Timecapsule {
 				'backups_count'      => $backups_count,
 			);
 			return $return;
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// do not exit here!
 		}
 		return false;
@@ -727,7 +727,7 @@ class MainWP_Child_Timecapsule {
 					}
 				}
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// ok.
 		}
 	}

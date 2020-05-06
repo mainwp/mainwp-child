@@ -213,7 +213,7 @@ class MainWP_Helper {
 		remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
 
 		if ( is_wp_error( $temporary_file ) ) {
-			throw new Exception( 'Error: ' . $temporary_file->get_error_message() );
+			throw new \Exception( 'Error: ' . $temporary_file->get_error_message() );
 		} else {
 			$filename       = basename( $img_url );
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename;
@@ -337,12 +337,12 @@ class MainWP_Helper {
 
 		if ( is_wp_error( $response ) ) {
 			unlink( $full_file_name );
-			throw new Exception( 'Error: ' . $response->get_error_message() );
+			throw new \Exception( 'Error: ' . $response->get_error_message() );
 		}
 
 		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
 			unlink( $full_file_name );
-			throw new Exception( 'Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ) );
+			throw new \Exception( 'Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ) );
 		}
 		if ( '.phpfile.txt' === substr( $file_name, - 12 ) ) {
 			$new_file_name = substr( $file_name, 0, - 12 ) . '.php';
@@ -352,7 +352,7 @@ class MainWP_Helper {
 				return array( 'path' => $new_file_name );
 			} else {
 				unlink( $full_file_name );
-				throw new Exception( 'Error: Copy file.' );
+				throw new \Exception( 'Error: Copy file.' );
 			}
 		}
 
@@ -503,7 +503,7 @@ class MainWP_Helper {
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
 						$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
 					}
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					error_log( $e->getMessage() );
 				}
 			}
@@ -522,7 +522,7 @@ class MainWP_Helper {
 									if ( null !== $upload ) {
 										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
 									}
-								} catch ( Exception $e ) {
+								} catch ( \Exception $e ) {
 									// ok!
 								}
 							}
@@ -720,7 +720,7 @@ class MainWP_Helper {
 					if ( null !== $upload ) {
 						update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
 					}
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					// ok!
 				}
 			}
@@ -769,7 +769,7 @@ class MainWP_Helper {
 						);
 					}
 				}
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
@@ -901,7 +901,7 @@ class MainWP_Helper {
 				if ( $dieOnError ) {
 					self::error( $error );
 				} else {
-					throw new Exception( $error );
+					throw new \Exception( $error );
 				}
 			}
 		}
@@ -915,7 +915,7 @@ class MainWP_Helper {
 			global $wp_filesystem;
 			try {
 				self::check_dir( $dir, false );
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 			if ( ! empty( $wp_filesystem ) ) {
@@ -1049,10 +1049,10 @@ class MainWP_Helper {
 			}
 
 			return self::m_fetch_url( $tmpUrl . 'wp-admin/', $postdata );
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			try {
 				return self::m_fetch_url( $url, $postdata );
-			} catch ( Exception $ex ) {
+			} catch ( \Exception $ex ) {
 				throw $e;
 			}
 		}
@@ -1080,7 +1080,7 @@ class MainWP_Helper {
 		curl_close( $ch );
 
 		if ( ( false === $data ) && ( 0 === $http_status ) ) {
-			throw new Exception( 'Http Error: ' . $err );
+			throw new \Exception( 'Http Error: ' . $err );
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
 			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
@@ -1089,9 +1089,9 @@ class MainWP_Helper {
 
 			return $information;
 		} elseif ( '' === $data ) {
-			throw new Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
+			throw new \Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
 		} else {
-			throw new Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
+			throw new \Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
 		}
 	}
 
@@ -1266,7 +1266,7 @@ class MainWP_Helper {
 		if ( $autoload != $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM $wpdb->options WHERE option_name = %s", $option_name ) ) ) {
 			$option_value = get_option( $option_name );
 			delete_option( $option_name );
-			add_option( $option_name, $option_value, null, $autoload );
+			add_option( $option_name, $option_value, '', $autoload );
 		}
 	}
 
@@ -1472,7 +1472,7 @@ class MainWP_Helper {
 
 		// Remove anything which isn't a word, whitespace, number or any of the following caracters -_~,;:[]().
 		// If you don't need to handle multi-byte characters you can use preg_replace rather than mb_ereg_replace.
-		// Thanks @≈Åukasz Rysiak!
+		// Thanks @≈?ukasz Rysiak!
 		$filename = mb_ereg_replace( '([^\w\s\d\-_~,;:\[\]\(\).])', '', $filename );
 		// Remove any runs of periods (thanks falstro!).
 		$filename = mb_ereg_replace( '([\.]{2,})', '', $filename );
@@ -1583,7 +1583,7 @@ class MainWP_Helper {
 			if ( $return ) {
 				return $message;
 			} else {
-				throw new Exception( $message );
+				throw new \Exception( $message );
 			}
 		}
 		return true;
@@ -1608,7 +1608,7 @@ class MainWP_Helper {
 			if ( $return ) {
 				return $message;
 			} else {
-				throw new Exception( $message );
+				throw new \Exception( $message );
 			}
 		}
 		return true;
@@ -1634,7 +1634,7 @@ class MainWP_Helper {
 			if ( $return ) {
 				return $message;
 			} else {
-				throw new Exception( $message );
+				throw new \Exception( $message );
 			}
 		}
 
@@ -1660,7 +1660,7 @@ class MainWP_Helper {
 			if ( $return ) {
 				return $message;
 			} else {
-				throw new Exception( $message );
+				throw new \Exception( $message );
 			}
 		}
 
@@ -1686,7 +1686,7 @@ class MainWP_Helper {
 			if ( $return ) {
 				return $message;
 			} else {
-				throw new Exception( $message );
+				throw new \Exception( $message );
 			}
 		}
 

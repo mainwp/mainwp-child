@@ -8,7 +8,7 @@ class MainWP_Child_Skeleton_Key {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Skeleton_Key();
+			self::$instance = new self();
 		}
 
 		return self::$instance;

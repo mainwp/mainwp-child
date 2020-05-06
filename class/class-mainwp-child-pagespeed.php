@@ -21,7 +21,7 @@ class MainWP_Child_Pagespeed {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Pagespeed();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -279,7 +279,7 @@ class MainWP_Child_Pagespeed {
 		if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {
 			try {
 				$information['syncPageSpeedData'] = $this->get_sync_data();
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}

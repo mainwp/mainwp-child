@@ -58,7 +58,7 @@ class MainWP_Child_Back_WP_Up {
 
 	public static function instance() {
 		if ( null == self::$instance ) {
-			self::$instance = new MainWP_Child_Back_WP_Up();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -97,7 +97,7 @@ class MainWP_Child_Back_WP_Up {
 				add_action( 'admin_init', array( $this, 'init_download_backup' ) );
 				add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$this->is_backwpup_installed = false;
 		}
 	}
@@ -322,7 +322,7 @@ class MainWP_Child_Back_WP_Up {
 					MainWP_Helper::update_lasttime_backup( 'backwpup', $new_lasttime_logged ); // to support backup before update feature.
 				}
 			}
-		} catch ( Exception $ex ) {
+		} catch ( \Exception $ex ) {
 			// ok!
 		}
 	}
@@ -334,7 +334,7 @@ class MainWP_Child_Back_WP_Up {
 				$information['syncBackwpupData'] = array(
 					'lastbackup' => $lastbackup,
 				);
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
@@ -1097,7 +1097,7 @@ class MainWP_Child_Back_WP_Up {
 				$message->setBody( __( 'If this message reaches your inbox, sending backup archives via email should work for you.', 'mainwp-child' ) );
 
 				$result = $emailer->send( $message );
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				$message = 'Swift Mailer: ' . $e->getMessage();
 			}
 

@@ -20,7 +20,7 @@ class MainWP_Clone {
 
 	public static function get() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Clone();
+			self::$instance = new self();
 		}
 
 		return self::$instance;
@@ -1141,7 +1141,7 @@ class MainWP_Clone {
 			$this->secure_request( 'mainwp-child_clone_backupcreate' );
 
 			if ( ! isset( $_POST['siteId'] ) ) {
-				throw new Exception( __( 'No site given', 'mainwp-child' ) );
+				throw new \Exception( __( 'No site given', 'mainwp-child' ) );
 			}
 
 			$siteId       = $_POST['siteId'];
@@ -1149,7 +1149,7 @@ class MainWP_Clone {
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 			if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
-				throw new Exception( __( 'Site not found', 'mainwp-child' ) );
+				throw new \Exception( __( 'Site not found', 'mainwp-child' ) );
 			}
 
 			$siteToClone = $sitesToClone[ $siteId ];
@@ -1173,7 +1173,7 @@ class MainWP_Clone {
 			);
 
 			if ( ! $result['backup'] ) {
-				throw new Exception( __( 'Could not create backupfile on child', 'mainwp-child' ) );
+				throw new \Exception( __( 'Could not create backupfile on child', 'mainwp-child' ) );
 			}
 			session_start();
 
@@ -1184,7 +1184,7 @@ class MainWP_Clone {
 				'url'  => $result['backup'],
 				'size' => round( $result['size'] / 1024, 0 ),
 			);
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
 
@@ -1196,14 +1196,14 @@ class MainWP_Clone {
 			$this->secure_request( 'mainwp-child_clone_backupcreatepoll' );
 
 			if ( ! isset( $_POST['siteId'] ) ) {
-				throw new Exception( __( 'No site given', 'mainwp-child' ) );
+				throw new \Exception( __( 'No site given', 'mainwp-child' ) );
 			}
 			$siteId = $_POST['siteId'];
 			$rand   = $_POST['rand'];
 
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 			if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
-				throw new Exception( __( 'Site not found', 'mainwp-child' ) );
+				throw new \Exception( __( 'Site not found', 'mainwp-child' ) );
 			}
 
 			$siteToClone = $sitesToClone[ $siteId ];
@@ -1224,11 +1224,11 @@ class MainWP_Clone {
 			);
 
 			if ( ! isset( $result['size'] ) ) {
-				throw new Exception( __( 'Invalid response', 'mainwp-child' ) );
+				throw new \Exception( __( 'Invalid response', 'mainwp-child' ) );
 			}
 
 			$output = array( 'size' => round( $result['size'] / 1024, 0 ) );
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
 		die( json_encode( $output ) );
@@ -1239,7 +1239,7 @@ class MainWP_Clone {
 			$this->secure_request( 'mainwp-child_clone_backupdownload' );
 
 			if ( ! isset( $_POST['file'] ) ) {
-				throw new Exception( __( 'No download link given', 'mainwp-child' ) );
+				throw new \Exception( __( 'No download link given', 'mainwp-child' ) );
 			}
 
 			$file = $_POST['file'];
@@ -1248,7 +1248,7 @@ class MainWP_Clone {
 				$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 				if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
-					throw new Exception( __( 'Site not found', 'mainwp-child' ) );
+					throw new \Exception( __( 'Site not found', 'mainwp-child' ) );
 				}
 
 				$siteToClone = $sitesToClone[ $siteId ];
@@ -1297,7 +1297,7 @@ class MainWP_Clone {
 			if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
 				unlink( $filename );
 
-				return new WP_Error( 'http_404', trim( wp_remote_retrieve_response_message( $response ) ) );
+				return new \WP_Error( 'http_404', trim( wp_remote_retrieve_response_message( $response ) ) );
 			}
 
 			$output = array( 'done' => $filename );
@@ -1321,10 +1321,10 @@ class MainWP_Clone {
 						);
 					}
 				}
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				throw $e;
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
 
@@ -1349,10 +1349,10 @@ class MainWP_Clone {
 				}
 			}
 			if ( false === $archiveFile ) {
-				throw new Exception( __( 'No download file found', 'mainwp-child' ) );
+				throw new \Exception( __( 'No download file found', 'mainwp-child' ) );
 			}
 			$output = array( 'size' => filesize( $archiveFile ) / 1024 );
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
 		die( json_encode( $output ) );
@@ -1379,7 +1379,7 @@ class MainWP_Clone {
 					}
 				}
 				if ( false === $archiveFile ) {
-					throw new Exception( __( 'No download file found', 'mainwp-child' ) );
+					throw new \Exception( __( 'No download file found', 'mainwp-child' ) );
 				}
 				$file = $archiveFile;
 			} elseif ( file_exists( $file ) ) {
@@ -1387,7 +1387,7 @@ class MainWP_Clone {
 			} else {
 				$file = ABSPATH . $file;
 				if ( ! file_exists( $file ) ) {
-					throw new Exception( __( 'Backup file not found', 'mainwp-child' ) );
+					throw new \Exception( __( 'Backup file not found', 'mainwp-child' ) );
 				}
 				$testFull = true;
 			}
@@ -1481,7 +1481,7 @@ class MainWP_Clone {
 			$output = array( 'result' => 'ok' );
 			wp_logout();
 			wp_set_current_user( 0 );
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
 		die( json_encode( $output ) );

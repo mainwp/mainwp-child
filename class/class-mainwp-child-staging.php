@@ -21,7 +21,7 @@ class MainWP_Child_Staging {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Staging();
+			self::$instance = new self();
 		}
 		return self::$instance;
 	}
@@ -63,7 +63,7 @@ class MainWP_Child_Staging {
 		if ( isset( $data['syncWPStaging'] ) && $data['syncWPStaging'] ) {
 			try {
 				$information['syncWPStaging'] = $this->get_sync_data();
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}

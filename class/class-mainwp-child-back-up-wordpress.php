@@ -15,15 +15,14 @@
 
 namespace MainWP\Child;
 
-class MainWP_Child_Back_Up_Wordpress {
+class MainWP_Child_Back_Up_WordPress{
 	public static $instance     = null;
 	public $is_plugin_installed = false;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Back_Up_Wordpress();
+			self::$instance = new self();
 		}
-
 		return self::$instance;
 	}
 
@@ -154,7 +153,7 @@ class MainWP_Child_Back_Up_Wordpress {
 		if ( isset( $data['syncBackUpWordPress'] ) && $data['syncBackUpWordPress'] ) {
 			try {
 				$information['syncBackUpWordPress'] = $this->get_sync_data();
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
@@ -233,7 +232,7 @@ class MainWP_Child_Back_Up_Wordpress {
 					}
 				}
 			}
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			// ok!
 		}
 	}

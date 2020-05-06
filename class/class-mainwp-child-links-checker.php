@@ -79,7 +79,7 @@ class MainWP_Child_Links_Checker {
 				}
 			}
 			MainWP_Helper::write( $information );
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 			MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
 		}
 	}
@@ -208,7 +208,7 @@ class MainWP_Child_Links_Checker {
 		if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {
 			try {
 				$information['syncBrokenLinksCheckerData'] = $this->get_sync_data();
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
@@ -548,7 +548,7 @@ class MainWP_Child_Links_Checker {
 					'errors'    => array(),
 				);
 				foreach ( $rez['errors'] as $error ) {
-					/** @var WP_Error $error */
+					/** @var \WP_Error $error */
 					array_push( $response['errors'], implode( ', ', $error->get_error_messages() ) );
 				}
 

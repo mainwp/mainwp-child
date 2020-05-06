@@ -23,7 +23,7 @@ class MainWP_Child_Plugins_Check {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Plugins_Check();
+			self::$instance = new self();
 		}
 
 		return self::$instance;

@@ -282,10 +282,6 @@ class Tar_Archiver {
 
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST, RecursiveIteratorIterator::CATCH_GET_CHILD );
 
-		if ( class_exists( 'ExampleSortedIterator' ) ) {
-			$iterator = new ExampleSortedIterator( $iterator );
-		}
-
 		/** @var $path DirectoryIterator */
 		foreach ( $iterator as $path ) {
 			$name = $path->__toString();
@@ -321,15 +317,15 @@ class Tar_Archiver {
 
 		if ( 'tar.gz' == $this->type ) {
 			if ( false === gzwrite( $this->archive, $data, strlen( $data ) ) ) {
-				throw new Exception( 'Could not write to archive' );
+				throw new \Exception( 'Could not write to archive' );
 			}
 		} elseif ( 'tar.bz2' == $this->type ) {
 			if ( false === bzwrite( $this->archive, $data, strlen( $data ) ) ) {
-				throw new Exception( 'Could not write to archive' );
+				throw new \Exception( 'Could not write to archive' );
 			}
 		} else {
 			if ( false === fwrite( $this->archive, $data, strlen( $data ) ) ) {
-				throw new Exception( 'Could not write to archive' );
+				throw new \Exception( 'Could not write to archive' );
 			}
 			fflush( $this->archive );
 		}
@@ -345,16 +341,16 @@ class Tar_Archiver {
 			$this->log( 'writing & flushing ' . $len );
 			$this->chunk = gzencode( $this->chunk );
 			if ( false === fwrite( $this->archive, $this->chunk, strlen( $this->chunk ) ) ) {
-				throw new Exception( 'Could not write to archive' );
+				throw new \Exception( 'Could not write to archive' );
 			}
 			fflush( $this->archive );
 		} elseif ( 'tar.bz2' == $this->type ) {
 			if ( false === bzwrite( $this->archive, $this->chunk, strlen( $len ) ) ) {
-				throw new Exception( 'Could not write to archive' );
+				throw new \Exception( 'Could not write to archive' );
 			}
 		} else {
 			if ( false === fwrite( $this->archive, $len, strlen( $len ) ) ) {
-				throw new Exception( 'Could not write to archive' );
+				throw new \Exception( 'Could not write to archive' );
 			}
 			fflush( $this->archive );
 		}
@@ -751,7 +747,7 @@ class Tar_Archiver {
 	 * @param $entryName
 	 *
 	 * @return array|bool
-	 * @throws Exception
+	 * @throws \Exception
 	 */
 	private function is_next_file( $entryName ) {
 		$currentOffset = ftell( $this->archive );
@@ -764,7 +760,7 @@ class Tar_Archiver {
 			}
 
 			if ( 512 != strlen( $block ) ) {
-				throw new Exception( 'Invalid block found' );
+				throw new \Exception( 'Invalid block found' );
 			}
 
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -795,7 +791,7 @@ class Tar_Archiver {
 
 					return true;
 				} else {
-					throw new Exception( 'Unexpected directory [' . $file['name'] . ']' );
+					throw new \Exception( 'Unexpected directory [' . $file['name'] . ']' );
 				}
 			} elseif ( 0 == $file['type'] ) {
 				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
@@ -850,13 +846,13 @@ class Tar_Archiver {
 					return true;
 				} else {
 					$this->log( 'Unexpected file [' . $file['name'] . ']' );
-					throw new Exception( 'Unexpected file' );
+					throw new \Exception( 'Unexpected file' );
 				}
 			}
 
 			$this->log( 'ERROR' );
-			throw new Exception( 'Should never get here?' );
-		} catch ( Exception $e ) {
+			throw new \Exception( 'Should never get here?' );
+		} catch ( \Exception $e ) {
 			$this->log( $e->getMessage() );
 			throw $e;
 		}
@@ -930,7 +926,7 @@ class Tar_Archiver {
 							}
 
 							if ( ! $this->is_valid_block( substr( $read, 10, $pos - 10 ) ) ) {
-								throw new Exception( 'invalid!' );
+								throw new \Exception( 'invalid!' );
 							}
 
 							$lastCorrect += $pos;
@@ -939,11 +935,11 @@ class Tar_Archiver {
 					}
 
 					if ( ! $this->is_valid_block( substr( $read, 10 ) ) ) {
-						throw new Exception( 'invalid!' );
+						throw new \Exception( 'invalid!' );
 					}
 
 					fclose( $fh );
-				} catch ( Exception $e ) {
+				} catch ( \Exception $e ) {
 					fclose( $fh );
 					$fh = fopen( $filepath, 'ab+' );
 					fseek( $fh, $lastCorrect );
@@ -1240,45 +1236,5 @@ class Tar_Archiver {
 		$crcFound = ( ord( $crcFound[3] ) << 24 ) + ( ord( $crcFound[2] ) << 16 ) + ( ord( $crcFound[1] ) << 8 ) + ( ord( $crcFound[0] ) );
 
 		return $crcFound == $crc;
-	}
-}
-
-if ( class_exists( 'SplHeap' ) ) {
-	class ExampleSortedIterator extends SplHeap {
-		public function __construct( Iterator $iterator ) {
-			foreach ( $iterator as $item ) {
-				$this->insert( $item );
-			}
-		}
-
-		public function compare( $b, $a ) {
-			$pathA    = $a->__toString();
-			$pathB    = $b->__toString();
-			$dirnameA = ( is_file( $pathA ) ? dirname( $pathA ) : $pathA );
-			$dirnameB = ( is_file( $pathB ) ? dirname( $pathB ) : $pathB );
-
-			if ( dirname( $pathA ) == dirname( $pathB ) ) {
-				if ( is_file( $pathA ) && ! is_file( $pathB ) ) {
-					return - 1;
-				} elseif ( ! is_file( $pathA ) && is_file( $pathB ) ) {
-					return 1;
-				}
-
-				return strcmp( $pathA, $pathB );
-			} elseif ( $dirnameA == $dirnameB ) {
-				return strcmp( $pathA, $pathB );
-			} elseif ( MainWP_Helper::starts_with( $dirnameA, $dirnameB ) ) {
-				return 1;
-			} elseif ( MainWP_Helper::starts_with( $dirnameB, $dirnameA ) ) {
-				return - 1;
-			} else {
-				$cmp = strcmp( $dirnameA, $dirnameB );
-				if ( 0 == $cmp ) {
-					return strcmp( $pathA, $pathB );
-				}
-
-				return $cmp;
-			}
-		}
 	}
 }

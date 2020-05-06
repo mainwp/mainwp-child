@@ -45,7 +45,7 @@ class MainWP_Child_IThemes_Security {
 				$information['syncIThemeData'] = array(
 					'users_and_roles' => $this->get_available_admin_users_and_roles(),
 				);
-			} catch ( Exception $e ) {
+			} catch ( \Exception $e ) {
 				error_log( $e->getMessage() );
 			}
 		}
@@ -993,7 +993,7 @@ class MainWP_Child_IThemes_Security {
 				$and = '';
 			}
 
-			$active = $and . " `lockout_active`=1 AND `lockout_expire_gmt` > '" . gmdate( 'Y-m-d H:i:s', $itsec_globals['current_time_gmt'] ) . "'"; 
+			$active = $and . " `lockout_active`=1 AND `lockout_expire_gmt` > '" . gmdate( 'Y-m-d H:i:s', $itsec_globals['current_time_gmt'] ) . "'";
 
 		} else {
 
