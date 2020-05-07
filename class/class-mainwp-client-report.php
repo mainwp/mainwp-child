@@ -337,8 +337,8 @@ class MainWP_Client_Report {
 
 		// fix for incorrect posts created logs!
 		// query created posts from WP posts data to simulate records logging for created posts.
-		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {			
-			
+		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {
+
 			$args = array(
 				'post_type'   => 'post',
 				'post_status' => 'publish',
@@ -348,12 +348,12 @@ class MainWP_Client_Report {
 					'before'    => $args['date_to'],
 				),
 			);
-			
-			$result = new \WP_Query( $args );			
+
+			$result                = new \WP_Query( $args );
 			$records_created_posts = $result->posts;
-			
+
 			if ( $records_created_posts ) {
-				
+
 				$count_records = count( $records );
 				for ( $i = 0; $i < $count_records; $i++ ) {
 					$record = $records[ $i ];

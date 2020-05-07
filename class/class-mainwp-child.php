@@ -582,7 +582,7 @@ class MainWP_Child {
 				'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
 				'parent_menu' => $settingsPage,
 			);
-			
+
 			do_action_deprecated( 'mainwp-child-subpages', array( $subpageargs ), '4.0.7.1', 'mainwp_child_subpages' );
 			do_action( 'mainwp_child_subpages', $subpageargs );
 
@@ -1650,10 +1650,10 @@ class MainWP_Child {
 					}
 				}
 
-				if ( ! empty( $fileName ) ) {					
-					do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );					
+				if ( ! empty( $fileName ) ) {
+					do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
 					do_action( 'mainwp_child_install_plugin_theme', $args );
-					
+
 					if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
 						// to fix activate issue.
 						if ( 'quotes-collection/quotes-collection.php' == $args['slug'] ) {
@@ -1665,7 +1665,7 @@ class MainWP_Child {
 				}
 			} else {
 				$args['type'] = 'theme';
-				$args['slug'] = $result['destination_name'];				
+				$args['slug'] = $result['destination_name'];
 				do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
 				do_action( 'mainwp_child_install_plugin_theme', $args );
 			}
@@ -2989,7 +2989,7 @@ class MainWP_Child {
 
 			$file_minutes = date( 'i', $time ); // phpcs:ignore -- local time.
 			$file_seconds = date( 's', $time ); // phpcs:ignore -- local time.
- 
+
 			$minuteDiff = $minutes - $file_minutes;
 			if ( 59 === $minuteDiff ) {
 				$minuteDiff = 1;
@@ -3016,7 +3016,7 @@ class MainWP_Child {
 	}
 
 	public function backup( $pWrite = true ) {
-		
+
 		$timeout = 20 * 60 * 60;
 		set_time_limit( $timeout );
 		ini_set( 'max_execution_time', $timeout ); // phpcs:ignore
@@ -3718,10 +3718,10 @@ class MainWP_Child {
 			$categories[] = $cat->name;
 		}
 		$information['categories'] = $categories;
-		
-		$get_file_size             = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
-		$get_file_size             = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
-		
+
+		$get_file_size = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
+		$get_file_size = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
+
 		if ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) {
 			$max_exe = ini_get( 'max_execution_time' );
 			if ( $max_exe > 20 ) {
@@ -3787,9 +3787,9 @@ class MainWP_Child {
 			}
 
 			try {
-				$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );				
+				$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );
 				$information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );
-				
+
 			} catch ( \Exception $e ) {
 				// ok!
 			}

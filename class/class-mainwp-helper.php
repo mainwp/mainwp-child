@@ -4,15 +4,15 @@ namespace MainWP\Child;
 
 class MainWP_Helper {
 
-	public static $instance          = null;
-	
+	public static $instance = null;
+
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
-	
+
 	public function write( $val ) {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = self::safe_json_encode( $val );
@@ -1129,7 +1129,7 @@ class MainWP_Helper {
 				break;
 			case 'k':
 				$val *= 1024;
-				break;			
+				break;
 		}
 
 		return $val;
