@@ -31,7 +31,7 @@ class MainWP_Child_Back_Up_WordPress {
 		if ( is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
 			$this->is_plugin_installed = true;
 			if ( version_compare( phpversion(), '5.3', '>=' ) ) {
-				add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+				add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 			}
 		}
 	}
@@ -79,7 +79,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$information = array();
 		if ( ! self::is_activated() ) {
 			$information['error'] = 'NO_BACKUPWORDPRESS';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
@@ -128,7 +128,7 @@ class MainWP_Child_Back_Up_WordPress {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 
@@ -136,13 +136,13 @@ class MainWP_Child_Back_Up_WordPress {
 		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? $_POST['schedule_id'] : '';
 		if ( empty( $schedule_id ) ) {
 			$information = array( 'error' => 'Empty schedule id' );
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		} else {
 			$schedule_id = sanitize_text_field( rawurldecode( $schedule_id ) );
 			HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 			if ( ! HM\BackUpWordPress\Schedules::get_instance()->get_schedule( $schedule_id ) ) {
 				$information = array( 'result' => 'NOTFOUND' );
-				MainWP_Helper::write( $information );
+				mainwp_child_helper()->write( $information );
 			}
 		}
 

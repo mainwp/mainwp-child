@@ -2,6 +2,7 @@
 
 namespace MainWP\Child;
 
+// phpcs:disable
 if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === true ) {
 	error_reporting( E_ALL );
 	ini_set( 'display_errors', true );
@@ -12,6 +13,7 @@ if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG === true ) {
 		error_reporting( 0 );
 	}
 }
+// phpcs:enable
 
 require_once ABSPATH . '/wp-admin/includes/file.php';
 require_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -478,7 +480,7 @@ class MainWP_Child {
 			$auths = array();
 		}
 
-		if ( ! isset( $auths['last'] ) || $auths['last'] < mktime( 0, 0, 0, date( 'm' ), date( 'd' ), date( 'Y' ) ) ) {
+		if ( ! isset( $auths['last'] ) || $auths['last'] < mktime( 0, 0, 0, date( 'm' ), date( 'd' ), date( 'Y' ) ) ) { // phpcs:ignore -- local time.
 			// Generate code for today.
 			for ( $i = 0; $i < $this->maxHistory; $i ++ ) {
 				if ( ! isset( $auths[ $i + 1 ] ) ) {
@@ -580,11 +582,14 @@ class MainWP_Child {
 				'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
 				'parent_menu' => $settingsPage,
 			);
-			do_action( 'mainwp-child-subpages', $subpageargs );
+			
+			do_action_deprecated( 'mainwp-child-subpages', array( $subpageargs ), '4.0.7.1', 'mainwp_child_subpages' );
+			do_action( 'mainwp_child_subpages', $subpageargs );
 
 			$sub_pages = array();
 
-			$all_subpages = apply_filters( 'mainwp-child-init-subpages', array() );
+			$all_subpages = apply_filters_deprecated( 'mainwp-child-init-subpages', array( array() ), '4.0.7.1', 'mainwp_child_init_subpages' );
+			$all_subpages = apply_filters( 'mainwp_child_init_subpages', $all_subpages );
 
 			if ( ! is_array( $all_subpages ) ) {
 				$all_subpages = array();
@@ -1089,7 +1094,7 @@ class MainWP_Child {
 				}
 
 				unlink( $result[0] );
-				MainWP_Helper::write( array( 'result' => 'ok' ) );
+				mainwp_child_helper()->write( array( 'result' => 'ok' ) );
 			} elseif ( 'createCloneBackupPoll' === $_POST['cloneFunc'] ) {
 				$dirs        = MainWP_Helper::get_mainwp_dir( 'backup' );
 				$backupdir   = $dirs[0];
@@ -1105,7 +1110,7 @@ class MainWP_Child {
 					return;
 				}
 
-				MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
+				mainwp_child_helper()->write( array( 'size' => filesize( $archiveFile ) ) );
 			} elseif ( 'createCloneBackup' === $_POST['cloneFunc'] ) {
 				MainWP_Helper::end_session();
 
@@ -1182,7 +1187,7 @@ class MainWP_Child {
 				closedir( $fh );
 				$information['themes'] = $themes;
 
-				MainWP_Helper::write( $information );
+				mainwp_child_helper()->write( $information );
 			}
 		}
 
@@ -1394,8 +1399,8 @@ class MainWP_Child {
 		MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
 		MainWP_Child_Back_Up_WordPress::instance()->init();
 		MainWP_Child_WP_Rocket::instance()->init();
-		MainWP_Child_Back_WP_Up::instance()->init();
-		MainWP_Child_Back_Up_Buddy::instance();
+		\MainWP_Child_Back_WP_Up::instance()->init();
+		\MainWP_Child_Back_Up_Buddy::instance();
 		MainWP_Child_Wordfence::instance()->wordfence_init();
 		MainWP_Child_Timecapsule::instance()->init();
 		MainWP_Child_Staging::instance()->init();
@@ -1645,8 +1650,10 @@ class MainWP_Child {
 					}
 				}
 
-				if ( ! empty( $fileName ) ) {
-					do_action( 'mainwp_child_installPluginTheme', $args );
+				if ( ! empty( $fileName ) ) {					
+					do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );					
+					do_action( 'mainwp_child_install_plugin_theme', $args );
+					
 					if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
 						// to fix activate issue.
 						if ( 'quotes-collection/quotes-collection.php' == $args['slug'] ) {
@@ -1658,13 +1665,14 @@ class MainWP_Child {
 				}
 			} else {
 				$args['type'] = 'theme';
-				$args['slug'] = $result['destination_name'];
-				do_action( 'mainwp_child_installPluginTheme', $args );
+				$args['slug'] = $result['destination_name'];				
+				do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
+				do_action( 'mainwp_child_install_plugin_theme', $args );
 			}
 		}
 		$information['installation']     = 'SUCCESS';
 		$information['destination_name'] = $result['destination_name'];
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	// This will upgrade WP!
@@ -1752,7 +1760,7 @@ class MainWP_Child {
 			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function upgrade_translation() {
@@ -1804,7 +1812,7 @@ class MainWP_Child {
 		}
 
 		$information['sync'] = $this->get_site_stats( array(), false );
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function upgrade_plugin_theme() {
@@ -2120,7 +2128,7 @@ class MainWP_Child {
 			}
 		}
 		$information['sync'] = $this->get_site_stats( array(), false );
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function set_cached_update_plugins( $false = false, $_transient_data = null ) {
@@ -2303,7 +2311,7 @@ class MainWP_Child {
 
 		do_action( 'mainwp_child_after_newpost', $res );
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function post_action() {
@@ -2379,7 +2387,7 @@ class MainWP_Child {
 			$information['status'] = 'SUCCESS';
 		}
 		$information['my_post'] = $my_post;
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function get_post_edit( $id ) {
@@ -2590,7 +2598,7 @@ class MainWP_Child {
 				$information['users'] = $this->get_all_users_int( 500 );
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function edit_user( $user_id, $data ) {
@@ -2808,7 +2816,7 @@ class MainWP_Child {
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function comment_bulk_action() {
@@ -2837,7 +2845,7 @@ class MainWP_Child {
 				}
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 
@@ -2861,7 +2869,7 @@ class MainWP_Child {
 		}
 
 		$information['added'] = true;
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function new_user() {
@@ -2899,7 +2907,7 @@ class MainWP_Child {
 			wp_mail( $user_email, sprintf( __( '[%s] Your username and password' ), $blogname ), $message, '' );
 		}
 		$information['added'] = true;
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function cloneinfo() {
@@ -2910,7 +2918,7 @@ class MainWP_Child {
 		$information['site_url']     = get_option( 'site_url' );
 		$information['home']         = get_option( 'home' );
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function backup_poll() {
@@ -2935,10 +2943,10 @@ class MainWP_Child {
 				}
 			}
 			if ( false === $archiveFile ) {
-				MainWP_Helper::write( array() );
+				mainwp_child_helper()->write( array() );
 			}
 
-			MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
+			mainwp_child_helper()->write( array( 'size' => filesize( $archiveFile ) ) );
 		} else {
 			$backupFile = 'dbBackup-' . $fileNameUID . '-*.sql';
 
@@ -2946,14 +2954,14 @@ class MainWP_Child {
 			$backupdir = $dirs[0];
 			$result    = glob( $backupdir . $backupFile . '*' );
 			if ( 0 === count( $result ) ) {
-				MainWP_Helper::write( array() );
+				mainwp_child_helper()->write( array() );
 			}
 
 			$size = 0;
 			foreach ( $result as $f ) {
 				$size += filesize( $f );
 			}
-			MainWP_Helper::write( array( 'size' => $size ) );
+			mainwp_child_helper()->write( array( 'size' => $size ) );
 			exit();
 		}
 	}
@@ -2976,12 +2984,12 @@ class MainWP_Child {
 		if ( $wp_filesystem->is_file( $pidFile ) ) {
 			$time = $wp_filesystem->mtime( $pidFile );
 
-			$minutes = date( 'i', time() );
-			$seconds = date( 's', time() );
+			$minutes = date( 'i', time() ); // phpcs:ignore -- local time.
+			$seconds = date( 's', time() ); // phpcs:ignore -- local time.
 
-			$file_minutes = date( 'i', $time );
-			$file_seconds = date( 's', $time );
-
+			$file_minutes = date( 'i', $time ); // phpcs:ignore -- local time.
+			$file_seconds = date( 's', $time ); // phpcs:ignore -- local time.
+ 
 			$minuteDiff = $minutes - $file_minutes;
 			if ( 59 === $minuteDiff ) {
 				$minuteDiff = 1;
@@ -3004,13 +3012,14 @@ class MainWP_Child {
 			$information['status'] = 'invalid';
 		}
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function backup( $pWrite = true ) {
+		
 		$timeout = 20 * 60 * 60;
 		set_time_limit( $timeout );
-		ini_set( 'max_execution_time', $timeout );
+		ini_set( 'max_execution_time', $timeout ); // phpcs:ignore
 		MainWP_Helper::end_session();
 
 		// Cleanup pid files!
@@ -3153,7 +3162,7 @@ class MainWP_Child {
 		}
 
 		if ( $pWrite ) {
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		return $information;
@@ -3266,7 +3275,7 @@ class MainWP_Child {
 		if ( $sync ) {
 			$information['sync'] = $this->get_site_stats( array(), false );
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function do_security_un_fix() {
@@ -3321,7 +3330,7 @@ class MainWP_Child {
 			$information['sync'] = $this->get_site_stats( array(), false );
 		}
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function get_security_stats() {
@@ -3338,7 +3347,7 @@ class MainWP_Child {
 		$information['admin']               = ( MainWP_Security::admin_user_ok() ? 'Y' : 'N' );
 		$information['readme']              = ( MainWP_Security::remove_readme_ok() ? 'Y' : 'N' );
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function update_external_settings() {
@@ -3427,7 +3436,7 @@ class MainWP_Child {
 
 		$timeout = 3 * 60 * 60;
 		set_time_limit( $timeout );
-		ini_set( 'max_execution_time', $timeout );
+		ini_set( 'max_execution_time', $timeout ); //phpcs:ignore -- to custom
 
 		// Check for new versions.
 		if ( null !== $this->filterFunction ) {
@@ -3709,7 +3718,10 @@ class MainWP_Child {
 			$categories[] = $cat->name;
 		}
 		$information['categories'] = $categories;
-		$get_file_size             = apply_filters( 'mainwp-child-get-total-size', true );
+		
+		$get_file_size             = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
+		$get_file_size             = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
+		
 		if ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) {
 			$max_exe = ini_get( 'max_execution_time' );
 			if ( $max_exe > 20 ) {
@@ -3775,14 +3787,16 @@ class MainWP_Child {
 			}
 
 			try {
-				$information = apply_filters( 'mainwp-site-sync-others-data', $information, $othersData );
+				$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );				
+				$information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );
+				
 			} catch ( \Exception $e ) {
 				// ok!
 			}
 		}
 
 		if ( $exit ) {
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		return $information;
@@ -3794,7 +3808,7 @@ class MainWP_Child {
 		if ( ! empty( $url ) ) {
 			$information['faviIconUrl'] = $url;
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function get_favicon( $parse_page = false ) {
@@ -4089,7 +4103,7 @@ class MainWP_Child {
 	public function get_terms() {
 		$taxonomy = base64_decode( $_POST['taxonomy'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		$rslt     = get_terms( taxonomy_exists( $taxonomy ) ? $taxonomy : 'category', 'hide_empty=0' );
-		MainWP_Helper::write( $rslt );
+		mainwp_child_helper()->write( $rslt );
 	}
 
 	public function set_terms() {
@@ -4119,7 +4133,7 @@ class MainWP_Child {
 				)
 			);
 		}
-		MainWP_Helper::write( $ids );
+		mainwp_child_helper()->write( $ids );
 	}
 
 	public function get_post_meta() {
@@ -4142,7 +4156,7 @@ class MainWP_Child {
 		}
 
 		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %s WHERE 1 = 1 $where ", $wpdb->postmeta ) );
-		MainWP_Helper::write( $results );
+		mainwp_child_helper()->write( $results );
 	}
 
 	public function get_total_ezine_post() {
@@ -4159,7 +4173,7 @@ class MainWP_Child {
 		}
 		$where .= " ( p.post_status='publish' OR p.post_status='future' OR p.post_status='draft' ) AND  (pm.meta_key='_ezine_keyword' AND pm.meta_value='$keyword_meta')";
 		$total  = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where  " );
-		MainWP_Helper::write( $total );
+		mainwp_child_helper()->write( $total );
 	}
 
 	public function cancel_scheduled_post() {
@@ -4207,13 +4221,13 @@ class MainWP_Child {
 			$information['count']  = $count;
 		}
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function get_next_time_to_post() {
 		$post_type = $_POST['post_type'];
 		if ( 'post' !== $post_type && 'page' !== $post_type ) {
-			MainWP_Helper::write( array( 'error' => 'Data error.' ) );
+			mainwp_child_helper()->write( array( 'error' => 'Data error.' ) );
 
 			return;
 		}
@@ -4246,10 +4260,10 @@ class MainWP_Child {
 				$information['next_post_id']                 = $next_post->ID;
 			}
 
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		} catch ( \Exception $e ) {
 			$information['error'] = $e->getMessage();
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 	}
 
@@ -4325,7 +4339,7 @@ class MainWP_Child {
 		$rslt                     = $this->get_recent_posts( explode( ',', $_POST['status'] ), $maxPages, $type, $extra );
 		$this->posts_where_suffix = '';
 
-		MainWP_Helper::write( $rslt );
+		mainwp_child_helper()->write( $rslt );
 	}
 
 	public function comments_clauses( $clauses ) {
@@ -4371,7 +4385,7 @@ class MainWP_Child {
 		$rslt                       = $this->get_recent_comments( explode( ',', $_POST['status'] ), $maxComments );
 		$this->comments_and_clauses = '';
 
-		MainWP_Helper::write( $rslt );
+		mainwp_child_helper()->write( $rslt );
 	}
 
 	public function get_recent_comments( $pAllowedStatuses, $pCount ) {
@@ -4445,7 +4459,7 @@ class MainWP_Child {
 				$themeToDelete = current( $themes );
 				if ( $themeToDelete == $theme_name ) {
 					$information['error'] = 'IsActivatedTheme';
-					MainWP_Helper::write( $information );
+					mainwp_child_helper()->write( $information );
 					return;
 				}
 			}
@@ -4473,7 +4487,7 @@ class MainWP_Child {
 			$information['status'] = 'SUCCESS';
 		}
 		$information['sync'] = $this->get_site_stats( array(), false );
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function get_all_themes() {
@@ -4482,7 +4496,7 @@ class MainWP_Child {
 		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
 		$rslt    = $this->get_all_themes_int( $filter, $keyword, $status );
 
-		MainWP_Helper::write( $rslt );
+		mainwp_child_helper()->write( $rslt );
 	}
 
 	public function get_all_themes_int( $filter, $keyword = '', $status = '' ) {
@@ -4593,7 +4607,7 @@ class MainWP_Child {
 			$information['status'] = 'SUCCESS';
 		}
 		$information['sync'] = $this->get_site_stats( array(), false );
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function get_all_plugins() {
@@ -4602,7 +4616,7 @@ class MainWP_Child {
 		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
 		$rslt    = $this->get_all_plugins_int( $filter, $keyword, $status );
 
-		MainWP_Helper::write( $rslt );
+		mainwp_child_helper()->write( $rslt );
 	}
 
 	public function get_all_plugins_int( $filter, $keyword = '', $status = '' ) {
@@ -4685,7 +4699,7 @@ class MainWP_Child {
 		if ( $return ) {
 			return $allusers;
 		}
-		MainWP_Helper::write( $allusers );
+		mainwp_child_helper()->write( $allusers );
 	}
 
 	public function get_all_users_int( $number = false ) {
@@ -4778,7 +4792,7 @@ class MainWP_Child {
 			}
 		}
 
-		MainWP_Helper::write( $allusers );
+		mainwp_child_helper()->write( $allusers );
 	}
 
 	// Show stats without login - only allowed while no account is added yet.
@@ -4792,7 +4806,7 @@ class MainWP_Child {
 		$information['version']   = self::$version;
 		$information['wpversion'] = $wp_version;
 		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	// Deactivating the plugin.
@@ -4804,7 +4818,7 @@ class MainWP_Child {
 			MainWP_Helper::error( 'Plugin still active' );
 		}
 		$information['deactivated'] = true;
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function activation() {
@@ -4974,7 +4988,7 @@ class MainWP_Child {
 		$output['htaccess'] = ob_get_contents();
 		ob_end_clean();
 
-		MainWP_Helper::write( $output );
+		mainwp_child_helper()->write( $output );
 	}
 
 	public function maintenance_site() {
@@ -4995,16 +5009,16 @@ class MainWP_Child {
 					delete_option( 'mainwp_maintenance_opt_alert_404_email' );
 				}
 				$information['result'] = 'SUCCESS';
-				MainWP_Helper::write( $information );
+				mainwp_child_helper()->write( $information );
 
 				return;
 			} elseif ( 'clear_settings' === $_POST['action'] ) {
 				delete_option( 'mainwp_maintenance_opt_alert_404' );
 				delete_option( 'mainwp_maintenance_opt_alert_404_email' );
 				$information['result'] = 'SUCCESS';
-				MainWP_Helper::write( $information );
+				mainwp_child_helper()->write( $information );
 			}
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		$maint_options = $_POST['options'];
@@ -5097,18 +5111,18 @@ class MainWP_Child {
 			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result );
 		}
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function maintenance_optimize() {
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
-		$result = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
+		$result = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 		if ( MainWP_Child_DB::num_rows( $result ) && MainWP_Child_DB::is_result( $result ) ) {
 			while ( $row = MainWP_Child_DB::fetch_array( $result ) ) {
 				if ( strpos( $row['Name'], $table_prefix ) !== false ) {
 					$sql = 'OPTIMIZE TABLE ' . $row['Name'];
-					MainWP_Child_DB::_query( $sql, $wpdb->dbh );
+					MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 				}
 			}
 		}
@@ -5176,7 +5190,7 @@ class MainWP_Child {
 			$remote = 'undefined';
 		}
 		// log time.
-		$time = MainWP_Helper::clean( date( 'F jS Y, h:ia', time() ) );
+		$time = MainWP_Helper::clean( date( 'F jS Y, h:ia', time() ) ); // phpcs:ignore -- local time.
 
 		$mail = '<div>404 alert</div><div></div>' .
 				'<div>TIME: ' . $time . '</div>' .
@@ -5210,7 +5224,7 @@ class MainWP_Child {
 		$information = array( 'status' => 'FAIL' );
 		if ( 'run_snippet' === $action || 'save_snippet' === $action ) {
 			if ( ! isset( $_POST['code'] ) ) {
-				MainWP_Helper::write( $information );
+				mainwp_child_helper()->write( $information );
 			}
 		}
 		$code = stripslashes( $_POST['code'] );
@@ -5259,7 +5273,7 @@ class MainWP_Child {
 				}
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function snippet_update_wp_config( $action, $slug, $code = '' ) {
@@ -5316,7 +5330,7 @@ class MainWP_Child {
 		$information = array();
 
 		if ( empty( $file_url ) || empty( $path ) ) {
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 
 			return;
 		}
@@ -5338,7 +5352,7 @@ class MainWP_Child {
 		if ( ! file_exists( $dir ) ) {
 			if ( false === mkdir( $dir, 0777, true ) ) {
 				$information['error'] = 'ERRORCREATEDIR';
-				MainWP_Helper::write( $information );
+				mainwp_child_helper()->write( $information );
 
 				return;
 			}
@@ -5352,7 +5366,7 @@ class MainWP_Child {
 		} catch ( \Exception $e ) {
 			$information['error'] = $e->getMessage();
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function wordpress_seo() {
@@ -5395,7 +5409,7 @@ class MainWP_Child {
 	public function backup_wp() {
 		if ( ! version_compare( phpversion(), '5.3', '>=' ) ) {
 			$error = sprintf( __( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
-			MainWP_Helper::write( array( 'error' => $error ) );
+			mainwp_child_helper()->write( array( 'error' => $error ) );
 		}
 		MainWP_Child_Back_Up_WordPress::instance()->action();
 	}
@@ -5405,7 +5419,7 @@ class MainWP_Child {
 	}
 
 	public function backwpup() {
-		MainWP_Child_Back_WP_Up::instance()->action();
+		\MainWP_Child_Back_WP_Up::instance()->action();
 	}
 
 
@@ -5419,13 +5433,13 @@ class MainWP_Child {
 			unlink( $backupdir . $file );
 		}
 
-		MainWP_Helper::write( array( 'result' => 'ok' ) );
+		mainwp_child_helper()->write( array( 'result' => 'ok' ) );
 	}
 
 	public function update_values() {
 		$uniId = isset( $_POST['uniqueId'] ) ? $_POST['uniqueId'] : '';
 		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $uniId );
-		MainWP_Helper::write( array( 'result' => 'ok' ) );
+		mainwp_child_helper()->write( array( 'result' => 'ok' ) );
 	}
 
 	public function upload_file( $file, $offset = 0 ) {
@@ -5474,9 +5488,9 @@ class MainWP_Child {
 	public function settings_tools() {
 		if ( isset( $_POST['action'] ) ) {
 			switch ( $_POST['action'] ) {
-				case 'force_destroy_sessions';
+				case 'force_destroy_sessions':
 					if ( 0 === get_current_user_id() ) {
-						MainWP_Helper::write( array( 'error' => __( 'Cannot get user_id', 'mainwp-child' ) ) );
+						mainwp_child_helper()->write( array( 'error' => __( 'Cannot get user_id', 'mainwp-child' ) ) );
 					}
 
 					wp_destroy_all_sessions();
@@ -5484,17 +5498,17 @@ class MainWP_Child {
 					$sessions = wp_get_all_sessions();
 
 					if ( empty( $sessions ) ) {
-						MainWP_Helper::write( array( 'success' => 1 ) );
+						mainwp_child_helper()->write( array( 'success' => 1 ) );
 					} else {
-						MainWP_Helper::write( array( 'error' => __( 'Cannot destroy sessions', 'mainwp-child' ) ) );
+						mainwp_child_helper()->write( array( 'error' => __( 'Cannot destroy sessions', 'mainwp-child' ) ) );
 					}
 					break;
 
 				default:
-					MainWP_Helper::write( array( 'error' => __( 'Invalid action', 'mainwp-child' ) ) );
+					mainwp_child_helper()->write( array( 'error' => __( 'Invalid action', 'mainwp-child' ) ) );
 			}
 		} else {
-			MainWP_Helper::write( array( 'error' => __( 'Missing action', 'mainwp-child' ) ) );
+			mainwp_child_helper()->write( array( 'error' => __( 'Missing action', 'mainwp-child' ) ) );
 		}
 	}
 
@@ -5507,7 +5521,7 @@ class MainWP_Child {
 	}
 
 	public function backup_buddy() {
-		MainWP_Child_Back_Up_Buddy::instance()->action();
+		\MainWP_Child_Back_Up_Buddy::instance()->action();
 	}
 
 	public function vulner_checker() {
@@ -5526,12 +5540,12 @@ class MainWP_Child {
 		$post        = $_POST;
 		$information = array();
 		$information = apply_filters( 'mainwp_child_extra_execution', $information, $post );
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function disconnect() {
 		$this->deactivation( false );
-		MainWP_Helper::write( array( 'result' => 'success' ) );
+		mainwp_child_helper()->write( array( 'result' => 'success' ) );
 	}
 
 	public static function fix_for_custom_themes() {

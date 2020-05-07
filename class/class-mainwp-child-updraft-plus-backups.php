@@ -35,7 +35,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 		add_filter( 'updraftplus_save_last_backup', array( __CLASS__, 'hook_updraft_plus_save_last_backup' ) );
 	}
 
@@ -81,7 +81,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$information = array();
 		if ( ! $this->is_plugin_installed ) {
 			$information['error'] = 'NO_UPDRAFTPLUS';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		$this->required_files();
@@ -92,7 +92,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 		if ( empty( $updraftplus ) ) {
 			$information['error'] = 'Error empty updraftplus';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
@@ -163,7 +163,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				$information = array( 'error' => $e->getMessage() );
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function set_showhide() {

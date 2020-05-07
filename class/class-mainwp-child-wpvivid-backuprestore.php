@@ -25,7 +25,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 		$this->public_intetface = new WPvivid_Public_Interface();
 	}
 
@@ -54,7 +54,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		$information = array();
 		if ( ! $this->is_plugin_installed ) {
 			$information['error'] = 'NO_WPVIVIDBACKUP';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
@@ -128,7 +128,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 				$information = array( 'error' => $e->getMessage() );
 			}
 
-			MainWP_Helper::write($information);
+			mainwp_child_helper()->write($information);
 		}
 	}
 

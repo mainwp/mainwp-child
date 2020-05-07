@@ -317,14 +317,6 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	public function cleanUp() {
-		// Clean up!
-		$files = glob( '../dbBackup*.sql' );
-		foreach ( $files as $file ) {
-			unlink( $file );
-		}
-	}
-
 	public function get_config_contents() {
 		if ( 'extracted' === $this->file ) {
 			return file_get_contents( '../clone/config.txt' );
@@ -526,13 +518,13 @@ class MainWP_Clone_Install {
 				$columns = array();
 
 				// Get a list of columns in this table.
-				$fields = MainWP_Child_DB::_query( 'DESCRIBE ' . $table, $connection );
+				$fields = MainWP_Child_DB::to_query( 'DESCRIBE ' . $table, $connection );
 				while ( $column = MainWP_Child_DB::fetch_array( $fields ) ) {
 					$columns[ $column['Field'] ] = 'PRI' === $column['Key'] ? true : false;
 				}
 
 				// Count the number of rows we have in the table if large we'll split into blocks, This is a mod from Simon Wheatley.
-				$row_count   = MainWP_Child_DB::_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection );
+				$row_count   = MainWP_Child_DB::to_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection );
 				$rows_result = MainWP_Child_DB::fetch_array( $row_count );
 				$row_count   = $rows_result['count'];
 				if ( 0 === $row_count ) {
@@ -546,7 +538,7 @@ class MainWP_Clone_Install {
 					$start       = $page * $page_size;
 					$end         = $start + $page_size;
 					// Grab the content of the table.
-					$data = MainWP_Child_DB::_query( sprintf( 'SELECT * FROM %s LIMIT %d, %d', $table, $start, $end ), $connection );
+					$data = MainWP_Child_DB::to_query( sprintf( 'SELECT * FROM %s LIMIT %d, %d', $table, $start, $end ), $connection );
 					if ( ! $data ) {
 						$report['errors'][] = MainWP_Child_DB::error();
 					}
@@ -583,7 +575,7 @@ class MainWP_Clone_Install {
 
 						if ( $upd && ! empty( $where_sql ) ) {
 							$sql    = 'UPDATE ' . $table . ' SET ' . implode( ', ', $update_sql ) . ' WHERE ' . implode( ' AND ', array_filter( $where_sql ) );
-							$result = MainWP_Child_DB::_query( $sql, $connection );
+							$result = MainWP_Child_DB::to_query( $sql, $connection );
 							if ( ! $result ) {
 								$report['errors'][] = MainWP_Child_DB::error();
 							} else {

@@ -36,7 +36,7 @@ class MainWP_Child_IThemes_Security {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
 	public function sync_others_data( $information, $data = array() ) {
@@ -56,7 +56,7 @@ class MainWP_Child_IThemes_Security {
 		$information = array();
 		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists( 'ITSEC_Modules' ) ) {
 			$information['error'] = 'NO_ITHEME';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		global $mainwp_itsec_modules_path;
@@ -118,7 +118,7 @@ class MainWP_Child_IThemes_Security {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function set_showhide() {

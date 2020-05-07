@@ -38,7 +38,7 @@ class MainWP_Custom_Post_Type {
 		$information = array();
 		switch ( $_POST['action'] ) {
 			case 'custom_post_type_import':
-				$information = $this->_import();
+				$information = $this->import_custom_post();
 				break;
 
 			default:
@@ -51,7 +51,7 @@ class MainWP_Custom_Post_Type {
 		exit();
 	}
 
-	private function _import() {
+	private function import_custom_post() {
 		add_filter( 'http_request_host_is_external', '__return_true' );
 
 		if ( ! isset( $_POST['data'] ) || strlen( $_POST['data'] ) < 2 ) {
@@ -66,11 +66,11 @@ class MainWP_Custom_Post_Type {
 			return array( 'error' => __( 'Cannot decode data', $this->plugin_translate ) );
 		}
 		$edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? $_POST['post_id'] : 0;
-		$return  = $this->_insert_post( $data, $edit_id, $parent_id = 0 );
+		$return  = $this->insert_post( $data, $edit_id, $parent_id = 0 );
 		if ( isset( $return['success'] ) && 1 == $return['success'] ) {
 			if ( isset( $data['product_variation'] ) && is_array( $data['product_variation'] ) ) {
 				foreach ( $data['product_variation'] as $product_variation ) {
-					$return_variantion = $this->_insert_post( $product_variation, 0, $return['post_id'] );
+					$return_variantion = $this->insert_post( $product_variation, 0, $return['post_id'] );
 				}
 			}
 		}
@@ -82,7 +82,7 @@ class MainWP_Custom_Post_Type {
 	/**
 	 * Search image inside post content and upload it to child
 	 */
-	private function _search_images( $post_content, $upload_dir, $check_image = false ) {
+	private function search_images( $post_content, $upload_dir, $check_image = false ) {
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $post_content, $matches, PREG_SET_ORDER );
 		if ( $foundMatches > 0 ) {
 			foreach ( $matches as $match ) {
@@ -133,7 +133,7 @@ class MainWP_Custom_Post_Type {
 		return $post_content;
 	}
 
-	private function _insert_post( $data, $edit_id, $parent_id = 0 ) {
+	private function insert_post( $data, $edit_id, $parent_id = 0 ) {
 		$data_insert                = array();
 		$data_post                  = $data['post'];
 		$data_insert['post_author'] = get_current_user_id();
@@ -205,7 +205,7 @@ class MainWP_Custom_Post_Type {
 			wp_delete_object_term_relationships( $old_post_id, get_object_taxonomies( $data_insert['post_type'] ) );
 		}
 
-		$data_insert['post_content'] = $this->_search_images( $data_insert['post_content'], $data['extras']['upload_dir'], $check_image_existed );
+		$data_insert['post_content'] = $this->search_images( $data_insert['post_content'], $data['extras']['upload_dir'], $check_image_existed );
 
 		if ( ! empty( $parent_id ) ) {
 			$data_insert['post_parent'] = $parent_id;

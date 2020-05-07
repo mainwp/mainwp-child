@@ -34,14 +34,14 @@ class MainWP_Child_Links_Checker {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
 	public function action() {
 		$information = array();
 		if ( ! defined( 'BLC_ACTIVE' ) || ! function_exists( 'blc_init' ) ) {
 			$information['error'] = 'NO_BROKENLINKSCHECKER';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 		blc_init();
 
@@ -78,9 +78,9 @@ class MainWP_Child_Links_Checker {
 						break;
 				}
 			}
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		} catch ( \Exception $e ) {
-			MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
+			mainwp_child_helper()->write( array( 'error' => $e->getMessage() ) );
 		}
 	}
 

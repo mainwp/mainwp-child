@@ -40,7 +40,7 @@ class MainWP_Wordpress_SEO {
 	public function action() {
 		if ( ! class_exists( 'WPSEO_Admin' ) ) {
 			$information['error'] = 'NO_WPSEO';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 		$result = array();
 		switch ( $_POST['action'] ) {
@@ -48,7 +48,7 @@ class MainWP_Wordpress_SEO {
 				$information = $this->import_settings();
 				break;
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function import_settings() {
@@ -106,7 +106,7 @@ class MainWP_Wordpress_SEO {
 			}
 		}
 
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function import_seo_settings( $file ) {

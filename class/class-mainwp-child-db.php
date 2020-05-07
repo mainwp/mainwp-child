@@ -2,48 +2,50 @@
 
 namespace MainWP\Child;
 
+
 class MainWP_Child_DB {
+	// phpcs:disable WordPress.DB.RestrictedFunctions, WordPress.DB.PreparedSQL.NotPrepared -- unprepared SQL ok, accessing the database directly to custom database functions.
 	// Support old & new versions of WordPress (3.9+).
 	public static function use_mysqli() {
 		/** @var $wpdb wpdb */
-		if ( ! function_exists( 'mysqli_connect' ) ) {
+		if ( ! function_exists( '\mysqli_connect' ) ) {
 			return false;
 		}
 
 		global $wpdb;
 
-		return ( $wpdb->dbh instanceof mysqli );
+		return ( $wpdb->dbh instanceof \mysqli );
 	}
 
-	public static function _query( $query, $link ) {
+	public static function to_query( $query, $link ) {
 		if ( self::use_mysqli() ) {
-			return mysqli_query( $link, $query );
+			return \mysqli_query( $link, $query );
 		} else {
-			return mysql_query( $query, $link );
+			return \mysql_query( $query, $link );
 		}
 	}
 
 	public static function fetch_array( $result ) {
 		if ( self::use_mysqli() ) {
-			return mysqli_fetch_array( $result, MYSQLI_ASSOC );
+			return \mysqli_fetch_array( $result, MYSQLI_ASSOC );
 		} else {
-			return mysql_fetch_array( $result, MYSQL_ASSOC );
+			return \mysql_fetch_array( $result, MYSQL_ASSOC );
 		}
 	}
 
 	public static function num_rows( $result ) {
 		if ( self::use_mysqli() ) {
-			return mysqli_num_rows( $result );
+			return \mysqli_num_rows( $result );
 		} else {
-			return mysql_num_rows( $result );
+			return \mysql_num_rows( $result );
 		}
 	}
 
 	public static function connect( $host, $user, $pass ) {
 		if ( self::use_mysqli() ) {
-			return mysqli_connect( $host, $user, $pass );
+			return \mysqli_connect( $host, $user, $pass );
 		} else {
-			return mysql_connect( $host, $user, $pass );
+			return \mysql_connect( $host, $user, $pass );
 		}
 	}
 
@@ -52,9 +54,9 @@ class MainWP_Child_DB {
 			/** @var $wpdb wpdb */
 			global $wpdb;
 
-			return mysqli_select_db( $wpdb->dbh, $db );
+			return \mysqli_select_db( $wpdb->dbh, $db );
 		} else {
-			return mysql_select_db( $db );
+			return \mysql_select_db( $db );
 		}
 	}
 
@@ -63,9 +65,9 @@ class MainWP_Child_DB {
 			/** @var $wpdb wpdb */
 			global $wpdb;
 
-			return mysqli_error( $wpdb->dbh );
+			return \mysqli_error( $wpdb->dbh );
 		} else {
-			return mysql_error();
+			return \mysql_error();
 		}
 	}
 
@@ -74,9 +76,9 @@ class MainWP_Child_DB {
 		global $wpdb;
 
 		if ( self::use_mysqli() ) {
-			return mysqli_real_escape_string( $wpdb->dbh, $value );
+			return \mysqli_real_escape_string( $wpdb->dbh, $value );
 		} else {
-			return mysql_real_escape_string( $value, $wpdb->dbh );
+			return \mysql_real_escape_string( $value, $wpdb->dbh );
 		}
 	}
 
@@ -92,7 +94,7 @@ class MainWP_Child_DB {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
-		$rows = self::_query( 'SHOW table STATUS', $wpdb->dbh );
+		$rows = self::to_query( 'SHOW table STATUS', $wpdb->dbh );
 		$size = 0;
 		while ( $row = self::fetch_array( $rows ) ) {
 			$size += $row['Data_length'];

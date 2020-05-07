@@ -152,8 +152,8 @@ class MainWP_Security {
 	public static function remove_php_reporting( $force = false ) {
 		if ( $force || self::get_security_option( 'php_reporting' ) ) {
 			error_reporting( 0 );
-			ini_set( 'display_errors', 'off' );
-			ini_set( 'display_startup_errors', 0 );
+			ini_set( 'display_errors', 'off' ); //phpcs:ignore -- to custom display errors
+			ini_set( 'display_startup_errors', 0 ); //phpcs:ignore -- to custom
 		}
 	}
 

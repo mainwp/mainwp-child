@@ -158,7 +158,7 @@ class MainWP_Child_Branding {
 				$information = $this->update_branding();
 				break;
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function update_branding() {
@@ -743,7 +743,7 @@ class MainWP_Child_Branding {
 						$generator = '<!-- generator="' . $extra_setting['site_generator'] . '" -->';
 						break;
 					case 'export':
-						$generator = '<!-- generator="' . $extra_setting['site_generator'] . '" created="' . date( 'Y-m-d H:i' ) . '" -->'; //phpcs:ignore -- current local time
+						$generator = '<!-- generator="' . $extra_setting['site_generator'] . '" created="' . date( 'Y-m-d H:i' ) . '" -->'; //phpcs:ignore -- current local time.
 						break;
 				endswitch;
 

@@ -601,11 +601,13 @@ class MainWP_Backup {
 	}
 
 	public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
+		// phpcs:disable
 		$timeout = 20 * 60 * 60;
 		set_time_limit( $timeout );
 		ini_set( 'max_execution_time', $timeout );
 		$mem = '512M';
 		ini_set( 'memory_limit', $mem );
+		// phpcs:enable
 
 		/** @var $wpdb wpdb */
 		global $wpdb;
@@ -630,7 +632,7 @@ class MainWP_Backup {
 			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N );
 			fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );
 
-			$rows = MainWP_Child_DB::_query( 'SELECT * FROM ' . $table, $wpdb->dbh );
+			$rows = MainWP_Child_DB::to_query( 'SELECT * FROM ' . $table, $wpdb->dbh );
 
 			if ( $rows ) {
 				$i            = 0;

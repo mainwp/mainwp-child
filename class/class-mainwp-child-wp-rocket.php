@@ -37,7 +37,7 @@ class MainWP_Child_WP_Rocket {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 
 		if ( 'hide' === get_option( 'mainwp_wprocket_hide_plugin' ) ) {
 			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
@@ -231,7 +231,7 @@ class MainWP_Child_WP_Rocket {
 
 	public function action() {
 		if ( ! $this->is_plugin_installed ) {
-			MainWP_Helper::write( array( 'error' => __( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
+			mainwp_child_helper()->write( array( 'error' => __( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
 			return;
 		}
 
@@ -275,7 +275,7 @@ class MainWP_Child_WP_Rocket {
 				$information = array( 'error' => $e->getMessage() );
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function set_showhide() {

@@ -35,7 +35,7 @@ class MainWP_Child_WooCommerce_Status {
 		$information = array();
 		if ( ! class_exists( 'WooCommerce' ) || ! defined( 'WC_VERSION' ) ) {
 			$information['error'] = 'NO_WOOCOMMERCE';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		$is_ver220 = $this->is_version_220();
@@ -52,7 +52,7 @@ class MainWP_Child_WooCommerce_Status {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function is_version_220() {
@@ -166,8 +166,8 @@ class MainWP_Child_WooCommerce_Status {
 		$start_date = $_POST['start_date'];
 		$end_date   = $_POST['end_date'];
 
-		$start_date = date( 'Y-m-d H:i:s', $start_date );
-		$end_date   = date( 'Y-m-d H:i:s', $end_date );
+		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time.
+		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
 
 		// Get sales.
 		$sales = $wpdb->get_var(
@@ -246,8 +246,8 @@ class MainWP_Child_WooCommerce_Status {
 
 	public function sync_data_two() {
 		// sync data for current month.
-		$start_date = date( 'Y-m-01 00:00:00', time() );
-		$end_date   = date( 'Y-m-d H:i:s', time() );
+		$start_date = date( 'Y-m-01 00:00:00', time() ); // phpcs:ignore -- local time.
+		$end_date   = date( 'Y-m-d H:i:s', time() ); // phpcs:ignore -- local time.
 
 		$start_date = strtotime( $start_date );
 		$end_date   = strtotime( $end_date );
@@ -278,8 +278,8 @@ class MainWP_Child_WooCommerce_Status {
 			return false;
 		}
 
-		$start_date = date( 'Y-m-d H:i:s', $start_date );
-		$end_date   = date( 'Y-m-d H:i:s', $end_date );
+		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time.
+		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
 
 		$reports = new WC_Admin_Report();
 		// Sales.

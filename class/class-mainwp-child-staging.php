@@ -38,7 +38,7 @@ class MainWP_Child_Staging {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
 
@@ -76,7 +76,7 @@ class MainWP_Child_Staging {
 
 	public function action() {
 		if ( ! $this->is_plugin_installed ) {
-			MainWP_Helper::write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
+			mainwp_child_helper()->write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}
 
 		if ( ! class_exists( 'WPStaging\WPStaging' ) ) {
@@ -145,7 +145,7 @@ class MainWP_Child_Staging {
 					break;
 			}
 		}
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 	}
 
 	public function set_showhide() {

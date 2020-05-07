@@ -26,12 +26,11 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
 
 function mainwp_child_autoload( $class_name ) {
 
-	if ( 0 !== strpos( $class_name, 'MainWP\Child' ) ) {
-		return;
+	if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
+		// trip the namespace prefix: MainWP\Child\ .
+		$class_name = substr( $class_name, 13 );		
 	}
-
-	// trip the namespace prefix: MainWP\Child\ .
-	$class_name = substr( $class_name, 13 );
+	
 	if ( 0 !== strpos( $class_name, 'MainWP_' ) ) {
 		return;
 	}

@@ -19,7 +19,7 @@ class MainWP_Client_Report {
 	}
 
 	public function init() {
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
 	}
 
@@ -47,13 +47,13 @@ class MainWP_Client_Report {
 	public static function do_reports_log( $ext = '' ) {
 		switch ( $ext ) {
 			case 'backupbuddy':
-				MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
+				\MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
 				break;
 			case 'backupwordpress':
 				MainWP_Child_Back_Up_WordPress::instance()->do_reports_log( $ext );
 				break;
 			case 'backwpup':
-				MainWP_Child_Back_WP_Up::instance()->do_reports_log( $ext );
+				\MainWP_Child_Back_WP_Up::instance()->do_reports_log( $ext );
 				break;
 			case 'wordfence':
 				MainWP_Child_Wordfence::instance()->do_reports_log( $ext );
@@ -70,7 +70,7 @@ class MainWP_Client_Report {
 
 		if ( ! function_exists( 'wp_mainwp_stream_get_instance' ) ) {
 			$information['error'] = __( 'No MainWP Child Reports plugin installed.', 'mainwp-child' );
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
@@ -89,7 +89,7 @@ class MainWP_Client_Report {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function save_sucuri_stream() {
@@ -313,11 +313,11 @@ class MainWP_Client_Report {
 		$args['with-meta'] = 1;
 
 		if ( isset( $args['date_from'] ) ) {
-			$args['date_from'] = date( 'Y-m-d', $args['date_from'] );
+			$args['date_from'] = date( 'Y-m-d', $args['date_from'] ); // phpcs:ignore -- local time.
 		}
 
 		if ( isset( $args['date_to'] ) ) {
-			$args['date_to'] = date( 'Y-m-d', $args['date_to'] );
+			$args['date_to'] = date( 'Y-m-d', $args['date_to'] ); // phpcs:ignore -- local time.
 		}
 
 		if ( MainWP_Child_Branding::instance()->is_branding() ) {
@@ -335,23 +335,25 @@ class MainWP_Client_Report {
 		// fix invalid data, or skip records!
 		$skip_records = array();
 
-		// fix for incorrect posts created logging!
+		// fix for incorrect posts created logs!
 		// query created posts from WP posts data to simulate records logging for created posts.
-		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {
-			$query_string = array(
+		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {			
+			
+			$args = array(
 				'post_type'   => 'post',
+				'post_status' => 'publish',
 				'date_query'  => array(
 					'column'    => 'post_date',
 					'after'     => $args['date_from'],
 					'before'    => $args['date_to'],
 				),
-				'post_status' => 'publish',
 			);
-
-			$records_created_posts = query_posts( $query_string );
-
+			
+			$result = new \WP_Query( $args );			
+			$records_created_posts = $result->posts;
+			
 			if ( $records_created_posts ) {
-
+				
 				$count_records = count( $records );
 				for ( $i = 0; $i < $count_records; $i++ ) {
 					$record = $records[ $i ];

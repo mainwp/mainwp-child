@@ -37,7 +37,7 @@ class MainWP_Child_Pagespeed {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
@@ -46,7 +46,7 @@ class MainWP_Child_Pagespeed {
 		$information = array();
 		if ( ! defined( 'GPI_DIRECTORY' ) ) {
 			$information['error'] = 'Please install Google Pagespeed Insights plugin on child website';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
 
@@ -65,7 +65,7 @@ class MainWP_Child_Pagespeed {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 	public function child_deactivation() {

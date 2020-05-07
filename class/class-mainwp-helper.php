@@ -4,7 +4,16 @@ namespace MainWP\Child;
 
 class MainWP_Helper {
 
-	public static function write( $val ) {
+	public static $instance          = null;
+	
+	public static function instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+	
+	public function write( $val ) {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = self::safe_json_encode( $val );
 		else :
@@ -437,7 +446,7 @@ class MainWP_Helper {
 		if ( $is_post_plus ) {
 			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' != $new_post['post_date_gmt'] ) {
 				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
-				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp );
+				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp ); // phpcs:ignore -- local time.
 			}
 		}
 
@@ -558,7 +567,7 @@ class MainWP_Helper {
 				$random_date_to = isset( $post_custom['_saved_draft_publish_date_to'] ) ? $post_custom['_saved_draft_publish_date_to'] : 0;
 				$random_date_to = is_array( $random_date_to ) ? current( $random_date_to ) : 0;
 
-				$now = current_time( 'timestamp' );
+				$now = time();
 
 				if ( empty( $random_date_from ) ) {
 					$random_date_from = $now;
@@ -579,7 +588,7 @@ class MainWP_Helper {
 				}
 
 				$random_timestamp      = wp_rand( $random_date_from, $random_date_to );
-				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp );
+				$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp ); // phpcs:ignore -- local time.
 			}
 		}
 
@@ -1114,10 +1123,13 @@ class MainWP_Helper {
 		switch ( $last ) {
 			case 'g':
 				$val *= 1024;
+				break;
 			case 'm':
 				$val *= 1024;
+				break;
 			case 'k':
 				$val *= 1024;
+				break;			
 		}
 
 		return $val;
@@ -1284,7 +1296,7 @@ class MainWP_Helper {
 		return true;
 	}
 
-	public static function get_lasttime_backup( $by ) {
+	public function get_lasttime_backup( $by ) {
 
 		if ( 'backupwp' == $by ) {
 			$by = 'backupwordpress';
@@ -1472,7 +1484,7 @@ class MainWP_Helper {
 
 		// Remove anything which isn't a word, whitespace, number or any of the following caracters -_~,;:[]().
 		// If you don't need to handle multi-byte characters you can use preg_replace rather than mb_ereg_replace.
-		// Thanks @Å?ukasz Rysiak!
+		// Thanks @ï¿½?ukasz Rysiak!
 		$filename = mb_ereg_replace( '([^\w\s\d\-_~,;:\[\]\(\).])', '', $filename );
 		// Remove any runs of periods (thanks falstro!).
 		$filename = mb_ereg_replace( '([\.]{2,})', '', $filename );
@@ -1564,7 +1576,7 @@ class MainWP_Helper {
 		return function_exists( 'is_wpe' ) && is_wpe();
 	}
 
-	public static function check_files_exists( $files = array(), $return = false ) {
+	public function check_files_exists( $files = array(), $return = false ) {
 			$missing = array();
 		if ( is_array( $files ) ) {
 			foreach ( $files as $name ) {
@@ -1589,7 +1601,7 @@ class MainWP_Helper {
 		return true;
 	}
 
-	public static function check_classes_exists( $classes = array(), $return = false ) {
+	public function check_classes_exists( $classes = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $classes ) ) {
 			foreach ( $classes as $name ) {
@@ -1614,7 +1626,7 @@ class MainWP_Helper {
 		return true;
 	}
 
-	public static function check_methods( $object, $methods = array(), $return = false ) {
+	public function check_methods( $object, $methods = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $methods ) ) {
 				$missing = array();

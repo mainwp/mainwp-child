@@ -34,7 +34,7 @@ class MainWP_Child_Timecapsule {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
 
@@ -60,14 +60,14 @@ class MainWP_Child_Timecapsule {
 
 	public function action() {
 		if ( ! $this->is_plugin_installed ) {
-			MainWP_Helper::write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
+			mainwp_child_helper()->write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
 		}
 
 		try {
 			$this->require_files();
 		} catch ( \Exception $e ) {
 			$error = $e->getMessage();
-			MainWP_Helper::write( array( 'error' => $error ) );
+			mainwp_child_helper()->write( array( 'error' => $error ) );
 		}
 
 			$information = array();
@@ -80,7 +80,7 @@ class MainWP_Child_Timecapsule {
 		if ( isset( $_POST['mwp_action'] ) ) {
 
 			if ( ( 'save_settings' == $_POST['mwp_action'] || 'get_staging_details_wptc' == $_POST['mwp_action'] || 'progress_wptc' == $_POST['mwp_action'] ) && ( ! $is_user_logged_in || ! $privileges_wptc ) ) {
-				MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
+				mainwp_child_helper()->write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
 			}
 
 			switch ( $_POST['mwp_action'] ) {
@@ -209,7 +209,7 @@ class MainWP_Child_Timecapsule {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 
@@ -289,7 +289,7 @@ class MainWP_Child_Timecapsule {
 
 	protected function get_backups( $last_time = false ) {
 		if ( empty( $last_time ) ) {
-			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore -- local time
+			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore -- local time.
 		}
 		global $wpdb;
 		$all_backups = $wpdb->get_results(
@@ -365,7 +365,7 @@ class MainWP_Child_Timecapsule {
 		if ( ! empty( $last_backup_time ) ) {
 			$user_time = $config->cnvt_UTC_to_usrTime( $last_backup_time );
 			$processed_files->modify_schedule_backup_time( $user_time );
-			$formatted_date                   = date( 'M d @ g:i a', $user_time );
+			$formatted_date                   = date( 'M d @ g:i a', $user_time ); // phpcs:ignore -- local time.
 			$return_array['last_backup_time'] = $formatted_date;
 		} else {
 			$return_array['last_backup_time'] = 'No Backup Taken';
@@ -477,8 +477,8 @@ class MainWP_Child_Timecapsule {
 			$query = 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE show_user = 1   GROUP BY action_id ';
 		}
 
-		$orderby = ! empty( $_POST['orderby'] ) ? mysql_real_escape_string( $_POST['orderby'] ) : 'id';
-		$order   = ! empty( $_POST['order'] ) ? mysql_real_escape_string( $_POST['order'] ) : 'DESC';
+		$orderby = ! empty( $_POST['orderby'] ) ? MainWP_Child_DB::real_escape_string( $_POST['orderby'] ) : 'id';
+		$order   = ! empty( $_POST['order'] ) ? MainWP_Child_DB::real_escape_string( $_POST['order'] ) : 'DESC';
 		if ( ! empty( $orderby ) & ! empty( $order ) ) {
 			$query .= ' ORDER BY ' . $orderby . ' ' . $order;
 		}
@@ -583,7 +583,7 @@ class MainWP_Child_Timecapsule {
 				$Ldata     = unserialize( $rec->log_data );
 				$user_time = WPTC_Factory::get( 'config' )->cnvt_UTC_to_usrTime( $Ldata['log_time'] );
 				WPTC_Factory::get( 'processed-files' )->modify_schedule_backup_time( $user_time );
-				$user_tz_now = date( 'M d, Y @ g:i:s a', $user_time );
+				$user_tz_now = date( 'M d, Y @ g:i:s a', $user_time ); // phpcs:ignore -- local time.
 				$msg         = '';
 				if ( ! ( strpos( $rec->type, 'backup' ) === false ) ) {
 					// Backup process.
@@ -1174,7 +1174,7 @@ class MainWP_Child_Timecapsule {
 
 		$now = localtime( time(), true );
 		echo '<tr title=""><td>' . __( 'Server Time', 'wp-time-capsule' ) . '</td><td>' . esc_html( $now['tm_hour'] . ':' . $now['tm_min'] ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Blog Time', 'wp-time-capsule' ) . '</td><td>' . date( 'H:i', current_time( 'timestamp' ) ) . '</td></tr>'; // phpcs:ignore -- local time
+		echo '<tr title=""><td>' . __( 'Blog Time', 'wp-time-capsule' ) . '</td><td>' . date( 'H:i', current_time( 'timestamp' ) ) . '</td></tr>'; // phpcs:ignore -- local time.
 		echo '<tr title="WPLANG"><td>' . __( 'Blog language', 'wp-time-capsule' ) . '</td><td>' . get_bloginfo( 'language' ) . '</td></tr>';
 		echo '<tr title="utf8"><td>' . __( 'MySQL Client encoding', 'wp-time-capsule' ) . '</td><td>';
 		echo defined( 'DB_CHARSET' ) ? DB_CHARSET : '';

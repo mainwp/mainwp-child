@@ -12,9 +12,8 @@
  * Extension URL: https://mainwp.com/extension/mainwpbuddy/
  */
 
-namespace MainWP\Child;
-
 class MainWP_Child_Back_Up_Buddy {
+	
 	public static $instance          = null;
 	public $plugin_translate         = 'mainwp-child';
 	public $is_backupbuddy_installed = false;
@@ -36,7 +35,7 @@ class MainWP_Child_Back_Up_Buddy {
 			return;
 		}
 
-		add_filter( 'mainwp-site-sync-others-data', array( $this, 'sync_others_data' ), 10, 2 );
+		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 
 		add_action( 'wp_ajax_mainwp_backupbuddy_download_archive', array( $this, 'download_archive' ) );
 		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
@@ -215,7 +214,7 @@ class MainWP_Child_Back_Up_Buddy {
 	public function action() {
 		$information = array();
 		if ( ! $this->is_backupbuddy_installed ) {
-			MainWP_Helper::write( array( 'error' => __( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
+			mainwp_child_helper()->write( array( 'error' => __( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
 		}
 
 		if ( ! class_exists( 'backupbuddy_core' ) ) {
@@ -368,7 +367,7 @@ class MainWP_Child_Back_Up_Buddy {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 
@@ -788,7 +787,7 @@ class MainWP_Child_Back_Up_Buddy {
 			if ( isset( $getOverview['lastBackupStats']['finish'] ) ) {
 				$finish_time             = $getOverview['lastBackupStats']['finish'];
 				$time                    = $this->localize_time( $finish_time );
-				$data['lastBackupStats'] = date( 'M j - g:i A', $time ); // phpcs:ignore -- local time
+				$data['lastBackupStats'] = date( 'M j - g:i A', $time ); // phpcs:ignore -- local time.
 				$data['lasttime_backup'] = $finish_time;
 				MainWP_Helper::update_lasttime_backup( 'backupbuddy', $finish_time ); // support Require Backup Before Update feature.
 			} else {

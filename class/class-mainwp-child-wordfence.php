@@ -204,13 +204,13 @@ class MainWP_Child_Wordfence {
 	public function action() {
 		$information = array();
 		if ( ! $this->is_wordfence_installed ) {
-			MainWP_Helper::write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
+			mainwp_child_helper()->write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
 			return;
 		}
 
 		if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfScanEngine' ) ) {
 			$information['error'] = 'NO_WORDFENCE';
-			MainWP_Helper::write( $information );
+			mainwp_child_helper()->write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
 
@@ -424,7 +424,7 @@ class MainWP_Child_Wordfence {
 					break;
 			}
 		}
-		MainWP_Helper::write( $information );
+		mainwp_child_helper()->write( $information );
 	}
 
 
@@ -677,7 +677,7 @@ class MainWP_Child_Wordfence {
 		// fix prepare sql empty.
 		$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
 		$sql .= " 'Scan Complete.%';";
-		$rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
+		$rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 
 		$scan_time = array();
 		if ( $rows ) {
@@ -692,7 +692,7 @@ class MainWP_Child_Wordfence {
 				$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg.
 				$sql .= " 'SUM_FINAL:Scan complete.%';";
 
-				$sum_rows = MainWP_Child_DB::_query( $sql, $wpdb->dbh );
+				$sum_rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 				$result   = '';
 				if ( $sum_rows ) {
 					$sum_row = MainWP_Child_DB::fetch_array( $sum_rows );
@@ -2606,11 +2606,11 @@ SQL
 							'UPLOADS'                      => 'Custom upload folder location',
 							'TEMPLATEPATH'                 => array(
 								'description' => 'Theme template folder override',
-								'value'       => ( defined( 'TEMPLATEPATH' ) && realpath( get_template_directory() ) !== realpath( TEMPLATEPATH ) ? 'Overridden' : '(not set)' ),
+								'value'       => ( defined( 'TEMPLATEPATH' ) && realpath( get_template_directory() ) !== realpath( TEMPLATEPATH ) ? 'Overridden' : '(not set)' ), //phpcs:ignore -- use to check defined
 							),
 							'STYLESHEETPATH'               => array(
 								'description' => 'Theme stylesheet folder override',
-								'value'       => ( defined( 'STYLESHEETPATH' ) && realpath( get_stylesheet_directory() ) !== realpath( STYLESHEETPATH ) ? 'Overridden' : '(not set)' ),
+								'value'       => ( defined( 'STYLESHEETPATH' ) && realpath( get_stylesheet_directory() ) !== realpath( STYLESHEETPATH ) ? 'Overridden' : '(not set)' ), //phpcs:ignore -- use to check defined
 							),
 							'AUTOSAVE_INTERVAL'            => 'Post editing automatic saving interval',
 							'WP_POST_REVISIONS'            => array(
@@ -2871,7 +2871,7 @@ SQL
 									if ( is_numeric( $timestamp ) ) {
 										?>
 										<tr>
-											<td colspan="<?php echo $cols - 1; ?>"><?php echo esc_html( date( 'r', $timestamp ) ); ?></td>
+											<td colspan="<?php echo $cols - 1; ?>"><?php echo esc_html( date( 'r', $timestamp ) ); // phpcs:ignore -- local time. ?></td>
 											<td><?php echo esc_html( $cron_job ); ?></td>
 										</tr>
 										<?php

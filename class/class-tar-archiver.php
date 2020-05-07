@@ -693,7 +693,8 @@ class Tar_Archiver {
 
 		$this->add_data( $block );
 		$i = 0;
-		while ( ( $line = substr( $content, $i ++ * 512, 512 ) ) != '' ) {
+		while ( ( $line = substr( $content, $i * 512, 512 ) ) != '' ) {
+			$i++;
 			$this->add_data( pack( 'a512', $line ) );
 		}
 
