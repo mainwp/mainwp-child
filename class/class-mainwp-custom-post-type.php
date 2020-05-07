@@ -15,7 +15,7 @@ class MainWP_Custom_Post_Type {
 		return self::$instance;
 	}
 
-	public function action() {		
+	public function action() {
 		function mainwp_custom_post_type_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {

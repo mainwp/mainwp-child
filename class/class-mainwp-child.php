@@ -51,7 +51,7 @@ class MainWP_Child {
 		'get_all_users'         => 'get_all_users',
 		'user_action'           => 'user_action',
 		'search_users'          => 'search_users',
-		'insert_comment'        => 'insert_comment',						
+		'insert_comment'        => 'insert_comment',
 		'cancel_scheduled_post' => 'cancel_scheduled_post',
 		'serverInformation'     => 'server_information',
 		'maintenance_site'      => 'maintenance_site',
@@ -4136,7 +4136,7 @@ class MainWP_Child {
 				$information['status'] = 'SUCCESS';
 			}
 		} elseif ( $cancel_all ) {
-			$post_type = $_POST['post_type'];			
+			$post_type = $_POST['post_type'];
 			$posts     = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id WHERE p.post_status='future' AND p.post_type = %s AND  pm.meta_key = '_is_auto_generate_content' AND pm.meta_value = 'yes' ", $post_type ) );
 			$count     = 0;
 			if ( is_array( $posts ) ) {

@@ -1343,7 +1343,7 @@ class MainWP_Helper {
 
 	public static function get_revisions( $max_revisions ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d " , $max_revisions ) );
+		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
 	}
 
 	public static function delete_revisions( $results, $max_revisions ) {
@@ -1356,16 +1356,16 @@ class MainWP_Helper {
 		$results_length = count( $results );
 		for ( $i = 0; $i < $results_length; $i ++ ) {
 			$number_to_delete = $results[ $i ]->cnt - $max_revisions;
-			$count_deleted   += $number_to_delete;			
+			$count_deleted   += $number_to_delete;
 			$results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) );
-			$delete_ids = array();
+			$delete_ids       = array();
 			if ( is_array( $results_posts ) && count( $results_posts ) > 0 ) {
 				for ( $j = 0; $j < $number_to_delete; $j ++ ) {
 					$delete_ids[] = $results_posts[ $j ]->ID;
 				}
 			}
 
-			if ( count( $delete_ids ) > 0 ) {				
+			if ( count( $delete_ids ) > 0 ) {
 				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ")"; // phpcs:ignore -- safe
 				$wpdb->get_results( $sql_delete ); // phpcs:ignore -- safe
 			}
