@@ -315,10 +315,10 @@ class MainWP_Helper {
 	}
 
 	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
-		global $wpdb;		
+		global $wpdb;
 		if ( $full_guid ) {
 			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) );
-		} 				
+		}
 		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE '%/%s'", $filename ) );
 	}
 
