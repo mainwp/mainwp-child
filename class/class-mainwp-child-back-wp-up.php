@@ -432,7 +432,7 @@ class MainWP_Child_Back_WP_Up {
 		echo '<tr title=""><td>' . __( 'WP-Cron url:', 'mainwp-child' ) . '</td><td>' . esc_html( site_url( 'wp-cron.php' ) ) . '</td></tr>';
 
 		echo '<tr><td>' . __( 'Server self connect:', 'mainwp-child' ) . '</td><td>';
-		$raw_response =\BackWPup_Job::get_jobrun_url( 'test' );
+		$raw_response = \BackWPup_Job::get_jobrun_url( 'test' );
 		$test_result  = '';
 		if ( is_wp_error( $raw_response ) ) {
 			$test_result .= sprintf( __( 'The HTTP response test get an error "%s"', 'mainwp-child' ), esc_html( $raw_response->get_error_message() ) );

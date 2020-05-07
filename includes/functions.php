@@ -105,14 +105,13 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 
 
 if ( ! function_exists( 'mainwp_child_helper' ) ) {
-	
+
 	/**
 	 * Method mainwp_child_helper()
-	 * 
+	 *
 	 * Get MainWP Child helper instance.
 	 *
-	 * @return mixed MainWP\Child\MainWP_Helper	
-	 * 
+	 * @return mixed MainWP\Child\MainWP_Helper
 	 */
 	function mainwp_child_helper() {
 		return MainWP\Child\MainWP_Helper::instance();

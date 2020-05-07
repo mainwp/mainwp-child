@@ -2,7 +2,6 @@
 
 namespace MainWP\Child;
 
-
 class MainWP_Child_DB {
 	// phpcs:disable WordPress.DB.RestrictedFunctions, WordPress.DB.PreparedSQL.NotPrepared -- unprepared SQL ok, accessing the database directly to custom database functions.
 	// Support old & new versions of WordPress (3.9+).

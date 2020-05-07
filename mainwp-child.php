@@ -28,9 +28,9 @@ function mainwp_child_autoload( $class_name ) {
 
 	if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
 		// trip the namespace prefix: MainWP\Child\ .
-		$class_name = substr( $class_name, 13 );		
+		$class_name = substr( $class_name, 13 );
 	}
-	
+
 	if ( 0 !== strpos( $class_name, 'MainWP_' ) ) {
 		return;
 	}
