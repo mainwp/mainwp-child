@@ -777,7 +777,7 @@ class MainWP_Child_Back_WP_Up {
 					if ( preg_match( '/.*&jobid=([^&]+)&.*/is', $temp_array['downloadurl'], $matches ) ) {
 						if ( ! empty( $matches[1] ) && is_numeric( $matches[1] ) ) {
 							$temp_array['downloadurl_id'] .= '&download_click_id=' . $matches[1];
-						}						
+						}
 					}
 
 					$temp_array['website_id'] = $website_id;
@@ -1316,15 +1316,15 @@ class MainWP_Child_Back_WP_Up {
 	// From BackWPup_JobType_File::edit_form_post_save with some tweaks.
 	public function edit_form_post_save( $post_data, $id ) {
 		// Parse and save files to exclude.
-		$exclude_input                       = $post_data['fileexclude'];
-		$to_exclude_list                     = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
+		$exclude_input   = $post_data['fileexclude'];
+		$to_exclude_list = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
 		if ( $to_exclude_list ) {
 			$to_exclude_list = sanitize_text_field( stripslashes( $to_exclude_list ) );
 		}
-		$to_exclude                          = $to_exclude_list ? explode( ',', $to_exclude_list ) : array();
-		$to_exclude_parsed                   = array();
+		$to_exclude        = $to_exclude_list ? explode( ',', $to_exclude_list ) : array();
+		$to_exclude_parsed = array();
 		foreach ( $to_exclude as $key => $value ) {
-			$normalized                               = wp_normalize_path( trim( $value ) );
+			$normalized = wp_normalize_path( trim( $value ) );
 			if ( $normalized ) {
 				$to_exclude_parsed[ $key ] = $normalized;
 			}
@@ -1339,11 +1339,11 @@ class MainWP_Child_Back_WP_Up {
 		$to_include        = $include_list ? explode( ',', $include_list ) : array();
 		$to_include_parsed = array();
 		foreach ( $to_include as $key => $value ) {
-			$normalized                             = trailingslashit( wp_normalize_path( trim( $value ) ) );
+			$normalized = trailingslashit( wp_normalize_path( trim( $value ) ) );
 			if ( $normalized ) {
-				$normalized              = filter_var( $normalized, FILTER_SANITIZE_URL );
+				$normalized = filter_var( $normalized, FILTER_SANITIZE_URL );
 			}
-			$realpath                               = $normalized && '/' !== $normalized ? realpath( $normalized ) : false;
+			$realpath = $normalized && '/' !== $normalized ? realpath( $normalized ) : false;
 			if ( $realpath ) {
 				$to_include_parsed[ $key ] = $realpath;
 			}
