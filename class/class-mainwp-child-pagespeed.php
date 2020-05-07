@@ -357,7 +357,7 @@ class MainWP_Child_Pagespeed {
 		if ( ! empty( $reports_typestocheck ) ) {
 
 			$allpagereports = $wpdb->get_results(
-				$wpdb->prepare( 
+				$wpdb->prepare(
 					"SELECT     r.rule_key, r.rule_name FROM $gpi_page_stats d INNER JOIN $gpi_page_reports r ON r.page_id = d.ID AND r.strategy = '$strategy' WHERE ( $reports_typestocheck[0] )", // phpcs:ignore -- safe query.
 					$reports_typestocheck[1]
 				),
@@ -464,7 +464,7 @@ class MainWP_Child_Pagespeed {
 
 		if ( $gpi_options['check_custom_urls'] ) {
 			global $wpdb;
-			$custom_url_types = $wpdb->get_col( "SELECT DISTINCT type FROM " . $wpdb->prefix . "gpi_custom_urls " );
+			$custom_url_types = $wpdb->get_col( 'SELECT DISTINCT type FROM ' . $wpdb->prefix . 'gpi_custom_urls ' );
 			if ( ! empty( $custom_url_types ) ) {
 				foreach ( $custom_url_types as $custom_url_type ) {
 					$typestocheck[] = 'type = %s';
