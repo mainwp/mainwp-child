@@ -629,10 +629,10 @@ class MainWP_Backup {
 			$fh = fopen( $currentfile . '.tmp', 'w' );
 
 			fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N );
+			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N ); // phpcs:ignore -- safe query.
 			fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );
 
-			$rows = MainWP_Child_DB::to_query( 'SELECT * FROM ' . $table, $wpdb->dbh );
+			$rows = MainWP_Child_DB::to_query( 'SELECT * FROM ' . $table, $wpdb->dbh ); // phpcs:ignore -- safe query.
 
 			if ( $rows ) {
 				$i            = 0;

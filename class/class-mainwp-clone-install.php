@@ -187,11 +187,11 @@ class MainWP_Clone_Install {
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
-		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name ) );
+		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name ) ); // phpcs:ignore -- safe query.
 		if ( null === $var ) {
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '")', $name ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, %s)', $name, MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) ) );
 		} else {
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = "' . MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) . '" WHERE option_name = %s', $name ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = %s WHERE option_name = %s', MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ), $name ) );
 		}
 	}
 
@@ -230,14 +230,14 @@ class MainWP_Clone_Install {
 					$splitLine       = explode( ";\n", $readline );
 					$splitLineLength = count( $splitLine );
 					for ( $i = 0; $i < $splitLineLength - 1; $i ++ ) {
-						$wpdb->query( $splitLine[ $i ] );
+						$wpdb->query( $splitLine[ $i ] ); // phpcs:ignore -- safe query. 
 					}
 
 					$readline = $splitLine[ count( $splitLine ) - 1 ];
 				}
 
 				if ( trim( $readline ) != '' ) {
-					$wpdb->query( $readline );
+					$wpdb->query( $readline ); // phpcs:ignore -- safe query.
 				}
 
 				if ( ! feof( $handle ) ) {
@@ -248,7 +248,7 @@ class MainWP_Clone_Install {
 		}
 
 		$tables    = array();
-		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
+		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
 
 		foreach ( $tables_db as $curr_table ) {
 			// fix for more table prefix in one database.
@@ -257,8 +257,8 @@ class MainWP_Clone_Install {
 			}
 		}
 		// Replace importance data first so if other replace failed, the website still work.
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "siteurl"', $site_url ) );
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "home"', $home ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "siteurl"', $site_url ) ); //phpcs:ignore -- safe query.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "home"', $home ) ); //phpcs:ignore -- safe query.
 		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['home'], $home, $tables );
 		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['siteurl'], $site_url, $tables );
 

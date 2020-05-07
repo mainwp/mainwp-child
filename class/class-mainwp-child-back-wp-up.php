@@ -1194,7 +1194,7 @@ class MainWP_Child_Back_WP_Up {
 		$settings = $_POST['settings'];
 
 		if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
-			$mysqli = new mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) );
+			$mysqli = new mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
 
 			if ( $mysqli->connect_error ) {
 				$return['message'] = $mysqli->connect_error;
@@ -1203,7 +1203,7 @@ class MainWP_Child_Back_WP_Up {
 					$res = $mysqli->query( 'SHOW FULL TABLES FROM `' . $mysqli->real_escape_string( $settings['dbname'] ) . '`' );
 					if ( $res ) {
 						$tables_temp = array();
-						while ( $table = $res->fetch_array( MYSQLI_NUM ) ) {
+						while ( $table = $res->fetch_array( MYSQLI_NUM ) ) { // phpcs:ignore -- third party code.
 							$tables_temp[] = $table[0];
 						}
 
@@ -1229,7 +1229,7 @@ class MainWP_Child_Back_WP_Up {
 		} else {
 			$tables_temp = array();
 
-			$tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N );
+			$tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
 			foreach ( $tables as $table ) {
 				$tables_temp[] = $table[0];
 			}

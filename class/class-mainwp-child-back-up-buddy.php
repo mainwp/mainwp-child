@@ -1045,7 +1045,7 @@ class MainWP_Child_Back_Up_Buddy {
 			if ( true === $display_size ) {
 				// Fix up row count and average row length for InnoDB engine which returns inaccurate (and changing) values for these.
 				if ( 'InnoDB' === $result['Engine'] ) {
-					$rowCount = $wpdb->get_var( "SELECT COUNT(1) as rowCount FROM `{$rs[ 'Name' ]}`", ARRAY_A );
+					$rowCount = $wpdb->get_var( "SELECT COUNT(1) as rowCount FROM `{$result[ 'Name' ]}`", ARRAY_A ); // phpcs:ignore -- safe query.
 					if ( false !== $rowCount ) {
 						$result['Rows'] = $rowCount;
 						if ( 0 < $result['Rows'] ) {

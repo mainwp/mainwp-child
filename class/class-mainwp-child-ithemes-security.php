@@ -1001,8 +1001,7 @@ class MainWP_Child_IThemes_Security {
 
 		}
 
-		$results = $wpdb->get_results( 'SELECT * FROM `' . $wpdb->base_prefix . 'itsec_lockouts`' . $where . $type_statement . $active . ';', ARRAY_A );
-		$output  = array();
+		$results = $wpdb->get_results( 'SELECT * FROM `' . $wpdb->base_prefix . 'itsec_lockouts`' . $where . $type_statement . $active . ';', ARRAY_A ); // phpcs:ignore -- safe query.		$output  = array();
 		if ( is_array( $results ) && count( $results ) > 0 ) {
 			switch ( $type ) {
 				case 'host':

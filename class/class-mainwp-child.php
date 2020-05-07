@@ -218,7 +218,7 @@ class MainWP_Child {
 			$query  = substr( $query, 0, strlen( $query ) - 2 );
 			$query .= ")"; // phpcs:ignore
 
-			$alloptions_db = $wpdb->get_results( $query );
+			$alloptions_db = $wpdb->get_results( $query ); // phpcs:ignore -- safe query
 			$wpdb->suppress_errors( $suppress );
 			if ( ! is_array( $alloptions ) ) {
 				$alloptions = array();

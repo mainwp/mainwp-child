@@ -72,7 +72,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		// Get sales.
 		$sales = $wpdb->get_var(
-			$wpdb->prepare(
+			$wpdb->prepare( // phpcs:ignore -- safe query.
 				"SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
 				LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
 				LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
@@ -85,14 +85,14 @@ class MainWP_Child_WooCommerce_Status {
 				AND postmeta.meta_key = '_order_total'
 				AND posts.post_date >= %s
 				AND posts.post_date <= %s",
-				date( 'Y-m-01', $start_date ),
-				date( 'Y-m-d H:i:s', $end_date )
+				date( 'Y-m-01' ),
+				date( 'Y-m-d H:i:s' )
 			)
 		);
 
 		// Get top seller.
 		$top_seller = $wpdb->get_row(
-			$wpdb->prepare(
+			$wpdb->prepare( // phpcs:ignore -- safe query.
 				"SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
 				FROM {$wpdb->posts} as posts
 				LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
@@ -131,11 +131,11 @@ class MainWP_Child_WooCommerce_Status {
 
 		$query_from = "FROM {$wpdb->posts} as posts INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id INNER JOIN {$wpdb->postmeta} AS postmeta2 ON posts.ID = postmeta2.post_id WHERE 1=1 AND posts.post_type IN ('product', 'product_variation') AND posts.post_status = 'publish' AND ( postmeta.meta_key = '_stock' AND CAST(postmeta.meta_value AS SIGNED) <= '{$stock}' AND CAST(postmeta.meta_value AS SIGNED) > '{$nostock}' AND postmeta.meta_value != '' ) AND ( ( postmeta2.meta_key = '_manage_stock' AND postmeta2.meta_value = 'yes' ) OR ( posts.post_type = 'product_variation' ) )";
 
-		$lowinstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );
+		$lowinstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
 		$query_from = "FROM {$wpdb->posts} as posts INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id INNER JOIN {$wpdb->postmeta} AS postmeta2 ON posts.ID = postmeta2.post_id WHERE 1=1 AND posts.post_type IN ('product', 'product_variation') AND posts.post_status = 'publish' AND ( postmeta.meta_key = '_stock' AND CAST(postmeta.meta_value AS SIGNED) <= '{$nostock}' AND postmeta.meta_value != '' ) AND ( ( postmeta2.meta_key = '_manage_stock' AND postmeta2.meta_value = 'yes' ) OR ( posts.post_type = 'product_variation' ) )";
 
-		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );
+		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );  //phpcs:ignore -- safe query.
 
 		$data                = array(
 			'sales'          => $sales,
@@ -292,7 +292,7 @@ class MainWP_Child_WooCommerce_Status {
 		$query['where'] .= 'AND posts.post_date >=  STR_TO_DATE(' . $wpdb->prepare( '%s', $start_date ) . ", '%Y-%m-%d %H:%i:%s' ) ";
 		$query['where'] .= 'AND posts.post_date <=  STR_TO_DATE(' . $wpdb->prepare( '%s', $end_date ) . ", '%Y-%m-%d %H:%i:%s' ) ";
 
-		$sales = $wpdb->get_var( implode( ' ', apply_filters( 'woocommerce_dashboard_status_widget_sales_query', $query ) ) );
+		$sales = $wpdb->get_var( implode( ' ', apply_filters( 'woocommerce_dashboard_status_widget_sales_query', $query ) ) ); // phpcs:ignore -- safe query.
 
 		// Get top seller.
 		$query            = array();
@@ -310,7 +310,7 @@ class MainWP_Child_WooCommerce_Status {
 		$query['orderby'] = 'ORDER BY qty DESC';
 		$query['limits']  = 'LIMIT 1';
 
-		$top_seller = $wpdb->get_row( implode( ' ', $query ) );
+		$top_seller = $wpdb->get_row( implode( ' ', $query ) ); // phpcs:ignore -- safe query.
 
 		if ( ! empty( $top_seller ) ) {
 			$top_seller->name = get_the_title( $top_seller->product_id );
@@ -332,11 +332,11 @@ class MainWP_Child_WooCommerce_Status {
 
 		$query_from = "FROM {$wpdb->posts} as posts INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id INNER JOIN {$wpdb->postmeta} AS postmeta2 ON posts.ID = postmeta2.post_id WHERE 1=1 AND posts.post_type IN ('product', 'product_variation') AND posts.post_status = 'publish' AND ( postmeta.meta_key = '_stock' AND CAST(postmeta.meta_value AS SIGNED) <= '{$stock}' AND CAST(postmeta.meta_value AS SIGNED) > '{$nostock}' AND postmeta.meta_value != '' ) AND ( ( postmeta2.meta_key = '_manage_stock' AND postmeta2.meta_value = 'yes' ) OR ( posts.post_type = 'product_variation' ) )";
 
-		$lowinstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );
+		$lowinstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
 		$query_from = "FROM {$wpdb->posts} as posts INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id INNER JOIN {$wpdb->postmeta} AS postmeta2 ON posts.ID = postmeta2.post_id WHERE 1=1 AND posts.post_type IN ('product', 'product_variation') AND posts.post_status = 'publish' AND ( postmeta.meta_key = '_stock' AND CAST(postmeta.meta_value AS SIGNED) <= '{$nostock}' AND postmeta.meta_value != '' ) AND ( ( postmeta2.meta_key = '_manage_stock' AND postmeta2.meta_value = 'yes' ) OR ( posts.post_type = 'product_variation' ) ) ";
 
-		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );
+		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
 		$data                          = array(
 			'sales'          => $sales,

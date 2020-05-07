@@ -315,16 +315,11 @@ class MainWP_Helper {
 	}
 
 	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
-		global $wpdb;
+		global $wpdb;		
 		if ( $full_guid ) {
-			$sql = $wpdb->prepare(
-				"SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s",
-				$filename
-			);
-		} else {
-			$sql = "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE '%/" . $filename . "'";
-		}
-		return $wpdb->get_results( $sql );
+			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) );
+		} 				
+		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE '%/%s'", $filename ) );
 	}
 
 	public static function upload_file( $file_url, $path, $file_name ) {
