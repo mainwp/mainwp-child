@@ -238,7 +238,7 @@ class Tar_Archiver {
 				closedir( $fh );
 
 				$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-					serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+					serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 						array(
 							'siteurl' => get_option( 'siteurl' ),
 							'home'    => get_option( 'home' ),
@@ -832,12 +832,12 @@ class Tar_Archiver {
 							$rslt['bytesRead']  = $bytesRead;
 							$rslt['readOffset'] = $previousFtell;
 
-							$this->log( 'Will append this: ' . print_r( $rslt, 1 ) );
+							$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
 
 							return $rslt;
 						}
 					} elseif ( ( 'tar' == $this->type ) && ( ( false === $ftell ) || ( -1 == $ftell ) ) ) {
-						$this->log( 'Will append this: ' . print_r( $rslt, 1 ) );
+						$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
 
 						return $rslt;
 					}

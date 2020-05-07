@@ -9,7 +9,7 @@
  * The code is used for the MainWP Broken Links Checker Extension (Retired Extension)
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_Links_Checker {
 
@@ -18,7 +18,7 @@ class MainWP_Child_Links_Checker {
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_Links_Checker();
+			self::$instance = new self();
 		}
 
 		return self::$instance;

@@ -13,7 +13,7 @@
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_IThemes_Security {
 	public static $instance     = null;
@@ -46,7 +46,7 @@ class MainWP_Child_IThemes_Security {
 					'users_and_roles' => $this->get_available_admin_users_and_roles(),
 				);
 			} catch ( \Exception $e ) {
-				error_log( $e->getMessage() );
+				error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
 			}
 		}
 		return $information;

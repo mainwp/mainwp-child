@@ -15,7 +15,7 @@ class MainWP_Child_Skeleton_Key {
 	}
 
 	public function action() {
-		error_reporting( 0 );
+		
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && in_array( $error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {

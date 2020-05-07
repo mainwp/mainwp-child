@@ -15,8 +15,7 @@ class MainWP_Custom_Post_Type {
 		return self::$instance;
 	}
 
-	public function action() {
-		error_reporting( 0 );
+	public function action() {		
 		function mainwp_custom_post_type_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
@@ -28,7 +27,7 @@ class MainWP_Custom_Post_Type {
 			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
 				$data = json_encode( $data );
 			} else {
-				$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+				$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 			}
 			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 		}

@@ -12,7 +12,7 @@
  * Extension URL: https://mainwp.com/extension/updraftplus/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_Updraft_Plus_Backups {
 	public static $instance     = null;
@@ -1212,7 +1212,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
 		if ( UpdraftPlus_Options::get_updraft_option( 'updraft_debug_mode' ) ) {
 			$updraftplus->logfile_open( $updraftplus->nonce );
-			set_error_handler( array( $updraftplus, 'php_error' ), E_ALL & ~E_STRICT );
+			set_error_handler( array( $updraftplus, 'php_error' ), E_ALL & ~E_STRICT ); // phpcs:ignore -- third party credits.
 		}
 
 		$updraft_dir         = $updraftplus->backups_dir_location();
@@ -1446,7 +1446,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$updraftplus->logfile_open( $updraftplus->nonce );
 		}
 
-		set_error_handler( array( $updraftplus, 'php_error' ), E_ALL & ~E_STRICT );
+		set_error_handler( array( $updraftplus, 'php_error' ), E_ALL & ~E_STRICT ); // phpcs:ignore -- third party credits.
 
 		$updraftplus->log( "Requested to obtain file: timestamp=$timestamp, type=$type, index=$findex" );
 
@@ -1590,7 +1590,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$mess = array();
 		parse_str( $_POST['restoreopts'], $res );
 		if ( isset( $res['updraft_restore'] ) ) {
-			set_error_handler( array( $this, 'get_php_errors' ), E_ALL & ~E_STRICT );
+			set_error_handler( array( $this, 'get_php_errors' ), E_ALL & ~E_STRICT ); // phpcs:ignore -- third party credits.
 
 			$elements = array_flip( $res['updraft_restore'] );
 

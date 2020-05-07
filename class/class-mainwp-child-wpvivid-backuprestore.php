@@ -1,6 +1,6 @@
 <?php
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_WPvivid_BackupRestore {
 

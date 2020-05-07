@@ -13,7 +13,7 @@
  * Extension URL: https://mainwp.com/extension/backupwordpress/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_Back_Up_WordPress {
 	public static $instance     = null;

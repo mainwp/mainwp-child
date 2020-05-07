@@ -12,7 +12,7 @@
  * Extension URL: https://mainwp.com/extension/rocket/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_WP_Rocket {
 	public static $instance     = null;

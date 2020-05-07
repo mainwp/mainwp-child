@@ -11,7 +11,7 @@
  * Extension URL: https://mainwp.com/extension/wordfence/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_Wordfence {
 	public static $instance        = null;
@@ -835,10 +835,12 @@ class MainWP_Child_Wordfence {
 		global $wpdb;
 		$table_wfBlockedIPLog = wfDB::networkTable( 'wfBlockedIPLog' );
 		$interval             = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
-		return $wpdb->get_var(
+		// phpcs:disable -- third party code, safe.
+		return $wpdb->get_var( 
 			<<<SQL
 			SELECT SUM(blockCount) as blockCount FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval}
 SQL
+		// phpcs:enable
 		);
 	}
 
@@ -1548,7 +1550,7 @@ SQL
 			} elseif ( $res['err'] ) {
 				return array( 'errorExport' => __( 'An error occurred: ', 'wordfence' ) . $res['err'] );
 			} else {
-				throw new \Exception( __( 'Invalid response: ', 'wordfence' ) . var_export( $res, true ) );
+				throw new \Exception( __( 'Invalid response: ', 'wordfence' ) );
 			}
 		} catch ( \Exception $e ) {
 			return array( 'errorExport' => __( 'An error occurred: ', 'wordfence' ) . $e->getMessage() );
@@ -1611,7 +1613,7 @@ SQL
 			} elseif ( $res['err'] ) {
 				return array( 'errorImport' => 'An error occurred: ' . $res['err'] );
 			} else {
-				throw new \Exception( 'Invalid response: ' . var_export( $res, true ) );
+				throw new \Exception( 'Invalid response: ' );
 			}
 		} catch ( \Exception $e ) {
 			return array( 'errorImport' => 'An error occurred: ' . $e->getMessage() );

@@ -50,16 +50,16 @@ class MainWP_Client_Report {
 				\MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
 				break;
 			case 'backupwordpress':
-				MainWP_Child_Back_Up_WordPress::instance()->do_reports_log( $ext );
+				\MainWP_Child_Back_Up_WordPress::instance()->do_reports_log( $ext );
 				break;
 			case 'backwpup':
 				\MainWP_Child_Back_WP_Up::instance()->do_reports_log( $ext );
 				break;
 			case 'wordfence':
-				MainWP_Child_Wordfence::instance()->do_reports_log( $ext );
+				\MainWP_Child_Wordfence::instance()->do_reports_log( $ext );
 				break;
 			case 'wptimecapsule':
-				MainWP_Child_Timecapsule::instance()->do_reports_log( $ext );
+				\MainWP_Child_Timecapsule::instance()->do_reports_log( $ext );
 				break;
 		}
 	}
@@ -848,7 +848,7 @@ class MainWP_Client_Report {
 
 				if ( empty( $tok_value ) ) {
 					if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === true ) {
-						error_log( 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true ) );
+						error_log( 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true ) ); // phpcs:ignore -- debug mode only.
 					}
 				}
 			}

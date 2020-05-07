@@ -33,7 +33,7 @@ class MainWP_Keyword_Links {
 		if ( empty( $this->keyword_links ) ) {
 			$this->keyword_links = array();
 		}
-		// print_r($this->keyword_links);
+		
 		$this->siteurl = get_option( 'home' );
 		add_action( 'permalink_structure_changed', array( &$this, 'permalink_changed' ), 10, 2 );
 	}
@@ -312,13 +312,6 @@ class MainWP_Keyword_Links {
 		} else {
 			$links = $this->get_available_links();
 		}
-
-		// print_r($this->keyword_links);
-		// if ($post->ID == 751) {
-		// print_r($links);
-		// $custom = get_post_custom($post->ID);
-		// print_r($custom);
-		// }
 
 		if ( empty( $links ) ) {
 			return $content;

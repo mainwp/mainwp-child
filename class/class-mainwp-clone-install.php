@@ -267,56 +267,6 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-	/**
-	 * Check value to find if it was serialized.
-	 *
-	 * If $data is not an string, then returned value will always be false.
-	 * Serialized data is always a string.
-	 *
-	 * @since 2.0.5
-	 *
-	 * @param mixed $data Value to check to see if was serialized.
-	 *
-	 * @return bool False if not serialized and true if it was.
-	 */
-	public function is_serialized( $data ) {
-		// if it isn't a string, it isn't serialized.
-		if ( ! is_string( $data ) ) {
-			return false;
-		}
-		$data = trim( $data );
-		if ( 'N;' === $data ) {
-			return true;
-		}
-		$length = strlen( $data );
-		if ( $length < 4 ) {
-			return false;
-		}
-		if ( ':' !== $data[1] ) {
-			return false;
-		}
-		$lastc = $data[ $length - 1 ];
-		if ( ';' !== $lastc && '}' !== $lastc ) {
-			return false;
-		}
-		$token = $data[0];
-		switch ( $token ) {
-			case 's':
-				if ( '"' !== $data[ $length - 2 ] ) {
-					return false;
-				}
-			case 'a':
-			case 'O':
-				return (bool) preg_match( "/^{$token}:[0-9]+:/s", $data );
-			case 'b':
-			case 'i':
-			case 'd':
-				return (bool) preg_match( "/^{$token}:[0-9.E-]+;\$/", $data );
-		}
-
-		return false;
-	}
-
 	public function get_config_contents() {
 		if ( 'extracted' === $this->file ) {
 			return file_get_contents( '../clone/config.txt' );
@@ -608,7 +558,7 @@ class MainWP_Clone_Install {
 
 		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
 		try {
-			$unserialized = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+			$unserialized = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 			if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
 				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
 			} elseif ( is_array( $data ) ) {
@@ -628,10 +578,10 @@ class MainWP_Clone_Install {
 				$data = $_tmp;
 				unset( $_tmp );
 			} elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
-				$data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+				$data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 				if ( false !== $data ) {
 					$data = str_replace( $from, $to, $data );
-					$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+					$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 				}
 			} else {
 				if ( is_string( $data ) ) {
@@ -640,7 +590,7 @@ class MainWP_Clone_Install {
 			}
 
 			if ( $serialised ) {
-				return serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+				return serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 			}
 		} catch ( \Exception $error ) {
 			// ok!

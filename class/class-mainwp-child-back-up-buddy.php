@@ -12,6 +12,9 @@
  * Extension URL: https://mainwp.com/extension/mainwpbuddy/
  */
 
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
+
+
 class MainWP_Child_Back_Up_Buddy {
 
 	public static $instance          = null;
@@ -1177,7 +1180,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		if ( is_array( $files ) && ! empty( $files ) ) { // For robustness. Without open_basedir the glob() function returns an empty array for no match. With open_basedir in effect the glob() function returns a boolean false for no match.
 
-			$backup_prefix = backupbuddy_core::backup_prefix(); // Backup prefix for this site. Used for MS checking that this user can see this backup.
+			$backup_prefix = backupbuddy_core::backup_prefix(); // Backup prefix. To checking that this user can see this backup.
 			foreach ( $files as $file_id => $file ) {
 
 				if ( ( true === $subsite_mode ) && is_multisite() ) { // If a Network and NOT the superadmin must make sure they can only see the specific subsite backups for security purposes.
@@ -1733,7 +1736,7 @@ class MainWP_Child_Back_Up_Buddy {
 		echo '<a class="button secondary-button" onclick="jQuery(\'#pb_backupbuddy_advanced_debug\').slideToggle();">Display Advanced Debugging</a>';
 		echo '<div id="pb_backupbuddy_advanced_debug" style="display: none;">From options file: `' . $optionsFile . '`.<br>';
 		echo '<textarea style="width: 100%; height: 400px;" wrap="on">';
-		echo print_r( $backup_options->options, true );
+		echo print_r( $backup_options->options, true ); // phpcs:ignore -- debug feature.
 		echo '</textarea><br><br>';
 		echo '</div><br><br>';
 
@@ -2473,7 +2476,7 @@ class MainWP_Child_Back_Up_Buddy {
 			$response = pb_backupbuddy_destination_stash2::stashAPI( $settings, 'connect' );
 
 			if ( ! is_array( $response ) ) { // Error message.
-				$errors[] = print_r( $response, true );
+				$errors[] = print_r( $response, true ); // phpcs:ignore -- debug feature.
 			} else {
 				if ( isset( $response['error'] ) ) {
 					$errors[] = $response['error']['message'];
@@ -2481,7 +2484,7 @@ class MainWP_Child_Back_Up_Buddy {
 					if ( isset( $response['token'] ) ) {
 						$itxapi_token = $response['token'];
 					} else {
-						$errors[] = 'Error #2308832: Unexpected server response. Token missing. Check your BackupBuddy Stash Live login and try again. Detailed response: `' . print_r( $response, true ) . '`.';
+						$errors[] = 'Error #2308832: Unexpected server response. Token missing. Check your BackupBuddy Stash Live login and try again. Detailed response: `' . print_r( $response, true ) . '`.'; // phpcs:ignore -- debug feature.
 					}
 				}
 			}
@@ -2688,7 +2691,7 @@ class MainWP_Child_Back_Up_Buddy {
 	public function download_troubleshooting() {
 		require pb_backupbuddy::plugin_path() . '/destinations/live/_troubleshooting.php';
 		backupbuddy_live_troubleshooting::run();
-		$output        = "**File best viewed with wordwrap OFF**\n\n" . print_r( backupbuddy_live_troubleshooting::get_raw_results(), true );
+		$output        = "**File best viewed with wordwrap OFF**\n\n" . print_r( backupbuddy_live_troubleshooting::get_raw_results(), true ); // phpcs:ignore -- debug feature.
 		$backup_prefix = backupbuddy_core::backup_prefix();
 		return array(
 			'output'        => $output,

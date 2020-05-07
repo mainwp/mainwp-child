@@ -13,6 +13,8 @@
  * Extension URL: https://mainwp.com/extension/backwpup/
  */
 
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
+
 if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
 	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
 }
@@ -106,8 +108,6 @@ class MainWP_Child_Back_WP_Up {
 
 			return;
 		}
-
-		error_reporting( 0 );
 		function mainwp_backwpup_handle_fatal_error() {
 			$error = error_get_last();
 			$info  = self::$information;
@@ -777,10 +777,7 @@ class MainWP_Child_Back_WP_Up {
 					if ( preg_match( '/.*&jobid=([^&]+)&.*/is', $temp_array['downloadurl'], $matches ) ) {
 						if ( ! empty( $matches[1] ) && is_numeric( $matches[1] ) ) {
 							$temp_array['downloadurl_id'] .= '&download_click_id=' . $matches[1];
-						}
-						error_log( 'did match' . print_r( $matches, true ) );
-					} else {
-						error_log( 'not match' );
+						}						
 					}
 
 					$temp_array['website_id'] = $website_id;
@@ -1321,12 +1318,16 @@ class MainWP_Child_Back_WP_Up {
 		// Parse and save files to exclude.
 		$exclude_input                       = $post_data['fileexclude'];
 		$to_exclude_list                     = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
-		$to_exclude_list && $to_exclude_list = sanitize_text_field( stripslashes( $to_exclude_list ) );
+		if ( $to_exclude_list ) {
+			$to_exclude_list = sanitize_text_field( stripslashes( $to_exclude_list ) );
+		}
 		$to_exclude                          = $to_exclude_list ? explode( ',', $to_exclude_list ) : array();
 		$to_exclude_parsed                   = array();
 		foreach ( $to_exclude as $key => $value ) {
 			$normalized                               = wp_normalize_path( trim( $value ) );
-			$normalized && $to_exclude_parsed[ $key ] = $normalized;
+			if ( $normalized ) {
+				$to_exclude_parsed[ $key ] = $normalized;
+			}
 		}
 		sort( $to_exclude_parsed );
 		\BackWPup_Option::update( $id, 'fileexclude', implode( ',', $to_exclude_parsed ) );
@@ -1339,9 +1340,13 @@ class MainWP_Child_Back_WP_Up {
 		$to_include_parsed = array();
 		foreach ( $to_include as $key => $value ) {
 			$normalized                             = trailingslashit( wp_normalize_path( trim( $value ) ) );
-			$normalized && $normalized              = filter_var( $normalized, FILTER_SANITIZE_URL );
+			if ( $normalized ) {
+				$normalized              = filter_var( $normalized, FILTER_SANITIZE_URL );
+			}
 			$realpath                               = $normalized && '/' !== $normalized ? realpath( $normalized ) : false;
-			$realpath && $to_include_parsed[ $key ] = $realpath;
+			if ( $realpath ) {
+				$to_include_parsed[ $key ] = $realpath;
+			}
 		}
 		sort( $to_include_parsed );
 		\BackWPup_Option::update( $id, 'dirinclude', implode( ',', $to_include_parsed ) );

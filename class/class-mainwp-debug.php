@@ -21,11 +21,11 @@ class MainWP_Debug {
 			$_POST['excludezip']    = '1';
 			$_POST['excludenonwp']  = '1';
 			$_POST['ext']           = 'tar.gz';
-			print_r( $mainwpChild->backup( false ) );
+			print_r( $mainwpChild->backup( false ) ); // phpcs:ignore -- debug feature.
 		} elseif ( 'test' == $_GET['mainwpdebug'] ) {
-			print_r( get_included_files() );
+			print_r( get_included_files() ); // phpcs:ignore -- debug feature.
 		} else {
-			print_r( $mainwpChild->get_site_stats( array(), false ) );
+			print_r( $mainwpChild->get_site_stats( array(), false ) ); // phpcs:ignore -- debug feature.
 		}
 
 		$stop = microtime( true );

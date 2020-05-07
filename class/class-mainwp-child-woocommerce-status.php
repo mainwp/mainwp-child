@@ -11,14 +11,14 @@
  * Extension URL: https://mainwp.com/extension/woocommerce-status/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_WooCommerce_Status {
 	public static $instance = null;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new MainWP_Child_WooCommerce_Status();
+			self::$instance = new self();
 		}
 
 		return self::$instance;

@@ -344,6 +344,7 @@ class MainWP_Child_Branding {
 
 
 	public function branding_init() {
+		
 		$extra_setting = $this->get_extra_options();
 
 		if ( is_admin() ) {
@@ -374,7 +375,7 @@ class MainWP_Child_Branding {
 		add_filter( 'map_meta_cap', array( $this, 'branding_map_meta_cap' ), 10, 5 );
 
 		if ( 'T' === $opts['disable_change'] ) {
-
+			
 			// Disable the WordPress plugin update notifications.
 			remove_action( 'load-update-core.php', 'wp_update_plugins' );
 			add_filter( 'pre_site_transient_update_plugins', '__return_null' );
@@ -383,11 +384,9 @@ class MainWP_Child_Branding {
 			remove_action( 'load-update-core.php', 'wp_update_themes' );
 			add_filter(
 				'pre_site_transient_update_themes',
-				(
-					$func = function( $a ) {
-						return null;
-					}
-				)
+				function( $a ) {
+					return null;
+				}				
 			);
 
 			// Disable the WordPress core update notifications.
@@ -395,11 +394,9 @@ class MainWP_Child_Branding {
 			function remove_core_updates() {
 				add_action(
 					'init',
-					(
-						$func = function( $a ) {
+					function( $a ) {
 							remove_action( 'wp_version_check', 'wp_version_check' );
-						}
-					),
+					},
 					2
 				);
 				add_filter( 'pre_option_update_core', '__return_null' );

@@ -12,9 +12,9 @@
  * Extension URL: https://mainwp.com/extension/wordpress-seo/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
-class MainWP_Wordpress_SEO {
+class MainWP_WordPress_SEO {
 	public static $instance = null;
 
 	public static function instance() {

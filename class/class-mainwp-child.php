@@ -51,12 +51,7 @@ class MainWP_Child {
 		'get_all_users'         => 'get_all_users',
 		'user_action'           => 'user_action',
 		'search_users'          => 'search_users',
-		'get_terms'             => 'get_terms',
-		'set_terms'             => 'set_terms',
-		'insert_comment'        => 'insert_comment',
-		'get_post_meta'         => 'get_post_meta',
-		'get_total_ezine_post'  => 'get_total_ezine_post',
-		'get_next_time_to_post' => 'get_next_time_to_post',
+		'insert_comment'        => 'insert_comment',						
 		'cancel_scheduled_post' => 'cancel_scheduled_post',
 		'serverInformation'     => 'server_information',
 		'maintenance_site'      => 'maintenance_site',
@@ -1395,20 +1390,20 @@ class MainWP_Child {
 
 		// Init extensions.
 		// Handle fatal errors for those init if needed.
-		MainWP_Child_IThemes_Security::instance()->ithemes_init();
-		MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
-		MainWP_Child_Back_Up_WordPress::instance()->init();
-		MainWP_Child_WP_Rocket::instance()->init();
+		\MainWP_Child_IThemes_Security::instance()->ithemes_init();
+		\MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
+		\MainWP_Child_Back_Up_WordPress::instance()->init();
+		\MainWP_Child_WP_Rocket::instance()->init();
 		\MainWP_Child_Back_WP_Up::instance()->init();
 		\MainWP_Child_Back_Up_Buddy::instance();
-		MainWP_Child_Wordfence::instance()->wordfence_init();
-		MainWP_Child_Timecapsule::instance()->init();
+		\MainWP_Child_Wordfence::instance()->wordfence_init();
+		\MainWP_Child_Timecapsule::instance()->init();
 		MainWP_Child_Staging::instance()->init();
 		MainWP_Child_Branding::instance()->branding_init();
 		MainWP_Client_Report::instance()->creport_init();
-		MainWP_Child_Pagespeed::instance()->init();
-		MainWP_Child_Links_Checker::instance()->init();
-		MainWP_Child_WPvivid_BackupRestore::instance()->init();
+		\MainWP_Child_Pagespeed::instance()->init();
+		\MainWP_Child_Links_Checker::instance()->init();
+		\MainWP_Child_WPvivid_BackupRestore::instance()->init();
 
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
@@ -2351,10 +2346,10 @@ class MainWP_Child {
 			$my_post['post_status'] = 'draft';
 			wp_update_post( $my_post );
 		} elseif ( 'trash' === $action ) {
-			add_action( 'trash_post', array( 'MainWP_Child_Links_Checker', 'hook_post_deleted' ) );
+			add_action( 'trash_post', array( '\MainWP_Child_Links_Checker', 'hook_post_deleted' ) );
 			wp_trash_post( $postId );
 		} elseif ( 'delete' === $action ) {
-			add_action( 'delete_post', array( 'MainWP_Child_Links_Checker', 'hook_post_deleted' ) );
+			add_action( 'delete_post', array( '\MainWP_Child_Links_Checker', 'hook_post_deleted' ) );
 			wp_delete_post( $postId, true );
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
@@ -2803,7 +2798,7 @@ class MainWP_Child {
 		} elseif ( 'unspam' === $action ) {
 			wp_unspam_comment( $commentId );
 		} elseif ( 'trash' === $action ) {
-			add_action( 'trashed_comment', array( 'MainWP_Child_Links_Checker', 'hook_trashed_comment' ), 10, 1 );
+			add_action( 'trashed_comment', array( '\MainWP_Child_Links_Checker', 'hook_trashed_comment' ), 10, 1 );
 			wp_trash_comment( $commentId );
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_comment( $commentId );
@@ -4077,8 +4072,8 @@ class MainWP_Child {
 					$outPost['seo_data'] = array(
 						'count_seo_links'   => $link_count->get( $post_id, 'internal_link_count' ),
 						'count_seo_linked'  => $link_count->get( $post_id, 'incoming_link_count' ),
-						'seo_score'         => MainWP_Wordpress_SEO::instance()->parse_column_score( $post_id ),
-						'readability_score' => MainWP_Wordpress_SEO::instance()->parse_column_score_readability( $post_id ),
+						'seo_score'         => \MainWP_WordPress_SEO::instance()->parse_column_score( $post_id ),
+						'readability_score' => \MainWP_WordPress_SEO::instance()->parse_column_score_readability( $post_id ),
 					);
 				}
 
@@ -4100,25 +4095,6 @@ class MainWP_Child {
 		$this->get_all_posts_by_type( $post_type );
 	}
 
-	public function get_terms() {
-		$taxonomy = base64_decode( $_POST['taxonomy'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$rslt     = get_terms( taxonomy_exists( $taxonomy ) ? $taxonomy : 'category', 'hide_empty=0' );
-		mainwp_child_helper()->write( $rslt );
-	}
-
-	public function set_terms() {
-		$id       = base64_decode( $_POST['id'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$terms    = base64_decode( $_POST['terms'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$taxonomy = base64_decode( $_POST['taxonomy'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-
-		if ( '' !== trim( $terms ) ) {
-			$terms = explode( ',', $terms );
-			if ( count( $terms ) > 0 ) {
-				wp_set_object_terms( $id, array_map( 'intval', $terms ), taxonomy_exists( $taxonomy ) ? $taxonomy : 'category' );
-			}
-		}
-	}
-
 	public function insert_comment() {
 		$postId   = $_POST['id'];
 		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
@@ -4134,46 +4110,6 @@ class MainWP_Child {
 			);
 		}
 		mainwp_child_helper()->write( $ids );
-	}
-
-	public function get_post_meta() {
-		/** @var $wpdb wpdb */
-		global $wpdb;
-		$postId     = $_POST['id'];
-		$keys       = base64_decode( unserialize( $_POST['keys'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$meta_value = $_POST['value'];
-
-		$where = '';
-		if ( ! empty( $postId ) ) {
-			$where .= " AND `post_id` = $postId ";
-		}
-		if ( ! empty( $keys ) ) {
-			$str_keys = '\'' . implode( '\',\'', $keys ) . '\'';
-			$where   .= " AND `meta_key` IN = $str_keys ";
-		}
-		if ( ! empty( $meta_value ) ) {
-			$where .= " AND `meta_value` = $meta_value ";
-		}
-
-		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %s WHERE 1 = 1 $where ", $wpdb->postmeta ) );
-		mainwp_child_helper()->write( $results );
-	}
-
-	public function get_total_ezine_post() {
-		/** @var $wpdb wpdb */
-		global $wpdb;
-		$start_date   = base64_decode( $_POST['start_date'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$end_date     = base64_decode( $_POST['end_date'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$keyword_meta = base64_decode( $_POST['keyword_meta'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$where        = ' WHERE ';
-		if ( ! empty( $start_date ) && ! empty( $end_date ) ) {
-			$where .= "  p.post_date>='$start_date' AND p.post_date<='$end_date' AND ";
-		} elseif ( ! empty( $start_date ) && empty( $end_date ) ) {
-			$where .= "  p.post_date='$start_date' AND ";
-		}
-		$where .= " ( p.post_status='publish' OR p.post_status='future' OR p.post_status='draft' ) AND  (pm.meta_key='_ezine_keyword' AND pm.meta_value='$keyword_meta')";
-		$total  = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where  " );
-		mainwp_child_helper()->write( $total );
 	}
 
 	public function cancel_scheduled_post() {
@@ -4200,9 +4136,8 @@ class MainWP_Child {
 				$information['status'] = 'SUCCESS';
 			}
 		} elseif ( $cancel_all ) {
-			$post_type = $_POST['post_type'];
-			$where     = " WHERE p.post_status='future' AND p.post_type = %s AND  pm.meta_key = '_is_auto_generate_content' AND pm.meta_value = 'yes' ";
-			$posts     = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id $where ", $post_type ) );
+			$post_type = $_POST['post_type'];			
+			$posts     = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id WHERE p.post_status='future' AND p.post_type = %s AND  pm.meta_key = '_is_auto_generate_content' AND pm.meta_value = 'yes' ", $post_type ) );
 			$count     = 0;
 			if ( is_array( $posts ) ) {
 				foreach ( $posts as $post ) {
@@ -4222,49 +4157,6 @@ class MainWP_Child {
 		}
 
 		mainwp_child_helper()->write( $information );
-	}
-
-	public function get_next_time_to_post() {
-		$post_type = $_POST['post_type'];
-		if ( 'post' !== $post_type && 'page' !== $post_type ) {
-			mainwp_child_helper()->write( array( 'error' => 'Data error.' ) );
-
-			return;
-		}
-		$information = array();
-		try {
-			global $wpdb;
-			$ct        = current_time( 'mysql' );
-			$next_post = $wpdb->get_row(
-				$wpdb->prepare(
-					'SELECT *
-					FROM ' . $wpdb->posts . ' p JOIN ' . $wpdb->postmeta . " pm ON p.ID=pm.post_id
-					WHERE
-					pm.meta_key='_is_auto_generate_content' AND
-					pm.meta_value='yes' AND
-					p.post_status='future' AND
-					p.post_type= %s AND
-					p.post_date > NOW()
-					ORDER BY p.post_date
-					LIMIT 1",
-					$post_type
-				)
-			);
-
-			if ( ! $next_post ) {
-				$information['error'] = __( 'No scheduled posts.', 'mainwp-child' );
-			} else {
-				$timestamp                                   = strtotime( $next_post->post_date );
-				$timestamp_gmt                               = $timestamp - get_option( 'gmt_offset' ) * 60 * 60;
-				$information['next_post_date_timestamp_gmt'] = $timestamp_gmt;
-				$information['next_post_id']                 = $next_post->ID;
-			}
-
-			mainwp_child_helper()->write( $information );
-		} catch ( \Exception $e ) {
-			$information['error'] = $e->getMessage();
-			mainwp_child_helper()->write( $information );
-		}
 	}
 
 	public function get_all_pages() {
@@ -4914,7 +4806,7 @@ class MainWP_Child {
 			if ( MainWP_Helper::function_exists( 'popen' ) ) {
 				$uploadDir   = MainWP_Helper::get_mainwp_dir();
 				$uploadDir   = $uploadDir[0];
-				$popenHandle = popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' );
+				$popenHandle = popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' ); // phpcs:ignore -- run if enabled.
 				if ( 'resource' === gettype( $popenHandle ) ) {
 					$size = fread( $popenHandle, 1024 );
 					pclose( $popenHandle );
@@ -4928,7 +4820,7 @@ class MainWP_Child {
 			if ( MainWP_Helper::function_exists( 'shell_exec' ) ) {
 				$uploadDir = MainWP_Helper::get_mainwp_dir();
 				$uploadDir = $uploadDir[0];
-				$size      = shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' );
+				$size      = shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' ); // phpcs:ignore -- run if enabled.
 				if ( null !== $size ) {
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
 					if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
@@ -5032,7 +4924,7 @@ class MainWP_Child {
 		$performed_what = array();
 		if ( empty( $max_revisions ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
-			$wpdb->query( $sql_clean );
+			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
 			// to fix issue of meta_value short length.
 			$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
 		} else {
@@ -5043,31 +4935,31 @@ class MainWP_Child {
 
 		if ( in_array( 'autodraft', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'";
-			$wpdb->query( $sql_clean );
+			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
 			$performed_what[] = 'autodraft'; // 'Auto draft posts deleted'.
 		}
 
 		if ( in_array( 'trashpost', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'trash'";
-			$wpdb->query( $sql_clean );
+			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
 			$performed_what[] = 'trashpost'; // 'Trash posts deleted'.
 		}
 
 		if ( in_array( 'spam', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'spam'";
-			$wpdb->query( $sql_clean );
+			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
 			$performed_what[] = 'spam'; // 'Spam comments deleted'.
 		}
 
 		if ( in_array( 'pending', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = '0'";
-			$wpdb->query( $sql_clean );
+			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
 			$performed_what[] = 'pending'; // 'Pending comments deleted'.
 		}
 
 		if ( in_array( 'trashcomment', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'trash'";
-			$wpdb->query( $sql_clean );
+			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
 			$performed_what[] = 'trashcomment'; // 'Trash comments deleted'.
 		}
 
@@ -5370,7 +5262,7 @@ class MainWP_Child {
 	}
 
 	public function wordpress_seo() {
-		MainWP_Wordpress_SEO::instance()->action();
+		\MainWP_WordPress_SEO::instance()->action();
 	}
 
 	public function client_report() {
@@ -5378,32 +5270,32 @@ class MainWP_Child {
 	}
 
 	public function page_speed() {
-		MainWP_Child_Pagespeed::instance()->action();
+		\MainWP_Child_Pagespeed::instance()->action();
 	}
 
 	public function woo_com_status() {
-		MainWP_Child_WooCommerce_Status::instance()->action();
+		\MainWP_Child_WooCommerce_Status::instance()->action();
 	}
 
 	public function links_checker() {
-		MainWP_Child_Links_Checker::instance()->action();
+		\MainWP_Child_Links_Checker::instance()->action();
 	}
 
 	public function wordfence() {
-		MainWP_Child_Wordfence::instance()->action();
+		\MainWP_Child_Wordfence::instance()->action();
 	}
 
 	public function ithemes() {
-		MainWP_Child_IThemes_Security::instance()->action();
+		\MainWP_Child_IThemes_Security::instance()->action();
 	}
 
 
 	public function updraftplus() {
-		MainWP_Child_Updraft_Plus_Backups::instance()->action();
+		\MainWP_Child_Updraft_Plus_Backups::instance()->action();
 	}
 
 	public function wpvivid_backuprestore() {
-		MainWP_Child_WPvivid_BackupRestore::instance()->action();
+		\MainWP_Child_WPvivid_BackupRestore::instance()->action();
 	}
 
 	public function backup_wp() {
@@ -5411,11 +5303,11 @@ class MainWP_Child {
 			$error = sprintf( __( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
 			mainwp_child_helper()->write( array( 'error' => $error ) );
 		}
-		MainWP_Child_Back_Up_WordPress::instance()->action();
+		\MainWP_Child_Back_Up_WordPress::instance()->action();
 	}
 
 	public function wp_rocket() {
-		MainWP_Child_WP_Rocket::instance()->action();
+		\MainWP_Child_WP_Rocket::instance()->action();
 	}
 
 	public function backwpup() {
@@ -5529,7 +5421,7 @@ class MainWP_Child {
 	}
 
 	public function time_capsule() {
-		MainWP_Child_Timecapsule::instance()->action();
+		\MainWP_Child_Timecapsule::instance()->action();
 	}
 
 	public function wp_staging() {

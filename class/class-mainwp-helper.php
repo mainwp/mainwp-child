@@ -17,7 +17,7 @@ class MainWP_Helper {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = self::safe_json_encode( $val );
 		else :
-			$output = serialize( $val ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+			$output = serialize( $val ); // phpcs:ignore -- to compatible.
 		endif;
 
 		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
@@ -91,7 +91,7 @@ class MainWP_Helper {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = self::safe_json_encode( $val );
 		else :
-			$output = serialize( $val ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.
+			$output = serialize( $val ); // phpcs:ignore -- to compatible.
 		endif;
 
 		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
@@ -397,7 +397,7 @@ class MainWP_Helper {
 		);
 
 		$wprocket_activated = false;
-		if ( MainWP_Child_WP_Rocket::instance()->is_activated() ) {
+		if ( \MainWP_Child_WP_Rocket::instance()->is_activated() ) {
 			if ( function_exists( 'get_rocket_option' ) ) {
 				$wprocket_activated = true;
 				foreach ( $wprocket_fields as $field ) {
@@ -513,7 +513,7 @@ class MainWP_Helper {
 						$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
 					}
 				} catch ( \Exception $e ) {
-					error_log( $e->getMessage() );
+					error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
 				}
 			}
 		}
@@ -1343,9 +1343,7 @@ class MainWP_Helper {
 
 	public static function get_revisions( $max_revisions ) {
 		global $wpdb;
-		$sql = " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > " . $max_revisions;
-
-		return $wpdb->get_results( $sql );
+		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d " , $max_revisions ) );
 	}
 
 	public static function delete_revisions( $results, $max_revisions ) {
@@ -1358,10 +1356,8 @@ class MainWP_Helper {
 		$results_length = count( $results );
 		for ( $i = 0; $i < $results_length; $i ++ ) {
 			$number_to_delete = $results[ $i ]->cnt - $max_revisions;
-			$count_deleted   += $number_to_delete;
-			$sql_get          = "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`=" . $results[ $i ]->post_parent . " AND `post_type`='revision' ORDER BY `post_modified` ASC";
-			$results_posts    = $wpdb->get_results( $sql_get );
-
+			$count_deleted   += $number_to_delete;			
+			$results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) );
 			$delete_ids = array();
 			if ( is_array( $results_posts ) && count( $results_posts ) > 0 ) {
 				for ( $j = 0; $j < $number_to_delete; $j ++ ) {
@@ -1369,10 +1365,9 @@ class MainWP_Helper {
 				}
 			}
 
-			if ( count( $delete_ids ) > 0 ) {
-				// phpcs:ignore
-				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ")";
-				$wpdb->get_results( $sql_delete );
+			if ( count( $delete_ids ) > 0 ) {				
+				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ")"; // phpcs:ignore -- safe
+				$wpdb->get_results( $sql_delete ); // phpcs:ignore -- safe
 			}
 		}
 

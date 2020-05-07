@@ -57,7 +57,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 
 						// to help tracing the conflict verify nonce with other plugins.
 						ob_start();
-						debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
+						debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ); // phpcs:ignore -- debug feature.
 						$stackTrace = "\n" . ob_get_clean();
 						die( '<mainwp>' . base64_encode( json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
 					}
@@ -92,7 +92,7 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 					}
 
 					ob_start();
-					debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
+					debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ); // phpcs:ignore -- debug feature.
 					$stackTrace = "\n" . ob_get_clean();
 
 					// Invalid nonce.

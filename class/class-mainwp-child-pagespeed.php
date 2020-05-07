@@ -12,7 +12,7 @@
  * Extension URL: https://mainwp.com/extension/page-speed/
  */
 
-namespace MainWP\Child;
+// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
 
 class MainWP_Child_Pagespeed {
 
@@ -88,7 +88,7 @@ class MainWP_Child_Pagespeed {
 	}
 
 	public function init_cron() {
-		add_action( 'mainwp_child_pagespeed_cron_check', array( 'MainWP_Child_Pagespeed', 'pagespeed_cron_check' ) );
+		add_action( 'mainwp_child_pagespeed_cron_check', array( '\MainWP_Child_Pagespeed', 'pagespeed_cron_check' ) );
 		$sched = wp_next_scheduled( 'mainwp_child_pagespeed_cron_check' );
 		if ( false === $sched ) {
 			wp_schedule_event( time(), 'daily', 'mainwp_child_pagespeed_cron_check' );
