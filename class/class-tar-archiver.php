@@ -1,5 +1,9 @@
 <?php
 
+// phpcs:disable WordPress.WP.AlternativeFunctions -- custom read/write file, third party credit.
+
+namespace MainWP\Child;
+
 class Tar_Archiver {
 	const IDLE   = 0;
 	const APPEND = 1;

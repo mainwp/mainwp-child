@@ -1,5 +1,7 @@
 <?php
 
+// phpcs:disable disable WordPress.WP.AlternativeFunctions -- to custom.
+
 namespace MainWP\Child;
 
 // phpcs:disable
@@ -149,8 +151,7 @@ class MainWP_Child {
 		$this->run_saved_snippets();
 
 		if ( ! get_option( 'mainwp_child_pubkey' ) ) {
-			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
-			MainWP_Helper::update_option( 'mainwp_child_branding_disconnected', 'yes', 'yes' );
+			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );			
 		}
 
 		add_action( 'admin_notices', array( &$this, 'admin_notice' ) );
@@ -346,8 +347,7 @@ class MainWP_Child {
 			if ( ! is_array( get_option( 'mainwp_child_branding_settings' ) ) ) {
 				$brandingOptions = array(
 					'hide'                     => 'mainwp_branding_child_hide',
-					'extra_settings'           => 'mainwp_branding_extra_settings',
-					'branding_disconnected'    => 'mainwp_child_branding_disconnected',
+					'extra_settings'           => 'mainwp_branding_extra_settings',					
 					'preserve_branding'        => 'mainwp_branding_preserve_branding',
 					'branding_header'          => 'mainwp_branding_plugin_header',
 					'support_email'            => 'mainwp_branding_support_email',
@@ -2215,14 +2215,19 @@ class MainWP_Child {
 		if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
 			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
+		
+		$hint_miss_user = __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) . '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
+		
+		$user = get_user_by( 'login', $_POST['user'] );		
+		if ( empty( $user ) ) {
+			MainWP_Helper::error( $hint_miss_user );
+		}
 
 		// Already added - can't readd. Deactivate plugin.
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
 			// set disconnect status to yes here, it will empty after reconnected.
-			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
-			MainWP_Helper::update_option( 'mainwp_child_branding_disconnected', 'yes', 'yes' );
+			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );			
 			MainWP_Helper::error( __( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin and try again.', 'mainwp-child' ) );
-
 		}
 
 		if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
@@ -2240,9 +2245,8 @@ class MainWP_Child {
 
 		// Login.
 		if ( isset( $_POST['user'] ) ) {
-			if ( ! $this->login( $_POST['user'] ) ) {
-				$hint = '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
-				MainWP_Helper::error( __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.' . $hint, 'mainwp-child' ) );
+			if ( ! $this->login( $_POST['user'] ) ) {				
+				MainWP_Helper::error( $hint_miss_user );
 			}
 
 			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! $current_user->has_cap( 'level_10' ) ) {
@@ -3384,8 +3388,7 @@ class MainWP_Child {
 			$this->update_external_settings();
 		}
 
-		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );
-		MainWP_Helper::update_option( 'mainwp_child_branding_disconnected', '', 'yes' );
+		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );		
 		if ( isset( $_POST['server'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] );
 		}
@@ -4922,17 +4925,20 @@ class MainWP_Child {
 		}
 
 		$performed_what = array();
-		if ( empty( $max_revisions ) ) {
-			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
-			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
-			// to fix issue of meta_value short length.
-			$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
-		} else {
-			$results          = MainWP_Helper::get_revisions( $max_revisions );
-			$count_deleted    = MainWP_Helper::delete_revisions( $results, $max_revisions );
-			$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
+		
+		if ( in_array( 'revisions', $maint_options ) ) {
+			if ( empty( $max_revisions ) ) {
+				$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
+				$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
+				// to fix issue of meta_value short length.
+				$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
+			} else {
+				$results          = MainWP_Helper::get_revisions( $max_revisions );
+				$count_deleted    = MainWP_Helper::delete_revisions( $results, $max_revisions );
+				$performed_what[] = 'revisions_max'; // 'Posts revisions deleted'.
+			}
 		}
-
+		
 		if ( in_array( 'autodraft', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'";
 			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
@@ -5000,7 +5006,7 @@ class MainWP_Child {
 			$log_time = time();
 			$message  = 'Maintenance Performed';
 			$result   = 'Maintenance Performed';
-			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result );
+			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result, $max_revisions );
 		}
 
 		mainwp_child_helper()->write( $information );

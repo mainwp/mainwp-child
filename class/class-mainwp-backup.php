@@ -309,16 +309,16 @@ class MainWP_Backup {
 
 				if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
 					$string = wp_json_encode(
-								array(
-									'siteurl' => get_option( 'siteurl' ),
-									'home'    => get_option( 'home' ),
-									'abspath' => ABSPATH,
-									'prefix'  => $wpdb->prefix,
-									'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
-									'plugins' => $plugins,
-									'themes'  => $themes,
-								)
-						);
+						array(
+							'siteurl' => get_option( 'siteurl' ),
+							'home'    => get_option( 'home' ),
+							'abspath' => ABSPATH,
+							'prefix'  => $wpdb->prefix,
+							'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
+							'plugins' => $plugins,
+							'themes'  => $themes,
+						)
+					);
 				} else {
 					$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
 						serialize( // phpcs:ignore -- safe
@@ -449,14 +449,14 @@ class MainWP_Backup {
 
 			if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
 				$string = wp_json_encode(
-								array(
-									'siteurl' => get_option( 'siteurl' ),
-									'home'    => get_option( 'home' ),
-									'abspath' => ABSPATH,
-									'prefix'  => $wpdb->prefix,
-									'lang'    => WPLANG,
-								)
-						);
+					array(
+						'siteurl' => get_option( 'siteurl' ),
+						'home'    => get_option( 'home' ),
+						'abspath' => ABSPATH,
+						'prefix'  => $wpdb->prefix,
+						'lang'    => WPLANG,
+					)
+				);
 			} else {
 				$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
 					serialize( // phpcs:ignore -- safe

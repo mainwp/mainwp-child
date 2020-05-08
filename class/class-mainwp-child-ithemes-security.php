@@ -13,7 +13,7 @@
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration -- use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, disable WordPress.WP.AlternativeFunctions -- use external code.
 
 class MainWP_Child_IThemes_Security {
 	public static $instance     = null;

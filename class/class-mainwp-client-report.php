@@ -581,6 +581,7 @@ class MainWP_Client_Report {
 
 		$maintenance_details = array(
 			'revisions'    => __( 'Delete all post revisions', 'mainwp-child' ),
+			'revisions_max'    => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
 			'autodraft'    => __( 'Delete all auto draft posts', 'mainwp-child' ),
 			'trashpost'    => __( 'Delete trash posts', 'mainwp-child' ),
 			'spam'         => __( 'Delete spam comments', 'mainwp-child' ),
@@ -810,7 +811,13 @@ class MainWP_Client_Report {
 							if ( is_array( $meta_value ) ) {
 								foreach ( $meta_value as $mt ) {
 									if ( isset( $maintenance_details[ $mt ] ) ) {
-										$details[] = $maintenance_details[ $mt ];
+										if ( 'revisions_max' == $mt ) {
+											$max_revisions = $this->get_stream_meta_data( $record, 'revisions' );
+											$dtl = $maintenance_details['revisions_max'] . ' ' . $max_revisions; 											
+										} else {
+											$dtl = $maintenance_details[$mt];
+										}										
+										$details[] = $dtl;
 									}
 								}
 							}
