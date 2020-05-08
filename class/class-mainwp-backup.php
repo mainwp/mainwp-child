@@ -306,7 +306,7 @@ class MainWP_Backup {
 				}
 				closedir( $fh );
 				// phpcs:enable
-				
+
 				if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
 					$string = wp_json_encode(
 								array(
@@ -317,7 +317,7 @@ class MainWP_Backup {
 									'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
 									'plugins' => $plugins,
 									'themes'  => $themes,
-								)						
+								)
 						);
 				} else {
 					$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
@@ -446,7 +446,7 @@ class MainWP_Backup {
 		$this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
 		if ( $addConfig ) {
 			global $wpdb;
-			
+
 			if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
 				$string = wp_json_encode(
 								array(
@@ -455,7 +455,7 @@ class MainWP_Backup {
 									'abspath' => ABSPATH,
 									'prefix'  => $wpdb->prefix,
 									'lang'    => WPLANG,
-								)						
+								)
 						);
 			} else {
 				$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
@@ -470,7 +470,7 @@ class MainWP_Backup {
 					)
 				);
 			}
-			
+
 			$this->add_file_from_string_to_pcl_zip( 'clone/config.txt', $string, $filepath );
 		}
 		// Remove backup folder.

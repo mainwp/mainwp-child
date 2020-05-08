@@ -247,7 +247,7 @@ class Tar_Archiver {
 							'lang'    => get_bloginfo( 'language' ),
 							'plugins' => $plugins,
 							'themes'  => $themes,
-						)						
+						)
 					);
 				} else {
 					$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
@@ -264,7 +264,6 @@ class Tar_Archiver {
 						)
 					);
 				}
-				
 
 				$this->add_empty_directory( 'clone', 0, 0, 0, time() );
 				$this->add_file_from_string( 'clone/config.txt', $string );
