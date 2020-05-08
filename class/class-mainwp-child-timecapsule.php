@@ -523,7 +523,7 @@ class MainWP_Child_Timecapsule {
 		$current_limit = WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
 		$to_limit      = $from_limit + $current_limit;
 
-		$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id = %s AND show_user = 1 ORDER BY id DESC LIMIT %d, %d", $action_id, $from_limit, $current_limit ) );
+		$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id = %s AND show_user = 1 ORDER BY id DESC LIMIT %d, %d', $action_id, $from_limit, $current_limit ) );
 
 		$row_count = count( $sub_records );
 
@@ -560,7 +560,7 @@ class MainWP_Child_Timecapsule {
 				$more_logs = false;
 				$load_more = false;
 				if ( '' != $rec->action_id ) {
-					$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id= %s AND show_user = 1 ORDER BY id DESC LIMIT 0, %d", $rec->action_id, $limit ) );
+					$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id= %s AND show_user = 1 ORDER BY id DESC LIMIT 0, %d', $rec->action_id, $limit ) );
 					$row_count   = count( $sub_records );
 					if ( $row_count == $limit ) {
 						$load_more = true;

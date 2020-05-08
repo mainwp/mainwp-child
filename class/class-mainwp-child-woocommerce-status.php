@@ -72,7 +72,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		// Get sales.
 		$sales = $wpdb->get_var(
-			$wpdb->prepare( 
+			$wpdb->prepare(
 				"SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
 				LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
 				LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
