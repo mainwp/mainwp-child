@@ -151,7 +151,7 @@ class MainWP_Child {
 		$this->run_saved_snippets();
 
 		if ( ! get_option( 'mainwp_child_pubkey' ) ) {
-			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );			
+			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
 		}
 
 		add_action( 'admin_notices', array( &$this, 'admin_notice' ) );
@@ -347,7 +347,7 @@ class MainWP_Child {
 			if ( ! is_array( get_option( 'mainwp_child_branding_settings' ) ) ) {
 				$brandingOptions = array(
 					'hide'                     => 'mainwp_branding_child_hide',
-					'extra_settings'           => 'mainwp_branding_extra_settings',					
+					'extra_settings'           => 'mainwp_branding_extra_settings',
 					'preserve_branding'        => 'mainwp_branding_preserve_branding',
 					'branding_header'          => 'mainwp_branding_plugin_header',
 					'support_email'            => 'mainwp_branding_support_email',
@@ -2215,10 +2215,10 @@ class MainWP_Child {
 		if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
 			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
-		
+
 		$hint_miss_user = __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) . '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
-		
-		$user = get_user_by( 'login', $_POST['user'] );		
+
+		$user = get_user_by( 'login', $_POST['user'] );
 		if ( empty( $user ) ) {
 			MainWP_Helper::error( $hint_miss_user );
 		}
@@ -2226,7 +2226,7 @@ class MainWP_Child {
 		// Already added - can't readd. Deactivate plugin.
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
 			// set disconnect status to yes here, it will empty after reconnected.
-			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );			
+			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
 			MainWP_Helper::error( __( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin and try again.', 'mainwp-child' ) );
 		}
 
@@ -2245,7 +2245,7 @@ class MainWP_Child {
 
 		// Login.
 		if ( isset( $_POST['user'] ) ) {
-			if ( ! $this->login( $_POST['user'] ) ) {				
+			if ( ! $this->login( $_POST['user'] ) ) {
 				MainWP_Helper::error( $hint_miss_user );
 			}
 
@@ -3388,7 +3388,7 @@ class MainWP_Child {
 			$this->update_external_settings();
 		}
 
-		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );		
+		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );
 		if ( isset( $_POST['server'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] );
 		}
@@ -4925,7 +4925,7 @@ class MainWP_Child {
 		}
 
 		$performed_what = array();
-		
+
 		if ( in_array( 'revisions', $maint_options ) ) {
 			if ( empty( $max_revisions ) ) {
 				$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
@@ -4938,7 +4938,7 @@ class MainWP_Child {
 				$performed_what[] = 'revisions_max'; // 'Posts revisions deleted'.
 			}
 		}
-		
+
 		if ( in_array( 'autodraft', $maint_options ) ) {
 			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'";
 			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.

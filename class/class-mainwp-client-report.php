@@ -580,16 +580,16 @@ class MainWP_Client_Report {
 	public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
 		$maintenance_details = array(
-			'revisions'    => __( 'Delete all post revisions', 'mainwp-child' ),
-			'revisions_max'    => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
-			'autodraft'    => __( 'Delete all auto draft posts', 'mainwp-child' ),
-			'trashpost'    => __( 'Delete trash posts', 'mainwp-child' ),
-			'spam'         => __( 'Delete spam comments', 'mainwp-child' ),
-			'pending'      => __( 'Delete pending comments', 'mainwp-child' ),
-			'trashcomment' => __( 'Delete trash comments', 'mainwp-child' ),
-			'tags'         => __( 'Delete tags with 0 posts associated', 'mainwp-child' ),
-			'categories'   => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
-			'optimize'     => __( 'Optimize database tables', 'mainwp-child' ),
+			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
+			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
+			'autodraft'     => __( 'Delete all auto draft posts', 'mainwp-child' ),
+			'trashpost'     => __( 'Delete trash posts', 'mainwp-child' ),
+			'spam'          => __( 'Delete spam comments', 'mainwp-child' ),
+			'pending'       => __( 'Delete pending comments', 'mainwp-child' ),
+			'trashcomment'  => __( 'Delete trash comments', 'mainwp-child' ),
+			'tags'          => __( 'Delete tags with 0 posts associated', 'mainwp-child' ),
+			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
+			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
 		);
 
 		$context   = '';
@@ -813,10 +813,10 @@ class MainWP_Client_Report {
 									if ( isset( $maintenance_details[ $mt ] ) ) {
 										if ( 'revisions_max' == $mt ) {
 											$max_revisions = $this->get_stream_meta_data( $record, 'revisions' );
-											$dtl = $maintenance_details['revisions_max'] . ' ' . $max_revisions; 											
+											$dtl           = $maintenance_details['revisions_max'] . ' ' . $max_revisions;
 										} else {
-											$dtl = $maintenance_details[$mt];
-										}										
+											$dtl = $maintenance_details[ $mt ];
+										}
 										$details[] = $dtl;
 									}
 								}
