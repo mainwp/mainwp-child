@@ -29,7 +29,7 @@ class MainWP_Custom_Post_Type {
 			} else {
 				$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 			}
-			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		}
 
 		register_shutdown_function( 'mainwp_custom_post_type_handle_fatal_error' );

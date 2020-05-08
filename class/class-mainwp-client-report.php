@@ -218,12 +218,12 @@ class MainWP_Client_Report {
 			'ip',
 		);
 
-		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		if ( ! is_array( $sections ) ) {
 			$sections = array();
 		}
 
-		$other_tokens = isset( $_POST['other_tokens'] ) ? maybe_unserialize( base64_decode( $_POST['other_tokens'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$other_tokens = isset( $_POST['other_tokens'] ) ? maybe_unserialize( base64_decode( $_POST['other_tokens'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		if ( ! is_array( $other_tokens ) ) {
 			$other_tokens = array();
 		}
@@ -773,7 +773,7 @@ class MainWP_Client_Report {
 						if ( 'sucuri_scan' === $context ) {
 							$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
 							if ( ! empty( $scan_data ) ) {
-								$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+								$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 								if ( is_array( $scan_data ) ) {
 
 									$blacklisted    = $scan_data['blacklisted'];

@@ -1288,7 +1288,7 @@ class MainWP_Child {
 			// to support open not wp-admin url.
 			$open_location = isset( $_REQUEST['open_location'] ) ? $_REQUEST['open_location'] : '';
 			if ( ! empty( $open_location ) ) {
-				$open_location = base64_decode( $open_location ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				$open_location = base64_decode( $open_location ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 				$_vars         = MainWP_Helper::parse_query( $open_location );
 				$_path         = wp_parse_url( $open_location, PHP_URL_PATH );
 				if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
@@ -1484,7 +1484,7 @@ class MainWP_Child {
 				$nossl_key = get_option( 'mainwp_child_nossl_key' );
 				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.								
 			} else {
-				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 				if ( 1 !== $auth ) {
 					$auth = false;
 				}
@@ -1537,7 +1537,7 @@ class MainWP_Child {
 	public function http_request_reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
 		if ( isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) && isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ) {
-			$auth                          = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$auth                          = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$r['headers']['Authorization'] = "Basic $auth";
 		}
 		return $r;
@@ -2250,7 +2250,7 @@ class MainWP_Child {
 			}
 		}
 
-		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] ); // Save the public key.
 		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 ); // Save the nonce.
 
@@ -2273,20 +2273,20 @@ class MainWP_Child {
 	}
 
 	public function new_post() {
-		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$post_tags           = rawurldecode( isset( $new_post['post_tags'] ) ? $new_post['post_tags'] : null );
-		$post_featured_image = base64_decode( $_POST['post_featured_image'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$upload_dir          = maybe_unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$post_featured_image = base64_decode( $_POST['post_featured_image'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$upload_dir          = maybe_unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 		if ( isset( $_POST['_ezin_post_category'] ) ) {
-			$new_post['_ezin_post_category'] = maybe_unserialize( base64_decode( $_POST['_ezin_post_category'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$new_post['_ezin_post_category'] = maybe_unserialize( base64_decode( $_POST['_ezin_post_category'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		}
 
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) && ! empty( $_POST['featured_image_data'] ) ) {
-			$others['featured_image_data'] = unserialize( base64_decode( $_POST['featured_image_data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$others['featured_image_data'] = unserialize( base64_decode( $_POST['featured_image_data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		}
 
 		$res = MainWP_Helper::create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
@@ -2354,7 +2354,7 @@ class MainWP_Child {
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
 		} elseif ( 'update_meta' === $action ) {
-			$values     = maybe_unserialize( base64_decode( $_POST['values'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$values     = maybe_unserialize( base64_decode( $_POST['values'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$meta_key   = $values['meta_key'];
 			$meta_value = $values['meta_value'];
 			$check_prev = $values['check_prev'];
@@ -2459,12 +2459,12 @@ class MainWP_Child {
 			wp_set_post_lock( $id );
 
 			$post_data = array(
-				'new_post'            => base64_encode( serialize( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'post_custom'         => base64_encode( serialize( $post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'post_category'       => base64_encode( $post_category ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'post_featured_image' => base64_encode( $post_featured_image ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'new_post'            => base64_encode( serialize( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'post_custom'         => base64_encode( serialize( $post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'post_category'       => base64_encode( $post_category ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'post_featured_image' => base64_encode( $post_featured_image ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			);
 			return $post_data;
 
@@ -2523,11 +2523,11 @@ class MainWP_Child {
 			wp_set_post_lock( $id );
 
 			$post_data = array(
-				'new_post'            => base64_encode( serialize( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'post_custom'         => base64_encode( serialize( $post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'post_featured_image' => base64_encode( $post_featured_image ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'new_post'            => base64_encode( serialize( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'post_custom'         => base64_encode( serialize( $post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'post_featured_image' => base64_encode( $post_featured_image ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'post_gallery_images' => base64_encode( serialize( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				'child_upload_dir'    => base64_encode( serialize( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			);
 			return $post_data;
 		}
@@ -2845,7 +2845,7 @@ class MainWP_Child {
 
 
 	public function new_admin_password() {
-		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$user         = get_user_by( 'login', $_POST['user'] );
 		require_once ABSPATH . WPINC . '/registration.php';
 
@@ -2868,7 +2868,7 @@ class MainWP_Child {
 	}
 
 	public function new_user() {
-		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$send_password = $_POST['send_password'];
 		if ( isset( $new_user['role'] ) ) {
 			if ( ! get_role( $new_user['role'] ) ) {
@@ -4097,7 +4097,7 @@ class MainWP_Child {
 
 	public function insert_comment() {
 		$postId   = $_POST['id'];
-		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$ids      = array();
 		foreach ( $comments as $comment ) {
 			$ids[] = wp_insert_comment(
@@ -4223,7 +4223,7 @@ class MainWP_Child {
 
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
-			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$extra['extract_post_type'] = $_POST['extract_post_type'];
 		}
 
@@ -5216,7 +5216,7 @@ class MainWP_Child {
 
 
 	public function uploader_action() {
-		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$path        = $_POST['path'];
 		$filename    = $_POST['filename'];
 		$information = array();

@@ -140,7 +140,7 @@ class MainWP_Child_Skeleton_Key {
 		$received_content = wp_remote_retrieve_body( $response );
 
 		if ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $received_content, $received_result ) > 0 ) {
-			$received_content_mainwp = json_decode( base64_decode( $received_result[1] ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$received_content_mainwp = json_decode( base64_decode( $received_result[1] ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			if ( isset( $received_content_mainwp['error'] ) ) {
 				return array( 'error' => $received_content_mainwp['error'] );
 			}

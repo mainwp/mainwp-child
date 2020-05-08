@@ -255,7 +255,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			if ( is_wp_error( $connect ) ) {
 				$response['e']    = $connect->get_error_message();
 				$response['code'] = $connect->get_error_code();
-				$response['data'] = serialize( $connect->get_error_data() );
+				$response['data'] = serialize( $connect->get_error_data() ); // phpcs:ignore -- third party credit.
 			}
 		}
 		return $response;
@@ -303,9 +303,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 				'timeout' => 20,
 				'body'    => array(
 					'e'   => $email,
-					'p'   => base64_encode( $password ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+					'p'   => base64_encode( $password ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 					'sid' => $updraftplus->siteid(),
-					'su'  => base64_encode( home_url() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+					'su'  => base64_encode( home_url() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 				),
 			)
 		);
@@ -390,7 +390,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			$post_body = array(
 				'e'   => (string) $vault_settings['email'],
 				'sid' => $updraftplus->siteid(),
-				'su'  => base64_encode( home_url() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				'su'  => base64_encode( home_url() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			);
 
 			if ( ! empty( $vault_settings['token'] ) ) {
@@ -421,7 +421,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 	public function save_settings() {
-		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 		$keys_filter = $this->get_settings_keys();
 
@@ -675,7 +675,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			}
 		}
 
-		$addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		if ( ! is_array( $addons_options ) ) {
 			$addons_options = array();
 		}
@@ -2538,7 +2538,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 			return false;
 		}
 		// Double-gzipped?
-		if ( 'H4sI' !== base64_encode( $bytes ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		if ( 'H4sI' !== base64_encode( $bytes ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			if ( 0 === gzseek( $dbhandle, 0 ) ) {
 				return $dbhandle;
 			} else {
@@ -3456,10 +3456,10 @@ ENDHERE;
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = json_encode( $txt );
 		else :
-			$output = serialize( $txt );
+			$output = serialize( $txt ); // phpcs:ignore -- to compatible.
 		endif;
 
-		$txt = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$txt = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		// Close browser connection so that it can resume AJAX polling.
 		header( 'Content-Length: ' . ( ( ! empty( $txt ) ) ? strlen( $txt ) : '0' ) );
 		header( 'Connection: close' );

@@ -484,7 +484,7 @@ class MainWP_Child_Back_Up_Buddy {
 			'backup_nonwp_tables',
 		);
 
-		$settings = unserialize( base64_decode( $_POST['options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$settings = unserialize( base64_decode( $_POST['options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 		$save_settings = array();
 
@@ -530,7 +530,7 @@ class MainWP_Child_Back_Up_Buddy {
 			global $wpdb;
 			$option     = 'pb_' . pb_backupbuddy::settings( 'slug' );
 			$newOptions = sanitize_option( $option, $newOptions );
-			$newOptions = maybe_serialize( $newOptions );
+			$newOptions = maybe_serialize( $newOptions ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- third party credit.
 
 			add_site_option( $option, $newOptions, '', 'no' ); // 'No' prevents autoload if we wont always need the data loaded.
 			$wpdb->update( $wpdb->options, array( 'option_value' => $newOptions ), array( 'option_name' => $option ) );
@@ -648,7 +648,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	public function save_scheduled_backup() {
 		$schedule_id = intval( $_POST['schedule_id'] );
-		$schedule    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$schedule    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 		if ( ! is_array( $schedule ) ) {
 			return array( 'error' => __( 'Invalid schedule data', 'mainwp-child' ) );
@@ -681,7 +681,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	public function save_profile() {
 		$profile_id = $_POST['profile_id'];
-		$profile    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$profile    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 		if ( ! is_array( $profile ) ) {
 			return array( 'error' => __( 'Invalid profile data', 'mainwp-child' ) );
@@ -1180,7 +1180,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		if ( is_array( $files ) && ! empty( $files ) ) { // For robustness. Without open_basedir the glob() function returns an empty array for no match. With open_basedir in effect the glob() function returns a boolean false for no match.
 
-			$backup_prefix = backupbuddy_core::backup_prefix(); // Backup prefix. To checking that this user can see this backup.
+			$backup_prefix = backupbuddy_core::backup_prefix(); // To checking that this user can see this backup.
 			foreach ( $files as $file_id => $file ) {
 
 				if ( ( true === $subsite_mode ) && is_multisite() ) { // If a Network and NOT the superadmin must make sure they can only see the specific subsite backups for security purposes.
@@ -2172,7 +2172,7 @@ class MainWP_Child_Back_Up_Buddy {
 				flush();
 
 				$scan = wp_remote_get(
-					'http://sitecheck.sucuri.net/scanner/?scan=' . urlencode( $url ) . '&serialized&clear=true',
+					'http://sitecheck.sucuri.net/scanner/?scan=' . rawurlencode( $url ) . '&serialized&clear=true',
 					array(
 						'method'      => 'GET',
 						'timeout'     => 45,
@@ -2745,14 +2745,14 @@ class MainWP_Child_Back_Up_Buddy {
 
 			if ( 'live' == $destination['type'] ) {
 				$backup_list_temp[ $last_modified ] = array(
-					array( base64_encode( $file['url'] ), '<span class="backupbuddy-stash-file-list-title">' . pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $last_modified ) ) . ' <span class="description">(' . pb_backupbuddy::$format->time_ago( $last_modified ) . ' ago)</span></span><br><span title="' . $file['filename'] . '">' . basename( $file['filename'] ) . '</span>' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+					array( base64_encode( $file['url'] ), '<span class="backupbuddy-stash-file-list-title">' . pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $last_modified ) ) . ' <span class="description">(' . pb_backupbuddy::$format->time_ago( $last_modified ) . ' ago)</span></span><br><span title="' . $file['filename'] . '">' . basename( $file['filename'] ) . '</span>' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 					pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $last_modified ) ) . '<br /><span class="description">(' . pb_backupbuddy::$format->time_ago( $last_modified ) . ' ago)</span>',
 					pb_backupbuddy::$format->file_size( $size ),
 					backupbuddy_core::pretty_backup_type( $backup_type ),
 				);
 			} else {
 				$backup_list_temp[ $last_modified ] = array(
-					array( base64_encode( $file['url'] ), '<span title="' . $file['filename'] . '">' . basename( $file['filename'] ) . '</span>' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+					array( base64_encode( $file['url'] ), '<span title="' . $file['filename'] . '">' . basename( $file['filename'] ) . '</span>' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- to compatible http encoding.
 					pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $last_modified ) ) . '<br /><span class="description">(' . pb_backupbuddy::$format->time_ago( $last_modified ) . ' ago)</span>',
 					pb_backupbuddy::$format->file_size( $size ),
 					backupbuddy_core::pretty_backup_type( $backup_type ),
@@ -2772,7 +2772,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 	public function copy_file_to_local() {
 
-		$file           = base64_decode( $_POST['cpy_file'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$file           = base64_decode( $_POST['cpy_file'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$destination_id = $_POST['destination_id'];
 
 		// Load required files.
@@ -2809,7 +2809,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		$deleteFiles = array();
 		foreach ( (array) $files as $file ) {
-			$file = base64_decode( $file ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$file = base64_decode( $file ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 			$startPos = pb_backupbuddy_destination_stash2::strrpos_count( $file, '/', 2 ) + 1; // next to last slash.
 			$file     = substr( $file, $startPos );

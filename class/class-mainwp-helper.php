@@ -20,7 +20,7 @@ class MainWP_Helper {
 			$output = serialize( $val ); // phpcs:ignore -- to compatible.
 		endif;
 
-		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- to compatible with http encoding.
 	}
 
 	public static function json_valid_check( $data ) {
@@ -94,7 +94,7 @@ class MainWP_Helper {
 			$output = serialize( $val ); // phpcs:ignore -- to compatible.
 		endif;
 
-		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		// Close browser connection so that it can resume AJAX polling.
 		header( 'Content-Length: ' . strlen( $output ) );
 		header( 'Connection: close' );
@@ -319,7 +319,7 @@ class MainWP_Helper {
 		if ( $full_guid ) {
 			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) );
 		}
-		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE '%/%s'", $filename ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
 	}
 
 	public static function upload_file( $file_url, $path, $file_name ) {
@@ -517,7 +517,7 @@ class MainWP_Helper {
 			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
 				$replaceAttachedIds = array();
 				if ( isset( $_POST['post_gallery_images'] ) ) {
-					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 					if ( is_array( $post_gallery_images ) ) {
 						foreach ( $post_gallery_images as $gallery ) {
 							if ( isset( $gallery['src'] ) ) {
@@ -695,7 +695,7 @@ class MainWP_Helper {
 					}
 				} elseif ( '_sticky' === $meta_key ) {
 					foreach ( $meta_values as $meta_value ) {
-						if ( 'sticky' === base64_decode( $meta_value ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+						if ( 'sticky' === base64_decode( $meta_value ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 							stick_post( $new_post_id );
 						}
 					}
@@ -786,7 +786,7 @@ class MainWP_Helper {
 		if ( $is_post_plus ) {
 			$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
 			$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
-			$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$random_privelege      = maybe_unserialize( $random_privelege_base );
 
 			if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
@@ -1087,7 +1087,7 @@ class MainWP_Helper {
 			throw new \Exception( 'Http Error: ' . $err );
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
-			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 			$information = json_decode( $result_base, true ); // it is json_encode result.
 

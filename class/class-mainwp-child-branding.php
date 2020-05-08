@@ -163,7 +163,7 @@ class MainWP_Child_Branding {
 
 	public function update_branding() {
 		$information = array();
-		$settings    = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$settings    = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		if ( ! is_array( $settings ) ) {
 			return $information;
 		}

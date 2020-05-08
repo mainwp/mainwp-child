@@ -306,20 +306,34 @@ class MainWP_Backup {
 				}
 				closedir( $fh );
 				// phpcs:enable
-
-				$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-					serialize(
-						array(
-							'siteurl' => get_option( 'siteurl' ),
-							'home'    => get_option( 'home' ),
-							'abspath' => ABSPATH,
-							'prefix'  => $wpdb->prefix,
-							'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
-							'plugins' => $plugins,
-							'themes'  => $themes,
+				
+				if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+					$string = wp_json_encode(
+								array(
+									'siteurl' => get_option( 'siteurl' ),
+									'home'    => get_option( 'home' ),
+									'abspath' => ABSPATH,
+									'prefix'  => $wpdb->prefix,
+									'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
+									'plugins' => $plugins,
+									'themes'  => $themes,
+								)						
+						);
+				} else {
+					$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
+						serialize( // phpcs:ignore -- safe
+							array(
+								'siteurl' => get_option( 'siteurl' ),
+								'home'    => get_option( 'home' ),
+								'abspath' => ABSPATH,
+								'prefix'  => $wpdb->prefix,
+								'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
+								'plugins' => $plugins,
+								'themes'  => $themes,
+							)
 						)
-					)
-				);
+					);
+				}
 
 				$this->add_file_from_string_to_zip( 'clone/config.txt', $string );
 			}
@@ -432,18 +446,31 @@ class MainWP_Backup {
 		$this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
 		if ( $addConfig ) {
 			global $wpdb;
-			$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-				serialize(
-					array(
-						'siteurl' => get_option( 'siteurl' ),
-						'home'    => get_option( 'home' ),
-						'abspath' => ABSPATH,
-						'prefix'  => $wpdb->prefix,
-						'lang'    => WPLANG,
+			
+			if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+				$string = wp_json_encode(
+								array(
+									'siteurl' => get_option( 'siteurl' ),
+									'home'    => get_option( 'home' ),
+									'abspath' => ABSPATH,
+									'prefix'  => $wpdb->prefix,
+									'lang'    => WPLANG,
+								)						
+						);
+			} else {
+				$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
+					serialize( // phpcs:ignore -- safe
+						array(
+							'siteurl' => get_option( 'siteurl' ),
+							'home'    => get_option( 'home' ),
+							'abspath' => ABSPATH,
+							'prefix'  => $wpdb->prefix,
+							'lang'    => WPLANG,
+						)
 					)
-				)
-			);
-
+				);
+			}
+			
 			$this->add_file_from_string_to_pcl_zip( 'clone/config.txt', $string, $filepath );
 		}
 		// Remove backup folder.
@@ -613,7 +640,7 @@ class MainWP_Backup {
 		global $wpdb;
 
 		$db_files  = array();
-		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );
+		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );  // phpcs:ignore -- safe query.
 		foreach ( $tables_db as $curr_table ) {
 			if ( null !== $archiver ) {
 				$archiver->update_pid_file();

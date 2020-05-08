@@ -53,7 +53,7 @@ class MainWP_WordPress_SEO {
 
 	public function import_settings() {
 		if ( isset( $_POST['file_url'] ) ) {
-			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$temporary_file = '';
 			global $mainWPChild;
 			try {
@@ -79,7 +79,7 @@ class MainWP_WordPress_SEO {
 			}
 		} elseif ( isset( $_POST['settings'] ) ) {
 			try {
-				$settings = base64_decode( $_POST['settings'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+				$settings = base64_decode( $_POST['settings'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 				$options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
 				if ( is_array( $options ) && array() !== $options ) {
 

@@ -237,8 +237,8 @@ class Tar_Archiver {
 				}
 				closedir( $fh );
 
-				$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-					serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+				if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+					$string = wp_json_encode(
 						array(
 							'siteurl' => get_option( 'siteurl' ),
 							'home'    => get_option( 'home' ),
@@ -247,9 +247,24 @@ class Tar_Archiver {
 							'lang'    => get_bloginfo( 'language' ),
 							'plugins' => $plugins,
 							'themes'  => $themes,
+						)						
+					);
+				} else {
+					$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+						serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+							array(
+								'siteurl' => get_option( 'siteurl' ),
+								'home'    => get_option( 'home' ),
+								'abspath' => ABSPATH,
+								'prefix'  => $wpdb->prefix,
+								'lang'    => get_bloginfo( 'language' ),
+								'plugins' => $plugins,
+								'themes'  => $themes,
+							)
 						)
-					)
-				);
+					);
+				}
+				
 
 				$this->add_empty_directory( 'clone', 0, 0, 0, time() );
 				$this->add_file_from_string( 'clone/config.txt', $string );

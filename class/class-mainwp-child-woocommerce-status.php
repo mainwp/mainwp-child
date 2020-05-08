@@ -72,7 +72,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		// Get sales.
 		$sales = $wpdb->get_var(
-			$wpdb->prepare( // phpcs:ignore -- safe query.
+			$wpdb->prepare( 
 				"SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
 				LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
 				LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
@@ -81,12 +81,12 @@ class MainWP_Child_WooCommerce_Status {
 				WHERE posts.post_type = 'shop_order'
 				AND posts.post_status = 'publish'
 				AND tax.taxonomy = 'shop_order_status'
-				AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
-				AND postmeta.meta_key = '_order_total'
+				AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query. 
+				" AND postmeta.meta_key = '_order_total'
 				AND posts.post_date >= %s
 				AND posts.post_date <= %s",
-				date( 'Y-m-01' ),
-				date( 'Y-m-d H:i:s' )
+				date( 'Y-m-01' ), // phpcs:ignore -- local time.
+				date( 'Y-m-d H:i:s' ) // phpcs:ignore -- local time.
 			)
 		);
 
@@ -104,16 +104,16 @@ class MainWP_Child_WooCommerce_Status {
 				WHERE posts.post_type = 'shop_order'
 				AND posts.post_status = 'publish'
 				AND tax.taxonomy = 'shop_order_status'
-				AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
-				AND order_item_meta.meta_key = '_qty'
+				AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
+				" AND order_item_meta.meta_key = '_qty'
 				AND order_item_meta_2.meta_key = '_product_id'
 				AND posts.post_date >= %s
 				AND posts.post_date <= %s
 				GROUP BY product_id
 				ORDER BY qty DESC
 				LIMIT 1",
-				date( 'Y-m-01', $start_date ),
-				date( 'Y-m-d H:i:s', $end_date )
+				date( 'Y-m-01' ), // phpcs:ignore -- local time.
+				date( 'Y-m-d H:i:s' ) // phpcs:ignore -- local time.
 			)
 		);
 
@@ -179,8 +179,8 @@ class MainWP_Child_WooCommerce_Status {
 			WHERE posts.post_type = 'shop_order'
 			AND posts.post_status = 'publish'
 			AND tax.taxonomy = 'shop_order_status'
-			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
-			AND postmeta.meta_key = '_order_total'
+			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
+			" AND postmeta.meta_key = '_order_total'
 			AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare( '%s', $start_date ) . ", '%Y-%m-%d %H:%i:%s')
 			AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare( '%s', $end_date ) . ", '%Y-%m-%d %H:%i:%s')"
 		);
@@ -198,8 +198,8 @@ class MainWP_Child_WooCommerce_Status {
 			WHERE posts.post_type = 'shop_order'
 			AND posts.post_status = 'publish'
 			AND tax.taxonomy = 'shop_order_status'
-			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' )
-			AND order_item_meta.meta_key = '_qty'
+			AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
+			" AND order_item_meta.meta_key = '_qty'
 			AND order_item_meta_2.meta_key = '_product_id'
 			AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare( '%s', $start_date ) . ", '%Y-%m-%d %H:%i:%s' )
 			AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare( '%s', $end_date ) . ", '%Y-%m-%d %H:%i:%s' )
@@ -222,11 +222,11 @@ class MainWP_Child_WooCommerce_Status {
 
 		$query_from = "FROM {$wpdb->posts} as posts INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id INNER JOIN {$wpdb->postmeta} AS postmeta2 ON posts.ID = postmeta2.post_id WHERE 1=1 AND posts.post_type IN ('product', 'product_variation') AND posts.post_status = 'publish' AND ( postmeta.meta_key = '_stock' AND CAST(postmeta.meta_value AS SIGNED) <= '{$stock}' AND CAST(postmeta.meta_value AS SIGNED) > '{$nostock}' AND postmeta.meta_value != '' ) AND ( ( postmeta2.meta_key = '_manage_stock' AND postmeta2.meta_value = 'yes' ) OR ( posts.post_type = 'product_variation' ) )";
 
-		$lowinstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );
+		$lowinstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
 		$query_from = "FROM {$wpdb->posts} as posts INNER JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id INNER JOIN {$wpdb->postmeta} AS postmeta2 ON posts.ID = postmeta2.post_id WHERE 1=1 AND posts.post_type IN ('product', 'product_variation') AND posts.post_status = 'publish' AND ( postmeta.meta_key = '_stock' AND CAST(postmeta.meta_value AS SIGNED) <= '{$nostock}' AND postmeta.meta_value != '' ) AND ( ( postmeta2.meta_key = '_manage_stock' AND postmeta2.meta_value = 'yes' ) OR ( posts.post_type = 'product_variation' ) )";
 
-		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );
+		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
 		$data                = array(
 			'sales'          => $sales,

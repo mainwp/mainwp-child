@@ -196,7 +196,7 @@ class MainWP_Child_Staging {
 		$options = $scan->getOptions();
 
 		$return = array(
-			'options'          => serialize( $options ),
+			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
 			'directoryListing' => $scan->directoryListing(),
 			'prefix'           => WPStaging\WPStaging::getTablePrefix(),
 		);

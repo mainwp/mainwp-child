@@ -137,7 +137,11 @@ class MainWP_Clone_Install {
 		if ( false === $configContents ) {
 			throw new \Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
-		$this->config = maybe_unserialize( base64_decode( $configContents ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+			$this->config = wp_json_decode( $configContents );
+		} else {
+			$this->config = maybe_unserialize( base64_decode( $configContents ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
+		}
 
 		if ( isset( $this->config['plugins'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $this->config['plugins'] );
@@ -189,9 +193,9 @@ class MainWP_Clone_Install {
 
 		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name ) ); // phpcs:ignore -- safe query.
 		if ( null === $var ) {
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, %s)', $name, MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->config['prefix'] . 'options (`option_name`, `option_value`) VALUES (%s, %s)', $name, MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ) ) ); // phpcs:ignore -- safe query.
 		} else {
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = %s WHERE option_name = %s', MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ), $name ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->config['prefix'] . 'options SET option_value = %s WHERE option_name = %s', MainWP_Child_DB::real_escape_string( maybe_serialize( $value ) ), $name ) );  // phpcs:ignore -- safe query.
 		}
 	}
 

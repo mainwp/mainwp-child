@@ -1082,7 +1082,7 @@ SQL
 	public function simple_crypt( $key, $data, $action = 'encrypt' ) {
 		$res = '';
 		if ( 'encrypt' == $action ) {
-			$string = base64_encode( serialize( $data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$string = base64_encode( serialize( $data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		} else {
 			$string = $data;
 		}
@@ -1099,7 +1099,7 @@ SQL
 		}
 
 		if ( 'encrypt' !== $action ) {
-			$res = unserialize( base64_decode( $res ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$res = unserialize( base64_decode( $res ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		}
 		return $res;
 	}
@@ -1108,7 +1108,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		}
 
 		$section     = isset( $_POST['savingSection'] ) ? $_POST['savingSection'] : '';
@@ -1371,7 +1371,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		}
 
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
@@ -2263,7 +2263,7 @@ SQL
 	public static function add_cache_exclusion() {
 		$ex = wfConfig::get( 'cacheExclusions', false );
 		if ( $ex ) {
-			$ex = unserialize( $ex );
+			$ex = unserialize( $ex ); // phpcs:ignore -- third party credit.
 		} else {
 			$ex = array();
 		}
@@ -2276,7 +2276,7 @@ SQL
 				'id' => $_POST['id'],
 			);
 		}
-		wfConfig::set( 'cacheExclusions', serialize( $ex ) );
+		wfConfig::set( 'cacheExclusions', serialize( $ex ) ); // phpcs:ignore -- third party credit.
 		wfCache::scheduleCacheClear();
 		if ( wfConfig::get( 'cacheType', false ) == 'falcon' && preg_match( '/^(?:uac|uaeq|cc)$/', $_POST['patternType'] ) ) {
 			if ( wfCache::addHtaccessCode( 'add' ) ) {
@@ -2297,7 +2297,7 @@ SQL
 		if ( ! $ex ) {
 			return array( 'ex' => false );
 		}
-		$ex = unserialize( $ex );
+		$ex = unserialize( $ex ); // phpcs:ignore -- third party credit.
 		return array(
 			'ok' => 1,
 			'ex' => $ex,
@@ -2310,7 +2310,7 @@ SQL
 		if ( ! $ex ) {
 			return array( 'ok' => 1 );
 		}
-		$ex              = unserialize( $ex );
+		$ex              = unserialize( $ex ); // phpcs:ignore -- third party credit.
 		$rewriteHtaccess = false;
 		$removed         = false;
 		$count_ex        = count( $ex );
@@ -2330,7 +2330,7 @@ SQL
 			return $return;
 		}
 
-		wfConfig::set( 'cacheExclusions', serialize( $ex ) );
+		wfConfig::set( 'cacheExclusions', serialize( $ex ) ); // phpcs:ignore -- third party credit.
 		if ( $rewriteHtaccess && wfCache::addHtaccessCode( 'add' ) ) {
 			$return['errorMsg'] = "We removed that rule but could not rewrite your .htaccess file. You're going to have to manually remove this rule from your .htaccess file. Please reload this page now.";
 			return $return;

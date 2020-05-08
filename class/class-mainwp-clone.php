@@ -1255,7 +1255,7 @@ class MainWP_Clone {
 				$url         = $siteToClone['url'];
 				$key         = $siteToClone['extauth'];
 
-				$url = trailingslashit( $url ) . '?cloneFunc=dl&key=' . urlencode( $key ) . '&f=' . $file;
+				$url = trailingslashit( $url ) . '?cloneFunc=dl&key=' . rawurlencode( $key ) . '&f=' . $file;
 			} else {
 				$url = $file;
 			}

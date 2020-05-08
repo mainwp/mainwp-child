@@ -165,7 +165,7 @@ class MainWP_Child_Themes_Check {
 			}
 
 			// Deserialize the response.
-			$obj = maybe_unserialize( $body );
+			$obj = maybe_unserialize( $body ); // phpcs:ignore -- to compatible with third party.
 
 			$now = new \DateTime();
 
@@ -227,7 +227,7 @@ class MainWP_Child_Themes_Check {
 		$http_args = array(
 			'body' => array(
 				'action'  => 'theme_information',
-				'request' => serialize( $args ),
+				'request' => serialize( $args ), // phpcs:ignore -- third party credit.
 			),
 		);
 

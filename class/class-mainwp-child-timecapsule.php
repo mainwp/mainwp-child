@@ -341,13 +341,13 @@ class MainWP_Child_Timecapsule {
 		$cron_status                                   = $config->get_option( 'wptc_own_cron_status' );
 
 		if ( ! empty( $cron_status ) ) {
-			$return_array['wptc_own_cron_status']          = unserialize( $cron_status );
+			$return_array['wptc_own_cron_status']          = unserialize( $cron_status ); // phpcs:ignore -- third party credit.
 			$return_array['wptc_own_cron_status_notified'] = (int) $config->get_option( 'wptc_own_cron_status_notified' );
 		}
 
 		$start_backups_failed_server = $config->get_option( 'start_backups_failed_server' );
 		if ( ! empty( $start_backups_failed_server ) ) {
-			$return_array['start_backups_failed_server'] = unserialize( $start_backups_failed_server );
+			$return_array['start_backups_failed_server'] = unserialize( $start_backups_failed_server ); // phpcs:ignore -- third party credit.
 			$config->set_option( 'start_backups_failed_server', false );
 		}
 
@@ -380,7 +380,7 @@ class MainWP_Child_Timecapsule {
 		$status      = array();
 		$cron_status = $config->get_option( 'wptc_own_cron_status' );
 		if ( ! empty( $cron_status ) ) {
-			$cron_status = unserialize( $cron_status );
+			$cron_status = unserialize( $cron_status ); // phpcs:ignore -- third party credit.
 
 			if ( 'success' == $cron_status['status'] ) {
 				$status['status'] = 'success';
@@ -441,7 +441,7 @@ class MainWP_Child_Timecapsule {
 
 	public function get_logs_rows() {
 		$result                 = $this->prepare_items();
-		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		return $result;
 	}
 
@@ -523,7 +523,7 @@ class MainWP_Child_Timecapsule {
 		$current_limit = WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
 		$to_limit      = $from_limit + $current_limit;
 
-		$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id='%s' AND show_user = 1 ORDER BY id DESC LIMIT %d, %d", $action_id, $from_limit, $current_limit ) );
+		$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id = %s AND show_user = 1 ORDER BY id DESC LIMIT %d, %d", $action_id, $from_limit, $current_limit ) );
 
 		$row_count = count( $sub_records );
 
@@ -560,7 +560,7 @@ class MainWP_Child_Timecapsule {
 				$more_logs = false;
 				$load_more = false;
 				if ( '' != $rec->action_id ) {
-					$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id='%s' AND show_user = 1 ORDER BY id DESC LIMIT 0, %d", $rec->action_id, $limit ) );
+					$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . "wptc_activity_log WHERE action_id= %s AND show_user = 1 ORDER BY id DESC LIMIT 0, %d", $rec->action_id, $limit ) );
 					$row_count   = count( $sub_records );
 					if ( $row_count == $limit ) {
 						$load_more = true;
@@ -578,7 +578,7 @@ class MainWP_Child_Timecapsule {
 					}
 				}
 				$html     .= '<tr class="act-tr">';
-				$Ldata     = unserialize( $rec->log_data );
+				$Ldata     = unserialize( $rec->log_data ); // phpcs:ignore -- third party credit.
 				$user_time = WPTC_Factory::get( 'config' )->cnvt_UTC_to_usrTime( $Ldata['log_time'] );
 				WPTC_Factory::get( 'processed-files' )->modify_schedule_backup_time( $user_time );
 				$user_tz_now = date( 'M d, Y @ g:i:s a', $user_time ); // phpcs:ignore -- local time.
@@ -628,7 +628,7 @@ class MainWP_Child_Timecapsule {
 		$detailed = '';
 		$timezone = WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
 		foreach ( $sub_records as $srec ) {
-			$Moredata = unserialize( $srec->log_data );
+			$Moredata = unserialize( $srec->log_data ); // phpcs:ignore -- third party credit.
 			$user_tmz = new DateTime( '@' . $Moredata['log_time'], new DateTimeZone( date_default_timezone_get() ) );
 			$user_tmz->setTimeZone( new DateTimeZone( $timezone ) );
 			$user_tmz_now = $user_tmz->format( 'M d @ g:i:s a' );
@@ -791,8 +791,8 @@ class MainWP_Child_Timecapsule {
 		$config  = WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
 		$options = WPTC_Factory::get( 'config' );
 
-		$config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
-		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$config->set_option( 'wptc_token', false );
 
 		$options->request_service(
@@ -941,7 +941,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for benign reasons.
+		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
 		$tabName    = $_POST['tabname'];
 		$is_general = $_POST['is_general'];
@@ -984,8 +984,8 @@ class MainWP_Child_Timecapsule {
 			$config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
 
 			$current = $config->get_option( 'wptc_auto_update_settings' );
-			$current = unserialize( $current );
-			$new     = unserialize( $data['wptc_auto_update_settings'] );
+			$current = unserialize( $current ); // phpcs:ignore -- third party credit.
+			$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- third party credit.
 
 			$current['update_settings']['status']                  = $new['update_settings']['status'];
 			$current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
@@ -1008,13 +1008,13 @@ class MainWP_Child_Timecapsule {
 					$current['update_settings']['themes']['included'] = array();
 				}
 			}
-			$config->set_option( 'wptc_auto_update_settings', serialize( $current ) );
+			$config->set_option( 'wptc_auto_update_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.
 			$saved = true;
 
 		} elseif ( 'vulns_update' == $tabName ) {
 			$current = $config->get_option( 'vulns_settings' );
-			$current = unserialize( $current );
-			$new     = unserialize( $data['vulns_settings'] );
+			$current = unserialize( $current ); // phpcs:ignore -- third party credit.
+			$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party credit.
 
 			$current['status']            = $new['status'];
 			$current['core']['status']    = $new['core']['status'];
@@ -1037,7 +1037,7 @@ class MainWP_Child_Timecapsule {
 
 				wptc_log( $included_plugins, '--------$included_plugins--------' );
 
-				$current['plugins']['excluded'] = serialize( $included_plugins );
+				$current['plugins']['excluded'] = serialize( $included_plugins ); // phpcs:ignore -- third party credit.
 
 				$vulns_themes_included = ! empty( $new['themes']['vulns_themes_included'] ) ? $new['themes']['vulns_themes_included'] : array();
 
@@ -1048,9 +1048,9 @@ class MainWP_Child_Timecapsule {
 				}
 
 				$included_themes               = $this->filter_themes( $themes_include_array );
-				$current['themes']['excluded'] = serialize( $included_themes );
+				$current['themes']['excluded'] = serialize( $included_themes ); // phpcs:ignore -- third party credit.
 			}
-			$config->set_option( 'vulns_settings', serialize( $current ) );
+			$config->set_option( 'vulns_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.
 
 			$saved = true;
 
