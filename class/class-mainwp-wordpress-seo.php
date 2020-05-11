@@ -55,7 +55,7 @@ class MainWP_WordPress_SEO {
 		if ( isset( $_POST['file_url'] ) ) {
 			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$temporary_file = '';
-			
+
 			try {
 				include_once ABSPATH . 'wp-admin/includes/file.php';
 				add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );

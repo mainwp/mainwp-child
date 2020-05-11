@@ -486,7 +486,7 @@ class MainWP_Child {
 	public function get_callable_functions() {
 		return $this->callableFunctions;
 	}
-	
+
 	public function admin_menu() {
 		$branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
 		$is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
@@ -1496,16 +1496,16 @@ class MainWP_Child {
 
 
 	/**
-	* Functions to support core functionality
-	*/
+	 * Functions to support core functionality
+	 */
 	public function install_plugin_theme() {
 		MainWP_Child_Install::get_instance()->install_plugin_theme();
 	}
-	
+
 	public function upgrade_wp() {
 		MainWP_Child_Updates::get_instance()->upgrade_wp();
 	}
-	
+
 	public function upgrade_translation() {
 		MainWP_Child_Updates::get_instance()->upgrade_translation();
 	}
@@ -2965,9 +2965,9 @@ class MainWP_Child {
 			$recent_number = 5;
 		}
 
-		$information['recent_posts'] = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
-		$information['recent_pages'] = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
-		$information['securityIssues'] = MainWP_Security::get_stats_security();;
+		$information['recent_posts']   = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
+		$information['recent_pages']   = $this->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
+		$information['securityIssues'] = MainWP_Security::get_stats_security();
 
 		// Directory listings!
 		$information['directories'] = $this->scan_dir( ABSPATH, 3 );
@@ -3607,11 +3607,11 @@ class MainWP_Child {
 			include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
 			include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
 			include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
-			
+
 			global $wp_filesystem;
-			
+
 			MainWP_Helper::check_wp_filesystem();
-			
+
 			if ( empty( $wp_filesystem ) ) {
 				$wp_filesystem = new WP_Filesystem_Direct( null );
 			}
@@ -3737,9 +3737,9 @@ class MainWP_Child {
 			include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
 			include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
 
-			global $wp_filesystem;			
+			global $wp_filesystem;
 			MainWP_Helper::check_wp_filesystem();
-			
+
 			if ( null === $wp_filesystem ) {
 				$wp_filesystem = new WP_Filesystem_Direct( null );
 			}
