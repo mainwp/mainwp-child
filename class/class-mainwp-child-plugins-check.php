@@ -127,7 +127,7 @@ class MainWP_Child_Plugins_Check {
 
 		return $plugins_outdate;
 	}
-	
+
 	public static function may_outdate_number_change() {
 		if ( isset( $_POST['numberdaysOutdatePluginTheme'] ) ) {
 			$days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );

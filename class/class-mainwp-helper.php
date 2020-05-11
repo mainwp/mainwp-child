@@ -16,7 +16,7 @@ class MainWP_Helper {
 	public static function get_class_name() {
 		return __CLASS__;
 	}
-	
+
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -225,7 +225,7 @@ class MainWP_Helper {
 		if ( ! is_array( $img_data ) ) {
 			$img_data = array();
 		}
-		
+
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 		$upload_dir = wp_upload_dir();
 		add_filter( 'http_request_args', array( self::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
@@ -1002,29 +1002,29 @@ class MainWP_Helper {
 		return $init;
 	}
 
-	
-	public static function check_wp_filesystem() {		
-		
-		self::get_wp_filesystem();	
+
+	public static function check_wp_filesystem() {
+
+		self::get_wp_filesystem();
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
-			MainWP_Helper::error( $this->FTP_ERROR );
+			self::error( $this->FTP_ERROR );
 		} elseif ( is_wp_error( $wp_filesystem->errors ) ) {
 			$errorCodes = $wp_filesystem->errors->get_error_codes();
 			if ( ! empty( $errorCodes ) ) {
-				MainWP_Helper::error( __( 'WordPress Filesystem error: ', 'mainwp-child' ) . $wp_filesystem->errors->get_error_message() );
+				self::error( __( 'WordPress Filesystem error: ', 'mainwp-child' ) . $wp_filesystem->errors->get_error_message() );
 			}
 		}
 
 		return $wp_filesystem;
 	}
-		
+
 	public static function no_ssl_filter_function( $r, $url ) {
 		$r['sslverify'] = false;
 		return $r;
 	}
-	
+
 	public static function reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
 		if ( isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) && isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ) {
@@ -1033,7 +1033,7 @@ class MainWP_Helper {
 		}
 		return $r;
 	}
-	
+
 	public static function starts_with( $haystack, $needle ) {
 		return ! strncmp( $haystack, $needle, strlen( $needle ) );
 	}

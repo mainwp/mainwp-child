@@ -315,7 +315,7 @@ class MainWP_Child_Branding {
 
 	public static function upload_image( $img_url ) {
 		include_once ABSPATH . 'wp-admin/includes/file.php';
-		
+
 		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
 		$temporary_file = download_url( $img_url );
 		remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );

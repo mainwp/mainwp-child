@@ -3,10 +3,10 @@
 namespace MainWP\Child;
 
 class MainWP_Child_Install {
-	
+
 	protected static $instance = null;
-	
-	
+
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -19,9 +19,8 @@ class MainWP_Child_Install {
 	}
 
 	public function __construct() {
-			
 	}
-	
+
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -34,7 +33,7 @@ class MainWP_Child_Install {
 	 * Functions to support core functionality
 	 */
 	public function install_plugin_theme() {
-		
+
 		MainWP_Helper::check_wp_filesystem();
 
 		if ( ! isset( $_POST['type'] ) || ! isset( $_POST['url'] ) || ( 'plugin' !== $_POST['type'] && 'theme' !== $_POST['type'] ) || '' === $_POST['url'] ) {

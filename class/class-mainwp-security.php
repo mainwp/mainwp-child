@@ -299,10 +299,10 @@ class MainWP_Security {
 		}
 		if ( ! self::remove_readme_ok() ) {
 			$securityIssuess ++;
-		}		
+		}
 		return $securityIssuess;
 	}
-	
+
 	public static function update_security_option( $key, $value ) {
 		$security = get_option( 'mainwp_security' );
 		if ( ! empty( $key ) ) {

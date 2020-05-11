@@ -3,12 +3,12 @@
 namespace MainWP\Child;
 
 class MainWP_Child_Updates {
-	
+
 	protected static $instance = null;
-	
-	private $filterFunction      = null;
-	
-	
+
+	private $filterFunction = null;
+
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -30,7 +30,7 @@ class MainWP_Child_Updates {
 				return $a;
 			};
 	}
-	
+
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -354,8 +354,8 @@ class MainWP_Child_Updates {
 		$information['sync'] = $this->get_site_stats( array(), false );
 		mainwp_child_helper()->write( $information );
 	}
-	
-	
+
+
 	public function hook_fix_optimize_press_theme_update( $transient ) {
 		if ( ! defined( 'OP_FUNC' ) ) {
 			return $transient;
@@ -388,7 +388,7 @@ class MainWP_Child_Updates {
 		return $transient;
 	}
 
-	
+
 	public function set_cached_update_plugins( $false = false, $_transient_data = null ) {
 
 		if ( ! is_object( $_transient_data ) ) {
@@ -412,8 +412,8 @@ class MainWP_Child_Updates {
 
 		return $_transient_data;
 	}
-	
-	
+
+
 	public function set_cached_update_themes( $false = false, $_transient_data = null ) {
 
 		if ( ! is_object( $_transient_data ) ) {
@@ -437,7 +437,7 @@ class MainWP_Child_Updates {
 
 		return $_transient_data;
 	}
-	
+
 	public function detect_premium_themesplugins_updates() {
 
 		if ( isset( $_GET['_detect_plugins_updates'] ) && 'yes' == $_GET['_detect_plugins_updates'] ) {
@@ -461,32 +461,31 @@ class MainWP_Child_Updates {
 		}
 
 		$type = isset( $_GET['_request_update_premiums_type'] ) ? $_GET['_request_update_premiums_type'] : '';
-		
+
 		if ( 'plugin' == $type || 'theme' == $type ) {
 			$list = isset( $_GET['list'] ) ? $_GET['list'] : '';
 			if ( ! empty( $list ) ) {
 				// to call function upgrade_plugin_theme().
 				$_POST['type'] = $type;
 				$_POST['list'] = $list;
-				
+
 				global $mainWPChild;
 				$callable = $mainWPChild->get_callable_functions();
-				
+
 				$function = 'upgradeplugintheme';
 				if ( isset( $callable [ $function ] ) ) {
 					call_user_func( array( $this, $callable [ $function ] ) );
 				}
-				
 			}
 		}
 	}
-	
-	
+
+
 	/**
 	 * Functions to support core functionality
 	 */
 	public function install_plugin_theme() {
-		
+
 		MainWP_Helper::check_wp_filesystem();
 
 		if ( ! isset( $_POST['type'] ) || ! isset( $_POST['url'] ) || ( 'plugin' !== $_POST['type'] && 'theme' !== $_POST['type'] ) || '' === $_POST['url'] ) {
@@ -610,13 +609,13 @@ class MainWP_Child_Updates {
 		mainwp_child_helper()->write( $information );
 	}
 
-	
-	
+
+
 	// This will upgrade WP!
 	public function upgrade_wp() {
-		global $wp_version;		
+		global $wp_version;
 		MainWP_Helper::get_wp_filesystem();
-		
+
 		$information = array();
 
 		include_once ABSPATH . '/wp-admin/includes/update.php';
@@ -750,5 +749,5 @@ class MainWP_Child_Updates {
 
 		$information['sync'] = $this->get_site_stats( array(), false );
 		mainwp_child_helper()->write( $information );
-	}	
+	}
 }
