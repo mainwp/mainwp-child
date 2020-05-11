@@ -315,10 +315,10 @@ class MainWP_Child_Branding {
 
 	public static function upload_image( $img_url ) {
 		include_once ABSPATH . 'wp-admin/includes/file.php';
-		global $mainWPChild;
-		add_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+		
+		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
 		$temporary_file = download_url( $img_url );
-		remove_filter( 'http_request_args', array( $mainWPChild, 'http_request_reject_unsafe_urls' ), 99, 2 );
+		remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
 
 		if ( is_wp_error( $temporary_file ) ) {
 			throw new \Exception( $temporary_file->get_error_message() );

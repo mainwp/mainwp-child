@@ -268,6 +268,41 @@ class MainWP_Security {
 		return false;
 	}
 
+	public static function get_stats_security() {
+		$securityIssuess = 0;
+		if ( ! self::prevent_listing_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_wp_version_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_rsd_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_wlw_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_database_reporting_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_php_reporting_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_scripts_version_ok() || ! self::remove_styles_version_ok() || ! self::remove_generator_version_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_registered_versions_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::admin_user_ok() ) {
+			$securityIssuess ++;
+		}
+		if ( ! self::remove_readme_ok() ) {
+			$securityIssuess ++;
+		}		
+		return $securityIssuess;
+	}
+	
 	public static function update_security_option( $key, $value ) {
 		$security = get_option( 'mainwp_security' );
 		if ( ! empty( $key ) ) {

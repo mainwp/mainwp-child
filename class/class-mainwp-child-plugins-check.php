@@ -127,39 +127,17 @@ class MainWP_Child_Plugins_Check {
 
 		return $plugins_outdate;
 	}
-
-	public function change_plugin_row_meta( $plugin_meta, $plugin_file, $plugin_data, $status ) {
-		// Grab our previously stored array of known last modified dates.
-		$plugin_info = get_transient( $this->tran_name_plugin_timestamps );
-
-		// Sanity check the response.
-		if ( false === $plugin_info || ! is_array( $plugin_info ) && 0 === count( $plugin_info ) ) {
-			return $plugin_meta;
-		}
-
-		// See if this specific plugin is in the known list.
-		if ( array_key_exists( $plugin_file, $plugin_info ) ) {
-			$now          = new \DateTime();
-			$last_updated = $plugin_info[ $plugin_file ]['last_updated'];
-
-			// Last updated is stored as timestamp, get a real date.
-			$plugin_last_updated_date = new \DateTime( '@' . $last_updated );
-
-			// Compute days between now and plugin last updated.
-			$diff_in_days = $now->diff( $plugin_last_updated_date )->format( '%a' );
-
-			// Customizable number of days for tolerance.
-			$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
-
-			// If we're outside the window for tolerance show a message.
-			if ( $diff_in_days > $tolerance_in_days ) {
-				$plugin_meta[] = sprintf( '<strong style="color: #f00;">This plugin has not been updated by the author in %1$d days!</strong>', $diff_in_days );
-			} else {
-				$plugin_meta[] = sprintf( '<span style="color: #090;">This plugin was last updated by the author in %1$d days ago.</span>', $diff_in_days );
+	
+	public static function may_outdate_number_change() {
+		if ( isset( $_POST['numberdaysOutdatePluginTheme'] ) ) {
+			$days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
+			if ( $days_outdate != $_POST['numberdaysOutdatePluginTheme'] ) {
+				$days_outdate = intval( $_POST['numberdaysOutdatePluginTheme'] );
+				MainWP_Helper::update_option( 'mainwp_child_plugintheme_days_outdate', $days_outdate );
+				self::instance()->cleanup_deactivation( false );
+				MainWP_Child_Themes_Check::instance()->cleanup_deactivation( false );
 			}
 		}
-
-		return $plugin_meta;
 	}
 
 	public function run_check() {
