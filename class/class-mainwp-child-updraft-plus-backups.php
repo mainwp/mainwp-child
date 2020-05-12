@@ -2099,7 +2099,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 
-	public function analyse_db_file( $timestamp, $res, $db_file = false, $header_only = false ) {
+	public function analyse_db_file( $timestamp, $res, $db_file = false, $header_only = false ) { // phpcs:ignore -- third party credit.
 		global $updraftplus;
 
 		$mess       = array();

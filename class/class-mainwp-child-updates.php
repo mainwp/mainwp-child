@@ -66,7 +66,74 @@ class MainWP_Child_Updates {
 		$information['upgrades']        = array();
 		$mwp_premium_updates_todo       = array();
 		$mwp_premium_updates_todo_slugs = array();
-		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
+		
+		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {						
+			$this->upgrade_plugin( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );			
+		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {			
+			$this->upgrade_theme( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );		
+		} else {
+			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+		}
+
+		if ( count( $mwp_premium_updates_todo ) > 0 ) {
+			// Upgrade via WP.
+			// @see wp-admin/update.php.
+			$result = $premiumUpgrader->bulk_upgrade( $mwp_premium_updates_todo_slugs );
+			if ( ! empty( $result ) ) {
+				foreach ( $result as $plugin => $info ) {
+					if ( ! empty( $info ) ) {
+						$information['upgrades'][ $plugin ] = true;
+
+						foreach ( $mwp_premium_updates_todo as $key => $update ) {
+							$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
+						}
+					}
+				}
+			}
+
+			// Upgrade via callback.
+			foreach ( $mwp_premium_updates_todo as $update ) {
+				$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
+
+				if ( isset( $update['url'] ) ) {
+					$installer                        = new WP_Upgrader();
+					$result                           = $installer->run(
+						array(
+							'package'           => $update['url'],
+							'destination'       => ( 'plugin' === $update['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+							'clear_destination' => true,
+							'clear_working'     => true,
+							'hook_extra'        => array(),
+						)
+					);
+					$information['upgrades'][ $slug ] = ( ! is_wp_error( $result ) && ! empty( $result ) );
+				} elseif ( isset( $update['callback'] ) ) {
+					if ( is_array( $update['callback'] ) && isset( $update['callback'][0] ) && isset( $update['callback'][1] ) ) {
+						$update_result                    = call_user_func(
+							array(
+								$update['callback'][0],
+								$update['callback'][1],
+							)
+						);
+						$information['upgrades'][ $slug ] = $update_result && true;
+					} elseif ( is_string( $update['callback'] ) ) {
+						$update_result                    = call_user_func( $update['callback'] );
+						$information['upgrades'][ $slug ] = $update_result && true;
+					} else {
+						$information['upgrades'][ $slug ] = false;
+					}
+				} else {
+					$information['upgrades'][ $slug ] = false;
+				}
+			}
+		}
+		
+		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+		mainwp_child_helper()->write( $information );
+	}
+
+	private function upgrade_plugin( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs ) {
+		
 			include_once ABSPATH . '/wp-admin/includes/update.php';
 			if ( null !== $this->filterFunction ) {
 				add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
@@ -185,8 +252,11 @@ class MainWP_Child_Updates {
 			if ( null !== $this->filterFunction ) {
 				remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 			}
-		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
+			
+	}
 
+	private function upgrade_theme( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs ) {
+			
 			$last_update = get_site_transient( 'update_themes' );
 
 			include_once ABSPATH . '/wp-admin/includes/update.php';
@@ -295,66 +365,8 @@ class MainWP_Child_Updates {
 			if ( null !== $this->filterFunction ) {
 				remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			}
-		} else {
-			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
-		}
-
-		if ( count( $mwp_premium_updates_todo ) > 0 ) {
-			// Upgrade via WP.
-			// @see wp-admin/update.php.
-			$result = $premiumUpgrader->bulk_upgrade( $mwp_premium_updates_todo_slugs );
-			if ( ! empty( $result ) ) {
-				foreach ( $result as $plugin => $info ) {
-					if ( ! empty( $info ) ) {
-						$information['upgrades'][ $plugin ] = true;
-
-						foreach ( $mwp_premium_updates_todo as $key => $update ) {
-							$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
-						}
-					}
-				}
-			}
-
-			// Upgrade via callback.
-			foreach ( $mwp_premium_updates_todo as $update ) {
-				$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
-
-				if ( isset( $update['url'] ) ) {
-					$installer                        = new WP_Upgrader();
-					$result                           = $installer->run(
-						array(
-							'package'           => $update['url'],
-							'destination'       => ( 'plugin' === $update['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
-							'clear_destination' => true,
-							'clear_working'     => true,
-							'hook_extra'        => array(),
-						)
-					);
-					$information['upgrades'][ $slug ] = ( ! is_wp_error( $result ) && ! empty( $result ) );
-				} elseif ( isset( $update['callback'] ) ) {
-					if ( is_array( $update['callback'] ) && isset( $update['callback'][0] ) && isset( $update['callback'][1] ) ) {
-						$update_result                    = call_user_func(
-							array(
-								$update['callback'][0],
-								$update['callback'][1],
-							)
-						);
-						$information['upgrades'][ $slug ] = $update_result && true;
-					} elseif ( is_string( $update['callback'] ) ) {
-						$update_result                    = call_user_func( $update['callback'] );
-						$information['upgrades'][ $slug ] = $update_result && true;
-					} else {
-						$information['upgrades'][ $slug ] = false;
-					}
-				} else {
-					$information['upgrades'][ $slug ] = false;
-				}
-			}
-		}
-		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
-		mainwp_child_helper()->write( $information );
 	}
-
+	
 	public function upgrade_get_theme_updates() {
 		$themeUpdates    = get_theme_updates();
 		$newThemeUpdates = array();

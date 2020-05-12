@@ -241,7 +241,7 @@ class Tar_Archiver {
 				}
 				closedir( $fh );
 
-				if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+				if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
 					$string = wp_json_encode(
 						array(
 							'siteurl' => get_option( 'siteurl' ),

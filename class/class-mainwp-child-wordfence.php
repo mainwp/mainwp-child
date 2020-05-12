@@ -201,7 +201,7 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
-	public function action() {
+	public function action() { // phpcs:ignore -- not quite complex method
 		$information = array();
 		if ( ! $this->is_wordfence_installed ) {
 			mainwp_child_helper()->write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );

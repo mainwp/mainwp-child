@@ -307,7 +307,7 @@ class MainWP_Backup {
 				closedir( $fh );
 				// phpcs:enable
 
-				if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+				if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
 					$string = wp_json_encode(
 						array(
 							'siteurl' => get_option( 'siteurl' ),
@@ -447,7 +447,7 @@ class MainWP_Backup {
 		if ( $addConfig ) {
 			global $wpdb;
 
-			if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+			if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
 				$string = wp_json_encode(
 					array(
 						'siteurl' => get_option( 'siteurl' ),

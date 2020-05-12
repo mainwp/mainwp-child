@@ -7,7 +7,7 @@ class MainWP_Debug {
 	 * @param $mainWPChild MainWP_Child
 	 */
 	public static function process( &$mainWPChild ) {
-		if ( ! isset( $_GET['mainwpdebug'] ) || ! defined( 'MAINWP_DEBUG' ) || ( MAINWP_DEBUG !== true ) ) {
+		if ( ! isset( $_GET['mainwpdebug'] ) || ! defined( 'MAINWP_CHILD_DEBUG' ) || ( MAINWP_CHILD_DEBUG !== true ) ) {
 			return;
 		}
 

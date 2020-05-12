@@ -66,8 +66,7 @@ class MainWP_Child_Stats {
 
 	// Show stats.
 	public function get_site_stats( $information = array(), $exit = true ) {
-		global $wp_version;
-
+		
 		if ( $exit ) {
 			$this->update_external_settings();
 		}
@@ -78,33 +77,8 @@ class MainWP_Child_Stats {
 		}
 
 		MainWP_Child_Plugins_Check::may_outdate_number_change();
-
-		$information['version']   = MainWP_Child::$version;
-		$information['wpversion'] = $wp_version;
-		$information['siteurl']   = get_option( 'siteurl' );
-		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
-		$theme_name               = wp_get_theme()->get( 'Name' );
-		$information['site_info'] = array(
-			'wpversion'      => $wp_version,
-			'debug_mode'     => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
-			'phpversion'     => phpversion(),
-			'child_version'  => MainWP_Child::$version,
-			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
-			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
-			'themeactivated' => $theme_name,
-			'ip'             => $_SERVER['SERVER_ADDR'],
-		);
-
-		// Try to switch to SSL if SSL is enabled in between!
-		$pubkey = get_option( 'mainwp_child_pubkey' );
-		$nossl  = get_option( 'mainwp_child_nossl' );
-		if ( 1 == $nossl ) {
-			if ( isset( $pubkey ) && MainWP_Helper::is_ssl_enabled() ) {
-				MainWP_Helper::update_option( 'mainwp_child_nossl', 0, 'yes' );
-				$nossl = 0;
-			}
-		}
-		$information['nossl'] = ( 1 == $nossl ? 1 : 0 );
+		
+		$this->stats_get_info( $information );
 
 		include_once ABSPATH . '/wp-admin/includes/update.php';
 
@@ -113,55 +87,19 @@ class MainWP_Child_Stats {
 		ini_set( 'max_execution_time', $timeout ); //phpcs:ignore -- to custom
 
 		// Check for new versions.
-		if ( null !== $this->filterFunction ) {
-			add_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
-		}
-		if ( null !== $this->filterFunction ) {
-			add_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
-		}
-		wp_version_check();
-		$core_updates = get_core_updates();
-		if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
-			foreach ( $core_updates as $core_update ) {
-				if ( 'latest' === $core_update->response ) {
-					break;
-				}
-				if ( 'upgrade' === $core_update->response && version_compare( $wp_version, $core_update->current, '<=' ) ) {
-					$information['wp_updates'] = $core_update->current;
-				}
-			}
-		}
-		if ( ! isset( $information['wp_updates'] ) ) {
-			$information['wp_updates'] = null;
-		}
-		if ( null !== $this->filterFunction ) {
-			remove_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
-		}
-		if ( null !== $this->filterFunction ) {
-			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
-		}
-
+		$information['wp_updates'] = $this->stats_wp_update();
+		
 		add_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 		add_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
-
+		
 		// First check for new premium updates.
-		$update_check = apply_filters( 'mwp_premium_update_check', array() );
-		if ( ! empty( $update_check ) ) {
-			foreach ( $update_check as $updateFeedback ) {
-				if ( is_array( $updateFeedback['callback'] ) && isset( $updateFeedback['callback'][0] ) && isset( $updateFeedback['callback'][1] ) ) {
-					call_user_func( array( $updateFeedback['callback'][0], $updateFeedback['callback'][1] ) );
-				} elseif ( is_string( $updateFeedback['callback'] ) ) {
-					call_user_func( $updateFeedback['callback'] );
-				}
-			}
-		}
-
+		$this->check_premium_updates();
+			
 		$informationPremiumUpdates = apply_filters( 'mwp_premium_update_notification', array() );
 		$premiumPlugins            = array();
 		$premiumThemes             = array();
 		if ( is_array( $informationPremiumUpdates ) ) {
-			$premiumUpdates                  = array();
-			$information['premium_updates']  = array();
+			$premiumUpdates                  = array();			
 			$informationPremiumUpdatesLength = count( $informationPremiumUpdates );
 			for ( $i = 0; $i < $informationPremiumUpdatesLength; $i ++ ) {
 				if ( ! isset( $informationPremiumUpdates[ $i ]['new_version'] ) ) {
@@ -179,7 +117,11 @@ class MainWP_Child_Stats {
 
 				unset( $informationPremiumUpdates[ $i ]['old_version'] );
 				unset( $informationPremiumUpdates[ $i ]['new_version'] );
-
+				
+				if ( ! isset( $information['premium_updates'] ) ) {
+					$information['premium_updates'] = array();
+				}
+				
 				$information['premium_updates'][ $slug ]           = $informationPremiumUpdates[ $i ];
 				$information['premium_updates'][ $slug ]['update'] = (object) array(
 					'new_version' => $new_version,
@@ -192,183 +134,33 @@ class MainWP_Child_Stats {
 			}
 			MainWP_Helper::update_option( 'mainwp_premium_updates', $premiumUpdates );
 		}
-
+		
 		remove_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 		remove_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
-
-		if ( null !== $this->filterFunction ) {
-			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
-		}
-
-		global $wp_current_filter;
-		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
-
-		wp_update_plugins();
-		include_once ABSPATH . '/wp-admin/includes/plugin.php';
-
-		$plugin_updates = get_plugin_updates();
-		if ( is_array( $plugin_updates ) ) {
-			$information['plugin_updates'] = array();
-
-			foreach ( $plugin_updates as $slug => $plugin_update ) {
-				if ( in_array( $plugin_update->Name, $premiumPlugins ) ) {
-					continue;
-				}
-
-				// to fix incorrect info.
-				if ( ! property_exists( $plugin_update, 'update' ) || ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
-					continue;
-				}
-
-				$information['plugin_updates'][ $slug ] = $plugin_update;
-			}
-		}
-
-		if ( null !== $this->filterFunction ) {
-			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
-		}
-
-		// to fix premium plugs update.
-		$cached_plugins_update = get_site_transient( 'mainwp_update_plugins_cached' );
-		if ( is_array( $cached_plugins_update ) && ( count( $cached_plugins_update ) > 0 ) ) {
-			if ( ! isset( $information['plugin_updates'] ) ) {
-				$information['plugin_updates'] = array();
-			}
-			foreach ( $cached_plugins_update as $slug => $plugin_update ) {
-
-				// to fix incorrect info.
-				if ( ! property_exists( $plugin_update, 'new_version' ) || empty( $plugin_update->new_version ) ) { // may do not need to check this?
-					// to fix for some premiums update info.
-					if ( property_exists( $plugin_update, 'update' ) ) {
-						if ( ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
-							continue;
-						}
-					} else {
-						continue;
-					}
-				}
-
-				if ( ! isset( $information['plugin_updates'][ $slug ] ) ) {
-					$information['plugin_updates'][ $slug ] = $plugin_update;
-				}
-			}
-		}
-
-		if ( null !== $this->filterFunction ) {
-			add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
-		}
-		wp_update_themes();
-		include_once ABSPATH . '/wp-admin/includes/theme.php';
-		$theme_updates = MainWP_Child_Updates::get_instance()->upgrade_get_theme_updates();
-		if ( is_array( $theme_updates ) ) {
-			$information['theme_updates'] = array();
-
-			foreach ( $theme_updates as $slug => $theme_update ) {
-				$name = ( is_array( $theme_update ) ? $theme_update['Name'] : $theme_update->Name );
-				if ( in_array( $name, $premiumThemes ) ) {
-					continue;
-				}
-
-				$information['theme_updates'][ $slug ] = $theme_update;
-			}
-		}
-		if ( null !== $this->filterFunction ) {
-			remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
-		}
-
-		// to fix premium themes update.
-		$cached_themes_update = get_site_transient( 'mainwp_update_themes_cached' );
-		if ( is_array( $cached_themes_update ) && ( count( $cached_themes_update ) > 0 ) ) {
-			if ( ! isset( $information['theme_updates'] ) ) {
-				$information['theme_updates'] = array();
-			}
-
-			foreach ( $cached_themes_update as $slug => $theme_update ) {
-				$name = ( is_array( $theme_update ) ? $theme_update['Name'] : $theme_update->Name );
-				if ( in_array( $name, $premiumThemes ) ) {
-					continue;
-				}
-				if ( isset( $information['theme_updates'][ $slug ] ) ) {
-					continue;
-				}
-				$information['theme_updates'][ $slug ] = $theme_update;
-			}
-		}
-
-		$translation_updates = wp_get_translation_updates();
-		if ( ! empty( $translation_updates ) ) {
-			$information['translation_updates'] = array();
-			foreach ( $translation_updates as $translation_update ) {
-				$new_translation_update = array(
-					'type'     => $translation_update->type,
-					'slug'     => $translation_update->slug,
-					'language' => $translation_update->language,
-					'version'  => $translation_update->version,
-				);
-				if ( 'plugin' === $translation_update->type ) {
-					$all_plugins = get_plugins();
-					foreach ( $all_plugins as $file => $plugin ) {
-						$path = dirname( $file );
-						if ( $path == $translation_update->slug ) {
-							$new_translation_update['name'] = $plugin['Name'];
-							break;
-						}
-					}
-				} elseif ( 'theme' === $translation_update->type ) {
-					$theme                          = wp_get_theme( $translation_update->slug );
-					$new_translation_update['name'] = $theme->name;
-				} elseif ( ( 'core' === $translation_update->type ) && ( 'default' === $translation_update->slug ) ) {
-					$new_translation_update['name'] = 'WordPress core';
-				}
-				$information['translation_updates'][] = $new_translation_update;
-			}
-		}
-
+		
+		$information['plugin_updates'] = $this->stats_plugin_update( $premiumPlugins );
+		
+		$information['theme_updates'] = $this->stats_theme_update( $premiumThemes );
+		
+		$information['translation_updates'] = $this->stats_translation_updates();
+		
 		$information['recent_comments'] = MainWP_Child_Posts::get_instance()->get_recent_comments( array( 'approve', 'hold' ), 5 );
 
-		$recent_number = 5;
-
-		if ( isset( $_POST ) && isset( $_POST['recent_number'] ) ) {
-			$recent_number = $_POST['recent_number'];
-			if ( get_option( 'mainwp_child_recent_number', 5 ) != $recent_number ) {
-				update_option( 'mainwp_child_recent_number', $recent_number );
-			}
-		} else {
-			$recent_number = get_option( 'mainwp_child_recent_number', 5 );
-		}
-
-		if ( $recent_number <= 0 || $recent_number > 30 ) {
-			$recent_number = 5;
-		}
+		$recent_number = $this->get_recent_number();
 
 		$information['recent_posts']   = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
 		$information['recent_pages']   = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
 		$information['securityIssues'] = MainWP_Security::get_stats_security();
 
 		// Directory listings!
-		$information['directories'] = $this->scan_dir( ABSPATH, 3 );
-		$cats                       = get_categories(
-			array(
-				'hide_empty'   => 0,
-				'hierarchical' => true,
-				'number'       => 300,
-			)
-		);
-		$categories                 = array();
-		foreach ( $cats as $cat ) {
-			$categories[] = $cat->name;
-		}
-		$information['categories'] = $categories;
+		$information['directories'] = $this->scan_dir( ABSPATH, 3 );		
+		$information['categories'] = $this->stats_get_categories();
 
-		$get_file_size = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
-		$get_file_size = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
-
-		if ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) {
-			$max_exe = ini_get( 'max_execution_time' );
-			if ( $max_exe > 20 ) {
-				$information['totalsize'] = $this->get_total_file_size();
-			}
+		$totalsize = $this->stats_get_total_size();		
+		if ( ! empty( $totalsize ) ) {
+			$information['totalsize'] = $totalsize;
 		}
+		
 		$information['dbsize'] = MainWP_Child_DB::get_size();
 
 		global $mainWPChild;
@@ -377,10 +169,8 @@ class MainWP_Child_Stats {
 		$auths                  = get_option( 'mainwp_child_auth' );
 		$information['extauth'] = ( $auths && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
 
-		$plugins                = $this->get_all_plugins_int( false );
-		$themes                 = $this->get_all_themes_int( false );
-		$information['plugins'] = $plugins;
-		$information['themes']  = $themes;
+		$information['plugins'] = $this->get_all_plugins_int( false );
+		$information['themes']  = $this->get_all_themes_int( false );
 
 		if ( isset( $_POST['optimize'] ) && ( '1' === $_POST['optimize'] ) ) {
 			$information['users'] = MainWP_Child_Users::get_instance()->get_all_users_int( 500 );
@@ -418,25 +208,7 @@ class MainWP_Child_Stats {
 		}
 
 		if ( isset( $_POST['othersData'] ) ) {
-			$othersData = json_decode( stripslashes( $_POST['othersData'] ), true );
-			if ( ! is_array( $othersData ) ) {
-				$othersData = array();
-			}
-
-			if ( isset( $othersData['wpvulndbToken'] ) ) {
-				$wpvulndb_token = get_option( 'mainwp_child_wpvulndb_token', '' );
-				if ( $wpvulndb_token != $othersData['wpvulndbToken'] ) {
-					MainWP_Helper::update_option( 'mainwp_child_wpvulndb_token', $othersData['wpvulndbToken'] );
-				}
-			}
-
-			try {
-				$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );
-				$information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );
-
-			} catch ( \Exception $e ) {
-				MainWP_Helper::log_debug( $e->getMessage() );
-			}
+			$this->stats_others_data( $information );
 		}
 
 		if ( $exit ) {
@@ -445,6 +217,298 @@ class MainWP_Child_Stats {
 
 		return $information;
 	}
+
+	private function stats_others_data( &$information ){	
+		
+		$othersData = json_decode( stripslashes( $_POST['othersData'] ), true );
+		if ( ! is_array( $othersData ) ) {
+			$othersData = array();
+		}
+
+		if ( isset( $othersData['wpvulndbToken'] ) ) {
+			$wpvulndb_token = get_option( 'mainwp_child_wpvulndb_token', '' );
+			if ( $wpvulndb_token != $othersData['wpvulndbToken'] ) {
+				MainWP_Helper::update_option( 'mainwp_child_wpvulndb_token', $othersData['wpvulndbToken'] );
+			}
+		}
+
+		try {
+			$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );
+			$information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );
+
+		} catch ( \Exception $e ) {
+			MainWP_Helper::log_debug( $e->getMessage() );
+		}		
+	}
+	
+	private function stats_translation_updates() {		
+		$results = array();
+		
+		$translation_updates = wp_get_translation_updates();
+		if ( ! empty( $translation_updates ) ) {			
+			foreach ( $translation_updates as $translation_update ) {
+				$new_translation_update = array(
+					'type'     => $translation_update->type,
+					'slug'     => $translation_update->slug,
+					'language' => $translation_update->language,
+					'version'  => $translation_update->version,
+				);
+				if ( 'plugin' === $translation_update->type ) {
+					$all_plugins = get_plugins();
+					foreach ( $all_plugins as $file => $plugin ) {
+						$path = dirname( $file );
+						if ( $path == $translation_update->slug ) {
+							$new_translation_update['name'] = $plugin['Name'];
+							break;
+						}
+					}
+				} elseif ( 'theme' === $translation_update->type ) {
+					$theme                          = wp_get_theme( $translation_update->slug );
+					$new_translation_update['name'] = $theme->name;
+				} elseif ( ( 'core' === $translation_update->type ) && ( 'default' === $translation_update->slug ) ) {
+					$new_translation_update['name'] = 'WordPress core';
+				}
+				
+				$results[] = $new_translation_update;
+			}
+		}
+		return $results;
+	}
+	
+	private function stats_theme_update( $premiumThemes ) {
+		
+		$results = array();
+		
+		if ( null !== $this->filterFunction ) {
+			add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+		}
+		
+		wp_update_themes();
+		include_once ABSPATH . '/wp-admin/includes/theme.php';
+		$theme_updates = MainWP_Child_Updates::get_instance()->upgrade_get_theme_updates();
+		if ( is_array( $theme_updates ) ) {
+			foreach ( $theme_updates as $slug => $theme_update ) {
+				$name = ( is_array( $theme_update ) ? $theme_update['Name'] : $theme_update->Name );
+				if ( in_array( $name, $premiumThemes ) ) {
+					continue;
+				}
+				$results[ $slug ] = $theme_update;
+			}
+		}
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+		}
+
+		// to fix premium themes update.
+		$cached_themes_update = get_site_transient( 'mainwp_update_themes_cached' );
+		if ( is_array( $cached_themes_update ) && ( count( $cached_themes_update ) > 0 ) ) {
+			
+			foreach ( $cached_themes_update as $slug => $theme_update ) {
+				$name = ( is_array( $theme_update ) ? $theme_update['Name'] : $theme_update->Name );
+				if ( in_array( $name, $premiumThemes ) ) {
+					continue;
+				}
+				if ( isset( $results[ $slug ] ) ) {
+					continue;
+				}
+				$results[ $slug ] = $theme_update;
+			}
+		}
+			
+		return $results;
+	}
+	
+	private function stats_get_info( &$information ) {
+		
+		global $wp_version;
+
+		$information['version']   = MainWP_Child::$version;
+		$information['wpversion'] = $wp_version;
+		$information['siteurl']   = get_option( 'siteurl' );
+		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
+		$theme_name               = wp_get_theme()->get( 'Name' );
+		$information['site_info'] = array(
+			'wpversion'      => $wp_version,
+			'debug_mode'     => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
+			'phpversion'     => phpversion(),
+			'child_version'  => MainWP_Child::$version,
+			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
+			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
+			'themeactivated' => $theme_name,
+			'ip'             => $_SERVER['SERVER_ADDR'],
+		);
+		
+		// Try to switch to SSL if SSL is enabled in between!
+		$pubkey = get_option( 'mainwp_child_pubkey' );
+		$nossl  = get_option( 'mainwp_child_nossl' );
+		if ( 1 == $nossl ) {
+			if ( isset( $pubkey ) && MainWP_Helper::is_ssl_enabled() ) {
+				MainWP_Helper::update_option( 'mainwp_child_nossl', 0, 'yes' );
+				$nossl = 0;
+			}
+		}
+		$information['nossl'] = ( 1 == $nossl ? 1 : 0 );		
+	}
+	
+	private function stats_wp_update() {
+		$result = null;
+		// Check for new versions.
+		if ( null !== $this->filterFunction ) {
+			add_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
+		}
+		if ( null !== $this->filterFunction ) {
+			add_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
+		}
+		wp_version_check();
+		$core_updates = get_core_updates();
+		if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
+			foreach ( $core_updates as $core_update ) {
+				if ( 'latest' === $core_update->response ) {
+					break;
+				}
+				if ( 'upgrade' === $core_update->response && version_compare( $wp_version, $core_update->current, '<=' ) ) {
+					$result = $core_update->current;
+				}
+			}
+		}
+		
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
+		}
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
+		}
+		
+	}
+	
+	private function check_premium_updates() {		
+		// First check for new premium updates.
+		$update_check = apply_filters( 'mwp_premium_update_check', array() );
+		if ( ! empty( $update_check ) ) {
+			foreach ( $update_check as $updateFeedback ) {
+				if ( is_array( $updateFeedback['callback'] ) && isset( $updateFeedback['callback'][0] ) && isset( $updateFeedback['callback'][1] ) ) {
+					call_user_func( array( $updateFeedback['callback'][0], $updateFeedback['callback'][1] ) );
+				} elseif ( is_string( $updateFeedback['callback'] ) ) {
+					call_user_func( $updateFeedback['callback'] );
+				}
+			}
+		}
+	}
+	
+	private function stats_plugin_update( $premiumPlugins ) {
+		
+		$results = array();
+		
+		if ( null !== $this->filterFunction ) {
+			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+		}
+
+		global $wp_current_filter;
+		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
+
+		wp_update_plugins();
+		include_once ABSPATH . '/wp-admin/includes/plugin.php';
+
+		$plugin_updates = get_plugin_updates();
+		if ( is_array( $plugin_updates ) ) {
+			
+			foreach ( $plugin_updates as $slug => $plugin_update ) {
+				if ( in_array( $plugin_update->Name, $premiumPlugins ) ) {
+					continue;
+				}
+
+				// to fix incorrect info.
+				if ( ! property_exists( $plugin_update, 'update' ) || ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
+					continue;
+				}
+
+				$results[ $slug ] = $plugin_update;
+			}
+		}
+
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+		}
+
+		// to fix premium plugs update.
+		$cached_plugins_update = get_site_transient( 'mainwp_update_plugins_cached' );
+		if ( is_array( $cached_plugins_update ) && ( count( $cached_plugins_update ) > 0 ) ) {			
+			foreach ( $cached_plugins_update as $slug => $plugin_update ) {
+
+				// to fix incorrect info.
+				if ( ! property_exists( $plugin_update, 'new_version' ) || empty( $plugin_update->new_version ) ) { // may do not need to check this?
+					// to fix for some premiums update info.
+					if ( property_exists( $plugin_update, 'update' ) ) {
+						if ( ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
+							continue;
+						}
+					} else {
+						continue;
+					}
+				}
+
+				if ( ! isset( $results[ $slug ] ) ) {
+					$results[ $slug ] = $plugin_update;
+				}
+			}
+		}
+		
+		return $results;
+	}
+	
+	private function stats_get_categories() {
+		
+		$cats                       = get_categories(
+			array(
+				'hide_empty'   => 0,
+				'hierarchical' => true,
+				'number'       => 300,
+			)
+		);
+		$categories                 = array();
+		foreach ( $cats as $cat ) {
+			$categories[] = $cat->name;
+		}
+		
+		return $categories;
+	}
+	
+	private function stats_get_total_size() {
+		$total = null;		
+		
+		$get_file_size = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
+		$get_file_size = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
+
+		if ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) {
+			$max_exe = ini_get( 'max_execution_time' );
+			if ( $max_exe > 20 ) {
+				$total = $this->get_total_file_size();
+			}
+		}
+		
+		return $total;
+	}
+
+	private function get_recent_number() {
+		
+		$recent_number = 5;
+
+		if ( isset( $_POST ) && isset( $_POST['recent_number'] ) ) {
+			$recent_number = $_POST['recent_number'];
+			if ( get_option( 'mainwp_child_recent_number', 5 ) != $recent_number ) {
+				update_option( 'mainwp_child_recent_number', $recent_number );
+			}
+		} else {
+			$recent_number = get_option( 'mainwp_child_recent_number', 5 );
+		}
+
+		if ( $recent_number <= 0 || $recent_number > 30 ) {
+			$recent_number = 5;
+		}
+		
+		return $recent_number;		
+	}
+
 
 	public function update_external_settings() {
 		$update_htaccess = false;
@@ -545,7 +609,7 @@ class MainWP_Child_Stats {
 				return empty( $output ) ? null : $output;
 			}
 			$files = $this->int_scan_dir( $pDir );
-			if ( $files ) {
+			if ( $files ) {				
 				foreach ( $files as $file ) {
 					if ( ( '.' === $file ) || ( '..' === $file ) ) {
 						continue;
@@ -573,13 +637,16 @@ class MainWP_Child_Stats {
 			while ( false !== $file ) {
 				$newDir = $dir . $file . DIRECTORY_SEPARATOR;
 				if ( ! is_dir( $newDir ) ) {
+					$file = readdir( $dh );
 					continue;
 				}
 
 				$out[] = $file;
+				$file = readdir( $dh );
+				
 				if ( $cnt ++ > 10 ) {
-					return $out;
-				}
+					break;
+				}				
 			}
 			closedir( $dh );
 
@@ -588,7 +655,7 @@ class MainWP_Child_Stats {
 
 		return false;
 	}
-
+	
 	public function get_all_themes() {
 		$keyword = $_POST['keyword'];
 		$status  = $_POST['status'];

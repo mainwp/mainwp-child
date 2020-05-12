@@ -264,16 +264,12 @@ class MainWP_Child_Posts {
 		$post_featured_image = base64_decode( $_POST['post_featured_image'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$upload_dir          = maybe_unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 
-		if ( isset( $_POST['_ezin_post_category'] ) ) {
-			$new_post['_ezin_post_category'] = maybe_unserialize( base64_decode( $_POST['_ezin_post_category'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-		}
-
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) && ! empty( $_POST['featured_image_data'] ) ) {
 			$others['featured_image_data'] = unserialize( base64_decode( $_POST['featured_image_data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		}
 
-		$res = MainWP_Helper::create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
+		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
 
 		if ( is_array( $res ) && isset( $res['error'] ) ) {
 			MainWP_Helper::error( $res['error'] );
@@ -659,4 +655,539 @@ class MainWP_Child_Posts {
 		return $allComments;
 	}
 
+	
+	
+	private function create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
+		
+		global $current_user;
+
+		/**
+		* Hook: `mainwp_before_post_update`
+		*
+		* Runs before creating or updating a post via MainWP dashboard.
+		*
+		* @param array  $new_post      – Post data array.
+		* @param array  $post_custom   – Post custom meta data.
+		* @param string $post_category – Post categories.
+		* @param string $post_tags     – Post tags.
+		*/
+
+		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
+		
+		$this->create_wp_rocket( $post_custom );		
+
+		// current user may be connected admin or alternative admin.
+		$current_uid = $current_user->ID;
+		// Set up a new post (adding addition information).
+
+		$post_author = isset( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
+
+		if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
+			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
+			if ( ! empty( $_author ) ) {
+				$new_post['post_author'] = $_author->ID;
+			} else {
+				$new_post['post_author'] = $current_uid;
+			}
+			unset( $new_post['custom_post_author'] );
+		}
+
+		$post_author             = ! empty( $post_author ) ? $post_author : $current_uid;
+		$new_post['post_author'] = $post_author;
+
+		unset( $new_post['_ezin_post_category'] );
+		
+		// post plus extension process.
+		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
+
+		$wp_error = null;
+
+		if ( $is_post_plus ) {
+			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' != $new_post['post_date_gmt'] ) {
+				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
+				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp ); // phpcs:ignore -- local time.
+			}
+		}
+
+		$edit_post_id = 0;
+
+		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
+			$edit_post_id = current( $post_custom['_mainwp_edit_post_id'] );
+		} elseif ( isset( $new_post['ID'] ) && $new_post['ID'] ) {
+			$edit_post_id = $new_post['ID'];
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/post.php';
+		if ( $edit_post_id ) {
+			$user_id = wp_check_post_lock( $edit_post_id );
+			if ( $user_id ) {
+				$user  = get_userdata( $user_id );
+				$error = sprintf( __( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
+				return array( 'error' => $error );
+			}
+		}
+
+		$check_image_existed = false;
+		if ( $edit_post_id ) {
+			$check_image_existed = true; // if editing post then will check if image existed.
+		}
+		
+		$this->create_found_images( $new_post, $upload_dir, $check_image_existed );		
+		$this->create_has_shortcode_gallery( $new_post );		
+
+		if ( $is_post_plus ) {			
+			$this->create_post_plus( $new_post, $post_custom  );			
+		}
+
+		if ( isset( $post_tags ) && '' !== $post_tags ) {
+			$new_post['tags_input'] = $post_tags;
+		}
+
+		// Save the post to the WP.
+		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html.
+		$post_status             = $new_post['post_status'];
+		$new_post['post_status'] = 'auto-draft'; // child reports: to logging as created post.
+
+		// update post.
+		if ( $edit_post_id ) {
+			// check if post existed.
+			$current_post = get_post( $edit_post_id );
+			if ( $current_post && ( ( ! isset( $new_post['post_type'] ) && 'post' == $current_post->post_type ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] == $current_post->post_type ) ) ) {
+				$new_post['ID'] = $edit_post_id;
+			}
+			$new_post['post_status'] = $post_status; // child reports: to logging as update post.
+		}
+
+		$new_post_id = wp_insert_post( $new_post, $wp_error );
+
+		// Show errors if something went wrong.
+		if ( is_wp_error( $wp_error ) ) {
+			return $wp_error->get_error_message();
+		}
+		if ( empty( $new_post_id ) ) {
+			return array( 'error' => 'Empty post id' );
+		}
+
+		if ( ! $edit_post_id ) {
+			wp_update_post(
+				array(
+					'ID'          => $new_post_id,
+					'post_status' => $post_status,
+				)
+			);
+		}
+
+		$permalink = get_permalink( $new_post_id );
+
+		$seo_ext_activated = false;
+
+		if ( class_exists( 'WPSEO_Meta' ) && class_exists( 'WPSEO_Admin' ) ) {
+			$seo_ext_activated = true;
+		}
+
+		$post_to_only_existing_categories = false;
+		
+		$this->create_set_custom_fields( $new_post_id, $post_custom, $seo_ext_activated, $post_to_only_existing_categories );
+		
+		// yoast seo plugin activated.
+		if ( $seo_ext_activated ) {
+			$this->create_seo_extension_activated( $new_post_id, $post_custom );
+		}
+		
+		$this->create_set_categories( $new_post_id, $post_category, $post_to_only_existing_categories );
+		
+		$this->create_featured_image( $new_post_id, $post_featured_image, $check_image_existed );
+		
+		// post plus extension process.
+		if ( $is_post_plus ) {			
+			$this->create_post_plus_categories( $new_post_id, $post_custom );			
+		} 
+
+		// to support custom post author.
+		$custom_post_author = apply_filters( 'mainwp_create_post_custom_author', false, $new_post_id );
+		if ( ! empty( $custom_post_author ) ) {
+			wp_update_post(
+				array(
+					'ID'          => $new_post_id,
+					'post_author' => $custom_post_author,
+				)
+			);
+		}
+
+		// unlock if edit post.
+		if ( $edit_post_id ) {
+			update_post_meta( $edit_post_id, '_edit_lock', '' );
+		}
+
+		$ret['success']  = true;
+		$ret['link']     = $permalink;
+		$ret['added_id'] = $new_post_id;
+
+		return $ret;
+	}
+
+	
+	private function create_wp_rocket( &$post_custom ) {		
+		// Options fields.
+		$wprocket_fields = array(
+			'lazyload',
+			'lazyload_iframes',
+			'minify_html',
+			'minify_css',
+			'minify_js',
+			'cdn',
+			'async_css',
+			'defer_all_js',
+		);
+
+		$wprocket_activated = false;
+		if ( \MainWP_Child_WP_Rocket::instance()->is_activated() ) {
+			if ( function_exists( 'get_rocket_option' ) ) {
+				$wprocket_activated = true;
+				foreach ( $wprocket_fields as $field ) {
+					if ( ! isset( $post_custom[ '_rocket_exclude_' . $field ] ) ) {
+						if ( ! get_rocket_option( $field ) ) {
+							$post_custom[ '_rocket_exclude_' . $field ] = array( true );
+						}
+					}
+				}
+			}
+		}
+		if ( ! $wprocket_activated ) {
+			foreach ( $wprocket_fields as $field ) {
+				if ( isset( $post_custom[ '_rocket_exclude_' . $field ] ) ) {
+					unset( $post_custom[ '_rocket_exclude_' . $field ] );
+				}
+			}
+		}
+	}
+	
+	private function create_found_images( &$new_post, $upload_dir, $check_image_existed ) {
+		
+		// Search for all the images added to the new post. Some images have a href tag to click to navigate to the image.. we need to replace this too.
+		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
+		if ( $foundMatches > 0 ) {
+			// We found images, now to download them so we can start balbal.
+			foreach ( $matches as $match ) {
+				$hrefLink = $match[2];
+				$imgUrl   = $match[4];
+
+				if ( ! isset( $upload_dir['baseurl'] ) || ( 0 !== strripos( $imgUrl, $upload_dir['baseurl'] ) ) ) {
+					continue;
+				}
+
+				if ( preg_match( '/-\d{3}x\d{3}\.[a-zA-Z0-9]{3,4}$/', $imgUrl, $imgMatches ) ) {
+					$search         = $imgMatches[0];
+					$replace        = '.' . $match[6];
+					$originalImgUrl = str_replace( $search, $replace, $imgUrl );
+				} else {
+					$originalImgUrl = $imgUrl;
+				}
+
+				try {
+					$downloadfile      = MainWP_Helper::upload_image( $originalImgUrl, array(), $check_image_existed );
+					$localUrl          = $downloadfile['url'];
+					$linkToReplaceWith = dirname( $localUrl );
+					if ( '' !== $hrefLink ) {
+						$server     = get_option( 'mainwp_child_server' );
+						$serverHost = wp_parse_url( $server, PHP_URL_HOST );
+						if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
+							$serverHref               = 'href="' . $serverHost;
+							$replaceServerHref        = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
+							$new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
+						}
+					}
+					$lnkToReplace = dirname( $imgUrl );
+					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
+						$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
+					}
+				} catch ( \Exception $e ) {
+					MainWP_Helper::log_debug( $e->getMessage() );
+				}
+			}
+		}
+
+	}
+	
+	private function create_has_shortcode_gallery( &$new_post ) {
+		
+		if ( has_shortcode( $new_post['post_content'], 'gallery' ) ) {
+			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
+				$replaceAttachedIds = array();
+				if ( isset( $_POST['post_gallery_images'] ) ) {
+					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+					if ( is_array( $post_gallery_images ) ) {
+						foreach ( $post_gallery_images as $gallery ) {
+							if ( isset( $gallery['src'] ) ) {
+								try {
+									$upload = MainWP_Helper::upload_image( $gallery['src'], $gallery ); // Upload image to WP.
+									if ( null !== $upload ) {
+										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
+									}
+								} catch ( \Exception $e ) {
+									// ok!
+								}
+							}
+						}
+					}
+				}
+				if ( count( $replaceAttachedIds ) > 0 ) {
+					foreach ( $matches as $match ) {
+						$idsToReplace     = $match[1];
+						$idsToReplaceWith = '';
+						$originalIds      = explode( ',', $idsToReplace );
+						foreach ( $originalIds as $attached_id ) {
+							if ( ! empty( $originalIds ) && isset( $replaceAttachedIds[ $attached_id ] ) ) {
+								$idsToReplaceWith .= $replaceAttachedIds[ $attached_id ] . ',';
+							}
+						}
+						$idsToReplaceWith = rtrim( $idsToReplaceWith, ',' );
+						if ( ! empty( $idsToReplaceWith ) ) {
+							$new_post['post_content'] = str_replace( '"' . $idsToReplace . '"', '"' . $idsToReplaceWith . '"', $new_post['post_content'] );
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	private function create_post_plus( &$new_post, $post_custom ) {		
+		$random_publish_date = isset( $post_custom['_saved_draft_random_publish_date'] ) ? $post_custom['_saved_draft_random_publish_date'] : false;
+		$random_publish_date = is_array( $random_publish_date ) ? current( $random_publish_date ) : null;
+
+		if ( ! empty( $random_publish_date ) ) {
+			$random_date_from = isset( $post_custom['_saved_draft_publish_date_from'] ) ? $post_custom['_saved_draft_publish_date_from'] : 0;
+			$random_date_from = is_array( $random_date_from ) ? current( $random_date_from ) : 0;
+
+			$random_date_to = isset( $post_custom['_saved_draft_publish_date_to'] ) ? $post_custom['_saved_draft_publish_date_to'] : 0;
+			$random_date_to = is_array( $random_date_to ) ? current( $random_date_to ) : 0;
+
+			$now = time();
+
+			if ( empty( $random_date_from ) ) {
+				$random_date_from = $now;
+			}
+
+			if ( empty( $random_date_to ) ) {
+				$random_date_to = $now;
+			}
+
+			if ( $random_date_from === $now && $random_date_from === $random_date_to ) {
+				$random_date_to = $now + 7 * 24 * 3600;
+			}
+
+			if ( $random_date_from > $random_date_to ) {
+				$tmp              = $random_date_from;
+				$random_date_from = $random_date_to;
+				$random_date_to   = $tmp;
+			}
+
+			$random_timestamp      = wp_rand( $random_date_from, $random_date_to );
+			$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp ); // phpcs:ignore -- local time.
+		}
+	}
+	
+	private function create_post_plus_categories( $new_post_id, $post_custom ) {
+		
+			$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
+			$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
+			$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+			$random_privelege      = maybe_unserialize( $random_privelege_base );
+
+			if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
+				$random_post_authors = array();
+				foreach ( $random_privelege as $role ) {
+					$users = get_users( array( 'role' => $role ) );
+					foreach ( $users as $user ) {
+						$random_post_authors[] = $user->ID;
+					}
+				}
+				if ( count( $random_post_authors ) > 0 ) {
+					shuffle( $random_post_authors );
+					$key = array_rand( $random_post_authors );
+					wp_update_post(
+						array(
+							'ID'          => $new_post_id,
+							'post_author' => $random_post_authors[ $key ],
+						)
+					);
+				}
+			}
+
+			$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
+			$random_category = is_array( $random_category ) ? current( $random_category ) : null;
+			if ( ! empty( $random_category ) ) {
+				$cats        = get_categories(
+					array(
+						'type'       => 'post',
+						'hide_empty' => 0,
+					)
+				);
+				$random_cats = array();
+				if ( is_array( $cats ) ) {
+					foreach ( $cats as $cat ) {
+						$random_cats[] = $cat->term_id;
+					}
+				}
+				if ( count( $random_cats ) > 0 ) {
+					shuffle( $random_cats );
+					$key = array_rand( $random_cats );
+					wp_set_post_categories( $new_post_id, array( $random_cats[ $key ] ), false );
+				}
+			}
+	}		
+
+	private function create_set_categories ( $new_post_id, $post_category, $post_to_only ) {
+		
+		// If categories exist, create them (second parameter of wp_create_categories adds the categories to the post).
+		include_once ABSPATH . 'wp-admin/includes/taxonomy.php'; // Contains wp_create_categories.
+		if ( isset( $post_category ) && '' !== $post_category ) {
+			$categories = explode( ',', $post_category );
+			if ( count( $categories ) > 0 ) {
+				if ( ! $post_to_only ) {
+					$post_category = wp_create_categories( $categories, $new_post_id );
+				} else {
+					$cat_ids = array();
+					foreach ( $categories as $cat ) {
+						$id = category_exists( $cat );
+						if ( $id ) {
+							$cat_ids[] = $id;
+						}
+					}
+					if ( count( $cat_ids ) > 0 ) {
+						wp_set_post_categories( $new_post_id, $cat_ids );
+					}
+				}
+			}
+		}
+	}	
+	
+	private function create_set_custom_fields( $new_post_id, $post_custom, $seo_ext_activated, &$post_to_only ) {
+		
+		// Set custom fields.
+		$not_allowed   = array(
+			'_slug',
+			'_tags',
+			'_edit_lock',
+			'_selected_sites',
+			'_selected_groups',
+			'_selected_by',
+			'_categories',
+			'_edit_last',
+			'_sticky',
+			'_mainwp_post_dripper',
+			'_bulkpost_do_not_del',
+			'_mainwp_spin_me',
+		);
+		$not_allowed[] = '_mainwp_boilerplate_sites_posts';
+		$not_allowed[] = '_ezine_post_keyword';
+		$not_allowed[] = '_ezine_post_display_sig';
+		$not_allowed[] = '_ezine_post_remove_link';
+		$not_allowed[] = '_ezine_post_grab_image';
+		$not_allowed[] = '_ezine_post_grab_image_placement';
+		$not_allowed[] = '_ezine_post_template_id';
+
+		$not_allowed[] = '_mainwp_post_plus';
+		$not_allowed[] = '_saved_as_draft';
+		$not_allowed[] = '_saved_draft_categories';
+		$not_allowed[] = '_saved_draft_tags';
+		$not_allowed[] = '_saved_draft_random_privelege';
+		$not_allowed[] = '_saved_draft_random_category';
+		$not_allowed[] = '_saved_draft_random_publish_date';
+		$not_allowed[] = '_saved_draft_publish_date_from';
+		$not_allowed[] = '_saved_draft_publish_date_to';
+		$not_allowed[] = '_post_to_only_existing_categories';
+		$not_allowed[] = '_mainwp_edit_post_site_id';
+		$not_allowed[] = '_mainwp_edit_post_id';
+		$not_allowed[] = '_edit_post_status';
+		
+		
+		if ( is_array( $post_custom ) ) {
+			foreach ( $post_custom as $meta_key => $meta_values ) {
+				if ( ! in_array( $meta_key, $not_allowed ) ) {
+					foreach ( $meta_values as $meta_value ) {
+						if ( 0 === strpos( $meta_key, '_mainwp_spinner_' ) ) {
+							continue;
+						}
+
+						if ( ! $seo_ext_activated ) {
+							// if WordPress SEO plugin is not activated do not save yoast post meta.
+							if ( false === strpos( $meta_key, '_yoast_wpseo_' ) ) {
+								update_post_meta( $new_post_id, $meta_key, $meta_value );
+							}
+						} else {
+							update_post_meta( $new_post_id, $meta_key, $meta_value );
+						}
+					}
+				} elseif ( '_sticky' === $meta_key ) {
+					foreach ( $meta_values as $meta_value ) {
+						if ( 'sticky' === base64_decode( $meta_value ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+							stick_post( $new_post_id );
+						}
+					}
+				} elseif ( '_post_to_only_existing_categories' === $meta_key ) {
+					if ( isset( $meta_values[0] ) && $meta_values[0] ) {
+						$post_to_only = true;
+					}
+				}
+			}
+		}
+	}
+	
+	private function create_seo_extension_activated( $new_post_id, $post_custom ) {
+		
+		$_seo_opengraph_image = isset( $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
+		$_seo_opengraph_image = current( $_seo_opengraph_image );
+		$_server_domain       = '';
+		$_server              = get_option( 'mainwp_child_server' );
+		if ( preg_match( '/(https?:\/\/[^\/]+\/).+/', $_server, $matchs ) ) {
+			$_server_domain = isset( $matchs[1] ) ? $matchs[1] : '';
+		}
+
+		// upload image if it on the server.
+		if ( ! empty( $_seo_opengraph_image ) && false !== strpos( $_seo_opengraph_image, $_server_domain ) ) {
+			try {
+				$upload = MainWP_Helper::upload_image( $_seo_opengraph_image ); // Upload image to WP.
+				if ( null !== $upload ) {
+					update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
+				}
+			} catch ( \Exception $e ) {
+				// ok!
+			}
+		}
+	}
+		
+	private function create_featured_image( $new_post_id, $post_featured_image, $check_image_existed ){
+		
+		$featured_image_exist = false;		
+		// If featured image exists - set it.
+		if ( null !== $post_featured_image ) {
+			try {
+				$upload = MainWP_Helper::upload_image( $post_featured_image, array(), $check_image_existed, $new_post_id ); // Upload image to WP.
+				if ( null !== $upload ) {
+					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); // Add the thumbnail to the post!
+					$featured_image_exist = true;
+					if ( isset( $others['featured_image_data'] ) ) {
+						$_image_data = $others['featured_image_data'];
+						update_post_meta( $upload['id'], '_wp_attachment_image_alt', $_image_data['alt'] );
+						wp_update_post(
+							array(
+								'ID'           => $upload['id'],
+								'post_excerpt' => $_image_data['caption'],
+								'post_content' => $_image_data['description'],
+								'post_title'   => $_image_data['title'],
+							)
+						);
+					}
+				}
+			} catch ( \Exception $e ) {
+				// ok!
+			}
+		}
+
+		if ( ! $featured_image_exist ) {
+			delete_post_meta( $new_post_id, '_thumbnail_id' );
+		}
+	}
+	
 }

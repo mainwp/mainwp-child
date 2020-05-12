@@ -579,21 +579,9 @@ class MainWP_Client_Report {
 
 	public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
-		$maintenance_details = array(
-			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
-			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
-			'autodraft'     => __( 'Delete all auto draft posts', 'mainwp-child' ),
-			'trashpost'     => __( 'Delete trash posts', 'mainwp-child' ),
-			'spam'          => __( 'Delete spam comments', 'mainwp-child' ),
-			'pending'       => __( 'Delete pending comments', 'mainwp-child' ),
-			'trashcomment'  => __( 'Delete trash comments', 'mainwp-child' ),
-			'tags'          => __( 'Delete tags with 0 posts associated', 'mainwp-child' ),
-			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
-			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
-		);
-
 		$context   = '';
 		$action    = '';
+		
 		$str_tmp   = str_replace( array( '[', ']' ), '', $section );
 		$array_tmp = explode( '.', $str_tmp );
 		if ( is_array( $array_tmp ) ) {
@@ -617,10 +605,27 @@ class MainWP_Client_Report {
 				$context = 'users'; // see class-connector-user.php.
 			}
 		}
+		
+		return $this->get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records );		
+	}
 
-		$loops      = array();
-		$loop_count = 0;
-
+	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {		
+		
+		$maintenance_details = array(
+			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
+			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
+			'autodraft'     => __( 'Delete all auto draft posts', 'mainwp-child' ),
+			'trashpost'     => __( 'Delete trash posts', 'mainwp-child' ),
+			'spam'          => __( 'Delete spam comments', 'mainwp-child' ),
+			'pending'       => __( 'Delete pending comments', 'mainwp-child' ),
+			'trashcomment'  => __( 'Delete trash comments', 'mainwp-child' ),
+			'tags'          => __( 'Delete tags with 0 posts associated', 'mainwp-child' ),
+			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
+			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
+		);
+		
+		$loops      = array();		
+		$loop_count = 0;		
 		foreach ( $records as $record ) {
 
 			if ( in_array( $record->ID, $skip_records ) ) {
@@ -682,6 +687,7 @@ class MainWP_Client_Report {
 			$token_values = array();
 
 			foreach ( $tokens as $token ) {
+				
 				$data       = '';
 				$token_name = str_replace( array( '[', ']' ), '', $token );
 				$array_tmp  = explode( '.', $token_name );
@@ -710,162 +716,171 @@ class MainWP_Client_Report {
 					$data = 'roles';
 				}
 
-				switch ( $data ) {
-					case 'ID':
-						$tok_value = $record->ID;
-						break;
-					case 'date':
-						$tok_value = MainWP_Helper::format_date( MainWP_Helper::get_timestamp( strtotime( $record->created ) ) );
-						break;
-					case 'time':
-						$tok_value = MainWP_Helper::format_time( MainWP_Helper::get_timestamp( strtotime( $record->created ) ) );
-						break;
-					case 'area':
-						$data      = 'sidebar_name';
-						$tok_value = $this->get_stream_meta_data( $record, $data );
-						break;
-					case 'name':
-					case 'version':
-					case 'old_version':
-					case 'new_version':
-					case 'display_name':
-					case 'roles':
-						if ( 'name' == $data ) {
-							if ( 'profiles' == $context ) {
-								$data = 'display_name';
-							}
-						}
-							$tok_value = $this->get_stream_meta_data( $record, $data );
-						break;
-					case 'title':
-						if ( 'comments' === $context ) {
-							$tok_value = $record->summary;
-						} else {
-							if ( 'page' === $context || 'post' === $context ) {
-								$data = 'post_title';
-							} elseif ( 'menus' === $record->connector ) {
-								$data = 'name';
-							}
-							$tok_value = $this->get_stream_meta_data( $record, $data );
-						}
-						break;
-					case 'author':
-						if ( 'comment' == $connector ) {
-							$data = 'user_name';
-						} else {
-							$data = 'user_meta';
-						}
-
-						$value = $this->get_stream_meta_data( $record, $data );
-
-						if ( empty( $value ) && 'comments' === $context ) {
-							$value = __( 'Guest', 'mainwp-child' );
-						}
-
-						// check compatibility with old meta data.
-						if ( empty( $value ) ) {
-							$value = $this->get_stream_meta_data( $record, 'author_meta' );
-						}
-
-						$tok_value = $value;
-						break;
-					case 'status':
-					case 'webtrust':
-						if ( 'sucuri_scan' === $context ) {
-							$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
-							if ( ! empty( $scan_data ) ) {
-								$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-								if ( is_array( $scan_data ) ) {
-
-									$blacklisted    = $scan_data['blacklisted'];
-									$malware_exists = $scan_data['malware_exists'];
-
-									$status = array();
-									if ( $blacklisted ) {
-										$status[] = __( 'Site Blacklisted', 'mainwp-child' ); }
-									if ( $malware_exists ) {
-										$status[] = __( 'Site With Warnings', 'mainwp-child' ); }
-
-									if ( 'status' == $data ) {
-										$tok_value = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
-									} elseif ( 'webtrust' == $data ) {
-										$tok_value = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
-									}
-								}
-							} else {
-								$tok_value = $this->get_stream_meta_data( $record, $data );
-							}
-						} else {
-							$tok_value = $value;
-						}
-						break;
-					case 'details':
-					case 'result':
-						if ( 'mainwp_maintenance' === $context && 'details' == $data ) {
-
-							$meta_value = $this->get_stream_meta_data( $record, $data );
-							$meta_value = explode( ',', $meta_value );
-
-							$details = array();
-
-							if ( is_array( $meta_value ) ) {
-								foreach ( $meta_value as $mt ) {
-									if ( isset( $maintenance_details[ $mt ] ) ) {
-										if ( 'revisions_max' == $mt ) {
-											$max_revisions = $this->get_stream_meta_data( $record, 'revisions' );
-											$dtl           = $maintenance_details['revisions_max'] . ' ' . $max_revisions;
-										} else {
-											$dtl = $maintenance_details[ $mt ];
-										}
-										$details[] = $dtl;
-									}
-								}
-							}
-							$tok_value = implode( ', ', $details );
-
-						} elseif ( 'wordfence_scan' === $context || 'mainwp_maintenance' === $context ) {
-							$meta_value = $this->get_stream_meta_data( $record, $data );
-							if ( 'wordfence_scan' === $context && 'result' == $data ) {
-								// SUM_FINAL:Scan complete. You have xxx new issues to fix. See below.
-								// SUM_FINAL:Scan complete. Congratulations, no new problems found.
-								if ( stripos( $meta_value, 'Congratulations' ) ) {
-									$meta_value = 'No issues detected';
-								} elseif ( stripos( $meta_value, 'You have' ) ) {
-									$meta_value = 'Issues Detected';
-								} else {
-									$meta_value = '';
-								}
-							}
-							$tok_value = $meta_value;
-						}
-						break;
-					case 'type':
-						if ( 'backups' === $context ) {
-							$tok_value = $this->get_stream_meta_data( $record, $data );
-						} else {
-							$tok_value = $token;
-						}
-						break;
-					default:
-						$tok_value = 'N/A';
-						break;
-				}
-
+				$tok_value = $this->get_section_loop_token_value( $record, $data, $context, $token );
+				
 				$token_values[ $token ] = $tok_value;
 
 				if ( empty( $tok_value ) ) {
-					if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === true ) {
-						error_log( 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true ) ); // phpcs:ignore -- debug mode only.
-					}
+					$msg = 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true );  // phpcs:ignore -- debug mode only.
+					MainWP_Helper::log_debug( $msg ); 
 				}
+				
 			}
 
 			if ( ! empty( $token_values ) ) {
 				$loops[ $loop_count ] = $token_values;
 				$loop_count ++;
 			}
+		}		
+		return $loops;		
+	}
+	
+	public function get_section_loop_token_value( $record, $data, $context, $token ) {
+		
+		$tok_value = '';
+		
+		switch ( $data ) {
+			case 'ID':
+				$tok_value = $record->ID;
+				break;
+			case 'date':
+				$tok_value = MainWP_Helper::format_date( MainWP_Helper::get_timestamp( strtotime( $record->created ) ) );
+				break;
+			case 'time':
+				$tok_value = MainWP_Helper::format_time( MainWP_Helper::get_timestamp( strtotime( $record->created ) ) );
+				break;
+			case 'area':
+				$data      = 'sidebar_name';
+				$tok_value = $this->get_stream_meta_data( $record, $data );
+				break;
+			case 'name':
+			case 'version':
+			case 'old_version':
+			case 'new_version':
+			case 'display_name':
+			case 'roles':
+				if ( 'name' == $data ) {
+					if ( 'profiles' == $context ) {
+						$data = 'display_name';
+					}
+				}
+					$tok_value = $this->get_stream_meta_data( $record, $data );
+				break;
+			case 'title':
+				if ( 'comments' === $context ) {
+					$tok_value = $record->summary;
+				} else {
+					if ( 'page' === $context || 'post' === $context ) {
+						$data = 'post_title';
+					} elseif ( 'menus' === $record->connector ) {
+						$data = 'name';
+					}
+					$tok_value = $this->get_stream_meta_data( $record, $data );
+				}
+				break;
+			case 'author':
+				if ( 'comment' == $connector ) {
+					$data = 'user_name';
+				} else {
+					$data = 'user_meta';
+				}
+
+				$value = $this->get_stream_meta_data( $record, $data );
+
+				if ( empty( $value ) && 'comments' === $context ) {
+					$value = __( 'Guest', 'mainwp-child' );
+				}
+
+				// check compatibility with old meta data.
+				if ( empty( $value ) ) {
+					$value = $this->get_stream_meta_data( $record, 'author_meta' );
+				}
+
+				$tok_value = $value;
+				break;
+			case 'status':
+			case 'webtrust':
+				if ( 'sucuri_scan' === $context ) {
+					$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
+					if ( ! empty( $scan_data ) ) {
+						$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+						if ( is_array( $scan_data ) ) {
+
+							$blacklisted    = $scan_data['blacklisted'];
+							$malware_exists = $scan_data['malware_exists'];
+
+							$status = array();
+							if ( $blacklisted ) {
+								$status[] = __( 'Site Blacklisted', 'mainwp-child' ); }
+							if ( $malware_exists ) {
+								$status[] = __( 'Site With Warnings', 'mainwp-child' ); }
+
+							if ( 'status' == $data ) {
+								$tok_value = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
+							} elseif ( 'webtrust' == $data ) {
+								$tok_value = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
+							}
+						}
+					} else {
+						$tok_value = $this->get_stream_meta_data( $record, $data );
+					}
+				} else {
+					$tok_value = $value;
+				}
+				break;
+			case 'details':
+			case 'result':
+				if ( 'mainwp_maintenance' === $context && 'details' == $data ) {
+
+					$meta_value = $this->get_stream_meta_data( $record, $data );
+					$meta_value = explode( ',', $meta_value );
+
+					$details = array();
+
+					if ( is_array( $meta_value ) ) {
+						foreach ( $meta_value as $mt ) {
+							if ( isset( $maintenance_details[ $mt ] ) ) {
+								if ( 'revisions_max' == $mt ) {
+									$max_revisions = $this->get_stream_meta_data( $record, 'revisions' );
+									$dtl           = $maintenance_details['revisions_max'] . ' ' . $max_revisions;
+								} else {
+									$dtl = $maintenance_details[ $mt ];
+								}
+								$details[] = $dtl;
+							}
+						}
+					}
+					$tok_value = implode( ', ', $details );
+
+				} elseif ( 'wordfence_scan' === $context || 'mainwp_maintenance' === $context ) {
+					$meta_value = $this->get_stream_meta_data( $record, $data );
+					if ( 'wordfence_scan' === $context && 'result' == $data ) {
+						// SUM_FINAL:Scan complete. You have xxx new issues to fix. See below.
+						// SUM_FINAL:Scan complete. Congratulations, no new problems found.
+						if ( stripos( $meta_value, 'Congratulations' ) ) {
+							$meta_value = 'No issues detected';
+						} elseif ( stripos( $meta_value, 'You have' ) ) {
+							$meta_value = 'Issues Detected';
+						} else {
+							$meta_value = '';
+						}
+					}
+					$tok_value = $meta_value;
+				}
+				break;
+			case 'type':
+				if ( 'backups' === $context ) {
+					$tok_value = $this->get_stream_meta_data( $record, $data );
+				} else {
+					$tok_value = $token;
+				}
+				break;
+			default:
+				$tok_value = 'N/A';
+				break;
 		}
-		return $loops;
+		
+		return $tok_value;
 	}
 
 	public function get_stream_meta_data( $record, $data ) {
