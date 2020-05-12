@@ -602,128 +602,128 @@ class MainWP_Clone_Install {
 
 		return $data;
 	}
-	
+
 	public function request_clone_funct() {
-			
-			if ( ! isset( $_REQUEST['key'] ) ) {
-				return;
-			}
-			if ( ! isset( $_REQUEST['f'] ) || ( '' === $_REQUEST['f'] ) ) {
-				return;
-			}
-			if ( ! $this->is_valid_auth( $_REQUEST['key'] ) ) {
-				return;
-			}
-			
+
+		if ( ! isset( $_REQUEST['key'] ) ) {
+			return;
+		}
+		if ( ! isset( $_REQUEST['f'] ) || ( '' === $_REQUEST['f'] ) ) {
+			return;
+		}
+		if ( ! $this->is_valid_auth( $_REQUEST['key'] ) ) {
+			return;
+		}
+
 			global $mainWPChild;
-			
-			if ( 'dl' === $_REQUEST['cloneFunc'] ) {
-				$mainWPChild->upload_file( $_REQUEST['f'] );
-				exit;
-			} elseif ( 'deleteCloneBackup' === $_POST['cloneFunc'] ) {
-				$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-				$backupdir = $dirs[0];
-				$result    = glob( $backupdir . $_POST['f'] );
-				if ( 0 === count( $result ) ) {
-					return;
-				}
 
-				unlink( $result[0] );
-				mainwp_child_helper()->write( array( 'result' => 'ok' ) );
-			} elseif ( 'createCloneBackupPoll' === $_POST['cloneFunc'] ) {
-				$dirs        = MainWP_Helper::get_mainwp_dir( 'backup' );
-				$backupdir   = $dirs[0];
-				$result      = glob( $backupdir . 'backup-' . $_POST['f'] . '-*' );
-				$archiveFile = false;
-				foreach ( $result as $file ) {
-					if ( MainWP_Helper::is_archive( $file, 'backup-' . $_POST['f'] . '-' ) ) {
-						$archiveFile = $file;
-						break;
-					}
-				}
-				if ( false === $archiveFile ) {
-					return;
-				}
+		if ( 'dl' === $_REQUEST['cloneFunc'] ) {
+			$mainWPChild->upload_file( $_REQUEST['f'] );
+			exit;
+		} elseif ( 'deleteCloneBackup' === $_POST['cloneFunc'] ) {
+			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+			$backupdir = $dirs[0];
+			$result    = glob( $backupdir . $_POST['f'] );
+			if ( 0 === count( $result ) ) {
+				return;
+			}
 
-				mainwp_child_helper()->write( array( 'size' => filesize( $archiveFile ) ) );
-			} elseif ( 'createCloneBackup' === $_POST['cloneFunc'] ) {
-				MainWP_Helper::end_session();
+			unlink( $result[0] );
+			mainwp_child_helper()->write( array( 'result' => 'ok' ) );
+		} elseif ( 'createCloneBackupPoll' === $_POST['cloneFunc'] ) {
+			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup' );
+			$backupdir   = $dirs[0];
+			$result      = glob( $backupdir . 'backup-' . $_POST['f'] . '-*' );
+			$archiveFile = false;
+			foreach ( $result as $file ) {
+				if ( MainWP_Helper::is_archive( $file, 'backup-' . $_POST['f'] . '-' ) ) {
+					$archiveFile = $file;
+					break;
+				}
+			}
+			if ( false === $archiveFile ) {
+				return;
+			}
 
-				$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
-				foreach ( $files as $file ) {
-					unlink( $file );
-				}
-				if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
-					unlink( ABSPATH . 'clone/config.txt' );
-				}
-				if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
-					rmdir( ABSPATH . 'clone' );
-				}
+			mainwp_child_helper()->write( array( 'size' => filesize( $archiveFile ) ) );
+		} elseif ( 'createCloneBackup' === $_POST['cloneFunc'] ) {
+			MainWP_Helper::end_session();
 
-				$wpversion = $_POST['wpversion'];
-				global $wp_version;
-				$includeCoreFiles = ( $wpversion !== $wp_version );
-				$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
-				$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
-				$uploadDir        = MainWP_Helper::get_mainwp_dir();
-				$uploadDir        = $uploadDir[0];
-				$excludes[]       = str_replace( ABSPATH, '', $uploadDir );
-				$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
-				if ( version_compare( phpversion(), '5.3.0' ) >= 0 || ! ini_get( 'safe_mode' ) ) {
-					set_time_limit( 6000 );
-				}
+			$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+			foreach ( $files as $file ) {
+				unlink( $file );
+			}
+			if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
+				unlink( ABSPATH . 'clone/config.txt' );
+			}
+			if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
+				rmdir( ABSPATH . 'clone' );
+			}
 
-				$newExcludes = array();
-				foreach ( $excludes as $exclude ) {
-					$newExcludes[] = rtrim( $exclude, '/' );
-				}
+			$wpversion = $_POST['wpversion'];
+			global $wp_version;
+			$includeCoreFiles = ( $wpversion !== $wp_version );
+			$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
+			$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
+			$uploadDir        = MainWP_Helper::get_mainwp_dir();
+			$uploadDir        = $uploadDir[0];
+			$excludes[]       = str_replace( ABSPATH, '', $uploadDir );
+			$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
+			if ( version_compare( phpversion(), '5.3.0' ) >= 0 || ! ini_get( 'safe_mode' ) ) {
+				set_time_limit( 6000 );
+			}
 
-				$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : $_POST['zipmethod'] );
-				if ( 'tar.gz' === $method && ! function_exists( 'gzopen' ) ) {
-					$method = 'zip';
-				}
+			$newExcludes = array();
+			foreach ( $excludes as $exclude ) {
+				$newExcludes[] = rtrim( $exclude, '/' );
+			}
 
-				$res = MainWP_Backup::get()->create_full_backup( $newExcludes, ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] ), true, $includeCoreFiles, 0, false, false, false, false, $method );
-				if ( ! $res ) {
-					$information['backup'] = false;
-				} else {
-					$information['backup'] = $res['file'];
-					$information['size']   = $res['filesize'];
-				}
+			$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : $_POST['zipmethod'] );
+			if ( 'tar.gz' === $method && ! function_exists( 'gzopen' ) ) {
+				$method = 'zip';
+			}
 
-				$plugins = array();
-				$dir     = WP_CONTENT_DIR . '/plugins/';
-				$fh      = opendir( $dir );
-				$entry   = readdir( $fh );
-				while ( $entry ) {
-					if ( ! is_dir( $dir . $entry ) ) {
-						continue;
-					}
-					if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-						continue;
-					}
-					$plugins[] = $entry;
-				}
-				closedir( $fh );
-				$information['plugins'] = $plugins;
+			$res = MainWP_Backup::get()->create_full_backup( $newExcludes, ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] ), true, $includeCoreFiles, 0, false, false, false, false, $method );
+			if ( ! $res ) {
+				$information['backup'] = false;
+			} else {
+				$information['backup'] = $res['file'];
+				$information['size']   = $res['filesize'];
+			}
 
-				$themes = array();
-				$dir    = WP_CONTENT_DIR . '/themes/';
-				$fh     = opendir( $dir );
-				while ( $entry = readdir( $fh ) ) {
-					if ( ! is_dir( $dir . $entry ) ) {
-						continue;
-					}
-					if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-						continue;
-					}
-					$themes[] = $entry;
+			$plugins = array();
+			$dir     = WP_CONTENT_DIR . '/plugins/';
+			$fh      = opendir( $dir );
+			$entry   = readdir( $fh );
+			while ( $entry ) {
+				if ( ! is_dir( $dir . $entry ) ) {
+					continue;
 				}
-				closedir( $fh );
-				$information['themes'] = $themes;
+				if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+					continue;
+				}
+				$plugins[] = $entry;
+			}
+			closedir( $fh );
+			$information['plugins'] = $plugins;
 
-				mainwp_child_helper()->write( $information );
-			}					
+			$themes = array();
+			$dir    = WP_CONTENT_DIR . '/themes/';
+			$fh     = opendir( $dir );
+			while ( $entry = readdir( $fh ) ) {
+				if ( ! is_dir( $dir . $entry ) ) {
+					continue;
+				}
+				if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+					continue;
+				}
+				$themes[] = $entry;
+			}
+			closedir( $fh );
+			$information['themes'] = $themes;
+
+			mainwp_child_helper()->write( $information );
+		}
 			return true;
 	}
 }

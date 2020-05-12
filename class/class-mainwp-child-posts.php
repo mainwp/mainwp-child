@@ -655,10 +655,10 @@ class MainWP_Child_Posts {
 		return $allComments;
 	}
 
-	
-	
+
+
 	private function create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
-		
+
 		global $current_user;
 
 		/**
@@ -673,8 +673,8 @@ class MainWP_Child_Posts {
 		*/
 
 		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
-		
-		$this->create_wp_rocket( $post_custom );		
+
+		$this->create_wp_rocket( $post_custom );
 
 		// current user may be connected admin or alternative admin.
 		$current_uid = $current_user->ID;
@@ -696,7 +696,7 @@ class MainWP_Child_Posts {
 		$new_post['post_author'] = $post_author;
 
 		unset( $new_post['_ezin_post_category'] );
-		
+
 		// post plus extension process.
 		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 
@@ -731,12 +731,12 @@ class MainWP_Child_Posts {
 		if ( $edit_post_id ) {
 			$check_image_existed = true; // if editing post then will check if image existed.
 		}
-		
-		$this->create_found_images( $new_post, $upload_dir, $check_image_existed );		
-		$this->create_has_shortcode_gallery( $new_post );		
 
-		if ( $is_post_plus ) {			
-			$this->create_post_plus( $new_post, $post_custom  );			
+		$this->create_found_images( $new_post, $upload_dir, $check_image_existed );
+		$this->create_has_shortcode_gallery( $new_post );
+
+		if ( $is_post_plus ) {
+			$this->create_post_plus( $new_post, $post_custom  );
 		}
 
 		if ( isset( $post_tags ) && '' !== $post_tags ) {
@@ -786,22 +786,22 @@ class MainWP_Child_Posts {
 		}
 
 		$post_to_only_existing_categories = false;
-		
+
 		$this->create_set_custom_fields( $new_post_id, $post_custom, $seo_ext_activated, $post_to_only_existing_categories );
-		
+
 		// yoast seo plugin activated.
 		if ( $seo_ext_activated ) {
 			$this->create_seo_extension_activated( $new_post_id, $post_custom );
 		}
-		
+
 		$this->create_set_categories( $new_post_id, $post_category, $post_to_only_existing_categories );
-		
+
 		$this->create_featured_image( $new_post_id, $post_featured_image, $check_image_existed );
-		
+
 		// post plus extension process.
-		if ( $is_post_plus ) {			
-			$this->create_post_plus_categories( $new_post_id, $post_custom );			
-		} 
+		if ( $is_post_plus ) {
+			$this->create_post_plus_categories( $new_post_id, $post_custom );
+		}
 
 		// to support custom post author.
 		$custom_post_author = apply_filters( 'mainwp_create_post_custom_author', false, $new_post_id );
@@ -826,8 +826,8 @@ class MainWP_Child_Posts {
 		return $ret;
 	}
 
-	
-	private function create_wp_rocket( &$post_custom ) {		
+
+	private function create_wp_rocket( &$post_custom ) {
 		// Options fields.
 		$wprocket_fields = array(
 			'lazyload',
@@ -861,9 +861,9 @@ class MainWP_Child_Posts {
 			}
 		}
 	}
-	
+
 	private function create_found_images( &$new_post, $upload_dir, $check_image_existed ) {
-		
+
 		// Search for all the images added to the new post. Some images have a href tag to click to navigate to the image.. we need to replace this too.
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
 		if ( $foundMatches > 0 ) {
@@ -906,11 +906,10 @@ class MainWP_Child_Posts {
 				}
 			}
 		}
-
 	}
-	
+
 	private function create_has_shortcode_gallery( &$new_post ) {
-		
+
 		if ( has_shortcode( $new_post['post_content'], 'gallery' ) ) {
 			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
 				$replaceAttachedIds = array();
@@ -950,8 +949,8 @@ class MainWP_Child_Posts {
 			}
 		}
 	}
-	
-	private function create_post_plus( &$new_post, $post_custom ) {		
+
+	private function create_post_plus( &$new_post, $post_custom ) {
 		$random_publish_date = isset( $post_custom['_saved_draft_random_publish_date'] ) ? $post_custom['_saved_draft_random_publish_date'] : false;
 		$random_publish_date = is_array( $random_publish_date ) ? current( $random_publish_date ) : null;
 
@@ -986,59 +985,59 @@ class MainWP_Child_Posts {
 			$new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp ); // phpcs:ignore -- local time.
 		}
 	}
-	
+
 	private function create_post_plus_categories( $new_post_id, $post_custom ) {
-		
+
 			$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
 			$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
 			$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$random_privelege      = maybe_unserialize( $random_privelege_base );
 
-			if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
-				$random_post_authors = array();
-				foreach ( $random_privelege as $role ) {
-					$users = get_users( array( 'role' => $role ) );
-					foreach ( $users as $user ) {
-						$random_post_authors[] = $user->ID;
-					}
-				}
-				if ( count( $random_post_authors ) > 0 ) {
-					shuffle( $random_post_authors );
-					$key = array_rand( $random_post_authors );
-					wp_update_post(
-						array(
-							'ID'          => $new_post_id,
-							'post_author' => $random_post_authors[ $key ],
-						)
-					);
+		if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
+			$random_post_authors = array();
+			foreach ( $random_privelege as $role ) {
+				$users = get_users( array( 'role' => $role ) );
+				foreach ( $users as $user ) {
+					$random_post_authors[] = $user->ID;
 				}
 			}
+			if ( count( $random_post_authors ) > 0 ) {
+				shuffle( $random_post_authors );
+				$key = array_rand( $random_post_authors );
+				wp_update_post(
+					array(
+						'ID'          => $new_post_id,
+						'post_author' => $random_post_authors[ $key ],
+					)
+				);
+			}
+		}
 
 			$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
 			$random_category = is_array( $random_category ) ? current( $random_category ) : null;
-			if ( ! empty( $random_category ) ) {
-				$cats        = get_categories(
-					array(
-						'type'       => 'post',
-						'hide_empty' => 0,
-					)
-				);
-				$random_cats = array();
-				if ( is_array( $cats ) ) {
-					foreach ( $cats as $cat ) {
-						$random_cats[] = $cat->term_id;
-					}
-				}
-				if ( count( $random_cats ) > 0 ) {
-					shuffle( $random_cats );
-					$key = array_rand( $random_cats );
-					wp_set_post_categories( $new_post_id, array( $random_cats[ $key ] ), false );
+		if ( ! empty( $random_category ) ) {
+			$cats        = get_categories(
+				array(
+					'type'       => 'post',
+					'hide_empty' => 0,
+				)
+			);
+			$random_cats = array();
+			if ( is_array( $cats ) ) {
+				foreach ( $cats as $cat ) {
+					$random_cats[] = $cat->term_id;
 				}
 			}
-	}		
+			if ( count( $random_cats ) > 0 ) {
+				shuffle( $random_cats );
+				$key = array_rand( $random_cats );
+				wp_set_post_categories( $new_post_id, array( $random_cats[ $key ] ), false );
+			}
+		}
+	}
 
-	private function create_set_categories ( $new_post_id, $post_category, $post_to_only ) {
-		
+	private function create_set_categories( $new_post_id, $post_category, $post_to_only ) {
+
 		// If categories exist, create them (second parameter of wp_create_categories adds the categories to the post).
 		include_once ABSPATH . 'wp-admin/includes/taxonomy.php'; // Contains wp_create_categories.
 		if ( isset( $post_category ) && '' !== $post_category ) {
@@ -1060,10 +1059,10 @@ class MainWP_Child_Posts {
 				}
 			}
 		}
-	}	
-	
+	}
+
 	private function create_set_custom_fields( $new_post_id, $post_custom, $seo_ext_activated, &$post_to_only ) {
-		
+
 		// Set custom fields.
 		$not_allowed   = array(
 			'_slug',
@@ -1100,8 +1099,7 @@ class MainWP_Child_Posts {
 		$not_allowed[] = '_mainwp_edit_post_site_id';
 		$not_allowed[] = '_mainwp_edit_post_id';
 		$not_allowed[] = '_edit_post_status';
-		
-		
+
 		if ( is_array( $post_custom ) ) {
 			foreach ( $post_custom as $meta_key => $meta_values ) {
 				if ( ! in_array( $meta_key, $not_allowed ) ) {
@@ -1133,9 +1131,9 @@ class MainWP_Child_Posts {
 			}
 		}
 	}
-	
+
 	private function create_seo_extension_activated( $new_post_id, $post_custom ) {
-		
+
 		$_seo_opengraph_image = isset( $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
 		$_seo_opengraph_image = current( $_seo_opengraph_image );
 		$_server_domain       = '';
@@ -1156,10 +1154,10 @@ class MainWP_Child_Posts {
 			}
 		}
 	}
-		
-	private function create_featured_image( $new_post_id, $post_featured_image, $check_image_existed ){
-		
-		$featured_image_exist = false;		
+
+	private function create_featured_image( $new_post_id, $post_featured_image, $check_image_existed ) {
+
+		$featured_image_exist = false;
 		// If featured image exists - set it.
 		if ( null !== $post_featured_image ) {
 			try {
@@ -1189,5 +1187,5 @@ class MainWP_Child_Posts {
 			delete_post_meta( $new_post_id, '_thumbnail_id' );
 		}
 	}
-	
+
 }
