@@ -125,7 +125,7 @@ class MainWP_Helper {
 		if ( null !== $code ) {
 			$information['error_code'] = $code;
 		}
-		self::write( $information );
+		self::instance()->write( $information );
 	}
 
 	/**
@@ -519,7 +519,7 @@ class MainWP_Helper {
 						$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
 					}
 				} catch ( \Exception $e ) {
-					error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
+					MainWP_Helper::log_debug( $e->getMessage() );						
 				}
 			}
 		}
@@ -1004,19 +1004,21 @@ class MainWP_Helper {
 
 
 	public static function check_wp_filesystem() {
-
+		
+		$FTP_ERROR = 'Failed! Please, add FTP details for automatic updates.';
+		
 		self::get_wp_filesystem();
+		
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
-			self::error( $this->FTP_ERROR );
+			self::error( $FTP_ERROR );
 		} elseif ( is_wp_error( $wp_filesystem->errors ) ) {
 			$errorCodes = $wp_filesystem->errors->get_error_codes();
 			if ( ! empty( $errorCodes ) ) {
 				self::error( __( 'WordPress Filesystem error: ', 'mainwp-child' ) . $wp_filesystem->errors->get_error_message() );
 			}
 		}
-
 		return $wp_filesystem;
 	}
 
@@ -1751,7 +1753,7 @@ class MainWP_Helper {
 			// handle fatal errors and compile errors.
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && isset( $error['message'] ) && ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] ) ) {
-				self::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+				self::instance()->write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 		}
 
@@ -1786,4 +1788,9 @@ class MainWP_Helper {
 		return $return;
 	}
 
+	public static function log_debug( $msg ) {
+		if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
+			error_log( $msg ); // phpcs:ignore -- debug mode only.
+		}				
+	}
 }

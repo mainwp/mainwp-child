@@ -350,12 +350,27 @@ class MainWP_Child_Updates {
 					$information['upgrades'][ $slug ] = false;
 				}
 			}
-		}
-		$information['sync'] = $this->get_site_stats( array(), false );
+		}		
+		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		mainwp_child_helper()->write( $information );
 	}
 
+	public function upgrade_get_theme_updates() {
+		$themeUpdates    = get_theme_updates();
+		$newThemeUpdates = array();
+		if ( is_array( $themeUpdates ) ) {
+			foreach ( $themeUpdates as $slug => $themeUpdate ) {
+				$newThemeUpdate            = array();
+				$newThemeUpdate['update']  = $themeUpdate->update;
+				$newThemeUpdate['Name']    = MainWP_Helper::search( $themeUpdate, 'Name' );
+				$newThemeUpdate['Version'] = MainWP_Helper::search( $themeUpdate, 'Version' );
+				$newThemeUpdates[ $slug ]  = $newThemeUpdate;
+			}
+		}
 
+		return $newThemeUpdates;
+	}
+	
 	public function hook_fix_optimize_press_theme_update( $transient ) {
 		if ( ! defined( 'OP_FUNC' ) ) {
 			return $transient;
@@ -464,18 +479,15 @@ class MainWP_Child_Updates {
 
 		if ( 'plugin' == $type || 'theme' == $type ) {
 			$list = isset( $_GET['list'] ) ? $_GET['list'] : '';
-			if ( ! empty( $list ) ) {
-				// to call function upgrade_plugin_theme().
+			
+			if ( ! empty( $list ) ) {				
 				$_POST['type'] = $type;
 				$_POST['list'] = $list;
-
-				global $mainWPChild;
-				$callable = $mainWPChild->get_callable_functions();
-
-				$function = 'upgradeplugintheme';
-				if ( isset( $callable [ $function ] ) ) {
-					call_user_func( array( $this, $callable [ $function ] ) );
-				}
+				
+				$function = 'upgradeplugintheme'; // to call function upgrade_plugin_theme().
+				if ( MainWP_Child_Callable::get_instance()->is_callable_function( $function ) ) {					
+					MainWP_Child_Callable::get_instance()->call_function( $function ); 
+				}				
 			}
 		}
 	}
@@ -745,9 +757,9 @@ class MainWP_Child_Updates {
 			}
 		} else {
 			$information['upgrades'] = array(); // to fix error message when translations updated.
-		}
-
-		$information['sync'] = $this->get_site_stats( array(), false );
+		}		
+		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		mainwp_child_helper()->write( $information );
-	}
+	}	
+	
 }
