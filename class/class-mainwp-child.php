@@ -21,7 +21,7 @@ require_once ABSPATH . '/wp-admin/includes/file.php';
 require_once ABSPATH . '/wp-admin/includes/plugin.php';
 
 class MainWP_Child {
-	
+
 	public static $version  = '4.0.7.1';
 	private $update_version = '1.5';
 
@@ -943,16 +943,15 @@ class MainWP_Child {
 	}
 
 	public function parse_init() {
-		
+
 		if ( isset( $_REQUEST['cloneFunc'] ) ) {
-			
+
 			// if not valid result then return.
-			$valid_clone = MainWP_Clone_Install::get()->request_clone_funct();			
+			$valid_clone = MainWP_Clone_Install::get()->request_clone_funct();
 			// not valid clone.
 			if ( ! $valid_clone ) {
 				return;
-			}			
-			
+			}
 		}
 
 		global $wp_rewrite;
@@ -973,7 +972,7 @@ class MainWP_Child {
 		}
 
 		$this->update_htaccess();
-		
+
 		// if login required.
 		if ( isset( $_REQUEST['login_required'] ) && ( '1' === $_REQUEST['login_required'] ) && isset( $_REQUEST['user'] ) ) {
 			$valid_login_required = $this->parse_login_required();
@@ -982,7 +981,7 @@ class MainWP_Child {
 				return;
 			}
 		}
-		
+
 		/**
 		 * Security
 		 */
@@ -1012,8 +1011,7 @@ class MainWP_Child {
 			}
 		}
 
-		
-		if ( $auth ) {			
+		if ( $auth ) {
 			$auth_user = false;
 			// Check if the user exists & is an administrator.
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
@@ -1066,21 +1064,21 @@ class MainWP_Child {
 
 		// Init extensions.
 		$this->init_extensions();
-		
+
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
 			$_wp_submenu_nopriv = array(); // phpcs:ignore -- to fix warning.
 		}
 
 		$this->parse_callable_functions( $auth );
-		$this->parse_keyword_links();		
+		$this->parse_keyword_links();
 	}
 
-	
-	private function parse_login_required() {		
-		
+
+	private function parse_login_required() {
+
 		global $current_user;
-		
+
 		$alter_login_required = false;
 		$username             = rawurldecode( $_REQUEST['user'] );
 
@@ -1184,13 +1182,12 @@ class MainWP_Child {
 		}
 
 		wp_safe_redirect( admin_url( $where ) );
-		
-		exit();	
-		
+
+		exit();
 	}
-	
-	
-	private function parse_callable_functions( $auth ){
+
+
+	private function parse_callable_functions( $auth ) {
 		$callable  = false;
 		$func_auth = false;
 
@@ -1198,8 +1195,8 @@ class MainWP_Child {
 		$func_no_auth     = false;
 
 		// check to execute mainwp child's callable functions.
-		if ( isset( $_POST['function'] ) ) {			
-			$func = $_POST['function'];
+		if ( isset( $_POST['function'] ) ) {
+			$func     = $_POST['function'];
 			$callable = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
 			if ( $callable ) {
 				$func_auth = $func;
@@ -1226,7 +1223,6 @@ class MainWP_Child {
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
 			MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
 		}
-		
 	}
 
 	// Check to support login by alternative admin.
@@ -1373,9 +1369,9 @@ class MainWP_Child {
 
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information );
 	}
-	
-	
-	private function init_extensions() {		
+
+
+	private function init_extensions() {
 		// Handle fatal errors for those init if needed.
 		\MainWP_Child_IThemes_Security::instance()->ithemes_init();
 		\MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
@@ -1392,9 +1388,9 @@ class MainWP_Child {
 		\MainWP_Child_Links_Checker::instance()->init();
 		\MainWP_Child_WPvivid_BackupRestore::instance()->init();
 	}
-	
+
 	private function parse_keyword_links() {
-		
+
 		if ( 1 === (int) get_option( 'mainwpKeywordLinks' ) ) {
 			new MainWP_Keyword_Links();
 			if ( ! is_admin() ) {
@@ -1405,7 +1401,6 @@ class MainWP_Child {
 		} elseif ( 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
 			MainWP_Keyword_Links::clear_htaccess();
 		}
-		
 	}
 
 	public function maintenance_alert_404() {

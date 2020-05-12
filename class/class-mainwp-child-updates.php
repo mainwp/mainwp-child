@@ -66,11 +66,11 @@ class MainWP_Child_Updates {
 		$information['upgrades']        = array();
 		$mwp_premium_updates_todo       = array();
 		$mwp_premium_updates_todo_slugs = array();
-		
-		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {						
-			$this->upgrade_plugin( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );			
-		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {			
-			$this->upgrade_theme( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );		
+
+		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
+			$this->upgrade_plugin( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );
+		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
+			$this->upgrade_theme( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );
 		} else {
 			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
@@ -127,39 +127,39 @@ class MainWP_Child_Updates {
 				}
 			}
 		}
-		
+
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		mainwp_child_helper()->write( $information );
 	}
 
 	private function upgrade_plugin( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs ) {
-		
+
 			include_once ABSPATH . '/wp-admin/includes/update.php';
-			if ( null !== $this->filterFunction ) {
-				add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
-			}
+		if ( null !== $this->filterFunction ) {
+			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+		}
 
 			$plugins = explode( ',', urldecode( $_POST['list'] ) );
 
-			if ( in_array( 'backupbuddy/backupbuddy.php', $plugins ) ) {
-				if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
-					if ( ! class_exists( 'Ithemes_Updater_Settings' ) ) {
-						require $GLOBALS['ithemes_updater_path'] . '/settings.php';
-					}
-					if ( class_exists( 'Ithemes_Updater_Settings' ) ) {
-						$ithemes_updater = new Ithemes_Updater_Settings();
-						$ithemes_updater->update();
-					}
+		if ( in_array( 'backupbuddy/backupbuddy.php', $plugins ) ) {
+			if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
+				if ( ! class_exists( 'Ithemes_Updater_Settings' ) ) {
+					require $GLOBALS['ithemes_updater_path'] . '/settings.php';
+				}
+				if ( class_exists( 'Ithemes_Updater_Settings' ) ) {
+					$ithemes_updater = new Ithemes_Updater_Settings();
+					$ithemes_updater->update();
 				}
 			}
+		}
 
 			// to fix: smart-manager-for-wp-e-commerce update.
-			if ( in_array( 'smart-manager-for-wp-e-commerce/smart-manager.php', $plugins ) ) {
-				if ( file_exists( plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php' ) ) {
-					include_once plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php';
-					include_once plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php';
-				}
+		if ( in_array( 'smart-manager-for-wp-e-commerce/smart-manager.php', $plugins ) ) {
+			if ( file_exists( plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php' ) ) {
+				include_once plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php';
+				include_once plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php';
 			}
+		}
 
 			global $wp_current_filter;
 			$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
@@ -176,93 +176,92 @@ class MainWP_Child_Updates {
 			$plugins        = explode( ',', urldecode( $_POST['list'] ) );
 			$premiumPlugins = array();
 			$premiumUpdates = get_option( 'mainwp_premium_updates' );
-			if ( is_array( $premiumUpdates ) ) {
-				$newPlugins = array();
-				foreach ( $plugins as $plugin ) {
-					if ( in_array( $plugin, $premiumUpdates ) ) {
-						$premiumPlugins[] = $plugin;
-					} else {
-						$newPlugins[] = $plugin;
-					}
+		if ( is_array( $premiumUpdates ) ) {
+			$newPlugins = array();
+			foreach ( $plugins as $plugin ) {
+				if ( in_array( $plugin, $premiumUpdates ) ) {
+					$premiumPlugins[] = $plugin;
+				} else {
+					$newPlugins[] = $plugin;
 				}
-				$plugins = $newPlugins;
 			}
+			$plugins = $newPlugins;
+		}
 
-			if ( count( $plugins ) > 0 ) {
-				$failed = true;
-				// to fix update of Yithemes premiums plugins that hooked to upgrader_pre_download.
-				$url   = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
-				$nonce = 'bulk-update-plugins';
+		if ( count( $plugins ) > 0 ) {
+			$failed = true;
+			// to fix update of Yithemes premiums plugins that hooked to upgrader_pre_download.
+			$url   = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
+			$nonce = 'bulk-update-plugins';
 
-				$upgrader = new Plugin_Upgrader( new Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
-				$result   = $upgrader->bulk_upgrade( $plugins );
+			$upgrader = new Plugin_Upgrader( new Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+			$result   = $upgrader->bulk_upgrade( $plugins );
 
-				if ( ! empty( $result ) ) {
-					foreach ( $result as $plugin => $info ) {
-						if ( empty( $info ) ) {
+			if ( ! empty( $result ) ) {
+				foreach ( $result as $plugin => $info ) {
+					if ( empty( $info ) ) {
 
-							$information['upgrades'][ $plugin ] = false;
-							// try to fix if that is premiums update.
-							$api = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
+						$information['upgrades'][ $plugin ] = false;
+						// try to fix if that is premiums update.
+						$api = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
 
-							if ( ! is_wp_error( $api ) && ! empty( $api ) ) {
-								if ( isset( $api->download_link ) ) {
-									$res = $upgrader->install( $api->download_link );
-									if ( ! is_wp_error( $res ) && ! ( is_null( $res ) ) ) {
-										$information['upgrades'][ $plugin ] = true;
-									}
+						if ( ! is_wp_error( $api ) && ! empty( $api ) ) {
+							if ( isset( $api->download_link ) ) {
+								$res = $upgrader->install( $api->download_link );
+								if ( ! is_wp_error( $res ) && ! ( is_null( $res ) ) ) {
+									$information['upgrades'][ $plugin ] = true;
 								}
 							}
-						} else {
-							$information['upgrades'][ $plugin ] = true;
 						}
+					} else {
+						$information['upgrades'][ $plugin ] = true;
 					}
-					$failed = false;
 				}
-
-				if ( $failed ) {
-					MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
-				}
+				$failed = false;
 			}
+
+			if ( $failed ) {
+				MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+			}
+		}
 
 			remove_filter( 'pre_site_transient_update_plugins', array( $this, 'set_cached_update_plugins' ), 10 );
 			delete_site_transient( 'mainwp_update_plugins_cached' ); // fix cached update info.
 
-			if ( count( $premiumPlugins ) > 0 ) {
-				$mwp_premium_updates = apply_filters( 'mwp_premium_perform_update', array() );
-				if ( is_array( $mwp_premium_updates ) && is_array( $premiumPlugins ) ) {
-					foreach ( $premiumPlugins as $premiumPlugin ) {
-						foreach ( $mwp_premium_updates as $key => $update ) {
-							$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
-							if ( 0 === strcmp( $slug, $premiumPlugin ) ) {
-								$mwp_premium_updates_todo[ $key ] = $update;
-								$mwp_premium_updates_todo_slugs[] = $premiumPlugin;
-							}
+		if ( count( $premiumPlugins ) > 0 ) {
+			$mwp_premium_updates = apply_filters( 'mwp_premium_perform_update', array() );
+			if ( is_array( $mwp_premium_updates ) && is_array( $premiumPlugins ) ) {
+				foreach ( $premiumPlugins as $premiumPlugin ) {
+					foreach ( $mwp_premium_updates as $key => $update ) {
+						$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
+						if ( 0 === strcmp( $slug, $premiumPlugin ) ) {
+							$mwp_premium_updates_todo[ $key ] = $update;
+							$mwp_premium_updates_todo_slugs[] = $premiumPlugin;
 						}
 					}
 				}
-				unset( $mwp_premium_updates );
-				$premiumUpgrader = new Plugin_Upgrader( new Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 			}
+			unset( $mwp_premium_updates );
+			$premiumUpgrader = new Plugin_Upgrader( new Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+		}
 
-			if ( count( $plugins ) <= 0 && count( $premiumPlugins ) <= 0 ) {
-				MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
-			}
+		if ( count( $plugins ) <= 0 && count( $premiumPlugins ) <= 0 ) {
+			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+		}
 
-			if ( null !== $this->filterFunction ) {
-				remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
-			}
-			
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+		}
 	}
 
 	private function upgrade_theme( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs ) {
-			
+
 			$last_update = get_site_transient( 'update_themes' );
 
 			include_once ABSPATH . '/wp-admin/includes/update.php';
-			if ( null !== $this->filterFunction ) {
-				add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
-			}
+		if ( null !== $this->filterFunction ) {
+			add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+		}
 
 			wp_update_themes();
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
@@ -274,99 +273,99 @@ class MainWP_Child_Updates {
 			$themes                       = explode( ',', $_POST['list'] );
 			$premiumThemes                = array();
 			$premiumUpdates               = get_option( 'mainwp_premium_updates' );
-			if ( is_array( $premiumUpdates ) ) {
-				$newThemes = array();
-				foreach ( $themes as $theme ) {
-					if ( in_array( $theme, $premiumUpdates ) ) {
-						$premiumThemes[] = $theme;
+		if ( is_array( $premiumUpdates ) ) {
+			$newThemes = array();
+			foreach ( $themes as $theme ) {
+				if ( in_array( $theme, $premiumUpdates ) ) {
+					$premiumThemes[] = $theme;
+				} else {
+					$newThemes[] = $theme;
+				}
+			}
+			$themes = $newThemes;
+		}
+
+		if ( count( $themes ) > 0 ) {
+			$addFilterToFixUpdate_optimizePressTheme = false;
+			if ( in_array( 'optimizePressTheme', $themes ) ) {
+				$addFilterToFixUpdate_optimizePressTheme = true;
+				add_filter( 'site_transient_update_themes', array( $this, 'hook_fix_optimize_press_theme_update' ), 99 );
+			}
+
+			if ( null !== $this->filterFunction ) {
+				remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+			}
+
+			$last_update2 = get_site_transient( 'update_themes' );
+			set_site_transient( 'update_themes', $last_update );
+
+			$failed   = true;
+			$upgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+			$result   = $upgrader->bulk_upgrade( $themes );
+			if ( ! empty( $result ) ) {
+				foreach ( $result as $theme => $info ) {
+					if ( empty( $info ) ) {
+						$information['upgrades'][ $theme ] = false;
 					} else {
-						$newThemes[] = $theme;
+						$information['upgrades'][ $theme ] = true;
 					}
 				}
-				$themes = $newThemes;
+				$failed = false;
 			}
 
-			if ( count( $themes ) > 0 ) {
-				$addFilterToFixUpdate_optimizePressTheme = false;
-				if ( in_array( 'optimizePressTheme', $themes ) ) {
-					$addFilterToFixUpdate_optimizePressTheme = true;
-					add_filter( 'site_transient_update_themes', array( $this, 'hook_fix_optimize_press_theme_update' ), 99 );
-				}
-
-				if ( null !== $this->filterFunction ) {
-					remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
-				}
-
-				$last_update2 = get_site_transient( 'update_themes' );
-				set_site_transient( 'update_themes', $last_update );
-
-				$failed   = true;
-				$upgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
-				$result   = $upgrader->bulk_upgrade( $themes );
-				if ( ! empty( $result ) ) {
-					foreach ( $result as $theme => $info ) {
-						if ( empty( $info ) ) {
-							$information['upgrades'][ $theme ] = false;
-						} else {
-							$information['upgrades'][ $theme ] = true;
-						}
-					}
-					$failed = false;
-				}
-
-				if ( $failed ) {
-					MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
-				}
-
-				if ( null !== $this->filterFunction ) {
-					add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
-				}
-
-				set_site_transient( 'update_themes', $last_update2 );
-
-				if ( $addFilterToFixUpdate_optimizePressTheme ) {
-					remove_filter(
-						'site_transient_update_themes',
-						array(
-							$this,
-							'hook_fix_optimize_press_theme_update',
-						),
-						99
-					);
-				}
-			}
-
-			remove_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ), 10 );
-			delete_site_transient( 'mainwp_update_themes_cached' ); // fix cached update info.
-
-			if ( count( $premiumThemes ) > 0 ) {
-				$mwp_premium_updates            = apply_filters( 'mwp_premium_perform_update', array() );
-				$mwp_premium_updates_todo       = array();
-				$mwp_premium_updates_todo_slugs = array();
-				if ( is_array( $premiumThemes ) && is_array( $mwp_premium_updates ) ) {
-					foreach ( $premiumThemes as $premiumTheme ) {
-						foreach ( $mwp_premium_updates as $key => $update ) {
-							$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
-							if ( 0 === strcmp( $slug, $premiumTheme ) ) {
-								$mwp_premium_updates_todo[ $key ] = $update;
-								$mwp_premium_updates_todo_slugs[] = $slug;
-							}
-						}
-					}
-				}
-				unset( $mwp_premium_updates );
-
-				$premiumUpgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
-			}
-			if ( count( $themes ) <= 0 && count( $premiumThemes ) <= 0 ) {
+			if ( $failed ) {
 				MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
 			}
 
 			if ( null !== $this->filterFunction ) {
-				remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+				add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			}
+
+			set_site_transient( 'update_themes', $last_update2 );
+
+			if ( $addFilterToFixUpdate_optimizePressTheme ) {
+				remove_filter(
+					'site_transient_update_themes',
+					array(
+						$this,
+						'hook_fix_optimize_press_theme_update',
+					),
+					99
+				);
+			}
+		}
+
+			remove_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ), 10 );
+			delete_site_transient( 'mainwp_update_themes_cached' ); // fix cached update info.
+
+		if ( count( $premiumThemes ) > 0 ) {
+			$mwp_premium_updates            = apply_filters( 'mwp_premium_perform_update', array() );
+			$mwp_premium_updates_todo       = array();
+			$mwp_premium_updates_todo_slugs = array();
+			if ( is_array( $premiumThemes ) && is_array( $mwp_premium_updates ) ) {
+				foreach ( $premiumThemes as $premiumTheme ) {
+					foreach ( $mwp_premium_updates as $key => $update ) {
+						$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
+						if ( 0 === strcmp( $slug, $premiumTheme ) ) {
+							$mwp_premium_updates_todo[ $key ] = $update;
+							$mwp_premium_updates_todo_slugs[] = $slug;
+						}
+					}
+				}
+			}
+			unset( $mwp_premium_updates );
+
+			$premiumUpgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+		}
+		if ( count( $themes ) <= 0 && count( $premiumThemes ) <= 0 ) {
+			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+		}
+
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+		}
 	}
-	
+
 	public function upgrade_get_theme_updates() {
 		$themeUpdates    = get_theme_updates();
 		$newThemeUpdates = array();

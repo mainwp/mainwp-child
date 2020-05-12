@@ -579,9 +579,9 @@ class MainWP_Client_Report {
 
 	public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
-		$context   = '';
-		$action    = '';
-		
+		$context = '';
+		$action  = '';
+
 		$str_tmp   = str_replace( array( '[', ']' ), '', $section );
 		$array_tmp = explode( '.', $str_tmp );
 		if ( is_array( $array_tmp ) ) {
@@ -605,12 +605,12 @@ class MainWP_Client_Report {
 				$context = 'users'; // see class-connector-user.php.
 			}
 		}
-		
-		return $this->get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records );		
+
+		return $this->get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records );
 	}
 
-	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {		
-		
+	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {
+
 		$maintenance_details = array(
 			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
 			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
@@ -623,9 +623,9 @@ class MainWP_Client_Report {
 			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
 			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
 		);
-		
-		$loops      = array();		
-		$loop_count = 0;		
+
+		$loops      = array();
+		$loop_count = 0;
 		foreach ( $records as $record ) {
 
 			if ( in_array( $record->ID, $skip_records ) ) {
@@ -687,7 +687,7 @@ class MainWP_Client_Report {
 			$token_values = array();
 
 			foreach ( $tokens as $token ) {
-				
+
 				$data       = '';
 				$token_name = str_replace( array( '[', ']' ), '', $token );
 				$array_tmp  = explode( '.', $token_name );
@@ -717,28 +717,27 @@ class MainWP_Client_Report {
 				}
 
 				$tok_value = $this->get_section_loop_token_value( $record, $data, $context, $token );
-				
+
 				$token_values[ $token ] = $tok_value;
 
 				if ( empty( $tok_value ) ) {
 					$msg = 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true );  // phpcs:ignore -- debug mode only.
-					MainWP_Helper::log_debug( $msg ); 
+					MainWP_Helper::log_debug( $msg );
 				}
-				
 			}
 
 			if ( ! empty( $token_values ) ) {
 				$loops[ $loop_count ] = $token_values;
 				$loop_count ++;
 			}
-		}		
-		return $loops;		
+		}
+		return $loops;
 	}
-	
+
 	public function get_section_loop_token_value( $record, $data, $context, $token ) {
-		
+
 		$tok_value = '';
-		
+
 		switch ( $data ) {
 			case 'ID':
 				$tok_value = $record->ID;
@@ -879,7 +878,7 @@ class MainWP_Client_Report {
 				$tok_value = 'N/A';
 				break;
 		}
-		
+
 		return $tok_value;
 	}
 
