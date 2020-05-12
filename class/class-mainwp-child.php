@@ -25,7 +25,7 @@ class MainWP_Child {
 	private $update_version = '1.5';
 
 	public $plugin_slug;
-	private $plugin_dir;	
+	private $plugin_dir;
 	private $maxHistory = 5;
 
 	public static $brandingTitle = null;
@@ -36,10 +36,10 @@ class MainWP_Child {
 	public function __construct( $plugin_file ) {
 		$this->update();
 		$this->load_all_options();
-		
-		$this->plugin_dir     = dirname( $plugin_file );
-		$this->plugin_slug    = plugin_basename( $plugin_file );
-		
+
+		$this->plugin_dir  = dirname( $plugin_file );
+		$this->plugin_slug = plugin_basename( $plugin_file );
+
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
 		add_action( 'init', array( &$this, 'check_login' ), 1 );
 		add_action( 'init', array( &$this, 'parse_init' ), 9999 );
@@ -815,10 +815,10 @@ class MainWP_Child {
 		<?php
 	}
 
-	public function get_max_history( ) {
+	public function get_max_history() {
 		return $this->maxHistory;
 	}
-	
+
 	public function mod_rewrite_rules( $pRules ) {
 
 		$home_root = wp_parse_url( home_url() );
@@ -884,7 +884,7 @@ class MainWP_Child {
 		if ( ! $auth ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
 		}
-		
+
 		$auth_user = false;
 		if ( $auth ) {
 			// disable duo auth for mainwp.
@@ -1209,14 +1209,14 @@ class MainWP_Child {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
 		}
 
-		if ( ! $auth && isset( $_POST['function'] ) ) { 
-			$func = $_POST['function'];		
-			$callable = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
-			$callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );					
-			
-			if ( $callable && ! $callable_no_auth ) {		
+		if ( ! $auth && isset( $_POST['function'] ) ) {
+			$func             = $_POST['function'];
+			$callable         = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
+			$callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
+
+			if ( $callable && ! $callable_no_auth ) {
 				MainWP_Helper::error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
-			}	
+			}
 		}
 
 		$auth_user = false;
@@ -1292,40 +1292,39 @@ class MainWP_Child {
 			$_wp_submenu_nopriv = array(); // phpcs:ignore -- to fix warning.
 		}
 
-		$callable = false;
+		$callable  = false;
 		$func_auth = false;
-		
+
 		$callable_no_auth = false;
-		$func_no_auth = false;		
-		
-		if ( isset( $_POST['function'] ) ) {	
-			
+		$func_no_auth     = false;
+
+		if ( isset( $_POST['function'] ) ) {
+
 			$func = $_POST['function'];
-			
+
 			$callable = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
 			if ( $callable ) {
 				$func_auth = $func;
 			}
-			
+
 			if ( ! $callable ) {
-				$callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );			
+				$callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
 				if ( $callable_no_auth ) {
 					$func_no_auth = $func;
 				}
 			}
-		}			
-		
-		
+		}
+
 		// Call the function required.
 		if ( $auth && isset( $_POST['function'] ) && $callable ) {
 			define( 'DOING_CRON', true );
 			MainWP_Helper::handle_fatal_error();
-			self::fix_for_custom_themes();						
-			MainWP_Child_Callable::get_instance()->call_function( $func_auth );			
+			self::fix_for_custom_themes();
+			MainWP_Child_Callable::get_instance()->call_function( $func_auth );
 		} elseif ( isset( $_POST['function'] ) && $callable_no_auth ) {
 			define( 'DOING_CRON', true );
 			self::fix_for_custom_themes();
-			MainWP_Child_Callable::get_instance()->call_function_no_auth( $func_no_auth );			
+			MainWP_Child_Callable::get_instance()->call_function_no_auth( $func_no_auth );
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
 			MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
 		}
@@ -1455,7 +1454,7 @@ class MainWP_Child {
 
 		// Login.
 		if ( isset( $_POST['user'] ) ) {
-			if ( ! $this->login( $_POST['user'] ) ) {				
+			if ( ! $this->login( $_POST['user'] ) ) {
 				$hint_miss_user = __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) . '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
 				MainWP_Helper::error( $hint_miss_user );
 			}
@@ -1483,7 +1482,7 @@ class MainWP_Child {
 		$information['register'] = 'OK';
 		$information['uniqueId'] = get_option( 'mainwp_child_uniqueId', '' );
 		$information['user']     = $_POST['user'];
-		
+
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information );
 	}
 
@@ -1612,7 +1611,7 @@ class MainWP_Child {
 
 		return fclose( $handle );
 	}
-	
+
 	public function run_saved_snippets() {
 		$action = null;
 		if ( isset( $_POST['action'] ) ) {
@@ -1633,7 +1632,7 @@ class MainWP_Child {
 		}
 	}
 
-		
+
 	/*
 	 * hook to deactivation child plugin action
 	 */
@@ -1666,7 +1665,7 @@ class MainWP_Child {
 			do_action( 'mainwp_child_deactivation' );
 		}
 	}
-		
+
 	/*
 	 * hook to activation child plugin action
 	 */
@@ -1696,7 +1695,7 @@ class MainWP_Child {
 			delete_option( $delete );
 		}
 	}
-	
+
 	public static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';

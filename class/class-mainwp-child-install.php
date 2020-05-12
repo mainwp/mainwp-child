@@ -28,11 +28,11 @@ class MainWP_Child_Install {
 
 		return self::$instance;
 	}
-		
+
 	public function plugin_action() {
-		
+
 		global $mainWPChild;
-		
+
 		$action  = $_POST['action'];
 		$plugins = explode( '||', $_POST['plugin'] );
 
@@ -111,7 +111,7 @@ class MainWP_Child_Install {
 	}
 
 	public function theme_action() {
-		
+
 		$action = $_POST['action'];
 		$theme  = $_POST['theme'];
 
@@ -171,7 +171,7 @@ class MainWP_Child_Install {
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
-		
+
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		mainwp_child_helper()->write( $information );
 	}
@@ -303,6 +303,6 @@ class MainWP_Child_Install {
 		$information['installation']     = 'SUCCESS';
 		$information['destination_name'] = $result['destination_name'];
 		mainwp_child_helper()->write( $information );
-	}		
+	}
 
 }

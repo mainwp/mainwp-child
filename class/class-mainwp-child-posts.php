@@ -5,11 +5,11 @@ namespace MainWP\Child;
 class MainWP_Child_Posts {
 
 	protected static $instance = null;
-	
+
 	private $comments_and_clauses;
 	private $posts_where_suffix;
-	
-	
+
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -20,12 +20,12 @@ class MainWP_Child_Posts {
 	public static function get_class_name() {
 		return __CLASS__;
 	}
-	
+
 	public function __construct() {
 		$this->comments_and_clauses = '';
-		$this->posts_where_suffix   = '';		
+		$this->posts_where_suffix   = '';
 	}
-	
+
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -33,8 +33,8 @@ class MainWP_Child_Posts {
 
 		return self::$instance;
 	}
-			
-	
+
+
 
 	public function get_recent_posts( $pAllowedStatuses, $pCount, $type = 'post', $extra = null ) {
 		$allPosts = array();
@@ -172,17 +172,17 @@ class MainWP_Child_Posts {
 			}
 		}
 	}
-	
-		
+
+
 	public function get_all_posts() {
 		$post_type = ( isset( $_POST['post_type'] ) ? $_POST['post_type'] : 'post' );
 		$this->get_all_posts_by_type( $post_type );
 	}
-	
+
 	public function get_all_pages() {
 		$this->get_all_posts_by_type( 'page' );
 	}
-	
+
 	public function posts_where( $where ) {
 		if ( $this->posts_where_suffix ) {
 			$where .= ' ' . $this->posts_where_suffix;
@@ -190,7 +190,7 @@ class MainWP_Child_Posts {
 
 		return $where;
 	}
-	
+
 	public function get_all_posts_by_type( $type ) {
 		global $wpdb;
 
@@ -255,7 +255,7 @@ class MainWP_Child_Posts {
 
 		mainwp_child_helper()->write( $rslt );
 	}
-	
+
 	public function new_post() {
 		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
@@ -575,8 +575,8 @@ class MainWP_Child_Posts {
 		}
 		mainwp_child_helper()->write( $information );
 	}
-	
-	
+
+
 	public function comments_clauses( $clauses ) {
 		if ( $this->comments_and_clauses ) {
 			$clauses['where'] .= ' ' . $this->comments_and_clauses;
@@ -658,5 +658,5 @@ class MainWP_Child_Posts {
 
 		return $allComments;
 	}
-	
+
 }
