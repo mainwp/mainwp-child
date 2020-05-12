@@ -5,7 +5,7 @@ namespace MainWP\Child;
 class MainWP_Child_Callable {
 
 	protected static $instance = null;
-		
+
 	private $callableFunctions = array(
 		'stats'                 => 'get_site_stats',
 		'upgrade'               => 'upgrade_wp',
@@ -71,12 +71,12 @@ class MainWP_Child_Callable {
 		'wpvivid_backuprestore' => 'wpvivid_backuprestore',
 	);
 
-	
+
 	private $callableFunctionsNoAuth = array(
 		'stats' => 'get_site_stats_no_auth',
 	);
-	
-	
+
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -87,42 +87,43 @@ class MainWP_Child_Callable {
 	public static function get_class_name() {
 		return __CLASS__;
 	}
-	
+
 	public function __construct() {
-		
 	}
-	
+
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
-	
+
 	public function is_callable_function( $func ) {
-		if ( isset( $this->callableFunctions[ $func ] ) )
+		if ( isset( $this->callableFunctions[ $func ] ) ) {
 			return true;
+		}
 		return false;
 	}
-	
+
 	public function is_callable_function_no_auth( $func ) {
-		if ( isset( $this->callableFunctionsNoAuth[ $func ] ) )
+		if ( isset( $this->callableFunctionsNoAuth[ $func ] ) ) {
 			return true;
+		}
 		return false;
 	}
-	
+
 	public function call_function( $func ) {
-		if ( $this->is_callable_function( $func )) {
+		if ( $this->is_callable_function( $func ) ) {
 			call_user_func( array( $this, $this->callableFunctions[ $func ] ) );
-		}					
+		}
 	}
-	
+
 	public function call_function_no_auth( $func ) {
-		if ( $this->is_callable_function_no_auth( $func )) {
+		if ( $this->is_callable_function_no_auth( $func ) ) {
 			call_user_func( array( $this, $this->callableFunctionsNoAuth[ $func ] ) );
-		}			
+		}
 	}
-	
+
 	public function get_site_stats() {
 		MainWP_Child_Stats::get_instance()->get_site_stats();
 	}
@@ -149,8 +150,8 @@ class MainWP_Child_Callable {
 	public function upgrade_plugin_theme() {
 		MainWP_Child_Updates::get_instance()->upgrade_plugin_theme();
 	}
-	
-	
+
+
 	public function insert_comment() {
 		$postId   = $_POST['id'];
 		$comments = maybe_unserialize( base64_decode( $_POST['comments'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
@@ -215,18 +216,18 @@ class MainWP_Child_Callable {
 		mainwp_child_helper()->write( $information );
 	}
 
-	public function theme_action() {		
+	public function theme_action() {
 		MainWP_Child_Install::get_instance()->theme_action();
 	}
-	
+
 	public function plugin_action() {
 		MainWP_Child_Install::get_instance()->plugin_action();
 	}
-	
+
 	public function get_all_plugins() {
 		MainWP_Child_Install::get_instance()->get_all_plugins();
 	}
-	
+
 	public function get_all_themes() {
 		MainWP_Child_Install::get_instance()->get_all_themes();
 	}
@@ -234,35 +235,35 @@ class MainWP_Child_Callable {
 	public function get_all_users() {
 		MainWP_Child_Users::get_instance()->get_all_users();
 	}
-	
+
 	public function user_action() {
 		MainWP_Child_Users::get_instance()->user_action();
 	}
-	
+
 	public function search_users() {
 		MainWP_Child_Users::get_instance()->search_users();
 	}
-	
+
 	public function get_all_posts() {
 		MainWP_Child_Posts::get_instance()->get_all_posts();
 	}
-	
+
 	public function get_all_pages() {
 		MainWP_Child_Posts::get_instance()->get_all_pages();
 	}
-			
+
 	public function comment_action() {
-		MainWP_Child_Posts::get_instance()->comment_action();	
-	}	
-		
-	public function get_all_comments() {
-		MainWP_Child_Posts::get_instance()->get_all_comments();	
+		MainWP_Child_Posts::get_instance()->comment_action();
 	}
-	
+
+	public function get_all_comments() {
+		MainWP_Child_Posts::get_instance()->get_all_comments();
+	}
+
 	public function comment_bulk_action() {
-		MainWP_Child_Posts::get_instance()->comment_bulk_action();	
-	}	
-	
+		MainWP_Child_Posts::get_instance()->comment_bulk_action();
+	}
+
 	public function server_information() {
 		ob_start();
 		MainWP_Child_Server_Information::render();
@@ -427,24 +428,24 @@ class MainWP_Child_Callable {
 			}
 		}
 	}
-	
-	
+
+
 	public function new_post() {
 		MainWP_Child_Posts::get_instance()->new_post();
 	}
-	
+
 	public function post_action() {
 		MainWP_Child_Posts::get_instance()->post_action();
 	}
-	
+
 	public function new_admin_password() {
 		MainWP_Child_Users::get_instance()->new_admin_password();
 	}
-	
+
 	public function new_user() {
 		MainWP_Child_Users::get_instance()->new_user();
-	}	
-	
+	}
+
 	public function cloneinfo() {
 		global $table_prefix;
 		$information['dbCharset']    = DB_CHARSET;
@@ -735,7 +736,7 @@ class MainWP_Child_Callable {
 			'filesize'  => filesize( $result['filepath'] ),
 		);
 	}
-	
+
 	public function get_site_icon() {
 		$information = array();
 		$url         = $this->get_favicon( true );
@@ -813,7 +814,7 @@ class MainWP_Child_Callable {
 			return $favi_url;
 		}
 	}
-	
+
 	public function get_security_stats() {
 		$information = array();
 
@@ -831,7 +832,7 @@ class MainWP_Child_Callable {
 		mainwp_child_helper()->write( $information );
 	}
 
-	
+
 	public function do_security_fix() {
 		$sync = false;
 		if ( 'all' === $_POST['feature'] ) {
@@ -963,7 +964,7 @@ class MainWP_Child_Callable {
 
 		mainwp_child_helper()->write( $information );
 	}
-	
+
 	public function settings_tools() {
 		if ( isset( $_POST['action'] ) ) {
 			switch ( $_POST['action'] ) {
@@ -1021,7 +1022,7 @@ class MainWP_Child_Callable {
 		$information = apply_filters( 'mainwp_child_extra_execution', $information, $post );
 		mainwp_child_helper()->write( $information );
 	}
-		
+
 
 	public function uploader_action() {
 		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
@@ -1136,15 +1137,15 @@ class MainWP_Child_Callable {
 		mainwp_child_helper()->write( array( 'result' => 'ok' ) );
 	}
 
-	
+
 	public function update_child_values() {
 		$uniId = isset( $_POST['uniqueId'] ) ? $_POST['uniqueId'] : '';
 		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $uniId );
 		mainwp_child_helper()->write( array( 'result' => 'ok' ) );
 	}
-	
-	
-	
+
+
+
 	public function keyword_links_action() {
 		MainWP_Keyword_Links::instance()->action();
 	}
@@ -1235,14 +1236,14 @@ class MainWP_Child_Callable {
 		}
 		return false;
 	}
-	
+
 	public function disconnect() {
 		global $mainWPChild;
 		$mainWPChild->deactivation( false );
 		mainwp_child_helper()->write( array( 'result' => 'success' ) );
 	}
-	
-	
+
+
 	// Deactivating child plugin.
 	public function deactivate() {
 		global $mainWPChild;
@@ -1255,5 +1256,5 @@ class MainWP_Child_Callable {
 		$information['deactivated'] = true;
 		mainwp_child_helper()->write( $information );
 	}
-	
+
 }

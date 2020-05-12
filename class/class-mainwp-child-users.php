@@ -17,7 +17,6 @@ class MainWP_Child_Users {
 	}
 
 	public function __construct() {
-			
 	}
 
 	public static function get_instance() {
@@ -27,7 +26,7 @@ class MainWP_Child_Users {
 
 		return self::$instance;
 	}
-			
+
 	public function user_action() {
 		$action    = $_POST['action'];
 		$extra     = $_POST['extra'];
@@ -89,8 +88,8 @@ class MainWP_Child_Users {
 		}
 		mainwp_child_helper()->write( $information );
 	}
-	
-	
+
+
 	public function get_all_users_int( $number = false ) {
 		$allusers = array();
 
@@ -122,7 +121,7 @@ class MainWP_Child_Users {
 		return $allusers;
 	}
 
-	
+
 	public function get_all_users( $return = false ) {
 		$roles    = explode( ',', $_POST['role'] );
 		$allusers = array();
@@ -150,8 +149,8 @@ class MainWP_Child_Users {
 		}
 		mainwp_child_helper()->write( $allusers );
 	}
-	
-	
+
+
 	public function search_users() {
 
 		$search_user_role = array();
@@ -404,7 +403,7 @@ class MainWP_Child_Users {
 		return $edit_data;
 	}
 
-	
+
 	public function new_admin_password() {
 		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$user         = get_user_by( 'login', $_POST['user'] );
@@ -466,5 +465,5 @@ class MainWP_Child_Users {
 		mainwp_child_helper()->write( $information );
 	}
 
-	
+
 }

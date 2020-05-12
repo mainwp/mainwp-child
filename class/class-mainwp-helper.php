@@ -519,7 +519,7 @@ class MainWP_Helper {
 						$new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
 					}
 				} catch ( \Exception $e ) {
-					MainWP_Helper::log_debug( $e->getMessage() );						
+					self::log_debug( $e->getMessage() );
 				}
 			}
 		}
@@ -1004,11 +1004,11 @@ class MainWP_Helper {
 
 
 	public static function check_wp_filesystem() {
-		
+
 		$FTP_ERROR = 'Failed! Please, add FTP details for automatic updates.';
-		
+
 		self::get_wp_filesystem();
-		
+
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
@@ -1791,6 +1791,6 @@ class MainWP_Helper {
 	public static function log_debug( $msg ) {
 		if ( defined( 'MAINWP_DEBUG' ) && MAINWP_DEBUG ) {
 			error_log( $msg ); // phpcs:ignore -- debug mode only.
-		}				
+		}
 	}
 }
