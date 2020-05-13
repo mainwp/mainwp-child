@@ -177,10 +177,11 @@ class MainWP_Helper {
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
 			// to fix issue re-create new attachment.
-			if ( $check_file_existed ) {				
-				$result = self::check_media_file_existed( $upload_dir, $filename, $temporary_file, $local_img_path, $local_img_url );				
-				if ( ! empty( $result ) )
+			if ( $check_file_existed ) {
+				$result = self::check_media_file_existed( $upload_dir, $filename, $temporary_file, $local_img_path, $local_img_url );
+				if ( ! empty( $result ) ) {
 					return $result;
+				}
 			}
 
 			// file exists, do not overwrite, generate unique file name.
@@ -192,18 +193,17 @@ class MainWP_Helper {
 
 			$moved = rename( $temporary_file, $local_img_path );
 			if ( $moved ) {
-				return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );				
+				return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );
 			}
-			
 		}
-		
+
 		if ( file_exists( $temporary_file ) ) {
 			unlink( $temporary_file );
 		}
 		return null;
 	}
-	
-	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ){		
+
+	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ) {
 		if ( file_exists( $local_img_path ) ) {
 			if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
 				$result = self::get_maybe_existed_attached_id( $local_img_url );
@@ -241,9 +241,9 @@ class MainWP_Helper {
 			}
 		}
 	}
-	
-	private static function insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url ){		
-		
+
+	private static function insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url ) {
+
 		$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
 		$attachment  = array(
 			'post_mime_type' => $wp_filetype['type'],

@@ -97,7 +97,7 @@ class MainWP_Child_Callable {
 		}
 		return self::$instance;
 	}
-	
+
 	public function init_call_functions( $auth ) {
 		$callable  = false;
 		$func_auth = false;
@@ -135,7 +135,7 @@ class MainWP_Child_Callable {
 			MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
 		}
 	}
-	
+
 	public function is_callable_function( $func ) {
 		if ( isset( $this->callableFunctions[ $func ] ) ) {
 			return true;
@@ -1108,7 +1108,7 @@ class MainWP_Child_Callable {
 		mainwp_child_helper()->write( $information );
 	}
 
-	
+
 	public function uploader_upload_file( $file_url, $path, $file_name ) {
 		// to fix uploader extension rename htaccess file issue.
 		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
@@ -1149,7 +1149,7 @@ class MainWP_Child_Callable {
 
 		return array( 'path' => $full_file_name );
 	}
-	
+
 	public function wordpress_seo() {
 		\MainWP_WordPress_SEO::instance()->action();
 	}
