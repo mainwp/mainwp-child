@@ -97,7 +97,45 @@ class MainWP_Child_Callable {
 		}
 		return self::$instance;
 	}
+	
+	public function init_call_functions( $auth ) {
+		$callable  = false;
+		$func_auth = false;
 
+		$callable_no_auth = false;
+		$func_no_auth     = false;
+
+		// check to execute mainwp child's callable functions.
+		if ( isset( $_POST['function'] ) ) {
+			$func     = $_POST['function'];
+			$callable = $this->is_callable_function( $func );
+			if ( $callable ) {
+				$func_auth = $func;
+			}
+
+			if ( ! $callable ) {
+				$callable_no_auth = $this->is_callable_function_no_auth( $func );
+				if ( $callable_no_auth ) {
+					$func_no_auth = $func;
+				}
+			}
+		}
+
+		// Call the function required.
+		if ( $auth && isset( $_POST['function'] ) && $callable ) {
+			define( 'DOING_CRON', true );
+			MainWP_Helper::handle_fatal_error();
+			MainWP_Utility::fix_for_custom_themes();
+			$this->call_function( $func_auth );
+		} elseif ( isset( $_POST['function'] ) && $callable_no_auth ) {
+			define( 'DOING_CRON', true );
+			MainWP_Utility::fix_for_custom_themes();
+			$this->call_function_no_auth( $func_no_auth );
+		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
+			MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
+		}
+	}
+	
 	public function is_callable_function( $func ) {
 		if ( isset( $this->callableFunctions[ $func ] ) ) {
 			return true;
@@ -1060,7 +1098,7 @@ class MainWP_Child_Callable {
 		}
 
 		try {
-			$upload = MainWP_Helper::upload_file( $file_url, $dir, $filename );
+			$upload = $this->uploader_upload_file( $file_url, $dir, $filename );
 			if ( null !== $upload ) {
 				$information['success'] = true;
 			}
@@ -1070,6 +1108,48 @@ class MainWP_Child_Callable {
 		mainwp_child_helper()->write( $information );
 	}
 
+	
+	public function uploader_upload_file( $file_url, $path, $file_name ) {
+		// to fix uploader extension rename htaccess file issue.
+		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
+			$file_name = sanitize_file_name( $file_name );
+		}
+
+		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name;
+
+		$response = wp_remote_get(
+			$file_url,
+			array(
+				'timeout'  => 10 * 60 * 60,
+				'stream'   => true,
+				'filename' => $full_file_name,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			unlink( $full_file_name );
+			throw new \Exception( 'Error: ' . $response->get_error_message() );
+		}
+
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			unlink( $full_file_name );
+			throw new \Exception( 'Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ) );
+		}
+		if ( '.phpfile.txt' === substr( $file_name, - 12 ) ) {
+			$new_file_name = substr( $file_name, 0, - 12 ) . '.php';
+			$new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
+			$moved         = rename( $full_file_name, $new_file_name );
+			if ( $moved ) {
+				return array( 'path' => $new_file_name );
+			} else {
+				unlink( $full_file_name );
+				throw new \Exception( 'Error: Copy file.' );
+			}
+		}
+
+		return array( 'path' => $full_file_name );
+	}
+	
 	public function wordpress_seo() {
 		\MainWP_WordPress_SEO::instance()->action();
 	}

@@ -26,7 +26,7 @@ class MainWP_Helper {
 
 	public function write( $val ) {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-			$output = self::safe_json_encode( $val );
+			$output = wp_json_encode( $val );
 		else :
 			$output = serialize( $val ); // phpcs:ignore -- to compatible.
 		endif;
@@ -34,73 +34,10 @@ class MainWP_Helper {
 		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- to compatible with http encoding.
 	}
 
-	public static function json_valid_check( $data ) {
-
-		if ( is_array( $data ) ) {
-			$output = array();
-			foreach ( $data as $key => $value ) {
-				if ( is_string( $key ) ) {
-					$id = self::json_convert_string( $key );
-				} else {
-					$id = $key;
-				}
-				if ( is_array( $value ) || is_object( $value ) ) {
-					$output[ $id ] = self::json_valid_check( $value );
-				} elseif ( is_string( $value ) ) {
-					$output[ $id ] = self::json_convert_string( $value );
-				} else {
-					$output[ $id ] = $value;
-				}
-			}
-		} elseif ( is_object( $data ) ) {
-			$output = new stdClass();
-			foreach ( $data as $key => $value ) {
-				if ( is_string( $key ) ) {
-					$id = self::json_convert_string( $key );
-				} else {
-					$id = $key;
-				}
-				if ( is_array( $value ) || is_object( $value ) ) {
-					$output->$id = self::json_valid_check( $value );
-				} elseif ( is_string( $value ) ) {
-					$output->$id = self::json_convert_string( $value );
-				} else {
-					$output->$id = $value;
-				}
-			}
-		} elseif ( is_string( $data ) ) {
-			return self::json_convert_string( $data );
-		} else {
-			return $data;
-		}
-
-		return $output;
-	}
-
-	public function json_convert_string( $str ) {
-		if ( function_exists( 'mb_convert_encoding' ) ) {
-			$encoding = mb_detect_encoding( $str, mb_detect_order(), true );
-			if ( $encoding ) {
-				return mb_convert_encoding( $str, 'UTF-8', $encoding );
-			} else {
-				return mb_convert_encoding( $str, 'UTF-8', 'UTF-8' );
-			}
-		}
-		return $str;
-	}
-
-	public static function safe_json_encode( $value, $options = 0, $depth = 512 ) {
-		$encoded = json_encode( $value, $options, $depth );
-		if ( false === $encoded && ! empty( $value ) && JSON_ERROR_UTF8 == json_last_error() ) {
-			$encoded = json_encode( self::json_valid_check( $value ), $options, $depth );
-		}
-		return $encoded;
-	}
-
 	public static function close_connection( $val = null ) {
 
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-			$output = self::safe_json_encode( $val );
+			$output = wp_json_encode( $val );
 		else :
 			$output = serialize( $val ); // phpcs:ignore -- to compatible.
 		endif;
@@ -240,44 +177,10 @@ class MainWP_Helper {
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
 			// to fix issue re-create new attachment.
-			if ( $check_file_existed ) {
-				if ( file_exists( $local_img_path ) ) {
-
-					if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
-						$result = self::get_maybe_existed_attached_id( $local_img_url );
-						if ( is_array( $result ) ) {
-							$attach = current( $result );
-							if ( is_object( $attach ) ) {
-								if ( file_exists( $temporary_file ) ) {
-									unlink( $temporary_file );
-								}
-								return array(
-									'id'  => $attach->ID,
-									'url' => $local_img_url,
-								);
-							}
-						}
-					}
-				} else {
-					$result = self::get_maybe_existed_attached_id( $filename, false );
-					if ( is_array( $result ) ) {
-						$attach = current( $result );
-						if ( is_object( $attach ) ) {
-							$basedir        = $upload_dir['basedir'];
-							$baseurl        = $upload_dir['baseurl'];
-							$local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
-							if ( file_exists( $local_img_path ) && ( filesize( $local_img_path ) == filesize( $temporary_file ) ) ) {
-								if ( file_exists( $temporary_file ) ) {
-									unlink( $temporary_file );
-								}
-								return array(
-									'id'  => $attach->ID,
-									'url' => $attach->guid,
-								);
-							}
-						}
-					}
-				}
+			if ( $check_file_existed ) {				
+				$result = self::check_media_file_existed( $upload_dir, $filename, $temporary_file, $local_img_path, $local_img_url );				
+				if ( ! empty( $result ) )
+					return $result;
 			}
 
 			// file exists, do not overwrite, generate unique file name.
@@ -288,41 +191,85 @@ class MainWP_Helper {
 			}
 
 			$moved = rename( $temporary_file, $local_img_path );
-
 			if ( $moved ) {
-				$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
-				$attachment  = array(
-					'post_mime_type' => $wp_filetype['type'],
-					'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
-					'post_content'   => isset( $img_data['description'] ) && ! empty( $img_data['description'] ) ? $img_data['description'] : '',
-					'post_excerpt'   => isset( $img_data['caption'] ) && ! empty( $img_data['caption'] ) ? $img_data['caption'] : '',
-					'post_status'    => 'inherit',
-					'guid'           => $local_img_url,
-				);
-
-				// for post attachments, thumbnail.
-				if ( $parent_id ) {
-					$attachment['post_parent'] = $parent_id;
-				}
-
-				$attach_id = wp_insert_attachment( $attachment, $local_img_path ); // Insert the image in the database.
-				require_once ABSPATH . 'wp-admin/includes/image.php';
-				$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
-				wp_update_attachment_metadata( $attach_id, $attach_data ); // Update generated metadata.
-				if ( isset( $img_data['alt'] ) && ! empty( $img_data['alt'] ) ) {
-					update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
-				}
-				return array(
-					'id'  => $attach_id,
-					'url' => $local_img_url,
-				);
+				return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );				
 			}
+			
 		}
+		
 		if ( file_exists( $temporary_file ) ) {
 			unlink( $temporary_file );
 		}
-
 		return null;
+	}
+	
+	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ){		
+		if ( file_exists( $local_img_path ) ) {
+			if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
+				$result = self::get_maybe_existed_attached_id( $local_img_url );
+				if ( is_array( $result ) ) {
+					$attach = current( $result );
+					if ( is_object( $attach ) ) {
+						if ( file_exists( $temporary_file ) ) {
+							unlink( $temporary_file );
+						}
+						return array(
+							'id'  => $attach->ID,
+							'url' => $local_img_url,
+						);
+					}
+				}
+			}
+		} else {
+			$result = self::get_maybe_existed_attached_id( $filename, false );
+			if ( is_array( $result ) ) {
+				$attach = current( $result );
+				if ( is_object( $attach ) ) {
+					$basedir        = $upload_dir['basedir'];
+					$baseurl        = $upload_dir['baseurl'];
+					$local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
+					if ( file_exists( $local_img_path ) && ( filesize( $local_img_path ) == filesize( $temporary_file ) ) ) {
+						if ( file_exists( $temporary_file ) ) {
+							unlink( $temporary_file );
+						}
+						return array(
+							'id'  => $attach->ID,
+							'url' => $attach->guid,
+						);
+					}
+				}
+			}
+		}
+	}
+	
+	private static function insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url ){		
+		
+		$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
+		$attachment  = array(
+			'post_mime_type' => $wp_filetype['type'],
+			'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
+			'post_content'   => isset( $img_data['description'] ) && ! empty( $img_data['description'] ) ? $img_data['description'] : '',
+			'post_excerpt'   => isset( $img_data['caption'] ) && ! empty( $img_data['caption'] ) ? $img_data['caption'] : '',
+			'post_status'    => 'inherit',
+			'guid'           => $local_img_url,
+		);
+
+		// for post attachments, thumbnail.
+		if ( $parent_id ) {
+			$attachment['post_parent'] = $parent_id;
+		}
+
+		$attach_id = wp_insert_attachment( $attachment, $local_img_path ); // Insert the image in the database.
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
+		wp_update_attachment_metadata( $attach_id, $attach_data ); // Update generated metadata.
+		if ( isset( $img_data['alt'] ) && ! empty( $img_data['alt'] ) ) {
+			update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
+		}
+		return array(
+			'id'  => $attach_id,
+			'url' => $local_img_url,
+		);
 	}
 
 	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
@@ -331,47 +278,6 @@ class MainWP_Helper {
 			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) );
 		}
 		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
-	}
-
-	public static function upload_file( $file_url, $path, $file_name ) {
-		// to fix uploader extension rename htaccess file issue.
-		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
-			$file_name = sanitize_file_name( $file_name );
-		}
-
-		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name;
-
-		$response = wp_remote_get(
-			$file_url,
-			array(
-				'timeout'  => 10 * 60 * 60,
-				'stream'   => true,
-				'filename' => $full_file_name,
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			unlink( $full_file_name );
-			throw new \Exception( 'Error: ' . $response->get_error_message() );
-		}
-
-		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			unlink( $full_file_name );
-			throw new \Exception( 'Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ) );
-		}
-		if ( '.phpfile.txt' === substr( $file_name, - 12 ) ) {
-			$new_file_name = substr( $file_name, 0, - 12 ) . '.php';
-			$new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
-			$moved         = rename( $full_file_name, $new_file_name );
-			if ( $moved ) {
-				return array( 'path' => $new_file_name );
-			} else {
-				unlink( $full_file_name );
-				throw new \Exception( 'Error: Copy file.' );
-			}
-		}
-
-		return array( 'path' => $full_file_name );
 	}
 
 	public static function get_mainwp_dir( $what = null, $dieOnError = true ) {

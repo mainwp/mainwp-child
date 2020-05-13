@@ -615,10 +615,8 @@ class MainWP_Clone_Install {
 			return;
 		}
 
-			global $mainWPChild;
-
 		if ( 'dl' === $_REQUEST['cloneFunc'] ) {
-			$mainWPChild->upload_file( $_REQUEST['f'] );
+			MainWP_Utility::instance()->upload_file( $_REQUEST['f'] );
 			exit;
 		} elseif ( 'deleteCloneBackup' === $_POST['cloneFunc'] ) {
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
@@ -726,4 +724,20 @@ class MainWP_Clone_Install {
 		}
 			return true;
 	}
+	
+	
+	public function is_valid_auth( $key ) {
+		$auths = get_option( 'mainwp_child_auth' );
+		if ( ! $auths ) {
+			return false;
+		}
+		for ( $i = 0; $i <= $this->maxHistory; $i ++ ) {
+			if ( isset( $auths[ $i ] ) && ( $auths[ $i ] === $key ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 }

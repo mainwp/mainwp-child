@@ -68,6 +68,18 @@ class MainWP_Keyword_Links {
 			$this->update_htaccess( true ); // force update
 		}
 	}
+	
+	public function parse_init_keyword_links() {
+		if ( 1 === (int) get_option( 'mainwpKeywordLinks' ) ) {			
+			if ( ! is_admin() ) {
+				add_filter( 'the_content', array( $this, 'filter_content' ), 100 );
+			}
+			$this->update_htaccess();
+			$this->redirect_cloak();
+		} elseif ( 'yes' === get_option( 'mainwp_keyword_links_htaccess_set' ) ) {
+			$this->clear_htaccess();
+		}
+	}
 
 	function mod_rewrite_rules( $pRules ) {
 		$home_root = parse_url( home_url() );
@@ -776,17 +788,13 @@ class MainWP_Keyword_Links {
 		}
 	}
 
-	public function enable_stats() {
-		global $mainWPChild;
-		$result       = array();
+	public function enable_stats() {				
 		$enable_stats = intval( $_POST['enablestats'] );
 		if ( get_option( 'mainwp_kwl_enable_statistic' ) !== $enable_stats ) {
 			if ( MainWP_Helper::update_option( 'mainwp_kwl_enable_statistic', $enable_stats ) ) {
 				$return['status'] = 'SUCCESS';
-			}
-			$mainWPChild->update_htaccess( true );
+			}			
 		}
-
 		return $return;
 	}
 

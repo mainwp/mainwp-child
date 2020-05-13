@@ -38,7 +38,11 @@ class MainWP_Child_Stats {
 		return self::$instance;
 	}
 
-	// Show stats without login - only allowed while no account is added yet.
+	/**
+	 * 
+	 * Show stats without login - only allowed while no account is added yet.
+	 * 
+	 */	
 	public function get_site_stats_no_auth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
 			$hint = '<br/>' . __( 'Hint: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.', 'mainwp-child' );
@@ -510,8 +514,6 @@ class MainWP_Child_Stats {
 
 
 	public function update_external_settings() {
-		$update_htaccess = false;
-
 		if ( isset( $_POST['cloneSites'] ) ) {
 			if ( '0' !== $_POST['cloneSites'] ) {
 				$arr = json_decode( urldecode( $_POST['cloneSites'] ), 1 );
@@ -527,17 +529,10 @@ class MainWP_Child_Stats {
 
 		if ( isset( $_POST['pluginDir'] ) ) {
 			if ( get_option( 'mainwp_child_pluginDir' ) !== $_POST['pluginDir'] ) {
-				MainWP_Helper::update_option( 'mainwp_child_pluginDir', $_POST['pluginDir'], 'yes' );
-				$update_htaccess = true;
+				MainWP_Helper::update_option( 'mainwp_child_pluginDir', $_POST['pluginDir'], 'yes' );				
 			}
 		} elseif ( false !== get_option( 'mainwp_child_pluginDir' ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_pluginDir', false, 'yes' );
-			$update_htaccess = true;
-		}
-
-		if ( $update_htaccess ) {
-			global $mainWPChild;
-			$mainWPChild->update_htaccess( true );
 		}
 	}
 
