@@ -5,7 +5,7 @@ namespace MainWP\Child;
 // phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
 
 class MainWP_Utility {
-	
+
 	public static $instance = null;
 
 	/**
@@ -25,12 +25,12 @@ class MainWP_Utility {
 		}
 		return self::$instance;
 	}
-	
-	
+
+
 	public function run_saved_snippets() {
-		
+
 		if ( isset( $_POST['action'] ) && isset( $_POST['mainwpsignature'] ) ) {
-			$action = $_POST['action'];			
+			$action = $_POST['action'];
 			if ( 'run_snippet' === $action || 'save_snippet' === $action || 'delete_snippet' === $action ) {
 				return;  // do not run saved snippets if in do action snippet.
 			}
@@ -45,7 +45,7 @@ class MainWP_Utility {
 			}
 		}
 	}
-	
+
 	public static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
@@ -54,12 +54,11 @@ class MainWP_Utility {
 			et_register_updates_component();
 		}
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * To support maintenance alert
-	 * 	 
-	 */	
+	 */
 	public function maintenance_alert() {
 		if ( ! is_404() ) {
 			return;
@@ -142,7 +141,7 @@ class MainWP_Utility {
 			)
 		);
 	}
-	
+
 	public function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
 			return;
@@ -160,12 +159,11 @@ class MainWP_Utility {
 		}
 		die( '' );
 	}
-	
-	
+
+
 	/**
-	 * 
+	 *
 	 * To support upload backup files.
-	 * 
 	 */
 	public function upload_file( $file, $offset = 0 ) {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
@@ -209,5 +207,5 @@ class MainWP_Utility {
 
 		return fclose( $handle );
 	}
-	
+
 }

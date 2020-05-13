@@ -57,7 +57,7 @@ class MainWP_Child {
 
 		MainWP_Connect::instance()->check_other_auth();
 
-		$this->init_extensions();		
+		$this->init_extensions();
 
 		if ( ! get_option( 'mainwp_child_pubkey' ) ) {
 			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
@@ -808,9 +808,10 @@ class MainWP_Child {
 		}
 
 		// if auth connect are not valid then exit or return.
-		if ( ! MainWP_Connect::instance()->parse_init_auth() )
+		if ( ! MainWP_Connect::instance()->parse_init_auth() ) {
 			return;
-		
+		}
+
 		$auth = MainWP_Connect::instance()->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
 
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) {
@@ -887,15 +888,15 @@ class MainWP_Child {
 		}
 
 		MainWP_Child_Callable::get_instance()->init_call_functions( $auth );
-		
+
 		MainWP_Keyword_Links::instance()->parse_init_keyword_links();
 	}
-	
+
 	public function check_login() {
 		MainWP_Connect::instance()->check_login();
 	}
 
-	private function init_extensions() {		
+	private function init_extensions() {
 		MainWP_Clone::get()->init();
 		MainWP_Child_Server_Information::init();
 		MainWP_Client_Report::instance()->init();
@@ -903,7 +904,7 @@ class MainWP_Child {
 		MainWP_Child_Themes_Check::instance();
 		MainWP_Utility::instance()->run_saved_snippets();
 	}
-	
+
 	private function parse_init_extensions() {
 		// Handle fatal errors for those init if needed.
 		\MainWP_Child_IThemes_Security::instance()->ithemes_init();

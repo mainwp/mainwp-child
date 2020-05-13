@@ -724,8 +724,8 @@ class MainWP_Clone_Install {
 		}
 			return true;
 	}
-	
-	
+
+
 	public function is_valid_auth( $key ) {
 		$auths = get_option( 'mainwp_child_auth' );
 		if ( ! $auths ) {

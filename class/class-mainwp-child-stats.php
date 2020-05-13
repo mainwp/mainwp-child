@@ -39,10 +39,9 @@ class MainWP_Child_Stats {
 	}
 
 	/**
-	 * 
+	 *
 	 * Show stats without login - only allowed while no account is added yet.
-	 * 
-	 */	
+	 */
 	public function get_site_stats_no_auth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
 			$hint = '<br/>' . __( 'Hint: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.', 'mainwp-child' );
@@ -529,7 +528,7 @@ class MainWP_Child_Stats {
 
 		if ( isset( $_POST['pluginDir'] ) ) {
 			if ( get_option( 'mainwp_child_pluginDir' ) !== $_POST['pluginDir'] ) {
-				MainWP_Helper::update_option( 'mainwp_child_pluginDir', $_POST['pluginDir'], 'yes' );				
+				MainWP_Helper::update_option( 'mainwp_child_pluginDir', $_POST['pluginDir'], 'yes' );
 			}
 		} elseif ( false !== get_option( 'mainwp_child_pluginDir' ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_pluginDir', false, 'yes' );

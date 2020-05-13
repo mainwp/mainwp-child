@@ -3,7 +3,7 @@
 namespace MainWP\Child;
 
 class MainWP_Connect {
-	
+
 	public static $instance = null;
 
 	/**
@@ -23,7 +23,7 @@ class MainWP_Connect {
 		}
 		return self::$instance;
 	}
-	
+
 	// This will register the current wp - thus generating the public key etc.
 	public function register_site() {
 		global $current_user;
@@ -88,11 +88,11 @@ class MainWP_Connect {
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information );
 	}
 
-	
+
 	public function parse_init_auth() {
-		
+
 		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
-		
+
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
 		}
@@ -157,11 +157,11 @@ class MainWP_Connect {
 				die();
 			}
 		}
-		
+
 		return true;
 	}
-	
-	
+
+
 	public function auth( $signature, $func, $nonce, $pNossl ) {
 		if ( empty( $signature ) || ! isset( $func ) || ( ! get_option( 'mainwp_child_pubkey' ) && ! get_option( 'mainwp_child_nossl_key' ) ) ) {
 			$auth = false;
@@ -182,7 +182,7 @@ class MainWP_Connect {
 
 		return $auth;
 	}
-	
+
 	public function parse_login_required() {
 
 		global $current_user;
@@ -191,7 +191,7 @@ class MainWP_Connect {
 		$username             = rawurldecode( $_REQUEST['user'] );
 
 		if ( isset( $_REQUEST['alt_user'] ) && ! empty( $_REQUEST['alt_user'] ) ) {
-			$alter_login_required = MainWP_Connect::instance()->check_login_as( $_REQUEST['alt_user'] );
+			$alter_login_required = self::instance()->check_login_as( $_REQUEST['alt_user'] );
 			if ( $alter_login_required ) {
 				$username = rawurldecode( $_REQUEST['alt_user'] );
 			}
@@ -214,8 +214,8 @@ class MainWP_Connect {
 			$file = $_REQUEST['fdl'];
 		}
 
-		$auth = MainWP_Connect::instance()->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '', isset( $_REQUEST['nossl'] ) ? $_REQUEST['nossl'] : 0 );
-		
+		$auth = self::instance()->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '', isset( $_REQUEST['nossl'] ) ? $_REQUEST['nossl'] : 0 );
+
 		if ( ! $auth ) {
 			return;
 		}
@@ -293,7 +293,7 @@ class MainWP_Connect {
 
 		exit();
 	}
-	
+
 	public function check_login() {
 
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
@@ -370,14 +370,12 @@ class MainWP_Connect {
 			}
 		}
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * Check to support login by alternative admin.
 	 * Return false will login by connected admin user.
 	 * Return true will try to login as alternative user.
-	 * 
-	 * 
 	 */
 	public function check_login_as( $alter_login ) {
 
@@ -434,8 +432,8 @@ class MainWP_Connect {
 
 		return false;
 	}
-	
-	
+
+
 	public function check_other_auth() {
 		$auths = get_option( 'mainwp_child_auth' );
 
