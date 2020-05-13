@@ -623,7 +623,7 @@ class MainWP_Helper {
 		}
 
 		$postdata['json_result'] = true; // forced all response in json format.
-		
+
 		// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, $url );

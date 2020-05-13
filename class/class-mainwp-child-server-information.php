@@ -1448,7 +1448,7 @@ class MainWP_Child_Server_Information {
 		// we will always have a fragment of a non-complete line.
 		// keep this in here till we have our next entire line.
 		$leftover = '';
-		
+
 		// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom read file.
 		$fh = fopen( $path, 'r' );
 		// go to the end of the file.
@@ -1487,9 +1487,9 @@ class MainWP_Child_Server_Information {
 		}
 
 		fclose( $fh );
-		
+
 		// phpcs:enable
-		
+
 		// Usually, we will read too many lines, correct that here.
 		return array_slice( $lines, 0, $line_count );
 	}
