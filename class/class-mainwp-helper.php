@@ -623,7 +623,8 @@ class MainWP_Helper {
 		}
 
 		$postdata['json_result'] = true; // forced all response in json format.
-
+		
+		// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, $url );
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
@@ -641,15 +642,14 @@ class MainWP_Helper {
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
 			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-
 			$information = json_decode( $result_base, true ); // it is json_encode result.
-
 			return $information;
 		} elseif ( '' === $data ) {
 			throw new \Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
 		} else {
 			throw new \Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
 		}
+		// phpcs:enable
 	}
 
 

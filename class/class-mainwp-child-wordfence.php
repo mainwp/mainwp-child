@@ -840,7 +840,6 @@ class MainWP_Child_Wordfence {
 			<<<SQL
 			SELECT SUM(blockCount) as blockCount FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval}
 SQL
-		// phpcs:enable
 		);
 	}
 
@@ -1541,7 +1540,7 @@ SQL
 		// Make the API call.
 		try {
 			$api = new wfAPI( wfConfig::get( 'apiKey' ), wfUtils::getWPVersion() );
-			$res = $api->call( 'export_options', array(), array( 'export' => json_encode( $export ) ) );
+			$res = $api->call( 'export_options', array(), array( 'export' => wp_json_encode( $export ) ) );
 			if ( $res['ok'] && $res['token'] ) {
 				return array(
 					'ok'    => 1,

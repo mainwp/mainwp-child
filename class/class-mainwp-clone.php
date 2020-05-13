@@ -55,7 +55,7 @@ class MainWP_Clone {
 		}
 
 		if ( ! $this->check_security( $action, $query_arg ) ) {
-			die( json_encode( array( 'error' => __( 'Invalid request!', 'mainwp-child' ) ) ) );
+			die( wp_json_encode( array( 'error' => __( 'Invalid request!', 'mainwp-child' ) ) ) );
 		}
 
 		if ( isset( $_POST['dts'] ) ) {
@@ -66,7 +66,7 @@ class MainWP_Clone {
 
 			// If already processed, just quit!
 			if ( isset( $ajaxPosts[ $action ] ) && ( $ajaxPosts[ $action ] == $_POST['dts'] ) ) {
-				die( json_encode( array( 'error' => __( 'Double request!', 'mainwp-child' ) ) ) );
+				die( wp_json_encode( array( 'error' => __( 'Double request!', 'mainwp-child' ) ) ) );
 			}
 
 			$ajaxPosts[ $action ] = $_POST['dts'];
@@ -1188,7 +1188,7 @@ class MainWP_Clone {
 			$output = array( 'error' => $e->getMessage() );
 		}
 
-		die( json_encode( $output ) );
+		die( wp_json_encode( $output ) );
 	}
 
 	public function clone_backup_create_poll() {
@@ -1231,7 +1231,7 @@ class MainWP_Clone {
 		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
-		die( json_encode( $output ) );
+		die( wp_json_encode( $output ) );
 	}
 
 	public function clone_backup_download() {
@@ -1328,7 +1328,7 @@ class MainWP_Clone {
 			$output = array( 'error' => $e->getMessage() );
 		}
 
-		die( json_encode( $output ) );
+		die( wp_json_encode( $output ) );
 	}
 
 	public function clone_backup_download_poll() {
@@ -1355,7 +1355,7 @@ class MainWP_Clone {
 		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
-		die( json_encode( $output ) );
+		die( wp_json_encode( $output ) );
 	}
 
 	public function clone_backup_extract() {
@@ -1484,7 +1484,7 @@ class MainWP_Clone {
 		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
-		die( json_encode( $output ) );
+		die( wp_json_encode( $output ) );
 	}
 
 	public static function permalink_changed( $action ) {

@@ -46,27 +46,32 @@ class MainWP_Security {
 	}
 
 	public static function prevent_listing_ok() {
-		self::init_listing_directories();
+		
+		global $wp_filesystem;
+		MainWP_Helper::get_wp_filesystem();
+				
+		self::init_listing_directories();		
 		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
-			if ( ! file_exists( $file ) ) {
+			if ( ! $wp_filesystem->exists( $file ) ) {
 				return false;
 			}
 		}
-
 		return true;
 	}
 
 	public static function prevent_listing() {
 		self::init_listing_directories();
+		
+		global $wp_filesystem;
+		MainWP_Helper::get_wp_filesystem();
+		
 		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
-			if ( ! file_exists( $file ) ) {
-				$h = fopen( $file, 'w' );
-				fwrite( $h, "<?php \n" );
-				fwrite( $h, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n" );
-				fwrite( $h, "die( '403 Forbidden' );\n" );
-				fclose( $h );
+			if ( ! $wp_filesystem->exists( $file ) ) {
+				$wp_filesystem->put_contents( $file, "<?php \n" );
+				$wp_filesystem->put_contents( $file, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n" );
+				$wp_filesystem->put_contents( $file, "die( '403 Forbidden' );\n" );				
 			}
 		}
 	}
@@ -108,25 +113,6 @@ class MainWP_Security {
 	public static function remove_wlw( $force = false ) {
 		if ( $force || self::get_security_option( 'wlw' ) ) {
 			remove_action( 'wp_head', 'wlwmanifest_link' );
-		}
-	}
-
-	// File permissions not secure.
-	private static $permission_checks = null;
-
-	private static function init_permission_checks() {
-		if ( null === self::$permission_checks ) {
-			self::$permission_checks = array(
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../' => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../wp-includes' => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../.htaccess' => '0644',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'index.php' => '0644',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'js/' => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'themes' => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'plugins' => '0755',
-				WP_CONTENT_DIR . DIRECTORY_SEPARATOR . '../wp-admin' => '0755',
-				WP_CONTENT_DIR => '0755',
-			);
 		}
 	}
 
@@ -223,23 +209,19 @@ class MainWP_Security {
 	}
 
 	public static function remove_readme( $force = false ) {
-
 		// to prevent remove readme.html file on WPE hosts.
 		if ( MainWP_Helper::is_wp_engine() ) {
 			return true;
 		}
-
+		MainWP_Helper::get_wp_filesystem();
+		global $wp_filesystem;					
 		if ( $force || self::get_security_option( 'readme' ) ) {
-			if ( file_exists( ABSPATH . 'readme.html' ) ) {
-				if ( ! unlink( ABSPATH . 'readme.html' ) ) {
-					MainWP_Helper::get_wp_filesystem();
-					global $wp_filesystem;
-					if ( ! empty( $wp_filesystem ) ) {
-						$wp_filesystem->delete( ABSPATH . 'readme.html' );
-						if ( file_exists( ABSPATH . 'readme.html' ) ) {
-							// prevent repeat delete.
-							self::update_security_option( 'readme', false );
-						}
+			if ( $wp_filesystem->exists( ABSPATH . 'readme.html' ) ) {
+				if ( ! unlink( ABSPATH . 'readme.html' ) ) {					
+					$wp_filesystem->delete( ABSPATH . 'readme.html' );
+					if ( $wp_filesystem->exists( ABSPATH . 'readme.html' ) ) {
+						// prevent repeat delete.
+						self::update_security_option( 'readme', false );
 					}
 				}
 			}

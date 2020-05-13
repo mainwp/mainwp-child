@@ -1,7 +1,5 @@
 <?php
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
-
 namespace MainWP\Child;
 
 // phpcs:disable
@@ -16,6 +14,8 @@ if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === true ) {
 	}
 }
 // phpcs:enable
+
+// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
 
 require_once ABSPATH . '/wp-admin/includes/file.php';
 require_once ABSPATH . '/wp-admin/includes/plugin.php';

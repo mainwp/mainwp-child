@@ -2882,7 +2882,7 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 		}
 
-		return array( 'result' => json_encode( $stats ) );
+		return array( 'result' => wp_json_encode( $stats ) );
 	}
 
 	public function save_license_settings() {

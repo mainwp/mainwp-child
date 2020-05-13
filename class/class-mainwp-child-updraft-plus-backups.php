@@ -2468,7 +2468,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 						'db_unsupported_collate_unique' => $db_unsupported_collate_unique,
 						'db_collates_found'             => $db_collates_found,
 					);
-					$info['addui']                           .= '<input type="hidden" name="collate_change_on_charset_selection_data" id="collate_change_on_charset_selection_data" value="' . esc_attr( json_encode( $collate_change_on_charset_selection_data ) ) . '">';
+					$info['addui']                           .= '<input type="hidden" name="collate_change_on_charset_selection_data" id="collate_change_on_charset_selection_data" value="' . esc_attr( wp_json_encode( $collate_change_on_charset_selection_data ) ) . '">';
 				}
 			}
 		}
@@ -3454,7 +3454,7 @@ ENDHERE;
 	private function close_browser_connection( $txt = '' ) {
 
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-			$output = json_encode( $txt );
+			$output = wp_json_encode( $txt );
 		else :
 			$output = serialize( $txt ); // phpcs:ignore -- to compatible.
 		endif;

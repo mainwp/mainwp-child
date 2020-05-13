@@ -1581,6 +1581,7 @@ class MainWP_Child_Back_WP_Up {
 	}
 }
 
+// phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
 if ( ! class_exists( 'MainWP_Fake_Wp_Screen' ) ) {
 	class MainWP_Fake_Wp_Screen {
 		public $action;

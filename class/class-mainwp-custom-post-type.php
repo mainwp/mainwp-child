@@ -25,7 +25,7 @@ class MainWP_Custom_Post_Type {
 			}
 
 			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
-				$data = json_encode( $data );
+				$data = wp_json_encode( $data );
 			} else {
 				$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 			}
