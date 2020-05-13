@@ -46,11 +46,11 @@ class MainWP_Security {
 	}
 
 	public static function prevent_listing_ok() {
-		
+
 		global $wp_filesystem;
 		MainWP_Helper::get_wp_filesystem();
-				
-		self::init_listing_directories();		
+
+		self::init_listing_directories();
 		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! $wp_filesystem->exists( $file ) ) {
@@ -62,16 +62,16 @@ class MainWP_Security {
 
 	public static function prevent_listing() {
 		self::init_listing_directories();
-		
+
 		global $wp_filesystem;
 		MainWP_Helper::get_wp_filesystem();
-		
+
 		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! $wp_filesystem->exists( $file ) ) {
 				$wp_filesystem->put_contents( $file, "<?php \n" );
 				$wp_filesystem->put_contents( $file, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n" );
-				$wp_filesystem->put_contents( $file, "die( '403 Forbidden' );\n" );				
+				$wp_filesystem->put_contents( $file, "die( '403 Forbidden' );\n" );
 			}
 		}
 	}
@@ -214,10 +214,10 @@ class MainWP_Security {
 			return true;
 		}
 		MainWP_Helper::get_wp_filesystem();
-		global $wp_filesystem;					
+		global $wp_filesystem;
 		if ( $force || self::get_security_option( 'readme' ) ) {
 			if ( $wp_filesystem->exists( ABSPATH . 'readme.html' ) ) {
-				if ( ! unlink( ABSPATH . 'readme.html' ) ) {					
+				if ( ! unlink( ABSPATH . 'readme.html' ) ) {
 					$wp_filesystem->delete( ABSPATH . 'readme.html' );
 					if ( $wp_filesystem->exists( ABSPATH . 'readme.html' ) ) {
 						// prevent repeat delete.
