@@ -736,7 +736,7 @@ class MainWP_Child_Posts {
 		$this->create_has_shortcode_gallery( $new_post );
 
 		if ( $is_post_plus ) {
-			$this->create_post_plus( $new_post, $post_custom  );
+			$this->create_post_plus( $new_post, $post_custom );
 		}
 
 		if ( isset( $post_tags ) && '' !== $post_tags ) {

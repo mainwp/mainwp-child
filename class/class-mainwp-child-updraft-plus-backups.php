@@ -12,7 +12,7 @@
  * Extension URL: https://mainwp.com/extension/updraftplus/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, disable WordPress.WP.AlternativeFunctions -- use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- use external code.
 
 class MainWP_Child_Updraft_Plus_Backups {
 	public static $instance     = null;

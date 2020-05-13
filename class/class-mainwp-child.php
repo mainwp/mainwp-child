@@ -1,6 +1,6 @@
 <?php
 
-// phpcs:disable disable WordPress.WP.AlternativeFunctions -- to custom.
+// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
 
 namespace MainWP\Child;
 

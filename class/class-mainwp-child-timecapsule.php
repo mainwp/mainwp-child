@@ -11,7 +11,7 @@
  * Extension URL: https://mainwp.com/extension/time-capsule/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, disable WordPress.WP.AlternativeFunctions -- use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- use external code.
 
 class MainWP_Child_Timecapsule {
 	public static $instance     = null;
