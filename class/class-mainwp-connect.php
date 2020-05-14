@@ -4,8 +4,8 @@ namespace MainWP\Child;
 
 class MainWP_Connect {
 
-	public static $instance = null;	
-	private $maxHistory = 5;
+	public static $instance = null;
+	private $maxHistory     = 5;
 
 	/**
 	 * Method get_class_name()
@@ -461,7 +461,7 @@ class MainWP_Connect {
 			MainWP_Helper::update_option( 'mainwp_child_auth', $auths, 'yes' );
 		}
 	}
-		
+
 	public function is_valid_auth( $key ) {
 		$auths = get_option( 'mainwp_child_auth' );
 		if ( ! $auths ) {
@@ -475,10 +475,10 @@ class MainWP_Connect {
 
 		return false;
 	}
-	
-	
+
+
 	public function get_max_history() {
 		return $this->maxHistory;
 	}
-	
+
 }

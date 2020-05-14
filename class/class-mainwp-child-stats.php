@@ -165,7 +165,7 @@ class MainWP_Child_Stats {
 
 		$information['dbsize'] = MainWP_Child_DB::get_size();
 
-		$max_his = MainWP_Connect::instance()->get_max_history();
+		$max_his                = MainWP_Connect::instance()->get_max_history();
 		$auths                  = get_option( 'mainwp_child_auth' );
 		$information['extauth'] = ( $auths && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
 
