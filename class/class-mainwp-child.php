@@ -26,7 +26,7 @@ class MainWP_Child {
 
 	public $plugin_slug;
 	private $plugin_dir;
-	
+
 
 	public static $brandingTitle = null;
 
