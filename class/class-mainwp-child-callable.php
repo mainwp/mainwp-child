@@ -2,6 +2,8 @@
 
 namespace MainWP\Child;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+
 class MainWP_Child_Callable {
 
 	protected static $instance = null;
@@ -71,11 +73,9 @@ class MainWP_Child_Callable {
 		'wpvivid_backuprestore' => 'wpvivid_backuprestore',
 	);
 
-
 	private $callableFunctionsNoAuth = array(
 		'stats' => 'get_site_stats_no_auth',
 	);
-
 
 	/**
 	 * Method get_class_name()
@@ -98,39 +98,28 @@ class MainWP_Child_Callable {
 		return self::$instance;
 	}
 
-	public function init_call_functions( $auth ) {
+	public function init_call_functions( $auth = false ) {
 		$callable  = false;
-		$func_auth = false;
-
 		$callable_no_auth = false;
-		$func_no_auth     = false;
+		$call_func = false;
 
 		// check to execute mainwp child's callable functions.
-		if ( isset( $_POST['function'] ) ) {
-			$func     = $_POST['function'];
-			$callable = $this->is_callable_function( $func );
-			if ( $callable ) {
-				$func_auth = $func;
-			}
-
-			if ( ! $callable ) {
-				$callable_no_auth = $this->is_callable_function_no_auth( $func );
-				if ( $callable_no_auth ) {
-					$func_no_auth = $func;
-				}
-			}
+		if ( isset( $_POST['function'] ) ) {			
+			$call_func     = $_POST['function'];
+			$callable = $this->is_callable_function( $call_func ); // check callable func.			
+			$callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.	
 		}
 
 		// Call the function required.
 		if ( $auth && isset( $_POST['function'] ) && $callable ) {
 			define( 'DOING_CRON', true );
-			MainWP_Helper::handle_fatal_error();
+			MainWP_Utility::handle_fatal_error();
 			MainWP_Utility::fix_for_custom_themes();
-			$this->call_function( $func_auth );
+			$this->call_function( $call_func );
 		} elseif ( isset( $_POST['function'] ) && $callable_no_auth ) {
 			define( 'DOING_CRON', true );
 			MainWP_Utility::fix_for_custom_themes();
-			$this->call_function_no_auth( $func_no_auth );
+			$this->call_function_no_auth( $call_func );
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
 			MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
 		}
@@ -312,7 +301,7 @@ class MainWP_Child_Callable {
 		$output['cron'] = ob_get_contents();
 		ob_end_clean();
 		ob_start();
-		MainWP_Child_Server_Information::render_error_log_page();
+		MainWP_Child_Server_Information::render_error_page();
 		$output['error'] = ob_get_contents();
 		ob_end_clean();
 		ob_start();
@@ -591,9 +580,9 @@ class MainWP_Child_Callable {
 
 	public function backup( $pWrite = true ) {
 
-		$timeout = 20 * 60 * 60;
-		set_time_limit( $timeout );
-		ini_set( 'max_execution_time', $timeout ); // phpcs:ignore
+		$timeout = 20 * 60 * 60;		
+		MainWP_Helper::set_limit( $timeout );
+		
 		MainWP_Helper::end_session();
 
 		// Cleanup pid files!

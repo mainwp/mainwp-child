@@ -86,15 +86,13 @@ class MainWP_Connect {
 		$information['uniqueId'] = get_option( 'mainwp_child_uniqueId', '' );
 		$information['user']     = $_POST['user'];
 
-		MainWP_Child_Stats::get_instance()->get_site_stats( $information );
+		MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.
 	}
 
 
-	public function parse_init_auth() {
-
-		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
-
-		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) {
+	public function parse_init_auth( $auth = false ) {
+		
+		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) { // with 'mainwpsignature' then need to callable functions.
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
 		}
 
@@ -117,6 +115,7 @@ class MainWP_Connect {
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
 					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
 						$auth_user = $_POST['alt_user'];
+						// get alternative admin user.
 						$user      = get_user_by( 'login', $auth_user );
 					}
 				}
@@ -136,6 +135,7 @@ class MainWP_Connect {
 					MainWP_Helper::error( __( 'Invalid user. Please verify that the user has administrator privileges.', 'mainwp-child' ) );
 				}
 
+				// try to login.
 				$this->login( $auth_user );
 			}
 
@@ -144,7 +144,7 @@ class MainWP_Connect {
 				if ( empty( $auth_user ) ) {
 					$auth_user = $_POST['user'];
 				}
-
+				// try to login.
 				if ( $this->login( $auth_user, true ) ) {
 					return false;
 				} else {
@@ -297,6 +297,7 @@ class MainWP_Connect {
 
 	public function check_login() {
 
+		// to login requires 'mainwpsignature'.
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
 			return false;
 		}

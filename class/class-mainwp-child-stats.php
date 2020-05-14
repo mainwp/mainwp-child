@@ -86,8 +86,7 @@ class MainWP_Child_Stats {
 		include_once ABSPATH . '/wp-admin/includes/update.php';
 
 		$timeout = 3 * 60 * 60;
-		set_time_limit( $timeout );
-		ini_set( 'max_execution_time', $timeout ); //phpcs:ignore -- to custom
+		MainWP_Helper::set_limit( $timeout );		
 
 		// Check for new versions.
 		$information['wp_updates'] = $this->stats_wp_update();
@@ -352,6 +351,7 @@ class MainWP_Child_Stats {
 	}
 
 	private function stats_wp_update() {
+		global $wp_version;
 		$result = null;
 		// Check for new versions.
 		if ( null !== $this->filterFunction ) {
@@ -535,7 +535,7 @@ class MainWP_Child_Stats {
 
 	public function get_total_file_size( $directory = WP_CONTENT_DIR ) {
 		try {
-			if ( MainWP_Helper::function_exists( 'popen' ) ) {
+			if ( MainWP_Helper::funct_exists( 'popen' ) ) {
 				$uploadDir   = MainWP_Helper::get_mainwp_dir();
 				$uploadDir   = $uploadDir[0];
 				$popenHandle = popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' ); // phpcs:ignore -- run if enabled.
@@ -549,7 +549,7 @@ class MainWP_Child_Stats {
 				}
 			}
 
-			if ( MainWP_Helper::function_exists( 'shell_exec' ) ) {
+			if ( MainWP_Helper::funct_exists( 'shell_exec' ) ) {
 				$uploadDir = MainWP_Helper::get_mainwp_dir();
 				$uploadDir = $uploadDir[0];
 				$size      = shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' ); // phpcs:ignore -- run if enabled.

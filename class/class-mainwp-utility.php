@@ -142,6 +142,28 @@ class MainWP_Utility {
 		);
 	}
 
+	
+	/**
+	 * Handle fatal error for requests from the dashboard
+	 * mwp_action requests
+	 * wordpress_seo requests
+	 * This will do not handle fatal error for sync request from the dashboard
+	 */
+	public static function handle_fatal_error() {
+
+		function handle_shutdown() {
+			// handle fatal errors and compile errors.
+			$error = error_get_last();
+			if ( isset( $error['type'] ) && isset( $error['message'] ) && ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] ) ) {
+				mainwp_child_helper()->write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+			}
+		}
+
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
+			register_shutdown_function( 'handle_shutdown' );
+		}
+	}
+	
 	public function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
 			return;
@@ -206,6 +228,135 @@ class MainWP_Utility {
 		}
 
 		return fclose( $handle );
+	}
+	
+	// $check_file_existed: to support checking if file existed.
+	// $parent_id: optional.
+	public static function upload_image( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {
+		if ( ! is_array( $img_data ) ) {
+			$img_data = array();
+		}
+
+		/** @var $wp_filesystem WP_Filesystem_Base */
+		global $wp_filesystem;
+		MainWP_Helper::get_wp_filesystem();
+
+		include_once ABSPATH . 'wp-admin/includes/file.php';
+		$upload_dir = wp_upload_dir();
+		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
+		$temporary_file = download_url( $img_url );
+		remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
+
+		if ( is_wp_error( $temporary_file ) ) {
+			throw new \Exception( 'Error: ' . $temporary_file->get_error_message() );
+		} else {
+			$filename       = basename( $img_url );
+			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename;
+			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+
+			// to fix issue re-create new attachment.
+			if ( $check_file_existed ) {
+				$result = self::check_media_file_existed( $upload_dir, $filename, $temporary_file, $local_img_path, $local_img_url );
+				if ( ! empty( $result ) ) {
+					return $result;
+				}
+			}
+
+			// file exists, do not overwrite, generate unique file name.
+			// this may causing of issue incorrect source of image in post content.
+			if ( $wp_filesystem->exists( $local_img_path ) ) {
+				$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
+				$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+			}
+
+			$moved = $wp_filesystem->move( $temporary_file, $local_img_path );
+			if ( $moved ) {
+				return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );
+			}
+		}
+
+		if ( $wp_filesystem->exists( $temporary_file ) ) {
+			$wp_filesystem->delete( $temporary_file );
+		}
+		return null;
+	}
+
+	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ) {
+		global $wp_filesystem;
+		if ( $wp_filesystem->exists( $local_img_path ) ) {
+			if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
+				$result = self::get_maybe_existed_attached_id( $local_img_url );
+				if ( is_array( $result ) ) {
+					$attach = current( $result );
+					if ( is_object( $attach ) ) {
+						if ( $wp_filesystem->exists( $temporary_file ) ) {
+							$wp_filesystem->delete( $temporary_file );
+						}
+						return array(
+							'id'  => $attach->ID,
+							'url' => $local_img_url,
+						);
+					}
+				}
+			}
+		} else {
+			$result = self::get_maybe_existed_attached_id( $filename, false );
+			if ( is_array( $result ) ) {
+				$attach = current( $result );
+				if ( is_object( $attach ) ) {
+					$basedir        = $upload_dir['basedir'];
+					$baseurl        = $upload_dir['baseurl'];
+					$local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
+					if ( $wp_filesystem->exists( $local_img_path ) && ( $wp_filesystem->size( $local_img_path ) == $wp_filesystem->size( $temporary_file ) ) ) {
+						if ( $wp_filesystem->exists( $temporary_file ) ) {
+							$wp_filesystem->delete( $temporary_file );
+						}
+						return array(
+							'id'  => $attach->ID,
+							'url' => $attach->guid,
+						);
+					}
+				}
+			}
+		}
+	}
+
+	private static function insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url ) {
+
+		$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
+		$attachment  = array(
+			'post_mime_type' => $wp_filetype['type'],
+			'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
+			'post_content'   => isset( $img_data['description'] ) && ! empty( $img_data['description'] ) ? $img_data['description'] : '',
+			'post_excerpt'   => isset( $img_data['caption'] ) && ! empty( $img_data['caption'] ) ? $img_data['caption'] : '',
+			'post_status'    => 'inherit',
+			'guid'           => $local_img_url,
+		);
+
+		// for post attachments, thumbnail.
+		if ( $parent_id ) {
+			$attachment['post_parent'] = $parent_id;
+		}
+
+		$attach_id = wp_insert_attachment( $attachment, $local_img_path ); // Insert the image in the database.
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		$attach_data = wp_generate_attachment_metadata( $attach_id, $local_img_path );
+		wp_update_attachment_metadata( $attach_id, $attach_data ); // Update generated metadata.
+		if ( isset( $img_data['alt'] ) && ! empty( $img_data['alt'] ) ) {
+			update_post_meta( $attach_id, '_wp_attachment_image_alt', $img_data['alt'] );
+		}
+		return array(
+			'id'  => $attach_id,
+			'url' => $local_img_url,
+		);
+	}
+
+	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
+		global $wpdb;
+		if ( $full_guid ) {
+			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) );
+		}
+		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
 	}
 
 }

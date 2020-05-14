@@ -885,7 +885,7 @@ class MainWP_Child_Posts {
 				}
 
 				try {
-					$downloadfile      = MainWP_Helper::upload_image( $originalImgUrl, array(), $check_image_existed );
+					$downloadfile      = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image_existed );
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
@@ -919,7 +919,7 @@ class MainWP_Child_Posts {
 						foreach ( $post_gallery_images as $gallery ) {
 							if ( isset( $gallery['src'] ) ) {
 								try {
-									$upload = MainWP_Helper::upload_image( $gallery['src'], $gallery ); // Upload image to WP.
+									$upload = MainWP_Utility::upload_image( $gallery['src'], $gallery ); // Upload image to WP.
 									if ( null !== $upload ) {
 										$replaceAttachedIds[ $gallery['id'] ] = $upload['id'];
 									}
@@ -1145,7 +1145,7 @@ class MainWP_Child_Posts {
 		// upload image if it on the server.
 		if ( ! empty( $_seo_opengraph_image ) && false !== strpos( $_seo_opengraph_image, $_server_domain ) ) {
 			try {
-				$upload = MainWP_Helper::upload_image( $_seo_opengraph_image ); // Upload image to WP.
+				$upload = MainWP_Utility::upload_image( $_seo_opengraph_image ); // Upload image to WP.
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
 				}
@@ -1161,7 +1161,7 @@ class MainWP_Child_Posts {
 		// If featured image exists - set it.
 		if ( null !== $post_featured_image ) {
 			try {
-				$upload = MainWP_Helper::upload_image( $post_featured_image, array(), $check_image_existed, $new_post_id ); // Upload image to WP.
+				$upload = MainWP_Utility::upload_image( $post_featured_image, array(), $check_image_existed, $new_post_id ); // Upload image to WP.
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, '_thumbnail_id', $upload['id'] ); // Add the thumbnail to the post!
 					$featured_image_exist = true;

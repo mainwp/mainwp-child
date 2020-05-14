@@ -472,7 +472,7 @@ class MainWP_Child_Server_Information {
 				<h2><?php esc_html_e( 'Cron Schedules', 'mainwp-child' ); ?></h2>
 				<?php self::render_cron(); ?>
 				<h2><?php esc_html_e( 'Error Log', 'mainwp-child' ); ?></h2>
-				<?php self::render_error_log_page(); ?>
+				<?php self::render_error_page(); ?>
 			</div>
 		</div>
 		<?php
@@ -1358,7 +1358,7 @@ class MainWP_Child_Server_Information {
 	*Includes last_lines() function by phant0m, licensed under cc-wiki and GPLv2+
 	*/
 
-	public static function render_error_log_page() {
+	public static function render_error_page() {
 		?>
 		<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
 			<thead title="Click to Toggle" style="cursor: pointer;">

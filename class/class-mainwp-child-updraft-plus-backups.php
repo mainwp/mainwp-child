@@ -3508,12 +3508,39 @@ ENDHERE;
 		foreach ( $remove_hooks as $hook_name => $hooks ) {
 			foreach ( $hooks as $class_name => $methods ) {
 				foreach ( $methods as $method => $priority ) {
-					MainWP_Helper::remove_filters_for_anonymous_class( $hook_name, $class_name, $method, $priority );
+					self::remove_filters_for_anonymous_class( $hook_name, $class_name, $method, $priority );
 				}
 			}
 		}
 	}
 
+	
+	/**
+	 * Allow to remove method for an hook when, it's a class method used and class don't have variable, but you know the class name :)
+	 * Credit to the : wp-filters-extras
+	 */
+	public static function remove_filters_for_anonymous_class( $hook_name = '', $class_name = '', $method_name = '', $priority = 0 ) {
+		global $wp_filter;
+
+		// Take only filters on right hook name and priority.
+		if ( ! isset( $wp_filter[ $hook_name ] ) || ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
+			return false;
+		}
+
+		// Loop on filters registered.
+		foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
+			// Test if filter is an array ! (always for class/method).
+			if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
+				// Test if object is a class, class and method is equal to param !
+				if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) === $class_name && $filter_array['function'][1] === $method_name ) {
+					unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
+				}
+			}
+		}
+
+		return false;
+	}
+	
 	public function wp_before_admin_bar_render() {
 		global $wp_admin_bar;
 
