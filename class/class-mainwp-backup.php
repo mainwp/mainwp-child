@@ -91,7 +91,7 @@ class MainWP_Backup {
 		$this->timeout = 20 * 60 * 60;
 		$mem           = '512M';
 		MainWP_Helper::set_limit( $this->timeout, $mem );
-		
+
 		if ( null !== $this->archiver ) {
 			$success = $this->archiver->create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append );
 		} elseif ( $this->check_zip_support() ) {
@@ -113,7 +113,7 @@ class MainWP_Backup {
 		$this->timeout = 20 * 60 * 60;
 		$mem           = '512M';
 		MainWP_Helper::set_limit( $this->timeout, $mem );
-		
+
 		if ( ! is_array( $files ) ) {
 			$files = array( $files );
 		}
@@ -622,11 +622,11 @@ class MainWP_Backup {
 	}
 
 	public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
-		
+
 		$timeout = 20 * 60 * 60;
-		$mem = '512M';
+		$mem     = '512M';
 		MainWP_Helper::set_limit( $timeout, $mem );
-		
+
 		/** @var $wpdb wpdb */
 		global $wpdb;
 

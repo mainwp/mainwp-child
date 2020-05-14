@@ -1014,8 +1014,8 @@ class MainWP_Helper {
 			error_log( $msg ); // phpcs:ignore -- debug mode only.
 		}
 	}
-	
-	public static function set_limit( $timeout, $mem = false ){
+
+	public static function set_limit( $timeout, $mem = false ) {
 		// phpcs:disable
 		if ( ! empty( $mem ) ) {
 			ini_set( 'memory_limit', $mem );

@@ -158,7 +158,7 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
-	
+
 	/**
 	 * Credit to the : wp-filters-extras
 	 */
