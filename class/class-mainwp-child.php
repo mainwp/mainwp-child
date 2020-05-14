@@ -26,7 +26,7 @@ class MainWP_Child {
 
 	public $plugin_slug;
 	private $plugin_dir;
-	private $maxHistory = 5;
+	
 
 	public static $brandingTitle = null;
 
@@ -754,10 +754,6 @@ class MainWP_Child {
 		</div>
 
 		<?php
-	}
-
-	public function get_max_history() {
-		return $this->maxHistory;
 	}
 
 	public function parse_init() {

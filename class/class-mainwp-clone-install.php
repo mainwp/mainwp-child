@@ -2,6 +2,8 @@
 
 namespace MainWP\Child;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom functions.
+
 class MainWP_Clone_Install {
 	protected $file;
 	public $config;
@@ -34,7 +36,7 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function check_zip_support() {
-		return class_exists( 'ZipArchive' );
+		return class_exists( '\ZipArchive' );
 	}
 
 	/**
@@ -60,7 +62,7 @@ class MainWP_Clone_Install {
 		} elseif ( $this->check_zip_console() ) {
 			return false;
 		} elseif ( $this->check_zip_support() ) {
-			$zip    = new ZipArchive();
+			$zip    = new \ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
 				$zip->deleteName( 'wp-config.php' );
@@ -72,7 +74,7 @@ class MainWP_Clone_Install {
 
 			return false;
 		} else {
-			$zip   = new PclZip( $this->file );
+			$zip   = new \PclZip( $this->file );
 			$list  = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
 			$list2 = $zip->delete( PCLZIP_OPT_BY_NAME, 'clone' );
 			if ( 0 === $list ) {
@@ -115,7 +117,7 @@ class MainWP_Clone_Install {
 		} elseif ( $this->check_zip_console() ) {
 			return false;
 		} elseif ( $this->check_zip_support() ) {
-			$zip    = new ZipArchive();
+			$zip    = new \ZipArchive();
 			$zipRes = $zip->open( $this->file );
 			if ( $zipRes ) {
 				$content = $zip->locateName( $file );
@@ -292,7 +294,7 @@ class MainWP_Clone_Install {
 			if ( $this->check_zip_console() ) {
 				return false;
 			} elseif ( $this->check_zip_support() ) {
-				$zip    = new ZipArchive();
+				$zip    = new \ZipArchive();
 				$zipRes = $zip->open( $this->file );
 				if ( $zipRes ) {
 					$content = $zip->get_from_name( 'clone/config.txt' );
@@ -303,7 +305,7 @@ class MainWP_Clone_Install {
 
 				return false;
 			} else {
-				$zip     = new PclZip( $this->file );
+				$zip     = new \PclZip( $this->file );
 				$content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt', PCLZIP_OPT_EXTRACT_AS_STRING );
 				if ( ! is_array( $content ) || ! isset( $content[0]['content'] ) ) {
 					return false;
@@ -350,7 +352,7 @@ class MainWP_Clone_Install {
 	 * @return bool
 	 */
 	public function extract_zip_backup() {
-		$zip    = new ZipArchive();
+		$zip    = new \ZipArchive();
 		$zipRes = $zip->open( $this->file );
 		if ( $zipRes ) {
 			$zip->extract_to( ABSPATH );
@@ -379,7 +381,7 @@ class MainWP_Clone_Install {
 	}
 
 	public function extract_zip_pcl_backup() {
-		$zip = new PclZip( $this->file );
+		$zip = new \PclZip( $this->file );
 		if ( 0 === $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
 			return false;
 		}
@@ -611,7 +613,7 @@ class MainWP_Clone_Install {
 		if ( ! isset( $_REQUEST['f'] ) || ( '' === $_REQUEST['f'] ) ) {
 			return;
 		}
-		if ( ! $this->is_valid_auth( $_REQUEST['key'] ) ) {
+		if ( ! MainWP_Connect::instance()->is_valid_auth( $_REQUEST['key'] ) ) {
 			return;
 		}
 
@@ -723,21 +725,6 @@ class MainWP_Clone_Install {
 			mainwp_child_helper()->write( $information );
 		}
 			return true;
-	}
-
-
-	public function is_valid_auth( $key ) {
-		$auths = get_option( 'mainwp_child_auth' );
-		if ( ! $auths ) {
-			return false;
-		}
-		for ( $i = 0; $i <= $this->maxHistory; $i ++ ) {
-			if ( isset( $auths[ $i ] ) && ( $auths[ $i ] === $key ) ) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 }

@@ -206,7 +206,7 @@ class MainWP_Child_Install {
 
 		$result = array();
 		foreach ( $urls as $url ) {
-			$installer  = new WP_Upgrader();
+			$installer  = new \WP_Upgrader();
 			$ssl_verify = true;
 			// @see wp-admin/includes/class-wp-upgrader.php
 			if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {

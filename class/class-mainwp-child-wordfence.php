@@ -11,7 +11,7 @@
  * Extension URL: https://mainwp.com/extension/wordfence/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_Wordfence {
 	public static $instance        = null;

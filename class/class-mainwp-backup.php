@@ -2,6 +2,8 @@
 
 namespace MainWP\Child;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom functions.
+
 class MainWP_Backup {
 	protected static $instance = null;
 	protected $excludeZip;
@@ -138,11 +140,11 @@ class MainWP_Backup {
 	}
 
 	public function m_zip_file( $files, $archive ) {
-		$this->zip                 = new ZipArchive();
+		$this->zip                 = new \ZipArchive();
 		$this->zipArchiveFileCount = 0;
 		$this->zipArchiveSizeCount = 0;
 
-		$zipRes = $this->zip->open( $archive, ZipArchive::CREATE );
+		$zipRes = $this->zip->open( $archive, \ZipArchive::CREATE );
 		if ( $zipRes ) {
 			foreach ( $files as $file ) {
 				$this->add_fileToZip( $file, basename( $file ) );
@@ -161,7 +163,7 @@ class MainWP_Backup {
 	public function m_zip_file_pcl( $files, $archive ) {
 		// Zip this backup folder.
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
-		$this->zip = new PclZip( $archive );
+		$this->zip = new \PclZip( $archive );
 
 		$error = false;
 		foreach ( $files as $file ) {
@@ -180,7 +182,7 @@ class MainWP_Backup {
 	 * @return bool
 	 */
 	public function check_zip_support() {
-		return class_exists( 'ZipArchive' );
+		return class_exists( '\ZipArchive' );
 	}
 
 	/**
@@ -201,11 +203,11 @@ class MainWP_Backup {
 	 */
 	public function create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
 		$this->excludeZip          = $excludezip;
-		$this->zip                 = new ZipArchive();
+		$this->zip                 = new \ZipArchive();
 		$this->zipArchiveFileCount = 0;
 		$this->zipArchiveSizeCount = 0;
 		$this->zipArchiveFileName  = $filepath;
-		$zipRes                    = $this->zip->open( $filepath, ZipArchive::CREATE );
+		$zipRes                    = $this->zip->open( $filepath, \ZipArchive::CREATE );
 		if ( $zipRes ) {
 			$nodes = glob( ABSPATH . '*' );
 			if ( ! $includeCoreFiles ) {
@@ -442,7 +444,7 @@ class MainWP_Backup {
 
 		// Zip this backup folder.
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
-		$this->zip = new PclZip( $filepath );
+		$this->zip = new \PclZip( $filepath );
 		$this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
 		if ( $addConfig ) {
 			global $wpdb;
@@ -614,7 +616,7 @@ class MainWP_Backup {
 			if ( function_exists( 'gc_collect_cycles' ) ) {
 				gc_collect_cycles();
 			}
-			$this->zip = new ZipArchive();
+			$this->zip = new \ZipArchive();
 			$this->zip->open( $this->zipArchiveFileName );
 			$this->zipArchiveFileCount = 0;
 			$this->zipArchiveSizeCount = 0;

@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/staging/
  */
 
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+
 class MainWP_Child_Staging {
 
 	public static $instance     = null;

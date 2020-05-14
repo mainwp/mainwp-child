@@ -96,7 +96,7 @@ class MainWP_Child_Updates {
 				$slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
 
 				if ( isset( $update['url'] ) ) {
-					$installer                        = new WP_Upgrader();
+					$installer                        = new \WP_Upgrader();
 					$result                           = $installer->run(
 						array(
 							'package'           => $update['url'],

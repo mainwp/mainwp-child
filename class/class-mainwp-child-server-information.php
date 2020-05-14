@@ -1074,7 +1074,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	protected static function get_zip_archive_enabled() {
-		return class_exists( 'ZipArchive' );
+		return class_exists( '\ZipArchive' );
 	}
 
 	protected static function get_gzip_enabled() {
