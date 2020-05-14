@@ -216,7 +216,7 @@ class MainWP_Child_Users {
 
 	public function edit_user( $user_id, $data ) {
 		$wp_roles = wp_roles();
-		$user     = new stdClass();
+		$user     = new \stdClass();
 
 		$update = true;
 

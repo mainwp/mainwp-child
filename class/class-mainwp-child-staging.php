@@ -12,8 +12,6 @@
  * Extension URL: https://mainwp.com/extension/staging/
  */
 
-namespace MainWP\Child;
-
 class MainWP_Child_Staging {
 
 	public static $instance     = null;

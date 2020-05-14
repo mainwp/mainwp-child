@@ -15,7 +15,6 @@ if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === true ) {
 }
 // phpcs:enable
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
 
 require_once ABSPATH . '/wp-admin/includes/file.php';
 require_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -57,7 +56,12 @@ class MainWP_Child {
 
 		MainWP_Connect::instance()->check_other_auth();
 
-		$this->init_extensions();
+		MainWP_Clone::get()->init();
+		MainWP_Child_Server_Information::init();
+		MainWP_Client_Report::instance()->init();
+		MainWP_Child_Plugins_Check::instance();
+		MainWP_Child_Themes_Check::instance();
+		MainWP_Utility::instance()->run_saved_snippets();
 
 		if ( ! get_option( 'mainwp_child_pubkey' ) ) {
 			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
@@ -880,7 +884,12 @@ class MainWP_Child {
 		}
 
 		// Init extensions.
-		$this->parse_init_extensions();
+		MainWP_Clone::get()->init();
+		MainWP_Child_Server_Information::init();
+		MainWP_Client_Report::instance()->init();
+		MainWP_Child_Plugins_Check::instance();
+		MainWP_Child_Themes_Check::instance();
+		MainWP_Utility::instance()->run_saved_snippets();
 
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
@@ -896,17 +905,10 @@ class MainWP_Child {
 		MainWP_Connect::instance()->check_login();
 	}
 
-	private function init_extensions() {
-		MainWP_Clone::get()->init();
-		MainWP_Child_Server_Information::init();
-		MainWP_Client_Report::instance()->init();
-		MainWP_Child_Plugins_Check::instance();
-		MainWP_Child_Themes_Check::instance();
-		MainWP_Utility::instance()->run_saved_snippets();
-	}
-
-	private function parse_init_extensions() {
-		// Handle fatal errors for those init if needed.
+	private function parse_init_extensions() {		
+		// Handle fatal errors for those init if needed.		
+		MainWP_Child_Branding::instance()->branding_init();
+		MainWP_Client_Report::instance()->creport_init();
 		\MainWP_Child_IThemes_Security::instance()->ithemes_init();
 		\MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
 		\MainWP_Child_Back_Up_WordPress::instance()->init();
@@ -915,9 +917,7 @@ class MainWP_Child {
 		\MainWP_Child_Back_Up_Buddy::instance();
 		\MainWP_Child_Wordfence::instance()->wordfence_init();
 		\MainWP_Child_Timecapsule::instance()->init();
-		MainWP_Child_Staging::instance()->init();
-		MainWP_Child_Branding::instance()->branding_init();
-		MainWP_Client_Report::instance()->creport_init();
+		\MainWP_Child_Staging::instance()->init();		
 		\MainWP_Child_Pagespeed::instance()->init();
 		\MainWP_Child_Links_Checker::instance()->init();
 		\MainWP_Child_WPvivid_BackupRestore::instance()->init();

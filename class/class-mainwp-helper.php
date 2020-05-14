@@ -2,6 +2,8 @@
 
 namespace MainWP\Child;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom functions.
+
 class MainWP_Helper {
 
 	public static $instance = null;
@@ -163,6 +165,10 @@ class MainWP_Helper {
 			$img_data = array();
 		}
 
+		/** @var $wp_filesystem WP_Filesystem_Base */
+		global $wp_filesystem;
+		MainWP_Helper::get_wp_filesystem();
+		
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 		$upload_dir = wp_upload_dir();
 		add_filter( 'http_request_args', array( self::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
@@ -186,32 +192,33 @@ class MainWP_Helper {
 
 			// file exists, do not overwrite, generate unique file name.
 			// this may causing of issue incorrect source of image in post content.
-			if ( file_exists( $local_img_path ) ) {
+			if ( $wp_filesystem->exists( $local_img_path ) ) {
 				$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
 				$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 			}
 
-			$moved = rename( $temporary_file, $local_img_path );
+			$moved = $wp_filesystem->move( $temporary_file, $local_img_path );
 			if ( $moved ) {
 				return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );
 			}
 		}
 
-		if ( file_exists( $temporary_file ) ) {
-			unlink( $temporary_file );
+		if ( $wp_filesystem->exists( $temporary_file ) ) {
+			$wp_filesystem->delete( $temporary_file );
 		}
 		return null;
 	}
 
 	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ) {
-		if ( file_exists( $local_img_path ) ) {
+		global $wp_filesystem;
+		if ( $wp_filesystem->exists( $local_img_path ) ) {
 			if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
 				$result = self::get_maybe_existed_attached_id( $local_img_url );
 				if ( is_array( $result ) ) {
 					$attach = current( $result );
 					if ( is_object( $attach ) ) {
-						if ( file_exists( $temporary_file ) ) {
-							unlink( $temporary_file );
+						if ( $wp_filesystem->exists( $temporary_file ) ) {
+							$wp_filesystem->delete( $temporary_file );
 						}
 						return array(
 							'id'  => $attach->ID,
@@ -228,9 +235,9 @@ class MainWP_Helper {
 					$basedir        = $upload_dir['basedir'];
 					$baseurl        = $upload_dir['baseurl'];
 					$local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
-					if ( file_exists( $local_img_path ) && ( filesize( $local_img_path ) == filesize( $temporary_file ) ) ) {
-						if ( file_exists( $temporary_file ) ) {
-							unlink( $temporary_file );
+					if ( $wp_filesystem->exists( $local_img_path ) && ( $wp_filesystem->size( $local_img_path ) == $wp_filesystem->size( $temporary_file ) ) ) {
+						if ( $wp_filesystem->exists( $temporary_file ) ) {
+							$wp_filesystem->delete( $temporary_file );
 						}
 						return array(
 							'id'  => $attach->ID,
@@ -281,10 +288,14 @@ class MainWP_Helper {
 	}
 
 	public static function get_mainwp_dir( $what = null, $dieOnError = true ) {
+		/** @var $wp_filesystem WP_Filesystem_Base */
+		global $wp_filesystem;
+		MainWP_Helper::get_wp_filesystem();
+		
 		$upload_dir = wp_upload_dir();
 		$dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
 		self::check_dir( $dir, $dieOnError );
-		if ( ! file_exists( $dir . 'index.php' ) ) {
+		if ( ! $wp_filesystem->exists( $dir . 'index.php' ) ) {
 			touch( $dir . 'index.php' );
 		}
 		$url = $upload_dir['baseurl'] . '/mainwp/';
@@ -292,12 +303,12 @@ class MainWP_Helper {
 		if ( 'backup' === $what ) {
 			$dir .= 'backup' . DIRECTORY_SEPARATOR;
 			self::check_dir( $dir, $dieOnError );
-			if ( ! file_exists( $dir . 'index.php' ) ) {
+			if ( ! $wp_filesystem->exists( $dir . 'index.php' ) ) {
 				touch( $dir . 'index.php' );
 			}
 
 			$another_name = '.htaccess';
-			if ( ! file_exists( $dir . $another_name ) ) {
+			if ( ! $wp_filesystem->exists( $dir . $another_name ) ) {
 				$file = fopen( $dir . $another_name, 'w+' );
 				fwrite( $file, 'deny from all' );
 				fclose( $file );
@@ -311,6 +322,7 @@ class MainWP_Helper {
 	public static function check_dir( $dir, $dieOnError, $chmod = 0755 ) {
 		self::get_wp_filesystem();
 		global $wp_filesystem;
+		
 		if ( ! file_exists( $dir ) ) {
 			if ( empty( $wp_filesystem ) ) {
 				mkdir( $dir, $chmod, true );
@@ -354,14 +366,16 @@ class MainWP_Helper {
 			}
 		}
 
+		//phpcs:disable -- use system functions
 		if ( ! $done ) {
 			if ( ! file_exists( $dir ) ) {
-				mkdirs( $dir );
+				@mkdirs( $dir );
 			}
 			if ( is_writable( $dir ) ) {
 				$done = true;
 			}
 		}
+		//phpcs:enable
 
 		return $done;
 	}

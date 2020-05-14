@@ -578,7 +578,7 @@ class MainWP_Keyword_Links {
 			if ( in_array( $result->post_name, (array) $paths_blocked ) ) {
 				continue;
 			}
-			$link = new stdClass();
+			$link = new \stdClass();
 			// This is on-fly link so have not ID
 			// $link->id = $result->ID;
 			$link->name = $result->post_title;
@@ -888,7 +888,7 @@ class MainWP_Keyword_Links {
 			}
 
 			$old                   = $this->get_link( $link_id );
-			$link                  = new stdClass();
+			$link                  = new \stdClass();
 			$link->id              = intval( $link_id );
 			$link->name            = sanitize_text_field( $_POST['name'] );
 			$link->destination_url = esc_url( $_POST['destination_url'] );

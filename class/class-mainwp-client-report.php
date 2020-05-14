@@ -375,7 +375,7 @@ class MainWP_Client_Report {
 					$au_name = $post_authors[ $au_id ];
 
 					// simulate logging created posts record.
-					$stdObj            = new stdClass();
+					$stdObj            = new \stdClass();
 					$stdObj->ID        = 0; // simulate ID value.
 					$stdObj->connector = 'posts';
 					$stdObj->context   = 'post';

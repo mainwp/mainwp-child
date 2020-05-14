@@ -356,7 +356,7 @@ class MainWP_Child_Links_Checker {
 
 		if ( is_array( $links ) ) {
 			foreach ( $links as $link ) {
-				$new_link = new stdClass();
+				$new_link = new \stdClass();
 				foreach ( $filter_fields as $field ) {
 					$new_link->$field = $link->$field;
 				}

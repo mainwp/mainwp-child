@@ -12,7 +12,7 @@
  * Extension URL: https://mainwp.com/extension/updraftplus/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- use external code.
+// phpcs:disable -- Third party credit.
 
 class MainWP_Child_Updraft_Plus_Backups {
 	public static $instance     = null;
@@ -1566,7 +1566,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 	}
 
 
-	public function restore_alldownloaded() {
+	public function restore_alldownloaded() {  // phpcs:ignore -- third party credit.
 		global $updraftplus;
 
 		if ( method_exists( $updraftplus, 'get_backup_history' ) ) {
@@ -1867,7 +1867,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		echo '<div class="updraftmessage ' . $class . '">' . "<p>$message</p></div>";
 	}
 
-	private function analyse_db_file_old( $timestamp, $res, $db_file = false, $header_only = false ) {
+	private function analyse_db_file_old( $timestamp, $res, $db_file = false, $header_only = false ) { // phpcs:ignore -- third party credit.
 
 		$mess = array();
 		$warn = array();
@@ -2597,7 +2597,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		return $what_to_return;
 	}
 
-	private function existing_backup_table( $backup_history = false ) {
+	private function existing_backup_table( $backup_history = false ) { // phpcs:ignore -- third party credit.
 
 		global $updraftplus;
 
@@ -2794,7 +2794,7 @@ ENDHERE;
 	}
 
 	// Go through each of the file entities.
-	private function download_buttons( $backup, $key, $accept, &$entities, $esc_pretty_date, $nonce_field ) {
+	private function download_buttons( $backup, $key, $accept, &$entities, $esc_pretty_date, $nonce_field ) { // phpcs:ignore -- third party credit.
 		global $updraftplus;
 		$ret                 = '';
 		$backupable_entities = $updraftplus->get_backupable_file_entities( true, true );
@@ -3125,7 +3125,7 @@ ENDHERE;
 		return $ret;
 	}
 
-	private function print_active_job( $job_id, $is_oneshot = false, $time = false, $next_resumption = false ) {
+	private function print_active_job( $job_id, $is_oneshot = false, $time = false, $next_resumption = false ) { // phpcs:ignore -- third party credit.
 
 		$ret = '';
 

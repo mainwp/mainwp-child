@@ -76,7 +76,7 @@ class MainWP_Child_Install {
 
 			MainWP_Helper::check_wp_filesystem();
 
-			$pluginUpgrader = new Plugin_Upgrader();
+			$pluginUpgrader = new \Plugin_Upgrader();
 
 			$all_plugins = get_plugins();
 			foreach ( $plugins as $idx => $plugin ) {
@@ -135,7 +135,7 @@ class MainWP_Child_Install {
 
 			MainWP_Helper::check_wp_filesystem();
 
-			$themeUpgrader = new Theme_Upgrader();
+			$themeUpgrader = new \Theme_Upgrader();
 
 			$theme_name = wp_get_theme()->get( 'Name' );
 			$themes     = explode( '||', $theme );

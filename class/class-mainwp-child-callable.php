@@ -263,11 +263,11 @@ class MainWP_Child_Callable {
 	}
 
 	public function get_all_plugins() {
-		MainWP_Child_Install::get_instance()->get_all_plugins();
+		MainWP_Child_Stats::get_instance()->get_all_plugins();
 	}
 
 	public function get_all_themes() {
-		MainWP_Child_Install::get_instance()->get_all_themes();
+		MainWP_Child_Stats::get_instance()->get_all_themes();
 	}
 
 	public function get_all_users() {
@@ -1051,7 +1051,7 @@ class MainWP_Child_Callable {
 	}
 
 	public function wp_staging() {
-		MainWP_Child_Staging::instance()->action();
+		\MainWP_Child_Staging::instance()->action();
 	}
 
 	public function extra_execution() {
