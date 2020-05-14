@@ -167,8 +167,8 @@ class MainWP_Helper {
 
 		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
-		MainWP_Helper::get_wp_filesystem();
-		
+		self::get_wp_filesystem();
+
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 		$upload_dir = wp_upload_dir();
 		add_filter( 'http_request_args', array( self::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
@@ -290,8 +290,8 @@ class MainWP_Helper {
 	public static function get_mainwp_dir( $what = null, $dieOnError = true ) {
 		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
-		MainWP_Helper::get_wp_filesystem();
-		
+		self::get_wp_filesystem();
+
 		$upload_dir = wp_upload_dir();
 		$dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
 		self::check_dir( $dir, $dieOnError );
@@ -322,7 +322,7 @@ class MainWP_Helper {
 	public static function check_dir( $dir, $dieOnError, $chmod = 0755 ) {
 		self::get_wp_filesystem();
 		global $wp_filesystem;
-		
+
 		if ( ! file_exists( $dir ) ) {
 			if ( empty( $wp_filesystem ) ) {
 				mkdir( $dir, $chmod, true );

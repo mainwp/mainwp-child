@@ -905,8 +905,8 @@ class MainWP_Child {
 		MainWP_Connect::instance()->check_login();
 	}
 
-	private function parse_init_extensions() {		
-		// Handle fatal errors for those init if needed.		
+	private function parse_init_extensions() {
+		// Handle fatal errors for those init if needed.
 		MainWP_Child_Branding::instance()->branding_init();
 		MainWP_Client_Report::instance()->creport_init();
 		\MainWP_Child_IThemes_Security::instance()->ithemes_init();
@@ -917,7 +917,7 @@ class MainWP_Child {
 		\MainWP_Child_Back_Up_Buddy::instance();
 		\MainWP_Child_Wordfence::instance()->wordfence_init();
 		\MainWP_Child_Timecapsule::instance()->init();
-		\MainWP_Child_Staging::instance()->init();		
+		\MainWP_Child_Staging::instance()->init();
 		\MainWP_Child_Pagespeed::instance()->init();
 		\MainWP_Child_Links_Checker::instance()->init();
 		\MainWP_Child_WPvivid_BackupRestore::instance()->init();
