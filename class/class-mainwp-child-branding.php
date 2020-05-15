@@ -784,11 +784,11 @@ class MainWP_Child_Branding {
 		if ( isset( $_POST['submit'] ) ) {
 			if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( $_POST['_wpnonce'], '_contactNonce' ) ) {
 				return false;
-			}			
-			$this->render_submit_message( $opts );		
+			}
+			$this->render_submit_message( $opts );
 			return;
-		} 
-		
+		}
+
 		$from_page = '';
 		if ( isset( $_GET['from_page'] ) ) {
 			$from_page = rawurldecode( $_GET['from_page'] );
@@ -846,11 +846,11 @@ class MainWP_Child_Branding {
 			<input type="hidden" name="mainwp_branding_send_from_page" value="<?php echo esc_url( $from_page ); ?>"/>
 			<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( '_contactNonce' ) ); ?>"/>
 		</form>
-		<?php		
+		<?php
 	}
-	
+
 	private function render_submit_message( $opts ) {
-		
+
 		$from_page = $_POST['mainwp_branding_send_from_page'];
 		$back_link = $opts['message_return_sender'];
 		$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
