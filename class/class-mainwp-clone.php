@@ -26,6 +26,15 @@ class MainWP_Clone {
 		return self::$instance;
 	}
 
+	
+	public function init_ajax() {
+		$this->add_action( 'mainwp-child_clone_backupcreate', array( &$this, 'clone_backup_create' ) );
+		$this->add_action( 'mainwp-child_clone_backupcreatepoll', array( &$this, 'clone_backup_create_poll' ) );
+		$this->add_action( 'mainwp-child_clone_backupdownload', array( &$this, 'clone_backup_download' ) );
+		$this->add_action( 'mainwp-child_clone_backupdownloadpoll', array( &$this, 'clone_backup_download_poll' ) );
+		$this->add_action( 'mainwp-child_clone_backupextract', array( &$this, 'clone_backup_extract' ) );
+	}
+	
 	public function add_security_nonce( $action ) {
 		if ( ! is_array( $this->security_nonces ) ) {
 			$this->security_nonces = array();
@@ -167,81 +176,84 @@ class MainWP_Clone {
 		</div>
 
 		<?php
-		if ( $uploadFile ) {
+		self::render_form( $sitesToClone, $uploadFile, $uploadSize, $error, $uploadError );
+		self::render_clone_from_server();
+		self::render_java_script();
+	}
+
+	private static function render_form( $sitesToClone, $uploadFile, $uploadSize, $error, $uploadError ){
+
+		if ( !empty( $uploadFile ) ) {
 			esc_html_e( 'Upload successful.', 'mainwp-child' );
 			?>
 			<a href="#" id="mainwp-child_uploadclonebutton" class="button-primary" file="<?php echo esc_attr( $uploadFile ); ?>"><?php esc_html_e( 'Clone/Restore website', 'mainwp-child' ); ?></a>
 			<?php
-		} else {
-			if ( $uploadError ) {
-				?>
-				<div class="mainwp-child_info-box-red"><?php echo esc_html( $uploadError ); ?></div>
-				<?php
-			}
-
-			if ( empty( $sitesToClone ) ) {
-				echo '<div class="mainwp-child_info-box-yellow"><strong>' . esc_html__( 'Cloning is currently on but no sites have been allowed, to allow sites return to your main dashboard and turn cloning on on the Clone page.', 'mainwp-child' ) . '</strong></div>';
-			} else {
-				?>
-				<form method="post" action="">
-					<div class="mainwp-child_select_sites_box">
-						<div class="postbox">
-							<div class="mainwp-child_displayby"><?php esc_html_e( 'Display by:', 'mainwp-child' ); ?> <a class="mainwp-child_action left mainwp-child_action_down" href="#" id="mainwp-child_displayby_sitename"><?php esc_html_e( 'Site Name', 'mainwp-child' ); ?></a><a class="mainwp-child_action right" href="#" id="mainwp-child_displayby_url"><?php esc_html_e( 'URL', 'mainwp-child' ); ?></a></div>
-							<h2 class="hndle"><?php esc_html_e( 'Select Source for clone', 'mainwp-child' ); ?></h2>
-							<div class="inside">
-								<div id="mainwp-child_clonesite_select_site">
-									<?php
-									foreach ( $sitesToClone as $siteId => $siteToClone ) {
-										?>
-										<div class="clonesite_select_site_item" id="<?php echo esc_attr( $siteId ); ?>" rand="<?php echo esc_attr( MainWP_Helper::rand_string( 5 ) ); ?>">
-											<div class="mainwp-child_size_label" size="<?php echo esc_attr( $siteToClone['size'] ); ?>"><?php echo esc_html( $siteToClone['size'] ); ?>MB</div>
-											<div class="mainwp-child_name_label"><?php echo esc_html( $siteToClone['name'] ); ?></div>
-											<div class="mainwp-child_url_label"><?php echo esc_html( MainWP_Helper::get_nice_url( $siteToClone['url'] ) ); ?></div>
-										</div>
-										<?php
-									}
-									?>
-								</div>
-								<p><?php _e( 'The site selected above will replace this site\'s files and database', 'mainwp-child' ); ?></p>
-							</div>
-							<div class="mainwp-child_clonebutton_container">
-								<?php if ( ! $error ) { ?>
-									<a href="#" id="mainwp-child_clonebutton" class="button-primary"><?php esc_html_e( 'Clone website', 'mainwp-child' ); ?></a>
-								<?php } ?>
-							</div>
-							<div style="clear:both"></div>
-						</div>
-					</div>
-				</form>
-				<br/>
-				<?php
-			}
-			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
+			return;
+		}
+		
+		if ( $uploadError ) {
 			?>
-			<div class="postbox">
-				<h2 class="hndle"><strong><?php esc_html_e( 'Option 1:', 'mainwp-child' ); ?></strong> <?php esc_html_e( 'Restore/Clone from backup', 'mainwp-child' ); ?></h2>
-				<div class="inside">
-					<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
-					<em><?php esc_html_e( 'If you have a FULL backup created by the default MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' ); ?>
-					<br/>
-					<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?></em>
-					<br/>
-					<br/>
-					<form action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>" method="post" enctype="multipart/form-data">
-						<input type="file" name="file" id="file"/>
-						<input type="submit" name="submit" id="filesubmit" class="button button-primary" disabled="disabled" value="<?php esc_attr_e( 'Clone/Restore Website', 'mainwp-child' ); ?>"/>
-						<input type="hidden" name="_nonce" value="<?php echo wp_create_nonce( 'cloneRestore' ); ?>" />
-					</form>
-				</div>
-			</div>
+			<div class="mainwp-child_info-box-red"><?php echo esc_html( $uploadError ); ?></div>
 			<?php
 		}
 
-		self::render_clone_from_server();
-
-		self::render_java_script();
+		if ( empty( $sitesToClone ) ) {
+			echo '<div class="mainwp-child_info-box-yellow"><strong>' . esc_html__( 'Cloning is currently on but no sites have been allowed, to allow sites return to your main dashboard and turn cloning on on the Clone page.', 'mainwp-child' ) . '</strong></div>';
+		} else {
+			?>
+			<form method="post" action="">
+				<div class="mainwp-child_select_sites_box">
+					<div class="postbox">
+						<div class="mainwp-child_displayby"><?php esc_html_e( 'Display by:', 'mainwp-child' ); ?> <a class="mainwp-child_action left mainwp-child_action_down" href="#" id="mainwp-child_displayby_sitename"><?php esc_html_e( 'Site Name', 'mainwp-child' ); ?></a><a class="mainwp-child_action right" href="#" id="mainwp-child_displayby_url"><?php esc_html_e( 'URL', 'mainwp-child' ); ?></a></div>
+						<h2 class="hndle"><?php esc_html_e( 'Select Source for clone', 'mainwp-child' ); ?></h2>
+						<div class="inside">
+							<div id="mainwp-child_clonesite_select_site">
+								<?php
+								foreach ( $sitesToClone as $siteId => $siteToClone ) {
+									?>
+									<div class="clonesite_select_site_item" id="<?php echo esc_attr( $siteId ); ?>" rand="<?php echo esc_attr( MainWP_Helper::rand_string( 5 ) ); ?>">
+										<div class="mainwp-child_size_label" size="<?php echo esc_attr( $siteToClone['size'] ); ?>"><?php echo esc_html( $siteToClone['size'] ); ?>MB</div>
+										<div class="mainwp-child_name_label"><?php echo esc_html( $siteToClone['name'] ); ?></div>
+										<div class="mainwp-child_url_label"><?php echo esc_html( MainWP_Helper::get_nice_url( $siteToClone['url'] ) ); ?></div>
+									</div>
+									<?php
+								}
+								?>
+							</div>
+							<p><?php _e( 'The site selected above will replace this site\'s files and database', 'mainwp-child' ); ?></p>
+						</div>
+						<div class="mainwp-child_clonebutton_container">
+							<?php if ( ! $error ) { ?>
+								<a href="#" id="mainwp-child_clonebutton" class="button-primary"><?php esc_html_e( 'Clone website', 'mainwp-child' ); ?></a>
+							<?php } ?>
+						</div>
+						<div style="clear:both"></div>
+					</div>
+				</div>
+			</form>
+			<br/>
+			<?php
+		}		
+		?>
+		<div class="postbox">
+			<h2 class="hndle"><strong><?php esc_html_e( 'Option 1:', 'mainwp-child' ); ?></strong> <?php esc_html_e( 'Restore/Clone from backup', 'mainwp-child' ); ?></h2>
+			<div class="inside">
+				<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
+				<em><?php esc_html_e( 'If you have a FULL backup created by the default MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' ); ?>
+				<br/>
+				<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?></em>
+				<br/>
+				<br/>
+				<form action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>" method="post" enctype="multipart/form-data">
+					<input type="file" name="file" id="file"/>
+					<input type="submit" name="submit" id="filesubmit" class="button button-primary" disabled="disabled" value="<?php esc_attr_e( 'Clone/Restore Website', 'mainwp-child' ); ?>"/>
+					<input type="hidden" name="_nonce" value="<?php echo wp_create_nonce( 'cloneRestore' ); ?>" />
+				</form>
+			</div>
+		</div>
+		<?php
 	}
-
+	
 	public static function render_normal_restore() {
 		$uploadError = false;
 		$uploadFile  = false;
@@ -409,6 +421,11 @@ class MainWP_Clone {
 			echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . __( implode( ' | ', $quick_links ) ) . '</div>';
 		}
 
+		self::render_clone_from_server_form( $current_dir, $url );		
+	}
+
+	private static function render_clone_from_server_form( $current_dir, $url ) {
+		
 		$dir_files      = scandir( $current_dir );
 		$directories    = array();
 		$files          = array();
@@ -429,10 +446,9 @@ class MainWP_Clone {
 		}
 
 		sort( $directories );
-		sort( $files );
+		sort( $files );	
 		$parent = dirname( $current_dir );
 		?>
-
 		<form method="post" action="">
 			<div class="mainwp-child_select_sites_box" id="mainwp_child_select_files_from_server_box">
 				<div class="postbox">
@@ -489,7 +505,7 @@ class MainWP_Clone {
 		</div>
 		<?php
 	}
-
+	
 	public static function render_java_script() {
 		$uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );
 		$uploadSize        = MainWP_Helper::human_filesize( $uploadSizeInBytes );
@@ -1128,13 +1144,6 @@ class MainWP_Clone {
 		<?php
 	}
 
-	public function init_ajax() {
-		$this->add_action( 'mainwp-child_clone_backupcreate', array( &$this, 'clone_backup_create' ) );
-		$this->add_action( 'mainwp-child_clone_backupcreatepoll', array( &$this, 'clone_backup_create_poll' ) );
-		$this->add_action( 'mainwp-child_clone_backupdownload', array( &$this, 'clone_backup_download' ) );
-		$this->add_action( 'mainwp-child_clone_backupdownloadpoll', array( &$this, 'clone_backup_download_poll' ) );
-		$this->add_action( 'mainwp-child_clone_backupextract', array( &$this, 'clone_backup_extract' ) );
-	}
 
 	public function clone_backup_create() {
 		try {

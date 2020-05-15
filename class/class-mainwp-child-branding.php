@@ -784,85 +784,91 @@ class MainWP_Child_Branding {
 		if ( isset( $_POST['submit'] ) ) {
 			if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( $_POST['_wpnonce'], '_contactNonce' ) ) {
 				return false;
-			}
-			$from_page = $_POST['mainwp_branding_send_from_page'];
-			$back_link = $opts['message_return_sender'];
-			$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
-			$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';
-
-			if ( $this->send_support_mail() ) {
-				$send_email_message = isset( $opts['send_email_message'] ) ? $opts['send_email_message'] : '';
-				if ( ! empty( $send_email_message ) ) {
-					$send_email_message = stripslashes( $send_email_message );
-				} else {
-					$send_email_message = __( 'Message has been submitted successfully.', 'mainwp-child' );
-				}
-			} else {
-				$send_email_message = __( 'Sending email failed!', 'mainwp-child' );
-			}
-			?>
-			<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>
-			<?php
+			}			
+			$this->render_submit_message( $opts );		
+			return;
+		} 
+		
+		$from_page = '';
+		if ( isset( $_GET['from_page'] ) ) {
+			$from_page = rawurldecode( $_GET['from_page'] );
 		} else {
-			$from_page = '';
-			if ( isset( $_GET['from_page'] ) ) {
-				$from_page = rawurldecode( $_GET['from_page'] );
-			} else {
-				$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
-				$fullurl   = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-				$from_page = rawurldecode( $fullurl );
-			}
-
-			$support_message = $opts['support_message'];
-			$support_message = nl2br( stripslashes( $support_message ) );
-			$from_email      = $current_user ? $current_user->user_email : '';
-			?>
-			<form action="" method="post">
-				<div style="width: 99%;">
-					<h2><?php echo esc_html( $opts['contact_label'] ); ?></h2>
-					<div style="height: auto; margin-bottom: 10px; text-align: left">
-						<p><?php echo wp_kses_post( $support_message ); ?></p>
-						<p>
-							<label for="mainwp_branding_contact_message_subject"><?php esc_html_e( 'Subject:', 'mainwp-child' ); ?></label>
-							<br>
-							<input type="text" id="mainwp_branding_contact_message_subject" name="mainwp_branding_contact_message_subject" style="width: 650px;">
-						</p>
-						<p>
-							<label for="mainwp_branding_contact_send_from"><?php esc_html_e( 'From:', 'mainwp-child' ); ?></label>
-							<br>
-							<input type="text" id="mainwp_branding_contact_send_from" name="mainwp_branding_contact_send_from" style="width: 650px;" value="<?php echo esc_attr( $from_email ); ?>">
-						</p>
-						<div style="max-width: 650px;">
-							<label for="mainwp_branding_contact_message_content"><?php esc_html_e( 'Your message:', 'mainwp-child' ); ?></label>
-							<br>
-							<?php
-							remove_editor_styles(); // stop custom theme styling interfering with the editor.
-							wp_editor(
-								'',
-								'mainwp_branding_contact_message_content',
-								array(
-									'textarea_name' => 'mainwp_branding_contact_message_content',
-									'textarea_rows' => 10,
-									'teeny'         => true,
-									'wpautop'       => true,
-									'media_buttons' => false,
-								)
-							);
-							?>
-						</div>
-					</div>
-					<br/>
-					<?php
-					$button_title = $opts['submit_button_title'];
-					$button_title = ! empty( $button_title ) ? $button_title : __( 'Submit', 'mainwp-child' );
-					?>
-					<input id="mainwp-branding-contact-support-submit" type="submit" name="submit" value="<?php echo esc_attr( $button_title ); ?>" class="button-primary button" style="float: left"/>
-				</div>
-				<input type="hidden" name="mainwp_branding_send_from_page" value="<?php echo esc_url( $from_page ); ?>"/>
-				<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( '_contactNonce' ) ); ?>"/>
-			</form>
-			<?php
+			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
+			$fullurl   = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+			$from_page = rawurldecode( $fullurl );
 		}
+
+		$support_message = $opts['support_message'];
+		$support_message = nl2br( stripslashes( $support_message ) );
+		$from_email      = $current_user ? $current_user->user_email : '';
+		?>
+		<form action="" method="post">
+			<div style="width: 99%;">
+				<h2><?php echo esc_html( $opts['contact_label'] ); ?></h2>
+				<div style="height: auto; margin-bottom: 10px; text-align: left">
+					<p><?php echo wp_kses_post( $support_message ); ?></p>
+					<p>
+						<label for="mainwp_branding_contact_message_subject"><?php esc_html_e( 'Subject:', 'mainwp-child' ); ?></label>
+						<br>
+						<input type="text" id="mainwp_branding_contact_message_subject" name="mainwp_branding_contact_message_subject" style="width: 650px;">
+					</p>
+					<p>
+						<label for="mainwp_branding_contact_send_from"><?php esc_html_e( 'From:', 'mainwp-child' ); ?></label>
+						<br>
+						<input type="text" id="mainwp_branding_contact_send_from" name="mainwp_branding_contact_send_from" style="width: 650px;" value="<?php echo esc_attr( $from_email ); ?>">
+					</p>
+					<div style="max-width: 650px;">
+						<label for="mainwp_branding_contact_message_content"><?php esc_html_e( 'Your message:', 'mainwp-child' ); ?></label>
+						<br>
+						<?php
+						remove_editor_styles(); // stop custom theme styling interfering with the editor.
+						wp_editor(
+							'',
+							'mainwp_branding_contact_message_content',
+							array(
+								'textarea_name' => 'mainwp_branding_contact_message_content',
+								'textarea_rows' => 10,
+								'teeny'         => true,
+								'wpautop'       => true,
+								'media_buttons' => false,
+							)
+						);
+						?>
+					</div>
+				</div>
+				<br/>
+				<?php
+				$button_title = $opts['submit_button_title'];
+				$button_title = ! empty( $button_title ) ? $button_title : __( 'Submit', 'mainwp-child' );
+				?>
+				<input id="mainwp-branding-contact-support-submit" type="submit" name="submit" value="<?php echo esc_attr( $button_title ); ?>" class="button-primary button" style="float: left"/>
+			</div>
+			<input type="hidden" name="mainwp_branding_send_from_page" value="<?php echo esc_url( $from_page ); ?>"/>
+			<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( '_contactNonce' ) ); ?>"/>
+		</form>
+		<?php		
+	}
+	
+	private function render_submit_message( $opts ) {
+		
+		$from_page = $_POST['mainwp_branding_send_from_page'];
+		$back_link = $opts['message_return_sender'];
+		$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
+		$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';
+
+		if ( $this->send_support_mail() ) {
+			$send_email_message = isset( $opts['send_email_message'] ) ? $opts['send_email_message'] : '';
+			if ( ! empty( $send_email_message ) ) {
+				$send_email_message = stripslashes( $send_email_message );
+			} else {
+				$send_email_message = __( 'Message has been submitted successfully.', 'mainwp-child' );
+			}
+		} else {
+			$send_email_message = __( 'Sending email failed!', 'mainwp-child' );
+		}
+		?>
+		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>
+		<?php
 	}
 
 	/**

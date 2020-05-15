@@ -271,41 +271,26 @@ class MainWP_Child_Callable {
 				$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
 			} else {
 				$results          = MainWP_Helper::get_revisions( $max_revisions );
-				$count_deleted    = MainWP_Helper::delete_revisions( $results, $max_revisions );
+				$this->maintenance_delete_revisions( $results, $max_revisions );
 				$performed_what[] = 'revisions_max'; // 'Posts revisions deleted'.
 			}
 		}
 
-		if ( in_array( 'autodraft', $maint_options ) ) {
-			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'";
-			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
-			$performed_what[] = 'autodraft'; // 'Auto draft posts deleted'.
+		$maint_sqls = array(
+			'autodraft' => "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'",
+			'trashpost' => "DELETE FROM $wpdb->posts WHERE post_status = 'trash'",
+			'spam' => "DELETE FROM $wpdb->comments WHERE comment_approved = 'spam'",
+			'pending' => "DELETE FROM $wpdb->comments WHERE comment_approved = '0'",
+			'trashcomment' => "DELETE FROM $wpdb->comments WHERE comment_approved = 'trash'"			
+		);
+		
+		foreach( $maint_sqls as $act => $sql_clean ) {
+			if ( in_array( $act, $maint_options ) ) {
+				$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
+				$performed_what[] = $act; // 'Auto draft posts deleted'.
+			}
 		}
-
-		if ( in_array( 'trashpost', $maint_options ) ) {
-			$sql_clean = "DELETE FROM $wpdb->posts WHERE post_status = 'trash'";
-			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
-			$performed_what[] = 'trashpost'; // 'Trash posts deleted'.
-		}
-
-		if ( in_array( 'spam', $maint_options ) ) {
-			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'spam'";
-			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
-			$performed_what[] = 'spam'; // 'Spam comments deleted'.
-		}
-
-		if ( in_array( 'pending', $maint_options ) ) {
-			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = '0'";
-			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
-			$performed_what[] = 'pending'; // 'Pending comments deleted'.
-		}
-
-		if ( in_array( 'trashcomment', $maint_options ) ) {
-			$sql_clean = "DELETE FROM $wpdb->comments WHERE comment_approved = 'trash'";
-			$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
-			$performed_what[] = 'trashcomment'; // 'Trash comments deleted'.
-		}
-
+		
 		if ( in_array( 'tags', $maint_options ) ) {
 			$post_tags = get_terms( 'post_tag', array( 'hide_empty' => false ) );
 			if ( is_array( $post_tags ) ) {
@@ -345,6 +330,34 @@ class MainWP_Child_Callable {
 		return array( 'status' => 'SUCCESS' );
 	}
 
+	private function maintenance_delete_revisions( $results, $max_revisions ) {
+		global $wpdb;
+
+		if ( ! is_array( $results ) || 0 === count( $results ) ) {
+			return;
+		}
+		$count_deleted  = 0;
+		$results_length = count( $results );
+		for ( $i = 0; $i < $results_length; $i ++ ) {
+			$number_to_delete = $results[ $i ]->cnt - $max_revisions;
+			$count_deleted   += $number_to_delete;
+			$results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) );
+			$delete_ids       = array();
+			if ( is_array( $results_posts ) && count( $results_posts ) > 0 ) {
+				for ( $j = 0; $j < $number_to_delete; $j ++ ) {
+					$delete_ids[] = $results_posts[ $j ]->ID;
+				}
+			}
+
+			if ( count( $delete_ids ) > 0 ) {
+				$sql_delete = " DELETE FROM $wpdb->posts WHERE `ID` IN (" . implode( ',', $delete_ids ) . ")"; // phpcs:ignore -- safe
+				$wpdb->get_results( $sql_delete ); // phpcs:ignore -- safe
+			}
+		}
+
+		return $count_deleted;
+	}
+	
 	private function maintenance_optimize() {
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
@@ -537,97 +550,9 @@ class MainWP_Child_Callable {
 
 		$fileName = ( isset( $_POST['fileUID'] ) ? $_POST['fileUID'] : '' );
 		if ( 'full' === $_POST['type'] ) {
-			$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
-			$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
-			$uploadDir  = MainWP_Helper::get_mainwp_dir();
-			$uploadDir  = $uploadDir[0];
-			$excludes[] = str_replace( ABSPATH, '', $uploadDir );
-			$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
-
-			if ( function_exists( 'posix_uname' ) ) {
-				$uname = posix_uname();
-				if ( is_array( $uname ) && isset( $uname['nodename'] ) ) {
-					if ( stristr( $uname['nodename'], 'hostgator' ) ) {
-						if ( ! isset( $_POST['file_descriptors'] ) || '0' == $_POST['file_descriptors'] || $_POST['file_descriptors'] > 1000 ) {
-							$_POST['file_descriptors'] = 1000;
-						}
-						$_POST['file_descriptors_auto'] = 0;
-						$_POST['loadFilesBeforeZip']    = false;
-					}
-				}
-			}
-
-			$file_descriptors      = ( isset( $_POST['file_descriptors'] ) ? $_POST['file_descriptors'] : 0 );
-			$file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? $_POST['file_descriptors_auto'] : 0 );
-			if ( 1 === (int) $file_descriptors_auto ) {
-				if ( function_exists( 'posix_getrlimit' ) ) {
-					$result = posix_getrlimit();
-					if ( isset( $result['soft openfiles'] ) ) {
-						$file_descriptors = $result['soft openfiles'];
-					}
-				}
-			}
-
-			$loadFilesBeforeZip = ( isset( $_POST['loadFilesBeforeZip'] ) ? $_POST['loadFilesBeforeZip'] : true );
-
-			$newExcludes = array();
-			foreach ( $excludes as $exclude ) {
-				$newExcludes[] = rtrim( $exclude, '/' );
-			}
-
-			$excludebackup = ( isset( $_POST['excludebackup'] ) && '1' == $_POST['excludebackup'] );
-			$excludecache  = ( isset( $_POST['excludecache'] ) && '1' == $_POST['excludecache'] );
-			$excludezip    = ( isset( $_POST['excludezip'] ) && '1' == $_POST['excludezip'] );
-			$excludenonwp  = ( isset( $_POST['excludenonwp'] ) && '1' == $_POST['excludenonwp'] );
-
-			if ( $excludebackup ) {
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_backups';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_temp';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/pb_backupbuddy';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/managewp';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/infinitewp';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backwpup*';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/plugins/wp-complete-backup/storage';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-				$newExcludes[] = '/administrator/backups';
-			}
-
-			if ( $excludecache ) {
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc-cache';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/config';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/minify';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/page_enhanced';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/tmp';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/supercache';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/quick-cache';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/hyper-cache/cache';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/all';
-				$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/wp-rocket';
-			}
-
-			$file = false;
-			if ( isset( $_POST['f'] ) ) {
-				$file = $_POST['f'];
-			} elseif ( isset( $_POST['file'] ) ) {
-				$file = $_POST['file'];
-			}
-
-			$ext = 'zip';
-			if ( isset( $_POST['ext'] ) ) {
-				$ext = $_POST['ext'];
-			}
-
-			$pid = false;
-			if ( isset( $_POST['pid'] ) ) {
-				$pid = $_POST['pid'];
-			}
-
-			$append = ( isset( $_POST['append'] ) && ( '1' == $_POST['append'] ) );
-
-			$res = MainWP_Backup::get()->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
+			
+			$res = $this->backup_full( $fileName );
+			
 			if ( ! $res ) {
 				$information['full'] = false;
 			} else {
@@ -661,6 +586,98 @@ class MainWP_Child_Callable {
 		return $information;
 	}
 
+	protected function backup_full( $fileName ) {		
+		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
+		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
+		$uploadDir  = MainWP_Helper::get_mainwp_dir();
+		$uploadDir  = $uploadDir[0];
+		$excludes[] = str_replace( ABSPATH, '', $uploadDir );
+		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
+
+		if ( function_exists( 'posix_uname' ) ) {
+			$uname = posix_uname();
+			if ( is_array( $uname ) && isset( $uname['nodename'] ) ) {
+				if ( stristr( $uname['nodename'], 'hostgator' ) ) {
+					if ( ! isset( $_POST['file_descriptors'] ) || '0' == $_POST['file_descriptors'] || $_POST['file_descriptors'] > 1000 ) {
+						$_POST['file_descriptors'] = 1000;
+					}
+					$_POST['file_descriptors_auto'] = 0;
+					$_POST['loadFilesBeforeZip']    = false;
+				}
+			}
+		}
+
+		$file_descriptors      = ( isset( $_POST['file_descriptors'] ) ? $_POST['file_descriptors'] : 0 );
+		$file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? $_POST['file_descriptors_auto'] : 0 );
+		if ( 1 === (int) $file_descriptors_auto ) {
+			if ( function_exists( 'posix_getrlimit' ) ) {
+				$result = posix_getrlimit();
+				if ( isset( $result['soft openfiles'] ) ) {
+					$file_descriptors = $result['soft openfiles'];
+				}
+			}
+		}
+
+		$loadFilesBeforeZip = ( isset( $_POST['loadFilesBeforeZip'] ) ? $_POST['loadFilesBeforeZip'] : true );
+
+		$newExcludes = array();
+		foreach ( $excludes as $exclude ) {
+			$newExcludes[] = rtrim( $exclude, '/' );
+		}
+
+		$excludebackup = ( isset( $_POST['excludebackup'] ) && '1' == $_POST['excludebackup'] );
+		$excludecache  = ( isset( $_POST['excludecache'] ) && '1' == $_POST['excludecache'] );
+		$excludezip    = ( isset( $_POST['excludezip'] ) && '1' == $_POST['excludezip'] );
+		$excludenonwp  = ( isset( $_POST['excludenonwp'] ) && '1' == $_POST['excludenonwp'] );
+
+		if ( $excludebackup ) {
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_backups';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_temp';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/pb_backupbuddy';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/managewp';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/infinitewp';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backwpup*';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/plugins/wp-complete-backup/storage';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
+			$newExcludes[] = '/administrator/backups';
+		}
+
+		if ( $excludecache ) {
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc-cache';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/config';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/minify';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/page_enhanced';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/tmp';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/supercache';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/quick-cache';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/hyper-cache/cache';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/all';
+			$newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/wp-rocket';
+		}
+
+		$file = false;
+		if ( isset( $_POST['f'] ) ) {
+			$file = $_POST['f'];
+		} elseif ( isset( $_POST['file'] ) ) {
+			$file = $_POST['file'];
+		}
+
+		$ext = 'zip';
+		if ( isset( $_POST['ext'] ) ) {
+			$ext = $_POST['ext'];
+		}
+
+		$pid = false;
+		if ( isset( $_POST['pid'] ) ) {
+			$pid = $_POST['pid'];
+		}
+		$append = ( isset( $_POST['append'] ) && ( '1' == $_POST['append'] ) );
+		return MainWP_Backup::get()->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );		
+	}
+	
 	protected function backup_db( $fileName = '', $ext = 'zip' ) {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$dir       = $dirs[0];

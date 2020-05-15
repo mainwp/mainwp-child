@@ -145,32 +145,28 @@ class MainWP_Client_Report {
 	public function get_connector_by_compatible_context( $context ) {
 
 		$connector = '';
-		if ( 'plugins' == $context || 'themes' == $context || 'WordPress' == $context ) {
-			$connector = 'installer';
-		} elseif ( 'profiles' == $context ) {
-			$connector = 'users';
-		} elseif ( 'comments' == $context ) {
-			$connector = 'comments';
-		} elseif ( 'settings' == $context ) {
-			$connector = 'settings';
-		} elseif ( 'post' == $context || 'page' == $context ) {
-			$connector = 'posts';
-		} elseif ( 'widgets' == $context ) {
-			$connector = 'widgets';
-		} elseif ( 'menus' == $context ) {
-			$connector = 'menus';
-		} elseif ( 'backups' == $context ) {
-			$connector = 'mainwp_backups';
-		} elseif ( 'sucuri_scan' == $context ) {
-			$connector = 'mainwp_sucuri';
-		} elseif ( 'mainwp_maintenance' == $context ) {
-			$connector = 'mainwp_maintenance';
-		} elseif ( 'wordfence_scan' == $context ) {
-			$connector = 'mainwp_wordfence';
-		} elseif ( 'media' == $context ) {
-			$connector = 'media';
-		}
-
+		
+		$mapping_connectors = array(
+			'plugins' => 'installer',
+			'themes' => 'installer',
+			'WordPress' => 'installer',
+			'profiles' => 'users',
+			'comments' => 'comments',
+			'settings' => 'settings',
+			'post' => 'posts',
+			'page' => 'posts',
+			'widgets' => 'widgets',
+			'menus' => 'menus',
+			'backups' => 'mainwp_backups',
+			'sucuri_scan' => 'mainwp_sucuri',
+			'mainwp_maintenance' => 'mainwp_maintenance',			
+			'wordfence_scan' => 'mainwp_wordfence',
+			'media' => 'media'
+		);
+		
+		if ( isset( $mapping_connectors[ $context ] ) )
+			$connector = $mapping_connectors[ $context ];
+		
 		return $connector;
 	}
 
@@ -202,6 +198,7 @@ class MainWP_Client_Report {
 	}
 
 	public function get_stream() {
+		
 		$allowed_params = array(
 			'connector',
 			'context',
@@ -800,29 +797,7 @@ class MainWP_Client_Report {
 			case 'status':
 			case 'webtrust':
 				if ( 'sucuri_scan' === $context ) {
-					$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
-					if ( ! empty( $scan_data ) ) {
-						$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-						if ( is_array( $scan_data ) ) {
-
-							$blacklisted    = $scan_data['blacklisted'];
-							$malware_exists = $scan_data['malware_exists'];
-
-							$status = array();
-							if ( $blacklisted ) {
-								$status[] = __( 'Site Blacklisted', 'mainwp-child' ); }
-							if ( $malware_exists ) {
-								$status[] = __( 'Site With Warnings', 'mainwp-child' ); }
-
-							if ( 'status' == $data ) {
-								$tok_value = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
-							} elseif ( 'webtrust' == $data ) {
-								$tok_value = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
-							}
-						}
-					} else {
-						$tok_value = $this->get_stream_meta_data( $record, $data );
-					}
+					$tok_value = $this->get_sucuri_scan_token_value( $record, $data );					
 				} else {
 					$tok_value = $value;
 				}
@@ -830,27 +805,7 @@ class MainWP_Client_Report {
 			case 'details':
 			case 'result':
 				if ( 'mainwp_maintenance' === $context && 'details' == $data ) {
-
-					$meta_value = $this->get_stream_meta_data( $record, $data );
-					$meta_value = explode( ',', $meta_value );
-
-					$details = array();
-
-					if ( is_array( $meta_value ) ) {
-						foreach ( $meta_value as $mt ) {
-							if ( isset( $maintenance_details[ $mt ] ) ) {
-								if ( 'revisions_max' == $mt ) {
-									$max_revisions = $this->get_stream_meta_data( $record, 'revisions' );
-									$dtl           = $maintenance_details['revisions_max'] . ' ' . $max_revisions;
-								} else {
-									$dtl = $maintenance_details[ $mt ];
-								}
-								$details[] = $dtl;
-							}
-						}
-					}
-					$tok_value = implode( ', ', $details );
-
+					$tok_value = $this->get_mainwp_maintenance_token_value( $record, $data );
 				} elseif ( 'wordfence_scan' === $context || 'mainwp_maintenance' === $context ) {
 					$meta_value = $this->get_stream_meta_data( $record, $data );
 					if ( 'wordfence_scan' === $context && 'result' == $data ) {
@@ -864,7 +819,7 @@ class MainWP_Client_Report {
 							$meta_value = '';
 						}
 					}
-					$tok_value = $meta_value;
+					$tok_value = $meta_value;					
 				}
 				break;
 			case 'type':
@@ -918,6 +873,57 @@ class MainWP_Client_Report {
 		}
 
 		return $value;
+	}
+
+	private function get_sucuri_scan_token_value( $record, $data ) {
+		$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );					
+		if ( ! empty( $scan_data ) ) {
+			$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+			if ( is_array( $scan_data ) ) {
+
+				$blacklisted    = $scan_data['blacklisted'];
+				$malware_exists = $scan_data['malware_exists'];
+
+				$status = array();
+				if ( $blacklisted ) {
+					$status[] = __( 'Site Blacklisted', 'mainwp-child' ); }
+				if ( $malware_exists ) {
+					$status[] = __( 'Site With Warnings', 'mainwp-child' ); }
+
+				if ( 'status' == $data ) {
+					$tok_value = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
+				} elseif ( 'webtrust' == $data ) {
+					$tok_value = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
+				}
+			}
+		} else {
+			$tok_value = $this->get_stream_meta_data( $record, $data );
+		}
+		return $tok_value;
+	}
+	
+	private function get_mainwp_maintenance_token_value( $record, $data ) {
+		
+		$meta_value = $this->get_stream_meta_data( $record, $data );
+		$meta_value = explode( ',', $meta_value );
+
+		$details = array();
+
+		if ( is_array( $meta_value ) ) {
+			foreach ( $meta_value as $mt ) {
+				if ( isset( $maintenance_details[ $mt ] ) ) {
+					if ( 'revisions_max' == $mt ) {
+						$max_revisions = $this->get_stream_meta_data( $record, 'revisions' );
+						$dtl           = $maintenance_details['revisions_max'] . ' ' . $max_revisions;
+					} else {
+						$dtl = $maintenance_details[ $mt ];
+					}
+					$details[] = $dtl;
+				}
+			}
+		}
+		$tok_value = implode( ', ', $details );
+		return $tok_value;
 	}
 
 	public function set_showhide() {
