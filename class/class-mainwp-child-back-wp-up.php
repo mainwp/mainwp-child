@@ -13,7 +13,7 @@
  * Extension URL: https://mainwp.com/extension/backwpup/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable -- third party credit.
 
 if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
 	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );

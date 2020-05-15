@@ -38,8 +38,6 @@ class MainWP_Child_Callable {
 		'user_action'           => 'user_action',
 		'search_users'          => 'search_users',
 		'insert_comment'        => 'insert_comment',
-		'cancel_scheduled_post' => 'cancel_scheduled_post',
-		'serverInformation'     => 'server_information',
 		'maintenance_site'      => 'maintenance_site',
 		'keyword_links_action'  => 'keyword_links_action',
 		'branding_child_plugin' => 'branding_child_plugin',
@@ -196,53 +194,6 @@ class MainWP_Child_Callable {
 		mainwp_child_helper()->write( $ids );
 	}
 
-	public function cancel_scheduled_post() {
-		global $wpdb;
-		$postId      = $_POST['post_id'];
-		$cancel_all  = $_POST['cancel_all'];
-		$result      = false;
-		$information = array();
-		if ( $postId > 0 ) {
-			if ( 'yes' === get_post_meta( $postId, '_is_auto_generate_content', true ) ) {
-				$post = $wpdb->get_row(
-					$wpdb->prepare(
-						"SELECT * FROM $wpdb->posts WHERE ID = %d AND post_status = 'future'",
-						$postId
-					)
-				);
-				if ( $post ) {
-					$result = wp_trash_post( $postId );
-				} else {
-					$result = true;
-				}
-			}
-			if ( ! $result ) {
-				$information['status'] = 'SUCCESS';
-			}
-		} elseif ( $cancel_all ) {
-			$post_type = $_POST['post_type'];
-			$posts     = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p JOIN $wpdb->postmeta pm ON p.ID=pm.post_id WHERE p.post_status='future' AND p.post_type = %s AND  pm.meta_key = '_is_auto_generate_content' AND pm.meta_value = 'yes' ", $post_type ) );
-			$count     = 0;
-			if ( is_array( $posts ) ) {
-				foreach ( $posts as $post ) {
-					if ( $post ) {
-						if ( false !== wp_trash_post( $post->ID ) ) {
-							$count ++;
-
-						}
-					}
-				}
-			} else {
-				$posts = array();
-			}
-
-			$information['status'] = 'SUCCESS';
-			$information['count']  = $count;
-		}
-
-		mainwp_child_helper()->write( $information );
-	}
-
 	public function theme_action() {
 		MainWP_Child_Install::get_instance()->theme_action();
 	}
@@ -291,69 +242,25 @@ class MainWP_Child_Callable {
 		MainWP_Child_Posts::get_instance()->comment_bulk_action();
 	}
 
-	public function server_information() {
-		ob_start();
-		MainWP_Child_Server_Information::render();
-		$output['information'] = ob_get_contents();
-		ob_end_clean();
-		ob_start();
-		MainWP_Child_Server_Information::render_cron();
-		$output['cron'] = ob_get_contents();
-		ob_end_clean();
-		ob_start();
-		MainWP_Child_Server_Information::render_error_page();
-		$output['error'] = ob_get_contents();
-		ob_end_clean();
-		ob_start();
-		MainWP_Child_Server_Information::render_wp_config();
-		$output['wpconfig'] = ob_get_contents();
-		ob_end_clean();
-		ob_start();
-		MainWP_Child_Server_Information::renderhtaccess();
-		$output['htaccess'] = ob_get_contents();
-		ob_end_clean();
-
-		mainwp_child_helper()->write( $output );
-	}
-
 	public function maintenance_site() {
-		global $wpdb;
-		$information = array();
-		if ( isset( $_POST['action'] ) ) {
-			if ( 'save_settings' === $_POST['action'] ) {
-
-				if ( isset( $_POST['enable_alert'] ) && '1' === $_POST['enable_alert'] ) {
-					MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404', 1, 'yes' );
-				} else {
-					delete_option( 'mainwp_maintenance_opt_alert_404' );
-				}
-
-				if ( isset( $_POST['email'] ) && ! empty( $_POST['email'] ) ) {
-					MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404_email', $_POST['email'], 'yes' );
-				} else {
-					delete_option( 'mainwp_maintenance_opt_alert_404_email' );
-				}
-				$information['result'] = 'SUCCESS';
-				mainwp_child_helper()->write( $information );
-
-				return;
-			} elseif ( 'clear_settings' === $_POST['action'] ) {
-				delete_option( 'mainwp_maintenance_opt_alert_404' );
-				delete_option( 'mainwp_maintenance_opt_alert_404_email' );
-				$information['result'] = 'SUCCESS';
-				mainwp_child_helper()->write( $information );
-			}
-			mainwp_child_helper()->write( $information );
+		
+		if ( isset( $_POST['action'] ) ) {			
+			$this->maintenance_action( $_POST['action'] ); // exit.
 		}
 
 		$maint_options = $_POST['options'];
-		$max_revisions = isset( $_POST['revisions'] ) ? intval( $_POST['revisions'] ) : 0;
-
-		if ( ! is_array( $maint_options ) ) {
-			$information['status'] = 'FAIL';
-			$maint_options         = array();
+		if ( ! is_array( $maint_options ) ) {			
+			mainwp_child_helper()->write( array( 'status' => 'FAIL' ) ); // exit.
 		}
+		
+		$max_revisions = isset( $_POST['revisions'] ) ? intval( $_POST['revisions'] ) : 0;
+		$information = $this->maintenance_db( $maint_options, $max_revisions );
+		mainwp_child_helper()->write( $information );
+	}
 
+	private function maintenance_db( $maint_options , $max_revisions ) {
+		global $wpdb;
+		
 		$performed_what = array();
 
 		if ( in_array( 'revisions', $maint_options ) ) {
@@ -427,22 +334,18 @@ class MainWP_Child_Callable {
 			$this->maintenance_optimize();
 			$performed_what[] = 'optimize'; // 'Database optimized'.
 		}
-		if ( ! isset( $information['status'] ) ) {
-			$information['status'] = 'SUCCESS';
-		}
-
+		
 		if ( ! empty( $performed_what ) && has_action( 'mainwp_reports_maintenance' ) ) {
 			$details  = implode( ',', $performed_what );
 			$log_time = time();
 			$message  = 'Maintenance Performed';
 			$result   = 'Maintenance Performed';
 			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result, $max_revisions );
-		}
-
-		mainwp_child_helper()->write( $information );
+		}		
+		return array( 'status' => 'SUCCESS' );
 	}
-
-	public function maintenance_optimize() {
+	
+	private function maintenance_optimize() {
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
 		$result = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
@@ -455,7 +358,34 @@ class MainWP_Child_Callable {
 			}
 		}
 	}
+	
+	private function maintenance_action( $action ) {
+		$information = array();
+		if ( 'save_settings' === $action ) {
+			if ( isset( $_POST['enable_alert'] ) && '1' === $_POST['enable_alert'] ) {
+				MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404', 1, 'yes' );
+			} else {
+				delete_option( 'mainwp_maintenance_opt_alert_404' );
+			}
 
+			if ( isset( $_POST['email'] ) && ! empty( $_POST['email'] ) ) {
+				MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404_email', $_POST['email'], 'yes' );
+			} else {
+				delete_option( 'mainwp_maintenance_opt_alert_404_email' );
+			}
+			$information['result'] = 'SUCCESS';
+			mainwp_child_helper()->write( $information );
+
+			return;
+		} elseif ( 'clear_settings' === $action ) {
+			delete_option( 'mainwp_maintenance_opt_alert_404' );
+			delete_option( 'mainwp_maintenance_opt_alert_404_email' );
+			$information['result'] = 'SUCCESS';
+			mainwp_child_helper()->write( $information );
+		}
+		
+		mainwp_child_helper()->write( $information );
+	}
 
 	public function new_post() {
 		MainWP_Child_Posts::get_instance()->new_post();
@@ -802,34 +732,7 @@ class MainWP_Child_Callable {
 		if ( $parse_page ) {
 			// try to parse page.
 			if ( empty( $favi_url ) ) {
-				$request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
-				$favi    = '';
-				if ( is_array( $request ) && isset( $request['body'] ) ) {
-					$preg_str1 = '/(<link\s+(?:[^\>]*)(?:rel="shortcut\s+icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-					$preg_str2 = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-
-					if ( preg_match( $preg_str1, $request['body'], $matches ) ) {
-						$favi = $matches[2];
-					} elseif ( preg_match( $preg_str2, $request['body'], $matches ) ) {
-						$favi = $matches[2];
-					}
-				}
-
-				if ( ! empty( $favi ) ) {
-					if ( false === strpos( $favi, 'http' ) ) {
-						if ( 0 === strpos( $favi, '//' ) ) {
-							if ( 0 === strpos( $site_url, 'https' ) ) {
-								$favi_url = 'https:' . $favi;
-							} else {
-								$favi_url = 'http:' . $favi;
-							}
-						} else {
-							$favi_url = $site_url . $favi;
-						}
-					} else {
-						$favi_url = $favi;
-					}
-				}
+				$favi_url = $this->get_favicon_try_to_find( $site_url );				
 			}
 
 			if ( ! empty( $favi_url ) ) {
@@ -842,6 +745,38 @@ class MainWP_Child_Callable {
 		}
 	}
 
+	private function get_favicon_try_to_find( $site_url ) {
+		$request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
+		$favi    = '';
+		if ( is_array( $request ) && isset( $request['body'] ) ) {
+			$preg_str1 = '/(<link\s+(?:[^\>]*)(?:rel="shortcut\s+icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
+			$preg_str2 = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
+
+			if ( preg_match( $preg_str1, $request['body'], $matches ) ) {
+				$favi = $matches[2];
+			} elseif ( preg_match( $preg_str2, $request['body'], $matches ) ) {
+				$favi = $matches[2];
+			}
+		}
+		$favi_url = '';
+		if ( ! empty( $favi ) ) {
+			if ( false === strpos( $favi, 'http' ) ) {
+				if ( 0 === strpos( $favi, '//' ) ) {
+					if ( 0 === strpos( $site_url, 'https' ) ) {
+						$favi_url = 'https:' . $favi;
+					} else {
+						$favi_url = 'http:' . $favi;
+					}
+				} else {
+					$favi_url = $site_url . $favi;
+				}
+			} else {
+				$favi_url = $favi;
+			}
+		}
+		return $favi_url;
+	}
+	
 	public function get_security_stats() {
 		$information = array();
 
@@ -1224,62 +1159,75 @@ class MainWP_Child_Callable {
 	}
 
 	public function code_snippet() {
+		
 		$action      = $_POST['action'];
-		$information = array( 'status' => 'FAIL' );
+		$type     = isset( $_POST['type'] ) ? $_POST['type'] : '';
+		$slug     = isset( $_POST['slug'] ) ? $_POST['slug'] : '';
+		
+		$snippets = get_option( 'mainwp_ext_code_snippets' );
+		
+		if ( ! is_array( $snippets ) ) {
+			$snippets = array();
+		}
+				
 		if ( 'run_snippet' === $action || 'save_snippet' === $action ) {
 			if ( ! isset( $_POST['code'] ) ) {
-				mainwp_child_helper()->write( $information );
+				mainwp_child_helper()->write( array( 'status' => 'FAIL' ) );
 			}
 		}
-		$code = stripslashes( $_POST['code'] );
+		
+		$code = isset( $_POST['code'] ) ? stripslashes( $_POST['code'] ) : '';
+		
+		$information = array();
 		if ( 'run_snippet' === $action ) {
 			$information = MainWP_Helper::execute_snippet( $code );
 		} elseif ( 'save_snippet' === $action ) {
-			$type     = $_POST['type'];
-			$slug     = $_POST['slug'];
-			$snippets = get_option( 'mainwp_ext_code_snippets' );
-
-			if ( ! is_array( $snippets ) ) {
-				$snippets = array();
-			}
-
-			if ( 'C' === $type ) { // save into wp-config file.
-				if ( false !== $this->snippet_update_wp_config( 'save', $slug, $code ) ) {
-					$information['status'] = 'SUCCESS';
-				}
-			} else {
-				$snippets[ $slug ] = $code;
-				if ( MainWP_Helper::update_option( 'mainwp_ext_code_snippets', $snippets ) ) {
-					$information['status'] = 'SUCCESS';
-				}
-			}
-			MainWP_Helper::update_option( 'mainwp_ext_snippets_enabled', true, 'yes' );
+			$information = $this->snippet_save_snippet( $slug, $type, $code, $snippets );			
 		} elseif ( 'delete_snippet' === $action ) {
-			$type     = $_POST['type'];
-			$slug     = $_POST['slug'];
-			$snippets = get_option( 'mainwp_ext_code_snippets' );
-
-			if ( ! is_array( $snippets ) ) {
-				$snippets = array();
-			}
-			if ( 'C' === $type ) { // delete in wp-config file.
-				if ( false !== $this->snippet_update_wp_config( 'delete', $slug ) ) {
-					$information['status'] = 'SUCCESS';
-				}
-			} else {
-				if ( isset( $snippets[ $slug ] ) ) {
-					unset( $snippets[ $slug ] );
-					if ( MainWP_Helper::update_option( 'mainwp_ext_code_snippets', $snippets ) ) {
-						$information['status'] = 'SUCCESS';
-					}
-				} else {
-					$information['status'] = 'SUCCESS';
-				}
-			}
+			$information = $this->snippet_delete_snippet( $slug, $type, $snippets );			
 		}
+		
+		if ( empty( $information ) )
+			$information = array( 'status' => 'FAIL' );
+		
 		mainwp_child_helper()->write( $information );
 	}
 
+	private function snippet_save_snippet( $slug, $type, $code, $snippets ) {
+		$return = array();
+		if ( 'C' === $type ) { // save into wp-config file.
+			if ( false !== $this->snippet_update_wp_config( 'save', $slug, $code ) ) {
+				$return['status'] = 'SUCCESS';
+			}
+		} else {
+			$snippets[ $slug ] = $code;
+			if ( MainWP_Helper::update_option( 'mainwp_ext_code_snippets', $snippets ) ) {
+				$return['status'] = 'SUCCESS';
+			}
+		}
+		MainWP_Helper::update_option( 'mainwp_ext_snippets_enabled', true, 'yes' );
+		return $return;
+	}
+	
+	private function snippet_delete_snippet( $slug, $type, $snippets ) {		
+		$return = array();				
+		if ( 'C' === $type ) { // delete in wp-config file.
+			if ( false !== $this->snippet_update_wp_config( 'delete', $slug ) ) {
+				$return['status'] = 'SUCCESS';
+			}
+		} else {
+			if ( isset( $snippets[ $slug ] ) ) {
+				unset( $snippets[ $slug ] );
+				if ( MainWP_Helper::update_option( 'mainwp_ext_code_snippets', $snippets ) ) {
+					$return['status'] = 'SUCCESS';
+				}
+			} else {
+				$return['status'] = 'SUCCESS';
+			}
+		}
+		return $return;		
+	}
+	
 	public function snippet_update_wp_config( $action, $slug, $code = '' ) {
 
 		$config_file = '';

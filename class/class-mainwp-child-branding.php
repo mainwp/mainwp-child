@@ -27,16 +27,7 @@ class MainWP_Child_Branding {
 		$opts = get_option( 'mainwp_child_branding_settings' );
 
 		if ( ! is_array( $opts ) ) {
-			$opts = array();
-
-			$label = get_option( 'mainwp_branding_button_contact_label' );
-			if ( ! empty( $label ) ) {
-				$label = stripslashes( $label );
-			}
-
-			$opts['contact_label']  = $label;
-			$opts['extra_settings'] = get_option( 'mainwp_branding_extra_settings' );
-			MainWP_Helper::update_option( 'mainwp_child_branding_settings', $opts );
+			$opts = array();			
 		}
 
 		if ( ! isset( $opts['contact_label'] ) || empty( $opts['contact_label'] ) ) {
@@ -97,31 +88,6 @@ class MainWP_Child_Branding {
 	}
 
 	public function child_deactivation() {
-		$dell_all = array(
-			'mainwp_branding_disable_change',
-			'mainwp_branding_disable_switching_theme',
-			'mainwp_branding_child_hide',
-			'mainwp_branding_show_support',
-			'mainwp_branding_support_email',
-			'mainwp_branding_support_message',
-			'mainwp_branding_remove_restore',
-			'mainwp_branding_remove_setting',
-			'mainwp_branding_remove_server_info',
-			'mainwp_branding_remove_wp_tools',
-			'mainwp_branding_remove_wp_setting',
-			'mainwp_branding_remove_permalink',
-			'mainwp_branding_button_contact_label',
-			'mainwp_branding_send_email_message',
-			'mainwp_branding_message_return_sender',
-			'mainwp_branding_submit_button_title',
-			'mainwp_branding_extra_settings',
-			'mainwp_branding_ext_enabled',
-		);
-
-		foreach ( $dell_all as $opt ) {
-			delete_option( $opt );
-		}
-
 		$brandingOptions_empty = array(
 			'hide',
 			'disable_change',
@@ -180,9 +146,6 @@ class MainWP_Child_Branding {
 			'authoruri'   => $settings['child_plugin_author_uri'],
 			'pluginuri'   => isset( $settings['child_plugin_uri'] ) ? $settings['child_plugin_uri'] : '',
 		);
-
-		MainWP_Helper::update_option( 'mainwp_branding_preserve_branding', $settings['child_preserve_branding'], 'yes' );
-		MainWP_Helper::update_option( 'mainwp_branding_plugin_header', $header, 'yes' );
 
 		$current_settings['preserve_branding']        = $settings['child_preserve_branding'];
 		$current_settings['branding_header']          = $header;
@@ -294,12 +257,6 @@ class MainWP_Child_Branding {
 		}
 
 		$current_settings['extra_settings'] = $extra_setting;
-
-		if ( $settings['child_plugin_hide'] ) {
-			MainWP_Helper::update_option( 'mainwp_branding_child_hide', 'T', 'yes' );
-		} else {
-			MainWP_Helper::update_option( 'mainwp_branding_child_hide', '' );
-		}
 
 		$current_settings['hide']                    = $settings['child_plugin_hide'] ? 'T' : '';
 		$current_settings['show_support']            = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';

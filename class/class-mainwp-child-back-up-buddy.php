@@ -12,7 +12,7 @@
  * Extension URL: https://mainwp.com/extension/mainwpbuddy/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable -- third party credit.
 
 class MainWP_Child_Back_Up_Buddy {
 

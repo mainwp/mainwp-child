@@ -87,8 +87,7 @@ class MainWP_Child {
 		if ( ! isset( $alloptions['mainwp_db_version'] ) ) {
 			$suppress = $wpdb->suppress_errors();
 			$options  = array(
-				'mainwp_child_auth',
-				'mainwp_branding_plugin_header',
+				'mainwp_child_auth',				
 				'mainwp_child_reports_db',
 				'mainwp_child_fix_htaccess',
 				'mainwp_child_pluginDir',
@@ -107,11 +106,7 @@ class MainWP_Child {
 				'mainwp_child_pubkey',
 				'mainwp_child_nossl',
 				'mainwp_security',
-				'mainwp_backupwordpress_ext_enabled',
-				'mainwp_branding_button_contact_label',
-				'mainwp_branding_extra_settings',
-				'mainwp_branding_child_hide',
-				'mainwp_branding_ext_enabled',
+				'mainwp_backupwordpress_ext_enabled',				
 				'mainwp_pagespeed_ext_enabled',
 				'mainwp_linkschecker_ext_enabled',
 				'mainwp_child_branding_settings',
@@ -245,42 +240,6 @@ class MainWP_Child {
 					$security[ $option ] = ( 'T' === $value );
 				}
 				MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
-			}
-		}
-
-		if ( ! empty( $update_version ) && version_compare( $update_version, '1.4', '<=' ) ) {
-			if ( ! is_array( get_option( 'mainwp_child_branding_settings' ) ) ) {
-				$brandingOptions = array(
-					'hide'                     => 'mainwp_branding_child_hide',
-					'extra_settings'           => 'mainwp_branding_extra_settings',
-					'preserve_branding'        => 'mainwp_branding_preserve_branding',
-					'branding_header'          => 'mainwp_branding_plugin_header',
-					'support_email'            => 'mainwp_branding_support_email',
-					'support_message'          => 'mainwp_branding_support_message',
-					'remove_restore'           => 'mainwp_branding_remove_restore',
-					'remove_setting'           => 'mainwp_branding_remove_setting',
-					'remove_server_info'       => 'mainwp_branding_remove_server_info',
-					'remove_connection_detail' => 'mainwp_branding_remove_connection_detail',
-					'remove_wp_tools'          => 'mainwp_branding_remove_wp_tools',
-					'remove_wp_setting'        => 'mainwp_branding_remove_wp_setting',
-					'remove_permalink'         => 'mainwp_branding_remove_permalink',
-					'contact_label'            => 'mainwp_branding_button_contact_label',
-					'email_message'            => 'mainwp_branding_send_email_message',
-					'message_return_sender'    => 'mainwp_branding_message_return_sender',
-					'submit_button_title'      => 'mainwp_branding_submit_button_title',
-					'disable_wp_branding'      => 'mainwp_branding_disable_wp_branding',
-					'show_support'             => 'mainwp_branding_show_support',
-					'disable_change'           => 'mainwp_branding_disable_change',
-					'disable_switching_theme'  => 'mainwp_branding_disable_switching_theme',
-					'branding_ext_enabled'     => 'mainwp_branding_ext_enabled',
-				);
-
-				$convertBranding = array();
-				foreach ( $brandingOptions as $option => $old ) {
-					$value                      = get_option( $old );
-					$convertBranding[ $option ] = $value;
-				}
-				MainWP_Helper::update_option( 'mainwp_child_branding_settings', $convertBranding );
 			}
 		}
 
