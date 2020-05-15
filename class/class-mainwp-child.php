@@ -87,7 +87,7 @@ class MainWP_Child {
 		if ( ! isset( $alloptions['mainwp_db_version'] ) ) {
 			$suppress = $wpdb->suppress_errors();
 			$options  = array(
-				'mainwp_child_auth',				
+				'mainwp_child_auth',
 				'mainwp_child_reports_db',
 				'mainwp_child_fix_htaccess',
 				'mainwp_child_pluginDir',
@@ -106,7 +106,7 @@ class MainWP_Child {
 				'mainwp_child_pubkey',
 				'mainwp_child_nossl',
 				'mainwp_security',
-				'mainwp_backupwordpress_ext_enabled',				
+				'mainwp_backupwordpress_ext_enabled',
 				'mainwp_pagespeed_ext_enabled',
 				'mainwp_linkschecker_ext_enabled',
 				'mainwp_child_branding_settings',
