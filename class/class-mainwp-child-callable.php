@@ -270,27 +270,27 @@ class MainWP_Child_Callable {
 				// to fix issue of meta_value short length.
 				$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
 			} else {
-				$results          = MainWP_Helper::get_revisions( $max_revisions );
+				$results = MainWP_Helper::get_revisions( $max_revisions );
 				$this->maintenance_delete_revisions( $results, $max_revisions );
 				$performed_what[] = 'revisions_max'; // 'Posts revisions deleted'.
 			}
 		}
 
 		$maint_sqls = array(
-			'autodraft' => "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'",
-			'trashpost' => "DELETE FROM $wpdb->posts WHERE post_status = 'trash'",
-			'spam' => "DELETE FROM $wpdb->comments WHERE comment_approved = 'spam'",
-			'pending' => "DELETE FROM $wpdb->comments WHERE comment_approved = '0'",
-			'trashcomment' => "DELETE FROM $wpdb->comments WHERE comment_approved = 'trash'"			
+			'autodraft'    => "DELETE FROM $wpdb->posts WHERE post_status = 'auto-draft'",
+			'trashpost'    => "DELETE FROM $wpdb->posts WHERE post_status = 'trash'",
+			'spam'         => "DELETE FROM $wpdb->comments WHERE comment_approved = 'spam'",
+			'pending'      => "DELETE FROM $wpdb->comments WHERE comment_approved = '0'",
+			'trashcomment' => "DELETE FROM $wpdb->comments WHERE comment_approved = 'trash'",
 		);
-		
-		foreach( $maint_sqls as $act => $sql_clean ) {
+
+		foreach ( $maint_sqls as $act => $sql_clean ) {
 			if ( in_array( $act, $maint_options ) ) {
 				$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
 				$performed_what[] = $act; // 'Auto draft posts deleted'.
 			}
 		}
-		
+
 		if ( in_array( 'tags', $maint_options ) ) {
 			$post_tags = get_terms( 'post_tag', array( 'hide_empty' => false ) );
 			if ( is_array( $post_tags ) ) {
@@ -357,7 +357,7 @@ class MainWP_Child_Callable {
 
 		return $count_deleted;
 	}
-	
+
 	private function maintenance_optimize() {
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
@@ -550,9 +550,9 @@ class MainWP_Child_Callable {
 
 		$fileName = ( isset( $_POST['fileUID'] ) ? $_POST['fileUID'] : '' );
 		if ( 'full' === $_POST['type'] ) {
-			
+
 			$res = $this->backup_full( $fileName );
-			
+
 			if ( ! $res ) {
 				$information['full'] = false;
 			} else {
@@ -586,7 +586,7 @@ class MainWP_Child_Callable {
 		return $information;
 	}
 
-	protected function backup_full( $fileName ) {		
+	protected function backup_full( $fileName ) {
 		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
 		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
 		$uploadDir  = MainWP_Helper::get_mainwp_dir();
@@ -675,9 +675,9 @@ class MainWP_Child_Callable {
 			$pid = $_POST['pid'];
 		}
 		$append = ( isset( $_POST['append'] ) && ( '1' == $_POST['append'] ) );
-		return MainWP_Backup::get()->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );		
+		return MainWP_Backup::get()->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
 	}
-	
+
 	protected function backup_db( $fileName = '', $ext = 'zip' ) {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$dir       = $dirs[0];

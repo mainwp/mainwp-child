@@ -147,7 +147,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	private static function render_page_js() {
-	?>
+		?>
 		<script language="javascript">
 
 			/* FileSaver.js
@@ -427,10 +427,11 @@ class MainWP_Child_Server_Information {
 		</script>
 		<?php
 	}
-	
+
 	public static function render_page() {
 		self::render_page_js();
-		?>		
+		?>
+				
 		<style type="text/css">
 			#mwp-server-information {
 				display: none;
@@ -562,9 +563,9 @@ class MainWP_Child_Server_Information {
 		<br/>
 		<?php
 	}
-	
-	private function render_system_infor_rows( $branding_title ){
-	?>
+
+	private function render_system_infor_rows( $branding_title ) {
+		?>
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php echo esc_html( strtoupper( stripslashes( $branding_title ) ) ); ?></td>
 		</tr>
@@ -601,7 +602,7 @@ class MainWP_Child_Server_Information {
 	}
 
 	private function render_php_settings_rows() {
-	?>
+		?>
 		<tr>
 			<td style="background: #333; color: #fff;"
 				colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
@@ -640,9 +641,8 @@ class MainWP_Child_Server_Information {
 				'curlssl'
 			);
 		}
-		
 	}
-	
+
 	private function render_mysql_infor_rows() {
 		?>
 		<tr>
@@ -657,9 +657,9 @@ class MainWP_Child_Server_Information {
 		<?php self::render_row( 'Tar BZip2 supported', '=', true, 'get_bzip_enabled' ); ?>		
 		<?php
 	}
-	
+
 	private function render_plugins_infor_rows( $isBranding ) {
-	?>
+		?>
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WordPress PLUGINS', 'mainwp-child' ); ?></td>
 		</tr>
@@ -686,9 +686,9 @@ class MainWP_Child_Server_Information {
 			<?php
 		}
 	}
-	
-	private function render_php_infor_rows(){
-	?>
+
+	private function render_php_infor_rows() {
+		?>
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'PHP INFORMATION', 'mainwp-child' ); ?></td>
 		</tr>
@@ -736,11 +736,11 @@ class MainWP_Child_Server_Information {
 			<td><?php esc_html_e( 'MySQL Client Encoding', 'mainwp-child' ); ?></td>
 			<td colspan="3"><?php echo esc_html( defined( 'DB_CHARSET' ) ? DB_CHARSET : '' ); ?></td>
 		</tr>
-	<?php
+		<?php
 	}
-	
-	private function render_server_infor_rows(){
-	?>
+
+	private function render_server_infor_rows() {
+		?>
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'SERVER INFORMATION', 'mainwp-child' ); ?></td>
 		</tr>
@@ -861,7 +861,7 @@ class MainWP_Child_Server_Information {
 		</tr>
 		<?php
 	}
-	
+
 	protected static function get_curl_support() {
 		return function_exists( 'curl_version' );
 	}

@@ -145,28 +145,29 @@ class MainWP_Client_Report {
 	public function get_connector_by_compatible_context( $context ) {
 
 		$connector = '';
-		
+
 		$mapping_connectors = array(
-			'plugins' => 'installer',
-			'themes' => 'installer',
-			'WordPress' => 'installer',
-			'profiles' => 'users',
-			'comments' => 'comments',
-			'settings' => 'settings',
-			'post' => 'posts',
-			'page' => 'posts',
-			'widgets' => 'widgets',
-			'menus' => 'menus',
-			'backups' => 'mainwp_backups',
-			'sucuri_scan' => 'mainwp_sucuri',
-			'mainwp_maintenance' => 'mainwp_maintenance',			
-			'wordfence_scan' => 'mainwp_wordfence',
-			'media' => 'media'
+			'plugins'            => 'installer',
+			'themes'             => 'installer',
+			'WordPress'          => 'installer',
+			'profiles'           => 'users',
+			'comments'           => 'comments',
+			'settings'           => 'settings',
+			'post'               => 'posts',
+			'page'               => 'posts',
+			'widgets'            => 'widgets',
+			'menus'              => 'menus',
+			'backups'            => 'mainwp_backups',
+			'sucuri_scan'        => 'mainwp_sucuri',
+			'mainwp_maintenance' => 'mainwp_maintenance',
+			'wordfence_scan'     => 'mainwp_wordfence',
+			'media'              => 'media',
 		);
-		
-		if ( isset( $mapping_connectors[ $context ] ) )
+
+		if ( isset( $mapping_connectors[ $context ] ) ) {
 			$connector = $mapping_connectors[ $context ];
-		
+		}
+
 		return $connector;
 	}
 
@@ -198,7 +199,7 @@ class MainWP_Client_Report {
 	}
 
 	public function get_stream() {
-		
+
 		$allowed_params = array(
 			'connector',
 			'context',
@@ -797,7 +798,7 @@ class MainWP_Client_Report {
 			case 'status':
 			case 'webtrust':
 				if ( 'sucuri_scan' === $context ) {
-					$tok_value = $this->get_sucuri_scan_token_value( $record, $data );					
+					$tok_value = $this->get_sucuri_scan_token_value( $record, $data );
 				} else {
 					$tok_value = $value;
 				}
@@ -819,7 +820,7 @@ class MainWP_Client_Report {
 							$meta_value = '';
 						}
 					}
-					$tok_value = $meta_value;					
+					$tok_value = $meta_value;
 				}
 				break;
 			case 'type':
@@ -876,7 +877,7 @@ class MainWP_Client_Report {
 	}
 
 	private function get_sucuri_scan_token_value( $record, $data ) {
-		$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );					
+		$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
 		if ( ! empty( $scan_data ) ) {
 			$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			if ( is_array( $scan_data ) ) {
@@ -901,9 +902,9 @@ class MainWP_Client_Report {
 		}
 		return $tok_value;
 	}
-	
+
 	private function get_mainwp_maintenance_token_value( $record, $data ) {
-		
+
 		$meta_value = $this->get_stream_meta_data( $record, $data );
 		$meta_value = explode( ',', $meta_value );
 
