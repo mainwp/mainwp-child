@@ -97,15 +97,15 @@ class MainWP_Child_Callable {
 	}
 
 	public function init_call_functions( $auth = false ) {
-		$callable  = false;
+		$callable         = false;
 		$callable_no_auth = false;
-		$call_func = false;
+		$call_func        = false;
 
 		// check to execute mainwp child's callable functions.
-		if ( isset( $_POST['function'] ) ) {			
-			$call_func     = $_POST['function'];
-			$callable = $this->is_callable_function( $call_func ); // check callable func.			
-			$callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.	
+		if ( isset( $_POST['function'] ) ) {
+			$call_func        = $_POST['function'];
+			$callable         = $this->is_callable_function( $call_func ); // check callable func.
+			$callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.
 		}
 
 		// Call the function required.
@@ -510,9 +510,9 @@ class MainWP_Child_Callable {
 
 	public function backup( $pWrite = true ) {
 
-		$timeout = 20 * 60 * 60;		
+		$timeout = 20 * 60 * 60;
 		MainWP_Helper::set_limit( $timeout );
-		
+
 		MainWP_Helper::end_session();
 
 		// Cleanup pid files!

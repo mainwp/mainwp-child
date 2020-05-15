@@ -142,7 +142,7 @@ class MainWP_Utility {
 		);
 	}
 
-	
+
 	/**
 	 * Handle fatal error for requests from the dashboard
 	 * mwp_action requests
@@ -163,7 +163,7 @@ class MainWP_Utility {
 			register_shutdown_function( 'handle_shutdown' );
 		}
 	}
-	
+
 	public function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
 			return;
@@ -229,7 +229,7 @@ class MainWP_Utility {
 
 		return fclose( $handle );
 	}
-	
+
 	// $check_file_existed: to support checking if file existed.
 	// $parent_id: optional.
 	public static function upload_image( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {

@@ -36,12 +36,12 @@ class MainWP_Child {
 
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
 		add_action( 'init', array( &$this, 'check_login' ), 1 );
-		add_action( 'init', array( &$this, 'parse_init' ), 9999 );		
+		add_action( 'init', array( &$this, 'parse_init' ), 9999 );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
 		add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) ); // to support detect premium plugins update.
 		add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) ); // to support detect premium themes.
-		
+
 		MainWP_Pages::get_instance()->init();
 
 		if ( is_admin() ) {
@@ -57,7 +57,7 @@ class MainWP_Child {
 		MainWP_Child_Plugins_Check::instance();
 		MainWP_Child_Themes_Check::instance();
 		MainWP_Utility::instance()->run_saved_snippets();
-		
+
 		if ( ! get_option( 'mainwp_child_pubkey' ) ) {
 			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
 		}
@@ -307,14 +307,14 @@ class MainWP_Child {
 
 		// auth here.
 		$auth = MainWP_Connect::instance()->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
-		
+
 		// parse auth, if it is not correct actions then exit with message or return.
 		if ( ! MainWP_Connect::instance()->parse_init_auth( $auth ) ) {
 			return;
 		}
-		
+
 		$this->parse_init_extensions();
-		
+
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
 			$_wp_submenu_nopriv = array(); // phpcs:ignore -- to fix warning.
@@ -329,13 +329,13 @@ class MainWP_Child {
 	public function check_login() {
 		MainWP_Connect::instance()->check_login();
 	}
-	
+
 	public function admin_init() {
 		if ( MainWP_Helper::is_admin() && is_admin() ) {
 			MainWP_Clone::get()->init_ajax();
 		}
 	}
-	
+
 	private function parse_init_extensions() {
 		// Handle fatal errors for those init if needed.
 		MainWP_Child_Branding::instance()->branding_init();

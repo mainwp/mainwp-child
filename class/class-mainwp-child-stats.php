@@ -86,7 +86,7 @@ class MainWP_Child_Stats {
 		include_once ABSPATH . '/wp-admin/includes/update.php';
 
 		$timeout = 3 * 60 * 60;
-		MainWP_Helper::set_limit( $timeout );		
+		MainWP_Helper::set_limit( $timeout );
 
 		// Check for new versions.
 		$information['wp_updates'] = $this->stats_wp_update();

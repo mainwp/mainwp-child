@@ -3,14 +3,14 @@
 namespace MainWP\Child;
 
 class MainWP_Pages {
-	
+
 	protected static $instance = null;
-	
+
 	public static $subPages;
 	public static $subPagesLoaded = false;
-	
+
 	public static $brandingTitle = null;
-	
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -23,9 +23,8 @@ class MainWP_Pages {
 	}
 
 	public function __construct() {
-		
 	}
-	
+
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -33,15 +32,15 @@ class MainWP_Pages {
 
 		return self::$instance;
 	}
-	
-	public function init(){
-		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );		
-		add_action( 'admin_head', array( &$this, 'admin_head' ) );		
+
+	public function init() {
+		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
+		add_action( 'admin_head', array( &$this, 'admin_head' ) );
 		add_action( 'admin_notices', array( &$this, 'admin_notice' ) );
 		add_filter( 'plugin_row_meta', array( &$this, 'plugin_row_meta' ), 10, 2 );
 	}
-	
-	
+
+
 	public function admin_notice() {
 		// Admin Notice...
 		if ( ! get_option( 'mainwp_child_pubkey' ) && MainWP_Helper::is_admin() && is_admin() ) {
@@ -67,7 +66,7 @@ class MainWP_Pages {
 		}
 		MainWP_Child_Server_Information::show_warnings();
 	}
-	
+
 	public function admin_menu() {
 		$branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
 		$is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
@@ -173,7 +172,7 @@ class MainWP_Pages {
 			}
 		}
 	}
-	
+
 	public function plugin_row_meta( $plugin_meta, $plugin_file ) {
 		global $mainWPChild;
 		if ( $mainWPChild->plugin_slug !== $plugin_file ) {
@@ -489,5 +488,5 @@ class MainWP_Pages {
 		<?php
 	}
 
-	
+
 }

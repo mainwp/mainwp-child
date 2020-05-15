@@ -91,7 +91,7 @@ class MainWP_Connect {
 
 
 	public function parse_init_auth( $auth = false ) {
-		
+
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) { // with 'mainwpsignature' then need to callable functions.
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
 		}
@@ -116,7 +116,7 @@ class MainWP_Connect {
 					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
 						$auth_user = $_POST['alt_user'];
 						// get alternative admin user.
-						$user      = get_user_by( 'login', $auth_user );
+						$user = get_user_by( 'login', $auth_user );
 					}
 				}
 
