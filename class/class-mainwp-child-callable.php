@@ -243,24 +243,24 @@ class MainWP_Child_Callable {
 	}
 
 	public function maintenance_site() {
-		
-		if ( isset( $_POST['action'] ) ) {			
+
+		if ( isset( $_POST['action'] ) ) {
 			$this->maintenance_action( $_POST['action'] ); // exit.
 		}
 
 		$maint_options = $_POST['options'];
-		if ( ! is_array( $maint_options ) ) {			
+		if ( ! is_array( $maint_options ) ) {
 			mainwp_child_helper()->write( array( 'status' => 'FAIL' ) ); // exit.
 		}
-		
+
 		$max_revisions = isset( $_POST['revisions'] ) ? intval( $_POST['revisions'] ) : 0;
-		$information = $this->maintenance_db( $maint_options, $max_revisions );
+		$information   = $this->maintenance_db( $maint_options, $max_revisions );
 		mainwp_child_helper()->write( $information );
 	}
 
-	private function maintenance_db( $maint_options , $max_revisions ) {
+	private function maintenance_db( $maint_options, $max_revisions ) {
 		global $wpdb;
-		
+
 		$performed_what = array();
 
 		if ( in_array( 'revisions', $maint_options ) ) {
@@ -334,17 +334,17 @@ class MainWP_Child_Callable {
 			$this->maintenance_optimize();
 			$performed_what[] = 'optimize'; // 'Database optimized'.
 		}
-		
+
 		if ( ! empty( $performed_what ) && has_action( 'mainwp_reports_maintenance' ) ) {
 			$details  = implode( ',', $performed_what );
 			$log_time = time();
 			$message  = 'Maintenance Performed';
 			$result   = 'Maintenance Performed';
 			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result, $max_revisions );
-		}		
+		}
 		return array( 'status' => 'SUCCESS' );
 	}
-	
+
 	private function maintenance_optimize() {
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
@@ -358,7 +358,7 @@ class MainWP_Child_Callable {
 			}
 		}
 	}
-	
+
 	private function maintenance_action( $action ) {
 		$information = array();
 		if ( 'save_settings' === $action ) {
@@ -383,7 +383,7 @@ class MainWP_Child_Callable {
 			$information['result'] = 'SUCCESS';
 			mainwp_child_helper()->write( $information );
 		}
-		
+
 		mainwp_child_helper()->write( $information );
 	}
 
@@ -732,7 +732,7 @@ class MainWP_Child_Callable {
 		if ( $parse_page ) {
 			// try to parse page.
 			if ( empty( $favi_url ) ) {
-				$favi_url = $this->get_favicon_try_to_find( $site_url );				
+				$favi_url = $this->get_favicon_try_to_find( $site_url );
 			}
 
 			if ( ! empty( $favi_url ) ) {
@@ -776,7 +776,7 @@ class MainWP_Child_Callable {
 		}
 		return $favi_url;
 	}
-	
+
 	public function get_security_stats() {
 		$information = array();
 
@@ -1159,37 +1159,38 @@ class MainWP_Child_Callable {
 	}
 
 	public function code_snippet() {
-		
-		$action      = $_POST['action'];
-		$type     = isset( $_POST['type'] ) ? $_POST['type'] : '';
-		$slug     = isset( $_POST['slug'] ) ? $_POST['slug'] : '';
-		
+
+		$action = $_POST['action'];
+		$type   = isset( $_POST['type'] ) ? $_POST['type'] : '';
+		$slug   = isset( $_POST['slug'] ) ? $_POST['slug'] : '';
+
 		$snippets = get_option( 'mainwp_ext_code_snippets' );
-		
+
 		if ( ! is_array( $snippets ) ) {
 			$snippets = array();
 		}
-				
+
 		if ( 'run_snippet' === $action || 'save_snippet' === $action ) {
 			if ( ! isset( $_POST['code'] ) ) {
 				mainwp_child_helper()->write( array( 'status' => 'FAIL' ) );
 			}
 		}
-		
+
 		$code = isset( $_POST['code'] ) ? stripslashes( $_POST['code'] ) : '';
-		
+
 		$information = array();
 		if ( 'run_snippet' === $action ) {
 			$information = MainWP_Helper::execute_snippet( $code );
 		} elseif ( 'save_snippet' === $action ) {
-			$information = $this->snippet_save_snippet( $slug, $type, $code, $snippets );			
+			$information = $this->snippet_save_snippet( $slug, $type, $code, $snippets );
 		} elseif ( 'delete_snippet' === $action ) {
-			$information = $this->snippet_delete_snippet( $slug, $type, $snippets );			
+			$information = $this->snippet_delete_snippet( $slug, $type, $snippets );
 		}
-		
-		if ( empty( $information ) )
+
+		if ( empty( $information ) ) {
 			$information = array( 'status' => 'FAIL' );
-		
+		}
+
 		mainwp_child_helper()->write( $information );
 	}
 
@@ -1208,9 +1209,9 @@ class MainWP_Child_Callable {
 		MainWP_Helper::update_option( 'mainwp_ext_snippets_enabled', true, 'yes' );
 		return $return;
 	}
-	
-	private function snippet_delete_snippet( $slug, $type, $snippets ) {		
-		$return = array();				
+
+	private function snippet_delete_snippet( $slug, $type, $snippets ) {
+		$return = array();
 		if ( 'C' === $type ) { // delete in wp-config file.
 			if ( false !== $this->snippet_update_wp_config( 'delete', $slug ) ) {
 				$return['status'] = 'SUCCESS';
@@ -1225,9 +1226,9 @@ class MainWP_Child_Callable {
 				$return['status'] = 'SUCCESS';
 			}
 		}
-		return $return;		
+		return $return;
 	}
-	
+
 	public function snippet_update_wp_config( $action, $slug, $code = '' ) {
 
 		$config_file = '';

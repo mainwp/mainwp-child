@@ -27,7 +27,7 @@ class MainWP_Child_Branding {
 		$opts = get_option( 'mainwp_child_branding_settings' );
 
 		if ( ! is_array( $opts ) ) {
-			$opts = array();			
+			$opts = array();
 		}
 
 		if ( ! isset( $opts['contact_label'] ) || empty( $opts['contact_label'] ) ) {
