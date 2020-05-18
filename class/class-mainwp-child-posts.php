@@ -782,15 +782,15 @@ class MainWP_Child_Posts {
 			update_post_meta( $edit_post_id, '_edit_lock', '' );
 		}
 
-		$permalink = get_permalink( $new_post_id );		
+		$permalink       = get_permalink( $new_post_id );
 		$ret['success']  = true;
 		$ret['link']     = $permalink;
 		$ret['added_id'] = $new_post_id;
 		return $ret;
 	}
-	
-	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ){
-		
+
+	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ) {
+
 		$seo_ext_activated = false;
 		if ( class_exists( 'WPSEO_Meta' ) && class_exists( 'WPSEO_Admin' ) ) {
 			$seo_ext_activated = true;
@@ -1077,7 +1077,7 @@ class MainWP_Child_Posts {
 			'_bulkpost_do_not_del',
 			'_mainwp_spin_me',
 		);
-		$not_allowed[] = '_mainwp_boilerplate_sites_posts';		
+		$not_allowed[] = '_mainwp_boilerplate_sites_posts';
 		$not_allowed[] = '_mainwp_post_plus';
 		$not_allowed[] = '_saved_as_draft';
 		$not_allowed[] = '_saved_draft_categories';

@@ -282,7 +282,7 @@ class MainWP_Backup {
 		return false;
 	}
 
-	public function add_config(){
+	public function add_config() {
 		global $wpdb;
 		$plugins = array();
 		$dir     = WP_CONTENT_DIR . '/plugins/';
@@ -346,7 +346,7 @@ class MainWP_Backup {
 
 		$this->add_file_from_string_to_zip( 'clone/config.txt', $string );
 	}
-	
+
 	public function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp, $root ) {
 		if ( ! is_array( $nodes ) ) {
 			return;

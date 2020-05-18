@@ -946,7 +946,7 @@ class MainWP_Child_Timecapsule {
 		$tabName    = $_POST['tabname'];
 		$is_general = $_POST['is_general'];
 
-		$saved = false;
+		$saved  = false;
 		$config = WPTC_Factory::get( 'config' );
 		if ( 'backup' == $tabName ) {
 			$this->save_settings_backup_tab( $config, $data );
@@ -958,7 +958,7 @@ class MainWP_Child_Timecapsule {
 			$this->save_settings_vulns_update_tab( $config, $data, $is_general );
 			$saved = true;
 		} elseif ( 'staging_opts' == $tabName ) {
-			$this->save_settings_staging_opts_tab( $config, $data, $is_general );			
+			$this->save_settings_staging_opts_tab( $config, $data, $is_general );
 			$saved = true;
 		}
 		if ( ! $saved ) {
@@ -967,8 +967,8 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => 'ok' );
 	}
 
-	private function save_settings_backup_tab( $config, $data ){
-		
+	private function save_settings_backup_tab( $config, $data ) {
+
 		$config->set_option( 'user_excluded_extenstions', $data['user_excluded_extenstions'] );
 		$config->set_option( 'user_excluded_files_more_than_size_settings', $data['user_excluded_files_more_than_size_settings'] );
 
@@ -993,15 +993,14 @@ class MainWP_Child_Timecapsule {
 		if ( ! empty( $data['revision_limit'] ) && ! $notice ) {
 			$notice = apply_filters( 'save_settings_revision_limit_wptc', $data['revision_limit'] );
 		}
-		
 	}
-	
-	private function save_settings_backup_auto_tab( $config, $data, $is_general ) {	
+
+	private function save_settings_backup_auto_tab( $config, $data, $is_general ) {
 		$config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
-		$current = $config->get_option( 'wptc_auto_update_settings' );
+		$current                              = $config->get_option( 'wptc_auto_update_settings' );
 		$current = unserialize( $current ); // phpcs:ignore -- third party credit.
 		$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- third party credit.
-		$current['update_settings']['status']                  = $new['update_settings']['status'];
+		$current['update_settings']['status'] = $new['update_settings']['status'];
 		$current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
 		$current['update_settings']['schedule']['time']        = $new['update_settings']['schedule']['time'];
 		$current['update_settings']['core']['major']['status'] = $new['update_settings']['core']['major']['status'];
@@ -1024,8 +1023,8 @@ class MainWP_Child_Timecapsule {
 		}
 		$config->set_option( 'wptc_auto_update_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.	
 	}
-	
-	private function save_settings_vulns_update_tab( $config, $data, $is_general ){
+
+	private function save_settings_vulns_update_tab( $config, $data, $is_general ) {
 		$current = $config->get_option( 'vulns_settings' );
 		$current = unserialize( $current ); // phpcs:ignore -- third party credit.
 		$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party credit.
@@ -1066,8 +1065,8 @@ class MainWP_Child_Timecapsule {
 		}
 		$config->set_option( 'vulns_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.
 	}
-	
-	private function save_settings_staging_opts_tab( $config, $data, $is_general ){
+
+	private function save_settings_staging_opts_tab( $config, $data, $is_general ) {
 		$config->set_option( 'user_excluded_extenstions_staging', $data['user_excluded_extenstions_staging'] );
 		$config->set_option( 'internal_staging_db_rows_copy_limit', $data['internal_staging_db_rows_copy_limit'] );
 		$config->set_option( 'internal_staging_file_copy_limit', $data['internal_staging_file_copy_limit'] );
@@ -1078,7 +1077,7 @@ class MainWP_Child_Timecapsule {
 			$config->set_option( 'staging_login_custom_link', $data['staging_login_custom_link'] );
 		}
 	}
-	
+
 	private function filter_plugins( $included_plugins ) {
 		$app_functions       = WPTC_Base_Factory::get( 'Wptc_App_Functions' );
 		$specific            = true;
