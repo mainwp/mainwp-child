@@ -695,8 +695,6 @@ class MainWP_Child_Posts {
 		$post_author             = ! empty( $post_author ) ? $post_author : $current_uid;
 		$new_post['post_author'] = $post_author;
 
-		unset( $new_post['_ezin_post_category'] );
-
 		// post plus extension process.
 		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 
@@ -777,10 +775,23 @@ class MainWP_Child_Posts {
 			);
 		}
 
-		$permalink = get_permalink( $new_post_id );
+		$this->update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus );
 
+		// unlock if edit post.
+		if ( $edit_post_id ) {
+			update_post_meta( $edit_post_id, '_edit_lock', '' );
+		}
+
+		$permalink = get_permalink( $new_post_id );		
+		$ret['success']  = true;
+		$ret['link']     = $permalink;
+		$ret['added_id'] = $new_post_id;
+		return $ret;
+	}
+	
+	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ){
+		
 		$seo_ext_activated = false;
-
 		if ( class_exists( 'WPSEO_Meta' ) && class_exists( 'WPSEO_Admin' ) ) {
 			$seo_ext_activated = true;
 		}
@@ -813,19 +824,7 @@ class MainWP_Child_Posts {
 				)
 			);
 		}
-
-		// unlock if edit post.
-		if ( $edit_post_id ) {
-			update_post_meta( $edit_post_id, '_edit_lock', '' );
-		}
-
-		$ret['success']  = true;
-		$ret['link']     = $permalink;
-		$ret['added_id'] = $new_post_id;
-
-		return $ret;
 	}
-
 
 	private function create_wp_rocket( &$post_custom ) {
 		// Options fields.
@@ -1078,14 +1077,7 @@ class MainWP_Child_Posts {
 			'_bulkpost_do_not_del',
 			'_mainwp_spin_me',
 		);
-		$not_allowed[] = '_mainwp_boilerplate_sites_posts';
-		$not_allowed[] = '_ezine_post_keyword';
-		$not_allowed[] = '_ezine_post_display_sig';
-		$not_allowed[] = '_ezine_post_remove_link';
-		$not_allowed[] = '_ezine_post_grab_image';
-		$not_allowed[] = '_ezine_post_grab_image_placement';
-		$not_allowed[] = '_ezine_post_template_id';
-
+		$not_allowed[] = '_mainwp_boilerplate_sites_posts';		
 		$not_allowed[] = '_mainwp_post_plus';
 		$not_allowed[] = '_saved_as_draft';
 		$not_allowed[] = '_saved_draft_categories';

@@ -814,55 +814,7 @@ class Tar_Archiver {
 				}
 			} elseif ( 0 == $file['type'] ) {
 				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
-					$previousFtell = ftell( $this->archive );
-
-					$bytes = $file['stat'][7] + ( 512 == ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
-					fseek( $this->archive, ftell( $this->archive ) + $bytes );
-
-					$ftell = ftell( $this->archive );
-					if ( 'tar.gz' == $this->type ) {
-						if ( ( false === $ftell ) || ( -1 == $ftell ) ) {
-							fseek( $this->archive, $previousFtell );
-
-							$bytesRead   = 0;
-							$bytesToRead = $file['stat'][7];
-
-							while ( $bytesToRead > 0 ) {
-								$readNow            = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-								$bytesCurrentlyRead = strlen( fread( $this->archive, $readNow ) );
-
-								if ( 0 == $bytesCurrentlyRead ) {
-									break;
-								}
-
-								$bytesRead   += $bytesCurrentlyRead;
-								$bytesToRead -= $bytesCurrentlyRead;
-							}
-
-							if ( 0 == $bytesToRead ) {
-								$toRead = ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
-								if ( $toRead > 0 ) {
-									$read       = strlen( fread( $this->archive, $toRead ) );
-									$bytesRead += $read;
-								}
-							}
-
-							$rslt['bytesRead']  = $bytesRead;
-							$rslt['readOffset'] = $previousFtell;
-
-							$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
-
-							return $rslt;
-						}
-					} elseif ( ( 'tar' == $this->type ) && ( ( false === $ftell ) || ( -1 == $ftell ) ) ) {
-						$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
-
-						return $rslt;
-					}
-
-					$this->log( 'Skipping file [' . $file['name'] . ']' );
-
-					return true;
+					return $this->read_next_bytes( $file );
 				} else {
 					$this->log( 'Unexpected file [' . $file['name'] . ']' );
 					throw new \Exception( 'Unexpected file' );
@@ -877,6 +829,54 @@ class Tar_Archiver {
 		}
 	}
 
+	private function read_next_bytes( $file ){
+		$previousFtell = ftell( $this->archive );
+		$bytes = $file['stat'][7] + ( 512 == ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+		fseek( $this->archive, ftell( $this->archive ) + $bytes );
+		$ftell = ftell( $this->archive );
+		if ( 'tar.gz' == $this->type ) {
+			if ( ( false === $ftell ) || ( -1 == $ftell ) ) {
+				fseek( $this->archive, $previousFtell );
+
+				$bytesRead   = 0;
+				$bytesToRead = $file['stat'][7];
+
+				while ( $bytesToRead > 0 ) {
+					$readNow            = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+					$bytesCurrentlyRead = strlen( fread( $this->archive, $readNow ) );
+
+					if ( 0 == $bytesCurrentlyRead ) {
+						break;
+					}
+
+					$bytesRead   += $bytesCurrentlyRead;
+					$bytesToRead -= $bytesCurrentlyRead;
+				}
+
+				if ( 0 == $bytesToRead ) {
+					$toRead = ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
+					if ( $toRead > 0 ) {
+						$read       = strlen( fread( $this->archive, $toRead ) );
+						$bytesRead += $read;
+					}
+				}
+
+				$rslt['bytesRead']  = $bytesRead;
+				$rslt['readOffset'] = $previousFtell;
+
+				$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
+
+				return $rslt;
+			}
+		} elseif ( ( 'tar' == $this->type ) && ( ( false === $ftell ) || ( -1 == $ftell ) ) ) {
+			$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
+
+			return $rslt;
+		}
+		$this->log( 'Skipping file [' . $file['name'] . ']' );
+		return true;
+	}
+	
 	public function log( $text ) {
 		if ( $this->logHandle ) {
 			fwrite( $this->logHandle, $text . "\n" );

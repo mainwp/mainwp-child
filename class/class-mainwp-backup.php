@@ -268,68 +268,7 @@ class MainWP_Backup {
 			}
 
 			if ( $addConfig ) {
-				global $wpdb;
-				$plugins = array();
-				$dir     = WP_CONTENT_DIR . '/plugins/';
-				// phpcs:disable
-				$fh      = opendir( $dir );
-				while ( $entry = readdir( $fh ) ) {
-					if ( ! is_dir( $dir . $entry ) ) {
-						continue;
-					}
-					if ( ( '.' == $entry ) || ( '..' == $entry ) ) {
-						continue;
-					}
-					$plugins[] = $entry;
-				}
-				closedir( $fh );
-				// phpcs:enable
-
-				$themes = array();
-				$dir    = WP_CONTENT_DIR . '/themes/';
-				// phpcs:disable
-				$fh     = opendir( $dir );
-				while ( $entry = readdir( $fh ) ) {
-					if ( ! is_dir( $dir . $entry ) ) {
-						continue;
-					}
-					if ( ( '.' == $entry ) || ( '..' == $entry ) ) {
-						continue;
-					}
-					$themes[] = $entry;
-				}
-				closedir( $fh );
-				// phpcs:enable
-
-				if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
-					$string = wp_json_encode(
-						array(
-							'siteurl' => get_option( 'siteurl' ),
-							'home'    => get_option( 'home' ),
-							'abspath' => ABSPATH,
-							'prefix'  => $wpdb->prefix,
-							'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
-							'plugins' => $plugins,
-							'themes'  => $themes,
-						)
-					);
-				} else {
-					$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
-						serialize( // phpcs:ignore -- safe
-							array(
-								'siteurl' => get_option( 'siteurl' ),
-								'home'    => get_option( 'home' ),
-								'abspath' => ABSPATH,
-								'prefix'  => $wpdb->prefix,
-								'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
-								'plugins' => $plugins,
-								'themes'  => $themes,
-							)
-						)
-					);
-				}
-
-				$this->add_file_from_string_to_zip( 'clone/config.txt', $string );
+				$this->add_config();
 			}
 
 			$return = $this->zip->close();
@@ -343,6 +282,71 @@ class MainWP_Backup {
 		return false;
 	}
 
+	public function add_config(){
+		global $wpdb;
+		$plugins = array();
+		$dir     = WP_CONTENT_DIR . '/plugins/';
+		// phpcs:disable
+		$fh      = opendir( $dir );
+		while ( $entry = readdir( $fh ) ) {
+			if ( ! is_dir( $dir . $entry ) ) {
+				continue;
+			}
+			if ( ( '.' == $entry ) || ( '..' == $entry ) ) {
+				continue;
+			}
+			$plugins[] = $entry;
+		}
+		closedir( $fh );
+		// phpcs:enable
+
+		$themes = array();
+		$dir    = WP_CONTENT_DIR . '/themes/';
+		// phpcs:disable
+		$fh     = opendir( $dir );
+		while ( $entry = readdir( $fh ) ) {
+			if ( ! is_dir( $dir . $entry ) ) {
+				continue;
+			}
+			if ( ( '.' == $entry ) || ( '..' == $entry ) ) {
+				continue;
+			}
+			$themes[] = $entry;
+		}
+		closedir( $fh );
+		// phpcs:enable
+
+		if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
+			$string = wp_json_encode(
+				array(
+					'siteurl' => get_option( 'siteurl' ),
+					'home'    => get_option( 'home' ),
+					'abspath' => ABSPATH,
+					'prefix'  => $wpdb->prefix,
+					'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
+					'plugins' => $plugins,
+					'themes'  => $themes,
+				)
+			);
+		} else {
+			$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
+				serialize( // phpcs:ignore -- safe
+					array(
+						'siteurl' => get_option( 'siteurl' ),
+						'home'    => get_option( 'home' ),
+						'abspath' => ABSPATH,
+						'prefix'  => $wpdb->prefix,
+						'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
+						'plugins' => $plugins,
+						'themes'  => $themes,
+					)
+				)
+			);
+		}
+
+		$this->add_file_from_string_to_zip( 'clone/config.txt', $string );
+	}
+	
 	public function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp, $root ) {
 		if ( ! is_array( $nodes ) ) {
 			return;

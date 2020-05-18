@@ -647,84 +647,85 @@ class MainWP_Clone_Install {
 
 			mainwp_child_helper()->write( array( 'size' => filesize( $archiveFile ) ) );
 		} elseif ( 'createCloneBackup' === $_POST['cloneFunc'] ) {
-			MainWP_Helper::end_session();
-
-			$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
-			foreach ( $files as $file ) {
-				unlink( $file );
-			}
-			if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
-				unlink( ABSPATH . 'clone/config.txt' );
-			}
-			if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
-				rmdir( ABSPATH . 'clone' );
-			}
-
-			$wpversion = $_POST['wpversion'];
-			global $wp_version;
-			$includeCoreFiles = ( $wpversion !== $wp_version );
-			$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
-			$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
-			$uploadDir        = MainWP_Helper::get_mainwp_dir();
-			$uploadDir        = $uploadDir[0];
-			$excludes[]       = str_replace( ABSPATH, '', $uploadDir );
-			$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
-			if ( version_compare( phpversion(), '5.3.0' ) >= 0 || ! ini_get( 'safe_mode' ) ) {
-				set_time_limit( 6000 );
-			}
-
-			$newExcludes = array();
-			foreach ( $excludes as $exclude ) {
-				$newExcludes[] = rtrim( $exclude, '/' );
-			}
-
-			$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : $_POST['zipmethod'] );
-			if ( 'tar.gz' === $method && ! function_exists( 'gzopen' ) ) {
-				$method = 'zip';
-			}
-
-			$res = MainWP_Backup::get()->create_full_backup( $newExcludes, ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] ), true, $includeCoreFiles, 0, false, false, false, false, $method );
-			if ( ! $res ) {
-				$information['backup'] = false;
-			} else {
-				$information['backup'] = $res['file'];
-				$information['size']   = $res['filesize'];
-			}
-
-			$plugins = array();
-			$dir     = WP_CONTENT_DIR . '/plugins/';
-			$fh      = opendir( $dir );
-			$entry   = readdir( $fh );
-			while ( $entry ) {
-				if ( ! is_dir( $dir . $entry ) ) {
-					continue;
-				}
-				if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-					continue;
-				}
-				$plugins[] = $entry;
-			}
-			closedir( $fh );
-			$information['plugins'] = $plugins;
-
-			$themes = array();
-			$dir    = WP_CONTENT_DIR . '/themes/';
-			$fh     = opendir( $dir );
-			while ( $entry = readdir( $fh ) ) {
-				if ( ! is_dir( $dir . $entry ) ) {
-					continue;
-				}
-				if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-					continue;
-				}
-				$themes[] = $entry;
-			}
-			closedir( $fh );
-			$information['themes'] = $themes;
-
-			mainwp_child_helper()->write( $information );
+			$this->create_clone_backup();
 		}
-			return true;
+		return true;
 	}
+	
+	private function create_clone_backup(){		
+		MainWP_Helper::end_session();
+		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+		foreach ( $files as $file ) {
+			unlink( $file );
+		}
+		if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
+			unlink( ABSPATH . 'clone/config.txt' );
+		}
+		if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
+			rmdir( ABSPATH . 'clone' );
+		}
 
+		$wpversion = $_POST['wpversion'];
+		global $wp_version;
+		$includeCoreFiles = ( $wpversion !== $wp_version );
+		$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
+		$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
+		$uploadDir        = MainWP_Helper::get_mainwp_dir();
+		$uploadDir        = $uploadDir[0];
+		$excludes[]       = str_replace( ABSPATH, '', $uploadDir );
+		$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
+		if ( version_compare( phpversion(), '5.3.0' ) >= 0 || ! ini_get( 'safe_mode' ) ) {
+			set_time_limit( 6000 );
+		}
+
+		$newExcludes = array();
+		foreach ( $excludes as $exclude ) {
+			$newExcludes[] = rtrim( $exclude, '/' );
+		}
+
+		$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : $_POST['zipmethod'] );
+		if ( 'tar.gz' === $method && ! function_exists( 'gzopen' ) ) {
+			$method = 'zip';
+		}
+
+		$res = MainWP_Backup::get()->create_full_backup( $newExcludes, ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] ), true, $includeCoreFiles, 0, false, false, false, false, $method );
+		if ( ! $res ) {
+			$information['backup'] = false;
+		} else {
+			$information['backup'] = $res['file'];
+			$information['size']   = $res['filesize'];
+		}
+
+		$plugins = array();
+		$dir     = WP_CONTENT_DIR . '/plugins/';
+		$fh      = opendir( $dir );
+		$entry   = readdir( $fh );
+		while ( $entry ) {
+			if ( ! is_dir( $dir . $entry ) ) {
+				continue;
+			}
+			if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+				continue;
+			}
+			$plugins[] = $entry;
+		}
+		closedir( $fh );
+		$information['plugins'] = $plugins;
+
+		$themes = array();
+		$dir    = WP_CONTENT_DIR . '/themes/';
+		$fh     = opendir( $dir );
+		while ( $entry = readdir( $fh ) ) {
+			if ( ! is_dir( $dir . $entry ) ) {
+				continue;
+			}
+			if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+				continue;
+			}
+			$themes[] = $entry;
+		}
+		closedir( $fh );
+		$information['themes'] = $themes;
+		mainwp_child_helper()->write( $information );
+	}
 }

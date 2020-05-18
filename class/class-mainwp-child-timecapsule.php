@@ -947,133 +947,138 @@ class MainWP_Child_Timecapsule {
 		$is_general = $_POST['is_general'];
 
 		$saved = false;
-
 		$config = WPTC_Factory::get( 'config' );
-
 		if ( 'backup' == $tabName ) {
-
-			$config->set_option( 'user_excluded_extenstions', $data['user_excluded_extenstions'] );
-			$config->set_option( 'user_excluded_files_more_than_size_settings', $data['user_excluded_files_more_than_size_settings'] );
-
-			if ( ! empty( $data['backup_slot'] ) ) {
-				$config->set_option( 'old_backup_slot', $config->get_option( 'backup_slot' ) );
-				$config->set_option( 'backup_slot', $data['backup_slot'] );
-			}
-
-			$config->set_option( 'backup_db_query_limit', $data['backup_db_query_limit'] );
-			$config->set_option( 'database_encrypt_settings', $data['database_encrypt_settings'] );
-			$config->set_option( 'wptc_timezone', $data['wptc_timezone'] );
-			$config->set_option( 'schedule_time_str', $data['schedule_time_str'] );
-
-			if ( ! empty( $data['schedule_time_str'] ) && ! empty( $data['wptc_timezone'] ) ) {
-				if ( function_exists( 'wptc_modify_schedule_backup' ) ) {
-					wptc_modify_schedule_backup();
-				}
-			}
-
-			$notice = apply_filters( 'check_requirements_auto_backup_wptc', '' );
-
-			if ( ! empty( $data['revision_limit'] ) && ! $notice ) {
-				$notice = apply_filters( 'save_settings_revision_limit_wptc', $data['revision_limit'] );
-			}
-
+			$this->save_settings_backup_tab( $config, $data );
 			$saved = true;
-
 		} elseif ( 'backup_auto' == $tabName ) {
-
-			$config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
-
-			$current = $config->get_option( 'wptc_auto_update_settings' );
-			$current = unserialize( $current ); // phpcs:ignore -- third party credit.
-			$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- third party credit.
-
-			$current['update_settings']['status']                  = $new['update_settings']['status'];
-			$current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
-			$current['update_settings']['schedule']['time']        = $new['update_settings']['schedule']['time'];
-			$current['update_settings']['core']['major']['status'] = $new['update_settings']['core']['major']['status'];
-			$current['update_settings']['core']['minor']['status'] = $new['update_settings']['core']['minor']['status'];
-			$current['update_settings']['themes']['status']        = $new['update_settings']['themes']['status'];
-			$current['update_settings']['plugins']['status']       = $new['update_settings']['plugins']['status'];
-
-			if ( ! $is_general ) {
-				if ( isset( $new['update_settings']['plugins']['included'] ) ) {
-					$current['update_settings']['plugins']['included'] = $new['update_settings']['plugins']['included'];
-				} else {
-					$current['update_settings']['plugins']['included'] = array();
-				}
-
-				if ( isset( $new['update_settings']['themes']['included'] ) ) {
-					$current['update_settings']['themes']['included'] = $new['update_settings']['themes']['included'];
-				} else {
-					$current['update_settings']['themes']['included'] = array();
-				}
-			}
-			$config->set_option( 'wptc_auto_update_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.
+			$this->save_settings_backup_auto_tab( $config, $data, $is_general );
 			$saved = true;
-
 		} elseif ( 'vulns_update' == $tabName ) {
-			$current = $config->get_option( 'vulns_settings' );
-			$current = unserialize( $current ); // phpcs:ignore -- third party credit.
-			$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party credit.
-
-			$current['status']            = $new['status'];
-			$current['core']['status']    = $new['core']['status'];
-			$current['themes']['status']  = $new['themes']['status'];
-			$current['plugins']['status'] = $new['plugins']['status'];
-
-			if ( ! $is_general ) {
-				$vulns_plugins_included = ! empty( $new['plugins']['vulns_plugins_included'] ) ? $new['plugins']['vulns_plugins_included'] : array();
-
-				$plugin_include_array = array();
-
-				if ( ! empty( $vulns_plugins_included ) ) {
-					$plugin_include_array = explode( ',', $vulns_plugins_included );
-					$plugin_include_array = ! empty( $plugin_include_array ) ? $plugin_include_array : array();
-				}
-
-				wptc_log( $plugin_include_array, '--------$plugin_include_array--------' );
-
-				$included_plugins = $this->filter_plugins( $plugin_include_array );
-
-				wptc_log( $included_plugins, '--------$included_plugins--------' );
-
-				$current['plugins']['excluded'] = serialize( $included_plugins ); // phpcs:ignore -- third party credit.
-
-				$vulns_themes_included = ! empty( $new['themes']['vulns_themes_included'] ) ? $new['themes']['vulns_themes_included'] : array();
-
-				$themes_include_array = array();
-
-				if ( ! empty( $vulns_themes_included ) ) {
-					$themes_include_array = explode( ',', $vulns_themes_included );
-				}
-
-				$included_themes               = $this->filter_themes( $themes_include_array );
-				$current['themes']['excluded'] = serialize( $included_themes ); // phpcs:ignore -- third party credit.
-			}
-			$config->set_option( 'vulns_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.
-
+			$this->save_settings_vulns_update_tab( $config, $data, $is_general );
 			$saved = true;
-
 		} elseif ( 'staging_opts' == $tabName ) {
-			$config->set_option( 'user_excluded_extenstions_staging', $data['user_excluded_extenstions_staging'] );
-			$config->set_option( 'internal_staging_db_rows_copy_limit', $data['internal_staging_db_rows_copy_limit'] );
-			$config->set_option( 'internal_staging_file_copy_limit', $data['internal_staging_file_copy_limit'] );
-			$config->set_option( 'internal_staging_deep_link_limit', $data['internal_staging_deep_link_limit'] );
-			$config->set_option( 'internal_staging_enable_admin_login', $data['internal_staging_enable_admin_login'] );
-			$config->set_option( 'staging_is_reset_permalink', $data['staging_is_reset_permalink'] );
-			if ( ! $is_general ) {
-				$config->set_option( 'staging_login_custom_link', $data['staging_login_custom_link'] );
-			}
+			$this->save_settings_staging_opts_tab( $config, $data, $is_general );			
 			$saved = true;
 		}
-
 		if ( ! $saved ) {
 			return array( 'error' => 'Error: Not saved settings' );
 		}
-
 		return array( 'result' => 'ok' );
 	}
 
+	private function save_settings_backup_tab( $config, $data ){
+		
+		$config->set_option( 'user_excluded_extenstions', $data['user_excluded_extenstions'] );
+		$config->set_option( 'user_excluded_files_more_than_size_settings', $data['user_excluded_files_more_than_size_settings'] );
+
+		if ( ! empty( $data['backup_slot'] ) ) {
+			$config->set_option( 'old_backup_slot', $config->get_option( 'backup_slot' ) );
+			$config->set_option( 'backup_slot', $data['backup_slot'] );
+		}
+
+		$config->set_option( 'backup_db_query_limit', $data['backup_db_query_limit'] );
+		$config->set_option( 'database_encrypt_settings', $data['database_encrypt_settings'] );
+		$config->set_option( 'wptc_timezone', $data['wptc_timezone'] );
+		$config->set_option( 'schedule_time_str', $data['schedule_time_str'] );
+
+		if ( ! empty( $data['schedule_time_str'] ) && ! empty( $data['wptc_timezone'] ) ) {
+			if ( function_exists( 'wptc_modify_schedule_backup' ) ) {
+				wptc_modify_schedule_backup();
+			}
+		}
+
+		$notice = apply_filters( 'check_requirements_auto_backup_wptc', '' );
+
+		if ( ! empty( $data['revision_limit'] ) && ! $notice ) {
+			$notice = apply_filters( 'save_settings_revision_limit_wptc', $data['revision_limit'] );
+		}
+		
+	}
+	
+	private function save_settings_backup_auto_tab( $config, $data, $is_general ) {	
+		$config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
+		$current = $config->get_option( 'wptc_auto_update_settings' );
+		$current = unserialize( $current ); // phpcs:ignore -- third party credit.
+		$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- third party credit.
+		$current['update_settings']['status']                  = $new['update_settings']['status'];
+		$current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
+		$current['update_settings']['schedule']['time']        = $new['update_settings']['schedule']['time'];
+		$current['update_settings']['core']['major']['status'] = $new['update_settings']['core']['major']['status'];
+		$current['update_settings']['core']['minor']['status'] = $new['update_settings']['core']['minor']['status'];
+		$current['update_settings']['themes']['status']        = $new['update_settings']['themes']['status'];
+		$current['update_settings']['plugins']['status']       = $new['update_settings']['plugins']['status'];
+
+		if ( ! $is_general ) {
+			if ( isset( $new['update_settings']['plugins']['included'] ) ) {
+				$current['update_settings']['plugins']['included'] = $new['update_settings']['plugins']['included'];
+			} else {
+				$current['update_settings']['plugins']['included'] = array();
+			}
+
+			if ( isset( $new['update_settings']['themes']['included'] ) ) {
+				$current['update_settings']['themes']['included'] = $new['update_settings']['themes']['included'];
+			} else {
+				$current['update_settings']['themes']['included'] = array();
+			}
+		}
+		$config->set_option( 'wptc_auto_update_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.	
+	}
+	
+	private function save_settings_vulns_update_tab( $config, $data, $is_general ){
+		$current = $config->get_option( 'vulns_settings' );
+		$current = unserialize( $current ); // phpcs:ignore -- third party credit.
+		$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party credit.
+
+		$current['status']            = $new['status'];
+		$current['core']['status']    = $new['core']['status'];
+		$current['themes']['status']  = $new['themes']['status'];
+		$current['plugins']['status'] = $new['plugins']['status'];
+
+		if ( ! $is_general ) {
+			$vulns_plugins_included = ! empty( $new['plugins']['vulns_plugins_included'] ) ? $new['plugins']['vulns_plugins_included'] : array();
+
+			$plugin_include_array = array();
+
+			if ( ! empty( $vulns_plugins_included ) ) {
+				$plugin_include_array = explode( ',', $vulns_plugins_included );
+				$plugin_include_array = ! empty( $plugin_include_array ) ? $plugin_include_array : array();
+			}
+
+			wptc_log( $plugin_include_array, '--------$plugin_include_array--------' );
+
+			$included_plugins = $this->filter_plugins( $plugin_include_array );
+
+			wptc_log( $included_plugins, '--------$included_plugins--------' );
+
+			$current['plugins']['excluded'] = serialize( $included_plugins ); // phpcs:ignore -- third party credit.
+
+			$vulns_themes_included = ! empty( $new['themes']['vulns_themes_included'] ) ? $new['themes']['vulns_themes_included'] : array();
+
+			$themes_include_array = array();
+
+			if ( ! empty( $vulns_themes_included ) ) {
+				$themes_include_array = explode( ',', $vulns_themes_included );
+			}
+
+			$included_themes               = $this->filter_themes( $themes_include_array );
+			$current['themes']['excluded'] = serialize( $included_themes ); // phpcs:ignore -- third party credit.
+		}
+		$config->set_option( 'vulns_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.
+	}
+	
+	private function save_settings_staging_opts_tab( $config, $data, $is_general ){
+		$config->set_option( 'user_excluded_extenstions_staging', $data['user_excluded_extenstions_staging'] );
+		$config->set_option( 'internal_staging_db_rows_copy_limit', $data['internal_staging_db_rows_copy_limit'] );
+		$config->set_option( 'internal_staging_file_copy_limit', $data['internal_staging_file_copy_limit'] );
+		$config->set_option( 'internal_staging_deep_link_limit', $data['internal_staging_deep_link_limit'] );
+		$config->set_option( 'internal_staging_enable_admin_login', $data['internal_staging_enable_admin_login'] );
+		$config->set_option( 'staging_is_reset_permalink', $data['staging_is_reset_permalink'] );
+		if ( ! $is_general ) {
+			$config->set_option( 'staging_login_custom_link', $data['staging_login_custom_link'] );
+		}
+	}
+	
 	private function filter_plugins( $included_plugins ) {
 		$app_functions       = WPTC_Base_Factory::get( 'Wptc_App_Functions' );
 		$specific            = true;
