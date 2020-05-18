@@ -428,10 +428,9 @@ class MainWP_Child_Server_Information {
 		<?php
 	}
 
-	public static function render_page() {
+	public static function render_page(){
 		self::render_page_js();
 		?>
-				
 		<style type="text/css">
 			#mwp-server-information {
 				display: none;

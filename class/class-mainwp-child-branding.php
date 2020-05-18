@@ -146,9 +146,9 @@ class MainWP_Child_Branding {
 			'authoruri'   => $settings['child_plugin_author_uri'],
 			'pluginuri'   => isset( $settings['child_plugin_uri'] ) ? $settings['child_plugin_uri'] : '',
 		);
-
-		$current_settings['preserve_branding']        = $settings['child_preserve_branding'];
 		$current_settings['branding_header']          = $header;
+		
+		$current_settings['preserve_branding']        = $settings['child_preserve_branding'];		
 		$current_settings['support_email']            = $settings['child_support_email'];
 		$current_settings['support_message']          = $settings['child_support_message'];
 		$current_settings['remove_restore']           = $settings['child_remove_restore'];
@@ -162,11 +162,23 @@ class MainWP_Child_Branding {
 		$current_settings['email_message']            = $settings['child_send_email_message'];
 		$current_settings['return_sender']            = $settings['child_message_return_sender'];
 		$current_settings['submit_button_title']      = $settings['child_submit_button_title'];
-
+		$current_settings['hide']                    = $settings['child_plugin_hide'] ? 'T' : '';
+		$current_settings['show_support']            = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';
+		$current_settings['disable_change']          = $settings['child_disable_change'] ? 'T' : '';
+		$current_settings['disable_switching_theme'] = $settings['child_disable_switching_theme'] ? 'T' : '';
 		if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
 			$current_settings['disable_wp_branding'] = $settings['child_disable_wp_branding'];
 		}
+		$current_settings['extra_settings'] = self::get_extra_settings( $current_extra_setting, $settings, $information );
+		MainWP_Helper::update_option( 'mainwp_child_branding_settings', $current_settings );
 
+		$information['result'] = 'SUCCESS';
+
+		return $information;
+	}
+
+	public static function get_extra_settings( $current_extra_setting, $settings, &$information ){
+		
 		$extra_setting = array(
 			'show_button_in'                  => $settings['child_show_support_button_in'],
 			'global_footer'                   => $settings['child_global_footer'],
@@ -255,21 +267,9 @@ class MainWP_Child_Branding {
 		} elseif ( isset( $current_extra_setting['favico_image'] ) ) {
 			$extra_setting['favico_image'] = $current_extra_setting['favico_image'];
 		}
-
-		$current_settings['extra_settings'] = $extra_setting;
-
-		$current_settings['hide']                    = $settings['child_plugin_hide'] ? 'T' : '';
-		$current_settings['show_support']            = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';
-		$current_settings['disable_change']          = $settings['child_disable_change'] ? 'T' : '';
-		$current_settings['disable_switching_theme'] = $settings['child_disable_switching_theme'] ? 'T' : '';
-
-		MainWP_Helper::update_option( 'mainwp_child_branding_settings', $current_settings );
-
-		$information['result'] = 'SUCCESS';
-
-		return $information;
+		return $extra_setting;
 	}
-
+	
 	public static function branding_upload_image( $img_url ) {
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 

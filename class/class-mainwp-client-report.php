@@ -200,6 +200,47 @@ class MainWP_Client_Report {
 
 	public function get_stream() {
 
+		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		if ( ! is_array( $sections ) ) {
+			$sections = array();
+		}
+
+		$other_tokens = isset( $_POST['other_tokens'] ) ? maybe_unserialize( base64_decode( $_POST['other_tokens'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		if ( ! is_array( $other_tokens ) ) {
+			$other_tokens = array();
+		}
+
+		unset( $_POST['sections'] );
+		unset( $_POST['other_tokens'] );
+
+		$args = $this->get_stream_get_params( $other_tokens, $sections );
+		$records = wp_mainwp_stream_get_instance()->db->query( $args );
+
+		if ( ! is_array( $records ) ) {
+			$records = array();
+		}
+
+		// fix invalid data, or skip records!
+		$skip_records = array();
+
+		// fix for incorrect posts created logs!
+		// query created posts from WP posts data to simulate records logging for created posts.
+		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {
+			$this->fix_logs_posts_created( $records, $skip_records );			
+		}
+		
+		$other_tokens_data = $this->get_stream_others_tokens( $records, $other_tokens, $skip_records );
+		$sections_data = $this->get_stream_sections_data( $records, $sections, $skip_records );
+
+		$information = array(
+			'other_tokens_data' => $other_tokens_data,
+			'sections_data'     => $sections_data,
+		);
+		return $information;
+	}
+	
+	private function get_stream_get_params( $other_tokens, $sections ){
+		
 		$allowed_params = array(
 			'connector',
 			'context',
@@ -215,20 +256,7 @@ class MainWP_Client_Report {
 			'blog_id',
 			'ip',
 		);
-
-		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-		if ( ! is_array( $sections ) ) {
-			$sections = array();
-		}
-
-		$other_tokens = isset( $_POST['other_tokens'] ) ? maybe_unserialize( base64_decode( $_POST['other_tokens'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-		if ( ! is_array( $other_tokens ) ) {
-			$other_tokens = array();
-		}
-
-		unset( $_POST['sections'] );
-		unset( $_POST['other_tokens'] );
-
+		
 		$args = array();
 		foreach ( $allowed_params as $param ) {
 			$paramval = wp_mainwp_stream_filter_input( INPUT_POST, $param );
@@ -323,113 +351,89 @@ class MainWP_Client_Report {
 		}
 
 		$args['records_per_page'] = 9999;
-
-		$records = wp_mainwp_stream_get_instance()->db->query( $args );
-
-		if ( ! is_array( $records ) ) {
-			$records = array();
+		
+		return $args;
+	}
+	
+	private function get_stream_others_tokens( $records, $other_tokens, $skip_records ){
+		$other_tokens_data = array();
+		$parts = array( 'header', 'body', 'footer' );
+		foreach( $parts as $part ) {
+			if ( isset( $other_tokens[ $part ] ) && is_array( $other_tokens[ $part ] ) ) {
+				$other_tokens_data[ $part ] = $this->get_other_tokens_data( $records, $other_tokens[ $part ], $skip_records );
+			}			
 		}
-
-		// fix invalid data, or skip records!
-		$skip_records = array();
-
-		// fix for incorrect posts created logs!
-		// query created posts from WP posts data to simulate records logging for created posts.
-		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {
-
-			$args = array(
-				'post_type'   => 'post',
-				'post_status' => 'publish',
-				'date_query'  => array(
-					'column'    => 'post_date',
-					'after'     => $args['date_from'],
-					'before'    => $args['date_to'],
-				),
-			);
-
-			$result                = new \WP_Query( $args );
-			$records_created_posts = $result->posts;
-
-			if ( $records_created_posts ) {
-
-				$count_records = count( $records );
-				for ( $i = 0; $i < $count_records; $i++ ) {
-					$record = $records[ $i ];
-					if ( 'posts' == $record->connector && 'post' == $record->context && 'created' == $record->action ) {
-						if ( ! in_array( $record->ID, $skip_records ) ) {
-							$skip_records[] = $record->ID; // so avoid this created logging, will use logging query from posts data.
-						}
-					}
-				}
-
-				$post_authors = array();
-
-				foreach ( $records_created_posts as $_post ) {
-					$au_id = $_post->post_author;
-					if ( ! isset( $post_authors[ $au_id ] ) ) {
-						$au                     = get_user_by( 'id', $au_id );
-						$post_authors[ $au_id ] = $au->display_name;
-					}
-					$au_name = $post_authors[ $au_id ];
-
-					// simulate logging created posts record.
-					$stdObj            = new \stdClass();
-					$stdObj->ID        = 0; // simulate ID value.
-					$stdObj->connector = 'posts';
-					$stdObj->context   = 'post';
-					$stdObj->action    = 'created';
-					$stdObj->created   = $_post->post_date;
-					$stdObj->meta      = array(
-						'post_title' => array( $_post->post_title ),
-						'user_meta'  => array( $au_name ),
-					);
-
-					$records[] = $stdObj;
-				}
-			}
-		}
-
-		if ( isset( $other_tokens['header'] ) && is_array( $other_tokens['header'] ) ) {
-			$other_tokens_data['header'] = $this->get_other_tokens_data( $records, $other_tokens['header'], $skip_records );
-		}
-
-		if ( isset( $other_tokens['body'] ) && is_array( $other_tokens['body'] ) ) {
-			$other_tokens_data['body'] = $this->get_other_tokens_data( $records, $other_tokens['body'], $skip_records );
-		}
-
-		if ( isset( $other_tokens['footer'] ) && is_array( $other_tokens['footer'] ) ) {
-			$other_tokens_data['footer'] = $this->get_other_tokens_data( $records, $other_tokens['footer'], $skip_records );
-		}
-
+		return $other_tokens_data;
+	}
+	
+	private function get_stream_sections_data( $records, $sections, $skip_records ){
 		$sections_data = array();
-
-		if ( isset( $sections['header'] ) && is_array( $sections['header'] ) && ! empty( $sections['header'] ) ) {
-			foreach ( $sections['header']['section_token'] as $index => $sec ) {
-				$tokens                            = $sections['header']['section_content_tokens'][ $index ];
-				$sections_data['header'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
+		$parts = array( 'header', 'body', 'footer' );
+		foreach( $parts as $part ) {
+			if ( isset( $sections[ $part ] ) && is_array( $sections[ $part ] ) && ! empty( $sections[ $part ] ) ) {
+				foreach ( $sections[ $part ]['section_token'] as $index => $sec ) {
+					$tokens                            = $sections[ $part ]['section_content_tokens'][ $index ];
+					$sections_data[ $part ][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
+				}
 			}
 		}
-		if ( isset( $sections['body'] ) && is_array( $sections['body'] ) && ! empty( $sections['body'] ) ) {
-			foreach ( $sections['body']['section_token'] as $index => $sec ) {
-				$tokens                          = $sections['body']['section_content_tokens'][ $index ];
-				$sections_data['body'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
-			}
-		}
-		if ( isset( $sections['footer'] ) && is_array( $sections['footer'] ) && ! empty( $sections['footer'] ) ) {
-			foreach ( $sections['footer']['section_token'] as $index => $sec ) {
-				$tokens                            = $sections['footer']['section_content_tokens'][ $index ];
-				$sections_data['footer'][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
-			}
-		}
-
-		$information = array(
-			'other_tokens_data' => $other_tokens_data,
-			'sections_data'     => $sections_data,
-		);
-
-		return $information;
+		return $sections_data;
 	}
 
+	private function fix_logs_posts_created( &$records, &$skip_records ){
+		
+		$args = array(
+			'post_type'   => 'post',
+			'post_status' => 'publish',
+			'date_query'  => array(
+				'column'    => 'post_date',
+				'after'     => $args['date_from'],
+				'before'    => $args['date_to'],
+			),
+		);
+
+		$result                = new \WP_Query( $args );
+		$records_created_posts = $result->posts;
+
+		if ( $records_created_posts ) {
+
+			$count_records = count( $records );
+			for ( $i = 0; $i < $count_records; $i++ ) {
+				$record = $records[ $i ];
+				if ( 'posts' == $record->connector && 'post' == $record->context && 'created' == $record->action ) {
+					if ( ! in_array( $record->ID, $skip_records ) ) {
+						$skip_records[] = $record->ID; // so avoid this created logging, will use logging query from posts data.
+					}
+				}
+			}
+
+			$post_authors = array();
+
+			foreach ( $records_created_posts as $_post ) {
+				$au_id = $_post->post_author;
+				if ( ! isset( $post_authors[ $au_id ] ) ) {
+					$au                     = get_user_by( 'id', $au_id );
+					$post_authors[ $au_id ] = $au->display_name;
+				}
+				$au_name = $post_authors[ $au_id ];
+
+				// simulate logging created posts record.
+				$stdObj            = new \stdClass();
+				$stdObj->ID        = 0; // simulate ID value.
+				$stdObj->connector = 'posts';
+				$stdObj->context   = 'post';
+				$stdObj->action    = 'created';
+				$stdObj->created   = $_post->post_date;
+				$stdObj->meta      = array(
+					'post_title' => array( $_post->post_title ),
+					'user_meta'  => array( $au_name ),
+				);
+
+				$records[] = $stdObj;
+			}
+		}
+	}
+	
 	public function get_other_tokens_data( $records, $tokens, &$skip_records ) {
 
 		$token_values = array();
@@ -608,19 +612,6 @@ class MainWP_Client_Report {
 	}
 
 	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {
-
-		$maintenance_details = array(
-			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
-			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
-			'autodraft'     => __( 'Delete all auto draft posts', 'mainwp-child' ),
-			'trashpost'     => __( 'Delete trash posts', 'mainwp-child' ),
-			'spam'          => __( 'Delete spam comments', 'mainwp-child' ),
-			'pending'       => __( 'Delete pending comments', 'mainwp-child' ),
-			'trashcomment'  => __( 'Delete trash comments', 'mainwp-child' ),
-			'tags'          => __( 'Delete tags with 0 posts associated', 'mainwp-child' ),
-			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
-			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
-		);
 
 		$loops      = array();
 		$loop_count = 0;
@@ -904,7 +895,20 @@ class MainWP_Client_Report {
 	}
 
 	private function get_mainwp_maintenance_token_value( $record, $data ) {
-
+		
+		$maintenance_details = array(
+			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
+			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
+			'autodraft'     => __( 'Delete all auto draft posts', 'mainwp-child' ),
+			'trashpost'     => __( 'Delete trash posts', 'mainwp-child' ),
+			'spam'          => __( 'Delete spam comments', 'mainwp-child' ),
+			'pending'       => __( 'Delete pending comments', 'mainwp-child' ),
+			'trashcomment'  => __( 'Delete trash comments', 'mainwp-child' ),
+			'tags'          => __( 'Delete tags with 0 posts associated', 'mainwp-child' ),
+			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
+			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
+		);
+		
 		$meta_value = $this->get_stream_meta_data( $record, $data );
 		$meta_value = explode( ',', $meta_value );
 

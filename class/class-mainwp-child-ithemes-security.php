@@ -13,7 +13,7 @@
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  */
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable -- third party credit code.
 
 class MainWP_Child_IThemes_Security {
 	public static $instance     = null;
@@ -1000,8 +1000,13 @@ class MainWP_Child_IThemes_Security {
 			$active = '';
 
 		}
-
 		$results = $wpdb->get_results( 'SELECT * FROM `' . $wpdb->base_prefix . 'itsec_lockouts`' . $where . $type_statement . $active . ';', ARRAY_A ); // phpcs:ignore -- safe query.		$output  = array();
+		
+		return $this->get_lockouts_int( $results, $type );
+	}
+
+	private function get_lockouts_int( $results, $type ){
+		
 		if ( is_array( $results ) && count( $results ) > 0 ) {
 			switch ( $type ) {
 				case 'host':
@@ -1035,10 +1040,11 @@ class MainWP_Child_IThemes_Security {
 					break;
 			}
 		}
-
+		
 		return $output;
+		
 	}
-
+	
 	public function release_lockout() {
 		global $wpdb;
 

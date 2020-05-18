@@ -1374,32 +1374,8 @@ class MainWP_Clone {
 			MainWP_Helper::end_session();
 
 			$file     = ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] );
-			$testFull = false;
-
-			if ( '' === $file ) {
-				$dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
-				$backupdir   = $dirs[0];
-				$files       = glob( $backupdir . 'download-*' );
-				$archiveFile = false;
-				foreach ( $files as $file ) {
-					if ( MainWP_Helper::is_archive( $file, 'download-' ) ) {
-						$archiveFile = $file;
-						break;
-					}
-				}
-				if ( false === $archiveFile ) {
-					throw new \Exception( __( 'No download file found', 'mainwp-child' ) );
-				}
-				$file = $archiveFile;
-			} elseif ( file_exists( $file ) ) {
-				$testFull = true;
-			} else {
-				$file = ABSPATH . $file;
-				if ( ! file_exists( $file ) ) {
-					throw new \Exception( __( 'Backup file not found', 'mainwp-child' ) );
-				}
-				$testFull = true;
-			}
+			$testFull = false;			
+			$file = $this->clone_backup_get_file( $file, $testFull );			
 			$cloneInstall = new MainWP_Clone_Install( $file );
 			$cloneInstall->read_configuration_file();
 
@@ -1445,57 +1421,90 @@ class MainWP_Clone {
 
 			$cloneInstall->update_wp_config();
 			$cloneInstall->clean();
-
-			if ( false !== $plugins ) {
-				$out = array();
-				if ( is_array( $plugins ) ) {
-					$dir = WP_CONTENT_DIR . '/plugins/';
-					$fh  = opendir( $dir );
-					while ( $entry = readdir( $fh ) ) {
-						if ( ! is_dir( $dir . $entry ) ) {
-							continue;
-						}
-						if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-							continue;
-						}
-						if ( ! in_array( $entry, $plugins ) ) {
-							MainWP_Helper::delete_dir( $dir . $entry );
-						}
-					}
-					closedir( $fh );
-				}
-
-				delete_option( 'mainwp_temp_clone_plugins' );
-			}
-			if ( false !== $themes ) {
-				$out = array();
-				if ( is_array( $themes ) ) {
-					$dir = WP_CONTENT_DIR . '/themes/';
-					$fh  = opendir( $dir );
-					while ( $entry = readdir( $fh ) ) {
-						if ( ! is_dir( $dir . $entry ) ) {
-							continue;
-						}
-						if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-							continue;
-						}
-						if ( ! in_array( $entry, $themes ) ) {
-							MainWP_Helper::delete_dir( $dir . $entry );
-						}
-					}
-					closedir( $fh );
-				}
-				delete_option( 'mainwp_temp_clone_themes' );
-			}
-			$output = array( 'result' => 'ok' );
-			wp_logout();
-			wp_set_current_user( 0 );
+			$output = $this->clone_backup_delete_files( $plugins, $themes );			
 		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
+		
 		die( wp_json_encode( $output ) );
 	}
 
+	private function clone_backup_get_file( $file, &$testFull ){		
+		if ( '' === $file ) {
+			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
+			$backupdir   = $dirs[0];
+			$files       = glob( $backupdir . 'download-*' );
+			$archiveFile = false;
+			foreach ( $files as $file ) {
+				if ( MainWP_Helper::is_archive( $file, 'download-' ) ) {
+					$archiveFile = $file;
+					break;
+				}
+			}
+			if ( false === $archiveFile ) {
+				throw new \Exception( __( 'No download file found', 'mainwp-child' ) );
+			}
+			$file = $archiveFile;
+		} elseif ( file_exists( $file ) ) {
+			$testFull = true;
+		} else {
+			$file = ABSPATH . $file;
+			if ( ! file_exists( $file ) ) {
+				throw new \Exception( __( 'Backup file not found', 'mainwp-child' ) );
+			}
+			$testFull = true;
+		}
+		return $file;
+	}
+	
+	private function clone_backup_delete_files( $plugins, $themes ){		
+		if ( false !== $plugins ) {
+			$out = array();
+			if ( is_array( $plugins ) ) {
+				$dir = WP_CONTENT_DIR . '/plugins/';
+				$fh  = opendir( $dir );
+				while ( $entry = readdir( $fh ) ) {
+					if ( ! is_dir( $dir . $entry ) ) {
+						continue;
+					}
+					if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+						continue;
+					}
+					if ( ! in_array( $entry, $plugins ) ) {
+						MainWP_Helper::delete_dir( $dir . $entry );
+					}
+				}
+				closedir( $fh );
+			}
+
+			delete_option( 'mainwp_temp_clone_plugins' );
+		}
+		if ( false !== $themes ) {
+			$out = array();
+			if ( is_array( $themes ) ) {
+				$dir = WP_CONTENT_DIR . '/themes/';
+				$fh  = opendir( $dir );
+				while ( $entry = readdir( $fh ) ) {
+					if ( ! is_dir( $dir . $entry ) ) {
+						continue;
+					}
+					if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+						continue;
+					}
+					if ( ! in_array( $entry, $themes ) ) {
+						MainWP_Helper::delete_dir( $dir . $entry );
+					}
+				}
+				closedir( $fh );
+			}
+			delete_option( 'mainwp_temp_clone_themes' );
+		}
+		$output = array( 'result' => 'ok' );
+		wp_logout();
+		wp_set_current_user( 0 );
+		return $output;
+	}
+	
 	public static function permalink_changed( $action ) {
 		if ( 'update-permalink' === $action ) {
 			if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) {

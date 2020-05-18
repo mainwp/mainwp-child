@@ -100,7 +100,10 @@ class MainWP_Helper {
 			// Split by parenthesis, ignoring those inside content-quotes.
 			$ordered[ $ordered_key ] = preg_split( '/([^\'"\{\}]*?[\'"].*?(?<!\\\)[\'"][^\'"\{\}]*?)[\{\}]|([^\'"\{\}]*?)[\{\}]/', trim( $ordered_value, " \r\n\t" ), -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE );
 		}
-
+		return self::parse_css_rebuild( $ordered );
+	}
+	
+	public static function parse_css_rebuild( $ordered ) {
 		// Beginning to rebuild new slim CSS-Array.
 		foreach ( $ordered as $key => $val ) {
 			$new       = array();
