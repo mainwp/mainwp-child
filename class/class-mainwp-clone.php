@@ -1373,9 +1373,9 @@ class MainWP_Clone {
 
 			MainWP_Helper::end_session();
 
-			$file     = ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] );
-			$testFull = false;			
-			$file = $this->clone_backup_get_file( $file, $testFull );			
+			$file         = ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] );
+			$testFull     = false;
+			$file         = $this->clone_backup_get_file( $file, $testFull );
 			$cloneInstall = new MainWP_Clone_Install( $file );
 			$cloneInstall->read_configuration_file();
 
@@ -1421,15 +1421,15 @@ class MainWP_Clone {
 
 			$cloneInstall->update_wp_config();
 			$cloneInstall->clean();
-			$output = $this->clone_backup_delete_files( $plugins, $themes );			
+			$output = $this->clone_backup_delete_files( $plugins, $themes );
 		} catch ( \Exception $e ) {
 			$output = array( 'error' => $e->getMessage() );
 		}
-		
+
 		die( wp_json_encode( $output ) );
 	}
 
-	private function clone_backup_get_file( $file, &$testFull ){		
+	private function clone_backup_get_file( $file, &$testFull ) {
 		if ( '' === $file ) {
 			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
 			$backupdir   = $dirs[0];
@@ -1456,8 +1456,8 @@ class MainWP_Clone {
 		}
 		return $file;
 	}
-	
-	private function clone_backup_delete_files( $plugins, $themes ){		
+
+	private function clone_backup_delete_files( $plugins, $themes ) {
 		if ( false !== $plugins ) {
 			$out = array();
 			if ( is_array( $plugins ) ) {
@@ -1504,7 +1504,7 @@ class MainWP_Clone {
 		wp_set_current_user( 0 );
 		return $output;
 	}
-	
+
 	public static function permalink_changed( $action ) {
 		if ( 'update-permalink' === $action ) {
 			if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) {

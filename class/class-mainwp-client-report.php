@@ -213,7 +213,7 @@ class MainWP_Client_Report {
 		unset( $_POST['sections'] );
 		unset( $_POST['other_tokens'] );
 
-		$args = $this->get_stream_get_params( $other_tokens, $sections );
+		$args    = $this->get_stream_get_params( $other_tokens, $sections );
 		$records = wp_mainwp_stream_get_instance()->db->query( $args );
 
 		if ( ! is_array( $records ) ) {
@@ -226,11 +226,11 @@ class MainWP_Client_Report {
 		// fix for incorrect posts created logs!
 		// query created posts from WP posts data to simulate records logging for created posts.
 		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {
-			$this->fix_logs_posts_created( $records, $skip_records );			
+			$this->fix_logs_posts_created( $records, $skip_records );
 		}
-		
+
 		$other_tokens_data = $this->get_stream_others_tokens( $records, $other_tokens, $skip_records );
-		$sections_data = $this->get_stream_sections_data( $records, $sections, $skip_records );
+		$sections_data     = $this->get_stream_sections_data( $records, $sections, $skip_records );
 
 		$information = array(
 			'other_tokens_data' => $other_tokens_data,
@@ -238,9 +238,9 @@ class MainWP_Client_Report {
 		);
 		return $information;
 	}
-	
-	private function get_stream_get_params( $other_tokens, $sections ){
-		
+
+	private function get_stream_get_params( $other_tokens, $sections ) {
+
 		$allowed_params = array(
 			'connector',
 			'context',
@@ -256,7 +256,7 @@ class MainWP_Client_Report {
 			'blog_id',
 			'ip',
 		);
-		
+
 		$args = array();
 		foreach ( $allowed_params as $param ) {
 			$paramval = wp_mainwp_stream_filter_input( INPUT_POST, $param );
@@ -351,28 +351,28 @@ class MainWP_Client_Report {
 		}
 
 		$args['records_per_page'] = 9999;
-		
+
 		return $args;
 	}
-	
-	private function get_stream_others_tokens( $records, $other_tokens, $skip_records ){
+
+	private function get_stream_others_tokens( $records, $other_tokens, $skip_records ) {
 		$other_tokens_data = array();
-		$parts = array( 'header', 'body', 'footer' );
-		foreach( $parts as $part ) {
+		$parts             = array( 'header', 'body', 'footer' );
+		foreach ( $parts as $part ) {
 			if ( isset( $other_tokens[ $part ] ) && is_array( $other_tokens[ $part ] ) ) {
 				$other_tokens_data[ $part ] = $this->get_other_tokens_data( $records, $other_tokens[ $part ], $skip_records );
-			}			
+			}
 		}
 		return $other_tokens_data;
 	}
-	
-	private function get_stream_sections_data( $records, $sections, $skip_records ){
+
+	private function get_stream_sections_data( $records, $sections, $skip_records ) {
 		$sections_data = array();
-		$parts = array( 'header', 'body', 'footer' );
-		foreach( $parts as $part ) {
+		$parts         = array( 'header', 'body', 'footer' );
+		foreach ( $parts as $part ) {
 			if ( isset( $sections[ $part ] ) && is_array( $sections[ $part ] ) && ! empty( $sections[ $part ] ) ) {
 				foreach ( $sections[ $part ]['section_token'] as $index => $sec ) {
-					$tokens                            = $sections[ $part ]['section_content_tokens'][ $index ];
+					$tokens                           = $sections[ $part ]['section_content_tokens'][ $index ];
 					$sections_data[ $part ][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
 				}
 			}
@@ -380,8 +380,8 @@ class MainWP_Client_Report {
 		return $sections_data;
 	}
 
-	private function fix_logs_posts_created( &$records, &$skip_records ){
-		
+	private function fix_logs_posts_created( &$records, &$skip_records ) {
+
 		$args = array(
 			'post_type'   => 'post',
 			'post_status' => 'publish',
@@ -433,7 +433,7 @@ class MainWP_Client_Report {
 			}
 		}
 	}
-	
+
 	public function get_other_tokens_data( $records, $tokens, &$skip_records ) {
 
 		$token_values = array();
@@ -895,7 +895,7 @@ class MainWP_Client_Report {
 	}
 
 	private function get_mainwp_maintenance_token_value( $record, $data ) {
-		
+
 		$maintenance_details = array(
 			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
 			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
@@ -908,7 +908,7 @@ class MainWP_Client_Report {
 			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
 			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
 		);
-		
+
 		$meta_value = $this->get_stream_meta_data( $record, $data );
 		$meta_value = explode( ',', $meta_value );
 
