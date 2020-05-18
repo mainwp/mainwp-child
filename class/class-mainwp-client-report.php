@@ -270,7 +270,7 @@ class MainWP_Client_Report {
 				unset( $args[ $arg ] );
 			}
 		}
-		
+
 		$exclude_connector_posts = $this->get_stream_get_not_in_params( $sections, $other_tokens );
 		if ( $exclude_connector_posts ) {
 			$args['connector__not_in'] = array( 'posts' );
@@ -297,12 +297,12 @@ class MainWP_Client_Report {
 		return $args;
 	}
 
-	private function get_stream_get_not_in_params( $sections, $other_tokens ){
-		
-		$exclude_connector_posts = true;		
-		
+	private function get_stream_get_not_in_params( $sections, $other_tokens ) {
+
+		$exclude_connector_posts = true;
+
 		$parts = array( 'header', 'body', 'footer' );
-		foreach( $parts as $part) {
+		foreach ( $parts as $part ) {
 			if ( isset( $sections[ $part ] ) && isset( $sections[ $part ]['section_token'] ) && is_array( $sections[ $part ]['section_token'] ) ) {
 				foreach ( $sections[ $part ]['section_token'] as $sec ) {
 					if ( false !== strpos( $sec, '[section.posts' ) || false !== strpos( $sec, '[section.pages' ) ) {
@@ -311,12 +311,13 @@ class MainWP_Client_Report {
 					}
 				}
 			}
-			if ( ! $exclude_connector_posts )
+			if ( ! $exclude_connector_posts ) {
 				break;
+			}
 		}
-		
+
 		if ( $exclude_connector_posts ) {
-			foreach( $parts as $part) {
+			foreach ( $parts as $part ) {
 				if ( isset( $other_tokens[ $part ] ) && is_array( $other_tokens[ $part ] ) ) {
 					foreach ( $other_tokens[ $part ] as $sec ) {
 						if ( false !== strpos( $sec, '[post.' ) || false !== strpos( $sec, '[page.' ) ) {
@@ -325,13 +326,14 @@ class MainWP_Client_Report {
 						}
 					}
 				}
-				if ( ! $exclude_connector_posts )
+				if ( ! $exclude_connector_posts ) {
 					break;
+				}
 			}
 		}
 		return $exclude_connector_posts;
 	}
-	
+
 	private function get_stream_others_tokens( $records, $other_tokens, $skip_records ) {
 		$other_tokens_data = array();
 		$parts             = array( 'header', 'body', 'footer' );
@@ -420,7 +422,7 @@ class MainWP_Client_Report {
 		}
 
 		$backups_created_time_to_fix = array();
-		
+
 		foreach ( $tokens as $token ) {
 			if ( isset( $token_values[ $token ] ) ) {
 				continue;
@@ -440,7 +442,7 @@ class MainWP_Client_Report {
 				// to compatible with new version of child report.
 				// to check condition for grabbing report data.
 				$connector = $this->get_connector_by_compatible_context( $context );
-				$action = $this->get_compatible_action( $action, $context );
+				$action    = $this->get_compatible_action( $action, $context );
 				// custom values.
 				if ( 'profiles' == $context ) {
 					if ( 'created' == $action || 'deleted' == $action ) {
@@ -448,7 +450,7 @@ class MainWP_Client_Report {
 					}
 				}
 				switch ( $data ) {
-					case 'count':							
+					case 'count':
 						$token_values[ $token ] = $this->get_other_tokens_count( $records, $connector, $context, $action, $skip_records, $backups_created_time_to_fix );
 						break;
 				}
@@ -458,9 +460,9 @@ class MainWP_Client_Report {
 		return $token_values;
 	}
 
-	private function get_other_tokens_count( $records, $connector, $context, $action, &$skip_records, &$backups_created_time_to_fix ){
+	private function get_other_tokens_count( $records, $connector, $context, $action, &$skip_records, &$backups_created_time_to_fix ) {
 		$count = 0;
-		
+
 		foreach ( $records as $record ) {
 			// check connector.
 			if ( 'editor' == $record->connector ) {
@@ -552,7 +554,7 @@ class MainWP_Client_Report {
 		}
 		return $count;
 	}
-	
+
 	public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
 		$context = '';
@@ -645,8 +647,8 @@ class MainWP_Client_Report {
 				if ( 'draft' === $new_status ) { // avoid auto save post!
 					continue;
 				}
-			}			
-			$token_values = $this->get_section_loop_token_values( $record, $context, $tokens );			
+			}
+			$token_values = $this->get_section_loop_token_values( $record, $context, $tokens );
 			if ( ! empty( $token_values ) ) {
 				$loops[ $loop_count ] = $token_values;
 				$loop_count ++;
@@ -655,8 +657,8 @@ class MainWP_Client_Report {
 		return $loops;
 	}
 
-	private function get_section_loop_token_values( $record, $context, $tokens ){
-		
+	private function get_section_loop_token_values( $record, $context, $tokens ) {
+
 		$token_values = array();
 		foreach ( $tokens as $token ) {
 			$data       = '';
@@ -695,10 +697,10 @@ class MainWP_Client_Report {
 				$msg = 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true );  // phpcs:ignore -- debug mode only.
 				MainWP_Helper::log_debug( $msg );
 			}
-		}		
+		}
 		return $token_values;
 	}
-	
+
 	public function get_section_loop_token_value( $record, $data, $context, $token ) {
 		$tok_value = '';
 		switch ( $data ) {
@@ -740,8 +742,9 @@ class MainWP_Client_Report {
 					$tok_value = $this->get_stream_meta_data( $record, $data );
 				}
 				break;
-			case 'author':				
-				$tok_value = $this->get_author_data_token_value( $record, $connector, $context, $data );;
+			case 'author':
+				$tok_value = $this->get_author_data_token_value( $record, $connector, $context, $data );
+
 				break;
 			case 'status':
 			case 'webtrust':
@@ -749,11 +752,11 @@ class MainWP_Client_Report {
 				if ( 'sucuri_scan' === $context ) {
 					$value = $this->get_sucuri_scan_token_value( $record, $data );
 				}
-				$tok_value = $value;				
+				$tok_value = $value;
 				break;
 			case 'details':
 			case 'result':
-				$tok_value = $this->get_result_data_token_value( $record, $context, $data );				
+				$tok_value = $this->get_result_data_token_value( $record, $context, $data );
 				break;
 			case 'type':
 				if ( 'backups' === $context ) {
@@ -807,7 +810,7 @@ class MainWP_Client_Report {
 		return $value;
 	}
 
-	private function get_author_data_token_value( $record, $connector, $context, $data ){		
+	private function get_author_data_token_value( $record, $connector, $context, $data ) {
 		if ( 'comment' == $connector ) {
 			$data = 'user_name';
 		} else {
@@ -823,11 +826,11 @@ class MainWP_Client_Report {
 		if ( empty( $value ) ) {
 			$value = $this->get_stream_meta_data( $record, 'author_meta' );
 		}
-		
+
 		return $value;
 	}
-	
-	private function get_result_data_token_value( $record, $context, $data ){
+
+	private function get_result_data_token_value( $record, $context, $data ) {
 		if ( 'mainwp_maintenance' === $context && 'details' == $data ) {
 			$tok_value = $this->get_mainwp_maintenance_token_value( $record, $data );
 		} elseif ( 'wordfence_scan' === $context || 'mainwp_maintenance' === $context ) {
@@ -847,10 +850,10 @@ class MainWP_Client_Report {
 		}
 		return $tok_value;
 	}
-	
+
 	private function get_sucuri_scan_token_value( $record, $data ) {
 		$tok_value = '';
-		$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );		
+		$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
 		if ( ! empty( $scan_data ) ) {
 			$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			if ( is_array( $scan_data ) ) {
