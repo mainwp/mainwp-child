@@ -102,7 +102,7 @@ class MainWP_Helper {
 		}
 		return self::parse_css_rebuild( $ordered );
 	}
-	
+
 	public static function parse_css_rebuild( $ordered ) {
 		// Beginning to rebuild new slim CSS-Array.
 		foreach ( $ordered as $key => $val ) {
