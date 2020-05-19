@@ -44,17 +44,17 @@ class MainWP_Child_Updates {
 		if ( ! defined( 'DOING_CRON' ) ) {
 			define( 'DOING_CRON', true );
 		}
-		
+
 		MainWP_Helper::get_wp_filesystem();
-		
+
 		$this->include_updates();
 
 		$information                    = array();
 		$information['upgrades']        = array();
 		$mwp_premium_updates_todo       = array();
 		$mwp_premium_updates_todo_slugs = array();
-		$premiumUpgrader = false;
-		
+		$premiumUpgrader                = false;
+
 		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
 			$this->upgrade_plugin( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs, $premiumUpgrader );
 		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
@@ -62,16 +62,16 @@ class MainWP_Child_Updates {
 		} else {
 			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
-		
+
 		if ( count( $mwp_premium_updates_todo ) > 0 ) {
-			$this->update_premiums_todo( $information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );			
+			$this->update_premiums_todo( $information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );
 		}
 
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		mainwp_child_helper()->write( $information );
 	}
-	
-	private function include_updates(){		
+
+	private function include_updates() {
 		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
 
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
@@ -98,7 +98,7 @@ class MainWP_Child_Updates {
 		$plugins = explode( ',', urldecode( $_POST['list'] ) );
 
 		$this->to_support_some_premiums_updates( $plugins );
-		
+
 		global $wp_current_filter;
 		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
 		wp_update_plugins();
@@ -127,7 +127,7 @@ class MainWP_Child_Updates {
 		}
 
 		if ( count( $plugins ) > 0 ) {
-			$this->to_update_plugins( $information, $plugins );			
+			$this->to_update_plugins( $information, $plugins );
 		}
 
 		remove_filter( 'pre_site_transient_update_plugins', array( $this, 'set_cached_update_plugins' ), 10 );
@@ -148,8 +148,8 @@ class MainWP_Child_Updates {
 			}
 			unset( $mwp_premium_updates );
 			// to fix update of Yithemes premiums plugins that hooked to upgrader_pre_download.
-			$url   = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
-			$nonce = 'bulk-update-plugins';
+			$url             = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
+			$nonce           = 'bulk-update-plugins';
 			$premiumUpgrader = new \Plugin_Upgrader( new \Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 		}
 
@@ -161,8 +161,8 @@ class MainWP_Child_Updates {
 			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 	}
-	
-	private function to_update_plugins( &$information, $plugins ){
+
+	private function to_update_plugins( &$information, $plugins ) {
 		$failed = true;
 		// to fix update of Yithemes premiums plugins that hooked to upgrader_pre_download.
 		$url   = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
@@ -252,7 +252,7 @@ class MainWP_Child_Updates {
 					}
 				}
 			}
-			unset( $mwp_premium_updates );		
+			unset( $mwp_premium_updates );
 			$premiumUpgrader = new \Theme_Upgrader( new \Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 		}
 		if ( count( $themes ) <= 0 && count( $premiumThemes ) <= 0 ) {
@@ -264,7 +264,7 @@ class MainWP_Child_Updates {
 		}
 	}
 
-	private function to_upgrade_themes( &$information, $themes, $last_update ){
+	private function to_upgrade_themes( &$information, $themes, $last_update ) {
 		$addFilterToFixUpdate_optimizePressTheme = false;
 		if ( in_array( 'optimizePressTheme', $themes ) ) {
 			$addFilterToFixUpdate_optimizePressTheme = true;
@@ -313,8 +313,8 @@ class MainWP_Child_Updates {
 			);
 		}
 	}
-	
-	private function update_premiums_todo( &$information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs ){
+
+	private function update_premiums_todo( &$information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs ) {
 		// Upgrade via WP.
 		// @see wp-admin/update.php.
 		$result = $premiumUpgrader->bulk_upgrade( $mwp_premium_updates_todo_slugs );
@@ -366,9 +366,9 @@ class MainWP_Child_Updates {
 			}
 		}
 	}
-	
-	private function to_support_some_premiums_updates( $plugins ){
-	
+
+	private function to_support_some_premiums_updates( $plugins ) {
+
 		if ( in_array( 'backupbuddy/backupbuddy.php', $plugins ) ) {
 			if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
 				if ( ! class_exists( 'Ithemes_Updater_Settings' ) ) {
@@ -388,9 +388,8 @@ class MainWP_Child_Updates {
 				include_once plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php';
 			}
 		}
-	
 	}
-	
+
 	public function upgrade_get_theme_updates() {
 		$themeUpdates    = get_theme_updates();
 		$newThemeUpdates = array();

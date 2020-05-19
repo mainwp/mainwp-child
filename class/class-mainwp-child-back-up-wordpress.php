@@ -576,8 +576,8 @@ class MainWP_Child_Back_Up_WordPress {
 				$exclude_string = $schedule->backup->exclude_string( 'regex' );
 			}
 			if ( $files ) {
-				$this->render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated );				
-			} 
+				$this->render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated );
+			}
 			?>
 			<p class="submit">
 				<a href="#" onclick="event.preventDefault(); mainwp_backupwp_edit_exclude_done()" class="button-primary"><?php esc_html_e( 'Done', 'mainwp-child' ); ?></a>
@@ -629,14 +629,15 @@ class MainWP_Child_Back_Up_WordPress {
 		</table>
 		<?php
 	}
-	
+
 	private function render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated ) {
-	?>
+		?>
 		<table class="widefat">
 			<thead>
 			<?php
 				$this->render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated );
-			?>					
+			?>
+								
 		</thead>
 		<tbody>
 			<?php
@@ -644,11 +645,11 @@ class MainWP_Child_Back_Up_WordPress {
 			?>
 		</tbody>
 		</table>
-	<?php
+		<?php
 	}
-	
+
 	private function render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated ) {
-	?>
+		?>
 		<tr>
 			<th></th>
 			<th scope="col"><?php esc_html_e( 'Name', 'mainwp-child' ); ?></th>
@@ -719,9 +720,9 @@ class MainWP_Child_Back_Up_WordPress {
 		</tr>
 		<?php
 	}
-	
+
 	private function render_table_body_files( $files, $schedule, $root_dir, $new_version, $site_size, $is_size_calculated ) { // phpcs:ignore -- ignore complex method notice.
-		
+
 		foreach ( $files as $size => $file ) {
 			$is_excluded   = false;
 			$is_unreadable = false;

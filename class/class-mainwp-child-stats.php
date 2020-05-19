@@ -95,11 +95,11 @@ class MainWP_Child_Stats {
 		add_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
 		$premiumPlugins = array();
-		$premiumThemes = array();
-		
+		$premiumThemes  = array();
+
 		// First check for new premium updates.
 		$this->check_premium_updates( $information, $premiumPlugins, $premiumThemes );
-		
+
 		remove_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 		remove_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
@@ -356,7 +356,7 @@ class MainWP_Child_Stats {
 				}
 			}
 		}
-		
+
 		$informationPremiumUpdates = apply_filters( 'mwp_premium_update_notification', array() );
 		$premiumPlugins            = array();
 		$premiumThemes             = array();
@@ -397,7 +397,7 @@ class MainWP_Child_Stats {
 			MainWP_Helper::update_option( 'mainwp_premium_updates', $premiumUpdates );
 		}
 	}
-		
+
 	private function stats_plugin_update( $premiumPlugins ) {
 
 		$results = array();

@@ -217,23 +217,25 @@ class MainWP_Custom_Post_Type {
 		// Insert post meta.
 		if ( ! empty( $data['postmeta'] ) && is_array( $data['postmeta'] ) ) {
 			$ret = $this->insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce );
-			if ( true !== $ret )
-				return $ret;			
+			if ( true !== $ret ) {
+				return $ret;
+			}
 		}
-		
+
 		$ret = $this->insert_custom_data( $post_id, $data );
-		
-		if ( true !== $ret )
+
+		if ( true !== $ret ) {
 			return $ret;
+		}
 
 		return array(
 			'success' => 1,
 			'post_id' => $post_id,
 		);
 	}
-	
-	private function insert_custom_data( $post_id, $data ){
-		
+
+	private function insert_custom_data( $post_id, $data ) {
+
 		// MainWP Categories.
 		if ( ! empty( $data['categories'] ) && is_array( $data['categories'] ) ) {
 			// Contains wp_create_categories.
@@ -293,8 +295,8 @@ class MainWP_Custom_Post_Type {
 		}
 		return true;
 	}
-	
-	private function insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce ){		
+
+	private function insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce ) {
 		foreach ( $data['postmeta'] as $key ) {
 			if ( isset( $key['meta_key'] ) && isset( $key['meta_value'] ) ) {
 				if ( $is_woocomerce ) {

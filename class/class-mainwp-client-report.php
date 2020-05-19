@@ -700,7 +700,7 @@ class MainWP_Client_Report {
 		}
 		return $token_values;
 	}
-	
+
 	public function get_section_token_value( $record, $data, $context, $token ) {  // phpcs:ignore -- ignore complex method notice.
 		$tok_value = '';
 		switch ( $data ) {
