@@ -554,7 +554,7 @@ class MainWP_Child_Updates {
 			add_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
 		$this->do_upgrade_wp( $information );
-		
+
 		if ( null !== $this->filterFunction ) {
 			remove_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
 		}
@@ -564,8 +564,8 @@ class MainWP_Child_Updates {
 
 		mainwp_child_helper()->write( $information );
 	}
-	
-	private function do_upgrade_wp( &$information ){		
+
+	private function do_upgrade_wp( &$information ) {
 		// Check for new versions.
 		wp_version_check();
 

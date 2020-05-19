@@ -203,7 +203,7 @@ class MainWP_Backup {
 		if ( $zipRes ) {
 			$nodes = glob( ABSPATH . '*' );
 			if ( ! $includeCoreFiles ) {
-				$this->include_core_files( $nodes );				
+				$this->include_core_files( $nodes );
 			}
 
 			$db_files = $this->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );

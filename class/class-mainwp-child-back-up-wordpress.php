@@ -631,7 +631,7 @@ class MainWP_Child_Back_Up_WordPress {
 	}
 
 	private function render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated ) {
-	?>
+		?>
 		<table class="widefat">
 			<thead>
 			<?php
@@ -644,7 +644,7 @@ class MainWP_Child_Back_Up_WordPress {
 			?>
 		</tbody>
 		</table>
-	<?php
+		<?php
 	}
 
 	private function render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated ) {

@@ -146,7 +146,7 @@ class Tar_Archiver {
 		if ( $this->archive ) {
 			$nodes = glob( ABSPATH . '*' );
 			if ( ! $includeCoreFiles ) {
-				$this->include_core_files( &$nodes );				
+				$this->include_core_files( &$nodes );
 			}
 
 			$db_files = $this->backup->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', false, $this );
@@ -176,7 +176,7 @@ class Tar_Archiver {
 			}
 
 			if ( $addConfig ) {
-				$string = $this->add_config();				
+				$string = $this->add_config();
 				$this->add_empty_directory( 'clone', 0, 0, 0, time() );
 				$this->add_file_from_string( 'clone/config.txt', $string );
 			}
@@ -234,8 +234,8 @@ class Tar_Archiver {
 		}
 		unset( $coreFiles );
 	}
-	
-	private function add_config() {		
+
+	private function add_config() {
 		global $wpdb;
 		$plugins = array();
 		$dir     = WP_CONTENT_DIR . '/plugins/';
@@ -294,7 +294,7 @@ class Tar_Archiver {
 		}
 		return $string;
 	}
-	
+
 	public function add_dir( $path, $excludes ) {
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
 			return;

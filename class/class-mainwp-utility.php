@@ -45,7 +45,7 @@ class MainWP_Utility {
 			}
 		}
 	}
-	
+
 	/**
 	 * Method execute_snippet()
 	 *
@@ -71,7 +71,7 @@ class MainWP_Utility {
 		}
 		return $return;
 	}
-	
+
 	public static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
@@ -384,7 +384,7 @@ class MainWP_Utility {
 		}
 		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
 	}
-	
+
 	public static function fetch_url( $url, $postdata ) {
 		try {
 			$tmpUrl = $url;
@@ -438,5 +438,5 @@ class MainWP_Utility {
 		}
 		// phpcs:enable
 	}
-	
+
 }
