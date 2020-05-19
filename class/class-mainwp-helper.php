@@ -567,7 +567,7 @@ class MainWP_Helper {
 			add_option( $option_name, $option_value, '', $autoload );
 		}
 	}
-	
+
 	public function update_lasttime_backup( $by, $time ) {
 		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
 		if ( ! in_array( $by, $backup_by ) ) {
@@ -626,7 +626,7 @@ class MainWP_Helper {
 
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
 	}
-	
+
 	public function create_nonce_without_session( $action = - 1 ) {
 		$user = wp_get_current_user();
 		$uid  = (int) $user->ID;
@@ -665,7 +665,7 @@ class MainWP_Helper {
 
 		return false;
 	}
-	
+
 	public static function get_revisions( $max_revisions ) {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );

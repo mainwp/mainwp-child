@@ -301,14 +301,14 @@ class MainWP_Connect {
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
 			return false;
 		}
-		
+
 		$file = $this->get_file_request();
-		
+
 		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '', isset( $_POST['function'] ) ? $_POST['function'] : rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
 		if ( ! $auth ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
 		}
-		$auth_user = false;		
+		$auth_user = false;
 		if ( $auth ) {
 			// disable duo auth for mainwp.
 			remove_action( 'init', 'duo_verify_auth', 10 );
@@ -353,7 +353,7 @@ class MainWP_Connect {
 		}
 	}
 
-	private function get_file_request(){
+	private function get_file_request() {
 		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
 			$file = $_REQUEST['f'];
@@ -364,7 +364,7 @@ class MainWP_Connect {
 		}
 		return $file;
 	}
-	
+
 	/**
 	 *
 	 * Check to support login by alternative admin.
