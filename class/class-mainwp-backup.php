@@ -260,33 +260,33 @@ class MainWP_Backup {
 		return false;
 	}
 
-	private function get_core_files(){
+	private function get_core_files() {
 		return array(
-				'favicon.ico',
-				'index.php',
-				'license.txt',
-				'readme.html',
-				'wp-activate.php',
-				'wp-app.php',
-				'wp-blog-header.php',
-				'wp-comments-post.php',
-				'wp-config.php',
-				'wp-config-sample.php',
-				'wp-cron.php',
-				'wp-links-opml.php',
-				'wp-load.php',
-				'wp-login.php',
-				'wp-mail.php',
-				'wp-pass.php',
-				'wp-register.php',
-				'wp-settings.php',
-				'wp-signup.php',
-				'wp-trackback.php',
-				'xmlrpc.php',
-			);
+			'favicon.ico',
+			'index.php',
+			'license.txt',
+			'readme.html',
+			'wp-activate.php',
+			'wp-app.php',
+			'wp-blog-header.php',
+			'wp-comments-post.php',
+			'wp-config.php',
+			'wp-config-sample.php',
+			'wp-cron.php',
+			'wp-links-opml.php',
+			'wp-load.php',
+			'wp-login.php',
+			'wp-mail.php',
+			'wp-pass.php',
+			'wp-register.php',
+			'wp-settings.php',
+			'wp-signup.php',
+			'wp-trackback.php',
+			'xmlrpc.php',
+		);
 	}
-	
-	public function add_config(){
+
+	public function add_config() {
 		global $wpdb;
 		$plugins = array();
 		$dir     = WP_CONTENT_DIR . '/plugins/';
