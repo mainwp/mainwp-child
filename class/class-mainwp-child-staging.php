@@ -74,7 +74,7 @@ class MainWP_Child_Staging {
 		return $this->get_overview();
 	}
 
-	public function action() {
+	public function action() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! $this->is_plugin_installed ) {
 			mainwp_child_helper()->write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}

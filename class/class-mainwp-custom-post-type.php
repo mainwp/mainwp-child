@@ -216,64 +216,24 @@ class MainWP_Custom_Post_Type {
 
 		// Insert post meta.
 		if ( ! empty( $data['postmeta'] ) && is_array( $data['postmeta'] ) ) {
-			foreach ( $data['postmeta'] as $key ) {
-				if ( isset( $key['meta_key'] ) && isset( $key['meta_value'] ) ) {
-					if ( $is_woocomerce ) {
-						if ( '_sku' == $key['meta_key'] ) {
-							if ( ! wc_product_has_unique_sku( $post_id, $key['meta_value'] ) ) {
-								return array( 'error' => __( 'Product SKU must be unique', $this->plugin_translate ) );
-							}
-						}
-
-						if ( '_product_image_gallery' == $key['meta_key'] ) {
-							$product_image_gallery = array();
-							if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {
-								foreach ( $data['extras']['woocommerce']['product_images'] as $product_image ) {
-									try {
-										$upload_featured_image = MainWP_Utility::upload_image( $product_image, array(), $check_image_existed );
-
-										if ( null !== $upload_featured_image ) {
-											$product_image_gallery[] = $upload_featured_image['id'];
-										} else {
-											return array( 'error' => __( 'Cannot add product image', $this->plugin_translate ) );
-										}
-									} catch ( \Exception $e ) {
-										continue;
-									}
-								}
-								$key['meta_value'] = implode( $product_image_gallery, ',' );
-							} else {
-								continue;
-							}
-						}
-					}
-
-					if ( '_thumbnail_id' == $key['meta_key'] ) {
-						if ( isset( $data['extras']['featured_image'] ) ) {
-							try {
-								$upload_featured_image = MainWP_Utility::upload_image( $data['extras']['featured_image'], array(), $check_image_existed );
-
-								if ( null !== $upload_featured_image ) {
-									$key['meta_value'] = $upload_featured_image['id'];
-								} else {
-									return array( 'error' => __( 'Cannot add featured image', $this->plugin_translate ) );
-								}
-							} catch ( \Exception $e ) {
-								continue;
-							}
-						} else {
-							continue;
-						}
-					}
-
-					$meta_value = maybe_unserialize( $key['meta_value'] );
-					if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
-						return array( 'error' => __( 'Error when adding post meta', $this->plugin_translate ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
-					}
-				}
-			}
+			$ret = $this->insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce );
+			if ( true !== $ret )
+				return $ret;			
 		}
+		
+		$ret = $this->insert_custom_data( $post_id, $data );
+		
+		if ( true !== $ret )
+			return $ret;
 
+		return array(
+			'success' => 1,
+			'post_id' => $post_id,
+		);
+	}
+	
+	private function insert_custom_data( $post_id, $data ){
+		
 		// MainWP Categories.
 		if ( ! empty( $data['categories'] ) && is_array( $data['categories'] ) ) {
 			// Contains wp_create_categories.
@@ -331,10 +291,66 @@ class MainWP_Custom_Post_Type {
 				}
 			}
 		}
+		return true;
+	}
+	
+	private function insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce ){		
+		foreach ( $data['postmeta'] as $key ) {
+			if ( isset( $key['meta_key'] ) && isset( $key['meta_value'] ) ) {
+				if ( $is_woocomerce ) {
+					if ( '_sku' == $key['meta_key'] ) {
+						if ( ! wc_product_has_unique_sku( $post_id, $key['meta_value'] ) ) {
+							return array( 'error' => __( 'Product SKU must be unique', $this->plugin_translate ) );
+						}
+					}
 
-		return array(
-			'success' => 1,
-			'post_id' => $post_id,
-		);
+					if ( '_product_image_gallery' == $key['meta_key'] ) {
+						$product_image_gallery = array();
+						if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {
+							foreach ( $data['extras']['woocommerce']['product_images'] as $product_image ) {
+								try {
+									$upload_featured_image = MainWP_Utility::upload_image( $product_image, array(), $check_image_existed );
+
+									if ( null !== $upload_featured_image ) {
+										$product_image_gallery[] = $upload_featured_image['id'];
+									} else {
+										return array( 'error' => __( 'Cannot add product image', $this->plugin_translate ) );
+									}
+								} catch ( \Exception $e ) {
+									continue;
+								}
+							}
+							$key['meta_value'] = implode( $product_image_gallery, ',' );
+						} else {
+							continue;
+						}
+					}
+				}
+
+				if ( '_thumbnail_id' == $key['meta_key'] ) {
+					if ( isset( $data['extras']['featured_image'] ) ) {
+						try {
+							$upload_featured_image = MainWP_Utility::upload_image( $data['extras']['featured_image'], array(), $check_image_existed );
+
+							if ( null !== $upload_featured_image ) {
+								$key['meta_value'] = $upload_featured_image['id'];
+							} else {
+								return array( 'error' => __( 'Cannot add featured image', $this->plugin_translate ) );
+							}
+						} catch ( \Exception $e ) {
+							continue;
+						}
+					} else {
+						continue;
+					}
+				}
+
+				$meta_value = maybe_unserialize( $key['meta_value'] );
+				if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
+					return array( 'error' => __( 'Error when adding post meta', $this->plugin_translate ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
+				}
+			}
+		}
+		return true;
 	}
 }

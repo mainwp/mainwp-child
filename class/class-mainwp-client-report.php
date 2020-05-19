@@ -458,7 +458,7 @@ class MainWP_Client_Report {
 		return $token_values;
 	}
 
-	private function get_other_tokens_count( $records, $connector, $context, $action, &$skip_records, &$backups_created_time_to_fix ){
+	private function get_other_tokens_count( $records, $connector, $context, $action, &$skip_records, &$backups_created_time_to_fix ){ // phpcs:ignore -- ignore complex method notice.
 		$count = 0;
 		
 		foreach ( $records as $record ) {
@@ -585,7 +585,7 @@ class MainWP_Client_Report {
 		return $this->get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records );
 	}
 
-	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {
+	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {  // phpcs:ignore -- ignore complex method notice.
 
 		$loops      = array();
 		$loop_count = 0;
@@ -687,7 +687,7 @@ class MainWP_Client_Report {
 				$data = 'roles';
 			}
 
-			$tok_value = $this->get_section_loop_token_value( $record, $data, $context, $token );
+			$tok_value = $this->get_section_token_value( $record, $data, $context, $token );
 
 			$token_values[ $token ] = $tok_value;
 
@@ -699,7 +699,7 @@ class MainWP_Client_Report {
 		return $token_values;
 	}
 	
-	public function get_section_loop_token_value( $record, $data, $context, $token ) {
+	public function get_section_token_value( $record, $data, $context, $token ) {  // phpcs:ignore -- ignore complex method notice.
 		$tok_value = '';
 		switch ( $data ) {
 			case 'ID':

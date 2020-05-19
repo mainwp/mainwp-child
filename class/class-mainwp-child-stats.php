@@ -94,49 +94,12 @@ class MainWP_Child_Stats {
 		add_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 		add_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
+		$premiumPlugins = array();
+		$premiumThemes = array();
+		
 		// First check for new premium updates.
-		$this->check_premium_updates();
-
-		$informationPremiumUpdates = apply_filters( 'mwp_premium_update_notification', array() );
-		$premiumPlugins            = array();
-		$premiumThemes             = array();
-		if ( is_array( $informationPremiumUpdates ) ) {
-			$premiumUpdates                  = array();
-			$informationPremiumUpdatesLength = count( $informationPremiumUpdates );
-			for ( $i = 0; $i < $informationPremiumUpdatesLength; $i ++ ) {
-				if ( ! isset( $informationPremiumUpdates[ $i ]['new_version'] ) ) {
-					continue;
-				}
-				$slug = ( isset( $informationPremiumUpdates[ $i ]['slug'] ) ? $informationPremiumUpdates[ $i ]['slug'] : $informationPremiumUpdates[ $i ]['Name'] );
-
-				if ( 'plugin' === $informationPremiumUpdates[ $i ]['type'] ) {
-					$premiumPlugins[] = $slug;
-				} elseif ( 'theme' === $informationPremiumUpdates[ $i ]['type'] ) {
-					$premiumThemes[] = $slug;
-				}
-
-				$new_version = $informationPremiumUpdates[ $i ]['new_version'];
-
-				unset( $informationPremiumUpdates[ $i ]['old_version'] );
-				unset( $informationPremiumUpdates[ $i ]['new_version'] );
-
-				if ( ! isset( $information['premium_updates'] ) ) {
-					$information['premium_updates'] = array();
-				}
-
-				$information['premium_updates'][ $slug ]           = $informationPremiumUpdates[ $i ];
-				$information['premium_updates'][ $slug ]['update'] = (object) array(
-					'new_version' => $new_version,
-					'premium'     => true,
-					'slug'        => $slug,
-				);
-				if ( ! in_array( $slug, $premiumUpdates ) ) {
-					$premiumUpdates[] = $slug;
-				}
-			}
-			MainWP_Helper::update_option( 'mainwp_premium_updates', $premiumUpdates );
-		}
-
+		$this->check_premium_updates( $information, $premiumPlugins, $premiumThemes );
+		
 		remove_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 		remove_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
@@ -381,7 +344,7 @@ class MainWP_Child_Stats {
 		}
 	}
 
-	private function check_premium_updates() {
+	private function check_premium_updates( &$information, &$premiumPlugins, &$premiumThemes ) {
 		// First check for new premium updates.
 		$update_check = apply_filters( 'mwp_premium_update_check', array() );
 		if ( ! empty( $update_check ) ) {
@@ -393,8 +356,48 @@ class MainWP_Child_Stats {
 				}
 			}
 		}
-	}
+		
+		$informationPremiumUpdates = apply_filters( 'mwp_premium_update_notification', array() );
+		$premiumPlugins            = array();
+		$premiumThemes             = array();
+		if ( is_array( $informationPremiumUpdates ) ) {
+			$premiumUpdates                  = array();
+			$informationPremiumUpdatesLength = count( $informationPremiumUpdates );
+			for ( $i = 0; $i < $informationPremiumUpdatesLength; $i ++ ) {
+				if ( ! isset( $informationPremiumUpdates[ $i ]['new_version'] ) ) {
+					continue;
+				}
+				$slug = ( isset( $informationPremiumUpdates[ $i ]['slug'] ) ? $informationPremiumUpdates[ $i ]['slug'] : $informationPremiumUpdates[ $i ]['Name'] );
 
+				if ( 'plugin' === $informationPremiumUpdates[ $i ]['type'] ) {
+					$premiumPlugins[] = $slug;
+				} elseif ( 'theme' === $informationPremiumUpdates[ $i ]['type'] ) {
+					$premiumThemes[] = $slug;
+				}
+
+				$new_version = $informationPremiumUpdates[ $i ]['new_version'];
+
+				unset( $informationPremiumUpdates[ $i ]['old_version'] );
+				unset( $informationPremiumUpdates[ $i ]['new_version'] );
+
+				if ( ! isset( $information['premium_updates'] ) ) {
+					$information['premium_updates'] = array();
+				}
+
+				$information['premium_updates'][ $slug ]           = $informationPremiumUpdates[ $i ];
+				$information['premium_updates'][ $slug ]['update'] = (object) array(
+					'new_version' => $new_version,
+					'premium'     => true,
+					'slug'        => $slug,
+				);
+				if ( ! in_array( $slug, $premiumUpdates ) ) {
+					$premiumUpdates[] = $slug;
+				}
+			}
+			MainWP_Helper::update_option( 'mainwp_premium_updates', $premiumUpdates );
+		}
+	}
+		
 	private function stats_plugin_update( $premiumPlugins ) {
 
 		$results = array();

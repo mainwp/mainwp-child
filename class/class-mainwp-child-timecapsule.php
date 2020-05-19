@@ -58,7 +58,7 @@ class MainWP_Child_Timecapsule {
 	}
 
 
-	public function action() {
+	public function action() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! $this->is_plugin_installed ) {
 			mainwp_child_helper()->write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
 		}

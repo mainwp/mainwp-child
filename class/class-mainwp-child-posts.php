@@ -50,12 +50,13 @@ class MainWP_Child_Posts {
 	}
 
 	public function get_recent_posts_int( $status, $pCount, $type = 'post', &$allPosts, $extra = null ) {
+		
 		$args = array(
 			'post_status'      => $status,
 			'suppress_filters' => false,
 			'post_type'        => $type,
 		);
-
+		
 		$tokens = array();
 		if ( is_array( $extra ) && isset( $extra['tokens'] ) ) {
 			$tokens = $extra['tokens'];
@@ -68,25 +69,10 @@ class MainWP_Child_Posts {
 			}
 		}
 		$tokens = array_flip( $tokens );
-
+		
 		if ( 0 !== $pCount ) {
 			$args['numberposts'] = $pCount;
 		}
-
-		/*
-		*
-		* Credits
-		*
-		* Plugin-Name: Yoast SEO
-		* Plugin URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
-		* Author: Team Yoast
-		* Author URI: https://yoast.com/
-		* Licence: GPL v3
-		*
-		* The code is used for the MainWP WordPress SEO Extension
-		* Extension URL: https://mainwp.com/extension/wordpress-seo/
-		*
-		*/
 
 		$wp_seo_enabled = false;
 		if ( isset( $_POST['WPSEOEnabled'] ) && $_POST['WPSEOEnabled'] ) {
@@ -96,83 +82,99 @@ class MainWP_Child_Posts {
 		}
 
 		$posts = get_posts( $args );
+		
 		if ( is_array( $posts ) ) {
 			if ( $wp_seo_enabled ) {
 				$post_ids = array();
 				foreach ( $posts as $post ) {
 					$post_ids[] = $post->ID;
 				}
+				
+				/*
+				*
+				* Credits
+				*
+				* Plugin-Name: Yoast SEO
+				* Plugin URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
+				* Author: Team Yoast
+				* Author URI: https://yoast.com/
+				* Licence: GPL v3
+				*
+				* The code is used for the MainWP WordPress SEO Extension
+				* Extension URL: https://mainwp.com/extension/wordpress-seo/
+				*
+				*/
 				$link_count = new WPSEO_Link_Column_Count();
 				$link_count->set( $post_ids );
 			}
 			foreach ( $posts as $post ) {
-				$outPost                  = array();
-				$outPost['id']            = $post->ID;
-				$outPost['post_type']     = $post->post_type;
-				$outPost['status']        = $post->post_status;
-				$outPost['title']         = $post->post_title;
-				$outPost['comment_count'] = $post->comment_count;
-				if ( isset( $extra['where_post_date'] ) && ! empty( $extra['where_post_date'] ) ) {
-					$outPost['dts'] = strtotime( $post->post_date_gmt );
-				} else {
-					$outPost['dts'] = strtotime( $post->post_modified_gmt );
-				}
-
-				if ( 'future' == $post->post_status ) {
-					$outPost['dts'] = strtotime( $post->post_date_gmt );
-				}
-
-				$usr               = get_user_by( 'id', $post->post_author );
-				$outPost['author'] = ! empty( $usr ) ? $usr->user_nicename : 'removed';
-				$categoryObjects   = get_the_category( $post->ID );
-				$categories        = '';
-				foreach ( $categoryObjects as $cat ) {
-					if ( '' !== $categories ) {
-						$categories .= ', ';
-					}
-					$categories .= $cat->name;
-				}
-				$outPost['categories'] = $categories;
-
-				$tagObjects = get_the_tags( $post->ID );
-				$tags       = '';
-				if ( is_array( $tagObjects ) ) {
-					foreach ( $tagObjects as $tag ) {
-						if ( '' !== $tags ) {
-							$tags .= ', ';
-						}
-						$tags .= $tag->name;
-					}
-				}
-				$outPost['tags'] = $tags;
-
-				if ( is_array( $tokens ) ) {
-					if ( isset( $tokens['[post.url]'] ) ) {
-						$outPost['[post.url]'] = get_permalink( $post->ID );
-					}
-					if ( isset( $tokens['[post.website.url]'] ) ) {
-						$outPost['[post.website.url]'] = get_site_url();
-					}
-					if ( isset( $tokens['[post.website.name]'] ) ) {
-						$outPost['[post.website.name]'] = get_bloginfo( 'name' );
-					}
-				}
-
-				if ( $wp_seo_enabled ) {
-					$post_id             = $post->ID;
+				$outPost = $this->get_out_post( $post, $extra, $tokens );
+				if ( $wp_seo_enabled ) {					
 					$outPost['seo_data'] = array(
-						'count_seo_links'   => $link_count->get( $post_id, 'internal_link_count' ),
-						'count_seo_linked'  => $link_count->get( $post_id, 'incoming_link_count' ),
-						'seo_score'         => \MainWP_WordPress_SEO::instance()->parse_column_score( $post_id ),
-						'readability_score' => \MainWP_WordPress_SEO::instance()->parse_column_score_readability( $post_id ),
+						'count_seo_links'   => $link_count->get( $post->ID, 'internal_link_count' ),
+						'count_seo_linked'  => $link_count->get( $post->ID, 'incoming_link_count' ),
+						'seo_score'         => \MainWP_WordPress_SEO::instance()->parse_column_score( $post->ID ),
+						'readability_score' => \MainWP_WordPress_SEO::instance()->parse_column_score_readability( $post->ID ),
 					);
 				}
-
 				$allPosts[] = $outPost;
 			}
 		}
 	}
+	
+	private function get_out_post( $post, $extra, $tokens ){		
+		$outPost                  = array();
+		$outPost['id']            = $post->ID;
+		$outPost['post_type']     = $post->post_type;
+		$outPost['status']        = $post->post_status;
+		$outPost['title']         = $post->post_title;
+		$outPost['comment_count'] = $post->comment_count;
+		if ( isset( $extra['where_post_date'] ) && ! empty( $extra['where_post_date'] ) ) {
+			$outPost['dts'] = strtotime( $post->post_date_gmt );
+		} else {
+			$outPost['dts'] = strtotime( $post->post_modified_gmt );
+		}
 
+		if ( 'future' == $post->post_status ) {
+			$outPost['dts'] = strtotime( $post->post_date_gmt );
+		}
+
+		$usr               = get_user_by( 'id', $post->post_author );
+		$outPost['author'] = ! empty( $usr ) ? $usr->user_nicename : 'removed';
+		$categoryObjects   = get_the_category( $post->ID );
+		$categories        = '';
+		foreach ( $categoryObjects as $cat ) {
+			if ( '' !== $categories ) {
+				$categories .= ', ';
+			}
+			$categories .= $cat->name;
+		}
+		$outPost['categories'] = $categories;
+
+		$tagObjects = get_the_tags( $post->ID );
+		$tags       = '';
+		if ( is_array( $tagObjects ) ) {
+			foreach ( $tagObjects as $tag ) {
+				if ( '' !== $tags ) {
+					$tags .= ', ';
+				}
+				$tags .= $tag->name;
+			}
+		}
+		$outPost['tags'] = $tags;
+		if ( is_array( $tokens ) ) {
+			if ( isset( $tokens['[post.url]'] ) ) {
+				$outPost['[post.url]'] = get_permalink( $post->ID );
+			}
+			if ( isset( $tokens['[post.website.url]'] ) ) {
+				$outPost['[post.website.url]'] = get_site_url();
+			}
+			if ( isset( $tokens['[post.website.name]'] ) ) {
+				$outPost['[post.website.name]'] = get_bloginfo( 'name' );
+			}
+		}
+		return $outPost;		
+	}
 
 	public function get_all_posts() {
 		$post_type = ( isset( $_POST['post_type'] ) ? $_POST['post_type'] : 'post' );
@@ -659,62 +661,20 @@ class MainWP_Child_Posts {
 
 	private function create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others = array() ) {
 
-		global $current_user;
-
 		/**
 		* Hook: `mainwp_before_post_update`
 		*
 		* Runs before creating or updating a post via MainWP dashboard.
 		*
-		* @param array  $new_post      â€“ Post data array.
-		* @param array  $post_custom   â€“ Post custom meta data.
-		* @param string $post_category â€“ Post categories.
-		* @param string $post_tags     â€“ Post tags.
+		* @param array  $new_post      – Post data array.
+		* @param array  $post_custom   – Post custom meta data.
+		* @param string $post_category – Post categories.
+		* @param string $post_tags     – Post tags.
 		*/
-
-		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
-
-		$this->create_wp_rocket( $post_custom );
-
-		// current user may be connected admin or alternative admin.
-		$current_uid = $current_user->ID;
-		// Set up a new post (adding addition information).
-
-		$post_author = isset( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
-
-		if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
-			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
-			if ( ! empty( $_author ) ) {
-				$new_post['post_author'] = $_author->ID;
-			} else {
-				$new_post['post_author'] = $current_uid;
-			}
-			unset( $new_post['custom_post_author'] );
-		}
-
-		$post_author             = ! empty( $post_author ) ? $post_author : $current_uid;
-		$new_post['post_author'] = $post_author;
-
-		// post plus extension process.
-		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
-
-		$wp_error = null;
-
-		if ( $is_post_plus ) {
-			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' != $new_post['post_date_gmt'] ) {
-				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
-				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp ); // phpcs:ignore -- local time.
-			}
-		}
-
+		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );		
 		$edit_post_id = 0;
-
-		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
-			$edit_post_id = current( $post_custom['_mainwp_edit_post_id'] );
-		} elseif ( isset( $new_post['ID'] ) && $new_post['ID'] ) {
-			$edit_post_id = $new_post['ID'];
-		}
-
+		$is_post_plus = false;		
+		$this->set_post_custom_data( $new_post, $post_custom, $post_tags, $edit_post_id, $is_post_plus );		
 		require_once ABSPATH . 'wp-admin/includes/post.php';
 		if ( $edit_post_id ) {
 			$user_id = wp_check_post_lock( $edit_post_id );
@@ -724,28 +684,16 @@ class MainWP_Child_Posts {
 				return array( 'error' => $error );
 			}
 		}
-
-		$check_image_existed = false;
-		if ( $edit_post_id ) {
-			$check_image_existed = true; // if editing post then will check if image existed.
-		}
-
+		$check_image_existed = $edit_post_id ? true : false; // if editing post then will check if image existed.		
 		$this->create_found_images( $new_post, $upload_dir, $check_image_existed );
 		$this->create_has_shortcode_gallery( $new_post );
-
 		if ( $is_post_plus ) {
 			$this->create_post_plus( $new_post, $post_custom );
 		}
-
-		if ( isset( $post_tags ) && '' !== $post_tags ) {
-			$new_post['tags_input'] = $post_tags;
-		}
-
 		// Save the post to the WP.
 		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html.
-		$post_status             = $new_post['post_status'];
-		$new_post['post_status'] = 'auto-draft'; // child reports: to logging as created post.
-
+		$post_status             = $new_post['post_status']; // save post_status.
+		$new_post['post_status'] = 'auto-draft'; // to fix reports: to logging as created post.
 		// update post.
 		if ( $edit_post_id ) {
 			// check if post existed.
@@ -754,10 +702,9 @@ class MainWP_Child_Posts {
 				$new_post['ID'] = $edit_post_id;
 			}
 			$new_post['post_status'] = $post_status; // child reports: to logging as update post.
-		}
-
+		}		
+		$wp_error = null;
 		$new_post_id = wp_insert_post( $new_post, $wp_error );
-
 		// Show errors if something went wrong.
 		if ( is_wp_error( $wp_error ) ) {
 			return $wp_error->get_error_message();
@@ -765,7 +712,6 @@ class MainWP_Child_Posts {
 		if ( empty( $new_post_id ) ) {
 			return array( 'error' => 'Empty post id' );
 		}
-
 		if ( ! $edit_post_id ) {
 			wp_update_post(
 				array(
@@ -774,19 +720,58 @@ class MainWP_Child_Posts {
 				)
 			);
 		}
-
 		$this->update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus );
-
 		// unlock if edit post.
 		if ( $edit_post_id ) {
 			update_post_meta( $edit_post_id, '_edit_lock', '' );
 		}
-
 		$permalink = get_permalink( $new_post_id );		
 		$ret['success']  = true;
 		$ret['link']     = $permalink;
 		$ret['added_id'] = $new_post_id;
 		return $ret;
+	}
+	
+	private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus ){
+		
+		global $current_user;
+		
+		$this->create_wp_rocket( $post_custom );
+		
+		// current user may be connected admin or alternative admin.
+		$current_uid = $current_user->ID;
+		
+		// Set up a new post (adding addition information).
+
+		$new_post['post_author'] = isset( $new_post['post_author'] ) && ! empty( $new_post['post_author'] )? $new_post['post_author'] : $current_uid;
+		
+		if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
+			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
+			if ( ! empty( $_author ) ) {
+				$new_post['post_author'] = $_author->ID;
+			} 
+			unset( $new_post['custom_post_author'] );
+		}
+		
+		// post plus extension process.
+		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
+
+		if ( $is_post_plus ) {
+			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' != $new_post['post_date_gmt'] ) {
+				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
+				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp ); // phpcs:ignore -- local time.
+			}
+		}
+		
+		if ( isset( $post_tags ) && '' !== $post_tags ) {
+			$new_post['tags_input'] = $post_tags;
+		}
+		
+		if ( isset( $post_custom['_mainwp_edit_post_id'] ) && $post_custom['_mainwp_edit_post_id'] ) {
+			$edit_post_id = current( $post_custom['_mainwp_edit_post_id'] );
+		} elseif ( isset( $new_post['ID'] ) && $new_post['ID'] ) {
+			$edit_post_id = $new_post['ID'];
+		}
 	}
 	
 	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ){

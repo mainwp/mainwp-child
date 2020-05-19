@@ -469,7 +469,7 @@ class Tar_Archiver {
 	protected $gcCnt = 0;
 	protected $cnt   = 0;
 
-	private function add_file( $path, $entryName ) {
+	private function add_file( $path, $entryName ) { // phpcs:ignore -- ignore complex method notice.
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
 			return false;
 		}
@@ -1140,7 +1140,7 @@ class Tar_Archiver {
 		return false;
 	}
 
-	public function extract_to( $to ) {
+	public function extract_to( $to ) { // phpcs:ignore -- ignore complex method notice.
 		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
 

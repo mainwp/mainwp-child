@@ -158,7 +158,7 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
-	public function save_settings() {
+	public function save_settings() { // phpcs:ignore -- ignore complex method notice.
 		$current_values = get_option( 'gpagespeedi_options' );
 		$checkstatus    = apply_filters( 'gpi_check_status', false );
 		if ( $checkstatus ) {
@@ -403,7 +403,7 @@ class MainWP_Child_Pagespeed {
 		);
 	}
 
-	public static function get_filter_options( $restrict_type = 'all' ) {
+	public static function get_filter_options( $restrict_type = 'all' ) { // phpcs:ignore -- ignore complex method notice, third party credit.
 
 		$types        = array();
 		$gpi_options  = get_option( 'gpagespeedi_options' );
