@@ -590,7 +590,7 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
-	private function render_table_excluded( $root_dir, $schedule, $excludes, $user_excludes, $new_version ){
+	private function render_table_excluded( $root_dir, $schedule, $excludes, $user_excludes, $new_version ) {
 		?>
 		<table class="widefat">
 			<tbody>
@@ -630,7 +630,7 @@ class MainWP_Child_Back_Up_WordPress {
 		<?php
 	}
 	
-	private function render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated ){
+	private function render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated ) {
 	?>
 		<table class="widefat">
 			<thead>
@@ -647,7 +647,7 @@ class MainWP_Child_Back_Up_WordPress {
 	<?php
 	}
 	
-	private function render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated ){	
+	private function render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated ) {
 	?>
 		<tr>
 			<th></th>
@@ -720,7 +720,7 @@ class MainWP_Child_Back_Up_WordPress {
 		<?php
 	}
 	
-	private function render_table_body_files( $files, $schedule, $root_dir, $new_version, $site_size, $is_size_calculated ){ // phpcs:ignore -- ignore complex method notice.
+	private function render_table_body_files( $files, $schedule, $root_dir, $new_version, $site_size, $is_size_calculated ) { // phpcs:ignore -- ignore complex method notice.
 		
 		foreach ( $files as $size => $file ) {
 			$is_excluded   = false;
@@ -838,9 +838,10 @@ class MainWP_Child_Back_Up_WordPress {
 					<?php endif; ?>
 				</td>
 			</tr>
-	<?php }	
+			<?php
+		}
 	}
-	
+
 	public function directory_browse() {
 		$browse_dir                = $_POST['browse_dir'];
 		$out                       = array();

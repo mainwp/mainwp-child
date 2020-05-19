@@ -829,9 +829,9 @@ class Tar_Archiver {
 		}
 	}
 
-	private function read_next_bytes( $file ){
+	private function read_next_bytes( $file ) {
 		$previousFtell = ftell( $this->archive );
-		$bytes = $file['stat'][7] + ( 512 == ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+		$bytes         = $file['stat'][7] + ( 512 == ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
 		fseek( $this->archive, ftell( $this->archive ) + $bytes );
 		$ftell = ftell( $this->archive );
 		if ( 'tar.gz' == $this->type ) {
@@ -876,7 +876,7 @@ class Tar_Archiver {
 		$this->log( 'Skipping file [' . $file['name'] . ']' );
 		return true;
 	}
-	
+
 	public function log( $text ) {
 		if ( $this->logHandle ) {
 			fwrite( $this->logHandle, $text . "\n" );

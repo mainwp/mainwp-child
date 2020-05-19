@@ -350,7 +350,7 @@ class MainWP_Backup {
 
 		$this->add_file_from_string_to_zip( 'clone/config.txt', $string );
 	}
-	
+
 	public function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp, $root ) {
 		if ( ! is_array( $nodes ) ) {
 			return;

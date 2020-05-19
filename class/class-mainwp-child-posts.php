@@ -1062,7 +1062,7 @@ class MainWP_Child_Posts {
 			'_bulkpost_do_not_del',
 			'_mainwp_spin_me',
 		);
-		$not_allowed[] = '_mainwp_boilerplate_sites_posts';		
+		$not_allowed[] = '_mainwp_boilerplate_sites_posts';
 		$not_allowed[] = '_mainwp_post_plus';
 		$not_allowed[] = '_saved_as_draft';
 		$not_allowed[] = '_saved_draft_categories';

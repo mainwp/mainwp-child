@@ -651,8 +651,8 @@ class MainWP_Clone_Install {
 		}
 		return true;
 	}
-	
-	private function create_clone_backup(){		
+
+	private function create_clone_backup() {
 		MainWP_Helper::end_session();
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
