@@ -40,7 +40,7 @@ class MainWP_Child_Skeleton_Key {
 		exit();
 	}
 
-	protected function visit_site_as_browser() {
+	protected function visit_site_as_browser() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! isset( $_POST['url'] ) || ! is_string( $_POST['url'] ) || strlen( $_POST['url'] ) < 2 ) {
 			return array( 'error' => 'Missing url' );
 		}

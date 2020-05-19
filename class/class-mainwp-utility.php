@@ -40,12 +40,38 @@ class MainWP_Utility {
 			$snippets = get_option( 'mainwp_ext_code_snippets' );
 			if ( is_array( $snippets ) && count( $snippets ) > 0 ) {
 				foreach ( $snippets as $code ) {
-					MainWP_Helper::execute_snippet( $code );
+					self::execute_snippet( $code );
 				}
 			}
 		}
 	}
-
+	
+	/**
+	 * Method execute_snippet()
+	 *
+	 * Execute snippet code
+	 *
+	 * @param string $code The code  *
+	 *
+	 * @return array result
+	 */
+	public static function execute_snippet( $code ) {
+		ob_start();
+		$result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval -- eval() used safely.
+		$output = ob_get_contents();
+		ob_end_clean();
+		$return = array();
+		$error  = error_get_last();
+		if ( ( false === $result ) && $error ) {
+			$return['status'] = 'FAIL';
+			$return['result'] = $error['message'];
+		} else {
+			$return['status'] = 'SUCCESS';
+			$return['result'] = $output;
+		}
+		return $return;
+	}
+	
 	public static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
@@ -358,5 +384,59 @@ class MainWP_Utility {
 		}
 		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
 	}
+	
+	public static function fetch_url( $url, $postdata ) {
+		try {
+			$tmpUrl = $url;
+			if ( '/' !== substr( $tmpUrl, - 1 ) ) {
+				$tmpUrl .= '/';
+			}
 
+			return self::m_fetch_url( $tmpUrl . 'wp-admin/', $postdata );
+		} catch ( \Exception $e ) {
+			try {
+				return self::m_fetch_url( $url, $postdata );
+			} catch ( \Exception $ex ) {
+				throw $e;
+			}
+		}
+	}
+
+	public static function m_fetch_url( $url, $postdata ) {
+		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
+
+		if ( ! is_array( $postdata ) ) {
+			$postdata = array();
+		}
+
+		$postdata['json_result'] = true; // forced all response in json format.
+
+		// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
+		$ch = curl_init();
+		curl_setopt( $ch, CURLOPT_URL, $url );
+		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+		curl_setopt( $ch, CURLOPT_POST, true );
+		curl_setopt( $ch, CURLOPT_POSTFIELDS, $postdata );
+		curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, 10 );
+		curl_setopt( $ch, CURLOPT_USERAGENT, $agent );
+		$data        = curl_exec( $ch );
+		$http_status = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		$err         = curl_error( $ch );
+		curl_close( $ch );
+
+		if ( ( false === $data ) && ( 0 === $http_status ) ) {
+			throw new \Exception( 'Http Error: ' . $err );
+		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
+			$result      = $results[1];
+			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+			$information = json_decode( $result_base, true ); // it is json_encode result.
+			return $information;
+		} elseif ( '' === $data ) {
+			throw new \Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
+		} else {
+			throw new \Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
+		}
+		// phpcs:enable
+	}
+	
 }

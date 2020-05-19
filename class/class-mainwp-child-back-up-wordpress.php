@@ -225,7 +225,7 @@ class MainWP_Child_Back_Up_WordPress {
 							$date = filemtime( $file );
 							if ( ! empty( $date ) ) {
 								do_action( 'mainwp_reports_backupwordpress_backup', $destination, $message, 'finished', $backup_type, $date );
-								MainWP_Helper::update_lasttime_backup( 'backupwordpress', $date ); // to support backup before update feature.
+								mainwp_child_helper()->update_lasttime_backup( 'backupwordpress', $date ); // to support backup before update feature.
 							}
 						}
 					}
@@ -631,13 +631,12 @@ class MainWP_Child_Back_Up_WordPress {
 	}
 
 	private function render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated ) {
-		?>
+	?>
 		<table class="widefat">
 			<thead>
 			<?php
 				$this->render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated );
 			?>
-								
 		</thead>
 		<tbody>
 			<?php
@@ -645,7 +644,7 @@ class MainWP_Child_Back_Up_WordPress {
 			?>
 		</tbody>
 		</table>
-		<?php
+	<?php
 	}
 
 	private function render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated ) {

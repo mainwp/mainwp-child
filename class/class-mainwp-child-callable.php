@@ -1197,7 +1197,7 @@ class MainWP_Child_Callable {
 
 		$information = array();
 		if ( 'run_snippet' === $action ) {
-			$information = MainWP_Helper::execute_snippet( $code );
+			$information = MainWP_Utility::execute_snippet( $code );
 		} elseif ( 'save_snippet' === $action ) {
 			$information = $this->snippet_save_snippet( $slug, $type, $code, $snippets );
 		} elseif ( 'delete_snippet' === $action ) {

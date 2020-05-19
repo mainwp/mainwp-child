@@ -47,7 +47,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		if ( isset( $last_backup['backup_time'] ) ) {
 			$backup_time = $last_backup['backup_time'];
 			if ( $last_backup['success'] ) {
-				MainWP_Helper::update_lasttime_backup( 'updraftplus', $backup_time );
+				mainwp_child_helper()->update_lasttime_backup( 'updraftplus', $backup_time );
 			}
 		}
 		return $last_backup;

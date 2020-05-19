@@ -141,7 +141,7 @@ class MainWP_Child_Stats {
 
 		if ( isset( $_POST['primaryBackup'] ) && ! empty( $_POST['primaryBackup'] ) ) {
 			$primary_bk                           = $_POST['primaryBackup'];
-			$information['primaryLasttimeBackup'] = MainWP_Helper::get_lasttime_backup( $primary_bk );
+			$information['primaryLasttimeBackup'] = mainwp_child_helper()->get_lasttime_backup( $primary_bk );
 		}
 
 		$last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );

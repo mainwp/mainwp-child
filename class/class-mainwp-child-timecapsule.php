@@ -699,11 +699,11 @@ class MainWP_Child_Timecapsule {
 			$backup_time = $config->get_option( 'last_backup_time' );
 
 			if ( ! empty( $backup_time ) ) {
-				MainWP_Helper::update_lasttime_backup( 'wptimecapsule', $backup_time );
+				mainwp_child_helper()->update_lasttime_backup( 'wptimecapsule', $backup_time );
 			}
 
 			$last_time       = time() - 24 * 7 * 2 * 60 * 60;
-			$lasttime_logged = MainWP_Helper::get_lasttime_backup( 'wptimecapsule' );
+			$lasttime_logged = mainwp_child_helper()->get_lasttime_backup( 'wptimecapsule' );
 			if ( empty( $lasttime_logged ) ) {
 				$last_time = time() - 24 * 7 * 8 * 60 * 60;
 			}

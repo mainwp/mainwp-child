@@ -203,21 +203,7 @@ class MainWP_Backup {
 		if ( $zipRes ) {
 			$nodes = glob( ABSPATH . '*' );
 			if ( ! $includeCoreFiles ) {
-				$coreFiles = $this->get_core_files();
-				foreach ( $nodes as $key => $node ) {
-					if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
-						unset( $nodes[ $key ] );
-					} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
-						unset( $nodes[ $key ] );
-					} else {
-						foreach ( $coreFiles as $coreFile ) {
-							if ( ABSPATH . $coreFile === $node ) {
-								unset( $nodes[ $key ] );
-							}
-						}
-					}
-				}
-				unset( $coreFiles );
+				$this->include_core_files( $nodes );				
 			}
 
 			$db_files = $this->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
@@ -260,7 +246,7 @@ class MainWP_Backup {
 		return false;
 	}
 
-	private function get_core_files() {
+	private function include_core_files( &$nodes ) {
 		return array(
 			'favicon.ico',
 			'index.php',
@@ -284,6 +270,20 @@ class MainWP_Backup {
 			'wp-trackback.php',
 			'xmlrpc.php',
 		);
+		foreach ( $nodes as $key => $node ) {
+			if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
+				unset( $nodes[ $key ] );
+			} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+				unset( $nodes[ $key ] );
+			} else {
+				foreach ( $coreFiles as $coreFile ) {
+					if ( ABSPATH . $coreFile === $node ) {
+						unset( $nodes[ $key ] );
+					}
+				}
+			}
+		}
+		unset( $coreFiles );
 	}
 
 	public function add_config() {

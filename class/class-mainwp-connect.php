@@ -301,70 +301,50 @@ class MainWP_Connect {
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
 			return false;
 		}
-
-		$file = '';
-		if ( isset( $_REQUEST['f'] ) ) {
-			$file = $_REQUEST['f'];
-		} elseif ( isset( $_REQUEST['file'] ) ) {
-			$file = $_REQUEST['file'];
-		} elseif ( isset( $_REQUEST['fdl'] ) ) {
-			$file = $_REQUEST['fdl'];
-		}
-
+		
+		$file = $this->get_file_request();
+		
 		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '', isset( $_POST['function'] ) ? $_POST['function'] : rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
-
 		if ( ! $auth ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
 		}
-
-		$auth_user = false;
+		$auth_user = false;		
 		if ( $auth ) {
 			// disable duo auth for mainwp.
 			remove_action( 'init', 'duo_verify_auth', 10 );
-
 			// Check if the user exists & is an administrator.
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
-
 				$user = null;
-
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
 					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
 						$auth_user = $_POST['alt_user'];
 						$user      = get_user_by( 'login', $auth_user );
 					}
 				}
-
 				// if not valid alternative admin.
 				if ( ! $user ) {
 					// check connected admin existed.
 					$user      = get_user_by( 'login', $_POST['user'] );
 					$auth_user = $_POST['user'];
 				}
-
 				if ( ! $user ) {
 					MainWP_Helper::error( __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 				}
-
 				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
 					MainWP_Helper::error( __( 'That user is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 				}
-
 				$this->login( $auth_user );
 			}
-
 			if ( isset( $_POST['function'] ) && 'visitPermalink' === $_POST['function'] ) {
-
 				if ( empty( $auth_user ) ) {
 					$auth_user = $_POST['user'];
 				}
-
 				if ( $this->login( $auth_user, true ) ) {
 					return;
 				} else {
 					exit();
 				}
 			}
-
 			// Redirect to the admin part if needed.
 			if ( isset( $_POST['admin'] ) && '1' === $_POST['admin'] ) {
 				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/' );
@@ -373,6 +353,18 @@ class MainWP_Connect {
 		}
 	}
 
+	private function get_file_request(){
+		$file = '';
+		if ( isset( $_REQUEST['f'] ) ) {
+			$file = $_REQUEST['f'];
+		} elseif ( isset( $_REQUEST['file'] ) ) {
+			$file = $_REQUEST['file'];
+		} elseif ( isset( $_REQUEST['fdl'] ) ) {
+			$file = $_REQUEST['fdl'];
+		}
+		return $file;
+	}
+	
 	/**
 	 *
 	 * Check to support login by alternative admin.

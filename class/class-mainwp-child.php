@@ -35,7 +35,7 @@ class MainWP_Child {
 		$this->plugin_slug = plugin_basename( $plugin_file );
 
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
-		add_action( 'init', array( &$this, 'check_login' ), 1 );
+		add_action( 'init', array( &$this, 'init_check_login' ), 1 );
 		add_action( 'init', array( &$this, 'parse_init' ), 9999 );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
@@ -326,7 +326,7 @@ class MainWP_Child {
 		MainWP_Keyword_Links::instance()->parse_init_keyword_links();
 	}
 
-	public function check_login() {
+	public function init_check_login() {
 		MainWP_Connect::instance()->check_login();
 	}
 

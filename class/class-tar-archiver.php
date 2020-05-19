@@ -146,43 +146,7 @@ class Tar_Archiver {
 		if ( $this->archive ) {
 			$nodes = glob( ABSPATH . '*' );
 			if ( ! $includeCoreFiles ) {
-				$coreFiles = array(
-					'favicon.ico',
-					'index.php',
-					'license.txt',
-					'readme.html',
-					'wp-activate.php',
-					'wp-app.php',
-					'wp-blog-header.php',
-					'wp-comments-post.php',
-					'wp-config.php',
-					'wp-config-sample.php',
-					'wp-cron.php',
-					'wp-links-opml.php',
-					'wp-load.php',
-					'wp-login.php',
-					'wp-mail.php',
-					'wp-pass.php',
-					'wp-register.php',
-					'wp-settings.php',
-					'wp-signup.php',
-					'wp-trackback.php',
-					'xmlrpc.php',
-				);
-				foreach ( $nodes as $key => $node ) {
-					if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
-						unset( $nodes[ $key ] );
-					} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
-						unset( $nodes[ $key ] );
-					} else {
-						foreach ( $coreFiles as $coreFile ) {
-							if ( ABSPATH . $coreFile == $node ) {
-								unset( $nodes[ $key ] );
-							}
-						}
-					}
-				}
-				unset( $coreFiles );
+				$this->include_core_files( &$nodes );				
 			}
 
 			$db_files = $this->backup->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', false, $this );
@@ -212,63 +176,7 @@ class Tar_Archiver {
 			}
 
 			if ( $addConfig ) {
-				global $wpdb;
-				$plugins = array();
-				$dir     = WP_CONTENT_DIR . '/plugins/';
-				$fh      = opendir( $dir );
-				while ( $entry = readdir( $fh ) ) {
-					if ( ! is_dir( $dir . $entry ) ) {
-						continue;
-					}
-					if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-						continue;
-					}
-					$plugins[] = $entry;
-				}
-				closedir( $fh );
-
-				$themes = array();
-				$dir    = WP_CONTENT_DIR . '/themes/';
-				$fh     = opendir( $dir );
-				while ( $entry = readdir( $fh ) ) {
-					if ( ! is_dir( $dir . $entry ) ) {
-						continue;
-					}
-					if ( ( '.' == $entry ) || ( '..' == $entry ) ) {
-						continue;
-					}
-					$themes[] = $entry;
-				}
-				closedir( $fh );
-
-				if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
-					$string = wp_json_encode(
-						array(
-							'siteurl' => get_option( 'siteurl' ),
-							'home'    => get_option( 'home' ),
-							'abspath' => ABSPATH,
-							'prefix'  => $wpdb->prefix,
-							'lang'    => get_bloginfo( 'language' ),
-							'plugins' => $plugins,
-							'themes'  => $themes,
-						)
-					);
-				} else {
-					$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-						serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
-							array(
-								'siteurl' => get_option( 'siteurl' ),
-								'home'    => get_option( 'home' ),
-								'abspath' => ABSPATH,
-								'prefix'  => $wpdb->prefix,
-								'lang'    => get_bloginfo( 'language' ),
-								'plugins' => $plugins,
-								'themes'  => $themes,
-							)
-						)
-					);
-				}
-
+				$string = $this->add_config();				
 				$this->add_empty_directory( 'clone', 0, 0, 0, time() );
 				$this->add_file_from_string( 'clone/config.txt', $string );
 			}
@@ -287,6 +195,106 @@ class Tar_Archiver {
 		return false;
 	}
 
+	private function include_core_files( &$nodes ) {
+		$coreFiles = array(
+			'favicon.ico',
+			'index.php',
+			'license.txt',
+			'readme.html',
+			'wp-activate.php',
+			'wp-app.php',
+			'wp-blog-header.php',
+			'wp-comments-post.php',
+			'wp-config.php',
+			'wp-config-sample.php',
+			'wp-cron.php',
+			'wp-links-opml.php',
+			'wp-load.php',
+			'wp-login.php',
+			'wp-mail.php',
+			'wp-pass.php',
+			'wp-register.php',
+			'wp-settings.php',
+			'wp-signup.php',
+			'wp-trackback.php',
+			'xmlrpc.php',
+		);
+		foreach ( $nodes as $key => $node ) {
+			if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
+				unset( $nodes[ $key ] );
+			} elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+				unset( $nodes[ $key ] );
+			} else {
+				foreach ( $coreFiles as $coreFile ) {
+					if ( ABSPATH . $coreFile == $node ) {
+						unset( $nodes[ $key ] );
+					}
+				}
+			}
+		}
+		unset( $coreFiles );
+	}
+	
+	private function add_config() {		
+		global $wpdb;
+		$plugins = array();
+		$dir     = WP_CONTENT_DIR . '/plugins/';
+		$fh      = opendir( $dir );
+		while ( $entry = readdir( $fh ) ) {
+			if ( ! is_dir( $dir . $entry ) ) {
+				continue;
+			}
+			if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+				continue;
+			}
+			$plugins[] = $entry;
+		}
+		closedir( $fh );
+
+		$themes = array();
+		$dir    = WP_CONTENT_DIR . '/themes/';
+		$fh     = opendir( $dir );
+		while ( $entry = readdir( $fh ) ) {
+			if ( ! is_dir( $dir . $entry ) ) {
+				continue;
+			}
+			if ( ( '.' == $entry ) || ( '..' == $entry ) ) {
+				continue;
+			}
+			$themes[] = $entry;
+		}
+		closedir( $fh );
+
+		if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
+			$string = wp_json_encode(
+				array(
+					'siteurl' => get_option( 'siteurl' ),
+					'home'    => get_option( 'home' ),
+					'abspath' => ABSPATH,
+					'prefix'  => $wpdb->prefix,
+					'lang'    => get_bloginfo( 'language' ),
+					'plugins' => $plugins,
+					'themes'  => $themes,
+				)
+			);
+		} else {
+			$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+					array(
+						'siteurl' => get_option( 'siteurl' ),
+						'home'    => get_option( 'home' ),
+						'abspath' => ABSPATH,
+						'prefix'  => $wpdb->prefix,
+						'lang'    => get_bloginfo( 'language' ),
+						'plugins' => $plugins,
+						'themes'  => $themes,
+					)
+				)
+			);
+		}
+		return $string;
+	}
+	
 	public function add_dir( $path, $excludes ) {
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
 			return;

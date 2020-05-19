@@ -1169,7 +1169,7 @@ class MainWP_Clone {
 			// Send request to the childsite!
 			global $wp_version;
 			$method = ( function_exists( 'gzopen' ) ? 'tar.gz' : 'zip' );
-			$result = MainWP_Helper::fetch_url(
+			$result = MainWP_Utility::fetch_url(
 				$url,
 				array(
 					'cloneFunc'   => 'createCloneBackup',
@@ -1222,7 +1222,7 @@ class MainWP_Clone {
 
 			MainWP_Helper::end_session();
 			// Send request to the childsite!
-			$result = MainWP_Helper::fetch_url(
+			$result = MainWP_Utility::fetch_url(
 				$url,
 				array(
 					'cloneFunc'   => 'createCloneBackupPoll',
@@ -1319,7 +1319,7 @@ class MainWP_Clone {
 					if ( is_array( $sitesToClone ) && isset( $sitesToClone[ $siteId ] ) ) {
 						$siteToClone = $sitesToClone[ $siteId ];
 
-						MainWP_Helper::fetch_url(
+						MainWP_Utility::fetch_url(
 							$siteToClone['url'],
 							array(
 								'cloneFunc'   => 'deleteCloneBackup',

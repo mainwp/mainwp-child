@@ -553,7 +553,19 @@ class MainWP_Child_Updates {
 		if ( null !== $this->filterFunction ) {
 			add_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
+		$this->do_upgrade_wp( $information );
+		
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
+		}
+		if ( null !== $this->filterFunction ) {
+			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
+		}
 
+		mainwp_child_helper()->write( $information );
+	}
+	
+	private function do_upgrade_wp( &$information ){		
 		// Check for new versions.
 		wp_version_check();
 
@@ -606,14 +618,6 @@ class MainWP_Child_Updates {
 		} else {
 			$information['upgrade'] = 'NORESPONSE';
 		}
-		if ( null !== $this->filterFunction ) {
-			remove_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
-		}
-		if ( null !== $this->filterFunction ) {
-			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
-		}
-
-		mainwp_child_helper()->write( $information );
 	}
 
 	public function upgrade_translation() {

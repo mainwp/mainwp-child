@@ -2129,7 +2129,7 @@ SQL
 				'code' => wfCache::getHtaccessCode(),
 			);
 		}
-		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . MainWP_Helper::create_nonce_without_session( 'mainwp_download_htaccess' );
+		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . mainwp_child_helper()->create_nonce_without_session( 'mainwp_download_htaccess' );
 		return array(
 			'ok'           => 1,
 			'download_url' => $download_url,
@@ -2157,7 +2157,7 @@ SQL
 			die( '-1' );
 		}
 
-		if ( ! MainWP_Helper::verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_htaccess' ) ) {
+		if ( ! mainwp_child_helper()->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_htaccess' ) ) {
 			die( '-2' );
 		}
 

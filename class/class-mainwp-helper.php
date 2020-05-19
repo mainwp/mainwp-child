@@ -304,7 +304,6 @@ class MainWP_Helper {
 		return $init;
 	}
 
-
 	public static function check_wp_filesystem() {
 
 		$FTP_ERROR = 'Failed! Please, add FTP details for automatic updates.';
@@ -391,61 +390,6 @@ class MainWP_Helper {
 		session_write_close();
 		ob_end_flush();
 	}
-
-	public static function fetch_url( $url, $postdata ) {
-		try {
-			$tmpUrl = $url;
-			if ( '/' !== substr( $tmpUrl, - 1 ) ) {
-				$tmpUrl .= '/';
-			}
-
-			return self::m_fetch_url( $tmpUrl . 'wp-admin/', $postdata );
-		} catch ( \Exception $e ) {
-			try {
-				return self::m_fetch_url( $url, $postdata );
-			} catch ( \Exception $ex ) {
-				throw $e;
-			}
-		}
-	}
-
-	public static function m_fetch_url( $url, $postdata ) {
-		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
-
-		if ( ! is_array( $postdata ) ) {
-			$postdata = array();
-		}
-
-		$postdata['json_result'] = true; // forced all response in json format.
-
-		// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
-		$ch = curl_init();
-		curl_setopt( $ch, CURLOPT_URL, $url );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-		curl_setopt( $ch, CURLOPT_POST, true );
-		curl_setopt( $ch, CURLOPT_POSTFIELDS, $postdata );
-		curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, 10 );
-		curl_setopt( $ch, CURLOPT_USERAGENT, $agent );
-		$data        = curl_exec( $ch );
-		$http_status = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-		$err         = curl_error( $ch );
-		curl_close( $ch );
-
-		if ( ( false === $data ) && ( 0 === $http_status ) ) {
-			throw new \Exception( 'Http Error: ' . $err );
-		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
-			$result      = $results[1];
-			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-			$information = json_decode( $result_base, true ); // it is json_encode result.
-			return $information;
-		} elseif ( '' === $data ) {
-			throw new \Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
-		} else {
-			throw new \Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
-		}
-		// phpcs:enable
-	}
-
 
 	public static function rand_string( $length, $charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' ) {
 		$str   = '';
@@ -623,8 +567,8 @@ class MainWP_Helper {
 			add_option( $option_name, $option_value, '', $autoload );
 		}
 	}
-
-	public static function update_lasttime_backup( $by, $time ) {
+	
+	public function update_lasttime_backup( $by, $time ) {
 		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
 		if ( ! in_array( $by, $backup_by ) ) {
 			return false;
@@ -682,7 +626,46 @@ class MainWP_Helper {
 
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
 	}
+	
+	public function create_nonce_without_session( $action = - 1 ) {
+		$user = wp_get_current_user();
+		$uid  = (int) $user->ID;
+		if ( ! $uid ) {
+			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
+		}
 
+		$i = wp_nonce_tick();
+
+		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+	}
+
+	public function verify_nonce_without_session( $nonce, $action = - 1 ) {
+		$nonce = (string) $nonce;
+		$user  = wp_get_current_user();
+		$uid   = (int) $user->ID;
+		if ( ! $uid ) {
+			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
+		}
+
+		if ( empty( $nonce ) ) {
+			return false;
+		}
+
+		$i = wp_nonce_tick();
+
+		$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 1;
+		}
+
+		$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 2;
+		}
+
+		return false;
+	}
+	
 	public static function get_revisions( $max_revisions ) {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
@@ -748,45 +731,6 @@ class MainWP_Helper {
 
 	public static function ctype_digit( $str ) {
 		return ( is_string( $str ) || is_int( $str ) || is_float( $str ) ) && preg_match( '/^\d+\z/', $str );
-	}
-
-	public static function create_nonce_without_session( $action = - 1 ) {
-		$user = wp_get_current_user();
-		$uid  = (int) $user->ID;
-		if ( ! $uid ) {
-			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
-		}
-
-		$i = wp_nonce_tick();
-
-		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
-	}
-
-	public static function verify_nonce_without_session( $nonce, $action = - 1 ) {
-		$nonce = (string) $nonce;
-		$user  = wp_get_current_user();
-		$uid   = (int) $user->ID;
-		if ( ! $uid ) {
-			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
-		}
-
-		if ( empty( $nonce ) ) {
-			return false;
-		}
-
-		$i = wp_nonce_tick();
-
-		$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
-		if ( hash_equals( $expected, $nonce ) ) {
-			return 1;
-		}
-
-		$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
-		if ( hash_equals( $expected, $nonce ) ) {
-			return 2;
-		}
-
-		return false;
 	}
 
 	public static function is_admin() {
@@ -957,32 +901,6 @@ class MainWP_Helper {
 		}
 
 		return true;
-	}
-
-	/**
-	 * Method execute_snippet()
-	 *
-	 * Execute snippet code
-	 *
-	 * @param string $code The code  *
-	 *
-	 * @return array result
-	 */
-	public static function execute_snippet( $code ) {
-		ob_start();
-		$result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval -- eval() used safely.
-		$output = ob_get_contents();
-		ob_end_clean();
-		$return = array();
-		$error  = error_get_last();
-		if ( ( false === $result ) && $error ) {
-			$return['status'] = 'FAIL';
-			$return['result'] = $error['message'];
-		} else {
-			$return['status'] = 'SUCCESS';
-			$return['result'] = $output;
-		}
-		return $return;
 	}
 
 	public static function log_debug( $msg ) {
