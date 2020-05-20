@@ -251,7 +251,7 @@ class MainWP_Pages {
 
 				<?php if ( ! $hide_connection_detail ) { ?>
 			<div class="mainwp-child-setting-tab connection-detail" <?php echo ( 'connection-detail' !== $shownPage ) ? $hide_style : ''; ?>>
-				<?php MainWP_Child_Server_Information_Render::render_connection_details(); ?>
+					<?php MainWP_Child_Server_Information_Render::render_connection_details(); ?>
 			</div>
 		<?php } ?>
 		<?php

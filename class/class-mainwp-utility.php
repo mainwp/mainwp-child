@@ -506,7 +506,7 @@ class MainWP_Utility {
 		}
 		// phpcs:enable
 	}
-	
+
 	public static function validate_mainwp_dir() {
 		$done = false;
 		$dir  = MainWP_Helper::get_mainwp_dir();
@@ -561,7 +561,7 @@ class MainWP_Utility {
 		}
 		flush();
 	}
-	
+
 	public static function create_nonce_without_session( $action = - 1 ) {
 		$user = wp_get_current_user();
 		$uid  = (int) $user->ID;
@@ -600,7 +600,7 @@ class MainWP_Utility {
 
 		return false;
 	}
-	
+
 	public static function update_lasttime_backup( $by, $time ) {
 		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
 		if ( ! in_array( $by, $backup_by ) ) {

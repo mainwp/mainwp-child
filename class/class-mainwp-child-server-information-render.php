@@ -524,7 +524,7 @@ class MainWP_Child_Server_Information_Render {
 		</tr>		
 		<?php
 	}
-	
+
 	protected static function render_file_system_method_check() {
 		$fsmethod = MainWP_Child_Server_Information::get_file_system_method();
 		if ( 'direct' === $fsmethod ) {
@@ -533,7 +533,7 @@ class MainWP_Child_Server_Information_Render {
 			echo '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>';
 		}
 	}
-	
+
 	private function render_php_settings_rows() {
 		?>
 		<tr>
@@ -844,13 +844,13 @@ class MainWP_Child_Server_Information_Render {
 			$branding_title = 'MainWP';
 		}
 		$branding_title .= ' Upload Directory';
-		
-		$path = '';
+
+		$path    = '';
 		$message = 'Writable';
-		
+
 		MainWP_Child_Server_Information::check_mainwp_directory( $message, $path );
-		
-		self::render_directory_row( $branding_title, $path, 'Writable', $message, true );		
+
+		self::render_directory_row( $branding_title, $path, 'Writable', $message, true );
 	}
 
 	protected static function render_directory_row( $pName, $pDirectory, $pCheck, $pResult, $pPassed ) {
@@ -906,7 +906,7 @@ class MainWP_Child_Server_Information_Render {
 		}
 		return '<span class="mainwp-fail"><i class="fa fa-exclamation-circle"></i> Fail</span>';
 	}
-	
+
 	/*
 	*Plugin-Name: Error Log Dashboard Widget
 	*Plugin URI: http://wordpress.org/extend/plugins/error-log-dashboard-widget/

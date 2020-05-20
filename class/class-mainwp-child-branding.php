@@ -666,7 +666,7 @@ class MainWP_Child_Branding {
 			echo '<style>' . self::parse_css( $extra_setting['login_css'] ) . '</style>';
 		}
 	}
-	
+
 	/**
 	 * PARSE
 	 * Parses some CSS into an array
@@ -760,7 +760,7 @@ class MainWP_Child_Branding {
 		}
 		return $output;
 	}
-	
+
 	public function custom_the_generator( $generator, $type = '' ) {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['site_generator'] ) ) {

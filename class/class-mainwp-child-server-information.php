@@ -2,7 +2,7 @@
 namespace MainWP\Child;
 
 class MainWP_Child_Server_Information {
-	
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -72,8 +72,8 @@ class MainWP_Child_Server_Information {
 		return $i;
 	}
 
-	public function check_mainwp_directory( &$message = '', &$path = '' ) {				
-		$path = '';		
+	public function check_mainwp_directory( &$message = '', &$path = '' ) {
+		$path = '';
 		try {
 			$dirs = MainWP_Helper::get_mainwp_dir( null, false );
 			$path = $dirs[0];
@@ -82,9 +82,9 @@ class MainWP_Child_Server_Information {
 			return false;
 		}
 
-		if ( ! is_dir( dirname( $path ) ) ) {	
+		if ( ! is_dir( dirname( $path ) ) ) {
 			$message = 'Directory not found';
-			return false;			
+			return false;
 		}
 
 		$hasWPFileSystem = MainWP_Helper::get_wp_filesystem();
@@ -92,20 +92,20 @@ class MainWP_Child_Server_Information {
 		global $wp_filesystem;
 
 		if ( $hasWPFileSystem && ! empty( $wp_filesystem ) ) {
-			if ( ! $wp_filesystem->is_writable( $path ) ) {		
+			if ( ! $wp_filesystem->is_writable( $path ) ) {
 				$message = 'Directory not writable';
 				return false;
 			}
 		} else {
 			if ( ! is_writable( $path ) ) {
 				$message = 'Directory not writable';
-				return false;				
+				return false;
 			}
 		}
 		$message = 'Writable';
-		return true;		
+		return true;
 	}
-	
+
 	public static function check( $pCompare, $pVersion, $pGetter, $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
 		$currentVersion = call_user_func( array( self::get_class_name(), $pGetter ) );
 
@@ -115,7 +115,7 @@ class MainWP_Child_Server_Information {
 			return ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null !== $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) );
 		}
 	}
-		
+
 	public static function filesize_compare( $value1, $value2, $operator = null ) {
 		if ( false !== strpos( $value1, 'G' ) ) {
 			$value1 = preg_replace( '/[A-Za-z]/', '', $value1 );
@@ -132,8 +132,8 @@ class MainWP_Child_Server_Information {
 		}
 
 		return version_compare( $value1, $value2, $operator );
-	}	
-	
+	}
+
 	public static function get_curl_support() {
 		return function_exists( 'curl_version' );
 	}
@@ -181,7 +181,7 @@ class MainWP_Child_Server_Information {
 		sort( $extensions );
 		echo esc_html( implode( ', ', $extensions ) );
 	}
-	
+
 	public static function get_file_system_method() {
 		if ( defined( 'MAINWP_SAVE_FS_METHOD' ) ) {
 			return MAINWP_SAVE_FS_METHOD;
@@ -189,8 +189,8 @@ class MainWP_Child_Server_Information {
 		$fs = get_filesystem_method();
 
 		return $fs;
-	}	
-	
+	}
+
 	public static function get_current_version() {
 		$currentVersion = get_option( 'mainwp_child_plugin_version' );
 
