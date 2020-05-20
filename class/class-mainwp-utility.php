@@ -166,8 +166,8 @@ class MainWP_Utility {
 				'content-type: text/html',
 			)
 		);
-	}	
-	
+	}
+
 	public static function clean( $string ) {
 		$string = trim( $string );
 		$string = htmlentities( $string, ENT_QUOTES );
@@ -175,7 +175,7 @@ class MainWP_Utility {
 		$string = stripslashes( $string );
 		return $string;
 	}
-	
+
 	public static function format_email( $to_email, $body ) {
 		return '<br>
 <div>
@@ -236,7 +236,7 @@ class MainWP_Utility {
 <br>';
 	}
 
-	
+
 	/**
 	 * Handle fatal error for requests from the dashboard
 	 * mwp_action requests
@@ -452,7 +452,7 @@ class MainWP_Utility {
 		}
 		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
 	}
-	
+
 	public static function fetch_url( $url, $postdata ) {
 		try {
 			$tmpUrl = $url;
