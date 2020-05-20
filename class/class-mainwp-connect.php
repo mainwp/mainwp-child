@@ -206,8 +206,8 @@ class MainWP_Connect {
 		}
 
 		$signature = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? $_REQUEST['mainwpsignature'] : '' );
-		
-		$file      = $this->get_request_files();		
+
+		$file = $this->get_request_files();
 
 		$auth = self::instance()->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '', isset( $_REQUEST['nossl'] ) ? $_REQUEST['nossl'] : 0 );
 
@@ -231,12 +231,12 @@ class MainWP_Connect {
 					return;
 				}
 			}
-		}		
-		$this->check_redirects();		
+		}
+		$this->check_redirects();
 	}
 
 	private function get_request_files() {
-		$file      = '';
+		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
 			$file = $_REQUEST['f'];
 		} elseif ( isset( $_REQUEST['file'] ) ) {
@@ -246,8 +246,8 @@ class MainWP_Connect {
 		}
 		return $file;
 	}
-	
-	private function check_redirects() {		
+
+	private function check_redirects() {
 		if ( isset( $_REQUEST['fdl'] ) ) {
 			if ( stristr( $_REQUEST['fdl'], '..' ) ) {
 				return;
@@ -262,7 +262,7 @@ class MainWP_Connect {
 		}
 		$this->where_redirect();
 	}
-	
+
 	private function open_location_redirect( $open_location ) {
 		$_vars = self::parse_query( $open_location );
 		$_path = wp_parse_url( $open_location, PHP_URL_PATH );
@@ -284,8 +284,8 @@ class MainWP_Connect {
 		wp_safe_redirect( site_url() . $open_location );
 		exit();
 	}
-	
-	
+
+
 	public static function parse_query( $var ) {
 
 		$var = wp_parse_url( $var, PHP_URL_QUERY );

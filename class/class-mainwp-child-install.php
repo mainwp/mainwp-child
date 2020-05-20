@@ -222,7 +222,7 @@ class MainWP_Child_Install {
 		if ( ! isset( $_POST['type'] ) || ! isset( $_POST['url'] ) || ( 'plugin' !== $_POST['type'] && 'theme' !== $_POST['type'] ) || '' === $_POST['url'] ) {
 			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
-		
+
 		$this->require_files();
 
 		$urlgot = json_decode( stripslashes( $_POST['url'] ) );
@@ -266,14 +266,14 @@ class MainWP_Child_Install {
 			if ( false == $ssl_verify ) {
 				remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99 );
 			}
-			$this->after_installed( $result );			
+			$this->after_installed( $result );
 		}
-		
+
 		$information['installation']     = 'SUCCESS';
 		$information['destination_name'] = $result['destination_name'];
 		MainWP_Helper::write( $information );
 	}
-	
+
 	private function require_files() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
@@ -320,15 +320,15 @@ class MainWP_Child_Install {
 						activate_plugin( $path . $fileName, '' );
 					}
 				}
-			}							
+			}
 		} else {
 			$args['type'] = 'theme';
 			$args['slug'] = $result['destination_name'];
 			do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
 			do_action( 'mainwp_child_install_plugin_theme', $args );
-		}			
+		}
 	}
-	
+
 	private function try_second_install( $url, $installer ) {
 		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
 		$result = $installer->run(

@@ -64,7 +64,7 @@ class MainWP_Helper {
 		if ( null !== $code ) {
 			$information['error_code'] = $code;
 		}
-		MainWP_Helper::write( $information );
+		self::write( $information );
 	}
 
 	/**
