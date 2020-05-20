@@ -1,7 +1,7 @@
 <?php
 /**
  * MainWP Child Install
- * 
+ *
  * This file handles the installation of the MainW Child Plugin.
  */
 
@@ -20,23 +20,25 @@ class MainWP_Child_Install {
 
 
 	 /**
-     * Get Class Name.
-     * @return string
-     */
+	  * Get Class Name.
+	  *
+	  * @return string
+	  */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
 	/**
-     * MainWP_Child_Install constructor.
-     */
+	 * MainWP_Child_Install constructor.
+	 */
 	public function __construct() {
 	}
 
 	/**
-     * Create a public static instance of MainWP_Child_Install.
-     * @return MainWP_Child_Install|null
-     */
+	 * Create a public static instance of MainWP_Child_Install.
+	 *
+	 * @return MainWP_Child_Install|null
+	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -47,6 +49,7 @@ class MainWP_Child_Install {
 
 	/**
 	 * Plugin Activate, Deactivate & Delete actions.
+	 *
 	 * @return array $information['status'], FAIL|SUCCESS.
 	 */
 	public function plugin_action() {
@@ -132,6 +135,7 @@ class MainWP_Child_Install {
 
 	/**
 	 * Theme Activate, Deactivate & Delete actions.
+	 *
 	 * @return array $information['status'], FAIL|SUCCESS.
 	 */
 	public function theme_action() {
@@ -203,6 +207,7 @@ class MainWP_Child_Install {
 
 	/**
 	 * Plugin & Theme Installation functions.
+	 *
 	 * @return array $information
 	 */
 	public function install_plugin_theme() {
