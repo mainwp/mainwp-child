@@ -1,11 +1,40 @@
 <?php
+/**
+ * MainWP Child Skeleton Key
+ *
+ * This file handles connecting to the child site as a browser
+ * in order performs an HTTP request using the POST method and returns its response.
+ */
+
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Child_Skeleton_Key
+ * @package MainWP\Child
+ */
 class MainWP_Child_Skeleton_Key {
+
+	/**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_Install.
+     */
 	public static $instance    = null;
+
+	/**
+     * @static
+     * @var array Holds the returned HTTPS Request information.
+     */
 	public static $information = array();
+
+	/**
+     * @var string MainWP Child Plugin slug.
+     */
 	public $plugin_translate   = 'mainwp-child';
 
+	/**
+     * Create public static instance for MainWP_Child_Skeleton_Key.
+     * @return MainWP_Child_Skeleton_Key|null
+     */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -14,8 +43,14 @@ class MainWP_Child_Skeleton_Key {
 		return self::$instance;
 	}
 
+	/**
+     * Save Settings & Visit Site as Browser actions.
+     */
 	public function action() {
 
+		/**
+         * MainWP skeleton key fatal error handler.
+         */
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && in_array( $error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {
@@ -39,7 +74,11 @@ class MainWP_Child_Skeleton_Key {
 		mainwp_child_helper()->write( $information );
 		exit();
 	}
-
+	
+    /**
+     * Visit site as a browser.
+     * @return array|string[] Response array or Error message string within an array.
+     */
 	protected function visit_site_as_browser() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! isset( $_POST['url'] ) || ! is_string( $_POST['url'] ) || strlen( $_POST['url'] ) < 2 ) {
 			return array( 'error' => 'Missing url' );
@@ -177,6 +216,12 @@ class MainWP_Child_Skeleton_Key {
 		);
 	}
 
+	/**
+     * Create WP nonce.
+     *
+     * @param $array Nonce array.
+     * @return array Returns nonce array.
+     */
 	private function wp_create_nonce_recursive( $array ) {
 		foreach ( $array as $key => $value ) {
 			if ( is_array( $array[ $key ] ) ) {
@@ -189,6 +234,10 @@ class MainWP_Child_Skeleton_Key {
 		return $array;
 	}
 
+	/**
+     * Save site settings.
+     * @return array|bool|string[] Result array ok|error or FALSE or $whitelist_options[].
+     */
 	public function save_settings() {
 		$settings = isset( $_POST['settings'] ) ? $_POST['settings'] : array();
 
