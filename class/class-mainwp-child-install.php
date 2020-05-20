@@ -1,26 +1,42 @@
 <?php
+/**
+ * MainWP Child Install
+ * 
+ * This file handles the installation of the MainW Child Plugin.
+ */
 
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Child_Install
+ */
 class MainWP_Child_Install {
 
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Child_Install.
+	 */
 	protected static $instance = null;
 
 
-	/**
-	 * Method get_class_name()
-	 *
-	 * Get Class Name.
-	 *
-	 * @return object
-	 */
+	 /**
+     * Get Class Name.
+     * @return string
+     */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+     * MainWP_Child_Install constructor.
+     */
 	public function __construct() {
 	}
 
+	/**
+     * Create a public static instance of MainWP_Child_Install.
+     * @return MainWP_Child_Install|null
+     */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -29,6 +45,10 @@ class MainWP_Child_Install {
 		return self::$instance;
 	}
 
+	/**
+	 * Plugin Activate, Deactivate & Delete actions.
+	 * @return array $information['status'], FAIL|SUCCESS.
+	 */
 	public function plugin_action() {
 
 		global $mainWPChild;
@@ -110,6 +130,10 @@ class MainWP_Child_Install {
 		mainwp_child_helper()->write( $information );
 	}
 
+	/**
+	 * Theme Activate, Deactivate & Delete actions.
+	 * @return array $information['status'], FAIL|SUCCESS.
+	 */
 	public function theme_action() {
 
 		$action = $_POST['action'];
@@ -178,7 +202,8 @@ class MainWP_Child_Install {
 
 
 	/**
-	 * Functions to support core functionality
+	 * Plugin & Theme Installation functions.
+	 * @return array $information
 	 */
 	public function install_plugin_theme() {
 
