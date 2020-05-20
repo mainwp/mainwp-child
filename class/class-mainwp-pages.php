@@ -105,16 +105,16 @@ class MainWP_Pages {
 
 		// if preserve branding and do not hide menus.
 		if ( ( ! $remove_all_child_menu && 'T' !== $is_hide ) || $cancelled_branding ) {
-			
+
 			$branding_header = isset( $branding_opts['branding_header'] ) ? $branding_opts['branding_header'] : array();
 			if ( ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) && ! $cancelled_branding ) {
-			self::$brandingTitle = stripslashes( $branding_header['name'] );
+				self::$brandingTitle = stripslashes( $branding_header['name'] );
 				$child_menu_title    = stripslashes( $branding_header['name'] );
 				$child_page_title    = $child_menu_title . ' Settings';
 			} else {
 				$child_menu_title = 'MainWP Child';
 				$child_page_title = 'MainWPSettings';
-			}			
+			}
 			$this->init_pages( $branding_header );
 		}
 	}
@@ -177,7 +177,7 @@ class MainWP_Pages {
 			}
 		}
 	}
-	
+
 	public function plugin_row_meta( $plugin_meta, $plugin_file ) {
 		global $mainWPChild;
 		if ( $mainWPChild->plugin_slug !== $plugin_file ) {
