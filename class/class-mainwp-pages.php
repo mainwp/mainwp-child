@@ -105,6 +105,7 @@ class MainWP_Pages {
 
 		// if preserve branding and do not hide menus.
 		if ( ( ! $remove_all_child_menu && 'T' !== $is_hide ) || $cancelled_branding ) {
+
 			$branding_header = isset( $branding_opts['branding_header'] ) ? $branding_opts['branding_header'] : array();
 			if ( ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) && ! $cancelled_branding ) {
 				self::$brandingTitle = stripslashes( $branding_header['name'] );
@@ -114,60 +115,64 @@ class MainWP_Pages {
 				$child_menu_title = 'MainWP Child';
 				$child_page_title = 'MainWPSettings';
 			}
+			$this->init_pages( $branding_header );
+		}
+	}
 
-			$settingsPage = add_submenu_page( 'options-general.php', $child_menu_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
+	private function init_pages( $child_menu_title ) {
 
-			add_action( 'admin_print_scripts-' . $settingsPage, array( MainWP_Clone::get_class_name(), 'print_scripts' ) );
-			$subpageargs = array(
-				'child_slug'  => 'options-general.php',
-				'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
-				'parent_menu' => $settingsPage,
-			);
+		$settingsPage = add_submenu_page( 'options-general.php', $child_menu_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
 
-			do_action_deprecated( 'mainwp-child-subpages', array( $subpageargs ), '4.0.7.1', 'mainwp_child_subpages' );
-			do_action( 'mainwp_child_subpages', $subpageargs );
+		add_action( 'admin_print_scripts-' . $settingsPage, array( MainWP_Clone::get_class_name(), 'print_scripts' ) );
+		$subpageargs = array(
+			'child_slug'  => 'options-general.php',
+			'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
+			'parent_menu' => $settingsPage,
+		);
 
-			$sub_pages = array();
+		do_action_deprecated( 'mainwp-child-subpages', array( $subpageargs ), '4.0.7.1', 'mainwp_child_subpages' );
+		do_action( 'mainwp_child_subpages', $subpageargs );
 
-			$all_subpages = apply_filters_deprecated( 'mainwp-child-init-subpages', array( array() ), '4.0.7.1', 'mainwp_child_init_subpages' );
-			$all_subpages = apply_filters( 'mainwp_child_init_subpages', $all_subpages );
+		$sub_pages = array();
 
-			if ( ! is_array( $all_subpages ) ) {
-				$all_subpages = array();
-			}
+		$all_subpages = apply_filters_deprecated( 'mainwp-child-init-subpages', array( array() ), '4.0.7.1', 'mainwp_child_init_subpages' );
+		$all_subpages = apply_filters( 'mainwp_child_init_subpages', $all_subpages );
 
-			if ( ! self::$subPagesLoaded ) {
-				foreach ( $all_subpages as $page ) {
-					$slug = isset( $page['slug'] ) ? $page['slug'] : '';
-					if ( empty( $slug ) ) {
-						continue;
-					}
-					$subpage          = array();
-					$subpage['slug']  = $slug;
-					$subpage['title'] = $page['title'];
-					$subpage['page']  = 'mainwp-' . str_replace( ' ', '-', strtolower( str_replace( '-', ' ', $slug ) ) );
-					if ( isset( $page['callback'] ) ) {
-						$subpage['callback'] = $page['callback'];
-						$created_page        = add_submenu_page( 'options-general.php', $subpage['title'], '<div class="mainwp-hidden">' . $subpage['title'] . '</div>', 'manage_options', $subpage['page'], $subpage['callback'] );
-						if ( isset( $page['load_callback'] ) ) {
-							$subpage['load_callback'] = $page['load_callback'];
-							add_action( 'load-' . $created_page, $subpage['load_callback'] );
-						}
-					}
-					$sub_pages[] = $subpage;
+		if ( ! is_array( $all_subpages ) ) {
+			$all_subpages = array();
+		}
+
+		if ( ! self::$subPagesLoaded ) {
+			foreach ( $all_subpages as $page ) {
+				$slug = isset( $page['slug'] ) ? $page['slug'] : '';
+				if ( empty( $slug ) ) {
+					continue;
 				}
-				self::$subPages       = $sub_pages;
-				self::$subPagesLoaded = true;
-			}
-			add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
-			add_action( 'mainwp-child-pagefooter', array( __CLASS__, 'render_footer' ) );
-
-			global $submenu;
-			if ( isset( $submenu['options-general.php'] ) ) {
-				foreach ( $submenu['options-general.php'] as $index => $item ) {
-					if ( 'mainwp-reports-page' === $item[2] || 'mainwp-reports-settings' === $item[2] ) {
-						unset( $submenu['options-general.php'][ $index ] );
+				$subpage          = array();
+				$subpage['slug']  = $slug;
+				$subpage['title'] = $page['title'];
+				$subpage['page']  = 'mainwp-' . str_replace( ' ', '-', strtolower( str_replace( '-', ' ', $slug ) ) );
+				if ( isset( $page['callback'] ) ) {
+					$subpage['callback'] = $page['callback'];
+					$created_page        = add_submenu_page( 'options-general.php', $subpage['title'], '<div class="mainwp-hidden">' . $subpage['title'] . '</div>', 'manage_options', $subpage['page'], $subpage['callback'] );
+					if ( isset( $page['load_callback'] ) ) {
+						$subpage['load_callback'] = $page['load_callback'];
+						add_action( 'load-' . $created_page, $subpage['load_callback'] );
 					}
+				}
+				$sub_pages[] = $subpage;
+			}
+			self::$subPages       = $sub_pages;
+			self::$subPagesLoaded = true;
+		}
+		add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
+		add_action( 'mainwp-child-pagefooter', array( __CLASS__, 'render_footer' ) );
+
+		global $submenu;
+		if ( isset( $submenu['options-general.php'] ) ) {
+			foreach ( $submenu['options-general.php'] as $index => $item ) {
+				if ( 'mainwp-reports-page' === $item[2] || 'mainwp-reports-settings' === $item[2] ) {
+					unset( $submenu['options-general.php'][ $index ] );
 				}
 			}
 		}
