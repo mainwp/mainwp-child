@@ -1,21 +1,44 @@
 <?php
+/**
+ * MainWP Child DB
+ *
+ * This file handles all of the Child Plugin's DB functions.
+ */
 
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Child_DB
+ *
+ * @package MainWP\Child
+ */
 class MainWP_Child_DB {
 	// phpcs:disable WordPress.DB.RestrictedFunctions, WordPress.DB.PreparedSQL.NotPrepared -- unprepared SQL ok, accessing the database directly to custom database functions.
-	// Support old & new versions of WordPress (3.9+).
+	/**
+	 * Support old & new versions of WordPress (3.9+).
+	 *
+	 * @return bool|object Instantiated object of \mysqli.
+	 */
 	public static function use_mysqli() {
-		/** @var $wpdb wpdb */
 		if ( ! function_exists( '\mysqli_connect' ) ) {
 			return false;
 		}
 
+		/** @var $wpdb wpdb */
 		global $wpdb;
 
 		return ( $wpdb->dbh instanceof \mysqli );
 	}
 
+	/**
+	 * Run a mysqli query & get a result.
+	 *
+	 * @param $query An SQL query
+	 * @param $link A link identifier
+	 * @return bool|\mysqli_result|resource For successful SELECT, SHOW, DESCRIBE or EXPLAIN queries, mysqli_query()
+	 *  will return a mysqli_result object. For other successful queries mysqli_query() will return TRUE.
+	 *  Returns FALSE on failure.
+	 */
 	public static function to_query( $query, $link ) {
 		if ( self::use_mysqli() ) {
 			return \mysqli_query( $link, $query );
@@ -24,6 +47,12 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Fetch an array.
+	 *
+	 * @param $result A result set identifier.
+	 * @return array|false|nul Returns an array of strings that corresponds to the fetched row, or false if there are no more rows.
+	 */
 	public static function fetch_array( $result ) {
 		if ( self::use_mysqli() ) {
 			return \mysqli_fetch_array( $result, MYSQLI_ASSOC );
@@ -32,6 +61,12 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Count the number of rows.
+	 *
+	 * @param $result A result set identifier returned.
+	 * @return false|int Returns number of rows in the result set.
+	 */
 	public static function num_rows( $result ) {
 		if ( self::use_mysqli() ) {
 			return \mysqli_num_rows( $result );
@@ -40,6 +75,14 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Connect to Child Site Database.
+	 *
+	 * @param $host Can be either a host name or an IP address.
+	 * @param $user The MySQL user name.
+	 * @param $pass The MySQL user password.
+	 * @return false|\mysqli|resource object which represents the connection to a MySQL Server or false if an error occurred.
+	 */
 	public static function connect( $host, $user, $pass ) {
 		if ( self::use_mysqli() ) {
 			return \mysqli_connect( $host, $user, $pass );
@@ -48,8 +91,15 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Select Child Site DB.
+	 *
+	 * @param $db Database name.
+	 * @return bool true on success or false on failure.
+	 */
 	public static function select_db( $db ) {
 		if ( self::use_mysqli() ) {
+
 			/** @var $wpdb wpdb */
 			global $wpdb;
 
@@ -59,8 +109,14 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Get any mysqli errors.
+	 *
+	 * @return string the error text from the last MySQL function, or '' (empty string) if no error occurred.
+	 */
 	public static function error() {
 		if ( self::use_mysqli() ) {
+
 			/** @var $wpdb wpdb */
 			global $wpdb;
 
@@ -70,7 +126,14 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Escape a given string.
+	 *
+	 * @param $value The string to be escaped. Characters encoded are NUL (ASCII 0), \n, \r, \, ', ", and Control-Z.
+	 * @return false|string the escaped string, or false on error.
+	 */
 	public static function real_escape_string( $value ) {
+
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
@@ -81,6 +144,12 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Check if $result is an Instantiated object of \mysqli.
+	 *
+	 * @param $result Instantiated object of \mysqli.
+	 * @return mysqli_result|bool Instantiated object of \mysqli, true if var is a resource, false otherwise.
+	 */
 	public static function is_result( $result ) {
 		if ( self::use_mysqli() ) {
 			return ( $result instanceof mysqli_result );
@@ -89,6 +158,11 @@ class MainWP_Child_DB {
 		}
 	}
 
+	/**
+	 * Get the size of the DB.
+	 *
+	 * @return int|mixed Size of the DB or false on failure.
+	 */
 	public static function get_size() {
 		/** @var $wpdb wpdb */
 		global $wpdb;

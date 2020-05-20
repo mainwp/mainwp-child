@@ -1,8 +1,8 @@
 <?php
 /**
- * MainWP Child Functions.
+ * MainWP Child Functions
  *
- * @package     MainWP/Child
+ * @package MainWP/Child
  */
 
 if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyuse_nonce_hmac'] ) ) {
@@ -48,23 +48,27 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 
 					if ( empty( $nonce ) ) {
 
-						// To fix verify nonce conflict #1.
-						// this is fake post field to fix some conflict of wp_verify_nonce().
-						// just return false to unverify nonce, does not exit.
+						/**
+						 * To fix verify nonce conflict #1.
+						 * This is a fake post field to fix some conflict with wp_verify_nonce().
+						 * Just return false to unverify nonce, does not exit.
+						 */
 						if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
 							return false;
 						}
 
-						// to help tracing the conflict verify nonce with other plugins.
+						// to help trace the conflict with verify nonce in other plugins.
 						ob_start();
 						debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ); // phpcs:ignore -- debug feature.
 						$stackTrace = "\n" . ob_get_clean();
 						die( '<mainwp>' . base64_encode( wp_json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 					}
 
-					// To fix verify nonce conflict #2.
-					// this is fake nonce to fix some conflict of wp_verify_nonce().
-					// just return false to unverify nonce, does not exit.
+					/**
+					 * To fix verify nonce conflict #2.
+					 * This is a fake post field to fix some conflict with wp_verify_nonce().
+					 * Just return false to unverify nonce, does not exit.
+					 */
 					if ( 'mainwp-bsm-unverify-nonce' == $nonce ) {
 						return false;
 					}
@@ -84,9 +88,11 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 						return 2;
 					}
 
-					// To fix verify nonce conflict #3.
-					// this is fake post field to fix some conflict of wp_verify_nonce().
-					// just return false to unverify nonce, does not exit.
+					/**
+					 * To fix verify nonce conflict #3.
+					 * This is a fake post field to fix some conflict with wp_verify_nonce().
+					 * Just return false to unverify nonce, does not exit.
+					 */
 					if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
 						return false;
 					}
@@ -102,7 +108,6 @@ if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyus
 		}
 	}
 }
-
 
 if ( ! function_exists( 'mainwp_child_helper' ) ) {
 
