@@ -5,7 +5,7 @@ namespace MainWP\Child;
 class MainWP_Client_Report {
 
 	public static $instance = null;
-	
+
 	/**
 	 * Get Class Name.
 	 *
@@ -14,7 +14,7 @@ class MainWP_Client_Report {
 	public static function get_class_name() {
 		return __CLASS__;
 	}
-	
+
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();

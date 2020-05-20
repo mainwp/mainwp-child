@@ -82,13 +82,13 @@ class MainWP_Child_Staging {
 			MainWP_Helper::write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}
 
-		if (!class_exists( 'WPStaging\WPStaging' )){                
+		if ( ! class_exists( 'WPStaging\WPStaging' ) ) {
 			if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php' ) ) {
 				require_once WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php';
-			} else if ( file_exists( WPSTG_PLUGIN_DIR . "Core/WPStaging.php" ) ) {
-				require_once WPSTG_PLUGIN_DIR . "Core/WPStaging.php";
-			}		
-		}			
+			} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Core/WPStaging.php' ) ) {
+				require_once WPSTG_PLUGIN_DIR . 'Core/WPStaging.php';
+			}
+		}
 
 		\WPStaging\WPStaging::getInstance();
 		$information = array();
@@ -243,8 +243,8 @@ class MainWP_Child_Staging {
 		ob_start();
 		if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php' ) ) {
 			require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php';
-		} else if ( file_exists( WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/start.php" ) ) {
-			require_once WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/start.php";
+		} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php' ) ) {
+			require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php';
 		}
 		$result = ob_get_clean();
 		return $result;
@@ -343,8 +343,8 @@ class MainWP_Child_Staging {
 		ob_start();
 		if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/update.php' ) ) {
 			require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/update.php';
-		} else if ( file_exists( WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/update.php" ) ) {
-			require_once WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/update.php";
+		} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/update.php' ) ) {
+			require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/update.php';
 		}
 		$result = ob_get_clean();
 		return $result;
