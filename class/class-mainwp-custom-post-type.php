@@ -306,11 +306,12 @@ class MainWP_Custom_Post_Type {
 							return array( 'error' => __( 'Product SKU must be unique', $this->plugin_translate ) );
 						}
 					}
-					if ( '_product_image_gallery' == $key['meta_key'] ) {						
+					if ( '_product_image_gallery' == $key['meta_key'] ) {
 						if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {
 							$ret = $this->upload_postmeta_image( $data['extras']['woocommerce']['product_images'], $meta_value, $check_image_existed );
-							if ( true !== $ret )
+							if ( true !== $ret ) {
 								return $ret;
+							}
 						} else {
 							continue;
 						}
@@ -343,8 +344,8 @@ class MainWP_Custom_Post_Type {
 		}
 		return true;
 	}
-	
-	private function upload_postmeta_image( $product_images, &$meta_value, $check_image_existed ){
+
+	private function upload_postmeta_image( $product_images, &$meta_value, $check_image_existed ) {
 		$product_image_gallery = array();
 		foreach ( $product_images as $product_image ) {
 			try {

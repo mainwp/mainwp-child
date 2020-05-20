@@ -113,9 +113,8 @@ class MainWP_Child_Install {
 				}
 			}
 		}
-		
 	}
-	
+
 	public function theme_action() {
 
 		$action = $_POST['action'];
@@ -234,7 +233,7 @@ class MainWP_Child_Install {
 			if ( is_wp_error( $result ) ) {
 				if ( true == $ssl_verify && strpos( $url, 'https://' ) === 0 ) {
 					$ssl_verify = false;
-					$result = $this->try_install_one_more( $url, $installer );				
+					$result     = $this->try_install_one_more( $url, $installer );
 				}
 			}
 
@@ -249,7 +248,7 @@ class MainWP_Child_Install {
 			);
 			if ( 'plugin' === $_POST['type'] ) {
 				$path     = $result['destination'];
-				$fileName = '';				
+				$fileName = '';
 				wp_cache_set( 'plugins', array(), 'plugins' );
 				foreach ( $result['source_files'] as $srcFile ) {
 					if ( is_dir( $path . $srcFile ) ) {
@@ -290,10 +289,10 @@ class MainWP_Child_Install {
 		$information['destination_name'] = $result['destination_name'];
 		mainwp_child_helper()->write( $information );
 	}
-	
+
 	private function try_install_one_more( $url, $installer ) {
-		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );		
-		$result     = $installer->run(
+		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
+		$result = $installer->run(
 			array(
 				'package'           => $url,
 				'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
@@ -311,6 +310,6 @@ class MainWP_Child_Install {
 				MainWP_Helper::error( implode( ', ', $error ), $err_code );
 			}
 		}
-		return $result;		
+		return $result;
 	}
 }

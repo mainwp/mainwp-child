@@ -245,17 +245,17 @@ class MainWP_Connect {
 			MainWP_Utility::instance()->upload_file( $_REQUEST['fdl'], isset( $_REQUEST['foffset'] ) ? $_REQUEST['foffset'] : 0 );
 			exit;
 		}
-		// to support open not wp-admin url.		
+		// to support open not wp-admin url.
 		if ( isset( $_REQUEST['open_location'] ) ) {
 			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$this->open_location_redirect( $open_location );
-		}	
-		$this->where_redirect();		
+		}
+		$this->where_redirect();
 	}
 
-	private function open_location_redirect( $open_location ) {		
-		$_vars         = MainWP_Helper::parse_query( $open_location );
-		$_path         = wp_parse_url( $open_location, PHP_URL_PATH );
+	private function open_location_redirect( $open_location ) {
+		$_vars = MainWP_Helper::parse_query( $open_location );
+		$_path = wp_parse_url( $open_location, PHP_URL_PATH );
 		if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
 			$_vars[ $_vars['_mwpNoneName'] ] = wp_create_nonce( $_vars['_mwpNoneValue'] );
 			unset( $_vars['_mwpNoneName'] );
@@ -274,8 +274,8 @@ class MainWP_Connect {
 		wp_safe_redirect( site_url() . $open_location );
 		exit();
 	}
-		
-	private function where_redirect() {		
+
+	private function where_redirect() {
 		$where = isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : '';
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
 			$file = '';
@@ -293,9 +293,9 @@ class MainWP_Connect {
 			$_SESSION['size'] = $_POST['size'];
 		}
 		wp_safe_redirect( admin_url( $where ) );
-		exit();		
+		exit();
 	}
-	
+
 	public function check_login() {
 
 		// to login requires 'mainwpsignature'.
