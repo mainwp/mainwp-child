@@ -63,42 +63,7 @@ class MainWP_Child_Install {
 				}
 			}
 		} elseif ( 'delete' === $action ) {
-			include_once ABSPATH . '/wp-admin/includes/plugin.php';
-			if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
-				include_once ABSPATH . '/wp-admin/includes/screen.php';
-			}
-			include_once ABSPATH . '/wp-admin/includes/file.php';
-			include_once ABSPATH . '/wp-admin/includes/template.php';
-			include_once ABSPATH . '/wp-admin/includes/misc.php';
-			include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
-			include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
-			include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
-
-			MainWP_Helper::check_wp_filesystem();
-
-			$pluginUpgrader = new \Plugin_Upgrader();
-
-			$all_plugins = get_plugins();
-			foreach ( $plugins as $idx => $plugin ) {
-				if ( $plugin !== $mainWPChild->plugin_slug ) {
-					if ( isset( $all_plugins[ $plugin ] ) ) {
-						if ( is_plugin_active( $plugin ) ) {
-							$thePlugin = get_plugin_data( $plugin );
-							if ( null !== $thePlugin && '' !== $thePlugin ) {
-									deactivate_plugins( $plugin );
-							}
-						}
-						$tmp['plugin'] = $plugin;
-						if ( true === $pluginUpgrader->delete_old_plugin( null, null, null, $tmp ) ) {
-							$args = array(
-								'action' => 'delete',
-								'Name'   => $all_plugins[ $plugin ]['Name'],
-							);
-							do_action( 'mainwp_child_plugin_action', $args );
-						}
-					}
-				}
-			}
+			$this->delete_plugins( $plugins );
 		} else {
 			$information['status'] = 'FAIL';
 		}
@@ -110,6 +75,47 @@ class MainWP_Child_Install {
 		mainwp_child_helper()->write( $information );
 	}
 
+	private function delete_plugins( $plugins ) {
+		global $mainWPChild;
+		include_once ABSPATH . '/wp-admin/includes/plugin.php';
+		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
+			include_once ABSPATH . '/wp-admin/includes/screen.php';
+		}
+		include_once ABSPATH . '/wp-admin/includes/file.php';
+		include_once ABSPATH . '/wp-admin/includes/template.php';
+		include_once ABSPATH . '/wp-admin/includes/misc.php';
+		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
+		include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
+		include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
+
+		MainWP_Helper::check_wp_filesystem();
+
+		$pluginUpgrader = new \Plugin_Upgrader();
+
+		$all_plugins = get_plugins();
+		foreach ( $plugins as $idx => $plugin ) {
+			if ( $plugin !== $mainWPChild->plugin_slug ) {
+				if ( isset( $all_plugins[ $plugin ] ) ) {
+					if ( is_plugin_active( $plugin ) ) {
+						$thePlugin = get_plugin_data( $plugin );
+						if ( null !== $thePlugin && '' !== $thePlugin ) {
+								deactivate_plugins( $plugin );
+						}
+					}
+					$tmp['plugin'] = $plugin;
+					if ( true === $pluginUpgrader->delete_old_plugin( null, null, null, $tmp ) ) {
+						$args = array(
+							'action' => 'delete',
+							'Name'   => $all_plugins[ $plugin ]['Name'],
+						);
+						do_action( 'mainwp_child_plugin_action', $args );
+					}
+				}
+			}
+		}
+		
+	}
+	
 	public function theme_action() {
 
 		$action = $_POST['action'];
@@ -227,27 +233,8 @@ class MainWP_Child_Install {
 
 			if ( is_wp_error( $result ) ) {
 				if ( true == $ssl_verify && strpos( $url, 'https://' ) === 0 ) {
-					add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
 					$ssl_verify = false;
-					$result     = $installer->run(
-						array(
-							'package'           => $url,
-							'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
-							'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
-							'clear_working'     => true,
-							'hook_extra'        => array(),
-						)
-					);
-				}
-
-				if ( is_wp_error( $result ) ) {
-					$err_code = $result->get_error_code();
-					if ( $result->get_error_data() && is_string( $result->get_error_data() ) ) {
-						$error = $result->get_error_data();
-						MainWP_Helper::error( $error, $err_code );
-					} else {
-						MainWP_Helper::error( implode( ', ', $error ), $err_code );
-					}
+					$result = $this->try_install_one_more( $url, $installer );				
 				}
 			}
 
@@ -262,8 +249,7 @@ class MainWP_Child_Install {
 			);
 			if ( 'plugin' === $_POST['type'] ) {
 				$path     = $result['destination'];
-				$fileName = '';
-				$rslt     = null;
+				$fileName = '';				
 				wp_cache_set( 'plugins', array(), 'plugins' );
 				foreach ( $result['source_files'] as $srcFile ) {
 					if ( is_dir( $path . $srcFile ) ) {
@@ -304,5 +290,27 @@ class MainWP_Child_Install {
 		$information['destination_name'] = $result['destination_name'];
 		mainwp_child_helper()->write( $information );
 	}
-
+	
+	private function try_install_one_more( $url, $installer ) {
+		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );		
+		$result     = $installer->run(
+			array(
+				'package'           => $url,
+				'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+				'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
+				'clear_working'     => true,
+				'hook_extra'        => array(),
+			)
+		);
+		if ( is_wp_error( $result ) ) {
+			$err_code = $result->get_error_code();
+			if ( $result->get_error_data() && is_string( $result->get_error_data() ) ) {
+				$error = $result->get_error_data();
+				MainWP_Helper::error( $error, $err_code );
+			} else {
+				MainWP_Helper::error( implode( ', ', $error ), $err_code );
+			}
+		}
+		return $result;		
+	}
 }

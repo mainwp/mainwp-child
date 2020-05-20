@@ -214,7 +214,7 @@ class MainWP_Child_Users {
 	}
 
 
-	public function edit_user( $user_id, $data ) {
+	public function edit_user( $user_id, $data ) { // phpcs:ignore -- ignore complex method notice, see detail at: function edit_user() in the wp/wp-admin/includes/user.php.
 		$wp_roles = wp_roles();
 		$user     = new \stdClass();
 

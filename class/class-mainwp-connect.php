@@ -238,16 +238,44 @@ class MainWP_Connect {
 				}
 			}
 		}
-
 		if ( isset( $_REQUEST['fdl'] ) ) {
 			if ( stristr( $_REQUEST['fdl'], '..' ) ) {
 				return;
 			}
-
 			MainWP_Utility::instance()->upload_file( $_REQUEST['fdl'], isset( $_REQUEST['foffset'] ) ? $_REQUEST['foffset'] : 0 );
 			exit;
 		}
+		// to support open not wp-admin url.		
+		if ( isset( $_REQUEST['open_location'] ) ) {
+			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+			$this->open_location_redirect( $open_location );
+		}	
+		$this->where_redirect();		
+	}
 
+	private function open_location_redirect( $open_location ) {		
+		$_vars         = MainWP_Helper::parse_query( $open_location );
+		$_path         = wp_parse_url( $open_location, PHP_URL_PATH );
+		if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
+			$_vars[ $_vars['_mwpNoneName'] ] = wp_create_nonce( $_vars['_mwpNoneValue'] );
+			unset( $_vars['_mwpNoneName'] );
+			unset( $_vars['_mwpNoneValue'] );
+			$open_url = '';
+			foreach ( $_vars as $key => $value ) {
+				$open_url .= $key . '=' . $value . '&';
+			}
+			$open_url      = rtrim( $open_url, '&' );
+			$open_location = '/wp-admin/' . $_path . '?' . $open_url;
+		} else {
+			if ( strpos( $open_location, 'nonce=child_temp_nonce' ) !== false ) {
+				$open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . wp_create_nonce( 'wp-ajax' ), $open_location );
+			}
+		}
+		wp_safe_redirect( site_url() . $open_location );
+		exit();
+	}
+		
+	private function where_redirect() {		
 		$where = isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : '';
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
 			$file = '';
@@ -264,37 +292,10 @@ class MainWP_Connect {
 			$_SESSION['file'] = $file;
 			$_SESSION['size'] = $_POST['size'];
 		}
-
-		// to support open not wp-admin url.
-		$open_location = isset( $_REQUEST['open_location'] ) ? $_REQUEST['open_location'] : '';
-		if ( ! empty( $open_location ) ) {
-			$open_location = base64_decode( $open_location ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-			$_vars         = MainWP_Helper::parse_query( $open_location );
-			$_path         = wp_parse_url( $open_location, PHP_URL_PATH );
-			if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
-				$_vars[ $_vars['_mwpNoneName'] ] = wp_create_nonce( $_vars['_mwpNoneValue'] );
-				unset( $_vars['_mwpNoneName'] );
-				unset( $_vars['_mwpNoneValue'] );
-				$open_url = '';
-				foreach ( $_vars as $key => $value ) {
-					$open_url .= $key . '=' . $value . '&';
-				}
-				$open_url      = rtrim( $open_url, '&' );
-				$open_location = '/wp-admin/' . $_path . '?' . $open_url;
-			} else {
-				if ( strpos( $open_location, 'nonce=child_temp_nonce' ) !== false ) {
-					$open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . wp_create_nonce( 'wp-ajax' ), $open_location );
-				}
-			}
-			wp_safe_redirect( site_url() . $open_location );
-			exit();
-		}
-
 		wp_safe_redirect( admin_url( $where ) );
-
-		exit();
+		exit();		
 	}
-
+	
 	public function check_login() {
 
 		// to login requires 'mainwpsignature'.
