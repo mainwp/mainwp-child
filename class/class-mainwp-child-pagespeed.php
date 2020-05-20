@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/page-speed/
  */
 
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_Pagespeed {
@@ -46,7 +48,7 @@ class MainWP_Child_Pagespeed {
 		$information = array();
 		if ( ! defined( 'GPI_DIRECTORY' ) ) {
 			$information['error'] = 'Please install Google Pagespeed Insights plugin on child website';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
 
@@ -65,7 +67,7 @@ class MainWP_Child_Pagespeed {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function child_deactivation() {

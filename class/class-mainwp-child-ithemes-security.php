@@ -13,6 +13,8 @@
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  */
 
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable -- third party credit code.
 
 class MainWP_Child_IThemes_Security {
@@ -56,7 +58,7 @@ class MainWP_Child_IThemes_Security {
 		$information = array();
 		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists( 'ITSEC_Modules' ) ) {
 			$information['error'] = 'NO_ITHEME';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 
 		global $mainwp_itsec_modules_path;
@@ -118,7 +120,7 @@ class MainWP_Child_IThemes_Security {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function set_showhide() {

@@ -206,14 +206,8 @@ class MainWP_Connect {
 		}
 
 		$signature = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? $_REQUEST['mainwpsignature'] : '' );
-		$file      = '';
-		if ( isset( $_REQUEST['f'] ) ) {
-			$file = $_REQUEST['f'];
-		} elseif ( isset( $_REQUEST['file'] ) ) {
-			$file = $_REQUEST['file'];
-		} elseif ( isset( $_REQUEST['fdl'] ) ) {
-			$file = $_REQUEST['fdl'];
-		}
+		
+		$file      = $this->get_request_files();		
 
 		$auth = self::instance()->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '', isset( $_REQUEST['nossl'] ) ? $_REQUEST['nossl'] : 0 );
 
@@ -237,7 +231,23 @@ class MainWP_Connect {
 					return;
 				}
 			}
+		}		
+		$this->check_redirects();		
+	}
+
+	private function get_request_files() {
+		$file      = '';
+		if ( isset( $_REQUEST['f'] ) ) {
+			$file = $_REQUEST['f'];
+		} elseif ( isset( $_REQUEST['file'] ) ) {
+			$file = $_REQUEST['file'];
+		} elseif ( isset( $_REQUEST['fdl'] ) ) {
+			$file = $_REQUEST['fdl'];
 		}
+		return $file;
+	}
+	
+	private function check_redirects() {		
 		if ( isset( $_REQUEST['fdl'] ) ) {
 			if ( stristr( $_REQUEST['fdl'], '..' ) ) {
 				return;
@@ -252,9 +262,9 @@ class MainWP_Connect {
 		}
 		$this->where_redirect();
 	}
-
+	
 	private function open_location_redirect( $open_location ) {
-		$_vars = MainWP_Helper::parse_query( $open_location );
+		$_vars = self::parse_query( $open_location );
 		$_path = wp_parse_url( $open_location, PHP_URL_PATH );
 		if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
 			$_vars[ $_vars['_mwpNoneName'] ] = wp_create_nonce( $_vars['_mwpNoneValue'] );
@@ -273,6 +283,23 @@ class MainWP_Connect {
 		}
 		wp_safe_redirect( site_url() . $open_location );
 		exit();
+	}
+	
+	
+	public static function parse_query( $var ) {
+
+		$var = wp_parse_url( $var, PHP_URL_QUERY );
+		$var = html_entity_decode( $var );
+		$var = explode( '&', $var );
+		$arr = array();
+
+		foreach ( $var as $val ) {
+			$x            = explode( '=', $val );
+			$arr[ $x[0] ] = $x[1];
+		}
+		unset( $val, $x, $var );
+
+		return $arr;
 	}
 
 	private function where_redirect() {

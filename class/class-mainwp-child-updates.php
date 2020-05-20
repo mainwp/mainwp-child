@@ -68,7 +68,7 @@ class MainWP_Child_Updates {
 		}
 
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	private function include_updates() {
@@ -562,7 +562,7 @@ class MainWP_Child_Updates {
 			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
 
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	private function do_upgrade_wp( &$information ) {
@@ -668,7 +668,7 @@ class MainWP_Child_Updates {
 			$information['upgrades'] = array(); // to fix error message when translations updated.
 		}
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 }

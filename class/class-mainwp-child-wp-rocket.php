@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/rocket/
  */
 
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_WP_Rocket {
@@ -210,7 +212,7 @@ class MainWP_Child_WP_Rocket {
 			return $value;
 		}
 
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 
@@ -259,7 +261,7 @@ class MainWP_Child_WP_Rocket {
 
 	public function action() {
 		if ( ! $this->is_plugin_installed ) {
-			mainwp_child_helper()->write( array( 'error' => __( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
+			MainWP_Helper::write( array( 'error' => __( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
 			return;
 		}
 
@@ -303,7 +305,7 @@ class MainWP_Child_WP_Rocket {
 				$information = array( 'error' => $e->getMessage() );
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function set_showhide() {

@@ -1,5 +1,8 @@
 <?php
 
+use MainWP\Child\MainWP_Helper;
+
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_WPvivid_BackupRestore {
@@ -54,7 +57,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		$information = array();
 		if ( ! $this->is_plugin_installed ) {
 			$information['error'] = 'NO_WPVIVIDBACKUP';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
@@ -128,7 +131,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 				$information = array( 'error' => $e->getMessage() );
 			}
 
-			mainwp_child_helper()->write($information);
+			MainWP_Helper::write($information);
 		}
 	}
 

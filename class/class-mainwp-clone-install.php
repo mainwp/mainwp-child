@@ -629,7 +629,7 @@ class MainWP_Clone_Install {
 			}
 
 			unlink( $result[0] );
-			mainwp_child_helper()->write( array( 'result' => 'ok' ) );
+			MainWP_Helper::write( array( 'result' => 'ok' ) );
 		} elseif ( 'createCloneBackupPoll' === $_POST['cloneFunc'] ) {
 			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir   = $dirs[0];
@@ -645,7 +645,7 @@ class MainWP_Clone_Install {
 				return;
 			}
 
-			mainwp_child_helper()->write( array( 'size' => filesize( $archiveFile ) ) );
+			MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
 		} elseif ( 'createCloneBackup' === $_POST['cloneFunc'] ) {
 			$this->create_clone_backup();
 		}
@@ -726,6 +726,6 @@ class MainWP_Clone_Install {
 		}
 		closedir( $fh );
 		$information['themes'] = $themes;
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 }

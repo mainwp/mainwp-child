@@ -56,7 +56,7 @@ class MainWP_Child_Skeleton_Key {
 		function mainwp_skeleton_key_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && in_array( $error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {
-				mainwp_child_helper()->write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 		}
 
@@ -73,7 +73,7 @@ class MainWP_Child_Skeleton_Key {
 				$information = array( 'error' => 'Unknown action' );
 		}
 
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 		exit();
 	}
 

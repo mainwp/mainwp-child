@@ -86,7 +86,7 @@ class MainWP_Child_Users {
 				$information['users'] = $this->get_all_users_int( 500 );
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -147,7 +147,7 @@ class MainWP_Child_Users {
 		if ( $return ) {
 			return $allusers;
 		}
-		mainwp_child_helper()->write( $allusers );
+		MainWP_Helper::write( $allusers );
 	}
 
 
@@ -210,7 +210,7 @@ class MainWP_Child_Users {
 			}
 		}
 
-		mainwp_child_helper()->write( $allusers );
+		MainWP_Helper::write( $allusers );
 	}
 
 
@@ -424,7 +424,7 @@ class MainWP_Child_Users {
 		}
 
 		$information['added'] = true;
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function new_user() {
@@ -462,7 +462,7 @@ class MainWP_Child_Users {
 			wp_mail( $user_email, sprintf( __( '[%s] Your username and password' ), $blogname ), $message, '' );
 		}
 		$information['added'] = true;
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 

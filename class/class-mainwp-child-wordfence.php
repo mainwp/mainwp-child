@@ -11,6 +11,9 @@
  * Extension URL: https://mainwp.com/extension/wordfence/
  */
 
+use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Child_DB;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_Wordfence {
@@ -204,13 +207,13 @@ class MainWP_Child_Wordfence {
 	public function action() { // phpcs:ignore -- not quite complex method
 		$information = array();
 		if ( ! $this->is_wordfence_installed ) {
-			mainwp_child_helper()->write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
+			MainWP_Helper::write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
 			return;
 		}
 
 		if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfScanEngine' ) ) {
 			$information['error'] = 'NO_WORDFENCE';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
 
@@ -424,7 +427,7 @@ class MainWP_Child_Wordfence {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -2129,7 +2132,7 @@ SQL
 				'code' => wfCache::getHtaccessCode(),
 			);
 		}
-		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . mainwp_child_helper()->create_nonce_without_session( 'mainwp_download_htaccess' );
+		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . MainWP_Helper::instance()->create_nonce_without_session( 'mainwp_download_htaccess' );
 		return array(
 			'ok'           => 1,
 			'download_url' => $download_url,
@@ -2157,7 +2160,7 @@ SQL
 			die( '-1' );
 		}
 
-		if ( ! mainwp_child_helper()->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_htaccess' ) ) {
+		if ( ! MainWP_Helper::instance()->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_htaccess' ) ) {
 			die( '-2' );
 		}
 

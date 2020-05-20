@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/wordpress-seo/
  */
 
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_WordPress_SEO {
@@ -40,7 +42,7 @@ class MainWP_WordPress_SEO {
 	public function action() {
 		if ( ! class_exists( 'WPSEO_Admin' ) ) {
 			$information['error'] = 'NO_WPSEO';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 		$result = array();
 		switch ( $_POST['action'] ) {
@@ -48,7 +50,7 @@ class MainWP_WordPress_SEO {
 				$information = $this->import_settings();
 				break;
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function import_settings() {
@@ -106,7 +108,7 @@ class MainWP_WordPress_SEO {
 			}
 		}
 
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function import_seo_settings( $file ) {

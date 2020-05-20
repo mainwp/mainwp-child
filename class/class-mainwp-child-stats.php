@@ -52,7 +52,7 @@ class MainWP_Child_Stats {
 		$information['version']   = MainWP_Child::$version;
 		$information['wpversion'] = $wp_version;
 		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -141,7 +141,7 @@ class MainWP_Child_Stats {
 
 		if ( isset( $_POST['primaryBackup'] ) && ! empty( $_POST['primaryBackup'] ) ) {
 			$primary_bk                           = $_POST['primaryBackup'];
-			$information['primaryLasttimeBackup'] = mainwp_child_helper()->get_lasttime_backup( $primary_bk );
+			$information['primaryLasttimeBackup'] = MainWP_Helper::instance()->get_lasttime_backup( $primary_bk );
 		}
 
 		$last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );
@@ -175,7 +175,7 @@ class MainWP_Child_Stats {
 		}
 
 		if ( $exit ) {
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 
 		return $information;
@@ -656,7 +656,7 @@ class MainWP_Child_Stats {
 		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
 		$rslt    = $this->get_all_themes_int( $filter, $keyword, $status );
 
-		mainwp_child_helper()->write( $rslt );
+		MainWP_Helper::write( $rslt );
 	}
 
 	public function get_all_themes_int( $filter, $keyword = '', $status = '' ) {
@@ -697,7 +697,7 @@ class MainWP_Child_Stats {
 		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
 		$rslt    = $this->get_all_plugins_int( $filter, $keyword, $status );
 
-		mainwp_child_helper()->write( $rslt );
+		MainWP_Helper::write( $rslt );
 	}
 
 	public function get_all_plugins_int( $filter, $keyword = '', $status = '' ) {

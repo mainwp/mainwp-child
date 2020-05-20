@@ -26,7 +26,7 @@ class MainWP_Helper {
 		return self::$instance;
 	}
 
-	public function write( $val ) {
+	public static function write( $val ) {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = wp_json_encode( $val );
 		else :
@@ -64,7 +64,7 @@ class MainWP_Helper {
 		if ( null !== $code ) {
 			$information['error_code'] = $code;
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	/**
@@ -378,14 +378,6 @@ class MainWP_Helper {
 		return $url;
 	}
 
-	public static function clean( $string ) {
-		$string = trim( $string );
-		$string = htmlentities( $string, ENT_QUOTES );
-		$string = str_replace( "\n", '<br>', $string );
-		$string = stripslashes( $string );
-		return $string;
-	}
-
 	public static function end_session() {
 		session_write_close();
 		ob_end_flush();
@@ -488,66 +480,6 @@ class MainWP_Helper {
 		return date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp );
 	}
 
-	public static function format_email( $to, $body ) {
-		return '<br>
-<div>
-            <br>
-            <div style="background:#ffffff;padding:0 1.618em;font:13px/20px Helvetica,Arial,Sans-serif;padding-bottom:50px!important">
-                <div style="width:600px;background:#fff;margin-left:auto;margin-right:auto;margin-top:10px;margin-bottom:25px;padding:0!important;border:10px Solid #fff;border-radius:10px;overflow:hidden">
-                    <div style="display: block; width: 100% ; background-image: url(https://mainwp.com/wp-content/uploads/2013/02/debut_light.png) ; background-repeat: repeat; border-bottom: 2px Solid #7fb100 ; overflow: hidden;">
-                      <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
-                         <div style="float: left;"><a href="https://mainwp.com"><img src="https://mainwp.com/wp-content/uploads/2013/07/MainWP-Logo-1000-300x62.png" alt="MainWP" height="30"/></a></div>
-                         <div style="float: right; margin-top: .6em ;">
-                            <span style="display: inline-block; margin-right: .8em;"><a href="https://mainwp.com/mainwp-extensions/" style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;">Extensions</a></span>
-                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://mainwp.com/forum">Support</a></span>
-                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://docs.mainwp.com">Documentation</a></span>
-                            <span style="display: inline-block; margin-right: .5em;" class="mainwp-memebers-area"><a href="https://mainwp.com/member/login/index" style="padding: .6em .5em ; border-radius: 50px ; -moz-border-radius: 50px ; -webkit-border-radius: 50px ; background: #1c1d1b; border: 1px Solid #000; color: #fff !important; font-size: .9em !important; font-weight: normal ; -webkit-box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1); box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1);">Members Area</a></span>
-                         </div><div style="clear: both;"></div>
-                      </div>
-                    </div>
-                    <div>
-                        <p>Hello MainWP User!<br></p>
-                        ' . $body . '
-                        <div></div>
-                        <br />
-                        <div>MainWP</div>
-                        <div><a href="https://www.MainWP.com" target="_blank">www.MainWP.com</a></div>
-                        <p></p>
-                    </div>
-
-                    <div style="display: block; width: 100% ; background: #1c1d1b;">
-                      <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
-                        <div style="padding: .5em 0 ; float: left;"><p style="color: #fff; font-family: Helvetica, Sans; font-size: 12px ;">© 2013 MainWP. All Rights Reserved.</p></div>
-                        <div style="float: right;"><a href="https://mainwp.com"><img src="https://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png" height="45"/></a></div><div style="clear: both;"></div>
-                      </div>
-                   </div>
-                </div>
-                <center>
-                    <br><br><br><br><br><br>
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border-top:1px solid #e5e5e5">
-                        <tbody><tr>
-                            <td align="center" valign="top" style="padding-top:20px;padding-bottom:20px">
-                                <table border="0" cellpadding="0" cellspacing="0">
-                                    <tbody><tr>
-                                        <td align="center" valign="top" style="color:#606060;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:150%;padding-right:20px;padding-bottom:5px;padding-left:20px;text-align:center">
-                                            This email is sent from your MainWP Dashboard.
-                                            <br>
-                                            If you do not wish to receive these notices please re-check your preferences in the MainWP Settings page.
-                                            <br>
-                                            <br>
-                                        </td>
-                                    </tr>
-                                </tbody></table>
-                            </td>
-                        </tr>
-                    </tbody></table>
-
-                </center>
-            </div>
-</div>
-<br>';
-	}
-
 	public static function update_option( $option_name, $option_value, $autoload = 'no' ) {
 		$success = add_option( $option_name, $option_value, '', $autoload );
 
@@ -556,16 +488,6 @@ class MainWP_Helper {
 		}
 
 		return $success;
-	}
-
-	public static function fix_option( $option_name, $autoload = 'no' ) {
-		global $wpdb;
-
-		if ( $autoload != $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM $wpdb->options WHERE option_name = %s", $option_name ) ) ) {
-			$option_value = get_option( $option_name );
-			delete_option( $option_name );
-			add_option( $option_name, $option_value, '', $autoload );
-		}
 	}
 
 	public function update_lasttime_backup( $by, $time ) {
@@ -698,22 +620,6 @@ class MainWP_Helper {
 		return preg_match( '/' . $pPrefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $pSuffix . '$/', $pFileName );
 	}
 
-	public static function parse_query( $var ) {
-
-		$var = wp_parse_url( $var, PHP_URL_QUERY );
-		$var = html_entity_decode( $var );
-		$var = explode( '&', $var );
-		$arr = array();
-
-		foreach ( $var as $val ) {
-			$x            = explode( '=', $val );
-			$arr[ $x[0] ] = $x[1];
-		}
-		unset( $val, $x, $var );
-
-		return $arr;
-	}
-
 	public static function sanitize_filename( $filename ) {
 		if ( ! function_exists( 'mb_ereg_replace' ) ) {
 			return sanitize_file_name( $filename );
@@ -753,7 +659,7 @@ class MainWP_Helper {
 		return function_exists( 'openssl_verify' );
 	}
 
-	public static function is_screen_with_update() {
+	public static function is_updates_screen() {
 
 		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
 			return false;

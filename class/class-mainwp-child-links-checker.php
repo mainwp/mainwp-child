@@ -9,6 +9,8 @@
  * The code is used for the MainWP Broken Links Checker Extension (Retired Extension)
  */
 
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_Links_Checker {
@@ -41,7 +43,7 @@ class MainWP_Child_Links_Checker {
 		$information = array();
 		if ( ! defined( 'BLC_ACTIVE' ) || ! function_exists( 'blc_init' ) ) {
 			$information['error'] = 'NO_BROKENLINKSCHECKER';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 		blc_init();
 
@@ -78,9 +80,9 @@ class MainWP_Child_Links_Checker {
 						break;
 				}
 			}
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		} catch ( \Exception $e ) {
-			mainwp_child_helper()->write( array( 'error' => $e->getMessage() ) );
+			MainWP_Helper::write( array( 'error' => $e->getMessage() ) );
 		}
 	}
 

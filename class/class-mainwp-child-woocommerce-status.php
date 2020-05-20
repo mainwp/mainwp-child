@@ -11,6 +11,9 @@
  * Extension URL: https://mainwp.com/extension/woocommerce-status/
  */
 
+use MainWP\Child\MainWP_Helper;
+
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_WooCommerce_Status {
@@ -35,7 +38,7 @@ class MainWP_Child_WooCommerce_Status {
 		$information = array();
 		if ( ! class_exists( 'WooCommerce' ) || ! defined( 'WC_VERSION' ) ) {
 			$information['error'] = 'NO_WOOCOMMERCE';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 
 		$is_ver220 = $this->is_version_220();
@@ -52,7 +55,7 @@ class MainWP_Child_WooCommerce_Status {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function is_version_220() {

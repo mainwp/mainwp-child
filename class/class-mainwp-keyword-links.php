@@ -735,7 +735,7 @@ class MainWP_Keyword_Links {
 				$result = $this->remove_keywords();
 				break;
 		}
-		mainwp_child_helper()->write( $result );
+		MainWP_Helper::write( $result );
 	}
 
 	function remove_keywords() {

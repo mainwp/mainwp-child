@@ -13,6 +13,8 @@
  * Extension URL: https://mainwp.com/extension/backupwordpress/
  */
 
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_Back_Up_WordPress {
@@ -65,7 +67,7 @@ class MainWP_Child_Back_Up_WordPress {
 			return $value;
 		}
 
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 		if ( isset( $value->response['backupwordpress/backupwordpress.php'] ) ) {
@@ -79,7 +81,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$information = array();
 		if ( ! self::is_activated() ) {
 			$information['error'] = 'NO_BACKUPWORDPRESS';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
 			switch ( $_POST['mwp_action'] ) {
@@ -127,7 +129,7 @@ class MainWP_Child_Back_Up_WordPress {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -135,13 +137,13 @@ class MainWP_Child_Back_Up_WordPress {
 		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? $_POST['schedule_id'] : '';
 		if ( empty( $schedule_id ) ) {
 			$information = array( 'error' => 'Empty schedule id' );
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		} else {
 			$schedule_id = sanitize_text_field( rawurldecode( $schedule_id ) );
 			HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 			if ( ! HM\BackUpWordPress\Schedules::get_instance()->get_schedule( $schedule_id ) ) {
 				$information = array( 'result' => 'NOTFOUND' );
-				mainwp_child_helper()->write( $information );
+				MainWP_Helper::write( $information );
 			}
 		}
 
@@ -225,7 +227,7 @@ class MainWP_Child_Back_Up_WordPress {
 							$date = filemtime( $file );
 							if ( ! empty( $date ) ) {
 								do_action( 'mainwp_reports_backupwordpress_backup', $destination, $message, 'finished', $backup_type, $date );
-								mainwp_child_helper()->update_lasttime_backup( 'backupwordpress', $date ); // to support backup before update feature.
+								MainWP_Helper::instance()->update_lasttime_backup( 'backupwordpress', $date ); // to support backup before update feature.
 							}
 						}
 					}

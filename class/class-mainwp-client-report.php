@@ -70,7 +70,7 @@ class MainWP_Client_Report {
 
 		if ( ! function_exists( 'wp_mainwp_stream_get_instance' ) ) {
 			$information['error'] = __( 'No MainWP Child Reports plugin installed.', 'mainwp-child' );
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
@@ -89,7 +89,7 @@ class MainWP_Client_Report {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function save_sucuri_stream() {
@@ -958,7 +958,7 @@ class MainWP_Client_Report {
 			return $value;
 		}
 
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 

@@ -11,6 +11,9 @@
  * Extension URL: https://mainwp.com/extension/time-capsule/
  */
 
+use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Child_DB;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_Timecapsule {
@@ -60,14 +63,14 @@ class MainWP_Child_Timecapsule {
 
 	public function action() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! $this->is_plugin_installed ) {
-			mainwp_child_helper()->write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
+			MainWP_Helper::write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
 		}
 
 		try {
 			$this->require_files();
 		} catch ( \Exception $e ) {
 			$error = $e->getMessage();
-			mainwp_child_helper()->write( array( 'error' => $error ) );
+			MainWP_Helper::write( array( 'error' => $error ) );
 		}
 
 			$information = array();
@@ -80,7 +83,7 @@ class MainWP_Child_Timecapsule {
 		if ( isset( $_POST['mwp_action'] ) ) {
 
 			if ( ( 'save_settings' == $_POST['mwp_action'] || 'get_staging_details_wptc' == $_POST['mwp_action'] || 'progress_wptc' == $_POST['mwp_action'] ) && ( ! $is_user_logged_in || ! $privileges_wptc ) ) {
-				mainwp_child_helper()->write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
+				MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
 			}
 
 			switch ( $_POST['mwp_action'] ) {
@@ -209,7 +212,7 @@ class MainWP_Child_Timecapsule {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -699,11 +702,11 @@ class MainWP_Child_Timecapsule {
 			$backup_time = $config->get_option( 'last_backup_time' );
 
 			if ( ! empty( $backup_time ) ) {
-				mainwp_child_helper()->update_lasttime_backup( 'wptimecapsule', $backup_time );
+				MainWP_Helper::instance()->update_lasttime_backup( 'wptimecapsule', $backup_time );
 			}
 
 			$last_time       = time() - 24 * 7 * 2 * 60 * 60;
-			$lasttime_logged = mainwp_child_helper()->get_lasttime_backup( 'wptimecapsule' );
+			$lasttime_logged = MainWP_Helper::instance()->get_lasttime_backup( 'wptimecapsule' );
 			if ( empty( $lasttime_logged ) ) {
 				$last_time = time() - 24 * 7 * 8 * 60 * 60;
 			}
@@ -1264,7 +1267,7 @@ class MainWP_Child_Timecapsule {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 		if ( isset( $value->response['wp-time-capsule/wp-time-capsule.php'] ) ) {

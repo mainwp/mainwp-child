@@ -95,7 +95,7 @@ class MainWP_Child_Install {
 			$information['status'] = 'SUCCESS';
 		}
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	private function delete_plugins( $plugins ) {
@@ -177,7 +177,7 @@ class MainWP_Child_Install {
 				$themeToDelete = current( $themes );
 				if ( $themeToDelete == $theme_name ) {
 					$information['error'] = 'IsActivatedTheme';
-					mainwp_child_helper()->write( $information );
+					MainWP_Helper::write( $information );
 					return;
 				}
 			}
@@ -206,7 +206,7 @@ class MainWP_Child_Install {
 		}
 
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -222,13 +222,8 @@ class MainWP_Child_Install {
 		if ( ! isset( $_POST['type'] ) || ! isset( $_POST['url'] ) || ( 'plugin' !== $_POST['type'] && 'theme' !== $_POST['type'] ) || '' === $_POST['url'] ) {
 			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
-		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
-			include_once ABSPATH . '/wp-admin/includes/screen.php';
-		}
-		include_once ABSPATH . '/wp-admin/includes/template.php';
-		include_once ABSPATH . '/wp-admin/includes/misc.php';
-		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
-		include_once ABSPATH . '/wp-admin/includes/plugin.php';
+		
+		$this->require_files();
 
 		$urlgot = json_decode( stripslashes( $_POST['url'] ) );
 
@@ -263,7 +258,7 @@ class MainWP_Child_Install {
 			if ( is_wp_error( $result ) ) {
 				if ( true == $ssl_verify && strpos( $url, 'https://' ) === 0 ) {
 					$ssl_verify = false;
-					$result     = $this->try_install_one_more( $url, $installer );
+					$result     = $this->try_second_install( $url, $installer );
 				}
 			}
 
@@ -271,56 +266,70 @@ class MainWP_Child_Install {
 			if ( false == $ssl_verify ) {
 				remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99 );
 			}
-
-			$args = array(
-				'success' => 1,
-				'action'  => 'install',
-			);
-			if ( 'plugin' === $_POST['type'] ) {
-				$path     = $result['destination'];
-				$fileName = '';
-				wp_cache_set( 'plugins', array(), 'plugins' );
-				foreach ( $result['source_files'] as $srcFile ) {
-					if ( is_dir( $path . $srcFile ) ) {
-						continue;
-					}
-					$thePlugin = get_plugin_data( $path . $srcFile );
-					if ( null !== $thePlugin && '' !== $thePlugin && '' !== $thePlugin['Name'] ) {
-						$args['type']    = 'plugin';
-						$args['Name']    = $thePlugin['Name'];
-						$args['Version'] = $thePlugin['Version'];
-						$args['slug']    = $result['destination_name'] . '/' . $srcFile;
-						$fileName        = $srcFile;
-						break;
-					}
-				}
-
-				if ( ! empty( $fileName ) ) {
-					do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
-					do_action( 'mainwp_child_install_plugin_theme', $args );
-
-					if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
-						// to fix activate issue.
-						if ( 'quotes-collection/quotes-collection.php' == $args['slug'] ) {
-							activate_plugin( $path . $fileName, '', false, true );
-						} else {
-							activate_plugin( $path . $fileName, '' );
-						}
-					}
-				}
-			} else {
-				$args['type'] = 'theme';
-				$args['slug'] = $result['destination_name'];
-				do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
-				do_action( 'mainwp_child_install_plugin_theme', $args );
-			}
+			$this->after_installed( $result );			
 		}
+		
 		$information['installation']     = 'SUCCESS';
 		$information['destination_name'] = $result['destination_name'];
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
+	}
+	
+	private function require_files() {
+		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
+			include_once ABSPATH . '/wp-admin/includes/screen.php';
+		}
+		include_once ABSPATH . '/wp-admin/includes/template.php';
+		include_once ABSPATH . '/wp-admin/includes/misc.php';
+		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
+		include_once ABSPATH . '/wp-admin/includes/plugin.php';
 	}
 
-	private function try_install_one_more( $url, $installer ) {
+	private function after_installed( $result ) {
+		$args = array(
+			'success' => 1,
+			'action'  => 'install',
+		);
+		if ( 'plugin' === $_POST['type'] ) {
+			$path     = $result['destination'];
+			$fileName = '';
+			wp_cache_set( 'plugins', array(), 'plugins' );
+			foreach ( $result['source_files'] as $srcFile ) {
+				if ( is_dir( $path . $srcFile ) ) {
+					continue;
+				}
+				$thePlugin = get_plugin_data( $path . $srcFile );
+				if ( null !== $thePlugin && '' !== $thePlugin && '' !== $thePlugin['Name'] ) {
+					$args['type']    = 'plugin';
+					$args['Name']    = $thePlugin['Name'];
+					$args['Version'] = $thePlugin['Version'];
+					$args['slug']    = $result['destination_name'] . '/' . $srcFile;
+					$fileName        = $srcFile;
+					break;
+				}
+			}
+
+			if ( ! empty( $fileName ) ) {
+				do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
+				do_action( 'mainwp_child_install_plugin_theme', $args );
+
+				if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
+					// to fix activate issue.
+					if ( 'quotes-collection/quotes-collection.php' == $args['slug'] ) {
+						activate_plugin( $path . $fileName, '', false, true );
+					} else {
+						activate_plugin( $path . $fileName, '' );
+					}
+				}
+			}							
+		} else {
+			$args['type'] = 'theme';
+			$args['slug'] = $result['destination_name'];
+			do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
+			do_action( 'mainwp_child_install_plugin_theme', $args );
+		}			
+	}
+	
+	private function try_second_install( $url, $installer ) {
 		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
 		$result = $installer->run(
 			array(

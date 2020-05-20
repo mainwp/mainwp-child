@@ -124,7 +124,7 @@ class MainWP_Child_Branding {
 				$information = $this->update_branding();
 				break;
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function update_branding() {
@@ -1121,7 +1121,7 @@ class MainWP_Child_Branding {
 			return $value;
 		}
 
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 

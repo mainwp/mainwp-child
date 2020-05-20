@@ -111,43 +111,43 @@ class MainWP_Utility {
 
 		// referrer.
 		if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
-			$referer = MainWP_Helper::clean( $_SERVER['HTTP_REFERER'] );
+			$referer = self::clean( $_SERVER['HTTP_REFERER'] );
 		} else {
 			$referer = 'undefined';
 		}
 		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
 		// request URI.
 		if ( isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ) {
-			$request = MainWP_Helper::clean( $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			$request = self::clean( $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		} else {
 			$request = 'undefined';
 		}
 		// query string.
 		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
-			$string = MainWP_Helper::clean( $_SERVER['QUERY_STRING'] );
+			$string = self::clean( $_SERVER['QUERY_STRING'] );
 		} else {
 			$string = 'undefined';
 		}
 		// IP address.
 		if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
-			$address = MainWP_Helper::clean( $_SERVER['REMOTE_ADDR'] );
+			$address = self::clean( $_SERVER['REMOTE_ADDR'] );
 		} else {
 			$address = 'undefined';
 		}
 		// user agent.
 		if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
-			$agent = MainWP_Helper::clean( $_SERVER['HTTP_USER_AGENT'] );
+			$agent = self::clean( $_SERVER['HTTP_USER_AGENT'] );
 		} else {
 			$agent = 'undefined';
 		}
 		// identity.
 		if ( isset( $_SERVER['REMOTE_IDENT'] ) ) {
-			$remote = MainWP_Helper::clean( $_SERVER['REMOTE_IDENT'] );
+			$remote = self::clean( $_SERVER['REMOTE_IDENT'] );
 		} else {
 			$remote = 'undefined';
 		}
 		// log time.
-		$time = MainWP_Helper::clean( date( 'F jS Y, h:ia', time() ) ); // phpcs:ignore -- local time.
+		$time = self::clean( date( 'F jS Y, h:ia', time() ) ); // phpcs:ignore -- local time.
 
 		$mail = '<div>404 alert</div><div></div>' .
 				'<div>TIME: ' . $time . '</div>' .
@@ -161,14 +161,82 @@ class MainWP_Utility {
 		wp_mail(
 			$email,
 			'MainWP - 404 Alert: ' . $blog,
-			MainWP_Helper::format_email( $email, $mail ),
+			self::format_email( $email, $mail ),
 			array(
 				'content-type: text/html',
 			)
 		);
+	}	
+	
+	public static function clean( $string ) {
+		$string = trim( $string );
+		$string = htmlentities( $string, ENT_QUOTES );
+		$string = str_replace( "\n", '<br>', $string );
+		$string = stripslashes( $string );
+		return $string;
+	}
+	
+	public static function format_email( $to_email, $body ) {
+		return '<br>
+<div>
+            <br>
+            <div style="background:#ffffff;padding:0 1.618em;font:13px/20px Helvetica,Arial,Sans-serif;padding-bottom:50px!important">
+                <div style="width:600px;background:#fff;margin-left:auto;margin-right:auto;margin-top:10px;margin-bottom:25px;padding:0!important;border:10px Solid #fff;border-radius:10px;overflow:hidden">
+                    <div style="display: block; width: 100% ; background-image: url(https://mainwp.com/wp-content/uploads/2013/02/debut_light.png) ; background-repeat: repeat; border-bottom: 2px Solid #7fb100 ; overflow: hidden;">
+                      <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
+                         <div style="float: left;"><a href="https://mainwp.com"><img src="https://mainwp.com/wp-content/uploads/2013/07/MainWP-Logo-1000-300x62.png" alt="MainWP" height="30"/></a></div>
+                         <div style="float: right; margin-top: .6em ;">
+                            <span style="display: inline-block; margin-right: .8em;"><a href="https://mainwp.com/mainwp-extensions/" style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;">Extensions</a></span>
+                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://mainwp.com/forum">Support</a></span>
+                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://docs.mainwp.com">Documentation</a></span>
+                            <span style="display: inline-block; margin-right: .5em;" class="mainwp-memebers-area"><a href="https://mainwp.com/member/login/index" style="padding: .6em .5em ; border-radius: 50px ; -moz-border-radius: 50px ; -webkit-border-radius: 50px ; background: #1c1d1b; border: 1px Solid #000; color: #fff !important; font-size: .9em !important; font-weight: normal ; -webkit-box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1); box-shadow:  0px 0px 0px 5px rgba(0, 0, 0, .1);">Members Area</a></span>
+                         </div><div style="clear: both;"></div>
+                      </div>
+                    </div>
+                    <div>
+                        <p>Hello MainWP User!<br></p>
+                        ' . $body . '
+                        <div></div>
+                        <br />
+                        <div>MainWP</div>
+                        <div><a href="https://www.MainWP.com" target="_blank">www.MainWP.com</a></div>
+                        <p></p>
+                    </div>
+
+                    <div style="display: block; width: 100% ; background: #1c1d1b;">
+                      <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
+                        <div style="padding: .5em 0 ; float: left;"><p style="color: #fff; font-family: Helvetica, Sans; font-size: 12px ;">© 2013 MainWP. All Rights Reserved.</p></div>
+                        <div style="float: right;"><a href="https://mainwp.com"><img src="https://mainwp.com/wp-content/uploads/2013/07/MainWP-Icon-300.png" height="45"/></a></div><div style="clear: both;"></div>
+                      </div>
+                   </div>
+                </div>
+                <center>
+                    <br><br><br><br><br><br>
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border-top:1px solid #e5e5e5">
+                        <tbody><tr>
+                            <td align="center" valign="top" style="padding-top:20px;padding-bottom:20px">
+                                <table border="0" cellpadding="0" cellspacing="0">
+                                    <tbody><tr>
+                                        <td align="center" valign="top" style="color:#606060;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:150%;padding-right:20px;padding-bottom:5px;padding-left:20px;text-align:center">
+                                            This email is sent from your MainWP Dashboard.
+                                            <br>
+                                            If you do not wish to receive these notices please re-check your preferences in the MainWP Settings page.
+                                            <br>
+                                            <br>
+                                        </td>
+                                    </tr>
+                                </tbody></table>
+                            </td>
+                        </tr>
+                    </tbody></table>
+
+                </center>
+            </div>
+</div>
+<br>';
 	}
 
-
+	
 	/**
 	 * Handle fatal error for requests from the dashboard
 	 * mwp_action requests
@@ -181,7 +249,7 @@ class MainWP_Utility {
 			// handle fatal errors and compile errors.
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && isset( $error['message'] ) && ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] ) ) {
-				mainwp_child_helper()->write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 		}
 
@@ -384,7 +452,7 @@ class MainWP_Utility {
 		}
 		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
 	}
-
+	
 	public static function fetch_url( $url, $postdata ) {
 		try {
 			$tmpUrl = $url;

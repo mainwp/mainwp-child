@@ -255,7 +255,7 @@ class MainWP_Child_Posts {
 		$rslt                     = $this->get_recent_posts( explode( ',', $_POST['status'] ), $maxPages, $type, $extra );
 		$this->posts_where_suffix = '';
 
-		mainwp_child_helper()->write( $rslt );
+		MainWP_Helper::write( $rslt );
 	}
 
 	public function new_post() {
@@ -288,7 +288,7 @@ class MainWP_Child_Posts {
 
 		do_action( 'mainwp_child_after_newpost', $res );
 
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function post_action() {
@@ -364,7 +364,7 @@ class MainWP_Child_Posts {
 			$information['status'] = 'SUCCESS';
 		}
 		$information['my_post'] = $my_post;
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function get_post_edit( $id ) {
@@ -542,7 +542,7 @@ class MainWP_Child_Posts {
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function comment_bulk_action() {
@@ -571,7 +571,7 @@ class MainWP_Child_Posts {
 				}
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -618,7 +618,7 @@ class MainWP_Child_Posts {
 		$rslt                       = $this->get_recent_comments( explode( ',', $_POST['status'] ), $maxComments );
 		$this->comments_and_clauses = '';
 
-		mainwp_child_helper()->write( $rslt );
+		MainWP_Helper::write( $rslt );
 	}
 
 	public function get_recent_comments( $pAllowedStatuses, $pCount ) {
@@ -666,10 +666,10 @@ class MainWP_Child_Posts {
 		*
 		* Runs before creating or updating a post via MainWP dashboard.
 		*
-		* @param array  $new_post      – Post data array.
-		* @param array  $post_custom   – Post custom meta data.
-		* @param string $post_category – Post categories.
-		* @param string $post_tags     – Post tags.
+		* @param array  $new_post      ï¿½ Post data array.
+		* @param array  $post_custom   ï¿½ Post custom meta data.
+		* @param string $post_category ï¿½ Post categories.
+		* @param string $post_tags     ï¿½ Post tags.
 		*/
 		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
 		$edit_post_id = 0;

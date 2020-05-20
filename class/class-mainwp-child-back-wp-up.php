@@ -15,6 +15,8 @@
 
 // phpcs:disable -- third party credit.
 
+use MainWP\Child\MainWP_Helper;
+
 if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
 	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
 }
@@ -77,21 +79,21 @@ class MainWP_Child_Back_WP_Up {
 					$file_path2 = plugin_dir_path( __FILE__ ) . '../../backwpup-pro/inc/pro/class-pro.php';
 				}
 
-				mainwp_child_helper()->check_files_exists( array( $file_path1, $file_path2 ) );
+				MainWP_Helper::instance()->check_files_exists( array( $file_path1, $file_path2 ) );
 				require_once $file_path1;
 				require_once $file_path2;
 				$this->is_backwpup_installed = true;
 				$this->is_backwpup_pro       = true;
 			} elseif ( is_plugin_active( 'backwpup/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php' ) ) {
 				$file_path = plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php';
-				mainwp_child_helper()->check_files_exists( array( $file_path ) );
+				MainWP_Helper::instance()->check_files_exists( array( $file_path ) );
 				require_once $file_path;
 				$this->is_backwpup_installed = true;
 			}
 
 			if ( $this->is_backwpup_installed ) {
-				mainwp_child_helper()->check_classes_exists( '\BackWPup' );
-				mainwp_child_helper()->check_methods( 'get_instance' );
+				MainWP_Helper::instance()->check_classes_exists( '\BackWPup' );
+				MainWP_Helper::instance()->check_methods( 'get_instance' );
 				\BackWPup::get_instance();
 
 				add_action( 'admin_init', array( $this, 'init_download_backup' ) );
@@ -104,7 +106,7 @@ class MainWP_Child_Back_WP_Up {
 
 	public function action() {
 		if ( ! $this->is_backwpup_installed ) {
-			mainwp_child_helper()->write( array( 'error' => __( 'Please install BackWPup plugin on child website', 'mainwp-child' ) ) );
+			MainWP_Helper::write( array( 'error' => __( 'Please install BackWPup plugin on child website', 'mainwp-child' ) ) );
 
 			return;
 		}
@@ -112,11 +114,11 @@ class MainWP_Child_Back_WP_Up {
 			$error = error_get_last();
 			$info  = self::$information;
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
-				mainwp_child_helper()->write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			} elseif ( ! empty( $info ) ) {
-				mainwp_child_helper()->write( self::$information );
+				MainWP_Helper::write( self::$information );
 			} else {
-				mainwp_child_helper()->write( array( 'error' => 'Missing information array inside fatal_error' ) );
+				MainWP_Helper::write( array( 'error' => 'Missing information array inside fatal_error' ) );
 			}
 		}
 
@@ -242,11 +244,11 @@ class MainWP_Child_Back_WP_Up {
 
 		try {
 
-			mainwp_child_helper()->check_classes_exists( array( '\BackWPup_File', '\BackWPup_Job' ) );
-			mainwp_child_helper()->check_methods( '\BackWPup_File', array( 'get_absolute_path' ) );
-			mainwp_child_helper()->check_methods( '\BackWPup_Job', array( 'read_logheader' ) );
+			MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup_File', '\BackWPup_Job' ) );
+			MainWP_Helper::instance()->check_methods( '\BackWPup_File', array( 'get_absolute_path' ) );
+			MainWP_Helper::instance()->check_methods( '\BackWPup_Job', array( 'read_logheader' ) );
 
-			$lasttime_logged = mainwp_child_helper()->get_lasttime_backup( 'backwpup' );
+			$lasttime_logged = MainWP_Helper::instance()->get_lasttime_backup( 'backwpup' );
 
 			$log_folder = get_site_option( 'backwpup_cfg_logfolder' );
 			$log_folder = \BackWPup_File::get_absolute_path( $log_folder );
@@ -317,7 +319,7 @@ class MainWP_Child_Back_WP_Up {
 				}
 
 				if ( $new_lasttime_logged > $lasttime_logged ) {
-					mainwp_child_helper()->update_lasttime_backup( 'backwpup', $new_lasttime_logged ); // to support backup before update feature.
+					MainWP_Helper::instance()->update_lasttime_backup( 'backwpup', $new_lasttime_logged ); // to support backup before update feature.
 				}
 			}
 		} catch ( \Exception $ex ) {
@@ -328,7 +330,7 @@ class MainWP_Child_Back_WP_Up {
 	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
 			try {
-				$lastbackup                      = mainwp_child_helper()->get_lasttime_backup( 'backwpup' );
+				$lastbackup                      = MainWP_Helper::instance()->get_lasttime_backup( 'backwpup' );
 				$information['syncBackwpupData'] = array(
 					'lastbackup' => $lastbackup,
 				);
@@ -340,9 +342,9 @@ class MainWP_Child_Back_WP_Up {
 	}
 
 	public function get_destinations_list() {
-		mainwp_child_helper()->check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
-		mainwp_child_helper()->check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
-		mainwp_child_helper()->check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
+		MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
+		MainWP_Helper::instance()->check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
+		MainWP_Helper::instance()->check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
 
 		$jobdest      = array();
 		$jobids       = \BackWPup_Option::get_job_ids();
@@ -401,7 +403,7 @@ class MainWP_Child_Back_WP_Up {
 
 		$hide = isset( $_POST['show_hide'] ) && ( '1' === $_POST['show_hide'] ) ? 'hide' : '';
 
-		mainwp_child_helper()->update_option( 'mainwp_backwpup_hide_plugin', $hide, 'yes' );
+		MainWP_Helper::instance()->update_option( 'mainwp_backwpup_hide_plugin', $hide, 'yes' );
 
 		return array( 'success' => 1 );
 	}

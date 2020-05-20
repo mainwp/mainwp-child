@@ -12,6 +12,7 @@
  * Extension URL: https://mainwp.com/extension/mainwpbuddy/
  */
 
+use MainWP\Child\MainWP_Helper;
 // phpcs:disable -- third party credit.
 
 class MainWP_Child_Back_Up_Buddy {
@@ -60,7 +61,7 @@ class MainWP_Child_Back_Up_Buddy {
 			return $value;
 		}
 
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 
@@ -216,7 +217,7 @@ class MainWP_Child_Back_Up_Buddy {
 	public function action() {
 		$information = array();
 		if ( ! $this->is_backupbuddy_installed ) {
-			mainwp_child_helper()->write( array( 'error' => __( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
+			MainWP_Helper::write( array( 'error' => __( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
 		}
 
 		if ( ! class_exists( 'backupbuddy_core' ) ) {
@@ -369,7 +370,7 @@ class MainWP_Child_Back_Up_Buddy {
 					break;
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 
@@ -791,7 +792,7 @@ class MainWP_Child_Back_Up_Buddy {
 				$time                    = $this->localize_time( $finish_time );
 				$data['lastBackupStats'] = date( 'M j - g:i A', $time ); // phpcs:ignore -- local time.
 				$data['lasttime_backup'] = $finish_time;
-				mainwp_child_helper()->update_lasttime_backup( 'backupbuddy', $finish_time ); // support Require Backup Before Update feature.
+				MainWP_Helper::instance()->update_lasttime_backup( 'backupbuddy', $finish_time ); // support Require Backup Before Update feature.
 			} else {
 				$data['lastBackupStats'] = 'Unknown';
 			}
@@ -1264,7 +1265,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 					// Calculate main row string.
 					if ( 'default' == $type ) { // Default backup listing.
-						$download_url = '/wp-admin/admin-ajax.php?action=mainwp_backupbuddy_download_archive&backupbuddy_backup=' . basename( $file ) . '&_wpnonce=' . mainwp_child_helper()->create_nonce_without_session( 'mainwp_download_backup' );
+						$download_url = '/wp-admin/admin-ajax.php?action=mainwp_backupbuddy_download_archive&backupbuddy_backup=' . basename( $file ) . '&_wpnonce=' . MainWP_Helper::instance()->create_nonce_without_session( 'mainwp_download_backup' );
 						$main_string  = '<a href="#" download-url="' . $download_url . '"class="backupbuddyFileTitle mwp_bb_download_backup_lnk" title="' . basename( $file ) . '">' . $modified . ' (' . $time_ago . ')</a>';
 					} elseif ( 'migrate' == $type ) { // Migration backup listing.
 						$main_string = '<a class="pb_backupbuddy_hoveraction_migrate backupbuddyFileTitle" rel="' . basename( $file ) . '" href="' . pb_backupbuddy::page_url() . '&migrate=' . basename( $file ) . '&value=' . basename( $file ) . '" title="' . basename( $file ) . '">' . $modified . ' (' . $time_ago . ')</a>';
@@ -1760,7 +1761,7 @@ class MainWP_Child_Back_Up_Buddy {
 			die( '-1' );
 		}
 
-		if ( ! mainwp_child_helper()->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {
+		if ( ! MainWP_Helper::instance()->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {
 			die( '-2' );
 		}
 

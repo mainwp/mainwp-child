@@ -12,6 +12,9 @@
  * Extension URL: https://mainwp.com/extension/staging/
  */
 
+use MainWP\Child\MainWP_Child_Callable;
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
 
 class MainWP_Child_Staging {
@@ -76,7 +79,7 @@ class MainWP_Child_Staging {
 
 	public function action() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! $this->is_plugin_installed ) {
-			mainwp_child_helper()->write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
+			MainWP_Helper::write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}
 
 		if ( ! class_exists( 'WPStaging\WPStaging' ) ) {
@@ -145,7 +148,7 @@ class MainWP_Child_Staging {
 					break;
 			}
 		}
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 	}
 
 	public function set_showhide() {
@@ -412,7 +415,7 @@ class MainWP_Child_Staging {
 			return $value;
 		}
 
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 

@@ -12,6 +12,8 @@
  * Extension URL: https://mainwp.com/extension/updraftplus/
  */
 
+use MainWP\Child\MainWP_Helper;
+
 // phpcs:disable -- Third party credit.
 
 class MainWP_Child_Updraft_Plus_Backups {
@@ -47,7 +49,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		if ( isset( $last_backup['backup_time'] ) ) {
 			$backup_time = $last_backup['backup_time'];
 			if ( $last_backup['success'] ) {
-				mainwp_child_helper()->update_lasttime_backup( 'updraftplus', $backup_time );
+				MainWP_Helper::instance()->update_lasttime_backup( 'updraftplus', $backup_time );
 			}
 		}
 		return $last_backup;
@@ -81,7 +83,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$information = array();
 		if ( ! $this->is_plugin_installed ) {
 			$information['error'] = 'NO_UPDRAFTPLUS';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 
 		$this->required_files();
@@ -92,7 +94,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		}
 		if ( empty( $updraftplus ) ) {
 			$information['error'] = 'Error empty updraftplus';
-			mainwp_child_helper()->write( $information );
+			MainWP_Helper::write( $information );
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
@@ -163,7 +165,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 				$information = array( 'error' => $e->getMessage() );
 			}
 		}
-		mainwp_child_helper()->write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	public function set_showhide() {
@@ -3567,7 +3569,7 @@ ENDHERE;
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
-		if ( ! MainWP_Helper::is_screen_with_update() ) {
+		if ( ! MainWP_Helper::is_updates_screen() ) {
 			return $value;
 		}
 
