@@ -5,7 +5,16 @@ namespace MainWP\Child;
 class MainWP_Client_Report {
 
 	public static $instance = null;
-
+	
+	/**
+	 * Get Class Name.
+	 *
+	 * @return string
+	 */
+	public static function get_class_name() {
+		return __CLASS__;
+	}
+	
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -20,7 +29,7 @@ class MainWP_Client_Report {
 
 	public function init() {
 		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
-		add_action( 'mainwp_child_log', array( 'MainWP_Client_Report', 'do_reports_log' ) );
+		add_action( 'mainwp_child_log', array( self::get_class_name(), 'do_reports_log' ) );
 	}
 
 	public function current_agent( $agent ) {

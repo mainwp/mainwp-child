@@ -19,11 +19,11 @@ class MainWP_Child_Install {
 	protected static $instance = null;
 
 
-	 /**
-	  * Get Class Name.
-	  *
-	  * @return string
-	  */
+	/**
+	 * Get Class Name.
+	 *
+	 * @return string
+	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}

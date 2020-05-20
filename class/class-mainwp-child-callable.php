@@ -2,7 +2,7 @@
 
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable WordPress.WP.AlternativeFunctions --  to use external code.
 
 class MainWP_Child_Callable {
 

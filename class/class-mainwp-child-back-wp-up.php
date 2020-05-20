@@ -16,6 +16,7 @@
 // phpcs:disable -- third party credit.
 
 use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
 
 if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
 	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
@@ -247,9 +248,7 @@ class MainWP_Child_Back_WP_Up {
 			MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup_File', '\BackWPup_Job' ) );
 			MainWP_Helper::instance()->check_methods( '\BackWPup_File', array( 'get_absolute_path' ) );
 			MainWP_Helper::instance()->check_methods( '\BackWPup_Job', array( 'read_logheader' ) );
-
-			$lasttime_logged = MainWP_Helper::instance()->get_lasttime_backup( 'backwpup' );
-
+			$lasttime_logged = MainWP_Utility::get_lasttime_backup( 'backwpup' );
 			$log_folder = get_site_option( 'backwpup_cfg_logfolder' );
 			$log_folder = \BackWPup_File::get_absolute_path( $log_folder );
 			$log_folder = untrailingslashit( $log_folder );
@@ -319,7 +318,7 @@ class MainWP_Child_Back_WP_Up {
 				}
 
 				if ( $new_lasttime_logged > $lasttime_logged ) {
-					MainWP_Helper::instance()->update_lasttime_backup( 'backwpup', $new_lasttime_logged ); // to support backup before update feature.
+					MainWP_Utility::update_lasttime_backup( 'backwpup', $new_lasttime_logged ); // to support backup before update feature.
 				}
 			}
 		} catch ( \Exception $ex ) {
@@ -330,7 +329,7 @@ class MainWP_Child_Back_WP_Up {
 	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
 			try {
-				$lastbackup                      = MainWP_Helper::instance()->get_lasttime_backup( 'backwpup' );
+				$lastbackup                      = MainWP_Utility::get_lasttime_backup( 'backwpup' );
 				$information['syncBackwpupData'] = array(
 					'lastbackup' => $lastbackup,
 				);

@@ -13,6 +13,8 @@
  */
 
 use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
+
 // phpcs:disable -- third party credit.
 
 class MainWP_Child_Back_Up_Buddy {
@@ -792,7 +794,7 @@ class MainWP_Child_Back_Up_Buddy {
 				$time                    = $this->localize_time( $finish_time );
 				$data['lastBackupStats'] = date( 'M j - g:i A', $time ); // phpcs:ignore -- local time.
 				$data['lasttime_backup'] = $finish_time;
-				MainWP_Helper::instance()->update_lasttime_backup( 'backupbuddy', $finish_time ); // support Require Backup Before Update feature.
+				MainWP_Utility::update_lasttime_backup( 'backupbuddy', $finish_time ); // support Require Backup Before Update feature.
 			} else {
 				$data['lastBackupStats'] = 'Unknown';
 			}
@@ -1265,7 +1267,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 					// Calculate main row string.
 					if ( 'default' == $type ) { // Default backup listing.
-						$download_url = '/wp-admin/admin-ajax.php?action=mainwp_backupbuddy_download_archive&backupbuddy_backup=' . basename( $file ) . '&_wpnonce=' . MainWP_Helper::instance()->create_nonce_without_session( 'mainwp_download_backup' );
+						$download_url = '/wp-admin/admin-ajax.php?action=mainwp_backupbuddy_download_archive&backupbuddy_backup=' . basename( $file ) . '&_wpnonce=' . MainWP_Utility::create_nonce_without_session( 'mainwp_download_backup' );
 						$main_string  = '<a href="#" download-url="' . $download_url . '"class="backupbuddyFileTitle mwp_bb_download_backup_lnk" title="' . basename( $file ) . '">' . $modified . ' (' . $time_ago . ')</a>';
 					} elseif ( 'migrate' == $type ) { // Migration backup listing.
 						$main_string = '<a class="pb_backupbuddy_hoveraction_migrate backupbuddyFileTitle" rel="' . basename( $file ) . '" href="' . pb_backupbuddy::page_url() . '&migrate=' . basename( $file ) . '&value=' . basename( $file ) . '" title="' . basename( $file ) . '">' . $modified . ' (' . $time_ago . ')</a>';
@@ -1761,7 +1763,7 @@ class MainWP_Child_Back_Up_Buddy {
 			die( '-1' );
 		}
 
-		if ( ! MainWP_Helper::instance()->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {
+		if ( ! MainWP_Utility::verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {
 			die( '-2' );
 		}
 

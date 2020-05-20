@@ -12,9 +12,10 @@
  */
 
 use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
 use MainWP\Child\MainWP_Child_DB;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity --  to use external code.
 
 class MainWP_Child_Timecapsule {
 	public static $instance     = null;
@@ -702,11 +703,11 @@ class MainWP_Child_Timecapsule {
 			$backup_time = $config->get_option( 'last_backup_time' );
 
 			if ( ! empty( $backup_time ) ) {
-				MainWP_Helper::instance()->update_lasttime_backup( 'wptimecapsule', $backup_time );
+				MainWP_Utility::update_lasttime_backup( 'wptimecapsule', $backup_time );
 			}
 
 			$last_time       = time() - 24 * 7 * 2 * 60 * 60;
-			$lasttime_logged = MainWP_Helper::instance()->get_lasttime_backup( 'wptimecapsule' );
+			$lasttime_logged = MainWP_Utility::get_lasttime_backup( 'wptimecapsule' );
 			if ( empty( $lasttime_logged ) ) {
 				$last_time = time() - 24 * 7 * 8 * 60 * 60;
 			}

@@ -506,5 +506,157 @@ class MainWP_Utility {
 		}
 		// phpcs:enable
 	}
+	
+	public static function validate_mainwp_dir() {
+		$done = false;
+		$dir  = MainWP_Helper::get_mainwp_dir();
+		$dir  = $dir[0];
+		if ( MainWP_Helper::get_wp_filesystem() ) {
+			global $wp_filesystem;
+			try {
+				MainWP_Helper::check_dir( $dir, false );
+			} catch ( \Exception $e ) {
+				// ok!
+			}
+			if ( ! empty( $wp_filesystem ) ) {
+				if ( $wp_filesystem->is_writable( $dir ) ) {
+					$done = true;
+				}
+			}
+		}
 
+		//phpcs:disable -- use system functions
+		if ( ! $done ) {
+			if ( ! file_exists( $dir ) ) {
+				@mkdirs( $dir );
+			}
+			if ( is_writable( $dir ) ) {
+				$done = true;
+			}
+		}
+		//phpcs:enable
+
+		return $done;
+	}
+
+	public static function close_connection( $val = null ) {
+
+		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
+			$output = wp_json_encode( $val );
+		else :
+			$output = serialize( $val ); // phpcs:ignore -- to compatible.
+		endif;
+
+		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		// Close browser connection so that it can resume AJAX polling.
+		header( 'Content-Length: ' . strlen( $output ) );
+		header( 'Connection: close' );
+		header( 'Content-Encoding: none' );
+		if ( session_id() ) {
+			session_write_close();
+		}
+		echo $output;
+		if ( ob_get_level() ) {
+			ob_end_flush();
+		}
+		flush();
+	}
+	
+	public static function create_nonce_without_session( $action = - 1 ) {
+		$user = wp_get_current_user();
+		$uid  = (int) $user->ID;
+		if ( ! $uid ) {
+			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
+		}
+
+		$i = wp_nonce_tick();
+
+		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+	}
+
+	public static function verify_nonce_without_session( $nonce, $action = - 1 ) {
+		$nonce = (string) $nonce;
+		$user  = wp_get_current_user();
+		$uid   = (int) $user->ID;
+		if ( ! $uid ) {
+			$uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
+		}
+
+		if ( empty( $nonce ) ) {
+			return false;
+		}
+
+		$i = wp_nonce_tick();
+
+		$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 1;
+		}
+
+		$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 2;
+		}
+
+		return false;
+	}
+	
+	public static function update_lasttime_backup( $by, $time ) {
+		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
+		if ( ! in_array( $by, $backup_by ) ) {
+			return false;
+		}
+
+		$lasttime = get_option( 'mainwp_lasttime_backup_' . $by );
+		if ( $time > $lasttime ) {
+			update_option( 'mainwp_lasttime_backup_' . $by, $time );
+		}
+
+		return true;
+	}
+
+	public static function get_lasttime_backup( $by ) {
+
+		if ( 'backupwp' == $by ) {
+			$by = 'backupwordpress';
+		}
+
+		$activated = true;
+		switch ( $by ) {
+			case 'backupbuddy':
+				if ( ! is_plugin_active( 'backupbuddy/backupbuddy.php' ) && ! is_plugin_active( 'Backupbuddy/backupbuddy.php' ) ) {
+					$activated = false;
+				}
+				break;
+			case 'backupwordpress':
+				if ( ! is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
+					$activated = false;
+				}
+				break;
+			case 'backwpup':
+				if ( ! is_plugin_active( 'backwpup/backwpup.php' ) && ! is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
+					$activated = false;
+				}
+				break;
+			case 'updraftplus':
+				if ( ! is_plugin_active( 'updraftplus/updraftplus.php' ) ) {
+					$activated = false;
+				}
+				break;
+			case 'wptimecapsule':
+				if ( ! is_plugin_active( 'wp-time-capsule/wp-time-capsule.php' ) ) {
+					$activated = false;
+				}
+				break;
+			default:
+				$activated = false;
+				break;
+		}
+
+		if ( ! $activated ) {
+			return 0;
+		}
+
+		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
+	}
 }

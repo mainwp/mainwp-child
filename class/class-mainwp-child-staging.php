@@ -15,7 +15,7 @@
 use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Helper;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code.
 
 class MainWP_Child_Staging {
 
@@ -82,9 +82,13 @@ class MainWP_Child_Staging {
 			MainWP_Helper::write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}
 
-		if ( ! class_exists( 'WPStaging\WPStaging' ) ) {
-			require_once WPSTG_PLUGIN_DIR . 'apps/Core/WPStaging.php';
-		}
+		if (!class_exists( 'WPStaging\WPStaging' )){                
+			if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php' ) ) {
+				require_once WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php';
+			} else if ( file_exists( WPSTG_PLUGIN_DIR . "Core/WPStaging.php" ) ) {
+				require_once WPSTG_PLUGIN_DIR . "Core/WPStaging.php";
+			}		
+		}			
 
 		\WPStaging\WPStaging::getInstance();
 		$information = array();
@@ -237,7 +241,11 @@ class MainWP_Child_Staging {
 		}
 
 		ob_start();
-		require_once WPSTG_PLUGIN_DIR . 'apps/Backend/views/clone/ajax/start.php';
+		if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php' ) ) {
+			require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php';
+		} else if ( file_exists( WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/start.php" ) ) {
+			require_once WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/start.php";
+		}
 		$result = ob_get_clean();
 		return $result;
 	}
@@ -333,7 +341,11 @@ class MainWP_Child_Staging {
 		}
 
 		ob_start();
-		require_once WPSTG_PLUGIN_DIR . 'apps/Backend/views/clone/ajax/update.php';
+		if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/update.php' ) ) {
+			require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/update.php';
+		} else if ( file_exists( WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/update.php" ) ) {
+			require_once WPSTG_PLUGIN_DIR . "Backend/views/clone/ajax/update.php";
+		}
 		$result = ob_get_clean();
 		return $result;
 	}

@@ -247,7 +247,7 @@ class MainWP_Backup {
 	}
 
 	private function include_core_files( &$nodes ) {
-		return array(
+		$coreFiles = array(
 			'favicon.ico',
 			'index.php',
 			'license.txt',

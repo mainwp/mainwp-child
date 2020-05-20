@@ -141,7 +141,7 @@ class MainWP_Child_Stats {
 
 		if ( isset( $_POST['primaryBackup'] ) && ! empty( $_POST['primaryBackup'] ) ) {
 			$primary_bk                           = $_POST['primaryBackup'];
-			$information['primaryLasttimeBackup'] = MainWP_Helper::instance()->get_lasttime_backup( $primary_bk );
+			$information['primaryLasttimeBackup'] = MainWP_Utility::get_lasttime_backup( $primary_bk );
 		}
 
 		$last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );
@@ -151,7 +151,7 @@ class MainWP_Child_Stats {
 		if ( isset( $last_post ) && isset( $last_post['post_modified_gmt'] ) ) {
 			$information['last_post_gmt'] = strtotime( $last_post['post_modified_gmt'] );
 		}
-		$information['mainwpdir']            = ( MainWP_Helper::validate_mainwp_dir() ? 1 : - 1 );
+		$information['mainwpdir']            = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
 		$information['uniqueId']             = get_option( 'mainwp_child_uniqueId', '' );
 		$information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
 		$information['themes_outdate_info']  = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();

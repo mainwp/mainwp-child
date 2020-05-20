@@ -64,7 +64,7 @@ class MainWP_Pages {
 			$msg .= '</div></div></div>';
 			echo wp_kses_post( $msg );
 		}
-		MainWP_Child_Server_Information::show_warnings();
+		MainWP_Child_Server_Information_Render::render_warnings();
 	}
 
 	public function admin_menu() {
@@ -245,18 +245,15 @@ class MainWP_Pages {
 
 		<?php if ( ! $hide_server_info ) { ?>
 			<div class="mainwp-child-setting-tab server-info" <?php echo ( 'server-info' !== $shownPage ) ? $hide_style : ''; ?>>
-				<?php MainWP_Child_Server_Information::render_page(); ?>
+				<?php MainWP_Child_Server_Information_Render::render_page(); ?>
 			</div>
 		<?php } ?>
 
 				<?php if ( ! $hide_connection_detail ) { ?>
 			<div class="mainwp-child-setting-tab connection-detail" <?php echo ( 'connection-detail' !== $shownPage ) ? $hide_style : ''; ?>>
-							<?php MainWP_Child_Server_Information::render_connection_details(); ?>
+				<?php MainWP_Child_Server_Information_Render::render_connection_details(); ?>
 			</div>
 		<?php } ?>
-
-
-
 		<?php
 		self::render_footer();
 	}

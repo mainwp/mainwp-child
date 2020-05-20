@@ -14,8 +14,9 @@
  */
 
 use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code.
 
 class MainWP_Child_Back_Up_WordPress {
 	public static $instance     = null;
@@ -227,7 +228,7 @@ class MainWP_Child_Back_Up_WordPress {
 							$date = filemtime( $file );
 							if ( ! empty( $date ) ) {
 								do_action( 'mainwp_reports_backupwordpress_backup', $destination, $message, 'finished', $backup_type, $date );
-								MainWP_Helper::instance()->update_lasttime_backup( 'backupwordpress', $date ); // to support backup before update feature.
+								MainWP_Utility::update_lasttime_backup( 'backupwordpress', $date ); // to support backup before update feature.
 							}
 						}
 					}

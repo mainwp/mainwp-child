@@ -13,6 +13,7 @@
  */
 
 use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
 
 // phpcs:disable -- Third party credit.
 
@@ -49,7 +50,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		if ( isset( $last_backup['backup_time'] ) ) {
 			$backup_time = $last_backup['backup_time'];
 			if ( $last_backup['success'] ) {
-				MainWP_Helper::instance()->update_lasttime_backup( 'updraftplus', $backup_time );
+				MainWP_Utility::update_lasttime_backup( 'updraftplus', $backup_time );
 			}
 		}
 		return $last_backup;
@@ -380,7 +381,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		delete_transient( 'udvault_last_config' );
 		delete_transient( 'updraftvault_quota_text' );
 
-		MainWP_Helper::close_connection(
+		MainWP_Utility::close_connection(
 			array(
 				'disconnected' => 1,
 				'html'         => $this->connected_html(),

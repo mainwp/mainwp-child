@@ -12,9 +12,10 @@
  */
 
 use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
 use MainWP\Child\MainWP_Child_DB;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- root namespace to use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code.
 
 class MainWP_Child_Wordfence {
 	public static $instance        = null;
@@ -2132,7 +2133,7 @@ SQL
 				'code' => wfCache::getHtaccessCode(),
 			);
 		}
-		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . MainWP_Helper::instance()->create_nonce_without_session( 'mainwp_download_htaccess' );
+		$download_url = admin_url( 'admin-ajax.php' ) . '?action=mainwp_wordfence_download_htaccess&_wpnonce=' . MainWP_Utility::create_nonce_without_session( 'mainwp_download_htaccess' );
 		return array(
 			'ok'           => 1,
 			'download_url' => $download_url,
@@ -2160,7 +2161,7 @@ SQL
 			die( '-1' );
 		}
 
-		if ( ! MainWP_Helper::instance()->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_htaccess' ) ) {
+		if ( ! MainWP_Utility::verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_htaccess' ) ) {
 			die( '-2' );
 		}
 

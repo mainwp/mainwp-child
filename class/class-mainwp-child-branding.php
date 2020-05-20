@@ -656,17 +656,111 @@ class MainWP_Child_Branding {
 		}
 
 		if ( ! empty( $header_css ) ) {
-			echo '<style>' . MainWP_Helper::parse_css( $header_css ) . '</style>';
+			echo '<style>' . self::parse_css( $header_css ) . '</style>';
 		}
 	}
 
 	public function custom_login_css() {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['login_css'] ) && ! empty( $extra_setting['login_css'] ) ) {
-			echo '<style>' . MainWP_Helper::parse_css( $extra_setting['login_css'] ) . '</style>';
+			echo '<style>' . self::parse_css( $extra_setting['login_css'] ) . '</style>';
 		}
 	}
+	
+	/**
+	 * PARSE
+	 * Parses some CSS into an array
+	 * CSSPARSER
+	 * Copyright (C) 2009 Peter Kröner
+	 */
+	public static function parse_css( $css ) {
 
+		// Remove CSS-Comments.
+		$css = preg_replace( '/\/\*.*?\*\//ms', '', $css );
+		// Remove HTML-Comments.
+		$css = preg_replace( '/([^\'"]+?)(\<!--|--\>)([^\'"]+?)/ms', '$1$3', $css );
+		// Extract @media-blocks into $blocks.
+		preg_match_all( '/@.+?\}[^\}]*?\}/ms', $css, $blocks );
+		// Append the rest to $blocks.
+		array_push( $blocks[0], preg_replace( '/@.+?\}[^\}]*?\}/ms', '', $css ) );
+		$ordered      = array();
+		$count_blocks = count( $blocks[0] );
+		for ( $i = 0; $i < $count_blocks; $i++ ) {
+			// If @media-block, strip declaration and parenthesis.
+			if ( '@media' === substr( $blocks[0][ $i ], 0, 6 ) ) {
+				$ordered_key   = preg_replace( '/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ] );
+				$ordered_value = preg_replace( '/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][ $i ] );
+			} elseif ( '@' === substr( $blocks[0][ $i ], 0, 1 ) ) {
+				$ordered_key   = $blocks[0][ $i ];
+				$ordered_value = $blocks[0][ $i ];
+			} else {
+				$ordered_key   = 'main';
+				$ordered_value = $blocks[0][ $i ];
+			}
+			// Split by parenthesis, ignoring those inside content-quotes.
+			$ordered[ $ordered_key ] = preg_split( '/([^\'"\{\}]*?[\'"].*?(?<!\\\)[\'"][^\'"\{\}]*?)[\{\}]|([^\'"\{\}]*?)[\{\}]/', trim( $ordered_value, " \r\n\t" ), -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE );
+		}
+		return self::parse_css_rebuild( $ordered );
+	}
+
+	public static function parse_css_rebuild( $ordered ) {
+		// Beginning to rebuild new slim CSS-Array.
+		foreach ( $ordered as $key => $val ) {
+			$new       = array();
+			$count_val = count( $val );
+			for ( $i = 0; $i < $count_val; $i++ ) {
+				// Split selectors and rules and split properties and values.
+				$selector = trim( $val[ $i ], " \r\n\t" );
+
+				if ( ! empty( $selector ) ) {
+					if ( ! isset( $new[ $selector ] ) ) {
+						$new[ $selector ] = array();
+					}
+					$rules = explode( ';', $val[ ++$i ] );
+					foreach ( $rules as $rule ) {
+						$rule = trim( $rule, " \r\n\t" );
+						if ( ! empty( $rule ) ) {
+							$rule     = array_reverse( explode( ':', $rule ) );
+							$property = trim( array_pop( $rule ), " \r\n\t" );
+							$value    = implode( ':', array_reverse( $rule ) );
+
+							if ( ! isset( $new[ $selector ][ $property ] ) || ! preg_match( '/!important/', $new[ $selector ][ $property ] ) ) {
+								$new[ $selector ][ $property ] = $value;
+							} elseif ( preg_match( '/!important/', $new[ $selector ][ $property ] ) && preg_match( '/!important/', $value ) ) {
+								$new[ $selector ][ $property ] = $value;
+							}
+						}
+					}
+				}
+			}
+			$ordered[ $key ] = $new;
+		}
+		$parsed = $ordered;
+
+		$output = '';
+		foreach ( $parsed as $media => $content ) {
+			if ( '@media' === substr( $media, 0, 6 ) ) {
+				$output .= $media . " {\n";
+				$prefix  = "\t";
+			} else {
+				$prefix = '';
+			}
+
+			foreach ( $content as $selector => $rules ) {
+				$output .= $prefix . $selector . " {\n";
+				foreach ( $rules as $property => $value ) {
+					$output .= $prefix . "\t" . $property . ': ' . $value;
+					$output .= ";\n";
+				}
+				$output .= $prefix . "}\n\n";
+			}
+			if ( '@media' === substr( $media, 0, 6 ) ) {
+				$output .= "}\n\n";
+			}
+		}
+		return $output;
+	}
+	
 	public function custom_the_generator( $generator, $type = '' ) {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['site_generator'] ) ) {
