@@ -109,7 +109,7 @@ class MainWP_Child_Stats {
 
 		$information['translation_updates'] = $this->stats_translation_updates();
 
-		$information['recent_comments'] = MainWP_Child_Posts::get_instance()->get_recent_comments( array( 'approve', 'hold' ), 5 );
+		$information['recent_comments'] = MainWP_Child_Comments::get_instance()->get_recent_comments( array( 'approve', 'hold' ), 5 );
 
 		$recent_number = $this->get_recent_number();
 
