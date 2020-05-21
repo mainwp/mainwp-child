@@ -76,7 +76,7 @@ class MainWP_Child_Posts {
 
 		$wp_seo_enabled = false;
 		if ( isset( $_POST['WPSEOEnabled'] ) && $_POST['WPSEOEnabled'] ) {
-			if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) && class_exists( 'WPSEO_Link_Column_Count' ) && class_exists( 'WPSEO_Meta' ) ) {
+			if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) && class_exists( '\WPSEO_Link_Column_Count' ) && class_exists( '\WPSEO_Meta' ) ) {
 				$wp_seo_enabled = true;
 			}
 		}
@@ -685,7 +685,7 @@ class MainWP_Child_Posts {
 			}
 		}
 		$check_image_existed = $edit_post_id ? true : false; // if editing post then will check if image existed.
-		$this->create_found_images( $new_post, $upload_dir, $check_image_existed );
+		$this->update_found_images( $new_post, $upload_dir, $check_image_existed );
 		$this->create_has_shortcode_gallery( $new_post );
 		if ( $is_post_plus ) {
 			$this->create_post_plus( $new_post, $post_custom );
@@ -736,7 +736,7 @@ class MainWP_Child_Posts {
 
 		global $current_user;
 
-		$this->create_wp_rocket( $post_custom );
+		$this->update_wp_rocket_custom_post( $post_custom );
 
 		// current user may be connected admin or alternative admin.
 		$current_uid = $current_user->ID;
@@ -777,13 +777,13 @@ class MainWP_Child_Posts {
 	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ) {
 
 		$seo_ext_activated = false;
-		if ( class_exists( 'WPSEO_Meta' ) && class_exists( 'WPSEO_Admin' ) ) {
+		if ( class_exists( '\WPSEO_Meta' ) && class_exists( '\WPSEO_Admin' ) ) {
 			$seo_ext_activated = true;
 		}
 
 		$post_to_only_existing_categories = false;
 
-		$this->create_set_custom_fields( $new_post_id, $post_custom, $seo_ext_activated, $post_to_only_existing_categories );
+		$this->set_custom_post_fields( $new_post_id, $post_custom, $seo_ext_activated, $post_to_only_existing_categories );
 
 		// yoast seo plugin activated.
 		if ( $seo_ext_activated ) {
@@ -791,12 +791,12 @@ class MainWP_Child_Posts {
 		}
 
 		$this->create_set_categories( $new_post_id, $post_category, $post_to_only_existing_categories );
-
 		$this->create_featured_image( $new_post_id, $post_featured_image, $check_image_existed );
 
 		// post plus extension process.
 		if ( $is_post_plus ) {
-			$this->create_post_plus_categories( $new_post_id, $post_custom );
+			$this->post_plus_update_author( $new_post_id, $post_custom );
+			$this->post_plus_update_categories( $new_post_id, $post_custom );
 		}
 
 		// to support custom post author.
@@ -811,7 +811,7 @@ class MainWP_Child_Posts {
 		}
 	}
 
-	private function create_wp_rocket( &$post_custom ) {
+	private function update_wp_rocket_custom_post( &$post_custom ) {
 		// Options fields.
 		$wprocket_fields = array(
 			'lazyload',
@@ -846,7 +846,7 @@ class MainWP_Child_Posts {
 		}
 	}
 
-	private function create_found_images( &$new_post, $upload_dir, $check_image_existed ) {
+	private function update_found_images( &$new_post, $upload_dir, $check_image_existed ) {
 
 		// Search for all the images added to the new post. Some images have a href tag to click to navigate to the image.. we need to replace this too.
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
@@ -970,12 +970,11 @@ class MainWP_Child_Posts {
 		}
 	}
 
-	private function create_post_plus_categories( $new_post_id, $post_custom ) {
-
-			$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
-			$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
-			$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-			$random_privelege      = maybe_unserialize( $random_privelege_base );
+	private function post_plus_update_author( $new_post_id, $post_custom ) {
+		$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
+		$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
+		$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$random_privelege      = maybe_unserialize( $random_privelege_base );
 
 		if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
 			$random_post_authors = array();
@@ -996,9 +995,11 @@ class MainWP_Child_Posts {
 				);
 			}
 		}
-
-			$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
-			$random_category = is_array( $random_category ) ? current( $random_category ) : null;
+	}
+	
+	private function post_plus_update_categories( $new_post_id, $post_custom ) {
+		$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
+		$random_category = is_array( $random_category ) ? current( $random_category ) : null;
 		if ( ! empty( $random_category ) ) {
 			$cats        = get_categories(
 				array(
@@ -1045,7 +1046,7 @@ class MainWP_Child_Posts {
 		}
 	}
 
-	private function create_set_custom_fields( $new_post_id, $post_custom, $seo_ext_activated, &$post_to_only ) {
+	private function set_custom_post_fields( $new_post_id, $post_custom, $seo_ext_activated, &$post_to_only ) {
 
 		// Set custom fields.
 		$not_allowed   = array(

@@ -276,7 +276,7 @@ class MainWP_Child_Install {
 		$information['destination_name'] = $result['destination_name'];
 		MainWP_Helper::write( $information );
 	}
-	
+
 	/**
 	 * Hook to set ssl verify.
 	 */
@@ -284,7 +284,7 @@ class MainWP_Child_Install {
 		$r['sslverify'] = false;
 		return $r;
 	}
-	
+
 	/**
 	 * Include necessary files.
 	 */

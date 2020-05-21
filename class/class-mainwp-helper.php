@@ -121,7 +121,6 @@ class MainWP_Helper {
 				}
 			}
 		}
-
 		return null;
 	}
 
@@ -151,7 +150,6 @@ class MainWP_Helper {
 		} else {
 			$init = true;
 		}
-
 		return $init;
 	}
 
@@ -192,7 +190,6 @@ class MainWP_Helper {
 		if ( 0 == $length ) {
 			return true;
 		}
-
 		return ( substr( $haystack, - $length ) == $needle );
 	}
 
@@ -220,7 +217,6 @@ class MainWP_Helper {
 		} else {
 			$url = $url . '/';
 		}
-
 		return $url;
 	}
 
@@ -235,7 +231,6 @@ class MainWP_Helper {
 		while ( $length -- ) {
 			$str .= $charset[ mt_rand( 0, $count - 1 ) ]; // phpcs:ignore
 		}
-
 		return $str;
 	}
 
@@ -255,7 +250,6 @@ class MainWP_Helper {
 				$val *= 1024;
 				break;
 		}
-
 		return $val;
 	}
 
@@ -270,7 +264,6 @@ class MainWP_Helper {
 		if ( ! is_readable( $dir ) ) {
 			return null;
 		}
-
 		return ( 2 === count( scandir( $dir ) ) );
 	}
 
@@ -304,13 +297,11 @@ class MainWP_Helper {
 				return ( function_exists( $func ) && ! array_search( $func, $suhosin ) );
 			}
 		}
-
 		return true;
 	}
 
 	public static function get_timestamp( $timestamp ) {
 		$gmtOffset = get_option( 'gmt_offset' );
-
 		return ( $gmtOffset ? ( $gmtOffset * HOUR_IN_SECONDS ) + $timestamp : $timestamp );
 	}
 
@@ -328,11 +319,9 @@ class MainWP_Helper {
 
 	public static function update_option( $option_name, $option_value, $autoload = 'no' ) {
 		$success = add_option( $option_name, $option_value, '', $autoload );
-
 		if ( ! $success ) {
 			$success = update_option( $option_name, $option_value );
 		}
-
 		return $success;
 	}
 
@@ -340,7 +329,6 @@ class MainWP_Helper {
 		if ( empty( $value ) ) {
 			return false;
 		}
-
 		if ( null != $excludes ) {
 			foreach ( $excludes as $exclude ) {
 				if ( self::ends_with( $exclude, '*' ) ) {
@@ -354,7 +342,6 @@ class MainWP_Helper {
 				}
 			}
 		}
-
 		return false;
 	}
 
@@ -362,14 +349,12 @@ class MainWP_Helper {
 		if ( ! function_exists( 'mb_ereg_replace' ) ) {
 			return sanitize_file_name( $filename );
 		}
-
 		// Remove anything which isn't a word, whitespace, number or any of the following caracters -_~,;:[]().
 		// If you don't need to handle multi-byte characters you can use preg_replace rather than mb_ereg_replace.
 		// Thanks @�?ukasz Rysiak!
 		$filename = mb_ereg_replace( '([^\w\s\d\-_~,;:\[\]\(\).])', '', $filename );
 		// Remove any runs of periods (thanks falstro!).
 		$filename = mb_ereg_replace( '([\.]{2,})', '', $filename );
-
 		return $filename;
 	}
 
@@ -382,11 +367,9 @@ class MainWP_Helper {
 		if ( 0 == $current_user->ID ) {
 			return false;
 		}
-
 		if ( 10 == $current_user->wp_user_level || ( isset( $current_user->user_level ) && 10 == $current_user->user_level ) || current_user_can( 'level_10' ) ) {
 			return true;
 		}
-
 		return false;
 	}
 
@@ -398,11 +381,9 @@ class MainWP_Helper {
 	}
 
 	public static function is_updates_screen() {
-
 		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
 			return false;
 		}
-
 		if ( function_exists( 'get_current_screen' ) ) {
 			$screen = get_current_screen();
 			if ( $screen ) {
@@ -431,7 +412,6 @@ class MainWP_Helper {
 					$missing[] = $files;
 			}
 		}
-
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing file(s): ' . implode( ',', $missing );
 			if ( $return ) {
@@ -456,7 +436,6 @@ class MainWP_Helper {
 				$missing[] = $classes;
 			}
 		}
-
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing classes: ' . implode( ',', $missing );
 			if ( $return ) {
@@ -482,7 +461,6 @@ class MainWP_Helper {
 				$missing[] = $methods;
 			}
 		}
-
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing method: ' . implode( ',', $missing );
 			if ( $return ) {
@@ -491,7 +469,6 @@ class MainWP_Helper {
 				throw new \Exception( $message );
 			}
 		}
-
 		return true;
 	}
 
@@ -508,7 +485,6 @@ class MainWP_Helper {
 				$missing[] = $properties;
 			}
 		}
-
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing properties: ' . implode( ',', $missing );
 			if ( $return ) {
@@ -517,7 +493,6 @@ class MainWP_Helper {
 				throw new \Exception( $message );
 			}
 		}
-
 		return true;
 	}
 
@@ -534,7 +509,6 @@ class MainWP_Helper {
 				$missing[] = $funcs;
 			}
 		}
-
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing functions: ' . implode( ',', $missing );
 			if ( $return ) {
@@ -543,7 +517,6 @@ class MainWP_Helper {
 				throw new \Exception( $message );
 			}
 		}
-
 		return true;
 	}
 

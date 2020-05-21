@@ -334,7 +334,7 @@ class MainWP_Child_Callable {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
 	}
-	
+
 	private function maintenance_delete_revisions( $results, $max_revisions ) {
 		global $wpdb;
 
@@ -433,7 +433,7 @@ class MainWP_Child_Callable {
 	}
 
 	public function backup_poll() {
-		MainWP_Backup::get()->backup_poll();		
+		MainWP_Backup::get()->backup_poll();
 	}
 
 	public function backup_checkpid() {
@@ -441,7 +441,7 @@ class MainWP_Child_Callable {
 	}
 
 	public function backup( $pWrite = true ) {
-		return MainWP_Backup::get()->backup( $pWrite );		
+		return MainWP_Backup::get()->backup( $pWrite );
 	}
 
 	protected function backup_full( $fileName ) {
@@ -449,7 +449,7 @@ class MainWP_Child_Callable {
 	}
 
 	protected function backup_db( $fileName = '', $ext = 'zip' ) {
-		return MainWP_Backup::get()->backup_db( $fileName, $ext );		
+		return MainWP_Backup::get()->backup_db( $fileName, $ext );
 	}
 
 	public function get_site_icon() {

@@ -153,7 +153,7 @@ class MainWP_Backup {
 			exit();
 		}
 	}
-	
+
 	public function backup_checkpid() {
 		$pid = $_POST['pid'];
 
@@ -202,7 +202,7 @@ class MainWP_Backup {
 
 		MainWP_Helper::write( $information );
 	}
-	
+
 	public function backup( $pWrite = true ) {
 
 		$timeout = 20 * 60 * 60;

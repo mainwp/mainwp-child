@@ -371,11 +371,11 @@ class MainWP_Child_Updates {
 
 		if ( in_array( 'backupbuddy/backupbuddy.php', $plugins ) ) {
 			if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
-				if ( ! class_exists( 'Ithemes_Updater_Settings' ) ) {
+				if ( ! class_exists( '\Ithemes_Updater_Settings' ) ) {
 					require $GLOBALS['ithemes_updater_path'] . '/settings.php';
 				}
-				if ( class_exists( 'Ithemes_Updater_Settings' ) ) {
-					$ithemes_updater = new Ithemes_Updater_Settings();
+				if ( class_exists( '\Ithemes_Updater_Settings' ) ) {
+					$ithemes_updater = new \Ithemes_Updater_Settings();
 					$ithemes_updater->update();
 				}
 			}

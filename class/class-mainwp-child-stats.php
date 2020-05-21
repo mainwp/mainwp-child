@@ -563,8 +563,8 @@ class MainWP_Child_Stats {
 					}
 				}
 			}
-			if ( class_exists( 'COM' ) ) {
-				$obj = new COM( 'scripting.filesystemobject' );
+			if ( class_exists( '\COM' ) ) {
+				$obj = new \COM( 'scripting.filesystemobject' );
 
 				if ( is_object( $obj ) ) {
 					$ref = $obj->getfolder( $directory );
@@ -578,9 +578,9 @@ class MainWP_Child_Stats {
 				}
 			}
 			// to fix for window host, performance not good?
-			if ( class_exists( 'RecursiveIteratorIterator' ) ) {
+			if ( class_exists( '\RecursiveIteratorIterator' ) ) {
 				$size = 0;
-				foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $directory ) ) as $file ) {
+				foreach ( new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $directory ) ) as $file ) {
 					$size += $file->getSize();
 				}
 				if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
