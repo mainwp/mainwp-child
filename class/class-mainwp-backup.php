@@ -108,7 +108,7 @@ class MainWP_Backup {
 		) : false;
 	}
 
-	
+
 	public function backup_poll() {
 		$fileNameUID = ( isset( $_POST['fileNameUID'] ) ? $_POST['fileNameUID'] : '' );
 		$fileName    = ( isset( $_POST['fileName'] ) ? $_POST['fileName'] : '' );
@@ -153,7 +153,7 @@ class MainWP_Backup {
 			exit();
 		}
 	}
-	
+
 	public function backup_checkpid() {
 		$pid = $_POST['pid'];
 
@@ -202,7 +202,7 @@ class MainWP_Backup {
 
 		MainWP_Helper::write( $information );
 	}
-	
+
 	public function backup( $pWrite = true ) {
 
 		$timeout = 20 * 60 * 60;
@@ -382,7 +382,7 @@ class MainWP_Backup {
 			closedir( $dh );
 		}
 
-		$result = MainWP_Backup::get()->create_backup_db( $filepath_prefix, $ext );
+		$result = self::get()->create_backup_db( $filepath_prefix, $ext );
 
 		MainWP_Helper::update_option( 'mainwp_child_last_db_backup_size', filesize( $result['filepath'] ) );
 
@@ -392,7 +392,7 @@ class MainWP_Backup {
 			'filesize'  => filesize( $result['filepath'] ),
 		);
 	}
-	
+
 	public function zip_file( $files, $archive ) {
 		$this->timeout = 20 * 60 * 60;
 		$mem           = '512M';

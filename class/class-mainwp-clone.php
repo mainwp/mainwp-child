@@ -121,7 +121,7 @@ class MainWP_Clone {
 		}
 
 		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
-		$hide_restore           = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
+		$hide_restore  = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
 		if ( ! $hide_restore ) {
 			if ( '' == session_id() ) {
 				session_start();
@@ -1464,7 +1464,7 @@ class MainWP_Clone {
 		}
 		return $file;
 	}
-		
+
 	public static function is_archive( $pFileName, $pPrefix = '', $pSuffix = '' ) {
 		return preg_match( '/' . $pPrefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $pSuffix . '$/', $pFileName );
 	}

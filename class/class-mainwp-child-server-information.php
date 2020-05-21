@@ -15,7 +15,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	public static function get_class_name() {
 		return __CLASS__;
 	}
-		
+
 	public static function init() {
 		add_action(
 			'wp_ajax_mainwp-child_dismiss_warnings',
@@ -890,7 +890,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<td><?php echo esc_html( $pResult ); ?></td>
 			<td><?php echo ( $pPassed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
 		</tr>
-		<?php		
+		<?php
 	}
 
 	protected static function render_row( $pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
@@ -946,7 +946,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	*Includes last_lines() function by phant0m, licensed under cc-wiki and GPLv2+
 	*/
 
-   private static function render_error_page() {
+	private static function render_error_page() {
 		?>
 		<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
 			<thead title="Click to Toggle" style="cursor: pointer;">
