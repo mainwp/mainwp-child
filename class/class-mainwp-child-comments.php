@@ -7,7 +7,7 @@ class MainWP_Child_Comments {
 	protected static $instance = null;
 
 	private $comments_and_clauses;
-	
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -149,7 +149,7 @@ class MainWP_Child_Comments {
 			$comments = get_comments( $params );
 			if ( is_array( $comments ) ) {
 				foreach ( $comments as $comment ) {
-					$post                        = get_post( $comment->comment_post_ID );					
+					$post                        = get_post( $comment->comment_post_ID );
 					$outComment                  = array();
 					$outComment['id']            = $comment->comment_ID;
 					$outComment['status']        = wp_get_comment_status( $comment->comment_ID );

@@ -36,7 +36,7 @@ class MainWP_Child_Callable {
 		'get_all_pages'         => 'get_all_pages',
 		'get_all_users'         => 'get_all_users',
 		'user_action'           => 'user_action',
-		'search_users'          => 'search_users',		
+		'search_users'          => 'search_users',
 		'maintenance_site'      => 'maintenance_site',
 		'keyword_links_action'  => 'keyword_links_action',
 		'branding_child_plugin' => 'branding_child_plugin',
