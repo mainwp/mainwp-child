@@ -240,7 +240,7 @@ class MainWP_Child_Install {
 			$ssl_verify = true;
 			// @see wp-admin/includes/class-wp-upgrader.php
 			if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
-				add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
+				add_filter( 'http_request_args', array( self::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
 				$ssl_verify = false;
 			}
 			add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
@@ -264,7 +264,7 @@ class MainWP_Child_Install {
 
 			remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
 			if ( false == $ssl_verify ) {
-				remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99 );
+				remove_filter( 'http_request_args', array( self::get_class_name(), 'no_ssl_filter_function' ), 99 );
 			}
 			$this->after_installed( $result );
 		}
@@ -273,7 +273,12 @@ class MainWP_Child_Install {
 		$information['destination_name'] = $result['destination_name'];
 		MainWP_Helper::write( $information );
 	}
-
+	
+	public static function no_ssl_filter_function( $r, $url ) {
+		$r['sslverify'] = false;
+		return $r;
+	}
+	
 	private function require_files() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
@@ -330,7 +335,6 @@ class MainWP_Child_Install {
 	}
 
 	private function try_second_install( $url, $installer ) {
-		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
 		$result = $installer->run(
 			array(
 				'package'           => $url,

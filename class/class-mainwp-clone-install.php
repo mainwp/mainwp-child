@@ -171,7 +171,7 @@ class MainWP_Clone_Install {
 
 			$files = glob( $backupdir . '*' );
 			foreach ( $files as $file ) {
-				if ( MainWP_Helper::is_archive( $file ) ) {
+				if ( MainWP_Clone::is_archive( $file ) ) {
 					unlink( $file );
 				}
 			}
@@ -636,7 +636,7 @@ class MainWP_Clone_Install {
 			$result      = glob( $backupdir . 'backup-' . $_POST['f'] . '-*' );
 			$archiveFile = false;
 			foreach ( $result as $file ) {
-				if ( MainWP_Helper::is_archive( $file, 'backup-' . $_POST['f'] . '-' ) ) {
+				if ( MainWP_Clone::is_archive( $file, 'backup-' . $_POST['f'] . '-' ) ) {
 					$archiveFile = $file;
 					break;
 				}

@@ -119,6 +119,14 @@ class MainWP_Clone {
 		} else {
 			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.11', 'all' );
 		}
+
+		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
+		$hide_restore           = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
+		if ( ! $hide_restore ) {
+			if ( '' == session_id() ) {
+				session_start();
+			}
+		}
 	}
 
 	public static function upload_mimes( $mime_types = array() ) {
@@ -1279,7 +1287,7 @@ class MainWP_Clone {
 			if ( $dh ) {
 				$file = readdir( $dh );
 				while ( false !== $file ) {
-					if ( '.' !== $file && '..' !== $file && MainWP_Helper::is_archive( $file, 'download-' ) ) {
+					if ( '.' !== $file && '..' !== $file && self::is_archive( $file, 'download-' ) ) {
 						unlink( $backupdir . $file );
 					}
 				}
@@ -1352,7 +1360,7 @@ class MainWP_Clone {
 			$archiveFile = false;
 
 			foreach ( $files as $file ) {
-				if ( MainWP_Helper::is_archive( $file, 'download-' ) ) {
+				if ( self::is_archive( $file, 'download-' ) ) {
 					$archiveFile = $file;
 					break;
 				}
@@ -1436,7 +1444,7 @@ class MainWP_Clone {
 			$files       = glob( $backupdir . 'download-*' );
 			$archiveFile = false;
 			foreach ( $files as $file ) {
-				if ( MainWP_Helper::is_archive( $file, 'download-' ) ) {
+				if ( self::is_archive( $file, 'download-' ) ) {
 					$archiveFile = $file;
 					break;
 				}
@@ -1455,6 +1463,10 @@ class MainWP_Clone {
 			$testFull = true;
 		}
 		return $file;
+	}
+		
+	public static function is_archive( $pFileName, $pPrefix = '', $pSuffix = '' ) {
+		return preg_match( '/' . $pPrefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $pSuffix . '$/', $pFileName );
 	}
 
 	private function clone_backup_delete_files( $plugins, $themes ) {

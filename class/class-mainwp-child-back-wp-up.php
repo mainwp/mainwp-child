@@ -80,14 +80,14 @@ class MainWP_Child_Back_WP_Up {
 					$file_path2 = plugin_dir_path( __FILE__ ) . '../../backwpup-pro/inc/pro/class-pro.php';
 				}
 
-				MainWP_Helper::instance()->check_files_exists( array( $file_path1, $file_path2 ) );
+				MainWP_Helper::check_files_exists( array( $file_path1, $file_path2 ) );
 				require_once $file_path1;
 				require_once $file_path2;
 				$this->is_backwpup_installed = true;
 				$this->is_backwpup_pro       = true;
 			} elseif ( is_plugin_active( 'backwpup/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php' ) ) {
 				$file_path = plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php';
-				MainWP_Helper::instance()->check_files_exists( array( $file_path ) );
+				MainWP_Helper::check_files_exists( array( $file_path ) );
 				require_once $file_path;
 				$this->is_backwpup_installed = true;
 			}

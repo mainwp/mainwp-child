@@ -14,7 +14,7 @@
 
 use MainWP\Child\MainWP_Helper;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
 class MainWP_WordPress_SEO {
 	public static $instance = null;

@@ -174,11 +174,6 @@ class MainWP_Helper {
 		return $wp_filesystem;
 	}
 
-	public static function no_ssl_filter_function( $r, $url ) {
-		$r['sslverify'] = false;
-		return $r;
-	}
-
 	public static function reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
 		if ( isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) && isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ) {
@@ -341,12 +336,6 @@ class MainWP_Helper {
 		return $success;
 	}
 
-	public static function get_revisions( $max_revisions ) {
-		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
-	}
-
-
 	public static function in_excludes( $excludes, $value ) {
 		if ( empty( $value ) ) {
 			return false;
@@ -367,10 +356,6 @@ class MainWP_Helper {
 		}
 
 		return false;
-	}
-
-	public static function is_archive( $pFileName, $pPrefix = '', $pSuffix = '' ) {
-		return preg_match( '/' . $pPrefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $pSuffix . '$/', $pFileName );
 	}
 
 	public static function sanitize_filename( $filename ) {
@@ -433,8 +418,8 @@ class MainWP_Helper {
 		return function_exists( 'is_wpe' ) && is_wpe();
 	}
 
-	public function check_files_exists( $files = array(), $return = false ) {
-			$missing = array();
+	public static function check_files_exists( $files = array(), $return = false ) {
+		$missing = array();
 		if ( is_array( $files ) ) {
 			foreach ( $files as $name ) {
 				if ( ! file_exists( $name ) ) {

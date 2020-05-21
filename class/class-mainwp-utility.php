@@ -258,7 +258,7 @@ class MainWP_Utility {
 		}
 	}
 
-	public function cron_active() {
+	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
 			return;
 		}

@@ -15,7 +15,7 @@ use MainWP\Child\MainWP_Helper;
 use MainWP\Child\MainWP_Utility;
 use MainWP\Child\MainWP_Child_DB;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity --  to use external code.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity --  to use external code, third party credit.
 
 class MainWP_Child_Timecapsule {
 	public static $instance     = null;

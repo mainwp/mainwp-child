@@ -580,7 +580,7 @@ class MainWP_Child_Branding {
 	}
 
 	public function core_update_footer() {
-		echo '';
+		echo ''; // it clear version text.
 	}
 
 	public function admin_footer_text() {

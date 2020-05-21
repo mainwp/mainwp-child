@@ -64,7 +64,7 @@ class MainWP_Pages {
 			$msg .= '</div></div></div>';
 			echo wp_kses_post( $msg );
 		}
-		MainWP_Child_Server_Information_Render::render_warnings();
+		MainWP_Child_Server_Information::render_warnings();
 	}
 
 	public function admin_menu() {
@@ -113,15 +113,15 @@ class MainWP_Pages {
 				$child_page_title    = $child_menu_title . ' Settings';
 			} else {
 				$child_menu_title = 'MainWP Child';
-				$child_page_title = 'MainWPSettings';
+				$child_page_title = 'MainWP Child Settings';
 			}
-			$this->init_pages( $branding_header );
+			$this->init_pages( $child_menu_title, $child_page_title );
 		}
 	}
 
-	private function init_pages( $child_menu_title ) {
+	private function init_pages( $child_menu_title, $child_page_title ) {
 
-		$settingsPage = add_submenu_page( 'options-general.php', $child_menu_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
+		$settingsPage = add_submenu_page( 'options-general.php', $child_page_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
 
 		add_action( 'admin_print_scripts-' . $settingsPage, array( MainWP_Clone::get_class_name(), 'print_scripts' ) );
 		$subpageargs = array(
@@ -212,12 +212,6 @@ class MainWP_Pages {
 			}
 		}
 
-		if ( ! $hide_restore ) {
-			if ( '' === session_id() ) {
-				session_start();
-			}
-		}
-
 		self::render_header( $shownPage, false );
 		?>
 		<?php if ( ! $hide_settings ) { ?>
@@ -245,13 +239,13 @@ class MainWP_Pages {
 
 		<?php if ( ! $hide_server_info ) { ?>
 			<div class="mainwp-child-setting-tab server-info" <?php echo ( 'server-info' !== $shownPage ) ? $hide_style : ''; ?>>
-				<?php MainWP_Child_Server_Information_Render::render_page(); ?>
+				<?php MainWP_Child_Server_Information::render_page(); ?>
 			</div>
 		<?php } ?>
 
-				<?php if ( ! $hide_connection_detail ) { ?>
+			<?php if ( ! $hide_connection_detail ) { ?>
 			<div class="mainwp-child-setting-tab connection-detail" <?php echo ( 'connection-detail' !== $shownPage ) ? $hide_style : ''; ?>>
-					<?php MainWP_Child_Server_Information_Render::render_connection_details(); ?>
+					<?php MainWP_Child_Server_Information::render_connection_details(); ?>
 			</div>
 		<?php } ?>
 		<?php
