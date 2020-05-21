@@ -1,25 +1,41 @@
 <?php
-
+/**
+ * MainWP Child Users.
+ */
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Child_Users
+ * @package MainWP\Child
+ */
 class MainWP_Child_Users {
 
-	protected static $instance = null;
-	/**
-	 * Method get_class_name()
-	 *
-	 * Get Class Name.
-	 *
-	 * @return object
-	 */
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_Users.
+     */
+    protected static $instance = null;
+
+    /**
+     * Get Class Name.
+     *
+     * @return string
+     */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_Users constructor.
+     */
+    public function __construct() {
 	}
 
-	public static function get_instance() {
+    /**
+     * Create a public static instance of MainWP_Child_Users.
+     * @return MainWP_Child_Users|null
+     */
+    public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -27,7 +43,11 @@ class MainWP_Child_Users {
 		return self::$instance;
 	}
 
-	public function user_action() {
+    /**
+     * MainWP Child User actions: changeRole, update_password, edit, update_user.
+     * @return array $information[] FAIL|SUCCESS.
+     */
+    public function user_action() {
 		$action    = $_POST['action'];
 		$extra     = $_POST['extra'];
 		$userId    = $_POST['id'];
@@ -90,7 +110,13 @@ class MainWP_Child_Users {
 	}
 
 
-	public function get_all_users_int( $number = false ) {
+    /**
+     * Get all users.
+     *
+     * @param bool $number Number parameter.
+     * @return array Return array of $allusers.
+     */
+    public function get_all_users_int($number = false ) {
 		$allusers = array();
 
 		$params = array();
@@ -122,7 +148,12 @@ class MainWP_Child_Users {
 	}
 
 
-	public function get_all_users( $return = false ) {
+    /**
+     * Get all Child Site users.
+     * @param bool $return Whether or not to return. Default: false.
+     * @return array Return array of $allusers.
+     */
+    public function get_all_users($return = false ) {
 		$roles    = explode( ',', $_POST['role'] );
 		$allusers = array();
 		if ( is_array( $roles ) ) {
@@ -151,7 +182,10 @@ class MainWP_Child_Users {
 	}
 
 
-	public function search_users() {
+    /**
+     * Search Child Site users.
+     */
+    public function search_users() {
 
 		$search_user_role = array();
 		$check_users_role = false;
@@ -214,7 +248,14 @@ class MainWP_Child_Users {
 	}
 
 
-	public function edit_user( $user_id, $data ) { // phpcs:ignore -- ignore complex method notice, see detail at: function edit_user() in the wp/wp-admin/includes/user.php.
+    /**
+     * Edit Child Site user.
+     *
+     * @param $user_id User ID.
+     * @param $data Data to edit.
+     * @return string[]|int Return error string on failure or user ID on success.
+     */
+    public function edit_user($user_id, $data ) { // phpcs:ignore -- ignore complex method notice, see detail at: function edit_user() in the wp/wp-admin/includes/user.php.
 		$wp_roles = wp_roles();
 		$user     = new \stdClass();
 
@@ -354,7 +395,13 @@ class MainWP_Child_Users {
 		return $user_id;
 	}
 
-	public function get_user_to_edit( $user_id ) {
+    /**
+     * Get Child Site user to edit.
+     *
+     * @param $user_id User ID.
+     * @return array Return array of $edit_data.
+     */
+    public function get_user_to_edit($user_id ) {
 		require_once ABSPATH . 'wp-admin/includes/user.php';
 		$profileuser = get_user_to_edit( $user_id );
 
@@ -404,7 +451,11 @@ class MainWP_Child_Users {
 	}
 
 
-	public function new_admin_password() {
+    /**
+     * New Child Site administrator password.
+     * @return array $information[] added->true.
+     */
+    public function new_admin_password() {
 		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$user         = get_user_by( 'login', $_POST['user'] );
 		require_once ABSPATH . WPINC . '/registration.php';
@@ -427,7 +478,11 @@ class MainWP_Child_Users {
 		MainWP_Helper::write( $information );
 	}
 
-	public function new_user() {
+    /**
+     * Child Site new user.
+     * @return array $information[] added->true.
+     */
+    public function new_user() {
 		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 		$send_password = $_POST['send_password'];
 		if ( isset( $new_user['role'] ) ) {
