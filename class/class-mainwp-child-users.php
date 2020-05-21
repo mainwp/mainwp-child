@@ -112,7 +112,6 @@ class MainWP_Child_Users {
 		MainWP_Helper::write( $information );
 	}
 
-
 	/**
 	 * Get all users.
 	 *
@@ -150,7 +149,6 @@ class MainWP_Child_Users {
 		return $allusers;
 	}
 
-
 	/**
 	 * Get all Child Site users.
 	 *
@@ -184,7 +182,6 @@ class MainWP_Child_Users {
 		}
 		MainWP_Helper::write( $allusers );
 	}
-
 
 	/**
 	 * Search Child Site users.
@@ -250,7 +247,6 @@ class MainWP_Child_Users {
 
 		MainWP_Helper::write( $allusers );
 	}
-
 
 	/**
 	 * Edit Child Site user.
@@ -454,7 +450,6 @@ class MainWP_Child_Users {
 		return $edit_data;
 	}
 
-
 	/**
 	 * New Child Site administrator password.
 	 *
@@ -525,6 +520,5 @@ class MainWP_Child_Users {
 		$information['added'] = true;
 		MainWP_Helper::write( $information );
 	}
-
 
 }

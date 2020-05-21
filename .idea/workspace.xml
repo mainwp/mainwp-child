@@ -24,7 +24,10 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="af1ea369-c116-42d4-a785-32f1af9168e6" name="Default Changelist" comment="" />
+    <list default="true" id="af1ea369-c116-42d4-a785-32f1af9168e6" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/class/class-mainwp-child-install.php" beforeDir="false" afterPath="$PROJECT_DIR$/class/class-mainwp-child-install.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/class/class-mainwp-child-users.php" beforeDir="false" afterPath="$PROJECT_DIR$/class/class-mainwp-child-users.php" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
