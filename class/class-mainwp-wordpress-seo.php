@@ -1,5 +1,11 @@
 <?php
 /**
+ * MainWP WordPress SEO
+ *
+ * The code is used for the MainWP WordPress SEO Extension.
+ */
+
+/**
  * Credits
  *
  * Plugin Name: Yoast SEO
@@ -16,10 +22,22 @@ use MainWP\Child\MainWP_Helper;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code.
 
+/**
+ * Class MainWP_WordPress_SEO
+ */
 class MainWP_WordPress_SEO {
-	public static $instance = null;
+    /**
+     * @static
+     * @var null Public static instance of MainWP_WordPress_SEO.
+     */
+    public static $instance = null;
 
-	public static function instance() {
+    /**
+     * Create public static instance of MainWP_WordPress_SEO.
+     *
+     * @return MainWP_WordPress_SEO|null
+     */
+    public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -27,19 +45,33 @@ class MainWP_WordPress_SEO {
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_WordPress_SEO constructor.
+     */
+    public function __construct() {
+
+        /** @var global $wpdb wbdb */
 		global $wpdb;
+
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 
-	public function child_deactivation() {
+    /**
+     * Removes option by name.
+     *
+     * @return bool True, if option is successfully deleted. False on failure.
+     */
+    public function child_deactivation() {
 		$dell_all = array();
 		foreach ( $dell_all as $opt ) {
 			delete_option( $opt );
 		}
 	}
 
-	public function action() {
+    /**
+     * MainWP wordpress SEO import_settings $_POST action.
+     */
+    public function action() {
 		if ( ! class_exists( 'WPSEO_Admin' ) ) {
 			$information['error'] = 'NO_WPSEO';
 			MainWP_Helper::write( $information );
@@ -53,7 +85,12 @@ class MainWP_WordPress_SEO {
 		MainWP_Helper::write( $information );
 	}
 
-	public function import_settings() {
+    /**
+     * Import settings.
+     *
+     * @return array $information success[]|error[]
+     */
+    public function import_settings() {
 		if ( isset( $_POST['file_url'] ) ) {
 			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
 			$temporary_file = '';
@@ -111,7 +148,14 @@ class MainWP_WordPress_SEO {
 		MainWP_Helper::write( $information );
 	}
 
-	public function import_seo_settings( $file ) {
+    /**
+     * Import SEO settings.
+     *
+     * @param $file settings.ini file to import.
+     * @return bool Return TRUE on success.
+     * @throws Exception Trow an exception and return error message.
+     */
+    public function import_seo_settings($file ) {
 		if ( ! empty( $file ) ) {
 			$upload_dir = wp_upload_dir();
 
@@ -167,7 +211,13 @@ class MainWP_WordPress_SEO {
 		return false;
 	}
 
-	public function parse_column_score( $post_id ) {
+    /**
+     * Parse Column Score.
+     *
+     * @param $post_id Post ID.
+     * @return string SEO Score.
+     */
+    public function parse_column_score($post_id ) {
 		if ( '1' === WPSEO_Meta::get_value( 'meta-robots-noindex', $post_id ) ) {
 			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_INDEX );
 			$title = __( 'Post is set to noindex.', 'mainwp-child' );
@@ -184,14 +234,27 @@ class MainWP_WordPress_SEO {
 		return $this->render_score_indicator( $rank, $title );
 	}
 
-	public function parse_column_score_readability( $post_id ) {
+    /**
+     * Parse readability score.
+     *
+     * @param $post_id Post ID.
+     * @return string Redability Score.
+     */
+    public function parse_column_score_readability($post_id ) {
 		$score = (int) WPSEO_Meta::get_value( 'content_score', $post_id );
 		$rank  = WPSEO_Rank::from_numeric_score( $score );
 
 		return $this->render_score_indicator( $rank );
 	}
 
-	private function render_score_indicator( $rank, $title = '' ) {
+    /**
+     * Render Score Rank.
+     *
+     * @param $rank SEO Rank Score.
+     * @param string $title Rank title.
+     * @return string Return SEO Score html.
+     */
+    private function render_score_indicator($rank, $title = '' ) {
 		if ( empty( $title ) ) {
 			$title = $rank->get_label();
 		}
