@@ -1,7 +1,7 @@
 <?php
 /**
  * MainWP Child Plugin
- * 
+ *
  * Provides a secure connection between your MainWP Dashboard and your WordPress sites.
  */
 /**
@@ -21,24 +21,24 @@ require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // V
 define( 'MAINWP_CHILD_DEBUG', true );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
-    /**
-     * Define MainWP Child Plugin absolute full path and filename of this file.
-     */
-    define( 'MAINWP_CHILD_FILE', __FILE__ );
+	/**
+	 * Define MainWP Child Plugin absolute full path and filename of this file.
+	 */
+	define( 'MAINWP_CHILD_FILE', __FILE__ );
 }
 
 if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
-    /**
-     * Define MainWP Child Plugin Directory.
-     */
-    define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
+	/**
+	 * Define MainWP Child Plugin Directory.
+	 */
+	define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
 }
 
 if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
-    /**
-     * Define MainWP Child Plugin URL.
-     */
-    define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
+	/**
+	 * Define MainWP Child Plugin URL.
+	 */
+	define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
 }
 
 /**
@@ -47,7 +47,7 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
  *
  * @param $class_name Name of file to load.
  */
-function mainwp_child_autoload($class_name ) {
+function mainwp_child_autoload( $class_name ) {
 
 	if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
 		// strip the namespace prefix: MainWP\Child\ .

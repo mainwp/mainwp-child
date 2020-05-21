@@ -6,13 +6,14 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Debug
+ *
  * @package MainWP\Child
  */
 class MainWP_Debug {
 
 	/**
-     * Render MainWP Backup & test debugging output.
-     *
+	 * Render MainWP Backup & test debugging output.
+	 *
 	 * @param $mainWPChild MainWP_Child Instance.
 	 */
 	public static function process( &$mainWPChild ) {

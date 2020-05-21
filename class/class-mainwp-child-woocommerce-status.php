@@ -1,7 +1,7 @@
 <?php
 /**
  * MainWP Child Woocomerce Status
- * 
+ *
  * This file handles syncing woocomerce data with MainWP Dashboard.
  */
 
@@ -26,18 +26,18 @@ use MainWP\Child\MainWP_Helper;
  */
 class MainWP_Child_WooCommerce_Status {
 
-    /**
-     * @static
-     * @var null Holds the Public static instance of MainWP_Child_WooCommerce_Status.
-     */
-    public static $instance = null;
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Child_WooCommerce_Status.
+	 */
+	public static $instance = null;
 
-    /**
-     * Create a public static instance of MainWP_Child_WooCommerce_Status.
-     *
-     * @return MainWP_Child_WooCommerce_Status|null
-     */
-    public static function instance() {
+	/**
+	 * Create a public static instance of MainWP_Child_WooCommerce_Status.
+	 *
+	 * @return MainWP_Child_WooCommerce_Status|null
+	 */
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -45,23 +45,23 @@ class MainWP_Child_WooCommerce_Status {
 		return self::$instance;
 	}
 
-    /**
-     * MainWP_Child_WooCommerce_Status constructor.
-     */
-    public function __construct() {
+	/**
+	 * MainWP_Child_WooCommerce_Status constructor.
+	 */
+	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 
-    /**
-     * MainWP Child Plugin deactivation hooks.
-     */
-    public function child_deactivation() {
+	/**
+	 * MainWP Child Plugin deactivation hooks.
+	 */
+	public function child_deactivation() {
 	}
 
-    /**
-     * MainWP Child Woocommerce actions: sync_data, report_data, update_wc_db.
-     */
-    public function action() {
+	/**
+	 * MainWP Child Woocommerce actions: sync_data, report_data, update_wc_db.
+	 */
+	public function action() {
 		$information = array();
 		if ( ! class_exists( 'WooCommerce' ) || ! defined( 'WC_VERSION' ) ) {
 			$information['error'] = 'NO_WOOCOMMERCE';
@@ -85,26 +85,26 @@ class MainWP_Child_WooCommerce_Status {
 		MainWP_Helper::write( $information );
 	}
 
-    /**
-     * Compare woocommerce versions.
-     *
-     * By default, version_compare returns -1 if the first version is lower than the second,
-     *  0 if they are equal, and 1 if the second is lower.
-     *  When using the optional operator argument, the function will return true if the relationship is
-     *  the one specified by the operator, false otherwise.
-     *
-     * @return bool|int Comparison response.
-     */
-    public function is_version_220() {
+	/**
+	 * Compare woocommerce versions.
+	 *
+	 * By default, version_compare returns -1 if the first version is lower than the second,
+	 *  0 if they are equal, and 1 if the second is lower.
+	 *  When using the optional operator argument, the function will return true if the relationship is
+	 *  the one specified by the operator, false otherwise.
+	 *
+	 * @return bool|int Comparison response.
+	 */
+	public function is_version_220() {
 		return version_compare( WC()->version, '2.2.0', '>=' );
 	}
 
-    /**
-     * Sync Woocommerce data.
-     *
-     * @return array $information Woocommerce data grabed.
-     */
-    public function sync_data() {
+	/**
+	 * Sync Woocommerce data.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function sync_data() {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
@@ -198,12 +198,12 @@ class MainWP_Child_WooCommerce_Status {
 		return $information;
 	}
 
-    /**
-     * Woocommerce report data.
-     *
-     * @return array $information Woocommerce data grabed.
-     */
-    public function report_data() {
+	/**
+	 * Woocommerce report data.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function report_data() {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
@@ -294,10 +294,10 @@ class MainWP_Child_WooCommerce_Status {
 		return $information;
 	}
 
-    /**
-     * sync Woocommerce data for current month.
-     */
-    public function sync_data_two() {
+	/**
+	 * sync Woocommerce data for current month.
+	 */
+	public function sync_data_two() {
 		$start_date = date( 'Y-m-01 00:00:00', time() ); // phpcs:ignore -- local time.
 		$end_date   = date( 'Y-m-d H:i:s', time() ); // phpcs:ignore -- local time.
 
@@ -307,35 +307,36 @@ class MainWP_Child_WooCommerce_Status {
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
 
-    /**
-     * Sync Woocomerce data for specific date range.
-     */
-    public function report_data_two() {
+	/**
+	 * Sync Woocomerce data for specific date range.
+	 */
+	public function report_data_two() {
 		$start_date = $_POST['start_date'];
 		$end_date   = $_POST['end_date'];
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
 
-    /**
-     * Check if woocomerce DB needs to be updated.
-     * @return bool true|false.
-     */
-    public function check_db_update() {
+	/**
+	 * Check if woocomerce DB needs to be updated.
+	 *
+	 * @return bool true|false.
+	 */
+	public function check_db_update() {
 		if ( version_compare( get_option( 'woocommerce_db_version' ), WC_VERSION, '<' ) ) {
 			return true;
 		}
 		return false;
 	}
 
-    /**
-     * Get Woocommerce data.
-     *
-     * @param $start_date Start Date.
-     * @param $end_date End Date.
-     * @return array $information Woocommerce data grabed.
-     */
-    public function get_woocom_data($start_date, $end_date ) {
+	/**
+	 * Get Woocommerce data.
+	 *
+	 * @param $start_date Start Date.
+	 * @param $end_date End Date.
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function get_woocom_data( $start_date, $end_date ) {
 		global $wpdb;
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
@@ -420,12 +421,12 @@ class MainWP_Child_WooCommerce_Status {
 		return $information;
 	}
 
-    /**
-     * Update Woocommerce Database.
-     *
-     * @return string[] Success.
-     */
-    private static function update_wc_db() {
+	/**
+	 * Update Woocommerce Database.
+	 *
+	 * @return string[] Success.
+	 */
+	private static function update_wc_db() {
 		include_once WC()->plugin_path() . '/includes/class-wc-background-updater.php';
 		$background_updater = new WC_Background_Updater();
 
