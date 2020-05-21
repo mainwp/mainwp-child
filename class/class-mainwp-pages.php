@@ -1,30 +1,64 @@
 <?php
+/**
+ * MainWP Child Plugin Pages
+ *
+ * This file handles all the pages & subpages for the
+ *  MainWP Child Plugin.
+ */
 
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Pages
+ *
+ * @package MainWP\Child
+ */
 class MainWP_Pages {
 
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Child_Install.
+	 */
 	protected static $instance = null;
 
+	/**
+	 * @static
+	 * @var array MainWP Child Plugin subppages.
+	 */
 	public static $subPages;
+
+	/**
+	 * Whether or not MainWP Child Plugin subpages should be loaded. Default: false.
+	 *
+	 * @var bool true|false.
+	 */
 	public static $subPagesLoaded = false;
 
+	/**
+	 * @var null Branding Title.
+	 */
 	public static $brandingTitle = null;
 
 	/**
-	 * Method get_class_name()
-	 *
 	 * Get Class Name.
 	 *
-	 * @return object
+	 * @return string Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * MainWP_Pages constructor.
+	 */
 	public function __construct() {
 	}
 
+	/**
+	 * Create public static instance of MainWP_Pages.
+	 *
+	 * @return MainWP_Pages|null
+	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -33,6 +67,9 @@ class MainWP_Pages {
 		return self::$instance;
 	}
 
+	/**
+	 * Set up constants with default values, unless user overrides.
+	 */
 	public function init() {
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 		add_action( 'admin_head', array( &$this, 'admin_head' ) );
@@ -41,6 +78,13 @@ class MainWP_Pages {
 	}
 
 
+	/**
+	 * MainWP Child Plugin Admin Notice
+	 *
+	 * This notice is displayed immediately after installation or disconnection.
+	 *
+	 * @return string Admin message html.
+	 */
 	public function admin_notice() {
 		// Admin Notice...
 		if ( ! get_option( 'mainwp_child_pubkey' ) && MainWP_Helper::is_admin() && is_admin() ) {
@@ -67,6 +111,11 @@ class MainWP_Pages {
 		MainWP_Child_Server_Information_Render::render_warnings();
 	}
 
+	/**
+	 * Admin menu settings.
+	 *
+	 * Add and remove Admin Menu Items dependant upon Branding settings.
+	 */
 	public function admin_menu() {
 		$branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
 		$is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
@@ -119,6 +168,11 @@ class MainWP_Pages {
 		}
 	}
 
+	/**
+	 * Initiate MainWP Child Plugin pages.
+	 *
+	 * @param $child_menu_title New MainWP Child Plugin title defined in branding settings.
+	 */
 	private function init_pages( $child_menu_title ) {
 
 		$settingsPage = add_submenu_page( 'options-general.php', $child_menu_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
@@ -178,6 +232,13 @@ class MainWP_Pages {
 		}
 	}
 
+	/**
+	 * MainWP Child Plugin meta data.
+	 *
+	 * @param $plugin_meta Plugin meta.
+	 * @param $plugin_file Plugin file.
+	 * @return mixed The filtered value after all hooked functions are applied to it.
+	 */
 	public function plugin_row_meta( $plugin_meta, $plugin_file ) {
 		global $mainWPChild;
 		if ( $mainWPChild->plugin_slug !== $plugin_file ) {
@@ -186,6 +247,12 @@ class MainWP_Pages {
 		return apply_filters( 'mainwp_child_plugin_row_meta', $plugin_meta, $plugin_file, $mainWPChild->plugin_slug );
 	}
 
+	/**
+	 * Render MainWP Child Plugin pages.
+	 *
+	 * @param $shownPage Page that has been shown.
+	 * @return string Page html.
+	 */
 	public function render_pages( $shownPage ) {
 		$shownPage = '';
 		if ( isset( $_GET['tab'] ) ) {
@@ -258,6 +325,13 @@ class MainWP_Pages {
 		self::render_footer();
 	}
 
+	/**
+	 * Render page header.
+	 *
+	 * @param $shownPage Page shown.
+	 * @param bool                 $subpage Whether or not a subpage. Default: true.
+	 * @return string Header html.
+	 */
 	public static function render_header( $shownPage, $subpage = true ) {
 		if ( isset( $_GET['tab'] ) ) {
 			$shownPage = $_GET['tab'];
@@ -413,6 +487,11 @@ class MainWP_Pages {
 		<?php
 	}
 
+	/**
+	 * Render page footer.
+	 *
+	 * @return string Footer html.
+	 */
 	public static function render_footer() {
 		?>
 		</div>
@@ -420,7 +499,11 @@ class MainWP_Pages {
 		<?php
 	}
 
-
+	/**
+	 * Render Admin Header.
+	 *
+	 * @return string Admin header html.
+	 */
 	public function admin_head() {
 		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) {
 			?>
@@ -448,6 +531,12 @@ class MainWP_Pages {
 			<?php
 		}
 	}
+
+	/**
+	 * Render Connection Settings Sub Page.
+	 *
+	 * @return Connection Settings subpage html.
+	 */
 	public function render_settings() {
 		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( $_POST['nonce'], 'child-settings' ) ) {
 			if ( isset( $_POST['requireUniqueSecurityId'] ) ) {

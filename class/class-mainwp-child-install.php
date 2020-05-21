@@ -18,7 +18,6 @@ class MainWP_Child_Install {
 	 */
 	protected static $instance = null;
 
-
 	/**
 	 * Get Class Name.
 	 *
@@ -98,6 +97,11 @@ class MainWP_Child_Install {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Delete a plugin from the Child Site.
+	 *
+	 * @param array $plugins An array of plugins to delete.
+	 */
 	private function delete_plugins( $plugins ) {
 		global $mainWPChild;
 		include_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -209,7 +213,6 @@ class MainWP_Child_Install {
 		MainWP_Helper::write( $information );
 	}
 
-
 	/**
 	 * Plugin & Theme Installation functions.
 	 *
@@ -274,6 +277,9 @@ class MainWP_Child_Install {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Include necessary files.
+	 */
 	private function require_files() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
@@ -284,6 +290,11 @@ class MainWP_Child_Install {
 		include_once ABSPATH . '/wp-admin/includes/plugin.php';
 	}
 
+	/**
+	 * After plugin or theme has been installed.
+	 *
+	 * @param $result Results array from self::install_plugin_theme
+	 */
 	private function after_installed( $result ) {
 		$args = array(
 			'success' => 1,
@@ -329,6 +340,13 @@ class MainWP_Child_Install {
 		}
 	}
 
+	/**
+	 * Alternative installation method.
+	 *
+	 * @param $url Package URL.
+	 * @param $installer  Instance of \WP_Upgrader
+	 * @return mixed $result Return error messages or TRUE.
+	 */
 	private function try_second_install( $url, $installer ) {
 		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'no_ssl_filter_function' ), 99, 2 );
 		$result = $installer->run(

@@ -1,5 +1,10 @@
 <?php
 /**
+ * MainWP Child Plugin
+ *
+ * Provides a secure connection between your MainWP Dashboard and your WordPress sites.
+ */
+/**
  * Plugin Name: MainWP Child
  * Plugin URI: https://mainwp.com/
  * Description: Provides a secure connection between your MainWP Dashboard and your WordPress sites. MainWP allows you to manage WP sites from one central location. Plugin documentation and options can be found here https://mainwp.com/help/
@@ -10,24 +15,42 @@
  */
 require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress.
 
+/**
+ * Define MainWP Child Plugin Debug Mode. Default: true.
+ */
 define( 'MAINWP_CHILD_DEBUG', true );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
+	/**
+	 * Define MainWP Child Plugin absolute full path and filename of this file.
+	 */
 	define( 'MAINWP_CHILD_FILE', __FILE__ );
 }
 
 if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
+	/**
+	 * Define MainWP Child Plugin Directory.
+	 */
 	define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
 }
 
 if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
+	/**
+	 * Define MainWP Child Plugin URL.
+	 */
 	define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
 }
 
+/**
+ * MainWP Child Plugin Autoloader to load
+ *  all other class files.
+ *
+ * @param $class_name Name of file to load.
+ */
 function mainwp_child_autoload( $class_name ) {
 
 	if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
-		// trip the namespace prefix: MainWP\Child\ .
+		// strip the namespace prefix: MainWP\Child\ .
 		$class_name = substr( $class_name, 13 );
 	}
 
