@@ -996,7 +996,7 @@ class MainWP_Child_Posts {
 			}
 		}
 	}
-	
+
 	private function post_plus_update_categories( $new_post_id, $post_custom ) {
 		$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
 		$random_category = is_array( $random_category ) ? current( $random_category ) : null;
