@@ -10,24 +10,42 @@
  */
 require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress.
 
+/**
+ * Define MainWP Child Plugin Debug Mode. Default: true.
+ */
 define( 'MAINWP_CHILD_DEBUG', true );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
-	define( 'MAINWP_CHILD_FILE', __FILE__ );
+    /**
+     * Define MainWP Child Plugin absolute full path and filename of this file.
+     */
+    define( 'MAINWP_CHILD_FILE', __FILE__ );
 }
 
 if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
-	define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
+    /**
+     * Define MainWP Child Plugin Directory.
+     */
+    define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
 }
 
 if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
-	define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
+    /**
+     * Define MainWP Child Plugin URL.
+     */
+    define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
 }
 
-function mainwp_child_autoload( $class_name ) {
+/**
+ * MainWP Child Plugin Autoloader to load
+ *  all other class files.
+ *
+ * @param $class_name Name of file to load.
+ */
+function mainwp_child_autoload($class_name ) {
 
 	if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
-		// trip the namespace prefix: MainWP\Child\ .
+		// strip the namespace prefix: MainWP\Child\ .
 		$class_name = substr( $class_name, 13 );
 	}
 
