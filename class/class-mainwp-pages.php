@@ -173,7 +173,7 @@ class MainWP_Pages {
 	 *
 	 * @param $child_menu_title New MainWP Child Plugin title defined in branding settings.
 	 * @param $child_page_title New MainWP Child Plugin page title defined in branding settings.
-	 */	
+	 */
 	private function init_pages( $child_menu_title, $child_page_title ) {
 
 		$settingsPage = add_submenu_page( 'options-general.php', $child_page_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
