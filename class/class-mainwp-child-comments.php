@@ -184,7 +184,7 @@ class MainWP_Child_Comments {
 	 * @return array $allComments Array of all comments found.
 	 */
 	public function get_recent_comments( $pAllowedStatuses, $pCount ) {
-		if ( ! function_exists( 'get_comment_author_url' ) ) {
+		if ( ! function_exists( '\get_comment_author_url' ) ) {
 			include_once WPINC . '/comment-template.php';
 		}
 		$allComments = array();

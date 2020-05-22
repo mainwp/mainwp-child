@@ -577,8 +577,8 @@ class MainWP_Child_Updates {
 				} elseif ( 'upgrade' === $core_update->response && get_locale() === $core_update->locale && version_compare( $wp_version, $core_update->current, '<=' ) ) {
 					// Upgrade!
 					$upgrade = false;
-					if ( class_exists( 'Core_Upgrader' ) ) {
-						$core    = new Core_Upgrader();
+					if ( class_exists( '\Core_Upgrader' ) ) {
+						$core    = new \Core_Upgrader();
 						$upgrade = $core->upgrade( $core_update );
 					}
 					// If this does not work - add code from /wp-admin/includes/class-wp-upgrader.php in the newer versions.
@@ -599,8 +599,8 @@ class MainWP_Child_Updates {
 					if ( 'upgrade' === $core_update->response && version_compare( $wp_version, $core_update->current, '<=' ) ) {
 						// Upgrade!
 						$upgrade = false;
-						if ( class_exists( 'Core_Upgrader' ) ) {
-							$core    = new Core_Upgrader();
+						if ( class_exists( '\Core_Upgrader' ) ) {
+							$core    = new \Core_Upgrader();
 							$upgrade = $core->upgrade( $core_update );
 						}
 						// If this does not work - add code from /wp-admin/includes/class-wp-upgrader.php in the newer versions

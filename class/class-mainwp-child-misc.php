@@ -47,8 +47,8 @@ class MainWP_Child_Misc {
 			$site_url .= '/';
 		}
 
-		if ( function_exists( 'get_site_icon_url' ) && has_site_icon() ) {
-			$favi     = get_site_icon_url();
+		if ( function_exists( '\get_site_icon_url' ) && \has_site_icon() ) {
+			$favi     = \get_site_icon_url();
 			$favi_url = $favi;
 		}
 

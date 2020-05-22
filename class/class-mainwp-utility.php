@@ -236,6 +236,16 @@ class MainWP_Utility {
 <br>';
 	}
 
+	/**	 
+	* Handle fatal errors and compile errors.	 	 
+	*/
+   public static function handle_shutdown() {
+		// handle fatal errors and compile errors.
+		$error = error_get_last();		
+		if ( isset( $error['type'] ) && isset( $error['message'] ) && ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] ) ) {
+			MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+		}
+	}
 
 	/**
 	 * Handle fatal error for requests from the dashboard
@@ -243,18 +253,9 @@ class MainWP_Utility {
 	 * wordpress_seo requests
 	 * This will do not handle fatal error for sync request from the dashboard
 	 */
-	public static function handle_fatal_error() {
-
-		function handle_shutdown() {
-			// handle fatal errors and compile errors.
-			$error = error_get_last();
-			if ( isset( $error['type'] ) && isset( $error['message'] ) && ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] ) ) {
-				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
-			}
-		}
-
+	public static function handle_fatal_error() {		
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
-			register_shutdown_function( 'handle_shutdown' );
+			register_shutdown_function( 'MainWP\Child\MainWP_Utility::handle_shutdown' );
 		}
 	}
 

@@ -6,7 +6,7 @@
  */
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom functions.
+// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom file's functions.
 
 /**
  * Class MainWP_Clone_Install

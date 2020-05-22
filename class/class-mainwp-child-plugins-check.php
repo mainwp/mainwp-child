@@ -179,7 +179,7 @@ class MainWP_Child_Plugins_Check {
 		if ( ! is_array( $plugins_outdate ) ) {
 			$plugins_outdate = array();
 		}
-		if ( ! function_exists( 'get_plugins' ) ) {
+		if ( ! function_exists( '\get_plugins' ) ) {
 			require_once ABSPATH . '/wp-admin/includes/plugin.php';
 		}
 		$plugins = get_plugins();
@@ -218,7 +218,7 @@ class MainWP_Child_Plugins_Check {
 	 * @throws \Exception Error message on failure.
 	 */
 	public function run_check() {
-		if ( ! function_exists( 'get_plugins' ) ) {
+		if ( ! function_exists( '\get_plugins' ) ) {
 			require_once ABSPATH . '/wp-admin/includes/plugin.php';
 		}
 

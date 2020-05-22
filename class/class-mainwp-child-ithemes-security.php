@@ -1171,7 +1171,7 @@ class MainWP_Child_IThemes_Security {
 		if ( is_callable( 'wp_roles' ) ) {
 			$roles = wp_roles();
 		} else {
-			$roles = new WP_Roles();
+			$roles = new \WP_Roles();
 		}
 
 		$available_roles = array();

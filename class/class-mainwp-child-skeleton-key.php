@@ -59,8 +59,8 @@ class MainWP_Child_Skeleton_Key {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 		}
-
-		register_shutdown_function( 'mainwp_skeleton_key_handle_fatal_error' );
+		
+		register_shutdown_function( 'MainWP\Child\MainWP_Child_Skeleton_Key\mainwp_skeleton_key_handle_fatal_error' );
 
 		switch ( $_POST['action'] ) {
 			case 'skeleton_key_visit_site_as_browser':
@@ -100,7 +100,7 @@ class MainWP_Child_Skeleton_Key {
 		$url = '/' . $_POST['url'];
 
 		$expiration = time() + 600;
-		$manager    = WP_Session_Tokens::get_instance( $current_user->ID );
+		$manager    = \WP_Session_Tokens::get_instance( $current_user->ID );
 		$token      = $manager->create( $expiration );
 
 		$secure = is_ssl();
@@ -120,13 +120,13 @@ class MainWP_Child_Skeleton_Key {
 		$post_args['redirection']     = 5;
 		$post_args['decompress']      = false;
 		$post_args['cookies']         = array(
-			new WP_Http_Cookie(
+			new \WP_Http_Cookie(
 				array(
 					'name'  => $auth_cookie_name,
 					'value' => $auth_cookie,
 				)
 			),
-			new WP_Http_Cookie(
+			new \WP_Http_Cookie(
 				array(
 					'name'  => LOGGED_IN_COOKIE,
 					'value' => $logged_in_cookie,

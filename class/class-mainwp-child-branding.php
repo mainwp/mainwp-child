@@ -1049,7 +1049,7 @@ class MainWP_Child_Branding {
 			return;
 		}
 
-		if ( ! function_exists( 'get_plugin_updates' ) ) {
+		if ( ! function_exists( '\get_plugin_updates' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/update.php';
 		}
 

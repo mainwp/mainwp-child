@@ -101,10 +101,10 @@ class MainWP_Child_Themes_Check {
 		if ( ! is_array( $themes_outdate ) ) {
 			$themes_outdate = array();
 		}
-		if ( ! function_exists( 'wp_get_themes' ) ) {
+		if ( ! function_exists( '\wp_get_themes' ) ) {
 			require_once ABSPATH . '/wp-admin/includes/theme.php';
 		}
-		$themes = wp_get_themes();
+		$themes = \wp_get_themes();
 		$update = false;
 		foreach ( $themes_outdate as $slug => $v ) {
 			if ( ! isset( $themes[ $slug ] ) ) {
@@ -120,7 +120,7 @@ class MainWP_Child_Themes_Check {
 	}
 
 	public function run_check() {
-		if ( ! function_exists( 'wp_get_themes' ) ) {
+		if ( ! function_exists( '\wp_get_themes' ) ) {
 			require_once ABSPATH . '/wp-admin/includes/theme.php';
 		}
 
@@ -135,7 +135,7 @@ class MainWP_Child_Themes_Check {
 		// If there wasn't a previous cache.
 		if ( false === $all_themes || ! is_array( $all_themes ) ) {
 			$all_themes = array();
-			$themes     = wp_get_themes();
+			$themes     = \wp_get_themes();
 			if ( is_array( $themes ) ) {
 				foreach ( $themes as $theme ) {
 					$slug                = $theme->get_stylesheet();

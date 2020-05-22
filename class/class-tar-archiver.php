@@ -1,6 +1,6 @@
 <?php
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- custom read/write file, third party credit.
+// phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom read/write files, complex tar archiver library.
 
 namespace MainWP\Child;
 
@@ -306,7 +306,7 @@ class Tar_Archiver {
 			$this->add_file( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
 		}
 
-		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST, RecursiveIteratorIterator::CATCH_GET_CHILD );
+		$iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
 
 		/** @var $path DirectoryIterator */
 		foreach ( $iterator as $path ) {

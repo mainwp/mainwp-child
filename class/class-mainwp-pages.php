@@ -178,7 +178,7 @@ class MainWP_Pages {
 
 		$settingsPage = add_submenu_page( 'options-general.php', $child_page_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
 
-		add_action( 'admin_print_scripts-' . $settingsPage, array( MainWP_Clone::get_class_name(), 'print_scripts' ) );
+		add_action( 'admin_print_scripts-' . $settingsPage, array( MainWP_Clone_Page::get_class_name(), 'print_scripts' ) );
 		$subpageargs = array(
 			'child_slug'  => 'options-general.php',
 			'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
@@ -292,13 +292,13 @@ class MainWP_Pages {
 			<div class="mainwp-child-setting-tab restore-clone" <?php echo ( 'restore-clone' !== $shownPage ) ? $hide_style : ''; ?>>
 				<?php
 				if ( isset( $_SESSION['file'] ) ) {
-					MainWP_Clone::render_restore();
+					MainWP_Clone_Page::render_restore();
 				} else {
 					$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 					if ( 0 !== (int) $sitesToClone ) {
-						MainWP_Clone::render();
+						MainWP_Clone_Page::render();
 					} else {
-						MainWP_Clone::render_normal_restore();
+						MainWP_Clone_Page::render_normal_restore();
 					}
 				}
 				?>
