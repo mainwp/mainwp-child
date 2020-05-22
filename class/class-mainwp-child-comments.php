@@ -1,28 +1,50 @@
 <?php
-
+/**
+ * MainWP Child Comments
+ *
+ * This file handles all Child Site comment actions.
+ */
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Child_Comments
+ *
+ * @package MainWP\Child
+ */
 class MainWP_Child_Comments {
 
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Child_Comments.
+	 */
 	protected static $instance = null;
 
+	/**
+	 * @var string
+	 */
 	private $comments_and_clauses;
 
 	/**
-	 * Method get_class_name()
-	 *
 	 * Get Class Name.
 	 *
-	 * @return object
+	 * @return string
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * MainWP_Child_Comments constructor.
+	 */
 	public function __construct() {
 		$this->comments_and_clauses = '';
 	}
 
+	/**
+	 * Create a public static instance of ainWP_Child_Comments.
+	 *
+	 * @return MainWP_Child_Comments|null
+	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -30,6 +52,9 @@ class MainWP_Child_Comments {
 		return self::$instance;
 	}
 
+	/**
+	 * MainWP Child Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
+	 */
 	public function comment_action() {
 		$action    = $_POST['action'];
 		$commentId = $_POST['id'];
@@ -59,6 +84,9 @@ class MainWP_Child_Comments {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * MainWP Child Bulk Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
+	 */
 	public function comment_bulk_action() {
 		$action                 = $_POST['action'];
 		$commentIds             = explode( ',', $_POST['ids'] );
@@ -89,6 +117,12 @@ class MainWP_Child_Comments {
 	}
 
 
+	/**
+	 * Comment WHERE Clauses.
+	 *
+	 * @param $clauses MySQL WHERE Clause.
+	 * @return array $clauses, Array of MySQL WHERE Clauses.
+	 */
 	public function comments_clauses( $clauses ) {
 		if ( $this->comments_and_clauses ) {
 			$clauses['where'] .= ' ' . $this->comments_and_clauses;
@@ -97,7 +131,14 @@ class MainWP_Child_Comments {
 		return $clauses;
 	}
 
+	/**
+	 * Get all comments.
+	 *
+	 * @return array $rslt Array of comments.
+	 */
 	public function get_all_comments() {
+
+		/** @var global $wbdb wpdb. */
 		global $wpdb;
 
 		add_filter( 'comments_clauses', array( &$this, 'comments_clauses' ) );
@@ -135,6 +176,13 @@ class MainWP_Child_Comments {
 		MainWP_Helper::write( $rslt );
 	}
 
+	/**
+	 * Get recent comments.
+	 *
+	 * @param $pAllowedStatuses Allowed comment statuses.
+	 * @param $pCount Comment count.
+	 * @return array $allComments Array of all comments found.
+	 */
 	public function get_recent_comments( $pAllowedStatuses, $pCount ) {
 		if ( ! function_exists( 'get_comment_author_url' ) ) {
 			include_once WPINC . '/comment-template.php';
