@@ -24,7 +24,6 @@ class MainWP_Child_Branding_Render {
 	}
 
 	public function __construct() {
-
 	}
 
 	public function admin_head_hide_elements() {
@@ -150,9 +149,9 @@ class MainWP_Child_Branding_Render {
 		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>
 		<?php
 	}
-	
+
 	public function send_support_mail() {
-		$opts = MainWP_Child_Branding::instance()->get_branding_options();
+		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
 		$email   = $opts['support_email'];
 		$sub     = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
 		$from    = trim( $_POST['mainwp_branding_contact_send_from'] );
@@ -178,7 +177,7 @@ class MainWP_Child_Branding_Render {
 		}
 		return false;
 	}
-	
+
 	public function after_admin_bar_render() {
 		$hide_slugs = apply_filters( 'mainwp_child_hide_update_notice', array() );
 
