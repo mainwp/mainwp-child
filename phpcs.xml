@@ -38,8 +38,8 @@
 	<!-- Checks the cyclomatic complexity for functions. -->
 	<rule ref="Generic.Metrics.CyclomaticComplexity">
 		<properties>
-			<property name="complexity" value="30" />
-			<property name="absoluteComplexity" value="45" />
+			<property name="complexity" value="55" />
+			<property name="absoluteComplexity" value="75" />
 		</properties>
 	</rule>
 	
