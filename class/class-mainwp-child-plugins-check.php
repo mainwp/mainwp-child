@@ -11,17 +11,49 @@
 
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Child_Plugins_Check
+ * @package MainWP\Child
+ */
 class MainWP_Child_Plugins_Check {
-	public static $instance = null;
 
-	private $cron_name_watcher           = 'mainwp_child_cron_plugin_health_check_watcher';
-	private $cron_name_daily             = 'mainwp_child_cron_plugin_health_check_daily';
-	private $cron_name_batching          = 'mainwp_child_cron_plugin_health_check_batching';
-	private $tran_name_plugin_timestamps = 'mainwp_child_tran_name_plugin_timestamps';
-	private $tran_name_plugins_to_batch  = 'mainwp_child_tran_name_plugins_to_batch';
-	private $option_name_last_daily_run  = 'mainwp_child_plugin_last_daily_run';
+    /**
+     * @var string
+     */
+    private $cron_name_watcher           = 'mainwp_child_cron_plugin_health_check_watcher';
+    /**
+     * @var string
+     */
+    private $cron_name_daily             = 'mainwp_child_cron_plugin_health_check_daily';
+    /**
+     * @var string
+     */
+    private $cron_name_batching          = 'mainwp_child_cron_plugin_health_check_batching';
+    /**
+     * @var string
+     */
+    private $tran_name_plugin_timestamps = 'mainwp_child_tran_name_plugin_timestamps';
+    /**
+     * @var string
+     */
+    private $tran_name_plugins_to_batch  = 'mainwp_child_tran_name_plugins_to_batch';
+    /**
+     * @var string
+     */
+    private $option_name_last_daily_run  = 'mainwp_child_plugin_last_daily_run';
 
-	public static function instance() {
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_Plugins_Check.
+     */
+    public static $instance = null;
+
+    /**
+     * Create a public static instance of MainWP_Child_Plugins_Check.
+     *
+     * @return MainWP_Child_Plugins_Check|null
+     */
+    public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -29,7 +61,10 @@ class MainWP_Child_Plugins_Check {
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_Plugins_Check constructor.
+     */
+    public function __construct() {
 		if ( get_option( 'mainwp_child_plugintheme_days_outdate' ) ) {
 			$this->schedule_watchdog();
 
@@ -41,14 +76,29 @@ class MainWP_Child_Plugins_Check {
 		}
 	}
 
-	private function cleanup_basic() {
+    /**
+     * Un-schedules all events attached to the hook with the specified arguments.
+     *
+     * @return int|false|bool On success an integer indicating number of events un-scheduled
+     *  (0 indicates no events were registered with the hook and arguments combination),
+     *  false if un-scheduling one or more events fail.
+     */
+    private function cleanup_basic() {
 		wp_clear_scheduled_hook( $this->cron_name_daily );
 		wp_clear_scheduled_hook( $this->cron_name_batching );
 		delete_transient( $this->tran_name_plugins_to_batch );
 	}
 
 
-	public function cleanup_deactivation( $del = true ) {
+    /**
+     * Un-schedules all events attached to the hook with the specified arguments.
+     *
+     * @param bool $del Whether or not to delete the transient data. Default: true.
+     * @return int|false|bool On success an integer indicating number of events un-scheduled
+     *  (0 indicates no events were registered with the hook and arguments combination),
+     *  false if un-scheduling one or more events fail.
+     */
+    public function cleanup_deactivation($del = true ) {
 		$this->cleanup_basic();
 		wp_clear_scheduled_hook( $this->cron_name_watcher );
 		delete_option( $this->option_name_last_daily_run );
@@ -57,8 +107,14 @@ class MainWP_Child_Plugins_Check {
 		}
 	}
 
-
-	public function modify_plugin_api_search_query( $args, $action ) {
+    /**
+     * Modify plugin API Search Query.
+     *
+     * @param object $args Query arguments.
+     * @param string $action Action to perform: query_plugins.
+     * @return \stdClass $args Modified Search Query.
+     */
+    public function modify_plugin_api_search_query($args, $action ) {
 		if ( isset( $action ) && 'query_plugins' === $action ) {
 
 			if ( ! is_object( $args ) ) {
@@ -75,7 +131,12 @@ class MainWP_Child_Plugins_Check {
 		return $args;
 	}
 
-	public function perform_watchdog() {
+    /**
+     * Schedule watchdog crons.
+     *
+     * @throws \Exception Error message on failure.
+     */
+    public function perform_watchdog() {
 		if ( false === wp_next_scheduled( $this->cron_name_daily ) && false === wp_next_scheduled( $this->cron_name_batching ) ) {
 			$last_run = get_option( $this->option_name_last_daily_run );
 
@@ -98,14 +159,21 @@ class MainWP_Child_Plugins_Check {
 		}
 	}
 
-	public function schedule_watchdog() {
-		// Schedule a global watching cron just in case both other crons get killed.
+    /**
+     * Schedule a global watchdog cron just in case both other crons get killed.
+     */
+    public function schedule_watchdog() {
 		if ( ! wp_next_scheduled( $this->cron_name_watcher ) ) {
 			wp_schedule_event( time(), 'hourly', $this->cron_name_watcher );
 		}
 	}
 
-	public function get_plugins_outdate_info() {
+    /**
+     * Get plugins outdated info.
+     *
+     * @return array $plugins_outdate Array of outdated plugin info.
+     */
+    public function get_plugins_outdate_info() {
 		$plugins_outdate = get_transient( $this->tran_name_plugin_timestamps );
 		if ( ! is_array( $plugins_outdate ) ) {
 			$plugins_outdate = array();
@@ -128,7 +196,10 @@ class MainWP_Child_Plugins_Check {
 		return $plugins_outdate;
 	}
 
-	public static function may_outdate_number_change() {
+    /**
+     * Update Days out of date option.
+     */
+    public static function may_outdate_number_change() {
 		if ( isset( $_POST['numberdaysOutdatePluginTheme'] ) ) {
 			$days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 			if ( $days_outdate != $_POST['numberdaysOutdatePluginTheme'] ) {
@@ -140,7 +211,12 @@ class MainWP_Child_Plugins_Check {
 		}
 	}
 
-	public function run_check() {
+    /**
+     * Run plugin update check.
+     *
+     * @throws \Exception Error message on failure.
+     */
+    public function run_check() {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . '/wp-admin/includes/plugin.php';
 		}
@@ -174,6 +250,7 @@ class MainWP_Child_Plugins_Check {
 		}
 
 		$avoid_plugins = array( 'sitepress-multilingual-cms/sitepress.php' );
+
 		// Grab a small number of plugins to scan.
 		$plugins_to_scan   = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
 		$tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
@@ -229,10 +306,19 @@ class MainWP_Child_Plugins_Check {
 		}
 	}
 
-	private function try_get_response_body( $plugin, $second_pass ) {
+    /**
+     * Try to get response body.
+     *
+     * @param $plugin
+     * @param $second_pass
+     * @return bool|string true|false The body of the response. Empty string if no body or incorrect parameter given.
+     */
+    private function try_get_response_body($plugin, $second_pass ) {
+
 		// Get the WordPress current version to be polite in the API call.
 		include ABSPATH . WPINC . '/version.php';
 
+		/** @var global $wp_version WordPress Version.  */
 		global $wp_version;
 
 		// General options to be passed to wp_remote_get.
