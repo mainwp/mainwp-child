@@ -10,15 +10,16 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Clone_Install
+ *
  * @package MainWP\Child
  */
 class MainWP_Clone_Install {
 
-    /** @var string The zip backup file path. */
-    protected $file;
+	/** @var string The zip backup file path. */
+	protected $file;
 
-    /** @var array Clone config settings. */
-    public $config;
+	/** @var array Clone config settings. */
+	public $config;
 
 	/** @var $archiver Tar_Archiver */
 	protected $archiver;
@@ -61,21 +62,21 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-    /**
-     * Check if unzip_file function exists.
-     *
-     * @return bool true|false.
-     */
-    public function check_wp_zip() {
+	/**
+	 * Check if unzip_file function exists.
+	 *
+	 * @return bool true|false.
+	 */
+	public function check_wp_zip() {
 		return function_exists( 'unzip_file' );
 	}
 
-    /**
-     * Remove wp-config.php file.
-     *
-     * @return bool true|false.
-     */
-    public function remove_config_file() {
+	/**
+	 * Remove wp-config.php file.
+	 *
+	 * @return bool true|false.
+	 */
+	public function remove_config_file() {
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
 			return false;
 		}
@@ -110,12 +111,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-    /**
-     * Test the download.
-     *
-     * @throws \Exception Error message.
-     */
-    public function test_download() {
+	/**
+	 * Test the download.
+	 *
+	 * @throws \Exception Error message.
+	 */
+	public function test_download() {
 		if ( ! $this->file_exists( 'wp-content/' ) ) {
 			throw new \Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
@@ -127,13 +128,13 @@ class MainWP_Clone_Install {
 		}
 	}
 
-    /**
-     * Check if clone config.txt exists.
-     *
-     * @param $file Config.txt file path.
-     * @return bool|string False or True on success. Return config.txt content on true.
-     */
-    private function file_exists($file ) {
+	/**
+	 * Check if clone config.txt exists.
+	 *
+	 * @param $file Config.txt file path.
+	 * @return bool|string False or True on success. Return config.txt content on true.
+	 */
+	private function file_exists( $file ) {
 		if ( 'extracted' === $this->file ) {
 			return file_get_contents( '../clone/config.txt' );
 		}
@@ -168,12 +169,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-    /**
-     * Read configuration file.
-     *
-     * @throws \Exception Error message on failure.
-     */
-    public function read_configuration_file() {
+	/**
+	 * Read configuration file.
+	 *
+	 * @throws \Exception Error message on failure.
+	 */
+	public function read_configuration_file() {
 		$configContents = $this->get_config_contents();
 		if ( false === $configContents ) {
 			throw new \Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
@@ -192,10 +193,10 @@ class MainWP_Clone_Install {
 		}
 	}
 
-    /**
-     * Clean file structure after installation.
-     */
-    public function clean() {
+	/**
+	 * Clean file structure after installation.
+	 */
+	public function clean() {
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
 			unlink( $file );
@@ -222,10 +223,10 @@ class MainWP_Clone_Install {
 		}
 	}
 
-    /**
-     * Update wp-config.php file.
-     */
-    public function update_wp_config() {
+	/**
+	 * Update wp-config.php file.
+	 */
+	public function update_wp_config() {
 		$wpConfig = file_get_contents( ABSPATH . 'wp-config.php' );
 		$wpConfig = $this->replace_var( 'table_prefix', $this->config['prefix'], $wpConfig );
 		if ( isset( $this->config['lang'] ) ) {
@@ -234,13 +235,13 @@ class MainWP_Clone_Install {
 		file_put_contents( ABSPATH . 'wp-config.php', $wpConfig );
 	}
 
-    /**
-     * Update DB options.
-     *
-     * @param $name Option name.
-     * @param $value Option value to update.
-     */
-    public function update_option($name, $value ) {
+	/**
+	 * Update DB options.
+	 *
+	 * @param $name Option name.
+	 * @param $value Option value to update.
+	 */
+	public function update_option( $name, $value ) {
 
 		/** @var $wpdb wpdb */
 		global $wpdb;
@@ -253,13 +254,13 @@ class MainWP_Clone_Install {
 		}
 	}
 
-    /**
-     * Database Installation.
-     *
-     * @return bool true|false.
-     * @throws \Exception Error message on failure.
-     */
-    public function install() {
+	/**
+	 * Database Installation.
+	 *
+	 * @return bool true|false.
+	 * @throws \Exception Error message on failure.
+	 */
+	public function install() {
 
 		/** @var $wpdb wpdb */
 		global $wpdb;
@@ -332,12 +333,12 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-    /**
-     * Get config contents.
-     *
-     * @return bool|false|mixed|string
-     */
-    public function get_config_contents() {
+	/**
+	 * Get config contents.
+	 *
+	 * @return bool|false|mixed|string
+	 */
+	public function get_config_contents() {
 		if ( 'extracted' === $this->file ) {
 			return file_get_contents( '../clone/config.txt' );
 		}
@@ -382,12 +383,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-    /**
-     * Extract backup file.
-     *
-     * @return bool|null true or null.
-     * @throws \Exception Error message on failure.
-     */
+	/**
+	 * Extract backup file.
+	 *
+	 * @return bool|null true or null.
+	 * @throws \Exception Error message on failure.
+	 */
 	public function extract_backup() {
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
 			return false;
@@ -429,12 +430,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-    /**
-     * Extract with unzip_file.
-     *
-     * @return bool true|false.
-     */
-    public function extract_wp_zip_backup() {
+	/**
+	 * Extract with unzip_file.
+	 *
+	 * @return bool true|false.
+	 */
+	public function extract_wp_zip_backup() {
 		MainWP_Helper::get_wp_filesystem();
 		global $wp_filesystem;
 
@@ -450,13 +451,13 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-    /**
-     * Extract PCLZIP.
-     *
-     * @return bool true|false.
-     * @throws \Exception Error on failure.
-     */
-    public function extract_zip_pcl_backup() {
+	/**
+	 * Extract PCLZIP.
+	 *
+	 * @return bool true|false.
+	 * @throws \Exception Error on failure.
+	 */
+	public function extract_zip_pcl_backup() {
 		$zip = new \PclZip( $this->file );
 		if ( 0 === $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
 			return false;
@@ -503,13 +504,13 @@ class MainWP_Clone_Install {
 		return preg_replace( '/(\$' . $varname . ' *= *[\'"])(.*?)([\'"] *;)/is', '${1}' . $value . '${3}', $content );
 	}
 
-    /**
-     * Recursively chmod file structure.
-     *
-     * @param $mypath Path to files.
-     * @param $arg chmod arguments.
-     */
-    public function recurse_chmod($mypath, $arg ) {
+	/**
+	 * Recursively chmod file structure.
+	 *
+	 * @param $mypath Path to files.
+	 * @param $arg chmod arguments.
+	 */
+	public function recurse_chmod( $mypath, $arg ) {
 		$d = opendir( $mypath );
 		while ( ( $file = readdir( $d ) ) !== false ) {
 			if ( '.' !== $file && '..' !== $file ) {
@@ -686,12 +687,12 @@ class MainWP_Clone_Install {
 		return $data;
 	}
 
-    /**
-     * Request clone.
-     *
-     * @return bool|void true|void.
-     */
-    public function request_clone_funct() {
+	/**
+	 * Request clone.
+	 *
+	 * @return bool|void true|void.
+	 */
+	public function request_clone_funct() {
 
 		if ( ! isset( $_REQUEST['key'] ) ) {
 			return;
@@ -738,10 +739,10 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-    /**
-     * Create backup of clone.
-     */
-    private function create_clone_backup() {
+	/**
+	 * Create backup of clone.
+	 */
+	private function create_clone_backup() {
 		MainWP_Helper::end_session();
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {

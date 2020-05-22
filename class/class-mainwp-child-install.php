@@ -279,10 +279,10 @@ class MainWP_Child_Install {
 
 	/**
 	 * Hook to set ssl verify.
-     *
-     * @param array $r
-     * @param string $url
-     * @return array $r
+	 *
+	 * @param array  $r
+	 * @param string $url
+	 * @return array $r
 	 */
 	public static function no_ssl_filter_function( $r, $url ) {
 		$r['sslverify'] = false;
