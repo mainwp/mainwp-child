@@ -1,19 +1,32 @@
 <?php
-
+/**
+ * MainWP Clone Installer.
+ *
+ * This file handles installing a cloned child site.
+ */
 namespace MainWP\Child;
 
 // phpcs:disable WordPress.WP.AlternativeFunctions -- to custom functions.
 
+/**
+ * Class MainWP_Clone_Install
+ * @package MainWP\Child
+ */
 class MainWP_Clone_Install {
-	protected $file;
-	public $config;
+
+    /** @var string The zip backup file path. */
+    protected $file;
+
+    /** @var array Clone config settings. */
+    public $config;
+
 	/** @var $archiver Tar_Archiver */
 	protected $archiver;
 
 	/**
-	 * Class constructor
+	 * Class constructor.
 	 *
-	 * @param string $file The zip backup file path
+	 * @param string $file The zip backup file path.
 	 */
 	public function __construct( $file ) {
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
@@ -31,28 +44,38 @@ class MainWP_Clone_Install {
 	}
 
 	/**
-	 * Check for default PHP zip support
+	 * Check for default PHP zip support.
 	 *
-	 * @return bool
+	 * @return bool true|false.
 	 */
 	public function check_zip_support() {
 		return class_exists( '\ZipArchive' );
 	}
 
 	/**
-	 * Check if we could run zip on console
+	 * Check if we could run zip on console.
 	 *
-	 * @return bool
+	 * @return bool true|false.
 	 */
 	public function check_zip_console() {
 		return false;
 	}
 
-	public function check_wp_zip() {
+    /**
+     * Check if unzip_file function exists.
+     *
+     * @return bool true|false.
+     */
+    public function check_wp_zip() {
 		return function_exists( 'unzip_file' );
 	}
 
-	public function remove_config_file() {
+    /**
+     * Remove wp-config.php file.
+     *
+     * @return bool true|false.
+     */
+    public function remove_config_file() {
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
 			return false;
 		}
@@ -87,7 +110,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	public function test_download() {
+    /**
+     * Test the download.
+     *
+     * @throws \Exception Error message.
+     */
+    public function test_download() {
 		if ( ! $this->file_exists( 'wp-content/' ) ) {
 			throw new \Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
 		}
@@ -99,7 +127,13 @@ class MainWP_Clone_Install {
 		}
 	}
 
-	private function file_exists( $file ) {
+    /**
+     * Check if clone config.txt exists.
+     *
+     * @param $file Config.txt file path.
+     * @return bool|string False or True on success. Return config.txt content on true.
+     */
+    private function file_exists($file ) {
 		if ( 'extracted' === $this->file ) {
 			return file_get_contents( '../clone/config.txt' );
 		}
@@ -134,7 +168,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	public function read_configuration_file() {
+    /**
+     * Read configuration file.
+     *
+     * @throws \Exception Error message on failure.
+     */
+    public function read_configuration_file() {
 		$configContents = $this->get_config_contents();
 		if ( false === $configContents ) {
 			throw new \Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
@@ -153,7 +192,10 @@ class MainWP_Clone_Install {
 		}
 	}
 
-	public function clean() {
+    /**
+     * Clean file structure after installation.
+     */
+    public function clean() {
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
 			unlink( $file );
@@ -180,7 +222,10 @@ class MainWP_Clone_Install {
 		}
 	}
 
-	public function update_wp_config() {
+    /**
+     * Update wp-config.php file.
+     */
+    public function update_wp_config() {
 		$wpConfig = file_get_contents( ABSPATH . 'wp-config.php' );
 		$wpConfig = $this->replace_var( 'table_prefix', $this->config['prefix'], $wpConfig );
 		if ( isset( $this->config['lang'] ) ) {
@@ -189,7 +234,14 @@ class MainWP_Clone_Install {
 		file_put_contents( ABSPATH . 'wp-config.php', $wpConfig );
 	}
 
-	public function update_option( $name, $value ) {
+    /**
+     * Update DB options.
+     *
+     * @param $name Option name.
+     * @param $value Option value to update.
+     */
+    public function update_option($name, $value ) {
+
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
@@ -201,7 +253,14 @@ class MainWP_Clone_Install {
 		}
 	}
 
-	public function install() {
+    /**
+     * Database Installation.
+     *
+     * @return bool true|false.
+     * @throws \Exception Error message on failure.
+     */
+    public function install() {
+
 		/** @var $wpdb wpdb */
 		global $wpdb;
 
@@ -273,7 +332,12 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-	public function get_config_contents() {
+    /**
+     * Get config contents.
+     *
+     * @return bool|false|mixed|string
+     */
+    public function get_config_contents() {
 		if ( 'extracted' === $this->file ) {
 			return file_get_contents( '../clone/config.txt' );
 		}
@@ -318,11 +382,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	/**
-	 * Extract backup
-	 *
-	 * @return bool
-	 */
+    /**
+     * Extract backup file.
+     *
+     * @return bool|null true or null.
+     * @throws \Exception Error message on failure.
+     */
 	public function extract_backup() {
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
 			return false;
@@ -347,9 +412,9 @@ class MainWP_Clone_Install {
 	}
 
 	/**
-	 * Extract backup using default PHP zip library
+	 * Extract backup using default PHP zip library.
 	 *
-	 * @return bool
+	 * @return bool true|false.
 	 */
 	public function extract_zip_backup() {
 		$zip    = new \ZipArchive();
@@ -364,7 +429,12 @@ class MainWP_Clone_Install {
 		return false;
 	}
 
-	public function extract_wp_zip_backup() {
+    /**
+     * Extract with unzip_file.
+     *
+     * @return bool true|false.
+     */
+    public function extract_wp_zip_backup() {
 		MainWP_Helper::get_wp_filesystem();
 		global $wp_filesystem;
 
@@ -380,7 +450,13 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-	public function extract_zip_pcl_backup() {
+    /**
+     * Extract PCLZIP.
+     *
+     * @return bool true|false.
+     * @throws \Exception Error on failure.
+     */
+    public function extract_zip_pcl_backup() {
 		$zip = new \PclZip( $this->file );
 		if ( 0 === $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
 			return false;
@@ -393,41 +469,47 @@ class MainWP_Clone_Install {
 	}
 
 	/**
-	 * Extract backup using zip on console
+	 * Extract backup using zip on console.
 	 *
-	 * @return bool
+	 * @return bool true|false.
 	 */
 	public function extract_zip_console_backup() {
 		return false;
 	}
 
 	/**
-	 * Replace define statement to work with wp-config.php
+	 * Replace define statement to work with wp-config.php.
 	 *
-	 * @param string $constant The constant name
-	 * @param string $value The new value
-	 * @param string $content The PHP file content
+	 * @param string $constant The constant name.
+	 * @param string $value The new value.
+	 * @param string $content The PHP file content.
 	 *
-	 * @return string Replaced define statement with new value
+	 * @return string Replaced define statement with new value.
 	 */
 	protected function replace_define( $constant, $value, $content ) {
 		return preg_replace( '/(define *\( *[\'"]' . $constant . '[\'"] *, *[\'"])(.*?)([\'"] *\))/is', '${1}' . $value . '${3}', $content );
 	}
 
 	/**
-	 * Replace variable value to work with wp-config.php
+	 * Replace variable value to work with wp-config.php.
 	 *
-	 * @param string $varname The variable name
-	 * @param string $value The new value
-	 * @param string $content The PHP file content
+	 * @param string $varname The variable name.
+	 * @param string $value The new value.
+	 * @param string $content The PHP file content.
 	 *
-	 * @return string Replaced variable value with new value
+	 * @return string Replaced variable value with new value.
 	 */
 	protected function replace_var( $varname, $value, $content ) {
 		return preg_replace( '/(\$' . $varname . ' *= *[\'"])(.*?)([\'"] *;)/is', '${1}' . $value . '${3}', $content );
 	}
 
-	public function recurse_chmod( $mypath, $arg ) {
+    /**
+     * Recursively chmod file structure.
+     *
+     * @param $mypath Path to files.
+     * @param $arg chmod arguments.
+     */
+    public function recurse_chmod($mypath, $arg ) {
 		$d = opendir( $mypath );
 		while ( ( $file = readdir( $d ) ) !== false ) {
 			if ( '.' !== $file && '..' !== $file ) {
@@ -440,20 +522,19 @@ class MainWP_Clone_Install {
 		}
 	}
 
-
 	/**
 	 * The main loop triggered in step 5. Up here to keep it out of the way of the
 	 * HTML. This walks every table in the db that was selected in step 3 and then
-	 * walks every row and column replacing all occurences of a string with another.
+	 * walks every row and column replacing all occurrences of a string with another.
 	 * We split large tables into 50,000 row blocks when dealing with them to save
-	 * on memmory consumption.
+	 * on memory consumption.
 	 *
-	 * @param mysql  $connection The db connection object
-	 * @param string $search What we want to replace
+	 * @param mysql  $connection The db connection object.
+	 * @param string $search What we want to replace.
 	 * @param string $replace What we want to replace it with.
 	 * @param array  $tables The tables we want to look at.
 	 *
-	 * @return array    Collection of information gathered during the run.
+	 * @return array Collection of information gathered during the run.
 	 */
 	public function icit_srdb_replacer( $connection, $search = '', $replace = '', $tables = array() ) {
 		global $guid, $exclude_cols;
@@ -550,15 +631,15 @@ class MainWP_Clone_Install {
 	}
 
 	/**
-	 * Take a serialised array and unserialise it replacing elements as needed and
-	 * unserialising any subordinate arrays and performing the replace on those too.
+	 * Take a serialised array and un-serialize it replacing elements as needed and
+	 * un-serializing any subordinate arrays and performing the replace on those too.
 	 *
 	 * @param string $from String we're looking to replace.
-	 * @param string $to What we want it to be replaced with
-	 * @param array  $data Used to pass any subordinate arrays back to in.
+	 * @param string $to What we want it to be replaced with.
+	 * @param array  $data Used to pass any subordinate arrays back.
 	 * @param bool   $serialised Does the array passed via $data need serialising.
 	 *
-	 * @return array    The original array with all elements replaced as needed.
+	 * @return array The original array with all elements replaced as needed.
 	 */
 	public function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
 
@@ -605,7 +686,12 @@ class MainWP_Clone_Install {
 		return $data;
 	}
 
-	public function request_clone_funct() {
+    /**
+     * Request clone.
+     *
+     * @return bool|void true|void.
+     */
+    public function request_clone_funct() {
 
 		if ( ! isset( $_REQUEST['key'] ) ) {
 			return;
@@ -652,7 +738,10 @@ class MainWP_Clone_Install {
 		return true;
 	}
 
-	private function create_clone_backup() {
+    /**
+     * Create backup of clone.
+     */
+    private function create_clone_backup() {
 		MainWP_Helper::end_session();
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
