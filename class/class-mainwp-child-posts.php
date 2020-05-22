@@ -906,7 +906,7 @@ class MainWP_Child_Posts {
 	private function set_custom_post_fields( $new_post_id, $post_custom, $seo_ext_activated, &$post_to_only ) {
 
 		// Set custom fields.
-		$not_allowed   = array(
+		$not_allowed = array(
 			'_slug',
 			'_tags',
 			'_edit_lock',
@@ -932,8 +932,8 @@ class MainWP_Child_Posts {
 			'_post_to_only_existing_categories',
 			'_mainwp_edit_post_site_id',
 			'_mainwp_edit_post_id',
-			'_edit_post_status'			
-		);		
+			'_edit_post_status',
+		);
 
 		if ( is_array( $post_custom ) ) {
 			foreach ( $post_custom as $meta_key => $meta_values ) {

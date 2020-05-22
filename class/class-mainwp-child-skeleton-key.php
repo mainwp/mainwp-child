@@ -59,7 +59,7 @@ class MainWP_Child_Skeleton_Key {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 		}
-		
+
 		register_shutdown_function( 'MainWP\Child\MainWP_Child_Skeleton_Key\mainwp_skeleton_key_handle_fatal_error' );
 
 		switch ( $_POST['action'] ) {
