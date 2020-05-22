@@ -2,7 +2,7 @@
 
 namespace MainWP\Child;
 
-//phpcs:ignore Generic.Metrics.CyclomaticComplexity -- complex functions/features.
+//phpcs:disable Generic.Metrics.CyclomaticComplexity -- complex functions/features.
 
 class MainWP_Child_Posts {
 
