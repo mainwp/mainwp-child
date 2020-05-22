@@ -572,7 +572,7 @@ class MainWP_Backup {
 	public function add_config() {
 		global $wpdb;
 		$plugins = array();
-		$dir     = WP_CONTENT_DIR . '/plugins/';		
+		$dir     = WP_CONTENT_DIR . '/plugins/';
 		$fh      = opendir( $dir );
 		while ( $entry = readdir( $fh ) ) {
 			if ( ! is_dir( $dir . $entry ) ) {
@@ -583,10 +583,10 @@ class MainWP_Backup {
 			}
 			$plugins[] = $entry;
 		}
-		closedir( $fh );		
+		closedir( $fh );
 
 		$themes = array();
-		$dir    = WP_CONTENT_DIR . '/themes/';		
+		$dir    = WP_CONTENT_DIR . '/themes/';
 		$fh     = opendir( $dir );
 		while ( $entry = readdir( $fh ) ) {
 			if ( ! is_dir( $dir . $entry ) ) {
@@ -597,7 +597,7 @@ class MainWP_Backup {
 			}
 			$themes[] = $entry;
 		}
-		closedir( $fh );		
+		closedir( $fh );
 
 		if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
 			$string = wp_json_encode(
