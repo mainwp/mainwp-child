@@ -2,7 +2,7 @@
 
 namespace MainWP\Child;
 
-//phpcs:disable WordPress.WP.AlternativeFunctions -- to custom file's functions.
+//phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom file's functions, complex functions/features.
 
 class MainWP_Backup {
 	protected static $instance = null;
@@ -774,7 +774,7 @@ class MainWP_Backup {
 			$this->add_file_to_zipp( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
 		}
 
-		$iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST );
+		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST );
 
 		foreach ( $iterator as $path ) {
 			$name = $path->__toString();

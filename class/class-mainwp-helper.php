@@ -146,7 +146,7 @@ class MainWP_Helper {
 				}
 				define( 'FS_METHOD', 'direct' );
 			}
-			$init = WP_Filesystem( $creds );
+			$init = \WP_Filesystem( $creds );
 		} else {
 			$init = true;
 		}
@@ -175,7 +175,7 @@ class MainWP_Helper {
 	public static function reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
 		if ( isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) && isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ) {
-			$auth                          = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+			$auth                          = base64_encode( $_POST['wpadmin_user'] . ':' . $_POST['wpadmin_passwd'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			$r['headers']['Authorization'] = "Basic $auth";
 		}
 		return $r;

@@ -445,7 +445,7 @@ class MainWP_Child_Timecapsule {
 
 	public function get_logs_rows() {
 		$result                 = $this->prepare_items();
-		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		return $result;
 	}
 
@@ -795,8 +795,8 @@ class MainWP_Child_Timecapsule {
 		$config  = WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
 		$options = WPTC_Factory::get( 'config' );
 
-		$config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
-		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$config->set_option( 'wptc_token', false );
 
 		$options->request_service(
@@ -945,7 +945,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$tabName    = $_POST['tabname'];
 		$is_general = $_POST['is_general'];

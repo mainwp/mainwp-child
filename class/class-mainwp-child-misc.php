@@ -290,7 +290,7 @@ class MainWP_Child_Misc {
 	}
 
 	public function uploader_action() {
-		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$path        = $_POST['path'];
 		$filename    = $_POST['filename'];
 		$information = array();

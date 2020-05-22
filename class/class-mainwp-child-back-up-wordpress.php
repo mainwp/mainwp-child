@@ -418,7 +418,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$schedule = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
-		$deleted = $schedule->delete_backup( base64_decode( rawurldecode( $_POST['hmbkp_backuparchive'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$deleted = $schedule->delete_backup( base64_decode( rawurldecode( $_POST['hmbkp_backuparchive'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( is_wp_error( $deleted ) ) {
 			return array( 'error' => $deleted->get_error_message() );
@@ -492,7 +492,7 @@ class MainWP_Child_Back_Up_WordPress {
 	}
 
 	public function hmbkp_get_backup_row( $file, HM\BackUpWordPress\Scheduled_Backup $schedule ) {
-		$encoded_file = rawurlencode( base64_encode( $file ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$encoded_file = rawurlencode( base64_encode( $file ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$offset       = get_option( 'gmt_offset' ) * 3600;
 		?>
 		<tr class="hmbkp_manage_backups_row">
@@ -972,7 +972,7 @@ class MainWP_Child_Back_Up_WordPress {
 	public function update_schedule() {
 		$sch_id  = isset( $_POST['schedule_id'] ) ? $_POST['schedule_id'] : 0;
 		$sch_id  = sanitize_text_field( rawurldecode( $sch_id ) );
-		$options = isset( $_POST['options'] ) ? maybe_unserialize( base64_decode( $_POST['options'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$options = isset( $_POST['options'] ) ? maybe_unserialize( base64_decode( $_POST['options'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {
 			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );
@@ -1023,7 +1023,7 @@ class MainWP_Child_Back_Up_WordPress {
 	}
 
 	public function save_all_schedules() {
-		$schedules = isset( $_POST['all_schedules'] ) ? maybe_unserialize( base64_decode( $_POST['all_schedules'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$schedules = isset( $_POST['all_schedules'] ) ? maybe_unserialize( base64_decode( $_POST['all_schedules'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $schedules ) || empty( $schedules ) ) {
 			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );

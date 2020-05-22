@@ -439,7 +439,7 @@ class MainWP_Child_Links_Checker {
 					$new_link->link_text          = '';
 					$extra_info['count_instance'] = 0;
 				}
-				$new_link->extra_info = base64_encode( serialize( $extra_info ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+				$new_link->extra_info = base64_encode( serialize( $extra_info ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 				$new_link->synced     = 1;
 				$return[]             = $new_link;
 			}

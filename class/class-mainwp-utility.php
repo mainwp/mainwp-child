@@ -497,7 +497,7 @@ class MainWP_Utility {
 			throw new \Exception( 'Http Error: ' . $err );
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
-			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			$information = json_decode( $result_base, true ); // it is json_encode result.
 			return $information;
 		} elseif ( '' === $data ) {
@@ -548,7 +548,7 @@ class MainWP_Utility {
 			$output = serialize( $val ); // phpcs:ignore -- to compatible.
 		endif;
 
-		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		// Close browser connection so that it can resume AJAX polling.
 		header( 'Content-Length: ' . strlen( $output ) );
 		header( 'Connection: close' );

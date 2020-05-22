@@ -170,7 +170,7 @@ class MainWP_Child_Pagespeed {
 		$information = array();
 
 		$settings = $_POST['settings'];
-		$settings = maybe_unserialize( base64_decode( $settings ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+		$settings = maybe_unserialize( base64_decode( $settings ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( is_array( $settings ) ) {
 

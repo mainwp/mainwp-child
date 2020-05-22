@@ -1,8 +1,9 @@
 <?php
 
+namespace MainWP\Child;
+
 // phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom read/write files, complex tar archiver library.
 
-namespace MainWP\Child;
 
 class Tar_Archiver {
 	const IDLE   = 0;
@@ -278,7 +279,7 @@ class Tar_Archiver {
 				)
 			);
 		} else {
-			$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
+			$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 				serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 					array(
 						'siteurl' => get_option( 'siteurl' ),
@@ -306,7 +307,7 @@ class Tar_Archiver {
 			$this->add_file( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
 		}
 
-		$iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
+		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST, RecursiveIteratorIterator::CATCH_GET_CHILD );
 
 		/** @var $path DirectoryIterator */
 		foreach ( $iterator as $path ) {

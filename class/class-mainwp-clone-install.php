@@ -6,7 +6,7 @@
  */
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom file's functions.
+// phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom file's functions, complex functions/features.
 
 /**
  * Class MainWP_Clone_Install
@@ -68,7 +68,7 @@ class MainWP_Clone_Install {
 	 * @return bool true|false.
 	 */
 	public function check_wp_zip() {
-		return function_exists( 'unzip_file' );
+		return function_exists( '\unzip_file' );
 	}
 
 	/**
@@ -446,7 +446,7 @@ class MainWP_Clone_Install {
 			$tmpdir  = str_replace( ABSPATH, $ftpBase, $tmpdir );
 		}
 
-		unzip_file( $this->file, $tmpdir );
+		\unzip_file( $this->file, $tmpdir );
 
 		return true;
 	}
