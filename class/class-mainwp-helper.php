@@ -2,7 +2,7 @@
 
 namespace MainWP\Child;
 
-//phpcs:disable WordPress.WP.AlternativeFunctions -- to custom file's functions, multi helper functions.
+//phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom file's functions, multi helper functions.
 
 class MainWP_Helper {
 
