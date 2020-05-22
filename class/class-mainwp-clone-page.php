@@ -4,7 +4,7 @@ namespace MainWP\Child;
 
 class MainWP_Clone_Page {
 	protected static $instance = null;
-	
+
 	/**
 	 * Method get_class_name()
 	 *

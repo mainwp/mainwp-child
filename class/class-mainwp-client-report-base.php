@@ -364,11 +364,11 @@ class MainWP_Client_Report_Base {
 			} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
 				$valid_context = true; // ok, pass, don't check context.
 			}
-			
-			$valid_context = ( $valid_context || strtolower( $record->context ) == $context ) ? true : false;			
+
+			$valid_context = ( $valid_context || strtolower( $record->context ) == $context ) ? true : false;
 			if ( ! $valid_context ) {
 				continue;
-			}		
+			}
 			// custom action value.
 			if ( 'widgets' == $connector ) {
 				if ( 'deleted' == $action ) {
@@ -457,15 +457,15 @@ class MainWP_Client_Report_Base {
 	}
 
 	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {  // phpcs:ignore -- ignore complex method notice.
-		
+
 		$loops      = array();
 		$loop_count = 0;
 		foreach ( $records as $record ) {
-	
+
 			if ( in_array( $record->ID, $skip_records ) ) {
 				continue;
 			}
-			
+
 			if ( 'editor' == $record->connector ) {
 				if ( ! in_array( $context, array( 'plugins', 'themes' ) ) || 'updated' !== $action ) {
 					continue;
@@ -491,12 +491,12 @@ class MainWP_Client_Report_Base {
 			} elseif ( 'widgets' == $connector && 'widgets' == $record->connector ) {
 				$valid_context = true; // ok, pass, don't check context.
 			}
-		
+
 			$valid_context = ( $valid_context || strtolower( $record->context ) == $context ) ? true : false;
-			
+
 			if ( ! $valid_context ) {
 				continue;
-			}			
+			}
 
 			// custom action value!
 			if ( 'widgets' == $connector ) {
@@ -527,14 +527,14 @@ class MainWP_Client_Report_Base {
 		}
 		return $loops;
 	}
-	
+
 	public function is_backup_action( $action ) {
 		if ( in_array( $action, array( 'mainwp_backup', 'backupbuddy_backup', 'backupwordpress_backup', 'backwpup_backup', 'updraftplus_backup', 'wptimecapsule_backup', 'wpvivid_backup' ) ) ) {
 			return true;
 		}
 		return false;
 	}
-	
+
 	private function get_section_loop_token_values( $record, $context, $tokens ) {
 
 		$token_values = array();

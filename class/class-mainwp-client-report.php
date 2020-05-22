@@ -112,7 +112,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 		return true;
 	}
-	
+
 	public function get_stream() {
 
 		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for begin reasons.
@@ -130,7 +130,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 		$args    = $this->get_stream_get_params( $other_tokens, $sections );
 		$records = \wp_mainwp_stream_get_instance()->db->query( $args );
-		
+
 		if ( ! is_array( $records ) ) {
 			$records = array();
 		}
@@ -146,14 +146,14 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 		$other_tokens_data = $this->get_stream_others_tokens( $records, $other_tokens, $skip_records );
 		$sections_data     = $this->get_stream_sections_data( $records, $sections, $skip_records );
-				
+
 		$information = array(
 			'other_tokens_data' => $other_tokens_data,
 			'sections_data'     => $sections_data,
 		);
 		return $information;
 	}
-	
+
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Child_Branding::instance()->save_branding_options( 'hide_child_reports', $hide );
