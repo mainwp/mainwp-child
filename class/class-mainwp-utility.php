@@ -1,24 +1,44 @@
 <?php
+/**
+ * MainWP Utility
+ */
 
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
+// phpcs:disable WordPress.WP.AlternativeFunctions -- Custom functions required to achieve desired results, pull request solutions appreciated.
 
+/**
+ * Class MainWP_Utility
+ *
+ * MainWP Utility
+ */
 class MainWP_Utility {
 
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	public static $instance = null;
 
 	/**
 	 * Method get_class_name()
 	 *
-	 * Get Class Name.
+	 * Get class name.
 	 *
-	 * @return object
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -26,13 +46,18 @@ class MainWP_Utility {
 		return self::$instance;
 	}
 
-
+	/**
+	 * Method run_saved_snippets()
+	 *
+	 * Fire off  MainWP Code Snippets Extension code snipets execution.
+	 *
+	 * @return void
+	 */
 	public function run_saved_snippets() {
-
 		if ( isset( $_POST['action'] ) && isset( $_POST['mainwpsignature'] ) ) {
 			$action = $_POST['action'];
 			if ( 'run_snippet' === $action || 'save_snippet' === $action || 'delete_snippet' === $action ) {
-				return;  // do not run saved snippets if in do action snippet.
+				return;
 			}
 		}
 
@@ -49,15 +74,15 @@ class MainWP_Utility {
 	/**
 	 * Method execute_snippet()
 	 *
-	 * Execute snippet code
+	 * Execute MainWP Code Snippets Extension custom code snippets.
 	 *
-	 * @param string $code The code  *
+	 * @param string $code Custom code snippet code (content).
 	 *
-	 * @return array result
+	 * @return array Array contaning result information.
 	 */
 	public static function execute_snippet( $code ) {
 		ob_start();
-		$result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval -- eval() used safely.
+		$result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval -- eval() used safely to achieve desired results, pull request solutions appreciated.
 		$output = ob_get_contents();
 		ob_end_clean();
 		$return = array();
@@ -72,6 +97,11 @@ class MainWP_Utility {
 		return $return;
 	}
 
+	/**
+	 * Method fix_for_custom_themes()
+	 *
+	 * Custom fix for the Elegant Themes products compatibility.
+	 */
 	public static function fix_for_custom_themes() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';
@@ -82,8 +112,9 @@ class MainWP_Utility {
 	}
 
 	/**
+	 * Method maintenance_alert()
 	 *
-	 * To support maintenance alert
+	 * MainWP Maintenance Extension feature to send email notification for 404 (Page not found) errors.
 	 */
 	public function maintenance_alert() {
 		if ( ! is_404() ) {
@@ -147,7 +178,7 @@ class MainWP_Utility {
 			$remote = 'undefined';
 		}
 		// log time.
-		$time = self::clean( date( 'F jS Y, h:ia', time() ) ); // phpcs:ignore -- local time.
+		$time = self::clean( date( 'F jS Y, h:ia', time() ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
 
 		$mail = '<div>404 alert</div><div></div>' .
 				'<div>TIME: ' . $time . '</div>' .
@@ -237,28 +268,35 @@ class MainWP_Utility {
 	}
 
 	/**
-	 * Handle fatal errors and compile errors.
+	 * Method handle_shutdown()
+	 *
+	 * Handle fatal and compile errors.
 	 */
 	public static function handle_shutdown() {
-		// handle fatal errors and compile errors.
 		$error = error_get_last();
 		if ( isset( $error['type'] ) && isset( $error['message'] ) && ( E_ERROR === $error['type'] || E_COMPILE_ERROR === $error['type'] ) ) {
 			MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 		}
 	}
 
-	/**
-	 * Handle fatal error for requests from the dashboard
-	 * mwp_action requests
-	 * wordpress_seo requests
-	 * This will do not handle fatal error for sync request from the dashboard
-	 */
+	 /**
+ 	 * Method handle_fatal_error()
+ 	 *
+ 	 * Handle fatal error for requests from the MainWP Dashboard.
+ 	 */
 	public static function handle_fatal_error() {
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
 			register_shutdown_function( 'MainWP\Child\MainWP_Utility::handle_shutdown' );
 		}
 	}
 
+	/**
+	* Method cron_active()
+	*
+	* Start job if in cron and run query args are set.
+	*
+	* @return void
+	*/
 	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
 			return;
@@ -279,8 +317,12 @@ class MainWP_Utility {
 
 
 	/**
+	 * Method upload_file()
 	 *
-	 * To support upload backup files.
+	 * Upload bacup fils to execute clone or restore proces.
+	 *
+	 * @param mixed $file Backup file.
+	 * @param int   $offset Offset value.
 	 */
 	public function upload_file( $file, $offset = 0 ) {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
@@ -300,13 +342,23 @@ class MainWP_Utility {
 		header( 'Cache-Control: must-revalidate' );
 		header( 'Pragma: public' );
 		header( 'Content-Length: ' . filesize( $backupdir . $file ) );
-		while ( ob_end_flush() ) {; // phpcs:ignore
+		while ( ob_end_flush() ) {; // phpcs:ignore -- Required to achieve desired results, pull request solutions appreciated.
 		}
 		$this->readfile_chunked( $backupdir . $file, $offset );
 	}
 
+	/**
+	 * Method readfile_chunked()
+	 *
+	 * Read chunked backup file.
+	 *
+	 * @param string $filename Backup file name.
+	 * @param int   $offset Offset value.
+	 *
+	 * @return mixed Close file.
+	 */
 	public function readfile_chunked( $filename, $offset ) {
-		$chunksize = 1024; // how many bytes per chunk?
+		$chunksize = 1024;
 		$handle    = fopen( $filename, 'rb' );
 		if ( false === $handle ) {
 			return false;
@@ -325,14 +377,23 @@ class MainWP_Utility {
 		return fclose( $handle );
 	}
 
-	// $check_file_existed: to support checking if file existed.
-	// $parent_id: optional.
+	/**
+	 * Method upload_image()
+	 *
+	 * Upload images from the MainWP Dashboard while posting Posts and/or Pages.
+	 *
+	 * @param string $img_url Contains image URL.
+	 * @param array  $img_data Contains image data.
+	 * @param bool   $check_file_existed Does the file exist? True or false.
+	 * @param int    $parent_id Attachment parent post ID.
+	 *
+	 * @return null NULL
+	 */
 	public static function upload_image( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {
 		if ( ! is_array( $img_data ) ) {
 			$img_data = array();
 		}
 
-		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
 		MainWP_Helper::get_wp_filesystem();
 
@@ -349,7 +410,7 @@ class MainWP_Utility {
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename;
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
-			// to fix issue re-create new attachment.
+			// to fix issue with recreating new attachment.
 			if ( $check_file_existed ) {
 				$result = self::check_media_file_existed( $upload_dir, $filename, $temporary_file, $local_img_path, $local_img_url );
 				if ( ! empty( $result ) ) {
@@ -376,6 +437,19 @@ class MainWP_Utility {
 		return null;
 	}
 
+	/**
+	 * Method check_media_file_existed()
+	 *
+	 * Check if the media file already exists.
+	 *
+	 * @param string   $upload_dir Contains upload directory path.
+	 * @param string   $filename Contains image (file) name.
+	 * @param resource $temporary_file Temporary file.
+	 * @param string   $local_img_path Local media file path.
+	 * @param string   $local_img_url Local media file URL.
+	 *
+	 * @return array Media file ID and URL.
+	 */
 	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ) {
 		global $wp_filesystem;
 		if ( $wp_filesystem->exists( $local_img_path ) ) {
@@ -416,6 +490,19 @@ class MainWP_Utility {
 		}
 	}
 
+	/**
+	 * Method insert_attachment_media()
+	 *
+	 * Insterd attachment media.
+	 *
+	 * @param array  $img_data Array containing image data.
+	 * @param string $img_url Contains the media file URL.
+	 * @param int    $parent_id Attachment parent post ID.
+	 * @param string $local_img_path Contains the local media file path.
+	 * @param string $local_img_url Contains the local media file URL.
+	 *
+	 * @return array Media file ID and URL.
+	 */
 	private static function insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url ) {
 
 		$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
@@ -446,6 +533,16 @@ class MainWP_Utility {
 		);
 	}
 
+	/**
+	 * Method get_maybe_existed_attached_id()
+	 *
+	 * If the media file exists, get the attachment ID.
+	 *
+	 * @param string $filename Contains the media file name.
+	 * @param bool   $full_guid Full global unique identifier.
+	 *
+	 * @return int Attachment ID.
+	 */
 	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
 		global $wpdb;
 		if ( $full_guid ) {
@@ -454,6 +551,16 @@ class MainWP_Utility {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
 	}
 
+	/**
+	 * Method fetch_url()
+	 *
+	 * Fire off the m_fetch_url() to execute communication with the MainWP Dashboard.
+	 *
+	 * @param string $url Contains the URL.
+	 * @param array  $postdata Array containg the post request information.
+	 *
+	 * @throws string $e Error message.
+	 */
 	public static function fetch_url( $url, $postdata ) {
 		try {
 			$tmpUrl = $url;
@@ -471,6 +578,16 @@ class MainWP_Utility {
 		}
 	}
 
+	/**
+	 * Method fetch_url()
+	 *
+	 * Execute communication with the MainWP Dashboard.
+	 *
+	 * @param string $url Contains the URL.
+	 * @param array  $postdata Array containg the post request information.
+	 *
+	 * @throws string new \Exception Error message.
+	 */
 	public static function m_fetch_url( $url, $postdata ) {
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
 
@@ -480,7 +597,7 @@ class MainWP_Utility {
 
 		$postdata['json_result'] = true; // forced all response in json format.
 
-		// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom.
+		// phpcs:disable WordPress.WP.AlternativeFunctions -- Custom functions required to achieve desired results, pull request solutions appreciated.
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, $url );
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
@@ -497,8 +614,8 @@ class MainWP_Utility {
 			throw new \Exception( 'Http Error: ' . $err );
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
-			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-			$information = json_decode( $result_base, true ); // it is json_encode result.
+			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+			$information = json_decode( $result_base, true );
 			return $information;
 		} elseif ( '' === $data ) {
 			throw new \Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
@@ -508,6 +625,13 @@ class MainWP_Utility {
 		// phpcs:enable
 	}
 
+	/**
+	 * Method validate_mainwp_dir()
+	 *
+	 * Check if the /mainwp/ directory is writable.
+	 *
+	 * @return bool $done Is the /mainwp/ directory writable? True or false.
+	 */
 	public static function validate_mainwp_dir() {
 		$done = false;
 		$dir  = MainWP_Helper::get_mainwp_dir();
@@ -526,7 +650,7 @@ class MainWP_Utility {
 			}
 		}
 
-		//phpcs:disable -- use system functions
+		//phpcs:disable -- System functions required to achieve desired results, pull request solutions appreciated.
 		if ( ! $done ) {
 			if ( ! file_exists( $dir ) ) {
 				@mkdirs( $dir );
@@ -540,15 +664,21 @@ class MainWP_Utility {
 		return $done;
 	}
 
+	/**
+	 * Method close_connection()
+	 *
+	 * Close connection.
+	 *
+	 * @param array $val Array containing connection information.
+	 */
 	public static function close_connection( $val = null ) {
-
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = wp_json_encode( $val );
 		else :
-			$output = serialize( $val ); // phpcs:ignore -- to compatible.
+			$output = serialize( $val ); // phpcs:ignore -- Required for backwards compatibility.
 		endif;
 
-		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
 		// Close browser connection so that it can resume AJAX polling.
 		header( 'Content-Length: ' . strlen( $output ) );
 		header( 'Connection: close' );
@@ -563,6 +693,15 @@ class MainWP_Utility {
 		flush();
 	}
 
+	/**
+	 * Method create_nonce_without_session()
+	 *
+	 * Create nonce without session.
+	 *
+	 * @param mixed $action Action to perform.
+	 *
+	 * @return string Custom nonce.
+	 */
 	public static function create_nonce_without_session( $action = - 1 ) {
 		$user = wp_get_current_user();
 		$uid  = (int) $user->ID;
@@ -575,6 +714,16 @@ class MainWP_Utility {
 		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
 	}
 
+	/**
+	 * Method verify_nonce_without_session()
+	 *
+	 * Verify nonce without session.
+	 *
+	 * @param string $nonce Nonce to verify.
+	 * @param mixed  $action Action to perform.
+	 *
+	 * @return mixed If verified return 1 or 2, if not return false.
+	 */
 	public static function verify_nonce_without_session( $nonce, $action = - 1 ) {
 		$nonce = (string) $nonce;
 		$user  = wp_get_current_user();
@@ -602,6 +751,16 @@ class MainWP_Utility {
 		return false;
 	}
 
+	/**
+	 * Method update_lasttime_backup()
+	 *
+	 * Update the last backup timestap.
+	 *
+	 * @param string $by Selected backup system.
+	 * @param string $time Time of the backup exacution.
+	 *
+	 * @return bool true|false If updated, return true, if the last backup time not updated, return false.
+	 */
 	public static function update_lasttime_backup( $by, $time ) {
 		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
 		if ( ! in_array( $by, $backup_by ) ) {
@@ -616,8 +775,16 @@ class MainWP_Utility {
 		return true;
 	}
 
+	/**
+	 * Method get_lasttime_backup()
+	 *
+	 * Get the last backup timestap.
+	 *
+	 * @param string $by Selected backup system.
+	 *
+	 * @return mixed If activated any of the supported backup systems, return the last backup timestamp.
+	 */
 	public static function get_lasttime_backup( $by ) {
-
 		if ( 'backupwp' == $by ) {
 			$by = 'backupwordpress';
 		}
