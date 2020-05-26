@@ -280,10 +280,10 @@ class MainWP_Utility {
 	}
 
 	 /**
- 	 * Method handle_fatal_error()
- 	 *
- 	 * Handle fatal error for requests from the MainWP Dashboard.
- 	 */
+	  * Method handle_fatal_error()
+	  *
+	  * Handle fatal error for requests from the MainWP Dashboard.
+	  */
 	public static function handle_fatal_error() {
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
 			register_shutdown_function( 'MainWP\Child\MainWP_Utility::handle_shutdown' );
@@ -291,12 +291,12 @@ class MainWP_Utility {
 	}
 
 	/**
-	* Method cron_active()
-	*
-	* Start job if in cron and run query args are set.
-	*
-	* @return void
-	*/
+	 * Method cron_active()
+	 *
+	 * Start job if in cron and run query args are set.
+	 *
+	 * @return void
+	 */
 	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
 			return;
@@ -353,7 +353,7 @@ class MainWP_Utility {
 	 * Read chunked backup file.
 	 *
 	 * @param string $filename Backup file name.
-	 * @param int   $offset Offset value.
+	 * @param int    $offset Offset value.
 	 *
 	 * @return mixed Close file.
 	 */
