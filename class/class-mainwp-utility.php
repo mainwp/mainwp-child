@@ -1,6 +1,8 @@
 <?php
 /**
  * MainWP Utility
+ *
+ * @package MainWP/Child
  */
 
 namespace MainWP\Child;
@@ -199,6 +201,15 @@ class MainWP_Utility {
 		);
 	}
 
+	/**
+	 * Method clean()
+	 *
+	 * Clean passed string.
+	 *
+	 * @param string $string String to be cleaned.
+	 *
+	 * @return srting $string Cleaned string.
+	 */
 	public static function clean( $string ) {
 		$string = trim( $string );
 		$string = htmlentities( $string, ENT_QUOTES );
@@ -207,6 +218,16 @@ class MainWP_Utility {
 		return $string;
 	}
 
+	/**
+	 * Method format_email()
+	 *
+	 * Format emails.
+	 *
+	 * @param string $to_email Contains the send to email address.
+	 * @param string $body Contains the email content.
+	 *
+	 * @return srting Return formated email.
+	 */
 	public static function format_email( $to_email, $body ) {
 		return '<br>
 <div>
@@ -279,11 +300,11 @@ class MainWP_Utility {
 		}
 	}
 
-	 /**
-	  * Method handle_fatal_error()
-	  *
-	  * Handle fatal error for requests from the MainWP Dashboard.
-	  */
+	/**
+	 * Method handle_fatal_error()
+	 *
+	 * Handle fatal error for requests from the MainWP Dashboard.
+	 */
 	public static function handle_fatal_error() {
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
 			register_shutdown_function( 'MainWP\Child\MainWP_Utility::handle_shutdown' );
@@ -386,6 +407,8 @@ class MainWP_Utility {
 	 * @param array  $img_data Contains image data.
 	 * @param bool   $check_file_existed Does the file exist? True or false.
 	 * @param int    $parent_id Attachment parent post ID.
+	 *
+	 * @throws \Exception Error message.
 	 *
 	 * @return null NULL
 	 */
@@ -586,7 +609,7 @@ class MainWP_Utility {
 	 * @param string $url Contains the URL.
 	 * @param array  $postdata Array containg the post request information.
 	 *
-	 * @throws string new \Exception Error message.
+	 * @throws \Exception Error message.
 	 */
 	public static function m_fetch_url( $url, $postdata ) {
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
