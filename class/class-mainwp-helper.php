@@ -353,7 +353,7 @@ class MainWP_Helper {
 	 *
 	 * Generate random string.
 	 *
-	 * @param int    $lenght Contains the string lenghts.
+	 * @param int    $length Contains the string lenghts.
 	 * @param string $charset Contain all allowed characters for the generated string.
 	 *
 	 * @return string $str Generated random string.
