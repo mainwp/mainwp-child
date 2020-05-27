@@ -1,27 +1,67 @@
 <?php
-
+/**
+ * MainWP Backup
+ *
+ * This file handles all Child Site backup functions.
+ */
 namespace MainWP\Child;
 
 //phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom file's functions, complex functions/features.
 
+/**
+ * Class MainWP_Backup
+ *
+ * @package MainWP\Child
+ */
 class MainWP_Backup {
-	protected static $instance = null;
+
+	/** @var $excludeZip Whether to exclude zip archives. */
 	protected $excludeZip;
+
+	/** @var $zip Container for zip file. */
 	protected $zip;
+
+	/** @var Archive file count. */
 	protected $zipArchiveFileCount;
+
+	/** @var Archive size. */
 	protected $zipArchiveSizeCount;
+
+	/** @var Archive filename. */
 	protected $zipArchiveFileName;
+
+	/** @var Archive file descriptors. */
 	protected $file_descriptors;
+
+	/** @var Whether to load file before zip. */
 	protected $loadFilesBeforeZip;
 
+	/** @var $timeout Hold the current timeout length. */
 	protected $timeout;
+
+	/** @var Last time a backup has been run. */
 	protected $lastRun;
 
-	/**
-	 * @var Tar_Archiver
-	 */
+	/** @var int $gcCnt. Doesn't seem to be used anywhere. */
+	protected $gcCnt = 0;
+
+	/** @var Archive test response. */
+	protected $testContent;
+
+	/** @var Tar_Archiver Instance of Tar_Archiver. */
 	protected $archiver = null;
 
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Backup.
+	 */
+	protected static $instance = null;
+
+	/**
+	 * Create a public static instance of MainWP_Backup.
+	 *
+	 * @return MainWP_Backup|null
+	 */
 	public static function get() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -30,9 +70,39 @@ class MainWP_Backup {
 	}
 
 	/**
-	 * Create full backup
+	 * Create full backup.
+	 *
+	 * @used-by MainWP_Backup::backup_full()
+	 *
+	 * @param $excludes
+	 * @param string   $filePrefix
+	 * @param bool     $addConfig
+	 * @param bool     $includeCoreFiles
+	 * @param int      $file_descriptors
+	 * @param bool     $fileSuffix
+	 * @param bool     $excludezip
+	 * @param bool     $excludenonwp
+	 * @param bool     $loadFilesBeforeZip
+	 * @param string   $ext
+	 * @param bool     $pid
+	 * @param bool     $append
+	 *
+	 * @return array|bool
 	 */
-	public function create_full_backup( $excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false, $append = false ) {
+	public function create_full_backup(
+		$excludes,
+		$filePrefix = '',
+		$addConfig = false,
+		$includeCoreFiles = false,
+		$file_descriptors = 0,
+		$fileSuffix = false,
+		$excludezip = false,
+		$excludenonwp = false,
+		$loadFilesBeforeZip = true,
+		$ext = 'zip',
+		$pid = false,
+		$append = false ) {
+
 		$this->file_descriptors   = $file_descriptors;
 		$this->loadFilesBeforeZip = $loadFilesBeforeZip;
 
@@ -108,6 +178,12 @@ class MainWP_Backup {
 		) : false;
 	}
 
+	/**
+	 * Check whether the file is an archive or not & create
+	 * a json_encoded, serialized, base64_encoded string.
+	 *
+	 * @return string $output json_encoded, serialized, base64_encoded string.
+	 */
 	public function backup_poll() {
 		$fileNameUID = ( isset( $_POST['fileNameUID'] ) ? $_POST['fileNameUID'] : '' );
 		$fileName    = ( isset( $_POST['fileName'] ) ? $_POST['fileName'] : '' );
@@ -119,9 +195,11 @@ class MainWP_Backup {
 				$backupFile = 'backup-' . $fileNameUID . '-';
 			}
 
-			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup' );
-			$backupdir   = $dirs[0];
-			$result      = glob( $backupdir . $backupFile . '*' );
+			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+			$backupdir = $dirs[0];
+			$result    = glob( $backupdir . $backupFile . '*' );
+
+			// Check if archive, set $archiveFile = $file & break.
 			$archiveFile = false;
 			foreach ( $result as $file ) {
 				if ( MainWP_Clone::is_archive( $file, $backupFile, '(.*)' ) ) {
@@ -129,12 +207,17 @@ class MainWP_Backup {
 					break;
 				}
 			}
+
+			// When not an archive.
 			if ( false === $archiveFile ) {
 				MainWP_Helper::write( array() );
 			}
 
+			// When archive found.
 			MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
 		} else {
+
+			// When not an archive.
 			$backupFile = 'dbBackup-' . $fileNameUID . '-*.sql';
 
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
@@ -153,6 +236,9 @@ class MainWP_Backup {
 		}
 	}
 
+	/**
+	 * Check if backup already exists or is in the process of backing up.
+	 */
 	public function backup_checkpid() {
 		$pid = $_POST['pid'];
 
@@ -202,6 +288,14 @@ class MainWP_Backup {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Perform a backup.
+	 *
+	 * @param bool $pWrite Whether or not to execute MainWP_Helper::write(), Default: true.
+	 *
+	 * @return array $information Array of information on the backup containing the type of backup performed,
+	 *  full, or DB & whether or not it was successful.
+	 */
 	public function backup( $pWrite = true ) {
 
 		$timeout = 20 * 60 * 60;
@@ -267,6 +361,12 @@ class MainWP_Backup {
 		return $information;
 	}
 
+	/**
+	 * Perform a full backup.
+	 *
+	 * @param $fileName Backup file name.
+	 * @return array|bool $success Returns an array containing the Backup location & file size. Return FALSE on failure.
+	 */
 	public function backup_full( $fileName ) {
 		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
 		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
@@ -359,6 +459,13 @@ class MainWP_Backup {
 		return $this->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
 	}
 
+	/**
+	 * Perform DB backup.
+	 *
+	 * @param string $fileName Backup file name.
+	 * @param string $ext Backup extension.
+	 * @return array|bool $success Returns an array containing the Backup location & file size. Return FALSE on failure.
+	 */
 	public function backup_db( $fileName = '', $ext = 'zip' ) {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$dir       = $dirs[0];
@@ -392,6 +499,13 @@ class MainWP_Backup {
 		);
 	}
 
+	/**
+	 * Create a zip file.
+	 *
+	 * @param array  $files Files to zip.
+	 * @param string $archive Type of archive to create.
+	 * @return bool Return FALSE on failure.
+	 */
 	public function zip_file( $files, $archive ) {
 		$this->timeout = 20 * 60 * 60;
 		$mem           = '512M';
@@ -414,6 +528,13 @@ class MainWP_Backup {
 		return $success;
 	}
 
+	/**
+	 * Create m_zip_file.
+	 *
+	 * @param array  $files Files to zip.
+	 * @param string $archive Type of archive to create.
+	 * @return bool Return FALSE on failure.
+	 */
 	public function m_zip_file( $files, $archive ) {
 		$this->zip                 = new \ZipArchive();
 		$this->zipArchiveFileCount = 0;
@@ -431,10 +552,24 @@ class MainWP_Backup {
 		return false;
 	}
 
+	/**
+	 * Method m_zip_file_console().
+	 *
+	 * @param array  $files Files to zip.
+	 * @param string $archive Type of archive to create.
+	 * @return bool Return FALSE on failure.
+	 */
 	public function m_zip_file_console( $files, $archive ) {
 		return false;
 	}
 
+	/**
+	 * Method m_zip_file_pcl().
+	 *
+	 * @param array  $files Files to zip.
+	 * @param string $archive Type of archive to create.
+	 * @return array $rslt Return array of results.
+	 */
 	public function m_zip_file_pcl( $files, $archive ) {
 		// Zip this backup folder.
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
@@ -452,9 +587,9 @@ class MainWP_Backup {
 	}
 
 	/**
-	 * Check for default PHP zip support
+	 * Check for default PHP zip support.
 	 *
-	 * @return bool
+	 * @return bool Returns TRUE if class_name is a defined class, FALSE otherwise.
 	 */
 	public function check_zip_support() {
 		return class_exists( '\ZipArchive' );
@@ -463,20 +598,31 @@ class MainWP_Backup {
 	/**
 	 * Check if we could run zip on console
 	 *
-	 * @return bool
+	 * @return bool Return FALSE.
 	 */
 	public function check_zip_console() {
 		return false;
 	}
 
 	/**
-	 * Create full backup using default PHP zip library
+	 * Create full backup using default PHP zip library.
 	 *
-	 * @param string $filepath File path to create
-	 *
-	 * @return bool
+	 * @param string           $filepath File path to create.
+	 * @param $excludes
+	 * @param $addConfig
+	 * @param $includeCoreFiles
+	 * @param $excludezip
+	 * @param $excludenonwp
+	 * @return bool Return TRUE on success & FALSE on failure.
 	 */
-	public function create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
+	public function create_zip_full_backup(
+		$filepath,
+		$excludes,
+		$addConfig,
+		$includeCoreFiles,
+		$excludezip,
+		$excludenonwp ) {
+
 		$this->excludeZip          = $excludezip;
 		$this->zip                 = new \ZipArchive();
 		$this->zipArchiveFileCount = 0;
@@ -529,6 +675,11 @@ class MainWP_Backup {
 		return false;
 	}
 
+	/**
+	 * Include core files in backup.
+	 *
+	 * @param array $nodes Array of files.
+	 */
 	private function include_core_files( &$nodes ) {
 		$coreFiles = array(
 			'favicon.ico',
@@ -569,8 +720,14 @@ class MainWP_Backup {
 		unset( $coreFiles );
 	}
 
+	/**
+	 * Add config file to backup.
+	 */
 	public function add_config() {
+
+		/** @var $wpdb wpdb */
 		global $wpdb;
+
 		$plugins = array();
 		$dir     = WP_CONTENT_DIR . '/plugins/';
 		$fh      = opendir( $dir );
@@ -630,6 +787,15 @@ class MainWP_Backup {
 		$this->add_file_from_string_to_zip( 'clone/config.txt', $string );
 	}
 
+	/**
+	 * Copy directory.
+	 *
+	 * @param array                 $nodes
+	 * @param array                 $excludes Files & directories to exclude.
+	 * @param string                $backupfolder Backup folder.
+	 * @param bool                  $excludenonwp Whether or not to exclude any wp core files.
+	 * @param $root Unused paremeter.
+	 */
 	public function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp, $root ) {
 		if ( ! is_array( $nodes ) ) {
 			return;
@@ -662,6 +828,18 @@ class MainWP_Backup {
 		}
 	}
 
+	/**
+	 * Create PCL zip full backup 2.
+	 *
+	 * @param string $filepath Path to file.
+	 * @param array  $excludes Files & directories to exclude.
+	 * @param bool   $addConfig Whether to add config.
+	 * @param bool   $includeCoreFiles Whether to include core files.
+	 * @param bool   $excludezip Whether to exclude zip archives.
+	 * @param bool   $excludenonwp Whether or not to exclude any wp core files.
+	 *
+	 * @return bool Return TRUE on success.
+	 */
 	public function create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
 		// Create backup folder.
 		$backupFolder = dirname( $filepath ) . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
@@ -761,7 +939,10 @@ class MainWP_Backup {
 	}
 
 	/**
-	 * Recursive add directory for default PHP zip library
+	 * Recursively add directory to default PHP zip library.
+	 *
+	 * @param $path Path to directory.
+	 * @param $excludes Files or directories to exclude.
 	 */
 	public function zip_add_dir( $path, $excludes ) {
 		$this->zip->add_empty_dir( str_replace( ABSPATH, '', $path ) );
@@ -793,6 +974,15 @@ class MainWP_Backup {
 		unset( $iterator );
 	}
 
+	/**
+	 * Method pcl_zip_add_dir().
+	 *
+	 * @param $path Path to zip file.
+	 * @param $excludes Files & directories to exclude.
+	 * @return bool true|false.
+	 *
+	 * @deprecated Unused Element.
+	 */
 	public function pcl_zip_add_dir( $path, $excludes ) {
 		$error = false;
 		$nodes = glob( rtrim( $path, '/' ) . '/*' );
@@ -820,10 +1010,26 @@ class MainWP_Backup {
 		return ! $error;
 	}
 
+	/**
+	 * Add file from a string to zip file.
+	 *
+	 * @param $file File to add to zip.
+	 * @param $string String to add.
+	 * @return bool true|false.
+	 */
 	public function add_file_from_string_to_zip( $file, $string ) {
 		return $this->zip->addFromString( $file, $string );
 	}
 
+	/**
+	 * Add file from a string to pclzip file.
+	 *
+	 * @param $file File to add to zip.
+	 * @param $string String to add.
+	 * @param $filepath Path to file.
+	 *
+	 * @return bool true|false.
+	 */
 	public function add_file_from_string_to_pcl_zip( $file, $string, $filepath ) {
 		$file        = preg_replace( '/(?:\.|\/)*(.*)/', '$1', $file );
 		$localpath   = dirname( $file );
@@ -846,9 +1052,13 @@ class MainWP_Backup {
 		return false;
 	}
 
-	protected $gcCnt = 0;
-	protected $testContent;
-
+	/**
+	 * Add file to zip.
+	 *
+	 * @param $path Path to zip file.
+	 * @param $zipEntryName File to add to zip.
+	 * @return bool True|false.
+	 */
 	public function add_file_to_zipp( $path, $zipEntryName ) {
 		if ( time() - $this->lastRun > 20 ) {
 			set_time_limit( $this->timeout ); // phpcs:ignore
@@ -904,10 +1114,36 @@ class MainWP_Backup {
 		return $added;
 	}
 
-	public function create_zip_console_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
+	/**
+	 * Create full backup via console.
+	 *
+	 * @param string $filepath Path to file.
+	 * @param array  $excludes Files & directories to exclude.
+	 * @param bool   $addConfig Whether to add config.
+	 * @param bool   $includeCoreFiles Whether to include core files.
+	 * @param bool   $excludezip Whether to exclude zip archives.
+	 * @param bool   $excludenonwp Whether or not to exclude any wp core files.
+	 * @return bool Return FALSE.
+	 */
+	public function create_zip_console_full_backup(
+		$filepath,
+		$excludes,
+		$addConfig,
+		$includeCoreFiles,
+		$excludezip,
+		$excludenonwp ) {
+
 		return false;
 	}
 
+	/**
+	 * Create DB backup.
+	 *
+	 * @param $filepath_prefix File path prefix.
+	 * @param bool                             $archiveExt Archive extension.
+	 * @param null                             $archiver Archiver response.
+	 * @return array|null[]|string[]
+	 */
 	public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
 
 		$timeout = 20 * 60 * 60;
