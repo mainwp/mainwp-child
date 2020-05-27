@@ -684,8 +684,8 @@ class MainWP_Helper {
 	 *
 	 * Check if a certain files exist.
 	 *
-	 * @param array  $files Array containing list of files to check.
-	 * @param bool   $return If true, return feedback.
+	 * @param array $files Array containing list of files to check.
+	 * @param bool  $return If true, return feedback.
 	 *
 	 * @throws \Exception Error message.
 	 *
@@ -720,8 +720,8 @@ class MainWP_Helper {
 	 *
 	 * Check if a certain classes exist.
 	 *
-	 * @param array  $classes Array containing list of classes to check.
-	 * @param bool   $return If true, return feedback.
+	 * @param array $classes Array containing list of classes to check.
+	 * @param bool  $return If true, return feedback.
 	 *
 	 * @throws \Exception Error message.
 	 *
