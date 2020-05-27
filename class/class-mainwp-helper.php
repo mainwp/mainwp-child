@@ -423,7 +423,7 @@ class MainWP_Helper {
 		return true;
 	}
 
-	public function check_classes_exists( $classes = array(), $return = false ) {
+	public static function check_classes_exists( $classes = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $classes ) ) {
 			foreach ( $classes as $name ) {
@@ -447,7 +447,7 @@ class MainWP_Helper {
 		return true;
 	}
 
-	public function check_methods( $object, $methods = array(), $return = false ) {
+	public static function check_methods( $object, $methods = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $methods ) ) {
 				$missing = array();

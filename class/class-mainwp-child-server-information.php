@@ -486,11 +486,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 
 	private static function render_server_infor() {
-		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
-		$isBranding     = true;
+		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();		
 		if ( '' == $branding_title ) {
-			$branding_title = 'MainWP Child';
-			$isBranding     = false;
+			$branding_title = 'MainWP Child';			
 		}
 		?>
 		<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
@@ -509,7 +507,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				<?php self::render_mysql_infor_rows(); ?>
 				<?php self::render_server_infor_rows(); ?>
 				<?php self::render_php_infor_rows(); ?>
-				<?php self::render_plugins_infor_rows( $isBranding ); ?>
+				<?php self::render_plugins_infor_rows( $branding_title ); ?>
 			</tbody>
 		</table>
 		<br/>
@@ -619,21 +617,19 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
-	private static function render_plugins_infor_rows( $isBranding ) {
+	private static function render_plugins_infor_rows( $branding_title ) {
 		?>
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WordPress PLUGINS', 'mainwp-child' ); ?></td>
 		</tr>
 		<?php
 		$all_plugins = get_plugins();
-		foreach ( $all_plugins as $slug => $plugin ) {
-			if ( 'mainwp-child/mainwp-child.php' == $slug || 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) {
-				if ( $isBranding ) {
-					if ( 'mainwp-child/mainwp-child.php' == $slug ) {
-						$plugin['Name'] = esc_html( stripslashes( $branding_title ) );
-					} elseif ( 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) {
-						$plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
-					}
+		foreach ( $all_plugins as $slug => $plugin ) {			
+			if ( ! empty( $branding_title ) && ( 'mainwp-child/mainwp-child.php' == $slug || 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) ) {				
+				if ( 'mainwp-child/mainwp-child.php' == $slug ) {
+					$plugin['Name'] = esc_html( stripslashes( $branding_title ) );
+				} elseif ( 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) {
+					$plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
 				}
 			}
 			?>

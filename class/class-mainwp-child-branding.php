@@ -162,7 +162,7 @@ class MainWP_Child_Branding {
 		$current_settings['remove_permalink']         = $settings['child_remove_permalink'];
 		$current_settings['contact_label']            = $settings['child_button_contact_label'];
 		$current_settings['email_message']            = $settings['child_send_email_message'];
-		$current_settings['return_sender']            = $settings['child_message_return_sender'];
+		$current_settings['message_return_sender']            = $settings['child_message_return_sender'];
 		$current_settings['submit_button_title']      = $settings['child_submit_button_title'];
 		$current_settings['hide']                     = $settings['child_plugin_hide'] ? 'T' : '';
 		$current_settings['show_support']             = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';
@@ -171,7 +171,7 @@ class MainWP_Child_Branding {
 		if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
 			$current_settings['disable_wp_branding'] = $settings['child_disable_wp_branding'];
 		}
-		$current_settings['extra_settings'] = self::get_extra_settings( $current_extra_setting, $settings, $information );
+		$current_settings['extra_settings'] = $this->get_extra_settings( $current_extra_setting, $settings, $information );
 		MainWP_Helper::update_option( 'mainwp_child_branding_settings', $current_settings );
 
 		$information['result'] = 'SUCCESS';
@@ -179,7 +179,7 @@ class MainWP_Child_Branding {
 		return $information;
 	}
 
-	public static function get_extra_settings( $current_extra_setting, $settings, &$information ) {
+	public function get_extra_settings( $current_extra_setting, $settings, &$information ) {
 
 		$extra_setting = array(
 			'show_button_in'                  => $settings['child_show_support_button_in'],
@@ -272,7 +272,7 @@ class MainWP_Child_Branding {
 		return $extra_setting;
 	}
 
-	public static function branding_upload_image( $img_url ) {
+	public function branding_upload_image( $img_url ) {
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 
 		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
@@ -865,7 +865,7 @@ class MainWP_Child_Branding {
 			return true;
 		}
 
-		if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) && is_array( $plugins ) ) {
+		if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) {
 			return true;
 		}
 
