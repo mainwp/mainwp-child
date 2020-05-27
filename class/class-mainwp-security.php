@@ -546,7 +546,7 @@ class MainWP_Security {
 	 *
 	 * Get security check settings.
 	 *
-	 * @param string $optoin Security check option.
+	 * @param string $option Security check option.
 	 *
 	 * @return array Security settings.
 	 */
@@ -561,8 +561,8 @@ class MainWP_Security {
 	 *
 	 * Update the security issues feature settings.
 	 *
-	 * @param $key   Security option key.
-	 * @param $value Security option value.
+	 * @param string $key   Security option key.
+	 * @param string $value Security option value.
 	 */
 	public static function update_security_option( $key, $value ) {
 		$security = get_option( 'mainwp_security' );
