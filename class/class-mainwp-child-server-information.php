@@ -486,9 +486,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 
 	private static function render_server_infor() {
-		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();		
+		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
 		if ( '' == $branding_title ) {
-			$branding_title = 'MainWP Child';			
+			$branding_title = 'MainWP Child';
 		}
 		?>
 		<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0">
@@ -624,8 +624,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		</tr>
 		<?php
 		$all_plugins = get_plugins();
-		foreach ( $all_plugins as $slug => $plugin ) {			
-			if ( ! empty( $branding_title ) && ( 'mainwp-child/mainwp-child.php' == $slug || 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) ) {				
+		foreach ( $all_plugins as $slug => $plugin ) {
+			if ( ! empty( $branding_title ) && ( 'mainwp-child/mainwp-child.php' == $slug || 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) ) {
 				if ( 'mainwp-child/mainwp-child.php' == $slug ) {
 					$plugin['Name'] = esc_html( stripslashes( $branding_title ) );
 				} elseif ( 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) {

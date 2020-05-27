@@ -162,7 +162,7 @@ class MainWP_Child_Branding {
 		$current_settings['remove_permalink']         = $settings['child_remove_permalink'];
 		$current_settings['contact_label']            = $settings['child_button_contact_label'];
 		$current_settings['email_message']            = $settings['child_send_email_message'];
-		$current_settings['message_return_sender']            = $settings['child_message_return_sender'];
+		$current_settings['message_return_sender']    = $settings['child_message_return_sender'];
 		$current_settings['submit_button_title']      = $settings['child_submit_button_title'];
 		$current_settings['hide']                     = $settings['child_plugin_hide'] ? 'T' : '';
 		$current_settings['show_support']             = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';
