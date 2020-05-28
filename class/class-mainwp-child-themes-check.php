@@ -19,41 +19,42 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Themes_Check
+ *
  * @package MainWP\Child
  */
 class MainWP_Child_Themes_Check {
 
-    /** @var string Cron: Theme health check watcher. */
-    private $cron_name_watcher          = 'mainwp_child_cron_theme_health_check_watcher';
+	/** @var string Cron: Theme health check watcher. */
+	private $cron_name_watcher = 'mainwp_child_cron_theme_health_check_watcher';
 
-    /** @var string Cron: Theme health check daily. */
-    private $cron_name_daily            = 'mainwp_child_cron_theme_health_check_daily';
+	/** @var string Cron: Theme health check daily. */
+	private $cron_name_daily = 'mainwp_child_cron_theme_health_check_daily';
 
-    /** @var string Cron: Theme health check batching. */
-    private $cron_name_batching         = 'mainwp_child_cron_theme_health_check_batching';
+	/** @var string Cron: Theme health check batching. */
+	private $cron_name_batching = 'mainwp_child_cron_theme_health_check_batching';
 
-    /** @var string Transient: Theme timestamps. */
-    private $tran_name_theme_timestamps = 'mainwp_child_tran_name_theme_timestamps';
+	/** @var string Transient: Theme timestamps. */
+	private $tran_name_theme_timestamps = 'mainwp_child_tran_name_theme_timestamps';
 
-    /** @var string Transient: Themes to batch. */
-    private $tran_name_themes_to_batch  = 'mainwp_child_tran_name_themes_to_batch';
-    /**
-     * @var string Options: Theme check last daily run.
-     */
-    private $option_name_last_daily_run = 'mainwp_child_theme_last_daily_run';
+	/** @var string Transient: Themes to batch. */
+	private $tran_name_themes_to_batch = 'mainwp_child_tran_name_themes_to_batch';
+	/**
+	 * @var string Options: Theme check last daily run.
+	 */
+	private $option_name_last_daily_run = 'mainwp_child_theme_last_daily_run';
 
-    /**
-     * @static
-     * @var null Holds the Public static instance of MainWP_Child_Themes_Check.
-     */
-    public static $instance             = null;
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Child_Themes_Check.
+	 */
+	public static $instance = null;
 
-    /**
-     * Create a public static instance of MainWP_Child_Themes_Check.
-     *
-     * @return MainWP_Child_Themes_Check|null
-     */
-    public static function instance() {
+	/**
+	 * Create a public static instance of MainWP_Child_Themes_Check.
+	 *
+	 * @return MainWP_Child_Themes_Check|null
+	 */
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -61,10 +62,10 @@ class MainWP_Child_Themes_Check {
 		return self::$instance;
 	}
 
-    /**
-     * MainWP_Child_Themes_Check constructor.
-     */
-    public function __construct() {
+	/**
+	 * MainWP_Child_Themes_Check constructor.
+	 */
+	public function __construct() {
 
 		if ( get_option( 'mainwp_child_plugintheme_days_outdate' ) ) {
 			$this->schedule_watchdog();
@@ -76,21 +77,21 @@ class MainWP_Child_Themes_Check {
 		}
 	}
 
-    /**
-     * Clear crons & transients.
-     */
-    private function cleanup_basic() {
+	/**
+	 * Clear crons & transients.
+	 */
+	private function cleanup_basic() {
 		wp_clear_scheduled_hook( $this->cron_name_daily );
 		wp_clear_scheduled_hook( $this->cron_name_batching );
 		delete_transient( $this->tran_name_themes_to_batch );
 	}
 
-    /**
-     * Clean up after deactivation.
-     *
-     * @param bool $del Whether or not to delete transient. Default: true.
-     */
-    public function cleanup_deactivation($del = true ) {
+	/**
+	 * Clean up after deactivation.
+	 *
+	 * @param bool $del Whether or not to delete transient. Default: true.
+	 */
+	public function cleanup_deactivation( $del = true ) {
 		$this->cleanup_basic();
 		wp_clear_scheduled_hook( $this->cron_name_watcher );
 		delete_option( $this->option_name_last_daily_run );
@@ -99,16 +100,16 @@ class MainWP_Child_Themes_Check {
 		}
 	}
 
-    /**
-     * Modify theme api search query.
-     *
-     * @param $args Query arguments.
-     * @param $action Actions to perform
-     * @return \stdClass Return instance of \stdClass.
-     *
-     * @deprecated Unused Element.
-     */
-    public function modify_theme_api_search_query($args, $action ) {
+	/**
+	 * Modify theme api search query.
+	 *
+	 * @param $args Query arguments.
+	 * @param $action Actions to perform
+	 * @return \stdClass Return instance of \stdClass.
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public function modify_theme_api_search_query( $args, $action ) {
 		if ( isset( $action ) && 'query_themes' === $action ) {
 			if ( ! is_object( $args ) ) {
 				$args = new \stdClass();
@@ -122,14 +123,14 @@ class MainWP_Child_Themes_Check {
 		return $args;
 	}
 
-    /**
-     * Perform Watchdog.
-     *
-     * @throws \Exception
-     *
-     * @deprecated Unused Element.
-     */
-    public function perform_watchdog() {
+	/**
+	 * Perform Watchdog.
+	 *
+	 * @throws \Exception
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public function perform_watchdog() {
 		if ( false === wp_next_scheduled( $this->cron_name_daily ) && false === wp_next_scheduled( $this->cron_name_batching ) ) {
 			$last_run = get_option( $this->option_name_last_daily_run );
 			if ( false === $last_run || ! is_integer( $last_run ) ) {
@@ -148,21 +149,21 @@ class MainWP_Child_Themes_Check {
 		}
 	}
 
-    /**
-     * Schedule a global watching cron just in case both other crons get killed.
-     */
-    public function schedule_watchdog() {
+	/**
+	 * Schedule a global watching cron just in case both other crons get killed.
+	 */
+	public function schedule_watchdog() {
 		if ( ! wp_next_scheduled( $this->cron_name_watcher ) ) {
 			wp_schedule_event( time(), 'hourly', $this->cron_name_watcher );
 		}
 	}
 
-    /**
-     * Get how long themes have been outdated.
-     *
-     * @return array $themes_outdate Array of themes & how long they have been outdated.
-     */
-    public function get_themes_outdate_info() {
+	/**
+	 * Get how long themes have been outdated.
+	 *
+	 * @return array $themes_outdate Array of themes & how long they have been outdated.
+	 */
+	public function get_themes_outdate_info() {
 		$themes_outdate = get_transient( $this->tran_name_theme_timestamps );
 		if ( ! is_array( $themes_outdate ) ) {
 			$themes_outdate = array();
@@ -185,14 +186,14 @@ class MainWP_Child_Themes_Check {
 		return $themes_outdate;
 	}
 
-    /**
-     * Run Check.
-     *
-     * @throws \Exception
-     *
-     * @deprecated Unused Element.
-     */
-    public function run_check() {
+	/**
+	 * Run Check.
+	 *
+	 * @throws \Exception
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public function run_check() {
 		if ( ! function_exists( '\wp_get_themes' ) ) {
 			require_once ABSPATH . '/wp-admin/includes/theme.php';
 		}
@@ -276,13 +277,13 @@ class MainWP_Child_Themes_Check {
 	}
 
 
-    /**
-     * Try to get response body.
-     *
-     * @param $theme Theme slug.
-     * @return string|bool Return response $body or FALSE on failure.
-     */
-    private function try_get_response_body($theme ) {
+	/**
+	 * Try to get response body.
+	 *
+	 * @param $theme Theme slug.
+	 * @return string|bool Return response $body or FALSE on failure.
+	 */
+	private function try_get_response_body( $theme ) {
 
 		// Get the WordPress current version to be polite in the API call.
 		include ABSPATH . WPINC . '/version.php';

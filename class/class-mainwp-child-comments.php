@@ -20,9 +20,9 @@ class MainWP_Child_Comments {
 	protected static $instance = null;
 
 	/**
-     * @var string Used by MainWP_Child_Comments::comments_clauses & MainWP_Child_comments::__constructor.
-     * @deprecate Unused element.
-     */
+	 * @var string Used by MainWP_Child_Comments::comments_clauses & MainWP_Child_comments::__constructor.
+	 * @deprecate Unused element.
+	 */
 	private $comments_and_clauses;
 
 	/**
@@ -122,8 +122,8 @@ class MainWP_Child_Comments {
 	 *
 	 * @param $clauses MySQL WHERE Clause.
 	 * @return array $clauses, Array of MySQL WHERE Clauses.
-     *
-     * @deprecated Unused Element.
+	 *
+	 * @deprecated Unused Element.
 	 */
 	public function comments_clauses( $clauses ) {
 		if ( $this->comments_and_clauses ) {

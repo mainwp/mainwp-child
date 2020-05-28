@@ -8,48 +8,49 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Branding_Render
+ *
  * @package MainWP\Child
  */
 class MainWP_Child_Branding_Render {
-    /**
-     * @static
-     * @var null Holds the Public static instance MainWP_Child_Branding_Render.
-     */
-    public static $instance = null;
+	/**
+	 * @static
+	 * @var null Holds the Public static instance MainWP_Child_Branding_Render.
+	 */
+	public static $instance = null;
 
-    /**
-     * Create a public static instance of MainWP_Child_Branding_Render.
-     *
-     * @return MainWP_Child_Branding_Render|null
-     */
-    public static function instance() {
+	/**
+	 * Create a public static instance of MainWP_Child_Branding_Render.
+	 *
+	 * @return MainWP_Child_Branding_Render|null
+	 */
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
 
-    /**
-     * Get Class Name.
-     *
-     * @return string
-     */
+	/**
+	 * Get Class Name.
+	 *
+	 * @return string
+	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
-    /**
-     * MainWP_Child_Branding_Render constructor.
-     */
-    public function __construct() {
+	/**
+	 * MainWP_Child_Branding_Render constructor.
+	 */
+	public function __construct() {
 	}
 
-    /**
-     * Method admin_head_hide_elements().
-     *
-     * @deprecated Unused Element.
-     */
-    public function admin_head_hide_elements() {
+	/**
+	 * Method admin_head_hide_elements().
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public function admin_head_hide_elements() {
 		?>
 		<script type="text/javascript">
 			document.addEventListener( "DOMContentLoaded", function( event ) {
@@ -65,14 +66,14 @@ class MainWP_Child_Branding_Render {
 		<?php
 	}
 
-    /**
-     * Render Contact Support.
-     *
-     * @return string Contact Support form html.
-     *
-     * @deprecated Unused Element.
-     */
-    public function contact_support() {
+	/**
+	 * Render Contact Support.
+	 *
+	 * @return string Contact Support form html.
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public function contact_support() {
 		global $current_user;
 		?>
 		<style>
@@ -158,13 +159,13 @@ class MainWP_Child_Branding_Render {
 		<?php
 	}
 
-    /**
-     * Render contact support submit message.
-     *
-     * @param $opts Message options.
-     * @return string Submitted message.
-     */
-    private function render_submit_message( $opts ) {
+	/**
+	 * Render contact support submit message.
+	 *
+	 * @param $opts Message options.
+	 * @return string Submitted message.
+	 */
+	private function render_submit_message( $opts ) {
 
 		$from_page = $_POST['mainwp_branding_send_from_page'];
 		$back_link = $opts['message_return_sender'];
@@ -186,12 +187,12 @@ class MainWP_Child_Branding_Render {
 		<?php
 	}
 
-    /**
-     * Send support email.
-     *
-     * @return bool Return TRUE on success FALSE on failure.
-     */
-    public function send_support_mail() {
+	/**
+	 * Send support email.
+	 *
+	 * @return bool Return TRUE on success FALSE on failure.
+	 */
+	public function send_support_mail() {
 		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
 		$email   = $opts['support_email'];
 		$sub     = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
@@ -219,12 +220,12 @@ class MainWP_Child_Branding_Render {
 		return false;
 	}
 
-    /**
-     * After admin bar render.
-     *
-     * @deprecated Unused Element.
-     */
-    public function after_admin_bar_render() {
+	/**
+	 * After admin bar render.
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public function after_admin_bar_render() {
 		$hide_slugs = apply_filters( 'mainwp_child_hide_update_notice', array() );
 
 		if ( ! is_array( $hide_slugs ) ) {
@@ -275,12 +276,12 @@ class MainWP_Child_Branding_Render {
 		<?php
 	}
 
-    /**
-     * Admin footer text.
-     *
-     * @deprecated Unused Element.
-     */
-    public function in_admin_footer() {
+	/**
+	 * Admin footer text.
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public function in_admin_footer() {
 		$hide_slugs = apply_filters( 'mainwp_child_hide_update_notice', array() );
 
 		if ( ! is_array( $hide_slugs ) ) {
