@@ -1,23 +1,51 @@
 <?php
+/**
+ * MainWP Connect
+ *
+ * Manage connection between MainWP Dashboard and the child site.
+ */
 
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Connect
+ *
+ * Manage connection between MainWP Dashboard and the child site.
+ */
 class MainWP_Connect {
 
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	public static $instance = null;
+
+	/**
+	 * Private variable to hold the max history value.
+	 *
+	 * @var int $maxHistory Max history.
+	 */
 	private $maxHistory     = 5;
 
 	/**
 	 * Method get_class_name()
 	 *
-	 * Get Class Name.
+	 * Get class name.
 	 *
-	 * @return object
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -25,11 +53,16 @@ class MainWP_Connect {
 		return self::$instance;
 	}
 
-	// This will register the current wp - thus generating the public key etc.
+	/**
+	 * Method register_site()
+	 *
+	 * Register the current WordPress site thus generating teh public key.
+	 */
 	public function register_site() {
 		global $current_user;
 
 		$information = array();
+
 		// Check if the user is valid & login.
 		if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
 			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
@@ -37,11 +70,13 @@ class MainWP_Connect {
 
 		// Already added - can't readd. Deactivate plugin.
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
-			// set disconnect status to yes here, it will empty after reconnected.
+
+			// Set disconnect status to yes here, it will empty after reconnected.
 			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
 			MainWP_Helper::error( __( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin and try again.', 'mainwp-child' ) );
 		}
 
+		// Check the Unique Security ID.
 		if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
 			if ( ! isset( $_POST['uniqueId'] ) || ( '' === $_POST['uniqueId'] ) ) {
 				MainWP_Helper::error( __( 'This child site is set to require a unique security ID. Please enter it before the connection can be established.', 'mainwp-child' ) );
@@ -55,33 +90,42 @@ class MainWP_Connect {
 			MainWP_Helper::error( __( 'SSL is required on the child site to set up a secure connection.', 'mainwp-child' ) );
 		}
 
-		// Login.
+		// Check if the user exists and if yes, check if it's Administartor user.
 		if ( isset( $_POST['user'] ) ) {
 			if ( ! $this->login( $_POST['user'] ) ) {
 				$hint_miss_user = __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) . '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
 				MainWP_Helper::error( $hint_miss_user );
 			}
-
 			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! $current_user->has_cap( 'level_10' ) ) {
 				MainWP_Helper::error( __( 'That user is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 			}
 		}
 
-		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] ); // Save the public key.
-		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 ); // Save the nonce.
+		// Update the mainwp_child_pubkey option.
+		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for the backwards compatibility.
 
+		// Save the public key.
+		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] );
+
+		// Save the nonce.
+		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 );
+
+		// Update the mainwp_child_nossl option.
 		MainWP_Helper::update_option( 'mainwp_child_nossl', ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::is_ssl_enabled() ? 1 : 0 ), 'yes' );
+
 		$information['nossl'] = ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::is_ssl_enabled() ? 1 : 0 );
+
 		if ( function_exists( 'random_bytes' ) ) {
 			$nossl_key = random_bytes( 32 );
 			$nossl_key = bin2hex( $nossl_key );
 		} else {
 			$nossl_key = uniqid( '', true );
 		}
-		MainWP_Helper::update_option( 'mainwp_child_nossl_key', $nossl_key, 'yes' );
-		$information['nosslkey'] = $nossl_key;
 
+		// Update the mainwp_child_nossl_key option.
+		MainWP_Helper::update_option( 'mainwp_child_nossl_key', $nossl_key, 'yes' );
+
+		$information['nosslkey'] = $nossl_key;
 		$information['register'] = 'OK';
 		$information['uniqueId'] = get_option( 'mainwp_child_uniqueId', '' );
 		$information['user']     = $_POST['user'];
@@ -90,6 +134,15 @@ class MainWP_Connect {
 	}
 
 
+	/**
+	 * Method parse_init_auth()
+	 *
+	 * Parse inistial authentication.
+	 *
+	 * @param  bool $auth True is autenticated, false if not.
+	 *
+	 * @return bool ture|false.
+	 */
 	public function parse_init_auth( $auth = false ) {
 
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) { // with 'mainwpsignature' then need to callable functions.
@@ -162,17 +215,27 @@ class MainWP_Connect {
 		return true;
 	}
 
-
-	public function auth( $signature, $func, $nonce, $pNossl ) {
+	/**
+	 * Method auth()
+	 *
+	 * Connection authentication handler. Verifies that the signature is correct for the specified data using the public key associated with pub_key_id. This must be the public key corresponding to the private key used for signing.
+	 *
+	 * @param  string $signature MainWP Dashboard signature.
+	 * @param  string $func      Function to run.
+	 * @param  string $nonce     Security nonce.
+	 * @param  int    $nossl     OpenSSL not availalbe. NoSSL connection required.
+	 *
+	 * @return int|bool $auth  Returns 1 if authenticated, false if authentication fails.
+	 */
+	public function auth( $signature, $func, $nonce, $nossl ) {
 		if ( empty( $signature ) || ! isset( $func ) || ( ! get_option( 'mainwp_child_pubkey' ) && ! get_option( 'mainwp_child_nossl_key' ) ) ) {
 			$auth = false;
 		} else {
 			$nossl       = get_option( 'mainwp_child_nossl' );
-			$serverNoSsl = ( isset( $pNossl ) && 1 === (int) $pNossl );
-
+			$serverNoSsl = ( isset( $nossl ) && 1 === (int) $nossl );
 			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
 				$nossl_key = get_option( 'mainwp_child_nossl_key' );
-				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..								
+				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			} else {
 				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 				if ( 1 !== $auth ) {
@@ -180,10 +243,16 @@ class MainWP_Connect {
 				}
 			}
 		}
-
 		return $auth;
 	}
 
+	/**
+	 * Method parse_login_required()
+	 *
+	 * Check if the login process is required.
+	 *
+	 * @return void
+	 */
 	public function parse_login_required() {
 
 		global $current_user;
@@ -235,6 +304,13 @@ class MainWP_Connect {
 		$this->check_redirects();
 	}
 
+	/**
+	 * Method get_request_files()
+	 *
+	 * Parse HTTP request to get files.
+	 *
+	 * @return resource Requested file.
+	 */
 	private function get_request_files() {
 		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
@@ -247,6 +323,13 @@ class MainWP_Connect {
 		return $file;
 	}
 
+	/**
+	 * Method check_redirects()
+	 *
+	 * Handle redirects.
+	 *
+	 * @return void
+	 */
 	private function check_redirects() {
 		if ( isset( $_REQUEST['fdl'] ) ) {
 			if ( stristr( $_REQUEST['fdl'], '..' ) ) {
@@ -255,7 +338,7 @@ class MainWP_Connect {
 			MainWP_Utility::instance()->upload_file( $_REQUEST['fdl'], isset( $_REQUEST['foffset'] ) ? $_REQUEST['foffset'] : 0 );
 			exit;
 		}
-		// to support open not wp-admin url.
+		// support for custom wp-admin slug.
 		if ( isset( $_REQUEST['open_location'] ) ) {
 			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			$this->open_location_redirect( $open_location );
@@ -263,6 +346,13 @@ class MainWP_Connect {
 		$this->where_redirect();
 	}
 
+	/**
+	 * Method open_location_redirect()
+	 *
+	 * Jump to the wanted location (child site WP Admin page).
+	 *
+	 * @param  string $open_location Desired location relative path.
+	 */
 	private function open_location_redirect( $open_location ) {
 		$_vars = self::parse_query( $open_location );
 		$_path = wp_parse_url( $open_location, PHP_URL_PATH );
@@ -285,14 +375,20 @@ class MainWP_Connect {
 		exit();
 	}
 
-
+	/**
+	 * Method parse_query()
+	 *
+	 * Parse query
+	 *
+	 * @param  string $var Contains the parameter to prase.
+	 *
+	 * @return array  $arr Array containing parsed arguments.
+	 */
 	public static function parse_query( $var ) {
-
 		$var = wp_parse_url( $var, PHP_URL_QUERY );
 		$var = html_entity_decode( $var );
 		$var = explode( '&', $var );
 		$arr = array();
-
 		foreach ( $var as $val ) {
 			$x            = explode( '=', $val );
 			$arr[ $x[0] ] = $x[1];
@@ -302,6 +398,11 @@ class MainWP_Connect {
 		return $arr;
 	}
 
+	/**
+	 * Method where_redirect()
+	 *
+	 * Safe redirect to wanted location.
+	 */
 	private function where_redirect() {
 		$where = isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : '';
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
@@ -311,7 +412,6 @@ class MainWP_Connect {
 			} elseif ( isset( $_POST['file'] ) ) {
 				$file = $_POST['file'];
 			}
-
 			$where = 'admin.php?page=mainwp_child_tab&tab=restore-clone';
 			if ( '' === session_id() ) {
 				session_start();
@@ -323,9 +423,16 @@ class MainWP_Connect {
 		exit();
 	}
 
+	/**
+	 * Method check_login()
+	 *
+	 * Auto-login user to the child site when the Open WP Admin feature from the MainWP Dashboard is used.
+	 *
+	 * @uses MainWP_Connect::login() Handle the login process.
+	 *
+	 * @return void
+	 */
 	public function check_login() {
-
-		// to login requires 'mainwpsignature'.
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
 			return false;
 		}
@@ -381,6 +488,13 @@ class MainWP_Connect {
 		}
 	}
 
+	/**
+	 * Method get_file_request()
+	 *
+	 * Parse HTTP request to get files.
+	 *
+	 * @return resource Requested file.
+	 */
 	private function get_file_request() {
 		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
@@ -394,10 +508,15 @@ class MainWP_Connect {
 	}
 
 	/**
+	 * Method check_login_as()
 	 *
-	 * Check to support login by alternative admin.
-	 * Return false will login by connected admin user.
-	 * Return true will try to login as alternative user.
+	 * Auto-login alternative user to the child site when the Open WP Admin feature from the MainWP Dashboard is used.
+	 *
+	 * @param string $alter_login Alternative user account to log into.
+	 *
+	 * @used-by MainWP_Child::check_login() Auto-login user to the child site when the Open WP Admin feature from the MainWP Dashboard is used.
+	 *
+	 * @return bool Return false will log in as default admin user. Return true will try to login as alternative user.
 	 */
 	public function check_login_as( $alter_login ) {
 
@@ -421,7 +540,18 @@ class MainWP_Connect {
 		return false;
 	}
 
-	// Login.
+	/**
+	 * Method login()
+	 *
+	 * The login process handler.
+	 *
+	 * @param  string $username Contains the account username.
+	 * @param  bool   $doAction If true, run 'wp_login' action aftr the login.
+	 *
+	 * @used-by MainWP_Child::check_login() Auto-login user to the child site when the Open WP Admin feature from the MainWP Dashboard is used.
+	 *
+	 * @return bool true|false
+	 */
 	public function login( $username, $doAction = false ) {
 		global $current_user;
 
@@ -455,7 +585,11 @@ class MainWP_Connect {
 		return false;
 	}
 
-
+	/**
+	 * Method check_other_auth()
+	 *
+	 * Check other authentication methods.
+	 */
 	public function check_other_auth() {
 		$auths = get_option( 'mainwp_child_auth' );
 
@@ -463,7 +597,7 @@ class MainWP_Connect {
 			$auths = array();
 		}
 
-		if ( ! isset( $auths['last'] ) || $auths['last'] < mktime( 0, 0, 0, date( 'm' ), date( 'd' ), date( 'Y' ) ) ) { // phpcs:ignore -- local time.
+		if ( ! isset( $auths['last'] ) || $auths['last'] < mktime( 0, 0, 0, date( 'm' ), date( 'd' ), date( 'Y' ) ) ) { // phpcs:ignore -- local time required to achieve desired results, pull request solutions appreciated.
 			// Generate code for today.
 			for ( $i = 0; $i < $this->maxHistory; $i ++ ) {
 				if ( ! isset( $auths[ $i + 1 ] ) ) {
@@ -482,6 +616,15 @@ class MainWP_Connect {
 		}
 	}
 
+	/**
+	 * Method is_valid_auth()
+	 *
+	 * Check if authentication is valid.
+	 *
+	 * @param  string $key Contains the authentication key to check.
+	 *
+	 * @return bool true|false If valid authentication, return true, if not, return false.
+	 */
 	public function is_valid_auth( $key ) {
 		$auths = get_option( 'mainwp_child_auth' );
 		if ( ! $auths ) {
@@ -496,7 +639,11 @@ class MainWP_Connect {
 		return false;
 	}
 
-
+	/**
+	 * Method get_max_history()
+	 *
+	 * @return int The max history value.
+	 */
 	public function get_max_history() {
 		return $this->maxHistory;
 	}
