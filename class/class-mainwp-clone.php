@@ -529,6 +529,8 @@ class MainWP_Clone {
 	 * @param resource $file     Backup file to be downloaded.
 	 * @param bool     $testFull Return true if the file exists.
 	 *
+	 * @throws \Exception Error message.
+	 *
 	 * @return resource Return the backup file.
 	 */
 	private function clone_backup_get_file( $file, &$testFull ) {
