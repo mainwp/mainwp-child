@@ -3,6 +3,8 @@
  * MainWP Connect
  *
  * Manage connection between MainWP Dashboard and the child site.
+ *
+ * @package MainWP\Child
  */
 
 namespace MainWP\Child;
@@ -26,7 +28,7 @@ class MainWP_Connect {
 	 *
 	 * @var int $maxHistory Max history.
 	 */
-	private $maxHistory     = 5;
+	private $maxHistory = 5;
 
 	/**
 	 * Method get_class_name()
@@ -430,7 +432,7 @@ class MainWP_Connect {
 	 *
 	 * @uses MainWP_Connect::login() Handle the login process.
 	 *
-	 * @return void
+	 * @return bool Return false if $_POST['mainwpsignature'] is not set.
 	 */
 	public function check_login() {
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
