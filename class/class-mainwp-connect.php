@@ -439,7 +439,7 @@ class MainWP_Connect {
 			return false;
 		}
 
-		$file = $this->get_file_request();
+		$file = $this->get_request_files();
 
 		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '', isset( $_POST['function'] ) ? $_POST['function'] : rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
 		if ( ! $auth ) {
@@ -488,25 +488,6 @@ class MainWP_Connect {
 				die();
 			}
 		}
-	}
-
-	/**
-	 * Method get_file_request()
-	 *
-	 * Parse HTTP request to get files.
-	 *
-	 * @return resource Requested file.
-	 */
-	private function get_file_request() {
-		$file = '';
-		if ( isset( $_REQUEST['f'] ) ) {
-			$file = $_REQUEST['f'];
-		} elseif ( isset( $_REQUEST['file'] ) ) {
-			$file = $_REQUEST['file'];
-		} elseif ( isset( $_REQUEST['fdl'] ) ) {
-			$file = $_REQUEST['fdl'];
-		}
-		return $file;
 	}
 
 	/**
