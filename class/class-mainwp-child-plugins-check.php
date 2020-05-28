@@ -1,5 +1,11 @@
 <?php
 /**
+ * MainWP Abandoned Plugin Check
+ *
+ * This file checks if pugins have been abandoned.
+ */
+
+/**
  * Credits
  *
  * Plugin Name: Vendi Abandoned Plugin Check
