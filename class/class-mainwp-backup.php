@@ -975,42 +975,6 @@ class MainWP_Backup {
 	}
 
 	/**
-	 * Method pcl_zip_add_dir().
-	 *
-	 * @param $path Path to zip file.
-	 * @param $excludes Files & directories to exclude.
-	 * @return bool true|false.
-	 *
-	 * @deprecated Unused Element.
-	 */
-	public function pcl_zip_add_dir( $path, $excludes ) {
-		$error = false;
-		$nodes = glob( rtrim( $path, '/' ) . '/*' );
-		if ( empty( $nodes ) ) {
-			return true;
-		}
-
-		foreach ( $nodes as $node ) {
-			if ( null === $excludes || ! in_array( str_replace( ABSPATH, '', $node ), $excludes, true ) ) {
-				if ( is_dir( $node ) ) {
-					if ( ! $this->pcl_zip_add_dir( $node, $excludes ) ) {
-						$error = true;
-						break;
-					}
-				} elseif ( is_file( $node ) ) {
-					$rslt = $this->zip->add( $node, PCLZIP_OPT_REMOVE_PATH, ABSPATH );
-					if ( 0 === $rslt ) {
-						$error = true;
-						break;
-					}
-				}
-			}
-		}
-
-		return ! $error;
-	}
-
-	/**
 	 * Add file from a string to zip file.
 	 *
 	 * @param $file File to add to zip.
