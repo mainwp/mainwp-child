@@ -254,8 +254,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 			add_filter( 'mainwp_child_hide_update_notice', array( &$this, 'hide_update_notice' ) );
 		}
 	}
-
-<<<<<<< HEAD
+	
     /**
      * Hide update notice.
      *
@@ -265,20 +264,11 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
      * @deprecated Unused element.
      */
     public function hide_update_notice( $slugs ) {
-=======
-	/**
-	 * @param $slugs
-	 * @return mixed
-	 *
-	 * @deprecated Unused element.
-	 */
-	public function hide_update_notice( $slugs ) {
->>>>>>> 192494963a8ae1f7429bce1e881855310ba972fc
+
 		$slugs[] = 'mainwp-child-reports/mainwp-child-reports.php';
 		return $slugs;
 	}
 
-<<<<<<< HEAD
     /**
      * Remove update nag.
      *
@@ -288,15 +278,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
      * @deprecated Unused element.
      */
     public function remove_update_nag( $value ) {
-=======
-	/**
-	 * @param $value
-	 * @return mixed
-	 *
-	 * @deprecated Unused element.
-	 */
-	public function remove_update_nag( $value ) {
->>>>>>> 192494963a8ae1f7429bce1e881855310ba972fc
+
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
