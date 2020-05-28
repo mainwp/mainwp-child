@@ -211,8 +211,8 @@ class MainWP_Child {
 	}
 
 	/**
-     * Parse init.
-     *
+	 * Parse init.
+	 *
 	 * @deprecated Unused Element.
 	 */
 	public function parse_init() {
@@ -291,8 +291,8 @@ class MainWP_Child {
 
 	/**
 	 * Check login.
-     *
-     * @deprecated Unused Element.
+	 *
+	 * @deprecated Unused Element.
 	 */
 	public function init_check_login() {
 		MainWP_Connect::instance()->check_login();
@@ -300,8 +300,8 @@ class MainWP_Child {
 
 	/**
 	 * If user is administrator initiate the admin ajax.
-     *
-     * @deprecated Unused Element.
+	 *
+	 * @deprecated Unused Element.
 	 */
 	public function admin_init() {
 		if ( MainWP_Helper::is_admin() && is_admin() ) {
@@ -367,8 +367,8 @@ class MainWP_Child {
 
 	/**
 	 * Hook to deactivate Child Plugin.
-     *
-     * @deprecated Unused Element.
+	 *
+	 * @deprecated Unused Element.
 	 */
 	public function activation() {
 		$mu_plugin_enabled = apply_filters( 'mainwp_child_mu_plugin_enabled', false );
