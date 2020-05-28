@@ -1,32 +1,65 @@
 <?php
+/**
+ * MainWP MainWP_Clone
+ *
+ * Manage child site cloning process.
+ *
+ * @package MainWP\Child
+ */
 
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Clone
+ *
+ * Manage child site cloning process.
+ */
 class MainWP_Clone {
+
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	protected static $instance = null;
+
+	/**
+	 * Protected variable to hold security nonces.
+	 *
+	 * @var array Security nonces.
+	 */
 	protected $security_nonces;
 
 	/**
 	 * Method get_class_name()
 	 *
-	 * Get Class Name.
+	 * Get class name.
 	 *
-	 * @return object
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
-
-	public static function get() {
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
+	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
-
 		return self::$instance;
 	}
 
-
+	/**
+	 * Method init_ajax()
+	 *
+	 * Initiate AJAX requests.
+	 */
 	public function init_ajax() {
 		$this->add_action( 'mainwp-child_clone_backupcreate', array( &$this, 'clone_backup_create' ) );
 		$this->add_action( 'mainwp-child_clone_backupcreatepoll', array( &$this, 'clone_backup_create_poll' ) );
@@ -35,30 +68,62 @@ class MainWP_Clone {
 		$this->add_action( 'mainwp-child_clone_backupextract', array( &$this, 'clone_backup_extract' ) );
 	}
 
+	/**
+	 * Method add_security_nonce()
+	 *
+	 * Create security nonce for specific actions.
+	 *
+	 * @param string $action Contains the action that requires security nonce.
+	 */
 	public function add_security_nonce( $action ) {
 		if ( ! is_array( $this->security_nonces ) ) {
 			$this->security_nonces = array();
 		}
-
 		if ( ! function_exists( 'wp_create_nonce' ) ) {
 			include_once ABSPATH . WPINC . '/pluggable.php';
 		}
 		$this->security_nonces[ $action ] = wp_create_nonce( $action );
 	}
 
+	/**
+	 * Method get_security_nonces()
+	 *
+	 * Get security nonces from the security nonces array.
+	 *
+	 * @return array Security nonces.
+	 */
 	public function get_security_nonces() {
 		return $this->security_nonces;
 	}
 
+	/**
+	 * Method add_action()
+	 *
+	 * Add actions to the 'wp_ajax_' hook and create security nonce.
+	 *
+	 * @param string $action   Contains action to be added to the 'wp_ajax_' hook.
+	 * @param string $callback Contains a callback action.
+	 */
 	public function add_action( $action, $callback ) {
 		add_action( 'wp_ajax_' . $action, $callback );
 		$this->add_security_nonce( $action );
 	}
 
+	/**
+	 * Method secure_request()
+	 *
+	 * Build secure request for the clone process.
+	 *
+	 * @param string $action    Contains the action that is being performed.
+	 * @param string $query_arg Contains the query argument.
+	 *
+	 * @return void
+	 */
 	public function secure_request( $action = '', $query_arg = 'security' ) {
 		if ( ! MainWP_Helper::is_admin() ) {
 			die( 0 );
 		}
+
 		if ( '' == $action ) {
 			return;
 		}
@@ -83,6 +148,16 @@ class MainWP_Clone {
 		}
 	}
 
+	/**
+	 * Method check_security()
+	 *
+	 * Check the clone request security.
+	 *
+	 * @param string $action    Contains the action that is being performed.
+	 * @param string $query_arg Contains the query argument.
+	 *
+	 * @return bool true|false If secure, return true, if not, return false.
+	 */
 	public function check_security( $action = - 1, $query_arg = 'security' ) {
 		if ( - 1 == $action ) {
 			return false;
@@ -98,6 +173,11 @@ class MainWP_Clone {
 		return true;
 	}
 
+	/**
+	 * Method init()
+	 *
+	 * Initiate action hooks.
+	 */
 	public function init() {
 		add_action( 'check_admin_referer', array( self::get_class_name(), 'permalink_changed' ) );
 		if ( get_option( 'mainwp_child_clone_permalink' ) || get_option( 'mainwp_child_restore_permalink' ) ) {
@@ -105,6 +185,15 @@ class MainWP_Clone {
 		}
 	}
 
+	/**
+	 * Method upload_mimes()
+	 *
+	 * Add allowed mime types and file extensions.
+	 *
+	 * @param array $mime_types Mime types keyed by the file extension regex corresponding to those types.
+	 *
+	 * @return array Array containing allowed mime types.
+	 */
 	public static function upload_mimes( $mime_types = array() ) {
 		if ( ! isset( $mime_types['tar.bz2'] ) ) {
 			$mime_types['tar.bz2'] = 'application/x-tar';
@@ -113,6 +202,13 @@ class MainWP_Clone {
 		return $mime_types;
 	}
 
+	/**
+	 * Method clone_backup_create()
+	 *
+	 * Create backup of template site so it can be used to clone it.
+	 *
+	 * @throws \Exception Error message.
+	 */
 	public function clone_backup_create() {
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupcreate' );
@@ -168,6 +264,13 @@ class MainWP_Clone {
 		die( wp_json_encode( $output ) );
 	}
 
+	/**
+	 * Method clone_backup_create_poll()
+	 *
+	 * Create backup poll of template site so it can be used to clone it.
+	 *
+	 * @throws \Exception Error message.
+	 */
 	public function clone_backup_create_poll() {
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupcreatepoll' );
@@ -211,6 +314,15 @@ class MainWP_Clone {
 		die( wp_json_encode( $output ) );
 	}
 
+	/**
+	 * Method clone_backup_download()
+	 *
+	 * Download backup file of template site so it can be used to clone it.
+	 *
+	 * @throws \Exception Error message.
+	 *
+	 * @return mixed Response message.
+	 */
 	public function clone_backup_download() {
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupdownload' );
@@ -308,6 +420,13 @@ class MainWP_Clone {
 		die( wp_json_encode( $output ) );
 	}
 
+	/**
+	 * Method clone_backup_download_poll()
+	 *
+	 * Download backup file poll of template site so it can be used to clone it.
+	 *
+	 * @throws \Exception Error message.
+	 */
 	public function clone_backup_download_poll() {
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupdownloadpoll' );
@@ -335,6 +454,11 @@ class MainWP_Clone {
 		die( wp_json_encode( $output ) );
 	}
 
+	/**
+	 * Method clone_backup_extract()
+	 *
+	 * Extract the backup archive to clone the site.
+	 */
 	public function clone_backup_extract() {
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupextract' );
@@ -397,6 +521,16 @@ class MainWP_Clone {
 		die( wp_json_encode( $output ) );
 	}
 
+	/**
+	 * Method clone_backup_get_file()
+	 *
+	 * Get the backup file to download and clone.
+	 *
+	 * @param resource $file     Backup file to be downloaded.
+	 * @param bool     $testFull Return true if the file exists.
+	 *
+	 * @return resource Return the backup file.
+	 */
 	private function clone_backup_get_file( $file, &$testFull ) {
 		if ( '' === $file ) {
 			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
@@ -425,10 +559,31 @@ class MainWP_Clone {
 		return $file;
 	}
 
-	public static function is_archive( $pFileName, $pPrefix = '', $pSuffix = '' ) {
-		return preg_match( '/' . $pPrefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $pSuffix . '$/', $pFileName );
+	/**
+	 * Method is_archive()
+	 *
+	 * Check if the file is archive file.
+	 *
+	 * @param string $file_name Contains the file name.
+	 * @param string $prefix    Contains the prefix.
+	 * @param string $suffix    Contains the sufix.
+	 *
+	 * @return bool true|false If the file is archive, return true, if not, return false.
+	 */
+	public static function is_archive( $file_name, $prefix = '', $suffix = '' ) {
+		return preg_match( '/' . $prefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $suffix . '$/', $file_name );
 	}
 
+	/**
+	 * Method clone_backup_delete_files()
+	 *
+	 * Delete unneeded files (plugins and themes).
+	 *
+	 * @param array $plugins Array containig plugins to be kept.
+	 * @param array $themes  Array containig themes to be kept.
+	 *
+	 * @return array Array containing output feedback.
+	 */
 	private function clone_backup_delete_files( $plugins, $themes ) {
 		if ( false !== $plugins ) {
 			$out = array();
@@ -448,7 +603,6 @@ class MainWP_Clone {
 				}
 				closedir( $fh );
 			}
-
 			delete_option( 'mainwp_temp_clone_plugins' );
 		}
 		if ( false !== $themes ) {
@@ -477,6 +631,13 @@ class MainWP_Clone {
 		return $output;
 	}
 
+	/**
+	 * Method permalink_changed()
+	 *
+	 * Check if the permalinks settings are re-saved.
+	 *
+	 * @param string $action Contains performed action.
+	 */
 	public static function permalink_changed( $action ) {
 		if ( 'update-permalink' === $action ) {
 			if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) {
