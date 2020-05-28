@@ -2,13 +2,12 @@
 /**
  * MainWP Child
  *
- * This file handles all of the task that deal with the
- *  MainWP Child Plugin itself.
+ * @package MainWP\Child
  */
 
 namespace MainWP\Child;
 
-// phpcs:disable
+// phpcs:disable -- required for debugging.
 if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === true ) {
 	error_reporting( E_ALL );
 	ini_set( 'display_errors', true );
@@ -21,42 +20,50 @@ if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === true ) {
 }
 // phpcs:enable
 
-
 require_once ABSPATH . '/wp-admin/includes/file.php';
 require_once ABSPATH . '/wp-admin/includes/plugin.php';
 
 /**
  * Class MainWP_Child
  *
- * @package MainWP\Child
+ * Manage all MainWP features.
  */
 class MainWP_Child {
 
 	/**
-	 * @static
-	 * @var string MainWP Child Plugin Version.
+	 * Public static variable containing the latest MainWP Child plugin version.
+	 *
+	 * @var string MainWP Child plugin version.
 	 */
 	public static $version = '4.0.7.1';
 
 	/**
-	 * @var string Update Version.
+	 * Private variable containing the latest MainWP Child update version.
+	 *
+	 * @var string MainWP Child update version.
 	 */
 	private $update_version = '1.5';
 
 	/**
-	 * @var string MainWP Child Plugin slug.
+	 * Public variable containing the MainWP Child plugin slug.
+	 *
+	 * @var string MainWP Child plugin slug.
 	 */
 	public $plugin_slug;
 
 	/**
-	 * @var string MainWP Child Plugin directory.
+	 * Private variable containing the MainWP Child plugin directory.
+	 *
+	 * @var string MainWP Child plugin directory.
 	 */
 	private $plugin_dir;
 
 	/**
-	 * MainWP_Child constructor.
+	 * Method __construct()
 	 *
-	 * @param $plugin_file MainWP Child Plugin file.
+	 * Run any time MainWP_Child is called.
+	 *
+	 * @param resource $plugin_file MainWP Child plugin file.
 	 */
 	public function __construct( $plugin_file ) {
 		$this->update();
@@ -70,8 +77,12 @@ class MainWP_Child {
 		add_action( 'init', array( &$this, 'parse_init' ), 9999 );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
-		add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) ); // to support detect premium plugins update.
-		add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) ); // to support detect premium themes.
+
+		// support for better detection for premium plugins.
+		add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
+
+		// support for better detection for premium themes.
+		add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
 
 		MainWP_Pages::get_instance()->init();
 
@@ -81,8 +92,7 @@ class MainWP_Child {
 
 		MainWP_Connect::instance()->check_other_auth();
 
-		// init functions.
-		MainWP_Clone::get()->init();
+		MainWP_Clone::instance()->init();
 		MainWP_Child_Server_Information::init();
 		MainWP_Client_Report::instance()->init();
 		MainWP_Child_Plugins_Check::instance();
@@ -101,9 +111,11 @@ class MainWP_Child {
 	}
 
 	/**
-	 * Load all MainWP Child Plugin options.
+	 * Method load_all_options()
 	 *
-	 * @return array|bool Return array of options $alloptions[] or FALSE on failure.
+	 * Load all MainWP Child plugin options.
+	 *
+	 * @return array|bool Return array of options or false on failure.
 	 */
 	public function load_all_options() {
 
@@ -155,9 +167,9 @@ class MainWP_Child {
 				$query .= "'" . $option . "', ";
 			}
 			$query  = substr( $query, 0, strlen( $query ) - 2 );
-			$query .= ")"; // phpcs:ignore
+			$query .= ")"; // phpcs:ignore -- simple style problem.
 
-			$alloptions_db = $wpdb->get_results( $query ); // phpcs:ignore -- safe query
+			$alloptions_db = $wpdb->get_results( $query ); // phpcs:ignore -- safe query, required to achieve desired results, pull request solutions appreciated.
 			$wpdb->suppress_errors( $suppress );
 			if ( ! is_array( $alloptions ) ) {
 				$alloptions = array();
@@ -180,11 +192,12 @@ class MainWP_Child {
 		return $alloptions;
 	}
 
-
 	/**
-	 * Update MainWP Child Plugin.
+	 * Method update()
 	 *
-	 * @return string Update verison.
+	 * Update the MainWP Child plugin version (mainwp_child_update_version) option.
+	 *
+	 * @return void
 	 */
 	public function update() {
 		$update_version = get_option( 'mainwp_child_update_version' );
@@ -197,40 +210,43 @@ class MainWP_Child {
 	}
 
 	/**
-	 * Load MainWP Child Plugin textdomains.
+	 * Method localization()
+	 *
+	 * Load the MainWP Child plugin textdomains.
 	 */
 	public function localization() {
 		load_plugin_textdomain( 'mainwp-child', false, dirname( dirname( plugin_basename( __FILE__ ) ) ) . '/languages/' );
 	}
 
 	/**
-	 * Template redirect.
+	 * Method template_redirect()
+	 *
+	 * Handle the template redirect for 404 maintenance alerts.
 	 */
 	public function template_redirect() {
 		MainWP_Utility::instance()->maintenance_alert();
 	}
 
 	/**
-	 * Parse init.
+	 * Method parse_init()
 	 *
-	 * @deprecated Unused Element.
+	 * Parse the init hook.
+	 *
+	 * @return void
 	 */
 	public function parse_init() {
 
 		if ( isset( $_REQUEST['cloneFunc'] ) ) {
-
-			// if not valid result then return.
 			$valid_clone = MainWP_Clone_Install::get()->request_clone_funct();
-			// not valid clone.
 			if ( ! $valid_clone ) {
 				return;
 			}
 		}
 
-		/** @var global $wp_rewrite Core class used to implement a rewrite component API. */
 		global $wp_rewrite;
 
 		$snPluginDir = basename( $this->plugin_dir );
+
 		if ( isset( $wp_rewrite->non_wp_rules[ 'wp-content/plugins/' . $snPluginDir . '/([^js\/]*)$' ] ) ) {
 			unset( $wp_rewrite->non_wp_rules[ 'wp-content/plugins/' . $snPluginDir . '/([^js\/]*)$' ] );
 		}
@@ -243,6 +259,7 @@ class MainWP_Child {
 			include_once ABSPATH . '/wp-admin/includes/misc.php';
 
 			$wp_rewrite->flush_rules();
+
 			MainWP_Helper::update_option( 'mainwp_child_fix_htaccess', 'yes', 'yes' );
 		}
 
@@ -255,10 +272,8 @@ class MainWP_Child {
 			}
 		}
 
-		/**
-		 * Security
-		 */
 		MainWP_Security::fix_all();
+
 		MainWP_Debug::process( $this );
 
 		// Register does not require auth, so we register here.
@@ -268,10 +283,10 @@ class MainWP_Child {
 			MainWP_Connect::instance()->register_site(); // register the site and exit.
 		}
 
-		// auth here.
+		// Authenticate here.
 		$auth = MainWP_Connect::instance()->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
 
-		// parse auth, if it is not correct actions then exit with message or return.
+		// Parse auth, if it is not correct actions then exit with message or return.
 		if ( ! MainWP_Connect::instance()->parse_init_auth( $auth ) ) {
 			return;
 		}
@@ -280,7 +295,7 @@ class MainWP_Child {
 
 		global $_wp_submenu_nopriv;
 		if ( null === $_wp_submenu_nopriv ) {
-			$_wp_submenu_nopriv = array(); // phpcs:ignore -- to fix warning.
+			$_wp_submenu_nopriv = array(); // phpcs:ignore -- Required to fix warnings, pull request solutions appreciated.
 		}
 
 		// execute callable functions here.
@@ -290,30 +305,33 @@ class MainWP_Child {
 	}
 
 	/**
-	 * Check login.
+	 * Method init_check_login()
 	 *
-	 * @deprecated Unused Element.
+	 * Initiate the chech login process.
+	 *
+	 * @uses MainWP_Connect::instance()->check_login() Auto-login user to the child site when the Open WP Admin feature from the MainWP Dashboard is used.
 	 */
 	public function init_check_login() {
 		MainWP_Connect::instance()->check_login();
 	}
 
 	/**
-	 * If user is administrator initiate the admin ajax.
+	 * Method admin_init()
 	 *
-	 * @deprecated Unused Element.
+	 * If the current user is administrator initiate the admin ajax.
 	 */
 	public function admin_init() {
 		if ( MainWP_Helper::is_admin() && is_admin() ) {
-			MainWP_Clone::get()->init_ajax();
+			MainWP_Clone::instance()->init_ajax();
 		}
 	}
 
 	/**
+	 * Method parse_init_extensions()
+	 *
 	 * Parse MainWP Extension initiations.
 	 */
 	private function parse_init_extensions() {
-		// Handle fatal errors for those init if needed.
 		MainWP_Child_Branding::instance()->branding_init();
 		MainWP_Client_Report::instance()->creport_init();
 		\MainWP_Child_IThemes_Security::instance()->ithemes_init();
@@ -331,7 +349,9 @@ class MainWP_Child {
 	}
 
 	/**
-	 * Hook to deactivate MainWP Child Plugin.
+	 * Method deactivation()
+	 *
+	 * Deactivate the MainWP Child plugin and delted unwanted data.
 	 *
 	 * @param bool $deact Whether or not to deactivate pugin. Default: true.
 	 */
@@ -366,9 +386,9 @@ class MainWP_Child {
 	}
 
 	/**
-	 * Hook to deactivate Child Plugin.
+	 * Method activation()
 	 *
-	 * @deprecated Unused Element.
+	 * Activate the MainWP Child plugin and delted unwanted data.
 	 */
 	public function activation() {
 		$mu_plugin_enabled = apply_filters( 'mainwp_child_mu_plugin_enabled', false );
@@ -390,7 +410,6 @@ class MainWP_Child {
 
 		MainWP_Helper::update_option( 'mainwp_child_activated_once', true );
 
-		// delete bad data if existed.
 		$to_delete = array( 'mainwp_ext_snippets_enabled', 'mainwp_ext_code_snippets' );
 		foreach ( $to_delete as $delete ) {
 			delete_option( $delete );
