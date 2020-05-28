@@ -1,27 +1,46 @@
 <?php
-
+/**
+ * MainWP Child Maintenance.
+ *
+ * This file handles all of the Child Site maintenance functions.
+ */
 namespace MainWP\Child;
 
 // phpcs:disable WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
+/**
+ * Class MainWP_Child_Maintenance
+ *
+ * @package MainWP\Child
+ */
 class MainWP_Child_Maintenance {
 
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Child_Maintenance.
+	 */
 	protected static $instance = null;
 
 	/**
-	 * Method get_class_name()
-	 *
 	 * Get Class Name.
 	 *
-	 * @return object
+	 * @return string
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * MainWP_Child_Maintenance constructor.
+	 */
 	public function __construct() {
 	}
 
+	/**
+	 * Create a public static instance of MainWP_Child_Maintenance.
+	 *
+	 * @return MainWP_Child_Maintenance|null
+	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -29,6 +48,9 @@ class MainWP_Child_Maintenance {
 		return self::$instance;
 	}
 
+	/**
+	 * Fire off Child Site maintenance.
+	 */
 	public function maintenance_site() {
 
 		if ( isset( $_POST['action'] ) ) {
@@ -45,6 +67,14 @@ class MainWP_Child_Maintenance {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Child Site DB maintenance.
+	 *
+	 * @param $maint_options Maintenance options.
+	 * @param $max_revisions Maximum revisions to keep.
+	 *
+	 * @return string[] Return SUCCESS.
+	 */
 	private function maintenance_db( $maint_options, $max_revisions ) {
 		global $wpdb;
 
@@ -117,11 +147,24 @@ class MainWP_Child_Maintenance {
 		return array( 'status' => 'SUCCESS' );
 	}
 
+	/**
+	 * Get Child post revisions.
+	 *
+	 * @param $max_revisions Maximum revisions to keep.
+	 * @return array|object|null Database query results.
+	 */
 	protected function maintenance_get_revisions( $max_revisions ) {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
 	}
 
+	/**
+	 * Delete Child revisions.
+	 *
+	 * @param $results Query results.
+	 * @param $max_revisions Maximum revisions to keep.
+	 * @return int|void Return number of revisions deleted.
+	 */
 	private function maintenance_delete_revisions( $results, $max_revisions ) {
 		global $wpdb;
 
@@ -150,6 +193,9 @@ class MainWP_Child_Maintenance {
 		return $count_deleted;
 	}
 
+	/**
+	 * Optimise Child database.
+	 */
 	private function maintenance_optimize() {
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
@@ -164,6 +210,11 @@ class MainWP_Child_Maintenance {
 		}
 	}
 
+	/**
+	 * Maintenance Action.
+	 *
+	 * @param $action Action to perform: save_settings, enable_alert, clear_settings.
+	 */
 	private function maintenance_action( $action ) {
 		$information = array();
 		if ( 'save_settings' === $action ) {

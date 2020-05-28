@@ -216,7 +216,7 @@ class MainWP_Child_Install {
 	/**
 	 * Plugin & Theme Installation functions.
 	 *
-	 * @return array $information
+	 * @return array $information Installation results.
 	 */
 	public function install_plugin_theme() {
 

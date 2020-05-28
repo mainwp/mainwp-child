@@ -20,7 +20,8 @@ class MainWP_Child_Comments {
 	protected static $instance = null;
 
 	/**
-	 * @var string
+	 * @var string Used by MainWP_Child_Comments::comments_clauses & MainWP_Child_comments::__constructor.
+	 * @deprecate Unused element.
 	 */
 	private $comments_and_clauses;
 
@@ -116,12 +117,13 @@ class MainWP_Child_Comments {
 		MainWP_Helper::write( $information );
 	}
 
-
 	/**
 	 * Comment WHERE Clauses.
 	 *
 	 * @param $clauses MySQL WHERE Clause.
 	 * @return array $clauses, Array of MySQL WHERE Clauses.
+	 *
+	 * @deprecated Unused Element.
 	 */
 	public function comments_clauses( $clauses ) {
 		if ( $this->comments_and_clauses ) {
