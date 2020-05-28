@@ -18,29 +18,22 @@ namespace MainWP\Child;
  */
 class MainWP_Child_Plugins_Check {
 
-	/**
-	 * @var string
-	 */
+	/**@var string Cron: Plugin health check watcher. */
 	private $cron_name_watcher = 'mainwp_child_cron_plugin_health_check_watcher';
-	/**
-	 * @var string
-	 */
+
+    /**@var string Cron: Plugin health check daily. */
 	private $cron_name_daily = 'mainwp_child_cron_plugin_health_check_daily';
-	/**
-	 * @var string
-	 */
+
+    /** @var string Cron: Plugin health check batching */
 	private $cron_name_batching = 'mainwp_child_cron_plugin_health_check_batching';
-	/**
-	 * @var string
-	 */
+
+    /** @var string Transient: Plugin timestamps. */
 	private $tran_name_plugin_timestamps = 'mainwp_child_tran_name_plugin_timestamps';
-	/**
-	 * @var string
-	 */
+
+    /** @var string Transient: Plugins to batch. */
 	private $tran_name_plugins_to_batch = 'mainwp_child_tran_name_plugins_to_batch';
-	/**
-	 * @var string
-	 */
+
+    /** @var string Transient: Plugin last daily run. */
 	private $option_name_last_daily_run = 'mainwp_child_plugin_last_daily_run';
 
 	/**
@@ -90,7 +83,6 @@ class MainWP_Child_Plugins_Check {
 		delete_transient( $this->tran_name_plugins_to_batch );
 	}
 
-
 	/**
 	 * Un-schedules all events attached to the hook with the specified arguments.
 	 *
@@ -114,6 +106,8 @@ class MainWP_Child_Plugins_Check {
 	 * @param object $args Query arguments.
 	 * @param string $action Action to perform: query_plugins.
 	 * @return \stdClass $args Modified Search Query.
+     *
+     * @deprecated Unused Element.
 	 */
 	public function modify_plugin_api_search_query( $args, $action ) {
 		if ( isset( $action ) && 'query_plugins' === $action ) {
