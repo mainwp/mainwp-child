@@ -26,7 +26,7 @@ class MainWP_Connect {
 	 *
 	 * @var int $maxHistory Max history.
 	 */
-	private $maxHistory     = 5;
+	private $maxHistory = 5;
 
 	/**
 	 * Method get_class_name()
