@@ -1,10 +1,20 @@
 <?php
-
+/**
+ * MainWP Client Report
+ */
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Client_Report
+ * @package MainWP\Child
+ */
 class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
-	public static $instance = null;
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Client_Report.
+     */
+    public static $instance = null;
 
 	/**
 	 * Get Class Name.
@@ -15,7 +25,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		return __CLASS__;
 	}
 
-	public static function instance() {
+    /**
+     * Create a public static instance of MainWP_Client_Report|MainWP_Client_Report_Base|null.
+     *
+     * @return MainWP_Client_Report|MainWP_Client_Report_Base|null
+     */
+    public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -23,23 +38,44 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Client_Report constructor.
+     */
+    public function __construct() {
 		add_filter( 'wp_mainwp_stream_current_agent', array( $this, 'current_agent' ), 10, 1 );
 	}
 
-	public function init() {
+    /**
+     * Initiate Client report
+     */
+    public function init() {
 		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 		add_action( 'mainwp_child_log', array( self::get_class_name(), 'do_reports_log' ) );
 	}
 
-	public function current_agent( $agent ) {
+    /**
+     * Get current user agent.
+     *
+     * @param string $agent User agent.
+     * @return string $agent Current user agent.
+     *
+     * @deprecated Unused element.
+     */
+    public function current_agent( $agent ) {
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) ) {
 			$agent = '';
 		}
 		return $agent;
 	}
 
-	public function sync_others_data( $information, $data = array() ) {
+    /**
+     * Sync others data.
+     *
+     * @param array $information Holder for returned data.
+     * @param array $data Data to sync.
+     * @return array $information Synced data.
+     */
+    public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {
 			$creport_sync_data = array();
 			$firsttime         = get_option( 'mainwp_creport_first_time_activated' );
@@ -53,7 +89,14 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		return $information;
 	}
 
-	public static function do_reports_log( $ext = '' ) {
+    /**
+     * Create reports log file.
+     *
+     * @param string $ext File extension.
+     *
+     * @deprecated Unused element.
+     */
+    public static function do_reports_log($ext = '' ) {
 		switch ( $ext ) {
 			case 'backupbuddy':
 				\MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
@@ -73,7 +116,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		}
 	}
 
-	public function action() {
+    /**
+     * Actions: save_sucuri_stream, save_backup_stream, get_stream, set_showhide.
+     */
+    public function action() {
 
 		$information = array();
 
@@ -101,19 +147,33 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		MainWP_Helper::write( $information );
 	}
 
-	public function save_sucuri_stream() {
+    /**
+     * Save sucuri stream.
+     *
+     * @return bool true|false.
+     */
+    public function save_sucuri_stream() {
 		$scan_data = isset( $_POST['scan_data'] ) ? $_POST['scan_data'] : '';
 		do_action( 'mainwp_reports_sucuri_scan', $_POST['result'], $_POST['scan_status'], $scan_data, isset( $_POST['scan_time'] ) ? $_POST['scan_time'] : 0 );
 		return true;
 	}
 
-	public function save_backup_stream() {
+    /**
+     * Save backup stream.
+     *
+     * @return bool true|false.
+     */
+    public function save_backup_stream() {
 		do_action( 'mainwp_backup', $_POST['destination'], $_POST['message'], $_POST['size'], $_POST['status'], $_POST['type'] );
-
 		return true;
 	}
 
-	public function get_stream() {
+    /**
+     * Get stream.
+     *
+     * @return array $information Stream array.
+     */
+    public function get_stream() {
 
 		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $sections ) ) {
@@ -154,7 +214,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		return $information;
 	}
 
-	public function set_showhide() {
+    /**
+     * Set Branding Show/Hide.
+     *
+     * @return array $information Results array.
+     */
+    public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Child_Branding::instance()->save_branding_options( 'hide_child_reports', $hide );
 		$information['result'] = 'SUCCESS';
@@ -162,7 +227,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		return $information;
 	}
 
-	public function creport_init() {
+    /**
+     * Initiate Client Reports.
+     */
+    public function creport_init() {
 
 		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 		$hide_nag      = false;
@@ -186,12 +254,24 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		}
 	}
 
-	public function hide_update_notice( $slugs ) {
+    /**
+     * @param $slugs
+     * @return mixed
+     *
+     * @deprecated Unused element.
+     */
+    public function hide_update_notice( $slugs ) {
 		$slugs[] = 'mainwp-child-reports/mainwp-child-reports.php';
 		return $slugs;
 	}
 
-	public function remove_update_nag( $value ) {
+    /**
+     * @param $value
+     * @return mixed
+     *
+     * @deprecated Unused element.
+     */
+    public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
@@ -207,8 +287,15 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		return $value;
 	}
 
-
-	public function creport_branding_plugin( $plugins ) {
+    /**
+     * Client Reports Branding plugin.
+     *
+     * @param array $plugins Plugins array.
+     * @return array Plugins array.
+     *
+     * @deprecated Unused element.
+     */
+    public function creport_branding_plugin( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
 			if ( 'mainwp-child-reports' === $plugin_slug ) {
@@ -218,7 +305,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		return $plugins;
 	}
 
-	public function creport_remove_menu() {
+    /**
+     * Client Remove Menu.
+     *
+     * @deprecated Unused element.
+     */
+    public function creport_remove_menu() {
 		remove_menu_page( 'mainwp_wp_stream' );
 	}
 }
