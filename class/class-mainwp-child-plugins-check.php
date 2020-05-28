@@ -18,13 +18,13 @@ namespace MainWP\Child;
  */
 class MainWP_Child_Plugins_Check {
 
-	/**@var string Cron: Plugin health check watcher. */
+	/** @var string Cron: Plugin health check watcher. */
 	private $cron_name_watcher = 'mainwp_child_cron_plugin_health_check_watcher';
 
-    /**@var string Cron: Plugin health check daily. */
+    /** @var string Cron: Plugin health check daily. */
 	private $cron_name_daily = 'mainwp_child_cron_plugin_health_check_daily';
 
-    /** @var string Cron: Plugin health check batching */
+    /** @var string Cron: Plugin health check batching. */
 	private $cron_name_batching = 'mainwp_child_cron_plugin_health_check_batching';
 
     /** @var string Transient: Plugin timestamps. */
