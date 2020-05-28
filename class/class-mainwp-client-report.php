@@ -255,8 +255,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	}
 
     /**
-     * @param $slugs
-     * @return mixed
+     * Hide update notice.
+     *
+     * @param $slugs Slugs to hide.
+     * @return array Slugs array.
      *
      * @deprecated Unused element.
      */
@@ -266,8 +268,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	}
 
     /**
-     * @param $value
-     * @return mixed
+     * Remove update nag.
+     *
+     * @param string $value Value to remove.
+     * @return string Response.
      *
      * @deprecated Unused element.
      */
