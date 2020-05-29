@@ -1,5 +1,11 @@
 <?php
 /**
+ * MainWP Page Speed
+ *
+ * MainWP Page Speed extension handler.
+ * Extension URL: https://mainwp.com/extension/page-speed/
+ *
+ * @package MainWP\Child
  *
  * Credits
  *
@@ -7,20 +13,41 @@
  * Plugin URI: http://mattkeys.me
  * Author: Matt Keys
  * Author URI: http://mattkeys.me
- *
- * The code is used for the MainWP Page Speed Extension
- * Extension URL: https://mainwp.com/extension/page-speed/
+ * License: GPLv2 or later
  */
 
 use MainWP\Child\MainWP_Helper;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
+/**
+ * Class MainWP_Child_Pagespeed
+ *
+ * MainWP Page Speed extension handler.
+ */
 class MainWP_Child_Pagespeed {
 
-	public static $instance     = null;
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
+	public static $instance = null;
+
+	/**
+	 * Public variable to hold the infomration if the Google Pagespeed Insights plugin is installed on the child site.
+	 *
+	 * @var bool If Google Pagespeed Insights intalled, return true, if not, return false.
+	 */
 	public $is_plugin_installed = false;
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -29,6 +56,13 @@ class MainWP_Child_Pagespeed {
 		return self::$instance;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'google-pagespeed-insights/google-pagespeed-insights.php' ) ) {
@@ -44,6 +78,143 @@ class MainWP_Child_Pagespeed {
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 
+	/**
+	 * Method sync_others_data()
+	 *
+	 * Sync the Google Pagespeed Insights plugin data.
+	 *
+	 * @param  array $information Array containing the sync information.
+	 * @param  array $data        Array containing the Google Pagespeed Insights plugin data to be synced.
+	 *
+	 * @return array $information Array containing the sync information.
+	 */
+	public function sync_others_data( $information, $data = array() ) {
+		if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {
+			try {
+				$information['syncPageSpeedData'] = $this->get_sync_data();
+			} catch ( \Exception $e ) {
+				// ok!
+			}
+		}
+		return $information;
+	}
+
+	/**
+	 * Method child_deactivation()
+	 *
+	 * Unschedule scheduled events on MainWP Child plugin deactivation.
+	 */
+	public function child_deactivation() {
+		$sched = wp_next_scheduled( 'mainwp_child_pagespeed_cron_check' );
+		if ( $sched ) {
+			wp_unschedule_event( $sched, 'mainwp_child_pagespeed_cron_check' );
+		}
+	}
+
+	/**
+	 * Method init()
+	 *
+	 * Initiate action hooks.
+	 *
+	 * @return void
+	 */
+	public function init() {
+		if ( ! $this->is_plugin_installed ) {
+			return;
+		}
+
+		if ( 'hide' === get_option( 'mainwp_pagespeed_hide_plugin' ) ) {
+			add_filter( 'all_plugins', array( $this, 'hide_plugin' ) );
+			add_action( 'admin_menu', array( $this, 'hide_menu' ), 999 );
+		}
+
+		$this->init_cron();
+	}
+
+	/**
+	 * Method hide_plugin()
+	 *
+	 * Remove the Google Pagespeed Insights plugin from the list of all plugins when the plugin is hidden.
+	 *
+	 * @param array $plugins Array containing all installed plugins.
+	 *
+	 * @return array $plugins Array containing all installed plugins without the Google Pagespeed Insights plugin.
+	 */
+	public function hide_plugin( $plugins ) {
+		foreach ( $plugins as $key => $value ) {
+			$plugin_slug = basename( $key, '.php' );
+			if ( 'google-pagespeed-insights' === $plugin_slug ) {
+				unset( $plugins[ $key ] );
+			}
+		}
+
+		return $plugins;
+	}
+
+	/**
+	 * Method hide_menu()
+	 *
+	 * Remove the Google Pagespeed Insights menu item when the plugin is hidden.
+	 */
+	public function hide_menu() {
+		global $submenu;
+		if ( isset( $submenu['tools.php'] ) ) {
+			foreach ( $submenu['tools.php'] as $key => $menu ) {
+				if ( 'google-pagespeed-insights' == $menu[2] ) {
+					unset( $submenu['tools.php'][ $key ] );
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Method init_cron()
+	 *
+	 * Schedule daily Page Speed checks.
+	 */
+	public function init_cron() {
+		add_action( 'mainwp_child_pagespeed_cron_check', array( '\MainWP_Child_Pagespeed', 'pagespeed_cron_check' ) );
+		$sched = wp_next_scheduled( 'mainwp_child_pagespeed_cron_check' );
+		if ( false === $sched ) {
+			wp_schedule_event( time(), 'daily', 'mainwp_child_pagespeed_cron_check' );
+		}
+	}
+
+	/**
+	 * Method pagespeed_cron_check()
+	 *
+	 * Schedule single Page Speed check event.
+	 */
+	public static function pagespeed_cron_check() {
+		$count = get_option( 'mainwp_child_pagespeed_count_checking' );
+		if ( $count >= 7 ) {
+			$recheck = true;
+			$count   = 0;
+		} else {
+			$recheck = false;
+			$count ++;
+		}
+		update_option( 'mainwp_child_pagespeed_count_checking', $count );
+
+		$worker_args = array(
+			array(),
+			false,
+			$recheck,
+		);
+		wp_schedule_single_event( time(), 'googlepagespeedinsightschecknow', $worker_args );
+	}
+
+	/**
+	 * Method actions()
+	 *
+	 * Fire off certain Google Pagespeed Insights plugin actions.
+	 *
+	 * @uses MainWP_Child_Pagespeed::save_settings() Save the plugin settings.
+	 * @uses MainWP_Child_Pagespeed::set_showhide() Hide or unhide the Google Pagespeed Insights plugin.
+	 * @uses MainWP_Child_Pagespeed::get_sync_data() Get the Google Pagespeed Insights plugin data and store it in the sync request.
+	 * @uses MainWP_Child_Pagespeed::check_pages() Check pages page speed.
+	 */
 	public function action() {
 		$information = array();
 		if ( ! defined( 'GPI_DIRECTORY' ) ) {
@@ -70,97 +241,18 @@ class MainWP_Child_Pagespeed {
 		MainWP_Helper::write( $information );
 	}
 
-	public function child_deactivation() {
-		$sched = wp_next_scheduled( 'mainwp_child_pagespeed_cron_check' );
-		if ( $sched ) {
-			wp_unschedule_event( $sched, 'mainwp_child_pagespeed_cron_check' );
-		}
-	}
-
-	public function init() {
-		if ( ! $this->is_plugin_installed ) {
-			return;
-		}
-
-		if ( 'hide' === get_option( 'mainwp_pagespeed_hide_plugin' ) ) {
-			add_filter( 'all_plugins', array( $this, 'hide_plugin' ) );
-			add_action( 'admin_menu', array( $this, 'hide_menu' ), 999 );
-		}
-		$this->init_cron();
-	}
-
-	public function init_cron() {
-		add_action( 'mainwp_child_pagespeed_cron_check', array( '\MainWP_Child_Pagespeed', 'pagespeed_cron_check' ) );
-		$sched = wp_next_scheduled( 'mainwp_child_pagespeed_cron_check' );
-		if ( false === $sched ) {
-			wp_schedule_event( time(), 'daily', 'mainwp_child_pagespeed_cron_check' );
-		}
-	}
-
-	public static function pagespeed_cron_check() {
-		$count = get_option( 'mainwp_child_pagespeed_count_checking' );
-		if ( $count >= 7 ) {
-			$recheck = true;
-			$count   = 0;
-		} else {
-			$recheck = false;
-			$count ++;
-		}
-		update_option( 'mainwp_child_pagespeed_count_checking', $count );
-
-		$worker_args = array(
-			array(),
-			false,
-			$recheck,
-		);
-		wp_schedule_single_event( time(), 'googlepagespeedinsightschecknow', $worker_args );
-	}
-
-	public function hide_plugin( $plugins ) {
-		foreach ( $plugins as $key => $value ) {
-			$plugin_slug = basename( $key, '.php' );
-			if ( 'google-pagespeed-insights' === $plugin_slug ) {
-				unset( $plugins[ $key ] );
-			}
-		}
-
-		return $plugins;
-	}
-
-
-	public function hide_menu() {
-		global $submenu;
-		if ( isset( $submenu['tools.php'] ) ) {
-			foreach ( $submenu['tools.php'] as $key => $menu ) {
-				if ( 'google-pagespeed-insights' == $menu[2] ) {
-					unset( $submenu['tools.php'][ $key ] );
-					break;
-				}
-			}
-		}
-	}
-
-	public function update_footer( $text ) {
-		?>
-		<script>
-			jQuery( document ).ready( function () {
-				jQuery( '#menu-tools a[href="tools.php?page=google-pagespeed-insights"]' ).closest( 'li' ).remove();
-			} );
-		</script>
-		<?php
-		return $text;
-	}
-
-
-	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
-		MainWP_Helper::update_option( 'mainwp_pagespeed_hide_plugin', $hide );
-		$information['result'] = 'SUCCESS';
-
-		return $information;
-	}
-
-	public function save_settings() { // phpcs:ignore -- ignore complex method notice.
+	/**
+	 * Method save_settings()
+	 *
+	 * Save the plugin settings.
+	 *
+	 * @uses MainWP_Child_Pagespeed::delete_data() Delete reports or all plugin data.
+	 *
+	 * @used-by MainWP_Child_Pagespeed::actions() Fire off certain Google Pagespeed Insights plugin actions.
+	 *
+	 * @return array Action result.
+	 */
+	public function save_settings() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$current_values = get_option( 'gpagespeedi_options' );
 		$checkstatus    = apply_filters( 'gpi_check_status', false );
 		if ( $checkstatus ) {
@@ -170,7 +262,7 @@ class MainWP_Child_Pagespeed {
 		$information = array();
 
 		$settings = $_POST['settings'];
-		$settings = maybe_unserialize( base64_decode( $settings ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$settings = maybe_unserialize( base64_decode( $settings ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 
 		if ( is_array( $settings ) ) {
 
@@ -247,9 +339,64 @@ class MainWP_Child_Pagespeed {
 		$result = $this->get_sync_data( $strategy );
 
 		$information['data'] = $result['data'];
+
 		return $information;
 	}
 
+	/**
+	 * Method delete_data()
+	 *
+	 * Delete reports or all plugin data.
+	 *
+	 * @used-by MainWP_Child_Pagespeed::save_settings() Save the plugin settings.
+	 *
+	 * @param string $what Contains information about what to delete, just reports or everything.
+	 */
+	public function delete_data( $what ) {
+		global $wpdb;
+		$gpi_page_stats     = $wpdb->prefix . 'gpi_page_stats';
+		$gpi_page_reports   = $wpdb->prefix . 'gpi_page_reports';
+		$gpi_page_blacklist = $wpdb->prefix . 'gpi_page_blacklist';
+		// phpcs:disable -- safe queries. Required to achieve desired results, pull request solutions appreciated.
+		if ( 'purge_reports' === $what ) {
+			$wpdb->query( "TRUNCATE TABLE $gpi_page_stats" );
+			$wpdb->query( "TRUNCATE TABLE $gpi_page_reports" );
+		} elseif ( 'purge_everything' === $what ) {
+			$wpdb->query( "TRUNCATE TABLE $gpi_page_stats" );
+			$wpdb->query( "TRUNCATE TABLE $gpi_page_reports" );
+			$wpdb->query( "TRUNCATE TABLE $gpi_page_blacklist" );
+		}
+		// phpcs:enable
+	}
+
+	/**
+	 * Method set_showhide()
+	 *
+	 * Hide or unhide the Google Pagespeed Insights plugin.
+	 *
+	 * @used-by MainWP_Child_Pagespeed::actions() Fire off certain Google Pagespeed Insights plugin actions.
+	 *
+	 * @return array Action result.
+	 */
+	public function set_showhide() {
+		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		MainWP_Helper::update_option( 'mainwp_pagespeed_hide_plugin', $hide );
+		$information['result'] = 'SUCCESS';
+
+		return $information;
+	}
+
+	/**
+	 * Method check_pages()
+	 *
+	 * Initiate the check pages page speed.
+	 *
+	 * @uses MainWP_Child_Pagespeed::do_check_pages() If needed, force recheck proces, if not just check.
+	 *
+	 * @used-by MainWP_Child_Pagespeed::actions() Fire off certain Google Pagespeed Insights plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function check_pages() {
 		if ( isset( $_POST['force_recheck'] ) && ! empty( $_POST['force_recheck'] ) ) {
 			$recheck = true;
@@ -263,6 +410,15 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
+	/**
+	 * Method do_check_pages()
+	 *
+	 * Check or force re-check pages page speed.
+	 *
+	 * @param bool $forceRecheck If true, force recheck process, if false, just regular check.
+	 *
+	 * @return array Action result.
+	 */
 	public function do_check_pages( $forceRecheck = false ) {
 		$information = array();
 		if ( defined( 'GPI_DIRECTORY' ) ) {
@@ -277,17 +433,19 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
-	public function sync_others_data( $information, $data = array() ) {
-		if ( isset( $data['syncPageSpeedData'] ) && $data['syncPageSpeedData'] ) {
-			try {
-				$information['syncPageSpeedData'] = $this->get_sync_data();
-			} catch ( \Exception $e ) {
-				// ok!
-			}
-		}
-		return $information;
-	}
-
+	/**
+	 * Method get_sync_data()
+	 *
+	 * Get the Google Pagespeed Insights plugin data and store it in the sync request.
+	 *
+	 * @param string $strategy Contains the selected strategy (desktop, mobile or both).
+	 *
+	 * @uses MainWP_Child_Pagespeed::cal_pagespeed_data() Calculate page speed scores.
+	 *
+	 * @used-by MainWP_Child_Pagespeed::actions() Fire off certain Google Pagespeed Insights plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_sync_data( $strategy = '' ) {
 		if ( empty( $strategy ) ) {
 			$strategy = 'both';
@@ -325,6 +483,17 @@ class MainWP_Child_Pagespeed {
 		return $information;
 	}
 
+	/**
+	 * Method cal_pagespeed_data()
+	 *
+	 * Calculate page speed scores.
+	 *
+	 * @param string $strategy Contains the selected strategy (desktop, mobile or both).
+	 *
+	 * @used-by MainWP_Child_Pagespeed::get_sync_data() Get the Google Pagespeed Insights plugin data and store it in the sync request.
+	 *
+	 * @return array Array containing data including last modified timespamp, average score and number of pages.
+	 */
 	public static function cal_pagespeed_data( $strategy ) {
 		global $wpdb;
 		if ( ! defined( 'GPI_DIRECTORY' ) ) {
@@ -405,7 +574,14 @@ class MainWP_Child_Pagespeed {
 		);
 	}
 
-	public static function get_filter_options( $restrict_type = 'all' ) { // phpcs:ignore -- ignore complex method notice, third party credit.
+	/**
+	 * Method get_filter_options()
+	 *
+	 * @param  string $restrict_type Contains the restricted types.
+	 *
+	 * @return array Array containing the list of item types to check (posts, pages, categories,...).
+	 */
+	public static function get_filter_options( $restrict_type = 'all' ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		$types        = array();
 		$gpi_options  = get_option( 'gpagespeedi_options' );
@@ -436,7 +612,7 @@ class MainWP_Child_Pagespeed {
 
 				$cpt_whitelist_arr = false;
 				if ( ! empty( $gpi_options['cpt_whitelist'] ) ) {
-					$cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- unserialize required.
+					$cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- unserialize usage required to achieve desired results, pull request solutions appreciated.
 				}
 				$args              = array(
 					'public'   => true,
@@ -493,19 +669,4 @@ class MainWP_Child_Pagespeed {
 		return null;
 	}
 
-	public function delete_data( $what ) {
-		global $wpdb;
-		$gpi_page_stats     = $wpdb->prefix . 'gpi_page_stats';
-		$gpi_page_reports   = $wpdb->prefix . 'gpi_page_reports';
-		$gpi_page_blacklist = $wpdb->prefix . 'gpi_page_blacklist';
-		// phpcs:disable -- safe queries.
-		if ( 'purge_reports' === $what ) {
-			$wpdb->query( "TRUNCATE TABLE $gpi_page_stats" );
-			$wpdb->query( "TRUNCATE TABLE $gpi_page_reports" );
-		} elseif ( 'purge_everything' === $what ) {
-			$wpdb->query( "TRUNCATE TABLE $gpi_page_stats" );
-			$wpdb->query( "TRUNCATE TABLE $gpi_page_reports" );
-			$wpdb->query( "TRUNCATE TABLE $gpi_page_blacklist" );
-		}
-	}
 }
