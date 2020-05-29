@@ -57,7 +57,7 @@ class MainWP_Child_Callable {
 		'wp_rocket'             => 'wp_rocket',
 		'settings_tools'        => 'settings_tools',
 		'skeleton_key'          => 'bulk_settings_manager', // deprecated.
-		'bulk_settings_manager'          => 'bulk_settings_manager',
+		'bulk_settings_manager' => 'bulk_settings_manager',
 		'custom_post_type'      => 'custom_post_type',
 		'backup_buddy'          => 'backup_buddy',
 		'get_site_icon'         => 'get_site_icon',
