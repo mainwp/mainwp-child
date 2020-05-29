@@ -238,9 +238,9 @@ class MainWP_Connect {
 			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
 				$nossl_key = get_option( 'mainwp_child_nossl_key' );
 				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
-			} else {				
+			} else {
 				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.				
-				if ( 1 !== $auth ) {					
+				if ( 1 !== $auth ) {
 					$auth = false;
 				}
 			}
@@ -269,7 +269,7 @@ class MainWP_Connect {
 			}
 		}
 
-		if ( is_user_logged_in() ) {			
+		if ( is_user_logged_in() ) {
 			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
 				do_action( 'wp_logout' );
 			}
@@ -342,7 +342,7 @@ class MainWP_Connect {
 		// support for custom wp-admin slug.
 		if ( isset( $_REQUEST['open_location'] ) && ! empty( $_REQUEST['open_location'] ) ) {
 			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.			
-			$this->open_location_redirect( $open_location );			
+			$this->open_location_redirect( $open_location );
 		}
 		$this->where_redirect();
 	}
