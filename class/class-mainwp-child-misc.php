@@ -1,35 +1,56 @@
 <?php
-
+/**
+ * MainWP Child Misc functions
+ *
+ * This file is for misc functions that don't really belong anywhere else.
+ */
 namespace MainWP\Child;
 
 // phpcs:disable WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
+/**
+ * Class MainWP_Child_Misc
+ * @package MainWP\Child
+ */
 class MainWP_Child_Misc {
 
-	protected static $instance = null;
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_Misc.
+     */
+    protected static $instance = null;
 
-	/**
-	 * Method get_class_name()
-	 *
-	 * Get Class Name.
-	 *
-	 * @return object
-	 */
+    /**
+     * Get Class Name.
+     *
+     * @return string
+     */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_Misc constructor.
+     */
+    public function __construct() {
 	}
 
-	public static function get_instance() {
+    /**
+     * Create a public static instance of MainWP_Child_Misc.
+     *
+     * @return MainWP_Child_Misc|null
+     */
+    public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
 
-	public function get_site_icon() {
+    /**
+     * Prepare Child Site favicon.
+     */
+    public function get_site_icon() {
 		$information = array();
 		$url         = $this->get_favicon( true );
 		if ( ! empty( $url ) ) {
@@ -38,7 +59,13 @@ class MainWP_Child_Misc {
 		MainWP_Helper::write( $information );
 	}
 
-	public function get_favicon( $parse_page = false ) {
+    /**
+     * Get Child Site favicon.
+     *
+     * @param bool $parse_page Whether or not to parse the page. Default: false.
+     * @return string|bool Return $favi_url on success, FALSE on failure.
+     */
+    public function get_favicon( $parse_page = false ) {
 
 		$favi_url = '';
 		$favi     = '';
@@ -80,7 +107,13 @@ class MainWP_Child_Misc {
 		}
 	}
 
-	private function try_to_parse_favicon( $site_url ) {
+    /**
+     * Try to parse Child Site url for favicon.
+     *
+     * @param $site_url Child Site URL.
+     * @return mixed|string $favi_url parsed favicon.
+     */
+    private function try_to_parse_favicon($site_url ) {
 		$request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
 		$favi    = '';
 		if ( is_array( $request ) && isset( $request['body'] ) ) {
@@ -112,7 +145,10 @@ class MainWP_Child_Misc {
 		return $favi_url;
 	}
 
-	public function get_security_stats() {
+    /**
+     * Get security stats.
+     */
+    public function get_security_stats() {
 		$information = array();
 
 		$information['listing']             = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
@@ -130,7 +166,10 @@ class MainWP_Child_Misc {
 	}
 
 
-	public function do_security_fix() {
+    /**
+     * Perform Child Site security fixes.
+     */
+    public function do_security_fix() {
 		$sync = false;
 		if ( 'all' === $_POST['feature'] ) {
 			$sync = true;
@@ -207,7 +246,10 @@ class MainWP_Child_Misc {
 		MainWP_Helper::write( $information );
 	}
 
-	public function do_security_un_fix() {
+    /**
+     * Perform Child Site security unfixes.
+     */
+    public function do_security_un_fix() {
 		$information = array();
 
 		$sync = false;
@@ -262,7 +304,12 @@ class MainWP_Child_Misc {
 		MainWP_Helper::write( $information );
 	}
 
-	public function settings_tools() {
+    /**
+     * Method settings_tools()
+     *
+     * @deprecated Unused Element
+     */
+    public function settings_tools() {
 		if ( isset( $_POST['action'] ) ) {
 			switch ( $_POST['action'] ) {
 				case 'force_destroy_sessions':
@@ -289,7 +336,10 @@ class MainWP_Child_Misc {
 		}
 	}
 
-	public function uploader_action() {
+    /**
+     * Try to upload file to Child Site.
+     */
+    public function uploader_action() {
 		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$path        = $_POST['path'];
 		$filename    = $_POST['filename'];
@@ -336,8 +386,18 @@ class MainWP_Child_Misc {
 	}
 
 
-	public function uploader_upload_file( $file_url, $path, $file_name ) {
-		// to fix uploader extension rename htaccess file issue.
+    /**
+     * Child Site file uploader.
+     *
+     * @param string $file_url URL of file to be uploaded.
+     * @param string $path Path to upload to.
+     * @param string $file_name Name of file to upload.
+     *
+     * @return string[] Full path and file name of uploaded file.
+     * @throws \Exception Error: Copy file.
+     */
+    public function uploader_upload_file($file_url, $path, $file_name ) {
+		// Fixes: Uploader Extension rename htaccess file issue.
 		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
 			$file_name = sanitize_file_name( $file_name );
 		}
@@ -377,7 +437,10 @@ class MainWP_Child_Misc {
 		return array( 'path' => $full_file_name );
 	}
 
-	public function code_snippet() {
+    /**
+     * Initiate Code Snippet action: run_snippet, save_snippet, delete_snippet.
+     */
+    public function code_snippet() {
 
 		$action = $_POST['action'];
 		$type   = isset( $_POST['type'] ) ? $_POST['type'] : '';
@@ -413,7 +476,17 @@ class MainWP_Child_Misc {
 		MainWP_Helper::write( $information );
 	}
 
-	private function snippet_save_snippet( $slug, $type, $code, $snippets ) {
+    /**
+     * Save code snippet.
+     *
+     * @param string $slug Snippet slug.
+     * @param string $type Type of snippet.
+     * @param string $code Snippet code.
+     * @param array $snippets Snippets array.
+     *
+     * @return array $return Status response.
+     */
+    private function snippet_save_snippet($slug, $type, $code, $snippets ) {
 		$return = array();
 		if ( 'C' === $type ) { // save into wp-config file.
 			if ( false !== $this->snippet_update_wp_config( 'save', $slug, $code ) ) {
@@ -429,7 +502,16 @@ class MainWP_Child_Misc {
 		return $return;
 	}
 
-	private function snippet_delete_snippet( $slug, $type, $snippets ) {
+    /**
+     * Delete code snippets.
+     *
+     * @param string $slug Snippet slug.
+     * @param string $type Type of snippet.
+     * @param array $snippets Snippets array.
+     *
+     * @return array $return Status response.
+     */
+    private function snippet_delete_snippet($slug, $type, $snippets ) {
 		$return = array();
 		if ( 'C' === $type ) { // delete in wp-config file.
 			if ( false !== $this->snippet_update_wp_config( 'delete', $slug ) ) {
@@ -448,7 +530,15 @@ class MainWP_Child_Misc {
 		return $return;
 	}
 
-	public function snippet_update_wp_config( $action, $slug, $code = '' ) {
+    /**
+     * Update Child Site wp-config.php file.
+     *
+     * @param $action Action to perform: Delete, Save.
+     * @param $slug Snippet slug.
+     * @param string $code Code snippet.
+     * @return bool true|false.
+     */
+    public function snippet_update_wp_config($action, $slug, $code = '' ) {
 
 		$config_file = '';
 		if ( file_exists( ABSPATH . 'wp-config.php' ) ) {
