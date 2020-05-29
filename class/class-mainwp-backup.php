@@ -1144,7 +1144,7 @@ class MainWP_Backup {
 				$table_insert = 'INSERT INTO `' . $table . '` VALUES (';
 
 				// @codingStandardsIgnoreStart
-				while ( $row = @MainWP_Child_DB::fetch_array( $rows ) ) {
+				while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
 					// @codingStandardsIgnoreEnd
 					$query = $table_insert;
 					foreach ( $row as $value ) {

@@ -420,7 +420,7 @@ class MainWP_Connect {
 			$_SESSION['file'] = $file;
 			$_SESSION['size'] = $_POST['size'];
 		}
-		wp_redirect( admin_url( $where ) );
+		wp_safe_redirect( admin_url( $where ) );
 		exit();
 	}
 
