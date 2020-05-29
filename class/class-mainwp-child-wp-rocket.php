@@ -5,6 +5,8 @@
  * MainWP Rocket extension handler.
  * Extension URL: https://mainwp.com/extension/rocket/
  *
+ * @package MainWP\Child
+ *
  * Credits
  *
  * Plugin Name: WP Rocket

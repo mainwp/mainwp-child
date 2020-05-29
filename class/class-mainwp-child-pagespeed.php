@@ -1,7 +1,11 @@
 <?php
 /**
  * MainWP Page Speed
+ *
+ * MainWP Page Speed extension handler.
  * Extension URL: https://mainwp.com/extension/page-speed/
+ *
+ * @package MainWP\Child
  *
  * Credits
  *
