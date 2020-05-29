@@ -137,12 +137,12 @@ class MainWP_Child {
 			$suppress = $wpdb->suppress_errors();
 			$options  = array(
 				'mainwp_child_auth',
-				'mainwp_child_reports_db',				
+				'mainwp_child_reports_db',
 				'mainwp_child_pluginDir',
 				'mainwp_updraftplus_hide_plugin',
-				'mainwp_backwpup_ext_enabled',				
+				'mainwp_backwpup_ext_enabled',
 				'mainwp_child_server',
-				'mainwp_pagespeed_hide_plugin',				
+				'mainwp_pagespeed_hide_plugin',
 				'mainwp_child_clone_permalink',
 				'mainwp_child_restore_permalink',
 				'mainwp_ext_snippets_enabled',
