@@ -7,43 +7,44 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Clone_Page
+ *
  * @package MainWP\Child
  */
 class MainWP_Clone_Page {
 
-    /**
-     * @static
-     * @var null Holds the Public static instance of MainWP_Clone_Page.
-     */
-    protected static $instance = null;
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Clone_Page.
+	 */
+	protected static $instance = null;
 
-    /**
-     * Get Class Name.
-     *
-     * @return string
-     */
-    public static function get_class_name() {
+	/**
+	 * Get Class Name.
+	 *
+	 * @return string
+	 */
+	public static function get_class_name() {
 		return __CLASS__;
 	}
 
-    /**
-     * Create a public static instance of MainWP_Clone_Page.
-     *
-     * @return MainWP_Clone_Page|null
-     */
-    public static function get() {
+	/**
+	 * Create a public static instance of MainWP_Clone_Page.
+	 *
+	 * @return MainWP_Clone_Page|null
+	 */
+	public static function get() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
 
-    /**
-     * Method print_scripts()
-     *
-     * @deprecated Unused Element
-     */
-    public static function print_scripts() {
+	/**
+	 * Method print_scripts()
+	 *
+	 * @deprecated Unused Element
+	 */
+	public static function print_scripts() {
 		wp_enqueue_script( 'jquery-ui-tooltip' );
 		wp_enqueue_script( 'jquery-ui-autocomplete' );
 		wp_enqueue_script( 'jquery-ui-progressbar' );
@@ -68,10 +69,10 @@ class MainWP_Clone_Page {
 	}
 
 
-    /**
-     * Render Clone page.
-     */
-    public static function render() {
+	/**
+	 * Render Clone page.
+	 */
+	public static function render() {
 		$uploadError = false;
 		$uploadFile  = false;
 		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
@@ -123,16 +124,16 @@ class MainWP_Clone_Page {
 		self::render_java_script();
 	}
 
-    /**
-     * Render clone form.
-     *
-     * @param array $sitesToClone Sites that may be cloned.
-     * @param mixed $uploadFile Path to File.
-     * @param string $uploadSize Size of upload.
-     * @param bool $error true|false.
-     * @param string $uploadError Upload error message.
-     */
-    private static function render_form($sitesToClone, $uploadFile, $uploadSize, $error, $uploadError ) {
+	/**
+	 * Render clone form.
+	 *
+	 * @param array  $sitesToClone Sites that may be cloned.
+	 * @param mixed  $uploadFile Path to File.
+	 * @param string $uploadSize Size of upload.
+	 * @param bool   $error true|false.
+	 * @param string $uploadError Upload error message.
+	 */
+	private static function render_form( $sitesToClone, $uploadFile, $uploadSize, $error, $uploadError ) {
 
 		if ( ! empty( $uploadFile ) ) {
 			esc_html_e( 'Upload successful.', 'mainwp-child' );
@@ -205,10 +206,10 @@ class MainWP_Clone_Page {
 		<?php
 	}
 
-    /**
-     * Render normal restore page.
-     */
-    public static function render_normal_restore() {
+	/**
+	 * Render normal restore page.
+	 */
+	public static function render_normal_restore() {
 		$uploadError = false;
 		$uploadFile  = false;
 
@@ -299,10 +300,10 @@ class MainWP_Clone_Page {
 	 * Author: Dion Hulse
 	 * Author URI: http://dd32.id.au/
 	 */
-    /**
-     * Render Clone from server
-     * Allows the Media Manager to add files from the webservers filesystem. Note: All files are copied to the uploads directory.
-     */
+	/**
+	 * Render Clone from server
+	 * Allows the Media Manager to add files from the webservers filesystem. Note: All files are copied to the uploads directory.
+	 */
 	private static function render_clone_from_server() {
 		$page         = $_REQUEST['page'];
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
@@ -382,13 +383,13 @@ class MainWP_Clone_Page {
 		self::render_clone_from_server_form( $current_dir, $url );
 	}
 
-    /**
-     * Render clone from server form.
-     *
-     * @param string $current_dir Current parent directory
-     * @param string $url URL of file to upload.
-     */
-    private static function render_clone_from_server_form($current_dir, $url ) {
+	/**
+	 * Render clone from server form.
+	 *
+	 * @param string $current_dir Current parent directory
+	 * @param string $url URL of file to upload.
+	 */
+	private static function render_clone_from_server_form( $current_dir, $url ) {
 
 		$dir_files      = scandir( $current_dir );
 		$directories    = array();
@@ -470,10 +471,10 @@ class MainWP_Clone_Page {
 		<?php
 	}
 
-    /**
-     * Render javascript.
-     */
-    public static function render_java_script() {
+	/**
+	 * Render javascript.
+	 */
+	public static function render_java_script() {
 		$uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );
 		$uploadSize        = MainWP_Helper::human_filesize( $uploadSizeInBytes );
 		?>
@@ -848,10 +849,10 @@ class MainWP_Clone_Page {
 		<?php
 	}
 
-    /**
-     * Render style.
-     */
-    public static function render_style() {
+	/**
+	 * Render style.
+	 */
+	public static function render_style() {
 		?>
 		<style>
 			#mainwp-child_clone_status {
@@ -1114,12 +1115,12 @@ class MainWP_Clone_Page {
 		<?php
 	}
 
-    /**
-     * Method permalink_admin_notice()
-     *
-     * @deprecated Unused Element.
-     */
-    public static function permalink_admin_notice() {
+	/**
+	 * Method permalink_admin_notice()
+	 *
+	 * @deprecated Unused Element.
+	 */
+	public static function permalink_admin_notice() {
 		if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) {
 			return;
 		}
@@ -1150,10 +1151,10 @@ class MainWP_Clone_Page {
 		<?php
 	}
 
-    /**
-     * Render Restore.
-     */
-    public static function render_restore() {
+	/**
+	 * Render Restore.
+	 */
+	public static function render_restore() {
 		if ( '' === session_id() ) {
 			session_start();
 		}

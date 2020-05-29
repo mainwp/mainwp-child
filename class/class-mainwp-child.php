@@ -310,7 +310,7 @@ class MainWP_Child {
 	 * Initiate the chech login process.
 	 *
 	 * @uses MainWP_Connect::instance()->check_login() Auto-login user to the child site when
-     *  the Open WP Admin feature from the MainWP Dashboard is used.
+	 *  the Open WP Admin feature from the MainWP Dashboard is used.
 	 */
 	public function init_check_login() {
 		MainWP_Connect::instance()->check_login();

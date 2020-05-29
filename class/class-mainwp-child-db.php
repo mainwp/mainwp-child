@@ -9,6 +9,7 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_DB
+ *
  * @package MainWP\Child
  */
 class MainWP_Child_DB {

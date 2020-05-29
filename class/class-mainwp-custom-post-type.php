@@ -8,28 +8,29 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Custom_Post_Type
+ *
  * @package MainWP\Child
  */
 class MainWP_Custom_Post_Type {
 
-    /**
-     * @static
-     * @var null Holds the Public static instance of MainWP_Custom_Post_Type.
-     */
-    public static $instance    = null;
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Custom_Post_Type.
+	 */
+	public static $instance = null;
 
-    /** @var array Response array. */
-    public static $information = array();
+	/** @var array Response array. */
+	public static $information = array();
 
-    /** @var string Plugin slug. */
-    public $plugin_translate   = 'mainwp-child';
+	/** @var string Plugin slug. */
+	public $plugin_translate = 'mainwp-child';
 
-    /**
-     * Create a public static instance of MainWP_Custom_Post_Type.
-     *
-     * @return MainWP_Custom_Post_Type|null
-     */
-    public static function instance() {
+	/**
+	 * Create a public static instance of MainWP_Custom_Post_Type.
+	 *
+	 * @return MainWP_Custom_Post_Type|null
+	 */
+	public static function instance() {
 		if ( null == self::$instance ) {
 			self::$instance = new self();
 		}
@@ -37,16 +38,16 @@ class MainWP_Custom_Post_Type {
 		return self::$instance;
 	}
 
-    /**
-     * Custom post type action.
-     */
-    public function action() {
+	/**
+	 * Custom post type action.
+	 */
+	public function action() {
 
-        /**
-         * Method mainwp_custom_post_type_handle_fatal_error()
-         *
-         * Custom post type fatal error handler.
-         */
+		/**
+		 * Method mainwp_custom_post_type_handle_fatal_error()
+		 *
+		 * Custom post type fatal error handler.
+		 */
 		function mainwp_custom_post_type_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
@@ -82,12 +83,12 @@ class MainWP_Custom_Post_Type {
 		exit();
 	}
 
-    /**
-     * Import custom post type.
-     *
-     * @return array|string[] $return Response array, or error message on failure.
-     */
-    private function import_custom_post() {
+	/**
+	 * Import custom post type.
+	 *
+	 * @return array|string[] $return Response array, or error message on failure.
+	 */
+	private function import_custom_post() {
 
 		add_filter( 'http_request_host_is_external', '__return_true' );
 
@@ -114,14 +115,14 @@ class MainWP_Custom_Post_Type {
 		return $return;
 	}
 
-    /**
-     * Search for images inside post content and upload it to Child Site.
-     *
-     * @param string $post_content Post content to search.
-     * @param string $upload_dir Upload directory.
-     * @param bool $check_image Check if file exists. Default: false.
-     * @return string|string[] Error message or post content string.
-     */
+	/**
+	 * Search for images inside post content and upload it to Child Site.
+	 *
+	 * @param string $post_content Post content to search.
+	 * @param string $upload_dir Upload directory.
+	 * @param bool   $check_image Check if file exists. Default: false.
+	 * @return string|string[] Error message or post content string.
+	 */
 	private function search_images( $post_content, $upload_dir, $check_image = false ) {
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $post_content, $matches, PREG_SET_ORDER );
 		if ( $foundMatches > 0 ) {
@@ -173,16 +174,16 @@ class MainWP_Custom_Post_Type {
 		return $post_content;
 	}
 
-    /**
-     * Insert data into published post.
-     *
-     * @param string $data Data to insert.
-     * @param int $edit_id Post ID to edit.
-     * @param int $parent_id Post parent ID.
-     *
-     * @return array|bool|string[] Response array, true|false, Error message.
-     */
-    private function insert_post($data, $edit_id, $parent_id = 0 ) {
+	/**
+	 * Insert data into published post.
+	 *
+	 * @param string $data Data to insert.
+	 * @param int    $edit_id Post ID to edit.
+	 * @param int    $parent_id Post parent ID.
+	 *
+	 * @return array|bool|string[] Response array, true|false, Error message.
+	 */
+	private function insert_post( $data, $edit_id, $parent_id = 0 ) {
 		$data_insert                = array();
 		$data_post                  = $data['post'];
 		$data_insert['post_author'] = get_current_user_id();
@@ -284,14 +285,14 @@ class MainWP_Custom_Post_Type {
 		);
 	}
 
-    /**
-     * Insert custom post data.
-     *
-     * @param int $post_id Post ID to update.
-     * @param string $data Custom data to add.
-     * @return array|bool|string[] Response array, true|false, Error message.
-     */
-    private function insert_custom_data($post_id, $data ) {
+	/**
+	 * Insert custom post data.
+	 *
+	 * @param int    $post_id Post ID to update.
+	 * @param string $data Custom data to add.
+	 * @return array|bool|string[] Response array, true|false, Error message.
+	 */
+	private function insert_custom_data( $post_id, $data ) {
 
 		// MainWP Categories.
 		if ( ! empty( $data['categories'] ) && is_array( $data['categories'] ) ) {
@@ -353,17 +354,17 @@ class MainWP_Custom_Post_Type {
 		return true;
 	}
 
-    /**
-     * Insert post meta.
-     *
-     * @param int $post_id Post ID to update.
-     * @param string $data Meta datat add.
-     * @param bool $check_image_existed Whether or not to check if image exists. true|false.
-     * @param bool $is_woocomerce Whether or not the post is a woocommerce product. true|false.
-     *
-     * @return array|bool|string[] Response array, true|false, Error message.
-     */
-    private function insert_postmeta($post_id, $data, $check_image_existed, $is_woocomerce ) {
+	/**
+	 * Insert post meta.
+	 *
+	 * @param int    $post_id Post ID to update.
+	 * @param string $data Meta datat add.
+	 * @param bool   $check_image_existed Whether or not to check if image exists. true|false.
+	 * @param bool   $is_woocomerce Whether or not the post is a woocommerce product. true|false.
+	 *
+	 * @return array|bool|string[] Response array, true|false, Error message.
+	 */
+	private function insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce ) {
 		foreach ( $data['postmeta'] as $key ) {
 			if ( isset( $key['meta_key'] ) && isset( $key['meta_value'] ) ) {
 				$meta_value = $key['meta_value'];
@@ -412,15 +413,15 @@ class MainWP_Custom_Post_Type {
 		return true;
 	}
 
-    /**
-     * Upload post meta image.
-     *
-     * @param array $product_images Woocomerce product images.
-     * @param $meta_value
-     * @param $check_image_existed
-     * @return array|bool Error message array or TRUE on success.
-     */
-    private function upload_postmeta_image($product_images, &$meta_value, $check_image_existed ) {
+	/**
+	 * Upload post meta image.
+	 *
+	 * @param array               $product_images Woocomerce product images.
+	 * @param $meta_value
+	 * @param $check_image_existed
+	 * @return array|bool Error message array or TRUE on success.
+	 */
+	private function upload_postmeta_image( $product_images, &$meta_value, $check_image_existed ) {
 		$product_image_gallery = array();
 		foreach ( $product_images as $product_image ) {
 			try {
