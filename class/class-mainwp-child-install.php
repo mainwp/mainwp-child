@@ -9,6 +9,8 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Install
+ *
+ * @package MainWP\Child
  */
 class MainWP_Child_Install {
 

@@ -309,7 +309,8 @@ class MainWP_Child {
 	 *
 	 * Initiate the chech login process.
 	 *
-	 * @uses MainWP_Connect::instance()->check_login() Auto-login user to the child site when the Open WP Admin feature from the MainWP Dashboard is used.
+	 * @uses MainWP_Connect::instance()->check_login() Auto-login user to the child site when
+	 *  the Open WP Admin feature from the MainWP Dashboard is used.
 	 */
 	public function init_check_login() {
 		MainWP_Connect::instance()->check_login();
@@ -351,7 +352,7 @@ class MainWP_Child {
 	/**
 	 * Method deactivation()
 	 *
-	 * Deactivate the MainWP Child plugin and delted unwanted data.
+	 * Deactivate the MainWP Child plugin and delete unwanted data.
 	 *
 	 * @param bool $deact Whether or not to deactivate pugin. Default: true.
 	 */
@@ -388,7 +389,7 @@ class MainWP_Child {
 	/**
 	 * Method activation()
 	 *
-	 * Activate the MainWP Child plugin and delted unwanted data.
+	 * Activate the MainWP Child plugin and delete unwanted data.
 	 */
 	public function activation() {
 		$mu_plugin_enabled = apply_filters( 'mainwp_child_mu_plugin_enabled', false );

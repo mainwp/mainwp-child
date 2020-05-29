@@ -226,7 +226,7 @@ class MainWP_Utility {
 	 * @param string $to_email Contains the send to email address.
 	 * @param string $body Contains the email content.
 	 *
-	 * @return srting Return formated email.
+	 * @return string Return formatted email.
 	 */
 	public static function format_email( $to_email, $body ) {
 		return '<br>
@@ -317,6 +317,8 @@ class MainWP_Utility {
 	 * Start job if in cron and run query args are set.
 	 *
 	 * @return void
+	 *
+	 * @deprecated Unused Element
 	 */
 	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
