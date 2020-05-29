@@ -336,7 +336,7 @@ class MainWP_Child_WP_Rocket {
 	/**
 	 * Method remove_menu()
 	 *
-	 * Remove the WP Rocket menu item wwhen the plugin is hidden.
+	 * Remove the WP Rocket menu item when the plugin is hidden.
 	 */
 	public function remove_menu() {
 		global $submenu;
