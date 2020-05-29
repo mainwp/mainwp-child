@@ -41,6 +41,12 @@ class MainWP_Custom_Post_Type {
      * Custom post type action.
      */
     public function action() {
+
+        /**
+         * Method mainwp_custom_post_type_handle_fatal_error()
+         *
+         * Custom post type fatal error handler.
+         */
 		function mainwp_custom_post_type_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
