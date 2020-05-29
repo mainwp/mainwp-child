@@ -300,7 +300,7 @@ class MainWP_Child_WP_Rocket {
 	 *
 	 * @param object $value Object containing update information.
 	 *
-	 * @param object $value Object containing update information.
+	 * @return object $value Object containing update information.
 	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
