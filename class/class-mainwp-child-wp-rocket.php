@@ -1,5 +1,10 @@
 <?php
 /**
+ * MainWP Rocket
+ *
+ * MainWP Rocket extension handler.
+ * Extension URL: https://mainwp.com/extension/rocket/
+ *
  * Credits
  *
  * Plugin Name: WP Rocket
@@ -7,19 +12,40 @@
  * Author: WP Media
  * Author URI: http://wp-media.me
  * Licence: GPLv2 or later
- *
- * The code is used for the MainWP Rocket Extension
- * Extension URL: https://mainwp.com/extension/rocket/
  */
 
 use MainWP\Child\MainWP_Helper;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- required to achieve desired results, pull request solutions appreciated.
 
+/**
+ * Class MainWP_Child_WP_Rocket
+ *
+ * MainWP Rocket extension handler.
+ */
 class MainWP_Child_WP_Rocket {
-	public static $instance     = null;
+
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
+	public static $instance = null;
+
+	/**
+	 * Public variable to hold the infomration if the WP Rocket plugin is installed on the child site.
+	 *
+	 * @var bool If WP Rocket intalled, return true, if not, return false.
+	 */
 	public $is_plugin_installed = false;
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -28,12 +54,24 @@ class MainWP_Child_WP_Rocket {
 		return self::$instance;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
+	 */
 	public function __construct() {
 		if ( is_plugin_active( 'wp-rocket/wp-rocket.php' ) ) {
 			$this->is_plugin_installed = true;
 		}
 	}
 
+	/**
+	 * Method init()
+	 *
+	 * Initiate action hooks.
+	 *
+	 * @return void
+	 */
 	public function init() {
 		if ( ! $this->is_plugin_installed ) {
 			return;
@@ -51,6 +89,13 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
+	/**
+	 * Method get_rocket_default_options()
+	 *
+	 * WP Rocket plugin settings default options.
+	 *
+	 * @return array Default options.
+	 */
 	public function get_rocket_default_options() {
 		return array(
 			'cache_mobile'                           => 1,
@@ -125,6 +170,16 @@ class MainWP_Child_WP_Rocket {
 		);
 	}
 
+	/**
+	 * Method sync_others_data()
+	 *
+	 * Sync the WP Rocket plugin settings.
+	 *
+	 * @param  array $information Array containing the sync information.
+	 * @param  array $data        Array containing the WP Rocekt plugin data to be synced.
+	 *
+	 * @return array $information Array containing the sync information.
+	 */
 	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
 			try {
@@ -137,6 +192,13 @@ class MainWP_Child_WP_Rocket {
 		return $information;
 	}
 
+	/**
+	 * Method remove_notices()
+	 *
+	 * Remove admin notices thrown by the WP Rocket plugin when the plugin is hidden.
+	 *
+	 * @uses MainWP_Child_WP_Rocket::remove_filters_with_method_name() Remove filters with method name.
+	 */
 	public function remove_notices() {
 		$remove_hooks['admin_notices'] = array(
 			'rocket_bad_deactivations'                    => 10,
@@ -162,7 +224,17 @@ class MainWP_Child_WP_Rocket {
 
 
 	/**
-	 * Credit to the : wp-filters-extras
+	 * Method remove_filters_with_method_name()
+	 *
+	 * Remove filters with method name.
+	 *
+	 * @param string $hook_name   Contains the hook name.
+	 * @param string $method_name Contains the method name.
+	 * @param int    $priority    Contains the priority value.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::remove_notices() Remove admin notices thrown by the WP Rocket plugin when the plugin is hidden.
+	 *
+	 * @return bool Return false if filtr is not set.
 	 */
 	public static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
 
@@ -189,6 +261,11 @@ class MainWP_Child_WP_Rocket {
 		return false;
 	}
 
+	/**
+	 * Method wp_before_admin_bar_render()
+	 *
+	 * Remove the WP Rocket admin bar node when the plugin is hidden.
+	 */
 	public function wp_before_admin_bar_render() {
 		global $wp_admin_bar;
 		$nodes = $wp_admin_bar->get_nodes();
@@ -202,11 +279,29 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
+	/**
+	 * Method hide_update_notice()
+	 *
+	 * Remove the WP Rocket plugin update notice when the plugin is hidden.
+	 *
+	 * @param array $slugs Array containing installed plugins slugs.
+	 *
+	 * @return array $slugs Array containing installed plugins slugs.
+	 */
 	public function hide_update_notice( $slugs ) {
 		$slugs[] = 'wp-rocket/wp-rocket.php';
 		return $slugs;
 	}
 
+	/**
+	 * Method remove_update_nag()
+	 *
+	 * Remove the WP Rocket plugin update notice when the plugin is hidden.
+	 *
+	 * @param object $value Object containing update information.
+	 *
+	 * @param object $value Object containing update information.
+	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
@@ -223,6 +318,13 @@ class MainWP_Child_WP_Rocket {
 		return $value;
 	}
 
+	/**
+	 * Method is_activated()
+	 *
+	 * Check if the WP Rocket pulgin is activated.
+	 *
+	 * @return bool If the WP Rocket pulgin is active, return true, if not, return false.
+	 */
 	public function is_activated() {
 		if ( ! $this->is_plugin_installed ) {
 			return false;
@@ -231,6 +333,11 @@ class MainWP_Child_WP_Rocket {
 		return true;
 	}
 
+	/**
+	 * Method remove_menu()
+	 *
+	 * Remove the WP Rocket menu item wwhen the plugin is hidden.
+	 */
 	public function remove_menu() {
 		global $submenu;
 		if ( isset( $submenu['options-general.php'] ) ) {
@@ -248,6 +355,15 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
+	/**
+	 * Method all_plugins()
+	 *
+	 * Remove the WP Rocket plugin from the list of all plugins when the plugin is hidden.
+	 *
+	 * @param array $plugins Array containing all installed plugins.
+	 *
+	 * @return array $plugins Array containing all installed plugins without the WP Rocket.
+	 */
 	public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
@@ -259,6 +375,24 @@ class MainWP_Child_WP_Rocket {
 		return $plugins;
 	}
 
+	/**
+	 * Method actions()
+	 *
+	 * Fire off certain WP Rocket plugin actions.
+	 *
+	 * @uses MainWP_Child_WP_Rocket::set_showhide() Hide or unhide the WP Rocket plugin.
+	 * @uses MainWP_Child_WP_Rocket::purge_cloudflare() Purge the Cloudflare cache.
+	 * @uses MainWP_Child_WP_Rocket::purge_cache_all() Purge all cache.
+	 * @uses MainWP_Child_WP_Rocket::preload_cache() Preload cache.
+	 * @uses MainWP_Child_WP_Rocket::generate_critical_css() Generate critical CSS.
+	 * @uses MainWP_Child_WP_Rocket::save_settings() Save the plugin settings.
+	 * @uses MainWP_Child_WP_Rocket::load_existing_settings() Load existing settings.
+	 * @uses MainWP_Child_WP_Rocket::optimize_database() Optimize database tables.
+	 * @uses MainWP_Child_WP_Rocket::get_optimize_info() Get the optimization information.
+	 * @uses MainWP_Child_WP_Rocket::do_admin_post_rocket_purge_opcache() Do admin post to purge opcache.
+	 *
+	 * @return void
+	 */
 	public function action() {
 		if ( ! $this->is_plugin_installed ) {
 			MainWP_Helper::write( array( 'error' => __( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
@@ -308,6 +442,15 @@ class MainWP_Child_WP_Rocket {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Method set_showhide()
+	 *
+	 * Hide or unhide the WP Rocket plugin.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_wprocket_hide_plugin', $hide );
@@ -316,6 +459,15 @@ class MainWP_Child_WP_Rocket {
 		return $information;
 	}
 
+	/**
+	 * Method do_admin_post_rocket_purge_opcache()
+	 *
+	 * Do admin post to purge opcache.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function do_admin_post_rocket_purge_opcache() {
 		if ( function_exists( 'opcache_reset' ) ) {
 			opcache_reset();
@@ -325,6 +477,15 @@ class MainWP_Child_WP_Rocket {
 		return array( 'result' => 'SUCCESS' );
 	}
 
+	/**
+	 * Method purge_cloudflare()
+	 *
+	 * Purge the Cloudflare cache.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function purge_cloudflare() {
 		if ( function_exists( 'rocket_purge_cloudflare' ) ) {
 			rocket_purge_cloudflare();
@@ -334,6 +495,15 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
+	/**
+	 * Method purge_cache_all()
+	 *
+	 * Purge all cache.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function purge_cache_all() {
 		if ( function_exists( 'rocket_clean_domain' ) || function_exists( 'rocket_clean_minify' ) || function_exists( 'create_rocket_uniqid' ) ) {
 			set_transient( 'rocket_clear_cache', 'all', HOUR_IN_SECONDS );
@@ -358,6 +528,15 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
+	/**
+	 * Method preload_cache()
+	 *
+	 * Preload cache.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function preload_cache() {
 		MainWP_Helper::check_functions( array( 'run_rocket_sitemap_preload', 'run_rocket_bot' ) );
 		MainWP_Helper::check_classes_exists( 'WP_Rocket\Preload\Full_Process' );
@@ -375,6 +554,15 @@ class MainWP_Child_WP_Rocket {
 		return array( 'result' => 'SUCCESS' );
 	}
 
+	/**
+	 * Method generate_critical_css()
+	 *
+	 * Generate critical CSS.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function generate_critical_css() {
 		MainWP_Helper::check_classes_exists(
 			array(
@@ -400,6 +588,15 @@ class MainWP_Child_WP_Rocket {
 		return array( 'result' => 'SUCCESS' );
 	}
 
+	/**
+	 * Method save_settings()
+	 *
+	 * Save the plugin settings.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function save_settings() {
 		$options = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $options ) || empty( $options ) ) {
@@ -424,6 +621,15 @@ class MainWP_Child_WP_Rocket {
 		return array( 'result' => 'SUCCESS' );
 	}
 
+	/**
+	 * Method optimize_database()
+	 *
+	 * Optimize database tables.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function optimize_database() {
 		MainWP_Helper::check_classes_exists(
 			array(
@@ -452,6 +658,15 @@ class MainWP_Child_WP_Rocket {
 		return $return;
 	}
 
+	/**
+	 * Method get_optimize_info()
+	 *
+	 * Get the optimization information.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result and optimization information.
+	 */
 	public function get_optimize_info() {
 		MainWP_Helper::check_classes_exists(
 			array(
@@ -480,6 +695,15 @@ class MainWP_Child_WP_Rocket {
 		return $information;
 	}
 
+	/**
+	 * Method load_existing_settings()
+	 *
+	 * Load existing settings.
+	 *
+	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 *
+	 * @return array Action result and settings options.
+	 */
 	public function load_existing_settings() {
 		$options = get_option( WP_ROCKET_SLUG );
 		return array(
