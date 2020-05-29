@@ -69,7 +69,6 @@ class MainWP_Child {
 		$this->update();
 		$this->load_all_options();
 
-		$this->plugin_dir  = dirname( $plugin_file );
 		$this->plugin_slug = plugin_basename( $plugin_file );
 
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
@@ -138,18 +137,12 @@ class MainWP_Child {
 			$suppress = $wpdb->suppress_errors();
 			$options  = array(
 				'mainwp_child_auth',
-				'mainwp_child_reports_db',
-				'mainwp_child_fix_htaccess',
+				'mainwp_child_reports_db',				
 				'mainwp_child_pluginDir',
 				'mainwp_updraftplus_hide_plugin',
-				'mainwp_backwpup_ext_enabled',
-				'mainwpKeywordLinks',
+				'mainwp_backwpup_ext_enabled',				
 				'mainwp_child_server',
-				'mainwp_kwl_options',
-				'mainwp_kwl_keyword_links',
-				'mainwp_keyword_links_htaccess_set',
-				'mainwp_pagespeed_hide_plugin',
-				'mainwp_kwl_enable_statistic',
+				'mainwp_pagespeed_hide_plugin',				
 				'mainwp_child_clone_permalink',
 				'mainwp_child_restore_permalink',
 				'mainwp_ext_snippets_enabled',
@@ -243,30 +236,10 @@ class MainWP_Child {
 			}
 		}
 
-		global $wp_rewrite;
-
-		$snPluginDir = basename( $this->plugin_dir );
-
-		if ( isset( $wp_rewrite->non_wp_rules[ 'wp-content/plugins/' . $snPluginDir . '/([^js\/]*)$' ] ) ) {
-			unset( $wp_rewrite->non_wp_rules[ 'wp-content/plugins/' . $snPluginDir . '/([^js\/]*)$' ] );
-		}
-
-		if ( isset( $wp_rewrite->non_wp_rules[ 'wp-content/plugins/' . $snPluginDir . '/(.*)$' ] ) ) {
-			unset( $wp_rewrite->non_wp_rules[ 'wp-content/plugins/' . $snPluginDir . '/(.*)$' ] );
-		}
-
-		if ( get_option( 'mainwp_child_fix_htaccess' ) === false ) {
-			include_once ABSPATH . '/wp-admin/includes/misc.php';
-
-			$wp_rewrite->flush_rules();
-
-			MainWP_Helper::update_option( 'mainwp_child_fix_htaccess', 'yes', 'yes' );
-		}
-
 		// if login required.
 		if ( isset( $_REQUEST['login_required'] ) && ( '1' === $_REQUEST['login_required'] ) && isset( $_REQUEST['user'] ) ) {
 			$valid_login_required = MainWP_Connect::instance()->parse_login_required();
-			// return parse init if login required are not valid.
+			// return if login required are not valid, if login is valid will redirect to admin side.
 			if ( ! $valid_login_required ) {
 				return;
 			}
@@ -300,8 +273,6 @@ class MainWP_Child {
 
 		// execute callable functions here.
 		MainWP_Child_Callable::get_instance()->init_call_functions( $auth );
-
-		MainWP_Keyword_Links::instance()->parse_init_keyword_links();
 	}
 
 	/**

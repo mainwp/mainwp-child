@@ -1,6 +1,6 @@
 <?php
 /**
- * MainWP Child Skeleton Key
+ * MainWP Child Bulk Settings Manager
  *
  * This file handles connecting to the child site as a browser
  * in order performs an HTTP request using the POST method and returns its response.
@@ -9,11 +9,11 @@
 namespace MainWP\Child;
 
 /**
- * Class MainWP_Child_Skeleton_Key
+ * Class MainWP_Child_Bulk_Settings_Manager
  *
  * @package MainWP\Child
  */
-class MainWP_Child_Skeleton_Key {
+class MainWP_Child_Bulk_Settings_Manager {
 
 	/**
 	 * @static
@@ -33,9 +33,9 @@ class MainWP_Child_Skeleton_Key {
 	public $plugin_translate = 'mainwp-child';
 
 	/**
-	 * Create public static instance for MainWP_Child_Skeleton_Key.
+	 * Create public static instance for MainWP_Child_Bulk_Settings_Manager.
 	 *
-	 * @return MainWP_Child_Skeleton_Key|null
+	 * @return MainWP_Child_Bulk_Settings_Manager|null
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -51,19 +51,22 @@ class MainWP_Child_Skeleton_Key {
 	public function action() {
 
 		/**
-		 * MainWP skeleton key fatal error handler.
+		 * MainWP bulk settings manager fatal error handler.
 		 */
-		function mainwp_skeleton_key_handle_fatal_error() {
+		function mainwp_bulk_settings_manager_handle_fatal_error() {
 			$error = error_get_last();
 			if ( isset( $error['type'] ) && in_array( $error['type'], array( 1, 4, 16, 64, 256 ) ) && isset( $error['message'] ) ) {
 				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 			}
 		}
 
-		register_shutdown_function( 'MainWP\Child\MainWP_Child_Skeleton_Key\mainwp_skeleton_key_handle_fatal_error' );
+		register_shutdown_function( 'MainWP\Child\mainwp_bulk_settings_manager_handle_fatal_error' );
 
 		switch ( $_POST['action'] ) {
-			case 'skeleton_key_visit_site_as_browser':
+			case 'skeleton_key_visit_site_as_browser': // deprecated.
+				$information = $this->visit_site_as_browser();
+				break;
+			case 'bulk_settings_manager_visit_site_as_browser':
 				$information = $this->visit_site_as_browser();
 				break;
 			case 'save_settings':
@@ -143,8 +146,8 @@ class MainWP_Child_Skeleton_Key {
 			$get_args = array();
 		}
 
-		$get_args['skeleton_keyuse_nonce_key']  = intval( time() );
-		$get_args['skeleton_keyuse_nonce_hmac'] = hash_hmac( 'sha256', $get_args['skeleton_keyuse_nonce_key'], NONCE_KEY );
+		$get_args['bulk_settings_manageruse_nonce_key']  = intval( time() );
+		$get_args['bulk_settings_manageruse_nonce_hmac'] = hash_hmac( 'sha256', $get_args['bulk_settings_manageruse_nonce_key'], NONCE_KEY );
 
 		$good_nonce = null;
 		if ( isset( $args['nonce'] ) && ! empty( $args['nonce'] ) ) {
@@ -205,8 +208,8 @@ class MainWP_Child_Skeleton_Key {
 				}
 			}
 		}
-		unset( $get_args['skeleton_keyuse_nonce_key'] );
-		unset( $get_args['skeleton_keyuse_nonce_hmac'] );
+		unset( $get_args['bulk_settings_manageruse_nonce_key'] );
+		unset( $get_args['bulk_settings_manageruse_nonce_hmac'] );
 
 		return array(
 			'success'             => 1,

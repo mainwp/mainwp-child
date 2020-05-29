@@ -922,6 +922,7 @@ class MainWP_Child_Posts {
 			'_bulkpost_do_not_del',
 			'_mainwp_spin_me',
 			'_mainwp_boilerplate_sites_posts',
+			'_mainwp_boilerplate',
 			'_mainwp_post_plus',
 			'_saved_as_draft',
 			'_saved_draft_categories',

@@ -5,14 +5,14 @@
  * @package MainWP/Child
  */
 
-if ( isset( $_GET['skeleton_keyuse_nonce_key'] ) && isset( $_GET['skeleton_keyuse_nonce_hmac'] ) ) {
-	$skeleton_keyuse_nonce_key  = intval( $_GET['skeleton_keyuse_nonce_key'] );
-	$skeleton_keyuse_nonce_hmac = $_GET['skeleton_keyuse_nonce_hmac'];
-	$skeleton_keycurrent_time   = intval( time() );
+if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ) {
+	$bulk_settings_manageruse_nonce_key  = intval( $_GET['bulk_settings_manageruse_nonce_key'] );
+	$bulk_settings_manageruse_nonce_hmac = $_GET['bulk_settings_manageruse_nonce_hmac'];
+	$bulk_settings_managercurrent_time   = intval( time() );
 
-	if ( $skeleton_keycurrent_time >= $skeleton_keyuse_nonce_key && $skeleton_keycurrent_time <= ( $skeleton_keyuse_nonce_key + 30 ) ) {
+	if ( $bulk_settings_managercurrent_time >= $bulk_settings_manageruse_nonce_key && $bulk_settings_managercurrent_time <= ( $bulk_settings_manageruse_nonce_key + 30 ) ) {
 
-		if ( strcmp( $skeleton_keyuse_nonce_hmac, hash_hmac( 'sha256', $skeleton_keyuse_nonce_key, NONCE_KEY ) ) === 0 ) {
+		if ( strcmp( $bulk_settings_manageruse_nonce_hmac, hash_hmac( 'sha256', $bulk_settings_manageruse_nonce_key, NONCE_KEY ) ) === 0 ) {
 
 			if ( ! function_exists( 'wp_verify_nonce' ) ) :
 

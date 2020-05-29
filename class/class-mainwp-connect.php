@@ -237,10 +237,10 @@ class MainWP_Connect {
 			$serverNoSsl = ( isset( $nossl ) && 1 === (int) $nossl );
 			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
 				$nossl_key = get_option( 'mainwp_child_nossl_key' );
-				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-			} else {
-				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-				if ( 1 !== $auth ) {
+				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
+			} else {				
+				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.				
+				if ( 1 !== $auth ) {					
 					$auth = false;
 				}
 			}
@@ -269,8 +269,7 @@ class MainWP_Connect {
 			}
 		}
 
-		if ( is_user_logged_in() ) {
-			global $current_user;
+		if ( is_user_logged_in() ) {			
 			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
 				do_action( 'wp_logout' );
 			}
@@ -280,18 +279,17 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$auth = self::instance()->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '', isset( $_REQUEST['nossl'] ) ? $_REQUEST['nossl'] : 0 );
+		$auth = $this->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '', isset( $_REQUEST['nossl'] ) ? $_REQUEST['nossl'] : 0 );
 
 		if ( ! $auth ) {
-			return;
+			return false;
 		}
 
 		if ( ! is_user_logged_in() || $username !== $current_user->user_login ) {
 			if ( ! $this->login( $username ) ) {
-				return;
+				return false;
 			}
 
-			global $current_user;
 			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
 				// if is not alternative admin login.
 				// it is connected admin login.
@@ -299,11 +297,12 @@ class MainWP_Connect {
 					// log out if connected admin is not admin level 10.
 					do_action( 'wp_logout' );
 
-					return;
+					return false;
 				}
 			}
 		}
 		$this->check_redirects();
+		return true;
 	}
 
 	/**
@@ -335,15 +334,15 @@ class MainWP_Connect {
 	private function check_redirects() {
 		if ( isset( $_REQUEST['fdl'] ) ) {
 			if ( stristr( $_REQUEST['fdl'], '..' ) ) {
-				return;
+				return false;
 			}
 			MainWP_Utility::instance()->upload_file( $_REQUEST['fdl'], isset( $_REQUEST['foffset'] ) ? $_REQUEST['foffset'] : 0 );
 			exit;
 		}
 		// support for custom wp-admin slug.
-		if ( isset( $_REQUEST['open_location'] ) ) {
-			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-			$this->open_location_redirect( $open_location );
+		if ( isset( $_REQUEST['open_location'] ) && ! empty( $_REQUEST['open_location'] ) ) {
+			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.			
+			$this->open_location_redirect( $open_location );			
 		}
 		$this->where_redirect();
 	}
@@ -421,7 +420,7 @@ class MainWP_Connect {
 			$_SESSION['file'] = $file;
 			$_SESSION['size'] = $_POST['size'];
 		}
-		wp_safe_redirect( admin_url( $where ) );
+		wp_redirect( admin_url( $where ) );
 		exit();
 	}
 

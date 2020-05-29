@@ -64,7 +64,7 @@ class MainWP_Custom_Post_Type {
 			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatibility.
 		}
 
-		register_shutdown_function( 'MainWP\Child\MainWP_Custom_Post_Type\mainwp_custom_post_type_handle_fatal_error' );
+		register_shutdown_function( 'MainWP\Child\mainwp_custom_post_type_handle_fatal_error' );
 
 		/** @var $information @deprecated Unused local variable 'information'. The value of the variable is overwritten immediately. */
 		$information = array();

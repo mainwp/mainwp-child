@@ -38,7 +38,6 @@ class MainWP_Child_Callable {
 		'user_action'           => 'user_action',
 		'search_users'          => 'search_users',
 		'maintenance_site'      => 'maintenance_site',
-		'keyword_links_action'  => 'keyword_links_action',
 		'branding_child_plugin' => 'branding_child_plugin',
 		'code_snippet'          => 'code_snippet',
 		'uploader_action'       => 'uploader_action',
@@ -57,7 +56,8 @@ class MainWP_Child_Callable {
 		'backwpup'              => 'backwpup',
 		'wp_rocket'             => 'wp_rocket',
 		'settings_tools'        => 'settings_tools',
-		'skeleton_key'          => 'skeleton_key',
+		'skeleton_key'          => 'bulk_settings_manager', // deprecated.
+		'bulk_settings_manager'          => 'bulk_settings_manager',
 		'custom_post_type'      => 'custom_post_type',
 		'backup_buddy'          => 'backup_buddy',
 		'get_site_icon'         => 'get_site_icon',
@@ -294,8 +294,8 @@ class MainWP_Child_Callable {
 		MainWP_Child_Misc::get_instance()->do_security_un_fix();
 	}
 
-	public function skeleton_key() {
-		MainWP_Child_Skeleton_Key::instance()->action();
+	public function bulk_settings_manager() {
+		MainWP_Child_Bulk_Settings_Manager::instance()->action();
 	}
 
 	public function custom_post_type() {
@@ -402,10 +402,6 @@ class MainWP_Child_Callable {
 		$uniId = isset( $_POST['uniqueId'] ) ? $_POST['uniqueId'] : '';
 		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $uniId );
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
-	}
-
-	public function keyword_links_action() {
-		MainWP_Keyword_Links::instance()->action();
 	}
 
 	public function branding_child_plugin() {
