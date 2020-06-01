@@ -344,6 +344,7 @@ class MainWP_Child_Stats {
 		if ( null !== $this->filterFunction ) {
 			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
+		return $result;
 	}
 
 	private function check_premium_updates( &$information, &$premiumPlugins, &$premiumThemes ) {

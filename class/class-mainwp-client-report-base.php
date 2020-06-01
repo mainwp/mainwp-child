@@ -59,7 +59,7 @@ class MainWP_Client_Report_Base {
 		$mapping_connectors = array(
 			'plugins'            => 'installer',
 			'themes'             => 'installer',
-			'WordPress'          => 'installer',
+			'wordpress'          => 'installer', // phpcs:ignore -- lowercase characters.
 			'profiles'           => 'users',
 			'comments'           => 'comments',
 			'settings'           => 'settings',
@@ -557,7 +557,7 @@ class MainWP_Client_Report_Base {
 				if ( 'version' === $data ) {
 					if ( 'old' === $str2 ) {
 						$data = 'old_version';
-					} elseif ( 'current' === $str2 && 'WordPress' === $str1 ) {
+					} elseif ( 'current' === $str2 && 'wordpress' === $str1 ) { // phpcs:ignore -- lowercase characters.
 						$data = 'new_version';
 					}
 				}

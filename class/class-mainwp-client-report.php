@@ -60,7 +60,6 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @param string $agent User agent.
 	 * @return string $agent Current user agent.
 	 *
-	 * @deprecated Unused element.
 	 */
 	public function current_agent( $agent ) {
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) ) {
@@ -94,8 +93,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * Create reports log file.
 	 *
 	 * @param string $ext File extension.
-	 *
-	 * @deprecated Unused element.
+	 *	 
 	 */
 	public static function do_reports_log( $ext = '' ) {
 		switch ( $ext ) {
@@ -260,8 +258,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 *
 	 * @param $slugs Slugs to hide.
 	 * @return array Slugs array.
-	 *
-	 * @deprecated Unused element.
+	 *	 
 	 */
 	public function hide_update_notice( $slugs ) {
 
@@ -274,8 +271,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 *
 	 * @param string $value Value to remove.
 	 * @return string Response.
-	 *
-	 * @deprecated Unused element.
+	 *	 
 	 */
 	public function remove_update_nag( $value ) {
 
@@ -299,8 +295,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 *
 	 * @param array $plugins Plugins array.
 	 * @return array Plugins array.
-	 *
-	 * @deprecated Unused element.
+	 *	 
 	 */
 	public function creport_branding_plugin( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
@@ -314,8 +309,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 	/**
 	 * Client Remove Menu.
-	 *
-	 * @deprecated Unused element.
+	 *	 
 	 */
 	public function creport_remove_menu() {
 		remove_menu_page( 'mainwp_wp_stream' );
