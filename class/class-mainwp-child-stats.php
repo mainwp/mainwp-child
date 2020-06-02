@@ -157,9 +157,8 @@ class MainWP_Child_Stats {
 		$information['uniqueId']             = get_option( 'mainwp_child_uniqueId', '' );
 		$information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
 		$information['themes_outdate_info']  = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
-		$information['health_site_status']  = $this->get_health_check_site_status();
-		
-		
+		$information['health_site_status']   = $this->get_health_check_site_status();
+
 		if ( isset( $_POST['user'] ) ) {
 			$user = get_user_by( 'login', $_POST['user'] );
 			if ( $user && property_exists( $user, 'ID' ) && $user->ID ) {
@@ -763,11 +762,11 @@ class MainWP_Child_Stats {
 
 	/**
 	 * Get WP Site Health issues.
-	 *	
+	 *
 	 * @return array[] issues.
-	 */	
+	 */
 	function get_health_check_site_status() {
-		$get_issues = get_transient( 'health-check-site-status-result' );
+		$get_issues   = get_transient( 'health-check-site-status-result' );
 		$issue_counts = array();
 		if ( false !== $get_issues ) {
 			$issue_counts = json_decode( $get_issues, true );
