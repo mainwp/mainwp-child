@@ -1,13 +1,35 @@
 <?php
+/**
+ * MainWP Callable Functions
+ *
+ * Manage functions that can be executed on the child site.
+ *
+ * @package MainWP\Child
+ */
 
 namespace MainWP\Child;
 
 // phpcs:disable WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
+/**
+ * Class MainWP_Child_Callable
+ *
+ * Manage functions that can be executed on the child site.
+ */
 class MainWP_Child_Callable {
 
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	protected static $instance = null;
 
+	/**
+	 * Private variable to hold the array of all callable functions.
+	 *
+	 * @var array Callable functions.
+	 */
 	private $callableFunctions = array(
 		'stats'                 => 'get_site_stats',
 		'upgrade'               => 'upgrade_wp',
@@ -70,6 +92,11 @@ class MainWP_Child_Callable {
 		'wpvivid_backuprestore' => 'wpvivid_backuprestore',
 	);
 
+	/**
+	 * Private variable to hold the array of all callable functions that don't require regularl authentication.
+	 *
+	 * @var array Callable functions.
+	 */
 	private $callableFunctionsNoAuth = array(
 		'stats' => 'get_site_stats_no_auth',
 	);
@@ -77,17 +104,29 @@ class MainWP_Child_Callable {
 	/**
 	 * Method get_class_name()
 	 *
-	 * Get Class Name.
+	 * Get class name.
 	 *
-	 * @return object
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
+	 */
 	public function __construct() {
 	}
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -95,19 +134,26 @@ class MainWP_Child_Callable {
 		return self::$instance;
 	}
 
+	/**
+	 * Method init_call_functions()
+	 *
+	 * Initiate callable functions.
+	 *
+	 * @param bool $auth If true, regular authentication is required.
+	 */
 	public function init_call_functions( $auth = false ) {
 		$callable         = false;
 		$callable_no_auth = false;
 		$call_func        = false;
 
-		// check to execute mainwp child's callable functions.
+		// check if function is callable.
 		if ( isset( $_POST['function'] ) ) {
 			$call_func        = $_POST['function'];
 			$callable         = $this->is_callable_function( $call_func ); // check callable func.
 			$callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.
 		}
 
-		// Call the function required.
+		// Fire off the called function.
 		if ( $auth && isset( $_POST['function'] ) && $callable ) {
 			define( 'DOING_CRON', true );
 			MainWP_Utility::handle_fatal_error();
@@ -122,6 +168,15 @@ class MainWP_Child_Callable {
 		}
 	}
 
+	/**
+	 * Method is_callable_function()
+	 *
+	 * Check if the function is the list of callable functions.
+	 *
+	 * @param string $func Contains the name of the function to check
+	 *
+	 * @return bool If callable, return true, if not, return false.
+	 */
 	public function is_callable_function( $func ) {
 		if ( isset( $this->callableFunctions[ $func ] ) ) {
 			return true;
@@ -129,6 +184,15 @@ class MainWP_Child_Callable {
 		return false;
 	}
 
+	/**
+	 * Method is_callable_function_no_auth()
+	 *
+	 * Check if the function is the list of callable functions that don't require regular authentication.
+	 *
+	 * @param string $func Contains the name of the function to check
+	 *
+	 * @return bool If callable, return true, if not, return false.
+	 */
 	public function is_callable_function_no_auth( $func ) {
 		if ( isset( $this->callableFunctionsNoAuth[ $func ] ) ) {
 			return true;
@@ -136,113 +200,244 @@ class MainWP_Child_Callable {
 		return false;
 	}
 
+	/**
+	 * Method call_function()
+	 *
+	 * Call ceratin function.
+	 *
+	 * @param string $func Contains the name of the function to call.
+	 */
 	public function call_function( $func ) {
 		if ( $this->is_callable_function( $func ) ) {
 			call_user_func( array( $this, $this->callableFunctions[ $func ] ) );
 		}
 	}
 
+	/**
+	 * Method call_function_no_auth()
+	 *
+	 * Call ceratin function without regular authentication if the function is in the $callableFunctionsNoAuth list.
+	 *
+	 * @param string $func Contains the name of the function to call.
+	 */
 	public function call_function_no_auth( $func ) {
 		if ( $this->is_callable_function_no_auth( $func ) ) {
 			call_user_func( array( $this, $this->callableFunctionsNoAuth[ $func ] ) );
 		}
 	}
 
+	/**
+	 * Method get_site_stats()
+	 *
+	 * Fire off the get_site_stats() function.
+	 */
 	public function get_site_stats() {
 		MainWP_Child_Stats::get_instance()->get_site_stats();
 	}
 
+	/**
+	 * Method get_site_stats_no_auth()
+	 *
+	 * Fire off the get_site_stats_no_auth() function.
+	 */
 	public function get_site_stats_no_auth() {
 		MainWP_Child_Stats::get_instance()->get_site_stats_no_auth();
 	}
 
 	/**
-	 * Functions to support core functionality
+	 * Method install_plugin_theme()
+	 *
+	 * Fire off the install_plugin_theme() function.
 	 */
 	public function install_plugin_theme() {
 		MainWP_Child_Install::get_instance()->install_plugin_theme();
 	}
 
+	/**
+	 * Method upgrade_wp()
+	 *
+	 * Fire off the upgrade_wp() function.
+	 */
 	public function upgrade_wp() {
 		MainWP_Child_Updates::get_instance()->upgrade_wp();
 	}
 
+	/**
+	 * Method upgrade_translation()
+	 *
+	 * Fire off the upgrade_translation() function.
+	 */
 	public function upgrade_translation() {
 		MainWP_Child_Updates::get_instance()->upgrade_translation();
 	}
 
+	/**
+	 * Method upgrade_plugin_theme()
+	 *
+	 * Fire off the upgrade_plugin_theme() function.
+	 */
 	public function upgrade_plugin_theme() {
 		MainWP_Child_Updates::get_instance()->upgrade_plugin_theme();
 	}
 
+	/**
+	 * Method theme_action()
+	 *
+	 * Fire off the theme_action() function.
+	 */
 	public function theme_action() {
 		MainWP_Child_Install::get_instance()->theme_action();
 	}
 
+	/**
+	 * Method plugin_action()
+	 *
+	 * Fire off the plugin_action() function.
+	 */
 	public function plugin_action() {
 		MainWP_Child_Install::get_instance()->plugin_action();
 	}
 
+	/**
+	 * Method get_all_plugins()
+	 *
+	 * Fire off the get_all_plugins() function.
+	 */
 	public function get_all_plugins() {
 		MainWP_Child_Stats::get_instance()->get_all_plugins();
 	}
 
+	/**
+	 * Method get_all_themes()
+	 *
+	 * Fire off the get_all_themes() function.
+	 */
 	public function get_all_themes() {
 		MainWP_Child_Stats::get_instance()->get_all_themes();
 	}
 
+	/**
+	 * Method get_all_users()
+	 *
+	 * Fire off the get_all_users() function.
+	 */
 	public function get_all_users() {
 		MainWP_Child_Users::get_instance()->get_all_users();
 	}
 
+	/**
+	 * Method user_action()
+	 *
+	 * Fire off the user_action() function.
+	 */
 	public function user_action() {
 		MainWP_Child_Users::get_instance()->user_action();
 	}
 
+	/**
+	 * Method search_users()
+	 *
+	 * Fire off the search_users() function.
+	 */
 	public function search_users() {
 		MainWP_Child_Users::get_instance()->search_users();
 	}
 
+	/**
+	 * Method get_all_posts()
+	 *
+	 * Fire off the get_all_posts() function.
+	 */
 	public function get_all_posts() {
 		MainWP_Child_Posts::get_instance()->get_all_posts();
 	}
 
+	/**
+	 * Method get_all_pages()
+	 *
+	 * Fire off the get_all_pages() function.
+	 */
 	public function get_all_pages() {
 		MainWP_Child_Posts::get_instance()->get_all_pages();
 	}
 
+	/**
+	 * Method comment_action()
+	 *
+	 * Fire off the comment_action() function.
+	 */
 	public function comment_action() {
 		MainWP_Child_Comments::get_instance()->comment_action();
 	}
 
+	/**
+	 * Method get_all_comments()
+	 *
+	 * Fire off the get_all_comments() function.
+	 */
 	public function get_all_comments() {
 		MainWP_Child_Comments::get_instance()->get_all_comments();
 	}
 
+	/**
+	 * Method comment_bulk_action()
+	 *
+	 * Fire off the comment_bulk_action() function.
+	 */
 	public function comment_bulk_action() {
 		MainWP_Child_Comments::get_instance()->comment_bulk_action();
 	}
 
+	/**
+	 * Method maintenance_site()
+	 *
+	 * Fire off the maintenance_site() function.
+	 */
 	public function maintenance_site() {
 		MainWP_Child_Maintenance::get_instance()->maintenance_site();
 	}
 
+	/**
+	 * Method new_post()
+	 *
+	 * Fire off the new_post() function.
+	 */
 	public function new_post() {
 		MainWP_Child_Posts::get_instance()->new_post();
 	}
 
+	/**
+	 * Method post_action()
+	 *
+	 * Fire off the post_action() function.
+	 */
 	public function post_action() {
 		MainWP_Child_Posts::get_instance()->post_action();
 	}
 
+	/**
+	 * Method new_admin_password()
+	 *
+	 * Fire off the new_admin_password() function.
+	 */
 	public function new_admin_password() {
 		MainWP_Child_Users::get_instance()->new_admin_password();
 	}
 
+	/**
+	 * Method new_user()
+	 *
+	 * Fire off the new_user() function.
+	 */
 	public function new_user() {
 		MainWP_Child_Users::get_instance()->new_user();
 	}
 
+	/**
+	 * Method cloneinfo()
+	 *
+	 * Fire off the cloneinfo() function.
+	 */
 	public function cloneinfo() {
 		global $table_prefix;
 		$information['dbCharset']    = DB_CHARSET;
@@ -254,119 +449,280 @@ class MainWP_Child_Callable {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Method backup_poll()
+	 *
+	 * Fire off the backup_poll() function.
+	 */
 	public function backup_poll() {
 		MainWP_Backup::get()->backup_poll();
 	}
 
+	/**
+	 * Method backup_checkpid()
+	 *
+	 * Fire off the backup_checkpid() function.
+	 */
 	public function backup_checkpid() {
 		MainWP_Backup::get()->backup_checkpid();
 	}
 
-	public function backup( $pWrite = true ) {
-		return MainWP_Backup::get()->backup( $pWrite );
+	/**
+	 * Method backup()
+	 *
+	 * Fire off the backup() function.
+	 *
+	 * @param bool $write Whether or not to execute MainWP_Helper::write(), Default: true.
+	 *
+	 * @return array Action result.
+	 */
+	public function backup( $write = true ) {
+		return MainWP_Backup::get()->backup( $write );
 	}
 
-	protected function backup_full( $fileName ) {
-		return MainWP_Backup::get()->backup_full( $fileName );
+	/**
+	 * Method backup_full()
+	 *
+	 * Fire off the backup_full() function.
+	 *
+	 * @param string $file_name Contains the backup file name.
+	 *
+	 * @return array Action result.
+	 */
+	protected function backup_full( $file_name ) {
+		return MainWP_Backup::get()->backup_full( $file_name );
 	}
 
-	protected function backup_db( $fileName = '', $ext = 'zip' ) {
-		return MainWP_Backup::get()->backup_db( $fileName, $ext );
+	/**
+	 * Method backup_db()
+	 *
+	 * Fire off the backup_db() function.
+	 *
+	 * @param string $file_name      Contains the backup file name.
+	 * @param string $file_extension Contains the backup file extension.
+	 *
+	 * @return array Action result.
+	 */
+	protected function backup_db( $file_name = '', $file_extension = 'zip' ) {
+		return MainWP_Backup::get()->backup_db( $file_name, $file_extension );
 	}
 
+	/**
+	 * Method get_site_icon()
+	 *
+	 * Fire off the get_site_icon() function.
+	 */
 	public function get_site_icon() {
 		MainWP_Child_Misc::get_instance()->get_site_icon();
 	}
 
+	/**
+	 * Method get_security_stats()
+	 *
+	 * Fire off the get_security_stats() function.
+	 */
 	public function get_security_stats() {
 		MainWP_Child_Misc::get_instance()->get_security_stats();
 	}
 
+	/**
+	 * Method do_security_fix()
+	 *
+	 * Fire off the do_security_fix() function.
+	 */
 	public function do_security_fix() {
 		MainWP_Child_Misc::get_instance()->do_security_fix();
 	}
 
+	/**
+	 * Method do_security_un_fix()
+	 *
+	 * Fire off the do_security_un_fix() function.
+	 */
 	public function do_security_un_fix() {
 		MainWP_Child_Misc::get_instance()->do_security_un_fix();
 	}
 
+	/**
+	 * Method settings_tools()
+	 *
+	 * Fire off the settings_tools() function.
+	 */
 	public function settings_tools() {
 		MainWP_Child_Misc::get_instance()->do_security_un_fix();
 	}
 
+	/**
+	 * Method bulk_settings_manager()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function bulk_settings_manager() {
 		MainWP_Child_Bulk_Settings_Manager::instance()->action();
 	}
 
+	/**
+	 * Method custom_post_type()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function custom_post_type() {
 		MainWP_Custom_Post_Type::instance()->action();
 	}
 
+	/**
+	 * Method backup_buddy()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function backup_buddy() {
 		\MainWP_Child_Back_Up_Buddy::instance()->action();
 	}
 
+	/**
+	 * Method vulner_checker()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function vulner_checker() {
 		MainWP_Child_Vulnerability_Checker::instance()->action();
 	}
 
+	/**
+	 * Method time_capsule()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function time_capsule() {
 		\MainWP_Child_Timecapsule::instance()->action();
 	}
 
+	/**
+	 * Method wp_staging()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function wp_staging() {
 		\MainWP_Child_Staging::instance()->action();
 	}
 
+	/**
+	 * Method extra_execution()
+	 *
+	 * Additional functions to execute.
+	 */
 	public function extra_execution() {
 		$post        = $_POST;
 		$information = array();
+		/**
+		 * Filter 'mainwp_child_extra_execution'
+		 *
+		 * Additional functions to execute through the filter.
+		 *
+		 * @param array $information An array containing the synchronization information.
+		 * @param mixed $post Contains the POST request.
+		 *
+		 * @since 4.0
+		 */
 		$information = apply_filters( 'mainwp_child_extra_execution', $information, $post );
 		MainWP_Helper::write( $information );
 	}
 
-
+	/**
+	 * Method uploader_action()
+	 *
+	 * Fire off the uploader_action() function.
+	 */
 	public function uploader_action() {
 		MainWP_Child_Misc::get_instance()->uploader_action();
 	}
 
+	/**
+	 * Method wordpress_seo()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function wordpress_seo() {
 		\MainWP_WordPress_SEO::instance()->action();
 	}
 
+	/**
+	 * Method client_report()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function client_report() {
 		MainWP_Client_Report::instance()->action();
 	}
 
+	/**
+	 * Method page_speed()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function page_speed() {
 		\MainWP_Child_Pagespeed::instance()->action();
 	}
 
+	/**
+	 * Method woo_com_status()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function woo_com_status() {
 		\MainWP_Child_WooCommerce_Status::instance()->action();
 	}
 
+	/**
+	 * Method links_checker()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function links_checker() {
 		\MainWP_Child_Links_Checker::instance()->action();
 	}
 
+	/**
+	 * Method wordfence()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function wordfence() {
 		\MainWP_Child_Wordfence::instance()->action();
 	}
 
+	/**
+	 * Method ithemes()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function ithemes() {
 		\MainWP_Child_IThemes_Security::instance()->action();
 	}
 
-
+	/**
+	 * Method updraftplus()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function updraftplus() {
 		\MainWP_Child_Updraft_Plus_Backups::instance()->action();
 	}
 
+	/**
+	 * Method wpvivid_backuprestore()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function wpvivid_backuprestore() {
 		\MainWP_Child_WPvivid_BackupRestore::instance()->action();
 	}
 
+	/**
+	 * Method backup_wp()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function backup_wp() {
 		if ( ! version_compare( phpversion(), '5.3', '>=' ) ) {
 			$error = sprintf( __( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
@@ -375,15 +731,29 @@ class MainWP_Child_Callable {
 		\MainWP_Child_Back_Up_WordPress::instance()->action();
 	}
 
+	/**
+	 * Method wp_rocket()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function wp_rocket() {
 		\MainWP_Child_WP_Rocket::instance()->action();
 	}
 
+	/**
+	 * Method backwpup()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function backwpup() {
 		\MainWP_Child_Back_WP_Up::instance()->action();
 	}
 
-
+	/**
+	 * Method delete_backup()
+	 *
+	 * Delete backup.
+	 */
 	public function delete_backup() {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
@@ -397,21 +767,40 @@ class MainWP_Child_Callable {
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
 	}
 
-
+	/**
+	 * Method update_child_values()
+	 *
+	 * Update the MainWP Child site options.
+	 */
 	public function update_child_values() {
-		$uniId = isset( $_POST['uniqueId'] ) ? $_POST['uniqueId'] : '';
-		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $uniId );
+		$unique_id = isset( $_POST['uniqueId'] ) ? $_POST['uniqueId'] : '';
+		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $unique_id );
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
 	}
 
+	/**
+	 * Method branding_child_plugin()
+	 *
+	 * Fire off the action() function.
+	 */
 	public function branding_child_plugin() {
 		MainWP_Child_Branding::instance()->action();
 	}
 
+	/**
+	 * Method code_snippet()
+	 *
+	 * Fire off the code_snippet() function.
+	 */
 	public function code_snippet() {
 		MainWP_Child_Misc::get_instance()->code_snippet();
 	}
 
+	/**
+	 * Method disconnect()
+	 *
+	 * Disconnect the child site from the current MainWP Dashboard.
+	 */
 	public function disconnect() {
 		global $mainWPChild;
 		$mainWPChild->deactivation( false );
@@ -419,7 +808,11 @@ class MainWP_Child_Callable {
 	}
 
 
-	// Deactivating child plugin.
+	/**
+	 * Method deactivate()
+	 *
+	 * Deactivate the MainWP Child plugin in the site.
+	 */
 	public function deactivate() {
 		global $mainWPChild;
 		include_once ABSPATH . 'wp-admin/includes/plugin.php';
