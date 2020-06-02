@@ -1,5 +1,14 @@
 <?php
 /**
+ * MainWP Child Links Checker
+ *
+ * This file handles all of the actions for the Broken Link Checker Extension.
+ *
+ * @deprecated This Extension has been Retired @since January 2020
+ * @link https://mainwp.com/retired-extensions/
+ */
+
+/**
  * Credits
  *
  * Plugin-Name: Broken Link Checker
@@ -13,12 +22,28 @@ use MainWP\Child\MainWP_Helper;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
+/**
+ * Class MainWP_Child_Links_Checker
+ */
 class MainWP_Child_Links_Checker {
 
-	public static $instance     = null;
-	public $is_plugin_installed = false;
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_Links_Checker.
+     */
+    public static $instance     = null;
 
-	public static function instance() {
+    /**
+     * @var bool Whether or not the Broken Links Checker Extension is installed. Default: false.
+     */
+    public $is_plugin_installed = false;
+
+    /**
+     * Create a public static instance of MainWP_Child_Links_Checker.
+     *
+     * @return MainWP_Child_Links_Checker|null
+     */
+    public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -26,7 +51,10 @@ class MainWP_Child_Links_Checker {
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_Links_Checker constructor.
+     */
+    public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'broken-link-checker/broken-link-checker.php' ) ) {
 					$this->is_plugin_installed = true;
@@ -39,7 +67,11 @@ class MainWP_Child_Links_Checker {
 		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
-	public function action() {
+    /**
+     * MainWP Broken Links Checker actions: set_showhide, sync_data, sync_links_data, edit_link,
+     *  unlink, set_dismiss, discard, save_settings, force_recheck.
+     */
+    public function action() {
 		$information = array();
 		if ( ! defined( 'BLC_ACTIVE' ) || ! function_exists( 'blc_init' ) ) {
 			$information['error'] = 'NO_BROKENLINKSCHECKER';
@@ -86,8 +118,10 @@ class MainWP_Child_Links_Checker {
 		}
 	}
 
-
-	public function init() {
+    /**
+     * MainWP Broken links checker init.
+     */
+    public function init() {
 		if ( get_option( 'mainwp_linkschecker_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
@@ -98,7 +132,14 @@ class MainWP_Child_Links_Checker {
 		}
 	}
 
-	public static function hook_trashed_comment( $comment_id ) {
+    /**
+     * Method hook_trashed_comment().
+     *
+     * @param $comment_id Comment ID.
+     *
+     * @deprecated Unused Element
+     */
+    public static function hook_trashed_comment($comment_id ) {
 		if ( get_option( 'mainwp_linkschecker_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
@@ -112,7 +153,12 @@ class MainWP_Child_Links_Checker {
 		blc_cleanup_links();
 	}
 
-	public function save_settings() {
+    /**
+     * Save Settings.
+     *
+     * @return array Return $information response array.
+     */
+    public function save_settings() {
 		$information     = array();
 		$check_threshold = intval( $_POST['check_threshold'] );
 		if ( $check_threshold > 0 ) {
@@ -124,7 +170,12 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	public function force_recheck() {
+    /**
+     * Force link recheck.
+     *
+     * @return array Return $information response array.
+     */
+    public function force_recheck() {
 		$this->initiate_recheck();
 		$information           = array();
 		$information['result'] = 'SUCCESS';
@@ -132,9 +183,13 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	public function initiate_recheck() {
+    /**
+     * Initiate link recheck.
+     */
+    public function initiate_recheck() {
+
+        /** @var $wpdb wpdb  */
 		global $wpdb;
-		/** @var wpdb $wpdb */
 
 		// Delete all discovered instances.
 		$wpdb->query( "TRUNCATE {$wpdb->prefix}blc_instances" );
@@ -147,7 +202,14 @@ class MainWP_Child_Links_Checker {
 	}
 
 
-	public static function hook_post_deleted( $post_id ) {
+    /**
+     * Method hook_post_deleted().
+     *
+     * @param $post_id Post ID.
+     *
+     * @deprecated Unused Element
+     */
+    public static function hook_post_deleted($post_id ) {
 		if ( get_option( 'mainwp_linkschecker_ext_enabled' ) !== 'Y' ) {
 			return;
 		}
@@ -174,7 +236,15 @@ class MainWP_Child_Links_Checker {
 	}
 
 
-	public function hide_plugin( $plugins ) {
+    /**
+     * Method hide_plugin().
+     *
+     * @param $plugins Plugins array.
+     * @return mixed $plugins array.
+     *
+     * @deprecated Unused Element
+     */
+    public function hide_plugin($plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
 			if ( 'broken-link-checker' === $plugin_slug ) {
@@ -185,7 +255,15 @@ class MainWP_Child_Links_Checker {
 		return $plugins;
 	}
 
-	public function update_footer( $text ) {
+    /**
+     * Method update_footer().
+     *
+     * @param $text Test to add to footer.
+     * @return string Footer html.
+     *
+     * @deprecated Unused Element
+     */
+    public function update_footer($text ) {
 		?>
 		<script>
 			jQuery( document ).ready( function () {
@@ -198,7 +276,12 @@ class MainWP_Child_Links_Checker {
 	}
 
 
-	public function set_showhide() {
+    /**
+     * Show or hide the Broken links checker plugin.
+     *
+     * @return array Return $information response array.
+     */
+    public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_linkschecker_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
@@ -206,7 +289,14 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	public function sync_others_data( $information, $data = array() ) {
+    /**
+     * Sync other broken links data.
+     *
+     * @param array $information Array of information to sync.
+     * @param array $data Array of data.
+     * @return array Return $information response array.
+     */
+    public function sync_others_data($information, $data = array() ) {
 		if ( isset( $data['syncBrokenLinksCheckerData'] ) && $data['syncBrokenLinksCheckerData'] ) {
 			try {
 				$information['syncBrokenLinksCheckerData'] = $this->get_sync_data();
@@ -217,8 +307,11 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-
-	public function get_sync_data( $strategy = '' ) {
+    /**
+     * @param string $strategy Sync method.
+     * @return array Return $information response array.
+     */
+    public function get_sync_data( $strategy = '' ) {
 		$information = array();
 		$data        = $this->get_count_links();
 		if ( is_array( $data ) ) {
@@ -227,7 +320,13 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	public function get_links_data() {
+    /**
+     * Get links data.
+     *
+     * @return array[]|void Return $information response array or void on failure.
+     * @throws Exception Error exception.
+     */
+    public function get_links_data() {
 
 		if ( ! defined( 'BLC_DIRECTORY' ) ) {
 			return;
@@ -289,7 +388,13 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	public function get_count_links() {
+    /**
+     * Count links: broken, redirects, dismissed, warning, all.
+     *
+     * @return array[]|void Return $data response array or void on failure.
+     * @throws Exception Error exception.
+     */
+    public function get_count_links() {
 		if ( ! defined( 'BLC_DIRECTORY' ) ) {
 			return;
 		}
@@ -318,7 +423,14 @@ class MainWP_Child_Links_Checker {
 		return $data;
 	}
 
-	public function links_checker_data( $params ) {
+    /**
+     * Link checker data.
+     *
+     * @param mixed $params Broken Links parameters.
+     * @return array $return Links Array.
+     * @throws Exception Error Exception.
+     */
+    public function links_checker_data( $params ) {
 
 		MainWP_Helper::check_functions( 'blc_get_links' );
 		MainWP_Helper::check_classes_exists( 'blcLink' );
@@ -348,7 +460,8 @@ class MainWP_Child_Links_Checker {
 			'status_code',
 			'log',
 		);
-		$return        = array();
+
+		$return = array();
 
 		$blc_option = get_option( 'wsblc_options' );
 
@@ -450,7 +563,12 @@ class MainWP_Child_Links_Checker {
 		return $return;
 	}
 
-	public function edit_link() {
+    /**
+     * Edit Link.
+     *
+     * @return array Return $information response array.
+     */
+    public function edit_link() {
 		$information = array();
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
@@ -520,7 +638,12 @@ class MainWP_Child_Links_Checker {
 		}
 	}
 
-	public function unlink() {
+    /**
+     * Unlink link.
+     *
+     * @return array Return $information response array.
+     */
+    public function unlink() {
 		$information = array();
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
@@ -563,7 +686,12 @@ class MainWP_Child_Links_Checker {
 		}
 	}
 
-	private function set_link_dismissed() {
+    /**
+     * Set dismissed link.
+     *
+     * @return array Return $information response array.
+     */
+    private function set_link_dismissed() {
 		$information = array();
 		$dismiss     = $_POST['dismiss'];
 
@@ -599,7 +727,12 @@ class MainWP_Child_Links_Checker {
 		}
 	}
 
-	private function discard() {
+    /**
+     * Discard link.
+     *
+     * @return array Return $information response array.
+     */
+    private function discard() {
 		$information = array();
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
@@ -635,7 +768,14 @@ class MainWP_Child_Links_Checker {
 		return $information;
 	}
 
-	public function ui_get_source( $container, $container_field = '' ) {
+    /**
+     * Get post or comment source.
+     *
+     * @param object $container Instance of container.
+     * @param string $container_field Container fields.
+     * @return array|bool Array of content or FALSE on failure.
+     */
+    public function ui_get_source($container, $container_field = '' ) {
 		if ( 'comment' === $container->container_type ) {
 			return $this->ui_get_source_comment( $container, $container_field );
 		} elseif ( $container instanceof blcAnyPostContainer ) {
@@ -645,7 +785,15 @@ class MainWP_Child_Links_Checker {
 		return array();
 	}
 
-	public function ui_get_source_comment( $container, $container_field = '' ) {
+    /**
+     * Get comment source.
+     *
+     * @param object $container Instance of container.
+     * @param string $container_field Container fields.
+     * @return array|bool Array of content or FALSE on failure.
+     * @throws Exception Error Exception.
+     */
+    public function ui_get_source_comment($container, $container_field = '' ) {
 		// Display a comment icon.
 		if ( 'comment_author_url' === $container_field ) {
 			$image = 'font-awesome/font-awesome-user.png';
@@ -675,7 +823,14 @@ class MainWP_Child_Links_Checker {
 		);
 	}
 
-	public function ui_get_source_post( $container, $container_field = '' ) {
+    /**
+     * Get Post Source.
+     *
+     * @param object $container Instance of container.
+     * @param string $container_field Container fields.
+     * @return array Return array of content.
+     */
+    public function ui_get_source_post($container, $container_field = '' ) {
 		return array(
 			'post_title'        => get_the_title( $container->container_id ),
 			'post_status'       => get_post_status( $container->container_id ),
