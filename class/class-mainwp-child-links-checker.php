@@ -308,6 +308,8 @@ class MainWP_Child_Links_Checker {
 	}
 
     /**
+     * Get synced link data.
+     *
      * @param string $strategy Sync method.
      * @return array Return $information response array.
      */
