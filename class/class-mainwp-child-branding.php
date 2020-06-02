@@ -61,13 +61,13 @@ class MainWP_Child_Branding {
 		$this->child_branding_options = $this->init_options();
 	}
 
-/**
- * Method init_options()
- *
- * Initiate the branding extension options.
- *
- * @return array Array containing branding options.
- */
+	/**
+	 * Method init_options()
+	 *
+	 * Initiate the branding extension options.
+	 *
+	 * @return array Array containing branding options.
+	 */
 	public function init_options() {
 
 		$opts = get_option( 'mainwp_child_branding_settings' );
