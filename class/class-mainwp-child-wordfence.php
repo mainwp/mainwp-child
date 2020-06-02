@@ -1,25 +1,52 @@
 <?php
 /**
+ * MainWP Wordfence
+ *
+ * MainWP Wordfence extension handler.
+ * Extension URL: https://mainwp.com/extension/wordfence/
+ *
+ * @package MainWP\Child
+ *
  * Credits
  *
- * Plugin-Name: Wordfence Security
- * Plugin URI: http://www.wordfence.com/
+ * Plugin Name: Wordfence Security
+ * Plugin URI: https://www.wordfence.com/
  * Author: Wordfence
- * Author URI: http://www.wordfence.com/
- *
- * The code is used for the MainWP Wordfence Extension
- * Extension URL: https://mainwp.com/extension/wordfence/
+ * Author URI: https://www.wordfence.com/
  */
 
 use MainWP\Child\MainWP_Helper;
 use MainWP\Child\MainWP_Utility;
 use MainWP\Child\MainWP_Child_DB;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results, pull request solutions appreciated.
 
+/**
+ * Class MainWP_Child_Wordfence
+ *
+ * MainWP Wordfence extension handler.
+ */
 class MainWP_Child_Wordfence {
-	public static $instance        = null;
+
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
+	public static $instance = null;
+
+	/**
+	 * Public variable to hold the infomration if the Wordfence plugin is installed on the child site.
+	 *
+	 * @var bool If Wordfence intalled, return true, if not, return false.
+	 */
 	public $is_wordfence_installed = false;
+
+	/**
+	 * Public variable to hold the infomration about the language domain.
+	 *
+	 * @var string 'mainwp-child' languge domain.
+	 */
 	public $plugin_translate       = 'mainwp-child';
 
 	const OPTIONS_TYPE_GLOBAL       = 'global';
@@ -32,6 +59,11 @@ class MainWP_Child_Wordfence {
 	const OPTIONS_TYPE_DIAGNOSTICS  = 'diagnostics';
 	const OPTIONS_TYPE_ALL          = 'alloptions';
 
+	/**
+	 * Public static variable to hold the infomration about Wordfence options.
+	 *
+	 * @var array Supported Wordfence options.
+	 */
 	public static $options_filter = array(
 		'alertEmails',
 		'alertOn_adminLogin',
@@ -161,7 +193,11 @@ class MainWP_Child_Wordfence {
 		'learningModeGracePeriod',
 	);
 
-	// for separated saving this values.
+	/**
+	 * Public static variable to hold the infomration about Wordfence diagnostic parameters.
+	 *
+	 * @var array Supported diagnostic parameters.
+	 */
 	public static $diagnosticParams = array(
 		'debugOn',
 		'startScansRemotely',
@@ -169,12 +205,24 @@ class MainWP_Child_Wordfence {
 		'betaThreatDefenseFeed',
 	);
 
+	/**
+	 * Public static variable to hold the infomration about Wordfence firewall options.
+	 *
+	 * @var array Supported firewall options.
+	 */
 	public static $firewall_options_filter = array(
 		'wafStatus',
 		'learningModeGracePeriodEnabled',
 		'learningModeGracePeriod',
 	);
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -183,6 +231,11 @@ class MainWP_Child_Wordfence {
 		return self::$instance;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
+	 */
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'deactivation' ) );
 
@@ -198,6 +251,169 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
+	/**
+	 * Method wordfence_init()
+	 *
+	 * Initiate action hooks.
+	 *
+	 * @return void
+	 */
+	public function wordfence_init() {
+		if ( ! $this->is_wordfence_installed ) {
+			return;
+		}
+		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
+		if ( 'hide' === get_option( 'mainwp_wordfence_hide_plugin' ) ) {
+			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
+			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
+			add_action( 'admin_init', array( $this, 'admin_init' ) );
+		}
+		$this->init_cron();
+	}
+
+	/**
+	 * Method admin_init()
+	 *
+	 * Remove remove the Wordence meta-box (widget) when 'admin_init' action fires.
+	 */
+	public function admin_init() {
+		remove_meta_box( 'wordfence_activity_report_widget', 'dashboard', 'normal' );
+	}
+
+	/**
+	 * Method do_site_stats()
+	 *
+	 * Add support for the reporting system.
+	 */
+	public function do_site_stats() {
+		do_action( 'mainwp_child_reports_log', 'wordfence' );
+	}
+
+	/**
+	 * Method do_reports_log()
+	 *
+	 * Add Wordfence data to the reports reports database table.
+	 *
+	 * @param string $ext Current extension.
+	 */
+	public function do_reports_log( $ext = '' ) {
+		if ( 'wordfence' !== $ext ) {
+			return;
+		}
+		if ( ! $this->is_wordfence_installed ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$lastcheck = get_option( 'mainwp_wordfence_lastcheck_scan' );
+		if ( false == $lastcheck ) {
+			$lastcheck = time() - 3600 * 24 * 10;
+		}
+
+		$table_wfStatus = wfDB::networkTable( 'wfStatus' );
+
+		// fix prepare sql empty.
+		$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
+		$sql .= " 'Scan Complete.%';";
+		$rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
+
+		$scan_time = array();
+		if ( $rows ) {
+			while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
+				$scan_time[ $row['ctime'] ] = $row['msg'];
+			}
+		}
+
+		if ( $scan_time ) {
+			$message = 'Wordfence scan completed';
+			foreach ( $scan_time as $ctime => $details ) {
+				$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg.
+				$sql .= " 'SUM_FINAL:Scan complete.%';";
+
+				$sum_rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
+				$result   = '';
+				if ( $sum_rows ) {
+					$sum_row = MainWP_Child_DB::fetch_array( $sum_rows );
+					if ( is_array( $sum_row ) && isset( $sum_row['msg'] ) ) {
+						$result = $sum_row['msg'];
+					}
+				}
+				do_action( 'mainwp_reports_wordfence_scan', $message, $ctime, $details, $result );
+			}
+		}
+
+		update_option( 'mainwp_wordfence_lastcheck_scan', time() );
+	}
+
+	/**
+	 * Method init_cron()
+	 *
+	 * Manage scheduled events.
+	 */
+	public function init_cron() {
+		$sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
+		$sch   = get_option( 'mainwp_child_wordfence_cron_time' );
+		if ( 'twicedaily' === $sch || 'daily' === $sch || 'weekly' === $sch || 'monthly' === $sch ) {
+			add_action( 'mainwp_child_wordfence_cron_scan', array( $this, 'wfc_cron_scan' ) );
+			if ( false === $sched ) {
+				$sched = wp_schedule_event( time(), $sch, 'mainwp_child_wordfence_cron_scan' );
+			}
+		} else {
+			if ( false !== $sched ) {
+				wp_unschedule_event( $sched, 'mainwp_child_wordfence_cron_scan' );
+			}
+		}
+	}
+
+	/**
+	 * Method wfc_cron_scan()
+	 *
+	 * Trigger the Wordfence scan via Cron job.
+	 *
+	 * @uses MainWP_Child_Wordfence::start_scan() Start the Wordfence scan by calling wordfence::ajax_scan_callback().
+	 */
+	public function wfc_cron_scan() {
+		if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfScanEngine' ) ) {
+			return;
+		}
+		$this->start_scan();
+	}
+
+	/**
+	 * Method all_plugins()
+	 *
+	 * Remove the Wordfence plugin from the list of all plugins when the plugin is hidden.
+	 *
+	 * @param array $plugins Array containing all installed plugins.
+	 *
+	 * @return array $plugins Array containing all installed plugins without the Wordfence.
+	 */
+	public function all_plugins( $plugins ) {
+		foreach ( $plugins as $key => $value ) {
+			$plugin_slug = basename( $key, '.php' );
+			if ( 'wordfence' === $plugin_slug ) {
+				unset( $plugins[ $key ] );
+			}
+		}
+
+		return $plugins;
+	}
+
+	/**
+	 * Method remove_menu()
+	 *
+	 * Remove the Wordfence menu item when the plugin is hidden.
+	 */
+	public function remove_menu() {
+		remove_menu_page( 'Wordfence' );
+	}
+
+	/**
+	 * Method deactivation()
+	 *
+	 * Unschedule scheduled events on MainWP Child plugin deactivation.
+	 */
 	public function deactivation() {
 		$sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
 		if ( $sched ) {
@@ -205,7 +421,84 @@ class MainWP_Child_Wordfence {
 		}
 	}
 
-	public function action() { // phpcs:ignore -- not quite complex method
+	/**
+	 * Method actions()
+	 *
+	 * Fire off certain Wordfence plugin actions.
+	 *
+	 * @uses MainWP_Child_Wordfence::start_scan()
+	 * @uses MainWP_Child_Wordfence::kill_scan()
+	 * @uses MainWP_Child_Wordfence::request_scan()
+	 * @uses MainWP_Child_Wordfence::kill_ajax_scan()
+	 * @uses MainWP_Child_Wordfence::set_showhide()
+	 * @uses MainWP_Child_Wordfence::get_log()
+	 * @uses MainWP_Child_Wordfence::update_log()
+	 * @uses MainWP_Child_Wordfence::load_issues()
+	 * @uses MainWP_Child_Wordfence::ajax_load_issues_callback()
+	 * @uses MainWP_Child_Wordfence::load_waf_data()
+	 * @uses MainWP_Child_Wordfence::update_all_issues()
+	 * @uses MainWP_Child_Wordfence::update_issues_status()
+	 * @uses MainWP_Child_Wordfence::update_issue_status()
+	 * @uses MainWP_Child_Wordfence::delete_issues()
+	 * @uses MainWP_Child_Wordfence::bulk_operation()
+	 * @uses MainWP_Child_Wordfence::bulk_ajax_operation()
+	 * @uses MainWP_Child_Wordfence::delete_file()
+	 * @uses MainWP_Child_Wordfence::restore_file()
+	 * @uses MainWP_Child_Wordfence::save_setting()
+	 * @uses MainWP_Child_Wordfence::save_settings_new()
+	 * @uses MainWP_Child_Wordfence::save_options()
+	 * @uses MainWP_Child_Wordfence::recent_traffic()
+	 * @uses MainWP_Child_Wordfence::ticker()
+	 * @uses MainWP_Child_Wordfence::reverse_lookup()
+	 * @uses MainWP_Child_Wordfence::ajax_block_ip_callback()
+	 * @uses MainWP_Child_Wordfence::whois()
+	 * @uses MainWP_Child_Wordfence::ajax_create_block_callback()
+	 * @uses MainWP_Child_Wordfence::ajax_get_blocks_callback()
+	 * @uses MainWP_Child_Wordfence::ajax_delete_blocks_callback()
+	 * @uses MainWP_Child_Wordfence::ajax_make_permanent_blocks_callback()
+	 * @uses MainWP_Child_Wordfence::unblock_ip()
+	 * @uses MainWP_Child_Wordfence::load_static_panel()
+	 * @uses MainWP_Child_Wordfence::downgrade_license()
+	 * @uses MainWP_Child_Wordfence::import_settings()
+	 * @uses MainWP_Child_Wordfence::export_settings()
+	 * @uses MainWP_Child_Wordfence::save_cache_config()
+	 * @uses MainWP_Child_Wordfence::check_falcon_htaccess()
+	 * @uses MainWP_Child_Wordfence::check_htaccess()
+	 * @uses MainWP_Child_Wordfence::save_cache_options()
+	 * @uses MainWP_Child_Wordfence::clear_page_cache()
+	 * @uses MainWP_Child_Wordfence::get_cache_stats()
+	 * @uses MainWP_Child_Wordfence::add_cache_exclusion()
+	 * @uses MainWP_Child_Wordfence::load_cache_exclusions()
+	 * @uses MainWP_Child_Wordfence::remove_cache_exclusion()
+	 * @uses MainWP_Child_Wordfence::get_diagnostics()
+	 * @uses MainWP_Child_Wordfence::update_waf_rules()
+	 * @uses MainWP_Child_Wordfence::update_waf_rules_new()
+	 * @uses MainWP_Child_Wordfence::save_debugging_config()
+	 * @uses MainWP_Child_Wordfence::load_live_traffic()
+	 * @uses MainWP_Child_Wordfence::whitelist_waf_param_key()
+	 * @uses MainWP_Child_Wordfence::hide_file_htaccess()
+	 * @uses MainWP_Child_Wordfence::fix_fpd()
+	 * @uses MainWP_Child_Wordfence::disable_directory_listing()
+	 * @uses MainWP_Child_Wordfence::delete_database_option()
+	 * @uses MainWP_Child_Wordfence::mis_configured_how_get_ips_choice()
+	 * @uses MainWP_Child_Wordfence::delete_admin_user()
+	 * @uses MainWP_Child_Wordfence::revoke_admin_user()
+	 * @uses MainWP_Child_Wordfence::clear_all_blocked()
+	 * @uses MainWP_Child_Wordfence::permanently_block_all_ips()
+	 * @uses MainWP_Child_Wordfence::unlock_out_ip()
+	 * @uses MainWP_Child_Wordfence::unblock_range()
+	 * @uses MainWP_Child_Wordfence::block_ip_ua_range()
+	 * @uses MainWP_Child_Wordfence::load_block_ranges()
+	 * @uses MainWP_Child_Wordfence::save_waf_config()
+	 * @uses MainWP_Child_Wordfence::whitelist_bulk_delete()
+	 * @uses MainWP_Child_Wordfence::whitelist_bulk_enable()
+	 * @uses MainWP_Child_Wordfence::whitelist_bulk_disable()
+	 * @uses MainWP_Child_Wordfence::update_config()
+	 * @uses MainWP_Child_Wordfence::save_country_blocking()
+	 *
+	 * @return void
+	 */
+	public function action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$information = array();
 		if ( ! $this->is_wordfence_installed ) {
 			MainWP_Helper::write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
@@ -431,7 +724,13 @@ class MainWP_Child_Wordfence {
 		MainWP_Helper::write( $information );
 	}
 
-
+	/**
+	 * Method get_section_settings()
+	 *
+	 * @param string $section Contains the group (section) of Wordfence settings options.
+	 *
+	 * @return array Array containg the selected section options.
+	 */
 	public static function get_section_settings( $section ) {
 		$general_opts = array(
 			'scheduleScan',
@@ -606,7 +905,15 @@ class MainWP_Child_Wordfence {
 		return $options;
 	}
 
-
+	/**
+	 * Method start_scan()
+	 *
+	 * Start the Wordfence scan by calling wordfence::ajax_scan_callback().
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 * @used-by MainWP_Child_Wordfence::wfc_cron_can() Trigger the Wordfence scan via Cron job.
+	 * @return array Action result.
+	 */
 	private function start_scan() {
 		$information = wordfence::ajax_scan_callback();
 		if ( is_array( $information ) && isset( $information['ok'] ) ) {
@@ -616,6 +923,15 @@ class MainWP_Child_Wordfence {
 		return $information;
 	}
 
+	/**
+	 * Method kill_scan()
+	 *
+	 * Stop the Wordfence scan by calling wordfence::status(), wfUtils::clearScanLock() and wfScanEngine::requestKill().
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	private function kill_scan() {
 		wordfence::status( 1, 'info', 'Scan kill request received.' );
 		wordfence::status( 10, 'info', 'SUM_KILLED:A request was received to kill the previous scan.' );
@@ -626,14 +942,41 @@ class MainWP_Child_Wordfence {
 		);
 	}
 
+	/**
+	 * Method request_scan()
+	 *
+	 * Request the Wordfence scan by returning wordfence::ajax_scan_callback().
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	private function request_scan() {
 		return wordfence::ajax_scan_callback();
 	}
 
+	/**
+	 * Method kill_ajax_scan()
+	 *
+	 * Stop the Wordfence AJAX scan by returning wordfence::ajax_killScan_callback().
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	private function kill_ajax_scan() {
 		return wordfence::ajax_killScan_callback();
 	}
 
+	/**
+	 * Method set_showhide()
+	 *
+	 * Hide or unhide the Wordfence plugin.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_wordfence_hide_plugin', $hide, 'yes' );
@@ -642,116 +985,15 @@ class MainWP_Child_Wordfence {
 		return $information;
 	}
 
-	public function wordfence_init() {
-
-		if ( ! $this->is_wordfence_installed ) {
-			return;
-		}
-
-		add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
-		if ( get_option( 'mainwp_wordfence_hide_plugin' ) === 'hide' ) {
-			add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
-			add_action( 'admin_menu', array( $this, 'remove_menu' ) );
-			add_action( 'admin_init', array( $this, 'admin_init' ) );
-		}
-		$this->init_cron();
-	}
-
-	public function do_site_stats() {
-		do_action( 'mainwp_child_reports_log', 'wordfence' );
-	}
-
-	public function do_reports_log( $ext = '' ) {
-		if ( 'wordfence' !== $ext ) {
-			return;
-		}
-		if ( ! $this->is_wordfence_installed ) {
-			return;
-		}
-
-		global $wpdb;
-
-		$lastcheck = get_option( 'mainwp_wordfence_lastcheck_scan' );
-		if ( false == $lastcheck ) {
-			$lastcheck = time() - 3600 * 24 * 10;
-		}
-
-		$table_wfStatus = wfDB::networkTable( 'wfStatus' );
-
-		// fix prepare sql empty.
-		$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
-		$sql .= " 'Scan Complete.%';";
-		$rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
-
-		$scan_time = array();
-		if ( $rows ) {
-			while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
-				$scan_time[ $row['ctime'] ] = $row['msg'];
-			}
-		}
-
-		if ( $scan_time ) {
-			$message = 'Wordfence scan completed';
-			foreach ( $scan_time as $ctime => $details ) {
-				$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg.
-				$sql .= " 'SUM_FINAL:Scan complete.%';";
-
-				$sum_rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
-				$result   = '';
-				if ( $sum_rows ) {
-					$sum_row = MainWP_Child_DB::fetch_array( $sum_rows );
-					if ( is_array( $sum_row ) && isset( $sum_row['msg'] ) ) {
-						$result = $sum_row['msg'];
-					}
-				}
-				do_action( 'mainwp_reports_wordfence_scan', $message, $ctime, $details, $result );
-			}
-		}
-
-		update_option( 'mainwp_wordfence_lastcheck_scan', time() );
-	}
-
-	public function admin_init() {
-		remove_meta_box( 'wordfence_activity_report_widget', 'dashboard', 'normal' );
-	}
-
-	public function init_cron() {
-		$sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
-		$sch   = get_option( 'mainwp_child_wordfence_cron_time' );
-		if ( 'twicedaily' === $sch || 'daily' === $sch || 'weekly' === $sch || 'monthly' === $sch ) {
-			add_action( 'mainwp_child_wordfence_cron_scan', array( $this, 'wfc_cron_scan' ) );
-			if ( false === $sched ) {
-				$sched = wp_schedule_event( time(), $sch, 'mainwp_child_wordfence_cron_scan' );
-			}
-		} else {
-			if ( false !== $sched ) {
-				wp_unschedule_event( $sched, 'mainwp_child_wordfence_cron_scan' );
-			}
-		}
-	}
-
-	public function wfc_cron_scan() {
-		if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfScanEngine' ) ) {
-			return;
-		}
-		$this->start_scan();
-	}
-
-	public function all_plugins( $plugins ) {
-		foreach ( $plugins as $key => $value ) {
-			$plugin_slug = basename( $key, '.php' );
-			if ( 'wordfence' === $plugin_slug ) {
-				unset( $plugins[ $key ] );
-			}
-		}
-
-		return $plugins;
-	}
-
-	public function remove_menu() {
-		remove_menu_page( 'Wordfence' );
-	}
-
+	/**
+	 * Method get_log()
+	 *
+	 * Get the Wordfence log.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_log() {
 		$information = array();
 		$wfLog       = wordfence::getLog();
@@ -770,11 +1012,28 @@ class MainWP_Child_Wordfence {
 		return $information;
 	}
 
+	/**
+	 * Method update_log()
+	 *
+	 * Updated the Wordfence activity log via wordfence::ajax_activityLogUpdate_callback().
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function update_log() {
 		return wordfence::ajax_activityLogUpdate_callback();
 	}
 
-	// not used!
+	/**
+	 * Method load_issues()
+	 *
+	 * Load issues detected by Wordfence.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function load_issues() {
 		$offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
 		$limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
@@ -798,6 +1057,15 @@ class MainWP_Child_Wordfence {
 		);
 	}
 
+	/**
+	 * Method ajax_load_issues_callback()
+	 *
+	 * Load issues detected by Wordfence (Callback).
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function ajax_load_issues_callback() {
 		$offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
 		$limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
@@ -820,6 +1088,17 @@ class MainWP_Child_Wordfence {
 		return $return;
 	}
 
+	/**
+	 * Method load_waf_data()
+	 *
+	 * Load the web application firewall (WAF) data.
+	 *
+	 * @uses get_waf_data() Get the WAF data.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function load_waf_data() {
 		$return = array(
 			'wafData'                   => self::get_waf_data(),
@@ -835,18 +1114,38 @@ class MainWP_Child_Wordfence {
 		return $return;
 	}
 
+	/**
+	 * Method count_attacks_blocked()
+	 *
+	 * Get the number of blocked attackes.
+	 *
+	 * @param int $maxAgeDays Contains the number of days to count blocked attacks form.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function count_attacks_blocked( $maxAgeDays ) {
 		global $wpdb;
 		$table_wfBlockedIPLog = wfDB::networkTable( 'wfBlockedIPLog' );
 		$interval             = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
 		// phpcs:disable -- third party code, safe.
-		return $wpdb->get_var( 
+		return $wpdb->get_var(
 			<<<SQL
 			SELECT SUM(blockCount) as blockCount FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval}
 SQL
 		);
 	}
 
+	/**
+	 * Method get_lastscan()
+	 *
+	 * Get date and time of the last Wordfence scan.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return string Last scan timestamp.
+	 */
 	public function get_lastscan() {
 		$wfdb           = new wfDB();
 		$table_wfStatus = wfDB::networkTable( 'wfStatus' );
@@ -854,6 +1153,15 @@ SQL
 		return $ctime;
 	}
 
+	/**
+	 * Method update_all_issues()
+	 *
+	 * Handle (delete ignored, delete new or ignore all new) all issues detected by Wordfence.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function update_all_issues() {
 		$op = $_POST['op'];
 		$i  = new wfIssues();
@@ -870,6 +1178,15 @@ SQL
 		return array( 'ok' => 1 );
 	}
 
+	/**
+	 * Method update_issue_status()
+	 *
+	 * Update status of an issue detected by Wordfence.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function update_issue_status() {
 		$wfIssues = new wfIssues();
 		$status   = $_POST['status'];
@@ -887,6 +1204,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method update_issue_status()
+	 *
+	 * Update status of issues detected by Wordfence.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function update_issues_status() {
 		$wfIssues = new wfIssues();
 		$status   = $_POST['status'];
@@ -899,6 +1225,15 @@ SQL
 		return array( 'ok' => 1 );
 	}
 
+	/**
+	 * Method delete_issues()
+	 *
+	 * Delete issues detected by Wordfence.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function delete_issues() {
 		$wfIssues = new wfIssues();
 		$issueID  = $_POST['id'];
@@ -907,6 +1242,15 @@ SQL
 		return array( 'ok' => 1 );
 	}
 
+	/**
+	 * Method bulk_operation()
+	 *
+	 * Handle the Wordfence bulk operations.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function bulk_operation() {
 		$op = $_POST['op'];
 		if ( 'del' === $op || 'repair' === $op ) {
@@ -1001,10 +1345,28 @@ SQL
 		}
 	}
 
+	/**
+	 * Method bulk_ajax_operation()
+	 *
+	 * Handle the Wordfence bulk operations via AJAX.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function bulk_ajax_operation() {
 		return wordfence::ajax_bulkOperation_callback();
 	}
 
+	/**
+	 * Method delete_file()
+	 *
+	 * Delete corrupted files to fix issues detected by Wordfence.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function delete_file() {
 		$issueID  = $_POST['issueID'];
 		$wfIssues = new wfIssues();
@@ -1036,6 +1398,15 @@ SQL
 		}
 	}
 
+	/**
+	 * Method restore_file()
+	 *
+	 * Restore files deleted by Wordfence.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function restore_file() {
 		$issueID  = $_POST['issueID'];
 		$wfIssues = new wfIssues();
@@ -1082,10 +1453,24 @@ SQL
 		);
 	}
 
+	/**
+	 * Method simple_crypt()
+	 *
+	 * Encrypt or decrypt data.
+	 *
+	 * @param  string $key    Contains the cryption key.
+	 * @param  array  $data   Array containing data that needs to be encrypted or decrypted.
+	 * @param  string $action Contains preferred action, encrypt or decrypt.
+	 *
+	 * @used-by save_settings_new() Save new Wordfence settigns.
+	 * @used-by save_settings() Save Wordfence settigns.
+	 *
+	 * @return string Encrypted or decrypted data.
+	 */
 	public function simple_crypt( $key, $data, $action = 'encrypt' ) {
 		$res = '';
 		if ( 'encrypt' == $action ) {
-			$string = base64_encode( serialize( $data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$string = base64_encode( serialize( $data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		} else {
 			$string = $data;
 		}
@@ -1102,16 +1487,29 @@ SQL
 		}
 
 		if ( 'encrypt' !== $action ) {
-			$res = unserialize( base64_decode( $res ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$res = unserialize( base64_decode( $res ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		}
 		return $res;
 	}
 
+	/**
+	 * Method save_settings_new()
+	 *
+	 * Save new Wordfence settings.
+	 *
+	 * @uses simple_crypt() Encrypt or decrypt data.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @throws \Exception Error message.
+	 *
+	 * @return array Action result.
+	 */
 	public function save_settings_new() {
 		if ( isset( $_POST['encrypted'] ) ) {
-			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // fix pass through sec rules of Dreamhost!
+			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // custom fix to pass through security rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		}
 
 		$section     = isset( $_POST['savingSection'] ) ? $_POST['savingSection'] : '';
@@ -1366,10 +1764,32 @@ SQL
 		return $result;
 	}
 
+	/**
+	 * Method recent_traffic()
+	 *
+	 * Load the recent traffic.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function recent_traffic() {
 		return wordfence::ajax_recentTraffic_callback();
 	}
 
+	/**
+	 * Method save_settings()
+	 *
+	 * Save Wordfence settings.
+	 *
+	 * @uses simple_crypt() Encrypt or decrypt data.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @throws \Exception Error message.
+	 *
+	 * @return array Action result.
+	 */
 	public function save_setting() {
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
@@ -1525,6 +1945,17 @@ SQL
 		}
 	}
 
+	/**
+	 * Method export_settings()
+	 *
+	 * Export the Wordfence settings.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @throws \Exception Error message.
+	 *
+	 * @return array Action result.
+	 */
 	public function export_settings() {
 
 		$export = array();
@@ -1560,6 +1991,17 @@ SQL
 		}
 	}
 
+	/**
+	 * Method import_settings()
+	 *
+	 * Import the Wordfence settings.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @throws \Exception Error message.
+	 *
+	 * @return array Action result.
+	 */
 	public function import_settings() {
 		$token = $_POST['token'];
 		try {
@@ -1623,6 +2065,15 @@ SQL
 		}
 	}
 
+	/**
+	 * Method get_settings()
+	 *
+	 * Get the Wordfence settings.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_settings() {
 		$keys     = wfConfig::getExportableOptionsKeys();
 		$settings = array();
@@ -1634,6 +2085,15 @@ SQL
 		return $settings;
 	}
 
+	/**
+	 * Method ticker()
+	 *
+	 * Wordfence ticker.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function ticker() {
 		$wfdb = new wfDB();
 
@@ -1676,6 +2136,15 @@ SQL
 		return $jsonData;
 	}
 
+	/**
+	 * Method load_live_traffic()
+	 *
+	 * Load the Wordfence live traffic.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function load_live_traffic() {
 		$wfdb                      = new wfDB();
 		$serverTime                = $wfdb->querySingle( 'select unix_timestamp()' );
@@ -1685,76 +2154,211 @@ SQL
 		return $return;
 	}
 
+	/**
+	 * Method whitelist_waf_param_key()
+	 *
+	 * Whitelist WAF parameter key.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function whitelist_waf_param_key() {
 		$return = wordfence::ajax_whitelistWAFParamKey_callback();
 		return $return;
 	}
 
+	/**
+	 * Method hide_file_htaccess()
+	 *
+	 * Hide the .htaccess file.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function hide_file_htaccess() {
 		$return = wordfence::ajax_hideFileHtaccess_callback();
 		return $return;
 	}
 
+	/**
+	 * Method fix_fpd()
+	 *
+	 * Fix the FPD issue.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function fix_fpd() {
 		$return = wordfence::ajax_fixFPD_callback();
 		return $return;
 	}
 
+	/**
+	 * Method disable_directory_listing()
+	 *
+	 * Disable the directory listing security issue.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function disable_directory_listing() {
 		$return = wordfence::ajax_disableDirectoryListing_callback();
 		return $return;
 	}
 
+	/**
+	 * Method delete_database_option()
+	 *
+	 * Delete the database option.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function delete_database_option() {
 		$return = wordfence::ajax_deleteDatabaseOption_callback();
 		return $return;
 	}
 
+	/**
+	 * Method mis_configured_how_get_ips_choice()
+	 *
+	 * Misconfigured how to get IPs choice.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function mis_configured_how_get_ips_choice() {
 		$return = wordfence::ajax_misconfiguredHowGetIPsChoice_callback();
 		return $return;
 	}
 
+	/**
+	 * Method delete_admin_user()
+	 *
+	 * Delete the 'admin' user.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function delete_admin_user() {
 		$return = wordfence::ajax_deleteAdminUser_callback();
 		return $return;
 	}
 
+	/**
+	 * Method revoke_admin_user()
+	 *
+	 * Revoke the 'admin' user.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function revoke_admin_user() {
 		$return = wordfence::ajax_revokeAdminUser_callback();
 		return $return;
 	}
 
+	/**
+	 * Method clear_all_blocked()
+	 *
+	 * Clear all blocked IPs.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function clear_all_blocked() {
 		$return = wordfence::ajax_clearAllBlocked_callback();
 		return $return;
 	}
 
+	/**
+	 * Method permanently_block_all_ips()
+	 *
+	 * Permanently block all IPs.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function permanently_block_all_ips() {
 		$return = wordfence::ajax_permanentlyBlockAllIPs_callback();
 		return $return;
 	}
 
+	/**
+	 * Method unlock_out_ip()
+	 *
+	 * Unlock out IP.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function unlock_out_ip() {
 		$return = wordfence::ajax_unlockOutIP_callback();
 		return $return;
 	}
 
+	/**
+	 * Method unblock_range()
+	 *
+	 * Unblock IP range.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function unblock_range() {
 		$return = wordfence::ajax_unblockRange_callback();
 		return $return;
 	}
 
+	/**
+	 * Method block_ip_ua_range()
+	 *
+	 * Blcock IP UA range.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function block_ip_ua_range() {
 		$return = wordfence::ajax_blockIPUARange_callback();
 		return $return;
 	}
 
+	/**
+	 * Method load_block_ranges()
+	 *
+	 * Load blocked IP ranges.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function load_block_ranges() {
 		$return = wordfence::ajax_loadBlockRanges_callback();
 		return $return;
 	}
 
+	/**
+	 * Method save_waf_config()
+	 *
+	 * Save WAF settigns.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function save_waf_config() {
 		$return = wordfence::ajax_saveWAFConfig_callback();
 		if ( is_array( $return ) && isset( $return['data'] ) ) {
@@ -1763,25 +2367,73 @@ SQL
 		return $return;
 	}
 
+	/**
+	 * Method whitelist_bulk_delete()
+	 *
+	 * Delete in bulk whitelist items.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function whitelist_bulk_delete() {
 		$return = wordfence::ajax_whitelistBulkDelete_callback();
 		return $return;
 	}
 
+	/**
+	 * Method whitelist_bulk_enable()
+	 *
+	 * Enable in bulk whitelist items.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function whitelist_bulk_enable() {
 		$return = wordfence::ajax_whitelistBulkEnable_callback();
 		return $return;
 	}
 
+	/**
+	 * Method whitelist_bulk_disable()
+	 *
+	 * Disable in bulk whitelist items.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function whitelist_bulk_disable() {
 		$return = wordfence::ajax_whitelistBulkDisable_callback();
 		return $return;
 	}
+
+	/**
+	 * Method update_config()
+	 *
+	 * Update Wordfence configuration.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function update_config() {
 		$return = wordfence::ajax_updateConfig_callback();
 		return $return;
 	}
 
+	/**
+	 * Method get_waf_data()
+	 *
+	 * Get the WAF data.
+	 *
+	 * @param bool $updated If updated, set true, if not, set false.
+	 *
+	 * @used-by MainWP_Child_Wordfence::load_waf_data() Load the WAF data.
+	 *
+	 * @return array Action result.
+	 */
 	private static function get_waf_data( $updated = null ) {
 		if ( ! class_exists( 'wfWAF' ) ) {
 			return false;
@@ -1838,7 +2490,15 @@ SQL
 		return $data;
 	}
 
-
+	/**
+	 * Method reverse_lookup()
+	 *
+	 * Reverse lookup.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function reverse_lookup() {
 		$ips = explode( ',', $_POST['ips'] );
 		$res = array();
@@ -1852,7 +2512,15 @@ SQL
 		);
 	}
 
-
+	/**
+	 * Method save_options()
+	 *
+	 * Save Wordfence options.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function save_options() {
 		$changes = json_decode( stripslashes( $_POST['changes'] ), true );
 		if ( ! empty( $_POST['changes'] ) && false !== $changes ) {
@@ -1912,33 +2580,96 @@ SQL
 		);
 	}
 
+	/**
+	 * Method ajax_get_blocks_callback()
+	 *
+	 * Get the list of blocked items.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function ajax_get_blocks_callback() {
 		$information = wordfence::ajax_getBlocks_callback();
 		return $information;
 	}
 
+	/**
+	 * Method ajax_create_block_callback()
+	 *
+	 * Create the block rule.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function ajax_create_block_callback() {
 		return wordfence::ajax_createBlock_callback();
 	}
 
+	/**
+	 * Method ajax_delete_blocks_callback()
+	 *
+	 * Delete blocked item.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function ajax_delete_blocks_callback() {
 		$information = wordfence::ajax_deleteBlocks_callback();
 		return $information;
 	}
 
+	/**
+	 * Method ajax_make_permanent_blocks_callback()
+	 *
+	 * Make permanent blocks.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function ajax_make_permanent_blocks_callback() {
 		$information = wordfence::ajax_makePermanentBlocks_callback();
 		return $information;
 	}
 
+	/**
+	 * Method ajax_block_ip_callback()
+	 *
+	 * Block IP address.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function ajax_block_ip_callback() {
 		return wordfence::ajax_blockIP_callback();
 	}
 
+	/**
+	 * Method whois()
+	 *
+	 * Trigger the WhoIS check.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function whois() {
 		return wordfence::ajax_whois_callback();
 	}
 
+	/**
+	 * Method unblock_ip()
+	 *
+	 * Unblock IP address.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function unblock_ip() {
 		if ( isset( $_POST['IP'] ) ) {
 			$IP = $_POST['IP'];
@@ -1947,6 +2678,15 @@ SQL
 		}
 	}
 
+	/**
+	 * Method save_country_blocking()
+	 *
+	 * Save country blocknig settings.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function save_country_blocking() {
 		if ( ! wfConfig::get( 'isPaid' ) ) {
 			return array( 'error' => 'Sorry but this feature is only available for paid customers.' );
@@ -1964,6 +2704,15 @@ SQL
 		return array( 'ok' => 1 );
 	}
 
+	/**
+	 * Method load_static_panel()
+	 *
+	 * Load static panel.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function load_static_panel() {
 		$mode  = $_POST['mode'];
 		$wfLog = wordfence::getLog();
@@ -1983,6 +2732,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method downgrade_license()
+	 *
+	 * Downgrade Wordfence license.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function downgrade_license() {
 		$api    = new wfAPI( '', wfUtils::getWPVersion() );
 		$return = array();
@@ -2008,6 +2766,15 @@ SQL
 		return $return;
 	}
 
+	/**
+	 * Method save_cache_config()
+	 *
+	 * Save caching configuration.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function save_cache_config() {
 		$noEditHtaccess = '1';
 		if ( isset( $_POST['needToCheckFalconHtaccess'] ) && ! empty( $_POST['needToCheckFalconHtaccess'] ) ) {
@@ -2114,6 +2881,15 @@ SQL
 		return array( 'errorMsg' => 'An error occurred.' );
 	}
 
+	/**
+	 * Method check_falcon_htaccess()
+	 *
+	 * Check the .htaccess for the Wordfence falcon settings.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function check_falcon_htaccess() {
 		if ( wfUtils::isNginx() ) {
 			return array( 'nginx' => 1 );
@@ -2140,6 +2916,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method check_htaccess()
+	 *
+	 * Check the .htaccess file.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function check_htaccess() {
 		if ( wfUtils::isNginx() ) {
 			return array( 'nginx' => 1 );
@@ -2156,6 +2941,15 @@ SQL
 		return array( 'ok' => 1 );
 	}
 
+	/**
+	 * Method download_htaccess()
+	 *
+	 * Download the .htaccess file.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function download_htaccess() {
 		if ( ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {
 			die( '-1' );
@@ -2177,6 +2971,15 @@ SQL
 		die();
 	}
 
+	/**
+	 * Method save_cache_options()
+	 *
+	 * Save the caching options.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function save_cache_options() {
 		$changed = false;
 		if ( wfConfig::get( 'allowHTTPSCaching', false ) != $_POST['allowHTTPSCaching'] ) {
@@ -2197,6 +3000,15 @@ SQL
 		return array( 'ok' => 1 );
 	}
 
+	/**
+	 * Method clear_page_cache()
+	 *
+	 * Clear the page cache.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function clear_page_cache() {
 		$stats = wfCache::clearPageCache();
 		if ( $stats['error'] ) {
@@ -2218,6 +3030,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method get_cache_stats()
+	 *
+	 * Get the cache statistics data.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function get_cache_stats() {
 		$s = wfCache::getCacheStats();
 		if ( 0 == $s['files'] ) {
@@ -2263,6 +3084,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method add_cache_exclusion()
+	 *
+	 * Add caching exclusions.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function add_cache_exclusion() {
 		$ex = wfConfig::get( 'cacheExclusions', false );
 		if ( $ex ) {
@@ -2295,6 +3125,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method load_cache_exclusions()
+	 *
+	 * Load caching exclusions.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function load_cache_exclusions() {
 		$ex = wfConfig::get( 'cacheExclusions', false );
 		if ( ! $ex ) {
@@ -2307,6 +3146,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method remove_cache_exclusion()
+	 *
+	 * Remove caching exclusions.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function remove_cache_exclusion() {
 		$id = $_POST['id'];
 		$ex = wfConfig::get( 'cacheExclusions', false );
@@ -2343,6 +3191,15 @@ SQL
 		return $return;
 	}
 
+	/**
+	 * Method get_diagnostics()
+	 *
+	 * Get the diagnostics data.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_diagnostics() {
 
 		$diagnostic           = new wfDiagnostic();
@@ -3043,6 +3900,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method update_waf_rules()
+	 *
+	 * Update WAF rules.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function update_waf_rules() {
 		$event = new wfWAFCronFetchRulesEvent( time() - 2 );
 		$event->setWaf( wfWAF::getInstance() );
@@ -3054,6 +3920,15 @@ SQL
 		);
 	}
 
+	/**
+	 * Method update_waf_rules_new()
+	 *
+	 * Update new WAF rules.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function update_waf_rules_new() {
 		$event = new wfWAFCronFetchRulesEvent( time() - 2 );
 		$event->setWaf( wfWAF::getInstance() );
@@ -3062,6 +3937,15 @@ SQL
 		return self::get_waf_data( $success );
 	}
 
+	/**
+	 * Method save_debugging_config()
+	 *
+	 * Save the debugging configuration.
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public static function save_debugging_config() {
 		$settings = $_POST['settings'];
 		foreach ( self::$diagnosticParams as $param ) {
