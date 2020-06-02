@@ -173,7 +173,7 @@ class MainWP_Child_Callable {
 	 *
 	 * Check if the function is the list of callable functions.
 	 *
-	 * @param string $func Contains the name of the function to check
+	 * @param string $func Contains the name of the function to check.
 	 *
 	 * @return bool If callable, return true, if not, return false.
 	 */
@@ -189,7 +189,7 @@ class MainWP_Child_Callable {
 	 *
 	 * Check if the function is the list of callable functions that don't require regular authentication.
 	 *
-	 * @param string $func Contains the name of the function to check
+	 * @param string $func Contains the name of the function to check.
 	 *
 	 * @return bool If callable, return true, if not, return false.
 	 */
