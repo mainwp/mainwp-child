@@ -47,7 +47,7 @@ class MainWP_Child_Wordfence {
 	 *
 	 * @var string 'mainwp-child' languge domain.
 	 */
-	public $plugin_translate       = 'mainwp-child';
+	public $plugin_translate = 'mainwp-child';
 
 	const OPTIONS_TYPE_GLOBAL       = 'global';
 	const OPTIONS_TYPE_FIREWALL     = 'firewall';
