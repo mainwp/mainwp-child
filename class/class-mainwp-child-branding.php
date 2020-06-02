@@ -1,15 +1,45 @@
 <?php
+/**
+ * MainWP Branding
+ *
+ * MainWP Branding extension handler.
+ * Extension URL: https://mainwp.com/extension/branding/
+ *
+ * @package MainWP\Child
+ */
 
 namespace MainWP\Child;
 
 // phpcs:disable Generic.Metrics.CyclomaticComplexity -- to custom read/write files, complex functions/features.
 
+/**
+ * Class MainWP_Child_Branding
+ *
+ * MainWP Branding extension handler.
+ */
 class MainWP_Child_Branding {
+
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	public static $instance = null;
 
+	/**
+	 * Public variable to hold the MainWP Child plugin directory information.
+	 *
+	 * @var string Default null
+	 */
 	public $child_plugin_dir;
-	public $child_branding_options = null;
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -17,6 +47,13 @@ class MainWP_Child_Branding {
 		return self::$instance;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		$this->child_plugin_dir = dirname( dirname( __FILE__ ) );
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
@@ -24,6 +61,13 @@ class MainWP_Child_Branding {
 		$this->child_branding_options = $this->init_options();
 	}
 
+/**
+ * Method init_options()
+ *
+ * Initiate the branding extension options.
+ *
+ * @return array Array containing branding options.
+ */
 	public function init_options() {
 
 		$opts = get_option( 'mainwp_child_branding_settings' );
@@ -52,10 +96,24 @@ class MainWP_Child_Branding {
 			}
 		}
 
+		/**
+		 * Filter 'mainwp_child_branding_init_options'
+		 *
+		 * Set custom branding setting through the filter.
+		 *
+		 * @since 4.0
+		 */
 		$opts = apply_filters( 'mainwp_child_branding_init_options', $opts );
 		return $opts;
 	}
 
+	/**
+	 * Method get_extra_options()
+	 *
+	 * Get extra branding settings.
+	 *
+	 * @return array Array containing the extra branding settings.
+	 */
 	public function get_extra_options() {
 		$extra = array();
 		if ( is_array( $this->child_branding_options ) && isset( $this->child_branding_options['extra_settings'] ) ) {
@@ -68,6 +126,17 @@ class MainWP_Child_Branding {
 		return $extra;
 	}
 
+	/**
+	 * Method plugin_row_meta()
+	 *
+	 * Handle plugin meta information when custom branding is applied.
+	 *
+	 * @param array  $plugin_meta       An array of the plugin's metadata, including the version, author, author URI, and plugin URI.
+	 * @param string $plugin_file       Path to the plugin file relative to the plugins directory.
+	 * @param string $child_plugin_slug MainWP Child plugin slug.
+	 *
+	 * @return array An array of the plugin's metadata, including the version, author, author URI, and plugin URI.
+	 */
 	public function plugin_row_meta( $plugin_meta, $plugin_file, $child_plugin_slug ) {
 		if ( $child_plugin_slug !== $plugin_file ) {
 			return $plugin_meta;
@@ -89,6 +158,11 @@ class MainWP_Child_Branding {
 		return $plugin_meta;
 	}
 
+	/**
+	 * Method child_deactivation()
+	 *
+	 * Empty custom branding options upon MainWP Child plugin deactivation.
+	 */
 	public function child_deactivation() {
 		$brandingOptions_empty = array(
 			'hide',
@@ -119,6 +193,14 @@ class MainWP_Child_Branding {
 		MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
 	}
 
+
+	/**
+	 * Method action()
+	 *
+	 * Fire off certain branding actions.
+	 *
+	 * @uses MainWP_Child_Branding::update_branding() Update custom branding settings.
+	 */
 	public function action() {
 		$information = array();
 		switch ( $_POST['action'] ) {
@@ -129,9 +211,18 @@ class MainWP_Child_Branding {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Method update_branding()
+	 *
+	 * Update custom branding settings.
+	 *
+	 * @used-by MainWP_Child_Branding::action() Fire off certain Google Pagespeed Insights plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function update_branding() {
 		$information = array();
-		$settings    = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$settings    = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for bacwards compatibility.
 		if ( ! is_array( $settings ) ) {
 			return $information;
 		}
@@ -179,6 +270,19 @@ class MainWP_Child_Branding {
 		return $information;
 	}
 
+	/**
+	 * Method get_extra_settings()
+	 *
+	 * Get extra branding settings.
+	 *
+	 * @param array $current_extra_setting An array containing the current extra branding settings.
+	 * @param array $settings              An array containing the branding settings.
+	 * @param array $information           An array containing the synchronization information.
+	 *
+	 * @used-by MainWP_Child_Branding::update_branding() Update custom branding settings.
+	 *
+	 * @return array An array of branding extra settings
+	 */
 	public function get_extra_settings( $current_extra_setting, $settings, &$information ) {
 
 		$extra_setting = array(
@@ -272,6 +376,17 @@ class MainWP_Child_Branding {
 		return $extra_setting;
 	}
 
+	/**
+	 * Method branding_upload_image()
+	 *
+	 * Upload custom image from MainWP Dashboard.
+	 *
+	 * @param string $img_url Contains image URL.
+	 *
+	 * @throws \Exception Error message
+	 *
+	 * @return array An array containing the image information such as path and URL.
+	 */
 	public function branding_upload_image( $img_url ) {
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 
@@ -302,6 +417,13 @@ class MainWP_Child_Branding {
 	}
 
 
+	/**
+	 * Method branding_init()
+	 *
+	 * Initiate custom branding features.
+	 *
+	 * @return void
+	 */
 	public function branding_init() {
 
 		$extra_setting = $this->get_extra_options();
@@ -315,6 +437,7 @@ class MainWP_Child_Branding {
 		$opts = $this->child_branding_options;
 
 		$cancelled_branding = $opts['cancelled_branding'];
+
 		if ( $cancelled_branding ) {
 			return;
 		}
@@ -374,7 +497,7 @@ class MainWP_Child_Branding {
 			// branding site generator.
 			$types = array( 'html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export' );
 			foreach ( $types as $type ) {
-				add_filter( 'get_the_generator_' . $type, array( &$this, 'custom_the_generator' ), 999, 2 );
+				add_filter( 'get_the_generator_' . $type, array( &$this, 'custom_generator' ), 999, 2 );
 			}
 			add_action( 'admin_head', array( &$this, 'custom_admin_css' ) );
 			add_action( 'login_enqueue_scripts', array( &$this, 'custom_login_css' ) );
@@ -397,12 +520,29 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method admin_init()
+	 *
+	 * Remove remove the update nag.
+	 */
 	public function admin_init() {
 		remove_action( 'admin_notices', 'update_nag', 3 );
 	}
 
-	// prevent conflicts with other plugins.
+	/**
+	 * Method admin_menu()
+	 *
+	 * Add the support form page admin menu item.
+	 */
 	public function admin_menu() {
+
+		/**
+		 * Filter 'mainwp_branding_role_cap_enable_contact_form'
+		 *
+		 * Manage the support form visibility. Set false to hide the support form page.
+		 *
+		 * @since 4.0
+		 */
 		$enable_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
 
 		if ( ! $enable_contact && ! current_user_can( 'administrator' ) ) {
@@ -450,6 +590,11 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method remove_default_post_metaboxes()
+	 *
+	 * Hide new post screen unwanted metaboxes.
+	 */
 	public function remove_default_post_metaboxes() {
 		$extra_setting = $this->get_extra_options();
 
@@ -489,6 +634,15 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method custom_post_columns()
+	 *
+	 * Hide unwanted posts table columns.
+	 *
+	 * @param array $default An array containing default Manage Posts columns.
+	 *
+	 * @return array $default An updated array containing default Manage Posts columns.
+	 */
 	public function custom_post_columns( $defaults ) {
 		$extra_setting = $this->get_extra_options();
 
@@ -505,6 +659,15 @@ class MainWP_Child_Branding {
 		return $defaults;
 	}
 
+	/**
+	 * Method manage_my_category_columns()
+	 *
+	 * Hide the post slug metabox.
+	 *
+	 * @param array $default An array containing default Manage Posts columns.
+	 *
+	 * @return array $default An updated array containing default Manage Posts columns.
+	 */
 	public function manage_my_category_columns( $defaults ) {
 		$extra_setting = $this->get_extra_options();
 
@@ -515,6 +678,11 @@ class MainWP_Child_Branding {
 		return $defaults;
 	}
 
+	/**
+	 * Method remove_default_page_metaboxes()
+	 *
+	 * Hide new post screen unwanted metaboxes.
+	 */
 	public function remove_default_page_metaboxes() {
 		$extra_setting = $this->get_extra_options();
 
@@ -543,6 +711,15 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method custom_pages_columns()
+	 *
+	 * Hide unwanted pages table columns.
+	 *
+	 * @param array $default An array containing default Manage Pages columns.
+	 *
+	 * @return array $default An updated array containing default Manage Pages columns.
+	 */
 	public function custom_pages_columns( $defaults ) {
 		$extra_setting = $this->get_extra_options();
 
@@ -556,6 +733,11 @@ class MainWP_Child_Branding {
 		return $defaults;
 	}
 
+	/**
+	 * Method branding_redirect()
+	 *
+	 * Prevent updates by redirecting access from the Updates and Plugins page.
+	 */
 	public function branding_redirect() {
 		$pos1 = stripos( $_SERVER['REQUEST_URI'], 'update-core.php' );
 		$pos2 = stripos( $_SERVER['REQUEST_URI'], 'plugins.php' );
@@ -565,11 +747,20 @@ class MainWP_Child_Branding {
 		}
 	}
 
-
+	/**
+	 * Method core_update_footer()
+	 *
+	 * Remove the footer text containing the WP Core version info.
+	 */
 	public function core_update_footer() {
-		echo ''; // it clear version text.
+		echo '';
 	}
 
+	/**
+	 * Method core_update_footer()
+	 *
+	 * Set custom admin footer text.
+	 */
 	public function admin_footer_text() {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['dashboard_footer'] ) && ! empty( $extra_setting['dashboard_footer'] ) ) {
@@ -577,6 +768,11 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method custom_favicon_frontend()
+	 *
+	 * Set custom site favicon.
+	 */
 	public function custom_favicon_frontend() {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['favico_image']['url'] ) && ! empty( $extra_setting['favico_image']['url'] ) ) {
@@ -585,6 +781,11 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method custom_login_logo()
+	 *
+	 * Set custom site login page logo.
+	 */
 	public function custom_login_logo() {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['login_image']['url'] ) && ! empty( $extra_setting['login_image']['url'] ) ) {
@@ -593,6 +794,15 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method custom_login_headerurl()
+	 *
+	 * Set custom site login logo link.
+	 *
+	 * @param string $value Contains the image link information.
+	 *
+	 * @return string $value Contains the image link updated information.
+	 */
 	public function custom_login_headerurl( $value ) {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['login_image_link'] ) && ! empty( $extra_setting['login_image_link'] ) ) {
@@ -602,6 +812,15 @@ class MainWP_Child_Branding {
 		return $value;
 	}
 
+	/**
+	 * Method custom_login_headertitle()
+	 *
+	 * Set custom site login logo title.
+	 *
+	 * @param string $value Contains the image title information.
+	 *
+	 * @return string $value Contains the image title updated information.
+	 */
 	public function custom_login_headertitle( $value ) {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['login_image_title'] ) && ! empty( $extra_setting['login_image_title'] ) ) {
@@ -611,6 +830,17 @@ class MainWP_Child_Branding {
 		return $value;
 	}
 
+	/**
+	 * Method custom_gettext()
+	 *
+	 * Replace language domains.
+	 *
+	 * @param array  $translations An array containing the list of available translations.
+	 * @param string $text         Contains the text to replace.
+	 * @param string $domain       Contains the language domain.
+	 *
+	 * @return array $translations An array containing the list of available translations.
+	 */
 	public function custom_gettext( $translations, $text, $domain = 'default' ) {
 		$extra_setting = $this->get_extra_options();
 		$texts_replace = $extra_setting['texts_replace'];
@@ -625,6 +855,11 @@ class MainWP_Child_Branding {
 		return $translations;
 	}
 
+	/**
+	 * Method custom_admin_css()
+	 *
+	 * Set custom WP Admin area CSS.
+	 */
 	public function custom_admin_css() {
 		$header_css    = '';
 		$extra_setting = $this->get_extra_options();
@@ -647,6 +882,11 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method custom_login_css()
+	 *
+	 * Set custom Login page CSS.
+	 */
 	public function custom_login_css() {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['login_css'] ) && ! empty( $extra_setting['login_css'] ) ) {
@@ -655,10 +895,15 @@ class MainWP_Child_Branding {
 	}
 
 	/**
-	 * PARSE
-	 * Parses some CSS into an array
-	 * CSSPARSER
-	 * Copyright (C) 2009 Peter Kröner
+	 * Method parse_css()
+	 *
+	 * Parses CSS into an array.
+	 *
+	 * @param string $css Contains the CSS code that needs to be parsed.
+	 *
+	 * @return mixed Rebuilt CSS.
+	 *
+	 * Copyright (C) 2009 Peter Kröner, CSSPARSER.
 	 */
 	public static function parse_css( $css ) {
 
@@ -690,6 +935,17 @@ class MainWP_Child_Branding {
 		return self::parse_css_rebuild( $ordered );
 	}
 
+	/**
+	 * Method parse_css_rebuild()
+	 *
+	 * Rebuild parsed CSS.
+	 *
+	 * @param string $ordered Contains the parsed CSS code that needs to be rebuit.
+	 *
+	 * @return mixed CSS output.
+	 *
+	 * Copyright (C) 2009 Peter Kröner, CSSPARSER.
+	 */
 	public static function parse_css_rebuild( $ordered ) {
 		// Beginning to rebuild new slim CSS-Array.
 		foreach ( $ordered as $key => $val ) {
@@ -748,7 +1004,17 @@ class MainWP_Child_Branding {
 		return $output;
 	}
 
-	public function custom_the_generator( $generator, $type = '' ) {
+	/**
+	 * Method custom_generator()
+	 *
+	 * Set custom generator meta tag.
+	 *
+	 * @param string $generator Contains the generator information.
+	 * @param string $type      Contains the generator type information.
+	 *
+	 * @return string Contains the updated generator information.
+	 */
+	public function custom_generator( $generator, $type = '' ) {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['site_generator'] ) ) {
 			if ( ! empty( $extra_setting['site_generator'] ) ) {
@@ -789,6 +1055,11 @@ class MainWP_Child_Branding {
 		return $generator;
 	}
 
+	/**
+	 * Method custom_dashboard_widgets()
+	 *
+	 * Hide unwanted WordPress Dashboard page widgets.
+	 */
 	public function custom_dashboard_widgets() {
 		global $wp_meta_boxes;
 		$extra_setting = $this->get_extra_options();
@@ -809,6 +1080,11 @@ class MainWP_Child_Branding {
 		}
 	}
 
+	/**
+	 * Method branding_global_footer()
+	 *
+	 * Set custom footer text.
+	 */
 	public function branding_global_footer() {
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['global_footer'] ) && ! empty( $extra_setting['global_footer'] ) ) {
@@ -817,10 +1093,25 @@ class MainWP_Child_Branding {
 	}
 
 	/**
-	 * @param WP_Admin_Bar $wp_admin_bar
+	 * Method add_support_button_in_top_admin_bar()
+	 *
+	 * Add or remove the admin bar Support button node.
+	 *
+	 * @param object $wp_admin_bar An object containing the WP Admin bar information.
+	 *
+	 * @return bool If conditions not met, return false.
 	 */
 	public function add_support_button_in_top_admin_bar( $wp_admin_bar ) {
+
+		/**
+		 * Filter 'mainwp_branding_role_cap_enable_contact_form'
+		 *
+		 * Manage the support form visibility. Set false to hide the support form page.
+		 *
+		 * @since 4.0
+		 */
 		$enable_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
+
 		if ( ! $enable_contact && ! current_user_can( 'administrator' ) ) {
 			return false;
 		}
@@ -846,6 +1137,13 @@ class MainWP_Child_Branding {
 		$wp_admin_bar->add_node( $args );
 	}
 
+	/**
+	 * Method is_branding()
+	 *
+	 * Check if the custom branding is enabled.
+	 *
+	 * @return bool If branding enabled, return true, if not, return false.
+	 */
 	public function is_branding() {
 		$opts = $this->child_branding_options;
 
@@ -872,6 +1170,13 @@ class MainWP_Child_Branding {
 		return false;
 	}
 
+	/**
+	 * Method get_branding_title()
+	 *
+	 * Get custom title for the MainWP Child plugin.
+	 *
+	 * @return mixed If branding enabled, return custom title.
+	 */
 	public function get_branding_title() {
 		if ( $this->is_branding() ) {
 			$branding_header = $this->child_branding_options['branding_header'];
@@ -880,15 +1185,44 @@ class MainWP_Child_Branding {
 		return '';
 	}
 
+	/**
+	 * Method get_branding_options()
+	 *
+	 * Get branding options.
+	 *
+	 * @return array An array containing the branding options.
+	 */
 	public function get_branding_options() {
 		return $this->child_branding_options;
 	}
 
+	/**
+	 * Method save_branding_options()
+	 *
+	 * Save branding options.
+	 *
+	 * @param string $name Contains the option name.
+	 * @param string $val  Contains the option value.
+	 *
+	 * @uses MainWP_Helper::update_option() Update database option.
+	 */
 	public function save_branding_options( $name, $val ) {
 		$this->child_branding_options[ $name ] = $val;
 		MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
 	}
 
+	/**
+	 * Method branding_map_meta_cap()
+	 *
+	 * Set cutom capabilities to disable theme switching.
+	 *
+	 * @param array  $caps    An array of capabiilities.
+	 * @param string $cap     Contains the capability.
+	 * @param int    $user_id Current user ID.
+	 * @param array  $args    An array of arguments to process.
+	 *
+	 * @return array $caps An array of updated capabiilities.
+	 */
 	public function branding_map_meta_cap( $caps, $cap, $user_id, $args ) {
 		if ( isset( $this->child_branding_options['disable_switching_theme'] ) && 'T' === $this->child_branding_options['disable_switching_theme'] ) {
 			if ( 'switch_themes' === $cap ) {
@@ -898,6 +1232,15 @@ class MainWP_Child_Branding {
 		return $caps;
 	}
 
+	/**
+	 * Method modify_plugin_header()
+	 *
+	 * Modify plugin header to show custom plugin info.
+	 *
+	 * @param array $plugins An array of installed plugins information.
+	 *
+	 * @return array $plugins Updated array of installed plugins information.
+	 */
 	public function modify_plugin_header( $plugins ) {
 		$opts = $this->child_branding_options;
 		if ( is_array( $opts ) ) {
@@ -929,11 +1272,29 @@ class MainWP_Child_Branding {
 		return $plugins;
 	}
 
+	/**
+	 * Method hide_update_notice()
+	 *
+	 * Hide the MainWP Child update notice if custom branding is applied.
+	 *
+	 * @param array $slugs An array of slugs of all installed plugins.
+	 *
+	 * @return array $slugs Updated array of slugs of all installed plugins.
+	 */
 	public function hide_update_notice( $slugs ) {
 		$slugs[] = 'mainwp-child/mainwp-child.php';
 		return $slugs;
 	}
 
+	/**
+	 * Method remove_update_nag()
+	 *
+	 * Hide the MainWP Child update notification on the Updates page.
+	 *
+	 * @param object $value Object containing the updates info.
+	 *
+	 * @return object $value Updated object containing the updates info.
+	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
@@ -949,6 +1310,17 @@ class MainWP_Child_Branding {
 		return $value;
 	}
 
+
+	/**
+	 * Method update_plugin_header()
+	 *
+	 * Update plugin header to show custom plugin info.
+	 *
+	 * @param array $plugins An array of installed plugins information.
+	 * @param array $header  An array containig plugin information.
+	 *
+	 * @return array $plugins Updated array of installed plugins information.
+	 */
 	public function update_plugin_header( $plugins, $header ) {
 		$plugin_key = '';
 		foreach ( $plugins as $key => $value ) {
