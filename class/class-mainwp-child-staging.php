@@ -284,7 +284,12 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @return array
+     * Get WP Staging Jobs.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Scan::start()
+     * @uses WPStaging\Backend\Modules\Jobs\Scan::getOptions()
+     *
+     * @return array $return Action result.
      */
     public function get_scan() {
 		$scan = new WPStaging\Backend\Modules\Jobs\Scan();
@@ -302,7 +307,9 @@ class MainWP_Child_Staging {
 
 
     /**
-     * @return string[]
+     * Check if clone name already exists & it's length.
+     *
+     * @return array|string[] Action result array[status, message] or return 'success'.
      */
     public function ajax_check_clone_name() {
 		$cloneName       = sanitize_key( $_POST['cloneID'] );
@@ -325,7 +332,11 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @return false|string|void
+     * Start clone via ajax.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Cloning::save()
+     *
+     * @return false|string|void Return FALSE on failure, ajax response string on success, ELSE returns VOID.
      */
     public function ajax_start_clone() {
 
@@ -347,35 +358,48 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @return mixed
+     * Clone database via ajax.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
+     *
+     * @return mixed Action result.
      */
     public function ajax_clone_database() {
 		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
-
 		return $cloning->start();
 	}
 
 	/**
-	 * Ajax Prepare Directories (get listing of files)
-	 */
+	 * Ajax Prepare Directories (get listing of files).
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
+     *
+     * @return mixed Action result.
+     */
 	public function ajax_prepare_directories() {
 		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
-
 		return $cloning->start();
 	}
 
 	/**
-	 * Ajax Clone Files
-	 */
+	 * Ajax Clone Files.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
+     *
+     * @return mixed Action result.
+     */
 	public function ajax_copy_files() {
 		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
-
 		return $cloning->start();
 	}
 
 	/**
-	 * Ajax Replace Data
-	 */
+	 * Ajax Replace Data.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
+     *
+     * @return mixed Action result.
+     */
 	public function ajax_replace_data() {
 		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
 		return $cloning->start();
@@ -383,7 +407,10 @@ class MainWP_Child_Staging {
 
 	/**
 	 * Ajax Finish
-	 */
+     * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
+     *
+     * @return mixed $return Action result.
+     */
 	public function ajax_finish() {
 		$cloning              = new WPStaging\Backend\Modules\Jobs\Cloning();
 		$this->url            = '';
@@ -394,8 +421,13 @@ class MainWP_Child_Staging {
 	}
 
 	/**
-	 * Ajax Delete Confirmation
-	 */
+	 * Ajax Delete Confirmation.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Delete::getClone()
+     * @uses WPStaging\Backend\Modules\Jobs\Delete::getClone()
+     *
+     * @return array $result Action result.
+     */
 	public function ajax_delete_confirmation() {
 		$delete = new WPStaging\Backend\Modules\Jobs\Delete();
 		$delete->setData();
@@ -409,7 +441,11 @@ class MainWP_Child_Staging {
 	}
 
 	/**
-	 * Delete clone
+	 * Ajax Delete clone.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Delete::start()
+     *
+     * @return mixed Action result.
 	 */
 	public function ajax_delete_clone() {
 		$delete = new WPStaging\Backend\Modules\Jobs\Delete();
@@ -418,7 +454,9 @@ class MainWP_Child_Staging {
 	}
 
 	/**
-	 * Delete clone
+	 * Ajax Cancel clone.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Cancel::start()
 	 */
 	public function ajax_cancel_clone() {
 		$cancel = new WPStaging\Backend\Modules\Jobs\Cancel();
@@ -427,7 +465,11 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @return mixed
+     * Ajax Cancel Update.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\CancelUpdate::start()
+     *
+     * @return mixed Action result.
      */
     public function ajax_cancel_update() {
 		$cancel = new WPStaging\Backend\Modules\Jobs\CancelUpdate();
@@ -436,7 +478,11 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @return false|string|void
+     * Ajax Update Process.
+     *
+     * @uses WPStaging\Backend\Modules\Jobs\Updating::save()
+     *
+     * @return false|string|void Return FALSE on failure, ajax response string on success, ELSE returns VOID.
      */
     public function ajax_update_process() {
 		$cloning = new WPStaging\Backend\Modules\Jobs\Updating();
@@ -456,14 +502,23 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @return array|null
+     * Ajax check for free disk space.
+     *
+     * @uses MainWP_Child_Staging::has_free_disk_space()
+     *
+     * @return array|null Action result or null
      */
     public function ajax_check_free_space() {
 		return $this->has_free_disk_space();
 	}
 
     /**
-     * @return array|null
+     * Ajax check for free disk space.
+     *
+     * @uses MainWP_Child_Staging::format_size()
+     * @uses MainWP_Child_Staging::get_directory_size_incl_subdirs()
+     *
+     * @return array|null Action result or null
      */
     public function has_free_disk_space() {
 		if ( ! function_exists( 'disk_free_space' ) ) {
@@ -485,10 +540,13 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @param $dir
-     * @return false|int|mixed
+     * Get size of directory & subdirectories.
+     *
+     * @param $dir Directory to size.
+     *
+     * @return false|int FALSE on failure, int $size Directory size,
      */
-    public function get_directory_size_incl_subdirs($dir ) {
+    public function get_directory_size_incl_subdirs( $dir ) {
 		$size = 0;
 		foreach ( glob( rtrim( $dir, '/' ) . '/*', GLOB_NOSORT ) as $each ) {
 			$size += is_file( $each ) ? filesize( $each ) : $this->get_directory_size_incl_subdirs( $each );
@@ -497,11 +555,12 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @param $bytes
-     * @param int $precision
-     * @return string
+     *
+     * @param string $bytes Original size of file.
+     * @param int $precision Number of digits after the decimal point.
+     * @return string Returned Size.
      */
-    public function format_size($bytes, $precision = 2 ) {
+    public function format_size( $bytes, $precision = 2 ) {
 		if ( (float) $bytes < 1 ) {
 			return '';
 		}
@@ -517,10 +576,12 @@ class MainWP_Child_Staging {
 
 
     /**
-     * @param $plugins
-     * @return mixed
+     * Get list of all plugins except WPStaging.
+     *
+     * @param array $plugins All installed plugins.
+     * @return mixed Returned array of plugins without WPStaging included.
      */
-    public function all_plugins($plugins ) {
+    public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
 			if ( 'wp-staging' === $plugin_slug ) {
@@ -532,7 +593,7 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     *
+     * Remove WPStaging WordPress Menu.
      */
     public function remove_menu() {
 		remove_menu_page( 'wpstg_clone' );
@@ -544,20 +605,26 @@ class MainWP_Child_Staging {
 	}
 
     /**
-     * @param $slugs
-     * @return mixed
+     * Hide all admin update notices.
+     *
+     * @param array $slugs WPStaging plugin slug.
+     * @return mixed Returned $slugs.
      */
-    public function hide_update_notice($slugs ) {
+    public function hide_update_notice( $slugs ) {
 		$slugs[] = 'wp-staging/wp-staging.php';
 
 		return $slugs;
 	}
 
     /**
-     * @param $value
-     * @return mixed
+     * Remove WPStaging update Nag message.
+     *
+     * @uses MainWP_Helper::is_updates_screen()
+     *
+     * @param array $value WPStaging slug.
+     * @return mixed $value Response array.
      */
-    public function remove_update_nag($value ) {
+    public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
