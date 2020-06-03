@@ -555,6 +555,7 @@ class MainWP_Child_Staging {
 	}
 
     /**
+     * Format file size into human readable string.
      *
      * @param string $bytes Original size of file.
      * @param int $precision Number of digits after the decimal point.
