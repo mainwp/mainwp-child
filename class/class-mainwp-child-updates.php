@@ -1,38 +1,73 @@
 <?php
+/**
+ * MainWP Updates
+ *
+ * Manage updates on the site.
+ *
+ * @package MainWP\Child
+ */
 
 namespace MainWP\Child;
 
-//phpcs:disable Generic.Metrics.CyclomaticComplexity -- complex functions/features.
+//phpcs:disable Generic.Metrics.CyclomaticComplexity -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
+/**
+ * Class MainWP_Child_Updates
+ *
+ * Manage updates on the site.
+ */
 class MainWP_Child_Updates {
 
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	protected static $instance = null;
 
+	/**
+	 * Private variable to filter update transients without last_checked and checked fields.
+	 *
+	 * @var object Filter update transients.
+	 */
 	private $filterFunction = null;
 
 
 	/**
 	 * Method get_class_name()
 	 *
-	 * Get Class Name.
+	 * Get class name.
 	 *
-	 * @return object
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
+	 */
 	public function __construct() {
-			$this->filterFunction = function( $a ) {
-				if ( null == $a ) {
-					return false; }
-				if ( is_object( $a ) && property_exists( $a, 'last_checked' ) && ! property_exists( $a, 'checked' ) ) {
-					return false;
-				}
-				return $a;
-			};
+		$this->filterFunction = function( $a ) {
+			if ( null == $a ) {
+				return false;
+			}
+			if ( is_object( $a ) && property_exists( $a, 'last_checked' ) && ! property_exists( $a, 'checked' ) ) {
+				return false;
+			}
+			return $a;
+		};
 	}
 
+	/**
+	 * Method get_instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -41,6 +76,36 @@ class MainWP_Child_Updates {
 		return self::$instance;
 	}
 
+	/**
+	 * Method include_updates()
+	 *
+	 * Include WP Core files required for performing updates.
+	 */
+	private function include_updates() {
+		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
+
+		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
+			include_once ABSPATH . '/wp-admin/includes/screen.php';
+		}
+		if ( file_exists( ABSPATH . '/wp-admin/includes/template.php' ) ) {
+			include_once ABSPATH . '/wp-admin/includes/template.php';
+		}
+		if ( file_exists( ABSPATH . '/wp-admin/includes/misc.php' ) ) {
+			include_once ABSPATH . '/wp-admin/includes/misc.php';
+		}
+		include_once ABSPATH . '/wp-admin/includes/file.php';
+		include_once ABSPATH . '/wp-admin/includes/plugin.php';
+		include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
+	}
+
+	/**
+	 * Method upgrade_plugin_theme()
+	 *
+	 * Fire off plugins and themes updates and write feedback to the synchronization information.
+	 *
+	 * @uses MainWP_Child_Updates::upgrade_plugin() Execute plugins updates.
+	 * @uses MainWP_Child_Updates::upgrade_theme() Execute themes updates.
+	 */
 	public function upgrade_plugin_theme() {
 		// Prevent disable/re-enable at upgrade.
 		if ( ! defined( 'DOING_CRON' ) ) {
@@ -73,23 +138,23 @@ class MainWP_Child_Updates {
 		MainWP_Helper::write( $information );
 	}
 
-	private function include_updates() {
-		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
-
-		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
-			include_once ABSPATH . '/wp-admin/includes/screen.php';
-		}
-		if ( file_exists( ABSPATH . '/wp-admin/includes/template.php' ) ) {
-			include_once ABSPATH . '/wp-admin/includes/template.php';
-		}
-		if ( file_exists( ABSPATH . '/wp-admin/includes/misc.php' ) ) {
-			include_once ABSPATH . '/wp-admin/includes/misc.php';
-		}
-		include_once ABSPATH . '/wp-admin/includes/file.php';
-		include_once ABSPATH . '/wp-admin/includes/plugin.php';
-		include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
-	}
-
+	/**
+	 * Method upgrade_plugin()
+	 *
+	 * Initiate the plugin update process.
+	 *
+	 * @param array $information                    An array containing the synchronization information.
+	 * @param array $mwp_premium_updates_todo       An array containing the list of premium plugins to update.
+	 * @param array $mwp_premium_updates_todo_slugs An array containing the list of premium plugins slugs to update.
+	 * @param bool  $premiumUpgrader                If true, use premium upgrader.
+	 *
+	 * @uses MainWP_Child_Updates::to_upgrade_plugins() Complete the plugins update process.
+	 * @uses MainWP_Child_Updates::to_support_some_premiums_updates() Custom support for some premium plugins.
+	 * @uses get_plugin_updates() The WordPress Core get plugin updates function.
+	 * @see https://developer.wordpress.org/reference/functions/get_plugin_updates/
+	 *
+	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme() Fire off plugins and themes updates and write feedback to the synchronization information.
+	 */
 	private function upgrade_plugin( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs, &$premiumUpgrader ) {
 
 		include_once ABSPATH . '/wp-admin/includes/update.php';
@@ -102,10 +167,10 @@ class MainWP_Child_Updates {
 		$this->to_support_some_premiums_updates( $plugins );
 
 		global $wp_current_filter;
-		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
+		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- Required for custom plugin installations, pull request solutions appreciated.
 		wp_update_plugins();
 
-		// trick to prevent some premium plugins re-create update info.
+		// prevent premium plugins re-create update info.
 		remove_all_filters( 'pre_set_site_transient_update_plugins' );
 
 		// support cached premium plugins update info, hooking in the bulk_upgrade().
@@ -132,6 +197,7 @@ class MainWP_Child_Updates {
 			$this->to_update_plugins( $information, $plugins );
 		}
 
+		// support cached premium plugins update info, hooking in the bulk_upgrade().
 		remove_filter( 'pre_site_transient_update_plugins', array( $this, 'set_cached_update_plugins' ), 10 );
 		delete_site_transient( 'mainwp_update_plugins_cached' ); // fix cached update info.
 
@@ -149,7 +215,7 @@ class MainWP_Child_Updates {
 				}
 			}
 			unset( $mwp_premium_updates );
-			// to fix update of Yithemes premiums plugins that hooked to upgrader_pre_download.
+			// fix updates for Yithemes premium plugins that hook into upgrader_pre_download.
 			$url             = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
 			$nonce           = 'bulk-update-plugins';
 			$premiumUpgrader = new \Plugin_Upgrader( new \Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
@@ -164,9 +230,19 @@ class MainWP_Child_Updates {
 		}
 	}
 
+	/**
+	 * Method to_update_plugins()
+	 *
+	 * Complete the plugins update process.
+	 *
+	 * @param array $information An array containing the synchronization information.
+	 * @param array $plugins     An array containing plugins to be updated.
+	 *
+	 * @used-by MainWP_Child_Updates::upgrade_plugin() Initiate the plugin update process.
+	 */
 	private function to_update_plugins( &$information, $plugins ) {
 		$failed = true;
-		// to fix update of Yithemes premiums plugins that hooked to upgrader_pre_download.
+			// fix updates for Yithemes premium plugins that hook into upgrader_pre_download.
 		$url   = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
 		$nonce = 'bulk-update-plugins';
 
@@ -178,7 +254,6 @@ class MainWP_Child_Updates {
 				if ( empty( $info ) ) {
 
 					$information['upgrades'][ $plugin ] = false;
-					// try to fix if that is premiums update.
 					$api = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
 
 					if ( ! is_wp_error( $api ) && ! empty( $api ) ) {
@@ -201,6 +276,21 @@ class MainWP_Child_Updates {
 		}
 	}
 
+	/**
+	 * Method upgrade_theme()
+	 *
+	 * Execute themes updates.
+	 *
+	 * @param array $information                    An array containing the synchronization information.
+	 * @param array $mwp_premium_updates_todo       An array containing the list of premium themes to update.
+	 * @param array $mwp_premium_updates_todo_slugs An array containing the list of premium themes slugs to update.
+	 * @param bool  $premiumUpgrader                If true, use premium upgrader.
+	 *
+	 * @uses MainWP_Child_Updates::to_upgrade_themes() Complete the themes update process.
+	 * @uses MainWP_Child_Updates::upgrade_get_theme_updates() Get theme updates information.
+	 *
+	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme() Fire off plugins and themes updates and write feedback to the synchronization information.
+	 */
 	private function upgrade_theme( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs, &$premiumUpgrader ) {
 
 		$last_update = get_site_transient( 'update_themes' );
@@ -266,6 +356,16 @@ class MainWP_Child_Updates {
 		}
 	}
 
+	/**
+	 * Method to_upgrade_themes()
+	 *
+	 * Complete the themes update process.
+	 *
+	 * @param array $information An array containing the synchronization information.
+	 * @param array $plugins     An array containing themes to be updated.
+	 *
+	 * @used-by MainWP_Child_Updates::upgrade_theme() Initiate the theme update process.
+	 */
 	private function to_upgrade_themes( &$information, $themes, $last_update ) {
 		$addFilterToFixUpdate_optimizePressTheme = false;
 		if ( in_array( 'optimizePressTheme', $themes ) ) {
@@ -316,6 +416,16 @@ class MainWP_Child_Updates {
 		}
 	}
 
+	/**
+	 * Method update_premiums_todo()
+	 *
+	 * Update premium plugins.
+	 *
+	 * @param array $information                    An array containing the synchronization information.
+	 * @param array $mwp_premium_updates_todo       An array containing the list of premium themes to update.
+	 * @param array $mwp_premium_updates_todo_slugs An array containing the list of premium themes slugs to update.
+	 * @param bool  $premiumUpgrader                If true, use premium upgrader.
+	 */
 	private function update_premiums_todo( &$information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs ) {
 		// Upgrade via WP.
 		// @see wp-admin/update.php.
@@ -369,8 +479,17 @@ class MainWP_Child_Updates {
 		}
 	}
 
+	/**
+	 * Method to_support_some_premiums_updates()
+	 *
+	 * Custom support for some premium plugins.
+	 *
+	 * @param array $plugins An array containing installed plugins information.
+	 *
+	 * @used-by MainWP_Child_Updates::upgrade_plugin() Initiate the plugin update process.
+	 */
 	private function to_support_some_premiums_updates( $plugins ) {
-
+		// Custom fix for the iThemes products.
 		if ( in_array( 'backupbuddy/backupbuddy.php', $plugins ) ) {
 			if ( isset( $GLOBALS['ithemes_updater_path'] ) ) {
 				if ( ! class_exists( '\Ithemes_Updater_Settings' ) ) {
@@ -382,8 +501,7 @@ class MainWP_Child_Updates {
 				}
 			}
 		}
-
-			// to fix: smart-manager-for-wp-e-commerce update.
+		// Custom fix for the smart-manager-for-wp-e-commerce update.
 		if ( in_array( 'smart-manager-for-wp-e-commerce/smart-manager.php', $plugins ) ) {
 			if ( file_exists( plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/pro/upgrade.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php' ) ) {
 				include_once plugin_dir_path( __FILE__ ) . '../../smart-manager-for-wp-e-commerce/smart-manager.php';
@@ -392,6 +510,18 @@ class MainWP_Child_Updates {
 		}
 	}
 
+	/**
+	 * Method upgrade_get_theme_updates()
+	 *
+	 * Get theme updates information.
+	 *
+	 * @uses get_theme_updates() The WordPress Core get theme updates function.
+	 * @see https://developer.wordpress.org/reference/functions/get_theme_updates/
+	 *
+	 * @used-by MainWP_Child_Updates::upgrade_theme() Execute themes updates.
+	 *
+	 * @return array An array of available theme updates information.
+	 */
 	public function upgrade_get_theme_updates() {
 		$themeUpdates    = get_theme_updates();
 		$newThemeUpdates = array();
@@ -408,6 +538,17 @@ class MainWP_Child_Updates {
 		return $newThemeUpdates;
 	}
 
+	/**
+	 * Method hook_fix_optimize_press_theme_update()
+	 *
+	 * Cutom support for the Optimize Press theme.
+	 *
+	 * @param object $transient Object containig the update transient information.
+	 *
+	 * @used-by MainWP_Child_Update::to_upgrade_themes() Complete the themes update process.
+	 *
+	 * @return object $transient Object containig the update transient information.
+	 */
 	public function hook_fix_optimize_press_theme_update( $transient ) {
 		if ( ! defined( 'OP_FUNC' ) ) {
 			return $transient;
@@ -440,7 +581,19 @@ class MainWP_Child_Updates {
 		return $transient;
 	}
 
-
+	/**
+	 * Method set_cached_update_plugins()
+	 *
+	 * Support cached premium plugins update info, hooking in the bulk_upgrade().
+	 *
+	 * @param bool   $false true|false
+	 * @param object $_transient_data Contains the transient data.
+	 *
+	 * @uses get_site_transient() Retrieves the value of a site transient.
+	 * @see https://developer.wordpress.org/reference/functions/get_site_transient/
+	 *
+	 * @return object $_transient_data Contains the updated transient data.
+	 */
 	public function set_cached_update_plugins( $false = false, $_transient_data = null ) {
 
 		if ( ! is_object( $_transient_data ) ) {
@@ -465,7 +618,19 @@ class MainWP_Child_Updates {
 		return $_transient_data;
 	}
 
-
+	/**
+	 * Method set_cached_update_themes()
+	 *
+	 * Support cached premium themes update info, hooking in the bulk_upgrade().
+	 *
+	 * @param bool   $false true|false
+	 * @param object $_transient_data Contains the transient data.
+	 *
+	 * @uses get_site_transient() Retrieves the value of a site transient.
+	 * @see https://developer.wordpress.org/reference/functions/get_site_transient/
+	 *
+	 * @return object $_transient_data Contains the updated transient data.
+	 */
 	public function set_cached_update_themes( $false = false, $_transient_data = null ) {
 
 		if ( ! is_object( $_transient_data ) ) {
@@ -490,6 +655,11 @@ class MainWP_Child_Updates {
 		return $_transient_data;
 	}
 
+	/**
+	 * Method detect_premium_themesplugins_updates()
+	 *
+	 * Detect premium plugins and themes updates.
+	 */
 	public function detect_premium_themesplugins_updates() {
 
 		if ( isset( $_GET['_detect_plugins_updates'] ) && 'yes' == $_GET['_detect_plugins_updates'] ) {
@@ -529,8 +699,13 @@ class MainWP_Child_Updates {
 		}
 	}
 
-
-	// This will upgrade WP!
+	/**
+	 * Method upgrade_wp()
+	 *
+	 * Initiate the WordPress core files update.
+	 *
+	 * @uses MainWP_Child_Updates::do_upgrade_wp() Run the WordPress Core update.
+	 */
 	public function upgrade_wp() {
 		global $wp_version;
 		MainWP_Helper::get_wp_filesystem();
@@ -567,6 +742,15 @@ class MainWP_Child_Updates {
 		MainWP_Helper::write( $information );
 	}
 
+	/**
+	 * Method do_upgrade_wp()
+	 *
+	 * Run the WordPress Core update.
+	 *
+	 * @param array $information An array containing the synchronization information.
+	 *
+	 * @used-by MainWP_Child_Updates::upgrade_wp() Initiate the WordPress core files update.
+	 */
 	private function do_upgrade_wp( &$information ) {
 		// Check for new versions.
 		wp_version_check();
@@ -622,6 +806,11 @@ class MainWP_Child_Updates {
 		}
 	}
 
+	/**
+	 * Method upgrade_translation()
+	 *
+	 * Update translations and set feedback to the sync information.
+	 */
 	public function upgrade_translation() {
 		// Prevent disable/re-enable at upgrade.
 		define( 'DOING_CRON', true );
@@ -667,7 +856,7 @@ class MainWP_Child_Updates {
 				}
 			}
 		} else {
-			$information['upgrades'] = array(); // to fix error message when translations updated.
+			$information['upgrades'] = array(); // Fix error message when translations updated.
 		}
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		MainWP_Helper::write( $information );
