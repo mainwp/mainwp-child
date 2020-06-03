@@ -361,8 +361,15 @@ class MainWP_Child_Updates {
 	 *
 	 * Complete the themes update process.
 	 *
-	 * @param array $information An array containing the synchronization information.
-	 * @param array $plugins     An array containing themes to be updated.
+	 * @param array  $information An array containing the synchronization information.
+	 * @param array  $themes      An array containing themes to be updated.
+	 * @param string $last_update Contains the last update timestamp.
+	 *
+	 * @uses get_site_transient() Retrieves the value of a site transient.
+	 * @see https://developer.wordpress.org/reference/functions/get_site_transient/
+	 *
+	 * @uses set_site_transient() Sets/updates the value of a site transient.
+	 * @see https://developer.wordpress.org/reference/functions/set_site_transient/
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_theme() Initiate the theme update process.
 	 */
@@ -422,9 +429,10 @@ class MainWP_Child_Updates {
 	 * Update premium plugins.
 	 *
 	 * @param array $information                    An array containing the synchronization information.
+	 * @param bool  $premiumUpgrader                If true, use premium upgrader.
 	 * @param array $mwp_premium_updates_todo       An array containing the list of premium themes to update.
 	 * @param array $mwp_premium_updates_todo_slugs An array containing the list of premium themes slugs to update.
-	 * @param bool  $premiumUpgrader                If true, use premium upgrader.
+	 *
 	 */
 	private function update_premiums_todo( &$information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs ) {
 		// Upgrade via WP.
@@ -586,7 +594,7 @@ class MainWP_Child_Updates {
 	 *
 	 * Support cached premium plugins update info, hooking in the bulk_upgrade().
 	 *
-	 * @param bool   $false true|false
+	 * @param bool   $false true|false.
 	 * @param object $_transient_data Contains the transient data.
 	 *
 	 * @uses get_site_transient() Retrieves the value of a site transient.
@@ -623,7 +631,7 @@ class MainWP_Child_Updates {
 	 *
 	 * Support cached premium themes update info, hooking in the bulk_upgrade().
 	 *
-	 * @param bool   $false true|false
+	 * @param bool   $false true|false.
 	 * @param object $_transient_data Contains the transient data.
 	 *
 	 * @uses get_site_transient() Retrieves the value of a site transient.
@@ -659,6 +667,12 @@ class MainWP_Child_Updates {
 	 * Method detect_premium_themesplugins_updates()
 	 *
 	 * Detect premium plugins and themes updates.
+	 *
+	 * @uses get_site_transient() Retrieves the value of a site transient.
+	 * @see https://developer.wordpress.org/reference/functions/get_site_transient/
+	 *
+	 * @uses set_site_transient() Sets/updates the value of a site transient.
+	 * @see https://developer.wordpress.org/reference/functions/set_site_transient/
 	 */
 	public function detect_premium_themesplugins_updates() {
 
