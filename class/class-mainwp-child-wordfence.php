@@ -3,8 +3,8 @@
  * MainWP Wordfence
  *
  * MainWP Wordfence extension handler.
- * Extension URL: https://mainwp.com/extension/wordfence/
  *
+ * @link https://mainwp.com/extension/wordfence/
  * @package MainWP\Child
  *
  * Credits
@@ -36,14 +36,14 @@ class MainWP_Child_Wordfence {
 	public static $instance = null;
 
 	/**
-	 * Public variable to hold the infomration if the Wordfence plugin is installed on the child site.
+	 * Public variable to hold the information if the Wordfence plugin is installed on the child site.
 	 *
 	 * @var bool If Wordfence intalled, return true, if not, return false.
 	 */
 	public $is_wordfence_installed = false;
 
 	/**
-	 * Public variable to hold the infomration about the language domain.
+	 * Public variable to hold the information about the language domain.
 	 *
 	 * @var string 'mainwp-child' languge domain.
 	 */
@@ -60,7 +60,7 @@ class MainWP_Child_Wordfence {
 	const OPTIONS_TYPE_ALL          = 'alloptions';
 
 	/**
-	 * Public static variable to hold the infomration about Wordfence options.
+	 * Public static variable to hold the information about Wordfence options.
 	 *
 	 * @var array Supported Wordfence options.
 	 */
@@ -194,7 +194,7 @@ class MainWP_Child_Wordfence {
 	);
 
 	/**
-	 * Public static variable to hold the infomration about Wordfence diagnostic parameters.
+	 * Public static variable to hold the information about Wordfence diagnostic parameters.
 	 *
 	 * @var array Supported diagnostic parameters.
 	 */
@@ -206,7 +206,7 @@ class MainWP_Child_Wordfence {
 	);
 
 	/**
-	 * Public static variable to hold the infomration about Wordfence firewall options.
+	 * Public static variable to hold the information about Wordfence firewall options.
 	 *
 	 * @var array Supported firewall options.
 	 */
@@ -274,7 +274,7 @@ class MainWP_Child_Wordfence {
 	/**
 	 * Method admin_init()
 	 *
-	 * Remove remove the Wordence meta-box (widget) when 'admin_init' action fires.
+	 * Remove remove the Wordfence meta-box (widget) when 'admin_init' action fires.
 	 */
 	public function admin_init() {
 		remove_meta_box( 'wordfence_activity_report_widget', 'dashboard', 'normal' );
@@ -729,7 +729,7 @@ class MainWP_Child_Wordfence {
 	 *
 	 * @param string $section Contains the group (section) of Wordfence settings options.
 	 *
-	 * @return array Array containg the selected section options.
+	 * @return array Array containing the selected section options.
 	 */
 	public static function get_section_settings( $section ) {
 		$general_opts = array(
