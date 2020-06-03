@@ -105,25 +105,24 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
+	function mainwp_backwpup_handle_fatal_error() {
+		$error = error_get_last();
+		$info  = self::$information;
+		if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
+			MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
+		} elseif ( ! empty( $info ) ) {
+			MainWP_Helper::write( self::$information );
+		} else {
+			MainWP_Helper::write( array( 'error' => 'Missing information array inside fatal_error' ) );
+		}
+	}
+
 	public function action() {
 		if ( ! $this->is_backwpup_installed ) {
 			MainWP_Helper::write( array( 'error' => __( 'Please install BackWPup plugin on child website', 'mainwp-child' ) ) );
-
 			return;
 		}
-		function mainwp_backwpup_handle_fatal_error() {
-			$error = error_get_last();
-			$info  = self::$information;
-			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
-				MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
-			} elseif ( ! empty( $info ) ) {
-				MainWP_Helper::write( self::$information );
-			} else {
-				MainWP_Helper::write( array( 'error' => 'Missing information array inside fatal_error' ) );
-			}
-		}
-
-		register_shutdown_function( 'mainwp_backwpup_handle_fatal_error' );
+		register_shutdown_function( 'self::mainwp_backwpup_handle_fatal_error' );
 
 		$information = array();
 

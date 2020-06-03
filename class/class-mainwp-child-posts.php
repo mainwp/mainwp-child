@@ -552,7 +552,7 @@ class MainWP_Child_Posts {
 		// Save the post to the WP.
 		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html.
 		$post_status             = $new_post['post_status']; // save post_status.
-		$new_post['post_status'] = 'auto-draft'; // to fix reports: to logging as created post.
+		$new_post['post_status'] = 'auto-draft'; // to fix reports, to log as created post.
 		// update post.
 		if ( $edit_post_id ) {
 			// check if post existed.
@@ -563,7 +563,7 @@ class MainWP_Child_Posts {
 			$new_post['post_status'] = $post_status; // child reports: to logging as update post.
 		}
 		$wp_error    = null;
-		$new_post_id = wp_insert_post( $new_post, $wp_error );
+		$new_post_id = wp_insert_post( $new_post, $wp_error ); // insert post.
 		// Show errors if something went wrong.
 		if ( is_wp_error( $wp_error ) ) {
 			return $wp_error->get_error_message();
