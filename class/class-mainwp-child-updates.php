@@ -254,7 +254,7 @@ class MainWP_Child_Updates {
 				if ( empty( $info ) ) {
 
 					$information['upgrades'][ $plugin ] = false;
-					$api = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
+					$api                                = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
 
 					if ( ! is_wp_error( $api ) && ! empty( $api ) ) {
 						if ( isset( $api->download_link ) ) {
