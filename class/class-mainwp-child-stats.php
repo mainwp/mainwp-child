@@ -1,7 +1,6 @@
 <?php
 /**
  * MainWP Child Stats.
- *
  */
 namespace MainWP\Child;
 
@@ -9,43 +8,44 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Stats
+ *
  * @package MainWP\Child
  */
 class MainWP_Child_Stats {
 
-    /**
-     * @static
-     * @var null Holds the Public static instance of MainWP_Child_Stats.
-     */
-    protected static $instance = null;
+	/**
+	 * @static
+	 * @var null Holds the Public static instance of MainWP_Child_Stats.
+	 */
+	protected static $instance = null;
 
-    /**
-     * @var \Closure Class used to represent anonymous functions.
-     */
-    private $filterFunction = null;
+	/**
+	 * @var \Closure Class used to represent anonymous functions.
+	 */
+	private $filterFunction = null;
 
-    /**
-     * Get Class Name.
-     *
-     * @return string
-     */
+	/**
+	 * Get Class Name.
+	 *
+	 * @return string
+	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
-    /**
-     * MainWP_Child_Stats constructor.
-     *
-     * @uses MainWP_Child_Stats::\Closure
-     */
-    public function __construct() {
+	/**
+	 * MainWP_Child_Stats constructor.
+	 *
+	 * @uses MainWP_Child_Stats::\Closure
+	 */
+	public function __construct() {
 
-            /**
-             * Checks if 'last_checked'.
-             *
-             * @param $a Object to check.
-             * @return object|bool $a Return object or FALSE on failure.
-             */
+			/**
+			 * Checks if 'last_checked'.
+			 *
+			 * @param $a Object to check.
+			 * @return object|bool $a Return object or FALSE on failure.
+			 */
 			$this->filterFunction = function( $a ) {
 				if ( null == $a ) {
 					return false; }
@@ -56,12 +56,12 @@ class MainWP_Child_Stats {
 			};
 	}
 
-    /**
-     * Create a public static instance of MainWP_Child_Stats.
-     *
-     * @return MainWP_Child_Stats|null
-     */
-    public static function get_instance() {
+	/**
+	 * Create a public static instance of MainWP_Child_Stats.
+	 *
+	 * @return MainWP_Child_Stats|null
+	 */
+	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -71,12 +71,12 @@ class MainWP_Child_Stats {
 
 	/**
 	 * Show stats without login. only allowed while no account is added yet.
-     *
-     * @param array $information Child Site Stats.
-     *
-     * @uses MainWP_Child::$version
-     * @uses MainWP_Helper::is_wp_engine()
-     * @uses MainWP_Helper::write()
+	 *
+	 * @param array $information Child Site Stats.
+	 *
+	 * @uses MainWP_Child::$version
+	 * @uses MainWP_Helper::is_wp_engine()
+	 * @uses MainWP_Helper::write()
 	 */
 	public function get_site_stats_no_auth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
@@ -93,13 +93,13 @@ class MainWP_Child_Stats {
 		MainWP_Helper::write( $information );
 	}
 
-    /**
-     * Check if ManageWP is installed.
-     *
-     * @param array $default Active plugins.
-     * @return array $default Active plugins array with managewp/init.php appended.
-     */
-    public function default_option_active_plugins( $default ) {
+	/**
+	 * Check if ManageWP is installed.
+	 *
+	 * @param array $default Active plugins.
+	 * @return array $default Active plugins array with managewp/init.php appended.
+	 */
+	public function default_option_active_plugins( $default ) {
 		if ( ! is_array( $default ) ) {
 			$default = array();
 		}
@@ -110,47 +110,47 @@ class MainWP_Child_Stats {
 		return $default;
 	}
 
-    /**
-     * Get Child Site Stats.
-     *
-     * @param array $information Holder for return array.
-     * @param bool $exit Whether or not to exit the method. Default: true.
-     *
-     * @uses MainWP_Child_Stats::update_external_settings()
-     * @uses MainWP_Child_Stats::stats_get_info()
-     * @uses MainWP_Child_Stats::stats_wp_update()
-     * @uses MainWP_Child_Stats::stats_plugin_update()
-     * @uses MainWP_Child_Stats::stats_theme_update()
-     * @uses MainWP_Child_Stats::stats_translation_updates()
-     * @uses MainWP_Child_Stats::get_recent_number()
-     * @uses MainWP_Child_Stats::scan_dir()
-     * @uses MainWP_Child_Stats::stats_get_categories()
-     * @uses MainWP_Child_Stats::stats_get_total_size()
-     * @uses MainWP_Child_Stats::get_all_plugins_int()
-     * @uses MainWP_Child_Stats::get_all_themes_int()
-     * @uses MainWP_Child_Stats::get_health_check_site_status()
-     * @uses MainWP_Child_Stats::stats_others_data()
-     * @uses MainWP_Child_Stats::check_premium_updates()
-     * @uses MainWP_Child_Branding::instance()::save_branding_options()
-     * @uses MainWP_Child_Plugins_Check::may_outdate_number_change()
-     * @uses MainWP_Child_Comments::get_instance()::get_recent_comments()
-     * @uses MainWP_Child_Posts::get_instance()::get_recent_posts()
-     * @uses MainWP_Child_DB::get_size()
-     * @uses MainWP_Child_Users::get_instance()::get_all_users_int()
-     * @uses MainWP_Child_Plugins_Check::instance()::get_plugins_outdate_info()
-     * @uses MainWP_Child_Themes_Check::instance()::get_themes_outdate_info()
-     * @uses MainWP_Security::get_stats_security()
-     * @uses MainWP_Connect::instance()::get_max_history()
-     * @uses MainWP_Utility::get_lasttime_backup()
-     * @uses MainWP_Utility::validate_mainwp_dir()
-     * @uses MainWP_Helper::update_option()
-     * @uses MainWP_Helper::set_limit()
-     * @uses MainWP_Helper::log_debug()
-     * @uses MainWP_Helper::write()
-     *
-     * @return array $information Child Site Stats.
-     */
-    public function get_site_stats( $information = array(), $exit = true ) {
+	/**
+	 * Get Child Site Stats.
+	 *
+	 * @param array $information Holder for return array.
+	 * @param bool  $exit Whether or not to exit the method. Default: true.
+	 *
+	 * @uses MainWP_Child_Stats::update_external_settings()
+	 * @uses MainWP_Child_Stats::stats_get_info()
+	 * @uses MainWP_Child_Stats::stats_wp_update()
+	 * @uses MainWP_Child_Stats::stats_plugin_update()
+	 * @uses MainWP_Child_Stats::stats_theme_update()
+	 * @uses MainWP_Child_Stats::stats_translation_updates()
+	 * @uses MainWP_Child_Stats::get_recent_number()
+	 * @uses MainWP_Child_Stats::scan_dir()
+	 * @uses MainWP_Child_Stats::stats_get_categories()
+	 * @uses MainWP_Child_Stats::stats_get_total_size()
+	 * @uses MainWP_Child_Stats::get_all_plugins_int()
+	 * @uses MainWP_Child_Stats::get_all_themes_int()
+	 * @uses MainWP_Child_Stats::get_health_check_site_status()
+	 * @uses MainWP_Child_Stats::stats_others_data()
+	 * @uses MainWP_Child_Stats::check_premium_updates()
+	 * @uses MainWP_Child_Branding::instance()::save_branding_options()
+	 * @uses MainWP_Child_Plugins_Check::may_outdate_number_change()
+	 * @uses MainWP_Child_Comments::get_instance()::get_recent_comments()
+	 * @uses MainWP_Child_Posts::get_instance()::get_recent_posts()
+	 * @uses MainWP_Child_DB::get_size()
+	 * @uses MainWP_Child_Users::get_instance()::get_all_users_int()
+	 * @uses MainWP_Child_Plugins_Check::instance()::get_plugins_outdate_info()
+	 * @uses MainWP_Child_Themes_Check::instance()::get_themes_outdate_info()
+	 * @uses MainWP_Security::get_stats_security()
+	 * @uses MainWP_Connect::instance()::get_max_history()
+	 * @uses MainWP_Utility::get_lasttime_backup()
+	 * @uses MainWP_Utility::validate_mainwp_dir()
+	 * @uses MainWP_Helper::update_option()
+	 * @uses MainWP_Helper::set_limit()
+	 * @uses MainWP_Helper::log_debug()
+	 * @uses MainWP_Helper::write()
+	 *
+	 * @return array $information Child Site Stats.
+	 */
+	public function get_site_stats( $information = array(), $exit = true ) {
 
 		if ( $exit ) {
 			$this->update_external_settings();
@@ -264,15 +264,15 @@ class MainWP_Child_Stats {
 		return $information;
 	}
 
-    /**
-     * Get other stats data.
-     *
-     * @param array $information Child Site Stats array.
-     *
-     * @uses MainWP_Helper::update_option()
-     * @uses MainWP_Helper::log_debug()
-     */
-    private function stats_others_data( &$information ) {
+	/**
+	 * Get other stats data.
+	 *
+	 * @param array $information Child Site Stats array.
+	 *
+	 * @uses MainWP_Helper::update_option()
+	 * @uses MainWP_Helper::log_debug()
+	 */
+	private function stats_others_data( &$information ) {
 
 		$othersData = json_decode( stripslashes( $_POST['othersData'] ), true );
 		if ( ! is_array( $othersData ) ) {
@@ -295,12 +295,12 @@ class MainWP_Child_Stats {
 		}
 	}
 
-    /**
-     * Translation update stats.
-     *
-     * @return array $results Returned results.
-     */
-    private function stats_translation_updates() {
+	/**
+	 * Translation update stats.
+	 *
+	 * @return array $results Returned results.
+	 */
+	private function stats_translation_updates() {
 		$results = array();
 
 		$translation_updates = wp_get_translation_updates();
@@ -334,16 +334,16 @@ class MainWP_Child_Stats {
 		return $results;
 	}
 
-    /**
-     * Premium theme update stats.
-     *
-     * @param array $premiumThemes Array of premium themes.
-     *
-     * @uses MainWP_Child_Updates::get_instance()::upgrade_get_theme_updates()
-     *
-     * @return array $results Array of premium theme slugs.
-     */
-    private function stats_theme_update( $premiumThemes ) {
+	/**
+	 * Premium theme update stats.
+	 *
+	 * @param array $premiumThemes Array of premium themes.
+	 *
+	 * @uses MainWP_Child_Updates::get_instance()::upgrade_get_theme_updates()
+	 *
+	 * @return array $results Array of premium theme slugs.
+	 */
+	private function stats_theme_update( $premiumThemes ) {
 
 		$results = array();
 
@@ -386,21 +386,21 @@ class MainWP_Child_Stats {
 		return $results;
 	}
 
-    /**
-     * Get Server Info stats & append to end of Child Site stats.
-     *
-     * @uses MainWP_Child::$version
-     * @uses MainWP_Child_Server_Information::get_php_memory_limit()
-     * @uses MainWP_Child_Server_Information::get_my_sql_version()
-     * @uses MainWP_Helper::is_wp_engine()
-     * @uses MainWP_Helper::update_option()
-     * @uses phpversion()
-     *
-     * @param array $information Child Site Stats.
-     */
-    private function stats_get_info(&$information ) {
+	/**
+	 * Get Server Info stats & append to end of Child Site stats.
+	 *
+	 * @uses MainWP_Child::$version
+	 * @uses MainWP_Child_Server_Information::get_php_memory_limit()
+	 * @uses MainWP_Child_Server_Information::get_my_sql_version()
+	 * @uses MainWP_Helper::is_wp_engine()
+	 * @uses MainWP_Helper::update_option()
+	 * @uses phpversion()
+	 *
+	 * @param array $information Child Site Stats.
+	 */
+	private function stats_get_info( &$information ) {
 
-        /** @global string $wp_version Current WordPress Version. */
+		/** @global string $wp_version Current WordPress Version. */
 		global $wp_version;
 
 		$information['version']   = MainWP_Child::$version;
@@ -431,15 +431,15 @@ class MainWP_Child_Stats {
 		$information['nossl'] = ( 1 == $nossl ? 1 : 0 );
 	}
 
-    /**
-     * Get WordPress update stats.
-     *
-     * @return string|bool|null Return TRUE if the relationship is the one specified by the operator <=,
-     *  FALSE otherwise, null by default.
-     */
-    private function stats_wp_update() {
+	/**
+	 * Get WordPress update stats.
+	 *
+	 * @return string|bool|null Return TRUE if the relationship is the one specified by the operator <=,
+	 *  FALSE otherwise, null by default.
+	 */
+	private function stats_wp_update() {
 
-        /** @global string $wp_version Current WordPress Version. */
+		/** @global string $wp_version Current WordPress Version. */
 		global $wp_version;
 
 		$result = null;
@@ -478,16 +478,16 @@ class MainWP_Child_Stats {
 		return $result;
 	}
 
-    /**
-     * Check for premium updates.
-     *
-     * @uses MainWP_Helper::update_option()
-     *
-     * @param array $information Child Site stats.
-     * @param array $premiumPlugins Active premium plugins.
-     * @param array $premiumThemes Active premium themes.
-     */
-    private function check_premium_updates(&$information, &$premiumPlugins, &$premiumThemes ) {
+	/**
+	 * Check for premium updates.
+	 *
+	 * @uses MainWP_Helper::update_option()
+	 *
+	 * @param array $information Child Site stats.
+	 * @param array $premiumPlugins Active premium plugins.
+	 * @param array $premiumThemes Active premium themes.
+	 */
+	private function check_premium_updates( &$information, &$premiumPlugins, &$premiumThemes ) {
 
 		// First check for new premium updates.
 		$update_check = apply_filters( 'mwp_premium_update_check', array() );
@@ -545,13 +545,13 @@ class MainWP_Child_Stats {
 		}
 	}
 
-    /**
-     * Premium plugin update stats.
-     *
-     * @param array $premiumPlugins Active premium plugins.
-     * @return array $results Array of premium plugin slugs.
-     */
-    private function stats_plugin_update( $premiumPlugins ) {
+	/**
+	 * Premium plugin update stats.
+	 *
+	 * @param array $premiumPlugins Active premium plugins.
+	 * @return array $results Array of premium plugin slugs.
+	 */
+	private function stats_plugin_update( $premiumPlugins ) {
 
 		$results = array();
 
@@ -613,12 +613,12 @@ class MainWP_Child_Stats {
 		return $results;
 	}
 
-    /**
-     * Ger category stats.
-     *
-     * @return array $categories Available Child Site Categories.
-     */
-    private function stats_get_categories() {
+	/**
+	 * Ger category stats.
+	 *
+	 * @return array $categories Available Child Site Categories.
+	 */
+	private function stats_get_categories() {
 
 		$cats       = get_categories(
 			array(
@@ -635,14 +635,14 @@ class MainWP_Child_Stats {
 		return $categories;
 	}
 
-    /**
-     * Get total size of Child Site installation.
-     *
-     * @uses MainWP_Child_Stats::get_total_file_size()
-     *
-     * @return float|int|null $total Total file size or 0 or null.
-     */
-    private function stats_get_total_size() {
+	/**
+	 * Get total size of Child Site installation.
+	 *
+	 * @uses MainWP_Child_Stats::get_total_file_size()
+	 *
+	 * @return float|int|null $total Total file size or 0 or null.
+	 */
+	private function stats_get_total_size() {
 		$total = null;
 
 		$get_file_size = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
@@ -658,12 +658,12 @@ class MainWP_Child_Stats {
 		return $total;
 	}
 
-    /**
-     * Get recent number.
-     *
-     * @return int $recent_number Recent number.
-     */
-    private function get_recent_number() {
+	/**
+	 * Get recent number.
+	 *
+	 * @return int $recent_number Recent number.
+	 */
+	private function get_recent_number() {
 
 		$recent_number = 5;
 
@@ -684,12 +684,12 @@ class MainWP_Child_Stats {
 	}
 
 
-    /**
-     * Update options: mainwp_child_clone_sites, mainwp_child_siteid, mainwp_child_pluginDir.
-     *
-     * @uses MainWP_Helper::update_option()
-     */
-    public function update_external_settings() {
+	/**
+	 * Update options: mainwp_child_clone_sites, mainwp_child_siteid, mainwp_child_pluginDir.
+	 *
+	 * @uses MainWP_Helper::update_option()
+	 */
+	public function update_external_settings() {
 		if ( isset( $_POST['cloneSites'] ) ) {
 			if ( '0' !== $_POST['cloneSites'] ) {
 				$arr = json_decode( urldecode( $_POST['cloneSites'] ), 1 );
@@ -712,13 +712,13 @@ class MainWP_Child_Stats {
 		}
 	}
 
-    /**
-     * Get total size of wp_content directory.
-     *
-     * @param string $directory WordPress content directory.
-     * @return float|int Return $size or 0.
-     */
-    public function get_total_file_size($directory = WP_CONTENT_DIR ) {
+	/**
+	 * Get total size of wp_content directory.
+	 *
+	 * @param string $directory WordPress content directory.
+	 * @return float|int Return $size or 0.
+	 */
+	public function get_total_file_size( $directory = WP_CONTENT_DIR ) {
 		try {
 			if ( MainWP_Helper::funct_exists( 'popen' ) ) {
 				$uploadDir   = MainWP_Helper::get_mainwp_dir();
@@ -775,18 +775,18 @@ class MainWP_Child_Stats {
 		}
 	}
 
-    /**
-     * Scan directory.
-     *
-     * @param string $pDir Directory to scan.
-     * @param string $pLvl How deep to scan.
-     *
-     * @uses MainWP_Child_Stats::scan_dir()
-     * @uses MainWP_Child_Stats::int_scan_dir()
-     *
-     * @return array|null $output|$files
-     */
-    public function scan_dir( $pDir, $pLvl ) {
+	/**
+	 * Scan directory.
+	 *
+	 * @param string $pDir Directory to scan.
+	 * @param string $pLvl How deep to scan.
+	 *
+	 * @uses MainWP_Child_Stats::scan_dir()
+	 * @uses MainWP_Child_Stats::int_scan_dir()
+	 *
+	 * @return array|null $output|$files
+	 */
+	public function scan_dir( $pDir, $pLvl ) {
 		$output = array();
 		if ( file_exists( $pDir ) && is_dir( $pDir ) ) {
 			if ( 'logs' === basename( $pDir ) ) {
@@ -815,14 +815,14 @@ class MainWP_Child_Stats {
 		return empty( $output ) ? null : $output;
 	}
 
-    /**
-     * Initiate directory scan.
-     *
-     * @param string $dir Directory to scan.
-     *
-     * @return array|bool $out|FALSE Returns the entry name on success or FALSE on failure.
-     */
-    public function int_scan_dir($dir ) {
+	/**
+	 * Initiate directory scan.
+	 *
+	 * @param string $dir Directory to scan.
+	 *
+	 * @return array|bool $out|FALSE Returns the entry name on success or FALSE on failure.
+	 */
+	public function int_scan_dir( $dir ) {
 		$dh = opendir( $dir );
 		if ( is_dir( $dir ) && $dh ) {
 			$cnt  = 0;
@@ -850,13 +850,13 @@ class MainWP_Child_Stats {
 		return false;
 	}
 
-    /**
-     * Get all themes.
-     *
-     * @uses MainWP_Child_Stats::get_all_themes_int()
-     * @uses MainWP_Helper::write()
-     */
-    public function get_all_themes() {
+	/**
+	 * Get all themes.
+	 *
+	 * @uses MainWP_Child_Stats::get_all_themes_int()
+	 * @uses MainWP_Helper::write()
+	 */
+	public function get_all_themes() {
 		$keyword = $_POST['keyword'];
 		$status  = $_POST['status'];
 		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
@@ -865,16 +865,16 @@ class MainWP_Child_Stats {
 		MainWP_Helper::write( $rslt );
 	}
 
-    /**
-     * Initiate get all themes.
-     *
-     * @param string $filter Sites filter field.
-     * @param string $keyword Keyword Search field.
-     * @param string $status Active or Inactive filed.
-     *
-     * @return array $rslt Returned themes results.
-     */
-    public function get_all_themes_int( $filter, $keyword = '', $status = '' ) {
+	/**
+	 * Initiate get all themes.
+	 *
+	 * @param string $filter Sites filter field.
+	 * @param string $keyword Keyword Search field.
+	 * @param string $status Active or Inactive filed.
+	 *
+	 * @return array $rslt Returned themes results.
+	 */
+	public function get_all_themes_int( $filter, $keyword = '', $status = '' ) {
 		$rslt   = array();
 		$themes = wp_get_themes();
 
@@ -905,13 +905,13 @@ class MainWP_Child_Stats {
 		return $rslt;
 	}
 
-    /**
-     * Get all Plugins.
-     *
-     * @uses MainWP_Child_Stats::get_all_plugins_int()
-     * @uses MainWP_Helper::write()
-     */
-    public function get_all_plugins() {
+	/**
+	 * Get all Plugins.
+	 *
+	 * @uses MainWP_Child_Stats::get_all_plugins_int()
+	 * @uses MainWP_Helper::write()
+	 */
+	public function get_all_plugins() {
 		$keyword = $_POST['keyword'];
 		$status  = $_POST['status'];
 		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
@@ -920,16 +920,16 @@ class MainWP_Child_Stats {
 		MainWP_Helper::write( $rslt );
 	}
 
-    /**
-     * Initiate get all plugins.
-     *
-     * @param string $filter Sites filter field.
-     * @param string $keyword Keyword Search field.
-     * @param string $status Active or Inactive filed.
-     *
-     * @return array $rslt Returned themes results.
-     */
-    public function get_all_plugins_int($filter, $keyword = '', $status = '' ) {
+	/**
+	 * Initiate get all plugins.
+	 *
+	 * @param string $filter Sites filter field.
+	 * @param string $keyword Keyword Search field.
+	 * @param string $status Active or Inactive filed.
+	 *
+	 * @return array $rslt Returned themes results.
+	 */
+	public function get_all_plugins_int( $filter, $keyword = '', $status = '' ) {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
