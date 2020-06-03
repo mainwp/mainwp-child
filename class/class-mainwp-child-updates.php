@@ -432,7 +432,6 @@ class MainWP_Child_Updates {
 	 * @param bool  $premiumUpgrader                If true, use premium upgrader.
 	 * @param array $mwp_premium_updates_todo       An array containing the list of premium themes to update.
 	 * @param array $mwp_premium_updates_todo_slugs An array containing the list of premium themes slugs to update.
-	 *
 	 */
 	private function update_premiums_todo( &$information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs ) {
 		// Upgrade via WP.
