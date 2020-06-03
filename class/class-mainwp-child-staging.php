@@ -1,5 +1,11 @@
 <?php
 /**
+ * MainWP Child Staging.
+ *
+ * MainWP Staging Extension handler.
+ *
+ * @link https://mainwp.com/extension/staging/
+ *
  * Credits
  *
  * Plugin-Name: WP Staging
@@ -17,19 +23,39 @@ use MainWP\Child\MainWP_Helper;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
+/**
+ * Class MainWP_Child_Staging
+ * @package MainWP\Child
+ */
 class MainWP_Child_Staging {
 
-	public static $instance     = null;
-	public $is_plugin_installed = false;
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_Staging.
+     */
+    public static $instance     = null;
 
-	public static function instance() {
+    /**
+     * @var bool Whether or not the WP Staging Plugin is installed or not. Default: false.
+     */
+    public $is_plugin_installed = false;
+
+    /**
+     * Create a public static instance of MainWP_Child_Staging.
+     *
+     * @return MainWP_Child_Staging|null
+     */
+    public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_Staging constructor.
+     */
+    public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'wp-staging/wp-staging.php' ) && defined( 'WPSTG_PLUGIN_DIR' ) ) {
 			$this->is_plugin_installed = true;
@@ -45,7 +71,10 @@ class MainWP_Child_Staging {
 	}
 
 
-	public function init() {
+    /**
+     * Initiate actions & filters.
+     */
+    public function init() {
 		if ( 'Y' !== get_option( 'mainwp_wp_staging_ext_enabled' ) ) {
 			return;
 		}
@@ -62,7 +91,19 @@ class MainWP_Child_Staging {
 		}
 	}
 
-	public function sync_others_data( $information, $data = array() ) {
+    /**
+     * Sync others data.
+     *
+     * Get an array of available clones of this Child Sites.
+     *
+     * @param array $information Holder for available clones.
+     * @param array $data Array of existing clones.
+     *
+     * @uses MainWP_Child_Staging::get_sync_data()
+     *
+     * @return array $information An array of available clones.
+     */
+    public function sync_others_data($information, $data = array() ) {
 		if ( isset( $data['syncWPStaging'] ) && $data['syncWPStaging'] ) {
 			try {
 				$information['syncWPStaging'] = $this->get_sync_data();
@@ -73,11 +114,42 @@ class MainWP_Child_Staging {
 		return $information;
 	}
 
-	public function get_sync_data() {
+    /**
+     * Fires off MainWP_Child_Staging::get_overview().
+     *
+     * @uses MainWP_Child_Staging::get_overview()
+     * @return array An array of available clones.
+     */
+    public function get_sync_data() {
 		return $this->get_overview();
 	}
 
-	public function action() { // phpcs:ignore -- ignore complex method notice.
+    /**
+     * Fires of certain WP Staging plugin actions.
+     *
+     * @uses \WPStaging\WPStaging::getInstance()
+     * @uses MainWP_Helper::update_option
+     * @uses MainWP_Child_Staging::set_showhide()
+     * @uses MainWP_Child_Staging::save_settings()
+     * @uses MainWP_Child_Staging::get_overview()
+     * @uses MainWP_Child_Staging::get_scan()
+     * @uses MainWP_Child_Staging::ajax_check_free_space()
+     * @uses MainWP_Child_Staging::ajax_check_clone_name()
+     * @uses MainWP_Child_Staging::ajax_start_clone()
+     * @uses MainWP_Child_Staging::ajax_clone_database()
+     * @uses MainWP_Child_Staging::ajax_prepare_directories()
+     * @uses MainWP_Child_Staging::ajax_copy_files()
+     * @uses MainWP_Child_Staging::ajax_replace_data()
+     * @uses MainWP_Child_Staging::ajax_finish()
+     * @uses MainWP_Child_Staging::ajax_delete_confirmation()
+     * @uses MainWP_Child_Staging::ajax_delete_clone()
+     * @uses MainWP_Child_Staging::ajax_cancel_clone()
+     * @uses MainWP_Child_Staging::ajax_update_process()
+     * @uses MainWP_Child_Staging::ajax_cancel_update()
+     * @uses MainWP_Child_Staging::MainWP_Helper::write()
+     *
+     */
+    public function action() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! $this->is_plugin_installed ) {
 			MainWP_Helper::write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}
@@ -155,14 +227,24 @@ class MainWP_Child_Staging {
 			MainWP_Helper::write( $information );
 	}
 
-	public function set_showhide() {
+    /**
+     * Sets whether or not to hide the WP Staging Plugin.
+     *
+     * @return array $information Action result.
+     */
+    public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_wp_staging_hide_plugin', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
 		return $information;
 	}
 
-	public function save_settings() {
+    /**
+     * Save WP Staging settings.
+     *
+     * @return string[] Return 'Success'.
+     */
+    public function save_settings() {
 		$settings = $_POST['settings'];
 		$filters  = array(
 			'queryLimit',
@@ -189,14 +271,22 @@ class MainWP_Child_Staging {
 		return array( 'result' => 'success' );
 	}
 
-	public function get_overview() {
+    /**
+     * Get array of available clones.
+     *
+     * @return array $return Action result.
+     */
+    public function get_overview() {
 		$return = array(
 			'availableClones' => get_option( 'wpstg_existing_clones_beta', array() ),
 		);
 		return $return;
 	}
 
-	public function get_scan() {
+    /**
+     * @return array
+     */
+    public function get_scan() {
 		$scan = new WPStaging\Backend\Modules\Jobs\Scan();
 		$scan->start();
 
@@ -211,7 +301,10 @@ class MainWP_Child_Staging {
 	}
 
 
-	public function ajax_check_clone_name() {
+    /**
+     * @return string[]
+     */
+    public function ajax_check_clone_name() {
 		$cloneName       = sanitize_key( $_POST['cloneID'] );
 		$cloneNameLength = strlen( $cloneName );
 		$clones          = get_option( 'wpstg_existing_clones_beta', array() );
@@ -231,7 +324,10 @@ class MainWP_Child_Staging {
 		return array( 'status' => 'success' );
 	}
 
-	public function ajax_start_clone() {
+    /**
+     * @return false|string|void
+     */
+    public function ajax_start_clone() {
 
 		$this->url = '';
 		$cloning   = new WPStaging\Backend\Modules\Jobs\Cloning();
@@ -250,7 +346,10 @@ class MainWP_Child_Staging {
 		return $result;
 	}
 
-	public function ajax_clone_database() {
+    /**
+     * @return mixed
+     */
+    public function ajax_clone_database() {
 		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
 
 		return $cloning->start();
@@ -327,13 +426,19 @@ class MainWP_Child_Staging {
 		return $cancel->start();
 	}
 
-	public function ajax_cancel_update() {
+    /**
+     * @return mixed
+     */
+    public function ajax_cancel_update() {
 		$cancel = new WPStaging\Backend\Modules\Jobs\CancelUpdate();
 
 		return $cancel->start();
 	}
 
-	public function ajax_update_process() {
+    /**
+     * @return false|string|void
+     */
+    public function ajax_update_process() {
 		$cloning = new WPStaging\Backend\Modules\Jobs\Updating();
 
 		if ( ! $cloning->save() ) {
@@ -350,11 +455,17 @@ class MainWP_Child_Staging {
 		return $result;
 	}
 
-	public function ajax_check_free_space() {
+    /**
+     * @return array|null
+     */
+    public function ajax_check_free_space() {
 		return $this->has_free_disk_space();
 	}
 
-	public function has_free_disk_space() {
+    /**
+     * @return array|null
+     */
+    public function has_free_disk_space() {
 		if ( ! function_exists( 'disk_free_space' ) ) {
 			return null;
 		}
@@ -373,7 +484,11 @@ class MainWP_Child_Staging {
 		return $data;
 	}
 
-	public function get_directory_size_incl_subdirs( $dir ) {
+    /**
+     * @param $dir
+     * @return false|int|mixed
+     */
+    public function get_directory_size_incl_subdirs($dir ) {
 		$size = 0;
 		foreach ( glob( rtrim( $dir, '/' ) . '/*', GLOB_NOSORT ) as $each ) {
 			$size += is_file( $each ) ? filesize( $each ) : $this->get_directory_size_incl_subdirs( $each );
@@ -381,7 +496,12 @@ class MainWP_Child_Staging {
 		return $size;
 	}
 
-	public function format_size( $bytes, $precision = 2 ) {
+    /**
+     * @param $bytes
+     * @param int $precision
+     * @return string
+     */
+    public function format_size($bytes, $precision = 2 ) {
 		if ( (float) $bytes < 1 ) {
 			return '';
 		}
@@ -396,7 +516,11 @@ class MainWP_Child_Staging {
 	}
 
 
-	public function all_plugins( $plugins ) {
+    /**
+     * @param $plugins
+     * @return mixed
+     */
+    public function all_plugins($plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
 			if ( 'wp-staging' === $plugin_slug ) {
@@ -407,7 +531,10 @@ class MainWP_Child_Staging {
 		return $plugins;
 	}
 
-	public function remove_menu() {
+    /**
+     *
+     */
+    public function remove_menu() {
 		remove_menu_page( 'wpstg_clone' );
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=wpstg_clone' );
 		if ( false !== $pos ) {
@@ -416,13 +543,21 @@ class MainWP_Child_Staging {
 		}
 	}
 
-	public function hide_update_notice( $slugs ) {
+    /**
+     * @param $slugs
+     * @return mixed
+     */
+    public function hide_update_notice($slugs ) {
 		$slugs[] = 'wp-staging/wp-staging.php';
 
 		return $slugs;
 	}
 
-	public function remove_update_nag( $value ) {
+    /**
+     * @param $value
+     * @return mixed
+     */
+    public function remove_update_nag($value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
 		}
