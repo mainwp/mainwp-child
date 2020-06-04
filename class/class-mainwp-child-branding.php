@@ -382,7 +382,7 @@ class MainWP_Child_Branding {
 	 *
 	 * @param string $img_url Contains image URL.
 	 *
-	 * @throws \Exception Error message
+	 * @throws \Exception Error message.
 	 *
 	 * @return array An array containing the image information such as path and URL.
 	 */
