@@ -193,7 +193,6 @@ class MainWP_Child_Branding {
 		MainWP_Helper::update_option( 'mainwp_child_branding_settings', $this->child_branding_options );
 	}
 
-
 	/**
 	 * Method action()
 	 *
@@ -416,7 +415,6 @@ class MainWP_Child_Branding {
 		return null;
 	}
 
-
 	/**
 	 * Method branding_init()
 	 *
@@ -471,8 +469,11 @@ class MainWP_Child_Branding {
 				}
 			);
 
-			// Disable the WordPress core update notifications.
-			add_action( 'after_setup_theme', 'remove_core_updates' );
+            /**
+             * Disable the WordPress core update notifications.
+             *
+             * @uses MainWP_Child_Branding_Render::get_class_name()
+             */
 			function remove_core_updates() {
 				add_action(
 					'init',
@@ -483,7 +484,7 @@ class MainWP_Child_Branding {
 				);
 				add_filter( 'pre_option_update_core', '__return_null' );
 				add_filter( 'pre_site_transient_update_core', '__return_null' );
-			}
+			} add_action( 'after_setup_theme', 'remove_core_updates' );
 
 			add_action( 'admin_head', array( MainWP_Child_Branding_Render::get_class_name(), 'admin_head_hide_elements' ), 15 );
 			add_action( 'admin_menu', array( $this, 'branding_redirect' ), 9 );
@@ -639,9 +640,9 @@ class MainWP_Child_Branding {
 	 *
 	 * Hide unwanted posts table columns.
 	 *
-	 * @param array $default An array containing default Manage Posts columns.
+	 * @param array $defaults An array containing default Manage Posts columns.
 	 *
-	 * @return array $default An updated array containing default Manage Posts columns.
+	 * @return array $defaults An updated array containing default Manage Posts columns.
 	 */
 	public function custom_post_columns( $defaults ) {
 		$extra_setting = $this->get_extra_options();
@@ -664,9 +665,9 @@ class MainWP_Child_Branding {
 	 *
 	 * Hide the post slug metabox.
 	 *
-	 * @param array $default An array containing default Manage Posts columns.
+	 * @param array $defaults An array containing default Manage Posts columns.
 	 *
-	 * @return array $default An updated array containing default Manage Posts columns.
+	 * @return array $defaults An updated array containing default Manage Posts columns.
 	 */
 	public function manage_my_category_columns( $defaults ) {
 		$extra_setting = $this->get_extra_options();
@@ -716,9 +717,9 @@ class MainWP_Child_Branding {
 	 *
 	 * Hide unwanted pages table columns.
 	 *
-	 * @param array $default An array containing default Manage Pages columns.
+	 * @param array $defaults An array containing default Manage Pages columns.
 	 *
-	 * @return array $default An updated array containing default Manage Pages columns.
+	 * @return array $defaults An updated array containing default Manage Pages columns.
 	 */
 	public function custom_pages_columns( $defaults ) {
 		$extra_setting = $this->get_extra_options();
