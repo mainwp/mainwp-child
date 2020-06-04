@@ -3,25 +3,31 @@
  * MainWP Child Comments
  *
  * This file handles all Child Site comment actions.
+ *
+ * @package MainWP\Child
  */
 namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Comments
  *
- * @package MainWP\Child
+ * Handles all Child Site comment actions.
  */
 class MainWP_Child_Comments {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Comments.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * @var string Used by MainWP_Child_Comments::comments_clauses & MainWP_Child_comments::__constructor.
-	 * @deprecate Unused element.
+	 * Comments and clauses.
+	 *
+	 * @var string Comments and clauses.
+	 *
+	 * @deprecated Unused element.
 	 */
 	private $comments_and_clauses;
 
@@ -120,7 +126,8 @@ class MainWP_Child_Comments {
 	/**
 	 * Comment WHERE Clauses.
 	 *
-	 * @param $clauses MySQL WHERE Clause.
+	 * @param array $clauses MySQL WHERE Clause.
+	 *
 	 * @return array $clauses, Array of MySQL WHERE Clauses.
 	 *
 	 * @deprecated Unused Element.
@@ -135,12 +142,9 @@ class MainWP_Child_Comments {
 
 	/**
 	 * Get all comments.
-	 *
-	 * @return array $rslt Array of comments.
 	 */
 	public function get_all_comments() {
 
-		/** @var global $wbdb wpdb. */
 		global $wpdb;
 
 		add_filter( 'comments_clauses', array( &$this, 'comments_clauses' ) );
@@ -181,8 +185,9 @@ class MainWP_Child_Comments {
 	/**
 	 * Get recent comments.
 	 *
-	 * @param $pAllowedStatuses Allowed comment statuses.
-	 * @param $pCount Comment count.
+	 * @param array $pAllowedStatuses An array containing allowed comment statuses.
+	 * @param int   $pCount Number of comments to return.
+	 *
 	 * @return array $allComments Array of all comments found.
 	 */
 	public function get_recent_comments( $pAllowedStatuses, $pCount ) {
