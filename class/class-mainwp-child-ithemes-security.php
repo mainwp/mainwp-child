@@ -3,8 +3,8 @@
  *
  * Credits
  *
- * Plugin Name: iThemes Security
- * Plugin URI: https://ithemes.com/security
+ * Plugin-Name: iThemes Security
+ * Plugin-URI: https://ithemes.com/security
  * Author: iThemes
  * Author URI: https://ithemes.com
  * License: GPLv2
@@ -1003,12 +1003,12 @@ class MainWP_Child_IThemes_Security {
 
 		}
 		$results = $wpdb->get_results( 'SELECT * FROM `' . $wpdb->base_prefix . 'itsec_lockouts`' . $where . $type_statement . $active . ';', ARRAY_A ); // phpcs:ignore -- safe query.		$output  = array();
-		
+
 		return $this->get_lockouts_int( $results, $type );
 	}
 
 	private function get_lockouts_int( $results, $type ){
-		
+
 		if ( is_array( $results ) && count( $results ) > 0 ) {
 			switch ( $type ) {
 				case 'host':
@@ -1042,11 +1042,11 @@ class MainWP_Child_IThemes_Security {
 					break;
 			}
 		}
-		
+
 		return $output;
-		
+
 	}
-	
+
 	public function release_lockout() {
 		global $wpdb;
 

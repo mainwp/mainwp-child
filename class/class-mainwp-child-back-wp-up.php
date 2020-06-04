@@ -2,8 +2,8 @@
 /**
  * Credits
  *
- * Plugin Name: BackWPup
- * Plugin URI: http://backwpup.com
+ * Plugin-Name: BackWPup
+ * Plugin-URI: http://backwpup.com
  * Author: Inpsyde GmbH
  * Author URI: http://inpsyde.com
  * License: GPLv3

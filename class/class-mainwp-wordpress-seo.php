@@ -8,8 +8,8 @@
 /**
  * Credits
  *
- * Plugin Name: Yoast SEO
- * Plugin URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
+ * Plugin-Name: Yoast SEO
+ * Plugin-URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
  * Author: Team Yoast
  * Author URI: https://yoast.com/
  * Licence: GPL v3

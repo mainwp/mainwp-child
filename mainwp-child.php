@@ -18,7 +18,7 @@ require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // V
 /**
  * Define MainWP Child Plugin Debug Mode. Default: true.
  */
-define( 'MAINWP_CHILD_DEBUG', true );
+define( 'MAINWP_CHILD_DEBUG', false );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 	/**

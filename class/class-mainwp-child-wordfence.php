@@ -9,8 +9,8 @@
  *
  * Credits
  *
- * Plugin Name: Wordfence Security
- * Plugin URI: https://www.wordfence.com/
+ * Plugin-Name: Wordfence Security
+ * Plugin-URI: https://www.wordfence.com/
  * Author: Wordfence
  * Author URI: https://www.wordfence.com/
  */

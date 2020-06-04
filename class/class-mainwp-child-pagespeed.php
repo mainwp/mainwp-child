@@ -9,8 +9,8 @@
  *
  * Credits
  *
- * Plugin Name: Google Pagespeed Insights
- * Plugin URI: http://mattkeys.me
+ * Plugin-Name: Google Pagespeed Insights
+ * Plugin-URI: http://mattkeys.me
  * Author: Matt Keys
  * Author URI: http://mattkeys.me
  * License: GPLv2 or later

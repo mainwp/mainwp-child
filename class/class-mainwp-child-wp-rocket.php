@@ -9,8 +9,8 @@
  *
  * Credits
  *
- * Plugin Name: WP Rocket
- * Plugin URI: https://wp-rocket.me
+ * Plugin-Name: WP Rocket
+ * Plugin-URI: https://wp-rocket.me
  * Author: WP Media
  * Author URI: http://wp-media.me
  * Licence: GPLv2 or later
