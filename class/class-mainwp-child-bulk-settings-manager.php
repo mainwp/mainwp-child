@@ -2,8 +2,9 @@
 /**
  * MainWP Child Bulk Settings Manager
  *
- * This file handles connecting to the child site as a browser
- * in order performs an HTTP request using the POST method and returns its response.
+ * This file handles connecting to the child site as a browser in order performs an HTTP request using the POST method and returns its response.
+ *
+ * @package MainWP\Child
  */
 
 namespace MainWP\Child;
@@ -11,24 +12,28 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Child_Bulk_Settings_Manager
  *
- * @package MainWP\Child
+ * Handles connecting to the child site as a browser in order performs an HTTP request using the POST method and returns its response.
  */
 class MainWP_Child_Bulk_Settings_Manager {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Install.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * @static
-	 * @var array Holds the returned HTTPS Request information.
+	 * Public statis variable containing the synchronization information.
+	 *
+	 * @var array Synchronization information.
 	 */
 	public static $information = array();
 
 	/**
-	 * @var string MainWP Child Plugin slug.
+	 * Public variable to hold the information about the language domain.
+	 *
+	 * @var string 'mainwp-child' languge domain.
 	 */
 	public $plugin_translate = 'mainwp-child';
 
@@ -225,8 +230,9 @@ class MainWP_Child_Bulk_Settings_Manager {
 	/**
 	 * Create WP nonce.
 	 *
-	 * @param $array Nonce array.
-	 * @return array Returns nonce array.
+	 * @param array $array An array containing the nonce.
+	 *
+	 * @return array An array containing the nonce.
 	 */
 	private function wp_create_nonce_recursive( $array ) {
 		foreach ( $array as $key => $value ) {
