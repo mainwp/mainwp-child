@@ -469,11 +469,11 @@ class MainWP_Child_Branding {
 				}
 			);
 
-            /**
-             * Disable the WordPress core update notifications.
-             *
-             * @uses MainWP_Child_Branding_Render::get_class_name()
-             */
+			/**
+			 * Disable the WordPress core update notifications.
+			 *
+			 * @uses MainWP_Child_Branding_Render::get_class_name()
+			 */
 			function remove_core_updates() {
 				add_action(
 					'init',
