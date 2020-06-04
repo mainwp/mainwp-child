@@ -3,7 +3,10 @@
  * MainWP Render Branding
  *
  * This file handles rendering the Child Branding settings.
+ *
+ * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
 /**
@@ -12,16 +15,20 @@ namespace MainWP\Child;
  * @package MainWP\Child
  */
 class MainWP_Child_Branding_Render {
+
 	/**
-	 * @static
-	 * @var null Holds the Public static instance MainWP_Child_Branding_Render.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * Create a public static instance of MainWP_Child_Branding_Render.
+	 * Method instance()
 	 *
-	 * @return MainWP_Child_Branding_Render|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -162,8 +169,7 @@ class MainWP_Child_Branding_Render {
 	/**
 	 * Render contact support submit message.
 	 *
-	 * @param $opts Message options.
-	 * @return string Submitted message.
+	 * @param array $opts An array containg message options.
 	 */
 	private function render_submit_message( $opts ) {
 
