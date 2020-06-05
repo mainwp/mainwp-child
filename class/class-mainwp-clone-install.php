@@ -3,31 +3,46 @@
  * MainWP Clone Installer.
  *
  * This file handles installing a cloned child site.
+ *
+ * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom file's functions, complex functions/features.
+// phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
  * Class MainWP_Clone_Install
  *
- * @package MainWP\Child
+ * This file handles installing a cloned child site.
  */
 class MainWP_Clone_Install {
 
-	/** @var string The zip backup file path. */
+	/**
+	 * The zip backup file path.
+	 *
+	 * @var string
+	 */
 	protected $file;
 
-	/** @var array Clone config settings. */
+	/**
+	 * Clone configuration settings.
+	 *
+	 * @var array
+	 */
 	public $config;
 
-	/** @var $archiver Tar_Archiver */
+	/**
+	 * Tar archiver.
+	 *
+	 * @var object
+	 */
 	protected $archiver;
 
 	/**
-	 * Class constructor.
+	 * Method __construct()
 	 *
-	 * @param string $file The zip backup file path.
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct( $file ) {
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
@@ -131,7 +146,8 @@ class MainWP_Clone_Install {
 	/**
 	 * Check if clone config.txt exists.
 	 *
-	 * @param $file Config.txt file path.
+	 * @param string $file Config.txt file path.
+	 *
 	 * @return bool|string False or True on success. Return config.txt content on true.
 	 */
 	private function file_exists( $file ) {
@@ -236,14 +252,13 @@ class MainWP_Clone_Install {
 	}
 
 	/**
-	 * Update DB options.
+	 * Update DB options by name.
 	 *
-	 * @param $name Option name.
-	 * @param $value Option value to update.
+	 * @param string $name  Option name.
+	 * @param string $value Option value to update.
 	 */
 	public function update_option( $name, $value ) {
 
-		/** @var $wpdb wpdb */
 		global $wpdb;
 
 		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name ) ); // phpcs:ignore -- safe query.
@@ -262,7 +277,6 @@ class MainWP_Clone_Install {
 	 */
 	public function install() {
 
-		/** @var $wpdb wpdb */
 		global $wpdb;
 
 		$table_prefix = $this->config['prefix'];
@@ -296,7 +310,7 @@ class MainWP_Clone_Install {
 					$splitLine       = explode( ";\n", $readline );
 					$splitLineLength = count( $splitLine );
 					for ( $i = 0; $i < $splitLineLength - 1; $i ++ ) {
-						$wpdb->query( $splitLine[ $i ] ); // phpcs:ignore -- safe query. 
+						$wpdb->query( $splitLine[ $i ] ); // phpcs:ignore -- safe query.
 					}
 
 					$readline = $splitLine[ count( $splitLine ) - 1 ];
@@ -507,8 +521,8 @@ class MainWP_Clone_Install {
 	/**
 	 * Recursively chmod file structure.
 	 *
-	 * @param $mypath Path to files.
-	 * @param $arg chmod arguments.
+	 * @param string $mypath Path to files.
+	 * @param string $arg    chmod arguments.
 	 */
 	public function recurse_chmod( $mypath, $arg ) {
 		$d = opendir( $mypath );
