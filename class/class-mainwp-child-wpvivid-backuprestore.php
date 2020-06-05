@@ -1,16 +1,39 @@
 <?php
+/**
+ * MainWP Child WPVivid Backup & Restore
+ *
+ * This file handles all of the WPvivid Backup & Restore actions.
+ *
+ * @uses MainWP\Child\MainWP_Helper
+ */
 
 use MainWP\Child\MainWP_Helper;
 
-
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
+/**
+ * Class MainWP_Child_WPvivid_BackupRestore
+ */
 class MainWP_Child_WPvivid_BackupRestore {
 
-	public static $instance     = null;
-	public $is_plugin_installed = false;
-	public $public_intetface;
-	static function instance() {
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_WPvivid_BackupRestore.
+     */
+    public static $instance = null;
+
+    /** @var bool Whether WPvivid Plugin is installed or not. */
+    public $is_plugin_installed = false;
+
+    /** @var object WPvivid_Public_Interface */
+    public $public_intetface;
+
+    /**
+     * Create a public static instance of MainWP_Child_WPvivid_BackupRestore.
+     *
+     * @return MainWP_Child_WPvivid_BackupRestore|null
+     */
+    static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -18,7 +41,10 @@ class MainWP_Child_WPvivid_BackupRestore {
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_WPvivid_BackupRestore constructor.
+     */
+    public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) && defined('WPVIVID_PLUGIN_DIR') ) {
 			$this->is_plugin_installed = true;
@@ -32,10 +58,25 @@ class MainWP_Child_WPvivid_BackupRestore {
 		$this->public_intetface = new WPvivid_Public_Interface();
 	}
 
-	public function init() {
+    /**
+     * MainWP_Child_WPvivid_BackupRestore initiator.
+     */
+    public function init() {
 	}
 
-	function sync_others_data( $information, $data = array() ) {
+    /**
+     * Sync other data from $data[] and merge with $information[]
+     *
+     * @param array $information Stores the returned information.
+     * @param array $data Other data to sync.
+     *
+     * @return array $information Returned information array with both sets of data.
+     * @throws Exception Error message.
+     *
+     * @uses WPvivid_Setting::get_sync_data()
+     *
+     */
+    function sync_others_data( $information, $data = array() ) {
 		try {
 
 			if ( isset( $data['syncWPvividData'] ) ) {
@@ -46,14 +87,40 @@ class MainWP_Child_WPvivid_BackupRestore {
 				$information['syncWPvividScheduleData'] = $data['schedule'];
 				$information['syncWPvividSetting']      = $data;
 			}
-		} catch ( \Exception $e ) {
+		} catch ( Exception $e ) {
 
 		}
 
 		return $information;
 	}
 
-	public function action() {
+    /**
+     * Perform specific WPvivid actions.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::prepare_backup()
+     * @uses MainWP_Child_WPvivid_BackupRestore::backup_now()
+     * @uses MainWP_Child_WPvivid_BackupRestore::get_status()
+     * @uses MainWP_Child_WPvivid_BackupRestore::get_backup_schedule()
+     * @uses MainWP_Child_WPvivid_BackupRestore::get_backup_list();
+     * @uses MainWP_Child_WPvivid_BackupRestore::get_default_remote();
+     * @uses MainWP_Child_WPvivid_BackupRestore::delete_backup();
+     * @uses MainWP_Child_WPvivid_BackupRestore::delete_backup_array();
+     * @uses MainWP_Child_WPvivid_BackupRestore::set_security_lock();
+     * @uses MainWP_Child_WPvivid_BackupRestore::view_log();
+     * @uses MainWP_Child_WPvivid_BackupRestore::read_last_backup_log();
+     * @uses MainWP_Child_WPvivid_BackupRestore::view_backup_task_log();
+     * @uses MainWP_Child_WPvivid_BackupRestore::backup_cancel();
+     * @uses MainWP_Child_WPvivid_BackupRestore::init_download_page();
+     * @uses MainWP_Child_WPvivid_BackupRestore::prepare_download_backup();
+     * @uses MainWP_Child_WPvivid_BackupRestore::get_download_task();
+     * @uses MainWP_Child_WPvivid_BackupRestore::download_backup();
+     * @uses MainWP_Child_WPvivid_BackupRestore::set_general_setting();
+     * @uses MainWP_Child_WPvivid_BackupRestore::set_schedule();
+     * @uses MainWP_Child_WPvivid_BackupRestore::set_remote();
+     * @uses MainWP_Child_WPvivid_BackupRestore::post_mainwp_data($_POST);
+     * @uses MainWP_Child_WPvivid_BackupRestore::MainWP_Helper::write()
+     */
+    public function action() {
 		$information = array();
 		if ( ! $this->is_plugin_installed ) {
 			$information['error'] = 'NO_WPVIVIDBACKUP';
@@ -127,7 +194,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 						$information = $this->post_mainwp_data($_POST);
 						break;
 				}
-			} catch ( \Exception $e ) {
+			} catch ( Exception $e ) {
 				$information = array( 'error' => $e->getMessage() );
 			}
 
@@ -135,148 +202,357 @@ class MainWP_Child_WPvivid_BackupRestore {
 		}
 	}
 
-	public function post_mainwp_data( $data ) {
+    /**
+     * Post MainWP data.
+     *
+     * @param string $data Data to post.
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function post_mainwp_data( $data ) {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
 
 		$ret = $wpvivid_plugin->wpvivid_handle_mainwp_action($data);
 		return $ret;
 	}
 
-	public function prepare_backup() {
+    /**
+     * Prepare backup.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::prepare_backup()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function prepare_backup() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->prepare_backup($_POST['backup']);
 		return $ret;
 	}
 
-	public function backup_now() {
+    /**
+     * Backup now.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::backup_now()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function backup_now() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->backup_now($_POST['task_id']);
 		return $ret;
 	}
 
-	public function get_status() {
+    /**
+     * Get status.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::get_status()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function get_status() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->get_status();
 		return $ret;
 	}
 
-	public function get_backup_schedule() {
+    /**
+     * Get backup schedule.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::get_backup_schedule()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function get_backup_schedule() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->get_backup_schedule();
 		return $ret;
 	}
 
-	public function get_backup_list() {
+    /**
+     * Get backup list.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::get_backup_list()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function get_backup_list() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->get_backup_list();
 		return $ret;
 	}
 
-	public function get_default_remote() {
+    /**
+     * Get default remote destination.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::get_default_remote()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function get_default_remote() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->get_default_remote();
 			return $ret;
 	}
 
-	public function delete_backup() {
+    /**
+     * Delete backup.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::delete_backup()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function delete_backup() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->delete_backup($_POST['backup_id'], $_POST['force']);
 		return $ret;
 	}
 
-	public function delete_backup_array() {
+    /**
+     * Delete backup array.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::delete_backup_array()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function delete_backup_array() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->delete_backup_array($_POST['backup_id']);
 		return $ret;
 	}
 
-	public function set_security_lock() {
+    /**
+     * Set security lock.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::set_security_lock()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function set_security_lock() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->set_security_lock($_POST['backup_id'], $_POST['lock']);
 		return $ret;
 	}
 
-	public function view_log() {
+    /**
+     * View log file.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::view_log()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function view_log() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->view_log($_POST['id']);
 		return $ret;
 	}
 
-	public function read_last_backup_log() {
+    /**
+     * Read the last backup log entry.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::read_last_backup_log()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function read_last_backup_log() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->read_last_backup_log($_POST['log_file_name']);
 		return $ret;
 	}
 
-	public function view_backup_task_log() {
+    /**
+     * View backup task log.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::view_backup_task_log()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function view_backup_task_log() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->view_backup_task_log($_POST['id']);
 		return $ret;
 	}
 
-	public function backup_cancel() {
+    /**
+     * Cancel backup schedule.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::backup_cancel()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function backup_cancel() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->backup_cancel($_POST['task_id']);
 		return $ret;
 	}
 
-	public function init_download_page() {
+    /**
+     * Initiate download page.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::init_download_page()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function init_download_page() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->init_download_page($_POST['backup_id']);
 		return $ret;
 	}
 
-	public function prepare_download_backup() {
+    /**
+     * Prepare backup download.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::prepare_download_backup()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function prepare_download_backup() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->prepare_download_backup($_POST['backup_id'], $_POST['file_name']);
 		return $ret;
 	}
 
-	public function get_download_task() {
+    /**
+     * Get download task.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::get_download_task()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function get_download_task() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->get_download_task($_POST['backup_id']);
 				return $ret;
 	}
 
-	public function download_backup() {
+    /**
+     * Download Backup.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::download_backup()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function download_backup() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->download_backup($_POST['backup_id'], $_POST['file_name']);
 		return $ret;
 	}
 
-	public function set_general_setting() {
+    /**
+     * Set general settings.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::set_general_settings()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function set_general_setting() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->set_general_setting($_POST['setting']);
 		return $ret;
 	}
 
-	public function set_schedule() {
+    /**
+     * Set backup schedule.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::set_schedule()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function set_schedule() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->set_schedule($_POST['schedule']);
 		return $ret;
 	}
 
-	public function set_remote() {
+    /**
+     * Set remote destination.
+     *
+     * @uses MainWP_Child_WPvivid_BackupRestore::$public_intetface::set_remote()
+     *
+     * @return mixed $ret Returned response.
+     */
+    public function set_remote() {
+
+        /** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
+
 		$wpvivid_plugin->ajax_check_security();
 		$ret = $this->public_intetface->set_remote($_POST['remote']);
 		return $ret;
