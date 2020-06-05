@@ -3,8 +3,6 @@
  * MainWP Child WPVivid Backup & Restore
  *
  * This file handles all of the WPvivid Backup & Restore actions.
- *
- * @uses MainWP\Child\MainWP_Helper
  */
 
 use MainWP\Child\MainWP_Helper;
@@ -12,7 +10,7 @@ use MainWP\Child\MainWP_Helper;
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
 /**
- * Class MainWP_Child_WPvivid_BackupRestore
+ * Class MainWP_Child_WPvivid_BackupRestore.
  */
 class MainWP_Child_WPvivid_BackupRestore {
 
