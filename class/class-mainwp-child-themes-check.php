@@ -136,7 +136,7 @@ class MainWP_Child_Themes_Check {
 	 * Modify theme api search query.
 	 *
 	 * @param object $args Query arguments.
-	 * @param string $action Actions to perform
+	 * @param string $action Actions to perform.
 	 * @return \stdClass Return instance of \stdClass.
 	 *
 	 * @deprecated Unused Element.
