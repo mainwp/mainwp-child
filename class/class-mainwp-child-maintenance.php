@@ -81,7 +81,7 @@ class MainWP_Child_Maintenance {
 
 		$max_revisions = isset( $_POST['revisions'] ) ? intval( $_POST['revisions'] ) : 0;
 
-		$information   = $this->maintenance_db( $maint_options, $max_revisions );
+		$information = $this->maintenance_db( $maint_options, $max_revisions );
 
 		MainWP_Helper::write( $information );
 	}
