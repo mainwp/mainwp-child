@@ -3,43 +3,53 @@
  * MainWP Child Misc functions
  *
  * This file is for misc functions that don't really belong anywhere else.
+ *
+ * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
+// phpcs:disable WordPress.WP.AlternativeFunctions -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
  * Class MainWP_Child_Misc
  *
- * @package MainWP\Child
+ * Misc functions that don't really belong anywhere else.
  */
 class MainWP_Child_Misc {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Misc.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
 	/**
-	 * MainWP_Child_Misc constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 	}
 
 	/**
-	 * Create a public static instance of MainWP_Child_Misc.
+	 * Method get_instance()
 	 *
-	 * @return MainWP_Child_Misc|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -49,7 +59,12 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Prepare Child Site favicon.
+	 * Method get_site_icon()
+	 *
+	 * Fire off the get favicon function and add to sync information.
+	 *
+	 * @uses MainWP_Child_Misc::get_favicon() Get the child site favicon.
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 */
 	public function get_site_icon() {
 		$information = array();
@@ -61,10 +76,19 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Get Child Site favicon.
+	 * Method get_favicon()
+	 *
+	 * Get the child site favicon.
 	 *
 	 * @param bool $parse_page Whether or not to parse the page. Default: false.
-	 * @return string|bool Return $favi_url on success, FALSE on failure.
+	 *
+	 * @uses MainWP_Child_Misc::try_to_parse_favicon() Try to parse child site URL for favicon.
+	 * @uses get_site_icon_url() Returns the Site Icon URL.
+	 * @see https://developer.wordpress.org/reference/functions/get_site_icon_url/
+	 *
+	 * @used-by MainWP_Child_Misc::get_site_icon() Fire off the get favicon function and add to sync information.
+	 *
+	 * @return string|bool Return favicon URL on success, FALSE on failure.
 	 */
 	public function get_favicon( $parse_page = false ) {
 
@@ -109,10 +133,18 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Try to parse Child Site url for favicon.
+	 * Method try_to_parse_favicon()
 	 *
-	 * @param $site_url Child Site URL.
-	 * @return mixed|string $favi_url parsed favicon.
+	 * Try to parse child site URL for favicon.
+	 *
+	 * @param string $site_url Child site URL.
+	 *
+	 * @uses wp_remote_get() Performs an HTTP request using the GET method and returns its response.
+	 * @see https://developer.wordpress.org/reference/functions/wp_remote_get/
+	 *
+	 * @used-by MainWP_Child_Misc::get_favicon() Get the child site favicon.
+	 *
+	 * @return string Parsed favicon.
 	 */
 	private function try_to_parse_favicon( $site_url ) {
 		$request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
@@ -147,7 +179,11 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Get security stats.
+	 * Method get_security_stats()
+	 *
+	 * Get security issues information.
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 */
 	public function get_security_stats() {
 		$information = array();
@@ -168,7 +204,28 @@ class MainWP_Child_Misc {
 
 
 	/**
-	 * Perform Child Site security fixes.
+	 * Method do_security_fix()
+	 *
+	 * Fix detected security issues and set feedback to sync information.
+	 *
+	 * @uses MainWP_Helper::update_option() Update option by name.
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses MainWP_Security::prevent_listing()
+	 * @uses MainWP_Security::prevent_listing_ok()
+	 * @uses MainWP_Security::remove_wp_version()
+	 * @uses MainWP_Security::remove_wp_version_ok()
+	 * @uses MainWP_Security::remove_rsd()
+	 * @uses MainWP_Security::remove_rsd_ok()
+	 * @uses MainWP_Security::remove_wlw()
+	 * @uses MainWP_Security::remove_wlw_ok()
+	 * @uses MainWP_Security::remove_database_reporting()
+	 * @uses MainWP_Security::remove_database_reporting_ok()
+	 * @uses MainWP_Security::remove_php_reporting()
+	 * @uses MainWP_Security::remove_php_reporting_ok()
+	 * @uses MainWP_Security::remove_generator_version()
+	 * @uses MainWP_Security::admin_user_ok()
+	 * @uses MainWP_Security::remove_readme()
+	 * @uses MainWP_Security::remove_readme_ok()
 	 */
 	public function do_security_fix() {
 		$sync = false;
@@ -248,7 +305,13 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Perform Child Site security unfixes.
+	 * Method do_security_un_fix()
+	 *
+	 * Unfix fixed child site security issues.
+	 *
+	 * @uses MainWP_Helper::update_option() Update option by name.
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses MainWP_Security::remove_readme_ok()
 	 */
 	public function do_security_un_fix() {
 		$information = array();
@@ -308,6 +371,15 @@ class MainWP_Child_Misc {
 	/**
 	 * Method settings_tools()
 	 *
+	 * Fire off misc actions and set feedback to the sync information.
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses wp_destroy_all_sessions() Remove all session tokens for the current user from the database.
+	 * @see https://developer.wordpress.org/reference/functions/wp_destroy_all_sessions/
+	 *
+	 * @uses wp_get_all_sessions() Retrieve a list of sessions for the current user.
+	 * @see https://developer.wordpress.org/reference/functions/wp_get_all_sessions/
+	 *
 	 * @deprecated Unused Element
 	 */
 	public function settings_tools() {
@@ -338,10 +410,17 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Try to upload file to Child Site.
+	 * Method uploader_action()
+	 *
+	 * Initiate the file upload action.
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses MainWP_Child_Misc::uploader_upload_file() Upload file from the MainWP Dashboard.
+	 *
+	 * @return void
 	 */
 	public function uploader_action() {
-		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		$path        = $_POST['path'];
 		$filename    = $_POST['filename'];
 		$information = array();
@@ -388,14 +467,34 @@ class MainWP_Child_Misc {
 
 
 	/**
-	 * Child Site file uploader.
+	 * Method uploader_upload_file()
 	 *
-	 * @param string $file_url URL of file to be uploaded.
-	 * @param string $path Path to upload to.
+	 * Upload file from the MainWP Dashboard.
+	 *
+	 * @param string $file_url  URL of file to be uploaded.
+	 * @param string $path      Path to upload to.
 	 * @param string $file_name Name of file to upload.
 	 *
-	 * @return string[] Full path and file name of uploaded file.
-	 * @throws \Exception Error: Copy file.
+	 * @uses wp_remote_get() Performs an HTTP request using the GET method and returns its response.
+	 * @see https://developer.wordpress.org/reference/functions/wp_remote_get/
+	 *
+	 * @uses sanitize_file_name() Sanitizes a filename, replacing whitespace with dashes.
+	 * @see https://developer.wordpress.org/reference/functions/sanitize_file_name/
+	 *
+	 * @uses is_wp_error() Check whether variable is a WordPress Error.
+	 * @see https://developer.wordpress.org/reference/functions/is_wp_error/
+	 *
+	 * @uses wp_remote_retrieve_response_code() Retrieve only the response code from the raw response.
+	 * @see https://developer.wordpress.org/reference/functions/wp_remote_retrieve_response_code/
+	 *
+	 * @uses wp_remote_retrieve_response_message() Retrieve only the response message from the raw response.
+	 * @see https://developer.wordpress.org/reference/functions/wp_remote_retrieve_response_message/
+	 *
+	 * @used-by MainWP_Child_Misc::uploader_action() Initiate the file upload action.
+	 *
+	 * @throws \Exception Error message.
+	 *
+	 * @return array Full path and file name of uploaded file.
 	 */
 	public function uploader_upload_file( $file_url, $path, $file_name ) {
 		// Fixes: Uploader Extension rename htaccess file issue.
@@ -439,7 +538,16 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Initiate Code Snippet action: run_snippet, save_snippet, delete_snippet.
+	 * Method code_snippet()
+	 *
+	 * Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses MainWP_Utility::execute_snippet() Execute code snippet.
+	 * @uses MainWP_Child_Misc::snippet_save_snippet() Save code snippet.
+	 * @uses MainWP_Child_Misc::snippet_delete_snippet() Delete code snippet.
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
 	 */
 	public function code_snippet() {
 
@@ -478,12 +586,19 @@ class MainWP_Child_Misc {
 	}
 
 	/**
+	 * Method snippet_save_snippet()
+	 *
 	 * Save code snippet.
 	 *
 	 * @param string $slug Snippet slug.
 	 * @param string $type Type of snippet.
 	 * @param string $code Snippet code.
-	 * @param array  $snippets Snippets array.
+	 * @param array  $snippets An array containing all snipptes.
+	 *
+	 * @uses MainWP_Helper::update_option() Update option by name.
+	 * @uses MainWP_Child_Misc::snippet_update_wp_config() Update the child site wp-config.php file.
+	 *
+	 * @used-by MainWP_Child_Misc::code_snippet() Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
 	 *
 	 * @return array $return Status response.
 	 */
@@ -500,15 +615,23 @@ class MainWP_Child_Misc {
 			}
 		}
 		MainWP_Helper::update_option( 'mainwp_ext_snippets_enabled', true, 'yes' );
+
 		return $return;
 	}
 
 	/**
-	 * Delete code snippets.
+	 * Method snippet_delete_snippet()
+	 *
+	 * Delete code snippet.
 	 *
 	 * @param string $slug Snippet slug.
 	 * @param string $type Type of snippet.
-	 * @param array  $snippets Snippets array.
+	 * @param array  $snippets An array containing all snipptes.
+	 *
+	 * @uses MainWP_Helper::update_option() Update option by name.
+	 * @uses MainWP_Child_Misc::snippet_update_wp_config() Update the child site wp-config.php file.
+	 *
+	 * @used-by MainWP_Child_Misc::code_snippet() Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
 	 *
 	 * @return array $return Status response.
 	 */
@@ -532,12 +655,18 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Update Child Site wp-config.php file.
+	 * Method snippet_update_wp_config()
 	 *
-	 * @param $action Action to perform: Delete, Save.
-	 * @param $slug Snippet slug.
-	 * @param string                                 $code Code snippet.
-	 * @return bool true|false.
+	 * Update the child site wp-config.php file.
+	 *
+	 * @param string $action Action to perform: Delete, Save.
+	 * @param string $slug   Snippet slug.
+	 * @param string $code   Code snippet.
+	 *
+	 * @used-by MainWP_Child_Misc::snippet_save_snippet() Save code snippet.
+	 * @used-by MainWP_Child_Misc::snippet_delete_snippet() Delete code snippet.
+	 *
+	 * @return bool If remvoed, return true, if not, return false.
 	 */
 	public function snippet_update_wp_config( $action, $slug, $code = '' ) {
 
