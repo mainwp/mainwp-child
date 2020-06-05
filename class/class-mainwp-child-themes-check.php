@@ -2,13 +2,13 @@
 /**
  * MainWP Abandoned Themes Check
  *
- * This file checks for abandoned themes.
- */
-
-/**
+ * This file checks if themes have been abandoned.
+ *
+ * @package MainWP\Child
+ *
  * Credits
  *
- * Plugin-Name: Vendi Abandoned Plugin Check
+ * Plugin Name: Vendi Abandoned Plugin Check
  * Plugin URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
  * Author: Vendi Advertising (Chris Haas)
  * Author URI: https://wp-staging.com
@@ -20,39 +20,65 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Child_Themes_Check
  *
- * @package MainWP\Child
+ * Check if themes have been abandoned.
  */
 class MainWP_Child_Themes_Check {
 
-	/** @var string Cron: Theme health check watcher. */
+	/**
+	 * Cron: Theme health check watcher.
+	 *
+	 * @var string
+	 */
 	private $cron_name_watcher = 'mainwp_child_cron_theme_health_check_watcher';
 
-	/** @var string Cron: Theme health check daily. */
+	/**
+	 * Cron: Theme health check daily.
+	 *
+	 * @var string
+	 */
 	private $cron_name_daily = 'mainwp_child_cron_theme_health_check_daily';
 
-	/** @var string Cron: Theme health check batching. */
+	/**
+	 * Cron: Theme health check batching.
+	 *
+	 * @var string
+	 */
 	private $cron_name_batching = 'mainwp_child_cron_theme_health_check_batching';
 
-	/** @var string Transient: Theme timestamps. */
+	/**
+	 * Transient: Theme timestamps.
+	 *
+	 * @var string
+	 */
 	private $tran_name_theme_timestamps = 'mainwp_child_tran_name_theme_timestamps';
 
-	/** @var string Transient: Themes to batch. */
-	private $tran_name_themes_to_batch = 'mainwp_child_tran_name_themes_to_batch';
 	/**
-	 * @var string Options: Theme check last daily run.
+	 * Transient: Themes to batch.
+	 *
+	 * @var string
+	 */
+	private $tran_name_themes_to_batch = 'mainwp_child_tran_name_themes_to_batch';
+
+	/**
+	 * Transient: Theme last daily run.
+	 *
+	 * @var string
 	 */
 	private $option_name_last_daily_run = 'mainwp_child_theme_last_daily_run';
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Themes_Check.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * Create a public static instance of MainWP_Child_Themes_Check.
+	 * Method instance()
 	 *
-	 * @return MainWP_Child_Themes_Check|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -63,7 +89,9 @@ class MainWP_Child_Themes_Check {
 	}
 
 	/**
-	 * MainWP_Child_Themes_Check constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 
@@ -78,7 +106,9 @@ class MainWP_Child_Themes_Check {
 	}
 
 	/**
-	 * Clear crons & transients.
+	 * Un-schedules all events attached to the hook with the specified arguments.
+	 * On success an integer indicating number of events un-scheduled (0 indicates no events were registered with the hook and arguments combination),
+	 * false if un-scheduling one or more events fail.
 	 */
 	private function cleanup_basic() {
 		wp_clear_scheduled_hook( $this->cron_name_daily );
@@ -87,9 +117,11 @@ class MainWP_Child_Themes_Check {
 	}
 
 	/**
-	 * Clean up after deactivation.
+	 * Un-schedules all events attached to the hook with the specified arguments.
+	 * On success an integer indicating number of events un-scheduled (0 indicates no events were registered with the hook and arguments combination),
+	 * false if un-scheduling one or more events fail.
 	 *
-	 * @param bool $del Whether or not to delete transient. Default: true.
+	 * @param bool $del Whether or not to delete the transient data. Default: true.
 	 */
 	public function cleanup_deactivation( $del = true ) {
 		$this->cleanup_basic();
@@ -103,8 +135,8 @@ class MainWP_Child_Themes_Check {
 	/**
 	 * Modify theme api search query.
 	 *
-	 * @param $args Query arguments.
-	 * @param $action Actions to perform
+	 * @param object $args Query arguments.
+	 * @param string $action Actions to perform
 	 * @return \stdClass Return instance of \stdClass.
 	 *
 	 * @deprecated Unused Element.
@@ -124,9 +156,9 @@ class MainWP_Child_Themes_Check {
 	}
 
 	/**
-	 * Perform Watchdog.
+	 * Schedule watchdog crons.
 	 *
-	 * @throws \Exception
+	 * @throws \Exception Error message on failure.
 	 *
 	 * @deprecated Unused Element.
 	 */
@@ -189,7 +221,7 @@ class MainWP_Child_Themes_Check {
 	/**
 	 * Run Check.
 	 *
-	 * @throws \Exception
+	 * @throws \Exception Error message on failure.
 	 *
 	 * @deprecated Unused Element.
 	 */
@@ -280,7 +312,7 @@ class MainWP_Child_Themes_Check {
 	/**
 	 * Try to get response body.
 	 *
-	 * @param $theme Theme slug.
+	 * @param string $theme Theme slug.
 	 * @return string|bool Return response $body or FALSE on failure.
 	 */
 	private function try_get_response_body( $theme ) {

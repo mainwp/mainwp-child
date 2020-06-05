@@ -74,7 +74,7 @@ class MainWP_Child_Plugins_Check {
 	public static $instance = null;
 
 	/**
-	 * Method get_instance()
+	 * Method instance()
 	 *
 	 * Create a public static instance.
 	 *
