@@ -6,6 +6,8 @@
  *
  * @link https://mainwp.com/extension/staging/
  *
+ * @package MainWP\Child
+ *
  * Credits
  *
  * Plugin-Name: WP Staging
@@ -21,23 +23,26 @@
 use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Helper;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results. Pull requests appreciated.
 
 /**
  * Class MainWP_Child_Staging
  *
- * @package MainWP\Child
+ * MainWP Staging Extension handler.
  */
 class MainWP_Child_Staging {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Staging.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * @var bool Whether or not the WP Staging Plugin is installed or not. Default: false.
+	 * Public variable to hold the information if the WP Staging plugin is installed on the child site.
+	 *
+	 * @var bool If WP Staging intalled, return true, if not, return false.
 	 */
 	public $is_plugin_installed = false;
 
@@ -543,7 +548,7 @@ class MainWP_Child_Staging {
 	/**
 	 * Get size of directory & subdirectories.
 	 *
-	 * @param $dir Directory to size.
+	 * @param string $dir Directory to size.
 	 *
 	 * @return false|int FALSE on failure, int $size Directory size,
 	 */
