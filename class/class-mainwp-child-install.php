@@ -263,8 +263,6 @@ class MainWP_Child_Install {
 	 * @uses MainWP_Child_Install::after_installed() After plugin or theme has been installed.
 	 * @uses MainWP_Child_Install::no_ssl_filter_function() Hook to set ssl verify value.
 	 * @uses MainWP_Child_Install::try_second_install() Alternative installation method.
-	 *
-	 * @return array $information An array containing the sinchronization information.
 	 */
 	public function install_plugin_theme() {
 
