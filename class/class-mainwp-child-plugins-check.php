@@ -3,13 +3,13 @@
  * MainWP Abandoned Plugin Check
  *
  * This file checks if pugins have been abandoned.
- */
-
-/**
+ *
+ * @package MainWP\Child
+ *
  * Credits
  *
- * Plugin-Name: Vendi Abandoned Plugin Check
- * Plugin-URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
+ * Plugin Name: Vendi Abandoned Plugin Check
+ * Plugin URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
  * Author: Vendi Advertising (Chris Haas)
  * Author URI: https://wp-staging.com
  * License: GPLv2
@@ -20,38 +20,65 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Child_Plugins_Check
  *
- * @package MainWP\Child
+ * Check if pugins have been abandoned.
  */
 class MainWP_Child_Plugins_Check {
 
-	/** @var string Cron: Plugin health check watcher. */
+	/**
+	 * Cron: Plugin health check watcher.
+	 *
+	 * @var string
+	 */
 	private $cron_name_watcher = 'mainwp_child_cron_plugin_health_check_watcher';
 
-	/** @var string Cron: Plugin health check daily. */
+	/**
+	 * Cron: Plugin health check daily.
+	 *
+	 * @var string
+	 */
 	private $cron_name_daily = 'mainwp_child_cron_plugin_health_check_daily';
 
-	/** @var string Cron: Plugin health check batching. */
+	/**
+	 * Cron: Plugin health check batching.
+	 *
+	 * @var string
+	 */
 	private $cron_name_batching = 'mainwp_child_cron_plugin_health_check_batching';
 
-	/** @var string Transient: Plugin timestamps. */
+	/**
+	 * Transient: Plugin timestamps.
+	 *
+	 * @var string
+	 */
 	private $tran_name_plugin_timestamps = 'mainwp_child_tran_name_plugin_timestamps';
 
-	/** @var string Transient: Plugins to batch. */
+	/**
+	 * Transient: Plugins to batch.
+	 *
+	 * @var string
+	 */
 	private $tran_name_plugins_to_batch = 'mainwp_child_tran_name_plugins_to_batch';
 
-	/** @var string Transient: Plugin last daily run. */
+	/**
+	 * Transient: Plugin last daily run.
+	 *
+	 * @var string
+	 */
 	private $option_name_last_daily_run = 'mainwp_child_plugin_last_daily_run';
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Plugins_Check.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * Create a public static instance of MainWP_Child_Plugins_Check.
+	 * Method get_instance()
 	 *
-	 * @return MainWP_Child_Plugins_Check|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -62,7 +89,9 @@ class MainWP_Child_Plugins_Check {
 	}
 
 	/**
-	 * MainWP_Child_Plugins_Check constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 		if ( get_option( 'mainwp_child_plugintheme_days_outdate' ) ) {
@@ -78,10 +107,8 @@ class MainWP_Child_Plugins_Check {
 
 	/**
 	 * Un-schedules all events attached to the hook with the specified arguments.
-	 *
-	 * @return int|false|bool On success an integer indicating number of events un-scheduled
-	 *  (0 indicates no events were registered with the hook and arguments combination),
-	 *  false if un-scheduling one or more events fail.
+	 * On success an integer indicating number of events un-scheduled (0 indicates no events were registered with the hook and arguments combination),
+	 * false if un-scheduling one or more events fail.
 	 */
 	private function cleanup_basic() {
 		wp_clear_scheduled_hook( $this->cron_name_daily );
@@ -91,11 +118,10 @@ class MainWP_Child_Plugins_Check {
 
 	/**
 	 * Un-schedules all events attached to the hook with the specified arguments.
+	 * On success an integer indicating number of events un-scheduled (0 indicates no events were registered with the hook and arguments combination),
+	 * false if un-scheduling one or more events fail.
 	 *
 	 * @param bool $del Whether or not to delete the transient data. Default: true.
-	 * @return int|false|bool On success an integer indicating number of events un-scheduled
-	 *  (0 indicates no events were registered with the hook and arguments combination),
-	 *  false if un-scheduling one or more events fail.
 	 */
 	public function cleanup_deactivation( $del = true ) {
 		$this->cleanup_basic();
@@ -310,8 +336,9 @@ class MainWP_Child_Plugins_Check {
 	/**
 	 * Try to get response body.
 	 *
-	 * @param $plugin
-	 * @param $second_pass
+	 * @param string $plugin Plugin slug.
+	 * @param bool   $second_pass Second pass check.
+	 *
 	 * @return bool|string true|false The body of the response. Empty string if no body or incorrect parameter given.
 	 */
 	private function try_get_response_body( $plugin, $second_pass ) {
