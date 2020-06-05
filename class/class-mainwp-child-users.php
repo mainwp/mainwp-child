@@ -1,41 +1,53 @@
 <?php
 /**
  * MainWP Child Users.
+ *
+ * Manage users on the site.
+ *
+ * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Users
  *
- * @package MainWP\Child
+ * Manage users on the site.
  */
 class MainWP_Child_Users {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Users.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
 	/**
-	 * MainWP_Child_Users constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 	}
 
 	/**
-	 * Create a public static instance of MainWP_Child_Users.
+	 * Method get_instance()
 	 *
-	 * @return MainWP_Child_Users|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -46,9 +58,7 @@ class MainWP_Child_Users {
 	}
 
 	/**
-	 * MainWP Child User actions: changeRole, update_password, edit, update_user.
-	 *
-	 * @return array $information[] FAIL|SUCCESS.
+	 * User actions: changeRole, update_password, edit, update_user.
 	 */
 	public function user_action() {
 		$action    = $_POST['action'];
@@ -116,6 +126,7 @@ class MainWP_Child_Users {
 	 * Get all users.
 	 *
 	 * @param bool $number Number parameter.
+	 *
 	 * @return array Return array of $allusers.
 	 */
 	public function get_all_users_int( $number = false ) {
@@ -150,9 +161,10 @@ class MainWP_Child_Users {
 	}
 
 	/**
-	 * Get all Child Site users.
+	 * Get all child site users.
 	 *
 	 * @param bool $return Whether or not to return. Default: false.
+	 *
 	 * @return array Return array of $allusers.
 	 */
 	public function get_all_users( $return = false ) {
@@ -184,7 +196,7 @@ class MainWP_Child_Users {
 	}
 
 	/**
-	 * Search Child Site users.
+	 * Search child site users.
 	 */
 	public function search_users() {
 
@@ -249,13 +261,14 @@ class MainWP_Child_Users {
 	}
 
 	/**
-	 * Edit Child Site user.
+	 * Edit existing user.
 	 *
-	 * @param $user_id User ID.
-	 * @param $data Data to edit.
-	 * @return string[]|int Return error string on failure or user ID on success.
+	 * @param int   $user_id User ID.
+	 * @param array $data    Data to edit.
+	 *
+	 * @return string|int Return error string on failure or user ID on success.
 	 */
-    public function edit_user($user_id, $data ) { // phpcs:ignore -- ignore complex method notice, see detail at: function edit_user() in the wp/wp-admin/includes/user.php.
+	public function edit_user( $user_id, $data ) { // phpcs:ignore -- ignore complex method notice, see detail at: function edit_user() in the wp/wp-admin/includes/user.php.
 		$wp_roles = wp_roles();
 		$user     = new \stdClass();
 
@@ -398,7 +411,8 @@ class MainWP_Child_Users {
 	/**
 	 * Get Child Site user to edit.
 	 *
-	 * @param $user_id User ID.
+	 * @param int $user_id User ID.
+	 *
 	 * @return array Return array of $edit_data.
 	 */
 	public function get_user_to_edit( $user_id ) {
@@ -451,9 +465,7 @@ class MainWP_Child_Users {
 	}
 
 	/**
-	 * New Child Site administrator password.
-	 *
-	 * @return array $information[] added->true.
+	 * Set a new administrator password.
 	 */
 	public function new_admin_password() {
 		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -479,9 +491,7 @@ class MainWP_Child_Users {
 	}
 
 	/**
-	 * Child Site new user.
-	 *
-	 * @return array $information[] added->true.
+	 * Create a new user.
 	 */
 	public function new_user() {
 		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
