@@ -1,42 +1,52 @@
 <?php
 /**
  * MainWP Child Stats.
+ *
+ * Gather the child site data to send to the MainWP Dashboard.
+ *
+ * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
-//phpcs:disable Generic.Metrics.CyclomaticComplexity -- complex functions/features.
+//phpcs:disable Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
  * Class MainWP_Child_Stats
  *
- * @package MainWP\Child
+ * Gather the child site data to send to the MainWP Dashboard.
  */
 class MainWP_Child_Stats {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Stats.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * @var \Closure Class used to represent anonymous functions.
+	 * Class used to represent anonymous functions.
+	 *
+	 * @var null
 	 */
 	private $filterFunction = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
 	/**
-	 * MainWP_Child_Stats constructor.
+	 * Method __construct()
 	 *
-	 * @uses MainWP_Child_Stats::\Closure
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 
@@ -57,9 +67,11 @@ class MainWP_Child_Stats {
 	}
 
 	/**
-	 * Create a public static instance of MainWP_Child_Stats.
+	 * Method get_instance()
 	 *
-	 * @return MainWP_Child_Stats|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -84,7 +96,6 @@ class MainWP_Child_Stats {
 			MainWP_Helper::error( __( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
 		}
 
-		/** @global string $wp_version Current WordPress Version. */
 		global $wp_version;
 
 		$information['version']   = MainWP_Child::$version;
@@ -400,7 +411,6 @@ class MainWP_Child_Stats {
 	 */
 	private function stats_get_info( &$information ) {
 
-		/** @global string $wp_version Current WordPress Version. */
 		global $wp_version;
 
 		$information['version']   = MainWP_Child::$version;
@@ -439,7 +449,6 @@ class MainWP_Child_Stats {
 	 */
 	private function stats_wp_update() {
 
-		/** @global string $wp_version Current WordPress Version. */
 		global $wp_version;
 
 		$result = null;
@@ -559,9 +568,8 @@ class MainWP_Child_Stats {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
-		/** @global string $wp_current_filter Hook name of the current filter or action. */
 		global $wp_current_filter;
-		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- to custom plugin installation.
+		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- Required to achieve desired results, pull request solutions appreciated.
 
 		wp_update_plugins();
 		include_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -881,7 +889,6 @@ class MainWP_Child_Stats {
 		if ( is_array( $themes ) ) {
 			$theme_name = wp_get_theme()->get( 'Name' );
 
-			/** @var $theme WP_Theme */
 			foreach ( $themes as $theme ) {
 				$out                = array();
 				$out['name']        = $theme->get( 'Name' );
@@ -988,9 +995,9 @@ class MainWP_Child_Stats {
 	/**
 	 * Get WP Site Health issues.
 	 *
-	 * @return array[] $issue_counts Returned issues.
+	 * @return array $issue_counts Returned issues.
 	 */
-	function get_health_check_site_status() {
+	public function get_health_check_site_status() {
 		$get_issues   = get_transient( 'health-check-site-status-result' );
 		$issue_counts = array();
 		if ( false !== $get_issues ) {
