@@ -2,44 +2,54 @@
 /**
  * MainWP Child Maintenance.
  *
- * This file handles all of the Child Site maintenance functions.
+ * MainWP Maintenance extension handler.
+ * Extension URL: https://mainwp.com/extension/maintenance/
+ *
+ * @package MainWP\Child
  */
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
+// phpcs:disable WordPress.WP.AlternativeFunctions -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
  * Class MainWP_Child_Maintenance
  *
- * @package MainWP\Child
+ * MainWP Maintenance extension handler.
  */
 class MainWP_Child_Maintenance {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Maintenance.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
 	/**
-	 * MainWP_Child_Maintenance constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 	}
 
 	/**
-	 * Create a public static instance of MainWP_Child_Maintenance.
+	 * Method get_instance()
 	 *
-	 * @return MainWP_Child_Maintenance|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -49,7 +59,13 @@ class MainWP_Child_Maintenance {
 	}
 
 	/**
-	 * Fire off Child Site maintenance.
+	 * Method maintenance_site()
+	 *
+	 * Fire off Child Site maintenance action and get feedback.
+	 *
+	 * @uses MainWP_Child_Maintenance::maintenance_action() Triggers action to perform, save_settings, enable_alert or clear_settings.
+	 * @uses MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 */
 	public function maintenance_site() {
 
@@ -58,22 +74,39 @@ class MainWP_Child_Maintenance {
 		}
 
 		$maint_options = $_POST['options'];
+
 		if ( ! is_array( $maint_options ) ) {
 			MainWP_Helper::write( array( 'status' => 'FAIL' ) ); // exit.
 		}
 
 		$max_revisions = isset( $_POST['revisions'] ) ? intval( $_POST['revisions'] ) : 0;
+
 		$information   = $this->maintenance_db( $maint_options, $max_revisions );
+
 		MainWP_Helper::write( $information );
 	}
 
 	/**
-	 * Child Site DB maintenance.
+	 * Method maintenance_db()
 	 *
-	 * @param $maint_options Maintenance options.
-	 * @param $max_revisions Maximum revisions to keep.
+	 * Child site database maintenance.
 	 *
-	 * @return string[] Return SUCCESS.
+	 * @param array $maint_options An array containing selected maintenance options.
+	 * @param int   $max_revisions Maximum revisions to keep.
+	 *
+	 * @uses MainWP_Child_Maintenance::maintenance_get_revisions() Get child sites post revisions.
+	 * @uses MainWP_Child_Maintenance::maintenance_delete_revisions()
+	 * @uses MainWP_Child_Maintenance::maintenance_optimize()
+	 *
+	 * @uses get_terms() Retrieve the terms in a given taxonomy or list of taxonomies.
+	 * @see https://developer.wordpress.org/reference/functions/get_terms/
+	 *
+	 * @uses wp_delete_term() Removes a term from the database.
+	 * @see https://developer.wordpress.org/reference/functions/wp_delete_term/
+	 *
+	 * @used-by MainWP_Child_Maintenance::maintenance_site() Fire off Child Site maintenance action and get feedback.
+	 *
+	 * @return array An array containing action feedback.
 	 */
 	private function maintenance_db( $maint_options, $max_revisions ) {
 		global $wpdb;
@@ -83,7 +116,7 @@ class MainWP_Child_Maintenance {
 		if ( in_array( 'revisions', $maint_options ) ) {
 			if ( empty( $max_revisions ) ) {
 				$sql_clean = "DELETE FROM $wpdb->posts WHERE post_type = 'revision'";
-				$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
+				$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql query. required to achieve desired results, pull request solutions appreciated.
 				// to fix issue of meta_value short length.
 				$performed_what[] = 'revisions'; // 'Posts revisions deleted'.
 			} else {
@@ -103,7 +136,7 @@ class MainWP_Child_Maintenance {
 
 		foreach ( $maint_sqls as $act => $sql_clean ) {
 			if ( in_array( $act, $maint_options ) ) {
-				$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql.
+				$wpdb->query( $sql_clean ); // phpcs:ignore -- safe sql query. required to achieve desired results, pull request solutions appreciated.
 				$performed_what[] = $act; // 'Auto draft posts deleted'.
 			}
 		}
@@ -144,13 +177,22 @@ class MainWP_Child_Maintenance {
 			$result   = 'Maintenance Performed';
 			do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result, $max_revisions );
 		}
+
 		return array( 'status' => 'SUCCESS' );
 	}
 
 	/**
-	 * Get Child post revisions.
+	 * Method maintenance_get_revisions()
 	 *
-	 * @param $max_revisions Maximum revisions to keep.
+	 * Get child sites post revisions.
+	 *
+	 * @param int $max_revisions Maximum revisions to keep.
+	 *
+	 * @uses wpdb::get_results() Retrieve an entire SQL result set from the database.
+	 * @see https://developer.wordpress.org/reference/classes/wpdb/get_results/
+	 *
+	 * @used-by MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
+	 *
 	 * @return array|object|null Database query results.
 	 */
 	protected function maintenance_get_revisions( $max_revisions ) {
@@ -159,11 +201,19 @@ class MainWP_Child_Maintenance {
 	}
 
 	/**
-	 * Delete Child revisions.
+	 * Method maintenance_delete_revisions()
 	 *
-	 * @param $results Query results.
-	 * @param $max_revisions Maximum revisions to keep.
-	 * @return int|void Return number of revisions deleted.
+	 * Delete child site post revisions.
+	 *
+	 * @param array|object $results       Database query results.
+	 * @param int          $max_revisions Maximum revisions to keep.
+	 *
+	 * @uses wpdb::get_results() Retrieve an entire SQL result set from the database.
+	 * @see https://developer.wordpress.org/reference/classes/wpdb/get_results/
+	 *
+	 * @used-by MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
+	 *
+	 * @return int Return number of revisions deleted.
 	 */
 	private function maintenance_delete_revisions( $results, $max_revisions ) {
 		global $wpdb;
@@ -194,7 +244,16 @@ class MainWP_Child_Maintenance {
 	}
 
 	/**
-	 * Optimise Child database.
+	 * Method maintenance_optimize()
+	 *
+	 * Optimize Child database.
+	 *
+	 * @uses MainWP_Child_DB::to_query() Get the size of the DB.
+	 * @uses MainWP_Child_DB::num_rows() Count the number of rows.
+	 * @uses MainWP_Child_DB::is_result() Check if $result is an Instantiated object of \mysqli.
+	 * @uses MainWP_Child_DB::fetch_array() Fetch an array.
+	 *
+	 * @used-by MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
 	 */
 	private function maintenance_optimize() {
 		global $wpdb, $table_prefix;
@@ -211,9 +270,17 @@ class MainWP_Child_Maintenance {
 	}
 
 	/**
-	 * Maintenance Action.
+	 * Method maintenance_action()
 	 *
-	 * @param $action Action to perform: save_settings, enable_alert, clear_settings.
+	 * Triggers action to perform, save_settings, enable_alert or clear_settings.
+	 *
+	 * @uses delete_option() Removes option by name. Prevents removal of protected WordPress options.
+	 * @see https://developer.wordpress.org/reference/functions/delete_option/
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses MainWP_Helper::update_option() Update option by name.
+	 *
+	 * @used-by MainWP_Child_Maintenance::maintenance_site() Fire off Child Site maintenance action and get feedback.
 	 */
 	private function maintenance_action( $action ) {
 		$information = array();
