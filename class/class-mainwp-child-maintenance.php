@@ -7,6 +7,7 @@
  *
  * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
 // phpcs:disable WordPress.WP.AlternativeFunctions -- Required to achieve desired results, pull request solutions appreciated.
@@ -273,6 +274,8 @@ class MainWP_Child_Maintenance {
 	 * Method maintenance_action()
 	 *
 	 * Triggers action to perform, save_settings, enable_alert or clear_settings.
+	 *
+	 * @param string $action Action to perform.
 	 *
 	 * @uses delete_option() Removes option by name. Prevents removal of protected WordPress options.
 	 * @see https://developer.wordpress.org/reference/functions/delete_option/
