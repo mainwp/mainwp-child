@@ -2,7 +2,9 @@
 /**
  * MainWP Child Install
  *
- * This file handles the installation of the MainW Child Plugin.
+ * This file handles Plugins and Themes Activate, Deactivate and Delete process.
+ *
+ * @package MainWP\Child
  */
 
 namespace MainWP\Child;
@@ -10,35 +12,42 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Child_Install
  *
- * @package MainWP\Child
+ * Handles Plugins and Themes Activate, Deactivate and Delete process.
  */
 class MainWP_Child_Install {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Install.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
 	/**
-	 * MainWP_Child_Install constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 	}
 
 	/**
-	 * Create a public static instance of MainWP_Child_Install.
+	 * Method get_instance()
 	 *
-	 * @return MainWP_Child_Install|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -49,9 +58,20 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method plugin_action()
+	 *
 	 * Plugin Activate, Deactivate & Delete actions.
 	 *
-	 * @return array $information['status'], FAIL|SUCCESS.
+	 * @uses get_plugin_data() Parses the plugin contents to retrieve plugin’s metadata.
+	 * @see https://developer.wordpress.org/reference/functions/get_plugin_data/
+	 *
+	 * @uses activate_plugin() Attempts activation of plugin in a “sandbox” and redirects on success.
+	 * @see https://developer.wordpress.org/reference/functions/activate_plugin/
+	 *
+	 * @uses deactivate_plugin() Deactivate a single plugin or multiple plugins.
+	 * @see https://developer.wordpress.org/reference/functions/deactivate_plugin/
+	 *
+	 * @uses MainWP_Child_Install::delete_plugins() Delete a plugin from the Child Site.
 	 */
 	public function plugin_action() {
 
@@ -100,9 +120,22 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method delete_plugins()
+	 *
 	 * Delete a plugin from the Child Site.
 	 *
 	 * @param array $plugins An array of plugins to delete.
+	 *
+	 * @uses get_plugin_data() Parses the plugin contents to retrieve plugin’s metadata.
+	 * @see https://developer.wordpress.org/reference/functions/get_plugin_data/
+	 *
+	 * @uses deactivate_plugin() Deactivate a single plugin or multiple plugins.
+	 * @see https://developer.wordpress.org/reference/functions/deactivate_plugin/
+	 *
+	 * @uses is_plugin_active() Determines whether a plugin is active.
+	 * @see https://developer.wordpress.org/reference/functions/is_plugin_active/
+	 *
+	 * @used-by MainWP_Child_Install::plugin_action() Plugin Activate, Deactivate & Delete actions.
 	 */
 	private function delete_plugins( $plugins ) {
 		global $mainWPChild;
@@ -145,9 +178,15 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method theme_action()
+	 *
 	 * Theme Activate, Deactivate & Delete actions.
 	 *
-	 * @return array $information['status'], FAIL|SUCCESS.
+	 * @uses wp_get_theme() Gets a WP_Theme object for a theme.
+	 * @see https://developer.wordpress.org/reference/functions/wp_get_theme/
+	 *
+	 * @uses switch_theme() Switches the theme.
+	 * @see https://developer.wordpress.org/reference/functions/switch_theme/
 	 */
 	public function theme_action() {
 
@@ -216,9 +255,16 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method install_plugin_theme()
+	 *
 	 * Plugin & Theme Installation functions.
 	 *
-	 * @return array $information Installation results.
+	 * @uses MainWP_Child_Install::require_files() Include necessary files.
+	 * @uses MainWP_Child_Install::after_installed() After plugin or theme has been installed.
+	 * @uses MainWP_Child_Install::no_ssl_filter_function() Hook to set ssl verify value.
+	 * @uses MainWP_Child_Install::try_second_install() Alternative installation method.
+	 *
+	 * @return array $information An array containing the sinchronization information.
 	 */
 	public function install_plugin_theme() {
 
@@ -280,10 +326,15 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method no_ssl_filter_function()
+	 *
 	 * Hook to set ssl verify value.
 	 *
 	 * @param array  $r Request's array values.
 	 * @param string $url URL request.
+	 *
+	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
+	 *
 	 * @return array $r Request's array values.
 	 */
 	public static function no_ssl_filter_function( $r, $url ) {
@@ -292,7 +343,11 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method require_files()
+	 *
 	 * Include necessary files.
+	 *
+	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
 	private function require_files() {
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
@@ -305,9 +360,22 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method after_installed()
+	 *
 	 * After plugin or theme has been installed.
 	 *
-	 * @param $result Results array from self::install_plugin_theme
+	 * @param array $result Results array from self::install_plugin_theme().
+	 *
+	 * @uses wp_cache_set() Saves the data to the cache.
+	 * @see https://developer.wordpress.org/reference/functions/wp_cache_set/
+	 *
+	 * @uses activate_plugin() Attempts activation of plugin in a “sandbox” and redirects on success.
+	 * @see https://developer.wordpress.org/reference/functions/activate_plugin/
+	 *
+	 * @uses get_plugin_data() Parses the plugin contents to retrieve plugin’s metadata.
+	 * @see https://developer.wordpress.org/reference/functions/get_plugin_data/
+	 *
+	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
 	private function after_installed( $result ) {
 		$args = array(
@@ -355,11 +423,19 @@ class MainWP_Child_Install {
 	}
 
 	/**
+	 * Method try_second_install()
+	 *
 	 * Alternative installation method.
 	 *
-	 * @param $url Package URL.
-	 * @param $installer  Instance of \WP_Upgrader
-	 * @return mixed $result Return error messages or TRUE.
+	 * @param string $url       Package URL.
+	 * @param object $installer Instance of \WP_Upgrader.
+	 *
+	 * @uses is_wp_error() Check whether variable is a WordPress Error.
+	 * @see https://developer.wordpress.org/reference/functions/is_wp_error/
+	 *
+	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
+	 *
+	 * @return object $result Return error messages or TRUE.
 	 */
 	private function try_second_install( $url, $installer ) {
 		$result = $installer->run(
