@@ -2,40 +2,44 @@
 /**
  * MainWP Child Woocomerce Status
  *
- * This file handles syncing woocomerce data with MainWP Dashboard.
- */
-
-/**
+ * MainWP WooCommerce Status Extension handler.
+ *
+ * @link https://mainwp.com/extension/woocommerce-status/
+ *
+ * @package MainWP\Child
+ *
  * Credits
  *
  * Plugin-Name: WooCommerce
  * Plugin URI: https://woocommerce.com/
  * Author: Automattic
  * Author URI: https://woocommerce.com
- *
- * The code is used for the MainWP WooCommerce Status Extension
- * Extension URL: https://mainwp.com/extension/woocommerce-status/
  */
 
 use MainWP\Child\MainWP_Helper;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
  * Class MainWP_Child_WooCommerce_Status
+ *
+ * MainWP WooCommerce Status Extension handler.
  */
 class MainWP_Child_WooCommerce_Status {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_WooCommerce_Status.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * Create a public static instance of MainWP_Child_WooCommerce_Status.
+	 * Method instance()
 	 *
-	 * @return MainWP_Child_WooCommerce_Status|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -46,7 +50,9 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	/**
-	 * MainWP_Child_WooCommerce_Status constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
@@ -126,7 +132,7 @@ class MainWP_Child_WooCommerce_Status {
 				WHERE posts.post_type = 'shop_order'
 				AND posts.post_status = 'publish'
 				AND tax.taxonomy = 'shop_order_status'
-				AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query. 
+				AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
 				" AND postmeta.meta_key = '_order_total'
 				AND posts.post_date >= %s
 				AND posts.post_date <= %s",
@@ -295,7 +301,7 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	/**
-	 * sync Woocommerce data for current month.
+	 * Sync Woocommerce data for current month.
 	 */
 	public function sync_data_two() {
 		$start_date = date( 'Y-m-01 00:00:00', time() ); // phpcs:ignore -- local time.
@@ -332,8 +338,9 @@ class MainWP_Child_WooCommerce_Status {
 	/**
 	 * Get Woocommerce data.
 	 *
-	 * @param $start_date Start Date.
-	 * @param $end_date End Date.
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
 	 * @return array $information Woocommerce data grabed.
 	 */
 	public function get_woocom_data( $start_date, $end_date ) {
@@ -345,8 +352,8 @@ class MainWP_Child_WooCommerce_Status {
 			return false;
 		}
 
-		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time.
-		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
+		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time. Required to achieve desired results, pull request solutions appreciated.
+		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time. Required to achieve desired results, pull request solutions appreciated.
 
 		$reports = new WC_Admin_Report();
 		// Sales.
