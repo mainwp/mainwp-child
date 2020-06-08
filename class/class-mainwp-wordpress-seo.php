@@ -2,40 +2,45 @@
 /**
  * MainWP WordPress SEO
  *
- * The code is used for the MainWP WordPress SEO Extension.
- */
-
-/**
+ * MainWP WordPress SEO Extension handler.
+ *
+ * @link https://mainwp.com/extension/wordpress-seo/
+ *
+ * @package MainWP\Child
+ *
  * Credits
  *
- * Plugin-Name: Yoast SEO
- * Plugin-URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
+ * Plugin Name: Yoast SEO
+ * Plugin URI: https://yoast.com/wordpress/plugins/seo/#utm_source=wpadmin&utm_medium=plugin&utm_campaign=wpseoplugin
  * Author: Team Yoast
  * Author URI: https://yoast.com/
  * Licence: GPL v3
- *
- * The code is used for the MainWP WordPress SEO Extension
- * Extension URL: https://mainwp.com/extension/wordpress-seo/
  */
 
 use MainWP\Child\MainWP_Helper;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results. Pull requests appreciated.
 
 /**
  * Class MainWP_WordPress_SEO
+ *
+ * MainWP WordPress SEO Extension handler.
  */
 class MainWP_WordPress_SEO {
+
 	/**
-	 * @static
-	 * @var null Public static instance of MainWP_WordPress_SEO.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * Create public static instance of MainWP_WordPress_SEO.
+	 * Method instance()
 	 *
-	 * @return MainWP_WordPress_SEO|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -46,20 +51,17 @@ class MainWP_WordPress_SEO {
 	}
 
 	/**
-	 * MainWP_WordPress_SEO constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
-
-		/** @var global $wpdb wbdb */
 		global $wpdb;
-
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 
 	/**
-	 * Removes option by name.
-	 *
-	 * @return bool True, if option is successfully deleted. False on failure.
+	 * Empty options upon MainWP Child plugin deactivation.
 	 */
 	public function child_deactivation() {
 		$dell_all = array();
@@ -69,7 +71,10 @@ class MainWP_WordPress_SEO {
 	}
 
 	/**
-	 * MainWP WordPress SEO import_settings $_POST action.
+	 * Fire off certain Yoast SEP plugin actions.
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses MainWP_WordPress_SEO::import_settings() Import the Yoast SEO plugin settings.
 	 */
 	public function action() {
 		if ( ! class_exists( 'WPSEO_Admin' ) ) {
@@ -86,13 +91,17 @@ class MainWP_WordPress_SEO {
 	}
 
 	/**
-	 * Import settings.
+	 * Import the Yoast SEO plugin settings.
 	 *
-	 * @return array $information success[]|error[]
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 *
+	 * @used-by MainWP_WordPress_SEO::action() Fire off certain Yoast SEP plugin actions.
+	 *
+	 * @throws \Exception Error message.
 	 */
 	public function import_settings() {
 		if ( isset( $_POST['file_url'] ) ) {
-			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 			$temporary_file = '';
 
 			try {
@@ -118,7 +127,7 @@ class MainWP_WordPress_SEO {
 			}
 		} elseif ( isset( $_POST['settings'] ) ) {
 			try {
-				$settings = base64_decode( $_POST['settings'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+				$settings = base64_decode( $_POST['settings'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 				$options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
 				if ( is_array( $options ) && array() !== $options ) {
 
@@ -152,8 +161,10 @@ class MainWP_WordPress_SEO {
 	 * Import SEO settings.
 	 *
 	 * @param $file settings.ini file to import.
-	 * @return bool Return TRUE on success.
-	 * @throws Exception Trow an exception and return error message.
+	 *
+	 * @throws \Exception Error message.
+	 *
+	 * @return bool Return true on success, false on failure.
 	 */
 	public function import_seo_settings( $file ) {
 		if ( ! empty( $file ) ) {
@@ -212,9 +223,10 @@ class MainWP_WordPress_SEO {
 	}
 
 	/**
-	 * Parse Column Score.
+	 * Parse the column score.
 	 *
-	 * @param $post_id Post ID.
+	 * @param int $post_id Post ID.
+	 *
 	 * @return string SEO Score.
 	 */
 	public function parse_column_score( $post_id ) {
@@ -237,8 +249,9 @@ class MainWP_WordPress_SEO {
 	/**
 	 * Parse readability score.
 	 *
-	 * @param $post_id Post ID.
-	 * @return string Redability Score.
+	 * @param int $post_id Post ID.
+	 *
+	 * @return string Redability score.
 	 */
 	public function parse_column_score_readability( $post_id ) {
 		$score = (int) WPSEO_Meta::get_value( 'content_score', $post_id );
@@ -248,10 +261,11 @@ class MainWP_WordPress_SEO {
 	}
 
 	/**
-	 * Render Score Rank.
+	 * Render score rank.
 	 *
-	 * @param $rank SEO Rank Score.
-	 * @param string              $title Rank title.
+	 * @param string $rank SEO Rank Score.
+	 * @param string $title Rank title.
+	 *
 	 * @return string Return SEO Score html.
 	 */
 	private function render_score_indicator( $rank, $title = '' ) {
