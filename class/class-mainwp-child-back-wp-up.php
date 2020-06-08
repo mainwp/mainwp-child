@@ -1257,6 +1257,8 @@ class MainWP_Child_Back_WP_Up {
 
 		if ( ! function_exists( 'add_screen_option' ) ) {
             /**
+             * Adds the WP Fake Screen option.
+             *
              * @param mixed $option Options.
              * @param array $args Arguments.
              */
@@ -1408,7 +1410,12 @@ class MainWP_Child_Back_WP_Up {
      * @return array Response array containing folder locations and size.
      */
     protected function get_job_files() {
-		// From BackWPup_JobType_File::get_exclude_dirs.
+        /**
+         * Taken from BackWPup_JobType_File::get_exclude_dirs.
+         *
+         * @param array $folder Folders to exclude.
+         * @return array Return folders list.
+         */
 		function mainwp_backwpup_get_exclude_dirs( $folder ) {
 			$folder            = trailingslashit( str_replace( '\\', '/', realpath( $folder ) ) );
 			$exclude_dir_array = array();
@@ -1940,17 +1947,11 @@ if ( ! class_exists( 'MainWP_Fake_Wp_Screen' ) ) {
      * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
      */
     class MainWP_Fake_Wp_Screen {
-        /**
-         * @var
-         */
+        /** @var string Action. */
         public $action;
-        /**
-         * @var
-         */
+        /** @var string Base url. */
         public $base;
-        /**
-         * @var
-         */
+        /** @var int ID*/
         public $id;
 	}
 }
