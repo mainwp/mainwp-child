@@ -221,7 +221,7 @@ class MainWP_Child_Users {
 				continue;
 			}
 
-			$user_query = new WP_User_Query(
+			$user_query = new \WP_User_Query(
 				array(
 					'search'         => $_POST['search'],
 					'fields'         => 'all_with_meta',
@@ -512,7 +512,7 @@ class MainWP_Child_Users {
 		}
 
 		if ( $send_password ) {
-			$user = new WP_User( $new_user_id );
+			$user = new \WP_User( $new_user_id );
 
 			$user_login = stripslashes( $user->user_login );
 			$user_email = stripslashes( $user->user_email );
