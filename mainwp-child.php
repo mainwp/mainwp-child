@@ -1,10 +1,5 @@
 <?php
 /**
- * MainWP Child Plugin
- *
- * Provides a secure connection between your MainWP Dashboard and your WordPress sites.
- */
-/**
  * Plugin Name: MainWP Child
  * Plugin URI: https://mainwp.com/
  * Description: Provides a secure connection between your MainWP Dashboard and your WordPress sites. MainWP allows you to manage WP sites from one central location. Plugin documentation and options can be found here https://mainwp.com/help/
@@ -12,13 +7,16 @@
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
  * Version: 4.0.7.1
+ *
+ * @package MainWP\Child
  */
+
 require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress.
 
 /**
  * Define MainWP Child Plugin Debug Mode. Default: true.
  */
-define( 'MAINWP_CHILD_DEBUG', false );
+define( 'MAINWP_CHILD_DEBUG', true );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 	/**
@@ -42,10 +40,9 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
 }
 
 /**
- * MainWP Child Plugin Autoloader to load
- *  all other class files.
+ * MainWP Child Plugin Autoloader to load all other class files.
  *
- * @param $class_name Name of file to load.
+ * @param string $class_name Name of the class to load.
  */
 function mainwp_child_autoload( $class_name ) {
 
