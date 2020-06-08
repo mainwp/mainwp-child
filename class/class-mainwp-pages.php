@@ -2,8 +2,9 @@
 /**
  * MainWP Child Plugin Pages
  *
- * This file handles all the pages & subpages for the
- *  MainWP Child Plugin.
+ * Manage the MainWP Child plugin pages.
+ *
+ * @package MainWP\Child
  */
 
 namespace MainWP\Child;
@@ -11,53 +12,63 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Pages
  *
- * @package MainWP\Child
+ * Manage the MainWP Child plugin pages.
  */
 class MainWP_Pages {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Install.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * @static
-	 * @var array MainWP Child Plugin subppages.
+	 * Public static variable containing the sub-pages array.
+	 *
+	 * @var array Subpages array.
 	 */
 	public static $subPages;
 
 	/**
-	 * Whether or not MainWP Child Plugin subpages should be loaded. Default: false.
+	 * Public statis variable to determine whether or not MainWP Child Plugin subpages should be loaded. Default: false.
 	 *
 	 * @var bool true|false.
 	 */
 	public static $subPagesLoaded = false;
 
 	/**
-	 * @var null Branding Title.
+	 * Public statis variable to contain custom branding title.
+	 *
+	 * @var string Branding title.
 	 */
 	public static $brandingTitle = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string Class name.
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
 	/**
-	 * MainWP_Pages constructor.
+	 * Method __construct()
+	 *
+	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
 	}
 
 	/**
-	 * Create public static instance of MainWP_Pages.
+	 * Method get_instance()
 	 *
-	 * @return MainWP_Pages|null
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -68,7 +79,7 @@ class MainWP_Pages {
 	}
 
 	/**
-	 * Set up constants with default values, unless user overrides.
+	 * Initiate actions and filters.
 	 */
 	public function init() {
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
@@ -79,11 +90,7 @@ class MainWP_Pages {
 
 
 	/**
-	 * MainWP Child Plugin Admin Notice
-	 *
-	 * This notice is displayed immediately after installation or disconnection.
-	 *
-	 * @return string Admin message html.
+	 * Show the Warning notice in case the site is not connected to MainWP Dashboard.
 	 */
 	public function admin_notice() {
 		// Admin Notice...
@@ -112,8 +119,6 @@ class MainWP_Pages {
 	}
 
 	/**
-	 * Admin menu settings.
-	 *
 	 * Add and remove Admin Menu Items dependant upon Branding settings.
 	 */
 	public function admin_menu() {
@@ -171,8 +176,8 @@ class MainWP_Pages {
 	/**
 	 * Initiate MainWP Child Plugin pages.
 	 *
-	 * @param $child_menu_title New MainWP Child Plugin title defined in branding settings.
-	 * @param $child_page_title New MainWP Child Plugin page title defined in branding settings.
+	 * @param string $child_menu_title New MainWP Child Plugin title defined in branding settings.
+	 * @param string $child_page_title New MainWP Child Plugin page title defined in branding settings.
 	 */
 	private function init_pages( $child_menu_title, $child_page_title ) {
 
@@ -236,8 +241,9 @@ class MainWP_Pages {
 	/**
 	 * MainWP Child Plugin meta data.
 	 *
-	 * @param $plugin_meta Plugin meta.
-	 * @param $plugin_file Plugin file.
+	 * @param array  $plugin_meta Plugin meta.
+	 * @param string $plugin_file Plugin file.
+	 *
 	 * @return mixed The filtered value after all hooked functions are applied to it.
 	 */
 	public function plugin_row_meta( $plugin_meta, $plugin_file ) {
@@ -251,8 +257,7 @@ class MainWP_Pages {
 	/**
 	 * Render MainWP Child Plugin pages.
 	 *
-	 * @param $shownPage Page that has been shown.
-	 * @return string Page html.
+	 * @param string $shownPage Page that has been shown.
 	 */
 	public function render_pages( $shownPage ) {
 		$shownPage = '';
@@ -323,9 +328,8 @@ class MainWP_Pages {
 	/**
 	 * Render page header.
 	 *
-	 * @param $shownPage Page shown.
-	 * @param bool                 $subpage Whether or not a subpage. Default: true.
-	 * @return string Header html.
+	 * @param string $shownPage Page shown.
+	 * @param bool   $subpage Whether or not a subpage. Default: true.
 	 */
 	public static function render_header( $shownPage, $subpage = true ) {
 		if ( isset( $_GET['tab'] ) ) {
@@ -484,8 +488,6 @@ class MainWP_Pages {
 
 	/**
 	 * Render page footer.
-	 *
-	 * @return string Footer html.
 	 */
 	public static function render_footer() {
 		?>
@@ -495,9 +497,7 @@ class MainWP_Pages {
 	}
 
 	/**
-	 * Render Admin Header.
-	 *
-	 * @return string Admin header html.
+	 * Render admin header.
 	 */
 	public function admin_head() {
 		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) {
@@ -528,9 +528,7 @@ class MainWP_Pages {
 	}
 
 	/**
-	 * Render Connection Settings Sub Page.
-	 *
-	 * @return Connection Settings subpage html.
+	 * Render connection settings sub page.
 	 */
 	public function render_settings() {
 		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( $_POST['nonce'], 'child-settings' ) ) {
