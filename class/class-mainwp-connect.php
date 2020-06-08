@@ -253,7 +253,7 @@ class MainWP_Connect {
 	 *
 	 * Check if the login process is required.
 	 *
-	 * @return bool Return true on success, false on failure. 
+	 * @return bool Return true on success, false on failure.
 	 */
 	public function parse_login_required() {
 
