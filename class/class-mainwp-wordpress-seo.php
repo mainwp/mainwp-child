@@ -160,7 +160,7 @@ class MainWP_WordPress_SEO {
 	/**
 	 * Import SEO settings.
 	 *
-	 * @param $file settings.ini file to import.
+	 * @param string $file settings.ini file to import.
 	 *
 	 * @throws \Exception Error message.
 	 *
