@@ -219,8 +219,8 @@ class MainWP_Client_Report_Base {
 	/**
 	 * Get the Stream excluded parameters.
 	 *
-	 * @param array $other_tokens An array containing other tokens.
 	 * @param array $sections     An array containing sections.
+	 * @param array $other_tokens An array containing other tokens.
 	 *
 	 * @return bool true|false
 	 */
@@ -406,6 +406,7 @@ class MainWP_Client_Report_Base {
 				// custom values.
 				if ( 'profiles' == $context ) {
 					if ( 'created' == $action || 'deleted' == $action ) {
+						$context = 'users';
 					}
 				}
 				switch ( $data ) {
@@ -421,6 +422,7 @@ class MainWP_Client_Report_Base {
 
 	/**
 	 * Get the other tokens count.
+	 *
 	 * @param object $records                     Object containng reports records.
 	 * @param string $connector                   Record connector.
 	 * @param string $context                     Record context.
