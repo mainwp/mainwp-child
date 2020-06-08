@@ -1,20 +1,21 @@
 <?php
 /**
  * MainWP Child Plugin Debug.
+ *
+ * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
 /**
  * Class MainWP_Debug
- *
- * @package MainWP\Child
  */
 class MainWP_Debug {
 
 	/**
 	 * Render MainWP Backup & test debugging output.
 	 *
-	 * @param $mainWPChild MainWP_Child Instance.
+	 * @param object $mainWPChild MainWP_Child class instance.
 	 */
 	public static function process( &$mainWPChild ) {
 		if ( ! isset( $_GET['mainwpdebug'] ) || ! defined( 'MAINWP_CHILD_DEBUG' ) || ( MAINWP_CHILD_DEBUG !== true ) ) {

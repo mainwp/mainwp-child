@@ -239,7 +239,7 @@ class MainWP_Connect {
 				$nossl_key = get_option( 'mainwp_child_nossl_key' );
 				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
 			} else {
-				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.				
+				$auth = openssl_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
 				if ( 1 !== $auth ) {
 					$auth = false;
 				}
@@ -253,7 +253,7 @@ class MainWP_Connect {
 	 *
 	 * Check if the login process is required.
 	 *
-	 * @return void
+	 * @return bool Return true on success, false on failure. 
 	 */
 	public function parse_login_required() {
 
@@ -329,7 +329,7 @@ class MainWP_Connect {
 	 *
 	 * Handle redirects.
 	 *
-	 * @return void
+	 * @return bool Returns false if $_REQUEST['fdl'] is set.
 	 */
 	private function check_redirects() {
 		if ( isset( $_REQUEST['fdl'] ) ) {
@@ -341,7 +341,7 @@ class MainWP_Connect {
 		}
 		// support for custom wp-admin slug.
 		if ( isset( $_REQUEST['open_location'] ) && ! empty( $_REQUEST['open_location'] ) ) {
-			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.			
+			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
 			$this->open_location_redirect( $open_location );
 		}
 		$this->where_redirect();
