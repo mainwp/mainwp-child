@@ -1,20 +1,40 @@
 <?php
+/**
+ * MainWP Client Reports Base
+ *
+ * MainWP Client Reprots Extension handler.
+ * Extension URL: https://mainwp.com/extension/client-reports/
+ *
+ * @package MainWP\Child
+ */
 
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Client_Report_Base
+ *
+ * MainWP Client Reports extension handler, extened by the MainWP_Client_Report class.
+ */
 class MainWP_Client_Report_Base {
 
 	public static $instance = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -22,9 +42,15 @@ class MainWP_Client_Report_Base {
 		return self::$instance;
 	}
 
+	/**
+	 * Convert context name of tokens to context name saved in child reports.
+	 *
+	 * @param string $context Context name to be converted.
+	 *
+	 * @return string $context Converted context name.
+	 */
 	public function get_compatible_context( $context ) {
-		// convert context name of tokens to context name saved in child report.
-		// some context are not difference.
+		// some context are not different.
 		$mapping_contexts = array(
 			'comment'     => 'comments', // actual context values: post, page.
 			'plugin'      => 'plugins',
@@ -49,9 +75,17 @@ class MainWP_Client_Report_Base {
 		);
 
 		$context = isset( $mapping_contexts[ $context ] ) ? $mapping_contexts[ $context ] : $context;
+
 		return strtolower( $context );
 	}
 
+	/**
+	 * Get connector by compatible context.
+	 *
+	 * @param string $context Context name as reference.
+	 *
+	 * @return string $connector Required connector.
+	 */
 	public function get_connector_by_compatible_context( $context ) {
 
 		$connector = '';
@@ -59,7 +93,7 @@ class MainWP_Client_Report_Base {
 		$mapping_connectors = array(
 			'plugins'            => 'installer',
 			'themes'             => 'installer',
-			'wordpress'          => 'installer', // phpcs:ignore -- lowercase characters.
+			'wordpress'          => 'installer', // phpcs:ignore -- wordpress -> WordPress.
 			'profiles'           => 'users',
 			'comments'           => 'comments',
 			'settings'           => 'settings',
@@ -81,6 +115,14 @@ class MainWP_Client_Report_Base {
 		return $connector;
 	}
 
+	/**
+	 * Get compatible action by context.
+	 *
+	 * @param string $action  Action name as reference.
+	 * @param string $context Context name as reference.
+	 *
+	 * @return string $action Compatible action.
+	 */
 	public function get_compatible_action( $action, $context = '' ) {
 
 		$mapping_actions = array(
@@ -108,6 +150,14 @@ class MainWP_Client_Report_Base {
 		return $action;
 	}
 
+	/**
+	 * Get the Stream parameters.
+	 *
+	 * @param array $other_tokens An array containing other tokens.
+	 * @param array $sections     An array containing sections.
+	 *
+	 * @return array Arguments array.
+	 */
 	public function get_stream_get_params( $other_tokens, $sections ) {
 
 		$allowed_params = array(
@@ -150,11 +200,11 @@ class MainWP_Client_Report_Base {
 		$args['with-meta'] = 1;
 
 		if ( isset( $args['date_from'] ) ) {
-			$args['date_from'] = date( 'Y-m-d', $args['date_from'] ); // phpcs:ignore -- local time.
+			$args['date_from'] = date( 'Y-m-d', $args['date_from'] ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		}
 
 		if ( isset( $args['date_to'] ) ) {
-			$args['date_to'] = date( 'Y-m-d', $args['date_to'] ); // phpcs:ignore -- local time.
+			$args['date_to'] = date( 'Y-m-d', $args['date_to'] ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		}
 
 		if ( MainWP_Child_Branding::instance()->is_branding() ) {
@@ -166,6 +216,14 @@ class MainWP_Client_Report_Base {
 		return $args;
 	}
 
+	/**
+	 * Get the Stream excluded parameters.
+	 *
+	 * @param array $sections     An array containing sections.
+	 * @param array $other_tokens An array containing other tokens.
+	 *
+	 * @return bool true|false
+	 */
 	private function get_stream_get_not_in_params( $sections, $other_tokens ) {
 
 		$exclude_connector_posts = true;
@@ -203,6 +261,15 @@ class MainWP_Client_Report_Base {
 		return $exclude_connector_posts;
 	}
 
+	/**
+	 * Get the Stream other tokens.
+	 *
+	 * @param array $records      An array containg actions records.
+	 * @param array $other_tokens An array containing other tokens.
+	 * @param array $skip_records An array containing skipped records.
+	 *
+	 * @return array Other tokens data.
+	 */
 	public function get_stream_others_tokens( $records, $other_tokens, $skip_records ) {
 		$other_tokens_data = array();
 		$parts             = array( 'header', 'body', 'footer' );
@@ -214,6 +281,15 @@ class MainWP_Client_Report_Base {
 		return $other_tokens_data;
 	}
 
+	/**
+	 * Get the Stream sections data.
+	 *
+	 * @param array $records      An array containg actions records.
+	 * @param array $sections     An array containing sections.
+	 * @param array $skip_records An array containing skipped records.
+	 *
+	 * @return array Sections data.
+	 */
 	public function get_stream_sections_data( $records, $sections, $skip_records ) {
 		$sections_data = array();
 		$parts         = array( 'header', 'body', 'footer' );
@@ -228,6 +304,12 @@ class MainWP_Client_Report_Base {
 		return $sections_data;
 	}
 
+	/**
+	 * Fix logging for posts creation action.
+	 *
+	 * @param array $records An array containg actions records.
+	 * @param array $skip_records An array containg records to skip.
+	 */
 	protected function fix_logs_posts_created( &$records, &$skip_records ) {
 
 		$args = array(
@@ -250,7 +332,7 @@ class MainWP_Client_Report_Base {
 				$record = $records[ $i ];
 				if ( 'posts' == $record->connector && 'post' == $record->context && 'created' == $record->action ) {
 					if ( ! in_array( $record->ID, $skip_records ) ) {
-						$skip_records[] = $record->ID; // so avoid this created logging, will use logging query from posts data.
+						$skip_records[] = $record->ID;
 					}
 				}
 			}
@@ -282,6 +364,15 @@ class MainWP_Client_Report_Base {
 		}
 	}
 
+	/**
+	 * Get the other tokens data.
+	 *
+	 * @param array $records      An array containg actions records.
+	 * @param array $tokens       An array containg the tokens list.
+	 * @param array $skip_records An array containg records to skip.
+	 *
+	 * @return array An array containg the tokens values.
+	 */
 	public function get_other_tokens_data( $records, $tokens, &$skip_records ) {
 
 		$token_values = array();
@@ -315,7 +406,7 @@ class MainWP_Client_Report_Base {
 				// custom values.
 				if ( 'profiles' == $context ) {
 					if ( 'created' == $action || 'deleted' == $action ) {
-						$context = 'users'; // see class-connector-user.php.
+						$context = 'users';
 					}
 				}
 				switch ( $data ) {
@@ -329,7 +420,19 @@ class MainWP_Client_Report_Base {
 		return $token_values;
 	}
 
-	private function get_other_tokens_count( $records, $connector, $context, $action, &$skip_records, &$backups_created_time_to_fix ) { // phpcs:ignore -- ignore complex method notice.
+	/**
+	 * Get the other tokens count.
+	 *
+	 * @param object $records                     Object containng reports records.
+	 * @param string $connector                   Record connector.
+	 * @param string $context                     Record context.
+	 * @param string $action                      Record action.
+	 * @param array  $skip_records                Records to skip.
+	 * @param array  $backups_created_time_to_fix Backups created time.
+	 *
+	 * @return int The count number.
+	 */
+	private function get_other_tokens_count( $records, $connector, $context, $action, &$skip_records, &$backups_created_time_to_fix ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$count = 0;
 
 		foreach ( $records as $record ) {
@@ -424,6 +527,16 @@ class MainWP_Client_Report_Base {
 		return $count;
 	}
 
+	/**
+	 * Get the section loop data.
+	 *
+	 * @param object $records      Object containng reports records.
+	 * @param array  $tokens       An array containing report tokens.
+	 * @param string $section      Section name.
+	 * @param array  $skip_records Records to skip.
+	 *
+	 * @return array Section loop records.
+	 */
 	public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
 		$context = '';
@@ -449,14 +562,26 @@ class MainWP_Client_Report_Base {
 
 		if ( 'profiles' == $context ) {
 			if ( 'created' == $action || 'deleted' == $action ) {
-				$context = 'users'; // see class-connector-user.php.
+				$context = 'users';
 			}
 		}
 
 		return $this->get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records );
 	}
 
-	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {  // phpcs:ignore -- ignore complex method notice.
+	/**
+	 * Get the section loop records.
+	 *
+	 * @param object $records      Object containng reports records.
+	 * @param array  $tokens       An array containing report tokens.
+	 * @param string $connector    Record connector.
+	 * @param string $context      Record context.
+	 * @param string $action       Record action.
+	 * @param array  $skip_records Records to skip.
+	 *
+	 * @return array Loops.
+	 */
+	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		$loops      = array();
 		$loop_count = 0;
@@ -528,6 +653,13 @@ class MainWP_Client_Report_Base {
 		return $loops;
 	}
 
+	/**
+	 * Check if it's backup action.
+	 *
+	 * @param string $action Record action.
+	 *
+	 * @return bool If backup action, return trie, if not, false.
+	 */
 	public function is_backup_action( $action ) {
 		if ( in_array( $action, array( 'mainwp_backup', 'backupbuddy_backup', 'backupwordpress_backup', 'backwpup_backup', 'updraftplus_backup', 'wptimecapsule_backup', 'wpvivid_backup' ) ) ) {
 			return true;
@@ -535,6 +667,15 @@ class MainWP_Client_Report_Base {
 		return false;
 	}
 
+	/**
+	 * Get the section loop token values.
+	 *
+	 * @param object $record  Object containing the record data.
+	 * @param string $context Record context.
+	 * @param array  $tokens  An array containg the report tokens.
+	 *
+	 * @return array Toeken values.
+	 */
 	private function get_section_loop_token_values( $record, $context, $tokens ) {
 
 		$token_values = array();
@@ -557,7 +698,7 @@ class MainWP_Client_Report_Base {
 				if ( 'version' === $data ) {
 					if ( 'old' === $str2 ) {
 						$data = 'old_version';
-					} elseif ( 'current' === $str2 && 'wordpress' === $str1 ) { // phpcs:ignore -- lowercase characters.
+					} elseif ( 'current' === $str2 && 'wordpress' === $str1 ) { // phpcs:ignore -- wordpress -> WordPress.
 						$data = 'new_version';
 					}
 				}
@@ -572,14 +713,24 @@ class MainWP_Client_Report_Base {
 			$token_values[ $token ] = $tok_value;
 
 			if ( empty( $tok_value ) ) {
-				$msg = 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true );  // phpcs:ignore -- debug mode only.
+				$msg = 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true );  // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 				MainWP_Helper::log_debug( $msg );
 			}
 		}
 		return $token_values;
 	}
 
-	public function get_section_token_value( $record, $data, $context, $token ) {  // phpcs:ignore -- ignore complex method notice.
+	/**
+	 * Get the section token value.
+	 *
+	 * @param object $record  Object containing the record data.
+	 * @param string $data    Data to process.
+	 * @param string $context Record context.
+	 * @param string $token   Requested token.
+	 *
+	 * @return array Token value.
+	 */
+	public function get_section_token_value( $record, $data, $context, $token ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$tok_value = '';
 		switch ( $data ) {
 			case 'ID':
@@ -650,6 +801,14 @@ class MainWP_Client_Report_Base {
 		return $tok_value;
 	}
 
+	/**
+	 * Get the Stream meta data for a certain record.
+	 *
+	 * @param object $record Object containing the record data.
+	 * @param string $data   Data to process.
+	 *
+	 * @return string Return the meta data value.
+	 */
 	public function get_stream_meta_data( $record, $data ) {
 
 		if ( empty( $record ) ) {
@@ -688,6 +847,16 @@ class MainWP_Client_Report_Base {
 		return $value;
 	}
 
+	/**
+	 * Get the author data token value.
+	 *
+	 * @param object $record    Object containing the record data.
+	 * @param string $connector Record connector.
+	 * @param string $context   Record context.
+	 * @param string $data      Data to process.
+	 *
+	 * @return string Author data token value.
+	 */
 	private function get_author_data_token_value( $record, $connector, $context, $data ) {
 		if ( 'comment' == $connector ) {
 			$data = 'user_name';
@@ -708,6 +877,15 @@ class MainWP_Client_Report_Base {
 		return $value;
 	}
 
+	/**
+	 * Get the result data token value.
+	 *
+	 * @param object $record  Object containing the record data.
+	 * @param string $context Record context.
+	 * @param string $data    Data to process.
+	 *
+	 * @return string Result data token value.
+	 */
 	private function get_result_data_token_value( $record, $context, $data ) {
 		if ( 'mainwp_maintenance' === $context && 'details' == $data ) {
 			$tok_value = $this->get_mainwp_maintenance_token_value( $record, $data );
@@ -729,11 +907,19 @@ class MainWP_Client_Report_Base {
 		return $tok_value;
 	}
 
+	/**
+	 * Get the Sucuri scan token value.
+	 *
+	 * @param object $record Object containing the record data.
+	 * @param string $data   Data to process.
+	 *
+	 * @return string Sucuri scan token value.
+	 */
 	private function get_sucuri_scan_token_value( $record, $data ) {
 		$tok_value = '';
 		$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
 		if ( ! empty( $scan_data ) ) {
-			$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 			if ( is_array( $scan_data ) ) {
 
 				$blacklisted    = $scan_data['blacklisted'];
@@ -757,6 +943,14 @@ class MainWP_Client_Report_Base {
 		return $tok_value;
 	}
 
+	/**
+	 * Get the Maintanence token value.
+	 *
+	 * @param object $record Object containing the record data.
+	 * @param string $data   Data to process.
+	 *
+	 * @return string Maintanence token value.
+	 */
 	private function get_mainwp_maintenance_token_value( $record, $data ) {
 
 		$maintenance_details = array(

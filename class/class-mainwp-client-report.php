@@ -1,26 +1,36 @@
 <?php
 /**
  * MainWP Client Report
+ *
+ * MainWP Client Reports extension handler.
+ *
+ * @link https://mainwp.com/extension/client-reports/
+ *
+ * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
 /**
  * Class MainWP_Client_Report
  *
- * @package MainWP\Child
+ * MainWP Client Reports extension handler.
  */
 class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Client_Report.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
@@ -252,10 +262,11 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	}
 
 	/**
-	 * Hide update notice.
+	 * Hide the MainWP Child Reports plugin update notice.
 	 *
-	 * @param $slugs Slugs to hide.
-	 * @return array Slugs array.
+	 * @param array $slugs An array containing slugs to hide.
+	 *
+	 * @return array Updated array containing slugs to hide.
 	 */
 	public function hide_update_notice( $slugs ) {
 
@@ -267,6 +278,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * Remove update nag.
 	 *
 	 * @param string $value Value to remove.
+	 *
 	 * @return string Response.
 	 */
 	public function remove_update_nag( $value ) {

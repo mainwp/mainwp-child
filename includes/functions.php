@@ -24,7 +24,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 				 *
 				 * @since 2.0.3
 				 *
-				 * @param string     $nonce Nonce that was used in the form to verify
+				 * @param string     $nonce Nonce that was used in the form to verify.
 				 * @param string|int $action Should give context to what is taking place and be the same when nonce was created.
 				 *
 				 * @return false|int False if the nonce is invalid, 1 if the nonce is valid and generated between

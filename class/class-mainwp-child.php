@@ -118,7 +118,6 @@ class MainWP_Child {
 	 */
 	public function load_all_options() {
 
-		/** @var global $wbdb wpdb. */
 		global $wpdb;
 
 		if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {

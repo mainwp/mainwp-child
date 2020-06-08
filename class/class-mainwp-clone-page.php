@@ -1,6 +1,12 @@
 <?php
 /**
  * MainWP Clone Page.
+ *
+ * MainWP Clone extension handler.
+ *
+ * @link https://mainwp.com/extension/clone/
+ *
+ * @package MainWP\Child
  */
 
 namespace MainWP\Child;
@@ -8,20 +14,23 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Clone_Page
  *
- * @package MainWP\Child
+ * MainWP Clone extension handler.
  */
 class MainWP_Clone_Page {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Clone_Page.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * Get Class Name.
+	 * Method get_class_name()
 	 *
-	 * @return string
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
@@ -293,9 +302,9 @@ class MainWP_Clone_Page {
 	/**
 	 * Credit
 	 *
-	 * Plugin-Name: Add From Server
+	 * Plugin Name: Add From Server
 	 * Version: 3.2.0.3
-	 * Plugin-URI: http://dd32.id.au/wordpress-plugins/add-from-server/
+	 * Plugin URI: http://dd32.id.au/wordpress-plugins/add-from-server/
 	 * Description: Plugin to allow the Media Manager to add files from the webservers filesystem. <strong>Note:</strong> All files are copied to the uploads directory.
 	 * Author: Dion Hulse
 	 * Author URI: http://dd32.id.au/
@@ -386,7 +395,8 @@ class MainWP_Clone_Page {
 	/**
 	 * Render clone from server form.
 	 *
-	 * @param string $current_dir Current parent directory
+	 * @param string $current_dir Current parent directory.
+	 *
 	 * @param string $url URL of file to upload.
 	 */
 	private static function render_clone_from_server_form( $current_dir, $url ) {
