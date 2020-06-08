@@ -7,6 +7,7 @@
  * @link https://mainwp.com/extension/custom-post-type/
  * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
 /**
