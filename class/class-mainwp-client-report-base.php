@@ -421,6 +421,7 @@ class MainWP_Client_Report_Base {
 
 	/**
 	 * Get the other tokens count.
+	 *
 	 * @param object $records                     Object containng reports records.
 	 * @param string $connector                   Record connector.
 	 * @param string $context                     Record context.
