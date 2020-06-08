@@ -1,5 +1,9 @@
 <?php
 /**
+ * MainWP Child BackWP UP
+ *
+ * This file handles specific action for the MainWP BackWPup Extension.
+ *
  * Credits
  *
  * Plugin-Name: BackWPup
@@ -19,18 +23,46 @@ use MainWP\Child\MainWP_Helper;
 use MainWP\Child\MainWP_Utility;
 
 if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
-	define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
+    /**
+     * Defines MainWP BackWPup Development constant at runtime. Default: False.
+     */
+    define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
 }
 
+/**
+ * Class MainWP_Child_Back_WP_Up
+ */
 class MainWP_Child_Back_WP_Up {
-	public $is_backwpup_installed = false;
-	public $is_backwpup_pro       = false;
-	public $plugin_translate      = 'mainwp-backwpup-extension';
-	public static $instance       = null;
-	protected $software_version   = '0.1';
-	public static $information    = array();
 
-	protected $exclusions = array(
+    /**
+     * @var bool Whether or not BackWPup plugin is installed. Default: false.
+     */
+    public $is_backwpup_installed = false;
+
+    /**
+     * @var bool Whether or not BackWPup is Pro version. Default: false.
+     */
+    public $is_backwpup_pro = false;
+
+    /**
+     * @var string Plugin slug translation string.
+     */
+    public $plugin_translate = 'mainwp-backwpup-extension';
+
+    /**
+     * @static
+     * @var null Holds the Public static instance of MainWP_Child_Back_WP_Up
+     */
+    public static $instance = null;
+
+    /** @var string Software version. */
+    protected $software_version = '0.1';
+
+    /** @var array Returned response array for MainWP BackWPup Extension actions. */
+    public static $information = array();
+
+    /** @var string[][] backwpup_cfg variables. */
+    protected $exclusions = array(
 		'cron'           => array(
 			'cronminutes',
 			'cronhours',
@@ -59,7 +91,12 @@ class MainWP_Child_Back_WP_Up {
 		'dest-GLACIER'   => array( 'glaciersecretkey' ),
 	);
 
-	public static function instance() {
+    /**
+     * Create a public static instance of MainWP_Child_Back_WP_Up.
+     *
+     * @return MainWP_Child_Back_WP_Up|null
+     */
+    public static function instance() {
 		if ( null == self::$instance ) {
 			self::$instance = new self();
 		}
@@ -67,7 +104,17 @@ class MainWP_Child_Back_WP_Up {
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_Back_WP_Up constructor.
+     *
+     * @uses MainWP_Helper::check_files_exists()
+     * @uses MainWP_Helper::check_classes_exists()
+     * @uses MainWP_Helper::check_methods()
+     * @uses \BackWPup::get_instance()
+     * @uses \Exception
+     */
+    public function __construct() {
+
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 		try {
@@ -105,9 +152,17 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	function mainwp_backwpup_handle_fatal_error() {
+    /**
+     * MainWP BackWPup fatal error handler.
+     *
+     * @uses MainWP_Child_Back_WP_Up::$information
+     * @uses MainWP_Helper::write()
+     */
+    function mainwp_backwpup_handle_fatal_error() {
+
 		$error = error_get_last();
 		$info  = self::$information;
+
 		if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
 			MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
 		} elseif ( ! empty( $info ) ) {
@@ -117,7 +172,29 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	public function action() {
+    /**
+     * MainWP BackWPup Extension actions.
+     *
+     * @uses MainWP_Child_Back_WP_Up::update_settings()
+     * @uses MainWP_Child_Back_WP_Up::insert_or_update_jobs()
+     * @uses MainWP_Child_Back_WP_Up::insert_or_update_jobs_global()
+     * @uses MainWP_Child_Back_WP_Up::get_child_tables()
+     * @uses MainWP_Child_Back_WP_Up::get_job_files()
+     * @uses MainWP_Child_Back_WP_Up::destination_email_check_email()
+     * @uses MainWP_Child_Back_WP_Up::backup_now()
+     * @uses MainWP_Child_Back_WP_Up::ajax_working()
+     * @uses MainWP_Child_Back_WP_Up::backup_abort()
+     * @uses MainWP_Child_Back_WP_Up::tables()
+     * @uses MainWP_Child_Back_WP_Up::view_log()
+     * @uses MainWP_Child_Back_WP_Up::delete_log()
+     * @uses MainWP_Child_Back_WP_Up::delete_job()
+     * @uses MainWP_Child_Back_WP_Up::delete_backup()
+     * @uses MainWP_Child_Back_WP_Up::wizard_system_scan()
+     * @uses MainWP_Child_Back_WP_Up::is_backwpup_pro()
+     * @uses MainWP_Child_Back_WP_Up::show_hide()
+     * @uses MainWP_Child_Back_WP_Up::$information
+     */
+    public function action() {
 		if ( ! $this->is_backwpup_installed ) {
 			MainWP_Helper::write( array( 'error' => __( 'Please install BackWPup plugin on child website', 'mainwp-child' ) ) );
 			return;
@@ -212,7 +289,10 @@ class MainWP_Child_Back_WP_Up {
 		exit();
 	}
 
-	public function init() {
+    /**
+     * MainWP BackWPup Extension initiation.
+     */
+    public function init() {
 
 		if ( ! $this->is_backwpup_installed ) {
 			return;
@@ -226,7 +306,12 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	public function do_site_stats() {
+    /**
+     * Record BackWPup MainWP Child Reports log.
+     *
+     * @uses MainWP_Child_Back_WP_Up::do_reports_log()
+     */
+    public function do_site_stats() {
 		if ( has_action( 'mainwp_child_reports_log' ) ) {
 			do_action( 'mainwp_child_reports_log', 'backwpup' );
 		} else {
@@ -234,7 +319,20 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	public function do_reports_log( $ext = '' ) {
+    /**
+     * Create BackWPup MainWP Client Reports log.
+     *
+     * @uses MainWP_Child_Back_WP_Up::is_backwpup_installed()
+     * @uses MainWP_Helper::check_classes_exists()
+     * @uses MainWP_Helper::check_methods()
+     * @uses \BackWPup_File::get_absolute_path()
+     * @uses \BackWPup_Job::read_logheader()
+     * @uses MainWP_Utility::update_lasttime_backup()
+     * @uses \Exception
+     *
+     * @param string $ext Extension to create log for.
+     */
+    public function do_reports_log($ext = '' ) {
 		if ( 'backwpup' !== $ext ) {
 			return;
 		}
@@ -325,7 +423,14 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	public function sync_others_data( $information, $data = array() ) {
+    /**
+     * Sync other data from $data[] and merge with $information[]
+     *
+     * @param array $information Returned response array for MainWP BackWPup Extension actions.
+     * @param array $data Other data to sync to $information array.
+     * @return array $information Returned information array with both sets of data.
+     */
+    public function sync_others_data($information, $data = array() ) {
 		if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
 			try {
 				$lastbackup                      = MainWP_Utility::get_lasttime_backup( 'backwpup' );
@@ -339,7 +444,21 @@ class MainWP_Child_Back_WP_Up {
 		return $information;
 	}
 
-	public function get_destinations_list() {
+    /**
+     * Get backup destinations list.
+     *
+     * @uses MainWP_Helper::check_classes_exists()
+     * @uses MainWP_Helper::check_methods()
+     * @uses \BackWPup_Option::get_job_ids()
+     * @uses \BackWPup::get_registered_destinations()
+     * @uses \BackWPup_Option::get()
+     * @uses \BackWPup::get_destination()
+     * @uses \BackWPup::get_destination::file_get_list()
+     *
+     * @return array $jobdest Backup destination list.
+     * @throws Exception Error Message.
+     */
+    public function get_destinations_list() {
 		MainWP_Helper::check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
 		MainWP_Helper::check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
 		MainWP_Helper::check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
@@ -370,7 +489,13 @@ class MainWP_Child_Back_WP_Up {
 		return $jobdest;
 	}
 
-	public function all_plugins( $plugins ) {
+    /**
+     * Hide BackWPup Plugin from the WordPress Installed plugin list.
+     *
+     * @param array $plugins Installed plugins.
+     * @return array $plugins Installed plugins without BackWPup Plugin on the list.
+     */
+    public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
 			if ( 'backwpup' === $plugin_slug ) {
@@ -381,15 +506,23 @@ class MainWP_Child_Back_WP_Up {
 		return $plugins;
 	}
 
-	public function remove_menu() {
+    /**
+     * Remove BackWPup Plugin from the WordPress Admin.
+     */
+    public function remove_menu() {
+
+        /** global $submenu WordPress Sub Menu global variable.  */
 		global $submenu;
 
+		// Remove the WordPress Admin SubMenu.
 		if ( isset( $submenu['backwpup'] ) ) {
 			unset( $submenu['backwpup'] );
 		}
 
+		// Remove the WordPress Admin Page.
 		remove_menu_page( 'backwpup' );
 
+		// Create a WP Safe Redirect for the page URL.
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=backwpup' );
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
@@ -397,7 +530,14 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	protected function show_hide() {
+    /**
+     * Show/Hide BackWPup Plugin.
+     *
+     * @uses MainWP_Helper::instance()::update_option()
+     *
+     * @return int[]|string Return 1 on HIDE, Empty string on SHOW.
+     */
+    protected function show_hide() {
 
 		$hide = isset( $_POST['show_hide'] ) && ( '1' === $_POST['show_hide'] ) ? 'hide' : '';
 
@@ -406,8 +546,15 @@ class MainWP_Child_Back_WP_Up {
 		return array( 'success' => 1 );
 	}
 
-	protected function information() {
+    /**
+     * Build the MainWP BackWPup Page Settings.
+     * @return array $output Returned information array.
+     */
+    protected function information() {
+
+        /** @global $wpdb wpdb */
 		global $wpdb;
+
 		// Copied from BackWPup_Page_Settings.
 		ob_start();
 		echo '<table class="wp-list-table widefat fixed" cellspacing="0" style="width: 85%;margin-left:auto;;margin-right:auto;">';
@@ -536,7 +683,14 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function delete_log() {
+    /**
+     * Delete BackWPup Log.
+     *
+     * @uses \BackWPup_File::get_absolute_path()
+     *
+     * @return int[]|string[] On success return success[1] & error[] message on failure.
+     */
+    protected function delete_log() {
 		if ( ! isset( $_POST['settings']['logfile'] ) || ! is_array( $_POST['settings']['logfile'] ) ) {
 			return array( 'error' => __( 'Missing logfile.', 'mainwp-child' ) );
 		}
@@ -561,7 +715,14 @@ class MainWP_Child_Back_WP_Up {
 		return array( 'success' => 1 );
 	}
 
-	protected function delete_job() {
+    /**
+     * Delete backup job.
+     *
+     * @uses \BackWPup_Option::delete_job()
+     *
+     * @return array|int[]|string[] On success return success[1] & error['message'] on failure.
+     */
+    protected function delete_job() {
 		if ( ! isset( $_POST['job_id'] ) ) {
 			return array( 'error' => __( 'Missing job_id.', 'mainwp-child' ) );
 		}
@@ -576,7 +737,16 @@ class MainWP_Child_Back_WP_Up {
 		return array( 'success' => 1 );
 	}
 
-	protected function delete_backup() {
+    /**
+     * Delete backup.
+     *
+     * @uses \BackWPup::get_destination()
+     * @uses \BackWPup::get_destination::file_get_list()
+     * @uses \BackWPup::get_destination::file_delete()
+     *
+     * @return array|int[]|string[] On success return success[1] response['DELETED'] & error['message'] on failure.
+     */
+    protected function delete_backup() {
 		if ( ! isset( $_POST['settings']['backupfile'] ) ) {
 			return array( 'error' => __( 'Missing backupfile.', 'mainwp-child' ) );
 		}
@@ -615,7 +785,12 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function view_log() {
+    /**
+     * View BackWPup log.
+     *
+     * @return array|int[]|string[] On success return $output[] & error['message'] on failure.
+     */
+    protected function view_log() {
 		if ( ! isset( $_POST['settings']['logfile'] ) ) {
 			return array( 'error' => __( 'Missing logfile.', 'mainwp-child' ) );
 		}
@@ -648,7 +823,22 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function tables() {
+    /**
+     * Build Tables.
+     *
+     * @uses MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     * @uses \BackWPup_File::get_absolute_path()
+     * @uses \BackWPup_Page_Logs()
+     * @uses \BackWPup_Page_Backups()
+     * @uses \BackWPup_Option::get_job_ids()
+     * @uses \BackWPup_Option::get()
+     * @uses \BackWPup::get_destination()
+     * @uses \BackWPup::get_destination::file_get_list()
+     * @uses \Option::get()
+     *
+     * @return array Return table array or error['message'] on failure.
+     */
+    protected function tables() {
 		if ( ! isset( $_POST['settings']['type'] ) ) {
 			return array( 'error' => __( 'Missing type.', 'mainwp-child' ) );
 		}
@@ -800,7 +990,10 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	public function init_download_backup() {
+    /**
+     * Initiate download link.
+     */
+    public function init_download_backup() {
 		if ( ! isset( $_GET['page'] ) || 'backwpupbackups' !== $_GET['page'] || ! isset( $_GET['download_click_id'] ) || empty( $_GET['download_click_id'] ) ) {
 			return;
 		}
@@ -816,7 +1009,14 @@ class MainWP_Child_Back_WP_Up {
 		<?php
 	}
 
-	public function download_backup() {
+    /**
+     * Download backup.
+     *
+     * @uses MainWP_Child_Back_WP_Up::verify_nonce_without_session()
+     * @uses \BackWPup::get_destination()
+     * @uses \BackWPup::get_destination::file_download()
+     */
+    public function download_backup() {
 		if ( ! isset( $_GET['type'] ) || empty( $_GET['type'] ) || ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {
 			die( '-1' );
 		}
@@ -844,7 +1044,14 @@ class MainWP_Child_Back_WP_Up {
 		die();
 	}
 
-	protected function create_nonce_without_session( $action = - 1 ) {
+    /**
+     * Create security nounce without session.
+     *
+     * @param int $action Action performing.
+     *
+     * @return string|false Return nonce or FALSE on failure.
+     */
+    protected function create_nonce_without_session( $action = - 1 ) {
 		$user = wp_get_current_user();
 		$uid  = (int) $user->ID;
 		if ( ! $uid ) {
@@ -856,7 +1063,15 @@ class MainWP_Child_Back_WP_Up {
 		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
 	}
 
-	protected function verify_nonce_without_session( $nonce, $action = - 1 ) {
+    /**
+     * Verify nonce without session.
+     *
+     * @param string $nonce Nonce to verify.
+     * @param int $action Action to perform.
+     *
+     * @return bool|int FALSE on failure. 1 or 2 on success.
+     */
+    protected function verify_nonce_without_session($nonce, $action = - 1 ) {
 		$nonce = (string) $nonce;
 		$user  = wp_get_current_user();
 		$uid   = (int) $user->ID;
@@ -883,7 +1098,15 @@ class MainWP_Child_Back_WP_Up {
 		return false;
 	}
 
-	protected function ajax_working() {
+    /**
+     * BackWPup Ajax Working.
+     *
+     * @uses MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     * @uses \BackWPup_Page_Jobs::ajax_working()
+     *
+     * @return array Return success array[ success, response ]
+     */
+    protected function ajax_working() {
 
 		if ( ! isset( $_POST['settings'] ) || ! is_array( $_POST['settings'] ) || ! isset( $_POST['settings']['logfile'] ) || ! isset( $_POST['settings']['logpos'] ) ) {
 			return array( 'error' => __( 'Missing logfile or logpos.', 'mainwp-child' ) );
@@ -895,6 +1118,12 @@ class MainWP_Child_Back_WP_Up {
 
 		$this->wp_list_table_dependency();
 
+        /**
+         * MainWP BackWPup WP Die ajax handler.
+         *
+         * @param string $message Error message container.
+         * @return string Error message.
+         */
 		function mainwp_backwpup_wp_die_ajax_handler( $message ) {
 			return 'mainwp_backwpup_wp_die_ajax_handler';
 		}
@@ -920,7 +1149,17 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function backup_now() {
+    /**
+     * Backup now.
+     *
+     * @uses MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     * @uses MainWP_Child_Back_WP_Up::check_backwpup_messages()
+     * @uses \BackWPup_Page_Jobs::load()
+     * @uses \BackWPup_Job::get_working_data()
+     *
+     * @return array Response array[ success, response, logfile ] or array[ error ]
+     */
+    protected function backup_now() {
 
 		if ( ! isset( $_POST['settings']['job_id'] ) ) {
 			return array( 'error' => __( 'Missing job_id', 'mainwp-child' ) );
@@ -961,7 +1200,16 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	protected function backup_abort() {
+    /**
+     * Abort backup.
+     *
+     * @uses MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     * @uses MainWP_Child_Back_WP_Up::check_backwpup_messages()
+     * @uses \BackWPup_Page_Jobs::load()
+     *
+     * @return array|string[] Return array or error[message] on failure.
+     */
+    protected function backup_abort() {
 		$_REQUEST['action']   = 'abort';
 		$_REQUEST['_wpnonce'] = wp_create_nonce( 'abort-job' );
 
@@ -985,15 +1233,33 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	protected function wp_list_table_dependency() {
+    /**
+     * WordPress list table dependency.
+     *
+     * @uses MainWP_Child_Back_WP_Up::MainWP_Fake_Wp_Screen()
+     */
+    protected function wp_list_table_dependency() {
 		if ( ! function_exists( 'convert_to_screen' ) ) {
-			// We need this because BackWPup_Page_Jobs extends WP_List_Table which uses convert_to_screen.
+
+            /**
+             * Convert to screen
+             *
+             * We need this because BackWPup_Page_Jobs extends WP_List_Table
+             *  which uses convert_to_screen.
+             *
+             * @param $hook_name Hook name.
+             * @return MainWP_Fake_Wp_Screen
+             */
 			function convert_to_screen( $hook_name ) {
 				return new MainWP_Fake_Wp_Screen();
 			}
 		}
 
 		if ( ! function_exists( 'add_screen_option' ) ) {
+            /**
+             * @param mixed $option Options.
+             * @param array $args Arguments.
+             */
 			function add_screen_option( $option, $args = array() ) {
 			}
 		}
@@ -1003,7 +1269,14 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	protected function wizard_system_scan() {
+    /**
+     * Wizard system scan.
+     *
+     * @uses \BackWPup_Pro_Wizard_SystemTest()
+     *
+     * @return array|string[] Return array or error[message] on failure.
+     */
+    protected function wizard_system_scan() {
 		if ( class_exists( '\BackWPup_Pro_Wizard_SystemTest' ) ) {
 			ob_start();
 
@@ -1023,7 +1296,21 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	protected function destination_email_check_email() {
+    /**
+     * Check destination email.
+     *
+     * @uses PHPMailer()
+     * @uses \BackWPup::get_plugin_data()
+     * @uses Swift_SmtpTransport::newInstance()
+     * @uses Swift_SendmailTransport::newInstance()
+     * @uses Swift_MailTransport::newInstance()
+     * @uses Swift_Mailer::newInstance()
+     * @uses Swift_Message::newInstance()
+     * @uses \Exception
+     *
+     * @return array|\Exception Return response array.
+     */
+    protected function destination_email_check_email() {
 		$settings = $_POST['settings'];
 
 		$message = '';
@@ -1113,7 +1400,14 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function get_job_files() {
+    /**
+     * Get job files.
+     *
+     * @uses BackWPup_File::get_upload_dir()
+     * @uses BackWPup_File::get_folder_size()
+     * @return array Response array containing folder locations and size.
+     */
+    protected function get_job_files() {
 		// From BackWPup_JobType_File::get_exclude_dirs.
 		function mainwp_backwpup_get_exclude_dirs( $folder ) {
 			$folder            = trailingslashit( str_replace( '\\', '/', realpath( $folder ) ) );
@@ -1186,7 +1480,16 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function get_child_tables() {
+    /**
+     * Get Child Site Tables.
+     *
+     * @uses BackWPup_Option::get()
+     *
+     * @return array Query response containing the tables.
+     */
+    protected function get_child_tables() {
+
+        /** @global $wpdb wpdb */
 		global $wpdb;
 
 		$return = array();
@@ -1246,7 +1549,14 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function insert_or_update_jobs_global() {
+    /**
+     * Insert or update global jobs.
+     *
+     * @uses MainWP_Child_Back_WP_Up::insert_or_update_jobs()
+     *
+     * @return array Response array containing job_id, changes & message array.
+     */
+    protected function insert_or_update_jobs_global() {
 		$settings = $_POST['settings'];
 
 		if ( ! is_array( $settings ) ) {
@@ -1313,8 +1623,18 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	// From BackWPup_JobType_File::edit_form_post_save with some tweaks.
-	public function edit_form_post_save( $post_data, $id ) {
+    /**
+     * Edit form post save.
+     *
+     * Parses & saves files, folders, boolean fields excluding any unwanted files or directories.
+     *  [Taken from BackWPup_JobType_File::edit_form_post_save with some tweaks].
+     *
+     * @uses BackWPup_Option::update()
+     *
+     * @param $post_data Post data to save.
+     * @param $id Post ID.
+     */
+    public function edit_form_post_save($post_data, $id ) {
 		// Parse and save files to exclude.
 		$exclude_input   = $post_data['fileexclude'];
 		$to_exclude_list = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
@@ -1396,7 +1716,22 @@ class MainWP_Child_Back_WP_Up {
 		}
 	}
 
-	protected function insert_or_update_jobs() {
+    /**
+     * Insert or update jobs.
+     *
+     * @uses BackWPup_Option::get_job_ids()
+     * @uses BackWPup_Option::get()
+     * @uses BackWPup_Option::update()
+     * @uses BackWPup_Admin::get_messages()
+     * @uses BackWPup_Admin::message()
+     * @uses BackWPup_Job::get_jobrun_url()
+     * @uses BackWPup_Page_Editjob::save_post_form()
+     * @uses MainWP_Child_Back_WP_Up::edit_form_post_save()
+     * @uses MainWP_Child_Back_WP_Up::check_backwpup_messages()
+     *
+     * @return array Response array containing job_id, changes & message array.
+     */
+    protected function insert_or_update_jobs() {
 
 		$settings = $_POST['settings'];
 
@@ -1502,7 +1837,18 @@ class MainWP_Child_Back_WP_Up {
 	}
 
 
-	protected function update_settings() {
+    /**
+     * Update settings.
+     *
+     * @uses BackWPup_Page_Settings()
+     * @uses BackWPup_Page_Settings::save_post_form()
+     * @uses BackWPup_Pro_Settings_APIKeys::get_instance()
+     * @uses BackWPup_Pro_Settings_APIKeys::save_form()
+     * @uses MainWP_Child_Back_WP_Up::check_backwpup_messages()
+     *
+     * @return array Response array success, changes, message[].
+     */
+    protected function update_settings() {
 		$settings = $_POST['settings'];
 
 		if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
@@ -1567,7 +1913,12 @@ class MainWP_Child_Back_WP_Up {
 		);
 	}
 
-	protected function check_backwpup_messages() {
+    /**
+     * Check BackWPup Message.
+     *
+     * @return array|string[] Returns an empty array or Error[], Message[].
+     */
+    protected function check_backwpup_messages() {
 		$message = get_site_option( 'backwpup_messages', array() );
 		update_site_option( 'backwpup_messages', array() );
 
@@ -1583,9 +1934,23 @@ class MainWP_Child_Back_WP_Up {
 
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
 if ( ! class_exists( 'MainWP_Fake_Wp_Screen' ) ) {
-	class MainWP_Fake_Wp_Screen {
-		public $action;
-		public $base;
-		public $id;
+    /**
+     * Class MainWP_Fake_Wp_Screen
+     *
+     * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     */
+    class MainWP_Fake_Wp_Screen {
+        /**
+         * @var
+         */
+        public $action;
+        /**
+         * @var
+         */
+        public $base;
+        /**
+         * @var
+         */
+        public $id;
 	}
 }
