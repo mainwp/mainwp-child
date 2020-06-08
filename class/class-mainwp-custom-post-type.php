@@ -2,27 +2,39 @@
 /**
  * MainWP Custom Post Type
  *
- * This file handles all custom post types.
+ * MainWP Custom Post Type extension handler.
+ *
+ * @link https://mainwp.com/extension/custom-post-type/
+ * @package MainWP\Child
  */
 namespace MainWP\Child;
 
 /**
  * Class MainWP_Custom_Post_Type
  *
- * @package MainWP\Child
+ * MainWP Custom Post Type extension handler.
  */
 class MainWP_Custom_Post_Type {
 
 	/**
-	 * @static
-	 * @var null Holds the Public static instance of MainWP_Custom_Post_Type.
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
 	 */
 	public static $instance = null;
 
-	/** @var array Response array. */
+	/**
+	 * Public static variable containing the synchronization information.
+	 *
+	 * @var array Synchronization information.
+	 */
 	public static $information = array();
 
-	/** @var string Plugin slug. */
+	/**
+	 * Public variable to hold the information about the language domain.
+	 *
+	 * @var string 'mainwp-child' languge domain.
+	 */
 	public $plugin_translate = 'mainwp-child';
 
 	/**
@@ -59,14 +71,13 @@ class MainWP_Custom_Post_Type {
 			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
 				$data = wp_json_encode( $data );
 			} else {
-				$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+				$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required to achieve desired results, pull request solutions appreciated.
 			}
-			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatibility.
+			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 		}
 
 		register_shutdown_function( 'MainWP\Child\mainwp_custom_post_type_handle_fatal_error' );
 
-		/** @var $information @deprecated Unused local variable 'information'. The value of the variable is overwritten immediately. */
 		$information = array();
 		switch ( $_POST['action'] ) {
 			case 'custom_post_type_import':
@@ -414,11 +425,14 @@ class MainWP_Custom_Post_Type {
 	}
 
 	/**
+	 * Method upload_postmeta_image()
+	 *
 	 * Upload post meta image.
 	 *
-	 * @param array               $product_images Woocomerce product images.
-	 * @param $meta_value
-	 * @param $check_image_existed
+	 * @param array $product_images      Woocomerce product images.
+	 * @param array $meta_value          Meta values.
+	 * @param bool  $check_image_existed Determins if the images already exists.
+	 *
 	 * @return array|bool Error message array or TRUE on success.
 	 */
 	private function upload_postmeta_image( $product_images, &$meta_value, $check_image_existed ) {
