@@ -1092,14 +1092,14 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	/**
 	 * Render the server information check row.
 	 *
-	 * @param string  $config        Check name.
-	 * @param string  $compare       Comparison operator.
-	 * @param string  $version       Version for comparison.
-	 * @param string  $getter        Function to call to handle comparison.
-	 * @param string  $extra_text    Extra text to display in the row.
-	 * @param string  $extra_compare Additional comparison operator.
-	 * @param string  $extra_version Additional version to compare.
-	 * @param bool    $size_compare  Determies if size should be compared.
+	 * @param string $config        Check name.
+	 * @param string $compare       Comparison operator.
+	 * @param string $version       Version for comparison.
+	 * @param string $getter        Function to call to handle comparison.
+	 * @param string $extra_text    Extra text to display in the row.
+	 * @param string $extra_compare Additional comparison operator.
+	 * @param string $extra_version Additional version to compare.
+	 * @param bool   $size_compare  Determies if size should be compared.
 	 *
 	 * @uses MainWP_Child_Server_Information_Base::check() Check Child Site system variables for any issues.
 	 *
