@@ -330,8 +330,6 @@ class MainWP_Child_Server_Information_Base {
 	 * @return string $wp_version Current WordPress version.
 	 */
 	protected static function get_wordpress_version() {
-
-		/** @global string $wp_version WordPress Version. */
 		global $wp_version;
 
 		return $wp_version;
@@ -566,9 +564,7 @@ class MainWP_Child_Server_Information_Base {
 	}
 
 	/**
-	 * Get Server IP.
-	 *
-	 * @return string Return Server IP.
+	 * Get server IP.
 	 */
 	protected static function get_server_ip() {
 		echo esc_html( $_SERVER['SERVER_ADDR'] );
