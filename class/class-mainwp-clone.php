@@ -248,8 +248,6 @@ class MainWP_Clone {
 			if ( ! $result['backup'] ) {
 				throw new \Exception( __( 'Could not create backupfile on child', 'mainwp-child' ) );
 			}
-			session_start();
-
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $result['plugins'] );
 			MainWP_Helper::update_option( 'mainwp_temp_clone_themes', $result['themes'] );
 

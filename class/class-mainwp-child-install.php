@@ -376,6 +376,9 @@ class MainWP_Child_Install {
 	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
 	private function after_installed( $result ) {
+		if ( empty( $result ) || is_wp_error( $result ) ) {
+			return false;
+		}
 		$args = array(
 			'success' => 1,
 			'action'  => 'install',

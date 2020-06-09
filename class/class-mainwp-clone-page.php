@@ -67,14 +67,6 @@ class MainWP_Clone_Page {
 		} else {
 			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.11', 'all' );
 		}
-
-		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
-		$hide_restore  = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
-		if ( ! $hide_restore ) {
-			if ( '' == session_id() ) {
-				session_start();
-			}
-		}
 	}
 
 
@@ -492,7 +484,7 @@ class MainWP_Clone_Page {
 		<script language="javascript">
 			var child_security_nonces = [];
 			<?php
-				$security_nonces = MainWP_Clone::get()->get_security_nonces();
+			$security_nonces = MainWP_Clone::instance()->get_security_nonces();
 			foreach ( $security_nonces as $k => $v ) {
 				echo 'child_security_nonces[' . "'" . $k . "'" . '] = ' . "'" . $v . "';\n";
 			}
