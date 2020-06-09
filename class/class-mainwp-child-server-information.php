@@ -1,6 +1,19 @@
 <?php
+/**
+ * MainWP Child Server Information
+ *
+ * MainWP Child server information handler.
+ *
+ * @package MainWP\Child
+ */
+
 namespace MainWP\Child;
 
+/**
+ * Class MainWP_Child_Server_Information
+ *
+ * MainWP Child server information handler.
+ */
 class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Base {
 	const WARNING = 1;
 	const ERROR   = 2;
@@ -8,14 +21,19 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	/**
 	 * Method get_class_name()
 	 *
-	 * Get Class Name.
+	 * Get class name.
 	 *
-	 * @return object
+	 * @return string __CLASS__ Class name.
 	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
+	/**
+	 * Add hooks after WordPress has finished loading but before any headers are sent.
+	 *
+	 * @uses MainWP_Child_Server_Information::dismiss_warnings() Dismiss warnings.
+	 */
 	public static function init() {
 		add_action(
 			'wp_ajax_mainwp-child_dismiss_warnings',
@@ -26,6 +44,16 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		);
 	}
 
+	/**
+	 * Dismiss warnings.
+	 *
+	 * @uses MainWP_Helper::update_option() Update option by option name.
+	 * @uses MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @used-by MainWP_Child_Server_Information::init() Add hooks after WordPress has finished loading but before any headers are sent.
+	 */
 	public static function dismiss_warnings() {
 		if ( isset( $_POST['what'] ) ) {
 			$dismissWarnings = get_option( 'mainwp_child_dismiss_warnings' );
@@ -44,6 +72,16 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		}
 	}
 
+	/**
+	 * Render warnings.
+	 *
+	 * @uses MainWP_Helper::update_option() Update option by option name.
+	 * @uses MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @used-by MainWP_Child_Server_Information::init() Add hooks after WordPress has finished loading but before any headers are sent.
+	 */
 	public static function render_warnings() {
 		if ( stristr( $_SERVER['REQUEST_URI'], 'mainwp_child_tab' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-page' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-settings' ) ) {
 			return;
@@ -146,6 +184,11 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
+	/**
+	 * Render JavaScrip code for the Server Information page.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_page() Render the Server Information page.
+	 */
 	private static function render_page_js() {
 		?>
 		<script language="javascript">
@@ -428,6 +471,14 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
+	/**
+	 * Render the Server Information page.
+	 *
+	 * @uses MainWP_Child_Server_Information::render_page_js() Render JavaScrip code for the Server Information page.
+	 * @uses MainWP_Child_Server_Information::render_server_infor() Render server information.
+	 * @uses MainWP_Child_Server_Information::render_cron() Render cron schedules.
+	 * @uses MainWP_Child_Server_Information::render_error_page() Render error log.
+	 */
 	public static function render_page() {
 		self::render_page_js();
 		?>
@@ -484,7 +535,18 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
-
+	/**
+	 * Render server information content.
+	 *
+	 * @uses MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
+	 * @uses MainWP_Child_Server_Information::render_php_settings_rows() Render PHP settings information rows.
+	 * @uses MainWP_Child_Server_Information::render_mysql_infor_rows() Render MySQL settings information rows.
+	 * @uses MainWP_Child_Server_Information::render_server_infor_rows() Render server settings information rows.
+	 * @uses MainWP_Child_Server_Information::render_php_infor_rows() Render PHP information rows.
+	 * @uses MainWP_Child_Server_Information::render_plugins_infor_rows() Render plugins information rows.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_page() Render the Server Information page.
+	 */
 	private static function render_server_infor() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
 		if ( '' == $branding_title ) {
@@ -502,7 +564,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				</tr>
 			</thead>
 			<tbody id="the-sites-list" class="list:sites">
-				<?php self::render_system_infor_rows( $branding_title ); ?>		
+				<?php self::render_system_infor_rows( $branding_title ); ?>
 				<?php self::render_php_settings_rows(); ?>
 				<?php self::render_mysql_infor_rows(); ?>
 				<?php self::render_server_infor_rows(); ?>
@@ -514,6 +576,22 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
+	/**
+	 * Render system information rows.
+	 *
+	 * @param string $branding_title Custom branding plgin title.
+	 *
+	 * @uses MainWP_Child_Server_Information_Base::get_mainwp_version() Get the MainWP Child plugin version number.
+	 * @uses MainWP_Child_Server_Information_Base::get_current_version() Get the current MainWP Child plugin version.
+	 * @uses MainWP_Child_Server_Information_Base::get_file_system_method() Get file system method.
+	 * @uses MainWP_Child_Server_Information::render_file_system_method_check() Render the file system method check.
+	 * @uses MainWP_Child_Server_Information::render_mainwp_version_check() Render the MainWP version check row.
+	 * @uses MainWP_Child_Server_Information::render_row() Render the server information row.
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_server_infor() Render server information content.
+	 */
 	private static function render_system_infor_rows( $branding_title ) {
 		?>
 		<tr>
@@ -547,10 +625,17 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<td><?php echo esc_html( '= direct' ); ?></td>
 			<td><?php echo esc_html( self::get_file_system_method() ); ?></td>
 			<td><?php echo esc_html( self::render_file_system_method_check() ); ?></td>
-		</tr>		
+		</tr>
 		<?php
 	}
 
+	/**
+	 * Render the file system method check.
+	 *
+	 * @uses MainWP_Child_Server_Information_Base::get_file_system_method() Get file system method.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
+	 */
 	protected static function render_file_system_method_check() {
 		$fsmethod = self::get_file_system_method();
 		if ( 'direct' === $fsmethod ) {
@@ -560,6 +645,15 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		}
 	}
 
+	/**
+	 * Render PHP settings information rows.
+	 *
+	 * @uses MainWP_Child_Server_Information::render_row() Render the server information row.
+	 * @uses MainWP_Child_Server_Information::render_row_sec() Render the server information secondary row.
+	 * @uses MainWP_Child_Server_Information_Base::get_php_safe_mode() Check if PHP is in Safe Mode.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
+	 */
 	private static function render_php_settings_rows() {
 		?>
 		<tr>
@@ -602,21 +696,41 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		}
 	}
 
+	/**
+	 * Render MySQL settings information rows.
+	 *
+	 * @uses MainWP_Child_Server_Information::render_row() Render the server information row.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_server_infor() Render server information content.
+	 */
 	private static function render_mysql_infor_rows() {
 		?>
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'MySQL SETTINGS', 'mainwp-child' ); ?></td>
-		</tr>		
+		</tr>
 		<?php self::render_row( 'MySQL Version', '>=', '5.0', 'get_my_sql_version' ); ?>
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'BACKUP ARCHIVE INFORMATION', 'mainwp-child' ); ?></td>
 		</tr>
 		<?php self::render_row( 'ZipArchive enabled in PHP', '=', true, 'get_zip_archive_enabled' ); ?>
 		<?php self::render_row( 'Tar GZip supported', '=', true, 'get_gzip_enabled' ); ?>
-		<?php self::render_row( 'Tar BZip2 supported', '=', true, 'get_bzip_enabled' ); ?>		
+		<?php self::render_row( 'Tar BZip2 supported', '=', true, 'get_bzip_enabled' ); ?>
 		<?php
 	}
 
+	/**
+	 * Render plugins information rows.
+	 *
+	 * @param string $branding_title Custom branding plugin title.
+	 *
+	 * @uses get_plugins() Check the plugins directory and retrieve all plugin files with plugin data.
+	 * @see https://developer.wordpress.org/reference/functions/get_plugins/
+	 *
+	 * @uses is_plugin_active() Determines whether a plugin is active.
+	 * @see https://developer.wordpress.org/reference/functions/get_plugins/
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_server_infor() Render server information content.
+	 */
 	private static function render_plugins_infor_rows( $branding_title ) {
 		?>
 		<tr>
@@ -644,6 +758,21 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		}
 	}
 
+	/**
+	 * Render PHP information rows.
+	 *
+	 * @param string $branding_title Custom branding plugin title.
+	 *
+	 * @uses MainWP_Child_Server_Information_Base::get_php_allow_url_fopen() Check if PHP Allow URL fopen is enabled.
+	 * @uses MainWP_Child_Server_Information_Base::get_php_exif() Check if PHP exif is enabled.
+	 * @uses MainWP_Child_Server_Information_Base::get_php_ip_tc() Check if PHP IP TC is enabled.
+	 * @uses MainWP_Child_Server_Information_Base::get_php_xml() Check if PHP XML is enabled.
+	 * @uses MainWP_Child_Server_Information_Base::mainwp_required_functions() Check for disabled PHP functions.
+	 * @uses MainWP_Child_Server_Information_Base::get_loaded_php_extensions() Get loaded PHP extensions.
+	 * @uses MainWP_Child_Server_Information_Base::get_sql_mode() Get current SQL mode.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_server_infor() Render server information content.
+	 */
 	private static function render_php_infor_rows() {
 		?>
 		<tr>
@@ -696,6 +825,35 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
+	/**
+	 * Render server settings information rows.
+	 *
+	 * @uses MainWP_Child_Server_Information_Base::get_wp_root() Get WordPress root directory.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_name()Get server name.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_software() Get server software.
+	 * @uses MainWP_Child_Server_Information_Base::get_os() Get operating system.
+	 * @uses MainWP_Child_Server_Information_Base::get_architecture() Get System architecture.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_ip() Get server IP.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_protocol() Get server protocol.
+	 * @uses MainWP_Child_Server_Information_Base::get_http_host() Get server HTTP host.
+	 * @uses MainWP_Child_Server_Information_Base::get_https() Check if HTTPS is on.
+	 * @uses MainWP_Child_Server_Information_Base::server_self_connect() Server self-connection test.
+	 * @uses MainWP_Child_Server_Information_Base::get_user_agent() Get server user agent.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_port() Get server port.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_getaway_interface() Get current server gateway interface.
+	 * @uses MainWP_Child_Server_Information_Base::memory_usage() Get the current Memory usage.
+	 * @uses MainWP_Child_Server_Information_Base::get_complete_url() Get server complete URL.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_request_time() Get server request time.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_http_accept() Get server HTTP accept.
+	 * @uses MainWP_Child_Server_Information_Base::get_server_accept_charset() Get server accepted charset.
+	 * @uses MainWP_Child_Server_Information_Base::get_script_file_name() Get server script filename.
+	 * @uses MainWP_Child_Server_Information_Base::get_current_page_uri() Get current page URL.
+	 * @uses MainWP_Child_Server_Information_Base::get_remote_address() Get server remote address.
+	 * @uses MainWP_Child_Server_Information_Base::get_remote_host() Get server remote host.
+	 * @uses MainWP_Child_Server_Information_Base::get_remote_port() Get server remote port.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_server_infor() Render server information content.
+	 */
 	private static function render_server_infor_rows() {
 		?>
 		<tr>
@@ -819,6 +977,16 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
+	/**
+	 * Render the MainWP version check.
+	 *
+	 * @uses MainWP_Child_Server_Information_Base::get_mainwp_version() Get the current MainWP Child plugin version.
+	 *
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
+	 */
 	protected static function render_mainwp_version_check() {
 		$current = get_option( 'mainwp_child_plugin_version' );
 		$latest  = self::get_mainwp_version();
@@ -829,6 +997,19 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		}
 	}
 
+	/**
+	 * Render cron schedules.
+	 *
+	 * @uses _get_cron_array() Retrieve cron info array option.
+	 * @see https://developer.wordpress.org/reference/functions/_get_cron_array/
+	 *
+	 * @uses wp_get_schedules() Retrieve supported event recurrence schedules.
+	 * @see https://developer.wordpress.org/reference/functions/wp_get_schedules/
+	 *
+	 * @uses MainWP_Helper::format_timestamp() Format timestamp as per the WordPress general settings.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_page() Render the Server Information page.
+	 */
 	private static function render_cron() {
 		$cron_array = _get_cron_array();
 		$schedules  = wp_get_schedules();
@@ -862,6 +1043,14 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
+	/**
+	 * Render the MainWP directory check.
+	 *
+	 * @uses MainWP_Child_Server_Information_Base::check_mainwp_directory() Check if MainWP Directory is writeable.
+	 * @uses MainWP_Child_Server_Information::render_directory_row() Render the directroy check row.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
+	 */
 	protected static function render_mainwp_directory() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
 		if ( '' == $branding_title ) {
@@ -877,52 +1066,106 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		self::render_directory_row( $branding_title, $path, 'Writable', $message, true );
 	}
 
-	protected static function render_directory_row( $pName, $pDirectory, $pCheck, $pResult, $pPassed ) {
+	/**
+	 * Render the directroy check row.
+	 *
+	 * @param string $name      Check name.
+	 * @param string $directory Directory to check.
+	 * @param string $check     Check condition.
+	 * @param string $result    Check result.
+	 * @param string $passed    Show correct label depending on passed status.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_mainwp_directory() Render the MainWP directory check.
+	 */
+	protected static function render_directory_row( $name, $directory, $check, $result, $passed ) {
 		?>
 		<tr class="mwp-not-generate-row">
 			<td></td>
-			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::instance()->is_branding() ) ? '' : $pDirectory ); ?></td>
-			<td><?php echo esc_html( $pCheck ); ?></td>
-			<td><?php echo esc_html( $pResult ); ?></td>
-			<td><?php echo ( $pPassed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
+			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::instance()->is_branding() ) ? '' : $directory ); ?></td>
+			<td><?php echo esc_html( $check ); ?></td>
+			<td><?php echo esc_html( $result ); ?></td>
+			<td><?php echo ( $passed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
 		</tr>
 		<?php
 	}
 
-	protected static function render_row( $pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $sizeCompare = false ) {
-		$currentVersion = call_user_func( array( self::get_class_name(), $pGetter ) );
+	/**
+	 * Render the server information check row.
+	 *
+	 * @param string  $config        Check name.
+	 * @param string  $compare       Comparison operator.
+	 * @param string  $version       Version for comparison.
+	 * @param string  $getter        Function to call to handle comparison.
+	 * @param string  $extra_text    Extra text to display in the row.
+	 * @param string  $extra_compare Additional comparison operator.
+	 * @param string  $extra_version Additional version to compare.
+	 * @param bool    $size_compare  Determies if size should be compared.
+	 *
+	 * @uses MainWP_Child_Server_Information_Base::check() Check Child Site system variables for any issues.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
+	 * @used-by MainWP_Child_Server_Information::render_php_settings_rows() Render PHP settings information rows.
+	 * @used-by MainWP_Child_Server_Information::render_mysql_infor_rows() Render MySQL settings information rows.
+	 */
+	protected static function render_row( $config, $compare, $version, $getter, $extra_text = '', $extra_compare = null, $extra_version = null, $size_compare = false ) {
+		$currentVersion = call_user_func( array( self::get_class_name(), $getter ) );
 		?>
 		<tr>
 			<td></td>
-			<td><?php echo esc_html( esc_html( $pConfig ) ); ?></td>
-			<td><?php echo esc_html( esc_html( $pCompare ) ); ?><?php echo esc_html( ( true === $pVersion ? 'true' : $pVersion ) . ' ' . $pExtraText ); ?></td>
+			<td><?php echo esc_html( esc_html( $config ) ); ?></td>
+			<td><?php echo esc_html( esc_html( $compare ) ); ?><?php echo esc_html( ( true === $version ? 'true' : $version ) . ' ' . $extra_text ); ?></td>
 			<td><?php echo esc_html( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
-			<td><?php echo ( self::check( $pCompare, $pVersion, $pGetter, $pExtraCompare, $pExtraVersion, $sizeCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
+			<td><?php echo ( self::check( $compare, $version, $getter, $extra_compare, $extra_version, $size_compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
 		</tr>
 		<?php
 	}
 
-	protected static function render_row_sec( $pConfig, $pCompare, $pVersion, $pGetter, $pExtraText = '', $pExtraCompare = null, $pExtraVersion = null, $toolTip = null, $whatType = null, $errorType = self::WARNING ) {
-		$currentVersion = call_user_func( array( self::get_class_name(), $pGetter ) );
+	/**
+	 * Render the server information check secondary row.
+	 *
+	 * @param string $config        Check name.
+	 * @param string $compare       Comparison operator.
+	 * @param string $version       Version for comparison.
+	 * @param string $getter        Function to call to handle comparison.
+	 * @param string $extra_text    Extra text to display in the row.
+	 * @param string $extra_compare Additional comparison operator.
+	 * @param string $extra_version Additional version to compare.
+	 * @param string $toolTip       Tooltip to show.
+	 * @param string $whatType      What type.
+	 * @param string $errorType     Error type.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_php_settings_rows() Render PHP settings information rows.
+	 */
+	protected static function render_row_sec( $config, $compare, $version, $getter, $extra_text = '', $extra_compare = null, $extra_version = null, $toolTip = null, $whatType = null, $errorType = self::WARNING ) {
+		$currentVersion = call_user_func( array( self::get_class_name(), $getter ) );
 		?>
 		<tr>
 			<td></td>
-			<td><?php echo $pConfig; ?></td>
-			<td><?php echo $pCompare; ?><?php echo ( true === $pVersion ? 'true' : ( is_array( $pVersion ) && isset( $pVersion['version'] ) ? $pVersion['version'] : $pVersion ) ) . ' ' . $pExtraText; ?></td>
+			<td><?php echo $config; ?></td>
+			<td><?php echo $compare; ?><?php echo ( true === $version ? 'true' : ( is_array( $version ) && isset( $version['version'] ) ? $version['version'] : $version ) ) . ' ' . $extra_text; ?></td>
 			<td><?php echo( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
 			<?php if ( 'filesize' === $whatType ) { ?>
-				<td><?php echo( self::filesize_compare( $currentVersion, $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
+				<td><?php echo( self::filesize_compare( $currentVersion, $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
 			<?php } elseif ( 'curlssl' === $whatType ) { ?>
-				<td><?php echo( self::curlssl_compare( $pVersion, $pCompare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
-			<?php } elseif ( ( 'get_max_input_time' === $pGetter || 'get_max_execution_time' === $pGetter ) && -1 == $currentVersion ) { ?>
+				<td><?php echo( self::curlssl_compare( $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
+			<?php } elseif ( ( 'get_max_input_time' === $getter || 'get_max_execution_time' === $getter ) && -1 == $currentVersion ) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
-				<td><?php echo ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null != $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
+				<td><?php echo ( version_compare( $currentVersion, $version, $compare ) || ( ( null != $extra_compare ) && version_compare( $currentVersion, $extra_version, $extra_compare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
 			<?php } ?>
 		</tr>
 		<?php
 	}
 
+	/**
+	 * Render warning text.
+	 *
+	 * @param string $errorType Error type.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_row_sec() Render the server information check secondary row.
+	 *
+	 * @return string Warning message HTML.
+	 */
 	public static function render_warning_text( $errorType = self::WARNING ) {
 		if ( self::WARNING == $errorType ) {
 			return '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>';
@@ -930,17 +1173,24 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		return '<span class="mainwp-fail"><i class="fa fa-exclamation-circle"></i> Fail</span>';
 	}
 
-	/*
-	*Plugin-Name: Error Log Dashboard Widget
-	*Plugin URI: http://wordpress.org/extend/plugins/error-log-dashboard-widget/
-	*Description: Robust zero-configuration and low-memory way to keep an eye on error log.
-	*Author: Andrey "Rarst" Savchenko
-	*Author URI: http://www.rarst.net/
-	*Version: 1.0.2
-	*License: GPLv2 or later
-
-	*Includes last_lines() function by phant0m, licensed under cc-wiki and GPLv2+
-	*/
+	/**
+	 * Render the Error log page.
+	 *
+	 * @uses MainWP_Child_Server_Information::render_error_log() Render the error log content.
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_page() Rener the Server Information page.
+	 *
+	 * Credits
+	 *
+	 * Plugin Name: Error Log Dashboard Widget
+	 * Plugin URI: http://wordpress.org/extend/plugins/error-log-dashboard-widget/
+	 * Description: Robust zero-configuration and low-memory way to keep an eye on error log.
+	 * Author: Andrey "Rarst" Savchenko
+	 * Author URI: http://www.rarst.net/
+	 * Version: 1.0.2
+	 * License: GPLv2 or later
+	 * Includes last_lines() function by phant0m, licensed under cc-wiki and GPLv2+
+	 */
 
 	private static function render_error_page() {
 		?>
@@ -958,6 +1208,15 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 	}
 
+	/**
+	 * Render the error log content.
+	 *
+	 * @uses MainWP_Child_Server_Information::render_last_lines() Render the error log last lines.
+	 * @uses wp_kses_post() Sanitizes content for allowed HTML tags for post content.
+	 * @see https://developer.wordpress.org/reference/functions/wp_kses_post/
+	 *
+	 * @used-by MainWP_Child_Server_Information::render_error_page() Render the Error log page.
+	 */
 	public static function render_error_log() {
 		$log_errors = ini_get( 'log_errors' );
 		if ( ! $log_errors ) {
@@ -1018,6 +1277,15 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		}
 	}
 
+	/**
+	 * Render the error log last lines.
+	 *
+	 * @param string $path       Error log path.
+	 * @param int    $line_count Line count.
+	 * @param int    $block_size Block size.
+	 *
+	 * @return array Selected number of error log records to show.
+	 */
 	protected static function render_last_lines( $path, $line_count, $block_size = 512 ) {
 		$lines = array();
 
@@ -1070,6 +1338,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		return array_slice( $lines, 0, $line_count );
 	}
 
+	/**
+	 * Render the connection details page content.
+	 */
 	public static function render_connection_details() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
 		if ( '' == $branding_title ) {
