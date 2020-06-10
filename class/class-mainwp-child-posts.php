@@ -974,7 +974,7 @@ class MainWP_Child_Posts {
 					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 					if ( is_array( $post_gallery_images ) ) {
 						foreach ( $post_gallery_images as $gallery ) {
-							if \Exception( isset( $gallery['src'] ) ) {
+							if \ Exception( isset( $gallery['src'] ) ) {
 								try {
 									$upload = MainWP_Utility::upload_image( $gallery['src'], $gallery ); // Upload image to WP.
 									if ( null !== $upload ) {
