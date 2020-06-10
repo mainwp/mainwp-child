@@ -9,51 +9,52 @@ namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Posts
+ *
  * @package MainWP\Child
  */
 class MainWP_Child_Posts {
 
-    /**
-     * Public static variable to hold the single instance of MainWP_Child_Posts.
-     *
-     * @var mixed Default null
-     */
-    protected static $instance = null;
+	/**
+	 * Public static variable to hold the single instance of MainWP_Child_Posts.
+	 *
+	 * @var mixed Default null
+	 */
+	protected static $instance = null;
 
-    /** @var string Comments & clauses. */
-    private $comments_and_clauses;
+	/** @var string Comments & clauses. */
+	private $comments_and_clauses;
 
-    /** @var string Post Query WHERE suffix. */
-    private $posts_where_suffix;
+	/** @var string Post Query WHERE suffix. */
+	private $posts_where_suffix;
 
-    /**
-     * Get class name.
-     *
-     * @return string __CLASS__ Class name.
-     */
+	/**
+	 * Get class name.
+	 *
+	 * @return string __CLASS__ Class name.
+	 */
 	public static function get_class_name() {
 		return __CLASS__;
 	}
 
-    /**
-     * MainWP_Child_Posts constructor
-     *
-     * Run any time class is called.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::comments_and_clauses()
-     * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
-     */
-    public function __construct() {
+	/**
+	 * MainWP_Child_Posts constructor
+	 *
+	 * Run any time class is called.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::comments_and_clauses()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
+	 */
+	public function __construct() {
 		$this->comments_and_clauses = '';
 		$this->posts_where_suffix   = '';
 	}
 
-    /**
-     * Create a public static instance of MainWP_Child_Posts.
-     *
-     * @return MainWP_Child_Posts|null
-     */
-    public static function get_instance() {
+	/**
+	 * Create a public static instance of MainWP_Child_Posts.
+	 *
+	 * @return MainWP_Child_Posts|null
+	 */
+	public static function get_instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
@@ -62,19 +63,19 @@ class MainWP_Child_Posts {
 	}
 
 
-    /**
-     * Get recent posts.
-     *
-     * @param array $pAllowedStatuses Array of allowed post statuses.
-     * @param int $pCount Number of posts.
-     * @param string $type Post type.
-     * @param null $extra Extra tokens.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::get_recent_posts_int()
-     *
-     * @return array $allPost Return array of recent posts.
-     */
-    public function get_recent_posts($pAllowedStatuses, $pCount, $type = 'post', $extra = null ) {
+	/**
+	 * Get recent posts.
+	 *
+	 * @param array  $pAllowedStatuses Array of allowed post statuses.
+	 * @param int    $pCount Number of posts.
+	 * @param string $type Post type.
+	 * @param null   $extra Extra tokens.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_recent_posts_int()
+	 *
+	 * @return array $allPost Return array of recent posts.
+	 */
+	public function get_recent_posts( $pAllowedStatuses, $pCount, $type = 'post', $extra = null ) {
 		$allPosts = array();
 		if ( null !== $pAllowedStatuses ) {
 			foreach ( $pAllowedStatuses as $status ) {
@@ -87,25 +88,25 @@ class MainWP_Child_Posts {
 		return $allPosts;
 	}
 
-    /**
-     * Initiate get recent posts.
-     *
-     * @param string $status Post status.
-     * @param int $pCount Number of posts.
-     * @param string $type Post type.
-     * @param array $allPosts All posts array.
-     * @param null $extra Extra tokens.
-     *
-     * @return array $allPosts[] Array of all posts.
-     *
-     * @uses \WPSEO_Link_Column_Count()
-     * @uses \WPSEO_Meta()
-     * @uses \MainWP_WordPress_SEO::instance()::parse_column_score()
-     * @uses \MainWP_WordPress_SEO::instance()->parse_column_score_readability()
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::get_out_post()
-     */
-    public function get_recent_posts_int($status, $pCount, $type = 'post', &$allPosts, $extra = null ) {
+	/**
+	 * Initiate get recent posts.
+	 *
+	 * @param string $status Post status.
+	 * @param int    $pCount Number of posts.
+	 * @param string $type Post type.
+	 * @param array  $allPosts All posts array.
+	 * @param null   $extra Extra tokens.
+	 *
+	 * @return array $allPosts[] Array of all posts.
+	 *
+	 * @uses \WPSEO_Link_Column_Count()
+	 * @uses \WPSEO_Meta()
+	 * @uses \MainWP_WordPress_SEO::instance()::parse_column_score()
+	 * @uses \MainWP_WordPress_SEO::instance()->parse_column_score_readability()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_out_post()
+	 */
+	public function get_recent_posts_int( $status, $pCount, $type = 'post', &$allPosts, $extra = null ) {
 
 		$args = array(
 			'post_status'      => $status,
@@ -157,7 +158,6 @@ class MainWP_Child_Posts {
 				*
 				* The code is used for the MainWP WordPress SEO Extension
 				* Extension URL: https://mainwp.com/extension/wordpress-seo/
-				*
 				*/
 				$link_count = new \WPSEO_Link_Column_Count();
 				$link_count->set( $post_ids );
@@ -177,15 +177,15 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Build Post.
-     *
-     * @param array $post Post array.
-     * @param string $extra Post date & time.
-     * @param array $tokens Post tokens.
-     * @return array $outPost Return completed post.
-     */
-    private function get_out_post($post, $extra, $tokens ) {
+	/**
+	 * Build Post.
+	 *
+	 * @param array  $post Post array.
+	 * @param string $extra Post date & time.
+	 * @param array  $tokens Post tokens.
+	 * @return array $outPost Return completed post.
+	 */
+	private function get_out_post( $post, $extra, $tokens ) {
 		$outPost                  = array();
 		$outPost['id']            = $post->ID;
 		$outPost['post_type']     = $post->post_type;
@@ -239,34 +239,34 @@ class MainWP_Child_Posts {
 		return $outPost;
 	}
 
-    /**
-     * Get all posts.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts_by_type()
-     */
-    public function get_all_posts() {
+	/**
+	 * Get all posts.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts_by_type()
+	 */
+	public function get_all_posts() {
 		$post_type = ( isset( $_POST['post_type'] ) ? $_POST['post_type'] : 'post' );
 		$this->get_all_posts_by_type( $post_type );
 	}
 
-    /**
-     * Get all pages.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts_by_type()
-     */
-    public function get_all_pages() {
+	/**
+	 * Get all pages.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts_by_type()
+	 */
+	public function get_all_pages() {
 		$this->get_all_posts_by_type( 'page' );
 	}
 
-    /**
-     * Append the Post's SQL WHERE clause suffix.
-     *
-     * @param $where Post's SQL WHERE clause.
-     * @return string $where The full SQL WHERE clause with the appended suffix.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
-     */
-    public function posts_where( $where ) {
+	/**
+	 * Append the Post's SQL WHERE clause suffix.
+	 *
+	 * @param $where Post's SQL WHERE clause.
+	 * @return string $where The full SQL WHERE clause with the appended suffix.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
+	 */
+	public function posts_where( $where ) {
 		if ( $this->posts_where_suffix ) {
 			$where .= ' ' . $this->posts_where_suffix;
 		}
@@ -274,17 +274,17 @@ class MainWP_Child_Posts {
 		return $where;
 	}
 
-    /**
-     * Get all posts by type.
-     *
-     * @param string $type Post type.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
-     * @uses \MainWP\Child\MainWP_Helper::write()
-     */
-    public function get_all_posts_by_type( $type ) {
+	/**
+	 * Get all posts by type.
+	 *
+	 * @param string $type Post type.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 */
+	public function get_all_posts_by_type( $type ) {
 
-        /** @global $wpdb wpdb */
+		/** @global $wpdb wpdb */
 		global $wpdb;
 
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
@@ -338,25 +338,25 @@ class MainWP_Child_Posts {
 
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
-			$extra['tokens'] = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			$extra['extract_post_type'] = $_POST['extract_post_type'];
 		}
 
 		$extra['where_post_date'] = $where_post_date;
-		$rslt = $this->get_recent_posts( explode( ',', $_POST['status'] ), $maxPages, $type, $extra );
+		$rslt                     = $this->get_recent_posts( explode( ',', $_POST['status'] ), $maxPages, $type, $extra );
 		$this->posts_where_suffix = '';
 
 		MainWP_Helper::write( $rslt );
 	}
 
-    /**
-     * Build New Post.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::create_post()
-     * @uses \MainWP\Child\ainWP_Helper::error()
-     * @uses \MainWP\Child\MainWP_Helper::write()
-     */
-    public function new_post() {
+	/**
+	 * Build New Post.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::create_post()
+	 * @uses \MainWP\Child\ainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 */
+	public function new_post() {
 		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -389,15 +389,15 @@ class MainWP_Child_Posts {
 		MainWP_Helper::write( $information );
 	}
 
-    /**
-     * Post Action.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Links_Checker()
-     * @uses \MainWP\Child\MainWP_Child_Posts::get_post_edit()
-     * @uses \MainWP\Child\MainWP_Child_Posts::get_page_edit()
-     * @uses \MainWP\Child\MainWP_Helper::write()
-     */
-    public function post_action() {
+	/**
+	 * Post Action.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Links_Checker()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_post_edit()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_page_edit()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 */
+	public function post_action() {
 		$action  = $_POST['action'];
 		$postId  = $_POST['id'];
 		$my_post = array();
@@ -473,14 +473,14 @@ class MainWP_Child_Posts {
 		MainWP_Helper::write( $information );
 	}
 
-    /**
-     * Get post edit data.
-     *
-     * @param string $id Post ID.
-     *
-     * @return array|bool Return $post_data or FALSE on failure.
-     */
-    public function get_post_edit( $id ) {
+	/**
+	 * Get post edit data.
+	 *
+	 * @param string $id Post ID.
+	 *
+	 * @return array|bool Return $post_data or FALSE on failure.
+	 */
+	public function get_post_edit( $id ) {
 		$post = get_post( $id );
 		if ( $post ) {
 			$categoryObjects = get_the_category( $post->ID );
@@ -507,11 +507,11 @@ class MainWP_Child_Posts {
 
 			$post_custom = get_post_custom( $id );
 
-			$galleries = get_post_gallery( $id, false );
+			$galleries           = get_post_gallery( $id, false );
 			$post_gallery_images = array();
 
 			if ( is_array( $galleries ) && isset( $galleries['ids'] ) ) {
-                $attached_images = explode( ',', $galleries['ids'] );
+				$attached_images = explode( ',', $galleries['ids'] );
 				foreach ( $attached_images as $attachment_id ) {
 					$attachment = get_post( $attachment_id );
 					if ( $attachment ) {
@@ -567,14 +567,14 @@ class MainWP_Child_Posts {
 		return false;
 	}
 
-    /**
-     * Get page edit data.
-     *
-     * @param string $id Page ID.
-     *
-     * @return array|bool Return $post_data or FALSE on failure.
-     */
-    public function get_page_edit( $id ) {
+	/**
+	 * Get page edit data.
+	 *
+	 * @param string $id Page ID.
+	 *
+	 * @return array|bool Return $post_data or FALSE on failure.
+	 */
+	public function get_page_edit( $id ) {
 		$post = get_post( $id );
 		if ( $post ) {
 			$post_custom = get_post_custom( $id );
@@ -601,22 +601,22 @@ class MainWP_Child_Posts {
 					$post_featured_image = $img[0];
 			}
 
-			$galleries = get_post_gallery( $id, false );
+			$galleries           = get_post_gallery( $id, false );
 			$post_gallery_images = array();
 
 			if ( is_array( $galleries ) && isset( $galleries['ids'] ) ) {
-			    $attached_images = explode( ',', $galleries['ids'] );
+				$attached_images = explode( ',', $galleries['ids'] );
 				foreach ( $attached_images as $attachment_id ) {
-				    $attachment = get_post( $attachment_id );
+					$attachment = get_post( $attachment_id );
 					if ( $attachment ) {
-                        $post_gallery_images[] = array(
-                            'id'          => $attachment_id,
-                            'alt'         => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
-                            'caption'     => $attachment->post_excerpt,
-                            'description' => $attachment->post_content,
-                            'src'         => $attachment->guid,
-                            'title'       => $attachment->post_title,
-                        );
+						$post_gallery_images[] = array(
+							'id'          => $attachment_id,
+							'alt'         => get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ),
+							'caption'     => $attachment->post_excerpt,
+							'description' => $attachment->post_content,
+							'src'         => $attachment->guid,
+							'title'       => $attachment->post_title,
+						);
 					}
 				}
 			}
@@ -636,34 +636,34 @@ class MainWP_Child_Posts {
 		return false;
 	}
 
-    /**
-     * Create new post.
-     *
-     * @param array  $new_post            Post data array.
-     * @param array  $post_custom         Post custom meta data.
-     * @param string $post_category       Post categories.
-     * @param string $post_featured_image Post featured image.
-     * @param string $upload_dir          Upload directory.
-     * @param string $post_tags           Post tags.
-     * @param array  $others              Other data.
-     *
-     * @return array|string[] $ret Return success array, permalink & Post ID.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::set_post_custom_data()
-     * @uses \MainWP\Child\MainWP_Child_Posts::update_found_images()
-     * @uses \MainWP\Child\MainWP_Child_Posts::create_has_shortcode_gallery()
-     * @uses \MainWP\Child\MainWP_Child_Posts::create_post_plus()
-     * @uses \MainWP\Child\MainWP_Child_Posts::update_post_data()
-     */
-    private function create_post(
-        $new_post,
-        $post_custom,
-        $post_category,
-        $post_featured_image,
-        $upload_dir,
-        $post_tags,
-        $others = array()
-        ) {
+	/**
+	 * Create new post.
+	 *
+	 * @param array  $new_post            Post data array.
+	 * @param array  $post_custom         Post custom meta data.
+	 * @param string $post_category       Post categories.
+	 * @param string $post_featured_image Post featured image.
+	 * @param string $upload_dir          Upload directory.
+	 * @param string $post_tags           Post tags.
+	 * @param array  $others              Other data.
+	 *
+	 * @return array|string[] $ret Return success array, permalink & Post ID.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::set_post_custom_data()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::update_found_images()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::create_has_shortcode_gallery()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::create_post_plus()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::update_post_data()
+	 */
+	private function create_post(
+		$new_post,
+		$post_custom,
+		$post_category,
+		$post_featured_image,
+		$upload_dir,
+		$post_tags,
+		$others = array()
+		) {
 
 		/**
 		* Hook: `mainwp_before_post_update`
@@ -693,7 +693,7 @@ class MainWP_Child_Posts {
 			}
 		}
 
-        // if editing post then will check if image existed.
+		// if editing post then will check if image existed.
 		$check_image_existed = $edit_post_id ? true : false;
 
 		$this->update_found_images( $new_post, $upload_dir, $check_image_existed );
@@ -746,18 +746,18 @@ class MainWP_Child_Posts {
 		return $ret;
 	}
 
-    /**
-     * Set custom post data.
-     *
-     * @param array  $new_post            Post data array.
-     * @param array  $post_custom         Post custom meta data.
-     * @param string $post_tags           Post tags.
-     * @param string $edit_post_id        Edit Post ID.
-     * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::update_wp_rocket_custom_post()
-     */
-    private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus ) {
+	/**
+	 * Set custom post data.
+	 *
+	 * @param array  $new_post            Post data array.
+	 * @param array  $post_custom         Post custom meta data.
+	 * @param string $post_tags           Post tags.
+	 * @param string $edit_post_id        Edit Post ID.
+	 * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::update_wp_rocket_custom_post()
+	 */
+	private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus ) {
 
 		global $current_user;
 
@@ -798,24 +798,24 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Update post data.
-     *
-     * @param string $new_post_id         New post ID.
-     * @param array  $post_custom         Post custom meta data.
-     * @param string $post_category       Post categories.
-     * @param string $post_featured_image Post featured image.
-     * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
-     * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Posts::set_custom_post_fields()
-     * @uses \MainWP\Child\MainWP_Child_Posts::create_seo_extension_activated()
-     * @uses \MainWP\Child\MainWP_Child_Posts::create_set_categories()
-     * @uses \MainWP\Child\MainWP_Child_Posts::create_featured_image()
-     * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_author()
-     * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_categories()
-     */
-    private function update_post_data($new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ) {
+	/**
+	 * Update post data.
+	 *
+	 * @param string $new_post_id         New post ID.
+	 * @param array  $post_custom         Post custom meta data.
+	 * @param string $post_category       Post categories.
+	 * @param string $post_featured_image Post featured image.
+	 * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
+	 * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Posts::set_custom_post_fields()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::create_seo_extension_activated()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::create_set_categories()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::create_featured_image()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_author()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_categories()
+	 */
+	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ) {
 
 		$seo_ext_activated = false;
 		if ( class_exists( '\WPSEO_Meta' ) && class_exists( '\WPSEO_Admin' ) ) {
@@ -852,15 +852,15 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Update WPRocket custom post.
-     *
-     * @param array $post_custom Post custom meta data.
-     *
-     * @uses \MainWP\Child\MainWP_Child_WP_Rocket::instance()::is_activated()
-     * @uses \get_rocket_option()
-     */
-    private function update_wp_rocket_custom_post( &$post_custom ) {
+	/**
+	 * Update WPRocket custom post.
+	 *
+	 * @param array $post_custom Post custom meta data.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::instance()::is_activated()
+	 * @uses \get_rocket_option()
+	 */
+	private function update_wp_rocket_custom_post( &$post_custom ) {
 		// Options fields.
 		$wprocket_fields = array(
 			'lazyload',
@@ -895,17 +895,17 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Search for all the images added to the new post.
-     *
-     * @param array  $new_post            Post data array.
-     * @param string $upload_dir          Upload directory.
-     * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
-     *
-     * @uses \MainWP\Child\MainWP_Utility::upload_image()
-     * @uses \MainWP\Child\MainWP_Helper::log_debug()
-     */
-    private function update_found_images( &$new_post, $upload_dir, $check_image_existed ) {
+	/**
+	 * Search for all the images added to the new post.
+	 *
+	 * @param array  $new_post            Post data array.
+	 * @param string $upload_dir          Upload directory.
+	 * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
+	 * @uses \MainWP\Child\MainWP_Helper::log_debug()
+	 */
+	private function update_found_images( &$new_post, $upload_dir, $check_image_existed ) {
 
 		// Some images have a href tag to click to navigate to the image.. we need to replace this too.
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
@@ -951,15 +951,15 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Create shortcode image gallery.
-     *
-     * @param array $new_post Post data array.
-     *
-     * @uses \MainWP\Child\MainWP_Utility::upload_image()
-     * @uses \Exception()
-     */
-    private function create_has_shortcode_gallery( &$new_post ) {
+	/**
+	 * Create shortcode image gallery.
+	 *
+	 * @param array $new_post Post data array.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
+	 * @uses \Exception()
+	 */
+	private function create_has_shortcode_gallery( &$new_post ) {
 
 		if ( has_shortcode( $new_post['post_content'], 'gallery' ) ) {
 			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
@@ -968,7 +968,7 @@ class MainWP_Child_Posts {
 					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 					if ( is_array( $post_gallery_images ) ) {
 						foreach ( $post_gallery_images as $gallery ) {
-							if\Exception ( isset( $gallery['src'] ) ) {
+							if \ Exception ( isset( $gallery['src'] ) ) {
 								try {
 									$upload = MainWP_Utility::upload_image( $gallery['src'], $gallery ); // Upload image to WP.
 									if ( null !== $upload ) {
@@ -1001,13 +1001,13 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Create post plus post.
-     *
-     * @param array $new_post    Post data array.
-     * @param array $post_custom Post custom meta data.
-     */
-    private function create_post_plus( &$new_post, $post_custom ) {
+	/**
+	 * Create post plus post.
+	 *
+	 * @param array $new_post    Post data array.
+	 * @param array $post_custom Post custom meta data.
+	 */
+	private function create_post_plus( &$new_post, $post_custom ) {
 		$random_publish_date = isset( $post_custom['_saved_draft_random_publish_date'] ) ? $post_custom['_saved_draft_random_publish_date'] : false;
 		$random_publish_date = is_array( $random_publish_date ) ? current( $random_publish_date ) : null;
 
@@ -1043,13 +1043,13 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Update post plus author.
-     *
-     * @param string $new_post_id New post ID.
-     * @param array  $post_custom Post custom meta data.
-     */
-    private function post_plus_update_author($new_post_id, $post_custom ) {
+	/**
+	 * Update post plus author.
+	 *
+	 * @param string $new_post_id New post ID.
+	 * @param array  $post_custom Post custom meta data.
+	 */
+	private function post_plus_update_author( $new_post_id, $post_custom ) {
 		$random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
 		$random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
 		$random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -1076,13 +1076,13 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Update post plus categories.
-     *
-     * @param string $new_post_id New post ID.
-     * @param array  $post_custom Post custom meta data.
-     */
-    private function post_plus_update_categories($new_post_id, $post_custom ) {
+	/**
+	 * Update post plus categories.
+	 *
+	 * @param string $new_post_id New post ID.
+	 * @param array  $post_custom Post custom meta data.
+	 */
+	private function post_plus_update_categories( $new_post_id, $post_custom ) {
 		$random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
 		$random_category = is_array( $random_category ) ? current( $random_category ) : null;
 		if ( ! empty( $random_category ) ) {
@@ -1106,12 +1106,12 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * @param string $new_post_id   New post ID.
-     * @param string $post_category Post category.
-     * @param bool   $post_to_only  TRUE|FALSE, Whether or not to post only to this category.
-     */
-    private function create_set_categories( $new_post_id, $post_category, $post_to_only ) {
+	/**
+	 * @param string $new_post_id   New post ID.
+	 * @param string $post_category Post category.
+	 * @param bool   $post_to_only  TRUE|FALSE, Whether or not to post only to this category.
+	 */
+	private function create_set_categories( $new_post_id, $post_category, $post_to_only ) {
 
 		// If categories exist, create them (second parameter of wp_create_categories adds the categories to the post).
 		include_once ABSPATH . 'wp-admin/includes/taxonomy.php'; // Contains wp_create_categories.
@@ -1136,15 +1136,15 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Set custom post fields.
-     *
-     * @param string $new_post_id       New post ID.
-     * @param array  $post_custom       Post custom meta data.
-     * @param bool   $seo_ext_activated TRUE|FALSE, Whether or not Yoast SEO is activateed or not.
-     * @param bool   $post_to_only      TRUE|FALSE, Whether or not to post only to this category.
-     */
-    private function set_custom_post_fields($new_post_id, $post_custom, $seo_ext_activated, &$post_to_only ) {
+	/**
+	 * Set custom post fields.
+	 *
+	 * @param string $new_post_id       New post ID.
+	 * @param array  $post_custom       Post custom meta data.
+	 * @param bool   $seo_ext_activated TRUE|FALSE, Whether or not Yoast SEO is activateed or not.
+	 * @param bool   $post_to_only      TRUE|FALSE, Whether or not to post only to this category.
+	 */
+	private function set_custom_post_fields( $new_post_id, $post_custom, $seo_ext_activated, &$post_to_only ) {
 
 		// Set custom fields.
 		$not_allowed = array(
@@ -1209,17 +1209,17 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Update Yoast SEO Extension meta.
-     *
-     * @param string $new_post_id     New post ID.
-     * @param array $post_custom      Post custom meta data.
-     *
-     * @uses \MainWP\Child\MainWP_Utility::upload_image()
-     * @uses \WPSEO_Meta::$meta_prefix()
-     * @uses \Exception()
-     */
-    private function create_seo_extension_activated( $new_post_id, $post_custom ) {
+	/**
+	 * Update Yoast SEO Extension meta.
+	 *
+	 * @param string $new_post_id     New post ID.
+	 * @param array  $post_custom      Post custom meta data.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
+	 * @uses \WPSEO_Meta::$meta_prefix()
+	 * @uses \Exception()
+	 */
+	private function create_seo_extension_activated( $new_post_id, $post_custom ) {
 
 		$_seo_opengraph_image = isset( $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
 		$_seo_opengraph_image = current( $_seo_opengraph_image );
@@ -1242,17 +1242,17 @@ class MainWP_Child_Posts {
 		}
 	}
 
-    /**
-     * Create featured image.
-     *
-     * @param string $new_post_id         New post ID.
-     * @param string $post_featured_image Post featured image.
-     * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
-     *
-     * @uses \MainWP\Child\MainWP_Utility::upload_image()
-     * @uses \Excepsion()
-     */
-    private function create_featured_image($new_post_id, $post_featured_image, $check_image_existed ) {
+	/**
+	 * Create featured image.
+	 *
+	 * @param string $new_post_id         New post ID.
+	 * @param string $post_featured_image Post featured image.
+	 * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
+	 * @uses \Excepsion()
+	 */
+	private function create_featured_image( $new_post_id, $post_featured_image, $check_image_existed ) {
 
 		$featured_image_exist = false;
 		// If featured image exists - set it.
