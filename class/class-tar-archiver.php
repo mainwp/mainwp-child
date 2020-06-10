@@ -129,6 +129,10 @@ class Tar_Archiver {
 	/**
 	 * Tar_Archiver constructor
 	 *
+	 * @param object $backup  MainWP_Backup class instance.
+	 * @param string $type    Backup arvhive type.
+	 * @param bool   $pidFile Request PID file or not.
+	 *
 	 * Run any time class is called.
 	 */
 	public function __construct( $backup, $type = 'tar', $pidFile = false ) {
@@ -241,7 +245,6 @@ class Tar_Archiver {
 			return false;
 		}
 
-		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
 
 		$wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
@@ -743,7 +746,7 @@ class Tar_Archiver {
 	 *
 	 * @var int Count number.
 	 */
-	protected $cnt   = 0;
+	protected $cnt = 0;
 
 	/**
 	 * Add file to the backup archive file.
