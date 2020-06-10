@@ -40,11 +40,11 @@ class MainWP_Clone_Install {
 	protected $archiver;
 
 	/**
-	 * Method __construct( $file )
+	 * Method __construct()
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time new MainWP_Clone_Install is created.
 	 *
-	 * @param string $file Contains the file name.
+	 * @param string $file Archive file.
 	 */
 	public function __construct( $file ) {
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';

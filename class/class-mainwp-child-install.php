@@ -17,15 +17,13 @@ namespace MainWP\Child;
 class MainWP_Child_Install {
 
 	/**
-	 * Public static variable to hold the single instance of the class.
+	 * Public static variable to hold the single instance of MainWP_Child_Install.
 	 *
 	 * @var mixed Default null
 	 */
 	protected static $instance = null;
 
 	/**
-	 * Method get_class_name()
-	 *
 	 * Get class name.
 	 *
 	 * @return string __CLASS__ Class name.
@@ -35,19 +33,17 @@ class MainWP_Child_Install {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Install constructor
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time new MainWP_Child_Install is created.
 	 */
 	public function __construct() {
 	}
 
 	/**
-	 * Method get_instance()
+	 * Create a public static instance of MainWP_Child_Install.
 	 *
-	 * Create a public static instance.
-	 *
-	 * @return mixed Class instance.
+	 * @return MainWP_Child_Install|mixed|null
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -376,9 +372,6 @@ class MainWP_Child_Install {
 	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
 	private function after_installed( $result ) {
-		if ( empty( $result ) || is_wp_error( $result ) ) {
-			return false;
-		}
 		$args = array(
 			'success' => 1,
 			'action'  => 'install',
