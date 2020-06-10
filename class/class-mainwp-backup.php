@@ -6,6 +6,7 @@
  *
  * @package MainWP\Child
  */
+
 namespace MainWP\Child;
 
 //phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
@@ -87,7 +88,6 @@ class MainWP_Backup {
 	 */
 	protected $gcCnt = 0;
 
-	/** @var Archive test response. */
 	/**
 	 * Archive test content.
 	 *
@@ -432,7 +432,7 @@ class MainWP_Backup {
 	/**
 	 * Perform a full backup.
 	 *
-	 * @param $fileName Backup archive file name.
+	 * @param string $fileName Backup archive file name.
 	 *
 	 * @uses MainWP_Backup::create_full_backup() Create full backup.
 	 *
@@ -1280,7 +1280,7 @@ class MainWP_Backup {
 					}
 					$query = trim( $query, ', ' ) . ');';
 
-					fwrite( $fh, "\n" . $query );
+					fwrite( $fh, "\n" . $query ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 					$i ++;
 
 					if ( $i >= 50 ) {
@@ -1294,11 +1294,11 @@ class MainWP_Backup {
 			}
 			$rows = null;
 			fflush( $fh );
-			fclose( $fh );
+			fclose( $fh ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 			rename( $currentfile . '.tmp', $currentfile );
 		}
 
-		fclose( fopen( $filepath_prefix . '.sql', 'w' ) );
+		fclose( fopen( $filepath_prefix . '.sql', 'w' ) ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		$db_files[] = $filepath_prefix . '.sql';
 
 		$archivefilePath = null;
