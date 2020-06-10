@@ -743,7 +743,7 @@ class Tar_Archiver {
 	 *
 	 * @var int Count number.
 	 */
-	protected $cnt   = 0;
+	protected $cnt = 0;
 
 	/**
 	 * Add file to the backup archive file.
