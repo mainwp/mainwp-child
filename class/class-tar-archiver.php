@@ -1,39 +1,136 @@
 <?php
+/**
+ * MainWP Tar Archiver
+ *
+ * This file handles the Tar archiver actions.
+ *
+ * @package MainWP\Child
+ */
 
 namespace MainWP\Child;
 
 // phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- to custom read/write files, complex tar archiver library.
 
-
+/**
+ * Class Tar_Archiver
+ *
+ * Handle the Tar archiver actions.
+ */
 class Tar_Archiver {
 	const IDLE   = 0;
 	const APPEND = 1;
 	const CREATE = 2;
 
+	/**
+	 * Whether to exclude zip archives.
+	 *
+	 * @var bool Set true to exclude ZIP archives from the backup.
+	 */
 	protected $excludeZip;
 
+	/**
+	 * Backup archive file.
+	 *
+	 * @var resource Backup file.
+	 */
 	protected $archive;
+
+	/**
+	 * Backup archive file path.
+	 *
+	 * @var string Backup file path.
+	 */
 	protected $archivePath;
+
+	/**
+	 * Backup archive file size.
+	 *
+	 * @var float Backup file size.
+	 */
 	protected $archiveSize;
+
+	/**
+	 * Last time a backup has been run.
+	 *
+	 * @var string Last backup run.
+	 */
 	protected $lastRun = 0;
 
+	/**
+	 * Enable debug mode.
+	 *
+	 * @var bool Set try to enable debugging.
+	 */
 	protected $debug;
 
-	protected $chunk     = '';
+	/**
+	 * Chunk of the backup.
+	 *
+	 * @var string Backup chunk.
+	 */
+	protected $chunk = '';
+
+	/**
+	 * Backup chunk size.
+	 *
+	 * @var int Backup chunk size.
+	 */
 	protected $chunkSize = 4194304;
 
-	/** @var $backup MainWP_Backup */
+	/**
+	 * MainWP_Backup class instance.
+	 *
+	 * @var object MainWP_Backup class
+	 */
 	protected $backup;
 
+	/**
+	 * Backup archive type.
+	 *
+	 * @var string Archive type.
+	 */
 	protected $type;
+
+	/**
+	 * Backup PID file.
+	 *
+	 * @var resource PID file.
+	 */
 	protected $pidFile;
+
+	/**
+	 * Backup PID file content.
+	 *
+	 * @var string PID file content.
+	 */
 	protected $pidContent;
+
+	/**
+	 * Time of the last PID file update.
+	 *
+	 * @var string Last PID file update.
+	 */
 	protected $pidUpdated;
 
+	/**
+	 * Arvive mode, IDLE, APPEND or CREATE.
+	 *
+	 * @var int Arvive mode.
+	 */
 	protected $mode = self::IDLE;
 
+	/**
+	 * Enable logging.
+	 *
+	 * @var bool Set true to log records.
+	 */
 	protected $logHandle = false;
 
+	/**
+	 * Tar_Archiver constructor
+	 *
+	 * Run any time class is called.
+	 */
 	public function __construct( $backup, $type = 'tar', $pidFile = false ) {
 		$this->debug = false;
 
@@ -54,6 +151,11 @@ class Tar_Archiver {
 		}
 	}
 
+	/**
+	 * Get backup archive file extension, .tar.bz2, .tar.gz or .tar.
+	 *
+	 * @return string Aarchive file extension, .tar.bz2, .tar.gz or .tar.
+	 */
 	public function get_extension() {
 		if ( 'tar.bz2' == $this->type ) {
 			return '.tar.bz2';
@@ -65,6 +167,19 @@ class Tar_Archiver {
 		return '.tar';
 	}
 
+	/**
+	 * Create ZIP file.
+	 *
+	 * @param array  $files Files to zip.
+	 * @param string $archive Type of archive to create.
+	 *
+	 * @uses Tar_Archiver::create() Create archive file.
+	 * @uses Tar_Archiver::add_file() Add file to the archive file.
+	 * @uses Tar_Archiver::add_data() Add data to the archive file.
+	 * @uses Tar_Archiver::close() Close archive file.
+	 *
+	 * @return bool Return false on failure, true on success.
+	 */
 	public function zip_file( $files, $archive ) {
 		$this->create( $archive );
 		if ( $this->archive ) {
@@ -81,13 +196,24 @@ class Tar_Archiver {
 		return false;
 	}
 
+	/**
+	 * Create backup archive PID file.
+	 *
+	 * @param resource $file Backup archive PID file.
+	 *
+	 * @uses WP_Filesystem_Direct::put_contents() Writes a string to a file.
+	 * @see https://developer.wordpress.org/reference/classes/wp_filesystem_direct/put_contents/
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 *
+	 * @return bool Return false on failure, true on success.
+	 */
 	private function create_pid_file( $file ) {
 		if ( false === $this->pidFile ) {
 			return false;
 		}
 		$this->pidContent = $file;
 
-		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
 
 		$wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
@@ -97,6 +223,16 @@ class Tar_Archiver {
 		return true;
 	}
 
+	/**
+	 * Update backup archive PID file.
+	 *
+	 * @uses WP_Filesystem_Direct::put_contents() Writes a string to a file.
+	 * @see https://developer.wordpress.org/reference/classes/wp_filesystem_direct/put_contents/
+	 *
+	 * @used-by Tar_Archiver::add_empty_dir() Add empty directory.
+	 *
+	 * @return bool Return false on failure, true on success.
+	 */
 	public function update_pid_file() {
 		if ( false === $this->pidFile ) {
 			return false;
@@ -114,12 +250,21 @@ class Tar_Archiver {
 		return true;
 	}
 
+	/**
+	 * Complete backup archive PID file.
+	 *
+	 * @uses WP_Filesystem_Direct::move() Moves a file.
+	 * @see https://developer.wordpress.org/reference/classes/wp_filesystem_direct/move/
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 *
+	 * @return bool Return false on failure, true on success.
+	 */
 	private function complete_pid_file() {
 		if ( false === $this->pidFile ) {
 			return false;
 		}
 
-		/** @var $wp_filesystem WP_Filesystem_Base */
 		global $wp_filesystem;
 
 		$filename = basename( $this->pidFile );
@@ -129,6 +274,33 @@ class Tar_Archiver {
 		return true;
 	}
 
+	/**
+	 * Create full backup.
+	 *
+	 * @param string $filepath         Backup file path.
+	 * @param array  $excludes         Files to exclude from the backup.
+	 * @param bool   $addConfig        Add config file to backup.
+	 * @param bool   $includeCoreFiles Include WordPress core files.
+	 * @param bool   $excludezip       Exclude zip files from the backup.
+	 * @param bool   $excludenonwp     Exclude non-WordPress directories in site root.
+	 * @param bool   $append           Append to backup file name.
+	 *
+	 * @uses Tar_Archiver::create_pid_file() Create PID file.
+	 * @uses Tar_Archiver::prepare_append() Prepare to append.
+	 * @uses Tar_Archiver::create() Create backup archive file.
+	 * @uses Tar_Archiver::include_core_files() Include WordPress core files.
+	 * @uses Tar_Archiver::create_backup_db() Crate database backup.
+	 * @uses Tar_Archiver::add_file() Add file to backup archive file.
+	 * @uses Tar_Archiver::add_dir() Add directory to backup archive file.
+	 * @uses Tar_Archiver::add_config() Add config file to backup archive file.
+	 * @uses Tar_Archiver::add_empty_directory() Add empty 'clone' directory to backup archive file.
+	 * @uses Tar_Archiver::add_file_from_string() Add file from a string.
+	 * @uses Tar_Archiver::add_data() Add data to the backup archive file.
+	 * @uses Tar_Archiver::close() Close the bacukup archive file.
+	 * @uses Tar_Archiver::complete_pid_file() Complete the PID file.
+	 *
+	 * @return bool Return false on failure, true on success.
+	 */
 	public function create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
 		$this->create_pid_file( $filepath );
 
@@ -196,6 +368,13 @@ class Tar_Archiver {
 		return false;
 	}
 
+	/**
+	 * Include WordPress core file.
+	 *
+	 * @param array $nodes Default nodes.
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 */
 	private function include_core_files( &$nodes ) {
 		$coreFiles = array(
 			'favicon.ico',
@@ -236,6 +415,20 @@ class Tar_Archiver {
 		unset( $coreFiles );
 	}
 
+	/**
+	 * Add config file to the backup archive file.
+	 *
+	 * @uses wp_json_encode() Encode a variable into JSON, with some sanity checks.
+	 * @see https://developer.wordpress.org/reference/functions/wp_json_encode/
+	 *
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @uses get_bloginfo() Retrieves information about the current site.
+	 * @see https://developer.wordpress.org/reference/functions/get_bloginfo/
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 */
 	private function add_config() {
 		global $wpdb;
 		$plugins = array();
@@ -296,6 +489,17 @@ class Tar_Archiver {
 		return $string;
 	}
 
+	/**
+	 * Add directory to the backup archive file.
+	 *
+	 * @param string $path     File path.
+	 * @param array  $excludes List of file to exclude from the backup.
+	 *
+	 * @uses Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
+	 * @uses Tar_Archiver::add_file() Add file to the backup archive file.
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 */
 	public function add_dir( $path, $excludes ) {
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
 			return;
@@ -309,7 +513,6 @@ class Tar_Archiver {
 
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST, RecursiveIteratorIterator::CATCH_GET_CHILD );
 
-		/** @var $path DirectoryIterator */
 		foreach ( $iterator as $path ) {
 			$name = $path->__toString();
 			if ( ( '.' == basename( $name ) ) || ( '..' == basename( $name ) ) ) {
@@ -331,6 +534,18 @@ class Tar_Archiver {
 		unset( $iterator );
 	}
 
+	/**
+	 * Add data to the backup archive file.
+	 *
+	 * @param arary $data Data to add to the backup archive file.
+	 *
+	 * @uses Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
+	 * @uses Tar_Archiver::add_file() Add file to the backup archive file.
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 *
+	 * @throws \Exception Error message.
+	 */
 	private function add_data( $data ) {
 		if ( $this->debug ) {
 			$this->chunk .= $data;
@@ -358,6 +573,11 @@ class Tar_Archiver {
 		}
 	}
 
+	/**
+	 * Write backup chunk.
+	 *
+	 * @throws \Exception Error message.
+	 */
 	private function write_chunk() {
 		$len = strlen( $this->chunk );
 		if ( 0 == $len ) {
@@ -385,12 +605,36 @@ class Tar_Archiver {
 		$this->chunk = '';
 	}
 
+	/**
+	 * Fire off the add_empty_directory() function.
+	 *
+	 * @param string $path      File path.
+	 * @param string $entryName Entry name.
+	 *
+	 * @uses Tar_Archiver::add_empty_directory() Add empty directory to the backup archive file.
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 */
 	private function add_empty_dir( $path, $entryName ) {
 		$stat = stat( $path );
 
 		$this->add_empty_directory( $entryName, $stat['mode'], $stat['uid'], $stat['gid'], $stat['mtime'] );
 	}
 
+	/**
+	 * Add empty directory to the backup archive file.
+	 *
+	 * @param string $entryName Entry name.
+	 * @param int    $mode      Inode protection mode.
+	 * @param int    $uid       Userid of the file owner.
+	 * @param int    $gid       Groupid of the file owner .
+	 * @param string $mtime     Time of last modification of the file.
+	 *
+	 * @uses Tar_Archiver::check_before_append() Check before append.
+	 * @uses Tar_Archiver::add_data() Add data to the backup archive file.
+	 *
+	 * @used-by Tar_Archiver::add_empty_dir() Fire off the add_empty_directory() function.
+	 */
 	private function add_empty_directory( $entryName, $mode, $uid, $gid, $mtime ) {
 		if ( self::APPEND == $this->mode ) {
 			if ( true === $this->check_before_append( $entryName ) ) {
@@ -473,12 +717,48 @@ class Tar_Archiver {
 		return true;
 	}
 
+	/**
+	 * Block of the backup content.
+	 *
+	 * @var array Block of content.
+	 */
 	protected $block;
+
+	/**
+	 * Temprary backup content.
+	 *
+	 * @var string Temprary content.
+	 */
 	protected $tempContent;
+
+	/**
+	 * Garbage collection count.
+	 *
+	 * @var int Garbage collection count.
+	 */
 	protected $gcCnt = 0;
+
+	/**
+	 * Count number.
+	 *
+	 * @var int Count number.
+	 */
 	protected $cnt   = 0;
 
-	private function add_file( $path, $entryName ) { // phpcs:ignore -- ignore complex method notice.
+	/**
+	 * Add file to the backup archive file.
+	 *
+	 * @param string $path      File path.
+	 * @param string $entryName Entry name.
+	 *
+	 * @uses Tar_Archiver::update_pid_file() Update the PID file.
+	 * @uses Tar_Archiver::add_data() Add data to the backup archive file.
+	 *
+	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 *
+	 * @return bool Return false on failure, true on success.
+	 */
+	private function add_file( $path, $entryName ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
 			return false;
 		}
@@ -639,6 +919,16 @@ class Tar_Archiver {
 		return true;
 	}
 
+	/**
+	 * Add file from a string.
+	 *
+	 * @param string $entryName Entry name.
+	 * @param string $content   Entry content.
+	 *
+	 * @uses Tar_Archiver::add_data() Add data to the backup archive file.
+	 *
+	 * @return bool Return false on failure, true on success.
+	 */
 	private function add_file_from_string( $entryName, $content ) {
 		$this->log( 'Add from string ' . $entryName );
 
@@ -728,6 +1018,16 @@ class Tar_Archiver {
 		return true;
 	}
 
+	/**
+	 * Check before append.
+	 *
+	 * @param string $entryName Entry name.
+	 *
+	 * @uses Tar_Archiver::close() Close the backup archive file.
+	 * @uses Tar_Archiver::append() Append to the backup archive file.
+	 *
+	 * @return array Return function output.
+	 */
 	private function check_before_append( $entryName ) {
 		$rslt = $this->is_next_file( $entryName );
 
@@ -765,17 +1065,13 @@ class Tar_Archiver {
 	}
 
 	/**
-	 * return true: skip file
-	 * return number: nothing to read, will continue with current file..
-	 * return false: nothing to read, will continue with current file..
-	 * exception: corrupt zip - invalid file order!
+	 * Is next file.
 	 *
-	 * return array: continue the busy directory or file..
+	 * @param string $entryName Entry name.
 	 *
-	 * @param $entryName
+	 * @throws \Exception Error message.
 	 *
-	 * @return array|bool
-	 * @throws \Exception
+	 * @return array|bool If true,skip file, if false or number, nothing to read, will continue with current file.
 	 */
 	private function is_next_file( $entryName ) {
 		$currentOffset = ftell( $this->archive );
@@ -838,6 +1134,13 @@ class Tar_Archiver {
 		}
 	}
 
+	/**
+	 * Read next bytes.
+	 *
+	 * @param resource $file File to process.
+	 *
+	 * @return array|bool Number of bytes or false on failure.
+	 */
 	private function read_next_bytes( $file ) {
 		$previousFtell = ftell( $this->archive );
 		$bytes         = $file['stat'][7] + ( 512 == ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
@@ -886,12 +1189,22 @@ class Tar_Archiver {
 		return true;
 	}
 
+	/**
+	 * Log messages to the backup error log.
+	 *
+	 * @param string $text Log message.
+	 */
 	public function log( $text ) {
 		if ( $this->logHandle ) {
 			fwrite( $this->logHandle, $text . "\n" );
 		}
 	}
 
+	/**
+	 * Create backup archive file.
+	 *
+	 * @param string $filepath File location path.
+	 */
 	public function create( $filepath ) {
 		$this->log( 'Creating ' . $filepath );
 		if ( $this->debug ) {
@@ -913,6 +1226,11 @@ class Tar_Archiver {
 		}
 	}
 
+	/**
+	 * Append to the backup archive file.
+	 *
+	 * @param string $filepath File location path.
+	 */
 	public function append( $filepath ) {
 		$this->log( 'Appending to ' . $filepath );
 		if ( $this->debug ) {
@@ -934,10 +1252,22 @@ class Tar_Archiver {
 		}
 	}
 
+	/**
+	 * Verify if the backup archive file is open.
+	 *
+	 * @return bool True if open, if not, false.
+	 */
 	public function is_open() {
 		return ! empty( $this->archive );
 	}
 
+	/**
+	 * Prepare the append process.
+	 *
+	 * @param string $filepath File location path.
+	 *
+	 * @throws \Exception Error message.
+	 */
 	public function prepare_append( $filepath ) {
 		if ( $this->debug ) {
 			if ( 'tar.gz' == substr( $filepath, - 6 ) ) {
@@ -980,6 +1310,11 @@ class Tar_Archiver {
 		$this->read( $filepath );
 	}
 
+	/**
+	 * Read the backup archive file.
+	 *
+	 * @param string $filepath File location path.
+	 */
 	public function read( $filepath ) {
 		$this->log( 'Reading ' . $filepath );
 		$this->archiveSize = false;
@@ -1003,6 +1338,11 @@ class Tar_Archiver {
 		}
 	}
 
+	/**
+	 * Close the backup archive file.
+	 *
+	 * @param bool $closeLog Log this action if set true.
+	 */
 	public function close( $closeLog = true ) {
 		$this->write_chunk();
 		$this->log( 'Closing archive' );
@@ -1022,6 +1362,13 @@ class Tar_Archiver {
 		}
 	}
 
+	/**
+	 * Get File content retrived by name.
+	 *
+	 * @param string $entryName Entry name.
+	 *
+	 * @return string File content.
+	 */
 	public function get_from_name( $entryName ) {
 		if ( ! $this->archive ) {
 			return false;
@@ -1086,6 +1433,13 @@ class Tar_Archiver {
 		return $content;
 	}
 
+	/**
+	 * Check if the file exists.
+	 *
+	 * @param string $entryName Entry name.
+	 *
+	 * @return bool Return tru if the file exists, false if it doesn't.
+	 */
 	public function file_exists( $entryName ) {
 		if ( ! $this->archive ) {
 			return false;
@@ -1149,8 +1503,15 @@ class Tar_Archiver {
 		return false;
 	}
 
-	public function extract_to( $to ) { // phpcs:ignore -- ignore complex method notice.
-		/** @var $wp_filesystem WP_Filesystem_Base */
+	/**
+	 * Extract backup archive file to a location.
+	 *
+	 * @param string $to Desired location to extract file.
+	 *
+	 * @return null
+	 */
+	public function extract_to( $to ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+
 		global $wp_filesystem;
 
 		$to = trailingslashit( $to );
@@ -1254,6 +1615,13 @@ class Tar_Archiver {
 		return null;
 	}
 
+	/**
+	 * Check if block is valid.
+	 *
+	 * @param array $block Block of the backup file content.
+	 *
+	 * @return bool Return true if it's valid block, false if not.
+	 */
 	public function is_valid_block( $block ) {
 		$test = gzinflate( $block );
 		if ( false === $test ) {
