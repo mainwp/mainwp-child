@@ -3,6 +3,8 @@
  * MainWP Child posts handler
  *
  * This file handles all post & post plus actions.
+ *
+ * @package MainWP\Child
  */
 
 namespace MainWP\Child;
@@ -10,7 +12,7 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Child_Posts
  *
- * @package MainWP\Child
+ * Handle all post & post plus actions.
  */
 class MainWP_Child_Posts {
 
@@ -21,10 +23,18 @@ class MainWP_Child_Posts {
 	 */
 	protected static $instance = null;
 
-	/** @var string Comments & clauses. */
+	/**
+	 * Comments and clauses.
+	 *
+	 * @var string Comments and clauses.
+	 */
 	private $comments_and_clauses;
 
-	/** @var string Post Query WHERE suffix. */
+	/**
+	 * Posts with given suffix.
+	 *
+	 * @var string Posts with given suffix.
+	 */
 	private $posts_where_suffix;
 
 	/**
@@ -97,13 +107,10 @@ class MainWP_Child_Posts {
 	 * @param array  $allPosts All posts array.
 	 * @param null   $extra Extra tokens.
 	 *
-	 * @return array $allPosts[] Array of all posts.
-	 *
 	 * @uses \WPSEO_Link_Column_Count()
 	 * @uses \WPSEO_Meta()
 	 * @uses \MainWP_WordPress_SEO::instance()::parse_column_score()
 	 * @uses \MainWP_WordPress_SEO::instance()->parse_column_score_readability()
-	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_out_post()
 	 */
 	public function get_recent_posts_int( $status, $pCount, $type = 'post', &$allPosts, $extra = null ) {
@@ -261,10 +268,11 @@ class MainWP_Child_Posts {
 	/**
 	 * Append the Post's SQL WHERE clause suffix.
 	 *
-	 * @param $where Post's SQL WHERE clause.
-	 * @return string $where The full SQL WHERE clause with the appended suffix.
+	 * @param string $where Post's SQL WHERE clause.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
+	 *
+	 * @return string $where The full SQL WHERE clause with the appended suffix.
 	 */
 	public function posts_where( $where ) {
 		if ( $this->posts_where_suffix ) {
@@ -283,8 +291,6 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_posts_by_type( $type ) {
-
-		/** @global $wpdb wpdb */
 		global $wpdb;
 
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
@@ -968,7 +974,7 @@ class MainWP_Child_Posts {
 					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 					if ( is_array( $post_gallery_images ) ) {
 						foreach ( $post_gallery_images as $gallery ) {
-							if \ Exception ( isset( $gallery['src'] ) ) {
+							if \Exception( isset( $gallery['src'] ) ) {
 								try {
 									$upload = MainWP_Utility::upload_image( $gallery['src'], $gallery ); // Upload image to WP.
 									if ( null !== $upload ) {
@@ -1107,9 +1113,17 @@ class MainWP_Child_Posts {
 	}
 
 	/**
+	 * Create new and set categories.
+	 *
 	 * @param string $new_post_id   New post ID.
 	 * @param string $post_category Post category.
 	 * @param bool   $post_to_only  TRUE|FALSE, Whether or not to post only to this category.
+	 *
+	 * @uses wp_create_categories() Create categories for the given post.
+	 * @see https://developer.wordpress.org/reference/functions/wp_create_categories/
+	 *
+	 * @uses wp_set_post_categories() Set categories for a post.
+	 * @see https://developer.wordpress.org/reference/functions/wp_set_post_categories/
 	 */
 	private function create_set_categories( $new_post_id, $post_category, $post_to_only ) {
 
