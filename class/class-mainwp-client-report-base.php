@@ -585,6 +585,14 @@ class MainWP_Client_Report_Base {
 
 		$loops      = array();
 		$loop_count = 0;
+
+		$max_items_get = ( isset( $_POST['max_items_get'] ) && ! empty( $_POST['max_items_get'] ) ) ? intval( $_POST['max_items_get'] ) : 0;
+		$limit_connectors = ( isset( $_POST['limit_reports'] ) && ! empty( $_POST['limit_reports'] ) ) ? intval( $_POST['limit_reports'] ) : array();
+
+		if ( ! is_array( $limit_connectors ) || empty( $limit_connectors ) ) {
+			$limit_connectors = array( 'mainwp_sucuri', 'mainwp_maintenance', 'mainwp_backups' );
+		}
+
 		foreach ( $records as $record ) {
 
 			if ( in_array( $record->ID, $skip_records ) ) {
@@ -648,6 +656,12 @@ class MainWP_Client_Report_Base {
 			if ( ! empty( $token_values ) ) {
 				$loops[ $loop_count ] = $token_values;
 				$loop_count ++;
+			}
+			
+			if ( $max_items_get && ( $loop_count >= $max_items_get ) ) {			
+				if ( in_array( $connector, $limit_connectors ) ) {
+					break;	
+				}				
 			}
 		}
 		return $loops;
