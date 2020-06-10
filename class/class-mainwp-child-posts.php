@@ -7,8 +7,6 @@
 
 namespace MainWP\Child;
 
-//phpcs:disable Generic.Metrics.CyclomaticComplexity -- complex functions/features.
-
 /**
  * Class MainWP_Child_Posts
  * @package MainWP\Child
