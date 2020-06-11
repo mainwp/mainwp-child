@@ -1,26 +1,55 @@
 <?php
 /**
+ * MainWP Time Capsule
+ *
+ * MainWP Time Capsule Extension handler.
+ * Extension URL: https://mainwp.com/extension/time-capsule/
+ *
+ * @package MainWP\Child
+ *
  * Credits
  *
  * Plugin-Name: WP Time Capsule
- * Plugin URI: https://wptimecapsule.com
+ * Plugin-URI: https://wptimecapsule.com
  * Author: Revmakx
  * Author URI: http://www.revmakx.com
- *
- * The code is used for the MainWP Time Capsule Extension
- * Extension URL: https://mainwp.com/extension/time-capsule/
+ * Licence: GPLv2 or later
  */
 
 use MainWP\Child\MainWP_Helper;
 use MainWP\Child\MainWP_Utility;
 use MainWP\Child\MainWP_Child_DB;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity --  to use external code, third party credit.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- required to achieve desired results, pull request solutions appreciated.
 
+/**
+ * Class MainWP_Child_Timecapsule
+ *
+ * MainWP Time Capsule Extension handler.
+ */
 class MainWP_Child_Timecapsule {
+
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	public static $instance     = null;
+
+	/**
+	 * Public variable to hold the infomration if the WP Time Capsule plugin is installed on the child site.
+	 *
+	 * @var bool If WP Time Capsule intalled, return true, if not, return false.
+	 */
 	public $is_plugin_installed = false;
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -28,6 +57,14 @@ class MainWP_Child_Timecapsule {
 		return self::$instance;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time the class is called.
+	 *
+	 * @uses is_plugin_active() Determines whether a plugin is active.
+	 * @see https://developer.wordpress.org/reference/functions/is_plugin_active/
+	 */
 	public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'wp-time-capsule/wp-time-capsule.php' ) && defined( 'WPTC_CLASSES_DIR' ) ) {
@@ -41,7 +78,16 @@ class MainWP_Child_Timecapsule {
 		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
-
+	/**
+	 * Method init()
+	 *
+	 * Initiate action hooks.
+	 *
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @return void
+	 */
 	public function init() {
 		if ( ! $this->is_plugin_installed ) {
 			return;
@@ -61,8 +107,58 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
-
-	public function action() { // phpcs:ignore -- ignore complex method notice.
+	/**
+	 * Method action()
+	 *
+	 * Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @uses MainWP_Child_Timecapsule::set_showhide()
+	 * @uses MainWP_Child_Timecapsule::get_root_files()
+	 * @uses MainWP_Child_Timecapsule::get_tables()
+	 * @uses MainWP_Child_Timecapsule::exclude_file_list()
+	 * @uses MainWP_Child_Timecapsule::exclude_table_list()
+	 * @uses MainWP_Child_Timecapsule::include_table_list()
+	 * @uses MainWP_Child_Timecapsule::include_table_structure_only()
+	 * @uses MainWP_Child_Timecapsule::include_file_list()
+	 * @uses MainWP_Child_Timecapsule::get_files_by_key()
+	 * @uses MainWP_Child_Timecapsule::process_wptc_login()
+	 * @uses MainWP_Child_Timecapsule::get_installed_plugins()
+	 * @uses MainWP_Child_Timecapsule::get_installed_themes()
+	 * @uses MainWP_Child_Timecapsule::is_staging_need_request()
+	 * @uses MainWP_Child_Timecapsule::get_staging_details_wptc()
+	 * @uses MainWP_Child_Timecapsule::start_fresh_staging_wptc()
+	 * @uses MainWP_Child_Timecapsule::get_staging_url_wptc()
+	 * @uses MainWP_Child_Timecapsule::stop_staging_wptc()
+	 * @uses MainWP_Child_Timecapsule::continue_staging_wptc()
+	 * @uses MainWP_Child_Timecapsule::delete_staging_wptc()
+	 * @uses MainWP_Child_Timecapsule::copy_staging_wptc()
+	 * @uses MainWP_Child_Timecapsule::get_staging_current_status_key()
+	 * @uses MainWP_Child_Timecapsule::wptc_sync_purchase()
+	 * @uses MainWP_Child_Timecapsule::init_restore()
+	 * @uses MainWP_Child_Timecapsule::save_settings_wptc()
+	 * @uses MainWP_Child_Timecapsule::analyze_inc_exc()
+	 * @uses MainWP_Child_Timecapsule::get_enabled_plugins()
+	 * @uses MainWP_Child_Timecapsule::get_enabled_themes()
+	 * @uses MainWP_Child_Timecapsule::get_system_info()
+	 * @uses MainWP_Child_Timecapsule::update_vulns_settings()
+	 * @uses MainWP_Child_Timecapsule::start_fresh_backup_tc_callback_wptc()
+	 * @uses MainWP_Child_Timecapsule::save_manual_backup_name_wptc()
+	 * @uses MainWP_Child_Timecapsule::progress_wptc()
+	 * @uses MainWP_Child_Timecapsule::stop_fresh_backup_tc_callback_wptc()
+	 * @uses MainWP_Child_Timecapsule::wptc_cron_status()
+	 * @uses MainWP_Child_Timecapsule::get_this_backups_html()
+	 * @uses MainWP_Child_Timecapsule::start_restore_tc_callback_wptc()
+	 * @uses MainWP_Child_Timecapsule::get_sibling_files_callback_wptc()
+	 * @uses MainWP_Child_Timecapsule::get_logs_rows()
+	 * @uses MainWP_Child_Timecapsule::clear_wptc_logs()
+	 * @uses MainWP_Child_Timecapsule::send_issue_report()
+	 * @uses MainWP_Child_Timecapsule::lazy_load_activity_log_wptc()
+	 *
+	 * MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 *
+	 * @return void
+	 */
+	public function action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		if ( ! $this->is_plugin_installed ) {
 			MainWP_Helper::write( array( 'error' => 'Please install WP Time Capsule plugin on child website' ) );
 		}
@@ -216,7 +312,11 @@ class MainWP_Child_Timecapsule {
 		MainWP_Helper::write( $information );
 	}
 
-
+	/**
+	 * Check if required files exist.
+	 *
+	 * @uses MainWP_Helper::check_files_exists() Check if requested files exist.
+	 */
 	public function require_files() {
 		if ( ! class_exists( 'WPTC_Base_Factory' ) && defined( 'WPTC_PLUGIN_DIR' ) ) {
 			if ( MainWP_Helper::check_files_exists( WPTC_PLUGIN_DIR . 'Base/Factory.php' ) ) {
@@ -230,6 +330,15 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
+	/**
+	 * Hide or unhide the WP Time Capsule plugin.
+	 *
+	 * @uses MainWP_Helper::update_option() Update database option by option name.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_time_capsule_hide_plugin', $hide, 'yes' );
@@ -237,6 +346,21 @@ class MainWP_Child_Timecapsule {
 		return $information;
 	}
 
+	/**
+	 * Sync the WP Time Capsule plugin settings.
+	 *
+	 * @param array $information Array containing the sync information.
+	 * @param array $data        Array containing the WP Time Capsule plugin data to be synced.
+	 *
+	 * @uses MainWP_Child_Timecapsule::get_sync_data() Get synced WP Time Capsule data.
+	 *
+	 * @uses MainWP_Helper::update_option() Update database option by option name.
+	 *
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @return array $information Array containing the sync information.
+	 */
 	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncWPTimeCapsule'] ) && $data['syncWPTimeCapsule'] ) {
 			$information['syncWPTimeCapsule'] = $this->get_sync_data();
@@ -247,6 +371,16 @@ class MainWP_Child_Timecapsule {
 		return $information;
 	}
 
+	/**
+	 * Get synced WP Time Capsule data.
+	 *
+	 * @uses MainWP_Helper::check_classes_exists() Check if requested class exists.
+	 * @uses MainWP_Helper::check_methods() Check if requested method exists.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::sync_others_data() Sync the WP Time Capsule plugin settings.
+	 *
+	 * @return array|bool Return an array containing the synced data, or false on failure.
+	 */
 	public function get_sync_data() {
 		try {
 			$this->require_files();
@@ -291,9 +425,22 @@ class MainWP_Child_Timecapsule {
 		return false;
 	}
 
+	/**
+	 * Get WP Time Capsule backups.
+	 *
+	 * @param string $last_time Last completed backup timestamp.
+	 *
+	 * @uses wpdb::get_results() Retrieve an entire SQL result set from the database (i.e., many rows).
+	 * @see https://developer.wordpress.org/reference/classes/wpdb/get_results/
+	 *
+	 * @uses wpdb::prepare() Prepares a SQL query for safe execution. Uses sprintf()-like syntax.
+	 * @see https://developer.wordpress.org/reference/classes/wpdb/prepare/
+	 *
+	 * @return array Returns array of all completed backups.
+	 */
 	protected function get_backups( $last_time = false ) {
 		if ( empty( $last_time ) ) {
-			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore -- local time.
+			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore --  required to achieve desired results, pull request solutions appreciated.
 		}
 		global $wpdb;
 		$all_backups = $wpdb->get_results(
@@ -308,6 +455,11 @@ class MainWP_Child_Timecapsule {
 		return $all_backups;
 	}
 
+	/**
+	 * Get the WP Time Capsule tables.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function get_tables() {
 		$category          = $_POST['category'];
 		$exclude_class_obj = new Wptc_ExcludeOption( $category );
@@ -315,6 +467,11 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Exlude files from the backup process.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function exclude_file_list() {
 		if ( ! isset( $_POST['data'] ) ) {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
@@ -325,6 +482,16 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Get backup process progress.
+	 *
+	 * @uses spawn_cron() Sends a request to run cron through HTTP request that doesn’t halt page loading.
+	 * @see https://developer.wordpress.org/reference/functions/spawn_cron/
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function progress_wptc() {
 
 		$config = WPTC_Factory::get( 'config' );
@@ -345,13 +512,13 @@ class MainWP_Child_Timecapsule {
 		$cron_status                                   = $config->get_option( 'wptc_own_cron_status' );
 
 		if ( ! empty( $cron_status ) ) {
-			$return_array['wptc_own_cron_status']          = unserialize( $cron_status ); // phpcs:ignore -- third party credit.
+			$return_array['wptc_own_cron_status']          = unserialize( $cron_status ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 			$return_array['wptc_own_cron_status_notified'] = (int) $config->get_option( 'wptc_own_cron_status_notified' );
 		}
 
 		$start_backups_failed_server = $config->get_option( 'start_backups_failed_server' );
 		if ( ! empty( $start_backups_failed_server ) ) {
-			$return_array['start_backups_failed_server'] = unserialize( $start_backups_failed_server ); // phpcs:ignore -- third party credit.
+			$return_array['start_backups_failed_server'] = unserialize( $start_backups_failed_server ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 			$config->set_option( 'start_backups_failed_server', false );
 		}
 
@@ -369,7 +536,7 @@ class MainWP_Child_Timecapsule {
 		if ( ! empty( $last_backup_time ) ) {
 			$user_time = $config->cnvt_UTC_to_usrTime( $last_backup_time );
 			$processed_files->modify_schedule_backup_time( $user_time );
-			$formatted_date                   = date( 'M d @ g:i a', $user_time ); // phpcs:ignore -- local time.
+			$formatted_date                   = date( 'M d @ g:i a', $user_time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 			$return_array['last_backup_time'] = $formatted_date;
 		} else {
 			$return_array['last_backup_time'] = 'No Backup Taken';
@@ -378,13 +545,20 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => $return_array );
 	}
 
+	/**
+	 * Get the WP Cron status.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function wptc_cron_status() {
 		$config = WPTC_Factory::get( 'config' );
 		wptc_own_cron_status();
 		$status      = array();
 		$cron_status = $config->get_option( 'wptc_own_cron_status' );
 		if ( ! empty( $cron_status ) ) {
-			$cron_status = unserialize( $cron_status ); // phpcs:ignore -- third party credit.
+			$cron_status = unserialize( $cron_status ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
 			if ( 'success' == $cron_status['status'] ) {
 				$status['status'] = 'success';
@@ -400,6 +574,13 @@ class MainWP_Child_Timecapsule {
 		return false;
 	}
 
+	/**
+	 * Get the backups HTML markup.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_this_backups_html() {
 		$this_backup_ids    = $_POST['this_backup_ids'];
 		$specific_dir       = $_POST['specific_dir'];
@@ -411,7 +592,11 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => $result );
 	}
 
-
+	/**
+	 * Start the restore process.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function start_restore_tc_callback_wptc() {
 
 		if ( apply_filters( 'is_restore_to_staging_wptc', '' ) ) {
@@ -425,6 +610,14 @@ class MainWP_Child_Timecapsule {
 		new WPTC_Prepare_Restore_Bridge( $request );
 	}
 
+	/**
+	 * Get sibling files.
+	 *
+	 * @uses wp_normalize_path() Normalize a filesystem path.
+	 * @see https://developer.wordpress.org/reference/functions/wp_normalize_path/
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function get_sibling_files_callback_wptc() {
 		// note that we are getting the ajax function data via $_POST.
 		$file_name       = $_POST['data']['file_name'];
@@ -437,18 +630,36 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Send issue report.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function send_issue_report() {
 		WPTC_Base_Factory::get( 'Wptc_App_Functions' )->send_report();
 		die();
 	}
 
-
+	/**
+	 * Get logs rows.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_logs_rows() {
 		$result                 = $this->prepare_items();
-		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$result['display_rows'] = base64_encode( serialize( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
 		return $result;
 	}
 
+	/**
+	 * Prepare items for logs.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::get_logs_rows() Get logs rows.
+	 *
+	 * @return array Action result.
+	 */
 	public function prepare_items() {
 		global $wpdb;
 
@@ -500,13 +711,25 @@ class MainWP_Child_Timecapsule {
 		}
 
 		return array(
-			'items'      => $wpdb->get_results( $query ), // phpcs:ignore -- safe query.
+			'items'      => $wpdb->get_results( $query ), // phpcs:ignore -- safe query required to achieve desired results, pull request solutions appreciated.
 			'totalitems' => $totalitems,
 			'perpage'    => $perpage,
 		);
 	}
 
-
+	/**
+	 * Lazy load activity log.
+	 *
+	 * @uses MainWP_Child_Timecapsule::get_activity_log() Get the WP Time Capsule activity log.
+	 *
+	 * @uses wpdb::get_results() Retrieve an entire SQL result set from the database (i.e., many rows).
+	 * @see https://developer.wordpress.org/reference/classes/wpdb/get_results/
+	 *
+	 * @uses wpdb::prepare() Prepares a SQL query for safe execution. Uses sprintf()-like syntax.
+	 * @see https://developer.wordpress.org/reference/classes/wpdb/prepare/
+	 *
+	 * @return array Action result.
+	 */
 	public function lazy_load_activity_log_wptc() {
 
 		if ( ! isset( $_POST['data'] ) ) {
@@ -544,7 +767,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => $detailed );
 	}
 
-
+	/**
+	 * Display the log rows.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::get_logs_rows() Get logs rows.
+	 *
+	 * @return string Log rows.
+	 */
 	public function get_display_rows( $records ) {
 		global $wpdb;
 		// Get the records registered in the prepare_items method.
@@ -582,10 +811,10 @@ class MainWP_Child_Timecapsule {
 					}
 				}
 				$html     .= '<tr class="act-tr">';
-				$Ldata     = unserialize( $rec->log_data ); // phpcs:ignore -- third party credit.
+				$Ldata     = unserialize( $rec->log_data ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 				$user_time = WPTC_Factory::get( 'config' )->cnvt_UTC_to_usrTime( $Ldata['log_time'] );
 				WPTC_Factory::get( 'processed-files' )->modify_schedule_backup_time( $user_time );
-				$user_tz_now = date( 'M d, Y @ g:i:s a', $user_time ); // phpcs:ignore -- local time.
+				$user_tz_now = date( 'M d, Y @ g:i:s a', $user_time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 				$msg         = '';
 				if ( ! ( strpos( $rec->type, 'backup' ) === false ) ) {
 					// Backup process.
@@ -624,7 +853,15 @@ class MainWP_Child_Timecapsule {
 		return $display_rows;
 	}
 
-
+	/**
+	 * Get the WP Time Capsule activity log.
+	 *
+	 * @param array $sub_records Activity log sub-records.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return string Activity log HTML.
+	 */
 	public function get_activity_log( $sub_records ) {
 		if ( count( $sub_records ) < 1 ) {
 			return false;
@@ -632,7 +869,7 @@ class MainWP_Child_Timecapsule {
 		$detailed = '';
 		$timezone = WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
 		foreach ( $sub_records as $srec ) {
-			$Moredata = unserialize( $srec->log_data ); // phpcs:ignore -- third party credit.
+			$Moredata = unserialize( $srec->log_data ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 			$user_tmz = new DateTime( '@' . $Moredata['log_time'], new DateTimeZone( date_default_timezone_get() ) );
 			$user_tmz->setTimeZone( new DateTimeZone( $timezone ) );
 			$user_tmz_now = $user_tmz->format( 'M d @ g:i:s a' );
@@ -641,6 +878,13 @@ class MainWP_Child_Timecapsule {
 		return $detailed;
 	}
 
+	/**
+	 * Clear the WP Time Capsule logs.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function clear_wptc_logs() {
 		global $wpdb;
 		if ( $wpdb->query( 'TRUNCATE TABLE `' . $wpdb->base_prefix . 'wptc_activity_log`' ) ) {
@@ -651,6 +895,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => $result );
 	}
 
+	/**
+	 * Stop the WP Time Capsule backup process.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function stop_fresh_backup_tc_callback_wptc() {
 		$deactivated_plugin = null;
 		$backup             = new WPTC_BackupController();
@@ -658,6 +909,11 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => 'ok' );
 	}
 
+	/**
+	 * Get the site root files.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function get_root_files() {
 		$category          = $_POST['category'];
 		$exclude_class_obj = new Wptc_ExcludeOption( $category );
@@ -665,6 +921,11 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Exclude database tables.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function exclude_table_list() {
 		if ( ! isset( $_POST['data'] ) ) {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
@@ -675,6 +936,14 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Add support for the reporting system.
+	 *
+	 * @uses has_action() Check if any action has been registered for a hook.
+	 * @see https://developer.wordpress.org/reference/functions/has_action/
+	 *
+	 * @uses MainWP_Child_Timecapsule::do_reports_log() Add WP Time Capsule data to the reports database table.
+	 */
 	public function do_site_stats() {
 		if ( has_action( 'mainwp_child_reports_log' ) ) {
 			do_action( 'mainwp_child_reports_log', 'wptimecapsule' );
@@ -683,6 +952,17 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
+	/**
+	 * Add WP Time Capsule data to the reports database table.
+	 *
+	 * @param string $ext Current extension.
+	 *
+	 * @uses MainWP_Helper::check_classes_exists() Check if the requested class exists.
+	 * @uses MainWP_Helper::check_methods() Check if the requested method exists.
+	 * @uses MainWP_Utility::update_lasttime_backup() Get the last backup timestamp.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::do_site_stats() Add support for the reporting system.
+	 */
 	public function do_reports_log( $ext = '' ) {
 
 		if ( 'wptimecapsule' !== $ext ) {
@@ -734,6 +1014,11 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
+	/**
+	 * Include database tables.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function include_table_list() {
 		if ( ! isset( $_POST['data'] ) ) {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
@@ -744,6 +1029,11 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Include database table structure only.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function include_table_structure_only() {
 
 		if ( ! isset( $_POST['data'] ) ) {
@@ -756,6 +1046,11 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Include files list.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function include_file_list() {
 
 		if ( ! isset( $_POST['data'] ) ) {
@@ -767,6 +1062,11 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Get files by key.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function get_files_by_key() {
 		$key               = $_POST['key'];
 		$category          = $_POST['category'];
@@ -775,6 +1075,13 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Process the WP Time Capsule login process.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	private function process_wptc_login() {
 		$options_helper = new Wptc_Options_Helper();
 
@@ -821,6 +1128,13 @@ class MainWP_Child_Timecapsule {
 		);
 	}
 
+	/**
+	 * Get the list of installed plugins.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_installed_plugins() {
 
 		$backup_before_auto_update_settings = WPTC_Pro_Factory::get( 'Wptc_Backup_Before_Auto_Update_Settings' );
@@ -832,6 +1146,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'results' => array() );
 	}
 
+	/**
+	 * Get the list of installed themes.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_installed_themes() {
 
 		$backup_before_auto_update_settings = WPTC_Pro_Factory::get( 'Wptc_Backup_Before_Auto_Update_Settings' );
@@ -843,12 +1164,22 @@ class MainWP_Child_Timecapsule {
 		return array( 'results' => array() );
 	}
 
+	/**
+	 * Check if staging request needed.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function is_staging_need_request() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->is_staging_need_request();
 		die();
 	}
 
+	/**
+	 * Get the staging details.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function get_staging_details_wptc() {
 		$staging               = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$details               = $staging->get_staging_details();
@@ -856,6 +1187,11 @@ class MainWP_Child_Timecapsule {
 		wptc_die_with_json_encode( $details, 1 );
 	}
 
+	/**
+	 * Create a fresh staging site.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function start_fresh_staging_wptc() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 
@@ -872,42 +1208,77 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Get the staging site URL.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function get_staging_url_wptc() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->get_staging_url_wptc();
 		die();
 	}
 
+	/**
+	 * Stop the staging site creation process.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function stop_staging_wptc() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->stop_staging_wptc();
 		die();
 	}
 
+	/**
+	 * Continue the staging site creation process.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function continue_staging_wptc() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->choose_action();
 		die();
 	}
 
+	/**
+	 * Delete the staging site.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function delete_staging_wptc() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->delete_staging_wptc();
 		die();
 	}
 
+	/**
+	 * Copy the staging site.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function copy_staging_wptc() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->choose_action( false, $reqeust_type = 'copy' );
 		die();
 	}
 
+	/**
+	 * Get the current staging site status key.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function get_staging_current_status_key() {
 		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->get_staging_current_status_key();
 		die();
 	}
 
+	/**
+	 * Sync the WP Time Capsule purchase.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function wptc_sync_purchase() {
 		$config = WPTC_Factory::get( 'config' );
 
@@ -923,6 +1294,11 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Initiate the restore process.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function init_restore() {
 
 		if ( empty( $_POST ) ) {
@@ -934,6 +1310,11 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Save the WP Time Capsule settings.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function save_settings_wptc() {
 
 		$options_helper = new Wptc_Options_Helper();
@@ -945,7 +1326,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
 
 		$tabName    = $_POST['tabname'];
 		$is_general = $_POST['is_general'];
@@ -971,6 +1352,12 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => 'ok' );
 	}
 
+	/**
+	 * Save the WP Time Capsule settings - backups section.
+	 *
+	 * @param object $config Save config class.
+	 * @param array  $data   Data to save.
+	 */
 	private function save_settings_backup_tab( $config, $data ) {
 
 		$config->set_option( 'user_excluded_extenstions', $data['user_excluded_extenstions'] );
@@ -999,11 +1386,18 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
+	/**
+	 * Save the WP Time Capsule settings - backups auto section.
+	 *
+	 * @param object $config     Save config class.
+	 * @param array  $data       Data to save.
+	 * @param bool   $is_general Is general settings check.
+	 */
 	private function save_settings_backup_auto_tab( $config, $data, $is_general ) {
 		$config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
 		$current                              = $config->get_option( 'wptc_auto_update_settings' );
-		$current = unserialize( $current ); // phpcs:ignore -- third party credit.
-		$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- third party credit.
+		$current = unserialize( $current ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+		$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		$current['update_settings']['status'] = $new['update_settings']['status'];
 		$current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
 		$current['update_settings']['schedule']['time']        = $new['update_settings']['schedule']['time'];
@@ -1025,13 +1419,20 @@ class MainWP_Child_Timecapsule {
 				$current['update_settings']['themes']['included'] = array();
 			}
 		}
-		$config->set_option( 'wptc_auto_update_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.	
+		$config->set_option( 'wptc_auto_update_settings', serialize( $current ) ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 	}
 
+	/**
+	 * Save the WP Time Capsule settings - vulnerable updates section.
+	 *
+	 * @param object $config     Save config class.
+	 * @param array  $data       Data to save.
+	 * @param bool   $is_general Is general settings check.
+	 */
 	private function save_settings_vulns_update_tab( $config, $data, $is_general ) {
 		$current = $config->get_option( 'vulns_settings' );
-		$current = unserialize( $current ); // phpcs:ignore -- third party credit.
-		$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party credit.
+		$current = unserialize( $current ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+		$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
 		$current['status']            = $new['status'];
 		$current['core']['status']    = $new['core']['status'];
@@ -1054,7 +1455,7 @@ class MainWP_Child_Timecapsule {
 
 			wptc_log( $included_plugins, '--------$included_plugins--------' );
 
-			$current['plugins']['excluded'] = serialize( $included_plugins ); // phpcs:ignore -- third party credit.
+			$current['plugins']['excluded'] = serialize( $included_plugins ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
 			$vulns_themes_included = ! empty( $new['themes']['vulns_themes_included'] ) ? $new['themes']['vulns_themes_included'] : array();
 
@@ -1065,11 +1466,18 @@ class MainWP_Child_Timecapsule {
 			}
 
 			$included_themes               = $this->filter_themes( $themes_include_array );
-			$current['themes']['excluded'] = serialize( $included_themes ); // phpcs:ignore -- third party credit.
+			$current['themes']['excluded'] = serialize( $included_themes ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		}
-		$config->set_option( 'vulns_settings', serialize( $current ) ); // phpcs:ignore -- third party credit.
+		$config->set_option( 'vulns_settings', serialize( $current ) ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 	}
 
+	/**
+	 * Save the WP Time Capsule settings - staging section.
+	 *
+	 * @param object $config     Save config class.
+	 * @param array  $data       Data to save.
+	 * @param bool   $is_general Is general settings check.
+	 */
 	private function save_settings_staging_opts_tab( $config, $data, $is_general ) {
 		$config->set_option( 'user_excluded_extenstions_staging', $data['user_excluded_extenstions_staging'] );
 		$config->set_option( 'internal_staging_db_rows_copy_limit', $data['internal_staging_db_rows_copy_limit'] );
@@ -1082,6 +1490,15 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
+	/**
+	 * Filter plugins.
+	 *
+	 * @param array $included_plugins List of included plugins.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Filtered list of plugins.
+	 */
 	private function filter_plugins( $included_plugins ) {
 		$app_functions       = WPTC_Base_Factory::get( 'Wptc_App_Functions' );
 		$specific            = true;
@@ -1093,7 +1510,15 @@ class MainWP_Child_Timecapsule {
 		return $not_included_plugin;
 	}
 
-
+	/**
+	 * Filter themes.
+	 *
+	 * @param array $included_themes List of included themes.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Filtered list of themes.
+	 */
 	private function filter_themes( $included_themes ) {
 		$app_functions      = WPTC_Base_Factory::get( 'Wptc_App_Functions' );
 		$specific           = true;
@@ -1105,13 +1530,24 @@ class MainWP_Child_Timecapsule {
 		return $not_included_theme;
 	}
 
-
+	/**
+	 * Analyze database tables.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 */
 	public function analyze_inc_exc() {
 		$exclude_opts_obj = WPTC_Base_Factory::get( 'Wptc_ExcludeOption' );
 		$exclude_opts_obj = $exclude_opts_obj->analyze_inc_exc();
 		die();
 	}
 
+	/**
+	 * Get enabled plugins.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_enabled_plugins() {
 		$vulns_obj = WPTC_Base_Factory::get( 'Wptc_Vulns' );
 
@@ -1121,6 +1557,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'results' => $plugins );
 	}
 
+	/**
+	 * Get enabled themes.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_enabled_themes() {
 		$vulns_obj = WPTC_Base_Factory::get( 'Wptc_Vulns' );
 		$themes    = $vulns_obj->get_enabled_themes();
@@ -1128,6 +1571,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'results' => $themes );
 	}
 
+	/**
+	 * Get the system info.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_system_info() {
 		global $wpdb;
 
@@ -1212,7 +1662,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => $html );
 	}
 
-
+	/**
+	 * Update vulnerable updates settings.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function update_vulns_settings() {
 
 		$vulns_obj = WPTC_Base_Factory::get( 'Wptc_Vulns' );
@@ -1223,6 +1679,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'success' => 1 );
 	}
 
+	/**
+	 * Start a fresh backup.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function start_fresh_backup_tc_callback_wptc() {
 		$type            = '';
 		$args            = null;
@@ -1232,6 +1695,13 @@ class MainWP_Child_Timecapsule {
 		return array( 'result' => 'success' );
 	}
 
+	/**
+	 * Save manual backup name.
+	 *
+	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function save_manual_backup_name_wptc() {
 		$backup_name     = $_POST['backup_name'];
 		$processed_files = WPTC_Factory::get( 'processed-files' );
@@ -1239,6 +1709,13 @@ class MainWP_Child_Timecapsule {
 		die();
 	}
 
+	/**
+	 * Remove the WP Time Capsule plugin from the list of all plugins when the plugin is hidden.
+	 *
+	 * @param array $plugins Array containing all installed plugins.
+	 *
+	 * @return array $plugins Array containing all installed plugins without the WP Time Capsule.
+	 */
 	public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
@@ -1250,6 +1727,9 @@ class MainWP_Child_Timecapsule {
 		return $plugins;
 	}
 
+	/**
+	 * Remove the WP Time Capsule menu item when the plugin is hidden.
+	 */
 	public function remove_menu() {
 		remove_menu_page( 'wp-time-capsule-monitor' );
 		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=wp-time-capsule-monitor' );
@@ -1259,6 +1739,13 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
+	/**
+	 * Remove the WP Time Capsule plugin update notice when the plugin is hidden.
+	 *
+	 * @param array $slugs Array containing installed plugins slugs.
+	 *
+	 * @return array $slugs Array containing installed plugins slugs.
+	 */
 	public function hide_update_notice( $slugs ) {
 		$slugs[] = 'wp-time-capsule/wp-time-capsule.php';
 		return $slugs;
