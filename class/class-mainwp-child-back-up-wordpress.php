@@ -1,27 +1,54 @@
 <?php
 /**
+ * MainWP BackUpWordPress
+ *
+ * MainWP BackUpWordPress Extension handler.
+ * Extension URL: https://mainwp.com/extension/backupwordpress/
+ *
+ * @package MainWP\Child
+ *
  * Credits
  *
- * Plugin-Name: BackUpWordPress
+ * Plugin Name: BackUpWordPress
  * Plugin URI: http://bwp.hmn.md/
  * Author: Human Made Limited
  * Author URI: http://hmn.md/
- * License: GPL-2+
- * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
- *
- * The code is used for the MainWP BackUpWordPress Extension
- * Extension URL: https://mainwp.com/extension/backupwordpress/
+ * Licence: GPL-2+
  */
 
 use MainWP\Child\MainWP_Helper;
 use MainWP\Child\MainWP_Utility;
 
-// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity --  to use external code, third party credit.
+// phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- required to achieve desired results, pull request solutions appreciated.
 
+/**
+ * Class MainWP_Child_Back_Up_WordPress
+ *
+ * MainWP BackUpWordPress Extension handler.
+ */
 class MainWP_Child_Back_Up_WordPress {
-	public static $instance     = null;
+
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
+	public static $instance = null;
+
+	/**
+	 * Public variable to hold the infomration if the BackUpWordPress plugin is installed on the child site.
+	 *
+	 * @var bool If BackUpWordPress intalled, return true, if not, return false.
+	 */
 	public $is_plugin_installed = false;
 
+	/**
+	 * Method instance()
+	 *
+	 * Create a public static instance.
+	 *
+	 * @return mixed Class instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -29,6 +56,14 @@ class MainWP_Child_Back_Up_WordPress {
 		return self::$instance;
 	}
 
+	/**
+	 * Method __construct()
+	 *
+	 * Run any time the class is called.
+	 *
+	 * @uses is_plugin_active() Determines whether a plugin is active.
+	 * @see https://developer.wordpress.org/reference/functions/is_plugin_active/
+	 */
 	public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
@@ -39,6 +74,16 @@ class MainWP_Child_Back_Up_WordPress {
 		}
 	}
 
+	/**
+	 * Method init()
+	 *
+	 * Initiate action hooks.
+	 *
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 *
+	 * @return void
+	 */
 	public function init() {
 		if ( version_compare( phpversion(), '5.3', '<' ) ) {
 			return;
@@ -58,11 +103,25 @@ class MainWP_Child_Back_Up_WordPress {
 		}
 	}
 
+	/**
+	 * Remove the BackUpWordPress plugin update notice when the plugin is hidden.
+	 *
+	 * @param array $slugs Array containing installed plugins slugs.
+	 *
+	 * @return array $slugs Array containing installed plugins slugs.
+	 */
 	public function hide_update_notice( $slugs ) {
 		$slugs[] = 'backupwordpress/backupwordpress.php';
 		return $slugs;
 	}
 
+	/**
+	 * Remove the BackUpWordPress plugin update notice when the plugin is hidden.
+	 *
+	 * @param object $value Object containing update information.
+	 *
+	 * @return object $value Object containing update information.
+	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
@@ -78,7 +137,31 @@ class MainWP_Child_Back_Up_WordPress {
 		return $value;
 	}
 
-	public function action() { // phpcs:ignore -- ignore complex method notice.
+	/**
+	 * Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 *
+	 * @uses MainWP_Child_Back_Up_WordPress::is_activated() Check if the plugin is activated.
+	 *
+	 * @uses MainWP_Child_Back_Up_WordPress::set_showhide() Hide or unhide the BackUpWordPress plugin.
+	 * @uses MainWP_Child_Back_Up_WordPress::delete_schedule() Delete backup schedule.
+	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_request_cancel_backup() Cancel backup process.
+	 * @uses MainWP_Child_Back_Up_WordPress::get_backup_status() Get the bacukp process status.
+	 * @uses MainWP_Child_Back_Up_WordPress::reload_backups() Reload backups.
+	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_request_delete_backup() Delete backup.
+	 * @uses MainWP_Child_Back_Up_WordPress::run_schedule() Run schedules.
+	 * @uses MainWP_Child_Back_Up_WordPress::save_all_schedules() Save all schedules.
+	 * @uses MainWP_Child_Back_Up_WordPress::update_schedule() Update schedule.
+	 * @uses MainWP_Child_Back_Up_WordPress::get_excluded() Get excluded files.
+	 * @uses MainWP_Child_Back_Up_WordPress::directory_browse() Browse directory.
+	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_add_exclude_rule() Add exclusion rule.
+	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_remove_exclude_rule() Remove exclusion rule.
+	 * @uses MainWP_Child_Back_Up_WordPress::general_exclude_add_rule() General exclusion rules.
+	 *
+	 * @return void
+	 */
+	public function action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$information = array();
 		if ( ! self::is_activated() ) {
 			$information['error'] = 'NO_BACKUPWORDPRESS';
@@ -133,7 +216,16 @@ class MainWP_Child_Back_Up_WordPress {
 		MainWP_Helper::write( $information );
 	}
 
-
+	/**
+	 * Check schedule and get the ID.
+	 *
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 *
+	 * @uses sanitize_text_field() Sanitizes a string from user input or from the database.
+	 * @see https://developer.wordpress.org/reference/functions/sanitize_text_field/
+	 *
+	 * @return int Schedule ID.
+	 */
 	public function check_schedule() {
 		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? $_POST['schedule_id'] : '';
 		if ( empty( $schedule_id ) ) {
@@ -151,6 +243,16 @@ class MainWP_Child_Back_Up_WordPress {
 		return $schedule_id;
 	}
 
+	/**
+	 * Sync the BackUpWordPress plugin settings.
+	 *
+	 * @param array $information Array containing the sync information.
+	 * @param array $data        Array containing the BackUpWordPress plugin data to be synced.
+	 *
+	 * @uses MainWP_Child_Back_Up_WordPress::get_sync_data() Get synced BackUpWordPress data.
+	 *
+	 * @return array $information Array containing the sync information.
+	 */
 	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncBackUpWordPress'] ) && $data['syncBackUpWordPress'] ) {
 			try {
@@ -162,6 +264,16 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
+	/**
+	 * Get synced BackUpWordPress data.
+	 *
+	 * @uses MainWP_Helper::check_classes_exists() Check if requested class exists.
+	 * @uses MainWP_Helper::check_methods() Check if requested method exists.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::sync_others_data() Sync the BackUpWordPress plugin settings.
+	 *
+	 * @return array Return an array containing the synced data.
+	 */
 	private function get_sync_data() {
 		MainWP_Helper::check_classes_exists( 'HM\BackUpWordPress\Schedules' );
 		MainWP_Helper::check_methods( 'HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ) );
@@ -192,6 +304,14 @@ class MainWP_Child_Back_Up_WordPress {
 		return $return;
 	}
 
+	/**
+	 * Add support for the reporting system.
+	 *
+	 * @uses has_action() Check if any action has been registered for a hook.
+	 * @see https://developer.wordpress.org/reference/functions/has_action/
+	 *
+	 * @uses MainWP_Child_Back_Up_WordPress::do_reports_log() Add BackUpWordPress data to the reports database table.
+	 */
 	public function do_site_stats() {
 		if ( has_action( 'mainwp_child_reports_log' ) ) {
 			do_action( 'mainwp_child_reports_log', 'backupwordpress' );
@@ -200,6 +320,17 @@ class MainWP_Child_Back_Up_WordPress {
 		}
 	}
 
+	/**
+	 * Add BackUpWordPress data to the reports database table.
+	 *
+	 * @param string $ext Current extension.
+	 *
+	 * @uses MainWP_Helper::check_classes_exists() Check if the requested class exists.
+	 * @uses MainWP_Helper::check_methods() Check if the requested method exists.
+	 * @uses MainWP_Utility::update_lasttime_backup() Get the last backup timestamp.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::do_site_stats() Add support for the reporting system.
+	 */
 	public function do_reports_log( $ext = '' ) {
 		if ( 'backupwordpress' !== $ext ) {
 			return;
@@ -239,6 +370,15 @@ class MainWP_Child_Back_Up_WordPress {
 		}
 	}
 
+	/**
+	 * Hide or unhide the BackUpWordPress plugin.
+	 *
+	 * @uses MainWP_Helper::update_option() Update database option by option name.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_backupwordpress_hide_plugin', $hide );
@@ -247,6 +387,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
+	/**
+	 * Delete schedule.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function delete_schedule() {
 		$schedule_id = $this->check_schedule();
 		$schedule    = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
@@ -261,6 +408,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
+	/**
+	 * Cancel the backup process.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function hmbkp_request_cancel_backup() {
 		$schedule_id = $this->check_schedule();
 		$schedule    = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
@@ -297,6 +451,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
+	/**
+	 * Get the backup process status.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_backup_status() {
 		$schedule_id = $this->check_schedule();
 		$schedule    = new HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
@@ -313,6 +474,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
+	/**
+	 * Run schedule.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function run_schedule() {
 		$schedule_id = $this->check_schedule();
 		if ( function_exists( 'hmbkp_run_schedule_async' ) ) {
@@ -329,6 +497,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return array( 'result' => 'SUCCESS' );
 	}
 
+	/**
+	 * Reload backups.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function reload_backups() {
 
 		$scheduleIds = isset( $_POST['schedule_ids'] ) ? $_POST['schedule_ids'] : array();
@@ -409,6 +584,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
+	/**
+	 * Delete backup.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function hmbkp_request_delete_backup() {
 		if ( ! isset( $_POST['hmbkp_backuparchive'] ) || empty( $_POST['hmbkp_backuparchive'] ) ) {
 			return array( 'error' => __( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
@@ -439,6 +621,15 @@ class MainWP_Child_Back_Up_WordPress {
 		return $ret;
 	}
 
+	/**
+	 * Get backups list HTML.
+	 *
+	 * @param object $schedule Object containing the schedule data.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_backupslist_html( $schedule ) {
 		ob_start();
 		?>
@@ -475,7 +666,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $html;
 	}
 
-
+	/**
+	 * Get the site size text.
+	 *
+	 * @param object $schedule Object containing the schedule data.
+	 *
+	 * @return string Site size text.
+	 */
 	public function hmbkp_get_site_size_text( HM\BackUpWordPress\Scheduled_Backup $schedule ) {
 		if ( method_exists( $schedule, 'is_site_size_cached' ) ) {
 			if ( ( 'database' === $schedule->get_type() ) || $schedule->is_site_size_cached() ) {
@@ -491,6 +688,14 @@ class MainWP_Child_Back_Up_WordPress {
 		return sprintf( '(<code class="calculating" title="' . __( 'this shouldn\'t take long&hellip;', 'mainwp-child' ) . '">' . __( 'calculating the size of your backup&hellip;', 'mainwp-child' ) . '</code>)' );
 	}
 
+	/**
+	 * Get the backup table row HTML.
+	 *
+	 * @param resource $file     Backup file.
+	 * @param object   $schedule Object containing the schedule data.
+	 *
+	 * @return string Backup table row HTML.
+	 */
 	public function hmbkp_get_backup_row( $file, HM\BackUpWordPress\Scheduled_Backup $schedule ) {
 		$encoded_file = rawurlencode( base64_encode( $file ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$offset       = get_option( 'gmt_offset' ) * 3600;
@@ -525,6 +730,15 @@ class MainWP_Child_Back_Up_WordPress {
 		<?php
 	}
 
+	/**
+	 * Get excluded files.
+	 *
+	 * @param string $browse_dir Browse directory path.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function get_excluded( $browse_dir = null ) {
 
 		$schedule_id = $this->check_schedule();
@@ -593,6 +807,15 @@ class MainWP_Child_Back_Up_WordPress {
 		return $information;
 	}
 
+	/**
+	 * Render table of the excluded items.
+	 *
+	 * @param string $root_dir      Root directory.
+	 * @param object $schedule      Object containng the schedule data.
+	 * @param object $excludes      Files to exclude.
+	 * @param object $user_excludes Excluded by user.
+	 * @param string $new_version   New version.
+	 */
 	private function render_table_excluded( $root_dir, $schedule, $excludes, $user_excludes, $new_version ) {
 		?>
 		<table class="widefat">
@@ -633,6 +856,17 @@ class MainWP_Child_Back_Up_WordPress {
 		<?php
 	}
 
+	/**
+	 * Render the files table.
+	 *
+	 * @param object $files              Backup files.
+	 * @param object $schedule           Object containng the schedule data.
+	 * @param string $directory          Backups directory.
+	 * @param string $root_dir           Site root directory.
+	 * @param string $new_version        New version.
+	 * @param int    $site_size          Site size.
+	 * @param bool   $is_size_calculated Check if the size is calculated.
+	 */
 	private function render_table_files( $files, $schedule, $directory, $root_dir, $new_version, $site_size, $is_size_calculated ) {
 		?>
 		<table class="widefat">
@@ -650,6 +884,15 @@ class MainWP_Child_Back_Up_WordPress {
 		<?php
 	}
 
+	/**
+	 * Render the backup table header.
+	 *
+	 * @param string $directory          Backups directory.
+	 * @param string $root_dir           Site root directory.
+	 * @param string $new_version        New version.
+	 * @param int    $site_size          Site size.
+	 * @param bool   $is_size_calculated Check if the size is calculated.
+	 */
 	private function render_table_header_files( $root_dir, $directory, $schedule, $new_version, $site_size, $is_size_calculated ) {
 		?>
 		<tr>
@@ -723,6 +966,17 @@ class MainWP_Child_Back_Up_WordPress {
 		<?php
 	}
 
+	/**
+	 * Render the backup table body.
+	 *
+	 * @param object $files              Backup files.
+	 * @param object $schedule           Object containng the schedule data.
+	 * @param string $directory          Backups directory.
+	 * @param string $root_dir           Site root directory.
+	 * @param string $new_version        New version.
+	 * @param int    $site_size          Site size.
+	 * @param bool   $is_size_calculated Check if the size is calculated.
+	 */
 	private function render_table_body_files( $files, $schedule, $root_dir, $new_version, $site_size, $is_size_calculated ) { // phpcs:ignore -- ignore complex method notice.
 
 		foreach ( $files as $size => $file ) {
@@ -845,6 +1099,13 @@ class MainWP_Child_Back_Up_WordPress {
 		}
 	}
 
+	/**
+	 * Browse the directory.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function directory_browse() {
 		$browse_dir                = $_POST['browse_dir'];
 		$out                       = array();
@@ -855,6 +1116,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $out;
 	}
 
+	/**
+	 * Add exclusion rule.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function hmbkp_add_exclude_rule() {
 
 		if ( ! isset( $_POST['exclude_pathname'] ) || empty( $_POST['exclude_pathname'] ) ) {
@@ -883,6 +1151,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $out;
 	}
 
+	/**
+	 * Remove exclusoin rule.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function hmbkp_remove_exclude_rule() {
 
 		if ( ! isset( $_POST['remove_rule'] ) || empty( $_POST['remove_rule'] ) ) {
@@ -917,7 +1192,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $out;
 	}
 
-
+	/**
+	 * General exclusion rules.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function general_exclude_add_rule() {
 
 		$sch_id   = $this->check_schedule();
@@ -968,7 +1249,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return array( 'result' => 'SUCCESS' );
 	}
 
-
+	/**
+	 * Update backup schedule.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function update_schedule() {
 		$sch_id  = isset( $_POST['schedule_id'] ) ? $_POST['schedule_id'] : 0;
 		$sch_id  = sanitize_text_field( rawurldecode( $sch_id ) );
@@ -1022,6 +1309,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return $out;
 	}
 
+	/**
+	 * Save all backup schedules.
+	 *
+	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
+	 *
+	 * @return array Action result.
+	 */
 	public function save_all_schedules() {
 		$schedules = isset( $_POST['all_schedules'] ) ? maybe_unserialize( base64_decode( $_POST['all_schedules'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
@@ -1073,6 +1367,11 @@ class MainWP_Child_Back_Up_WordPress {
 		return $out;
 	}
 
+	/**
+	 * Check if the BacupWordPress plugin is activated.
+	 *
+	 * @return bool Return true if the plugin is activated, false if not.
+	 */
 	public static function is_activated() {
 		if ( ! defined( 'HMBKP_PLUGIN_PATH' ) || ! class_exists( 'HM\BackUpWordPress\Plugin' ) ) {
 			return false;
@@ -1081,7 +1380,13 @@ class MainWP_Child_Back_Up_WordPress {
 		return true;
 	}
 
-
+	/**
+	 * Remove the BackupWordPress plugin from the list of all plugins when the plugin is hidden.
+	 *
+	 * @param array $plugins Array containing all installed plugins.
+	 *
+	 * @return array $plugins Array containing all installed plugins without the BackupWordPress.
+	 */
 	public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
@@ -1093,6 +1398,15 @@ class MainWP_Child_Back_Up_WordPress {
 		return $plugins;
 	}
 
+	/**
+	 * Remove the BackupWordPress menu item when the plugin is hidden.
+	 *
+	 * @uses wp_safe_redirect() Performs a safe (local) redirect, using wp_redirect().
+	 * @see https://developer.wordpress.org/reference/functions/wp_safe_redirect/
+	 *
+	 * @uses get_option() Retrieves an option value based on an option name.
+	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 */
 	public function remove_menu() {
 		global $submenu;
 		if ( isset( $submenu['tools.php'] ) ) {
