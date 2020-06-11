@@ -669,7 +669,7 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Get the site size text.
 	 *
-	 * @param object $schedule Object containing the schedule data.
+	 * @param object HM\BackUpWordPress\Scheduled_Backup $schedule Object containing the schedule data.
 	 *
 	 * @return string Site size text.
 	 */
@@ -691,10 +691,8 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Get the backup table row HTML.
 	 *
-	 * @param resource $file     Backup file.
-	 * @param object   $schedule Object containing the schedule data.
-	 *
-	 * @return string Backup table row HTML.
+	 * @param resource                                     $file     Backup file.
+	 * @param object   HM\BackUpWordPress\Scheduled_Backup $schedule Object containing the schedule data.
 	 */
 	public function hmbkp_get_backup_row( $file, HM\BackUpWordPress\Scheduled_Backup $schedule ) {
 		$encoded_file = rawurlencode( base64_encode( $file ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -887,8 +885,9 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Render the backup table header.
 	 *
-	 * @param string $directory          Backups directory.
 	 * @param string $root_dir           Site root directory.
+	 * @param string $directory          Backups directory.
+	 * @param object $schedule           Object containng the schedule data.
 	 * @param string $new_version        New version.
 	 * @param int    $site_size          Site size.
 	 * @param bool   $is_size_calculated Check if the size is calculated.
@@ -971,13 +970,12 @@ class MainWP_Child_Back_Up_WordPress {
 	 *
 	 * @param object $files              Backup files.
 	 * @param object $schedule           Object containng the schedule data.
-	 * @param string $directory          Backups directory.
 	 * @param string $root_dir           Site root directory.
 	 * @param string $new_version        New version.
 	 * @param int    $site_size          Site size.
 	 * @param bool   $is_size_calculated Check if the size is calculated.
 	 */
-	private function render_table_body_files( $files, $schedule, $root_dir, $new_version, $site_size, $is_size_calculated ) { // phpcs:ignore -- ignore complex method notice.
+	private function render_table_body_files( $files, $schedule, $root_dir, $new_version, $site_size, $is_size_calculated ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		foreach ( $files as $size => $file ) {
 			$is_excluded   = false;
