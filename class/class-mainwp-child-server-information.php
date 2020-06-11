@@ -557,10 +557,10 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<thead>
 				<tr>
 					<th scope="col" class="manage-column column-posts mwp-not-generate-row" style="width: 1px;"></th>
-					<th scope="col" class="manage-column column-posts" style=""><span><?php esc_html_e( 'Server configuration', 'mainwp-child' ); ?></span></th>
-					<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Required value', 'mainwp-child' ); ?></th>
-					<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
-					<th scope="col" class="manage-column column-posts" style=""><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
+					<th scope="col" class="manage-column column-posts"><span><?php esc_html_e( 'Server configuration', 'mainwp-child' ); ?></span></th>
+					<th scope="col" class="manage-column column-posts"><?php esc_html_e( 'Required value', 'mainwp-child' ); ?></th>
+					<th scope="col" class="manage-column column-posts"><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
+					<th scope="col" class="manage-column column-posts"><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="the-sites-list" class="list:sites">
@@ -1079,7 +1079,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		?>
 		<tr class="mwp-not-generate-row">
 			<td></td>
-			<td><?php echo esc_html( stripslashes( $pName ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::instance()->is_branding() ) ? '' : $directory ); ?></td>
+			<td><?php echo esc_html( stripslashes( $name ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::instance()->is_branding() ) ? '' : $directory ); ?></td>
 			<td><?php echo esc_html( $check ); ?></td>
 			<td><?php echo esc_html( $result ); ?></td>
 			<td><?php echo ( $passed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>

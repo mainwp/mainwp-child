@@ -18,7 +18,7 @@ class MainWP_Debug {
 	 * @param object $mainWPChild MainWP_Child class instance.
 	 */
 	public static function process( &$mainWPChild ) {
-		if ( ! isset( $_GET['mainwpdebug'] ) || ! defined( 'MAINWP_CHILD_DEBUG' ) || ( MAINWP_CHILD_DEBUG !== true ) ) {
+		if ( ! isset( $_GET['mainwpdebug'] ) ) {
 			return;
 		}
 
