@@ -34,7 +34,7 @@ class MainWP_Child_Timecapsule {
 	 *
 	 * @var mixed Default null
 	 */
-	public static $instance     = null;
+	public static $instance = null;
 
 	/**
 	 * Public variable to hold the infomration if the WP Time Capsule plugin is installed on the child site.
