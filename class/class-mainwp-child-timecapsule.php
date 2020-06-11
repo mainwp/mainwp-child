@@ -34,7 +34,7 @@ class MainWP_Child_Timecapsule {
 	 *
 	 * @var mixed Default null
 	 */
-	public static $instance     = null;
+	public static $instance = null;
 
 	/**
 	 * Public variable to hold the infomration if the WP Time Capsule plugin is installed on the child site.
@@ -769,6 +769,8 @@ class MainWP_Child_Timecapsule {
 
 	/**
 	 * Display the log rows.
+	 *
+	 * @param array $records An array of log records.
 	 *
 	 * @used-by MainWP_Child_Timecapsule::get_logs_rows() Get logs rows.
 	 *
@@ -1699,8 +1701,6 @@ class MainWP_Child_Timecapsule {
 	 * Save manual backup name.
 	 *
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
-	 *
-	 * @return array Action result.
 	 */
 	public function save_manual_backup_name_wptc() {
 		$backup_name     = $_POST['backup_name'];
@@ -1751,6 +1751,15 @@ class MainWP_Child_Timecapsule {
 		return $slugs;
 	}
 
+	/**
+	 * Method remove_update_nag()
+	 *
+	 * Remove the WP Time Capsule plugin update notice when the plugin is hidden.
+	 *
+	 * @param object $value Object containing update information.
+	 *
+	 * @return object $value Object containing update information.
+	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
 			return $value;
