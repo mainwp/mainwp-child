@@ -44,8 +44,6 @@ class MainWP_Child_Timecapsule {
 	public $is_plugin_installed = false;
 
 	/**
-	 * Method instance()
-	 *
 	 * Create a public static instance.
 	 *
 	 * @return mixed Class instance.
@@ -58,8 +56,6 @@ class MainWP_Child_Timecapsule {
 	}
 
 	/**
-	 * Method __construct()
-	 *
 	 * Run any time the class is called.
 	 *
 	 * @uses is_plugin_active() Determines whether a plugin is active.
@@ -79,8 +75,6 @@ class MainWP_Child_Timecapsule {
 	}
 
 	/**
-	 * Method init()
-	 *
 	 * Initiate action hooks.
 	 *
 	 * @uses get_option() Retrieves an option value based on an option name.
@@ -108,8 +102,6 @@ class MainWP_Child_Timecapsule {
 	}
 
 	/**
-	 * Method action()
-	 *
 	 * Fire off certain WP Time Capsule plugin actions.
 	 *
 	 * @uses MainWP_Child_Timecapsule::set_showhide()
@@ -154,7 +146,7 @@ class MainWP_Child_Timecapsule {
 	 * @uses MainWP_Child_Timecapsule::send_issue_report()
 	 * @uses MainWP_Child_Timecapsule::lazy_load_activity_log_wptc()
 	 *
-	 * MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 *
 	 * @return void
 	 */
@@ -1752,8 +1744,6 @@ class MainWP_Child_Timecapsule {
 	}
 
 	/**
-	 * Method remove_update_nag()
-	 *
 	 * Remove the WP Time Capsule plugin update notice when the plugin is hidden.
 	 *
 	 * @param object $value Object containing update information.
