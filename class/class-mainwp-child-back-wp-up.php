@@ -15,6 +15,8 @@
  *
  * The code is used for the MainWP BackWPup Extension
  * Extension URL: https://mainwp.com/extension/backwpup/
+ *
+ * @package MainWP\Child
  */
 
 // phpcs:disable -- third party credit.
