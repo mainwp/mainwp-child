@@ -11,8 +11,8 @@
  *
  * The code is used for the MainWP iThemes Security Extension
  * Extension URL: https://mainwp.com/extension/ithemes-security/
- * 
- * @package MainWP\Child 
+ *
+ * @package MainWP\Child
  */
 
 use MainWP\Child\MainWP_Helper;

@@ -3,7 +3,7 @@
  * MainWP Updraft Plus Backups
  *
  * This code is used for the MainWP UpdraftPlus Extension.
- * 
+ *
  * @package MainWP\Child
  */
 
