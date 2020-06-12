@@ -733,7 +733,7 @@ class MainWP_Child_Stats {
 				$uploadDir   = $uploadDir[0];
 				$popenHandle = popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' ); // phpcs:ignore -- run if enabled.
 				if ( 'resource' === gettype( $popenHandle ) ) {
-					$size = fread( $popenHandle, 1024 );
+					$size = fread( $popenHandle, 1024 ); //phpcs:ignore -- custom read file.
 					pclose( $popenHandle );
 					$size = substr( $size, 0, strpos( $size, "\t" ) );
 					if ( $size && MainWP_Helper::ctype_digit( $size ) ) {

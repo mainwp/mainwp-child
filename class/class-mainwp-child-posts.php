@@ -9,6 +9,8 @@
 
 namespace MainWP\Child;
 
+//phpcs:disable Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
+
 /**
  * Class MainWP_Child_Posts
  *
@@ -815,7 +817,7 @@ class MainWP_Child_Posts {
 	 * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::set_custom_post_fields()
-	 * @uses \MainWP\Child\MainWP_Child_Posts::create_seo_extension_activated()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::update_seo_meta()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::create_set_categories()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::create_featured_image()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_author()
@@ -834,7 +836,7 @@ class MainWP_Child_Posts {
 
 		// yoast seo plugin activated.
 		if ( $seo_ext_activated ) {
-			$this->create_seo_extension_activated( $new_post_id, $post_custom );
+			$this->update_seo_meta( $new_post_id, $post_custom );
 		}
 
 		$this->create_set_categories( $new_post_id, $post_category, $post_to_only_existing_categories );
@@ -1233,7 +1235,7 @@ class MainWP_Child_Posts {
 	 * @uses \WPSEO_Meta::$meta_prefix()
 	 * @uses \Exception()
 	 */
-	private function create_seo_extension_activated( $new_post_id, $post_custom ) {
+	private function update_seo_meta( $new_post_id, $post_custom ) {
 
 		$_seo_opengraph_image = isset( $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
 		$_seo_opengraph_image = current( $_seo_opengraph_image );

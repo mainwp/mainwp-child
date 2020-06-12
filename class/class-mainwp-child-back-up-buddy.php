@@ -10,6 +10,9 @@
  *
  * The code is used for the MainWP Buddy Extension
  * Extension URL: https://mainwp.com/extension/mainwpbuddy/
+ * 
+ * @package MainWP\Child
+ * 
  */
 
 use MainWP\Child\MainWP_Helper;

@@ -17,6 +17,11 @@ namespace MainWP\Child;
  */
 class MainWP_Client_Report_Base {
 
+	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
 	public static $instance = null;
 
 	/**
