@@ -1,14 +1,9 @@
 <?php
 /**
- * MainWP Updraft Plus Backups
+ * MainWP UpdraftPlus Backups handler.
  *
  * This code is used for the MainWP UpdraftPlus Extension.
- */
-
-use MainWP\Child\MainWP_Helper;
-use MainWP\Child\MainWP_Utility;
-
-/**
+ *
  * Credits
  *
  * Plugin-Name: UpdraftPlus - Backup/Restore
@@ -19,9 +14,12 @@ use MainWP\Child\MainWP_Utility;
  *
  * The code is used for the MainWP UpdraftPlus Extension
  * Extension URL: https://mainwp.com/extension/updraftplus/
+ *
  */
 // phpcs:disable -- Third party credit.
 
+use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
 
 /**
  * Class MainWP_Child_Updraft_Plus_Backups
@@ -1443,6 +1441,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * Delete backup set.
      *
      * @return array Return results array.
+     * @throws Exception
      *
      * @uses $updraftplus::get_backup_history()
      * @uses $updraftplus::backup_time_nonce()
@@ -1630,6 +1629,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @param null $rescan     Rescan $_POST data. Default: null
      *
      * @return array Return history status data.
+     * @throws Exception
      *
      * @uses MainWP_Child_Updraft_Plus_Backups::rebuild_backup_history()
      * @uses MainWP_Child_Updraft_Plus_Backups::existing_backup_table()
