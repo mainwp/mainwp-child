@@ -14,7 +14,6 @@
  *
  * The code is used for the MainWP UpdraftPlus Extension
  * Extension URL: https://mainwp.com/extension/updraftplus/
- *
  */
 // phpcs:disable -- Third party credit.
 
