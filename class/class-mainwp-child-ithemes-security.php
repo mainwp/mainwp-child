@@ -1,13 +1,14 @@
 <?php
 /**
- * MainWP Child IThemes Security handler
+ * MainWP Ithemes Security
  *
- * The code is used for the MainWP iThemes Security Extension.
+ * MainWP iThemes Security Extension handler.
+ * Extension URL: https://mainwp.com/extension/ithemes-security/
  *
  * Credits
  *
- * Plugin-Name: iThemes Security
- * Plugin-URI: https://ithemes.com/security
+ * Plugin Name: iThemes Security
+ * Plugin URI: https://ithemes.com/security
  * Author: iThemes
  * Author URI: https://ithemes.com
  * License: GPLv2
@@ -23,7 +24,6 @@ use MainWP\Child\MainWP_Helper;
 
 /**
  * Class MainWP_Child_IThemes_Security
- * @package MainWP\Child
  */
 class MainWP_Child_IThemes_Security {
 
