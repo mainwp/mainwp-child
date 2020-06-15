@@ -1,5 +1,8 @@
 <?php
 /**
+ * MainWP Child IThemes Security handler
+ *
+ * The code is used for the MainWP iThemes Security Extension.
  *
  * Credits
  *
@@ -11,26 +14,41 @@
  *
  * The code is used for the MainWP iThemes Security Extension
  * Extension URL: https://mainwp.com/extension/ithemes-security/
- *
- * @package MainWP\Child
  */
 
 use MainWP\Child\MainWP_Helper;
 
 // phpcs:disable -- third party credit code.
 
-class MainWP_Child_IThemes_Security {
-	public static $instance     = null;
-	public $is_plugin_installed = false;
 
-	public static function instance() {
+/**
+ * Class MainWP_Child_IThemes_Security
+ * @package MainWP\Child
+ */
+class MainWP_Child_IThemes_Security {
+    /**
+     * @var null
+     */
+    public static $instance     = null;
+    /**
+     * @var bool
+     */
+    public $is_plugin_installed = false;
+
+    /**
+     * @return MainWP_Child_IThemes_Security|null
+     */
+    public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
 
-	public function __construct() {
+    /**
+     * MainWP_Child_IThemes_Security constructor.
+     */
+    public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'better-wp-security/better-wp-security.php' ) || is_plugin_active( 'ithemes-security-pro/ithemes-security-pro.php' ) ) {
 			$this->is_plugin_installed = true;
@@ -43,7 +61,12 @@ class MainWP_Child_IThemes_Security {
 		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 	}
 
-	public function sync_others_data( $information, $data = array() ) {
+    /**
+     * @param $information
+     * @param array $data
+     * @return mixed
+     */
+    public function sync_others_data($information, $data = array() ) {
 		if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
 			try {
 				$information['syncIThemeData'] = array(
@@ -56,7 +79,10 @@ class MainWP_Child_IThemes_Security {
 		return $information;
 	}
 
-	public function action() {
+    /**
+     *
+     */
+    public function action() {
 		$information = array();
 		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists( 'ITSEC_Modules' ) ) {
 			$information['error'] = 'NO_ITHEME';
@@ -125,7 +151,10 @@ class MainWP_Child_IThemes_Security {
 		MainWP_Helper::write( $information );
 	}
 
-	public function set_showhide() {
+    /**
+     * @return mixed
+     */
+    public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
 		MainWP_Helper::update_option( 'mainwp_ithemes_hide_plugin', $hide );
 		$information['result'] = 'success';
@@ -133,7 +162,10 @@ class MainWP_Child_IThemes_Security {
 		return $information;
 	}
 
-	public function ithemes_init() {
+    /**
+     *
+     */
+    public function ithemes_init() {
 		if ( ! $this->is_plugin_installed ) {
 			return;
 		}
@@ -150,11 +182,18 @@ class MainWP_Child_IThemes_Security {
 		}
 	}
 
-	public function admin_init() {
+    /**
+     *
+     */
+    public function admin_init() {
 		remove_meta_box( 'itsec-dashboard-widget', 'dashboard', 'normal' );
 	}
 
-	public function all_plugins( $plugins ) {
+    /**
+     * @param $plugins
+     * @return mixed
+     */
+    public function all_plugins($plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
 			if ( 'better-wp-security' === $plugin_slug || 'ithemes-security-pro' === $plugin_slug ) {
@@ -165,11 +204,17 @@ class MainWP_Child_IThemes_Security {
 		return $plugins;
 	}
 
-	public function remove_menu() {
+    /**
+     *
+     */
+    public function remove_menu() {
 		remove_menu_page( 'itsec' );
 	}
 
-	public function custom_admin_css() {
+    /**
+     *
+     */
+    public function custom_admin_css() {
 		?>
 		<style type="text/css">
 			#wp-admin-bar-itsec_admin_bar_menu{
@@ -179,7 +224,10 @@ class MainWP_Child_IThemes_Security {
 		<?php
 	}
 
-	public function save_settings() {
+    /**
+     * @return array[]
+     */
+    public function save_settings() {
 
 		if ( ! class_exists( 'ITSEC_Lib' ) ) {
 			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
@@ -353,7 +401,10 @@ class MainWP_Child_IThemes_Security {
 		return $return;
 	}
 
-	public static function activate_network_brute_force() {
+    /**
+     * @return array
+     */
+    public static function activate_network_brute_force() {
 		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$information = array();
 		if ( is_array( $data ) ) {
@@ -376,7 +427,12 @@ class MainWP_Child_IThemes_Security {
 		return $information;
 	}
 
-	private function validate_directory( $name, $folder ) {
+    /**
+     * @param $name
+     * @param $folder
+     * @return bool|string
+     */
+    private function validate_directory($name, $folder ) {
 		require_once ITSEC_Core::get_core_dir() . 'lib/class-itsec-lib-directory.php';
 		$error = null;
 		if ( ! ITSEC_Lib_Directory::is_dir( $folder ) ) {
@@ -399,7 +455,11 @@ class MainWP_Child_IThemes_Security {
 		}
 	}
 
-	private function activate_api_key( $settings ) {
+    /**
+     * @param $settings
+     * @return bool
+     */
+    private function activate_api_key($settings ) {
 		global $mainwp_itsec_modules_path;
 		require_once $mainwp_itsec_modules_path . 'ipcheck/utilities.php';
 
@@ -423,7 +483,11 @@ class MainWP_Child_IThemes_Security {
 		unset( $settings['email'] );
 		return $settings;
 	}
-	public function backup_status() {
+
+    /**
+     * @return int
+     */
+    public function backup_status() {
 		$status = 0;
 		if ( ! is_multisite() && class_exists( 'backupbuddy_api' ) && count( backupbuddy_api::getSchedules() ) >= 1 ) {
 			$status = 1;
@@ -438,19 +502,28 @@ class MainWP_Child_IThemes_Security {
 		return $status;
 	}
 
-	public function has_backup() {
+    /**
+     * @return mixed
+     */
+    public function has_backup() {
 		$has_backup = false;
 
 		return apply_filters( 'itsec_has_external_backup', $has_backup );
 	}
 
-	public function scheduled_backup() {
+    /**
+     * @return mixed
+     */
+    public function scheduled_backup() {
 		$sceduled_backup = false;
 
 		return apply_filters( 'itsec_scheduled_external_backup', $sceduled_backup );
 	}
 
-	public function whitelist() {
+    /**
+     * @return array|string[]
+     */
+    public function whitelist() {
 
 		global $itsec_globals;
 		$ip       = $_POST['ip'];
@@ -481,13 +554,19 @@ class MainWP_Child_IThemes_Security {
 		}
 	}
 
-	public function whitelist_release() {
+    /**
+     * @return string
+     */
+    public function whitelist_release() {
 		delete_site_option( 'itsec_temp_whitelist_ip' );
 
 		return 'success';
 	}
 
-	public function backup_db() {
+    /**
+     * @return array
+     */
+    public function backup_db() {
 		global $itsec_backup, $mainwp_itsec_modules_path;
 
 		if ( ! isset( $itsec_backup ) ) {
@@ -522,7 +601,10 @@ class MainWP_Child_IThemes_Security {
 	}
 
 
-	private function wordpress_salts() {
+    /**
+     * @return mixed
+     */
+    private function wordpress_salts() {
 		global $mainwp_itsec_modules_path;
 		if ( ! class_exists( 'ITSEC_WordPress_Salts_Utilities' ) ) {
 			require $mainwp_itsec_modules_path . 'salts/utilities.php';
@@ -547,7 +629,10 @@ class MainWP_Child_IThemes_Security {
 		return $return;
 	}
 
-	private function file_permissions() {
+    /**
+     * @return array
+     */
+    private function file_permissions() {
 			require_once ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php';
 
 			$wp_upload_dir = ITSEC_Core::get_wp_upload_dir();
@@ -666,7 +751,10 @@ class MainWP_Child_IThemes_Security {
 		return array( 'html' => $html );
 	}
 
-	public function file_change() {
+    /**
+     * @return mixed
+     */
+    public function file_change() {
 		global $mainwp_itsec_modules_path;
 		if ( ! class_exists( 'ITSEC_File_Change_Scanner' ) ) {
 			require_once $mainwp_itsec_modules_path . 'file-change/scanner.php';
@@ -679,7 +767,10 @@ class MainWP_Child_IThemes_Security {
 		return $return;
 	}
 
-	public function admin_user() {
+    /**
+     * @return array
+     */
+    public function admin_user() {
 
 		$settings = $_POST['settings'];
 
@@ -733,7 +824,12 @@ class MainWP_Child_IThemes_Security {
 		return $return;
 	}
 
-	private function change_admin_user( $username = null, $id = false ) {
+    /**
+     * @param null $username
+     * @param bool $id
+     * @return bool
+     */
+    private function change_admin_user($username = null, $id = false ) {
 
 		global $wpdb;
 		$itsec_files = ITSEC_Core::get_itsec_files();
@@ -821,7 +917,12 @@ class MainWP_Child_IThemes_Security {
 		return false;
 	}
 
-	public function build_wpconfig_rules( $rules_array, $input = null ) {
+    /**
+     * @param $rules_array
+     * @param null $input
+     * @return mixed
+     */
+    public function build_wpconfig_rules($rules_array, $input = null ) {
 		if ( null === $input ) {
 			return $rules_array;
 		}
@@ -856,7 +957,10 @@ class MainWP_Child_IThemes_Security {
 	}
 
 
-	public function change_database_prefix() {
+    /**
+     * @return array
+     */
+    public function change_database_prefix() {
 		global $mainwp_itsec_modules_path;
 		require_once $mainwp_itsec_modules_path . 'database-prefix/utility.php';
 		$str_error = '';
@@ -887,7 +991,10 @@ class MainWP_Child_IThemes_Security {
 		return $return;
 	}
 
-	public function api_key() {
+    /**
+     * @return array
+     */
+    public function api_key() {
 		$settings = get_site_option( 'itsec_ipcheck' );
 		if ( ! is_array( $settings ) ) {
 			$settings = array();
@@ -903,7 +1010,10 @@ class MainWP_Child_IThemes_Security {
 		return $return;
 	}
 
-	public function reset_api_key() {
+    /**
+     * @return array
+     */
+    public function reset_api_key() {
 
 		$defaults = ITSEC_Modules::get_defaults( 'network-brute-force' );
 		$results  = ITSEC_Modules::set_settings( 'network-brute-force', $defaults );
@@ -922,7 +1032,10 @@ class MainWP_Child_IThemes_Security {
 		return $information;
 	}
 
-	public function malware_scan() {
+    /**
+     * @return array
+     */
+    public function malware_scan() {
 		global $mainwp_itsec_modules_path;
 
 		if ( ! class_exists( 'ITSEC_Malware_Scanner' ) ) {
@@ -941,7 +1054,10 @@ class MainWP_Child_IThemes_Security {
 		return $response;
 	}
 
-	public function malware_get_scan_results() {
+    /**
+     * @return array
+     */
+    public function malware_get_scan_results() {
 
 		global $mainwp_itsec_modules_path;
 		if ( ! class_exists( 'ITSEC_Malware_Scanner' ) ) {
@@ -954,7 +1070,10 @@ class MainWP_Child_IThemes_Security {
 		return $response;
 	}
 
-	public function purge_logs() {
+    /**
+     * @return string[]
+     */
+    public function purge_logs() {
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM `' . $wpdb->base_prefix . 'itsec_log`;' );
 
@@ -962,7 +1081,12 @@ class MainWP_Child_IThemes_Security {
 	}
 
 
-	public function get_lockouts( $type = 'all', $current = false ) {
+    /**
+     * @param string $type
+     * @param bool $current
+     * @return mixed
+     */
+    public function get_lockouts($type = 'all', $current = false ) {
 
 		global $wpdb, $itsec_globals;
 
@@ -1009,7 +1133,12 @@ class MainWP_Child_IThemes_Security {
 		return $this->get_lockouts_int( $results, $type );
 	}
 
-	private function get_lockouts_int( $results, $type ){
+    /**
+     * @param $results
+     * @param $type
+     * @return mixed
+     */
+    private function get_lockouts_int($results, $type ){
 
 		if ( is_array( $results ) && count( $results ) > 0 ) {
 			switch ( $type ) {
@@ -1049,7 +1178,10 @@ class MainWP_Child_IThemes_Security {
 
 	}
 
-	public function release_lockout() {
+    /**
+     * @return string[]
+     */
+    public function release_lockout() {
 		global $wpdb;
 
 		if ( ! class_exists( 'ITSEC_Lib' ) ) {
@@ -1091,7 +1223,10 @@ class MainWP_Child_IThemes_Security {
 		);
 	}
 
-	public function update_module_status() {
+    /**
+     * @return string[]
+     */
+    public function update_module_status() {
 
 		$active_modules = $_POST['active_modules'];
 
@@ -1108,7 +1243,10 @@ class MainWP_Child_IThemes_Security {
 		return array( 'result' => 'success' );
 	}
 
-	private function reload_backup_exclude() {
+    /**
+     * @return array
+     */
+    private function reload_backup_exclude() {
 		return array(
 			'exclude'           => ITSEC_Modules::get_setting( 'backup', 'exclude' ),
 			'excludable_tables' => $this->get_excludable_tables(),
@@ -1116,7 +1254,10 @@ class MainWP_Child_IThemes_Security {
 		);
 	}
 
-	private function get_excludable_tables() {
+    /**
+     * @return array
+     */
+    private function get_excludable_tables() {
 		global $wpdb;
 		$all_sites      = ITSEC_Modules::get_setting( 'backup', 'all_sites' );
 		$ignored_tables = array(
@@ -1155,7 +1296,10 @@ class MainWP_Child_IThemes_Security {
 		return $excludes;
 	}
 
-	private function security_site() {
+    /**
+     * @return array
+     */
+    private function security_site() {
 		global $mainwp_itsec_modules_path;
 		require_once $mainwp_itsec_modules_path . 'security-check/scanner.php';
 		require_once $mainwp_itsec_modules_path . 'security-check/feedback-renderer.php';
@@ -1169,7 +1313,10 @@ class MainWP_Child_IThemes_Security {
 		);
 	}
 
-	public function get_available_admin_users_and_roles() {
+    /**
+     * @return array[]
+     */
+    public function get_available_admin_users_and_roles() {
 		if ( is_callable( 'wp_roles' ) ) {
 			$roles = wp_roles();
 		} else {

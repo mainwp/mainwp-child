@@ -669,7 +669,7 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Get the site size text.
 	 *
-	 * @param object HM\BackUpWordPress\Scheduled_Backup $schedule Object containing the schedule data.
+	 * @param HM\BackUpWordPress\Scheduled_Backup $schedule Object containing the schedule data.
 	 *
 	 * @return string Site size text.
 	 */
@@ -691,8 +691,8 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Get the backup table row HTML.
 	 *
-	 * @param resource                                     $file     Backup file.
-	 * @param object   HM\BackUpWordPress\Scheduled_Backup $schedule Object containing the schedule data.
+	 * @param resource                            $file     Backup file.
+	 * @param HM\BackUpWordPress\Scheduled_Backup $schedule Object containing the schedule data.
 	 */
 	public function hmbkp_get_backup_row( $file, HM\BackUpWordPress\Scheduled_Backup $schedule ) {
 		$encoded_file = rawurlencode( base64_encode( $file ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
