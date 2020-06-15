@@ -5,6 +5,8 @@
  * MainWP iThemes Security Extension handler.
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  *
+ * @package MainWP\Child
+ *
  * Credits
  *
  * Plugin Name: iThemes Security
