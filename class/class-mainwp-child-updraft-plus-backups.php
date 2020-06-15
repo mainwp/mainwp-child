@@ -1,12 +1,15 @@
 <?php
 /**
- * MainWP UpdraftPlus Backups handler.
+ * MainWP UpdraftPlus
  *
- * This code is used for the MainWP UpdraftPlus Extension.
+ * MainWP UpdraftPlus Extension handler.
+ * Extension URL: https://mainwp.com/extension/updraftplus/
+ *
+ * @package MainWP\Child
  *
  * Credits
  *
- * Plugin-Name: UpdraftPlus - Backup/Restore
+ * Plugin Name: UpdraftPlus - Backup/Restore
  * Plugin URI: https://updraftplus.com
  * Author: UpdraftPlus.Com, DavidAnderson
  * Author URI: https://updraftplus.com
@@ -15,6 +18,7 @@
  * The code is used for the MainWP UpdraftPlus Extension
  * Extension URL: https://mainwp.com/extension/updraftplus/
  */
+
 // phpcs:disable -- Third party credit.
 
 use MainWP\Child\MainWP_Helper;
