@@ -26,16 +26,21 @@ use MainWP\Child\MainWP_Helper;
  * @package MainWP\Child
  */
 class MainWP_Child_IThemes_Security {
+
     /**
+     * Public static variable to hold the single instance of MainWP_Child_IThemes_Security.
      * @var null
      */
-    public static $instance     = null;
+    public static $instance = null;
+
     /**
-     * @var bool
+     * @var bool Whether or not iThemes Plugin is installed or not. Default: false.
      */
     public $is_plugin_installed = false;
 
     /**
+     * Create a public static instance of MainWP_Child_IThemes_Security.
+     *
      * @return MainWP_Child_IThemes_Security|null
      */
     public static function instance() {
@@ -47,6 +52,8 @@ class MainWP_Child_IThemes_Security {
 
     /**
      * MainWP_Child_IThemes_Security constructor.
+     *
+     * @uses MainWP_Child_IThemes_Security::is_plugin_installed()
      */
     public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -62,11 +69,13 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @param $information
-     * @param array $data
-     * @return mixed
+     * Sync other data from $data[] and merge with $information[]
+     *
+     * @param array $information Returned response array for MainWP BackWPup Extension actions.
+     * @param array $data Other data to sync to $information array.
+     * @return array $information Returned information array with both sets of data.
      */
-    public function sync_others_data($information, $data = array() ) {
+    public function sync_others_data( $information, $data = array() ) {
 		if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
 			try {
 				$information['syncIThemeData'] = array(
@@ -80,7 +89,26 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
+     * MainWP iThemes Security Extension actions.
      *
+     * @uses MainWP_Child_IThemes_Security::set_showhide()
+     * @uses MainWP_Child_IThemes_Security::save_settings()
+     * @uses MainWP_Child_IThemes_Security::whitelist_release()
+     * @uses MainWP_Child_IThemes_Security::backup_db()
+     * @uses MainWP_Child_IThemes_Security::admin_user()
+     * @uses MainWP_Child_IThemes_Security::change_database_prefix()
+     * @uses MainWP_Child_IThemes_Security::reset_api_key()
+     * @uses MainWP_Child_IThemes_Security::malware_scan()
+     * @uses MainWP_Child_IThemes_Security::>purge_logs()
+     * @uses MainWP_Child_IThemes_Security::file_change()
+     * @uses MainWP_Child_IThemes_Security::release_lockout()
+     * @uses MainWP_Child_IThemes_Security::update_module_status()
+     * @uses MainWP_Child_IThemes_Security::wordpress_salts()
+     * @uses MainWP_Child_IThemes_Security::file_permissions()
+     * @uses MainWP_Child_IThemes_Security::reload_backup_exclude()
+     * @uses MainWP_Child_IThemes_Security::security_site()
+     * @uses MainWP_Child_IThemes_Security::activate_network_brute_force()
+     * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public function action() {
 		$information = array();
@@ -152,7 +180,11 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return mixed
+     * Set show or hide UpdraftPlus Plugin from Admin & plugins list.
+     *
+     * @return array $information Return results.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -163,7 +195,9 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
+     * Initiate iThemes settings.
      *
+     * @uses MainWP_Child_IThemes_Security::is_plugin_installed()
      */
     public function ithemes_init() {
 		if ( ! $this->is_plugin_installed ) {
@@ -183,17 +217,20 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     *
+     * iThemes Security Admin initiation.
      */
     public function admin_init() {
 		remove_meta_box( 'itsec-dashboard-widget', 'dashboard', 'normal' );
 	}
 
     /**
-     * @param $plugins
-     * @return mixed
+     * Remove iThemes Security from plugins page.
+     *
+     * @param array $plugins All plugins array.
+     *
+     * @return array $plugins All plugins array with iThemes Security removed.
      */
-    public function all_plugins($plugins ) {
+    public function all_plugins( $plugins ) {
 		foreach ( $plugins as $key => $value ) {
 			$plugin_slug = basename( $key, '.php' );
 			if ( 'better-wp-security' === $plugin_slug || 'ithemes-security-pro' === $plugin_slug ) {
@@ -205,14 +242,14 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     *
+     *  Remove iThemes Security plugin from WP Admin menu.
      */
     public function remove_menu() {
 		remove_menu_page( 'itsec' );
 	}
 
     /**
-     *
+     * Custom admin CSS.
      */
     public function custom_admin_css() {
 		?>
@@ -225,7 +262,21 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array[]
+     * Save UpdraftPlus settings.
+     *
+     * @return array[] $return Return Error message or Success Message.
+     *
+     * @uses ITSEC_Lib::get_server()
+     * @uses ITSEC_Lib::get_ssl_support_probability()
+     * @uses ITSEC_Lib_Config_File::get_server_config()
+     * @uses ITSEC_Lib_Config_File::get_wp_config()
+     * @uses ITSEC_Modules::get_default()
+     * @uses ITSEC_Modules::get_setting()
+     * @uses MainWP_Child_IThemes_Security::get_lockouts()
+     * @uses MainWP_Child_IThemes_Security::validate_directory()
+     * @uses MainWP_Child_IThemes_Security::activate_api_key()
+     * @uses MainWP_Child_IThemes_Security::get_excludable_tables()
+     * @uses MainWP_Child_IThemes_Security::get_available_admin_users_and_roles()
      */
     public function save_settings() {
 
@@ -402,7 +453,12 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Activate network brute force.
+     *
+     * @return array $information Results array.
+     *
+     * @uses ITSEC_Modules::get_settings()
+     * @uses ITSEC_Modules::activate()
      */
     public static function activate_network_brute_force() {
 		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -428,11 +484,19 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @param $name
-     * @param $folder
-     * @return bool|string
+     * Validate directory.
+     *
+     * @param string $name Input name.
+     * @param string $folder Folder.
+     *
+     * @return bool|string Return TRUE on success or Error message on failure.
+     *
+     * @uses ITSEC_Lib_Directory::is_dir()
+     * @uses ITSEC_Lib_Directory::create()
+     * @uses ITSEC_Lib_Directory::is_writable()
+     * @uses ITSEC_Lib_Directory::add_file_listing_protection()
      */
-    private function validate_directory($name, $folder ) {
+    private function validate_directory( $name, $folder ) {
 		require_once ITSEC_Core::get_core_dir() . 'lib/class-itsec-lib-directory.php';
 		$error = null;
 		if ( ! ITSEC_Lib_Directory::is_dir( $folder ) ) {
@@ -456,11 +520,21 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @param $settings
-     * @return bool
+     * Activate api key.
+     *
+     * @param array $settings Setting array.
+     *
+     * @return array|bool Return $settings array or FALSE on failure.
+     *
+     * @uses ITSEC_Network_Brute_Force_Utilities::get_api_key()
+     * @uses ITSEC_Network_Brute_Force_Utilities::activate_api_key()
+     * @uses ITSEC_Response::reload_module()
      */
-    private function activate_api_key($settings ) {
+    private function activate_api_key( $settings ) {
+
+        /** @global string $mainwp_itsec_modules_path MainWP itsec modules path.  */
 		global $mainwp_itsec_modules_path;
+
 		require_once $mainwp_itsec_modules_path . 'ipcheck/utilities.php';
 
 		$key = ITSEC_Network_Brute_Force_Utilities::get_api_key( $settings['email'], $settings['updates_optin'] );
@@ -485,7 +559,19 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return int
+     * Backup status.
+     *
+     * @return int $status 1, 2, 3 or 4
+     *  (1) Is not a multisite installation, backupbuddy_api exists & Scheduled backups are >=1
+     *  (2) Is not multisite and backupbuddy_api exists
+     *  (3) Has backup = true & schedualed backup = true
+     *  (4) Has backup = true.
+     *
+     * @uses backupbuddy_api::getSchedules()
+     * @uses MainWP_Child_IThemes_Security::has_backup()
+     * @uses MainWP_Child_IThemes_Security::scheduled_backup()
+     * @uses MainWP_Child_IThemes_Security::has_backup()
+     *
      */
     public function backup_status() {
 		$status = 0;
@@ -503,7 +589,9 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return mixed
+     * Check if backup exists.
+     *
+     * @return bool TRUE|FALSE
      */
     public function has_backup() {
 		$has_backup = false;
@@ -512,7 +600,9 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return mixed
+     * Check if there is a shedualed backup.
+     *
+     * @return bool TRUE|FALSE.
      */
     public function scheduled_backup() {
 		$sceduled_backup = false;
@@ -521,11 +611,15 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array|string[]
+     * Whitelist Dashboard IP address.
+     *
+     * @return array|string[] Response array.
      */
     public function whitelist() {
 
+        /** @global array $itsec_globals itsec globals. */
 		global $itsec_globals;
+
 		$ip       = $_POST['ip'];
 		$add_temp = false;
 		$temp_ip  = get_site_option( 'itsec_temp_whitelist_ip' );
@@ -555,7 +649,9 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return string
+     * Whitelist release.
+     *
+     * @return string Return 'Success'.
      */
     public function whitelist_release() {
 		delete_site_option( 'itsec_temp_whitelist_ip' );
@@ -564,9 +660,20 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Backup Database.
+     *
+     * @return array $return Return results array.
+     *
+     * @uses ITSEC_Backup()
+     * @uses ITSEC_Backup::run()
+     * @uses ITSEC_Backup::do_backup()
+     * @uses ITSEC_Response::get_error_strings()
      */
     public function backup_db() {
+        /**
+         * @global string $mainwp_itsec_modules_path MainWP itsec modules path.
+         * @global object $itsec_backup              ITsec backup class.
+         */
 		global $itsec_backup, $mainwp_itsec_modules_path;
 
 		if ( ! isset( $itsec_backup ) ) {
@@ -602,10 +709,20 @@ class MainWP_Child_IThemes_Security {
 
 
     /**
-     * @return mixed
+     * Update WordPress Salts.
+     *
+     * @return array $return Return results array.
+     *
+     * @uses ITSEC_WordPress_Salts_Utilities::generate_new_salts()
+     * @uses ITSEC_Response::get_error_strings()
+     * @uses ITSEC_Core::get_current_time_gmt()
+     * @uses ITSEC_Modules::set_setting()
      */
     private function wordpress_salts() {
+
+        /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
+
 		if ( ! class_exists( 'ITSEC_WordPress_Salts_Utilities' ) ) {
 			require $mainwp_itsec_modules_path . 'salts/utilities.php';
 		}
@@ -630,9 +747,16 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Update file permissions.
+     *
+     * @return array Return results table html.
+     *
+     * @uses ITSEC_Core::get_wp_upload_dir()
+     * @uses ITSEC_Lib_Config_File::get_wp_config_file_path()
+     * @uses ITSEC_Lib_Config_File::get_server_config_file_path()
      */
     private function file_permissions() {
+
 			require_once ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php';
 
 			$wp_upload_dir = ITSEC_Core::get_wp_upload_dir();
@@ -752,10 +876,17 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return mixed
+     * Run File Change scanner.
+     *
+     * @return array $return results array.
+     *
+     * @uses ITSEC_File_Change_Scanner::run_scan()
      */
     public function file_change() {
+
+        /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
+
 		if ( ! class_exists( 'ITSEC_File_Change_Scanner' ) ) {
 			require_once $mainwp_itsec_modules_path . 'file-change/scanner.php';
 		}
@@ -768,7 +899,12 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Update admin user.
+     *
+     * @return array Return Success or Fail.
+     *
+     * @uses ITSEC_Lib::user_id_exists()
+     * @uses MainWP_Child_IThemes_Security::change_admin_user()
      */
     public function admin_user() {
 
@@ -782,7 +918,10 @@ class MainWP_Child_IThemes_Security {
 		$change_id    = isset( $settings['change_id'] ) && $settings['change_id'] ? true : false;
 
 		if ( ! class_exists( 'ITSEC_Lib' ) ) {
+
+            /** @global object $itsec_globals ITsec globals. */
 			global $itsec_globals;
+
 			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
@@ -790,7 +929,10 @@ class MainWP_Child_IThemes_Security {
 		$user_id_exists  = ITSEC_Lib::user_id_exists( 1 );
 		$msg             = '';
 		if ( strlen( $new_username ) >= 1 ) {
+
+		    /** @global string $current_user Current user global variable. */
 			global $current_user;
+
 			if ( ! $username_exists ) {
 				$msg = __( 'Admin user already changes.', 'mainwp-child' );
 			} elseif ( 'admin' == $current_user->user_login ) {
@@ -825,13 +967,20 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @param null $username
-     * @param bool $id
-     * @return bool
+     * Change admin user.
+     *
+     * @param string $username Username to update to. Default: null.
+     * @param bool $id User Id found. Default: false.
+     * @return bool Return TRUE on success and FALSE on failure.
+     *
+     * @uses ITSEC_Core::get_itsec_files()
+     * @uses ITSEC_Core::get_itsec_files::release_file_lock()
      */
     private function change_admin_user($username = null, $id = false ) {
 
+        /** @global object $wpdb WordPress Database  */
 		global $wpdb;
+
 		$itsec_files = ITSEC_Core::get_itsec_files();
 
 			$new_user = sanitize_text_field( $username );
@@ -918,11 +1067,14 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @param $rules_array
-     * @param null $input
-     * @return mixed
+     * Build WP_config rules.
+     *
+     * @param array $rules_array Config rules array.
+     * @param null $input New directory input.
+     *
+     * @return array Return $rules_array.
      */
-    public function build_wpconfig_rules($rules_array, $input = null ) {
+    public function build_wpconfig_rules( $rules_array, $input = null ) {
 		if ( null === $input ) {
 			return $rules_array;
 		}
@@ -958,10 +1110,19 @@ class MainWP_Child_IThemes_Security {
 
 
     /**
-     * @return array
+     * Change database prefix.
+     *
+     * @return array $return Return response array.
+     *
+     * @uses ITSEC_Database_Prefix_Utility::change_database_prefix()
+     * @uses ITSEC_Response::get_error_strings()
+     * @uses ITSEC_Response::reload_module()
      */
     public function change_database_prefix() {
+
+        /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
+
 		require_once $mainwp_itsec_modules_path . 'database-prefix/utility.php';
 		$str_error = '';
 		$return    = array();
@@ -992,7 +1153,9 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Update API key.
+     *
+     * @return array $return Return response array. Success or nochange.
      */
     public function api_key() {
 		$settings = get_site_option( 'itsec_ipcheck' );
@@ -1011,7 +1174,15 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Reset api key.
+     *
+     * @return array $information Return response array.
+     *
+     * @uses ITSEC_Modules::get_defaults()
+     * @uses ITSEC_Modules::set_defaults()
+     * @uses ITSEC_Response::set_response()
+     * @uses ITSEC_Response::add_errors()
+     * @uses ITSEC_Response::add_messages()
      */
     public function reset_api_key() {
 
@@ -1033,9 +1204,17 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Malware scan.
+     *
+     * @return array $response Return response array.
+     *
+     * @uses ITSEC_Core::current_user_can_manage()
+     * @uses ITSEC_Malware_Scanner::scan()
+     * @uses ITSEC_Malware_Scan_Results_Template::get_html()
      */
     public function malware_scan() {
+
+        /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
 
 		if ( ! class_exists( 'ITSEC_Malware_Scanner' ) ) {
@@ -1055,11 +1234,18 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Get malware scan results.
+     *
+     * @return array $response Return response array.
+     *
+     * @uses ITSEC_Malware_Scanner::scan()
+     * @uses ITSEC_Malware_Scan_Results_Template::get_html()
      */
     public function malware_get_scan_results() {
 
+        /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
+
 		if ( ! class_exists( 'ITSEC_Malware_Scanner' ) ) {
 			require_once $mainwp_itsec_modules_path . 'malware/class-itsec-malware-scanner.php';
 			require_once $mainwp_itsec_modules_path . 'malware/class-itsec-malware-scan-results-template.php';
@@ -1071,10 +1257,15 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return string[]
+     * Purge logs.
+     *
+     * @return string[] Return response array.
      */
     public function purge_logs() {
+
+        /** @global object $wpdb WordPress Database object. */
 		global $wpdb;
+
 		$wpdb->query( 'DELETE FROM `' . $wpdb->base_prefix . 'itsec_log`;' );
 
 		return array( 'result' => 'success' );
@@ -1082,12 +1273,21 @@ class MainWP_Child_IThemes_Security {
 
 
     /**
-     * @param string $type
-     * @param bool $current
-     * @return mixed
+     * Get lockouts.
+     *
+     * @param string $type Type of lockout: Host, user, username, Default: all.
+     * @param bool $current TRUE if current. Default: FALSE.
+     *
+     * @return array $output Return response array.
+     *
+     * @uses MainWP_Child_IThemes_Security::get_lockouts_int()
      */
-    public function get_lockouts($type = 'all', $current = false ) {
+    public function get_lockouts( $type = 'all', $current = false ) {
 
+        /**
+         * @global object $wpdb WordPress Database object.
+         * @global object $itsec_globals itsec globals.
+         */
 		global $wpdb, $itsec_globals;
 
 		if ( 'all' !== $type || true === $current ) {
@@ -1134,9 +1334,12 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @param $results
-     * @param $type
-     * @return mixed
+     * Initiate get lockouts.
+     *
+     * @param array $results Results from MainWP_Child_IThemes_Security::get_lockouts()
+     * @param string $type Type of lockout: Host, user, username, Default: all.
+     *
+     * @return array $output Return response array.
      */
     private function get_lockouts_int($results, $type ){
 
@@ -1179,9 +1382,15 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return string[]
+     * Release lockout.
+     *
+     * @return string[] Return results array.
+     *
+     * @uses ITSEC_Lib::clear_caches()
      */
     public function release_lockout() {
+
+        /** @global object $wpdb WordPress Database. */
 		global $wpdb;
 
 		if ( ! class_exists( 'ITSEC_Lib' ) ) {
@@ -1224,7 +1433,9 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return string[]
+     * Update module status.
+     *
+     * @return string[] Return response array.
      */
     public function update_module_status() {
 
@@ -1244,7 +1455,12 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Reload excluded backups table.
+     *
+     * @return array Return response array.
+     *
+     * @uses ITSEC_Modules::get_setting()
+     * @uses MainWP_Child_IThemes_Security::get_excludable_tables()
      */
     private function reload_backup_exclude() {
 		return array(
@@ -1255,10 +1471,17 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Get excludable backups table.
+     *
+     * @return array $excludes Return response array.
+     *
+     * @uses ITSEC_Modules::get_setting()
      */
     private function get_excludable_tables() {
+
+        /** @global object $wpdb WordPress Database. */
 		global $wpdb;
+
 		$all_sites      = ITSEC_Modules::get_setting( 'backup', 'all_sites' );
 		$ignored_tables = array(
 			'commentmeta',
@@ -1297,10 +1520,18 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array
+     * Get security check results.
+     *
+     * @return array Return response array.
+     *
+     * @uses ITSEC_Security_Check_Scanner::get_results()
+     * @uses ITSEC_Security_Check_Feedback_Renderer::render(
      */
     private function security_site() {
+
+        /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
+
 		require_once $mainwp_itsec_modules_path . 'security-check/scanner.php';
 		require_once $mainwp_itsec_modules_path . 'security-check/feedback-renderer.php';
 		$results = ITSEC_Security_Check_Scanner::get_results();
@@ -1314,7 +1545,11 @@ class MainWP_Child_IThemes_Security {
 	}
 
     /**
-     * @return array[]
+     * Get available admin users and roles.
+     *
+     * @return array[] Return response array.phpdoc
+     *
+     * @uses \WP_Roles()
      */
     public function get_available_admin_users_and_roles() {
 		if ( is_callable( 'wp_roles' ) ) {

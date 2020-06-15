@@ -820,7 +820,11 @@ class MainWP_Child_Updraft_Plus_Backups {
     }
 
     /**
-     * @return array|string[]
+     * Connect UpdraftPlus Premium addons.
+     *
+     * @return array|string[] $out return response array. Success or nopremium.
+     *
+     * @uses MainWP_Child_Updraft_Plus_Backups::update_wpmu_options()
      */
     public function addons_connect() {
         if ( ! defined( 'UDADDONS2_SLUG' ) ) {
@@ -1075,6 +1079,8 @@ class MainWP_Child_Updraft_Plus_Backups {
     }
 
     /**
+     * CB get name base type.
+     *
      * @param $a
      * @return mixed
      */
