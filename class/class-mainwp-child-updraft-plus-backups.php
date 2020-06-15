@@ -1,16 +1,9 @@
 <?php
 /**
- * MainWP Updraft Plus Backups
+ * MainWP UpdraftPlus Backups handler.
  *
  * This code is used for the MainWP UpdraftPlus Extension.
  *
- * @package MainWP\Child
- */
-
-use MainWP\Child\MainWP_Helper;
-use MainWP\Child\MainWP_Utility;
-
-/**
  * Credits
  *
  * Plugin-Name: UpdraftPlus - Backup/Restore
@@ -24,6 +17,8 @@ use MainWP\Child\MainWP_Utility;
  */
 // phpcs:disable -- Third party credit.
 
+use MainWP\Child\MainWP_Helper;
+use MainWP\Child\MainWP_Utility;
 
 /**
  * Class MainWP_Child_Updraft_Plus_Backups
@@ -825,11 +820,7 @@ class MainWP_Child_Updraft_Plus_Backups {
     }
 
     /**
-     * Addons connect.
-     *
-     * @return array|string[] $out Return SUCCESS or NO_PREMIUM.
-     *
-     * @uses MainWP_Child_Updraft_Plus_Backups::update_wpmu_options()
+     * @return array|string[]
      */
     public function addons_connect() {
         if ( ! defined( 'UDADDONS2_SLUG' ) ) {
@@ -1084,11 +1075,8 @@ class MainWP_Child_Updraft_Plus_Backups {
     }
 
     /**
-     * CB Get base type name.
-     *
-     * @param $a Variable to check.
-     *
-     * @return mixed Return CB base type name.
+     * @param $a
+     * @return mixed
      */
     private function cb_get_name_base_type( $a ) {
         return $a[0];
