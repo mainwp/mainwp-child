@@ -9,7 +9,7 @@
  *
  * Credits
  *
- * Plugin Name: iThemes Security
+ * Plugin-Name: iThemes Security
  * Plugin URI: https://ithemes.com/security
  * Author: iThemes
  * Author URI: https://ithemes.com

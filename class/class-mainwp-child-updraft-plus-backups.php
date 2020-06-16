@@ -9,7 +9,7 @@
  *
  * Credits
  *
- * Plugin Name: UpdraftPlus - Backup/Restore
+ * Plugin-Name: UpdraftPlus - Backup/Restore
  * Plugin URI: https://updraftplus.com
  * Author: UpdraftPlus.Com, DavidAnderson
  * Author URI: https://updraftplus.com
