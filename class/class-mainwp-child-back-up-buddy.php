@@ -2782,6 +2782,14 @@ class MainWP_Child_Back_Up_Buddy {
 		pb_backupbuddy::$ui->end_metabox();
 
 		if ( true === $continue_2 ) {
+
+            /**
+             * Turn array into html li.
+             *
+             * @param array $array Array of data to convert.
+             *
+             * @return string Return html list.
+             */
 			function lined_array( $array ) {
 				if ( is_array( $array ) ) {
 					foreach ( $array as $array_key => $array_item ) {
