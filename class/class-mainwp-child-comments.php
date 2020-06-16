@@ -27,7 +27,6 @@ class MainWP_Child_Comments {
 	 * Comments and clauses.
 	 *
 	 * @var string Comments and clauses.
-	 *
 	 */
 	private $comments_and_clauses;
 
@@ -129,7 +128,6 @@ class MainWP_Child_Comments {
 	 * @param array $clauses MySQL WHERE Clause.
 	 *
 	 * @return array $clauses, Array of MySQL WHERE Clauses.
-	 *
 	 */
 	public function comments_clauses( $clauses ) {
 		if ( $this->comments_and_clauses ) {
