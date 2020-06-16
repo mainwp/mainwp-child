@@ -138,7 +138,6 @@ class MainWP_Child_Plugins_Check {
 	 * @param object $args Query arguments.
 	 * @param string $action Action to perform: query_plugins.
 	 * @return \stdClass $args Modified Search Query.
-	 *
 	 */
 	public function modify_plugin_api_search_query( $args, $action ) {
 		if ( isset( $action ) && 'query_plugins' === $action ) {
