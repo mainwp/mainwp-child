@@ -55,7 +55,6 @@ class MainWP_Child_Branding_Render {
 	/**
 	 * Method admin_head_hide_elements().
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function admin_head_hide_elements() {
 		?>
@@ -78,7 +77,6 @@ class MainWP_Child_Branding_Render {
 	 *
 	 * @return string Contact Support form html.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function contact_support() {
 		global $current_user;
@@ -229,7 +227,6 @@ class MainWP_Child_Branding_Render {
 	/**
 	 * After admin bar render.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function after_admin_bar_render() {
 		$hide_slugs = apply_filters( 'mainwp_child_hide_update_notice', array() );
@@ -285,7 +282,6 @@ class MainWP_Child_Branding_Render {
 	/**
 	 * Admin footer text.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function in_admin_footer() {
 		$hide_slugs = apply_filters( 'mainwp_child_hide_update_notice', array() );

@@ -28,7 +28,6 @@ class MainWP_Child_Comments {
 	 *
 	 * @var string Comments and clauses.
 	 *
-	 * @deprecated Unused element.
 	 */
 	private $comments_and_clauses;
 
@@ -131,7 +130,6 @@ class MainWP_Child_Comments {
 	 *
 	 * @return array $clauses, Array of MySQL WHERE Clauses.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function comments_clauses( $clauses ) {
 		if ( $this->comments_and_clauses ) {

@@ -9,7 +9,7 @@
  *
  * Credits
  *
- * Plugin Name: BackUpWordPress
+ * Plugin-Name: BackUpWordPress
  * Plugin URI: http://bwp.hmn.md/
  * Author: Human Made Limited
  * Author URI: http://hmn.md/

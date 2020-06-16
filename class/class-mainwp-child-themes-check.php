@@ -8,7 +8,7 @@
  *
  * Credits
  *
- * Plugin Name: Vendi Abandoned Plugin Check
+ * Plugin-Name: Vendi Abandoned Plugin Check
  * Plugin URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
  * Author: Vendi Advertising (Chris Haas)
  * Author URI: https://wp-staging.com

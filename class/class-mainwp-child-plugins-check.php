@@ -8,7 +8,7 @@
  *
  * Credits
  *
- * Plugin Name: Vendi Abandoned Plugin Check
+ * Plugin-Name: Vendi Abandoned Plugin Check
  * Plugin URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
  * Author: Vendi Advertising (Chris Haas)
  * Author URI: https://wp-staging.com
@@ -139,7 +139,6 @@ class MainWP_Child_Plugins_Check {
 	 * @param string $action Action to perform: query_plugins.
 	 * @return \stdClass $args Modified Search Query.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function modify_plugin_api_search_query( $args, $action ) {
 		if ( isset( $action ) && 'query_plugins' === $action ) {
