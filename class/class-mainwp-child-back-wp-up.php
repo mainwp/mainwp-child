@@ -324,15 +324,15 @@ class MainWP_Child_Back_WP_Up {
     /**
      * Create BackWPup MainWP Client Reports log.
      *
+     * @param string $ext Extension to create log for.
+     *
      * @uses MainWP_Child_Back_WP_Up::is_backwpup_installed()
-     * @uses MainWP_Helper::check_classes_exists()
-     * @uses MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
      * @uses \BackWPup_File::get_absolute_path()
      * @uses \BackWPup_Job::read_logheader()
-     * @uses MainWP_Utility::update_lasttime_backup()
      * @uses \Exception
-     *
-     * @param string $ext Extension to create log for.
      */
     public function do_reports_log($ext = '' ) {
         if ( 'backwpup' !== $ext ) {
@@ -430,6 +430,7 @@ class MainWP_Child_Back_WP_Up {
      *
      * @param array $information Returned response array for MainWP BackWPup Extension actions.
      * @param array $data Other data to sync to $information array.
+     *
      * @return array $information Returned information array with both sets of data.
      */
     public function sync_others_data($information, $data = array() ) {
