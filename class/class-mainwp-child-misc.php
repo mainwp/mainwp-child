@@ -380,7 +380,6 @@ class MainWP_Child_Misc {
 	 * @uses wp_get_all_sessions() Retrieve a list of sessions for the current user.
 	 * @see https://developer.wordpress.org/reference/functions/wp_get_all_sessions/
 	 *
-	 * @deprecated Unused Element
 	 */
 	public function settings_tools() {
 		if ( isset( $_POST['action'] ) ) {

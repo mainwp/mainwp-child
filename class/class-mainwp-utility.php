@@ -318,7 +318,6 @@ class MainWP_Utility {
 	 *
 	 * @return void
 	 *
-	 * @deprecated Unused Element
 	 */
 	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {

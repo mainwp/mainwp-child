@@ -260,7 +260,6 @@ class MainWP_Helper {
 	 *
 	 * @return array $r Updated array containing the request data.
 	 *
-	 * @deprecated Unused Element
 	 */
 	public static function reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;

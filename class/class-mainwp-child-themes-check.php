@@ -139,7 +139,6 @@ class MainWP_Child_Themes_Check {
 	 * @param string $action Actions to perform.
 	 * @return \stdClass Return instance of \stdClass.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function modify_theme_api_search_query( $args, $action ) {
 		if ( isset( $action ) && 'query_themes' === $action ) {
@@ -160,7 +159,6 @@ class MainWP_Child_Themes_Check {
 	 *
 	 * @throws \Exception Error message on failure.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function perform_watchdog() {
 		if ( false === wp_next_scheduled( $this->cron_name_daily ) && false === wp_next_scheduled( $this->cron_name_batching ) ) {
@@ -223,7 +221,6 @@ class MainWP_Child_Themes_Check {
 	 *
 	 * @throws \Exception Error message on failure.
 	 *
-	 * @deprecated Unused Element.
 	 */
 	public function run_check() {
 		if ( ! function_exists( '\wp_get_themes' ) ) {

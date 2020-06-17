@@ -137,7 +137,6 @@ class MainWP_Child_Links_Checker {
      *
      * @param $comment_id Comment ID.
      *
-     * @deprecated Unused Element
      */
     public static function hook_trashed_comment($comment_id ) {
 		if ( get_option( 'mainwp_linkschecker_ext_enabled' ) !== 'Y' ) {
@@ -207,7 +206,6 @@ class MainWP_Child_Links_Checker {
      *
      * @param $post_id Post ID.
      *
-     * @deprecated Unused Element
      */
     public static function hook_post_deleted($post_id ) {
 		if ( get_option( 'mainwp_linkschecker_ext_enabled' ) !== 'Y' ) {
@@ -242,7 +240,6 @@ class MainWP_Child_Links_Checker {
      * @param $plugins Plugins array.
      * @return mixed $plugins array.
      *
-     * @deprecated Unused Element
      */
     public function hide_plugin($plugins ) {
 		foreach ( $plugins as $key => $value ) {
@@ -261,7 +258,6 @@ class MainWP_Child_Links_Checker {
      * @param $text Test to add to footer.
      * @return string Footer html.
      *
-     * @deprecated Unused Element
      */
     public function update_footer($text ) {
 		?>
