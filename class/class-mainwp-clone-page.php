@@ -50,7 +50,6 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Method print_scripts()
-	 *
 	 */
 	public static function print_scripts() {
 		wp_enqueue_script( 'jquery-ui-tooltip' );
@@ -1118,7 +1117,6 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Method permalink_admin_notice()
-	 *
 	 */
 	public static function permalink_admin_notice() {
 		if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) {

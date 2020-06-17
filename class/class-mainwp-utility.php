@@ -317,7 +317,6 @@ class MainWP_Utility {
 	 * Start job if in cron and run query args are set.
 	 *
 	 * @return void
-	 *
 	 */
 	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
