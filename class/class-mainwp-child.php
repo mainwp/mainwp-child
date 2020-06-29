@@ -8,16 +8,14 @@
 namespace MainWP\Child;
 
 // phpcs:disable -- required for debugging.
-if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG === true ) {
-	error_reporting( E_ALL );
-	ini_set( 'display_errors', true );
-	ini_set( 'display_startup_errors', true );
-} else {
-	if ( isset( $_REQUEST['mainwpsignature'] ) ) {
+if ( isset( $_REQUEST['mainwpsignature'] ) ) {
+	// if not debug.
+	if ( ! defined('MAINWP_CHILD_DEBUG') || false == MAINWP_CHILD_DEBUG ) {
 		ini_set( 'display_errors', false );
 		error_reporting( 0 );
 	}
 }
+
 // phpcs:enable
 
 require_once ABSPATH . '/wp-admin/includes/file.php';
@@ -35,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.0.7.1';
+	public static $version = '4.1-beta1';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -305,18 +303,18 @@ class MainWP_Child {
 	private function parse_init_extensions() {
 		MainWP_Child_Branding::instance()->branding_init();
 		MainWP_Client_Report::instance()->creport_init();
-		\MainWP_Child_IThemes_Security::instance()->ithemes_init();
-		\MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
-		\MainWP_Child_Back_Up_WordPress::instance()->init();
-		\MainWP_Child_WP_Rocket::instance()->init();
-		\MainWP_Child_Back_WP_Up::instance()->init();
-		\MainWP_Child_Back_Up_Buddy::instance();
-		\MainWP_Child_Wordfence::instance()->wordfence_init();
-		\MainWP_Child_Timecapsule::instance()->init();
-		\MainWP_Child_Staging::instance()->init();
-		\MainWP_Child_Pagespeed::instance()->init();
-		\MainWP_Child_Links_Checker::instance()->init();
-		\MainWP_Child_WPvivid_BackupRestore::instance()->init();
+		MainWP_Child_IThemes_Security::instance()->ithemes_init();
+		MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
+		MainWP_Child_Back_Up_WordPress::instance()->init();
+		MainWP_Child_WP_Rocket::instance()->init();
+		MainWP_Child_Back_WP_Up::instance()->init();
+		MainWP_Child_Back_Up_Buddy::instance();
+		MainWP_Child_Wordfence::instance()->wordfence_init();
+		MainWP_Child_Timecapsule::instance()->init();
+		MainWP_Child_Staging::instance()->init();
+		MainWP_Child_Pagespeed::instance()->init();
+		MainWP_Child_Links_Checker::instance()->init();
+		MainWP_Child_WPvivid_BackupRestore::instance()->init();
 	}
 
 	/**

@@ -106,19 +106,19 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	public static function do_reports_log( $ext = '' ) {
 		switch ( $ext ) {
 			case 'backupbuddy':
-				\MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
+				MainWP_Child_Back_Up_Buddy::instance()->do_reports_log( $ext );
 				break;
 			case 'backupwordpress':
-				\MainWP_Child_Back_Up_WordPress::instance()->do_reports_log( $ext );
+				MainWP_Child_Back_Up_WordPress::instance()->do_reports_log( $ext );
 				break;
 			case 'backwpup':
-				\MainWP_Child_Back_WP_Up::instance()->do_reports_log( $ext );
+				MainWP_Child_Back_WP_Up::instance()->do_reports_log( $ext );
 				break;
 			case 'wordfence':
-				\MainWP_Child_Wordfence::instance()->do_reports_log( $ext );
+				MainWP_Child_Wordfence::instance()->do_reports_log( $ext );
 				break;
 			case 'wptimecapsule':
-				\MainWP_Child_Timecapsule::instance()->do_reports_log( $ext );
+				MainWP_Child_Timecapsule::instance()->do_reports_log( $ext );
 				break;
 		}
 	}

@@ -576,7 +576,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function backup_buddy() {
-		\MainWP_Child_Back_Up_Buddy::instance()->action();
+		MainWP_Child_Back_Up_Buddy::instance()->action();
 	}
 
 	/**
@@ -594,7 +594,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function time_capsule() {
-		\MainWP_Child_Timecapsule::instance()->action();
+		MainWP_Child_Timecapsule::instance()->action();
 	}
 
 	/**
@@ -603,7 +603,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function wp_staging() {
-		\MainWP_Child_Staging::instance()->action();
+		MainWP_Child_Staging::instance()->action();
 	}
 
 	/**
@@ -661,7 +661,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function page_speed() {
-		\MainWP_Child_Pagespeed::instance()->action();
+		MainWP_Child_Pagespeed::instance()->action();
 	}
 
 	/**
@@ -679,7 +679,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function links_checker() {
-		\MainWP_Child_Links_Checker::instance()->action();
+		MainWP_Child_Links_Checker::instance()->action();
 	}
 
 	/**
@@ -688,7 +688,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function wordfence() {
-		\MainWP_Child_Wordfence::instance()->action();
+		MainWP_Child_Wordfence::instance()->action();
 	}
 
 	/**
@@ -697,7 +697,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function ithemes() {
-		\MainWP_Child_IThemes_Security::instance()->action();
+		MainWP_Child_IThemes_Security::instance()->action();
 	}
 
 	/**
@@ -706,7 +706,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function updraftplus() {
-		\MainWP_Child_Updraft_Plus_Backups::instance()->action();
+		MainWP_Child_Updraft_Plus_Backups::instance()->action();
 	}
 
 	/**
@@ -715,7 +715,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function wpvivid_backuprestore() {
-		\MainWP_Child_WPvivid_BackupRestore::instance()->action();
+		MainWP_Child_WPvivid_BackupRestore::instance()->action();
 	}
 
 	/**
@@ -728,7 +728,7 @@ class MainWP_Child_Callable {
 			$error = sprintf( __( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
 			MainWP_Helper::write( array( 'error' => $error ) );
 		}
-		\MainWP_Child_Back_Up_WordPress::instance()->action();
+		MainWP_Child_Back_Up_WordPress::instance()->action();
 	}
 
 	/**
@@ -737,7 +737,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function wp_rocket() {
-		\MainWP_Child_WP_Rocket::instance()->action();
+		MainWP_Child_WP_Rocket::instance()->action();
 	}
 
 	/**
@@ -746,7 +746,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function backwpup() {
-		\MainWP_Child_Back_WP_Up::instance()->action();
+		MainWP_Child_Back_WP_Up::instance()->action();
 	}
 
 	/**

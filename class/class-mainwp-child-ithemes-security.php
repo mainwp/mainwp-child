@@ -19,7 +19,7 @@
  * Extension URL: https://mainwp.com/extension/ithemes-security/
  */
 
-use MainWP\Child\MainWP_Helper;
+namespace MainWP\Child;
 
 // phpcs:disable -- third party credit code.
 
@@ -114,14 +114,14 @@ class MainWP_Child_IThemes_Security {
      */
     public function action() {
 		$information = array();
-		if ( ! class_exists( 'ITSEC_Core' ) || ! class_exists( 'ITSEC_Modules' ) ) {
+		if ( ! class_exists( '\ITSEC_Core' ) || ! class_exists( '\ITSEC_Modules' ) ) {
 			$information['error'] = 'NO_ITHEME';
 			MainWP_Helper::write( $information );
 		}
 
 		global $mainwp_itsec_modules_path;
 
-		$mainwp_itsec_modules_path = ITSEC_Core::get_core_dir() . '/modules/';
+		$mainwp_itsec_modules_path = \ITSEC_Core::get_core_dir() . '/modules/';
 
 		if ( isset( $_POST['mwp_action'] ) ) {
 			switch ( $_POST['mwp_action'] ) {
@@ -268,12 +268,12 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array[] $return Return Error message or Success Message.
      *
-     * @uses ITSEC_Lib::get_server()
-     * @uses ITSEC_Lib::get_ssl_support_probability()
-     * @uses ITSEC_Lib_Config_File::get_server_config()
-     * @uses ITSEC_Lib_Config_File::get_wp_config()
-     * @uses ITSEC_Modules::get_default()
-     * @uses ITSEC_Modules::get_setting()
+     * @uses \ITSEC_Lib::get_server()
+     * @uses \ITSEC_Lib::get_ssl_support_probability()
+     * @uses \ITSEC_Lib_Config_File::get_server_config()
+     * @uses \ITSEC_Lib_Config_File::get_wp_config()
+     * @uses \ITSEC_Modules::get_default()
+     * @uses \ITSEC_Modules::get_setting()
      * @uses MainWP_Child_IThemes_Security::get_lockouts()
      * @uses MainWP_Child_IThemes_Security::validate_directory()
      * @uses MainWP_Child_IThemes_Security::activate_api_key()
@@ -282,8 +282,8 @@ class MainWP_Child_IThemes_Security {
      */
     public function save_settings() {
 
-		if ( ! class_exists( 'ITSEC_Lib' ) ) {
-			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
+		if ( ! class_exists( '\ITSEC_Lib' ) ) {
+			require \ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
 		$_itsec_modules = array(
@@ -316,34 +316,34 @@ class MainWP_Child_IThemes_Security {
 			$do_not_save = false;
 			if ( in_array( $module, $_itsec_modules ) ) {
 				if ( 'wordpress-salts' == $module ) {
-					$settings['last_generated'] = ITSEC_Modules::get_setting( $module, 'last_generated' );
+					$settings['last_generated'] = \ITSEC_Modules::get_setting( $module, 'last_generated' );
 				} elseif ( 'global' == $module ) {
 					$keep_olds = array( 'did_upgrade', 'log_info', 'show_new_dashboard_notice', 'show_security_check', 'nginx_file' );
 					foreach ( $keep_olds as $key ) {
-						$settings[ $key ] = ITSEC_Modules::get_setting( $module, $key );
+						$settings[ $key ] = \ITSEC_Modules::get_setting( $module, $key );
 					}
 
 					if ( ! isset( $settings['log_location'] ) || empty( $settings['log_location'] ) ) {
-						$settings['log_location'] = ITSEC_Modules::get_setting( $module, 'log_location' );
+						$settings['log_location'] = \ITSEC_Modules::get_setting( $module, 'log_location' );
 					} else {
 						$result = $this->validate_directory( 'log_location', $settings['log_location'] );
 						if ( true !== $result ) {
 							$errors[]                 = $result;
-							$settings['log_location'] = ITSEC_Modules::get_setting( $module, 'log_location' );
+							$settings['log_location'] = \ITSEC_Modules::get_setting( $module, 'log_location' );
 						}
 					}
 				} elseif ( 'backup' == $module ) {
 					if ( ! isset( $settings['location'] ) || empty( $settings['location'] ) ) {
-						$settings['location'] = ITSEC_Modules::get_setting( $module, 'location' );
+						$settings['location'] = \ITSEC_Modules::get_setting( $module, 'location' );
 					} else {
 						$result = $this->validate_directory( 'location', $settings['location'] );
 						if ( true !== $result ) {
 							$errors[]             = $result;
-							$settings['location'] = ITSEC_Modules::get_setting( $module, 'location' );
+							$settings['location'] = \ITSEC_Modules::get_setting( $module, 'location' );
 						}
 					}
 					if ( ! isset( $settings['exclude'] ) ) {
-						$settings['exclude'] = ITSEC_Modules::get_setting( $module, 'exclude' );
+						$settings['exclude'] = \ITSEC_Modules::get_setting( $module, 'exclude' );
 
 					}
 				} elseif ( 'hide-backend' == $module ) {
@@ -366,7 +366,7 @@ class MainWP_Child_IThemes_Security {
 							$nbf_settings = $result;
 						}
 					} else {
-						$previous_settings = ITSEC_Modules::get_settings( $module );
+						$previous_settings = \ITSEC_Modules::get_settings( $module );
 						if ( isset( $settings['enable_ban'] ) ) {
 							$previous_settings['enable_ban'] = $settings['enable_ban'];
 							$nbf_settings                    = $previous_settings;
@@ -377,7 +377,7 @@ class MainWP_Child_IThemes_Security {
 					}
 					$settings = $nbf_settings;
 				} elseif ( 'notification-center' == $module ) {
-					$current_settings = ITSEC_Modules::get_settings( $module );
+					$current_settings = \ITSEC_Modules::get_settings( $module );
 					if ( isset( $settings['notifications'] ) ) {
 						$update_fields = array( 'schedule', 'enabled', 'subject' );
 						if ( isset( $_POST['is_individual'] ) && $_POST['is_individual'] ) {
@@ -391,13 +391,13 @@ class MainWP_Child_IThemes_Security {
 							}
 						}
 						$updated = true;
-						ITSEC_Modules::set_settings( $module, $current_settings );
+						\ITSEC_Modules::set_settings( $module, $current_settings );
 					}
 					continue;
 				}
 
 				if ( ! $do_not_save ) {
-					ITSEC_Modules::set_settings( $module, $settings );
+					\ITSEC_Modules::set_settings( $module, $settings );
 					$updated = true;
 				}
 			}
@@ -411,22 +411,22 @@ class MainWP_Child_IThemes_Security {
 			update_site_option( 'itsec_active_modules', $current_val );
 		}
 
-		require_once ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php';
+		require_once \ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php';
 
 		$values = array(
 			'permalink_structure'   => get_option( 'permalink_structure' ),
 			'is_multisite'          => is_multisite() ? 1 : 0,
 			'users_can_register'    => get_site_option( 'users_can_register' ) ? 1 : 0,
-			'server_nginx'          => ( ITSEC_Lib::get_server() === 'nginx' ) ? 1 : 0,
-			'has_ssl'               => ITSEC_Lib::get_ssl_support_probability(),
-			'jquery_version'        => ITSEC_Modules::get_setting( 'wordpress-tweaks', 'jquery_version' ),
-			'server_rules'          => ITSEC_Lib_Config_File::get_server_config(),
-			'config_rules'          => ITSEC_Lib_Config_File::get_wp_config(),
+			'server_nginx'          => ( \ITSEC_Lib::get_server() === 'nginx' ) ? 1 : 0,
+			'has_ssl'               => \ITSEC_Lib::get_ssl_support_probability(),
+			'jquery_version'        => \ITSEC_Modules::get_setting( 'wordpress-tweaks', 'jquery_version' ),
+			'server_rules'          => \ITSEC_Lib_Config_File::get_server_config(),
+			'config_rules'          => \ITSEC_Lib_Config_File::get_wp_config(),
 			'lockouts_host'         => $this->get_lockouts( 'host', true ),
 			'lockouts_user'         => $this->get_lockouts( 'user', true ),
 			'lockouts_username'     => $this->get_lockouts( 'username', true ),
-			'default_log_location'  => ITSEC_Modules::get_default( 'global', 'log_location' ),
-			'default_location'      => ITSEC_Modules::get_default( 'backup', 'location' ),
+			'default_log_location'  => \ITSEC_Modules::get_default( 'global', 'log_location' ),
+			'default_location'      => \ITSEC_Modules::get_default( 'backup', 'location' ),
 			'excludable_tables'     => $this->get_excludable_tables(),
 			'users_and_roles'       => $this->get_available_admin_users_and_roles(),
 		);
@@ -459,23 +459,23 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $information Results array.
      *
-     * @uses ITSEC_Modules::get_settings()
-     * @uses ITSEC_Modules::activate()
+     * @uses \ITSEC_Modules::get_settings()
+     * @uses \ITSEC_Modules::activate()
      */
     public static function activate_network_brute_force() {
 		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$information = array();
 		if ( is_array( $data ) ) {
-			$settings                  = ITSEC_Modules::get_settings( 'network-brute-force' );
+			$settings                  = \ITSEC_Modules::get_settings( 'network-brute-force' );
 			$settings['email']         = $data['email'];
 			$settings['updates_optin'] = $data['updates_optin'];
 			$settings['api_nag']       = false;
-			$results                   = ITSEC_Modules::set_settings( 'network-brute-force', $settings );
+			$results                   = \ITSEC_Modules::set_settings( 'network-brute-force', $settings );
 			if ( is_wp_error( $results ) ) {
 				$information['error'] = 'Error: Active iThemes Network Brute Force Protection Api Key';
 			} elseif ( $results['saved'] ) {
-				ITSEC_Modules::activate( 'network-brute-force' );
-				$nbf_settings = ITSEC_Modules::get_settings( 'network-brute-force' );
+				\ITSEC_Modules::activate( 'network-brute-force' );
+				$nbf_settings = \ITSEC_Modules::get_settings( 'network-brute-force' );
 			}
 		}
 		if ( null !== $nbf_settings ) {
@@ -493,28 +493,28 @@ class MainWP_Child_IThemes_Security {
      *
      * @return bool|string Return TRUE on success or Error message on failure.
      *
-     * @uses ITSEC_Lib_Directory::is_dir()
-     * @uses ITSEC_Lib_Directory::create()
-     * @uses ITSEC_Lib_Directory::is_writable()
-     * @uses ITSEC_Lib_Directory::add_file_listing_protection()
+     * @uses \ITSEC_Lib_Directory::is_dir()
+     * @uses \ITSEC_Lib_Directory::create()
+     * @uses \ITSEC_Lib_Directory::is_writable()
+     * @uses \ITSEC_Lib_Directory::add_file_listing_protection()
      */
     private function validate_directory( $name, $folder ) {
-		require_once ITSEC_Core::get_core_dir() . 'lib/class-itsec-lib-directory.php';
+		require_once \ITSEC_Core::get_core_dir() . 'lib/class-itsec-lib-directory.php';
 		$error = null;
-		if ( ! ITSEC_Lib_Directory::is_dir( $folder ) ) {
-			$result = ITSEC_Lib_Directory::create( $folder );
+		if ( ! \ITSEC_Lib_Directory::is_dir( $folder ) ) {
+			$result = \ITSEC_Lib_Directory::create( $folder );
 
 			if ( is_wp_error( $result ) ) {
 				$error = sprintf( _x( 'The directory supplied in %1$s cannot be used as a valid directory. %2$s', '%1$s is the input name. %2$s is the error message.', 'mainwp-child' ), $name, $result->get_error_message() );
 			}
 		}
 
-		if ( empty( $error ) && ! ITSEC_Lib_Directory::is_writable( $folder ) ) {
+		if ( empty( $error ) && ! \ITSEC_Lib_Directory::is_writable( $folder ) ) {
 			$error = sprintf( __( 'The directory supplied in %1$s is not writable. Please select a directory that can be written to.', 'mainwp-child' ), $name );
 		}
 
 		if ( empty( $error ) ) {
-			ITSEC_Lib_Directory::add_file_listing_protection( $folder );
+			\ITSEC_Lib_Directory::add_file_listing_protection( $folder );
 			return true;
 		} else {
 			return $error;
@@ -528,9 +528,9 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array|bool Return $settings array or FALSE on failure.
      *
-     * @uses ITSEC_Network_Brute_Force_Utilities::get_api_key()
-     * @uses ITSEC_Network_Brute_Force_Utilities::activate_api_key()
-     * @uses ITSEC_Response::reload_module()
+     * @uses \ITSEC_Network_Brute_Force_Utilities::get_api_key()
+     * @uses \ITSEC_Network_Brute_Force_Utilities::activate_api_key()
+     * @uses \ITSEC_Response::reload_module()
      */
     private function activate_api_key( $settings ) {
 
@@ -539,11 +539,11 @@ class MainWP_Child_IThemes_Security {
 
 		require_once $mainwp_itsec_modules_path . 'ipcheck/utilities.php';
 
-		$key = ITSEC_Network_Brute_Force_Utilities::get_api_key( $settings['email'], $settings['updates_optin'] );
+		$key = \ITSEC_Network_Brute_Force_Utilities::get_api_key( $settings['email'], $settings['updates_optin'] );
 		if ( is_wp_error( $key ) ) {
 			return false;
 		} else {
-			$secret = ITSEC_Network_Brute_Force_Utilities::activate_api_key( $key );
+			$secret = \ITSEC_Network_Brute_Force_Utilities::activate_api_key( $key );
 
 			if ( is_wp_error( $secret ) ) {
 				return false;
@@ -553,7 +553,7 @@ class MainWP_Child_IThemes_Security {
 
 				$settings['api_nag'] = false;
 
-				ITSEC_Response::reload_module( 'network-brute-force' );
+				\ITSEC_Response::reload_module( 'network-brute-force' );
 			}
 		}
 		unset( $settings['email'] );
@@ -569,7 +569,7 @@ class MainWP_Child_IThemes_Security {
      *  (3) Has backup = true & schedualed backup = true
      *  (4) Has backup = true.
      *
-     * @uses backupbuddy_api::getSchedules()
+     * @uses \backupbuddy_api::getSchedules()
      * @uses MainWP_Child_IThemes_Security::has_backup()
      * @uses MainWP_Child_IThemes_Security::scheduled_backup()
      * @uses MainWP_Child_IThemes_Security::has_backup()
@@ -577,9 +577,9 @@ class MainWP_Child_IThemes_Security {
      */
     public function backup_status() {
 		$status = 0;
-		if ( ! is_multisite() && class_exists( 'backupbuddy_api' ) && count( backupbuddy_api::getSchedules() ) >= 1 ) {
+		if ( ! is_multisite() && class_exists( '\backupbuddy_api' ) && count( \backupbuddy_api::getSchedules() ) >= 1 ) {
 			$status = 1;
-		} elseif ( ! is_multisite() && class_exists( 'backupbuddy_api' ) ) {
+		} elseif ( ! is_multisite() && class_exists( '\backupbuddy_api' ) ) {
 			$status = 2;
 		} elseif ( $this->has_backup() === true && $this->scheduled_backup() === true ) {
 			$status = 3;
@@ -666,10 +666,10 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $return Return results array.
      *
-     * @uses ITSEC_Backup()
-     * @uses ITSEC_Backup::run()
-     * @uses ITSEC_Backup::do_backup()
-     * @uses ITSEC_Response::get_error_strings()
+     * @uses \ITSEC_Backup()
+     * @uses \ITSEC_Backup::run()
+     * @uses \ITSEC_Backup::do_backup()
+     * @uses \ITSEC_Response::get_error_strings()
      */
     public function backup_db() {
         /**
@@ -680,7 +680,7 @@ class MainWP_Child_IThemes_Security {
 
 		if ( ! isset( $itsec_backup ) ) {
 			require_once $mainwp_itsec_modules_path . 'backup/class-itsec-backup.php';
-			$itsec_backup = new ITSEC_Backup();
+			$itsec_backup = new \ITSEC_Backup();
 			$itsec_backup->run();
 		}
 
@@ -690,7 +690,7 @@ class MainWP_Child_IThemes_Security {
 		$result    = $itsec_backup->do_backup( true );
 
 		if ( is_wp_error( $result ) ) {
-			$errors = ITSEC_Response::get_error_strings( $result );
+			$errors = \ITSEC_Response::get_error_strings( $result );
 
 			foreach ( $errors as $error ) {
 				$str_error .= $error . '<br />';
@@ -715,23 +715,23 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $return Return results array.
      *
-     * @uses ITSEC_WordPress_Salts_Utilities::generate_new_salts()
-     * @uses ITSEC_Response::get_error_strings()
-     * @uses ITSEC_Core::get_current_time_gmt()
-     * @uses ITSEC_Modules::set_setting()
+     * @uses \ITSEC_WordPress_Salts_Utilities::generate_new_salts()
+     * @uses \ITSEC_Response::get_error_strings()
+     * @uses \ITSEC_Core::get_current_time_gmt()
+     * @uses \ITSEC_Modules::set_setting()
      */
     private function wordpress_salts() {
 
         /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
 
-		if ( ! class_exists( 'ITSEC_WordPress_Salts_Utilities' ) ) {
+		if ( ! class_exists( '\ITSEC_WordPress_Salts_Utilities' ) ) {
 			require $mainwp_itsec_modules_path . 'salts/utilities.php';
 		}
-		$result    = ITSEC_WordPress_Salts_Utilities::generate_new_salts();
+		$result    = \ITSEC_WordPress_Salts_Utilities::generate_new_salts();
 		$str_error = '';
 		if ( is_wp_error( $result ) ) {
-			$errors = ITSEC_Response::get_error_strings( $result );
+			$errors = \ITSEC_Response::get_error_strings( $result );
 
 			foreach ( $errors as $error ) {
 				$str_error .= $error . '<br />';
@@ -739,8 +739,8 @@ class MainWP_Child_IThemes_Security {
 		} else {
 			$return['result']  = 'success';
 			$return['message'] = __( 'The WordPress salts were successfully regenerated.', 'mainwp-child' );
-			$last_generated    = ITSEC_Core::get_current_time_gmt();
-			ITSEC_Modules::set_setting( 'wordpress-salts', 'last_generated', $last_generated );
+			$last_generated    = \ITSEC_Core::get_current_time_gmt();
+			\ITSEC_Modules::set_setting( 'wordpress-salts', 'last_generated', $last_generated );
 		}
 		if ( ! empty( $str_error ) ) {
 			$return['error'] = $str_error;
@@ -753,15 +753,15 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array Return results table html.
      *
-     * @uses ITSEC_Core::get_wp_upload_dir()
-     * @uses ITSEC_Lib_Config_File::get_wp_config_file_path()
-     * @uses ITSEC_Lib_Config_File::get_server_config_file_path()
+     * @uses \ITSEC_Core::get_wp_upload_dir()
+     * @uses \ITSEC_Lib_Config_File::get_wp_config_file_path()
+     * @uses \ITSEC_Lib_Config_File::get_server_config_file_path()
      */
     private function file_permissions() {
 
-			require_once ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php';
+			require_once \ITSEC_Core::get_core_dir() . '/lib/class-itsec-lib-config-file.php';
 
-			$wp_upload_dir = ITSEC_Core::get_wp_upload_dir();
+			$wp_upload_dir = \ITSEC_Core::get_wp_upload_dir();
 
 			$path_data = array(
 				array(
@@ -797,11 +797,11 @@ class MainWP_Child_IThemes_Security {
 					0755,
 				),
 				array(
-					ITSEC_Lib_Config_File::get_wp_config_file_path(),
+					\ITSEC_Lib_Config_File::get_wp_config_file_path(),
 					0444,
 				),
 				array(
-					ITSEC_Lib_Config_File::get_server_config_file_path(),
+					\ITSEC_Lib_Config_File::get_server_config_file_path(),
 					0444,
 				),
 			);
@@ -882,17 +882,17 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $return results array.
      *
-     * @uses ITSEC_File_Change_Scanner::run_scan()
+     * @uses \ITSEC_File_Change_Scanner::run_scan()
      */
     public function file_change() {
 
         /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
 
-		if ( ! class_exists( 'ITSEC_File_Change_Scanner' ) ) {
+		if ( ! class_exists( '\ITSEC_File_Change_Scanner' ) ) {
 			require_once $mainwp_itsec_modules_path . 'file-change/scanner.php';
 		}
-		$result = ITSEC_File_Change_Scanner::run_scan( false );
+		$result = \ITSEC_File_Change_Scanner::run_scan( false );
 		if ( false === $result || true === $result || -1 === $result ) {
 			$return['result']      = 'success';
 			$return['scan_result'] = $result;
@@ -905,7 +905,7 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array Return Success or Fail.
      *
-     * @uses ITSEC_Lib::user_id_exists()
+     * @uses \ITSEC_Lib::user_id_exists()
      * @uses MainWP_Child_IThemes_Security::change_admin_user()
      */
     public function admin_user() {
@@ -919,16 +919,16 @@ class MainWP_Child_IThemes_Security {
 		$new_username = isset( $settings['new_username'] ) ? $settings['new_username'] : '';
 		$change_id    = isset( $settings['change_id'] ) && $settings['change_id'] ? true : false;
 
-		if ( ! class_exists( 'ITSEC_Lib' ) ) {
+		if ( ! class_exists( '\ITSEC_Lib' ) ) {
 
             /** @global object $itsec_globals ITsec globals. */
 			global $itsec_globals;
 
-			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
+			require \ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
 		$username_exists = username_exists( 'admin' );
-		$user_id_exists  = ITSEC_Lib::user_id_exists( 1 );
+		$user_id_exists  = \ITSEC_Lib::user_id_exists( 1 );
 		$msg             = '';
 		if ( strlen( $new_username ) >= 1 ) {
 
@@ -975,15 +975,15 @@ class MainWP_Child_IThemes_Security {
      * @param bool $id User Id found. Default: false.
      * @return bool Return TRUE on success and FALSE on failure.
      *
-     * @uses ITSEC_Core::get_itsec_files()
-     * @uses ITSEC_Core::get_itsec_files::release_file_lock()
+     * @uses \ITSEC_Core::get_itsec_files()
+     * @uses \ITSEC_Core::get_itsec_files::release_file_lock()
      */
     private function change_admin_user($username = null, $id = false ) {
 
         /** @global object $wpdb WordPress Database  */
 		global $wpdb;
 
-		$itsec_files = ITSEC_Core::get_itsec_files();
+		$itsec_files = \ITSEC_Core::get_itsec_files();
 
 			$new_user = sanitize_text_field( $username );
 
@@ -1000,7 +1000,6 @@ class MainWP_Child_IThemes_Security {
 				$wpdb->query( 'UPDATE `' . $wpdb->users . "` SET user_login = '" . esc_sql( $new_user ) . "' WHERE user_login='admin';" );
 
 				if ( is_multisite() ) {
-
 					$oldAdmins = $wpdb->get_var( 'SELECT meta_value FROM `' . $wpdb->sitemeta . "` WHERE meta_key = 'site_admins'" );
 					$newAdmins = str_replace( '5:"admin"', strlen( $new_user ) . ':"' . esc_sql( $new_user ) . '"', $oldAdmins );
 					$wpdb->query( $wpdb->prepare( 'UPDATE `' . $wpdb->sitemeta . "` SET meta_value = %s WHERE meta_key = 'site_admins'", $newAdmins ) );
@@ -1116,9 +1115,9 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $return Return response array.
      *
-     * @uses ITSEC_Database_Prefix_Utility::change_database_prefix()
-     * @uses ITSEC_Response::get_error_strings()
-     * @uses ITSEC_Response::reload_module()
+     * @uses \ITSEC_Database_Prefix_Utility::change_database_prefix()
+     * @uses \ITSEC_Response::get_error_strings()
+     * @uses \ITSEC_Response::reload_module()
      */
     public function change_database_prefix() {
 
@@ -1130,18 +1129,18 @@ class MainWP_Child_IThemes_Security {
 		$return    = array();
 
 		if ( isset( $_POST['change_prefix'] ) && 'yes' === $_POST['change_prefix'] ) {
-			$result = ITSEC_Database_Prefix_Utility::change_database_prefix();
+			$result = \ITSEC_Database_Prefix_Utility::change_database_prefix();
 			$return = $result['errors'];
 			if ( is_array( $result['errors'] ) ) {
 				foreach ( $result['errors'] as $error ) {
-					$arr_errors = ITSEC_Response::get_error_strings( $error );
+					$arr_errors = \ITSEC_Response::get_error_strings( $error );
 					foreach ( $arr_errors as $er ) {
 						$str_error .= $er . '<br />';
 					}
 				}
 			}
 
-			ITSEC_Response::reload_module( 'database-prefix' );
+			\ITSEC_Response::reload_module( 'database-prefix' );
 
 			if ( false === $result['new_prefix'] ) {
 				$return['error'] = $str_error;
@@ -1180,25 +1179,25 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $information Return response array.
      *
-     * @uses ITSEC_Modules::get_defaults()
-     * @uses ITSEC_Modules::set_defaults()
-     * @uses ITSEC_Response::set_response()
-     * @uses ITSEC_Response::add_errors()
-     * @uses ITSEC_Response::add_messages()
+     * @uses \ITSEC_Modules::get_defaults()
+     * @uses \ITSEC_Modules::set_defaults()
+     * @uses \ITSEC_Response::set_response()
+     * @uses \ITSEC_Response::add_errors()
+     * @uses \ITSEC_Response::add_messages()
      */
     public function reset_api_key() {
 
-		$defaults = ITSEC_Modules::get_defaults( 'network-brute-force' );
-		$results  = ITSEC_Modules::set_settings( 'network-brute-force', $defaults );
+		$defaults = \ITSEC_Modules::get_defaults( 'network-brute-force' );
+		$results  = \ITSEC_Modules::set_settings( 'network-brute-force', $defaults );
 
-		ITSEC_Response::set_response( $results['saved'] );
-		ITSEC_Response::add_errors( $results['errors'] );
-		ITSEC_Response::add_messages( $results['messages'] );
+		\ITSEC_Response::set_response( $results['saved'] );
+		\ITSEC_Response::add_errors( $results['errors'] );
+		\ITSEC_Response::add_messages( $results['messages'] );
 
 		$information = array();
 		if ( $results['saved'] ) {
 			$information['result']       = 'success';
-			$information['nbf_settings'] = ITSEC_Modules::get_settings( 'network-brute-force' );
+			$information['nbf_settings'] = \ITSEC_Modules::get_settings( 'network-brute-force' );
 		} elseif ( empty( $results['errors'] ) ) {
 			$information['error_reset_api'] = 1;
 		}
@@ -1210,26 +1209,26 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $response Return response array.
      *
-     * @uses ITSEC_Core::current_user_can_manage()
-     * @uses ITSEC_Malware_Scanner::scan()
-     * @uses ITSEC_Malware_Scan_Results_Template::get_html()
+     * @uses \ITSEC_Core::current_user_can_manage()
+     * @uses \ITSEC_Malware_Scanner::scan()
+     * @uses \ITSEC_Malware_Scan_Results_Template::get_html()
      */
     public function malware_scan() {
 
         /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
 
-		if ( ! class_exists( 'ITSEC_Malware_Scanner' ) ) {
+		if ( ! class_exists( '\ITSEC_Malware_Scanner' ) ) {
 			require_once $mainwp_itsec_modules_path . 'malware/class-itsec-malware-scanner.php';
 			require_once $mainwp_itsec_modules_path . 'malware/class-itsec-malware-scan-results-template.php';
 		}
 
 		$response = array();
-		if ( ! ITSEC_Core::current_user_can_manage() ) {
+		if ( ! \ITSEC_Core::current_user_can_manage() ) {
 			$response['error'] = 'The currently logged in user does not have sufficient permissions to run this scan.';
 		} else {
-			$results          = ITSEC_Malware_Scanner::scan();
-			$response['html'] = ITSEC_Malware_Scan_Results_Template::get_html( $results, true );
+			$results          = \ITSEC_Malware_Scanner::scan();
+			$response['html'] = \ITSEC_Malware_Scan_Results_Template::get_html( $results, true );
 		}
 
 		return $response;
@@ -1240,21 +1239,21 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $response Return response array.
      *
-     * @uses ITSEC_Malware_Scanner::scan()
-     * @uses ITSEC_Malware_Scan_Results_Template::get_html()
+     * @uses \ITSEC_Malware_Scanner::scan()
+     * @uses \ITSEC_Malware_Scan_Results_Template::get_html()
      */
     public function malware_get_scan_results() {
 
         /** @global string $mainwp_itsec_modules_path MainWP itsec modules path. */
 		global $mainwp_itsec_modules_path;
 
-		if ( ! class_exists( 'ITSEC_Malware_Scanner' ) ) {
+		if ( ! class_exists( '\ITSEC_Malware_Scanner' ) ) {
 			require_once $mainwp_itsec_modules_path . 'malware/class-itsec-malware-scanner.php';
 			require_once $mainwp_itsec_modules_path . 'malware/class-itsec-malware-scan-results-template.php';
 		}
 		$response         = array();
-		$results          = ITSEC_Malware_Scanner::scan();
-		$response['html'] = ITSEC_Malware_Scan_Results_Template::get_html( $results, true );
+		$results          = \ITSEC_Malware_Scanner::scan();
+		$response['html'] = \ITSEC_Malware_Scan_Results_Template::get_html( $results, true );
 		return $response;
 	}
 
@@ -1388,15 +1387,15 @@ class MainWP_Child_IThemes_Security {
      *
      * @return string[] Return results array.
      *
-     * @uses ITSEC_Lib::clear_caches()
+     * @uses \ITSEC_Lib::clear_caches()
      */
     public function release_lockout() {
 
         /** @global object $wpdb WordPress Database. */
 		global $wpdb;
 
-		if ( ! class_exists( 'ITSEC_Lib' ) ) {
-			require ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
+		if ( ! class_exists( '\ITSEC_Lib' ) ) {
+			require \ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
 		$lockout_ids = $_POST['lockout_ids'];
@@ -1419,7 +1418,7 @@ class MainWP_Child_IThemes_Security {
 			);
 		}
 
-		ITSEC_Lib::clear_caches();
+		\ITSEC_Lib::clear_caches();
 
 		if ( ! is_multisite() ) {
 			if ( ! function_exists( 'add_settings_error' ) ) {
@@ -1461,12 +1460,12 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array Return response array.
      *
-     * @uses ITSEC_Modules::get_setting()
+     * @uses \ITSEC_Modules::get_setting()
      * @uses MainWP_Child_IThemes_Security::get_excludable_tables()
      */
     private function reload_backup_exclude() {
 		return array(
-			'exclude'           => ITSEC_Modules::get_setting( 'backup', 'exclude' ),
+			'exclude'           => \ITSEC_Modules::get_setting( 'backup', 'exclude' ),
 			'excludable_tables' => $this->get_excludable_tables(),
 			'result'            => 'success',
 		);
@@ -1477,14 +1476,14 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array $excludes Return response array.
      *
-     * @uses ITSEC_Modules::get_setting()
+     * @uses \ITSEC_Modules::get_setting()
      */
     private function get_excludable_tables() {
 
         /** @global object $wpdb WordPress Database. */
 		global $wpdb;
 
-		$all_sites      = ITSEC_Modules::get_setting( 'backup', 'all_sites' );
+		$all_sites      = \ITSEC_Modules::get_setting( 'backup', 'all_sites' );
 		$ignored_tables = array(
 			'commentmeta',
 			'comments',
@@ -1526,8 +1525,8 @@ class MainWP_Child_IThemes_Security {
      *
      * @return array Return response array.
      *
-     * @uses ITSEC_Security_Check_Scanner::get_results()
-     * @uses ITSEC_Security_Check_Feedback_Renderer::render(
+     * @uses \ITSEC_Security_Check_Scanner::get_results()
+     * @uses \ITSEC_Security_Check_Feedback_Renderer::render(
      */
     private function security_site() {
 
@@ -1536,9 +1535,9 @@ class MainWP_Child_IThemes_Security {
 
 		require_once $mainwp_itsec_modules_path . 'security-check/scanner.php';
 		require_once $mainwp_itsec_modules_path . 'security-check/feedback-renderer.php';
-		$results = ITSEC_Security_Check_Scanner::get_results();
+		$results = \ITSEC_Security_Check_Scanner::get_results();
 		ob_start();
-		ITSEC_Security_Check_Feedback_Renderer::render( $results );
+		\ITSEC_Security_Check_Feedback_Renderer::render( $results );
 		$response = ob_get_clean();
 		return array(
 			'result'   => 'success',

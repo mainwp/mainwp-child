@@ -65,7 +65,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 			}
 		}
 
-		register_shutdown_function( 'MainWP\Child\mainwp_bulk_settings_manager_handle_fatal_error' );
+		register_shutdown_function( '\MainWP\Child\mainwp_bulk_settings_manager_handle_fatal_error' );
 
 		switch ( $_POST['action'] ) {
 			case 'skeleton_key_visit_site_as_browser': // deprecated.

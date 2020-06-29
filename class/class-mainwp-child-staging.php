@@ -20,8 +20,7 @@
  * Extension URL: https://mainwp.com/extension/staging/
  */
 
-use MainWP\Child\MainWP_Child_Callable;
-use MainWP\Child\MainWP_Helper;
+namespace MainWP\Child;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results. Pull requests appreciated.
 
@@ -159,7 +158,7 @@ class MainWP_Child_Staging {
 			MainWP_Helper::write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}
 
-		if ( ! class_exists( 'WPStaging\WPStaging' ) ) {
+		if ( ! class_exists( '\WPStaging\WPStaging' ) ) {
 			if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php' ) ) {
 				require_once WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php';
 			} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Core/WPStaging.php' ) ) {
@@ -297,7 +296,7 @@ class MainWP_Child_Staging {
 	 * @return array $return Action result.
 	 */
 	public function get_scan() {
-		$scan = new WPStaging\Backend\Modules\Jobs\Scan();
+		$scan = new \WPStaging\Backend\Modules\Jobs\Scan();
 		$scan->start();
 
 		$options = $scan->getOptions();
@@ -305,7 +304,7 @@ class MainWP_Child_Staging {
 		$return = array(
 			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
 			'directoryListing' => $scan->directoryListing(),
-			'prefix'           => WPStaging\WPStaging::getTablePrefix(),
+			'prefix'           => \WPStaging\WPStaging::getTablePrefix(),
 		);
 		return $return;
 	}
@@ -346,7 +345,7 @@ class MainWP_Child_Staging {
 	public function ajax_start_clone() {
 
 		$this->url = '';
-		$cloning   = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning   = new \WPStaging\Backend\Modules\Jobs\Cloning();
 
 		if ( ! $cloning->save() ) {
 			return;
@@ -370,7 +369,7 @@ class MainWP_Child_Staging {
 	 * @return mixed Action result.
 	 */
 	public function ajax_clone_database() {
-		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
 		return $cloning->start();
 	}
 
@@ -382,7 +381,7 @@ class MainWP_Child_Staging {
 	 * @return mixed Action result.
 	 */
 	public function ajax_prepare_directories() {
-		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
 		return $cloning->start();
 	}
 
@@ -394,7 +393,7 @@ class MainWP_Child_Staging {
 	 * @return mixed Action result.
 	 */
 	public function ajax_copy_files() {
-		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
 		return $cloning->start();
 	}
 
@@ -406,7 +405,7 @@ class MainWP_Child_Staging {
 	 * @return mixed Action result.
 	 */
 	public function ajax_replace_data() {
-		$cloning = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
 		return $cloning->start();
 	}
 
@@ -418,7 +417,7 @@ class MainWP_Child_Staging {
 	 * @return mixed $return Action result.
 	 */
 	public function ajax_finish() {
-		$cloning              = new WPStaging\Backend\Modules\Jobs\Cloning();
+		$cloning              = new \WPStaging\Backend\Modules\Jobs\Cloning();
 		$this->url            = '';
 		$return               = $cloning->start();
 		$return->blogInfoName = get_bloginfo( 'name' );
@@ -435,7 +434,7 @@ class MainWP_Child_Staging {
 	 * @return array $result Action result.
 	 */
 	public function ajax_delete_confirmation() {
-		$delete = new WPStaging\Backend\Modules\Jobs\Delete();
+		$delete = new \WPStaging\Backend\Modules\Jobs\Delete();
 		$delete->setData();
 		$clone  = $delete->getClone();
 		$result = array(
@@ -454,7 +453,7 @@ class MainWP_Child_Staging {
 	 * @return mixed Action result.
 	 */
 	public function ajax_delete_clone() {
-		$delete = new WPStaging\Backend\Modules\Jobs\Delete();
+		$delete = new \WPStaging\Backend\Modules\Jobs\Delete();
 
 		return $delete->start();
 	}
@@ -465,7 +464,7 @@ class MainWP_Child_Staging {
 	 * @uses WPStaging\Backend\Modules\Jobs\Cancel::start()
 	 */
 	public function ajax_cancel_clone() {
-		$cancel = new WPStaging\Backend\Modules\Jobs\Cancel();
+		$cancel = new \WPStaging\Backend\Modules\Jobs\Cancel();
 
 		return $cancel->start();
 	}
@@ -478,7 +477,7 @@ class MainWP_Child_Staging {
 	 * @return mixed Action result.
 	 */
 	public function ajax_cancel_update() {
-		$cancel = new WPStaging\Backend\Modules\Jobs\CancelUpdate();
+		$cancel = new \WPStaging\Backend\Modules\Jobs\CancelUpdate();
 
 		return $cancel->start();
 	}
@@ -491,7 +490,7 @@ class MainWP_Child_Staging {
 	 * @return false|string|void Return FALSE on failure, ajax response string on success, ELSE returns VOID.
 	 */
 	public function ajax_update_process() {
-		$cloning = new WPStaging\Backend\Modules\Jobs\Updating();
+		$cloning = new \WPStaging\Backend\Modules\Jobs\Updating();
 
 		if ( ! $cloning->save() ) {
 			return;

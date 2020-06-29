@@ -16,9 +16,7 @@
  * Licence: GPLv2 or later
  */
 
-use MainWP\Child\MainWP_Helper;
-use MainWP\Child\MainWP_Utility;
-use MainWP\Child\MainWP_Child_DB;
+namespace MainWP\Child;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- required to achieve desired results, pull request solutions appreciated.
 
@@ -164,8 +162,8 @@ class MainWP_Child_Timecapsule {
 
 			$information = array();
 
-			$options_helper    = new Wptc_Options_Helper();
-			$options           = WPTC_Factory::get( 'config' );
+			$options_helper    = new \Wptc_Options_Helper();
+			$options           = \WPTC_Factory::get( 'config' );
 			$is_user_logged_in = $options->get_option( 'is_user_logged_in' );
 			$privileges_wptc   = $options_helper->get_unserialized_privileges();
 
@@ -310,12 +308,12 @@ class MainWP_Child_Timecapsule {
 	 * @uses MainWP_Helper::check_files_exists() Check if requested files exist.
 	 */
 	public function require_files() {
-		if ( ! class_exists( 'WPTC_Base_Factory' ) && defined( 'WPTC_PLUGIN_DIR' ) ) {
+		if ( ! class_exists( '\WPTC_Base_Factory' ) && defined( 'WPTC_PLUGIN_DIR' ) ) {
 			if ( MainWP_Helper::check_files_exists( WPTC_PLUGIN_DIR . 'Base/Factory.php' ) ) {
 				include_once WPTC_PLUGIN_DIR . 'Base/Factory.php';
 			}
 		}
-		if ( ! class_exists( 'Wptc_Options_Helper' ) && defined( 'WPTC_PLUGIN_DIR' ) ) {
+		if ( ! class_exists( '\Wptc_Options_Helper' ) && defined( 'WPTC_PLUGIN_DIR' ) ) {
 			if ( MainWP_Helper::check_files_exists( WPTC_PLUGIN_DIR . 'Views/wptc-options-helper.php' ) ) {
 				include_once WPTC_PLUGIN_DIR . 'Views/wptc-options-helper.php';
 			}
@@ -376,16 +374,16 @@ class MainWP_Child_Timecapsule {
 	public function get_sync_data() {
 		try {
 			$this->require_files();
-			MainWP_Helper::check_classes_exists( array( 'Wptc_Options_Helper', 'WPTC_Base_Factory', 'WPTC_Factory' ) );
+			MainWP_Helper::check_classes_exists( array( '\Wptc_Options_Helper', '\WPTC_Base_Factory', '\WPTC_Factory' ) );
 
-			$config = WPTC_Factory::get( 'config' );
+			$config = \WPTC_Factory::get( 'config' );
 			MainWP_Helper::check_methods( $config, 'get_option' );
 
 			$main_account_email_var = $config->get_option( 'main_account_email' );
 			$last_backup_time       = $config->get_option( 'last_backup_time' );
-			$wptc_settings          = WPTC_Base_Factory::get( 'Wptc_Settings' );
+			$wptc_settings          = \WPTC_Base_Factory::get( 'Wptc_Settings' );
 
-			$options_helper = new Wptc_Options_Helper();
+			$options_helper = new \Wptc_Options_Helper();
 
 			MainWP_Helper::check_methods( $options_helper, array( 'get_plan_interval_from_subs_info', 'get_is_user_logged_in' ) );
 			MainWP_Helper::check_methods( $wptc_settings, array( 'get_connected_cloud_info' ) );
@@ -454,7 +452,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_tables() {
 		$category          = $_POST['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_tables();
 		die();
 	}
@@ -469,7 +467,7 @@ class MainWP_Child_Timecapsule {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
 		$category          = $_POST['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->exclude_file_list( $_POST['data'] );
 		die();
 	}
@@ -486,13 +484,13 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function progress_wptc() {
 
-		$config = WPTC_Factory::get( 'config' );
+		$config = \WPTC_Factory::get( 'config' );
 		global $wpdb;
 		if ( ! $config->get_option( 'in_progress' ) ) {
 			spawn_cron();
 		}
 
-		$processed_files = WPTC_Factory::get( 'processed-files' );
+		$processed_files = \WPTC_Factory::get( 'processed-files' );
 
 		$return_array                                  = array();
 		$return_array['stored_backups']                = $processed_files->get_stored_backups();
@@ -522,7 +520,7 @@ class MainWP_Child_Timecapsule {
 		$return_array['bbu_note_view']               = apply_filters( 'get_bbu_note_view', '' );
 		$return_array['staging_status']              = apply_filters( 'staging_status_wptc', '' );
 
-		$processed_files  = WPTC_Factory::get( 'processed-files' );
+		$processed_files  = \WPTC_Factory::get( 'processed-files' );
 		$last_backup_time = $config->get_option( 'last_backup_time' );
 
 		if ( ! empty( $last_backup_time ) ) {
@@ -545,7 +543,7 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function wptc_cron_status() {
-		$config = WPTC_Factory::get( 'config' );
+		$config = \WPTC_Factory::get( 'config' );
 		wptc_own_cron_status();
 		$status      = array();
 		$cron_status = $config->get_option( 'wptc_own_cron_status' );
@@ -578,7 +576,7 @@ class MainWP_Child_Timecapsule {
 		$specific_dir       = $_POST['specific_dir'];
 		$type               = $_POST['type'];
 		$treeRecursiveCount = $_POST['treeRecursiveCount'];
-		$processed_files    = WPTC_Factory::get( 'processed-files' );
+		$processed_files    = \WPTC_Factory::get( 'processed-files' );
 
 		$result = $processed_files->get_this_backups_html( $this_backup_ids, $specific_dir, $type, $treeRecursiveCount );
 		return array( 'result' => $result );
@@ -599,7 +597,7 @@ class MainWP_Child_Timecapsule {
 
 		include_once WPTC_CLASSES_DIR . 'class-prepare-restore-bridge.php';
 
-		new WPTC_Prepare_Restore_Bridge( $request );
+		new \WPTC_Prepare_Restore_Bridge( $request );
 	}
 
 	/**
@@ -617,7 +615,7 @@ class MainWP_Child_Timecapsule {
 		$backup_id       = $_POST['data']['backup_id'];
 		$recursive_count = $_POST['data']['recursive_count'];
 
-		$processed_files = WPTC_Factory::get( 'processed-files' );
+		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		echo $processed_files->get_this_backups_html( $backup_id, $file_name, $type = 'sibling', (int) $recursive_count );
 		die();
 	}
@@ -628,7 +626,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function send_issue_report() {
-		WPTC_Base_Factory::get( 'Wptc_App_Functions' )->send_report();
+		\WPTC_Base_Factory::get( 'Wptc_App_Functions' )->send_report();
 		die();
 	}
 
@@ -739,7 +737,7 @@ class MainWP_Child_Timecapsule {
 		$from_limit    = $data['limit'];
 		$detailed      = '';
 		$load_more     = false;
-		$current_limit = WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
+		$current_limit = \WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
 		$to_limit      = $from_limit + $current_limit;
 
 		$sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id = %s AND show_user = 1 ORDER BY id DESC LIMIT %d, %d', $action_id, $from_limit, $current_limit ) );
@@ -776,9 +774,9 @@ class MainWP_Child_Timecapsule {
 		}
 
 		$i     = 0;
-		$limit = WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
+		$limit = \WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
 		// Get the columns registered in the get_columns and get_sortable_columns methods.
-		$timezone = WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
+		$timezone = \WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
 		if ( count( $records ) > 0 ) {
 
 			foreach ( $records as $key => $rec ) {
@@ -806,8 +804,8 @@ class MainWP_Child_Timecapsule {
 				}
 				$html     .= '<tr class="act-tr">';
 				$Ldata     = unserialize( $rec->log_data ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-				$user_time = WPTC_Factory::get( 'config' )->cnvt_UTC_to_usrTime( $Ldata['log_time'] );
-				WPTC_Factory::get( 'processed-files' )->modify_schedule_backup_time( $user_time );
+				$user_time = \WPTC_Factory::get( 'config' )->cnvt_UTC_to_usrTime( $Ldata['log_time'] );
+				\WPTC_Factory::get( 'processed-files' )->modify_schedule_backup_time( $user_time );
 				$user_tz_now = date( 'M d, Y @ g:i:s a', $user_time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 				$msg         = '';
 				if ( ! ( strpos( $rec->type, 'backup' ) === false ) ) {
@@ -861,11 +859,11 @@ class MainWP_Child_Timecapsule {
 			return false;
 		}
 		$detailed = '';
-		$timezone = WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
+		$timezone = \WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
 		foreach ( $sub_records as $srec ) {
 			$Moredata = unserialize( $srec->log_data ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-			$user_tmz = new DateTime( '@' . $Moredata['log_time'], new DateTimeZone( date_default_timezone_get() ) );
-			$user_tmz->setTimeZone( new DateTimeZone( $timezone ) );
+			$user_tmz = new \DateTime( '@' . $Moredata['log_time'], new \DateTimeZone( date_default_timezone_get() ) );
+			$user_tmz->setTimeZone( new \DateTimeZone( $timezone ) );
 			$user_tmz_now = $user_tmz->format( 'M d @ g:i:s a' );
 			$detailed    .= '<tr><td>' . $user_tmz_now . '</td><td>' . $Moredata['msg'] . '</td><td></td></tr>';
 		}
@@ -898,7 +896,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function stop_fresh_backup_tc_callback_wptc() {
 		$deactivated_plugin = null;
-		$backup             = new WPTC_BackupController();
+		$backup             = new \WPTC_BackupController();
 		$backup->stop( $deactivated_plugin );
 		return array( 'result' => 'ok' );
 	}
@@ -910,7 +908,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_root_files() {
 		$category          = $_POST['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_root_files();
 		die();
 	}
@@ -925,7 +923,7 @@ class MainWP_Child_Timecapsule {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
 		$category          = $_POST['data']['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->exclude_table_list( $_POST['data'] );
 		die();
 	}
@@ -968,9 +966,9 @@ class MainWP_Child_Timecapsule {
 		}
 
 		try {
-			MainWP_Helper::check_classes_exists( array( 'WPTC_Factory' ) );
+			MainWP_Helper::check_classes_exists( array( '\WPTC_Factory' ) );
 
-			$config = WPTC_Factory::get( 'config' );
+			$config = \WPTC_Factory::get( 'config' );
 
 			MainWP_Helper::check_methods( $config, 'get_option' );
 
@@ -1018,7 +1016,7 @@ class MainWP_Child_Timecapsule {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
 		$category          = $_POST['data']['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->include_table_list( $_POST['data'] );
 		die();
 	}
@@ -1035,7 +1033,7 @@ class MainWP_Child_Timecapsule {
 		}
 
 		$category          = $_POST['data']['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->include_table_structure_only( $_POST['data'] );
 		die();
 	}
@@ -1051,7 +1049,7 @@ class MainWP_Child_Timecapsule {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
 		$category          = $_POST['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->include_file_list( $_POST['data'] );
 		die();
 	}
@@ -1064,7 +1062,7 @@ class MainWP_Child_Timecapsule {
 	public function get_files_by_key() {
 		$key               = $_POST['key'];
 		$category          = $_POST['category'];
-		$exclude_class_obj = new Wptc_ExcludeOption( $category );
+		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_files_by_key( $key );
 		die();
 	}
@@ -1077,7 +1075,7 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	private function process_wptc_login() {
-		$options_helper = new Wptc_Options_Helper();
+		$options_helper = new \Wptc_Options_Helper();
 
 		if ( $options_helper->get_is_user_logged_in() ) {
 			return array(
@@ -1093,8 +1091,8 @@ class MainWP_Child_Timecapsule {
 			return array( 'error' => 'Username and password cannot be empty' );
 		}
 
-		$config  = WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
-		$options = WPTC_Factory::get( 'config' );
+		$config  = \WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
+		$options = \WPTC_Factory::get( 'config' );
 
 		$config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -1131,7 +1129,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_installed_plugins() {
 
-		$backup_before_auto_update_settings = WPTC_Pro_Factory::get( 'Wptc_Backup_Before_Auto_Update_Settings' );
+		$backup_before_auto_update_settings = \WPTC_Pro_Factory::get( 'Wptc_Backup_Before_Auto_Update_Settings' );
 		$plugins                            = $backup_before_auto_update_settings->get_installed_plugins();
 
 		if ( $plugins ) {
@@ -1149,7 +1147,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_installed_themes() {
 
-		$backup_before_auto_update_settings = WPTC_Pro_Factory::get( 'Wptc_Backup_Before_Auto_Update_Settings' );
+		$backup_before_auto_update_settings = \WPTC_Pro_Factory::get( 'Wptc_Backup_Before_Auto_Update_Settings' );
 
 		$plugins = $backup_before_auto_update_settings->get_installed_themes();
 		if ( $plugins ) {
@@ -1164,7 +1162,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function is_staging_need_request() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->is_staging_need_request();
 		die();
 	}
@@ -1175,7 +1173,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function get_staging_details_wptc() {
-		$staging               = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging               = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$details               = $staging->get_staging_details();
 		$details['is_running'] = $staging->is_any_staging_process_going_on();
 		wptc_die_with_json_encode( $details, 1 );
@@ -1187,7 +1185,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function start_fresh_staging_wptc() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 
 		if ( empty( $_POST['path'] ) ) {
 			wptc_die_with_json_encode(
@@ -1208,7 +1206,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function get_staging_url_wptc() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->get_staging_url_wptc();
 		die();
 	}
@@ -1219,7 +1217,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function stop_staging_wptc() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->stop_staging_wptc();
 		die();
 	}
@@ -1230,7 +1228,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function continue_staging_wptc() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->choose_action();
 		die();
 	}
@@ -1241,7 +1239,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function delete_staging_wptc() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->delete_staging_wptc();
 		die();
 	}
@@ -1252,7 +1250,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function copy_staging_wptc() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->choose_action( false, $reqeust_type = 'copy' );
 		die();
 	}
@@ -1263,7 +1261,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function get_staging_current_status_key() {
-		$staging = WPTC_Pro_Factory::get( 'Wptc_Staging' );
+		$staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
 		$staging->get_staging_current_status_key();
 		die();
 	}
@@ -1274,7 +1272,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function wptc_sync_purchase() {
-		$config = WPTC_Factory::get( 'config' );
+		$config = \WPTC_Factory::get( 'config' );
 
 		$config->request_service(
 			array(
@@ -1298,7 +1296,7 @@ class MainWP_Child_Timecapsule {
 		if ( empty( $_POST ) ) {
 			return ( array( 'error' => 'Backup id is empty !' ) );
 		}
-		$restore_to_staging = WPTC_Base_Factory::get( 'Wptc_Restore_To_Staging' );
+		$restore_to_staging = \WPTC_Base_Factory::get( 'Wptc_Restore_To_Staging' );
 		$restore_to_staging->init_restore( $_POST );
 
 		die();
@@ -1311,7 +1309,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function save_settings_wptc() {
 
-		$options_helper = new Wptc_Options_Helper();
+		$options_helper = new \Wptc_Options_Helper();
 
 		if ( ! $options_helper->get_is_user_logged_in() ) {
 			return array(
@@ -1326,7 +1324,7 @@ class MainWP_Child_Timecapsule {
 		$is_general = $_POST['is_general'];
 
 		$saved  = false;
-		$config = WPTC_Factory::get( 'config' );
+		$config = \WPTC_Factory::get( 'config' );
 		if ( 'backup' == $tabName ) {
 			$this->save_settings_backup_tab( $config, $data );
 			$saved = true;
@@ -1494,7 +1492,7 @@ class MainWP_Child_Timecapsule {
 	 * @return array Filtered list of plugins.
 	 */
 	private function filter_plugins( $included_plugins ) {
-		$app_functions       = WPTC_Base_Factory::get( 'Wptc_App_Functions' );
+		$app_functions       = \WPTC_Base_Factory::get( 'Wptc_App_Functions' );
 		$specific            = true;
 		$attr                = 'slug';
 		$plugins_data        = $app_functions->get_all_plugins_data( $specific, $attr );
@@ -1514,7 +1512,7 @@ class MainWP_Child_Timecapsule {
 	 * @return array Filtered list of themes.
 	 */
 	private function filter_themes( $included_themes ) {
-		$app_functions      = WPTC_Base_Factory::get( 'Wptc_App_Functions' );
+		$app_functions      = \WPTC_Base_Factory::get( 'Wptc_App_Functions' );
 		$specific           = true;
 		$attr               = 'slug';
 		$themes_data        = $app_functions->get_all_themes_data( $specific, $attr );
@@ -1530,7 +1528,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function analyze_inc_exc() {
-		$exclude_opts_obj = WPTC_Base_Factory::get( 'Wptc_ExcludeOption' );
+		$exclude_opts_obj = \WPTC_Base_Factory::get( 'Wptc_ExcludeOption' );
 		$exclude_opts_obj = $exclude_opts_obj->analyze_inc_exc();
 		die();
 	}
@@ -1543,10 +1541,10 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function get_enabled_plugins() {
-		$vulns_obj = WPTC_Base_Factory::get( 'Wptc_Vulns' );
+		$vulns_obj = \WPTC_Base_Factory::get( 'Wptc_Vulns' );
 
 		$plugins = $vulns_obj->get_enabled_plugins();
-		$plugins = WPTC_Base_Factory::get( 'Wptc_App_Functions' )->fancytree_format( $plugins, 'plugins' );
+		$plugins = \WPTC_Base_Factory::get( 'Wptc_App_Functions' )->fancytree_format( $plugins, 'plugins' );
 
 		return array( 'results' => $plugins );
 	}
@@ -1559,9 +1557,9 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function get_enabled_themes() {
-		$vulns_obj = WPTC_Base_Factory::get( 'Wptc_Vulns' );
+		$vulns_obj = \WPTC_Base_Factory::get( 'Wptc_Vulns' );
 		$themes    = $vulns_obj->get_enabled_themes();
-		$themes    = WPTC_Base_Factory::get( 'Wptc_App_Functions' )->fancytree_format( $themes, 'themes' );
+		$themes    = \WPTC_Base_Factory::get( 'Wptc_App_Functions' )->fancytree_format( $themes, 'themes' );
 		return array( 'results' => $themes );
 	}
 
@@ -1575,7 +1573,7 @@ class MainWP_Child_Timecapsule {
 	public function get_system_info() {
 		global $wpdb;
 
-		$wptc_settings = WPTC_Base_Factory::get( 'Wptc_Settings' );
+		$wptc_settings = \WPTC_Base_Factory::get( 'Wptc_Settings' );
 
 		ob_start();
 
@@ -1665,7 +1663,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function update_vulns_settings() {
 
-		$vulns_obj = WPTC_Base_Factory::get( 'Wptc_Vulns' );
+		$vulns_obj = \WPTC_Base_Factory::get( 'Wptc_Vulns' );
 
 		$data = isset( $_POST['data'] ) ? $_POST['data'] : array();
 		$vulns_obj->update_vulns_settings( $data );
@@ -1696,7 +1694,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function save_manual_backup_name_wptc() {
 		$backup_name     = $_POST['backup_name'];
-		$processed_files = WPTC_Factory::get( 'processed-files' );
+		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		$processed_files->save_manual_backup_name_wptc( $backup_name );
 		die();
 	}

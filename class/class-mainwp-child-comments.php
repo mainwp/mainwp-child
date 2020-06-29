@@ -74,7 +74,7 @@ class MainWP_Child_Comments {
 		} elseif ( 'unspam' === $action ) {
 			wp_unspam_comment( $commentId );
 		} elseif ( 'trash' === $action ) {
-			add_action( 'trashed_comment', array( '\MainWP_Child_Links_Checker', 'hook_trashed_comment' ), 10, 1 );
+			add_action( 'trashed_comment', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_trashed_comment' ), 10, 1 );
 			wp_trash_comment( $commentId );
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_comment( $commentId );

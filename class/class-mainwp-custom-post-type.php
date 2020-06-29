@@ -77,7 +77,7 @@ class MainWP_Custom_Post_Type {
 			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 		}
 
-		register_shutdown_function( 'MainWP\Child\mainwp_custom_post_type_handle_fatal_error' );
+		register_shutdown_function( '\MainWP\Child\mainwp_custom_post_type_handle_fatal_error' );
 
 		$information = array();
 		switch ( $_POST['action'] ) {

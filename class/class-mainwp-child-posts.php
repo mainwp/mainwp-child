@@ -442,10 +442,10 @@ class MainWP_Child_Posts {
 			$my_post['post_status'] = 'draft';
 			wp_update_post( $my_post );
 		} elseif ( 'trash' === $action ) {
-			add_action( 'trash_post', array( '\MainWP_Child_Links_Checker', 'hook_post_deleted' ) );
+			add_action( 'trash_post', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_post_deleted' ) );
 			wp_trash_post( $postId );
 		} elseif ( 'delete' === $action ) {
-			add_action( 'delete_post', array( '\MainWP_Child_Links_Checker', 'hook_post_deleted' ) );
+			add_action( 'delete_post', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_post_deleted' ) );
 			wp_delete_post( $postId, true );
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
@@ -882,7 +882,7 @@ class MainWP_Child_Posts {
 		);
 
 		$wprocket_activated = false;
-		if ( \MainWP_Child_WP_Rocket::instance()->is_activated() ) {
+		if ( MainWP_Child_WP_Rocket::instance()->is_activated() ) {
 			if ( function_exists( '\get_rocket_option' ) ) {
 				$wprocket_activated = true;
 				foreach ( $wprocket_fields as $field ) {

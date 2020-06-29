@@ -21,15 +21,7 @@
 
 // phpcs:disable -- third party credit.
 
-use MainWP\Child\MainWP_Helper;
-use MainWP\Child\MainWP_Utility;
-
-if ( ! defined( 'MAINWP_BACKWPUP_DEVELOPMENT' ) ) {
-    /**
-     * Defines MainWP BackWPup Development constant at runtime. Default: False.
-     */
-    define( 'MAINWP_BACKWPUP_DEVELOPMENT', false );
-}
+namespace MainWP\Child;
 
 /**
  * Class MainWP_Child_Back_WP_Up
@@ -160,7 +152,7 @@ class MainWP_Child_Back_WP_Up {
      * @uses MainWP_Child_Back_WP_Up::$information
      * @uses MainWP_Helper::write()
      */
-    function mainwp_backwpup_handle_fatal_error() {
+    public static function mainwp_backwpup_handle_fatal_error() {
 
         $error = error_get_last();
         $info  = self::$information;
@@ -201,7 +193,7 @@ class MainWP_Child_Back_WP_Up {
             MainWP_Helper::write( array( 'error' => __( 'Please install BackWPup plugin on child website', 'mainwp-child' ) ) );
             return;
         }
-        register_shutdown_function( 'self::mainwp_backwpup_handle_fatal_error' );
+        register_shutdown_function( '\MainWP\Child\MainWP_Child_Back_WP_Up::mainwp_backwpup_handle_fatal_error' );
 
         $information = array();
 
@@ -837,7 +829,7 @@ class MainWP_Child_Back_WP_Up {
      * @uses \BackWPup_Option::get()
      * @uses \BackWPup::get_destination()
      * @uses \BackWPup::get_destination::file_get_list()
-     * @uses \Option::get()
+     * @uses \BackWPup_Option::get()
      *
      * @return array Return table array or error['message'] on failure.
      */
@@ -887,7 +879,7 @@ class MainWP_Child_Back_WP_Up {
                             continue;
                         }
 
-                        $dests = \Option::get( $jobid, 'destinations' );
+                        $dests = \BackWPup_Option::get( $jobid, 'destinations' );
                         foreach ( $dests as $dest ) {
                             $dest_class = \BackWPup::get_destination( $dest );
                             if ( is_null( $dest_class ) ) {
@@ -1243,11 +1235,10 @@ class MainWP_Child_Back_WP_Up {
      */
     protected function wp_list_table_dependency() {
         if ( ! function_exists( 'convert_to_screen' ) ) {
-
             /**
-             * Convert to screen
+             * Convert to screen.
              *
-             * We need this because BackWPup_Page_Jobs extends WP_List_Table
+             * We need this because BackWPup_Page_Jobs extends WP_List_Table.
              *  which uses convert_to_screen.
              *
              * @param $hook_name Hook name.
@@ -1336,7 +1327,7 @@ class MainWP_Child_Back_WP_Up {
                 if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {
                     require_once ABSPATH . WPINC . '/class-phpmailer.php';
                     require_once ABSPATH . WPINC . '/class-smtp.php';
-                    $phpmailer = new PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
+                    $phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
                 }
                 if ( is_object( $phpmailer ) ) {
                     do_action_ref_array( 'phpmailer_init', array( &$phpmailer ) );
@@ -1507,7 +1498,7 @@ class MainWP_Child_Back_WP_Up {
         $settings = $_POST['settings'];
 
         if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
-            $mysqli = new mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
+            $mysqli = new \mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
 
             if ( $mysqli->connect_error ) {
                 $return['message'] = $mysqli->connect_error;
@@ -1820,7 +1811,7 @@ class MainWP_Child_Back_WP_Up {
 
         if ( isset( $settings['value']['dropboxtoken'] ) && isset( $settings['value']['dropboxroot'] ) ) {
             \BackWPup_Option::update( $job_id, 'dropboxtoken', $settings['value']['dropboxtoken'] );
-            \Option::update( $job_id, 'dropboxroot', $settings['value']['dropboxroot'] );
+            \BackWPup_Option::update( $job_id, 'dropboxroot', $settings['value']['dropboxroot'] );
         }
 
         $changes_array = array();
@@ -1943,7 +1934,7 @@ class MainWP_Child_Back_WP_Up {
 }
 
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
-if ( ! class_exists( 'MainWP_Fake_Wp_Screen' ) ) {
+if ( ! class_exists( '\MainWP\Child\MainWP_Fake_Wp_Screen' ) ) {
     /**
      * Class MainWP_Fake_Wp_Screen
      *
