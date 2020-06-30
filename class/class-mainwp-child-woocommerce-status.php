@@ -16,7 +16,7 @@
  * Author URI: https://woocommerce.com
  */
 
-use MainWP\Child\MainWP_Helper;
+namespace MainWP\Child;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results, pull request solutions appreciated.
 
@@ -69,7 +69,7 @@ class MainWP_Child_WooCommerce_Status {
 	 */
 	public function action() {
 		$information = array();
-		if ( ! class_exists( 'WooCommerce' ) || ! defined( 'WC_VERSION' ) ) {
+		if ( ! class_exists( '\WooCommerce' ) || ! defined( 'WC_VERSION' ) ) {
 			$information['error'] = 'NO_WOOCOMMERCE';
 			MainWP_Helper::write( $information );
 		}
@@ -118,8 +118,6 @@ class MainWP_Child_WooCommerce_Status {
 		} else {
 			return false;
 		}
-
-		$reports = new WC_Admin_Report();
 
 		// Get sales.
 		$sales = $wpdb->get_var(
@@ -218,7 +216,6 @@ class MainWP_Child_WooCommerce_Status {
 			return false;
 		}
 
-		$reports    = new WC_Admin_Report();
 		$start_date = $_POST['start_date'];
 		$end_date   = $_POST['end_date'];
 
@@ -355,7 +352,6 @@ class MainWP_Child_WooCommerce_Status {
 		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time. Required to achieve desired results, pull request solutions appreciated.
 		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time. Required to achieve desired results, pull request solutions appreciated.
 
-		$reports = new WC_Admin_Report();
 		// Sales.
 		$query           = array();
 		$query['fields'] = "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts";
@@ -435,13 +431,13 @@ class MainWP_Child_WooCommerce_Status {
 	 */
 	private static function update_wc_db() {
 		include_once WC()->plugin_path() . '/includes/class-wc-background-updater.php';
-		$background_updater = new WC_Background_Updater();
+		$background_updater = new \WC_Background_Updater();
 
 		$current_db_version = get_option( 'woocommerce_db_version' );
 		$logger             = wc_get_logger();
 		$update_queued      = false;
 
-		foreach ( WC_Install::get_db_update_callbacks() as $version => $update_callbacks ) {
+		foreach ( \WC_Install::get_db_update_callbacks() as $version => $update_callbacks ) {
 			if ( version_compare( $current_db_version, $version, '<' ) ) {
 				foreach ( $update_callbacks as $update_callback ) {
 					$logger->info(

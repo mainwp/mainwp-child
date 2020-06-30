@@ -111,8 +111,8 @@ class MainWP_Child_Posts {
 	 *
 	 * @uses \WPSEO_Link_Column_Count()
 	 * @uses \WPSEO_Meta()
-	 * @uses \MainWP_WordPress_SEO::instance()::parse_column_score()
-	 * @uses \MainWP_WordPress_SEO::instance()->parse_column_score_readability()
+	 * @uses MainWP_WordPress_SEO::instance()::parse_column_score()
+	 * @uses MainWP_WordPress_SEO::instance()->parse_column_score_readability()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_out_post()
 	 */
 	public function get_recent_posts_int( $status, $pCount, $type = 'post', &$allPosts, $extra = null ) {
@@ -177,8 +177,8 @@ class MainWP_Child_Posts {
 					$outPost['seo_data'] = array(
 						'count_seo_links'   => $link_count->get( $post->ID, 'internal_link_count' ),
 						'count_seo_linked'  => $link_count->get( $post->ID, 'incoming_link_count' ),
-						'seo_score'         => \MainWP_WordPress_SEO::instance()->parse_column_score( $post->ID ),
-						'readability_score' => \MainWP_WordPress_SEO::instance()->parse_column_score_readability( $post->ID ),
+						'seo_score'         => MainWP_WordPress_SEO::instance()->parse_column_score( $post->ID ),
+						'readability_score' => MainWP_WordPress_SEO::instance()->parse_column_score_readability( $post->ID ),
 					);
 				}
 				$allPosts[] = $outPost;

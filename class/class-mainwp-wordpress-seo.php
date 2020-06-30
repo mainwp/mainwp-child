@@ -17,7 +17,7 @@
  * Licence: GPL v3
  */
 
-use MainWP\Child\MainWP_Helper;
+namespace MainWP\Dashboard;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results. Pull requests appreciated.
 
@@ -77,7 +77,7 @@ class MainWP_WordPress_SEO {
 	 * @uses MainWP_WordPress_SEO::import_settings() Import the Yoast SEO plugin settings.
 	 */
 	public function action() {
-		if ( ! class_exists( 'WPSEO_Admin' ) ) {
+		if ( ! class_exists( '\WPSEO_Admin' ) ) {
 			$information['error'] = 'NO_WPSEO';
 			MainWP_Helper::write( $information );
 		}
@@ -139,7 +139,7 @@ class MainWP_WordPress_SEO {
 						if ( 'wpseo_taxonomy_meta' === $name ) {
 							$optgroup = json_decode( urldecode( $optgroup['wpseo_taxonomy_meta'] ), true );
 						}
-						$option_instance = WPSEO_Options::get_option_instance( $name );
+						$option_instance = \WPSEO_Options::get_option_instance( $name );
 						if ( is_object( $option_instance ) && method_exists( $option_instance, 'import' ) ) {
 							$optgroup = $option_instance->import( $optgroup, $old_wpseo_version, $options );
 						}
@@ -194,7 +194,7 @@ class MainWP_WordPress_SEO {
 							if ( 'wpseo_taxonomy_meta' === $name ) {
 								$optgroup = json_decode( urldecode( $optgroup['wpseo_taxonomy_meta'] ), true );
 							}
-							$option_instance = WPSEO_Options::get_option_instance( $name );
+							$option_instance = \WPSEO_Options::get_option_instance( $name );
 							if ( is_object( $option_instance ) && method_exists( $option_instance, 'import' ) ) {
 								$optgroup = $option_instance->import( $optgroup, $old_wpseo_version, $options );
 							}
@@ -230,16 +230,16 @@ class MainWP_WordPress_SEO {
 	 * @return string SEO Score.
 	 */
 	public function parse_column_score( $post_id ) {
-		if ( '1' === WPSEO_Meta::get_value( 'meta-robots-noindex', $post_id ) ) {
-			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_INDEX );
+		if ( '1' === \WPSEO_Meta::get_value( 'meta-robots-noindex', $post_id ) ) {
+			$rank  = new \WPSEO_Rank( \WPSEO_Rank::NO_INDEX );
 			$title = __( 'Post is set to noindex.', 'mainwp-child' );
-			WPSEO_Meta::set_value( 'linkdex', 0, $post_id );
-		} elseif ( '' === WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
-			$rank  = new WPSEO_Rank( WPSEO_Rank::NO_FOCUS );
+			\WPSEO_Meta::set_value( 'linkdex', 0, $post_id );
+		} elseif ( '' === \WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
+			$rank  = new \WPSEO_Rank( \WPSEO_Rank::NO_FOCUS );
 			$title = __( 'Focus keyword not set.', 'mainwp-child' );
 		} else {
-			$score = (int) WPSEO_Meta::get_value( 'linkdex', $post_id );
-			$rank  = WPSEO_Rank::from_numeric_score( $score );
+			$score = (int) \WPSEO_Meta::get_value( 'linkdex', $post_id );
+			$rank  = \WPSEO_Rank::from_numeric_score( $score );
 			$title = $rank->get_label();
 		}
 
@@ -254,8 +254,8 @@ class MainWP_WordPress_SEO {
 	 * @return string Redability score.
 	 */
 	public function parse_column_score_readability( $post_id ) {
-		$score = (int) WPSEO_Meta::get_value( 'content_score', $post_id );
-		$rank  = WPSEO_Rank::from_numeric_score( $score );
+		$score = (int) \WPSEO_Meta::get_value( 'content_score', $post_id );
+		$rank  = \WPSEO_Rank::from_numeric_score( $score );
 
 		return $this->render_score_indicator( $rank );
 	}

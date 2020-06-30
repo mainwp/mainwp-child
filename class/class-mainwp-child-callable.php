@@ -643,7 +643,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function wordpress_seo() {
-		\MainWP_WordPress_SEO::instance()->action();
+		MainWP_WordPress_SEO::instance()->action();
 	}
 
 	/**
@@ -670,7 +670,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 */
 	public function woo_com_status() {
-		\MainWP_Child_WooCommerce_Status::instance()->action();
+		MainWP_Child_WooCommerce_Status::instance()->action();
 	}
 
 	/**
