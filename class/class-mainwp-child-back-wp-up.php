@@ -1297,11 +1297,11 @@ class MainWP_Child_Back_WP_Up {
      *
      * @uses PHPMailer()
      * @uses \BackWPup::get_plugin_data()
-     * @uses Swift_SmtpTransport::newInstance()
-     * @uses Swift_SendmailTransport::newInstance()
-     * @uses Swift_MailTransport::newInstance()
-     * @uses Swift_Mailer::newInstance()
-     * @uses Swift_Message::newInstance()
+     * @uses \Swift_SmtpTransport::newInstance()
+     * @uses \Swift_SendmailTransport::newInstance()
+     * @uses \Swift_MailTransport::newInstance()
+     * @uses \Swift_Mailer::newInstance()
+     * @uses \Swift_Message::newInstance()
      * @uses \Exception
      *
      * @return array|\Exception Return response array.
@@ -1324,10 +1324,17 @@ class MainWP_Child_Back_WP_Up {
         } else {
             if ( $emailmethod ) {
                 global $phpmailer;
-                if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {
-                    require_once ABSPATH . WPINC . '/class-phpmailer.php';
-                    require_once ABSPATH . WPINC . '/class-smtp.php';
-                    $phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
+                if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {                    
+                    if ( file_exists( ABSPATH . WPINC . '/PHPMailer/PHPMailer.php' )) {
+                        require ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';
+                        require ABSPATH . WPINC . '/PHPMailer/SMTP.php';
+                        require ABSPATH . WPINC . '/PHPMailer/Exception.php';
+                        $phpmailer = new \PHPMailer\PHPMailer\PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer                        
+                    } elseif ( file_exists( ABSPATH . WPINC . '/class-phpmailer.php' ) ) {
+                        require_once ABSPATH . WPINC . '/class-phpmailer.php';
+                        require_once ABSPATH . WPINC . '/class-smtp.php';
+                        $phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
+                    }
                 }
                 if ( is_object( $phpmailer ) ) {
                     do_action_ref_array( 'phpmailer_init', array( &$phpmailer ) );
@@ -1353,7 +1360,7 @@ class MainWP_Child_Back_WP_Up {
             try {
                 // Create the Transport.
                 if ( 'smtp' == $emailmethod ) {
-                    $transport = Swift_SmtpTransport::newInstance( $emailhost, $emailhostport );
+                    $transport = \Swift_SmtpTransport::newInstance( $emailhost, $emailhostport );
                     $transport->setUsername( $emailuser );
                     $transport->setPassword( $emailpass );
                     if ( 'ssl' == $emailsecure ) {
@@ -1363,13 +1370,13 @@ class MainWP_Child_Back_WP_Up {
                         $transport->setEncryption( 'tls' );
                     }
                 } elseif ( 'sendmail' == $emailmethod ) {
-                    $transport = Swift_SendmailTransport::newInstance( $emailsendmail );
+                    $transport = \Swift_SendmailTransport::newInstance( $emailsendmail );
                 } else {
-                    $transport = Swift_MailTransport::newInstance();
+                    $transport = \Swift_MailTransport::newInstance();
                 }
-                $emailer = Swift_Mailer::newInstance( $transport );
+                $emailer = \Swift_Mailer::newInstance( $transport );
 
-                $message = Swift_Message::newInstance( __( 'BackWPup archive sending TEST Message', 'mainwp-child' ) );
+                $message = \Swift_Message::newInstance( __( 'BackWPup archive sending TEST Message', 'mainwp-child' ) );
                 $message->setFrom( array( ( isset( $settings['emailsndemail'] ) ? $settings['emailsndemail'] : 'from@example.com' ) => isset( $settings['emailsndemailname'] ) ? $settings['emailsndemailname'] : '' ) );
                 $message->setTo( array( $settings['emailaddress'] ) );
                 $message->setBody( __( 'If this message reaches your inbox, sending backup archives via email should work for you.', 'mainwp-child' ) );
