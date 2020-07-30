@@ -171,6 +171,13 @@ class MainWP_WordPress_SEO {
 			$upload_dir = wp_upload_dir();
 
 			if ( ! defined( 'DIRECTORY_SEPARATOR' ) ) {
+
+			    /**
+                 * Defines reusable directory separator.
+                 *
+                 * @const ( string ) Directory separator.
+                 * @source https://code-reference.mainwp.com/classes/MainWP.Dashboard.MainWP_WordPress_SEO.html
+                 */
 				define( 'DIRECTORY_SEPARATOR', '/' );
 			}
 			$p_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'wpseo-import' . DIRECTORY_SEPARATOR;
