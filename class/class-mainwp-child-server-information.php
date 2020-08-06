@@ -411,7 +411,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				}
 				return o;
 			};
-			jQuery( 'a.mwp-child-get-system-report-btn' ).live( 'click', function() {
+			jQuery( document ).on( 'click', 'a.mwp-child-get-system-report-btn', function() {
 				var report = "";
 				jQuery( '.mwp_server_info_box thead, .mwp_server_info_box tbody' ).each( function() {
 					var td_len = [35, 55, 45, 12, 12];
@@ -456,13 +456,13 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				} catch(e){ }
 			} );
 
-			jQuery( 'a#mwp_child_close_srv_info' ).live( 'click', function() {
+			jQuery( document ).on( 'click', 'a#mwp_child_close_srv_info', function() {
 				jQuery( '#mwp-server-information' ).hide();
 				jQuery( '.mwp_child_close_srv_info' ).hide();
 				jQuery( 'a.mwp-child-get-system-report-btn' ).show();
 				return false;
 			} );
-			jQuery( '#mwp_child_download_srv_info' ).live( 'click', function() {
+			jQuery( document ).on( 'click', '#mwp_child_download_srv_info', function() {
 				var server_info = jQuery( '#mwp-server-information textarea' ).val();
 				var blob = new Blob( [server_info], {type: "text/plain;charset=utf-8"} );
 				childSaveAs( blob, "server_child_information.txt" );

@@ -52,32 +52,32 @@ class MainWP_Custom_Post_Type {
 	}
 
 	/**
+	 * Method mainwp_custom_post_type_handle_fatal_error()
+	 *
+	 * Custom post type fatal error handler.
+	 */
+	public static function mainwp_custom_post_type_handle_fatal_error() {
+		$error = error_get_last();
+		if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
+			$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
+		} else {
+			$data = self::$information;
+		}
+
+		if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
+			$data = wp_json_encode( $data );
+		} else {
+			$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required to achieve desired results, pull request solutions appreciated.
+		}
+		die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+	}
+
+	/**
 	 * Custom post type action.
 	 */
 	public function action() {
 
-		/**
-		 * Method mainwp_custom_post_type_handle_fatal_error()
-		 *
-		 * Custom post type fatal error handler.
-		 */
-		function mainwp_custom_post_type_handle_fatal_error() {
-			$error = error_get_last();
-			if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
-				$data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
-			} else {
-				$data = self::$information;
-			}
-
-			if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
-				$data = wp_json_encode( $data );
-			} else {
-				$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required to achieve desired results, pull request solutions appreciated.
-			}
-			die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
-		}
-
-		register_shutdown_function( '\MainWP\Child\mainwp_custom_post_type_handle_fatal_error' );
+		register_shutdown_function( '\MainWP\Child\MainWP_Custom_Post_Type::mainwp_custom_post_type_handle_fatal_error' );
 
 		$information = array();
 		switch ( $_POST['action'] ) {
