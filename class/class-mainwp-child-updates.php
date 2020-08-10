@@ -532,12 +532,14 @@ class MainWP_Child_Updates {
 	public function upgrade_get_theme_updates() {
 		$themeUpdates    = get_theme_updates();
 		$newThemeUpdates = array();
+		$theme_name      = wp_get_theme()->get( 'Name' );
 		if ( is_array( $themeUpdates ) ) {
 			foreach ( $themeUpdates as $slug => $themeUpdate ) {
 				$newThemeUpdate            = array();
 				$newThemeUpdate['update']  = $themeUpdate->update;
 				$newThemeUpdate['Name']    = MainWP_Helper::search( $themeUpdate, 'Name' );
 				$newThemeUpdate['Version'] = MainWP_Helper::search( $themeUpdate, 'Version' );
+				$newThemeUpdate['active']  = ( $newThemeUpdate['Name'] === $theme_name ) ? 1 : 0;
 				$newThemeUpdates[ $slug ]  = $newThemeUpdate;
 			}
 		}
