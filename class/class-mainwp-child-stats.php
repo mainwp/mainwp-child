@@ -586,9 +586,9 @@ class MainWP_Child_Stats {
 				// Fixes incorrect info.
 				if ( ! property_exists( $plugin_update, 'update' ) || ! property_exists( $plugin_update->update, 'new_version' ) || empty( $plugin_update->update->new_version ) ) {
 					continue;
-				}							
+				}
 				$plugin_update->active = is_plugin_active( $slug ) ? 1 : 0;
-				$results[ $slug ] = $plugin_update;
+				$results[ $slug ]      = $plugin_update;
 			}
 		}
 
@@ -615,7 +615,7 @@ class MainWP_Child_Stats {
 
 				if ( ! isset( $results[ $slug ] ) ) {
 					$plugin_update->active = is_plugin_active( $slug ) ? 1 : 0;
-					$results[ $slug ] = $plugin_update;
+					$results[ $slug ]      = $plugin_update;
 				}
 			}
 		}
