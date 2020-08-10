@@ -233,7 +233,7 @@ class MainWP_Child_Misc {
 	 * @uses MainWP_Security::remove_readme()
 	 * @uses MainWP_Security::remove_readme_ok()
 	 */
-	public function do_security_fix() {
+	public function do_security_fix() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$sync = false;
 		if ( 'all' === $_POST['feature'] ) {
 			$sync = true;
