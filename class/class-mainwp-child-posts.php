@@ -207,6 +207,10 @@ class MainWP_Child_Posts {
 			$outPost['dts'] = strtotime( $post->post_modified_gmt );
 		}
 
+		if ( 'page' == $post->post_type ) {
+			$outPost['dts'] = strtotime( $post->post_modified_gmt ); // to order by modified date.
+		}
+
 		if ( 'future' == $post->post_status ) {
 			$outPost['dts'] = strtotime( $post->post_date_gmt );
 		}
@@ -419,9 +423,9 @@ class MainWP_Child_Posts {
 					wp_publish_post( $postId );
 					wp_update_post(
 						array(
-							'ID'                  => $postId,
-							'post_date'           => current_time( 'mysql', false ),
-							'post_date_gmt'       => current_time( 'mysql', true ),
+							'ID'            => $postId,
+							'post_date'     => current_time( 'mysql', false ),
+							'post_date_gmt' => current_time( 'mysql', true ),
 						)
 					);
 				} else {
