@@ -116,7 +116,7 @@ class MainWP_Child {
 	 */
 	public function load_all_options() {
 
-	    /** @global object $wpdb WordPress object. */
+		/** @global object $wpdb WordPress object. */
 		global $wpdb;
 
 		if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
@@ -250,12 +250,12 @@ class MainWP_Child {
 		// Register does not require auth, so we register here.
 		if ( isset( $_POST['function'] ) && 'register' === $_POST['function'] ) {
 
-            /**
-             * Checks whether cron is in progress.
-             *
-             * @const ( bool ) Default: true
-             * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
-             */
+			/**
+			 * Checks whether cron is in progress.
+			 *
+			 * @const ( bool ) Default: true
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
+			 */
 			define( 'DOING_CRON', true );
 
 			MainWP_Utility::fix_for_custom_themes();

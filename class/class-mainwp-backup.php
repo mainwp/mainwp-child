@@ -162,12 +162,12 @@ class MainWP_Backup {
 		$backupdir = $dirs[0];
 		if ( ! defined( 'PCLZIP_TEMPORARY_DIR' ) ) {
 
-            /**
-             * Defines PCLZIP temporary directory.
-             *
-             * @const ( string ) Temporary backup directory.
-             * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Backup.html
-             */
+			/**
+			 * Defines PCLZIP temporary directory.
+			 *
+			 * @const ( string ) Temporary backup directory.
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Backup.html
+			 */
 			define( 'PCLZIP_TEMPORARY_DIR', $backupdir );
 		}
 

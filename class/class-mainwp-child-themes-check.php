@@ -288,12 +288,12 @@ class MainWP_Child_Themes_Check {
 
 		if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 
-            /**
-             * Defines days in seconds.
-             *
-             * @const ( string ) Default: true.
-             * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Themes_Check.html
-             */
+			/**
+			 * Defines days in seconds.
+			 *
+			 * @const ( string ) Default: true.
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Themes_Check.html
+			 */
 			define( 'DAY_IN_SECONDS', 24 * 60 * 60 );
 		}
 
