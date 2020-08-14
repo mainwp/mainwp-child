@@ -6,7 +6,7 @@
  *
  * @package MainWP\Child
  *
- * Credits
+ * @Credits
  *
  * Plugin-Name: Vendi Abandoned Plugin Check
  * Plugin URI: https://wordpress.org/plugins/vendi-abandoned-plugin-check/
@@ -20,7 +20,7 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Child_Plugins_Check
  *
- * Check if pugins have been abandoned.
+ * Check if plugins have been abandoned.
  */
 class MainWP_Child_Plugins_Check {
 
@@ -317,6 +317,13 @@ class MainWP_Child_Plugins_Check {
 		}
 
 		if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+
+            /**
+             * Defines days in seconds.
+             *
+             * @const ( string ) Default: true.
+             * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Plugins_Check.html
+             */
 			define( 'DAY_IN_SECONDS', 24 * 60 * 60 );
 		}
 

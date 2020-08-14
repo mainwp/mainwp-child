@@ -20,13 +20,19 @@
 require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress.
 
 /**
- * Define MainWP Child Plugin Debug Mode. Default: false.
+ * Define MainWP Child Plugin Debug Mode.
+ *
+ * @const ( bool ) Whether or not MainWP Child is in debug mode. Default: false.
+ * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
  */
 define( 'MAINWP_CHILD_DEBUG', false );
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 	/**
 	 * Define MainWP Child Plugin absolute full path and filename of this file.
+     *
+     * @const ( string ) Defined MainWP Child file path.
+     * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
 	 */
 	define( 'MAINWP_CHILD_FILE', __FILE__ );
 }
@@ -34,6 +40,9 @@ if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
 	/**
 	 * Define MainWP Child Plugin Directory.
+     *
+     * @const ( string ) Defined MainWP Child Plugin Directory.
+     * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
 	 */
 	define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
 }
@@ -41,6 +50,9 @@ if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
 if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
 	/**
 	 * Define MainWP Child Plugin URL.
+     *
+     * @const ( string ) Defined MainWP Child Plugin URL.
+     * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
 	 */
 	define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
 }
