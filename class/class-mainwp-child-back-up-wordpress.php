@@ -1148,7 +1148,7 @@ class MainWP_Child_Back_Up_WordPress {
 	}
 
 	/**
-	 * Remove exclusoin rule.
+	 * Remove exclusion rule.
 	 *
 	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
 	 *
