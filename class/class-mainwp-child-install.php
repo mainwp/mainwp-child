@@ -211,20 +211,32 @@ class MainWP_Child_Install {
 
 			$themeUpgrader = new \Theme_Upgrader();
 
-			$theme_name = wp_get_theme()->get( 'Name' );
-			$themes     = explode( '||', $theme );
+			$theme_name  = wp_get_theme()->get_stylesheet();
+			$parent      = wp_get_theme()->parent();
+			$parent_name = $parent ? $parent->get_stylesheet() : '';
+
+			$themes = explode( '||', $theme );
 
 			if ( count( $themes ) == 1 ) {
 				$themeToDelete = current( $themes );
 				if ( $themeToDelete == $theme_name ) {
-					$information['error'] = 'IsActivatedTheme';
+					$information['error']['is_activated_theme'] = $themeToDelete;
+					MainWP_Helper::write( $information );
+					return;
+				} elseif ( $themeToDelete == $parent_name ) {
+					$information['error']['is_activated_parent'] = $themeToDelete;
 					MainWP_Helper::write( $information );
 					return;
 				}
 			}
 
 			foreach ( $themes as $idx => $themeToDelete ) {
-				if ( $themeToDelete !== $theme_name ) {
+				if ( $themeToDelete == $theme_name ) {
+					$information['error']['is_activated_theme'] = $themeToDelete;
+				} elseif ( $themeToDelete == $parent_name ) {
+					$information['error']['is_activated_parent'] = $themeToDelete;
+				}
+				if ( $themeToDelete !== $theme_name && $themeToDelete !== $parent_name ) {
 					$theTheme = wp_get_theme( $themeToDelete );
 					if ( null !== $theTheme && '' !== $theTheme ) {
 						$tmp['theme'] = $theTheme['Template'];
@@ -279,7 +291,8 @@ class MainWP_Child_Install {
 			$urls = $urlgot;
 		}
 
-		$result = array();
+		$install_results = array();
+		$result          = array();
 		foreach ( $urls as $url ) {
 			$installer  = new \WP_Upgrader();
 			$ssl_verify = true;
@@ -312,10 +325,13 @@ class MainWP_Child_Install {
 				remove_filter( 'http_request_args', array( self::get_class_name(), 'no_ssl_filter_function' ), 99 );
 			}
 			$this->after_installed( $result );
+			$basename                     = basename( rawurldecode( $url ) );
+			$install_results[ $basename ] = is_array( $result ) && isset( $result['destination_name'] ) ? true : false;
 		}
 
 		$information['installation']     = 'SUCCESS';
 		$information['destination_name'] = $result['destination_name'];
+		$information['install_results']  = $install_results;
 		MainWP_Helper::write( $information );
 	}
 
