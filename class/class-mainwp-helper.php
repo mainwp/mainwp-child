@@ -213,8 +213,22 @@ class MainWP_Helper {
 			ob_end_clean();
 			if ( empty( $creds ) ) {
 				if ( ! defined( 'MAINWP_SAVE_FS_METHOD' ) ) {
+
+				    /**
+                     * Defines save file system method.
+                     *
+                     * @const ( string ) Defined save file system method.
+                     * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Helper.html
+                     */
 					define( 'MAINWP_SAVE_FS_METHOD', get_filesystem_method() );
 				}
+
+                /**
+                 * Defines file system method.
+                 *
+                 * @const ( string ) Defined file system method.
+                 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Helper.html
+                 */
 				define( 'FS_METHOD', 'direct' );
 			}
 			$init = \WP_Filesystem( $creds );
