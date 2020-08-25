@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 5.5
 Requires PHP: 5.6
-Stable tag: 4.1-beta2
+Stable tag: 4.0.7.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -17,7 +17,9 @@ Securely connect unlimited sites to your MainWP WordPress Manager. The MainWP Wo
 
 The Child plugin connects your WordPress sites to the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/)
 
-The [MainWP WordPress Management](https://mainwp.com) system is self-hosted, open source, and private.  Connect and control unlimited sites in your private network at no cost, ever. 
+The [MainWP WordPress Management](https://mainwp.com) system is self-hosted, open source, and private.  Connect and control all the WordPress sites you administer, even those on different hosts and servers.
+
+MainWP is the perfect solution for WordPress consultants, marketers, developers, WordPress shops, or anyone with multiple WordPress sites
 
 = How does the MainWP system work? =
 
@@ -78,6 +80,9 @@ To see full documentation and FAQs please visit [MainWP Documentation](https://m
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.0.7.2 - 8-6-20 =
+Updated: WordPress 5.5 compatibility
 
 = 4.0.7.1 - 4-30-20 =
 * Fixed: JSON decoding issues on specific setups
