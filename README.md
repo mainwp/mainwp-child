@@ -37,9 +37,9 @@ This repository is not suitable for support. Please don't use our issue tracker 
 * If you have a problem, you may want to start with the [Help Docs](https://mainwp.com/help/).
 * [The MainWP Community](https://meta.mainwp.com/) which is available for all MainWP users.
 * You can also [open a support ticket](https://mainwp.com/support/).
-* For customizations take a look at our list of [MainWP Exteperts](https://mainwp.com/mainwp-experts/) or [Codeable](https://codeable.io/).
+* For customizations take a look at our list of [MainWP Experts](https://mainwp.com/mainwp-experts/) or [Codeable](https://codeable.io/).
 
 Support requests in issues on this repository will be closed on sight.
 
 ## Contributing to MainWP
-If you have a patch or have stumbled upon an issue with the MainWP Plugin you can contribute this back to the code. Please read our [contributor guidelines](https://github.com/mainwp/mainwp/blob/master/.github/CONTRIBUTING.md) for more informationon how you can do this.
+If you have a patch or have stumbled upon an issue with the MainWP Plugin you can contribute this back to the code. Please read our [contributor guidelines](https://github.com/mainwp/mainwp/blob/master/.github/CONTRIBUTING.md) for more information on how you can do this.
