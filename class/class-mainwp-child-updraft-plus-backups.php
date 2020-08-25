@@ -4202,8 +4202,8 @@ ENDHERE;
      * Close browser connection.
      *
      * @param string $txt Return Base64 Encoded output.
-     */
-    private function close_browser_connection( $txt = '' ) {
+     */    
+	public function close_browser_connection($txt = '') {
 
         if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
             $output = wp_json_encode( $txt );
@@ -4213,20 +4213,22 @@ ENDHERE;
 
         $txt = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
-        // Close browser connection so that it can resume AJAX polling.
-        header( 'Content-Length: ' . ( ( ! empty( $txt ) ) ? strlen( $txt ) : '0' ) );
-        header( 'Connection: close' );
-        header( 'Content-Encoding: none' );
-        if ( session_id() ) {
-            session_write_close();
-        }
-        echo $txt;
-        // These two added - 19-Feb-15 - started being required on local dev machine, for unknown reason (probably some plugin that started an output buffer).
-        if ( ob_get_level() ) {
-            ob_end_flush();
-        }
-        flush();
-    }
+		// Close browser connection so that it can resume AJAX polling
+		header('Content-Length: '.(empty($txt) ? '0' : 4+strlen($txt)));
+		header('Connection: close');
+		header('Content-Encoding: none');
+		if (session_id()) session_write_close();
+		echo "\r\n\r\n";
+		echo $txt;
+		// These two added - 19-Feb-15 - started being required on local dev machine, for unknown reason (probably some plugin that started an output buffer).
+		$ob_level = ob_get_level();
+		while ($ob_level > 0) {
+			ob_end_flush();
+			$ob_level--;
+		}
+		flush();
+		if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+	}
 
     /**
      * Initiate UpdraftPlus.
