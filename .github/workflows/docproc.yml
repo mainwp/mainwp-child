@@ -7,7 +7,7 @@ name: Process MainWP PHP Documentation
 on:
   push:
     branches: [ documentation ]
-    
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -22,4 +22,8 @@ jobs:
        with:
           hosts: 'root@code-reference.mainwp.com'
           privateKey: ${{ secrets.PRIVATE_KEY }}
-          command: sh ~/scripts/docproc.sh
+          command: |
+            sleep 3
+            rm -rf ~/Source/mainwp-child
+            git clone https://github.com/mainwp/mainwp.git ~/Source/mainwp-child
+            sh ~/scripts/docproc.sh
