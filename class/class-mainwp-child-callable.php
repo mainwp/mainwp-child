@@ -439,7 +439,14 @@ class MainWP_Child_Callable {
 	 * Fire off the cloneinfo() function.
 	 */
 	public function cloneinfo() {
+
+		/**
+		 * WordPress DB Table Prefix.
+		 *
+		 * @global string
+		 */
 		global $table_prefix;
+
 		$information['dbCharset']    = DB_CHARSET;
 		$information['dbCollate']    = DB_COLLATE;
 		$information['table_prefix'] = $table_prefix;
@@ -802,7 +809,14 @@ class MainWP_Child_Callable {
 	 * Disconnect the child site from the current MainWP Dashboard.
 	 */
 	public function disconnect() {
+
+		/**
+		 * MainWP Child instance.
+		 *
+		 * @global object
+		 */
 		global $mainWPChild;
+
 		$mainWPChild->deactivation( false );
 		MainWP_Helper::write( array( 'result' => 'success' ) );
 	}
@@ -814,7 +828,14 @@ class MainWP_Child_Callable {
 	 * Deactivate the MainWP Child plugin in the site.
 	 */
 	public function deactivate() {
+
+		/**
+		 * MainWP Child instance.
+		 *
+		 * @global object
+		 */
 		global $mainWPChild;
+
 		include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		deactivate_plugins( $mainWPChild->plugin_slug, true );
 		$information = array();

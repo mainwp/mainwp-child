@@ -132,10 +132,17 @@ class MainWP_Child_Back_Up_Buddy {
 	}
 
     /**
-     * Rmove backupbuddy from admin menu.
+     * Remove backupbuddy from admin menu.
      */
     public function admin_menu() {
+
+	    /**
+	     * Submenu array.
+         *
+         * @global object
+	     */
 		global $submenu;
+
 		remove_menu_page( 'pb_backupbuddy_backup' );
 
 		if ( false !== stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=pb_backupbuddy_' ) ) {
@@ -1501,6 +1508,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		/** @global object $pb_backupbuddy_js_status BackupBuddy js status. */
 		global $pb_backupbuddy_js_status;
+
 		$pb_backupbuddy_js_status = true;
 
 		\pb_backupbuddy::set_status_serial( 'restore' );
@@ -3063,6 +3071,8 @@ class MainWP_Child_Back_Up_Buddy {
 			require_once \pb_backupbuddy::plugin_path() . '/destinations/stash2/class.itx_helper2.php';
 			require_once \pb_backupbuddy::plugin_path() . '/destinations/stash2/init.php';
 			require_once \pb_backupbuddy::plugin_path() . '/destinations/live/init.php';
+
+			/** @global string $wp_version WordPress version. */
 			global $wp_version;
 
 			$itxapi_username = strtolower( $_POST['live_username'] );

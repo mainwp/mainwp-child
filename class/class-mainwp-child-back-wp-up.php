@@ -506,7 +506,7 @@ class MainWP_Child_Back_WP_Up {
      */
     public function remove_menu() {
 
-        /** global $submenu WordPress Sub Menu global variable.  */
+        /** @global object $submenu WordPress Submenu array.  */
         global $submenu;
 
         // Remove the WordPress Admin SubMenu.
@@ -1323,7 +1323,14 @@ class MainWP_Child_Back_WP_Up {
             $message = __( 'Missing email address.', 'mainwp-child' );
         } else {
             if ( $emailmethod ) {
+
+	            /**
+	             * PHP mailer instance.
+                 *
+                 * @global object
+	             */
                 global $phpmailer;
+
                 if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {                    
                     if ( file_exists( ABSPATH . WPINC . '/PHPMailer/PHPMailer.php' )) {
                         require ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';

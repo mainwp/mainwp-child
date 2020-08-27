@@ -351,6 +351,7 @@ class MainWP_Child_Plugins_Check {
 		// Get the WordPress current version to be polite in the API call.
 		include ABSPATH . WPINC . '/version.php';
 
+		/** @global string $wp_version WordPress Version. */
 		global $wp_version;
 
 		// General options to be passed to wp_remote_get.

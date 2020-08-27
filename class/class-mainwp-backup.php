@@ -318,6 +318,11 @@ class MainWP_Backup {
 
 		$information = array();
 
+		/**
+		 * WordPress files system object.
+		 *
+		 * @global object
+		 */
 		global $wp_filesystem;
 
 		MainWP_Helper::get_wp_filesystem();
@@ -383,6 +388,11 @@ class MainWP_Backup {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = trailingslashit( $dirs[0] );
 
+		/**
+		 * WordPress files system object.
+		 *
+		 * @global object
+		 */
 		global $wp_filesystem;
 
 		MainWP_Helper::get_wp_filesystem();
@@ -828,6 +838,11 @@ class MainWP_Backup {
 	 */
 	public function add_config() {
 
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		$plugins = array();
@@ -1020,6 +1035,12 @@ class MainWP_Backup {
 		$this->zip = new \PclZip( $filepath );
 		$this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
 		if ( $addConfig ) {
+
+			/**
+			 * WordPress Database instance.
+			 *
+			 * @global object $wpdb
+			 */
 			global $wpdb;
 
 			if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
@@ -1246,6 +1267,11 @@ class MainWP_Backup {
 		$mem     = '512M';
 		MainWP_Helper::set_limit( $timeout, $mem );
 
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		$db_files  = array();

@@ -230,8 +230,12 @@ class MainWP_Clone {
 			$key         = $siteToClone['extauth'];
 
 			MainWP_Helper::end_session();
+
 			// Send request to the childsite!
+
+			/** @global string $wp_version WordPress version. */
 			global $wp_version;
+
 			$method = ( function_exists( 'gzopen' ) ? 'tar.gz' : 'zip' );
 			$result = MainWP_Utility::fetch_url(
 				$url,

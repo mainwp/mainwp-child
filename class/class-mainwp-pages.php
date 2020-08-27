@@ -228,7 +228,9 @@ class MainWP_Pages {
 		add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
 		add_action( 'mainwp-child-pagefooter', array( __CLASS__, 'render_footer' ) );
 
+		/** @global object $submenu WordPress submenu array. */
 		global $submenu;
+
 		if ( isset( $submenu['options-general.php'] ) ) {
 			foreach ( $submenu['options-general.php'] as $index => $item ) {
 				if ( 'mainwp-reports-page' === $item[2] || 'mainwp-reports-settings' === $item[2] ) {
@@ -247,7 +249,14 @@ class MainWP_Pages {
 	 * @return mixed The filtered value after all hooked functions are applied to it.
 	 */
 	public function plugin_row_meta( $plugin_meta, $plugin_file ) {
+
+		/**
+		 * MainWP Child instance.
+		 *
+		 * @global object
+		 */
 		global $mainWPChild;
+
 		if ( $mainWPChild->plugin_slug !== $plugin_file ) {
 			return $plugin_meta;
 		}

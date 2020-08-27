@@ -93,6 +93,11 @@ class MainWP_Child_Server_Information_Base {
 
 		$hasWPFileSystem = MainWP_Helper::get_wp_filesystem();
 
+		/**
+		 * WordPress files system object.
+		 *
+		 * @global object
+		 */
 		global $wp_filesystem;
 
 		if ( $hasWPFileSystem && ! empty( $wp_filesystem ) ) {
@@ -330,6 +335,8 @@ class MainWP_Child_Server_Information_Base {
 	 * @return string $wp_version Current WordPress version.
 	 */
 	protected static function get_wordpress_version() {
+
+		/** @global object $wp_version WordPress version. */
 		global $wp_version;
 
 		return $wp_version;
@@ -423,7 +430,10 @@ class MainWP_Child_Server_Information_Base {
 	 * @return string Return the current MySQL version.
 	 */
 	public static function get_my_sql_version() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		return $wpdb->get_var( "SHOW VARIABLES LIKE 'version'", 1 );
 	}
 
@@ -496,7 +506,10 @@ class MainWP_Child_Server_Information_Base {
 	 * Get current SQL mode.
 	 */
 	protected static function get_sql_mode() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		$mysqlinfo = $wpdb->get_results( "SHOW VARIABLES LIKE 'sql_mode'" );
 		if ( is_array( $mysqlinfo ) ) {
 			$sql_mode = $mysqlinfo[0]->Value;

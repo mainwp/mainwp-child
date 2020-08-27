@@ -56,7 +56,10 @@ class MainWP_WordPress_SEO {
 	 * Run any time MainWP_Child is called.
 	 */
 	public function __construct() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 	}
 

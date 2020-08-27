@@ -119,6 +119,7 @@ class MainWP_Child_IThemes_Security {
 			MainWP_Helper::write( $information );
 		}
 
+	    /** @global string $mainwp_itsec_modules_path MainWP itsec modules path.  */
 		global $mainwp_itsec_modules_path;
 
 		$mainwp_itsec_modules_path = \ITSEC_Core::get_core_dir() . '/modules/';
@@ -672,6 +673,7 @@ class MainWP_Child_IThemes_Security {
      * @uses \ITSEC_Response::get_error_strings()
      */
     public function backup_db() {
+
         /**
          * @global string $mainwp_itsec_modules_path MainWP itsec modules path.
          * @global object $itsec_backup              ITsec backup class.

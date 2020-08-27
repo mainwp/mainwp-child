@@ -166,7 +166,9 @@ class MainWP_Child_Updraft_Plus_Backups {
 
         $this->required_files();
 
+        /** @global object $updraftplus UpdraftPlus class instance. */
         global $updraftplus;
+
         if ( empty( $updraftplus ) && class_exists( '\UpdraftPlus' ) ) {
             $updraftplus = new \UpdraftPlus();
         }
@@ -771,7 +773,9 @@ class MainWP_Child_Updraft_Plus_Backups {
                     \UpdraftPlus_Options::update_updraft_option( 'updraft_service', $settings['updraft_service'] );
                 }
 
+	            /** @global object $updraftplus UpdraftPlus instance. */
                 global $updraftplus;
+
                 if ( isset( $settings['updraft_interval'] ) ) {
                     // fix for premium version.
                     $_POST['updraft_interval']        = $settings['updraft_interval'];
@@ -1001,8 +1005,9 @@ class MainWP_Child_Updraft_Plus_Backups {
             );
         }
 
-        /** @global object $updraftplus_admin UpdraftPlus Admin object. */
+        /** @global object $updraftplus_admin UpdraftPlus Admin array. */
         global $updraftplus_admin;
+
         $updraftplus_admin->logged = array();
 
         $ret    = '';

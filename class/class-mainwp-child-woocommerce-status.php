@@ -111,7 +111,10 @@ class MainWP_Child_WooCommerce_Status {
 	 * @return array $information Woocommerce data grabed.
 	 */
 	public function sync_data() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
 			include_once $file;
@@ -208,7 +211,10 @@ class MainWP_Child_WooCommerce_Status {
 	 * @return array $information Woocommerce data grabed.
 	 */
 	public function report_data() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
 			include_once $file;
@@ -341,7 +347,10 @@ class MainWP_Child_WooCommerce_Status {
 	 * @return array $information Woocommerce data grabed.
 	 */
 	public function get_woocom_data( $start_date, $end_date ) {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
 		if ( file_exists( $file ) ) {
 			include_once $file;

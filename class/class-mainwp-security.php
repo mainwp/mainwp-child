@@ -88,7 +88,10 @@ class MainWP_Security {
 	 */
 	public static function prevent_listing() {
 		self::init_listing_directories();
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
+
 		MainWP_Helper::get_wp_filesystem();
 
 		foreach ( self::$listingDirectories as $directory ) {
@@ -172,6 +175,8 @@ class MainWP_Security {
 	 * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
 	 */
 	public static function remove_database_reporting() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
 
 		$wpdb->hide_errors();
@@ -187,13 +192,19 @@ class MainWP_Security {
 	 */
 	public static function remove_registered_versions() {
 		if ( self::get_security_option( 'registered_versions' ) ) {
+
+			/** @global object $wp_styles WordPress Core class used to register styles. */
 			global $wp_styles;
+
 			if ( $wp_styles instanceof WP_Styles ) {
 				foreach ( $wp_styles->registered as $handle => $style ) {
 					$wp_styles->registered[ $handle ]->ver = null;
 				}
 			}
+
+			/** @global object $wp_scripts WordPress Core class used to register scripts. */
 			global $wp_scripts;
+
 			if ( $wp_scripts instanceof WP_Scripts ) {
 				foreach ( $wp_scripts->registered as $handle => $script ) {
 					$wp_scripts->registered[ $handle ]->ver = null;
@@ -297,7 +308,10 @@ class MainWP_Security {
 			return true;
 		}
 		MainWP_Helper::get_wp_filesystem();
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
+
 		if ( $force || self::get_security_option( 'readme' ) ) {
 			if ( $wp_filesystem->exists( ABSPATH . 'readme.html' ) ) {
 				if ( ! unlink( ABSPATH . 'readme.html' ) ) {
@@ -321,7 +335,10 @@ class MainWP_Security {
 	 * @return bool true|false If directory listing prevented, return true, if not, return false.
 	 */
 	public static function prevent_listing_ok() {
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
+
 		MainWP_Helper::get_wp_filesystem();
 
 		self::init_listing_directories();
@@ -383,6 +400,8 @@ class MainWP_Security {
 	 * @return bool true|false If the database error reporting has been disabled, return true, if not, return false.
 	 */
 	public static function remove_database_reporting_ok() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
 
 		return ( false === $wpdb->show_errors );

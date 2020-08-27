@@ -417,7 +417,9 @@ class MainWP_Utility {
 			$img_data = array();
 		}
 
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
+
 		MainWP_Helper::get_wp_filesystem();
 
 		include_once ABSPATH . 'wp-admin/includes/file.php';
@@ -474,7 +476,10 @@ class MainWP_Utility {
 	 * @return array Media file ID and URL.
 	 */
 	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ) {
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
+
 		if ( $wp_filesystem->exists( $local_img_path ) ) {
 			if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
 				$result = self::get_maybe_existed_attached_id( $local_img_url );
@@ -567,7 +572,10 @@ class MainWP_Utility {
 	 * @return int Attachment ID.
 	 */
 	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		if ( $full_guid ) {
 			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) );
 		}
@@ -660,7 +668,10 @@ class MainWP_Utility {
 		$dir  = MainWP_Helper::get_mainwp_dir();
 		$dir  = $dir[0];
 		if ( MainWP_Helper::get_wp_filesystem() ) {
+
+			/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 			global $wp_filesystem;
+
 			try {
 				MainWP_Helper::check_dir( $dir, false );
 			} catch ( \Exception $e ) {

@@ -1344,7 +1344,13 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			$branding_title = 'MainWP';
 		}
 
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
+
 		$uniqueId = get_option( 'mainwp_child_uniqueId' );
 		$details  = array(
 			'siteurl' => array(

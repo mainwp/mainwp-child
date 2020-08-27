@@ -276,7 +276,13 @@ class MainWP_Child {
 
 		$this->parse_init_extensions();
 
+		/**
+		 * Wordpress submenu no privilege.
+		 *
+		 * @global string
+		 */
 		global $_wp_submenu_nopriv;
+
 		if ( null === $_wp_submenu_nopriv ) {
 			$_wp_submenu_nopriv = array(); // phpcs:ignore -- Required to fix warnings, pull request solutions appreciated.
 		}

@@ -1404,7 +1404,14 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
 	 */
 	public function remove_menu() {
+
+		/**
+		 * Submenu array.
+		 *
+		 * @global object
+		 */
 		global $submenu;
+
 		if ( isset( $submenu['tools.php'] ) ) {
 			foreach ( $submenu['tools.php'] as $index => $item ) {
 				if ( 'backupwordpress' === $item[2] ) {

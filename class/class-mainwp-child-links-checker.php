@@ -196,7 +196,7 @@ class MainWP_Child_Links_Checker {
 	 */
 	public function initiate_recheck() {
 
-		/** @var $wpdb wpdb  */
+		/** @global object $wpdb wpdb  */
 		global $wpdb;
 
 		// Delete all discovered instances.
