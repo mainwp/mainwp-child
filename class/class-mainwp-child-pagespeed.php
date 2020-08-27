@@ -157,7 +157,14 @@ class MainWP_Child_Pagespeed {
 	 * Remove the Google Pagespeed Insights menu item when the plugin is hidden.
 	 */
 	public function hide_menu() {
+
+		/**
+		 * WordPress submenu array.
+		 *
+		 * @global object
+		 */
 		global $submenu;
+
 		if ( isset( $submenu['tools.php'] ) ) {
 			foreach ( $submenu['tools.php'] as $key => $menu ) {
 				if ( 'google-pagespeed-insights' == $menu[2] ) {
@@ -353,7 +360,14 @@ class MainWP_Child_Pagespeed {
 	 * @param string $what Contains information about what to delete, just reports or everything.
 	 */
 	public function delete_data( $what ) {
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
+
 		$gpi_page_stats     = $wpdb->prefix . 'gpi_page_stats';
 		$gpi_page_reports   = $wpdb->prefix . 'gpi_page_reports';
 		$gpi_page_blacklist = $wpdb->prefix . 'gpi_page_blacklist';
@@ -495,7 +509,14 @@ class MainWP_Child_Pagespeed {
 	 * @return array Array containing data including last modified timespamp, average score and number of pages.
 	 */
 	public static function cal_pagespeed_data( $strategy ) {
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
+
 		if ( ! defined( 'GPI_DIRECTORY' ) ) {
 			return false;
 		}
@@ -641,7 +662,14 @@ class MainWP_Child_Pagespeed {
 		}
 
 		if ( $gpi_options['check_custom_urls'] ) {
+
+			/**
+			 * WordPress Database instance.
+			 *
+			 * @global object $wpdb
+			 */
 			global $wpdb;
+
 			$custom_url_types = $wpdb->get_col( 'SELECT DISTINCT type FROM ' . $wpdb->prefix . 'gpi_custom_urls ' );
 			if ( ! empty( $custom_url_types ) ) {
 				foreach ( $custom_url_types as $custom_url_type ) {

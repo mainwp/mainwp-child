@@ -1062,7 +1062,14 @@ class MainWP_Child_Branding {
 	 * Hide unwanted WordPress Dashboard page widgets.
 	 */
 	public function custom_dashboard_widgets() {
+
+		/**
+		 * Public variable to hold the Metaboxes array.
+		 *
+		 * @var array Metaboxes.
+		 */
 		global $wp_meta_boxes;
+
 		$extra_setting = $this->get_extra_options();
 		if ( isset( $extra_setting['remove_widget_welcome'] ) && $extra_setting['remove_widget_welcome'] ) {
 			remove_action( 'welcome_panel', 'wp_welcome_panel' );

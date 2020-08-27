@@ -71,6 +71,11 @@ class MainWP_Child_Install {
 	 */
 	public function plugin_action() {
 
+		/**
+		 * MainWP Child instance.
+		 *
+		 * @global object
+		 */
 		global $mainWPChild;
 
 		$action  = $_POST['action'];
@@ -134,7 +139,14 @@ class MainWP_Child_Install {
 	 * @used-by MainWP_Child_Install::plugin_action() Plugin Activate, Deactivate & Delete actions.
 	 */
 	private function delete_plugins( $plugins ) {
+
+		/**
+		 * MainWP Child instance.
+		 *
+		 * @global object
+		 */
 		global $mainWPChild;
+
 		include_once ABSPATH . '/wp-admin/includes/plugin.php';
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
 			include_once ABSPATH . '/wp-admin/includes/screen.php';

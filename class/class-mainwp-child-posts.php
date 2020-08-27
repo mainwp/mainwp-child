@@ -297,6 +297,8 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_posts_by_type( $type ) {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
 
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
@@ -771,6 +773,11 @@ class MainWP_Child_Posts {
 	 */
 	private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus ) {
 
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
 
 		$this->update_wp_rocket_custom_post( $post_custom );

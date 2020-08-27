@@ -110,6 +110,12 @@ class MainWP_Child_Maintenance {
 	 * @return array An array containing action feedback.
 	 */
 	private function maintenance_db( $maint_options, $max_revisions ) {
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		$performed_what = array();
@@ -197,7 +203,14 @@ class MainWP_Child_Maintenance {
 	 * @return array|object|null Database query results.
 	 */
 	protected function maintenance_get_revisions( $max_revisions ) {
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
+
 		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
 	}
 
@@ -217,6 +230,12 @@ class MainWP_Child_Maintenance {
 	 * @return int Return number of revisions deleted.
 	 */
 	private function maintenance_delete_revisions( $results, $max_revisions ) {
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		if ( ! is_array( $results ) || 0 === count( $results ) ) {
@@ -257,6 +276,11 @@ class MainWP_Child_Maintenance {
 	 * @used-by MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
 	 */
 	private function maintenance_optimize() {
+
+		/**
+		 * @global object $wpdb WordPress Database instance.
+		 * @global string $table_prefix WordPress DB table prefix.
+		 */
 		global $wpdb, $table_prefix;
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
 		$result = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );

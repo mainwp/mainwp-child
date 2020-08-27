@@ -302,6 +302,7 @@ class MainWP_Child_Wordfence {
 			return;
 		}
 
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
 
 		$lastcheck = get_option( 'mainwp_wordfence_lastcheck_scan' );
@@ -1124,7 +1125,10 @@ class MainWP_Child_Wordfence {
 	 * @return array Action result.
 	 */
 	public function count_attacks_blocked( $maxAgeDays ) {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		$table_wfBlockedIPLog = \wfDB::networkTable( 'wfBlockedIPLog' );
 		$interval             = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
 		// phpcs:disable -- third party code, safe.
@@ -3746,7 +3750,10 @@ SQL
 			</div>
 
 			<?php
+
+			/** @global object $wpdb WordPress Database instance. */
 			global $wpdb;
+
 			$wfdb = new \wfDB();
 			// This must be done this way because MySQL with InnoDB tables does a full regeneration of all metadata if we don't. That takes a long time with a large table count.
 			$tables = $wfdb->querySelect( 'SELECT SQL_CALC_FOUND_ROWS TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME ASC LIMIT 250' );

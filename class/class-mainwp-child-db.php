@@ -28,6 +28,12 @@ class MainWP_Child_DB {
 			return false;
 		}
 
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		return ( $wpdb->dbh instanceof \mysqli );
@@ -107,7 +113,14 @@ class MainWP_Child_DB {
 	 */
 	public static function select_db( $db ) {
 		if ( self::use_mysqli() ) {
+
+			/**
+			 * WordPress Database instance.
+			 *
+			 * @global object $wpdb
+			 */
 			global $wpdb;
+
 			return \mysqli_select_db( $wpdb->dbh, $db );
 		} else {
 			return \mysql_select_db( $db );
@@ -121,6 +134,12 @@ class MainWP_Child_DB {
 	 */
 	public static function error() {
 		if ( self::use_mysqli() ) {
+
+			/**
+			 * WordPress Database instance.
+			 *
+			 * @global object $wpdb
+			 */
 			global $wpdb;
 
 			return \mysqli_error( $wpdb->dbh );
@@ -137,6 +156,12 @@ class MainWP_Child_DB {
 	 * @return false|string the escaped string, or false on error.
 	 */
 	public static function real_escape_string( $value ) {
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		if ( self::use_mysqli() ) {
@@ -167,6 +192,12 @@ class MainWP_Child_DB {
 	 * @return int|mixed Size of the DB or false on failure.
 	 */
 	public static function get_size() {
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		$rows = self::to_query( 'SHOW table STATUS', $wpdb->dbh );

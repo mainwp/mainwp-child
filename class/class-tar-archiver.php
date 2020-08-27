@@ -218,6 +218,7 @@ class Tar_Archiver {
 		}
 		$this->pidContent = $file;
 
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
 
 		$wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
@@ -245,6 +246,7 @@ class Tar_Archiver {
 			return false;
 		}
 
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
 
 		$wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
@@ -268,6 +270,7 @@ class Tar_Archiver {
 			return false;
 		}
 
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
 
 		$filename = basename( $this->pidFile );
@@ -433,7 +436,10 @@ class Tar_Archiver {
 	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
 	 */
 	private function add_config() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		$plugins = array();
 		$dir     = WP_CONTENT_DIR . '/plugins/';
 		$fh      = opendir( $dir );
@@ -1515,6 +1521,7 @@ class Tar_Archiver {
 	 */
 	public function extract_to( $to ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
 
 		$to = trailingslashit( $to );

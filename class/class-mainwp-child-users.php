@@ -67,7 +67,13 @@ class MainWP_Child_Users {
 		$user_pass = $_POST['user_pass'];
 		$failed    = false;
 
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
+
 		$reassign = ( isset( $current_user ) && isset( $current_user->ID ) ) ? $current_user->ID : 0;
 		include_once ABSPATH . '/wp-admin/includes/user.php';
 

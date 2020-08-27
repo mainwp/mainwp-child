@@ -61,6 +61,12 @@ class MainWP_Connect {
 	 * Register the current WordPress site thus generating teh public key.
 	 */
 	public function register_site() {
+
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
 
 		$information = array();
@@ -257,6 +263,11 @@ class MainWP_Connect {
 	 */
 	public function parse_login_required() {
 
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
 
 		$alter_login_required = false;
@@ -535,6 +546,12 @@ class MainWP_Connect {
 	 * @return bool true|false
 	 */
 	public function login( $username, $doAction = false ) {
+
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
 
 		// Logout if required.

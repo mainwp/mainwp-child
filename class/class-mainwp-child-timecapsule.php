@@ -432,7 +432,10 @@ class MainWP_Child_Timecapsule {
 		if ( empty( $last_time ) ) {
 			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore --  required to achieve desired results, pull request solutions appreciated.
 		}
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		$all_backups = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT backupID
@@ -485,7 +488,10 @@ class MainWP_Child_Timecapsule {
 	public function progress_wptc() {
 
 		$config = \WPTC_Factory::get( 'config' );
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		if ( ! $config->get_option( 'in_progress' ) ) {
 			spawn_cron();
 		}
@@ -651,6 +657,8 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function prepare_items() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
 
 		if ( isset( $_POST['type'] ) ) {
@@ -731,6 +739,8 @@ class MainWP_Child_Timecapsule {
 		if ( ! isset( $data['action_id'] ) || ! isset( $data['limit'] ) ) {
 			return false;
 		}
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
 
 		$action_id     = $data['action_id'];
@@ -767,7 +777,10 @@ class MainWP_Child_Timecapsule {
 	 * @return string Log rows.
 	 */
 	public function get_display_rows( $records ) {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		// Get the records registered in the prepare_items method.
 		if ( ! is_array( $records ) ) {
 			return '';
@@ -878,7 +891,10 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function clear_wptc_logs() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
+
 		if ( $wpdb->query( 'TRUNCATE TABLE `' . $wpdb->base_prefix . 'wptc_activity_log`' ) ) {
 			$result = 'yes';
 		} else {
@@ -1571,6 +1587,8 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function get_system_info() {
+
+		/** @global object $wpdb WordPress Database instance. */
 		global $wpdb;
 
 		$wptc_settings = \WPTC_Base_Factory::get( 'Wptc_Settings' );

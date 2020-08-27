@@ -142,6 +142,12 @@ class MainWP_Child_Comments {
 	 */
 	public function get_all_comments() {
 
+
+		/**
+		 * WordPress Database instance.
+		 *
+		 * @global object $wpdb
+		 */
 		global $wpdb;
 
 		add_filter( 'comments_clauses', array( &$this, 'comments_clauses' ) );

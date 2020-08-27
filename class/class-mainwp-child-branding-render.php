@@ -77,7 +77,14 @@ class MainWP_Child_Branding_Render {
 	 * @return string Contact Support form html.
 	 */
 	public function contact_support() {
+
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
+
 		?>
 		<style>
 			.mainwp_info-box-yellow {
@@ -204,7 +211,14 @@ class MainWP_Child_Branding_Render {
 		$mail    = '';
 		$headers = '';
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
+
+			/**
+			 * Current user global.
+			 *
+			 * @global string
+			 */
 			global $current_user;
+
 			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
 			if ( ! empty( $from ) ) {
 				$headers .= 'From: "' . $from . '" <' . $from . ">\r\n";

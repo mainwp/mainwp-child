@@ -92,7 +92,10 @@ class MainWP_Helper {
 	 * @return array Return directory and directory URL.
 	 */
 	public static function get_mainwp_dir( $what = null, $die_on_error = true ) {
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
+
 		self::get_wp_filesystem();
 
 		$upload_dir = wp_upload_dir();
@@ -135,6 +138,8 @@ class MainWP_Helper {
 	 */
 	public static function check_dir( $dir, $die_on_error, $chmod = 0755 ) {
 		self::get_wp_filesystem();
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
 
 		if ( ! file_exists( $dir ) ) {
@@ -199,6 +204,8 @@ class MainWP_Helper {
 	 * @return mixed $init WordPress filesystem base.
 	 */
 	public static function get_wp_filesystem() {
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
@@ -251,6 +258,7 @@ class MainWP_Helper {
 
 		self::get_wp_filesystem();
 
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
@@ -636,7 +644,14 @@ class MainWP_Helper {
 	 * @return bool true|false If the current user is administrator (Level 10), return true, if not, return false.
 	 */
 	public static function is_admin() {
+
+		/**
+		 * Current user global.
+		 *
+		 * @global string
+		 */
 		global $current_user;
+
 		if ( 0 == $current_user->ID ) {
 			return false;
 		}

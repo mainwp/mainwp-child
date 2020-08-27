@@ -57,7 +57,9 @@ class MainWP_Clone_Page {
 		wp_enqueue_script( 'jquery-ui-progressbar' );
 		wp_enqueue_script( 'jquery-ui-dialog' );
 
+		/** @global object $wp_scripts WordPress Core class used to register scripts.  */
 		global $wp_scripts;
+
 		$ui      = $wp_scripts->query( 'jquery-ui-core' );
 		$version = $ui->ver;
 		if ( MainWP_Helper::starts_with( $version, '1.10' ) ) {
@@ -105,7 +107,10 @@ class MainWP_Clone_Page {
 		}
 		$error = false;
 		MainWP_Helper::get_wp_filesystem();
+
+		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 		global $wp_filesystem;
+
 		if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
 			echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
 			$error = true;
@@ -240,7 +245,10 @@ class MainWP_Clone_Page {
 			<div class="inside">
 				<?php
 				MainWP_Helper::get_wp_filesystem();
+
+				/** @global object $wp_filesystem Core WordPress filesystem class instance. */
 				global $wp_filesystem;
+
 				if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
 					echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
 					$error = true;

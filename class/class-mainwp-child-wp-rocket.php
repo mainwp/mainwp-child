@@ -240,7 +240,9 @@ class MainWP_Child_WP_Rocket {
 	 */
 	public static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
 
+		/** @global object $wp_filter WordPress filter array. */
 		global $wp_filter;
+
 		// Take only filters on right hook name and priority.
 		if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
 			return false;
@@ -269,7 +271,10 @@ class MainWP_Child_WP_Rocket {
 	 * Remove the WP Rocket admin bar node when the plugin is hidden.
 	 */
 	public function wp_before_admin_bar_render() {
+
+		/** @global object $wp_admin_bar WordPress admin bar array. */
 		global $wp_admin_bar;
+
 		$nodes = $wp_admin_bar->get_nodes();
 		if ( is_array( $nodes ) ) {
 			foreach ( $nodes as $node ) {
@@ -341,7 +346,10 @@ class MainWP_Child_WP_Rocket {
 	 * Remove the WP Rocket menu item when the plugin is hidden.
 	 */
 	public function remove_menu() {
+
+		/** @global object $submenu WordPress submenu array. */
 		global $submenu;
+
 		if ( isset( $submenu['options-general.php'] ) ) {
 			foreach ( $submenu['options-general.php'] as $index => $item ) {
 				if ( 'wprocket' === $item[2] ) {

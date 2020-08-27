@@ -166,7 +166,9 @@ class MainWP_Child_Updates {
 
 		$this->to_support_some_premiums_updates( $plugins );
 
+		/** @global object $wp_current_filter WordPress current filter. */
 		global $wp_current_filter;
+
 		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- Required for custom plugin installations, pull request solutions appreciated.
 		wp_update_plugins();
 
@@ -722,7 +724,10 @@ class MainWP_Child_Updates {
 	 * @uses MainWP_Child_Updates::do_upgrade_wp() Run the WordPress Core update.
 	 */
 	public function upgrade_wp() {
+
+		/** @global object $wp_version WordPress version. */
 		global $wp_version;
+
 		MainWP_Helper::get_wp_filesystem();
 
 		$information = array();
