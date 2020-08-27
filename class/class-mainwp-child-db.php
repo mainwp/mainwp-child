@@ -28,7 +28,6 @@ class MainWP_Child_DB {
 			return false;
 		}
 
-
 		/**
 		 * WordPress Database instance.
 		 *

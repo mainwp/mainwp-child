@@ -277,7 +277,7 @@ class MainWP_Child {
 		$this->parse_init_extensions();
 
 		/**
-		 * Wordpress submenu no privilege.
+		 * WordPress submenu no privilege.
 		 *
 		 * @global string
 		 */
