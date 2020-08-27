@@ -142,7 +142,6 @@ class MainWP_Child_Comments {
 	 */
 	public function get_all_comments() {
 
-
 		/**
 		 * WordPress Database instance.
 		 *
