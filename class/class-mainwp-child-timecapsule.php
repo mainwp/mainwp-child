@@ -433,7 +433,11 @@ class MainWP_Child_Timecapsule {
 			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore --  required to achieve desired results, pull request solutions appreciated.
 		}
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$all_backups = $wpdb->get_results(
@@ -489,7 +493,11 @@ class MainWP_Child_Timecapsule {
 
 		$config = \WPTC_Factory::get( 'config' );
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( ! $config->get_option( 'in_progress' ) ) {
@@ -658,7 +666,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function prepare_items() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( isset( $_POST['type'] ) ) {
@@ -740,7 +752,11 @@ class MainWP_Child_Timecapsule {
 			return false;
 		}
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$action_id     = $data['action_id'];
@@ -778,7 +794,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_display_rows( $records ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		// Get the records registered in the prepare_items method.
@@ -892,7 +912,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function clear_wptc_logs() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( $wpdb->query( 'TRUNCATE TABLE `' . $wpdb->base_prefix . 'wptc_activity_log`' ) ) {
@@ -1588,7 +1612,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_system_info() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$wptc_settings = \WPTC_Base_Factory::get( 'Wptc_Settings' );
