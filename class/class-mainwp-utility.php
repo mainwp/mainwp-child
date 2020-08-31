@@ -381,7 +381,11 @@ class MainWP_Utility {
 			$img_data = array();
 		}
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		MainWP_Helper::get_wp_filesystem();
@@ -441,7 +445,11 @@ class MainWP_Utility {
 	 */
 	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ) {
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( $wp_filesystem->exists( $local_img_path ) ) {
@@ -537,7 +545,11 @@ class MainWP_Utility {
 	 */
 	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( $full_guid ) {
@@ -633,7 +645,11 @@ class MainWP_Utility {
 		$dir  = $dir[0];
 		if ( MainWP_Helper::get_wp_filesystem() ) {
 
-			/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+			/**
+			 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+			 *
+			 * @global object $wp_filesystem Filesystem object.
+			 */
 			global $wp_filesystem;
 
 			try {
