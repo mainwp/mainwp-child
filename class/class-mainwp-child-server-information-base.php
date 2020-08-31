@@ -336,7 +336,11 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_wordpress_version() {
 
-		/** @global object $wp_version WordPress version. */
+		/**
+		 * The installed version of WordPress.
+		 *
+		 * @global string $wp_version The installed version of WordPress.
+		 */
 		global $wp_version;
 
 		return $wp_version;
@@ -431,7 +435,11 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	public static function get_my_sql_version() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		return $wpdb->get_var( "SHOW VARIABLES LIKE 'version'", 1 );
@@ -507,7 +515,11 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_sql_mode() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$mysqlinfo = $wpdb->get_results( "SHOW VARIABLES LIKE 'sql_mode'" );
@@ -649,7 +661,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Check if HTTPS is on.
 	 */
 	protected static function get_https() {
-		echo ! empty( $_SERVER['HTTPS'] ) ? esc_html( __( 'ON', 'mainwp-child' ) . ' - ' . sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ) ) : esc_html( 'OFF', 'mainwp-child' );
+		echo ! empty( $_SERVER['HTTPS'] ) ? esc_html( __( 'ON', 'mainwp-child' ) . ' - ' . sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ) ) : esc_html_( 'OFF', 'mainwp-child' );
 	}
 
 	/**
@@ -697,7 +709,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Get server remote host.
 	 */
 	protected static function get_remote_host() {
-		echo ! empty( $_SERVER['REMOTE_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_HOST'] ) ) : esc_html( 'N/A', 'mainwp-child' );
+		echo ! empty( $_SERVER['REMOTE_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_HOST'] ) ) : esc_html( 'N/A' );
 	}
 
 	/**
