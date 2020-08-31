@@ -889,7 +889,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::save()
      */
     public function save_profile() {
-		$profile_id = sanitize_text_field( wp_unslash( $_POST['profile_id'] ) );
+		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_id'] ) ) : 0;
 		$profile    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $profile ) ) {
@@ -913,7 +913,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::save()
      */
     public function delete_profile() {
-		$profile_id = sanitize_text_field( wp_unslash( $_POST['profile_id'] ) );
+		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_id'] ) ) : 0;
 
 		if ( isset( \pb_backupbuddy::$options['profiles'][ $profile_id ] ) ) {
 			unset( \pb_backupbuddy::$options['profiles'][ $profile_id ] );
@@ -1197,7 +1197,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$root_len = strlen( $root );
 
 		// This will identify the backup zip file we want to list.
-		$serial = sanitize_text_field( wp_unslash( $_POST['serial'] ) );
+		$serial = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
 		$alerts = array();
 		// The fileoptions file that contains the file tree information.
 		require_once \pb_backupbuddy::plugin_path() . '/classes/fileoptions.php';
@@ -1986,7 +1986,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function view_detail() {
 
-		$serial = sanitize_text_field( wp_unslash( $_POST['serial'] ) );
+		$serial = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
 		$serial = str_replace( '/\\', '', $serial );
 		\pb_backupbuddy::load();
 
@@ -2219,7 +2219,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @return array $information Return results array.
      */
     public function reset_integrity() {
-		$_GET['reset_integrity']    = sanitize_text_field( wp_unslash( $_POST['reset_integrity'] ) );
+		$_GET['reset_integrity']    = isset( $_POST['reset_integrity'] ) ? sanitize_text_field( wp_unslash( $_POST['reset_integrity'] ) ) : '';
 		$information['backup_list'] = $this->get_backup_list();
 		$information['result']      = 'SUCCESS';
 		return $information;
@@ -2304,7 +2304,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy_backup::start_backup_process()
      */
     public function create_backup() {
-		$requested_profile = sanitize_text_field( wp_unslash( $_POST['profile_id'] ) );
+		$requested_profile = isset( $_POST['profile_id'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_id'] ) ) : 0;
 
 		if ( ! isset( \pb_backupbuddy::$options['profiles'][ $requested_profile ] ) ) {
 			return array( 'error' => 'Invalid Profile. Not found.' );

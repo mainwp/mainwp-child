@@ -311,7 +311,7 @@ class MainWP_Backup {
 	 * @see https://developer.wordpress.org/reference/classes/wp_filesystem_base/get_contents/
 	 */
 	public function backup_checkpid() {
-		$pid = sanitize_text_field( wp_unslash( $_POST['pid'] ) );
+		$pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : 0;
 
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];

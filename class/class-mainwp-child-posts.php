@@ -412,7 +412,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function post_action() {
-		$action  = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		$postId  = sanitize_text_field( wp_unslash( $_POST['id'] ) );
 		$my_post = array();
 

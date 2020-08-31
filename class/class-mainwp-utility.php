@@ -57,7 +57,7 @@ class MainWP_Utility {
 	 */
 	public function run_saved_snippets() {
 		if ( isset( $_POST['action'] ) && isset( $_POST['mainwpsignature'] ) ) {
-			$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+			$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 			if ( 'run_snippet' === $action || 'save_snippet' === $action || 'delete_snippet' === $action ) {
 				return;
 			}
@@ -143,42 +143,23 @@ class MainWP_Utility {
 		$from_email = get_bloginfo( 'admin_email' );
 
 		// referrer.
-		if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
-			$referer = sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
-		} else {
-			$referer = 'undefined';
-		}
+		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : 'undefined';
+
 		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
 		// request URI.
-		if ( isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ) {
-			$request = $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] );
-		} else {
-			$request = 'undefined';
-		}
+		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) : 'undefined';
+
 		// query string.
-		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
-			$string = sanitize_text_field( wp_unslash( $_SERVER['QUERY_STRING'] ) );
-		} else {
-			$string = 'undefined';
-		}
+		$string = isset( $_SERVER['QUERY_STRING'] ) ? sanitize_text_field( wp_unslash( $_SERVER['QUERY_STRING'] ) ) : 'undefined';
 		// IP address.
-		if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
-			$address = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
-		} else {
-			$address = 'undefined';
-		}
+		$address = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'undefined';
+
 		// user agent.
-		if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
-			$agent = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
-		} else {
-			$agent = 'undefined';
-		}
+		$agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : 'undefined';
+
 		// identity.
-		if ( isset( $_SERVER['REMOTE_IDENT'] ) ) {
-			$remote = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_IDENT'] ) );
-		} else {
-			$remote = 'undefined';
-		}
+		$remote = isset( $_SERVER['REMOTE_IDENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_IDENT'] ) ) : 'undefined';
+
 		// log time.
 		$time = sanitize_text_field( wp_unslash( date( 'F jS Y, h:ia', time() ) ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
 

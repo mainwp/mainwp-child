@@ -578,7 +578,7 @@ class MainWP_Child_Misc {
 	 */
 	public function code_snippet() {
 
-		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		$type   = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 		$slug   = isset( $_POST['slug'] ) ? wp_unslash( $_POST['slug'] ) : '';
 

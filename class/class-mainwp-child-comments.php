@@ -62,7 +62,7 @@ class MainWP_Child_Comments {
 	 * MainWP Child Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
 	 */
 	public function comment_action() {
-		$action    = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		$commentId = sanitize_text_field( wp_unslash( $_POST['id'] ) );
 
 		if ( 'approve' === $action ) {
@@ -94,7 +94,7 @@ class MainWP_Child_Comments {
 	 * MainWP Child Bulk Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
 	 */
 	public function comment_bulk_action() {
-		$action                 = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$action                 = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		$commentIds             = explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) );
 		$information['success'] = 0;
 		foreach ( $commentIds as $commentId ) {

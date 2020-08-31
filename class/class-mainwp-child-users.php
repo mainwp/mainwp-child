@@ -61,7 +61,7 @@ class MainWP_Child_Users {
 	 * User actions: changeRole, update_password, edit, update_user.
 	 */
 	public function user_action() {
-		$action    = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		$extra     = wp_unslash( $_POST['extra'] );
 		$userId    = sanitize_text_field( wp_unslash( $_POST['id'] ) );
 		$user_pass = $_POST['user_pass'];
