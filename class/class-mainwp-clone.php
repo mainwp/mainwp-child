@@ -143,7 +143,7 @@ class MainWP_Clone {
 				die( wp_json_encode( array( 'error' => __( 'Double request!', 'mainwp-child' ) ) ) );
 			}
 
-			$ajaxPosts[ $action ] =sanitize_text_field( wp_unslash( $_POST['dts'] ) );
+			$ajaxPosts[ $action ] = sanitize_text_field( wp_unslash( $_POST['dts'] ) );
 			MainWP_Helper::update_option( 'mainwp_ajaxposts', $ajaxPosts );
 		}
 	}
@@ -217,7 +217,8 @@ class MainWP_Clone {
 				throw new \Exception( __( 'No site given', 'mainwp-child' ) );
 			}
 
-			$siteId       = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;;
+			$siteId = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;
+
 			$rand         = sanitize_text_field( wp_unslash( $_POST['rand'] ) );
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
@@ -335,7 +336,8 @@ class MainWP_Clone {
 
 			$file = $_POST['file'];
 			if ( isset( $_POST['siteId'] ) ) {
-				$siteId       = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;;
+				$siteId = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;
+
 				$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 				if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
@@ -396,7 +398,8 @@ class MainWP_Clone {
 			// Delete backup on child.
 			try {
 				if ( isset( $_POST['siteId'] ) ) {
-					$siteId       = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;;
+					$siteId = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;
+
 					$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 					if ( is_array( $sitesToClone ) && isset( $sitesToClone[ $siteId ] ) ) {
 						$siteToClone = $sitesToClone[ $siteId ];
