@@ -100,7 +100,7 @@ class MainWP_Connect {
 
 		// Check if the user exists and if yes, check if it's Administartor user.
 		if ( isset( $_POST['user'] ) ) {
-			if ( ! $this->login( $_POST['user'] ) ) {
+			if ( ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
 				$hint_miss_user = __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) . '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
 				MainWP_Helper::error( $hint_miss_user );
 			}
@@ -174,7 +174,7 @@ class MainWP_Connect {
 
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
-					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
+					if ( $this->check_login_as( wp_unslash( $_POST['alt_user'] ) ) ) {
 						$auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
 						// get alternative admin user.
 						$user = get_user_by( 'login', $auth_user );
@@ -463,7 +463,7 @@ class MainWP_Connect {
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
-					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
+					if ( $this->check_login_as( wp_unslash( $_POST['alt_user'] ) ) ) {
 						$auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
 						$user      = get_user_by( 'login', $auth_user );
 					}
@@ -471,7 +471,7 @@ class MainWP_Connect {
 				// if not valid alternative admin.
 				if ( ! $user ) {
 					// check connected admin existed.
-					$user      = get_user_by( 'login', $_POST['user'] );
+					$user      = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
 					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 				}
 				if ( ! $user ) {
