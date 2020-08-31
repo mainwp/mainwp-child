@@ -234,7 +234,11 @@ class MainWP_Clone {
 
 			// Send request to the childsite!
 
-			/** @global string $wp_version WordPress version. */
+			/**
+			 * The installed version of WordPress.
+			 *
+			 * @global string $wp_version The installed version of WordPress.
+			 */
 			global $wp_version;
 
 			$method = ( function_exists( 'gzopen' ) ? 'tar.gz' : 'zip' );

@@ -167,6 +167,12 @@ class MainWP_Child_Updates {
 		$this->to_support_some_premiums_updates( $plugins );
 
 		/** @global object $wp_current_filter WordPress current filter. */
+
+		/**
+		 * WordPress current filter.
+		 *
+		 * @global array $wp_current_filter WordPress current filter.
+		 */
 		global $wp_current_filter;
 
 		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- Required for custom plugin installations, pull request solutions appreciated.
@@ -725,7 +731,11 @@ class MainWP_Child_Updates {
 	 */
 	public function upgrade_wp() {
 
-		/** @global object $wp_version WordPress version. */
+		/**
+		 * The installed version of WordPress.
+		 *
+		 * @global string $wp_version The installed version of WordPress.
+		 */
 		global $wp_version;
 
 		MainWP_Helper::get_wp_filesystem();
