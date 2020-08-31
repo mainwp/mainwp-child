@@ -57,8 +57,6 @@ class MainWP_Clone_Page {
 		wp_enqueue_script( 'jquery-ui-progressbar' );
 		wp_enqueue_script( 'jquery-ui-dialog' );
 
-		/** @global object $wp_scripts WordPress Core class used to register scripts.  */
-
 		/**
 		 * WordPress Core class used to register scripts.
 		 *
