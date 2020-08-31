@@ -765,7 +765,7 @@ class MainWP_Child_Callable {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 
-		$file = wp_unslash( $_REQUEST['del'] );
+		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : '';
 
 		if ( file_exists( $backupdir . $file ) ) {
 			unlink( $backupdir . $file );

@@ -199,7 +199,7 @@ class MainWP_Child_Install {
 	public function theme_action() {
 
 		$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		$theme  = wp_unslash( $_POST['theme'] );
+		$theme  = isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : '';
 
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/theme.php';

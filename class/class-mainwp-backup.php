@@ -525,9 +525,9 @@ class MainWP_Backup {
 
 		$file = false;
 		if ( isset( $_POST['f'] ) ) {
-			$file = $_POST['f'];
+			$file = ! empty( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : false;
 		} elseif ( isset( $_POST['file'] ) ) {
-			$file = wp_unslash( $_POST['file'] );
+			$file = ! empty( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : false;
 		}
 
 		$ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';

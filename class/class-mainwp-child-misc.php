@@ -448,8 +448,8 @@ class MainWP_Child_Misc {
 	 */
 	public function uploader_action() {
 		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
-		$path        = wp_unslash( $_POST['path'] );
-		$filename    = wp_unslash( $_POST['filename'] );
+		$path        = isset( $_POST['path']) ? wp_unslash( $_POST['path'] ) : '';
+		$filename    = isset( $_POST['filename']) ? wp_unslash( $_POST['filename'] ) : '';
 		$information = array();
 
 		if ( empty( $file_url ) || empty( $path ) ) {

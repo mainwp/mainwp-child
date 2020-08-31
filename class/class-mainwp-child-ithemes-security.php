@@ -912,7 +912,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function admin_user() {
 
-		$settings = wp_unslash( $_POST['settings'] );
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
 		if ( ! is_array( $settings ) ) {
 			$settings = array();
@@ -1442,7 +1442,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function update_module_status() {
 
-		$active_modules = wp_unslash( $_POST['active_modules'] );
+		$active_modules = isset( $_POST['active_modules'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['active_modules'] ) ) : array();
 
 		if ( ! is_array( $active_modules ) ) {
 			$active_modules = array();

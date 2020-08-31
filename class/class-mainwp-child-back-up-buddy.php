@@ -939,8 +939,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::save()
      */
     public function delete_backup( $type = 'default', $subsite_mode = false ) {
-		$item_ids    = wp_unslash( $_POST['item_ids'] );
-		$item_ids    = explode( ',', $item_ids );
+		$item_ids    = isset( $_POST['item_ids'] ) ? explode( ',', wp_unslash( $_POST['item_ids'] ) ) : array();
 		$information = array();
 		if ( is_array( $item_ids ) && count( $item_ids ) > 0 ) {
 			$needs_save    = false;
@@ -1193,7 +1192,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$max_cache_time = 86400;
 
 		// This is the root directory we want the listing for.
-		$root     = wp_unslash( $_POST['dir'] );
+		$root     = isset( $_POST['dir'] ) ? wp_unslash( $_POST['dir'] ) : '';
 		$root_len = strlen( $root );
 
 		// This will identify the backup zip file we want to list.
@@ -1421,8 +1420,8 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function restore_file_view() {
 
-		$archive_file = wp_unslash( $_POST['archive'] ); // archive to extract from.
-		$file         = wp_unslash( $_POST['file'] ); // file to extract.
+		$archive_file = isset( $_POST['archive'] ) ? wp_unslash( $_POST['archive'] ) : ''; // archive to extract from.
+		$file         = isset( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : ''; // file to extract.
 		$serial       = \backupbuddy_core::get_serial_from_file( $archive_file ); // serial of archive.
 		$temp_file    = uniqid(); // temp filename to extract into.
 
@@ -1902,7 +1901,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::flush()
      */
     public function view_log() {
-		$serial  = wp_unslash( $_POST['serial'] );
+		$serial  = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
 		$logFile = \backupbuddy_core::getLogDirectory() . 'status-' . $serial . '_sum_' . \pb_backupbuddy::$options['log_serial'] . '.txt';
 
 		if ( ! file_exists( $logFile ) ) {
@@ -3491,8 +3490,8 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function delete_file_backup() {
 		// Handle deletion.
-		$files          = wp_unslash( $_POST['items'] );
-		$destination_id = sanitize_text_field( wp_unslash( $_POST['destination_id'] ) );
+		$files          = isset( $_POST['items'] ) ? wp_unslash( $_POST['items'] ) : array();
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		// Load required files.
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/s32/init.php';
@@ -3601,7 +3600,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @return bool|int[] Return 1 on success and FALSE on failure.
      */
     public function save_license_settings() {
-		$settings = wp_unslash( $_POST['settings'] );
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : false;
 		if ( is_array( $settings ) && isset( $GLOBALS['ithemes-updater-settings'] ) ) {
 			$GLOBALS['ithemes-updater-settings']->update_options( $settings );
 			return array( 'ok' => 1 );

@@ -175,8 +175,7 @@ class MainWP_Child_Branding_Render {
 	 * @param array $opts An array containg message options.
 	 */
 	private function render_submit_message( $opts ) {
-
-		$from_page = wp_unslash( $_POST['mainwp_branding_send_from_page'] );
+		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? sanitize_text_field( wp_unslash( $_POST['mainwp_branding_send_from_page'] ) ) : '';
 		$back_link = $opts['message_return_sender'];
 		$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
 		$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';

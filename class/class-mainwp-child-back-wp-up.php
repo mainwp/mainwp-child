@@ -750,8 +750,8 @@ class MainWP_Child_Back_WP_Up {
             return array( 'error' => __( 'Missing dest.', 'mainwp-child' ) );
         }
 
-        $backupfile = wp_unslash( $_POST['settings']['backupfile'] );
-        $dest       = sanitize_text_field( wp_unslash( $_POST['settings']['dest'] ) );
+        $backupfile = isset( $_POST['settings']['backupfile'] ) ? wp_unslash( $_POST['settings']['backupfile'] ) : '';
+        $dest       = isset( $_POST['settings']['dest'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['dest'] ) ) : '';
 
         list( $dest_id, $dest_name ) = explode( '_', $dest );
 
@@ -1107,8 +1107,8 @@ class MainWP_Child_Back_WP_Up {
             return array( 'error' => __( 'Missing logfile or logpos.', 'mainwp-child' ) );
         }
 
-        $_GET['logfile']      = wp_unslash( $_POST['settings']['logfile'] );
-        $_GET['logpos']       = wp_unslash( $_POST['settings']['logpos'] );
+        $_GET['logfile']      = isset( $_POST['settings']['logfile'] ) ? wp_unslash( $_POST['settings']['logfile'] ) : '';
+        $_GET['logpos']       = isset( $_POST['settings']['logpos'] ) ? wp_unslash( $_POST['settings']['logpos'] ) : '';
         $_REQUEST['_wpnonce'] = wp_create_nonce( 'backwpupworking_ajax_nonce' );
 
         $this->wp_list_table_dependency();
@@ -1307,7 +1307,7 @@ class MainWP_Child_Back_WP_Up {
      * @return array|\Exception Return response array.
      */
     protected function destination_email_check_email() {
-        $settings = wp_unslash( $_POST['settings'] );
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         $message = '';
 
@@ -1509,7 +1509,7 @@ class MainWP_Child_Back_WP_Up {
 
         $return = array();
 
-        $settings = wp_unslash( $_POST['settings'] );
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
             $mysqli = new \mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
@@ -1572,7 +1572,7 @@ class MainWP_Child_Back_WP_Up {
      * @return array Response array containing job_id, changes & message array.
      */
     protected function insert_or_update_jobs_global() {
-        $settings = wp_unslash( $_POST['settings'] );
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! is_array( $settings ) ) {
             return array( 'error' => __( 'Missing array settings', 'mainwp-child' ) );
@@ -1748,7 +1748,7 @@ class MainWP_Child_Back_WP_Up {
      */
     protected function insert_or_update_jobs() {
 
-        $settings = wp_unslash( $_POST['settings'] );
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
             return array( 'error' => __( 'Missing array settings', 'mainwp-child' ) );
@@ -1864,7 +1864,7 @@ class MainWP_Child_Back_WP_Up {
      * @return array Response array success, changes, message[].
      */
     protected function update_settings() {
-        $settings = wp_unslash( $_POST['settings'] );
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
             return array( 'error' => __( 'Missing array settings', 'mainwp-child' ) );

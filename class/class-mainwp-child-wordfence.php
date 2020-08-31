@@ -2701,7 +2701,7 @@ SQL
 		if ( ! \wfConfig::get( 'isPaid' ) ) {
 			return array( 'error' => 'Sorry but this feature is only available for paid customers.' );
 		}
-		$settings = wp_unslash( $_POST['settings'] );
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 		\wfConfig::set( 'cbl_action', $settings['blockAction'] );
 		\wfConfig::set( 'cbl_countries', $settings['codes'] );
 		\wfConfig::set( 'cbl_redirURL', $settings['redirURL'] );
@@ -3960,7 +3960,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public static function save_debugging_config() {
-		$settings = wp_unslash( $_POST['settings'] );
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 		foreach ( self::$diagnosticParams as $param ) {
 			if ( isset( $settings[ $param ] ) ) {
 				\wfConfig::set( $param, $settings[ $param ] );

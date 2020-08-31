@@ -268,7 +268,7 @@ class MainWP_Child_Pagespeed {
 
 		$information = array();
 
-		$settings = wp_unslash( $_POST['settings'] );
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 		$settings = maybe_unserialize( base64_decode( $settings ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 
 		if ( is_array( $settings ) ) {

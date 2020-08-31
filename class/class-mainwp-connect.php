@@ -136,7 +136,7 @@ class MainWP_Connect {
 		$information['nosslkey'] = $nossl_key;
 		$information['register'] = 'OK';
 		$information['uniqueId'] = get_option( 'mainwp_child_uniqueId', '' );
-		$information['user']     = wp_unslash( $_POST['user'] );
+		$information['user']     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.
 	}

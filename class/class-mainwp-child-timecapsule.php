@@ -586,10 +586,10 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function get_this_backups_html() {
-		$this_backup_ids    = wp_unslash( $_POST['this_backup_ids'] );
-		$specific_dir       = wp_unslash( $_POST['specific_dir'] );
-		$type               = sanitize_text_field( wp_unslash( $_POST['type'] ) );
-		$treeRecursiveCount = wp_unslash( $_POST['treeRecursiveCount'] );
+		$this_backup_ids    = isset( $_POST['this_backup_ids'] ) ? wp_unslash( $_POST['this_backup_ids'] ) : '';
+		$specific_dir       = isset( $_POST['specific_dir'] ) ? wp_unslash( $_POST['specific_dir'] ) : '';
+		$type               = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+		$treeRecursiveCount = isset( $_POST['treeRecursiveCount'] ) ? sanitize_text_field( wp_unslash( $_POST['treeRecursiveCount'] ) ) : '';
 		$processed_files    = \WPTC_Factory::get( 'processed-files' );
 
 		$result = $processed_files->get_this_backups_html( $this_backup_ids, $specific_dir, $type, $treeRecursiveCount );
@@ -746,7 +746,7 @@ class MainWP_Child_Timecapsule {
 			return false;
 		}
 
-		$data = wp_unslash( $_POST['data'] );
+		$data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
 
 		if ( ! isset( $data['action_id'] ) || ! isset( $data['limit'] ) ) {
 			return false;
@@ -1100,8 +1100,8 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function get_files_by_key() {
-		$key               = wp_unslash( $_POST['key'] );
-		$category          = wp_unslash( $_POST['category'] );
+		$key               = isset( $_POST['key'] ) ? wp_unslash( $_POST['key'] ) : '';
+		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array();
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_files_by_key( $key );
 		die();
@@ -1739,7 +1739,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function save_manual_backup_name_wptc() {
-		$backup_name     = wp_unslash( $_POST['backup_name'] );
+		$backup_name     = isset( $_POST['backup_name'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_name'] ) ): '';
 		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		$processed_files->save_manual_backup_name_wptc( $backup_name );
 		die();

@@ -62,9 +62,9 @@ class MainWP_Child_Users {
 	 */
 	public function user_action() {
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		$extra     = wp_unslash( $_POST['extra'] );
-		$userId    = sanitize_text_field( wp_unslash( $_POST['id'] ) );
-		$user_pass = $_POST['user_pass'];
+		$extra     = isset( $_POST['extra'] ) ? sanitize_text_field( wp_unslash( $_POST['extra'] ) ) : '';
+		$userId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+		$user_pass = isset( $_POST['user_pass'] ) ? wp_unslash( $_POST['user_pass'] ) : '';
 		$failed    = false;
 
 		/**
@@ -90,14 +90,14 @@ class MainWP_Child_Users {
 			$my_user['user_pass'] = $user_pass;
 			wp_update_user( $my_user );
 		} elseif ( 'edit' === $action ) {
-						$user_data = $this->get_user_to_edit( $userId );
+			$user_data = $this->get_user_to_edit( $userId );
 			if ( ! empty( $user_data ) ) {
 				$information['user_data'] = $user_data;
 			} else {
 				$failed = true;
 			}
 		} elseif ( 'update_user' === $action ) {
-						$my_user = $_POST['extra'];
+			$my_user = $_POST['extra'];
 			if ( is_array( $my_user ) ) {
 				foreach ( $my_user as $idx => $val ) {
 					if ( 'donotupdate' === $val || ( empty( $val ) && 'role' !== $idx ) ) {
