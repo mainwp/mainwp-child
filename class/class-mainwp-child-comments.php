@@ -155,7 +155,7 @@ class MainWP_Child_Comments {
 			$this->comments_and_clauses .= " AND $wpdb->comments.comment_post_ID = " . sanitize_text_field( wp_unslash( $_POST['postId'] ) );
 		} else {
 			if ( isset( $_POST['keyword'] ) ) {
-				$this->comments_and_clauses .= " AND $wpdb->comments.comment_content LIKE '%" . sanitize_text_field( wp_unslash($_POST['keyword'] ) ) . "%'";
+				$this->comments_and_clauses .= " AND $wpdb->comments.comment_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%'";
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
 				$this->comments_and_clauses .= " AND $wpdb->comments.comment_date > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";

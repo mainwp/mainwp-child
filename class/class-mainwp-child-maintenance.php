@@ -278,10 +278,19 @@ class MainWP_Child_Maintenance {
 	private function maintenance_optimize() {
 
 		/**
+		 * Object, providing access to the WordPress database.
+		 *
 		 * @global object $wpdb WordPress Database instance.
+		 */
+		global $wpdb;
+
+		/**
+		 * WordPress DB table prefix.
+		 *
 		 * @global string $table_prefix WordPress DB table prefix.
 		 */
-		global $wpdb, $table_prefix;
+		global $table_prefix;
+
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
 		$result = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 		if ( MainWP_Child_DB::num_rows( $result ) && MainWP_Child_DB::is_result( $result ) ) {

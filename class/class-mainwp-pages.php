@@ -228,7 +228,11 @@ class MainWP_Pages {
 		add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
 		add_action( 'mainwp-child-pagefooter', array( __CLASS__, 'render_footer' ) );
 
-		/** @global object $submenu WordPress submenu array. */
+		/**
+		 * WordPress submenu array.
+		 *
+		 * @global array $submenu WordPress submenu array.
+		 */
 		global $submenu;
 
 		if ( isset( $submenu['options-general.php'] ) ) {
