@@ -57,7 +57,11 @@ class MainWP_WordPress_SEO {
 	 */
 	public function __construct() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );

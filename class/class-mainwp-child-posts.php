@@ -298,7 +298,11 @@ class MainWP_Child_Posts {
 	 */
 	public function get_all_posts_by_type( $type ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
@@ -313,9 +317,9 @@ class MainWP_Child_Posts {
 				if ( 'title' == $search_on ) {
 					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				} elseif ( 'content' == $search_on ) {
-					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash ( $_POST['keyword'] ) ) . "%' )";
+					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				} else {
-					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' OR $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
+					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' OR $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				}
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
