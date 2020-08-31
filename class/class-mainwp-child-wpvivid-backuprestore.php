@@ -499,7 +499,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		/** @global object $wpvivid_plugin WPVivid Class. */
 		global $wpvivid_plugin;
 
-		$wpvivid_plugin->ajax_check_security();		
+		$wpvivid_plugin->ajax_check_security();
 		$ret = isset( $_POST['backup_id'] ) && isset( $_POST['file_name'] ) ? $this->public_intetface->download_backup( sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ), sanitize_text_field( wp_unslash( $_POST['file_name'] ) ) ) : false;
 		return $ret;
 	}
