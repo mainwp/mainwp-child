@@ -174,7 +174,7 @@ class MainWP_Child_Stats {
 
 		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );
 		if ( isset( $_POST['server'] ) ) {
-			MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] );
+			MainWP_Helper::update_option( 'mainwp_child_server', wp_unslash( $_POST['server'] ) );
 		}
 
 		MainWP_Child_Plugins_Check::may_outdate_number_change();
@@ -239,7 +239,7 @@ class MainWP_Child_Stats {
 		}
 
 		if ( isset( $_POST['primaryBackup'] ) && ! empty( $_POST['primaryBackup'] ) ) {
-			$primary_bk                           = $_POST['primaryBackup'];
+			$primary_bk                           = wp_unslash( $_POST['primaryBackup'] );
 			$information['primaryLasttimeBackup'] = MainWP_Utility::get_lasttime_backup( $primary_bk );
 		}
 
@@ -257,7 +257,7 @@ class MainWP_Child_Stats {
 		$information['health_site_status']   = $this->get_health_check_site_status();
 
 		if ( isset( $_POST['user'] ) ) {
-			$user = get_user_by( 'login', $_POST['user'] );
+			$user = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
 			if ( $user && property_exists( $user, 'ID' ) && $user->ID ) {
 				$information['admin_nicename']  = $user->data->user_nicename;
 				$information['admin_useremail'] = $user->data->user_email;
@@ -291,7 +291,7 @@ class MainWP_Child_Stats {
 	 */
 	private function stats_others_data( &$information ) {
 
-		$othersData = json_decode( stripslashes( $_POST['othersData'] ), true );
+		$othersData = json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true );
 		if ( ! is_array( $othersData ) ) {
 			$othersData = array();
 		}
@@ -437,7 +437,7 @@ class MainWP_Child_Stats {
 			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
 			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
 			'themeactivated' => $theme_name,
-			'ip'             => $_SERVER['SERVER_ADDR'],
+			'ip'             => wp_unslash( $_SERVER['SERVER_ADDR'] ),
 		);
 
 		// Try to switch to SSL if SSL is enabled in between.
@@ -699,7 +699,7 @@ class MainWP_Child_Stats {
 		$recent_number = 5;
 
 		if ( isset( $_POST ) && isset( $_POST['recent_number'] ) ) {
-			$recent_number = intval( $_POST['recent_number'] );
+			$recent_number = intval( wp_unslash( $_POST['recent_number'] ) );
 			if ( get_option( 'mainwp_child_recent_number', 5 ) != $recent_number ) {
 				update_option( 'mainwp_child_recent_number', $recent_number );
 			}
@@ -723,7 +723,7 @@ class MainWP_Child_Stats {
 	public function update_external_settings() {
 		if ( isset( $_POST['cloneSites'] ) ) {
 			if ( '0' !== $_POST['cloneSites'] ) {
-				$arr = isset( $_POST['cloneSites'] ) ? json_decode( urldecode( $_POST['cloneSites'] ), 1 ) : '';
+				$arr = isset( $_POST['cloneSites'] ) ? json_decode( urldecode( wp_unslash( $_POST['cloneSites'] ) ), 1 ) : '';
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', ( ! is_array( $arr ) ? array() : $arr ) );
 			} else {
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', '0' );
@@ -731,12 +731,12 @@ class MainWP_Child_Stats {
 		}
 
 		if ( isset( $_POST['siteId'] ) ) {
-			MainWP_Helper::update_option( 'mainwp_child_siteid', intval( $_POST['siteId'] ) );
+			MainWP_Helper::update_option( 'mainwp_child_siteid', intval( wp_unslash( $_POST['siteId'] ) ) );
 		}
 
 		if ( isset( $_POST['pluginDir'] ) ) {
 			if ( get_option( 'mainwp_child_pluginDir' ) !== $_POST['pluginDir'] ) {
-				MainWP_Helper::update_option( 'mainwp_child_pluginDir', $_POST['pluginDir'], 'yes' );
+				MainWP_Helper::update_option( 'mainwp_child_pluginDir', wp_unslash( $_POST['pluginDir'] ), 'yes' );
 			}
 		} elseif ( false !== get_option( 'mainwp_child_pluginDir' ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_pluginDir', false, 'yes' );
