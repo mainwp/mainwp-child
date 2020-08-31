@@ -165,7 +165,7 @@ class MainWP_Clone {
 
 		$adminurl = strtolower( admin_url() );
 		$referer  = strtolower( wp_get_referer() );
-		$result   = isset( $_REQUEST[ $query_arg ] ) ? wp_verify_nonce( $_REQUEST[ $query_arg ], $action ) : false;
+		$result   = isset( $_REQUEST[ $query_arg ] ) ? wp_verify_nonce( wp_unslash( $_REQUEST[ $query_arg ] ), $action ) : false;
 		if ( ! $result && ! ( - 1 == $action && 0 === strpos( $referer, $adminurl ) ) ) {
 			return false;
 		}
@@ -217,7 +217,7 @@ class MainWP_Clone {
 				throw new \Exception( __( 'No site given', 'mainwp-child' ) );
 			}
 
-			$siteId = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;
+			$siteId = isset( $_POST['siteId'] ) ? intval( wp_unslash( $_POST['siteId'] ) ) : false;
 
 			$rand         = isset( $_POST['rand'] ) ? sanitize_text_field( wp_unslash( $_POST['rand'] ) ) : '';
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
@@ -338,9 +338,9 @@ class MainWP_Clone {
 				throw new \Exception( __( 'No download link given', 'mainwp-child' ) );
 			}
 
-			$file = $_POST['file'];
+			$file = wp_unslash( $_POST['file'] );
 			if ( isset( $_POST['siteId'] ) ) {
-				$siteId = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;
+				$siteId = isset( $_POST['siteId'] ) ? intval( wp_unslash( $_POST['siteId'] ) ) : false;
 
 				$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
@@ -402,7 +402,7 @@ class MainWP_Clone {
 			// Delete backup on child.
 			try {
 				if ( isset( $_POST['siteId'] ) ) {
-					$siteId = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;
+					$siteId = isset( $_POST['siteId'] ) ? intval( wp_unslash( $_POST['siteId'] ) ) : false;
 
 					$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 					if ( is_array( $sitesToClone ) && isset( $sitesToClone[ $siteId ] ) ) {

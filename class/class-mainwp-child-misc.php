@@ -447,7 +447,7 @@ class MainWP_Child_Misc {
 	 * @return void
 	 */
 	public function uploader_action() {
-		$file_url    = isset( $_POST['url'] ) ? base64_decode( $_POST['url'] ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+		$file_url    = isset( $_POST['url'] ) ? base64_decode( wp_unslash( $_POST['url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		$path        = isset( $_POST['path'] ) ? wp_unslash( $_POST['path'] ) : '';
 		$filename    = isset( $_POST['filename'] ) ? wp_unslash( $_POST['filename'] ) : '';
 		$information = array();
@@ -594,7 +594,7 @@ class MainWP_Child_Misc {
 			}
 		}
 
-		$code = isset( $_POST['code'] ) ? stripslashes( $_POST['code'] ) : '';
+		$code = isset( $_POST['code'] ) ? stripslashes( wp_unslash( $_POST['code'] ) ) : '';
 
 		$information = array();
 		if ( 'run_snippet' === $action ) {

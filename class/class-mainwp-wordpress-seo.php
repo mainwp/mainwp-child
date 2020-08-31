@@ -108,7 +108,7 @@ class MainWP_WordPress_SEO {
 	 */
 	public function import_settings() {
 		if ( isset( $_POST['file_url'] ) ) {
-			$file_url       = ! empty( $_POST['file_url'] ) ? base64_decode( $_POST['file_url'] ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+			$file_url       = ! empty( $_POST['file_url'] ) ? base64_decode( wp_unslash( $_POST['file_url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 			$temporary_file = '';
 
 			try {
@@ -134,7 +134,7 @@ class MainWP_WordPress_SEO {
 			}
 		} elseif ( isset( $_POST['settings'] ) ) {
 			try {
-				$settings = ! empty( $_POST['settings'] ) ? base64_decode( $_POST['settings'] ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+				$settings = ! empty( $_POST['settings'] ) ? base64_decode( wp_unslash( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 				$options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
 				if ( is_array( $options ) && array() !== $options ) {
 
