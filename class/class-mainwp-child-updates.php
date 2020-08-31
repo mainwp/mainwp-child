@@ -166,8 +166,6 @@ class MainWP_Child_Updates {
 
 		$this->to_support_some_premiums_updates( $plugins );
 
-		/** @global object $wp_current_filter WordPress current filter. */
-
 		/**
 		 * WordPress current filter.
 		 *
