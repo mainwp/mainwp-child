@@ -324,7 +324,7 @@ class MainWP_Clone_Page {
 	 * Allows the Media Manager to add files from the webservers filesystem. Note: All files are copied to the uploads directory.
 	 */
 	private static function render_clone_from_server() {
-		$page         = $_REQUEST['page'];
+		$page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 		$url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
 		$dirs         = MainWP_Helper::get_mainwp_dir( 'backup', false );
@@ -332,7 +332,7 @@ class MainWP_Clone_Page {
 		$backup_dir   = $current_dir;
 
 		if ( isset( $_REQUEST['dir'] ) ) {
-			$current_dir = stripslashes( rawurldecode( $_REQUEST['dir'] ) );
+			$current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( $_REQUEST['dir'] ) ) : '';
 			$current_dir = '/' . ltrim( $current_dir, '/' );
 			if ( ! is_readable( $current_dir ) && get_option( 'mainwp_child_clone_from_server_last_folder' ) ) {
 				$current_dir = get_option( 'mainwp_child_clone_from_server_last_folder' ) . $current_dir;

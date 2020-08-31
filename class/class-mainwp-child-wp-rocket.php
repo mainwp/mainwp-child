@@ -620,7 +620,7 @@ class MainWP_Child_WP_Rocket {
 	 * @return array Action result.
 	 */
 	public function save_settings() {
-		$options = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$options = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $options ) || empty( $options ) ) {
 			return array( 'error' => 'INVALID_OPTIONS' );
 		}

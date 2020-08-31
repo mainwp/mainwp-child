@@ -221,7 +221,7 @@ class MainWP_Child_Branding {
 	 */
 	public function update_branding() {
 		$information = array();
-		$settings    = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for bacwards compatibility.
+		$settings    = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for bacwards compatibility.
 		if ( ! is_array( $settings ) ) {
 			return $information;
 		}

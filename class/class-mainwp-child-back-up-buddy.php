@@ -1275,7 +1275,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @return array|string[] Return excluded files & directories list html or ERROR message.
      */
     public function exclude_tree() {
-		$root = substr( ABSPATH, 0, strlen( ABSPATH ) - 1 ) . '/' . ltrim( urldecode( $_POST['dir'] ), '/\\' );
+		$root = substr( ABSPATH, 0, strlen( ABSPATH ) - 1 ) . '/' . ( isset( $_POST['dir'] ) ? ltrim( urldecode( $_POST['dir'] ), '/\\' ) : '' );
 		if ( file_exists( $root ) ) {
 			$files = scandir( $root );
 
@@ -3112,7 +3112,7 @@ class MainWP_Child_Back_Up_Buddy {
 				\pb_backupbuddy::$options['remote_destinations'][ $nextDestKey ]['title']           = 'My BackupBuddy Stash Live';
 
 				// Notification email.
-				\pb_backupbuddy::$options['remote_destinations'][ $nextDestKey ]['email'] = sanitize_text_field( wp_unslash( $_POST['email'] ) );
+				\pb_backupbuddy::$options['remote_destinations'][ $nextDestKey ]['email'] = isset( $_POST['email']  ) ? sanitize_text_field( wp_unslash( $_POST['email'] ) ) : '';
 
 				// Archive limits.
 				foreach ( $archive_types as $archive_type => $archive_type_name ) {
@@ -3175,8 +3175,8 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \backupbuddy_live::send_trim_settings()
      */
     public function live_save_settings() {
-		$data               = $_POST['data'];
-		$new_destination_id = sanitize_text_field( wp_unslash( $_POST['destination_id'] ) );
+		$data               = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+		$new_destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php';
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/live/live.php';
@@ -3222,7 +3222,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function live_action_disconnect() {
 		$error             = '';
-		$liveDestinationID = sanitize_text_field( wp_unslash( $_POST['destination_id'] ) );
+		$liveDestinationID = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		$return = array();
 		if ( $liveDestinationID ) {
@@ -3264,7 +3264,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \backupbuddy_api::setLiveStatus()
      */
     public function live_action() {
-		$action  = sanitize_text_field( wp_unslash( $_POST['live_action'] ) );
+		$action  = isset( $_POST['live_action'] ) ? sanitize_text_field( wp_unslash( $_POST['live_action'] ) ) : '';
 		$error   = '';
 		$message = '';
 
@@ -3372,7 +3372,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \backupbuddy_core::pretty_backup_type()
      */
     public function get_live_backups() {
-		$destination_id = sanitize_text_field( wp_unslash( $_POST['destination_id'] ) );
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 		// Load required files.
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/s32/init.php';
 
@@ -3456,8 +3456,8 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function copy_file_to_local() {
 
-		$file           = base64_decode( $_POST['cpy_file'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$destination_id = sanitize_text_field( wp_unslash( $_POST['destination_id'] ) );
+		$file           = isset( $_POST['cpy_file'] ) ? base64_decode( $_POST['cpy_file'] ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		// Load required files.
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/s32/init.php';
@@ -3653,7 +3653,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function activate_package() {
 
-		$username = sanitize_text_field( wp_unslash( $_POST['username'] ) );
+		$username = isset( $_POST['username'] ) ? sanitize_text_field( wp_unslash( $_POST['username'] ) ) : '';
 		$password = $_POST['password'];
 		$packages = $_POST['packages'];
 
@@ -3737,7 +3737,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function deactivate_package( $data ) {
 
-		$username = sanitize_text_field( wp_unslash( $_POST['username'] ) );
+		$username = isset( $_POST['username'] ) ? sanitize_text_field( wp_unslash( $_POST['username'] ) ) : '';
 		$password = $_POST['password'];
 		$packages = $_POST['packages'];
 

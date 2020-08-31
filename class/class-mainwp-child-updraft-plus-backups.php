@@ -574,7 +574,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @uses $updraftplus::schedule_backup_database()
      */
     public function save_settings() {
-        $settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
         $keys_filter = $this->get_settings_keys();
 
@@ -1175,7 +1175,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 		$logupdate_array = array();
 		if ( ! empty( $_REQUEST['log_fetch'] ) ) {
             if ( isset( $_REQUEST['log_nonce'] ) ) {
-                $log_nonce       = $_REQUEST['log_nonce'];
+                $log_nonce       = isset( $_REQUEST['log_nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['log_nonce'] ) ) : '';
                 $log_pointer     = isset( $_REQUEST['log_pointer'] ) ? absint( $_REQUEST['log_pointer'] ) : 0;
                 $logupdate_array = $this->fetch_log( $log_nonce, $log_pointer );
             }
@@ -1477,7 +1477,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         } elseif ( class_exists( '\UpdraftPlus_Backup_History' ) ) {
             $backups = \UpdraftPlus_Backup_History::get_history();
         }
-        $timestamp = sanitize_text_field( wp_unslash( $_POST['backup_timestamp'] ) );
+        $timestamp = isset( $_POST['backup_timestamp'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_timestamp'] ) ) : '';
         if ( ! isset( $backups[ $timestamp ] ) ) {
             $bh = $this->build_historystatus();
 
@@ -1730,8 +1730,8 @@ class MainWP_Child_Updraft_Plus_Backups {
         }
 
         // Get the information on what is wanted.
-        $type      = $_REQUEST['type'];
-        $timestamp = $_REQUEST['timestamp'];
+        $type      = isset( $_REQUEST['type'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['type'] ) ) : '';
+        $timestamp = isset( $_REQUEST['timestamp'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['timestamp'] ) ) : '';
 
         // You need a nonce before you can set job data. And we certainly don't yet have one.
         $updraftplus->backup_time_nonce( $timestamp );
@@ -3592,8 +3592,8 @@ ENDHERE;
          * Casting $resumption to int is absolutely necessary, as the WP cron system uses a hashed serialisation
          *  of the parameters for identifying jobs. Different type => different hash => does not match.
          */
-        $resumption = (int) $_REQUEST['resumption'];
-        $job_id     = $_REQUEST['job_id'];
+        $resumption = isset( $_REQUEST['resumption'] ) ? (int) $_REQUEST['resumption'] : 0;
+        $job_id     = isset( $_REQUEST['job_id'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['job_id'] ) ) : 0;
         $get_cron   = $this->get_cron( $job_id );
         if ( ! is_array( $get_cron ) ) {
             return array( 'r' => false );
@@ -4026,7 +4026,7 @@ ENDHERE;
      * @uses MainWP_Child_Updraft_Plus_Backups::fetch_log()
      */
     private function fetch_updraft_log() {
-        $backup_nonce = sanitize_text_field( wp_unslash( $_POST['backup_nonce'] ) );
+        $backup_nonce = isset( $_POST['backup_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_nonce'] ) ) : '';
 
         return $this->fetch_log( $backup_nonce );
     }
@@ -4037,7 +4037,7 @@ ENDHERE;
      * @return array|string[] Return Y Job has been deleted or N Job not found.
      */
     private function activejobs_delete() {
-        $jobid = sanitize_text_field( wp_unslash( $_POST['jobid'] ) );
+        $jobid = isset( $_POST['jobid'] ) ? sanitize_text_field( wp_unslash( $_POST['jobid'] ) ) : '';
         if ( empty( $jobid ) ) {
             return array( 'error' => 'Error: empty job id.' );
         }

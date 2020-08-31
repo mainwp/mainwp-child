@@ -111,7 +111,7 @@ class MainWP_Child_Branding_Render {
 
 		$from_page = '';
 		if ( isset( $_GET['from_page'] ) ) {
-			$from_page = rawurldecode( $_GET['from_page'] );
+			$from_page = isset( $_GET['from_page'] ) ? rawurldecode( $_GET['from_page'] ) : '';
 		} else {
 			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
 			$fullurl   = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
@@ -175,7 +175,7 @@ class MainWP_Child_Branding_Render {
 	 * @param array $opts An array containg message options.
 	 */
 	private function render_submit_message( $opts ) {
-		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? sanitize_text_field( wp_unslash( $_POST['mainwp_branding_send_from_page'] ) ) : '';
+		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : '';
 		$back_link = $opts['message_return_sender'];
 		$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
 		$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';
@@ -209,6 +209,9 @@ class MainWP_Child_Branding_Render {
 		$content = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_content'] ) ) );
 		$mail    = '';
 		$headers = '';
+		
+		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : '';
+		
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 
 			/**
@@ -223,7 +226,7 @@ class MainWP_Child_Branding_Render {
 				$headers .= 'From: "' . $from . '" <' . $from . ">\r\n";
 			}
 			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
-			$mail .= '<p>Sent from WordPress page: ' . ( ! empty( $_POST['mainwp_branding_send_from_page'] ) ? "<a href='" . esc_url( $_POST['mainwp_branding_send_from_page'] ) . "'>" . esc_url( $_POST['mainwp_branding_send_from_page'] ) . "</a></p>\r\n\r\n" : '' );
+			$mail .= '<p>Sent from WordPress page: ' . ( ! empty( $from_page ) ? "<a href='" . esc_url( $from_page ) . "'>" . esc_url( $from_page ) . "</a></p>\r\n\r\n" : '' );
 			$mail .= '<p>Client Email: ' . $current_user->user_email . " </p>\r\n\r\n";
 			$mail .= "<p>Support Text:</p>\r\n\r\n";
 			$mail .= '<p>' . $content . "</p>\r\n\r\n";

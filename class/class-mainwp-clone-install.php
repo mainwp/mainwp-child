@@ -800,7 +800,7 @@ class MainWP_Clone_Install {
 			rmdir( ABSPATH . 'clone' );
 		}
 
-		$wpversion = sanitize_text_field( wp_unslash( $_POST['wpversion'] ) );
+		$wpversion = isset( $_POST['wpversion'] ) ? sanitize_text_field( wp_unslash( $_POST['wpversion'] ) ) : '';
 		global $wp_version;
 		$includeCoreFiles = ( $wpversion !== $wp_version );
 		$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
@@ -823,7 +823,14 @@ class MainWP_Clone_Install {
 			$method = 'zip';
 		}
 
-		$res = MainWP_Backup::get()->create_full_backup( $newExcludes, ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] ), true, $includeCoreFiles, 0, false, false, false, false, $method );
+		$file = false;
+		if ( isset( $_POST['f'] ) ) {
+			$file = ! empty( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : false;
+		} elseif ( isset( $_POST['file'] ) ) {
+			$file = ! empty( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : false;
+		}
+
+		$res = MainWP_Backup::get()->create_full_backup( $newExcludes, $file, true, $includeCoreFiles, 0, false, false, false, false, $method );
 		if ( ! $res ) {
 			$information['backup'] = false;
 		} else {

@@ -143,7 +143,7 @@ class MainWP_Clone {
 				die( wp_json_encode( array( 'error' => __( 'Double request!', 'mainwp-child' ) ) ) );
 			}
 
-			$ajaxPosts[ $action ] = sanitize_text_field( wp_unslash( $_POST['dts'] ) );
+			$ajaxPosts[ $action ] = isset( $_POST['dts'] ) ? sanitize_text_field( wp_unslash( $_POST['dts'] ) ) : '';
 			MainWP_Helper::update_option( 'mainwp_ajaxposts', $ajaxPosts );
 		}
 	}
@@ -219,7 +219,7 @@ class MainWP_Clone {
 
 			$siteId = isset( $_POST['siteId'] ) ? intval( $_POST['siteId'] ) : false;
 
-			$rand         = sanitize_text_field( wp_unslash( $_POST['rand'] ) );
+			$rand         = isset( $_POST['rand'] ) ? sanitize_text_field( wp_unslash( $_POST['rand'] ) ) : '';
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 			if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
@@ -285,8 +285,8 @@ class MainWP_Clone {
 			if ( ! isset( $_POST['siteId'] ) ) {
 				throw new \Exception( __( 'No site given', 'mainwp-child' ) );
 			}
-			$siteId = sanitize_text_field( wp_unslash( $_POST['siteId'] ) );
-			$rand   = sanitize_text_field( wp_unslash( $_POST['rand'] ) );
+			$siteId = isset( $_POST['siteId'] ) ? sanitize_text_field( wp_unslash( $_POST['siteId'] ) ) : '';
+			$rand   = isset( $_POST['rand'] ) ? sanitize_text_field( wp_unslash( $_POST['rand'] ) ) : '';
 
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 			if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
@@ -474,7 +474,13 @@ class MainWP_Clone {
 
 			MainWP_Helper::end_session();
 
-			$file         = ( isset( $_POST['f'] ) ? $_POST['f'] : wp_unslash( $_POST['file'] ) );
+			$file = false;
+			if ( isset( $_POST['f'] ) ) {
+				$file = ! empty( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : false;
+			} elseif ( isset( $_POST['file'] ) ) {
+				$file = ! empty( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : false;
+			}
+
 			$testFull     = false;
 			$file         = $this->clone_backup_get_file( $file, $testFull );
 			$cloneInstall = new MainWP_Clone_Install( $file );

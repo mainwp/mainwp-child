@@ -626,8 +626,8 @@ class MainWP_Child_Timecapsule {
 		// note that we are getting the ajax function data via $_POST.
 		$file_name       = $_POST['data']['file_name'];
 		$file_name       = wp_normalize_path( $file_name );
-		$backup_id       = sanitize_text_field( wp_unslash( $_POST['data']['backup_id'] ) );
-		$recursive_count = sanitize_text_field( wp_unslash( $_POST['data']['recursive_count'] ) );
+		$backup_id       = isset( $_POST['data']['backup_id'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['backup_id'] ) ) : '';
+		$recursive_count = isset( $_POST['data']['recursive_count'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['recursive_count'] ) ) : '';
 
 		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		echo $processed_files->get_this_backups_html( $backup_id, $file_name, $type = 'sibling', (int) $recursive_count );
@@ -1124,7 +1124,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$email = sanitize_text_field( wp_unslash( $_POST['acc_email'] ) );
+		$email = isset( $_POST['acc_email'] ) ? sanitize_text_field( wp_unslash( $_POST['acc_email'] ) ) : '';
 		$pwd   = $_POST['acc_pwd'];
 
 		if ( empty( $email ) || empty( $pwd ) ) {
@@ -1360,8 +1360,8 @@ class MainWP_Child_Timecapsule {
 
 		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
 
-		$tabName    = sanitize_text_field( wp_unslash( $_POST['tabname'] ) );
-		$is_general = sanitize_text_field( wp_unslash( $_POST['is_general'] ) );
+		$tabName    = isset( $_POST['tabname'] ) ? sanitize_text_field( wp_unslash( $_POST['tabname'] ) ) : '';
+		$is_general = isset( $_POST['is_general'] ) ? sanitize_text_field( wp_unslash( $_POST['is_general'] ) ) : '';
 
 		$saved  = false;
 		$config = \WPTC_Factory::get( 'config' );

@@ -1199,8 +1199,8 @@ SQL
 	 */
 	public function update_issue_status() {
 		$wfIssues = new \wfIssues();
-		$status   = sanitize_text_field( wp_unslash( $_POST['status'] ) );
-		$issueID  = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+		$status   = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$issueID  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		if ( ! preg_match( '/^(?:new|delete|ignoreP|ignoreC)$/', $status ) ) {
 			return array( 'errorMsg' => 'An invalid status was specified when trying to update that issue.' );
 		}
@@ -1225,8 +1225,8 @@ SQL
 	 */
 	public function update_issues_status() {
 		$wfIssues = new \wfIssues();
-		$status   = sanitize_text_field( wp_unslash( $_POST['status'] ) );
-		$issueID  = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+		$status   = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$issueID  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		if ( ! preg_match( '/^(?:new|delete|ignoreP|ignoreC)$/', $status ) ) {
 			return array( 'errorMsg' => 'An invalid status was specified when trying to update that issue.' );
 		}
@@ -1246,7 +1246,7 @@ SQL
 	 */
 	public function delete_issues() {
 		$wfIssues = new \wfIssues();
-		$issueID  = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+		$issueID  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$wfIssues->deleteIssue( $issueID );
 
 		return array( 'ok' => 1 );
@@ -1418,7 +1418,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function restore_file() {
-		$issueID  = sanitize_text_field( wp_unslash( $_POST['issueID'] ) );
+		$issueID  = isset( $_POST['issueID'] ) ? sanitize_text_field( wp_unslash( $_POST['issueID'] ) ) : '';
 		$wfIssues = new \wfIssues();
 		$issue    = $wfIssues->getIssueByID( $issueID );
 		if ( ! $issue ) {
@@ -1519,7 +1519,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // custom fix to pass through security rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		}
 
 		$section     = isset( $_POST['savingSection'] ) ? sanitize_text_field( wp_unslash( $_POST['savingSection'] ) ) : '';
@@ -1804,7 +1804,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
@@ -2013,7 +2013,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function import_settings() {
-		$token = sanitize_text_field( wp_unslash( $_POST['token'] ) );
+		$token = isset( $_POST['token'] ) ? sanitize_text_field( wp_unslash( $_POST['token'] ) ) : '';
 		try {
 			$api = new \wfAPI( \wfConfig::get( 'apiKey' ), \wfUtils::getWPVersion() );
 			$res = $api->call( 'import_options', array(), array( 'token' => $token ) );
@@ -2724,7 +2724,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function load_static_panel() {
-		$mode  = sanitize_text_field( wp_unslash( $_POST['mode'] ) );
+		$mode  = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : '';
 		$wfLog = \wordfence::getLog();
 		if ( 'topScanners' === $mode || 'topLeechers' === $mode ) {
 			$results = $wfLog->getLeechers( $mode );
@@ -2793,10 +2793,10 @@ SQL
 				$noEditHtaccess = '0';
 			}
 		} elseif ( isset( $_POST['noEditHtaccess'] ) ) {
-			$noEditHtaccess = sanitize_text_field( wp_unslash( $_POST['noEditHtaccess'] ) );
+			$noEditHtaccess = isset( $_POST['noEditHtaccess'] ) ? sanitize_text_field( wp_unslash( $_POST['noEditHtaccess'] ) ) : '1';
 		}
 
-		$cacheType = sanitize_text_field( wp_unslash( $_POST['cacheType'] ) );
+		$cacheType = isset( $_POST['cacheType'] ) ? sanitize_text_field( wp_unslash( $_POST['cacheType'] ) ) : '';
 		if ( 'falcon' == $cacheType || 'php' == $cacheType ) {
 			$plugins    = get_plugins();
 			$badPlugins = array();
@@ -3166,7 +3166,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public static function remove_cache_exclusion() {
-		$id = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+		$id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$ex = \wfConfig::get( 'cacheExclusions', false );
 		if ( ! $ex ) {
 			return array( 'ok' => 1 );

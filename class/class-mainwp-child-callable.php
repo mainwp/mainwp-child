@@ -148,7 +148,7 @@ class MainWP_Child_Callable {
 
 		// check if function is callable.
 		if ( isset( $_POST['function'] ) ) {
-			$call_func        = sanitize_text_field( wp_unslash( $_POST['function'] ) );
+			$call_func        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
 			$callable         = $this->is_callable_function( $call_func ); // check callable func.
 			$callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.
 		}

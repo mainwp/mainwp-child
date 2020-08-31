@@ -273,10 +273,7 @@ class MainWP_Pages {
 	 * @param string $shownPage Page that has been shown.
 	 */
 	public function render_pages( $shownPage ) {
-		$shownPage = '';
-		if ( isset( $_GET['tab'] ) ) {
-			$shownPage = $_GET['tab'];
-		}
+		$shownPage = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
 		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 
 		$hide_settings          = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
@@ -345,10 +342,8 @@ class MainWP_Pages {
 	 * @param bool   $subpage Whether or not a subpage. Default: true.
 	 */
 	public static function render_header( $shownPage, $subpage = true ) {
-		if ( isset( $_GET['tab'] ) ) {
-			$shownPage = $_GET['tab'];
-		}
-
+		$shownPage = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+		
 		if ( empty( $shownPage ) ) {
 			$shownPage = 'settings';
 		}

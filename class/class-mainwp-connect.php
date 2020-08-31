@@ -158,7 +158,7 @@ class MainWP_Connect {
 		}
 
 		if ( ! $auth && isset( $_POST['function'] ) ) {
-			$func             = sanitize_text_field( wp_unslash( $_POST['function'] ) );
+			$func             = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
 			$callable         = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
 			$callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
 
@@ -175,7 +175,7 @@ class MainWP_Connect {
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
 					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
-						$auth_user = sanitize_text_field( wp_unslash( $_POST['alt_user'] ) );
+						$auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
 						// get alternative admin user.
 						$user = get_user_by( 'login', $auth_user );
 					}
@@ -185,7 +185,7 @@ class MainWP_Connect {
 				if ( ! $user ) {
 					// check connected admin existed.
 					$user      = get_user_by( 'login', $_POST['user'] );
-					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
+					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 				}
 
 				if ( ! $user ) {
@@ -203,7 +203,7 @@ class MainWP_Connect {
 			if ( isset( $_POST['function'] ) && 'visitPermalink' === $_POST['function'] ) {
 
 				if ( empty( $auth_user ) ) {
-					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
+					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 				}
 				// try to login.
 				if ( $this->login( $auth_user, true ) ) {
@@ -271,12 +271,12 @@ class MainWP_Connect {
 		global $current_user;
 
 		$alter_login_required = false;
-		$username             = rawurldecode( $_REQUEST['user'] );
+		$username             = isset( $_REQUEST['user'] ) ? rawurldecode( $_REQUEST['user'] ) : '';
 
-		if ( isset( $_REQUEST['alt_user'] ) && ! empty( $_REQUEST['alt_user'] ) ) {
-			$alter_login_required = self::instance()->check_login_as( $_REQUEST['alt_user'] );
+		if ( isset( $_REQUEST['alt_user'] ) ) {
+			$alter_login_required = ! empty( $_REQUEST['alt_user'] ) ? self::instance()->check_login_as( $_REQUEST['alt_user'] ) : false;
 			if ( $alter_login_required ) {
-				$username = rawurldecode( $_REQUEST['alt_user'] );
+				$username = isset( $_REQUEST['alt_user'] ) ? rawurldecode( $_REQUEST['alt_user'] ) : '';
 			}
 		}
 
@@ -326,11 +326,11 @@ class MainWP_Connect {
 	private function get_request_files() {
 		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
-			$file = $_REQUEST['f'];
+			$file = ! empty( $_REQUEST['f'] ) ? wp_unslash( $_REQUEST['f'] ) : '';
 		} elseif ( isset( $_REQUEST['file'] ) ) {
-			$file = $_REQUEST['file'];
+			$file = ! empty( $_REQUEST['file'] ) ? wp_unslash( $_REQUEST['file'] ) : '';
 		} elseif ( isset( $_REQUEST['fdl'] ) ) {
-			$file = $_REQUEST['fdl'];
+			$file = ! empty( $_REQUEST['fdl'] ) ? wp_unslash( $_REQUEST['fdl'] ) : '';
 		}
 		return $file;
 	}
@@ -429,7 +429,7 @@ class MainWP_Connect {
 				session_start();
 			}
 			$_SESSION['file'] = $file;
-			$_SESSION['size'] = sanitize_text_field( wp_unslash( $_POST['size'] ) );
+			$_SESSION['size'] = isset( $_POST['size'] ) ? sanitize_text_field( wp_unslash( $_POST['size'] ) ) : '';
 		}
 		wp_safe_redirect( admin_url( $where ) );
 		exit();
@@ -464,7 +464,7 @@ class MainWP_Connect {
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
 					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
-						$auth_user = sanitize_text_field( wp_unslash( $_POST['alt_user'] ) );
+						$auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
 						$user      = get_user_by( 'login', $auth_user );
 					}
 				}
@@ -472,7 +472,7 @@ class MainWP_Connect {
 				if ( ! $user ) {
 					// check connected admin existed.
 					$user      = get_user_by( 'login', $_POST['user'] );
-					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
+					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 				}
 				if ( ! $user ) {
 					MainWP_Helper::error( __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) );
@@ -484,7 +484,7 @@ class MainWP_Connect {
 			}
 			if ( isset( $_POST['function'] ) && 'visitPermalink' === $_POST['function'] ) {
 				if ( empty( $auth_user ) ) {
-					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
+					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 				}
 				if ( $this->login( $auth_user, true ) ) {
 					return;

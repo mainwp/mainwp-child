@@ -6,8 +6,8 @@
  */
 
 if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ) {
-	$bulk_settings_manageruse_nonce_key  = intval( $_GET['bulk_settings_manageruse_nonce_key'] );
-	$bulk_settings_manageruse_nonce_hmac = $_GET['bulk_settings_manageruse_nonce_hmac'];
+	$bulk_settings_manageruse_nonce_key  = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
+	$bulk_settings_manageruse_nonce_hmac = ! empty( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ? wp_unslash( $_GET['bulk_settings_manageruse_nonce_hmac'] ) : '';
 	$bulk_settings_managercurrent_time   = intval( time() );
 
 	if ( $bulk_settings_managercurrent_time >= $bulk_settings_manageruse_nonce_key && $bulk_settings_managercurrent_time <= ( $bulk_settings_manageruse_nonce_key + 30 ) ) {

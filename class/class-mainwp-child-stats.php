@@ -723,7 +723,7 @@ class MainWP_Child_Stats {
 	public function update_external_settings() {
 		if ( isset( $_POST['cloneSites'] ) ) {
 			if ( '0' !== $_POST['cloneSites'] ) {
-				$arr = json_decode( urldecode( $_POST['cloneSites'] ), 1 );
+				$arr = isset( $_POST['cloneSites'] ) ? json_decode( urldecode( $_POST['cloneSites'] ), 1 ) : '';
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', ( ! is_array( $arr ) ? array() : $arr ) );
 			} else {
 				MainWP_Helper::update_option( 'mainwp_child_clone_sites', '0' );
@@ -888,8 +888,8 @@ class MainWP_Child_Stats {
 	 * @uses MainWP_Helper::write()
 	 */
 	public function get_all_themes() {
-		$keyword = sanitize_text_field( wp_unslash( $_POST['keyword'] ) );
-		$status  = sanitize_text_field( wp_unslash( $_POST['status'] ) );
+		$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+		$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$filter  = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$rslt    = $this->get_all_themes_int( $filter, $keyword, $status );
 
@@ -942,8 +942,8 @@ class MainWP_Child_Stats {
 	 * @uses MainWP_Helper::write()
 	 */
 	public function get_all_plugins() {
-		$keyword = sanitize_text_field( wp_unslash( $_POST['keyword'] ) );
-		$status  = sanitize_text_field( wp_unslash( $_POST['status'] ) );
+		$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+		$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$filter  = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$rslt    = $this->get_all_plugins_int( $filter, $keyword, $status );
 

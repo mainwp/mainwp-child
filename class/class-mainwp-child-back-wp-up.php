@@ -842,8 +842,8 @@ class MainWP_Child_Back_WP_Up {
             return array( 'error' => __( 'Missing website id.', 'mainwp-child' ) );
         }
 
-        $type       = sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) );
-        $website_id = sanitize_text_field( wp_unslash( $_POST['settings']['website_id'] ) );
+        $type       = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : '';
+        $website_id = isset( $_POST['settings']['website_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['website_id'] ) ) : '';
 
         $this->wp_list_table_dependency();
 
@@ -1161,7 +1161,7 @@ class MainWP_Child_Back_WP_Up {
         }
 
         // Simulate http://wp/wp-admin/admin.php?jobid=1&page=backwpupjobs&action=runnow.
-        $_GET['jobid'] = sanitize_text_field( wp_unslash( $_POST['settings']['job_id'] ) );
+        $_GET['jobid'] = isset( $_POST['settings']['job_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['job_id'] ) ) : '';
 
         $_REQUEST['action']   = 'runnow';
         $_REQUEST['_wpnonce'] = wp_create_nonce( 'backwpup_job_run-runnowlink' );

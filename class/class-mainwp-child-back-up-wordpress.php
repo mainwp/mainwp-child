@@ -598,7 +598,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
-		$deleted = $schedule->delete_backup( base64_decode( rawurldecode( $_POST['hmbkp_backuparchive'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$deleted = isset( $_POST['hmbkp_backuparchive'] ) ? $schedule->delete_backup( base64_decode( rawurldecode( $_POST['hmbkp_backuparchive'] ) ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( is_wp_error( $deleted ) ) {
 			return array( 'error' => $deleted->get_error_message() );
@@ -1128,13 +1128,13 @@ class MainWP_Child_Back_Up_WordPress {
 		$schedule_id = $this->check_schedule();
 		$schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $schedule_id ) );
 
-		$exclude_rule = rawurldecode( $_POST['exclude_pathname'] );
+		$exclude_rule = isset( $_POST['exclude_pathname'] ) ? rawurldecode( $_POST['exclude_pathname'] ) : '';
 
 		$schedule->set_excludes( $exclude_rule, true );
 
 		$schedule->save();
 
-		$current_path = rawurldecode( $_POST['browse_dir'] );
+		$current_path = isset( $_POST['browse_dir'] ) ? rawurldecode( $_POST['browse_dir'] ) : '';
 
 		if ( empty( $current_path ) ) {
 			$current_path = null;
@@ -1174,7 +1174,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$schedule->save();
 
-		$current_path = rawurldecode( $_POST['browse_dir'] );
+		$current_path = isset( $_POST['browse_dir'] ) ? rawurldecode( $_POST['browse_dir'] ) : '';
 
 		if ( empty( $current_path ) ) {
 			$current_path = null;
@@ -1200,7 +1200,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$sch_id   = $this->check_schedule();
 		$schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $sch_id ) );
 
-		$exclude_paths = rawurldecode( $_POST['exclude_paths'] );
+		$exclude_paths = isset( $_POST['exclude_paths'] ) ? rawurldecode( $_POST['exclude_paths'] ) : '';
 		$exclude_paths = explode( "\n", $exclude_paths );
 		if ( is_array( $exclude_paths ) && count( $exclude_paths ) > 0 ) {
 			foreach ( $exclude_paths as $excl_rule ) {
@@ -1220,7 +1220,7 @@ class MainWP_Child_Back_Up_WordPress {
 			}
 		}
 
-		$un_exclude_paths = rawurldecode( $_POST['un_exclude_paths'] );
+		$un_exclude_paths = isset( $_POST['un_exclude_paths'] ) ? rawurldecode( $_POST['un_exclude_paths'] ) : '';
 		$un_exclude_paths = explode( "\n", $un_exclude_paths );
 
 		if ( is_array( $un_exclude_paths ) && count( get_user_excludes ) > 0 ) {

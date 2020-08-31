@@ -230,8 +230,8 @@ class MainWP_Child_WooCommerce_Status {
 			return false;
 		}
 
-		$start_date = sanitize_text_field( wp_unslash( $_POST['start_date'] ) );
-		$end_date   = sanitize_text_field( wp_unslash( $_POST['end_date'] ) );
+		$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
+		$end_date   = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
 		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time.
 		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
@@ -328,8 +328,8 @@ class MainWP_Child_WooCommerce_Status {
 	 * Sync Woocomerce data for specific date range.
 	 */
 	public function report_data_two() {
-		$start_date = sanitize_text_field( wp_unslash( $_POST['start_date'] ) );
-		$end_date   = sanitize_text_field( wp_unslash( $_POST['end_date'] ) );
+		$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
+		$end_date   = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}

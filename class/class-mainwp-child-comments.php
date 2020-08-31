@@ -63,7 +63,7 @@ class MainWP_Child_Comments {
 	 */
 	public function comment_action() {
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		$commentId = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+		$commentId = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 
 		if ( 'approve' === $action ) {
 			wp_set_comment_status( $commentId, 'approve' );

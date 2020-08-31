@@ -311,7 +311,7 @@ class MainWP_Child_IThemes_Security {
 		$errors             = array();
 		$nbf_settings       = array();
 
-		$update_settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$update_settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
@@ -623,7 +623,7 @@ class MainWP_Child_IThemes_Security {
         /** @global array $itsec_globals itsec globals. */
 		global $itsec_globals;
 
-		$ip       = sanitize_text_field( wp_unslash( $_POST['ip'] ) );
+		$ip       = isset( $_POST['ip'] ) ? sanitize_text_field( wp_unslash( $_POST['ip'] ) ) : '';
 		$add_temp = false;
 		$temp_ip  = get_site_option( 'itsec_temp_whitelist_ip' );
 		if ( false !== $temp_ip ) {

@@ -162,7 +162,7 @@ class MainWP_Child_Updates {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
-		$plugins = explode( ',', urldecode( $_POST['list'] ) );
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
 
 		$this->to_support_some_premiums_updates( $plugins );
 
@@ -184,7 +184,7 @@ class MainWP_Child_Updates {
 
 		$information['plugin_updates'] = get_plugin_updates();
 
-		$plugins        = explode( ',', urldecode( $_POST['list'] ) );
+		$plugins        = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
 		$premiumPlugins = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -863,7 +863,7 @@ class MainWP_Child_Updates {
 		wp_update_plugins();
 
 		$upgrader             = new \Language_Pack_Upgrader( new \Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
-		$translations         = explode( ',', urldecode( $_POST['list'] ) );
+		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
 		$all_language_updates = wp_get_translation_updates();
 
 		$language_updates = array();
