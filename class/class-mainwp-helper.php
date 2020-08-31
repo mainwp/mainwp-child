@@ -93,7 +93,11 @@ class MainWP_Helper {
 	 */
 	public static function get_mainwp_dir( $what = null, $die_on_error = true ) {
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		self::get_wp_filesystem();
@@ -139,7 +143,11 @@ class MainWP_Helper {
 	public static function check_dir( $dir, $die_on_error, $chmod = 0755 ) {
 		self::get_wp_filesystem();
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( ! file_exists( $dir ) ) {
@@ -205,7 +213,11 @@ class MainWP_Helper {
 	 */
 	public static function get_wp_filesystem() {
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
@@ -258,7 +270,11 @@ class MainWP_Helper {
 
 		self::get_wp_filesystem();
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {

@@ -96,7 +96,11 @@ class MainWP_Child_Stats {
 			MainWP_Helper::error( __( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
 		}
 
-		/** @global object $wp_version WordPress version. */
+		/**
+		 * The installed version of WordPress.
+		 *
+		 * @global string $wp_version The installed version of WordPress.
+		 */
 		global $wp_version;
 
 		$information['version']   = MainWP_Child::$version;
@@ -413,7 +417,11 @@ class MainWP_Child_Stats {
 	 */
 	private function stats_get_info( &$information ) {
 
-		/** @global object $wp_version WordPress version. */
+		/**
+		 * The installed version of WordPress.
+		 *
+		 * @global string $wp_version The installed version of WordPress.
+		 */
 		global $wp_version;
 
 		$information['version']   = MainWP_Child::$version;
@@ -452,7 +460,11 @@ class MainWP_Child_Stats {
 	 */
 	private function stats_wp_update() {
 
-		/** @global object $wp_version WordPress version. */
+		/**
+		 * The installed version of WordPress.
+		 *
+		 * @global string $wp_version The installed version of WordPress.
+		 */
 		global $wp_version;
 
 		$result = null;
@@ -572,7 +584,11 @@ class MainWP_Child_Stats {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
-		/** @global object $wp_current_filter WordPress current filter. */
+		/**
+		 * Retrieve the name of the current filter or action.
+		 *
+		 * @global array $wp_current_filter Current filter.
+		 */
 		global $wp_current_filter;
 
 		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- Required to achieve desired results, pull request solutions appreciated.
