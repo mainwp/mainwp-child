@@ -115,7 +115,7 @@ class MainWP_Child_WooCommerce_Status {
 		/**
 		 * Object, providing access to the WordPress database.
 		 *
-		 * @global $wpdb WordPress Database instance.
+		 * @global object $wpdb WordPress Database instance.
 		 */
 		global $wpdb;
 
@@ -219,7 +219,7 @@ class MainWP_Child_WooCommerce_Status {
 		/**
 		 * Object, providing access to the WordPress database.
 		 *
-		 * @global $wpdb WordPress Database instance.
+		 * @global object $wpdb WordPress Database instance.
 		 */
 		global $wpdb;
 
@@ -359,7 +359,7 @@ class MainWP_Child_WooCommerce_Status {
 		/**
 		 * Object, providing access to the WordPress database.
 		 *
-		 * @global $wpdb WordPress Database instance.
+		 * @global object $wpdb WordPress Database instance.
 		 */
 		global $wpdb;
 

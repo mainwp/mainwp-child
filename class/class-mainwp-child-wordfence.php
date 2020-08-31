@@ -302,7 +302,11 @@ class MainWP_Child_Wordfence {
 			return;
 		}
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$lastcheck = get_option( 'mainwp_wordfence_lastcheck_scan' );
@@ -1126,7 +1130,11 @@ class MainWP_Child_Wordfence {
 	 */
 	public function count_attacks_blocked( $maxAgeDays ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$table_wfBlockedIPLog = \wfDB::networkTable( 'wfBlockedIPLog' );
