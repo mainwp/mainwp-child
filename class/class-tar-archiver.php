@@ -218,7 +218,11 @@ class Tar_Archiver {
 		}
 		$this->pidContent = $file;
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		$wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
@@ -246,7 +250,11 @@ class Tar_Archiver {
 			return false;
 		}
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		$wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
@@ -270,7 +278,11 @@ class Tar_Archiver {
 			return false;
 		}
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		$filename = basename( $this->pidFile );
@@ -437,7 +449,11 @@ class Tar_Archiver {
 	 */
 	private function add_config() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$plugins = array();
@@ -1521,7 +1537,11 @@ class Tar_Archiver {
 	 */
 	public function extract_to( $to ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		$to = trailingslashit( $to );
