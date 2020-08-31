@@ -452,7 +452,7 @@ class MainWP_Backup {
 	 * @return array|bool Returns an array containing the Backup location & file size. Return FALSE on failure.
 	 */
 	public function backup_full( $fileName ) {
-		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
+		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() );
 		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
 		$uploadDir  = MainWP_Helper::get_mainwp_dir();
 		$uploadDir  = $uploadDir[0];

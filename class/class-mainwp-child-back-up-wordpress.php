@@ -1174,7 +1174,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$schedule->save();
 
-		$current_path = isset( $_POST['browse_dir'] ) ? rawurldecode( $_POST['browse_dir'] ) : '';
+		$current_path = isset( $_POST['browse_dir'] ) ? rawurldecode( wp_unslash( $_POST['browse_dir'] ) ) : '';
 
 		if ( empty( $current_path ) ) {
 			$current_path = null;
@@ -1183,7 +1183,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$return = $this->get_excluded( $current_path );
 
 		$out['e']                  = $return['e'];
-		$out['current_browse_dir'] = $_POST['browse_dir'];
+		$out['current_browse_dir'] = wp_unslash( $_POST['browse_dir'] );
 
 		return $out;
 	}
