@@ -268,7 +268,7 @@ class MainWP_Child_Pagespeed {
 
 		$information = array();
 
-		$settings = $_POST['settings'];
+		$settings = wp_unslash( $_POST['settings'] );
 		$settings = maybe_unserialize( base64_decode( $settings ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 
 		if ( is_array( $settings ) ) {
@@ -281,9 +281,7 @@ class MainWP_Child_Pagespeed {
 				$current_values['response_language'] = $settings['response_language'];
 			}
 
-			if ( isset( $_POST['strategy'] ) ) {
-				$current_values['strategy'] = $_POST['strategy'];
-			}
+			$current_values['strategy'] = isset( $_POST['strategy'] ) ? sanitize_text_field( wp_unslash( $_POST['strategy'] ) ) : '';
 
 			if ( isset( $settings['store_screenshots'] ) ) {
 				$current_values['store_screenshots'] = $settings['store_screenshots'];

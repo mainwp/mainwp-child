@@ -780,7 +780,7 @@ class MainWP_Clone_Install {
 			rmdir( ABSPATH . 'clone' );
 		}
 
-		$wpversion = $_POST['wpversion'];
+		$wpversion = sanitize_text_field( wp_unslash( $_POST['wpversion'] ) );
 		global $wp_version;
 		$includeCoreFiles = ( $wpversion !== $wp_version );
 		$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );

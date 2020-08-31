@@ -683,7 +683,7 @@ class MainWP_Child_Stats {
 		$recent_number = 5;
 
 		if ( isset( $_POST ) && isset( $_POST['recent_number'] ) ) {
-			$recent_number = $_POST['recent_number'];
+			$recent_number = intval( $_POST['recent_number'] );
 			if ( get_option( 'mainwp_child_recent_number', 5 ) != $recent_number ) {
 				update_option( 'mainwp_child_recent_number', $recent_number );
 			}
@@ -872,9 +872,9 @@ class MainWP_Child_Stats {
 	 * @uses MainWP_Helper::write()
 	 */
 	public function get_all_themes() {
-		$keyword = $_POST['keyword'];
-		$status  = $_POST['status'];
-		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
+		$keyword = sanitize_text_field( wp_unslash( $_POST['keyword'] ) );
+		$status  = sanitize_text_field( wp_unslash( $_POST['status'] ) );
+		$filter  = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$rslt    = $this->get_all_themes_int( $filter, $keyword, $status );
 
 		MainWP_Helper::write( $rslt );
@@ -926,9 +926,9 @@ class MainWP_Child_Stats {
 	 * @uses MainWP_Helper::write()
 	 */
 	public function get_all_plugins() {
-		$keyword = $_POST['keyword'];
-		$status  = $_POST['status'];
-		$filter  = isset( $_POST['filter'] ) ? $_POST['filter'] : true;
+		$keyword = sanitize_text_field( wp_unslash( $_POST['keyword'] ) );
+		$status  = sanitize_text_field( wp_unslash( $_POST['status'] ) );
+		$filter  = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$rslt    = $this->get_all_plugins_int( $filter, $keyword, $status );
 
 		MainWP_Helper::write( $rslt );

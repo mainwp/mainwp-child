@@ -148,7 +148,7 @@ class MainWP_Child_Callable {
 
 		// check if function is callable.
 		if ( isset( $_POST['function'] ) ) {
-			$call_func        = $_POST['function'];
+			$call_func        = sanitize_text_field( wp_unslash( $_POST['function'] ) );
 			$callable         = $this->is_callable_function( $call_func ); // check callable func.
 			$callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.
 		}
@@ -765,7 +765,7 @@ class MainWP_Child_Callable {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 
-		$file = $_REQUEST['del'];
+		$file = wp_unslash( $_REQUEST['del'] );
 
 		if ( file_exists( $backupdir . $file ) ) {
 			unlink( $backupdir . $file );
@@ -780,7 +780,7 @@ class MainWP_Child_Callable {
 	 * Update the MainWP Child site options.
 	 */
 	public function update_child_values() {
-		$unique_id = isset( $_POST['uniqueId'] ) ? $_POST['uniqueId'] : '';
+		$unique_id = isset( $_POST['uniqueId'] ) ? sanitize_text_field( wp_unslash( $_POST['uniqueId'] ) ) : '';
 		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $unique_id );
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
 	}

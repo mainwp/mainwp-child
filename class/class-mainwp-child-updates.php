@@ -699,10 +699,10 @@ class MainWP_Child_Updates {
 			set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS );
 		}
 
-		$type = isset( $_GET['_request_update_premiums_type'] ) ? $_GET['_request_update_premiums_type'] : '';
+		$type = isset( $_GET['_request_update_premiums_type'] ) ? sanitize_text_field( wp_unslash( $_GET['_request_update_premiums_type'] ) ) : '';
 
 		if ( 'plugin' == $type || 'theme' == $type ) {
-			$list = isset( $_GET['list'] ) ? $_GET['list'] : '';
+			$list = isset( $_GET['list'] ) ? wp_unslash( $_GET['list'] ) : '';
 
 			if ( ! empty( $list ) ) {
 				$_POST['type'] = $type;

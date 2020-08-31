@@ -115,7 +115,7 @@ class MainWP_Custom_Post_Type {
 		if ( empty( $data ) || ! is_array( $data ) || ! isset( $data['post'] ) ) {
 			return array( 'error' => __( 'Cannot decode data', $this->plugin_translate ) );
 		}
-		$edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? $_POST['post_id'] : 0;
+		$edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? intval( $_POST['post_id'] ) : 0;
 		$return  = $this->insert_post( $data, $edit_id, $parent_id = 0 );
 		if ( isset( $return['success'] ) && 1 == $return['success'] ) {
 			if ( isset( $data['product_variation'] ) && is_array( $data['product_variation'] ) ) {

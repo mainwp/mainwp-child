@@ -160,8 +160,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return bool true|false.
 	 */
 	public function save_sucuri_stream() {
-		$scan_data = isset( $_POST['scan_data'] ) ? $_POST['scan_data'] : '';
-		do_action( 'mainwp_reports_sucuri_scan', $_POST['result'], $_POST['scan_status'], $scan_data, isset( $_POST['scan_time'] ) ? $_POST['scan_time'] : 0 );
+		$scan_data = isset( $_POST['scan_data'] ) ? wp_unslash( $_POST['scan_data'] ) : '';
+		$scan_time = isset( $_POST['scan_time'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_time'] ) ) : 0;
+		$scan_status = isset( $_POST['scan_status'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_status'] ) ) : '';
+		do_action( 'mainwp_reports_sucuri_scan', $_POST['result'], $scan_status, $scan_data, $scan_time );
 		return true;
 	}
 

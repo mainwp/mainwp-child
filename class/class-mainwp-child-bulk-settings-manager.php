@@ -101,7 +101,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 		$_POST = stripslashes_deep( $_POST );
 
-		$args = $_POST['args'];
+		$args = wp_unslash( $_POST['args'] );
 
 		$current_user = wp_get_current_user();
 

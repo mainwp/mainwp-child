@@ -78,7 +78,7 @@ class MainWP_Child_Install {
 		 */
 		global $mainWPChild;
 
-		$action  = $_POST['action'];
+		$action  = sanitize_text_field( wp_unslash( $_POST['action'] ) );
 		$plugins = explode( '||', $_POST['plugin'] );
 
 		if ( 'activate' === $action ) {
@@ -198,8 +198,8 @@ class MainWP_Child_Install {
 	 */
 	public function theme_action() {
 
-		$action = $_POST['action'];
-		$theme  = $_POST['theme'];
+		$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$theme  = wp_unslash( $_POST['theme'] );
 
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/theme.php';

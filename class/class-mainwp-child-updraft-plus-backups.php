@@ -1477,7 +1477,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         } elseif ( class_exists( '\UpdraftPlus_Backup_History' ) ) {
             $backups = \UpdraftPlus_Backup_History::get_history();
         }
-        $timestamp = $_POST['backup_timestamp'];
+        $timestamp = sanitize_text_field( wp_unslash( $_POST['backup_timestamp'] ) );
         if ( ! isset( $backups[ $timestamp ] ) ) {
             $bh = $this->build_historystatus();
 
@@ -3631,7 +3631,7 @@ ENDHERE;
             $backupable_entities = $updraftplus->get_backupable_file_entities( true, false );
             if ( ! empty( $backupable_entities[ $_POST['entity'] ] ) ) {
                 $basedir              = $backupable_entities[ $_POST['entity'] ];
-                $dirs                 = apply_filters( 'updraftplus_dirlist_' . $_POST['entity'], $basedir );
+                $dirs                 = apply_filters( 'updraftplus_dirlist_' . sanitize_text_field( wp_unslash( $_POST['entity'] ) ), $basedir );
                 $out['diskspaceused'] = $this->recursive_directory_size( $dirs, $updraftplus->get_exclude( $_POST['entity'] ), $basedir );
             } else {
                 $out['error'] = 'Error';
@@ -4026,7 +4026,7 @@ ENDHERE;
      * @uses MainWP_Child_Updraft_Plus_Backups::fetch_log()
      */
     private function fetch_updraft_log() {
-        $backup_nonce = $_POST['backup_nonce'];
+        $backup_nonce = sanitize_text_field( wp_unslash( $_POST['backup_nonce'] ) );
 
         return $this->fetch_log( $backup_nonce );
     }
@@ -4037,7 +4037,7 @@ ENDHERE;
      * @return array|string[] Return Y Job has been deleted or N Job not found.
      */
     private function activejobs_delete() {
-        $jobid = $_POST['jobid'];
+        $jobid = sanitize_text_field( wp_unslash( $_POST['jobid'] ) );
         if ( empty( $jobid ) ) {
             return array( 'error' => 'Error: empty job id.' );
         }

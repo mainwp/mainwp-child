@@ -249,7 +249,7 @@ class MainWP_Child_Staging {
 	 * @return string[] Return 'Success'.
 	 */
 	public function save_settings() {
-		$settings = $_POST['settings'];
+		$settings = wp_unslash( $_POST['settings'] );
 		$filters  = array(
 			'queryLimit',
 			'fileLimit',

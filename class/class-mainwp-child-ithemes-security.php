@@ -623,7 +623,7 @@ class MainWP_Child_IThemes_Security {
         /** @global array $itsec_globals itsec globals. */
 		global $itsec_globals;
 
-		$ip       = $_POST['ip'];
+		$ip       = sanitize_text_field( wp_unslash( $_POST['ip'] ) );
 		$add_temp = false;
 		$temp_ip  = get_site_option( 'itsec_temp_whitelist_ip' );
 		if ( false !== $temp_ip ) {
@@ -912,7 +912,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function admin_user() {
 
-		$settings = $_POST['settings'];
+		$settings = wp_unslash( $_POST['settings'] );
 
 		if ( ! is_array( $settings ) ) {
 			$settings = array();
@@ -1400,7 +1400,7 @@ class MainWP_Child_IThemes_Security {
 			require \ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
-		$lockout_ids = $_POST['lockout_ids'];
+		$lockout_ids = array_map( 'sanitize_text_field', wp_unslash( $_POST['lockout_ids'] ) );
 		if ( ! is_array( $lockout_ids ) ) {
 			$lockout_ids = array();
 		}
@@ -1442,7 +1442,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function update_module_status() {
 
-		$active_modules = $_POST['active_modules'];
+		$active_modules = wp_unslash( $_POST['active_modules'] );
 
 		if ( ! is_array( $active_modules ) ) {
 			$active_modules = array();

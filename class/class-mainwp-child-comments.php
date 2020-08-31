@@ -62,8 +62,8 @@ class MainWP_Child_Comments {
 	 * MainWP Child Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
 	 */
 	public function comment_action() {
-		$action    = $_POST['action'];
-		$commentId = $_POST['id'];
+		$action    = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$commentId = sanitize_text_field( wp_unslash( $_POST['id'] ) );
 
 		if ( 'approve' === $action ) {
 			wp_set_comment_status( $commentId, 'approve' );
@@ -94,8 +94,8 @@ class MainWP_Child_Comments {
 	 * MainWP Child Bulk Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
 	 */
 	public function comment_bulk_action() {
-		$action                 = $_POST['action'];
-		$commentIds             = explode( ',', $_POST['ids'] );
+		$action                 = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$commentIds             = explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) );
 		$information['success'] = 0;
 		foreach ( $commentIds as $commentId ) {
 			if ( $commentId ) {
@@ -152,16 +152,16 @@ class MainWP_Child_Comments {
 		add_filter( 'comments_clauses', array( &$this, 'comments_clauses' ) );
 
 		if ( isset( $_POST['postId'] ) ) {
-			$this->comments_and_clauses .= " AND $wpdb->comments.comment_post_ID = " . $_POST['postId'];
+			$this->comments_and_clauses .= " AND $wpdb->comments.comment_post_ID = " . sanitize_text_field( wp_unslash( $_POST['postId'] ) );
 		} else {
 			if ( isset( $_POST['keyword'] ) ) {
-				$this->comments_and_clauses .= " AND $wpdb->comments.comment_content LIKE '%" . $_POST['keyword'] . "%'";
+				$this->comments_and_clauses .= " AND $wpdb->comments.comment_content LIKE '%" . sanitize_text_field( wp_unslash($_POST['keyword'] ) ) . "%'";
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
-				$this->comments_and_clauses .= " AND $wpdb->comments.comment_date > '" . $_POST['dtsstart'] . "'";
+				$this->comments_and_clauses .= " AND $wpdb->comments.comment_date > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
-				$this->comments_and_clauses .= " AND $wpdb->comments.comment_date < '" . $_POST['dtsstop'] . "'";
+				$this->comments_and_clauses .= " AND $wpdb->comments.comment_date < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
 			}
 		}
 
@@ -171,7 +171,7 @@ class MainWP_Child_Comments {
 		}
 
 		if ( isset( $_POST['maxRecords'] ) ) {
-			$maxComments = $_POST['maxRecords'];
+			$maxComments = ! empty( $_POST['maxRecords'] ) ? intval( $_POST['maxRecords'] ) : 0;
 		}
 
 		if ( 0 === $maxComments ) {

@@ -226,7 +226,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return int Schedule ID.
 	 */
 	public function check_schedule() {
-		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? $_POST['schedule_id'] : '';
+		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? sanitize_text_field( wp_unslash( $_POST['schedule_id'] ) ) : '';
 		if ( empty( $schedule_id ) ) {
 			$information = array( 'error' => 'Empty schedule id' );
 			MainWP_Helper::write( $information );
@@ -504,7 +504,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 */
 	public function reload_backups() {
 
-		$scheduleIds = isset( $_POST['schedule_ids'] ) ? $_POST['schedule_ids'] : array();
+		$scheduleIds = isset( $_POST['schedule_ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['schedule_ids'] ) ) : array();
 		\HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 
 		$all_schedules_ids = array();
@@ -1253,8 +1253,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function update_schedule() {
-		$sch_id  = isset( $_POST['schedule_id'] ) ? $_POST['schedule_id'] : 0;
-		$sch_id  = sanitize_text_field( rawurldecode( $sch_id ) );
+		$sch_id  = isset( $_POST['schedule_id'] ) ? sanitize_text_field( rawurldecode( $_POST['schedule_id'] ) ) : 0;
 		$options = isset( $_POST['options'] ) ? maybe_unserialize( base64_decode( $_POST['options'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {

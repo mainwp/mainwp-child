@@ -136,7 +136,7 @@ class MainWP_Connect {
 		$information['nosslkey'] = $nossl_key;
 		$information['register'] = 'OK';
 		$information['uniqueId'] = get_option( 'mainwp_child_uniqueId', '' );
-		$information['user']     = $_POST['user'];
+		$information['user']     = wp_unslash( $_POST['user'] );
 
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.
 	}
@@ -158,7 +158,7 @@ class MainWP_Connect {
 		}
 
 		if ( ! $auth && isset( $_POST['function'] ) ) {
-			$func             = $_POST['function'];
+			$func             = sanitize_text_field( wp_unslash( $_POST['function'] ) );
 			$callable         = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
 			$callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
 
@@ -175,7 +175,7 @@ class MainWP_Connect {
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
 					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
-						$auth_user = $_POST['alt_user'];
+						$auth_user = sanitize_text_field( wp_unslash( $_POST['alt_user'] ) );
 						// get alternative admin user.
 						$user = get_user_by( 'login', $auth_user );
 					}
@@ -185,7 +185,7 @@ class MainWP_Connect {
 				if ( ! $user ) {
 					// check connected admin existed.
 					$user      = get_user_by( 'login', $_POST['user'] );
-					$auth_user = $_POST['user'];
+					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
 				}
 
 				if ( ! $user ) {
@@ -203,7 +203,7 @@ class MainWP_Connect {
 			if ( isset( $_POST['function'] ) && 'visitPermalink' === $_POST['function'] ) {
 
 				if ( empty( $auth_user ) ) {
-					$auth_user = $_POST['user'];
+					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
 				}
 				// try to login.
 				if ( $this->login( $auth_user, true ) ) {
@@ -429,7 +429,7 @@ class MainWP_Connect {
 				session_start();
 			}
 			$_SESSION['file'] = $file;
-			$_SESSION['size'] = $_POST['size'];
+			$_SESSION['size'] = sanitize_text_field( wp_unslash( $_POST['size'] ) );
 		}
 		wp_safe_redirect( admin_url( $where ) );
 		exit();
@@ -451,7 +451,7 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '', isset( $_POST['function'] ) ? $_POST['function'] : rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
+		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '', isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ), isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '', isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0 );
 		if ( ! $auth ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
 		}
@@ -464,7 +464,7 @@ class MainWP_Connect {
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
 					if ( $this->check_login_as( $_POST['alt_user'] ) ) {
-						$auth_user = $_POST['alt_user'];
+						$auth_user = sanitize_text_field( wp_unslash( $_POST['alt_user'] ) );
 						$user      = get_user_by( 'login', $auth_user );
 					}
 				}
@@ -472,7 +472,7 @@ class MainWP_Connect {
 				if ( ! $user ) {
 					// check connected admin existed.
 					$user      = get_user_by( 'login', $_POST['user'] );
-					$auth_user = $_POST['user'];
+					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
 				}
 				if ( ! $user ) {
 					MainWP_Helper::error( __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) );
@@ -484,7 +484,7 @@ class MainWP_Connect {
 			}
 			if ( isset( $_POST['function'] ) && 'visitPermalink' === $_POST['function'] ) {
 				if ( empty( $auth_user ) ) {
-					$auth_user = $_POST['user'];
+					$auth_user = sanitize_text_field( wp_unslash( $_POST['user'] ) );
 				}
 				if ( $this->login( $auth_user, true ) ) {
 					return;

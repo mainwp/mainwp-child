@@ -57,7 +57,7 @@ class MainWP_Utility {
 	 */
 	public function run_saved_snippets() {
 		if ( isset( $_POST['action'] ) && isset( $_POST['mainwpsignature'] ) ) {
-			$action = $_POST['action'];
+			$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
 			if ( 'run_snippet' === $action || 'save_snippet' === $action || 'delete_snippet' === $action ) {
 				return;
 			}
@@ -144,43 +144,43 @@ class MainWP_Utility {
 
 		// referrer.
 		if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
-			$referer = self::clean( $_SERVER['HTTP_REFERER'] );
+			$referer = sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
 		} else {
 			$referer = 'undefined';
 		}
 		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
 		// request URI.
 		if ( isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ) {
-			$request = self::clean( $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			$request = $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) ;
 		} else {
 			$request = 'undefined';
 		}
 		// query string.
 		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
-			$string = self::clean( $_SERVER['QUERY_STRING'] );
+			$string = sanitize_text_field( wp_unslash( $_SERVER['QUERY_STRING'] ) );
 		} else {
 			$string = 'undefined';
 		}
 		// IP address.
 		if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
-			$address = self::clean( $_SERVER['REMOTE_ADDR'] );
+			$address = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
 		} else {
 			$address = 'undefined';
 		}
 		// user agent.
 		if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
-			$agent = self::clean( $_SERVER['HTTP_USER_AGENT'] );
+			$agent = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
 		} else {
 			$agent = 'undefined';
 		}
 		// identity.
 		if ( isset( $_SERVER['REMOTE_IDENT'] ) ) {
-			$remote = self::clean( $_SERVER['REMOTE_IDENT'] );
+			$remote = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_IDENT'] ) );
 		} else {
 			$remote = 'undefined';
 		}
 		// log time.
-		$time = self::clean( date( 'F jS Y, h:ia', time() ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
+		$time = sanitize_text_field( wp_unslash( date( 'F jS Y, h:ia', time() ) ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
 
 		$mail = '<div>404 alert</div><div></div>' .
 				'<div>TIME: ' . $time . '</div>' .
@@ -199,23 +199,6 @@ class MainWP_Utility {
 				'content-type: text/html',
 			)
 		);
-	}
-
-	/**
-	 * Method clean()
-	 *
-	 * Clean passed string.
-	 *
-	 * @param string $string String to be cleaned.
-	 *
-	 * @return srting $string Cleaned string.
-	 */
-	public static function clean( $string ) {
-		$string = trim( $string );
-		$string = htmlentities( $string, ENT_QUOTES );
-		$string = str_replace( "\n", '<br>', $string );
-		$string = stripslashes( $string );
-		return $string;
 	}
 
 	/**

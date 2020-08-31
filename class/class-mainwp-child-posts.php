@@ -258,7 +258,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts_by_type()
 	 */
 	public function get_all_posts() {
-		$post_type = ( isset( $_POST['post_type'] ) ? $_POST['post_type'] : 'post' );
+		$post_type = ( isset( $_POST['post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['post_type'] ) ) : 'post' );
 		$this->get_all_posts_by_type( $post_type );
 	}
 
@@ -304,32 +304,32 @@ class MainWP_Child_Posts {
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
 		$where_post_date = isset( $_POST['where_post_date'] ) && ! empty( $_POST['where_post_date'] ) ? true : false;
 		if ( isset( $_POST['postId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . $_POST['postId'];
+			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . sanitize_text_field( wp_unslash( $_POST['postId'] ) );
 		} elseif ( isset( $_POST['userId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.post_author = " . $_POST['userId'];
+			$this->posts_where_suffix .= " AND $wpdb->posts.post_author = " . sanitize_text_field( wp_unslash( $_POST['userId'] ) );
 		} else {
 			if ( isset( $_POST['keyword'] ) ) {
-				$search_on = isset( $_POST['search_on'] ) ? $_POST['search_on'] : '';
+				$search_on = isset( $_POST['search_on'] ) ? sanitize_text_field( wp_unslash( $_POST['search_on'] ) ) : '';
 				if ( 'title' == $search_on ) {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
+					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				} elseif ( 'content' == $search_on ) {
-					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' )";
+					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash ( $_POST['keyword'] ) ) . "%' )";
 				} else {
-					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' OR $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
+					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' OR $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				}
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date > '" . $_POST['dtsstart'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_date > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . $_POST['dtsstart'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
 				}
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date < '" . $_POST['dtsstop'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_date < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . $_POST['dtsstop'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
 				}
 			}
 
@@ -344,7 +344,7 @@ class MainWP_Child_Posts {
 		}
 
 		if ( isset( $_POST['maxRecords'] ) ) {
-			$maxPages = $_POST['maxRecords'];
+			$maxPages = ! empty( $_POST['maxRecords'] ) ? intval( $_POST['maxRecords'] ) : 0;
 		}
 		if ( 0 === $maxPages ) {
 			$maxPages = 99999;
@@ -353,7 +353,7 @@ class MainWP_Child_Posts {
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
 			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-			$extra['extract_post_type'] = $_POST['extract_post_type'];
+			$extra['extract_post_type'] = sanitize_text_field( wp_unslash( $_POST['extract_post_type'] ) );
 		}
 
 		$extra['where_post_date'] = $where_post_date;
@@ -412,8 +412,8 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function post_action() {
-		$action  = $_POST['action'];
-		$postId  = $_POST['id'];
+		$action  = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+		$postId  = sanitize_text_field( wp_unslash( $_POST['id'] ) );
 		$my_post = array();
 
 		if ( 'publish' === $action ) {
@@ -469,8 +469,8 @@ class MainWP_Child_Posts {
 				}
 			}
 		} elseif ( 'get_edit' === $action ) {
-			$postId    = $_POST['id'];
-			$post_type = $_POST['post_type'];
+			$postId    = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+			$post_type = sanitize_text_field( wp_unslash( $_POST['post_type'] ) );
 			if ( 'post' == $post_type ) {
 				$my_post = $this->get_post_edit( $postId );
 			} else {

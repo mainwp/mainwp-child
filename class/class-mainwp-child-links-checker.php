@@ -697,7 +697,7 @@ class MainWP_Child_Links_Checker {
 	 */
 	private function set_link_dismissed() {
 		$information = array();
-		$dismiss     = $_POST['dismiss'];
+		$dismiss     = sanitize_text_field( wp_unslash( $_POST['dismiss'] ) );
 
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
