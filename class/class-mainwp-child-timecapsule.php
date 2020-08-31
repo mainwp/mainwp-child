@@ -475,7 +475,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->exclude_file_list( $_POST['data'] );
+		$exclude_class_obj->exclude_file_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -702,8 +702,8 @@ class MainWP_Child_Timecapsule {
 			$query = 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE show_user = 1   GROUP BY action_id ';
 		}
 
-		$orderby = ! empty( $_POST['orderby'] ) ? MainWP_Child_DB::real_escape_string( $_POST['orderby'] ) : 'id';
-		$order   = ! empty( $_POST['order'] ) ? MainWP_Child_DB::real_escape_string( $_POST['order'] ) : 'DESC';
+		$orderby = ! empty( $_POST['orderby'] ) ? MainWP_Child_DB::real_escape_string( wp_unslash( $_POST['orderby'] ) ) : 'id';
+		$order   = ! empty( $_POST['order'] ) ? MainWP_Child_DB::real_escape_string( wp_unslash( $_POST['order'] ) ) : 'DESC';
 		if ( ! empty( $orderby ) & ! empty( $order ) ) {
 			$query .= ' ORDER BY ' . $orderby . ' ' . $order;
 		}
@@ -746,7 +746,7 @@ class MainWP_Child_Timecapsule {
 			return false;
 		}
 
-		$data = $_POST['data'];
+		$data = wp_unslash( $_POST['data'] );
 
 		if ( ! isset( $data['action_id'] ) || ! isset( $data['limit'] ) ) {
 			return false;
@@ -964,7 +964,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['data']['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->exclude_table_list( $_POST['data'] );
+		$exclude_class_obj->exclude_table_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1057,7 +1057,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['data']['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_table_list( $_POST['data'] );
+		$exclude_class_obj->include_table_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1074,7 +1074,7 @@ class MainWP_Child_Timecapsule {
 
 		$category          = $_POST['data']['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_table_structure_only( $_POST['data'] );
+		$exclude_class_obj->include_table_structure_only( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1090,7 +1090,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_file_list( $_POST['data'] );
+		$exclude_class_obj->include_file_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1236,7 +1236,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$staging->choose_action( $_POST['path'], $reqeust_type = 'fresh' );
+		$staging->choose_action( wp_unslash( $_POST['path'] ), $reqeust_type = 'fresh' );
 		die();
 	}
 
