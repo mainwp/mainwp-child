@@ -145,7 +145,7 @@ class MainWP_Utility {
 		// referrer.
 		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : 'undefined';
 
-		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
+		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( wp_unslash( $_SERVER['HTTPS'] ), 'off' ) ? 'https://' : 'http://';
 		// request URI.
 		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) : 'undefined';
 

@@ -370,7 +370,7 @@ class MainWP_Child_WP_Rocket {
 				}
 			}
 		}
-		$pos = stripos( $_SERVER['REQUEST_URI'], 'options-general.php?page=wprocket' );
+		$pos = stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php?page=wprocket' );
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
@@ -620,7 +620,7 @@ class MainWP_Child_WP_Rocket {
 	 * @return array Action result.
 	 */
 	public function save_settings() {
-		$options = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$options = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $options ) || empty( $options ) ) {
 			return array( 'error' => 'INVALID_OPTIONS' );
 		}
