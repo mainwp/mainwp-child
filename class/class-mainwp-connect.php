@@ -110,10 +110,10 @@ class MainWP_Connect {
 		}
 
 		// Update the mainwp_child_pubkey option.
-		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( $_POST['pubkey'] ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for the backwards compatibility.
+		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( wp_unslash( $_POST['pubkey'] ) ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for the backwards compatibility.
 
 		// Save the public key.
-		MainWP_Helper::update_option( 'mainwp_child_server', $_POST['server'] );
+		MainWP_Helper::update_option( 'mainwp_child_server', wp_unslash( $_POST['server'] ) );
 
 		// Save the nonce.
 		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 );
@@ -184,7 +184,7 @@ class MainWP_Connect {
 				// if alternative admin not existed.
 				if ( ! $user ) {
 					// check connected admin existed.
-					$user      = get_user_by( 'login', $_POST['user'] );
+					$user      = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
 					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 				}
 
@@ -271,12 +271,12 @@ class MainWP_Connect {
 		global $current_user;
 
 		$alter_login_required = false;
-		$username             = isset( $_REQUEST['user'] ) ? rawurldecode( $_REQUEST['user'] ) : '';
+		$username             = isset( $_REQUEST['user'] ) ? rawurldecode( wp_unslash( $_REQUEST['user'] ) ) : '';
 
 		if ( isset( $_REQUEST['alt_user'] ) ) {
-			$alter_login_required = ! empty( $_REQUEST['alt_user'] ) ? self::instance()->check_login_as( $_REQUEST['alt_user'] ) : false;
+			$alter_login_required = ! empty( $_REQUEST['alt_user'] ) ? self::instance()->check_login_as( wp_unslash( $_REQUEST['alt_user'] ) ) : false;
 			if ( $alter_login_required ) {
-				$username = isset( $_REQUEST['alt_user'] ) ? rawurldecode( $_REQUEST['alt_user'] ) : '';
+				$username = isset( $_REQUEST['alt_user'] ) ? rawurldecode( wp_unslash( $_REQUEST['alt_user'] ) ) : '';
 			}
 		}
 
@@ -286,11 +286,11 @@ class MainWP_Connect {
 			}
 		}
 
-		$signature = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? $_REQUEST['mainwpsignature'] : '' );
+		$signature = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? wp_unslash( $_REQUEST['mainwpsignature'] ) : '' );
 
 		$file = $this->get_request_files();
 
-		$auth = $this->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : $file ) ), isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '', isset( $_REQUEST['nossl'] ) ? $_REQUEST['nossl'] : 0 );
+		$auth = $this->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ), isset( $_REQUEST['nonce'] ) ? wp_unslash( $_REQUEST['nonce'] ) : '', isset( $_REQUEST['nossl'] ) ? wp_unslash( $_REQUEST['nossl'] ) : 0 );
 
 		if ( ! $auth ) {
 			return false;
@@ -344,15 +344,15 @@ class MainWP_Connect {
 	 */
 	private function check_redirects() {
 		if ( isset( $_REQUEST['fdl'] ) ) {
-			if ( stristr( $_REQUEST['fdl'], '..' ) ) {
+			if ( stristr( wp_unslash( $_REQUEST['fdl'] ), '..' ) ) {
 				return false;
 			}
-			MainWP_Utility::instance()->upload_file( $_REQUEST['fdl'], isset( $_REQUEST['foffset'] ) ? $_REQUEST['foffset'] : 0 );
+			MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['fdl'] ), isset( $_REQUEST['foffset'] ) ? wp_unslash( $_REQUEST['foffset'] ) : 0 );
 			exit;
 		}
 		// support for custom wp-admin slug.
 		if ( isset( $_REQUEST['open_location'] ) && ! empty( $_REQUEST['open_location'] ) ) {
-			$open_location = base64_decode( $_REQUEST['open_location'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
+			$open_location = base64_decode( wp_unslash( $_REQUEST['open_location'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
 			$this->open_location_redirect( $open_location );
 		}
 		$this->where_redirect();
@@ -416,13 +416,13 @@ class MainWP_Connect {
 	 * Safe redirect to wanted location.
 	 */
 	private function where_redirect() {
-		$where = isset( $_REQUEST['where'] ) ? $_REQUEST['where'] : '';
+		$where = isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : '';
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
 			$file = '';
 			if ( isset( $_POST['f'] ) ) {
-				$file = $_POST['f'];
+				$file = wp_unslash( $_POST['f'] );
 			} elseif ( isset( $_POST['file'] ) ) {
-				$file = $_POST['file'];
+				$file = wp_unslash( $_POST['file'] );
 			}
 			$where = 'admin.php?page=mainwp_child_tab&tab=restore-clone';
 			if ( '' === session_id() ) {
@@ -451,7 +451,7 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '', isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ), isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '', isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0 );
+		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : '', isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ), isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '', isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0 );
 		if ( ! $auth ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
 		}

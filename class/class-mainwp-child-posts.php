@@ -141,7 +141,7 @@ class MainWP_Child_Posts {
 		}
 
 		$wp_seo_enabled = false;
-		if ( isset( $_POST['WPSEOEnabled'] ) && $_POST['WPSEOEnabled'] ) {
+		if ( isset( $_POST['WPSEOEnabled'] ) && wp_unslash( $_POST['WPSEOEnabled'] ) ) {
 			if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) && class_exists( '\WPSEO_Link_Column_Count' ) && class_exists( '\WPSEO_Meta' ) ) {
 				$wp_seo_enabled = true;
 			}
@@ -337,7 +337,7 @@ class MainWP_Child_Posts {
 				}
 			}
 
-			if ( isset( $_POST['exclude_page_type'] ) && $_POST['exclude_page_type'] ) {
+			if ( isset( $_POST['exclude_page_type'] ) && wp_unslash( $_POST['exclude_page_type'] ) ) {
 				$this->posts_where_suffix .= " AND $wpdb->posts.post_type NOT IN ('page')";
 			}
 		}
