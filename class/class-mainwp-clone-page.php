@@ -58,6 +58,12 @@ class MainWP_Clone_Page {
 		wp_enqueue_script( 'jquery-ui-dialog' );
 
 		/** @global object $wp_scripts WordPress Core class used to register scripts.  */
+
+		/**
+		 * WordPress Core class used to register scripts.
+		 *
+		 * @global object $wp_scripts WordPress Core class used to register scripts.
+		 */
 		global $wp_scripts;
 
 		$ui      = $wp_scripts->query( 'jquery-ui-core' );
@@ -108,7 +114,11 @@ class MainWP_Clone_Page {
 		$error = false;
 		MainWP_Helper::get_wp_filesystem();
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
@@ -246,7 +256,11 @@ class MainWP_Clone_Page {
 				<?php
 				MainWP_Helper::get_wp_filesystem();
 
-				/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+				/**
+				 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+				 *
+				 * @global object $wp_filesystem Filesystem object.
+				 */
 				global $wp_filesystem;
 
 				if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {

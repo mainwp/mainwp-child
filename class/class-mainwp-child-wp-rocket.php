@@ -240,7 +240,11 @@ class MainWP_Child_WP_Rocket {
 	 */
 	public static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
 
-		/** @global object $wp_filter WordPress filter array. */
+		/**
+		 * WordPress filter array.
+		 *
+		 * @global array $wp_filter WordPress filter array.
+		 */
 		global $wp_filter;
 
 		// Take only filters on right hook name and priority.
@@ -272,7 +276,11 @@ class MainWP_Child_WP_Rocket {
 	 */
 	public function wp_before_admin_bar_render() {
 
-		/** @global object $wp_admin_bar WordPress admin bar array. */
+		/**
+		 * WordPress admin bar array.
+		 *
+		 * @global array $wp_admin_bar WordPress admin bar array.
+		 */
 		global $wp_admin_bar;
 
 		$nodes = $wp_admin_bar->get_nodes();
@@ -347,7 +355,11 @@ class MainWP_Child_WP_Rocket {
 	 */
 	public function remove_menu() {
 
-		/** @global object $submenu WordPress submenu array. */
+		/**
+		 * WordPress submenu array.
+		 *
+		 * @global array $submenu WordPress submenu array.
+		 */
 		global $submenu;
 
 		if ( isset( $submenu['options-general.php'] ) ) {
