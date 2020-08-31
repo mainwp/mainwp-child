@@ -1739,7 +1739,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function save_manual_backup_name_wptc() {
-		$backup_name     = isset( $_POST['backup_name'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_name'] ) ): '';
+		$backup_name     = isset( $_POST['backup_name'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_name'] ) ) : '';
 		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		$processed_files->save_manual_backup_name_wptc( $backup_name );
 		die();
