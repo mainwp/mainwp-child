@@ -102,7 +102,7 @@ class MainWP_Child_Branding_Render {
 		$opts = MainWP_Child_Branding::instance()->child_branding_options;
 
 		if ( isset( $_POST['submit'] ) ) {
-			if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( $_POST['_wpnonce'], '_contactNonce' ) ) {
+			if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['_wpnonce'] ), '_contactNonce' ) ) {
 				return false;
 			}
 			$this->render_submit_message( $opts );
@@ -111,10 +111,10 @@ class MainWP_Child_Branding_Render {
 
 		$from_page = '';
 		if ( isset( $_GET['from_page'] ) ) {
-			$from_page = isset( $_GET['from_page'] ) ? rawurldecode( $_GET['from_page'] ) : '';
+			$from_page = isset( $_GET['from_page'] ) ? rawurldecode( wp_unslash( $_GET['from_page'] ) ) : '';
 		} else {
-			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
-			$fullurl   = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( wp_unslash( $_SERVER['HTTPS'] ), 'off' ) ? 'https://' : 'http://';
+			$fullurl   = $protocol . wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_unslash( $_SERVER['REQUEST_URI'] );
 			$from_page = rawurldecode( $fullurl );
 		}
 
@@ -203,10 +203,10 @@ class MainWP_Child_Branding_Render {
 	public function send_support_mail() {
 		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
 		$email   = $opts['support_email'];
-		$sub     = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_subject'] ) ) );
-		$from    = trim( $_POST['mainwp_branding_contact_send_from'] );
+		$sub     = wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) );
+		$from    = trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) );
 		$subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
-		$content = wp_kses_post( nl2br( stripslashes( $_POST['mainwp_branding_contact_message_content'] ) ) );
+		$content = wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) );
 		$mail    = '';
 		$headers = '';
 
