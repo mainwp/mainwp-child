@@ -261,7 +261,11 @@ class MainWP_Clone_Install {
 	 */
 	public function update_option( $name, $value ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name ) ); // phpcs:ignore -- safe query.
@@ -280,7 +284,11 @@ class MainWP_Clone_Install {
 	 */
 	public function install() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$table_prefix = $this->config['prefix'];
@@ -456,7 +464,11 @@ class MainWP_Clone_Install {
 	public function extract_wp_zip_backup() {
 		MainWP_Helper::get_wp_filesystem();
 
-		/** @global object $wp_filesystem WordPress file system array. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		$tmpdir = ABSPATH;
@@ -560,10 +572,18 @@ class MainWP_Clone_Install {
 	public function icit_srdb_replacer( $connection, $search = '', $replace = '', $tables = array() ) {
 
 		/**
-		 * @global string $guid         Globally Unique Identifier
-		 * @global object $exclude_cols Excluded clumn array.
+		 * Globally Unique Identifier.
+		 *
+		 * @global string $guid Globally Unique Identifier.
 		 */
-		global $guid, $exclude_cols;
+		global $guid;
+
+		/**
+		 * Excluded clumns array.
+		 *
+		 * @global array $exclude_cols Excluded clumns array.
+		 */
+		global $exclude_cols;
 
 		$report = array(
 			'tables'  => 0,
