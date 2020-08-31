@@ -162,7 +162,7 @@ class MainWP_Child_Updates {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
-		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 
 		$this->to_support_some_premiums_updates( $plugins );
 
@@ -184,7 +184,7 @@ class MainWP_Child_Updates {
 
 		$information['plugin_updates'] = get_plugin_updates();
 
-		$plugins        = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
+		$plugins        = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 		$premiumPlugins = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -313,7 +313,7 @@ class MainWP_Child_Updates {
 		add_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ) );
 
 		$information['theme_updates'] = $this->upgrade_get_theme_updates();
-		$themes                       = explode( ',', $_POST['list'] );
+		$themes                       = explode( ',', wp_unslash( $_POST['list'] ) );
 		$premiumThemes                = array();
 		$premiumUpdates               = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
