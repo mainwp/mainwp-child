@@ -80,12 +80,12 @@ class MainWP_Clone_Page {
 	public static function render() {
 		$uploadError = false;
 		$uploadFile  = false;
-		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( wp_unslash( $_POST['_nonce'] ), 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = $_FILES['file'];
+				$uploadedfile     = wp_unslash( $_FILES['file'] );
 				$upload_overrides = array( 'test_form' => false );
 				add_filter( 'upload_mimes', array( MainWP_Clone::get_class_name(), 'upload_mimes' ) );
 				$movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
@@ -225,12 +225,12 @@ class MainWP_Clone_Page {
 		$uploadError = false;
 		$uploadFile  = false;
 
-		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( wp_unslash( $_POST['_nonce'] ), 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = $_FILES['file'];
+				$uploadedfile     = wp_unslash( $_FILES['file'] );
 				$upload_overrides = array( 'test_form' => false );
 				$movefile         = wp_handle_upload( $uploadedfile, $upload_overrides );
 				if ( $movefile ) {
@@ -332,7 +332,7 @@ class MainWP_Clone_Page {
 		$backup_dir   = $current_dir;
 
 		if ( isset( $_REQUEST['dir'] ) ) {
-			$current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( $_REQUEST['dir'] ) ) : '';
+			$current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( wp_unslash( $_REQUEST['dir'] ) ) ) : '';
 			$current_dir = '/' . ltrim( $current_dir, '/' );
 			if ( ! is_readable( $current_dir ) && get_option( 'mainwp_child_clone_from_server_last_folder' ) ) {
 				$current_dir = get_option( 'mainwp_child_clone_from_server_last_folder' ) . $current_dir;
@@ -1180,10 +1180,10 @@ class MainWP_Clone_Page {
 		$size = null;
 
 		if ( isset( $_SESSION['file'] ) ) {
-			$file = $_SESSION['file'];
-			$size = $_SESSION['size'];
-			unset( $_SESSION['file'] );
-			unset( $_SESSION['size'] );
+			$file = wp_unslash( $_SESSION['file'] );
+			$size = wp_unslash( $_SESSION['size'] );
+			unset( wp_unslash( $_SESSION['file'] ) );
+			unset( wp_unslash( $_SESSION['size'] ) );
 		}
 
 		if ( null === $file ) {

@@ -591,7 +591,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Get server IP.
 	 */
 	protected static function get_server_ip() {
-		echo isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( esc_html( $_SERVER['SERVER_ADDR'] ) ) ) : '';
+		echo isset( $_SERVER['SERVER_ADDR'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) ) : '';
 	}
 
 	/**

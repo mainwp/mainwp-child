@@ -745,17 +745,17 @@ class MainWP_Clone_Install {
 		if ( ! isset( $_REQUEST['f'] ) || ( '' === $_REQUEST['f'] ) ) {
 			return;
 		}
-		if ( ! MainWP_Connect::instance()->is_valid_auth( $_REQUEST['key'] ) ) {
+		if ( ! MainWP_Connect::instance()->is_valid_auth( wp_unslash( $_REQUEST['key'] ) ) ) {
 			return;
 		}
 
 		if ( 'dl' === $_REQUEST['cloneFunc'] ) {
-			MainWP_Utility::instance()->upload_file( $_REQUEST['f'] );
+			MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['f'] ) );
 			exit;
 		} elseif ( 'deleteCloneBackup' === $_POST['cloneFunc'] ) {
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir = $dirs[0];
-			$result    = glob( $backupdir . $_POST['f'] );
+			$result    = glob( $backupdir . wp_unslash( $_POST['f'] ) );
 			if ( 0 === count( $result ) ) {
 				return;
 			}
@@ -803,7 +803,7 @@ class MainWP_Clone_Install {
 		$wpversion = isset( $_POST['wpversion'] ) ? sanitize_text_field( wp_unslash( $_POST['wpversion'] ) ) : '';
 		global $wp_version;
 		$includeCoreFiles = ( $wpversion !== $wp_version );
-		$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
+		$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() );
 		$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
 		$uploadDir        = MainWP_Helper::get_mainwp_dir();
 		$uploadDir        = $uploadDir[0];
@@ -818,7 +818,7 @@ class MainWP_Clone_Install {
 			$newExcludes[] = rtrim( $exclude, '/' );
 		}
 
-		$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : $_POST['zipmethod'] );
+		$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : wp_unslash( $_POST['zipmethod'] ) );
 		if ( 'tar.gz' === $method && ! function_exists( 'gzopen' ) ) {
 			$method = 'zip';
 		}
