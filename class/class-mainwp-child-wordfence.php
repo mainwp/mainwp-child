@@ -514,7 +514,7 @@ class MainWP_Child_Wordfence {
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
 
-			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 			switch ( $mwp_action ) {
 				case 'start_scan':
 					$information = $this->start_scan();

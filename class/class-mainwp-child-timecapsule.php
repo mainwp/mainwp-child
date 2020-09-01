@@ -172,7 +172,7 @@ class MainWP_Child_Timecapsule {
 			if ( ( 'save_settings' == $_POST['mwp_action'] || 'get_staging_details_wptc' == $_POST['mwp_action'] || 'progress_wptc' == $_POST['mwp_action'] ) && ( ! $is_user_logged_in || ! $privileges_wptc ) ) {
 				MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
 			}
-			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 			switch ( $mwp_action ) {
 				case 'set_showhide':
 						$information = $this->set_showhide();

@@ -88,8 +88,8 @@ class MainWP_WordPress_SEO {
 			$information['error'] = 'NO_WPSEO';
 			MainWP_Helper::write( $information );
 		}
-		$result = array();
-		$mwp_action = !empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$result     = array();
+		$mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		switch ( $mwp_action ) {
 			case 'import_settings':
 				$information = $this->import_settings();
