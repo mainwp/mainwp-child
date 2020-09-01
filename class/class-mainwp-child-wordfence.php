@@ -302,7 +302,11 @@ class MainWP_Child_Wordfence {
 			return;
 		}
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$lastcheck = get_option( 'mainwp_wordfence_lastcheck_scan' );
@@ -510,7 +514,8 @@ class MainWP_Child_Wordfence {
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
 
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'start_scan':
 					$information = $this->start_scan();
 					break;
@@ -1126,7 +1131,11 @@ class MainWP_Child_Wordfence {
 	 */
 	public function count_attacks_blocked( $maxAgeDays ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$table_wfBlockedIPLog = \wfDB::networkTable( 'wfBlockedIPLog' );
@@ -1191,8 +1200,8 @@ SQL
 	 */
 	public function update_issue_status() {
 		$wfIssues = new \wfIssues();
-		$status   = $_POST['status'];
-		$issueID  = $_POST['id'];
+		$status   = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$issueID  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		if ( ! preg_match( '/^(?:new|delete|ignoreP|ignoreC)$/', $status ) ) {
 			return array( 'errorMsg' => 'An invalid status was specified when trying to update that issue.' );
 		}
@@ -1217,8 +1226,8 @@ SQL
 	 */
 	public function update_issues_status() {
 		$wfIssues = new \wfIssues();
-		$status   = $_POST['status'];
-		$issueID  = $_POST['id'];
+		$status   = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$issueID  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		if ( ! preg_match( '/^(?:new|delete|ignoreP|ignoreC)$/', $status ) ) {
 			return array( 'errorMsg' => 'An invalid status was specified when trying to update that issue.' );
 		}
@@ -1238,7 +1247,7 @@ SQL
 	 */
 	public function delete_issues() {
 		$wfIssues = new \wfIssues();
-		$issueID  = $_POST['id'];
+		$issueID  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$wfIssues->deleteIssue( $issueID );
 
 		return array( 'ok' => 1 );
@@ -1256,7 +1265,7 @@ SQL
 	public function bulk_operation() {
 		$op = $_POST['op'];
 		if ( 'del' === $op || 'repair' === $op ) {
-			$ids           = $_POST['ids'];
+			$ids           = isset( $_POST['ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['ids'] ) ) : array();
 			$filesWorkedOn = 0;
 			$errors        = array();
 			$issues        = new \wfIssues();
@@ -1370,7 +1379,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function delete_file() {
-		$issueID  = $_POST['issueID'];
+		$issueID  =sanitize_text_field( wp_unslash( $_POST['issueID'] ) );
 		$wfIssues = new \wfIssues();
 		$issue    = $wfIssues->getIssueByID( $issueID );
 		if ( ! $issue ) {
@@ -1410,7 +1419,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function restore_file() {
-		$issueID  = $_POST['issueID'];
+		$issueID  = isset( $_POST['issueID'] ) ? sanitize_text_field( wp_unslash( $_POST['issueID'] ) ) : '';
 		$wfIssues = new \wfIssues();
 		$issue    = $wfIssues->getIssueByID( $issueID );
 		if ( ! $issue ) {
@@ -1511,10 +1520,10 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // custom fix to pass through security rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		}
 
-		$section     = isset( $_POST['savingSection'] ) ? $_POST['savingSection'] : '';
+		$section     = isset( $_POST['savingSection'] ) ? sanitize_text_field( wp_unslash( $_POST['savingSection'] ) ) : '';
 		$saving_opts = self::get_section_settings( $section );
 
 		$result = array();
@@ -1796,7 +1805,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
@@ -2005,7 +2014,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function import_settings() {
-		$token = $_POST['token'];
+		$token = isset( $_POST['token'] ) ? sanitize_text_field( wp_unslash( $_POST['token'] ) ) : '';
 		try {
 			$api = new \wfAPI( \wfConfig::get( 'apiKey' ), \wfUtils::getWPVersion() );
 			$res = $api->call( 'import_options', array(), array( 'token' => $token ) );
@@ -2673,8 +2682,8 @@ SQL
 	 * @return array Action result.
 	 */
 	public function unblock_ip() {
-		if ( isset( $_POST['IP'] ) ) {
-			$IP = $_POST['IP'];
+		$IP = isset( $_POST['IP'] ) ? sanitize_text_field( wp_unslash( $_POST['IP'] ) ) : '';
+		if ( ! empty( $IP ) ) {
 			\wfBlock::unblockIP( $IP );
 			return array( 'success' => 1 );
 		}
@@ -2693,7 +2702,7 @@ SQL
 		if ( ! \wfConfig::get( 'isPaid' ) ) {
 			return array( 'error' => 'Sorry but this feature is only available for paid customers.' );
 		}
-		$settings = $_POST['settings'];
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 		\wfConfig::set( 'cbl_action', $settings['blockAction'] );
 		\wfConfig::set( 'cbl_countries', $settings['codes'] );
 		\wfConfig::set( 'cbl_redirURL', $settings['redirURL'] );
@@ -2716,7 +2725,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function load_static_panel() {
-		$mode  = $_POST['mode'];
+		$mode  = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : '';
 		$wfLog = \wordfence::getLog();
 		if ( 'topScanners' === $mode || 'topLeechers' === $mode ) {
 			$results = $wfLog->getLeechers( $mode );
@@ -2785,10 +2794,10 @@ SQL
 				$noEditHtaccess = '0';
 			}
 		} elseif ( isset( $_POST['noEditHtaccess'] ) ) {
-			$noEditHtaccess = $_POST['noEditHtaccess'];
+			$noEditHtaccess = isset( $_POST['noEditHtaccess'] ) ? sanitize_text_field( wp_unslash( $_POST['noEditHtaccess'] ) ) : '1';
 		}
 
-		$cacheType = $_POST['cacheType'];
+		$cacheType = isset( $_POST['cacheType'] ) ? sanitize_text_field( wp_unslash( $_POST['cacheType'] ) ) : '';
 		if ( 'falcon' == $cacheType || 'php' == $cacheType ) {
 			$plugins    = get_plugins();
 			$badPlugins = array();
@@ -3158,7 +3167,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public static function remove_cache_exclusion() {
-		$id = $_POST['id'];
+		$id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$ex = \wfConfig::get( 'cacheExclusions', false );
 		if ( ! $ex ) {
 			return array( 'ok' => 1 );
@@ -3952,7 +3961,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public static function save_debugging_config() {
-		$settings = $_POST['settings'];
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 		foreach ( self::$diagnosticParams as $param ) {
 			if ( isset( $settings[ $param ] ) ) {
 				\wfConfig::set( $param, $settings[ $param ] );

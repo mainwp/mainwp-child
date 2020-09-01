@@ -57,7 +57,11 @@ class MainWP_Clone_Page {
 		wp_enqueue_script( 'jquery-ui-progressbar' );
 		wp_enqueue_script( 'jquery-ui-dialog' );
 
-		/** @global object $wp_scripts WordPress Core class used to register scripts.  */
+		/**
+		 * WordPress Core class used to register scripts.
+		 *
+		 * @global object $wp_scripts WordPress Core class used to register scripts.
+		 */
 		global $wp_scripts;
 
 		$ui      = $wp_scripts->query( 'jquery-ui-core' );
@@ -76,12 +80,12 @@ class MainWP_Clone_Page {
 	public static function render() {
 		$uploadError = false;
 		$uploadFile  = false;
-		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_nonce'] ) ), 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = $_FILES['file'];
+				$uploadedfile     = isset( $_FILES['file'] ) ? wp_unslash( $_FILES['file'] ) : '';
 				$upload_overrides = array( 'test_form' => false );
 				add_filter( 'upload_mimes', array( MainWP_Clone::get_class_name(), 'upload_mimes' ) );
 				$movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
@@ -108,7 +112,11 @@ class MainWP_Clone_Page {
 		$error = false;
 		MainWP_Helper::get_wp_filesystem();
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
@@ -217,12 +225,12 @@ class MainWP_Clone_Page {
 		$uploadError = false;
 		$uploadFile  = false;
 
-		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( $_POST['_nonce'], 'cloneRestore' ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_nonce'] ) ), 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = $_FILES['file'];
+				$uploadedfile     = isset( $_FILES['file'] ) ? wp_unslash( $_FILES['file'] ) : '';
 				$upload_overrides = array( 'test_form' => false );
 				$movefile         = wp_handle_upload( $uploadedfile, $upload_overrides );
 				if ( $movefile ) {
@@ -246,7 +254,11 @@ class MainWP_Clone_Page {
 				<?php
 				MainWP_Helper::get_wp_filesystem();
 
-				/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+				/**
+				 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+				 *
+				 * @global object $wp_filesystem Filesystem object.
+				 */
 				global $wp_filesystem;
 
 				if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
@@ -312,7 +324,7 @@ class MainWP_Clone_Page {
 	 * Allows the Media Manager to add files from the webservers filesystem. Note: All files are copied to the uploads directory.
 	 */
 	private static function render_clone_from_server() {
-		$page         = $_REQUEST['page'];
+		$page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 		$url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
 		$dirs         = MainWP_Helper::get_mainwp_dir( 'backup', false );
@@ -320,7 +332,7 @@ class MainWP_Clone_Page {
 		$backup_dir   = $current_dir;
 
 		if ( isset( $_REQUEST['dir'] ) ) {
-			$current_dir = stripslashes( rawurldecode( $_REQUEST['dir'] ) );
+			$current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( wp_unslash( $_REQUEST['dir'] ) ) ) : '';
 			$current_dir = '/' . ltrim( $current_dir, '/' );
 			if ( ! is_readable( $current_dir ) && get_option( 'mainwp_child_clone_from_server_last_folder' ) ) {
 				$current_dir = get_option( 'mainwp_child_clone_from_server_last_folder' ) . $current_dir;
@@ -1164,18 +1176,16 @@ class MainWP_Clone_Page {
 		if ( '' === session_id() ) {
 			session_start();
 		}
-		$file = null;
-		$size = null;
+
+		$file = isset( $_SESSION['file'] ) ? wp_unslash( $_SESSION['file'] ) : null;
+		$size = isset( $_SESSION['size'] ) ? wp_unslash( $_SESSION['size'] ) : null;
 
 		if ( isset( $_SESSION['file'] ) ) {
-			$file = $_SESSION['file'];
-			$size = $_SESSION['size'];
 			unset( $_SESSION['file'] );
-			unset( $_SESSION['size'] );
 		}
 
-		if ( null === $file ) {
-			die( '<meta http-equiv="refresh" content="0;url=' . esc_url( admin_url() ) . '">' );
+		if ( isset( $_SESSION['size'] ) ) {
+			unset( $_SESSION['size'] );
 		}
 
 		self::render_style();

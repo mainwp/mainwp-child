@@ -71,16 +71,16 @@ class MainWP_Child_Maintenance {
 	public function maintenance_site() {
 
 		if ( isset( $_POST['action'] ) ) {
-			$this->maintenance_action( $_POST['action'] ); // exit.
+			$this->maintenance_action( wp_unslash( $_POST['action'] ) ); // exit.
 		}
 
-		$maint_options = $_POST['options'];
+		$maint_options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : false;
 
 		if ( ! is_array( $maint_options ) ) {
 			MainWP_Helper::write( array( 'status' => 'FAIL' ) ); // exit.
 		}
 
-		$max_revisions = isset( $_POST['revisions'] ) ? intval( $_POST['revisions'] ) : 0;
+		$max_revisions = isset( $_POST['revisions'] ) ? intval( wp_unslash( $_POST['revisions'] ) ) : 0;
 
 		$information = $this->maintenance_db( $maint_options, $max_revisions );
 
@@ -278,10 +278,19 @@ class MainWP_Child_Maintenance {
 	private function maintenance_optimize() {
 
 		/**
+		 * Object, providing access to the WordPress database.
+		 *
 		 * @global object $wpdb WordPress Database instance.
+		 */
+		global $wpdb;
+
+		/**
+		 * WordPress DB table prefix.
+		 *
 		 * @global string $table_prefix WordPress DB table prefix.
 		 */
-		global $wpdb, $table_prefix;
+		global $table_prefix;
+
 		$sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
 		$result = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 		if ( MainWP_Child_DB::num_rows( $result ) && MainWP_Child_DB::is_result( $result ) ) {
@@ -319,7 +328,7 @@ class MainWP_Child_Maintenance {
 			}
 
 			if ( isset( $_POST['email'] ) && ! empty( $_POST['email'] ) ) {
-				MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404_email', $_POST['email'], 'yes' );
+				MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404_email', wp_unslash( $_POST['email'] ), 'yes' );
 			} else {
 				delete_option( 'mainwp_maintenance_opt_alert_404_email' );
 			}

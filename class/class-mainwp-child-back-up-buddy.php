@@ -358,9 +358,10 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( ! isset( \pb_backupbuddy::$options ) ) {
 			\pb_backupbuddy::load();
 		}
-
+		
+		$mwp_action = isset( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
 					break;
@@ -526,7 +527,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function save_settings() {
 
-		$type = isset( $_POST['type'] ) ? $_POST['type'] : '';
+		$type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 
 		if ( 'general_settings' !== $type && 'advanced_settings' !== $type && 'all' !== $type ) {
 			return array( 'error' => __( 'Invalid data. Please check and try again.' ) );
@@ -889,7 +890,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::save()
      */
     public function save_profile() {
-		$profile_id = $_POST['profile_id'];
+		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_id'] ) ) : 0;
 		$profile    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $profile ) ) {
@@ -913,7 +914,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::save()
      */
     public function delete_profile() {
-		$profile_id = $_POST['profile_id'];
+		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_id'] ) ) : 0;
 
 		if ( isset( \pb_backupbuddy::$options['profiles'][ $profile_id ] ) ) {
 			unset( \pb_backupbuddy::$options['profiles'][ $profile_id ] );
@@ -939,8 +940,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::save()
      */
     public function delete_backup( $type = 'default', $subsite_mode = false ) {
-		$item_ids    = $_POST['item_ids'];
-		$item_ids    = explode( ',', $item_ids );
+		$item_ids    = isset( $_POST['item_ids'] ) ? explode( ',', wp_unslash( $_POST['item_ids'] ) ) : array();
 		$information = array();
 		if ( is_array( $item_ids ) && count( $item_ids ) > 0 ) {
 			$needs_save    = false;
@@ -1193,11 +1193,11 @@ class MainWP_Child_Back_Up_Buddy {
 		$max_cache_time = 86400;
 
 		// This is the root directory we want the listing for.
-		$root     = $_POST['dir'];
+		$root     = isset( $_POST['dir'] ) ? wp_unslash( $_POST['dir'] ) : '';
 		$root_len = strlen( $root );
 
 		// This will identify the backup zip file we want to list.
-		$serial = $_POST['serial'];
+		$serial = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
 		$alerts = array();
 		// The fileoptions file that contains the file tree information.
 		require_once \pb_backupbuddy::plugin_path() . '/classes/fileoptions.php';
@@ -1276,7 +1276,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @return array|string[] Return excluded files & directories list html or ERROR message.
      */
     public function exclude_tree() {
-		$root = substr( ABSPATH, 0, strlen( ABSPATH ) - 1 ) . '/' . ltrim( urldecode( $_POST['dir'] ), '/\\' );
+		$root = substr( ABSPATH, 0, strlen( ABSPATH ) - 1 ) . '/' . ( isset( $_POST['dir'] ) ? ltrim( urldecode( $_POST['dir'] ), '/\\' ) : '' );
 		if ( file_exists( $root ) ) {
 			$files = scandir( $root );
 
@@ -1421,8 +1421,8 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function restore_file_view() {
 
-		$archive_file = $_POST['archive']; // archive to extract from.
-		$file         = $_POST['file']; // file to extract.
+		$archive_file = isset( $_POST['archive'] ) ? wp_unslash( $_POST['archive'] ) : ''; // archive to extract from.
+		$file         = isset( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : ''; // file to extract.
 		$serial       = \backupbuddy_core::get_serial_from_file( $archive_file ); // serial of archive.
 		$temp_file    = uniqid(); // temp filename to extract into.
 
@@ -1902,7 +1902,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::flush()
      */
     public function view_log() {
-		$serial  = $_POST['serial'];
+		$serial  = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
 		$logFile = \backupbuddy_core::getLogDirectory() . 'status-' . $serial . '_sum_' . \pb_backupbuddy::$options['log_serial'] . '.txt';
 
 		if ( ! file_exists( $logFile ) ) {
@@ -1986,7 +1986,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function view_detail() {
 
-		$serial = $_POST['serial'];
+		$serial = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
 		$serial = str_replace( '/\\', '', $serial );
 		\pb_backupbuddy::load();
 
@@ -2219,7 +2219,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @return array $information Return results array.
      */
     public function reset_integrity() {
-		$_GET['reset_integrity']    = $_POST['reset_integrity'];
+		$_GET['reset_integrity']    = isset( $_POST['reset_integrity'] ) ? sanitize_text_field( wp_unslash( $_POST['reset_integrity'] ) ) : '';
 		$information['backup_list'] = $this->get_backup_list();
 		$information['result']      = 'SUCCESS';
 		return $information;
@@ -2304,7 +2304,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy_backup::start_backup_process()
      */
     public function create_backup() {
-		$requested_profile = $_POST['profile_id'];
+		$requested_profile = isset( $_POST['profile_id'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_id'] ) ) : 0;
 
 		if ( ! isset( \pb_backupbuddy::$options['profiles'][ $requested_profile ] ) ) {
 			return array( 'error' => 'Invalid Profile. Not found.' );
@@ -2316,7 +2316,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$profile_array   = \pb_backupbuddy::$options['profiles'][ $requested_profile ];
 		$serial_override = \pb_backupbuddy::random_string( 10 );
 
-		if ( true !== $newBackup->start_backup_process( $profile_array, 'manual', array(), isset( $_POST['post_backup_steps'] ) && is_array( $_POST['post_backup_steps'] ) ? $_POST['post_backup_steps'] : array(), '', $serial_override, '', '', '' ) ) {
+		if ( true !== $newBackup->start_backup_process( $profile_array, 'manual', array(), isset( $_POST['post_backup_steps'] ) && is_array( $_POST['post_backup_steps'] ) ? wp_unslash( $_POST['post_backup_steps'] ) : array(), '', $serial_override, '', '', '' ) ) {
 			return array( 'error' => __( 'Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'mainwp-child' ) );
 		}
 		return array( 'result' => 'SUCCESS' );
@@ -2400,8 +2400,8 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::save()
      */
     public function remote_save() {
-		$data           = isset( $_POST['data'] ) ? $_POST['data'] : false;
-		$destination_id = isset( $_POST['destination_id'] ) ? $_POST['destination_id'] : 0;
+		$data           = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : false;
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : 0;
 
 		if ( is_array( $data ) && isset( $data['do_not_override'] ) ) {
 
@@ -2463,7 +2463,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy_destinations::delete_destination()
      */
     public function remote_delete() {
-		$destination_id = isset( $_POST['destination_id'] ) ? $_POST['destination_id'] : null;
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : null;
 		if ( null !== $destination_id ) {
 			require_once \pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php';
 			$delete_response = \pb_backupbuddy_destinations::delete_destination( $destination_id, true );
@@ -2494,9 +2494,9 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function remote_send() {
 
-		$destination_id = isset( $_POST['destination_id'] ) ? $_POST['destination_id'] : null;
-		$file           = isset( $_POST['file'] ) ? $_POST['file'] : null;
-		$trigger        = isset( $_POST['trigger'] ) ? $_POST['trigger'] : 'manual';
+		$destination_id = isset( $_POST['destination_id'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['destination_id'] ) ) : null;
+		$file           = isset( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : null;
+		$trigger        = isset( $_POST['trigger'] ) ? wp_unslash( $_POST['trigger'] ) : 'manual';
 
 		if ( 'importbuddy.php' != $file ) {
 			$backup_file = \backupbuddy_core::getBackupDirectory() . $file;
@@ -3113,7 +3113,7 @@ class MainWP_Child_Back_Up_Buddy {
 				\pb_backupbuddy::$options['remote_destinations'][ $nextDestKey ]['title']           = 'My BackupBuddy Stash Live';
 
 				// Notification email.
-				\pb_backupbuddy::$options['remote_destinations'][ $nextDestKey ]['email'] = $_POST['email'];
+				\pb_backupbuddy::$options['remote_destinations'][ $nextDestKey ]['email'] = isset( $_POST['email']  ) ? sanitize_text_field( wp_unslash( $_POST['email'] ) ) : '';
 
 				// Archive limits.
 				foreach ( $archive_types as $archive_type => $archive_type_name ) {
@@ -3176,8 +3176,8 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \backupbuddy_live::send_trim_settings()
      */
     public function live_save_settings() {
-		$data               = $_POST['data'];
-		$new_destination_id = $_POST['destination_id'];
+		$data               = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+		$new_destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php';
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/live/live.php';
@@ -3223,7 +3223,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function live_action_disconnect() {
 		$error             = '';
-		$liveDestinationID = $_POST['destination_id'];
+		$liveDestinationID = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		$return = array();
 		if ( $liveDestinationID ) {
@@ -3265,7 +3265,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \backupbuddy_api::setLiveStatus()
      */
     public function live_action() {
-		$action  = $_POST['live_action'];
+		$action  = isset( $_POST['live_action'] ) ? sanitize_text_field( wp_unslash( $_POST['live_action'] ) ) : '';
 		$error   = '';
 		$message = '';
 
@@ -3373,7 +3373,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \backupbuddy_core::pretty_backup_type()
      */
     public function get_live_backups() {
-		$destination_id = $_POST['destination_id'];
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 		// Load required files.
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/s32/init.php';
 
@@ -3457,8 +3457,8 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function copy_file_to_local() {
 
-		$file           = base64_decode( $_POST['cpy_file'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$destination_id = $_POST['destination_id'];
+		$file           = isset( $_POST['cpy_file'] ) ? base64_decode( $_POST['cpy_file'] ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		// Load required files.
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/s32/init.php';
@@ -3491,8 +3491,8 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function delete_file_backup() {
 		// Handle deletion.
-		$files          = $_POST['items'];
-		$destination_id = $_POST['destination_id'];
+		$files          = isset( $_POST['items'] ) ? wp_unslash( $_POST['items'] ) : array();
+		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		// Load required files.
 		require_once \pb_backupbuddy::plugin_path() . '/destinations/s32/init.php';
@@ -3601,7 +3601,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @return bool|int[] Return 1 on success and FALSE on failure.
      */
     public function save_license_settings() {
-		$settings = $_POST['settings'];
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : false;
 		if ( is_array( $settings ) && isset( $GLOBALS['ithemes-updater-settings'] ) ) {
 			$GLOBALS['ithemes-updater-settings']->update_options( $settings );
 			return array( 'ok' => 1 );
@@ -3654,7 +3654,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function activate_package() {
 
-		$username = $_POST['username'];
+		$username = isset( $_POST['username'] ) ? sanitize_text_field( wp_unslash( $_POST['username'] ) ) : '';
 		$password = $_POST['password'];
 		$packages = $_POST['packages'];
 
@@ -3738,7 +3738,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function deactivate_package( $data ) {
 
-		$username = $_POST['username'];
+		$username = isset( $_POST['username'] ) ? sanitize_text_field( wp_unslash( $_POST['username'] ) ) : '';
 		$password = $_POST['password'];
 		$packages = $_POST['packages'];
 

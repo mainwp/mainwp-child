@@ -172,8 +172,8 @@ class MainWP_Child_Timecapsule {
 			if ( ( 'save_settings' == $_POST['mwp_action'] || 'get_staging_details_wptc' == $_POST['mwp_action'] || 'progress_wptc' == $_POST['mwp_action'] ) && ( ! $is_user_logged_in || ! $privileges_wptc ) ) {
 				MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
 			}
-
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'set_showhide':
 						$information = $this->set_showhide();
 					break;
@@ -433,7 +433,11 @@ class MainWP_Child_Timecapsule {
 			$last_time = strtotime( date( 'Y-m-d', strtotime( date( 'Y-m-01' ) ) ) ); // phpcs:ignore --  required to achieve desired results, pull request solutions appreciated.
 		}
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$all_backups = $wpdb->get_results(
@@ -471,7 +475,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->exclude_file_list( $_POST['data'] );
+		$exclude_class_obj->exclude_file_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -489,7 +493,11 @@ class MainWP_Child_Timecapsule {
 
 		$config = \WPTC_Factory::get( 'config' );
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( ! $config->get_option( 'in_progress' ) ) {
@@ -578,10 +586,10 @@ class MainWP_Child_Timecapsule {
 	 * @return array Action result.
 	 */
 	public function get_this_backups_html() {
-		$this_backup_ids    = $_POST['this_backup_ids'];
-		$specific_dir       = $_POST['specific_dir'];
-		$type               = $_POST['type'];
-		$treeRecursiveCount = $_POST['treeRecursiveCount'];
+		$this_backup_ids    = isset( $_POST['this_backup_ids'] ) ? wp_unslash( $_POST['this_backup_ids'] ) : '';
+		$specific_dir       = isset( $_POST['specific_dir'] ) ? wp_unslash( $_POST['specific_dir'] ) : '';
+		$type               = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+		$treeRecursiveCount = isset( $_POST['treeRecursiveCount'] ) ? sanitize_text_field( wp_unslash( $_POST['treeRecursiveCount'] ) ) : '';
 		$processed_files    = \WPTC_Factory::get( 'processed-files' );
 
 		$result = $processed_files->get_this_backups_html( $this_backup_ids, $specific_dir, $type, $treeRecursiveCount );
@@ -618,8 +626,8 @@ class MainWP_Child_Timecapsule {
 		// note that we are getting the ajax function data via $_POST.
 		$file_name       = $_POST['data']['file_name'];
 		$file_name       = wp_normalize_path( $file_name );
-		$backup_id       = $_POST['data']['backup_id'];
-		$recursive_count = $_POST['data']['recursive_count'];
+		$backup_id       = isset( $_POST['data']['backup_id'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['backup_id'] ) ) : '';
+		$recursive_count = isset( $_POST['data']['recursive_count'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['recursive_count'] ) ) : '';
 
 		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		echo $processed_files->get_this_backups_html( $backup_id, $file_name, $type = 'sibling', (int) $recursive_count );
@@ -658,7 +666,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function prepare_items() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( isset( $_POST['type'] ) ) {
@@ -690,15 +702,15 @@ class MainWP_Child_Timecapsule {
 			$query = 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE show_user = 1   GROUP BY action_id ';
 		}
 
-		$orderby = ! empty( $_POST['orderby'] ) ? MainWP_Child_DB::real_escape_string( $_POST['orderby'] ) : 'id';
-		$order   = ! empty( $_POST['order'] ) ? MainWP_Child_DB::real_escape_string( $_POST['order'] ) : 'DESC';
+		$orderby = ! empty( $_POST['orderby'] ) ? MainWP_Child_DB::real_escape_string( wp_unslash( $_POST['orderby'] ) ) : 'id';
+		$order   = ! empty( $_POST['order'] ) ? MainWP_Child_DB::real_escape_string( wp_unslash( $_POST['order'] ) ) : 'DESC';
 		if ( ! empty( $orderby ) & ! empty( $order ) ) {
 			$query .= ' ORDER BY ' . $orderby . ' ' . $order;
 		}
 
 		$totalitems = $wpdb->query( $query ); // phpcs:ignore -- safe query.
 		$perpage    = 20;
-		$paged      = ! empty( $_POST['paged'] ) ? $_POST['paged'] : '';
+		$paged      = ! empty( $_POST['paged'] ) ? intval( $_POST['paged'] ) : '';
 		if ( empty( $paged ) || ! is_numeric( $paged ) || $paged <= 0 ) {
 			$paged = 1;
 		}
@@ -734,13 +746,17 @@ class MainWP_Child_Timecapsule {
 			return false;
 		}
 
-		$data = $_POST['data'];
+		$data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
 
 		if ( ! isset( $data['action_id'] ) || ! isset( $data['limit'] ) ) {
 			return false;
 		}
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$action_id     = $data['action_id'];
@@ -778,7 +794,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_display_rows( $records ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		// Get the records registered in the prepare_items method.
@@ -892,7 +912,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function clear_wptc_logs() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( $wpdb->query( 'TRUNCATE TABLE `' . $wpdb->base_prefix . 'wptc_activity_log`' ) ) {
@@ -940,7 +964,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['data']['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->exclude_table_list( $_POST['data'] );
+		$exclude_class_obj->exclude_table_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1033,7 +1057,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['data']['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_table_list( $_POST['data'] );
+		$exclude_class_obj->include_table_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1050,7 +1074,7 @@ class MainWP_Child_Timecapsule {
 
 		$category          = $_POST['data']['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_table_structure_only( $_POST['data'] );
+		$exclude_class_obj->include_table_structure_only( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1066,7 +1090,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = $_POST['category'];
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_file_list( $_POST['data'] );
+		$exclude_class_obj->include_file_list( wp_unslash( $_POST['data'] ) );
 		die();
 	}
 
@@ -1076,8 +1100,8 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function get_files_by_key() {
-		$key               = $_POST['key'];
-		$category          = $_POST['category'];
+		$key               = isset( $_POST['key'] ) ? wp_unslash( $_POST['key'] ) : '';
+		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array();
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_files_by_key( $key );
 		die();
@@ -1100,7 +1124,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$email = $_POST['acc_email'];
+		$email = isset( $_POST['acc_email'] ) ? sanitize_text_field( wp_unslash( $_POST['acc_email'] ) ) : '';
 		$pwd   = $_POST['acc_pwd'];
 
 		if ( empty( $email ) || empty( $pwd ) ) {
@@ -1212,7 +1236,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$staging->choose_action( $_POST['path'], $reqeust_type = 'fresh' );
+		$staging->choose_action( wp_unslash( $_POST['path'] ), $reqeust_type = 'fresh' );
 		die();
 	}
 
@@ -1334,10 +1358,10 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$data = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
+		$data = isset( $_POST['data'] ) ? unserialize( base64_decode( $_POST['data'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
 
-		$tabName    = $_POST['tabname'];
-		$is_general = $_POST['is_general'];
+		$tabName    = isset( $_POST['tabname'] ) ? sanitize_text_field( wp_unslash( $_POST['tabname'] ) ) : '';
+		$is_general = isset( $_POST['is_general'] ) ? sanitize_text_field( wp_unslash( $_POST['is_general'] ) ) : '';
 
 		$saved  = false;
 		$config = \WPTC_Factory::get( 'config' );
@@ -1588,7 +1612,11 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_system_info() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$wptc_settings = \WPTC_Base_Factory::get( 'Wptc_Settings' );
@@ -1683,7 +1711,7 @@ class MainWP_Child_Timecapsule {
 
 		$vulns_obj = \WPTC_Base_Factory::get( 'Wptc_Vulns' );
 
-		$data = isset( $_POST['data'] ) ? $_POST['data'] : array();
+		$data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
 		$vulns_obj->update_vulns_settings( $data );
 
 		return array( 'success' => 1 );
@@ -1711,7 +1739,7 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function save_manual_backup_name_wptc() {
-		$backup_name     = $_POST['backup_name'];
+		$backup_name     = isset( $_POST['backup_name'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_name'] ) ) : '';
 		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		$processed_files->save_manual_backup_name_wptc( $backup_name );
 		die();

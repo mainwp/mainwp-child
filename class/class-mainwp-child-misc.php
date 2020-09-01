@@ -239,7 +239,7 @@ class MainWP_Child_Misc {
 			$sync = true;
 		}
 
-		$skips = isset( $_POST['skip_features'] ) ? $_POST['skip_features'] : array();
+		$skips = isset( $_POST['skip_features'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['skip_features'] ) ) : array();
 		if ( ! is_array( $skips ) ) {
 			$skips = array();
 		}
@@ -411,7 +411,8 @@ class MainWP_Child_Misc {
 	 */
 	public function settings_tools() {
 		if ( isset( $_POST['action'] ) ) {
-			switch ( $_POST['action'] ) {
+			$mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'force_destroy_sessions':
 					if ( 0 === get_current_user_id() ) {
 						MainWP_Helper::write( array( 'error' => __( 'Cannot get user_id', 'mainwp-child' ) ) );
@@ -447,9 +448,9 @@ class MainWP_Child_Misc {
 	 * @return void
 	 */
 	public function uploader_action() {
-		$file_url    = base64_decode( $_POST['url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
-		$path        = $_POST['path'];
-		$filename    = $_POST['filename'];
+		$file_url    = isset( $_POST['url'] ) ? base64_decode( wp_unslash( $_POST['url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+		$path        = isset( $_POST['path'] ) ? wp_unslash( $_POST['path'] ) : '';
+		$filename    = isset( $_POST['filename'] ) ? wp_unslash( $_POST['filename'] ) : '';
 		$information = array();
 
 		if ( empty( $file_url ) || empty( $path ) ) {
@@ -578,9 +579,9 @@ class MainWP_Child_Misc {
 	 */
 	public function code_snippet() {
 
-		$action = $_POST['action'];
-		$type   = isset( $_POST['type'] ) ? $_POST['type'] : '';
-		$slug   = isset( $_POST['slug'] ) ? $_POST['slug'] : '';
+		$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$type   = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+		$slug   = isset( $_POST['slug'] ) ? wp_unslash( $_POST['slug'] ) : '';
 
 		$snippets = get_option( 'mainwp_ext_code_snippets' );
 
@@ -594,7 +595,7 @@ class MainWP_Child_Misc {
 			}
 		}
 
-		$code = isset( $_POST['code'] ) ? stripslashes( $_POST['code'] ) : '';
+		$code = isset( $_POST['code'] ) ? stripslashes( wp_unslash( $_POST['code'] ) ) : '';
 
 		$information = array();
 		if ( 'run_snippet' === $action ) {

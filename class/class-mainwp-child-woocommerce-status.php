@@ -76,7 +76,8 @@ class MainWP_Child_WooCommerce_Status {
 
 		$is_ver220 = $this->is_version_220();
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'sync_data':
 					$information = ! $is_ver220 ? $this->sync_data() : $this->sync_data_two();
 					break;
@@ -112,7 +113,11 @@ class MainWP_Child_WooCommerce_Status {
 	 */
 	public function sync_data() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
@@ -212,7 +217,11 @@ class MainWP_Child_WooCommerce_Status {
 	 */
 	public function report_data() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';
@@ -222,8 +231,8 @@ class MainWP_Child_WooCommerce_Status {
 			return false;
 		}
 
-		$start_date = $_POST['start_date'];
-		$end_date   = $_POST['end_date'];
+		$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
+		$end_date   = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
 		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time.
 		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
@@ -320,8 +329,8 @@ class MainWP_Child_WooCommerce_Status {
 	 * Sync Woocomerce data for specific date range.
 	 */
 	public function report_data_two() {
-		$start_date = $_POST['start_date'];
-		$end_date   = $_POST['end_date'];
+		$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
+		$end_date   = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
@@ -348,7 +357,11 @@ class MainWP_Child_WooCommerce_Status {
 	 */
 	public function get_woocom_data( $start_date, $end_date ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$file = WP_PLUGIN_DIR . '/woocommerce/includes/admin/reports/class-wc-admin-report.php';

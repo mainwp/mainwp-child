@@ -148,19 +148,35 @@ class MainWP_Child_Callable {
 
 		// check if function is callable.
 		if ( isset( $_POST['function'] ) ) {
-			$call_func        = $_POST['function'];
+			$call_func        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
 			$callable         = $this->is_callable_function( $call_func ); // check callable func.
 			$callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.
 		}
 
 		// Fire off the called function.
 		if ( $auth && isset( $_POST['function'] ) && $callable ) {
+
+			/**
+			 * Checks whether cron is in progress.
+			 *
+			 * @const ( bool ) Default: true
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Callable.html
+			 */
 			define( 'DOING_CRON', true );
+
 			MainWP_Utility::handle_fatal_error();
 			MainWP_Utility::fix_for_custom_themes();
 			$this->call_function( $call_func );
 		} elseif ( isset( $_POST['function'] ) && $callable_no_auth ) {
+
+			/**
+			 * Checks whether cron is in progress.
+			 *
+			 * @const ( bool ) Default: true
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Callable.html
+			 */
 			define( 'DOING_CRON', true );
+
 			MainWP_Utility::fix_for_custom_themes();
 			$this->call_function_no_auth( $call_func );
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
@@ -765,7 +781,7 @@ class MainWP_Child_Callable {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 
-		$file = $_REQUEST['del'];
+		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : '';
 
 		if ( file_exists( $backupdir . $file ) ) {
 			unlink( $backupdir . $file );
@@ -780,7 +796,7 @@ class MainWP_Child_Callable {
 	 * Update the MainWP Child site options.
 	 */
 	public function update_child_values() {
-		$unique_id = isset( $_POST['uniqueId'] ) ? $_POST['uniqueId'] : '';
+		$unique_id = isset( $_POST['uniqueId'] ) ? sanitize_text_field( wp_unslash( $_POST['uniqueId'] ) ) : '';
 		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $unique_id );
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
 	}

@@ -261,7 +261,11 @@ class MainWP_Clone_Install {
 	 */
 	public function update_option( $name, $value ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$var = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->config['prefix'] . 'options WHERE option_name = %s', $name ) ); // phpcs:ignore -- safe query.
@@ -280,7 +284,11 @@ class MainWP_Clone_Install {
 	 */
 	public function install() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$table_prefix = $this->config['prefix'];
@@ -456,7 +464,11 @@ class MainWP_Clone_Install {
 	public function extract_wp_zip_backup() {
 		MainWP_Helper::get_wp_filesystem();
 
-		/** @global object $wp_filesystem WordPress file system array. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		$tmpdir = ABSPATH;
@@ -560,10 +572,18 @@ class MainWP_Clone_Install {
 	public function icit_srdb_replacer( $connection, $search = '', $replace = '', $tables = array() ) {
 
 		/**
-		 * @global string $guid         Globally Unique Identifier
-		 * @global object $exclude_cols Excluded clumn array.
+		 * Globally Unique Identifier.
+		 *
+		 * @global string $guid Globally Unique Identifier.
 		 */
-		global $guid, $exclude_cols;
+		global $guid;
+
+		/**
+		 * Excluded clumns array.
+		 *
+		 * @global array $exclude_cols Excluded clumns array.
+		 */
+		global $exclude_cols;
 
 		$report = array(
 			'tables'  => 0,
@@ -725,17 +745,17 @@ class MainWP_Clone_Install {
 		if ( ! isset( $_REQUEST['f'] ) || ( '' === $_REQUEST['f'] ) ) {
 			return;
 		}
-		if ( ! MainWP_Connect::instance()->is_valid_auth( $_REQUEST['key'] ) ) {
+		if ( ! MainWP_Connect::instance()->is_valid_auth( wp_unslash( $_REQUEST['key'] ) ) ) {
 			return;
 		}
 
 		if ( 'dl' === $_REQUEST['cloneFunc'] ) {
-			MainWP_Utility::instance()->upload_file( $_REQUEST['f'] );
+			MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['f'] ) );
 			exit;
 		} elseif ( 'deleteCloneBackup' === $_POST['cloneFunc'] ) {
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir = $dirs[0];
-			$result    = glob( $backupdir . $_POST['f'] );
+			$result    = glob( $backupdir . wp_unslash( $_POST['f'] ) );
 			if ( 0 === count( $result ) ) {
 				return;
 			}
@@ -780,10 +800,10 @@ class MainWP_Clone_Install {
 			rmdir( ABSPATH . 'clone' );
 		}
 
-		$wpversion = $_POST['wpversion'];
+		$wpversion = isset( $_POST['wpversion'] ) ? sanitize_text_field( wp_unslash( $_POST['wpversion'] ) ) : '';
 		global $wp_version;
 		$includeCoreFiles = ( $wpversion !== $wp_version );
-		$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
+		$excludes         = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() );
 		$excludes[]       = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
 		$uploadDir        = MainWP_Helper::get_mainwp_dir();
 		$uploadDir        = $uploadDir[0];
@@ -798,12 +818,19 @@ class MainWP_Clone_Install {
 			$newExcludes[] = rtrim( $exclude, '/' );
 		}
 
-		$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : $_POST['zipmethod'] );
+		$method = ( ! isset( $_POST['zipmethod'] ) ? 'tar.gz' : wp_unslash( $_POST['zipmethod'] ) );
 		if ( 'tar.gz' === $method && ! function_exists( 'gzopen' ) ) {
 			$method = 'zip';
 		}
 
-		$res = MainWP_Backup::get()->create_full_backup( $newExcludes, ( isset( $_POST['f'] ) ? $_POST['f'] : $_POST['file'] ), true, $includeCoreFiles, 0, false, false, false, false, $method );
+		$file = false;
+		if ( isset( $_POST['f'] ) ) {
+			$file = ! empty( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : false;
+		} elseif ( isset( $_POST['file'] ) ) {
+			$file = ! empty( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : false;
+		}
+
+		$res = MainWP_Backup::get()->create_full_backup( $newExcludes, $file, true, $includeCoreFiles, 0, false, false, false, false, $method );
 		if ( ! $res ) {
 			$information['backup'] = false;
 		} else {

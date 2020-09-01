@@ -125,7 +125,8 @@ class MainWP_Child_IThemes_Security {
 		$mainwp_itsec_modules_path = \ITSEC_Core::get_core_dir() . '/modules/';
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
 					break;
@@ -311,7 +312,7 @@ class MainWP_Child_IThemes_Security {
 		$errors             = array();
 		$nbf_settings       = array();
 
-		$update_settings = maybe_unserialize( base64_decode( $_POST['settings'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$update_settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
@@ -623,7 +624,7 @@ class MainWP_Child_IThemes_Security {
         /** @global array $itsec_globals itsec globals. */
 		global $itsec_globals;
 
-		$ip       = $_POST['ip'];
+		$ip       = isset( $_POST['ip'] ) ? sanitize_text_field( wp_unslash( $_POST['ip'] ) ) : '';
 		$add_temp = false;
 		$temp_ip  = get_site_option( 'itsec_temp_whitelist_ip' );
 		if ( false !== $temp_ip ) {
@@ -912,7 +913,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function admin_user() {
 
-		$settings = $_POST['settings'];
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
 		if ( ! is_array( $settings ) ) {
 			$settings = array();
@@ -1400,7 +1401,7 @@ class MainWP_Child_IThemes_Security {
 			require \ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
-		$lockout_ids = $_POST['lockout_ids'];
+		$lockout_ids = array_map( 'sanitize_text_field', wp_unslash( $_POST['lockout_ids'] ) );
 		if ( ! is_array( $lockout_ids ) ) {
 			$lockout_ids = array();
 		}
@@ -1442,7 +1443,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function update_module_status() {
 
-		$active_modules = $_POST['active_modules'];
+		$active_modules = isset( $_POST['active_modules'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['active_modules'] ) ) : array();
 
 		if ( ! is_array( $active_modules ) ) {
 			$active_modules = array();

@@ -125,8 +125,9 @@ class MainWP_Child_WPvivid_BackupRestore {
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
+			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 			try {
-				switch ( $_POST['mwp_action'] ) {
+				switch ( $mwp_action ) {
 					case 'prepare_backup':
 						$information = $this->prepare_backup();
 						break;
@@ -228,7 +229,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->prepare_backup( $_POST['backup'] );
+		$ret = isset( $_POST['backup'] ) ? $this->public_intetface->prepare_backup( sanitize_text_field( wp_unslash( $_POST['backup'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -330,7 +331,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->delete_backup( $_POST['backup_id'], $_POST['force'] );
+		$ret = isset( $_POST['backup_id'] ) && isset( $_POST['force'] ) ? $this->public_intetface->delete_backup( sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ), sanitize_text_field( wp_unslash( $_POST['force'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -466,7 +467,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->prepare_download_backup( $_POST['backup_id'], $_POST['file_name'] );
+		$ret = isset( $_POST['backup_id'] ) && isset( $_POST['file_name'] ) ? $this->public_intetface->prepare_download_backup( sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ), sanitize_text_field( wp_unslash( $_POST['file_name'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -500,7 +501,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->download_backup( $_POST['backup_id'], $_POST['file_name'] );
+		$ret = isset( $_POST['backup_id'] ) && isset( $_POST['file_name'] ) ? $this->public_intetface->download_backup( sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ), sanitize_text_field( wp_unslash( $_POST['file_name'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -517,7 +518,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->set_general_setting( $_POST['setting'] );
+		$ret = isset( $_POST['setting'] ) ? $this->public_intetface->set_general_setting( wp_unslash( $_POST['setting'] ) ) : false;
 		return $ret;
 	}
 

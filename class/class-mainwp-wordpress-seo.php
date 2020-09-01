@@ -57,7 +57,11 @@ class MainWP_WordPress_SEO {
 	 */
 	public function __construct() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
@@ -84,8 +88,9 @@ class MainWP_WordPress_SEO {
 			$information['error'] = 'NO_WPSEO';
 			MainWP_Helper::write( $information );
 		}
-		$result = array();
-		switch ( $_POST['action'] ) {
+		$result     = array();
+		$mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		switch ( $mwp_action ) {
 			case 'import_settings':
 				$information = $this->import_settings();
 				break;
@@ -104,7 +109,7 @@ class MainWP_WordPress_SEO {
 	 */
 	public function import_settings() {
 		if ( isset( $_POST['file_url'] ) ) {
-			$file_url       = base64_decode( $_POST['file_url'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+			$file_url       = ! empty( $_POST['file_url'] ) ? base64_decode( wp_unslash( $_POST['file_url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 			$temporary_file = '';
 
 			try {
@@ -130,7 +135,7 @@ class MainWP_WordPress_SEO {
 			}
 		} elseif ( isset( $_POST['settings'] ) ) {
 			try {
-				$settings = base64_decode( $_POST['settings'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+				$settings = ! empty( $_POST['settings'] ) ? base64_decode( wp_unslash( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 				$options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
 				if ( is_array( $options ) && array() !== $options ) {
 
