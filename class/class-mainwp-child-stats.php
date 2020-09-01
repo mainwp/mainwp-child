@@ -239,7 +239,7 @@ class MainWP_Child_Stats {
 		}
 
 		if ( ! empty( $_POST['primaryBackup'] ) ) {
-			$primary_bk                           = ! empty( $_POST['primaryBackup'] ) ? wp_unslash( $_POST['primaryBackup'] ) : '';
+			$primary_bk                           = ! empty( $_POST['primaryBackup'] ) ? sanitize_text_field( wp_unslash( $_POST['primaryBackup'] ) ) : '';
 			$information['primaryLasttimeBackup'] = MainWP_Utility::get_lasttime_backup( $primary_bk );
 		}
 

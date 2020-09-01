@@ -178,7 +178,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         }
 
         if ( isset( $_POST['mwp_action'] ) ) {
-            $mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+            $mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
             try {
                 switch ( $mwp_action ) {
                     case 'set_showhide':
@@ -4431,7 +4431,7 @@ ENDHERE;
             }
         }
 
-        $pos = stripos( $_SERVER['REQUEST_URI'], 'options-general.php?page=updraftplus' );
+        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( $_SERVER['REQUEST_URI'], 'options-general.php?page=updraftplus' ) : false;
         if ( false !== $pos ) {
             wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
             exit();

@@ -765,12 +765,15 @@ class MainWP_Clone_Install {
 		} elseif ( 'createCloneBackupPoll' === $_POST['cloneFunc'] ) {
 			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir   = $dirs[0];
-			$result      = glob( $backupdir . 'backup-' . $_POST['f'] . '-*' );
+			$f           = isset( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : '';
 			$archiveFile = false;
-			foreach ( $result as $file ) {
-				if ( MainWP_Clone::is_archive( $file, 'backup-' . $_POST['f'] . '-' ) ) {
-					$archiveFile = $file;
-					break;
+			if ( ! empty( $f ) ) {
+				$result = glob( $backupdir . 'backup-' . $f . '-*' );
+				foreach ( $result as $file ) {
+					if ( MainWP_Clone::is_archive( $file, 'backup-' . $f . '-' ) ) {
+						$archiveFile = $file;
+						break;
+					}
 				}
 			}
 			if ( false === $archiveFile ) {

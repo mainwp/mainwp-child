@@ -356,7 +356,7 @@ class MainWP_Child_Posts {
 
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
-			$extra['tokens']            = maybe_unserialize( base64_decode( wp_unslash( $_POST['extract_tokens'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$extra['tokens']            = isset( $_POST['extract_tokens'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['extract_tokens'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			$extra['extract_post_type'] = isset( $_POST['extract_post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['extract_post_type'] ) ) : '';
 		}
 
@@ -375,12 +375,12 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function new_post() {
-		$new_post            = maybe_unserialize( base64_decode( wp_unslash( $_POST['new_post'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_custom         = maybe_unserialize( base64_decode( wp_unslash( $_POST['post_custom'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( wp_unslash( $_POST['post_category'] ) ) : null ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_tags           = rawurldecode( isset( $new_post['post_tags'] ) ? $new_post['post_tags'] : null );
+		$new_post            = isset( $_POST['new_post'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_post'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_custom         = isset( $_POST['post_custom'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['post_custom'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_category       = isset( $_POST['post_category'] ) ? rawurldecode( base64_decode( wp_unslash( $_POST['post_category'] ) ) ) : null; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_tags           = isset( $_POST['post_tags'] ) ? rawurldecode( wp_unslash( $new_post['post_tags'] ) ) : null;
 		$post_featured_image = isset( $_POST['post_featured_image'] ) ? base64_decode( wp_unslash( $_POST['post_featured_image'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$upload_dir          = maybe_unserialize( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$upload_dir          = isset( $_POST['mainwp_upload_dir'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) && ! empty( $_POST['featured_image_data'] ) ) {

@@ -266,10 +266,10 @@ class MainWP_Child {
 			MainWP_Connect::instance()->register_site(); // register the site and exit.
 		}
 
-		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? wp_unslash( $_POST['mainwpsignature'] ) : '';
-		$function        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
-		$nonce           = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-		$nossl           = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '';
+		$function        = isset( $_POST['function'] ) ? wp_unslash( $_POST['function'] ) : null;
+		$nonce           = isset( $_POST['nonce'] ) ? wp_unslash( $_POST['nonce'] ) : '';
+		$nossl           = isset( $_POST['nossl'] ) ? wp_unslash( $_POST['nossl'] ) : 0;
 
 		// Authenticate here.
 		$auth = MainWP_Connect::instance()->auth( $mainwpsignature, $function, $nonce, $nossl );

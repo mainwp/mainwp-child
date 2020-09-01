@@ -92,7 +92,7 @@ class MainWP_Child_Links_Checker {
 		MainWP_Helper::update_option( 'mainwp_linkschecker_ext_enabled', 'Y', 'yes' );
 		try {
 			if ( isset( $_POST['mwp_action'] ) ) {
-				$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+				$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 				switch ( $mwp_action ) {
 					case 'set_showhide':
 						$information = $this->set_showhide();
@@ -595,11 +595,9 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 
-		$new_text = ( isset( $_POST['new_text'] ) && is_string( wp_unslash( $_POST['new_text'] ) ) ) ? stripslashes( wp_unslash( $_POST['new_text'] ) ) : null;
-		if ( '' === $new_text ) {
-			$new_text = null;
-		}
-		if ( ! empty( $new_text ) && ! current_user_can( 'unfiltered_html' ) ) {
+		$new_text = isset( $_POST['new_text'] ) ? sanitize_text_field( wp_unslash( $_POST['new_text'] ) ) : null;
+
+		if ( ! empty( $new_text ) ) {
 			$new_text = stripslashes( wp_filter_post_kses( addslashes( $new_text ) ) ); // wp_filter_post_kses expects slashed data.
 		}
 

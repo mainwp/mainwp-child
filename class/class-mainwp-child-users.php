@@ -174,7 +174,7 @@ class MainWP_Child_Users {
 	 * @return array Return array of $allusers.
 	 */
 	public function get_all_users( $return = false ) {
-		$roles    = explode( ',', $_POST['role'] );
+		$roles    = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
 		$allusers = array();
 		if ( is_array( $roles ) ) {
 			foreach ( $roles as $role ) {

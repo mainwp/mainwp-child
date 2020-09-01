@@ -291,11 +291,11 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$where = isset( $_POST['where'] ) ? rawurldecode( wp_unslash( $_POST['where'] ) ) : '';
-		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-		$nossl = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;
+		$where = isset( $_REQUEST['where'] ) ? rawurldecode( wp_unslash( $_REQUEST['where'] ) ) : null;
+		$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		$nossl = isset( $_REQUEST['nossl'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nossl'] ) ) : 0;
 
-		$auth = self::instance()->auth( $mainwpsignature, $where, $nonce, $nossl );
+		$auth = self::instance()->auth( $signature, $where, $nonce, $nossl );
 
 		if ( ! $auth ) {
 			return false;
@@ -349,7 +349,8 @@ class MainWP_Connect {
 	 */
 	private function check_redirects() {
 		if ( isset( $_REQUEST['fdl'] ) ) {
-			if ( stristr( wp_unslash( $_REQUEST['fdl'] ), '..' ) ) {
+			$fdl = isset( $_REQUEST['fdl'] ) ? wp_unslash( $_REQUEST['fdl'] ) : '';
+			if ( empty( $fdl ) || stristr( $fdl, '..' ) ) {
 				return false;
 			}
 			MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['fdl'] ), isset( $_REQUEST['foffset'] ) ? wp_unslash( $_REQUEST['foffset'] ) : 0 );
@@ -456,7 +457,7 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? wp_unslash( $_POST['mainwpsignature'] ) : '';
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '';
 		$function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
 		$nonce           = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		$nossl           = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;

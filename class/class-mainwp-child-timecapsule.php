@@ -1055,9 +1055,10 @@ class MainWP_Child_Timecapsule {
 		if ( ! isset( $_POST['data'] ) ) {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
-		$category          = $_POST['data']['category'];
+		$category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array();
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_table_list( wp_unslash( $_POST['data'] ) );
+		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+		$exclude_class_obj->include_table_list( $data );
 		die();
 	}
 
@@ -1072,9 +1073,10 @@ class MainWP_Child_Timecapsule {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
 
-		$category          = $_POST['data']['category'];
+		$category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array();
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_table_structure_only( wp_unslash( $_POST['data'] ) );
+		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+		$exclude_class_obj->include_table_structure_only( $data );
 		die();
 	}
 
@@ -1089,8 +1091,10 @@ class MainWP_Child_Timecapsule {
 			wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
 		}
 		$category          = $_POST['category'];
+		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array();
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->include_file_list( wp_unslash( $_POST['data'] ) );
+		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+		$exclude_class_obj->include_file_list( wp_unslash( $data ) );
 		die();
 	}
 
@@ -1125,7 +1129,7 @@ class MainWP_Child_Timecapsule {
 		}
 
 		$email = isset( $_POST['acc_email'] ) ? sanitize_text_field( wp_unslash( $_POST['acc_email'] ) ) : '';
-		$pwd   = $_POST['acc_pwd'];
+		$pwd   = isset( $_POST['acc_pwd'] ) ? wp_unslash( $_POST['acc_pwd'] ) : '';
 
 		if ( empty( $email ) || empty( $pwd ) ) {
 			return array( 'error' => 'Username and password cannot be empty' );
@@ -1648,7 +1652,7 @@ class MainWP_Child_Timecapsule {
 		}
 
 		echo '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Server', 'wp-time-capsule' ) . '</td><td>' . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . '</td></tr>';
+		echo '<tr title=""><td>' . __( 'Server', 'wp-time-capsule' ) . '</td><td>' . ( isset( $_SERVER['SERVER_SOFTWARE'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ) ) : '' ) . '</td></tr>';
 		echo '<tr title=""><td>' . __( 'Operating System', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_OS ) . '</td></tr>';
 		echo '<tr title=""><td>' . __( 'PHP SAPI', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_SAPI ) . '</td></tr>';
 
@@ -1768,7 +1772,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function remove_menu() {
 		remove_menu_page( 'wp-time-capsule-monitor' );
-		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=wp-time-capsule-monitor' );
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=wp-time-capsule-monitor' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();

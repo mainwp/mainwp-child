@@ -235,7 +235,10 @@ class MainWP_Child_Misc {
 	 */
 	public function do_security_fix() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$sync = false;
-		if ( 'all' === $_POST['feature'] ) {
+
+		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : '';
+
+		if ( 'all' === $feature ) {
 			$sync = true;
 		}
 
@@ -250,14 +253,14 @@ class MainWP_Child_Misc {
 			$security = array();
 		}
 
-		if ( 'all' === $_POST['feature'] || 'listing' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'listing' === $feature ) {
 			if ( ! in_array( 'listing', $skips ) ) {
 				MainWP_Security::prevent_listing();
 			}
 			$information['listing'] = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
 		}
 
-		if ( 'all' === $_POST['feature'] || 'wp_version' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'wp_version' === $feature ) {
 			if ( ! in_array( 'wp_version', $skips ) ) {
 				$security['wp_version'] = true;
 				MainWP_Security::remove_wp_version( true );
@@ -265,7 +268,7 @@ class MainWP_Child_Misc {
 			$information['wp_version'] = ( ! MainWP_Security::remove_wp_version_ok() ? 'N' : 'Y' );
 		}
 
-		if ( 'all' === $_POST['feature'] || 'rsd' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'rsd' === $feature ) {
 			if ( ! in_array( 'rsd', $skips ) ) {
 				$security['rsd'] = true;
 				MainWP_Security::remove_rsd( true );
@@ -273,7 +276,7 @@ class MainWP_Child_Misc {
 			$information['rsd'] = ( ! MainWP_Security::remove_rsd_ok() ? 'N' : 'Y' );
 		}
 
-		if ( 'all' === $_POST['feature'] || 'wlw' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'wlw' === $feature ) {
 			if ( ! in_array( 'wlw', $skips ) ) {
 				$security['wlw'] = true;
 				MainWP_Security::remove_wlw( true );
@@ -281,14 +284,14 @@ class MainWP_Child_Misc {
 			$information['wlw'] = ( ! MainWP_Security::remove_wlw_ok() ? 'N' : 'Y' );
 		}
 
-		if ( 'all' === $_POST['feature'] || 'db_reporting' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'db_reporting' === $feature ) {
 			if ( ! in_array( 'db_reporting', $skips ) ) {
 				MainWP_Security::remove_database_reporting();
 			}
 			$information['db_reporting'] = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
 		}
 
-		if ( 'all' === $_POST['feature'] || 'php_reporting' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'php_reporting' === $feature ) {
 			if ( ! in_array( 'php_reporting', $skips ) ) {
 				$security['php_reporting'] = true;
 				MainWP_Security::remove_php_reporting( true );
@@ -296,7 +299,7 @@ class MainWP_Child_Misc {
 			$information['php_reporting'] = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
 		}
 
-		if ( 'all' === $_POST['feature'] || 'versions' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'versions' === $feature ) {
 			if ( ! in_array( 'versions', $skips ) ) {
 				$security['scripts_version']   = true;
 				$security['styles_version']    = true;
@@ -306,18 +309,18 @@ class MainWP_Child_Misc {
 			}
 		}
 
-		if ( 'all' === $_POST['feature'] || 'registered_versions' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'registered_versions' === $feature ) {
 			if ( ! in_array( 'registered_versions', $skips ) ) {
 				$security['registered_versions']    = true;
 				$information['registered_versions'] = 'Y';
 			}
 		}
 
-		if ( 'all' === $_POST['feature'] || 'admin' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'admin' === $feature ) {
 			$information['admin'] = ( ! MainWP_Security::admin_user_ok() ? 'N' : 'Y' );
 		}
 
-		if ( 'all' === $_POST['feature'] || 'readme' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'readme' === $feature ) {
 			if ( ! in_array( 'readme', $skips ) ) {
 				$security['readme'] = true;
 				MainWP_Security::remove_readme( true );
@@ -345,45 +348,47 @@ class MainWP_Child_Misc {
 	public function do_security_un_fix() {
 		$information = array();
 
+		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : '';
+
 		$sync = false;
-		if ( 'all' === $_POST['feature'] ) {
+		if ( 'all' === $feature ) {
 			$sync = true;
 		}
 
 		$security = get_option( 'mainwp_security' );
 
-		if ( 'all' === $_POST['feature'] || 'wp_version' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'wp_version' === $feature ) {
 			$security['wp_version']    = false;
 			$information['wp_version'] = 'N';
 		}
 
-		if ( 'all' === $_POST['feature'] || 'rsd' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'rsd' === $feature ) {
 			$security['rsd']    = false;
 			$information['rsd'] = 'N';
 		}
 
-		if ( 'all' === $_POST['feature'] || 'wlw' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'wlw' === $feature ) {
 			$security['wlw']    = false;
 			$information['wlw'] = 'N';
 		}
 
-		if ( 'all' === $_POST['feature'] || 'php_reporting' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'php_reporting' === $feature ) {
 			$security['php_reporting']    = false;
 			$information['php_reporting'] = 'N';
 		}
 
-		if ( 'all' === $_POST['feature'] || 'versions' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'versions' === $feature ) {
 			$security['scripts_version']   = false;
 			$security['styles_version']    = false;
 			$security['generator_version'] = false;
 			$information['versions']       = 'N';
 		}
 
-		if ( 'all' === $_POST['feature'] || 'registered_versions' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'registered_versions' === $feature ) {
 			$security['registered_versions']    = false;
 			$information['registered_versions'] = 'N';
 		}
-		if ( 'all' === $_POST['feature'] || 'readme' === $_POST['feature'] ) {
+		if ( 'all' === $feature || 'readme' === $feature ) {
 			$security['readme']    = false;
 			$information['readme'] = MainWP_Security::remove_readme_ok();
 		}
