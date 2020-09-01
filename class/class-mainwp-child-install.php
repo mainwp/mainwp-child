@@ -229,6 +229,8 @@ class MainWP_Child_Install {
 
 			$themes = explode( '||', $theme );
 
+			$themes = array_filter( $themes );
+
 			if ( count( $themes ) == 1 ) {
 				$themeToDelete = current( $themes );
 				if ( $themeToDelete == $theme_name ) {
