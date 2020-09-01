@@ -1181,7 +1181,7 @@ class MainWP_Clone_Page {
 		$size = isset( $_SESSION['size'] ) ? wp_unslash( $_SESSION['size'] ) : null;
 
 		if ( isset( $_SESSION['file'] ) ) {
-			 unset( $_SESSION['file'] );
+			unset( $_SESSION['file'] );
 		}
 
 		if ( isset( $_SESSION['size'] ) ) {
