@@ -67,7 +67,8 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 		register_shutdown_function( '\MainWP\Child\mainwp_bulk_settings_manager_handle_fatal_error' );
 
-		switch ( $_POST['action'] ) {
+		$mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		switch ( $mwp_action ) {
 			case 'skeleton_key_visit_site_as_browser': // deprecated.
 				$information = $this->visit_site_as_browser();
 				break;
@@ -91,7 +92,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 * @return array|string[] Response array or Error message string within an array.
 	 */
 	protected function visit_site_as_browser() { // phpcs:ignore -- ignore complex method notice.
-		if ( ! isset( $_POST['url'] ) || ! is_string( $_POST['url'] ) || strlen( $_POST['url'] ) < 2 ) {
+		if ( ! isset( $_POST['url'] ) || ! is_string( wp_unslash( $_POST['url'] ) ) || strlen( wp_unslash( $_POST['url'] ) ) < 2 ) {
 			return array( 'error' => 'Missing url' );
 		}
 
@@ -99,13 +100,13 @@ class MainWP_Child_Bulk_Settings_Manager {
 			return array( 'error' => 'Missing args' );
 		}
 
-		$_POST = stripslashes_deep( $_POST );
+		$_POST = stripslashes_deep( wp_unslash( $_POST ) );
 
-		$args = $_POST['args'];
+		$args = isset( $_POST['args'] ) ? wp_unslash( $_POST['args'] ) : array();
 
 		$current_user = wp_get_current_user();
 
-		$url = '/' . $_POST['url'];
+		$url = '/' . wp_unslash( $_POST['url'] );
 
 		$expiration = time() + 600;
 		$manager    = \WP_Session_Tokens::get_instance( $current_user->ID );
@@ -252,7 +253,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 * @return array|bool|string[] Result array ok|error or FALSE or $whitelist_options[].
 	 */
 	public function save_settings() {
-		$settings = isset( $_POST['settings'] ) ? $_POST['settings'] : array();
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
 		if ( ! is_array( $settings ) || empty( $settings ) ) {
 			return array( 'error' => __( 'Invalid data. Please check and try again.', 'mainwp-child' ) );

@@ -141,7 +141,7 @@ class MainWP_Child_Posts {
 		}
 
 		$wp_seo_enabled = false;
-		if ( isset( $_POST['WPSEOEnabled'] ) && $_POST['WPSEOEnabled'] ) {
+		if ( ! empty( $_POST['WPSEOEnabled'] ) ) {
 			if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) && class_exists( '\WPSEO_Link_Column_Count' ) && class_exists( '\WPSEO_Meta' ) ) {
 				$wp_seo_enabled = true;
 			}
@@ -258,7 +258,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts_by_type()
 	 */
 	public function get_all_posts() {
-		$post_type = ( isset( $_POST['post_type'] ) ? $_POST['post_type'] : 'post' );
+		$post_type = ( isset( $_POST['post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['post_type'] ) ) : 'post' );
 		$this->get_all_posts_by_type( $post_type );
 	}
 
@@ -298,42 +298,46 @@ class MainWP_Child_Posts {
 	 */
 	public function get_all_posts_by_type( $type ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global object $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
 		$where_post_date = isset( $_POST['where_post_date'] ) && ! empty( $_POST['where_post_date'] ) ? true : false;
 		if ( isset( $_POST['postId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . $_POST['postId'];
+			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . sanitize_text_field( wp_unslash( $_POST['postId'] ) );
 		} elseif ( isset( $_POST['userId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.post_author = " . $_POST['userId'];
+			$this->posts_where_suffix .= " AND $wpdb->posts.post_author = " . sanitize_text_field( wp_unslash( $_POST['userId'] ) );
 		} else {
 			if ( isset( $_POST['keyword'] ) ) {
-				$search_on = isset( $_POST['search_on'] ) ? $_POST['search_on'] : '';
+				$search_on = isset( $_POST['search_on'] ) ? sanitize_text_field( wp_unslash( $_POST['search_on'] ) ) : '';
 				if ( 'title' == $search_on ) {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
+					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				} elseif ( 'content' == $search_on ) {
-					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' )";
+					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				} else {
-					$this->posts_where_suffix .= " AND ($wpdb->posts.post_content LIKE '%" . $_POST['keyword'] . "%' OR $wpdb->posts.post_title LIKE '%" . $_POST['keyword'] . "%' )";
+					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' OR $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
 				}
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date > '" . $_POST['dtsstart'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_date > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . $_POST['dtsstart'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
 				}
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date < '" . $_POST['dtsstop'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_date < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . $_POST['dtsstop'] . "'";
+					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
 				}
 			}
 
-			if ( isset( $_POST['exclude_page_type'] ) && $_POST['exclude_page_type'] ) {
+			if ( isset( $_POST['exclude_page_type'] ) && wp_unslash( $_POST['exclude_page_type'] ) ) {
 				$this->posts_where_suffix .= " AND $wpdb->posts.post_type NOT IN ('page')";
 			}
 		}
@@ -344,7 +348,7 @@ class MainWP_Child_Posts {
 		}
 
 		if ( isset( $_POST['maxRecords'] ) ) {
-			$maxPages = $_POST['maxRecords'];
+			$maxPages = ! empty( $_POST['maxRecords'] ) ? intval( wp_unslash( $_POST['maxRecords'] ) ) : 0;
 		}
 		if ( 0 === $maxPages ) {
 			$maxPages = 99999;
@@ -352,12 +356,12 @@ class MainWP_Child_Posts {
 
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
-			$extra['tokens']            = maybe_unserialize( base64_decode( $_POST['extract_tokens'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-			$extra['extract_post_type'] = $_POST['extract_post_type'];
+			$extra['tokens']            = maybe_unserialize( base64_decode( wp_unslash( $_POST['extract_tokens'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$extra['extract_post_type'] = isset( $_POST['extract_post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['extract_post_type'] ) ) : '';
 		}
 
 		$extra['where_post_date'] = $where_post_date;
-		$rslt                     = $this->get_recent_posts( explode( ',', $_POST['status'] ), $maxPages, $type, $extra );
+		$rslt                     = $this->get_recent_posts( explode( ',', wp_unslash( $_POST['status'] ) ), $maxPages, $type, $extra );
 		$this->posts_where_suffix = '';
 
 		MainWP_Helper::write( $rslt );
@@ -371,16 +375,16 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function new_post() {
-		$new_post            = maybe_unserialize( base64_decode( $_POST['new_post'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_custom         = maybe_unserialize( base64_decode( $_POST['post_custom'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( $_POST['post_category'] ) : null ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$new_post            = maybe_unserialize( base64_decode( wp_unslash( $_POST['new_post'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_custom         = maybe_unserialize( base64_decode( wp_unslash( $_POST['post_custom'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_category       = rawurldecode( isset( $_POST['post_category'] ) ? base64_decode( wp_unslash( $_POST['post_category'] ) ) : null ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$post_tags           = rawurldecode( isset( $new_post['post_tags'] ) ? $new_post['post_tags'] : null );
-		$post_featured_image = base64_decode( $_POST['post_featured_image'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$upload_dir          = maybe_unserialize( base64_decode( $_POST['mainwp_upload_dir'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_featured_image = isset( $_POST['post_featured_image'] ) ? base64_decode( wp_unslash( $_POST['post_featured_image'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$upload_dir          = maybe_unserialize( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) && ! empty( $_POST['featured_image_data'] ) ) {
-			$others['featured_image_data'] = unserialize( base64_decode( $_POST['featured_image_data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$others['featured_image_data'] = unserialize( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 
 		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
@@ -412,8 +416,8 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function post_action() {
-		$action  = $_POST['action'];
-		$postId  = $_POST['id'];
+		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$postId  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$my_post = array();
 
 		if ( 'publish' === $action ) {
@@ -440,7 +444,7 @@ class MainWP_Child_Posts {
 				}
 			}
 		} elseif ( 'update' === $action ) {
-			$postData = $_POST['post_data'];
+			$postData = isset( $_POST['post_data'] ) ? wp_unslash( $_POST['post_data'] ) : array();
 			$my_post  = is_array( $postData ) ? $postData : array();
 			wp_update_post( $my_post );
 		} elseif ( 'unpublish' === $action ) {
@@ -456,7 +460,7 @@ class MainWP_Child_Posts {
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
 		} elseif ( 'update_meta' === $action ) {
-			$values     = maybe_unserialize( base64_decode( $_POST['values'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$values     = maybe_unserialize( base64_decode( wp_unslash( $_POST['values'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			$meta_key   = $values['meta_key'];
 			$meta_value = $values['meta_value'];
 			$check_prev = $values['check_prev'];
@@ -469,8 +473,8 @@ class MainWP_Child_Posts {
 				}
 			}
 		} elseif ( 'get_edit' === $action ) {
-			$postId    = $_POST['id'];
-			$post_type = $_POST['post_type'];
+			$postId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+			$post_type = isset( $_POST['post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['post_type'] ) ) : '';
 			if ( 'post' == $post_type ) {
 				$my_post = $this->get_post_edit( $postId );
 			} else {
@@ -984,7 +988,7 @@ class MainWP_Child_Posts {
 			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
 				$replaceAttachedIds = array();
 				if ( isset( $_POST['post_gallery_images'] ) ) {
-					$post_gallery_images = unserialize( base64_decode( $_POST['post_gallery_images'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+					$post_gallery_images = unserialize( base64_decode( wp_unslash( $_POST['post_gallery_images'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 					if ( is_array( $post_gallery_images ) ) {
 						foreach ( $post_gallery_images as $gallery ) {
 							if ( isset( $gallery['src'] ) ) {

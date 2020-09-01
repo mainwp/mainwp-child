@@ -266,8 +266,13 @@ class MainWP_Child {
 			MainWP_Connect::instance()->register_site(); // register the site and exit.
 		}
 
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? wp_unslash( $_POST['mainwpsignature'] ) : '';
+		$function        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
+		$nonce           = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		$nossl           = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;
+
 		// Authenticate here.
-		$auth = MainWP_Connect::instance()->auth( isset( $_POST['mainwpsignature'] ) ? $_POST['mainwpsignature'] : '', isset( $_POST['function'] ) ? $_POST['function'] : '', isset( $_POST['nonce'] ) ? $_POST['nonce'] : '', isset( $_POST['nossl'] ) ? $_POST['nossl'] : 0 );
+		$auth = MainWP_Connect::instance()->auth( $mainwpsignature, $function, $nonce, $nossl );
 
 		// Parse auth, if it is not correct actions then exit with message or return.
 		if ( ! MainWP_Connect::instance()->parse_init_auth( $auth ) ) {
@@ -277,7 +282,7 @@ class MainWP_Child {
 		$this->parse_init_extensions();
 
 		/**
-		 * Wordpress submenu no privilege.
+		 * WordPress submenu no privilege.
 		 *
 		 * @global string
 		 */

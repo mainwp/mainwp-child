@@ -78,8 +78,8 @@ class MainWP_Child_Install {
 		 */
 		global $mainWPChild;
 
-		$action  = $_POST['action'];
-		$plugins = explode( '||', $_POST['plugin'] );
+		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$plugins = isset( $_POST['plugin'] ) ? explode( '||', wp_unslash( $_POST['plugin'] ) ) : '';
 
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/plugin.php';
@@ -198,8 +198,8 @@ class MainWP_Child_Install {
 	 */
 	public function theme_action() {
 
-		$action = $_POST['action'];
-		$theme  = $_POST['theme'];
+		$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$theme  = isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : '';
 
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
@@ -294,7 +294,7 @@ class MainWP_Child_Install {
 
 		$this->require_files();
 
-		$urlgot = json_decode( stripslashes( $_POST['url'] ) );
+		$urlgot = isset( $_POST['url'] ) ? json_decode( stripslashes( wp_unslash( $_POST['url'] ) ) ) : '';
 
 		$urls = array();
 		if ( ! is_array( $urlgot ) ) {
@@ -319,7 +319,7 @@ class MainWP_Child_Install {
 				array(
 					'package'           => $url,
 					'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
-					'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
+					'clear_destination' => ( isset( $_POST['overwrite'] ) && wp_unslash( $_POST['overwrite'] ) ),
 					'clear_working'     => true,
 					'hook_extra'        => array(),
 				)
@@ -464,7 +464,7 @@ class MainWP_Child_Install {
 			array(
 				'package'           => $url,
 				'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
-				'clear_destination' => ( isset( $_POST['overwrite'] ) && $_POST['overwrite'] ),
+				'clear_destination' => ( isset( $_POST['overwrite'] ) && wp_unslash( $_POST['overwrite'] ) ),
 				'clear_working'     => true,
 				'hook_extra'        => array(),
 			)

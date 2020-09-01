@@ -136,7 +136,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'save_sucuri_stream':
 					$information = $this->save_sucuri_stream();
 					break;
@@ -160,8 +161,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return bool true|false.
 	 */
 	public function save_sucuri_stream() {
-		$scan_data = isset( $_POST['scan_data'] ) ? $_POST['scan_data'] : '';
-		do_action( 'mainwp_reports_sucuri_scan', $_POST['result'], $_POST['scan_status'], $scan_data, isset( $_POST['scan_time'] ) ? $_POST['scan_time'] : 0 );
+		$scan_data   = isset( $_POST['scan_data'] ) ? wp_unslash( $_POST['scan_data'] ) : '';
+		$scan_time   = isset( $_POST['scan_time'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_time'] ) ) : 0;
+		$scan_status = isset( $_POST['scan_status'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_status'] ) ) : '';
+		do_action( 'mainwp_reports_sucuri_scan', wp_unslash( $_POST['result'] ), $scan_status, $scan_data, $scan_time );
 		return true;
 	}
 
@@ -171,7 +174,13 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return bool true|false.
 	 */
 	public function save_backup_stream() {
-		do_action( 'mainwp_backup', $_POST['destination'], $_POST['message'], $_POST['size'], $_POST['status'], $_POST['type'] );
+		$destination = isset( $_POST['destination'] ) ? wp_unslash( $_POST['destination'] ) : '';
+		$message     = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : '';
+		$size        = isset( $_POST['size'] ) ? wp_unslash( $_POST['size'] ) : '';
+		$status      = isset( $_POST['status'] ) ? wp_unslash( $_POST['status'] ) : '';
+		$type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+
+		do_action( 'mainwp_backup', $destination, $message, $size, $status, $type );
 		return true;
 	}
 
@@ -182,12 +191,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 */
 	public function get_stream() {
 
-		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( $_POST['sections'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$sections = isset( $_POST['sections'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['sections'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $sections ) ) {
 			$sections = array();
 		}
 
-		$other_tokens = isset( $_POST['other_tokens'] ) ? maybe_unserialize( base64_decode( $_POST['other_tokens'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$other_tokens = isset( $_POST['other_tokens'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['other_tokens'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $other_tokens ) ) {
 			$other_tokens = array();
 		}

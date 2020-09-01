@@ -89,7 +89,11 @@ class MainWP_Security {
 	public static function prevent_listing() {
 		self::init_listing_directories();
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		MainWP_Helper::get_wp_filesystem();
@@ -176,7 +180,11 @@ class MainWP_Security {
 	 */
 	public static function remove_database_reporting() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		$wpdb->hide_errors();
@@ -193,7 +201,11 @@ class MainWP_Security {
 	public static function remove_registered_versions() {
 		if ( self::get_security_option( 'registered_versions' ) ) {
 
-			/** @global object $wp_styles WordPress Core class used to register styles. */
+			/**
+			 * Global object used to register styles.
+			 *
+			 * @var object $wp_styles Global object used to register styles.
+			 */
 			global $wp_styles;
 
 			if ( $wp_styles instanceof WP_Styles ) {
@@ -202,7 +214,11 @@ class MainWP_Security {
 				}
 			}
 
-			/** @global object $wp_scripts WordPress Core class used to register scripts. */
+			/**
+			 * Global object used to register scripts.
+			 *
+			 * @var object $wp_scripts Global object used to register scripts.
+			 */
 			global $wp_scripts;
 
 			if ( $wp_scripts instanceof WP_Scripts ) {
@@ -309,7 +325,11 @@ class MainWP_Security {
 		}
 		MainWP_Helper::get_wp_filesystem();
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( $force || self::get_security_option( 'readme' ) ) {
@@ -336,7 +356,11 @@ class MainWP_Security {
 	 */
 	public static function prevent_listing_ok() {
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		MainWP_Helper::get_wp_filesystem();
@@ -401,7 +425,11 @@ class MainWP_Security {
 	 */
 	public static function remove_database_reporting_ok() {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		return ( false === $wpdb->show_errors );

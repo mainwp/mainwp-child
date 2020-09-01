@@ -244,8 +244,8 @@ class MainWP_Backup {
 	 * @uses MainWP_Helper::get_mainwp_dir() Get the MainWP directory.
 	 */
 	public function backup_poll() {
-		$fileNameUID = ( isset( $_POST['fileNameUID'] ) ? $_POST['fileNameUID'] : '' );
-		$fileName    = ( isset( $_POST['fileName'] ) ? $_POST['fileName'] : '' );
+		$fileNameUID = ( isset( $_POST['fileNameUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileNameUID'] ) ) : '' );
+		$fileName    = ( isset( $_POST['fileName'] ) ? wp_unslash( $_POST['fileName'] ) : '' );
 
 		if ( 'full' === $_POST['type'] ) {
 			if ( '' !== $fileName ) {
@@ -311,7 +311,7 @@ class MainWP_Backup {
 	 * @see https://developer.wordpress.org/reference/classes/wp_filesystem_base/get_contents/
 	 */
 	public function backup_checkpid() {
-		$pid = $_POST['pid'];
+		$pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : 0;
 
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
@@ -408,7 +408,7 @@ class MainWP_Backup {
 			}
 		}
 
-		$fileName = ( isset( $_POST['fileUID'] ) ? $_POST['fileUID'] : '' );
+		$fileName = ( isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '' );
 		if ( 'full' === $_POST['type'] ) {
 
 			$res = $this->backup_full( $fileName );
@@ -421,11 +421,7 @@ class MainWP_Backup {
 			}
 			$information['db'] = false;
 		} elseif ( 'db' == $_POST['type'] ) {
-			$ext = 'zip';
-			if ( isset( $_POST['ext'] ) ) {
-				$ext = $_POST['ext'];
-			}
-
+			$ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
 			$res = $this->backup_db( $fileName, $ext );
 			if ( ! $res ) {
 				$information['db'] = false;
@@ -456,7 +452,7 @@ class MainWP_Backup {
 	 * @return array|bool Returns an array containing the Backup location & file size. Return FALSE on failure.
 	 */
 	public function backup_full( $fileName ) {
-		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', $_POST['exclude'] ) : array() );
+		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() );
 		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
 		$uploadDir  = MainWP_Helper::get_mainwp_dir();
 		$uploadDir  = $uploadDir[0];
@@ -476,8 +472,8 @@ class MainWP_Backup {
 			}
 		}
 
-		$file_descriptors      = ( isset( $_POST['file_descriptors'] ) ? $_POST['file_descriptors'] : 0 );
-		$file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? $_POST['file_descriptors_auto'] : 0 );
+		$file_descriptors      = ( isset( $_POST['file_descriptors'] ) ? wp_unslash( $_POST['file_descriptors'] ) : 0 );
+		$file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? wp_unslash( $_POST['file_descriptors_auto'] ) : 0 );
 		if ( 1 === (int) $file_descriptors_auto ) {
 			if ( function_exists( 'posix_getrlimit' ) ) {
 				$result = posix_getrlimit();
@@ -487,7 +483,7 @@ class MainWP_Backup {
 			}
 		}
 
-		$loadFilesBeforeZip = ( isset( $_POST['loadFilesBeforeZip'] ) ? $_POST['loadFilesBeforeZip'] : true );
+		$loadFilesBeforeZip = ( isset( $_POST['loadFilesBeforeZip'] ) ? sanitize_text_field( wp_unslash( $_POST['loadFilesBeforeZip'] ) ) : true );
 
 		$newExcludes = array();
 		foreach ( $excludes as $exclude ) {
@@ -529,20 +525,14 @@ class MainWP_Backup {
 
 		$file = false;
 		if ( isset( $_POST['f'] ) ) {
-			$file = $_POST['f'];
+			$file = ! empty( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : false;
 		} elseif ( isset( $_POST['file'] ) ) {
-			$file = $_POST['file'];
+			$file = ! empty( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : false;
 		}
 
-		$ext = 'zip';
-		if ( isset( $_POST['ext'] ) ) {
-			$ext = $_POST['ext'];
-		}
+		$ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
+		$pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : false;
 
-		$pid = false;
-		if ( isset( $_POST['pid'] ) ) {
-			$pid = $_POST['pid'];
-		}
 		$append = ( isset( $_POST['append'] ) && ( '1' == $_POST['append'] ) );
 		return $this->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
 	}

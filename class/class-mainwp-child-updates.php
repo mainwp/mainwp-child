@@ -170,11 +170,15 @@ class MainWP_Child_Updates {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
-		$plugins = explode( ',', urldecode( $_POST['list'] ) );
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 
 		$this->to_support_some_premiums_updates( $plugins );
 
-		/** @global object $wp_current_filter WordPress current filter. */
+		/**
+		 * WordPress current filter.
+		 *
+		 * @global array $wp_current_filter WordPress current filter.
+		 */
 		global $wp_current_filter;
 
 		$wp_current_filter[] = 'load-plugins.php'; // phpcs:ignore -- Required for custom plugin installations, pull request solutions appreciated.
@@ -188,7 +192,7 @@ class MainWP_Child_Updates {
 
 		$information['plugin_updates'] = get_plugin_updates();
 
-		$plugins        = explode( ',', urldecode( $_POST['list'] ) );
+		$plugins        = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 		$premiumPlugins = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -317,7 +321,7 @@ class MainWP_Child_Updates {
 		add_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ) );
 
 		$information['theme_updates'] = $this->upgrade_get_theme_updates();
-		$themes                       = explode( ',', $_POST['list'] );
+		$themes                       = explode( ',', wp_unslash( $_POST['list'] ) );
 		$premiumThemes                = array();
 		$premiumUpdates               = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -707,10 +711,10 @@ class MainWP_Child_Updates {
 			set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS );
 		}
 
-		$type = isset( $_GET['_request_update_premiums_type'] ) ? $_GET['_request_update_premiums_type'] : '';
+		$type = isset( $_GET['_request_update_premiums_type'] ) ? sanitize_text_field( wp_unslash( $_GET['_request_update_premiums_type'] ) ) : '';
 
 		if ( 'plugin' == $type || 'theme' == $type ) {
-			$list = isset( $_GET['list'] ) ? $_GET['list'] : '';
+			$list = isset( $_GET['list'] ) ? wp_unslash( $_GET['list'] ) : '';
 
 			if ( ! empty( $list ) ) {
 				$_POST['type'] = $type;
@@ -733,7 +737,11 @@ class MainWP_Child_Updates {
 	 */
 	public function upgrade_wp() {
 
-		/** @global object $wp_version WordPress version. */
+		/**
+		 * The installed version of WordPress.
+		 *
+		 * @global string $wp_version The installed version of WordPress.
+		 */
 		global $wp_version;
 
 		MainWP_Helper::get_wp_filesystem();
@@ -869,7 +877,7 @@ class MainWP_Child_Updates {
 		wp_update_plugins();
 
 		$upgrader             = new \Language_Pack_Upgrader( new \Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
-		$translations         = explode( ',', urldecode( $_POST['list'] ) );
+		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
 		$all_language_updates = wp_get_translation_updates();
 
 		$language_updates = array();

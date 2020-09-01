@@ -92,7 +92,8 @@ class MainWP_Child_Links_Checker {
 		MainWP_Helper::update_option( 'mainwp_linkschecker_ext_enabled', 'Y', 'yes' );
 		try {
 			if ( isset( $_POST['mwp_action'] ) ) {
-				switch ( $_POST['mwp_action'] ) {
+				$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+				switch ( $mwp_action ) {
 					case 'set_showhide':
 						$information = $this->set_showhide();
 						break;
@@ -168,7 +169,7 @@ class MainWP_Child_Links_Checker {
 	 */
 	public function save_settings() {
 		$information     = array();
-		$check_threshold = intval( $_POST['check_threshold'] );
+		$check_threshold = intval( wp_unslash( $_POST['check_threshold'] ) );
 		if ( $check_threshold > 0 ) {
 			$conf                             = blc_get_configuration();
 			$conf->options['check_threshold'] = $check_threshold;
@@ -352,8 +353,8 @@ class MainWP_Child_Links_Checker {
 
 		$total = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 
-		$max_results = isset( $_POST['max_results'] ) ? intval( $_POST['max_results'] ) : 50;
-		$offset      = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
+		$max_results = isset( $_POST['max_results'] ) ? intval( wp_unslash( $_POST['max_results'] ) ) : 50;
+		$offset      = isset( $_POST['offset'] ) ? intval( wp_unslash( $_POST['offset'] ) ) : 0;
 
 		$params = array(
 			array( 'load_instances' => true ),
@@ -580,21 +581,21 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 		// Load the link.
-		$link = new \blcLink( intval( $_POST['link_id'] ) );
+		$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
 		if ( ! $link->valid() ) {
 			$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
 			return $information;
 		}
 
 		// Validate the new URL.
-		$new_url = stripslashes( $_POST['new_url'] );
+		$new_url = stripslashes( wp_unslash( $_POST['new_url'] ) );
 		$parsed  = @parse_url( $new_url );
 		if ( ! $parsed ) {
 			$information['error'] = 'URLINVALID'; // Oops, the new URL is invalid!
 			return $information;
 		}
 
-		$new_text = ( isset( $_POST['new_text'] ) && is_string( $_POST['new_text'] ) ) ? stripslashes( $_POST['new_text'] ) : null;
+		$new_text = ( isset( $_POST['new_text'] ) && is_string( wp_unslash( $_POST['new_text'] ) ) ) ? stripslashes( wp_unslash( $_POST['new_text'] ) ) : null;
 		if ( '' === $new_text ) {
 			$new_text = null;
 		}
@@ -657,7 +658,7 @@ class MainWP_Child_Links_Checker {
 
 		if ( isset( $_POST['link_id'] ) ) {
 			// Load the link.
-			$link = new \blcLink( intval( $_POST['link_id'] ) );
+			$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
 
 			if ( ! $link->valid() ) {
 				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
@@ -697,7 +698,7 @@ class MainWP_Child_Links_Checker {
 	 */
 	private function set_link_dismissed() {
 		$information = array();
-		$dismiss     = $_POST['dismiss'];
+		$dismiss     = isset( $_POST['dismiss'] ) ? sanitize_text_field( wp_unslash( $_POST['dismiss'] ) ) : '';
 
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
@@ -707,7 +708,7 @@ class MainWP_Child_Links_Checker {
 
 		if ( isset( $_POST['link_id'] ) ) {
 			// Load the link.
-			$link = new \blcLink( intval( $_POST['link_id'] ) );
+			$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
 
 			if ( ! $link->valid() ) {
 				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
@@ -745,7 +746,7 @@ class MainWP_Child_Links_Checker {
 		}
 		if ( isset( $_POST['link_id'] ) ) {
 			// Load the link.
-			$link = new \blcLink( intval( $_POST['link_id'] ) );
+			$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
 
 			if ( ! $link->valid() ) {
 				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.

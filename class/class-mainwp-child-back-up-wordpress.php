@@ -167,7 +167,8 @@ class MainWP_Child_Back_Up_WordPress {
 			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
 					break;
@@ -226,7 +227,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return int Schedule ID.
 	 */
 	public function check_schedule() {
-		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? $_POST['schedule_id'] : '';
+		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? sanitize_text_field( wp_unslash( $_POST['schedule_id'] ) ) : '';
 		if ( empty( $schedule_id ) ) {
 			$information = array( 'error' => 'Empty schedule id' );
 			MainWP_Helper::write( $information );
@@ -504,7 +505,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 */
 	public function reload_backups() {
 
-		$scheduleIds = isset( $_POST['schedule_ids'] ) ? $_POST['schedule_ids'] : array();
+		$scheduleIds = isset( $_POST['schedule_ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['schedule_ids'] ) ) : array();
 		\HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 
 		$all_schedules_ids = array();
@@ -598,7 +599,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
-		$deleted = $schedule->delete_backup( base64_decode( rawurldecode( $_POST['hmbkp_backuparchive'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$deleted = isset( $_POST['hmbkp_backuparchive'] ) ? $schedule->delete_backup( base64_decode( rawurldecode( wp_unslash( $_POST['hmbkp_backuparchive'] ) ) ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( is_wp_error( $deleted ) ) {
 			return array( 'error' => $deleted->get_error_message() );
@@ -1103,7 +1104,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function directory_browse() {
-		$browse_dir                = $_POST['browse_dir'];
+		$browse_dir                = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
 		$out                       = array();
 		$return                    = $this->get_excluded( $browse_dir );
 		$out['e']                  = $return['e'];
@@ -1128,13 +1129,13 @@ class MainWP_Child_Back_Up_WordPress {
 		$schedule_id = $this->check_schedule();
 		$schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $schedule_id ) );
 
-		$exclude_rule = rawurldecode( $_POST['exclude_pathname'] );
+		$exclude_rule = isset( $_POST['exclude_pathname'] ) ? rawurldecode( wp_unslash( $_POST['exclude_pathname'] ) ) : '';
 
 		$schedule->set_excludes( $exclude_rule, true );
 
 		$schedule->save();
 
-		$current_path = rawurldecode( $_POST['browse_dir'] );
+		$current_path = isset( $_POST['browse_dir'] ) ? rawurldecode( wp_unslash( $_POST['browse_dir'] ) ) : '';
 
 		if ( empty( $current_path ) ) {
 			$current_path = null;
@@ -1142,7 +1143,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$return                    = $this->get_excluded( $current_path );
 		$out['e']                  = $return['e'];
-		$out['current_browse_dir'] = $_POST['browse_dir'];
+		$out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
 
 		return $out;
 	}
@@ -1164,7 +1165,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $schedule_id ) );
 
 		$excludes               = $schedule->get_excludes();
-		$exclude_rule_to_remove = stripslashes( sanitize_text_field( $_POST['remove_rule'] ) );
+		$exclude_rule_to_remove = stripslashes( sanitize_text_field( wp_unslash( $_POST['remove_rule'] ) ) );
 
 		if ( method_exists( $excludes, 'get_user_excludes' ) ) {
 			$schedule->set_excludes( array_diff( $excludes->get_user_excludes(), (array) $exclude_rule_to_remove ) );
@@ -1174,7 +1175,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$schedule->save();
 
-		$current_path = rawurldecode( $_POST['browse_dir'] );
+		$current_path = isset( $_POST['browse_dir'] ) ? rawurldecode( wp_unslash( $_POST['browse_dir'] ) ) : '';
 
 		if ( empty( $current_path ) ) {
 			$current_path = null;
@@ -1183,7 +1184,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$return = $this->get_excluded( $current_path );
 
 		$out['e']                  = $return['e'];
-		$out['current_browse_dir'] = $_POST['browse_dir'];
+		$out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
 
 		return $out;
 	}
@@ -1200,7 +1201,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$sch_id   = $this->check_schedule();
 		$schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $sch_id ) );
 
-		$exclude_paths = rawurldecode( $_POST['exclude_paths'] );
+		$exclude_paths = isset( $_POST['exclude_paths'] ) ? rawurldecode( wp_unslash( $_POST['exclude_paths'] ) ) : '';
 		$exclude_paths = explode( "\n", $exclude_paths );
 		if ( is_array( $exclude_paths ) && count( $exclude_paths ) > 0 ) {
 			foreach ( $exclude_paths as $excl_rule ) {
@@ -1220,7 +1221,7 @@ class MainWP_Child_Back_Up_WordPress {
 			}
 		}
 
-		$un_exclude_paths = rawurldecode( $_POST['un_exclude_paths'] );
+		$un_exclude_paths = isset( $_POST['un_exclude_paths'] ) ? rawurldecode( wp_unslash( $_POST['un_exclude_paths'] ) ) : '';
 		$un_exclude_paths = explode( "\n", $un_exclude_paths );
 
 		if ( is_array( $un_exclude_paths ) && count( get_user_excludes ) > 0 ) {
@@ -1253,9 +1254,8 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function update_schedule() {
-		$sch_id  = isset( $_POST['schedule_id'] ) ? $_POST['schedule_id'] : 0;
-		$sch_id  = sanitize_text_field( rawurldecode( $sch_id ) );
-		$options = isset( $_POST['options'] ) ? maybe_unserialize( base64_decode( $_POST['options'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$sch_id  = isset( $_POST['schedule_id'] ) ? sanitize_text_field( rawurldecode( wp_unslash( $_POST['schedule_id'] ) ) ) : 0;
+		$options = isset( $_POST['options'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['options'] ) ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {
 			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );
@@ -1313,7 +1313,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function save_all_schedules() {
-		$schedules = isset( $_POST['all_schedules'] ) ? maybe_unserialize( base64_decode( $_POST['all_schedules'] ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$schedules = isset( $_POST['all_schedules'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['all_schedules'] ) ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $schedules ) || empty( $schedules ) ) {
 			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );
@@ -1421,7 +1421,7 @@ class MainWP_Child_Back_Up_WordPress {
 			}
 		}
 
-		$pos = stripos( $_SERVER['REQUEST_URI'], 'tools.php?page=backupwordpress' );
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'tools.php?page=backupwordpress' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();

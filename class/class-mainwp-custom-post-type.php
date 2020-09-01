@@ -64,7 +64,7 @@ class MainWP_Custom_Post_Type {
 			$data = self::$information;
 		}
 
-		if ( isset( $_REQUEST['json_result'] ) && $_REQUEST['json_result'] ) {
+		if ( isset( $_REQUEST['json_result'] ) && wp_unslash( $_REQUEST['json_result'] ) ) {
 			$data = wp_json_encode( $data );
 		} else {
 			$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required to achieve desired results, pull request solutions appreciated.
@@ -80,7 +80,8 @@ class MainWP_Custom_Post_Type {
 		register_shutdown_function( '\MainWP\Child\MainWP_Custom_Post_Type::mainwp_custom_post_type_handle_fatal_error' );
 
 		$information = array();
-		switch ( $_POST['action'] ) {
+		$mwp_action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		switch ( $mwp_action ) {
 			case 'custom_post_type_import':
 				$information = $this->import_custom_post();
 				break;
@@ -104,18 +105,18 @@ class MainWP_Custom_Post_Type {
 
 		add_filter( 'http_request_host_is_external', '__return_true' );
 
-		if ( ! isset( $_POST['data'] ) || strlen( $_POST['data'] ) < 2 ) {
+		if ( ! isset( $_POST['data'] ) || strlen( wp_unslash( $_POST['data'] ) ) < 2 ) {
 			return array( 'error' => __( 'Missing data', $this->plugin_translate ) );
 		}
 
-		$data = stripslashes( $_POST['data'] );
+		$data = stripslashes( wp_unslash( $_POST['data'] ) );
 
 		$data = json_decode( $data, true );
 
 		if ( empty( $data ) || ! is_array( $data ) || ! isset( $data['post'] ) ) {
 			return array( 'error' => __( 'Cannot decode data', $this->plugin_translate ) );
 		}
-		$edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? $_POST['post_id'] : 0;
+		$edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? intval( wp_unslash( $_POST['post_id'] ) ) : 0;
 		$return  = $this->insert_post( $data, $edit_id, $parent_id = 0 );
 		if ( isset( $return['success'] ) && 1 == $return['success'] ) {
 			if ( isset( $data['product_variation'] ) && is_array( $data['product_variation'] ) ) {

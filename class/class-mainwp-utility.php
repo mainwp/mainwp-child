@@ -57,7 +57,7 @@ class MainWP_Utility {
 	 */
 	public function run_saved_snippets() {
 		if ( isset( $_POST['action'] ) && isset( $_POST['mainwpsignature'] ) ) {
-			$action = $_POST['action'];
+			$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 			if ( 'run_snippet' === $action || 'save_snippet' === $action || 'delete_snippet' === $action ) {
 				return;
 			}
@@ -143,44 +143,25 @@ class MainWP_Utility {
 		$from_email = get_bloginfo( 'admin_email' );
 
 		// referrer.
-		if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
-			$referer = self::clean( $_SERVER['HTTP_REFERER'] );
-		} else {
-			$referer = 'undefined';
-		}
-		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( $_SERVER['HTTPS'], 'off' ) ? 'https://' : 'http://';
+		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : 'undefined';
+
+		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
 		// request URI.
-		if ( isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ) {
-			$request = self::clean( $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
-		} else {
-			$request = 'undefined';
-		}
+		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) : 'undefined';
+
 		// query string.
-		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
-			$string = self::clean( $_SERVER['QUERY_STRING'] );
-		} else {
-			$string = 'undefined';
-		}
+		$string = isset( $_SERVER['QUERY_STRING'] ) ? sanitize_text_field( wp_unslash( $_SERVER['QUERY_STRING'] ) ) : 'undefined';
 		// IP address.
-		if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
-			$address = self::clean( $_SERVER['REMOTE_ADDR'] );
-		} else {
-			$address = 'undefined';
-		}
+		$address = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'undefined';
+
 		// user agent.
-		if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
-			$agent = self::clean( $_SERVER['HTTP_USER_AGENT'] );
-		} else {
-			$agent = 'undefined';
-		}
+		$agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : 'undefined';
+
 		// identity.
-		if ( isset( $_SERVER['REMOTE_IDENT'] ) ) {
-			$remote = self::clean( $_SERVER['REMOTE_IDENT'] );
-		} else {
-			$remote = 'undefined';
-		}
+		$remote = isset( $_SERVER['REMOTE_IDENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_IDENT'] ) ) : 'undefined';
+
 		// log time.
-		$time = self::clean( date( 'F jS Y, h:ia', time() ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
+		$time = sanitize_text_field( wp_unslash( date( 'F jS Y, h:ia', time() ) ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
 
 		$mail = '<div>404 alert</div><div></div>' .
 				'<div>TIME: ' . $time . '</div>' .
@@ -199,23 +180,6 @@ class MainWP_Utility {
 				'content-type: text/html',
 			)
 		);
-	}
-
-	/**
-	 * Method clean()
-	 *
-	 * Clean passed string.
-	 *
-	 * @param string $string String to be cleaned.
-	 *
-	 * @return srting $string Cleaned string.
-	 */
-	public static function clean( $string ) {
-		$string = trim( $string );
-		$string = htmlentities( $string, ENT_QUOTES );
-		$string = str_replace( "\n", '<br>', $string );
-		$string = stripslashes( $string );
-		return $string;
 	}
 
 	/**
@@ -417,7 +381,11 @@ class MainWP_Utility {
 			$img_data = array();
 		}
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		MainWP_Helper::get_wp_filesystem();
@@ -477,7 +445,11 @@ class MainWP_Utility {
 	 */
 	private static function check_media_file_existed( $upload_dir, $filename, $temporary_file, &$local_img_path, $local_img_url ) {
 
-		/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+		/**
+		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+		 *
+		 * @global object $wp_filesystem Filesystem object.
+		 */
 		global $wp_filesystem;
 
 		if ( $wp_filesystem->exists( $local_img_path ) ) {
@@ -573,7 +545,11 @@ class MainWP_Utility {
 	 */
 	public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
 
-		/** @global object $wpdb WordPress Database instance. */
+		/**
+		 * Object, providing access to the WordPress database.
+		 *
+		 * @global $wpdb WordPress Database instance.
+		 */
 		global $wpdb;
 
 		if ( $full_guid ) {
@@ -669,7 +645,11 @@ class MainWP_Utility {
 		$dir  = $dir[0];
 		if ( MainWP_Helper::get_wp_filesystem() ) {
 
-			/** @global object $wp_filesystem Core WordPress filesystem class instance. */
+			/**
+			 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
+			 *
+			 * @global object $wp_filesystem Filesystem object.
+			 */
 			global $wp_filesystem;
 
 			try {
