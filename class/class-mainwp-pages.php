@@ -343,7 +343,7 @@ class MainWP_Pages {
 	 */
 	public static function render_header( $shownPage, $subpage = true ) {
 		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
-		
+
 		if ( ! empty( $tab ) ) {
 			$shownPage = $tab;
 		}
