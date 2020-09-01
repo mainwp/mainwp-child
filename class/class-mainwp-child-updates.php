@@ -110,7 +110,6 @@ class MainWP_Child_Updates {
 		// Prevent disable/re-enable at upgrade.
 		if ( ! defined( 'DOING_CRON' ) ) {
 
-
 			/**
 			 * Checks whether cron is in progress.
 			 *
