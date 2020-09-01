@@ -109,6 +109,14 @@ class MainWP_Child_Updates {
 	public function upgrade_plugin_theme() {
 		// Prevent disable/re-enable at upgrade.
 		if ( ! defined( 'DOING_CRON' ) ) {
+
+
+			/**
+			 * Checks whether cron is in progress.
+			 *
+			 * @const ( bool ) Default: true
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Updates.html
+			 */
 			define( 'DOING_CRON', true );
 		}
 
@@ -840,7 +848,13 @@ class MainWP_Child_Updates {
 	 * Update translations and set feedback to the sync information.
 	 */
 	public function upgrade_translation() {
-		// Prevent disable/re-enable at upgrade.
+		/**
+		 * Checks whether cron is in progress.
+		 * Prevent disable/re-enable at upgrade.
+		 *
+		 * @const ( bool ) Default: true
+		 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Callable.html
+		 */
 		define( 'DOING_CRON', true );
 
 		MainWP_Helper::get_wp_filesystem();
