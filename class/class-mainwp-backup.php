@@ -475,8 +475,8 @@ class MainWP_Backup {
 			}
 		}
 
-		$file_descriptors      = ( isset( $_POST['file_descriptors'] ) ? wp_unslash( $_POST['file_descriptors'] ) : 0 );
-		$file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? wp_unslash( $_POST['file_descriptors_auto'] ) : 0 );
+		$file_descriptors      = ( isset( $_POST['file_descriptors'] ) ? intval( wp_unslash( $_POST['file_descriptors'] ) ) : 0 );
+		$file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? intval( wp_unslash( $_POST['file_descriptors_auto'] ) ) : 0 );
 		if ( 1 === (int) $file_descriptors_auto ) {
 			if ( function_exists( 'posix_getrlimit' ) ) {
 				$result = posix_getrlimit();

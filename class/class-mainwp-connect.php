@@ -480,8 +480,8 @@ class MainWP_Connect {
 			// Check if the user exists & is an administrator.
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
 				$user = null;
-				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
-					if ( $this->check_login_as( wp_unslash( $_POST['alt_user'] ) ) ) {
+				if ( isset( $_POST['alt_user'] ) ) {
+					if ( ! empty( $_POST['alt_user'] ) && $this->check_login_as( wp_unslash( $_POST['alt_user'] ) ) ) {
 						$auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
 						$user      = get_user_by( 'login', $auth_user );
 					}

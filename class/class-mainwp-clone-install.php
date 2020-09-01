@@ -752,7 +752,10 @@ class MainWP_Clone_Install {
 		$cloneFunc = isset( $_REQUEST['cloneFunc'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['cloneFunc'] ) ) : '';
 
 		if ( 'dl' === $cloneFunc ) {
-			MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['f'] ) );
+			$f = isset( $_REQUEST['f'] ) ? wp_unslash( $_REQUEST['f'] ) : '';
+			if ( ! empty( $f ) ) {
+				MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['f'] ) );
+			}
 			exit;
 		} elseif ( 'deleteCloneBackup' === $cloneFunc ) {
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
