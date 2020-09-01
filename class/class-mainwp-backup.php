@@ -246,8 +246,9 @@ class MainWP_Backup {
 	public function backup_poll() {
 		$fileNameUID = ( isset( $_POST['fileNameUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileNameUID'] ) ) : '' );
 		$fileName    = ( isset( $_POST['fileName'] ) ? wp_unslash( $_POST['fileName'] ) : '' );
+		$type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 
-		if ( 'full' === $_POST['type'] ) {
+		if ( 'full' === $type ) {
 			if ( '' !== $fileName ) {
 				$backupFile = $fileName;
 			} else {
@@ -408,8 +409,10 @@ class MainWP_Backup {
 			}
 		}
 
-		$fileName = ( isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '' );
-		if ( 'full' === $_POST['type'] ) {
+		$fileName = isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
+		$type     = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+
+		if ( 'full' === $type ) {
 
 			$res = $this->backup_full( $fileName );
 
@@ -420,7 +423,7 @@ class MainWP_Backup {
 				$information['size'] = $res['filesize'];
 			}
 			$information['db'] = false;
-		} elseif ( 'db' == $_POST['type'] ) {
+		} elseif ( 'db' == $type ) {
 			$ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
 			$res = $this->backup_db( $fileName, $ext );
 			if ( ! $res ) {

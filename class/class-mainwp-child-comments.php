@@ -95,7 +95,7 @@ class MainWP_Child_Comments {
 	 */
 	public function comment_bulk_action() {
 		$action                 = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		$commentIds             = explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) );
+		$commentIds             = isset( $_POST['ids'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) : array();
 		$information['success'] = 0;
 		foreach ( $commentIds as $commentId ) {
 			if ( $commentId ) {

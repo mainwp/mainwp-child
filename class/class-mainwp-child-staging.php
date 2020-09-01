@@ -604,7 +604,7 @@ class MainWP_Child_Staging {
 	 */
 	public function remove_menu() {
 		remove_menu_page( 'wpstg_clone' );
-		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=wpstg_clone' ) : false;
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'admin.php?page=wpstg_clone' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();

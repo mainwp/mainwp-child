@@ -749,10 +749,12 @@ class MainWP_Clone_Install {
 			return;
 		}
 
-		if ( 'dl' === $_REQUEST['cloneFunc'] ) {
+		$cloneFunc = isset( $_REQUEST['cloneFunc'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['cloneFunc'] ) ) : '';
+
+		if ( 'dl' === $cloneFunc ) {
 			MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['f'] ) );
 			exit;
-		} elseif ( 'deleteCloneBackup' === $_POST['cloneFunc'] ) {
+		} elseif ( 'deleteCloneBackup' === $cloneFunc ) {
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir = $dirs[0];
 			$result    = glob( $backupdir . wp_unslash( $_POST['f'] ) );
@@ -762,7 +764,7 @@ class MainWP_Clone_Install {
 
 			unlink( $result[0] );
 			MainWP_Helper::write( array( 'result' => 'ok' ) );
-		} elseif ( 'createCloneBackupPoll' === $_POST['cloneFunc'] ) {
+		} elseif ( 'createCloneBackupPoll' === $cloneFunc ) {
 			$dirs        = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir   = $dirs[0];
 			$f           = isset( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : '';
@@ -781,7 +783,7 @@ class MainWP_Clone_Install {
 			}
 
 			MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
-		} elseif ( 'createCloneBackup' === $_POST['cloneFunc'] ) {
+		} elseif ( 'createCloneBackup' === $cloneFunc ) {
 			$this->create_clone_backup();
 		}
 		return true;

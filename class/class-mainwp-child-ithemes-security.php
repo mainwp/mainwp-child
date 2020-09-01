@@ -465,7 +465,7 @@ class MainWP_Child_IThemes_Security {
      * @uses \ITSEC_Modules::activate()
      */
     public static function activate_network_brute_force() {
-		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$data        = isset( $_POST['data'] ) ? maybe_unserialize( base64_decode( $_POST['data'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$information = array();
 		if ( is_array( $data ) ) {
 			$settings                  = \ITSEC_Modules::get_settings( 'network-brute-force' );

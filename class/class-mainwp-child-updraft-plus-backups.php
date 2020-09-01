@@ -844,7 +844,7 @@ class MainWP_Child_Updraft_Plus_Backups {
             }
         }
 
-        $addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $addons_options = isset( $_POST['addons_options'] ) ? maybe_unserialize( base64_decode( $_POST['addons_options'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         if ( ! is_array( $addons_options ) ) {
             $addons_options = array();
         }
@@ -980,28 +980,28 @@ class MainWP_Child_Updraft_Plus_Backups {
 
         if ( ! class_exists( '\UpdraftPlus_WPDB_OtherDB_Test' ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => 'Error: Require premium UpdraftPlus plugin.',
             );
         }
 
         if ( empty( $_POST['user_db'] ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => '<p>' . sprintf( __( 'Failure: No %s was given.', 'updraftplus' ) . '</p>', __( 'user', 'updraftplus' ) ),
             );
         }
 
         if ( empty( $_POST['host'] ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => '<p>' . sprintf( __( 'Failure: No %s was given.', 'updraftplus' ) . '</p>', __( 'host', 'updraftplus' ) ),
             );
         }
 
         if ( empty( $_POST['name'] ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => '<p>' . sprintf( __( 'Failure: No %s was given.', 'updraftplus' ) . '</p>', __( 'database name', 'updraftplus' ) ),
             );
         }
@@ -1082,7 +1082,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         restore_error_handler();
 
         return array(
-            'r' => $_POST['row'],
+            'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
             'm' => $ret . $ret_after,
         );
     }
@@ -4431,7 +4431,7 @@ ENDHERE;
             }
         }
 
-        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( $_SERVER['REQUEST_URI'], 'options-general.php?page=updraftplus' ) : false;
+        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php?page=updraftplus' ) : false;
         if ( false !== $pos ) {
             wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
             exit();

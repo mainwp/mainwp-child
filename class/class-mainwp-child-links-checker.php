@@ -580,8 +580,11 @@ class MainWP_Child_Links_Checker {
 
 			return $information;
 		}
+		
+		$link_id = isset( $_POST['link_id'] ) ? sanitize_text_field( wp_unslash( $_POST['link_id'] ) ) : '';
+
 		// Load the link.
-		$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
+		$link = new \blcLink( intval( $link_id ) );
 		if ( ! $link->valid() ) {
 			$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
 			return $information;
@@ -655,8 +658,10 @@ class MainWP_Child_Links_Checker {
 		}
 
 		if ( isset( $_POST['link_id'] ) ) {
+			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : '';
+
 			// Load the link.
-			$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
+			$link = new \blcLink( $link_id );
 
 			if ( ! $link->valid() ) {
 				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
@@ -705,8 +710,10 @@ class MainWP_Child_Links_Checker {
 		}
 
 		if ( isset( $_POST['link_id'] ) ) {
+			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : '';
+
 			// Load the link.
-			$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
+			$link = new \blcLink( $link_id );
 
 			if ( ! $link->valid() ) {
 				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
@@ -743,8 +750,10 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 		if ( isset( $_POST['link_id'] ) ) {
+			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : '';
+
 			// Load the link.
-			$link = new \blcLink( intval( wp_unslash( $_POST['link_id'] ) ) );
+			$link = new \blcLink( $link_id );
 
 			if ( ! $link->valid() ) {
 				$information['error'] = 'NOTFOUNDLINK'; // Oops, I can't find the link.
