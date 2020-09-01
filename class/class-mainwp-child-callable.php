@@ -155,12 +155,28 @@ class MainWP_Child_Callable {
 
 		// Fire off the called function.
 		if ( $auth && isset( $_POST['function'] ) && $callable ) {
+
+			/**
+			 * Checks whether cron is in progress.
+			 *
+			 * @const ( bool ) Default: true
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Callable.html
+			 */
 			define( 'DOING_CRON', true );
+
 			MainWP_Utility::handle_fatal_error();
 			MainWP_Utility::fix_for_custom_themes();
 			$this->call_function( $call_func );
 		} elseif ( isset( $_POST['function'] ) && $callable_no_auth ) {
+
+			/**
+			 * Checks whether cron is in progress.
+			 *
+			 * @const ( bool ) Default: true
+			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Callable.html
+			 */
 			define( 'DOING_CRON', true );
+
 			MainWP_Utility::fix_for_custom_themes();
 			$this->call_function_no_auth( $call_func );
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {

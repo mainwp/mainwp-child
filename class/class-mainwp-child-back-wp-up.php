@@ -1125,6 +1125,13 @@ class MainWP_Child_Back_WP_Up {
 
         // We do this in order to not die when using wp_die.
         if ( ! defined( 'DOING_AJAX' ) ) {
+
+	        /**
+	         * Checks whether ajax job is in progress.
+	         *
+	         * @const ( bool ) Default: true
+	         * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Back_WP_Up.html
+	         */
             define( 'DOING_AJAX', true );
         }
 
