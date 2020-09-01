@@ -575,7 +575,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @uses $updraftplus::schedule_backup_database()
      */
     public function save_settings() {
-        $settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
         $keys_filter = $this->get_settings_keys();
 
@@ -844,7 +844,7 @@ class MainWP_Child_Updraft_Plus_Backups {
             }
         }
 
-        $addons_options = isset( $_POST['addons_options'] ) ? maybe_unserialize( base64_decode( $_POST['addons_options'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $addons_options = isset( $_POST['addons_options'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['addons_options'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         if ( ! is_array( $addons_options ) ) {
             $addons_options = array();
         }
@@ -1127,7 +1127,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         if ( ! empty( $_REQUEST['onlythisfileentity'] ) && is_string( $_REQUEST['onlythisfileentity'] ) ) {
             // Something to see in the 'last log' field when it first appears, before the backup actually starts.
             $updraftplus->log( __( 'Start backup', 'updraftplus' ) );
-            $options['restrict_files_to_override'] = explode( ',', $_REQUEST['onlythisfileentity'] );
+            $options['restrict_files_to_override'] = isset( $_REQUEST['onlythisfileentity'] ) ? explode( ',', $_REQUEST['onlythisfileentity'] ) : array();
         }
 
         do_action( $event, apply_filters( 'updraft_backupnow_options', $options, array() ) );

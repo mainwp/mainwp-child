@@ -169,7 +169,7 @@ class MainWP_Child_Links_Checker {
 	 */
 	public function save_settings() {
 		$information     = array();
-		$check_threshold = intval( wp_unslash( $_POST['check_threshold'] ) );
+		$check_threshold = isset( $_POST['check_threshold'] ) ? intval( wp_unslash( $_POST['check_threshold'] ) ) : 0;
 		if ( $check_threshold > 0 ) {
 			$conf                             = blc_get_configuration();
 			$conf->options['check_threshold'] = $check_threshold;
@@ -580,7 +580,7 @@ class MainWP_Child_Links_Checker {
 
 			return $information;
 		}
-		
+
 		$link_id = isset( $_POST['link_id'] ) ? sanitize_text_field( wp_unslash( $_POST['link_id'] ) ) : '';
 
 		// Load the link.
@@ -591,7 +591,7 @@ class MainWP_Child_Links_Checker {
 		}
 
 		// Validate the new URL.
-		$new_url = stripslashes( wp_unslash( $_POST['new_url'] ) );
+		$new_url = isset( $_POST['new_url'] ) ? stripslashes( wp_unslash( $_POST['new_url'] ) ) : '';
 		$parsed  = @parse_url( $new_url );
 		if ( ! $parsed ) {
 			$information['error'] = 'URLINVALID'; // Oops, the new URL is invalid!

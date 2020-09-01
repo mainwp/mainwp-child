@@ -475,7 +475,8 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : '';
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->exclude_file_list( wp_unslash( $_POST['data'] ) );
+		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : '';
+		$exclude_class_obj->exclude_file_list( $data );
 		die();
 	}
 
@@ -964,7 +965,8 @@ class MainWP_Child_Timecapsule {
 		}
 		$category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : '';
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
-		$exclude_class_obj->exclude_table_list( wp_unslash( $_POST['data'] ) );
+		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : '';
+		$exclude_class_obj->exclude_table_list( $data );
 		die();
 	}
 
@@ -1361,7 +1363,7 @@ class MainWP_Child_Timecapsule {
 			);
 		}
 
-		$data = isset( $_POST['data'] ) ? unserialize( base64_decode( $_POST['data'] ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
+		$data = isset( $_POST['data'] ) ? unserialize( base64_decode( wp_unslash( $_POST['data'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
 
 		$tabName    = isset( $_POST['tabname'] ) ? sanitize_text_field( wp_unslash( $_POST['tabname'] ) ) : '';
 		$is_general = isset( $_POST['is_general'] ) ? sanitize_text_field( wp_unslash( $_POST['is_general'] ) ) : '';

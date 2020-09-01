@@ -628,7 +628,7 @@ class MainWP_Child_Back_Up_Buddy {
 			'backup_nonwp_tables',
 		);
 
-		$settings = unserialize( base64_decode( $_POST['options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$settings = unserialize( base64_decode( wp_unslash( $_POST['options'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$save_settings = array();
 
@@ -850,7 +850,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function save_scheduled_backup() {
 		$schedule_id = intval( $_POST['schedule_id'] );
-		$schedule    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$schedule    = unserialize( base64_decode( wp_unslash( $_POST['data'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $schedule ) ) {
 			return array( 'error' => __( 'Invalid schedule data', 'mainwp-child' ) );
@@ -891,7 +891,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function save_profile() {
 		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_id'] ) ) : 0;
-		$profile    = unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$profile    = unserialize( base64_decode( wp_unslash( $_POST['data'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $profile ) ) {
 			return array( 'error' => __( 'Invalid profile data', 'mainwp-child' ) );
@@ -3457,7 +3457,7 @@ class MainWP_Child_Back_Up_Buddy {
      */
     public function copy_file_to_local() {
 
-		$file           = isset( $_POST['cpy_file'] ) ? base64_decode( $_POST['cpy_file'] ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$file           = isset( $_POST['cpy_file'] ) ? base64_decode( wp_unslash( $_POST['cpy_file'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$destination_id = isset( $_POST['destination_id'] ) ? sanitize_text_field( wp_unslash( $_POST['destination_id'] ) ) : '';
 
 		// Load required files.

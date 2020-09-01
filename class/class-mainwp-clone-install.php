@@ -745,7 +745,7 @@ class MainWP_Clone_Install {
 		if ( ! isset( $_REQUEST['f'] ) || ( '' === $_REQUEST['f'] ) ) {
 			return;
 		}
-		if ( ! MainWP_Connect::instance()->is_valid_auth( wp_unslash( $_REQUEST['key'] ) ) ) {
+		if ( ! isset( $_REQUEST['key'] ) || ! MainWP_Connect::instance()->is_valid_auth( wp_unslash( $_REQUEST['key'] ) ) ) {
 			return;
 		}
 
@@ -757,7 +757,7 @@ class MainWP_Clone_Install {
 		} elseif ( 'deleteCloneBackup' === $cloneFunc ) {
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir = $dirs[0];
-			$result    = glob( $backupdir . wp_unslash( $_POST['f'] ) );
+			$result    = isset( $_POST['f'] ) ? glob( $backupdir . wp_unslash( $_POST['f'] ) ) : array();
 			if ( 0 === count( $result ) ) {
 				return;
 			}

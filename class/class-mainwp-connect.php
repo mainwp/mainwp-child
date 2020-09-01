@@ -100,7 +100,7 @@ class MainWP_Connect {
 
 		// Check if the user exists and if yes, check if it's Administartor user.
 		if ( isset( $_POST['user'] ) ) {
-			if ( ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
+			if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
 				$hint_miss_user = __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) . '<br/>' . __( 'Hint: Check if the administrator user exists on the child site, if not, you need to use an existing administrator.', 'mainwp-child' );
 				MainWP_Helper::error( $hint_miss_user );
 			}
@@ -110,10 +110,10 @@ class MainWP_Connect {
 		}
 
 		// Update the mainwp_child_pubkey option.
-		MainWP_Helper::update_option( 'mainwp_child_pubkey', base64_encode( wp_unslash( $_POST['pubkey'] ) ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for the backwards compatibility.
+		MainWP_Helper::update_option( 'mainwp_child_pubkey', ( isset( $_POST['pubkey'] ) ? base64_encode( wp_unslash( $_POST['pubkey'] ) ) : '' ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for the backwards compatibility.
 
 		// Save the public key.
-		MainWP_Helper::update_option( 'mainwp_child_server', wp_unslash( $_POST['server'] ) );
+		MainWP_Helper::update_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
 
 		// Save the nonce.
 		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 );
@@ -174,8 +174,9 @@ class MainWP_Connect {
 
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
-					if ( $this->check_login_as( wp_unslash( $_POST['alt_user'] ) ) ) {
-						$auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
+					$uname = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
+					if ( $this->check_login_as( $uname ) ) {
+						$auth_user = $uname;
 						// get alternative admin user.
 						$user = get_user_by( 'login', $auth_user );
 					}
@@ -353,14 +354,19 @@ class MainWP_Connect {
 			if ( empty( $fdl ) || stristr( $fdl, '..' ) ) {
 				return false;
 			}
-			MainWP_Utility::instance()->upload_file( wp_unslash( $_REQUEST['fdl'] ), isset( $_REQUEST['foffset'] ) ? wp_unslash( $_REQUEST['foffset'] ) : 0 );
+
+			$foffset = isset( $_REQUEST['foffset'] ) ? wp_unslash( $_REQUEST['foffset'] ) : 0;
+
+			MainWP_Utility::instance()->upload_file( $fdl, $foffset );
 			exit;
 		}
+
+		$open_location = ! empty( $_REQUEST['open_location'] ) ? wp_unslash( $_REQUEST['open_location'] ) : '';
 		// support for custom wp-admin slug.
-		if ( isset( $_REQUEST['open_location'] ) && ! empty( $_REQUEST['open_location'] ) ) {
-			$open_location = base64_decode( wp_unslash( $_REQUEST['open_location'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
+		if ( ! empty( $open_locatio ) ) {
 			$this->open_location_redirect( $open_location );
 		}
+
 		$this->where_redirect();
 	}
 
@@ -457,7 +463,7 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( $_POST['mainwpsignature'] ) : '';
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : '';
 		$function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
 		$nonce           = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		$nossl           = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;

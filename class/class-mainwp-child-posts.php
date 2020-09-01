@@ -361,7 +361,7 @@ class MainWP_Child_Posts {
 		}
 
 		$extra['where_post_date'] = $where_post_date;
-		$rslt                     = $this->get_recent_posts( explode( ',', wp_unslash( $_POST['status'] ) ), $maxPages, $type, $extra );
+		$rslt                     = isset( $_POST['status'] ) ? $this->get_recent_posts( explode( ',', wp_unslash( $_POST['status'] ) ), $maxPages, $type, $extra ) : '';
 		$this->posts_where_suffix = '';
 
 		MainWP_Helper::write( $rslt );
@@ -384,7 +384,7 @@ class MainWP_Child_Posts {
 
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) && ! empty( $_POST['featured_image_data'] ) ) {
-			$others['featured_image_data'] = unserialize( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$others['featured_image_data'] = ! empty( $_POST['featured_image_data'] ) ? unserialize( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 
 		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );

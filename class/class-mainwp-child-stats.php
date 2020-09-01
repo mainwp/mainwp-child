@@ -174,7 +174,7 @@ class MainWP_Child_Stats {
 
 		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );
 		if ( isset( $_POST['server'] ) ) {
-			MainWP_Helper::update_option( 'mainwp_child_server', wp_unslash( $_POST['server'] ) );
+			MainWP_Helper::update_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
 		}
 
 		MainWP_Child_Plugins_Check::may_outdate_number_change();
@@ -437,7 +437,7 @@ class MainWP_Child_Stats {
 			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
 			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
 			'themeactivated' => $theme_name,
-			'ip'             => wp_unslash( $_SERVER['SERVER_ADDR'] ),
+			'ip'             => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
 		);
 
 		// Try to switch to SSL if SSL is enabled in between.
@@ -736,7 +736,7 @@ class MainWP_Child_Stats {
 
 		if ( isset( $_POST['pluginDir'] ) ) {
 			if ( get_option( 'mainwp_child_pluginDir' ) !== $_POST['pluginDir'] ) {
-				MainWP_Helper::update_option( 'mainwp_child_pluginDir', wp_unslash( $_POST['pluginDir'] ), 'yes' );
+				MainWP_Helper::update_option( 'mainwp_child_pluginDir', ( ! empty( $_POST['pluginDir'] ) ? wp_unslash( $_POST['pluginDir'] ) : '' ), 'yes' );
 			}
 		} elseif ( false !== get_option( 'mainwp_child_pluginDir' ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_pluginDir', false, 'yes' );

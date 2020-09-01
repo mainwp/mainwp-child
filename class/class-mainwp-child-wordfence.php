@@ -1520,7 +1520,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // custom fix to pass through security rules of Dreamhost!
 		} else {
-			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		}
 
 		$section     = isset( $_POST['savingSection'] ) ? sanitize_text_field( wp_unslash( $_POST['savingSection'] ) ) : '';
@@ -1805,7 +1805,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
