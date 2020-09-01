@@ -141,7 +141,7 @@ class MainWP_Child_Posts {
 		}
 
 		$wp_seo_enabled = false;
-		if ( isset( $_POST['WPSEOEnabled'] ) && wp_unslash( $_POST['WPSEOEnabled'] ) ) {
+		if ( ! empty( $_POST['WPSEOEnabled'] ) ) {
 			if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) && class_exists( '\WPSEO_Link_Column_Count' ) && class_exists( '\WPSEO_Meta' ) ) {
 				$wp_seo_enabled = true;
 			}

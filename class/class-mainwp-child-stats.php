@@ -257,7 +257,7 @@ class MainWP_Child_Stats {
 		$information['health_site_status']   = $this->get_health_check_site_status();
 
 		if ( isset( $_POST['user'] ) ) {
-			$user = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
+			$user = get_user_by( 'login', sanitize_text_field( wp_unslash( $_POST['user'] ) ) );
 			if ( $user && property_exists( $user, 'ID' ) && $user->ID ) {
 				$information['admin_nicename']  = $user->data->user_nicename;
 				$information['admin_useremail'] = $user->data->user_email;
@@ -291,7 +291,7 @@ class MainWP_Child_Stats {
 	 */
 	private function stats_others_data( &$information ) {
 
-		$othersData = json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true );
+		$othersData = isset( $_POST['othersData'] ) ? json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true ) : array();
 		if ( ! is_array( $othersData ) ) {
 			$othersData = array();
 		}

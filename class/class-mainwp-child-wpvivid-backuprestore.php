@@ -518,7 +518,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->set_general_setting( $_POST['setting'] );
+		$ret = isset( $_POST['setting'] ) ? $this->public_intetface->set_general_setting( wp_unslash( $_POST['setting'] ) ) : false;
 		return $ret;
 	}
 

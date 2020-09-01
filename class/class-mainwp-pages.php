@@ -237,7 +237,7 @@ class MainWP_Pages {
 
 		if ( isset( $submenu['options-general.php'] ) ) {
 			foreach ( $submenu['options-general.php'] as $index => $item ) {
-				if ( 'mainwp-reports-page' === $item[2] || 'mainwp-reports-settings' === $item[2] ) {
+				if ( 'mainwp-reports-page' == $item[2] || 'mainwp-reports-settings' == $item[2] ) {
 					unset( $submenu['options-general.php'][ $index ] );
 				}
 			}
@@ -342,7 +342,11 @@ class MainWP_Pages {
 	 * @param bool   $subpage Whether or not a subpage. Default: true.
 	 */
 	public static function render_header( $shownPage, $subpage = true ) {
-		$shownPage = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+		
+		if ( ! empty( $tab ) ) {
+			$shownPage = $tab;
+		}
 
 		if ( empty( $shownPage ) ) {
 			$shownPage = 'settings';

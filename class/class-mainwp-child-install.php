@@ -294,7 +294,7 @@ class MainWP_Child_Install {
 
 		$this->require_files();
 
-		$urlgot = json_decode( stripslashes( wp_unslash( $_POST['url'] ) ) );
+		$urlgot = isset( $_POST['url'] ) ? json_decode( stripslashes( wp_unslash( $_POST['url'] ) ) ) : '';
 
 		$urls = array();
 		if ( ! is_array( $urlgot ) ) {

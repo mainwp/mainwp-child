@@ -184,8 +184,9 @@ class MainWP_Connect {
 				// if alternative admin not existed.
 				if ( ! $user ) {
 					// check connected admin existed.
-					$user      = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
-					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
+					$uname     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
+					$user      = get_user_by( 'login', $uname );
+					$auth_user = $uname;
 				}
 
 				if ( ! $user ) {
@@ -290,7 +291,11 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$auth = $this->auth( $signature, rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ), isset( $_REQUEST['nonce'] ) ? wp_unslash( $_REQUEST['nonce'] ) : '', isset( $_REQUEST['nossl'] ) ? wp_unslash( $_REQUEST['nossl'] ) : 0 );
+		$where = isset( $_POST['where'] ) ? rawurldecode( wp_unslash( $_POST['where'] ) ) : '';
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		$nossl = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;
+
+		$auth = self::instance()->auth( $mainwpsignature, $where, $nonce, $nossl );
 
 		if ( ! $auth ) {
 			return false;
@@ -451,7 +456,13 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$auth = $this->auth( isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : '', isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ), isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '', isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0 );
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? wp_unslash( $_POST['mainwpsignature'] ) : '';
+		$function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
+		$nonce           = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		$nossl           = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;
+
+		$auth = self::instance()->auth( $mainwpsignature, $function, $nonce, $nossl );
+
 		if ( ! $auth ) {
 			MainWP_Helper::error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
 		}
@@ -471,8 +482,9 @@ class MainWP_Connect {
 				// if not valid alternative admin.
 				if ( ! $user ) {
 					// check connected admin existed.
-					$user      = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
-					$auth_user = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
+					$uname     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
+					$user      = get_user_by( 'login', $uname );
+					$auth_user = $uname;
 				}
 				if ( ! $user ) {
 					MainWP_Helper::error( __( 'That administrator username was not found on this child site. Please verify that it is an existing administrator.', 'mainwp-child' ) );
