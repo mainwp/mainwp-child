@@ -74,7 +74,7 @@ class MainWP_Child_Maintenance {
 			$this->maintenance_action( wp_unslash( $_POST['action'] ) ); // exit.
 		}
 
-		$maint_options = wp_unslash( $_POST['options'] );
+		$maint_options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : false;
 
 		if ( ! is_array( $maint_options ) ) {
 			MainWP_Helper::write( array( 'status' => 'FAIL' ) ); // exit.

@@ -1104,7 +1104,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function directory_browse() {
-		$browse_dir                = wp_unslash( $_POST['browse_dir'] );
+		$browse_dir                = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
 		$out                       = array();
 		$return                    = $this->get_excluded( $browse_dir );
 		$out['e']                  = $return['e'];
@@ -1143,7 +1143,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$return                    = $this->get_excluded( $current_path );
 		$out['e']                  = $return['e'];
-		$out['current_browse_dir'] = wp_unslash( $_POST['browse_dir'] );
+		$out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
 
 		return $out;
 	}
@@ -1184,7 +1184,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$return = $this->get_excluded( $current_path );
 
 		$out['e']                  = $return['e'];
-		$out['current_browse_dir'] = wp_unslash( $_POST['browse_dir'] );
+		$out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
 
 		return $out;
 	}

@@ -425,9 +425,9 @@ class MainWP_Connect {
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
 			$file = '';
 			if ( isset( $_POST['f'] ) ) {
-				$file = wp_unslash( $_POST['f'] );
+				$file = ! empty( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : '';
 			} elseif ( isset( $_POST['file'] ) ) {
-				$file = wp_unslash( $_POST['file'] );
+				$file = ! empty( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : '';
 			}
 			$where = 'admin.php?page=mainwp_child_tab&tab=restore-clone';
 			if ( '' === session_id() ) {

@@ -444,7 +444,7 @@ class MainWP_Child_Posts {
 				}
 			}
 		} elseif ( 'update' === $action ) {
-			$postData = wp_unslash( $_POST['post_data'] );
+			$postData = isset( $_POST['post_data'] ) ? wp_unslash( $_POST['post_data'] ) : array();
 			$my_post  = is_array( $postData ) ? $postData : array();
 			wp_update_post( $my_post );
 		} elseif ( 'unpublish' === $action ) {

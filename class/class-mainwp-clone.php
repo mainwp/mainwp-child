@@ -338,7 +338,7 @@ class MainWP_Clone {
 				throw new \Exception( __( 'No download link given', 'mainwp-child' ) );
 			}
 
-			$file = wp_unslash( $_POST['file'] );
+			$file = isset( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : '';
 			if ( isset( $_POST['siteId'] ) ) {
 				$siteId = isset( $_POST['siteId'] ) ? intval( wp_unslash( $_POST['siteId'] ) ) : false;
 

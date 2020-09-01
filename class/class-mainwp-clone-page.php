@@ -85,7 +85,7 @@ class MainWP_Clone_Page {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = wp_unslash( $_FILES['file'] );
+				$uploadedfile     = isset( $_FILES['file'] ) ? wp_unslash( $_FILES['file'] ) : '';
 				$upload_overrides = array( 'test_form' => false );
 				add_filter( 'upload_mimes', array( MainWP_Clone::get_class_name(), 'upload_mimes' ) );
 				$movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
@@ -230,7 +230,7 @@ class MainWP_Clone_Page {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = wp_unslash( $_FILES['file'] );
+				$uploadedfile     = isset( $_FILES['file'] ) ? wp_unslash( $_FILES['file'] ) : '';
 				$upload_overrides = array( 'test_form' => false );
 				$movefile         = wp_handle_upload( $uploadedfile, $upload_overrides );
 				if ( $movefile ) {
@@ -1176,18 +1176,16 @@ class MainWP_Clone_Page {
 		if ( '' === session_id() ) {
 			session_start();
 		}
-		$file = null;
-		$size = null;
+
+		$file = isset( $_SESSION['file'] ) ? wp_unslash( $_SESSION['file'] ) : null;
+		$size = isset( $_SESSION['size'] ) ? wp_unslash( $_SESSION['size'] ) : null;
 
 		if ( isset( $_SESSION['file'] ) ) {
-			$file = wp_unslash( $_SESSION['file'] );
-			$size = wp_unslash( $_SESSION['size'] );
-			unset( $_SESSION['file'] );
-			unset( $_SESSION['size'] );
+			 unset( $_SESSION['file'] );
 		}
 
-		if ( null === $file ) {
-			die( '<meta http-equiv="refresh" content="0;url=' . esc_url( admin_url() ) . '">' );
+		if ( isset( $_SESSION['size'] ) ) {
+			unset( $_SESSION['size'] );
 		}
 
 		self::render_style();

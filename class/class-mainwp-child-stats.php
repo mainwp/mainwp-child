@@ -238,8 +238,8 @@ class MainWP_Child_Stats {
 			$information['users'] = MainWP_Child_Users::get_instance()->get_all_users_int( 500 );
 		}
 
-		if ( isset( $_POST['primaryBackup'] ) && ! empty( $_POST['primaryBackup'] ) ) {
-			$primary_bk                           = wp_unslash( $_POST['primaryBackup'] );
+		if ( ! empty( $_POST['primaryBackup'] ) ) {
+			$primary_bk                           = ! empty( $_POST['primaryBackup'] ) ? wp_unslash( $_POST['primaryBackup'] ) : '';
 			$information['primaryLasttimeBackup'] = MainWP_Utility::get_lasttime_backup( $primary_bk );
 		}
 
