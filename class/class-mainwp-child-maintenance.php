@@ -328,7 +328,7 @@ class MainWP_Child_Maintenance {
 				delete_option( 'mainwp_maintenance_opt_alert_404' );
 			}
 			$email = ! empty( $_POST['email'] ) ? wp_unslash( $_POST['email'] ) : '';
-			if ( ! empty( $email ) ) {				
+			if ( ! empty( $email ) ) {
 				MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404_email', $email, 'yes' );
 			} else {
 				delete_option( 'mainwp_maintenance_opt_alert_404_email' );
