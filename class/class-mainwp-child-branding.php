@@ -202,7 +202,7 @@ class MainWP_Child_Branding {
 	 */
 	public function action() {
 		$information = array();
-		$mwp_action = !empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$mwp_action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		switch ( $mwp_action ) {
 			case 'update_branding':
 				$information = $this->update_branding();

@@ -136,7 +136,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 			switch ( $mwp_action ) {
 				case 'save_sucuri_stream':
 					$information = $this->save_sucuri_stream();

@@ -424,7 +424,7 @@ class MainWP_Child_WP_Rocket {
 		$information = array();
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 			try {
 				switch ( $mwp_action ) {
 					case 'set_showhide':
