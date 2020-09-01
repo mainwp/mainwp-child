@@ -128,7 +128,7 @@ class MainWP_Pages {
 
 		if ( isset( $branding_opts['remove_wp_tools'] ) && $branding_opts['remove_wp_tools'] && ! $cancelled_branding ) {
 			remove_menu_page( 'tools.php' );
-			$pos = stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'tools.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'import.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'export.php' );
+			$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'tools.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'import.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'export.php' ) : false;
 			if ( false !== $pos ) {
 				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			}
@@ -136,7 +136,7 @@ class MainWP_Pages {
 		// if preserve branding and do not remove menus.
 		if ( isset( $branding_opts['remove_wp_setting'] ) && $branding_opts['remove_wp_setting'] && ! $cancelled_branding ) {
 			remove_menu_page( 'options-general.php' );
-			$pos = stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-writing.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-reading.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-discussion.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-media.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-permalink.php' );
+			$pos = isset( $_SERVER['REQUEST_URI'] ) ? ( stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-writing.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-reading.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-discussion.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-media.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-permalink.php' ) ) : false;
 			if ( false !== $pos ) {
 				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
@@ -145,7 +145,7 @@ class MainWP_Pages {
 
 		if ( isset( $branding_opts['remove_permalink'] ) && $branding_opts['remove_permalink'] && ! $cancelled_branding ) {
 			remove_submenu_page( 'options-general.php', 'options-permalink.php' );
-			$pos = stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-permalink.php' );
+			$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-permalink.php' ) : false;
 			if ( false !== $pos ) {
 				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
@@ -539,7 +539,7 @@ class MainWP_Pages {
 	 * Render connection settings sub page.
 	 */
 	public function render_settings() {
-		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( wp_unslash( $_POST['nonce'] ), 'child-settings' ) ) {
+		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-settings' ) ) {
 			if ( isset( $_POST['requireUniqueSecurityId'] ) ) {
 				MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 8 ) );
 			} else {

@@ -202,7 +202,8 @@ class MainWP_Child_Branding {
 	 */
 	public function action() {
 		$information = array();
-		switch ( $_POST['action'] ) {
+		$mwp_action = !empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		switch ( $mwp_action ) {
 			case 'update_branding':
 				$information = $this->update_branding();
 				break;
@@ -740,8 +741,8 @@ class MainWP_Child_Branding {
 	 * Prevent updates by redirecting access from the Updates and Plugins page.
 	 */
 	public function branding_redirect() {
-		$pos1 = stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'update-core.php' );
-		$pos2 = stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'plugins.php' );
+		$pos1 = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'update-core.php' ) : false;
+		$pos2 = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'plugins.php' ) : false;
 		if ( false !== $pos1 || false !== $pos2 ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
@@ -1127,7 +1128,7 @@ class MainWP_Child_Branding {
 		if ( isset( $_GET['from_page'] ) ) {
 			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( esc_url( wp_unslash( $_GET['from_page'] ) ) ) );
 		} else {
-			$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( wp_unslash( $_SERVER['HTTPS'] ), 'off' ) ? 'https://' : 'http://';
+			$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
 			$fullurl  = $protocol . wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_unslash( $_SERVER['REQUEST_URI'] );
 			$href     = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( esc_url( $fullurl ) ) );
 		}

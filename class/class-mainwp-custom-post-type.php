@@ -80,7 +80,8 @@ class MainWP_Custom_Post_Type {
 		register_shutdown_function( '\MainWP\Child\MainWP_Custom_Post_Type::mainwp_custom_post_type_handle_fatal_error' );
 
 		$information = array();
-		switch ( $_POST['action'] ) {
+		$mwp_action = !empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		switch ( $mwp_action ) {
 			case 'custom_post_type_import':
 				$information = $this->import_custom_post();
 				break;

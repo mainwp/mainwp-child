@@ -178,8 +178,9 @@ class MainWP_Child_Updraft_Plus_Backups {
         }
 
         if ( isset( $_POST['mwp_action'] ) ) {
+            $mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
             try {
-                switch ( $_POST['mwp_action'] ) {
+                switch ( $mwp_action ) {
                     case 'set_showhide':
                         $information = $this->set_showhide();
                         break;

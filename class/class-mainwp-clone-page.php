@@ -80,7 +80,7 @@ class MainWP_Clone_Page {
 	public static function render() {
 		$uploadError = false;
 		$uploadFile  = false;
-		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( wp_unslash( $_POST['_nonce'] ), 'cloneRestore' ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_nonce'] ) ), 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -225,7 +225,7 @@ class MainWP_Clone_Page {
 		$uploadError = false;
 		$uploadFile  = false;
 
-		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( wp_unslash( $_POST['_nonce'] ), 'cloneRestore' ) ) {
+		if ( isset( $_REQUEST['upload'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_nonce'] ) ), 'cloneRestore' ) ) {
 			if ( isset( $_FILES['file'] ) ) {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -1182,8 +1182,8 @@ class MainWP_Clone_Page {
 		if ( isset( $_SESSION['file'] ) ) {
 			$file = wp_unslash( $_SESSION['file'] );
 			$size = wp_unslash( $_SESSION['size'] );
-			unset( wp_unslash( $_SESSION['file'] ) );
-			unset( wp_unslash( $_SESSION['size'] ) );
+			unset( $_SESSION['file'] );
+			unset( $_SESSION['size'] );
 		}
 
 		if ( null === $file ) {

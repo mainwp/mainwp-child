@@ -76,7 +76,8 @@ class MainWP_Child_WooCommerce_Status {
 
 		$is_ver220 = $this->is_version_220();
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'sync_data':
 					$information = ! $is_ver220 ? $this->sync_data() : $this->sync_data_two();
 					break;

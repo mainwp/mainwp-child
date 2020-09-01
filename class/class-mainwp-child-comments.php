@@ -177,8 +177,8 @@ class MainWP_Child_Comments {
 		if ( 0 === $maxComments ) {
 			$maxComments = 99999;
 		}
-
-		$rslt                       = $this->get_recent_comments( explode( ',', $_POST['status'] ), $maxComments );
+		$status                     = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$rslt                       = $this->get_recent_comments( explode( ',', $status ), $maxComments );
 		$this->comments_and_clauses = '';
 
 		MainWP_Helper::write( $rslt );

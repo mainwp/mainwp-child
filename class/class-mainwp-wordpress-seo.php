@@ -89,7 +89,8 @@ class MainWP_WordPress_SEO {
 			MainWP_Helper::write( $information );
 		}
 		$result = array();
-		switch ( $_POST['action'] ) {
+		$mwp_action = !empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		switch ( $mwp_action ) {
 			case 'import_settings':
 				$information = $this->import_settings();
 				break;

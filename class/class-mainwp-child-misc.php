@@ -411,7 +411,8 @@ class MainWP_Child_Misc {
 	 */
 	public function settings_tools() {
 		if ( isset( $_POST['action'] ) ) {
-			switch ( $_POST['action'] ) {
+			$mwp_action = !empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'force_destroy_sessions':
 					if ( 0 === get_current_user_id() ) {
 						MainWP_Helper::write( array( 'error' => __( 'Cannot get user_id', 'mainwp-child' ) ) );

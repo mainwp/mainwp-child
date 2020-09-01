@@ -136,7 +136,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'save_sucuri_stream':
 					$information = $this->save_sucuri_stream();
 					break;
@@ -173,7 +174,13 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return bool true|false.
 	 */
 	public function save_backup_stream() {
-		do_action( 'mainwp_backup', wp_unslash( $_POST['destination'] ), wp_unslash( $_POST['message'] ), wp_unslash( $_POST['size'] ), wp_unslash( $_POST['status'] ), wp_unslash( $_POST['type'] ) );
+		$destination = isset( $_POST['destination'] ) ? wp_unslash( $_POST['destination'] ) : '';
+		$message     = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : '';
+		$size        = isset( $_POST['size'] ) ? wp_unslash( $_POST['size'] ) : '';
+		$status      = isset( $_POST['status'] ) ? wp_unslash( $_POST['status'] ) : '';
+		$type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+
+		do_action( 'mainwp_backup', $destination, $message, $size, $status, $type );
 		return true;
 	}
 
@@ -194,8 +201,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 			$other_tokens = array();
 		}
 
-		unset( wp_unslash( $_POST['sections'] ) );
-		unset( wp_unslash( $_POST['other_tokens'] ) );
+		unset( $_POST['sections'] );
+		unset( $_POST['other_tokens'] );
 
 		$args    = $this->get_stream_get_params( $other_tokens, $sections );
 		$records = \wp_mainwp_stream_get_instance()->db->query( $args );

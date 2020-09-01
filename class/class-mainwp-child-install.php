@@ -79,7 +79,7 @@ class MainWP_Child_Install {
 		global $mainWPChild;
 
 		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		$plugins = explode( '||', wp_unslash( $_POST['plugin'] ) );
+		$plugins = isset( $_POST['plugin'] ) ? explode( '||', wp_unslash( $_POST['plugin'] ) ) : '';
 
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/plugin.php';

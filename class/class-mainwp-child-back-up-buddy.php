@@ -358,9 +358,10 @@ class MainWP_Child_Back_Up_Buddy {
 		if ( ! isset( \pb_backupbuddy::$options ) ) {
 			\pb_backupbuddy::load();
 		}
-
+		
+		$mwp_action = isset( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
 					break;

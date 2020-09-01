@@ -102,7 +102,7 @@ class MainWP_Child_Branding_Render {
 		$opts = MainWP_Child_Branding::instance()->child_branding_options;
 
 		if ( isset( $_POST['submit'] ) ) {
-			if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['_wpnonce'] ), '_contactNonce' ) ) {
+			if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), '_contactNonce' ) ) {
 				return false;
 			}
 			$this->render_submit_message( $opts );
@@ -113,7 +113,7 @@ class MainWP_Child_Branding_Render {
 		if ( isset( $_GET['from_page'] ) ) {
 			$from_page = isset( $_GET['from_page'] ) ? rawurldecode( wp_unslash( $_GET['from_page'] ) ) : '';
 		} else {
-			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( wp_unslash( $_SERVER['HTTPS'] ), 'off' ) ? 'https://' : 'http://';
+			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
 			$fullurl   = $protocol . wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_unslash( $_SERVER['REQUEST_URI'] );
 			$from_page = rawurldecode( $fullurl );
 		}

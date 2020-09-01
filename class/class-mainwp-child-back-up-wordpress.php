@@ -167,7 +167,8 @@ class MainWP_Child_Back_Up_WordPress {
 			MainWP_Helper::write( $information );
 		}
 		if ( isset( $_POST['mwp_action'] ) ) {
-			switch ( $_POST['mwp_action'] ) {
+			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
 					break;
@@ -1420,7 +1421,7 @@ class MainWP_Child_Back_Up_WordPress {
 			}
 		}
 
-		$pos = stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'tools.php?page=backupwordpress' );
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'tools.php?page=backupwordpress' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
