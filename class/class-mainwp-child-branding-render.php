@@ -203,10 +203,10 @@ class MainWP_Child_Branding_Render {
 	public function send_support_mail() {
 		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
 		$email   = $opts['support_email'];
-		$sub     = wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) );
-		$from    = trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) );
+		$sub     = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : '';
+		$from    = isset( $_POST['mainwp_branding_contact_send_from'] ) ? trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) ) : '';
 		$subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
-		$content = wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) );
+		$content = isset( $_POST['mainwp_branding_contact_message_content'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) ) : '';
 		$mail    = '';
 		$headers = '';
 

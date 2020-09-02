@@ -97,7 +97,7 @@ class MainWP_Child_Users {
 				$failed = true;
 			}
 		} elseif ( 'update_user' === $action ) {
-			$my_user = $_POST['extra'];
+			$my_user = isset( $_POST['extra'] ) ? sanitize_text_field( wp_unslash( $_POST['extra'] ) ) : '';
 			if ( is_array( $my_user ) ) {
 				foreach ( $my_user as $idx => $val ) {
 					if ( 'donotupdate' === $val || ( empty( $val ) && 'role' !== $idx ) ) {
@@ -174,7 +174,7 @@ class MainWP_Child_Users {
 	 * @return array Return array of $allusers.
 	 */
 	public function get_all_users( $return = false ) {
-		$roles    = explode( ',', $_POST['role'] );
+		$roles    = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
 		$allusers = array();
 		if ( is_array( $roles ) ) {
 			foreach ( $roles as $role ) {
@@ -218,7 +218,7 @@ class MainWP_Child_Users {
 			unset( $all_users_role );
 		}
 
-		$columns  = explode( ',', $_POST['search_columns'] );
+		$columns  = isset( $_POST['search_columns'] ) ? explode( ',', wp_unslash( $_POST['search_columns'] ) ) : array();
 		$allusers = array();
 		$exclude  = array();
 
@@ -229,7 +229,7 @@ class MainWP_Child_Users {
 
 			$user_query = new \WP_User_Query(
 				array(
-					'search'         => $_POST['search'],
+					'search'         => isset( $_POST['search'] ) ? wp_unslash( $_POST['search'] ) : '',
 					'fields'         => 'all_with_meta',
 					'search_columns' => array( $col ),
 					'query_orderby'  => array( $col ),
@@ -474,8 +474,18 @@ class MainWP_Child_Users {
 	 * Set a new administrator password.
 	 */
 	public function new_admin_password() {
-		$new_password = maybe_unserialize( base64_decode( $_POST['new_password'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$user         = get_user_by( 'login', $_POST['user'] );
+		$new_password = isset( $_POST['new_password'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_password'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+
+		$user  = null;
+		$uname = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';
+		if ( ! empty( $uname ) ) {
+			$user = get_user_by( 'login', $uname );
+		}
+
+		if ( empty( $user ) ) {
+			MainWP_Helper::write( array() );
+		}
+
 		require_once ABSPATH . WPINC . '/registration.php';
 
 		$id = wp_update_user(
@@ -500,8 +510,8 @@ class MainWP_Child_Users {
 	 * Create a new user.
 	 */
 	public function new_user() {
-		$new_user      = maybe_unserialize( base64_decode( $_POST['new_user'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$send_password = $_POST['send_password'];
+		$new_user      = isset( $_POST['new_user'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_user'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$send_password = isset( $_POST['send_password'] ) ? sanitize_text_field( wp_unslash( $_POST['send_password'] ) ) : '';
 		if ( isset( $new_user['role'] ) ) {
 			if ( ! get_role( $new_user['role'] ) ) {
 				$new_user['role'] = 'subscriber';

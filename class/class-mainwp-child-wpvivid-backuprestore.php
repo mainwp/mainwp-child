@@ -125,7 +125,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		}
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 			try {
 				switch ( $mwp_action ) {
 					case 'prepare_backup':
@@ -246,7 +246,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->backup_now( $_POST['task_id'] );
+		$ret = isset( $_POST['task_id'] ) ? $this->public_intetface->backup_now( sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -348,7 +348,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->delete_backup_array( $_POST['backup_id'] );
+		$ret = isset( $_POST['backup_id'] ) ? $this->public_intetface->delete_backup_array( sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -365,7 +365,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->set_security_lock( $_POST['backup_id'], $_POST['lock'] );
+		$ret = isset( $_POST['backup_id'] ) && isset( $_POST['lock'] ) ? $this->public_intetface->set_security_lock( $_POST['backup_id'], $_POST['lock'] ) : false;
 		return $ret;
 	}
 
@@ -382,7 +382,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->view_log( $_POST['id'] );
+		$ret = isset( $_POST['id'] ) ? $this->public_intetface->view_log( sanitize_text_field( wp_unslash( $_POST['id'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -399,7 +399,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->read_last_backup_log( $_POST['log_file_name'] );
+		$ret = isset( $_POST['log_file_name'] ) ? $this->public_intetface->read_last_backup_log( sanitize_text_field( wp_unslash( $_POST['log_file_name'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -416,7 +416,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->view_backup_task_log( $_POST['id'] );
+		$ret = isset( $_POST['id'] ) ? $this->public_intetface->view_backup_task_log( sanitize_text_field( wp_unslash( $_POST['id'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -433,7 +433,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->backup_cancel( $_POST['task_id'] );
+		$ret = isset( $_POST['task_id'] ) ? $this->public_intetface->backup_cancel( sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -450,7 +450,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->init_download_page( $_POST['backup_id'] );
+		$ret = isset( $_POST['backup_id'] ) ? $this->public_intetface->init_download_page( sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -484,8 +484,8 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->get_download_task( $_POST['backup_id'] );
-				return $ret;
+		$ret = isset( $_POST['backup_id'] ) ? $this->public_intetface->get_download_task( sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ) ) : false;
+		return $ret;
 	}
 
 	/**
@@ -535,7 +535,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->set_schedule( $_POST['schedule'] );
+		$ret = isset( $_POST['schedule'] ) ? $this->public_intetface->set_schedule( sanitize_text_field( wp_unslash( $_POST['schedule'] ) ) ) : false;
 		return $ret;
 	}
 
@@ -552,7 +552,7 @@ class MainWP_Child_WPvivid_BackupRestore {
 		global $wpvivid_plugin;
 
 		$wpvivid_plugin->ajax_check_security();
-		$ret = $this->public_intetface->set_remote( $_POST['remote'] );
+		$ret = isset( $_POST['remote'] ) ? $this->public_intetface->set_remote( sanitize_text_field( wp_unslash( $_POST['remote'] ) ) ) : false;
 		return $ret;
 	}
 }

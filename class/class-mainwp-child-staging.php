@@ -317,7 +317,7 @@ class MainWP_Child_Staging {
 	 * @return array|string[] Action result array[status, message] or return 'success'.
 	 */
 	public function ajax_check_clone_name() {
-		$cloneName       = sanitize_key( $_POST['cloneID'] );
+		$cloneName       = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : '';
 		$cloneNameLength = strlen( $cloneName );
 		$clones          = get_option( 'wpstg_existing_clones_beta', array() );
 
@@ -604,7 +604,7 @@ class MainWP_Child_Staging {
 	 */
 	public function remove_menu() {
 		remove_menu_page( 'wpstg_clone' );
-		$pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=wpstg_clone' );
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'admin.php?page=wpstg_clone' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
