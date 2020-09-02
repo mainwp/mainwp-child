@@ -200,7 +200,7 @@ class MainWP_Child_Back_WP_Up {
         if ( ! isset( $_POST['action'] ) ) {
             $information = array( 'error' => __( 'Missing action.', 'mainwp-child' ) );
         } else {
-            $mwp_action = !empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+            $mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
             switch ( $mwp_action ) {
                 case 'backwpup_update_settings':
                     $information = $this->update_settings();
@@ -518,7 +518,7 @@ class MainWP_Child_Back_WP_Up {
         remove_menu_page( 'backwpup' );
 
         // Create a WP Safe Redirect for the page URL.
-        $pos = stripos( $_SERVER['REQUEST_URI'], 'admin.php?page=backwpup' );
+        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'admin.php?page=backwpup' ) : false;
         if ( false !== $pos ) {
             wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
             exit();
@@ -615,7 +615,7 @@ class MainWP_Child_Back_WP_Up {
             echo esc_html( $log_folder );
         }
         echo '</td></tr>';
-        echo '<tr title=""><td>' . __( 'Server', 'mainwp-child' ) . '</td><td>' . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . '</td></tr>';
+        echo '<tr title=""><td>' . __( 'Server', 'mainwp-child' ) . '</td><td>' . ( isset( $_SERVER['SERVER_SOFTWARE'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ) ) : '' ) . '</td></tr>';
         echo '<tr title=""><td>' . __( 'Operating System', 'mainwp-child' ) . '</td><td>' . esc_html( PHP_OS ) . '</td></tr>';
         echo '<tr title=""><td>' . __( 'PHP SAPI', 'mainwp-child' ) . '</td><td>' . esc_html( PHP_SAPI ) . '</td></tr>';
         echo '<tr title=""><td>' . __( 'Current PHP user', 'mainwp-child' ) . '</td><td>' . esc_html( get_current_user() ) . '</td></tr>';

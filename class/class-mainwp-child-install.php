@@ -229,6 +229,8 @@ class MainWP_Child_Install {
 
 			$themes = explode( '||', $theme );
 
+			$themes = array_filter( $themes );
+
 			if ( count( $themes ) == 1 ) {
 				$themeToDelete = current( $themes );
 				if ( $themeToDelete == $theme_name ) {
@@ -318,8 +320,8 @@ class MainWP_Child_Install {
 			$result = $installer->run(
 				array(
 					'package'           => $url,
-					'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
-					'clear_destination' => ( isset( $_POST['overwrite'] ) && wp_unslash( $_POST['overwrite'] ) ),
+					'destination'       => ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+					'clear_destination' => ( isset( $_POST['overwrite'] ) && sanitize_text_field( wp_unslash( $_POST['overwrite'] ) ) ),
 					'clear_working'     => true,
 					'hook_extra'        => array(),
 				)
@@ -404,7 +406,7 @@ class MainWP_Child_Install {
 			'success' => 1,
 			'action'  => 'install',
 		);
-		if ( 'plugin' === $_POST['type'] ) {
+		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
 			$path     = $result['destination'];
 			$fileName = '';
 			wp_cache_set( 'plugins', array(), 'plugins' );
@@ -463,8 +465,8 @@ class MainWP_Child_Install {
 		$result = $installer->run(
 			array(
 				'package'           => $url,
-				'destination'       => ( 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
-				'clear_destination' => ( isset( $_POST['overwrite'] ) && wp_unslash( $_POST['overwrite'] ) ),
+				'destination'       => ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+				'clear_destination' => ( isset( $_POST['overwrite'] ) && sanitize_text_field( wp_unslash( $_POST['overwrite'] ) ) ),
 				'clear_working'     => true,
 				'hook_extra'        => array(),
 			)

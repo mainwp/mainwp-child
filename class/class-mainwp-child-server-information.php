@@ -83,7 +83,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @used-by MainWP_Child_Server_Information::init() Add hooks after WordPress has finished loading but before any headers are sent.
 	 */
 	public static function render_warnings() {
-		if ( isset( $_SERVER['REQUEST_URI'] ) && ( stristr( $_SERVER['REQUEST_URI'], 'mainwp_child_tab' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-page' ) || stristr( $_SERVER['REQUEST_URI'], 'mainwp-reports-settings' ) ) ) {
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+		if ( isset( $_SERVER['REQUEST_URI'] ) && ( stristr( $request_uri, 'mainwp_child_tab' ) || stristr( $request_uri, 'mainwp-reports-page' ) || stristr( $request_uri, 'mainwp-reports-settings' ) ) ) {
 			return;
 		}
 

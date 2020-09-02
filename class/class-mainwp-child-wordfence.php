@@ -1174,7 +1174,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function update_all_issues() {
-		$op = $_POST['op'];
+		$op = isset( $_POST['op'] ) ? sanitize_text_field( wp_unslash( $_POST['op'] ) ) : '';
 		$i  = new \wfIssues();
 		if ( 'deleteIgnored' === $op ) {
 			$i->deleteIgnored();
@@ -1263,7 +1263,7 @@ SQL
 	 * @return array Action result.
 	 */
 	public function bulk_operation() {
-		$op = $_POST['op'];
+		$op = isset( $_POST['op'] ) ? sanitize_text_field( wp_unslash( $_POST['op'] ) ) : '';
 		if ( 'del' === $op || 'repair' === $op ) {
 			$ids           = isset( $_POST['ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['ids'] ) ) : array();
 			$filesWorkedOn = 0;
@@ -1520,7 +1520,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // custom fix to pass through security rules of Dreamhost!
 		} else {
-			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		}
 
 		$section     = isset( $_POST['savingSection'] ) ? sanitize_text_field( wp_unslash( $_POST['savingSection'] ) ) : '';
@@ -1805,7 +1805,7 @@ SQL
 		if ( isset( $_POST['encrypted'] ) ) {
 			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
 		} else {
-			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 
 		if ( is_array( $settings ) && count( $settings ) > 0 ) {
@@ -2119,17 +2119,17 @@ SQL
 		);
 
 		$events  = array();
-		$alsoGet = $_POST['alsoGet'];
+		$alsoGet = isset( $_POST['alsoGet'] ) ? sanitize_text_field( wp_unslash( $_POST['alsoGet'] ) ) : '';
 		if ( preg_match( '/^logList_(404|hit|human|ruser|crawler|gCrawler|loginLogout)$/', $alsoGet, $m ) ) {
 			$type            = $m[1];
-			$newestEventTime = $_POST['otherParams'];
+			$newestEventTime = isset( $_POST['otherParams'] ) ? wp_unslash( $_POST['otherParams'] ) : '';
 			$listType        = 'hits';
 			if ( 'loginLogout' === $type ) {
 				$listType = 'logins';
 			}
 			$events = \wordfence::getLog()->getHits( $listType, $type, $newestEventTime );
 		} elseif ( 'perfStats' === $alsoGet ) {
-			$newestEventTime = $_POST['otherParams'];
+			$newestEventTime = isset( $_POST['otherParams'] ) ? wp_unslash( $_POST['otherParams'] ) : '';
 			$events          = \wordfence::getLog()->getPerfStats( $newestEventTime );
 		} elseif ( 'liveTraffic' == $alsoGet ) {
 			if ( get_site_option( 'wordfence_syncAttackDataAttempts' ) > 10 ) {
@@ -3112,12 +3112,12 @@ SQL
 			$ex = array();
 		}
 		if ( isset( $_POST['cacheExclusions'] ) ) {
-			$ex = $_POST['cacheExclusions'];
+			$ex = isset( $_POST['cacheExclusions'] ) ? wp_unslash( $_POST['cacheExclusions'] ) : '';
 		} else {
 			$ex[] = array(
-				'pt' => $_POST['patternType'],
-				'p'  => $_POST['pattern'],
-				'id' => $_POST['id'],
+				'pt' => isset( $_POST['patternType'] ) ? wp_unslash( $_POST['patternType'] ) : '',
+				'p'  => isset( $_POST['pattern'] ) ? wp_unslash( $_POST['pattern'] ) : '',
+				'id' => isset( $_POST['id'] ) ? wp_unslash( $_POST['id'] ) : '',
 			);
 		}
 		\wfConfig::set( 'cacheExclusions', serialize( $ex ) ); // phpcs:ignore -- third party credit.

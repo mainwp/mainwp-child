@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.1-beta2';
+	public static $version = '4.1-beta3';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -266,8 +266,8 @@ class MainWP_Child {
 			MainWP_Connect::instance()->register_site(); // register the site and exit.
 		}
 
-		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? wp_unslash( $_POST['mainwpsignature'] ) : '';
-		$function        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : '';
+		$function        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : null;
 		$nonce           = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		$nossl           = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;
 

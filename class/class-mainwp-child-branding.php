@@ -1126,10 +1126,10 @@ class MainWP_Child_Branding {
 		}
 
 		if ( isset( $_GET['from_page'] ) ) {
-			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( esc_url( wp_unslash( $_GET['from_page'] ) ) ) );
+			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . ( ! empty( $_GET['from_page'] ) ? rawurlencode( esc_url( wp_unslash( $_GET['from_page'] ) ) ) : '' ) );
 		} else {
 			$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-			$fullurl  = $protocol . wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_unslash( $_SERVER['REQUEST_URI'] );
+			$fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 			$href     = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( esc_url( $fullurl ) ) );
 		}
 		$args = array(

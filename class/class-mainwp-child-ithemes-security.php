@@ -125,7 +125,7 @@ class MainWP_Child_IThemes_Security {
 		$mainwp_itsec_modules_path = \ITSEC_Core::get_core_dir() . '/modules/';
 
 		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
 			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
@@ -312,7 +312,7 @@ class MainWP_Child_IThemes_Security {
 		$errors             = array();
 		$nbf_settings       = array();
 
-		$update_settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$update_settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
@@ -465,7 +465,7 @@ class MainWP_Child_IThemes_Security {
      * @uses \ITSEC_Modules::activate()
      */
     public static function activate_network_brute_force() {
-		$data        = maybe_unserialize( base64_decode( $_POST['data'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$data        = isset( $_POST['data'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['data'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$information = array();
 		if ( is_array( $data ) ) {
 			$settings                  = \ITSEC_Modules::get_settings( 'network-brute-force' );

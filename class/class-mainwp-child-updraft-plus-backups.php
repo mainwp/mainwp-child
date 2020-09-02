@@ -178,7 +178,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         }
 
         if ( isset( $_POST['mwp_action'] ) ) {
-            $mwp_action = !empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+            $mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
             try {
                 switch ( $mwp_action ) {
                     case 'set_showhide':
@@ -575,7 +575,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @uses $updraftplus::schedule_backup_database()
      */
     public function save_settings() {
-        $settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
         $keys_filter = $this->get_settings_keys();
 
@@ -844,7 +844,7 @@ class MainWP_Child_Updraft_Plus_Backups {
             }
         }
 
-        $addons_options = maybe_unserialize( base64_decode( $_POST['addons_options'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $addons_options = isset( $_POST['addons_options'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['addons_options'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         if ( ! is_array( $addons_options ) ) {
             $addons_options = array();
         }
@@ -980,28 +980,28 @@ class MainWP_Child_Updraft_Plus_Backups {
 
         if ( ! class_exists( '\UpdraftPlus_WPDB_OtherDB_Test' ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => 'Error: Require premium UpdraftPlus plugin.',
             );
         }
 
         if ( empty( $_POST['user_db'] ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => '<p>' . sprintf( __( 'Failure: No %s was given.', 'updraftplus' ) . '</p>', __( 'user', 'updraftplus' ) ),
             );
         }
 
         if ( empty( $_POST['host'] ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => '<p>' . sprintf( __( 'Failure: No %s was given.', 'updraftplus' ) . '</p>', __( 'host', 'updraftplus' ) ),
             );
         }
 
         if ( empty( $_POST['name'] ) ) {
             return array(
-                'r' => $_POST['row'],
+                'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
                 'm' => '<p>' . sprintf( __( 'Failure: No %s was given.', 'updraftplus' ) . '</p>', __( 'database name', 'updraftplus' ) ),
             );
         }
@@ -1082,7 +1082,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         restore_error_handler();
 
         return array(
-            'r' => $_POST['row'],
+            'r' => isset( $_POST['row'] ) ? wp_unslash( $_POST['row'] ) : '',
             'm' => $ret . $ret_after,
         );
     }
@@ -1127,7 +1127,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         if ( ! empty( $_REQUEST['onlythisfileentity'] ) && is_string( $_REQUEST['onlythisfileentity'] ) ) {
             // Something to see in the 'last log' field when it first appears, before the backup actually starts.
             $updraftplus->log( __( 'Start backup', 'updraftplus' ) );
-            $options['restrict_files_to_override'] = explode( ',', $_REQUEST['onlythisfileentity'] );
+            $options['restrict_files_to_override'] = isset( $_REQUEST['onlythisfileentity'] ) ? explode( ',', $_REQUEST['onlythisfileentity'] ) : array();
         }
 
         do_action( $event, apply_filters( 'updraft_backupnow_options', $options, array() ) );
@@ -4431,7 +4431,7 @@ ENDHERE;
             }
         }
 
-        $pos = stripos( $_SERVER['REQUEST_URI'], 'options-general.php?page=updraftplus' );
+        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php?page=updraftplus' ) : false;
         if ( false !== $pos ) {
             wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
             exit();

@@ -300,8 +300,11 @@ class MainWP_Helper {
 	 */
 	public static function reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
-		if ( isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) && isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ) {
-			$auth                          = base64_encode( wp_unslash( $_POST['wpadmin_user'] ) . ':' . wp_unslash( $_POST['wpadmin_passwd'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+		$wpadmin_user            = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : '';
+		$wpadmin_passwd          = isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ? wp_unslash( $_POST['wpadmin_passwd'] ) : '';
+
+		if ( ! empty( $wpadmin_user ) && ! empty( $wpadmin_passwd ) ) {
+			$auth                          = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
 			$r['headers']['Authorization'] = "Basic $auth";
 		}
 		return $r;

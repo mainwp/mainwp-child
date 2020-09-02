@@ -106,7 +106,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 		$current_user = wp_get_current_user();
 
-		$url = '/' . wp_unslash( $_POST['url'] );
+		$url = isset( $_POST['url'] ) ? '/' . wp_unslash( $_POST['url'] ) : '';
 
 		$expiration = time() + 600;
 		$manager    = \WP_Session_Tokens::get_instance( $current_user->ID );

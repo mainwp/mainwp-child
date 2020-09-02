@@ -109,7 +109,7 @@ class MainWP_Custom_Post_Type {
 			return array( 'error' => __( 'Missing data', $this->plugin_translate ) );
 		}
 
-		$data = stripslashes( wp_unslash( $_POST['data'] ) );
+		$data = isset( $_POST['data'] ) ? stripslashes( wp_unslash( $_POST['data'] ) ) : '';
 
 		$data = json_decode( $data, true );
 

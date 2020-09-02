@@ -413,7 +413,7 @@ class MainWP_Clone {
 							array(
 								'cloneFunc'   => 'deleteCloneBackup',
 								'key'         => $siteToClone['extauth'],
-								'f'           => wp_unslash( $_POST['file'] ),
+								'f'           => $file,
 								'json_result' => true,
 							)
 						);
