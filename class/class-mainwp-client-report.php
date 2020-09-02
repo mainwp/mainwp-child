@@ -51,6 +51,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 	/**
 	 * MainWP_Client_Report constructor.
+	 *
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		add_filter( 'wp_mainwp_stream_current_agent', array( $this, 'current_agent' ), 10, 1 );

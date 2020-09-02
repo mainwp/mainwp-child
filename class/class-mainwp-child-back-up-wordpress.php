@@ -56,7 +56,7 @@ class MainWP_Child_Back_Up_WordPress {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Back_Up_WordPress constructor.
 	 *
 	 * Run any time the class is called.
 	 *

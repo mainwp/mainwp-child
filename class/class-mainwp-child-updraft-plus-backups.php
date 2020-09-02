@@ -53,6 +53,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 
     /**
      * MainWP_Child_Updraft_Plus_Backups constructor.
+     *
+     * Run any time class is called.
      */
     public function __construct() {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';

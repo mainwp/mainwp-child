@@ -48,9 +48,9 @@ class MainWP_Child_Branding {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Branding constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 *
 	 * @return void
 	 */

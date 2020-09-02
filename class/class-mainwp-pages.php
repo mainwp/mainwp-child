@@ -56,9 +56,9 @@ class MainWP_Pages {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Pages constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 	}

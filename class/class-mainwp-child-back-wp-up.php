@@ -101,6 +101,8 @@ class MainWP_Child_Back_WP_Up {
     /**
      * MainWP_Child_Back_WP_Up constructor.
      *
+     * Run any time the class is called.
+     *
      * @uses MainWP_Helper::check_files_exists()
      * @uses MainWP_Helper::check_classes_exists()
      * @uses MainWP_Helper::check_methods()

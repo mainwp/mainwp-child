@@ -57,9 +57,9 @@ class MainWP_Child {
 	private $plugin_dir;
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 *
 	 * @param resource $plugin_file MainWP Child plugin file.
 	 */

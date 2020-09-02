@@ -59,6 +59,8 @@ class MainWP_Child_Staging {
 
 	/**
 	 * MainWP_Child_Staging constructor.
+	 *
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
