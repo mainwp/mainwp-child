@@ -294,9 +294,24 @@ class MainWP_Clone_Install {
 		$table_prefix = $this->config['prefix'];
 		$home         = get_option( 'home' );
 		$site_url     = get_option( 'siteurl' );
+
 		// Install database!
+		/**
+		 * Defines whether WP is being installed.
+		 *
+		 * @const ( string ) Default: true
+		 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Clone_Install.html
+		 */
 		define( 'WP_INSTALLING', true );
+
+		/**
+		 * Defines if WP is debug mode.
+		 *
+		 * @const ( string ) Default: true
+		 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Clone_Install.html
+		 */
 		define( 'WP_DEBUG', false );
+
 		$query     = '';
 		$tableName = '';
 		$wpdb->query( 'SET foreign_key_checks = 0' );
