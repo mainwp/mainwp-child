@@ -849,7 +849,6 @@ class MainWP_Child_Updates {
 	public function upgrade_translation() {
 		/**
 		 * Checks whether cron is in progress.
-		 * Prevent disable/re-enable at upgrade.
 		 *
 		 * @const ( bool ) Default: true
 		 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Callable.html
