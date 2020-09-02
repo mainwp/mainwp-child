@@ -113,9 +113,9 @@ class MainWP_Child_Callable {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Callable constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 	}

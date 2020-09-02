@@ -41,6 +41,8 @@ class MainWP_Child_Comments {
 
 	/**
 	 * MainWP_Child_Comments constructor.
+	 *
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		$this->comments_and_clauses = '';

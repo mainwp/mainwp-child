@@ -89,9 +89,9 @@ class MainWP_Child_Plugins_Check {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Plugins_Check constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		if ( get_option( 'mainwp_child_plugintheme_days_outdate' ) ) {

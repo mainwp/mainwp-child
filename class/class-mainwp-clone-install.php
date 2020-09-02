@@ -40,9 +40,9 @@ class MainWP_Clone_Install {
 	protected $archiver;
 
 	/**
-	 * Method __construct()
+	 * MainWP_Clone_Install constructor.
 	 *
-	 * Run any time new MainWP_Clone_Install is created.
+	 * Run any time class is called.
 	 *
 	 * @param string $file Archive file.
 	 */

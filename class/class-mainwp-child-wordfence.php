@@ -230,9 +230,9 @@ class MainWP_Child_Wordfence {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Wordfence constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'deactivation' ) );

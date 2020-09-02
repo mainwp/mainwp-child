@@ -63,6 +63,8 @@ class MainWP_Child_Links_Checker {
 
 	/**
 	 * MainWP_Child_Links_Checker constructor.
+     *
+     * Run any time class is called.
 	 */
 	public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';

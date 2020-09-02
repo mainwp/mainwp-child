@@ -57,9 +57,9 @@ class MainWP_Child_Pagespeed {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Pagespeed constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 *
 	 * @return void
 	 */

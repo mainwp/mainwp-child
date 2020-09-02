@@ -54,6 +54,8 @@ class MainWP_Child_Timecapsule {
 	}
 
 	/**
+	 * MainWP_Child_Timecapsule constructor.
+	 *
 	 * Run any time the class is called.
 	 *
 	 * @uses is_plugin_active() Determines whether a plugin is active.

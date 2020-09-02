@@ -45,9 +45,9 @@ class MainWP_Child_Updates {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Updates constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		$this->filterFunction = function( $a ) {
