@@ -54,6 +54,8 @@ class MainWP_Child_Back_Up_Buddy {
 
     /**
      * MainWP_Child_Back_Up_Buddy constructor.
+     *
+     * Run any time class is called.
      */
     public function __construct() {
 		// To fix bug run dashboard on local machine.

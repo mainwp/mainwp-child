@@ -51,9 +51,9 @@ class MainWP_WordPress_SEO {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_WordPress_SEO constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 

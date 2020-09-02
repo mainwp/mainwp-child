@@ -41,6 +41,8 @@ class MainWP_Child_WPvivid_BackupRestore {
 
 	/**
 	 * MainWP_Child_WPvivid_BackupRestore constructor.
+	 *
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';

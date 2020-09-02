@@ -57,9 +57,9 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_WP_Rocket constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		if ( is_plugin_active( 'wp-rocket/wp-rocket.php' ) ) {

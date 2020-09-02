@@ -35,7 +35,7 @@ class MainWP_Child_Install {
 	/**
 	 * MainWP_Child_Install constructor
 	 *
-	 * Run any time new MainWP_Child_Install is created.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 	}

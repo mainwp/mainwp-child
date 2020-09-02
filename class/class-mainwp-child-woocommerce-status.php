@@ -50,9 +50,9 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_WooCommerce_Status constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );

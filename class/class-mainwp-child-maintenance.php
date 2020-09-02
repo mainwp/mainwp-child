@@ -38,9 +38,9 @@ class MainWP_Child_Maintenance {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Maintenance constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 	}

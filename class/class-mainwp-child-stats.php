@@ -44,9 +44,9 @@ class MainWP_Child_Stats {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Stats constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 

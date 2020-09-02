@@ -37,9 +37,9 @@ class MainWP_Child_Misc {
 	}
 
 	/**
-	 * Method __construct()
+	 * MainWP_Child_Misc constructor.
 	 *
-	 * Run any time MainWP_Child is called.
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 	}

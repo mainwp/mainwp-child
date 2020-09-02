@@ -55,6 +55,8 @@ class MainWP_Child_IThemes_Security {
     /**
      * MainWP_Child_IThemes_Security constructor.
      *
+     * Run any time class is called.
+     *
      * @uses MainWP_Child_IThemes_Security::is_plugin_installed()
      */
     public function __construct() {

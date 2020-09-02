@@ -48,6 +48,8 @@ class MainWP_Child_Branding_Render {
 
 	/**
 	 * MainWP_Child_Branding_Render constructor.
+     *
+     * Run any time the class is called.
 	 */
 	public function __construct() {
 	}
