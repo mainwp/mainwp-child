@@ -307,6 +307,11 @@ class MainWP_Helper {
 			$auth                          = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
 			$r['headers']['Authorization'] = "Basic $auth";
 		}
+
+		if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
+			$r['sslverify'] = false;
+		}
+
 		return $r;
 	}
 

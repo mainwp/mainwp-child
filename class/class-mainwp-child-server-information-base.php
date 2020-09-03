@@ -661,7 +661,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Check if HTTPS is on.
 	 */
 	protected static function get_https() {
-		echo ! empty( $_SERVER['HTTPS'] ) ? esc_html( __( 'ON', 'mainwp-child' ) . ' - ' . sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ) ) : esc_html_( 'OFF', 'mainwp-child' );
+		echo ! empty( $_SERVER['HTTPS'] ) ? esc_html( __( 'ON', 'mainwp-child' ) . ' - ' . sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ) ) : esc_html__( 'OFF', 'mainwp-child' );
 	}
 
 	/**
