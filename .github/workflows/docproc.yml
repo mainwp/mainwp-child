@@ -22,4 +22,7 @@ jobs:
        with:
           hosts: 'root@code-reference.mainwp.com'
           privateKey: ${{ secrets.PRIVATE_KEY }}
-          command: sh ~/scripts/docproc.sh
+          command: |
+            rm -rf ~/Source/mainwp-child/
+            git clone https://github.com/mainwp/mainwp.git ~/Source/mainwp-child
+            sh ~/scripts/docproc.sh
