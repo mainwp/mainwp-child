@@ -1,6 +1,6 @@
-=== MainWP Child ===
+=== MainWP Child - Securely connects sites to the MainWP WordPress Manager Dashboard ===
 Contributors: mainwp
-Tags: WordPress management, WordPress Manager, manager, manage, WordPress controller, network, MainWP, updates, admin, administration, multiple, multisite, plugin updates, theme updates, login, remote, backups
+Tags: WordPress management, WordPress Manager, WordPress controller, multiple WordPress Sites, multisite
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
@@ -11,7 +11,7 @@ Stable tag: 4.0.7.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Securely connect unlimited sites to your MainWP WordPress Manager. The MainWP WordPress Management System is both open source and private. 
+Securely connects unlimited sites to your MainWP WordPress Manager. The MainWP WordPress Management System is both open source and private. 
 
 == Description ==
 
@@ -40,7 +40,7 @@ Still not sure how MainWP works? [Review these detailed steps on installing your
 * Run everything from 1 Dashboard that you host!
 
 = More Information =
-[MainWP Documentation](https://mainwp.com/help/)
+[MainWP Documentation](https://kb.mainwp.com)
 
 [MainWP Community](https://meta.mainwp.com/)
 
@@ -60,12 +60,33 @@ Still not sure how MainWP works? [Review these detailed steps on installing your
 2. Activate the MainWP Child plugin through the 'Plugins' menu in WordPress
 
 == Frequently Asked Questions ==
+= Do I need any other plugins for MainWP? =
+Yes, you need to install the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) on a new WordPress site or subdomain.
 
-= What is the purpose of this plugin? =
+= Do you have any documentation? =
+Yes, please review the [documentation site](https://kb.mainwp.com).
 
-It allows the connection between the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) plugin and the site it is installed on.
+= I just want to start using MainWP, do you have a Quick Start Guide? =
+Yes, please read the [Quick Start – Setting up your MainWP](https://kb.mainwp.com/docs/set-up-the-mainwp-plugin/) guide on the doc site.
 
-To see full documentation and FAQs please visit [MainWP Documentation](https://mainwp.com/help/)
+= Where do I go for support or to ask for help? =
+Please post in the [MainWP Community](https://meta.mainwp.com)
+
+= What is the difference between ManageWP and MainWP? =
+Essentially MainWP and ManageWP provide the same type of service but with different philosophies on WordPress management.  
+
+ManageWP is a Service as a Solution (SaaS) property owned by Godaddy.  The SaaS system makes ManageWP a type of "Walled Garden" with limited customization options.
+
+MainWP follows the tradition of WordPress and is open source, private, and fully extendable.   The fact that MainWP is open source and extendable means you have almost unlimited customization option, this allows you to run your WordPress management business as you see fit. 
+
+= How do I customize MainWP for my needs? =
+If you want to make some basic changes to the look of your Dashboard, you can use our prebuilt [Custom Dashbboard](https://mainwp.com/extension/mainwp-custom-dashboard-extension/) Extension, or if you want to dig in and build Extensions, you can learn all about Extension creation at [MainWP.dev](https://mainwp.dev)
+
+= I have an idea for MainWP; how do I let you know? =
+Please follow the steps outlined in the [MainWP Feature Requests](https://meta.mainwp.com/c/feature/16) so you can add your idea to the MainWP Community to be voted on.
+
+= I have more questions, do you have any other information? =
+Sure we have a quick FAQ with a lot more questions and answers [here](https://mainwp.com/presales-faq/).
 
 == Screenshots ==
 
