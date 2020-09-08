@@ -61,7 +61,7 @@ Still not sure how MainWP works? [Review these detailed steps on installing your
 
 == Frequently Asked Questions ==
 = Do I need any other plugins for MainWP? =
-Yes, you need to install the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) on a new WordPress site or subdomain.
+Yes, you need to install the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) on a new WordPress site or subdomain.  
 
 = Do you have any documentation? =
 Yes, please review the [documentation site](https://kb.mainwp.com).
@@ -77,7 +77,7 @@ Essentially MainWP and ManageWP provide the same type of service but with differ
 
 ManageWP is a Service as a Solution (SaaS) property owned by Godaddy.  The SaaS system makes ManageWP a type of "Walled Garden" with limited customization options.
 
-MainWP follows the tradition of WordPress and is open source, private, and fully extendable.   The fact that MainWP is open source and extendable means you have almost unlimited customization option, this allows you to run your WordPress management business as you see fit. 
+MainWP follows the tradition of WordPress and is [open source](https://github.com/mainwp/mainwp-child/), [private](https://mainwp.com/protect-your-data/), and [fully extendable](https://mainwp.dev). .   The fact that MainWP is open source and extendable means you have almost unlimited customization option, this allows you to run your WordPress management business as you see fit. 
 
 = How do I customize MainWP for my needs? =
 If you want to make some basic changes to the look of your Dashboard, you can use our prebuilt [Custom Dashbboard](https://mainwp.com/extension/mainwp-custom-dashboard-extension/) Extension, or if you want to dig in and build Extensions, you can learn all about Extension creation at [MainWP.dev](https://mainwp.dev)
