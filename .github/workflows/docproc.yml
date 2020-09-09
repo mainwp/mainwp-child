@@ -25,4 +25,6 @@ jobs:
           command: |
             rm -rf ~/Source/mainwp-child/
             git clone https://github.com/mainwp/mainwp-child.git ~/Source/mainwp-child/
+            sleep 3
+            sh ~/scripts/docproc.sh
 
