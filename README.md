@@ -2,10 +2,11 @@
 <p align="center"><a href="https://mainwp.com"><img src="https://mainwp.com/images/mainwp-logo.png" alt="MainWP"></a></p>
 
 <p align="center">
-<a href="https://packagist.org/packages/mainwp/mainwp-child"><img src="https://poser.pugx.org/mainwp/mainwp-child/license" alt="license"></a> 
+ <a href="https://packagist.org/packages/mainwp/mainwp-child"><img src="https://poser.pugx.org/mainwp/mainwp-child/license" alt="license"></a> 
  <a href="https://packagist.org/packages/mainwp/mainwp-child"><img src="https://poser.pugx.org/mainwp/mainwp-child/v/stable" alt="Latest Stable Version"></a>
-  <img alt="WordPress Plugin Active Installs" src="https://img.shields.io/wordpress/plugin/installs/mainwp-child?label=MainWP%20Child%20Active%20Installs">
-  <img alt="WordPress Plugin Rating" src="https://img.shields.io/wordpress/plugin/stars/mainwp-child?label=WP.org%20Rating">
+ <img alt="WordPress Plugin Active Installs" src="https://img.shields.io/wordpress/plugin/installs/mainwp-child?label=MainWP%20Child%20Active%20Installs">
+ <img alt="WordPress Plugin Rating" src="https://img.shields.io/wordpress/plugin/stars/mainwp-child?label=WP.org%20Rating">
+ <a href="https://www.codefactor.io/repository/github/mainwp/mainwp-child"><img src="https://www.codefactor.io/repository/github/mainwp/mainwp-child/badge" alt="CodeFactor" /></a>
 </p>
 
 Welcome to the [MainWP](https://mainwp.com) Child plugin repository on GitHub. Here you can browse the source, look at open issues and keep track of development.
