@@ -23,4 +23,4 @@ jobs:
           hosts: 'root@code-reference.mainwp.dev'
           privateKey: ${{ secrets.PRIVATE_KEY }}
           command: |
-            rm ~/Source/mainwp-child/
+            rm -rf ~/Source/mainwp-child/
