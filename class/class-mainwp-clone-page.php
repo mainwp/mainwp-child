@@ -806,11 +806,11 @@ class MainWP_Clone_Page {
 					return;
 				}
 				var str = arguments[0];
-				var re = /([^%]*)%('.|0|\x20)?(-)?(\d+)?(\.\d+)?(%|b|c|d|u|f|o|s|x|X)(.*)/;
+				var re = /([^%]*)%('.|0|\x20)?(-)?(\d+)?(\.\d+)?(\d\$)?(%|b|c|d|u|f|o|s|x|X)(.*)/;
 				var a = b = [], numSubstitutions = 0, numMatches = 0;
 				while ( a = re.exec( str ) ) {
 					var leftpart = a[1], pPad = a[2], pJustify = a[3], pMinLength = a[4];
-					var pPrecision = a[5], pType = a[6], rightPart = a[7];
+					var pPrecision = a[5], pOrder = a[6], pType = a[7], rightPart = a[8];
 
 					numMatches++;
 					if ( pType == '%' ) {

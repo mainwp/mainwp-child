@@ -19,6 +19,13 @@ namespace MainWP\Child;
 class MainWP_Clone_Install {
 
 	/**
+	 * Public static variable to hold the single instance of the class.
+	 *
+	 * @var mixed Default null
+	 */
+	protected static $instance = null;
+
+	/**
 	 * The zip backup file path.
 	 *
 	 * @var string
@@ -46,7 +53,7 @@ class MainWP_Clone_Install {
 	 *
 	 * @param string $file Archive file.
 	 */
-	public function __construct( $file ) {
+	public function __construct( $file = '' ) {
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
 
 		$this->file = $file;
@@ -59,6 +66,18 @@ class MainWP_Clone_Install {
 		} elseif ( '.tar' === substr( $this->file, - 4 ) ) {
 			$this->archiver = new Tar_Archiver( null, 'tar' );
 		}
+	}
+
+	/**
+	 * Create a public static instance of MainWP_Clone_Install.
+	 *
+	 * @return MainWP_Clone_Install
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
 	}
 
 	/**
