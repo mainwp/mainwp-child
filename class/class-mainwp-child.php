@@ -232,7 +232,7 @@ class MainWP_Child {
 	public function parse_init() {
 
 		if ( isset( $_REQUEST['cloneFunc'] ) ) {
-			$valid_clone = MainWP_Clone_Install::get_instance()->request_clone_funct();
+			$valid_clone = MainWP_Clone::instance()->request_clone_funct();
 			if ( ! $valid_clone ) {
 				return;
 			}
