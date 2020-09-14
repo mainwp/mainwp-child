@@ -201,7 +201,7 @@ class MainWP_Clone {
 
 		return $mime_types;
 	}
-	
+
 	/**
 	 * Request clone.
 	 *
@@ -245,7 +245,7 @@ class MainWP_Clone {
 			if ( ! empty( $f ) ) {
 				$result = glob( $backupdir . 'backup-' . $f . '-*' );
 				foreach ( $result as $file ) {
-					if ( MainWP_Clone::is_archive( $file, 'backup-' . $f . '-' ) ) {
+					if ( self::is_archive( $file, 'backup-' . $f . '-' ) ) {
 						$archiveFile = $file;
 						break;
 					}
@@ -261,7 +261,7 @@ class MainWP_Clone {
 		}
 		return true;
 	}
-	
+
 
 	/**
 	 * Create backup of clone.
