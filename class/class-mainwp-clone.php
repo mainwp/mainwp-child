@@ -266,7 +266,7 @@ class MainWP_Clone {
 	/**
 	 * Create backup of clone.
 	 */
-	private function create_clone_backup() {
+	private function create_clone_backup() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		MainWP_Helper::end_session();
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
 		foreach ( $files as $file ) {
