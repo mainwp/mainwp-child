@@ -135,7 +135,7 @@ class MainWP_Child {
 			$notoptions = false;
 		}
 
-		if ( ! isset( $alloptions['mainwp_db_version'] ) ) {
+		if ( ! isset( $alloptions['mainwp_child_server'] ) ) {
 			$suppress = $wpdb->suppress_errors();
 			$options  = array(
 				'mainwp_child_auth',
@@ -156,6 +156,7 @@ class MainWP_Child {
 				'mainwp_linkschecker_ext_enabled',
 				'mainwp_child_branding_settings',
 				'mainwp_child_plugintheme_days_outdate',
+				'mainwp_wp_staging_ext_enabled',
 			);
 			$query    = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
 			foreach ( $options as $option ) {

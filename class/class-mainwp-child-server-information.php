@@ -88,6 +88,11 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			return;
 		}
 
+		// improved query.
+		if ( self::is_mainwp_pages() ) {
+			return;
+		}
+
 		$warnings = self::get_warnings();
 
 		$dismissWarnings = get_option( 'mainwp_child_dismiss_warnings' );
@@ -183,6 +188,22 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			</table>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Method is_mainwp_pages()
+	 *
+	 * Get the current page and check it for "mainwp_".
+	 *
+	 * @return boolean ture|false.
+	 */
+	public static function is_mainwp_pages() {
+		$screen = get_current_screen();
+		if ( $screen && strpos( $screen->base, 'mainwp_' ) !== false && strpos( $screen->base, 'mainwp_child_tab' ) === false ) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -1354,12 +1375,12 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 		$uniqueId = get_option( 'mainwp_child_uniqueId' );
 		$details  = array(
-			'siteurl' => array(
+			'siteurl'       => array(
 				'title' => __( 'Site URL', 'mainwp-child' ),
 				'value' => get_bloginfo( 'url' ),
 				'desc'  => get_bloginfo( 'url' ),
 			),
-			'adminuser' => array(
+			'adminuser'     => array(
 				'title' => __( 'Administrator name', 'mainwp-child' ),
 				'value' => $current_user->user_login,
 				'desc'  => __( 'This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child' ),
@@ -1369,17 +1390,17 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				'value' => get_bloginfo( 'name' ),
 				'desc'  => __( 'For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child' ),
 			),
-			'uniqueid' => array(
+			'uniqueid'      => array(
 				'title' => __( 'Child unique security id', 'mainwp-child' ),
 				'value' => ! empty( $uniqueId ) ? $uniqueId : __( 'Leave the field blank', 'mainwp-child' ),
 				'desc'  => sprintf( __( 'Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child' ), stripslashes( $branding_title ) ),
 			),
-			'verify_ssl' => array(
+			'verify_ssl'    => array(
 				'title' => __( 'Verify certificate', 'mainwp-child' ),
 				'value' => __( 'Yes', 'mainwp-child' ),
 				'desc'  => __( 'If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child' ),
 			),
-			'ssl_version' => array(
+			'ssl_version'   => array(
 				'title' => __( 'SSL version', 'mainwp-child' ),
 				'value' => __( 'Auto Detect', 'mainwp-child' ),
 				'desc'  => __( 'Auto Detect', 'mainwp-child' ),
