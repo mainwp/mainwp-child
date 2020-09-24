@@ -214,7 +214,7 @@ class MainWP_Child_Stats {
 		$information['recent_posts']   = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
 		$information['recent_pages']   = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
 		$information['securityIssues'] = MainWP_Security::get_stats_security();
-		$information['securityStats']  = MainWP_Child_Misc::get_security_stats( true );
+		$information['securityStats']  = MainWP_Child_Misc::get_instance()->get_security_stats( true );
 
 		// Directory listings!
 		$information['directories'] = $this->scan_dir( ABSPATH, 3 );
