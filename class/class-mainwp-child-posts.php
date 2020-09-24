@@ -308,32 +308,32 @@ class MainWP_Child_Posts {
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
 		$where_post_date = isset( $_POST['where_post_date'] ) && ! empty( $_POST['where_post_date'] ) ? true : false;
 		if ( isset( $_POST['postId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . intval( wp_unslash( $_POST['postId'] ) );
+			$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.ID = %d ", sanitize_text_field( wp_unslash( $_POST['postId'] ) ) );
 		} elseif ( isset( $_POST['userId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.post_author = " . intval( wp_unslash( $_POST['userId'] ) );
+			$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_author = %d ", sanitize_text_field( wp_unslash( $_POST['userId'] ) ) );
 		} else {
 			if ( isset( $_POST['keyword'] ) && '' !== $_POST['keyword'] ) {
 				$search_on = isset( $_POST['search_on'] ) ? sanitize_text_field( wp_unslash( $_POST['search_on'] ) ) : '';
 				if ( 'title' == $search_on ) {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . "%' )";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_title LIKE %s ) ", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 				} elseif ( 'content' == $search_on ) {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . "%' )";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_content LIKE %s )", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 				} else {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . "%' OR $wpdb->posts.post_title LIKE '%" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . "%' )";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_content LIKE %s OR $wpdb->posts.post_title LIKE  %s )", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%', '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 				}
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date > '" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date > %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . '%' );
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified > %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . '%' );
 				}
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date < '" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date < %s ", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . '%' );
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified < %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . '%' );
 				}
 			}
 
