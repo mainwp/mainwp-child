@@ -294,10 +294,7 @@ class MainWP_Utility {
 		header( 'X-Robots-Tag: noindex, nofollow', true );
 		header( 'X-MainWP-Child-Version: ' . MainWP_Child::$version, true );
 		nocache_headers();
-		if ( 'test' == $_GET['mainwp_child_run'] ) {
-			die( 'MainWP Test' );
-		}
-		die( '' );
+		die( 'MainWP Test' );
 	}
 
 

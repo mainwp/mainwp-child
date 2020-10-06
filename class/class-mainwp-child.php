@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.1';
+	public static $version = '4.1.1';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -102,7 +102,7 @@ class MainWP_Child {
 
 		if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
 			if ( isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) {
-				add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
+				add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), 8 );
 			}
 		}
 	}
