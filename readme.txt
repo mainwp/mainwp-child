@@ -107,6 +107,13 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
+= 4.1.1 - 10-7-20 =
+* Fixed: An issue with creating new users
+* Fixed: An issue with cloning sites
+* Fixed: An issue with creating post tags
+* Updated: Multiple database query improvements
+* Preventative: Multiple security improvements
+
 = 4.1 - 9-9-20 =
 * Fixed: An issue with posting Custom Post Types
 * Fixed: Multiple PHP Warnings
