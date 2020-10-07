@@ -290,10 +290,12 @@ class MainWP_Utility {
 			return;
 		}
 		session_write_close();
-		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ), true );
-		header( 'X-Robots-Tag: noindex, nofollow', true );
-		header( 'X-MainWP-Child-Version: ' . MainWP_Child::$version, true );
-		nocache_headers();
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ), true );
+			header( 'X-Robots-Tag: noindex, nofollow', true );
+			header( 'X-MainWP-Child-Version: ' . MainWP_Child::$version, true );
+			nocache_headers();
+		}
 		die( 'MainWP Test' );
 	}
 
