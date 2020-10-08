@@ -626,15 +626,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<td><?php echo esc_html( self::get_current_version() ); ?></td>
 			<td><?php echo esc_html( self::render_mainwp_version_check() ); ?></td>
 		</tr>
-		<?php self::render_mainwp_directory(); ?>
-		<?php $server = get_option( 'mainwp_child_server' ); ?>
-		<tr>
-			<td></td>
-			<td><?php esc_html_e( 'Currently connected to dashboard URL', 'mainwp-child' ); ?></td>
-			<td><?php echo esc_html( $server ); ?></td>
-			<td></td>
-			<td></td>
-		</tr>
+		<?php self::render_mainwp_directory(); ?>	
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WordPress', 'mainwp-child' ); ?></td>
 		</tr>
