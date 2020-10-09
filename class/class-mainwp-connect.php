@@ -59,6 +59,9 @@ class MainWP_Connect {
 	 * Method register_site()
 	 *
 	 * Register the current WordPress site thus generating teh public key.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public function register_site() {
 
@@ -147,9 +150,12 @@ class MainWP_Connect {
 	 *
 	 * Parse inistial authentication.
 	 *
-	 * @param  bool $auth True is autenticated, false if not.
+	 * @param  bool $auth True is authenticated, false if not.
 	 *
 	 * @return bool ture|false.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Callable::is_callable_function()
+	 * @uses \MainWP\Child\MainWP_Child_Callable::is_callable_function_no_auth()
 	 */
 	public function parse_init_auth( $auth = false ) {
 

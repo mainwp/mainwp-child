@@ -666,6 +666,8 @@ class MainWP_Child_Timecapsule {
 	 * @used-by MainWP_Child_Timecapsule::get_logs_rows() Get logs rows.
 	 *
 	 * @return array Action result.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_DB::real_escape_string()
 	 */
 	public function prepare_items() {
 

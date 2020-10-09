@@ -52,6 +52,8 @@ class MainWP_Clone_Install {
 	 * Run any time class is called.
 	 *
 	 * @param string $file Archive file.
+	 *
+	 * @uses \MainWP\Child\Tar_Archiver()
 	 */
 	public function __construct( $file = '' ) {
 		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
@@ -232,6 +234,8 @@ class MainWP_Clone_Install {
 
 	/**
 	 * Clean file structure after installation.
+	 *
+	 * @uses \MainWP\Child\MainWP_Clone::is_archive()
 	 */
 	public function clean() {
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
@@ -277,6 +281,8 @@ class MainWP_Clone_Install {
 	 *
 	 * @param string $name  Option name.
 	 * @param string $value Option value to update.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_DB::real_escape_string()
 	 */
 	public function update_option( $name, $value ) {
 
@@ -602,6 +608,11 @@ class MainWP_Clone_Install {
 	 * @param array  $tables     The tables we want to look at.
 	 *
 	 * @return array Collection of information gathered during the run.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_DB::to_query()
+	 * @uses \MainWP\Child\MainWP_Child_DB::fetch_array()
+	 * @uses \MainWP\Child\MainWP_Child_DB::error()
+	 * @uses \MainWP\Child\MainWP_Child_DB::real_escape_string()
 	 */
 	public function icit_srdb_replacer( $connection, $search = '', $replace = '', $tables = array() ) {
 

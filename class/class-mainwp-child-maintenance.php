@@ -273,6 +273,9 @@ class MainWP_Child_Maintenance {
 	 * @uses MainWP_Child_DB::num_rows() Count the number of rows.
 	 * @uses MainWP_Child_DB::is_result() Check if $result is an Instantiated object of \mysqli.
 	 * @uses MainWP_Child_DB::fetch_array() Fetch an array.
+	 * @uses \MainWP\Child\MainWP_Child_DB::to_query()
+	 * @uses \MainWP\Child\MainWP_Child_DB::num_rows()
+	 * @uses \MainWP\Child\MainWP_Child_DB::fetch_array()
 	 *
 	 * @used-by MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
 	 */

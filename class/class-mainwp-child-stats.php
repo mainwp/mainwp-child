@@ -100,6 +100,8 @@ class MainWP_Child_Stats {
 		 * The installed version of WordPress.
 		 *
 		 * @global string $wp_version The installed version of WordPress.
+		 *
+		 * @uses \MainWP\Child\MainWP_Child::$version
 		 */
 		global $wp_version;
 
@@ -132,39 +134,49 @@ class MainWP_Child_Stats {
 	 * @param array $information Holder for return array.
 	 * @param bool  $exit Whether or not to exit the method. Default: true.
 	 *
-	 * @uses MainWP_Child_Stats::update_external_settings()
-	 * @uses MainWP_Child_Stats::stats_get_info()
-	 * @uses MainWP_Child_Stats::stats_wp_update()
-	 * @uses MainWP_Child_Stats::stats_plugin_update()
-	 * @uses MainWP_Child_Stats::stats_theme_update()
-	 * @uses MainWP_Child_Stats::stats_translation_updates()
-	 * @uses MainWP_Child_Stats::get_recent_number()
-	 * @uses MainWP_Child_Stats::scan_dir()
-	 * @uses MainWP_Child_Stats::stats_get_categories()
-	 * @uses MainWP_Child_Stats::stats_get_total_size()
-	 * @uses MainWP_Child_Stats::get_all_plugins_int()
-	 * @uses MainWP_Child_Stats::get_all_themes_int()
-	 * @uses MainWP_Child_Stats::get_health_check_site_status()
-	 * @uses MainWP_Child_Stats::stats_others_data()
-	 * @uses MainWP_Child_Stats::check_premium_updates()
-	 * @uses MainWP_Child_Branding::instance()::save_branding_options()
-	 * @uses MainWP_Child_Plugins_Check::may_outdate_number_change()
-	 * @uses MainWP_Child_Comments::get_instance()::get_recent_comments()
-	 * @uses MainWP_Child_Posts::get_instance()::get_recent_posts()
-	 * @uses MainWP_Child_DB::get_size()
-	 * @uses MainWP_Child_Users::get_instance()::get_all_users_int()
-	 * @uses MainWP_Child_Plugins_Check::instance()::get_plugins_outdate_info()
-	 * @uses MainWP_Child_Themes_Check::instance()::get_themes_outdate_info()
-	 * @uses MainWP_Security::get_stats_security()
-	 * @uses MainWP_Connect::instance()::get_max_history()
-	 * @uses MainWP_Utility::get_lasttime_backup()
-	 * @uses MainWP_Utility::validate_mainwp_dir()
-	 * @uses MainWP_Helper::update_option()
-	 * @uses MainWP_Helper::set_limit()
-	 * @uses MainWP_Helper::log_debug()
-	 * @uses MainWP_Helper::write()
-	 *
 	 * @return array $information Child Site Stats.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Stats::update_external_settings()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_get_info()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_wp_update()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_plugin_update()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_theme_update()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_translation_updates()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_recent_number()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::scan_dir()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_get_categories()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_get_total_size()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_all_plugins_int()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_all_themes_int()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_health_check_site_status()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::stats_others_data()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::check_premium_updates()
+	 * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
+	 * @uses \MainWP\Child\MainWP_Child_Plugins_Check::may_outdate_number_change()
+	 * @uses \MainWP\Child\MainWP_Child_Comments::get_recent_comments()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_recent_posts()
+	 * @uses \MainWP\Child\MainWP_Child_DB::get_size()
+	 * @uses \MainWP\Child\MainWP_Child_Users:::get_all_users_int()
+	 * @uses \MainWP\Child\MainWP_Child_Plugins_Check::get_plugins_outdate_info()
+	 * @uses \MainWP\Child\MainWP_Child_Themes_Check::get_themes_outdate_info()
+	 * @uses \MainWP\Child\MainWP_Security::get_stats_security()
+	 * @uses \MainWP\Child\MainWP_Connect::instance()::get_max_history()
+	 * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
+	 * @uses \MainWP\Child\MainWP_Utility::validate_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Helper::set_limit()
+	 * @uses \MainWP\Child\MainWP_Helper::log_debug()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
+	 * @uses \MainWP\Child\MainWP_Child_Comments::get_recent_comments()
+	 * @uses \MainWP\Child\MainWP_Child_DB::get_size()
+	 * @uses \MainWP\Child\MainWP_Child_Misc::get_security_stats()
+	 * @uses \MainWP\Child\MainWP_Child_Plugins_Check::may_outdate_number_change()
+	 * @uses \MainWP\Child\MainWP_Child_Plugins_Check::get_plugins_outdate_info()
+	 * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts()
+	 * @uses \MainWP\Child\MainWP_Child_Themes_Check::get_themes_outdate_info()
+	 * @uses \MainWP\Child\MainWP_Child_Users::get_all_users_int()
+	 * @uses \MainWP\Child\MainWP_Connect::get_max_history()
 	 */
 	public function get_site_stats( $information = array(), $exit = true ) {
 
@@ -356,9 +368,10 @@ class MainWP_Child_Stats {
 	 *
 	 * @param array $premiumThemes Array of premium themes.
 	 *
-	 * @uses MainWP_Child_Updates::get_instance()::upgrade_get_theme_updates()
-	 *
 	 * @return array $results Array of premium theme slugs.
+	 *
+	 * @uses MainWP_Child_Updates::get_instance()::upgrade_get_theme_updates()
+	 * @uses \MainWP\Child\MainWP_Child_Updates::upgrade_get_theme_updates()
 	 */
 	private function stats_theme_update( $premiumThemes ) {
 
@@ -406,14 +419,17 @@ class MainWP_Child_Stats {
 	/**
 	 * Get Server Info stats & append to end of Child Site stats.
 	 *
+	 * @param array $information Child Site Stats.
+	 *
 	 * @uses MainWP_Child::$version
 	 * @uses MainWP_Child_Server_Information::get_php_memory_limit()
 	 * @uses MainWP_Child_Server_Information::get_my_sql_version()
 	 * @uses MainWP_Helper::is_wp_engine()
 	 * @uses MainWP_Helper::update_option()
 	 * @uses phpversion()
-	 *
-	 * @param array $information Child Site Stats.
+	 * @uses \MainWP\Child\MainWP_Child::$version
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information::get_php_memory_limit()
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information::get_my_sql_version()
 	 */
 	private function stats_get_info( &$information ) {
 
@@ -421,6 +437,8 @@ class MainWP_Child_Stats {
 		 * The installed version of WordPress.
 		 *
 		 * @global string $wp_version The installed version of WordPress.
+		 *
+		 * @uses \MainWP\Child\MainWP_Child::$version
 		 */
 		global $wp_version;
 

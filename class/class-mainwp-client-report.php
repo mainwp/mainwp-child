@@ -15,6 +15,8 @@ namespace MainWP\Child;
  * Class MainWP_Client_Report
  *
  * MainWP Client Reports extension handler.
+ *
+ * @uses \MainWP\Child\MainWP_Client_Report_Base
  */
 class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
@@ -104,6 +106,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * Create reports log file.
 	 *
 	 * @param string $ext File extension.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::do_reports_log()
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::do_reports_log()
+	 * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::do_reports_log()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::do_reports_log()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::do_reports_log()
 	 */
 	public static function do_reports_log( $ext = '' ) {
 		switch ( $ext ) {
@@ -237,6 +245,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * Set Branding Show/Hide.
 	 *
 	 * @return array $information Results array.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -248,6 +258,9 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 	/**
 	 * Initiate Client Reports.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
+	 * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
 	 */
 	public function creport_init() {
 

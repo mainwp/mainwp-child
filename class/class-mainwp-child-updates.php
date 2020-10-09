@@ -105,6 +105,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @uses MainWP_Child_Updates::upgrade_plugin() Execute plugins updates.
 	 * @uses MainWP_Child_Updates::upgrade_theme() Execute themes updates.
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public function upgrade_plugin_theme() {
 		// Prevent disable/re-enable at upgrade.
@@ -687,6 +688,9 @@ class MainWP_Child_Updates {
 	 *
 	 * @uses set_site_transient() Sets/updates the value of a site transient.
 	 * @see https://developer.wordpress.org/reference/functions/set_site_transient/
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Callable::is_callable_function()
+	 * @uses \MainWP\Child\MainWP_Child_Callable::call_function()
 	 */
 	public function detect_premium_themesplugins_updates() {
 
@@ -845,6 +849,8 @@ class MainWP_Child_Updates {
 	 * Method upgrade_translation()
 	 *
 	 * Update translations and set feedback to the sync information.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public function upgrade_translation() {
 		/**

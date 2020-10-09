@@ -137,9 +137,11 @@ class MainWP_Backup {
 	 * @param bool   $pid                PID true|false.
 	 * @param bool   $append             Append to backup file name.
 	 *
+	 * @return array|bool Action results on success, false on failure.
+	 *
 	 * @used-by MainWP_Backup::backup_full()
 	 *
-	 * @return array|bool Action results on success, false on failure.
+	 * @uses \MainWP\Child\Tar_Archiver()
 	 */
 	public function create_full_backup(
 		$excludes,
@@ -242,6 +244,7 @@ class MainWP_Backup {
 	 *
 	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 * @uses MainWP_Helper::get_mainwp_dir() Get the MainWP directory.
+	 * @uses \MainWP\Child\MainWP_Clone::is_archive()
 	 */
 	public function backup_poll() {
 		$fileNameUID = ( isset( $_POST['fileNameUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileNameUID'] ) ) : '' );
@@ -1239,20 +1242,23 @@ class MainWP_Backup {
 	 * Create DB backup.
 	 *
 	 * @param string $filepath_prefix File path prefix.
-	 * @param string $archiveExt      Archive extension.
+	 * @param bool   $archiveExt      Archive extension.
 	 * @param object $archiver        Archiver.
 	 *
-	 * @uses MainWP_Helper::sanitize_filename() Sanitize filename.
-	 * @uses MainWP_Helper::set_limit() Set PHP memory limit.
-	 * @uses MainWP_Child_DB::to_query() Run a mysqli query & get a result.
+	 * @return array|string[] Action response.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::sanitize_filename() Sanitize filename.
+	 * @uses \MainWP\Child\MainWP_Helper::set_limit() Set PHP memory limit.
+	 * @uses \MainWP\Child\MainWP_Child_DB::to_query() Run a mysqli query & get a result.
+	 * @uses \MainWP\Child\MainWP_Child_DB::fetch_array()
+	 * @uses \MainWP\Child\MainWP_Child_DB::real_escape_string()
+	 * @uses \MainWP\Child\Tar_Archiver()
 	 *
 	 * @uses wpdb::get_results() Retrieve an entire SQL result set from the database (i.e., many rows).
-	 * @see https://developer.wordpress.org/reference/classes/wpdb/get_results/
+	 * @see  https://developer.wordpress.org/reference/classes/wpdb/get_results/
 	 *
 	 * @uses wpdb::get_row() Retrieve one row from the database.
-	 * @see https://developer.wordpress.org/reference/classes/wpdb/get_row/
-	 *
-	 * @return array Action response.
+	 * @see  https://developer.wordpress.org/reference/classes/wpdb/get_row/
 	 */
 	public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
 

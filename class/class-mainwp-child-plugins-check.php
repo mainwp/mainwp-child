@@ -223,6 +223,8 @@ class MainWP_Child_Plugins_Check {
 
 	/**
 	 * Update Days out of date option.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Themes_Check::cleanup_deactivation()
 	 */
 	public static function may_outdate_number_change() {
 		if ( isset( $_POST['numberdaysOutdatePluginTheme'] ) ) {
