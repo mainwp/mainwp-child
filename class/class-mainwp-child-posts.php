@@ -308,32 +308,32 @@ class MainWP_Child_Posts {
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
 		$where_post_date = isset( $_POST['where_post_date'] ) && ! empty( $_POST['where_post_date'] ) ? true : false;
 		if ( isset( $_POST['postId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.ID = " . sanitize_text_field( wp_unslash( $_POST['postId'] ) );
+			$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.ID = %d ", sanitize_text_field( wp_unslash( $_POST['postId'] ) ) );
 		} elseif ( isset( $_POST['userId'] ) ) {
-			$this->posts_where_suffix .= " AND $wpdb->posts.post_author = " . sanitize_text_field( wp_unslash( $_POST['userId'] ) );
+			$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_author = %d ", sanitize_text_field( wp_unslash( $_POST['userId'] ) ) );
 		} else {
-			if ( isset( $_POST['keyword'] ) ) {
+			if ( isset( $_POST['keyword'] ) && '' !== $_POST['keyword'] ) {
 				$search_on = isset( $_POST['search_on'] ) ? sanitize_text_field( wp_unslash( $_POST['search_on'] ) ) : '';
 				if ( 'title' == $search_on ) {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_title LIKE %s ) ", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 				} elseif ( 'content' == $search_on ) {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_content LIKE %s )", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 				} else {
-					$this->posts_where_suffix .= " AND ( $wpdb->posts.post_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' OR $wpdb->posts.post_title LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%' )";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_content LIKE %s OR $wpdb->posts.post_title LIKE  %s )", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%', '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 				}
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date > %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . '%' );
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified > %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . '%' );
 				}
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_date < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date < %s ", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . '%' );
 				} else {
-					$this->posts_where_suffix .= " AND $wpdb->posts.post_modified < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified < %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . '%' );
 				}
 			}
 
@@ -378,7 +378,7 @@ class MainWP_Child_Posts {
 		$new_post            = isset( $_POST['new_post'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_post'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$post_custom         = isset( $_POST['post_custom'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['post_custom'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$post_category       = isset( $_POST['post_category'] ) ? rawurldecode( base64_decode( wp_unslash( $_POST['post_category'] ) ) ) : null; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_tags           = isset( $_POST['post_tags'] ) ? rawurldecode( wp_unslash( $new_post['post_tags'] ) ) : null;
+		$post_tags           = isset( $new_post['post_tags'] ) ? rawurldecode( $new_post['post_tags'] ) : null;
 		$post_featured_image = isset( $_POST['post_featured_image'] ) ? base64_decode( wp_unslash( $_POST['post_featured_image'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$upload_dir          = isset( $_POST['mainwp_upload_dir'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
@@ -414,6 +414,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_post_edit()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_page_edit()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::get_class_name()
 	 */
 	public function post_action() {
 		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
@@ -810,7 +811,7 @@ class MainWP_Child_Posts {
 			}
 		}
 
-		if ( isset( $post_tags ) && '' !== $post_tags ) {
+		if ( isset( $post_tags ) && '' != $post_tags ) {
 			$new_post['tags_input'] = $post_tags;
 		}
 
@@ -880,8 +881,11 @@ class MainWP_Child_Posts {
 	 *
 	 * @param array $post_custom Post custom meta data.
 	 *
-	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::instance()::is_activated()
 	 * @uses \get_rocket_option()
+	 * @see https://github.com/wp-media/wp-rocket/blob/master/inc/functions/options.php
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::instance()::is_activated()
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::is_activated()
 	 */
 	private function update_wp_rocket_custom_post( &$post_custom ) {
 		// Options fields.

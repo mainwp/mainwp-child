@@ -12,7 +12,7 @@
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 4.1-beta3
+ * Version: 4.1.2
  * Requires at least: 3.6
  * Requires PHP: 5.6
  */
@@ -64,6 +64,8 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
  * MainWP Child Plugin Autoloader to load all other class files.
  *
  * @param string $class_name Name of the class to load.
+ *
+ * @uses \MainWP\Child\MainWP_Child()
  */
 function mainwp_child_autoload( $class_name ) {
 

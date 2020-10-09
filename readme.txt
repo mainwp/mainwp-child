@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.5
+Tested up to: 5.5.1
 Requires PHP: 5.6
-Stable tag: 4.0.7.2
+Stable tag: 4.1.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -50,7 +50,7 @@ Still not sure how MainWP works? [Review these detailed steps on installing your
 
 [MainWP Extensions](https://mainwp.com/mainwp-extensions/)
 
-[Develop MainWP Extensions](https://mainwp.com/develop-mainwp//)
+[Develop MainWP Extensions](https://mainwp.com/develop-mainwp/)
 
 [MainWP on Github](https://mainwp.com/github/)
 
@@ -79,6 +79,11 @@ ManageWP is a Service as a Solution (SaaS) property owned by Godaddy.  The SaaS 
 
 MainWP follows the tradition of WordPress and is [open source](https://github.com/mainwp/mainwp-child/), [private](https://mainwp.com/protect-your-data/), and [fully extendable](https://mainwp.dev/). .   The fact that MainWP is open source and extendable means you have almost unlimited customization option, this allows you to run your WordPress management business as you see fit. 
 
+= How do I know my sites are secure using MainWP? = 
+We take security very seriously at MainWP. We welcome any peer review of our [100% open source code](https://github.com/mainwp/mainwp-child/) to ensure nobody's MainWP management system is ever compromised or hacked.  
+
+We also participate in the [HackerOne](https://www.hackerone.com) bug bounty program; this allows ethical hackers to review MainWP code and directly share any vulnerability information with us in return for a monetary reward. 
+
 = How do I customize MainWP for my needs? =
 If you want to make some basic changes to the look of your Dashboard, you can use our prebuilt [Custom Dashbboard](https://mainwp.com/extension/mainwp-custom-dashboard-extension/) Extension, or if you want to dig in and build Extensions, you can learn all about Extension creation at [MainWP.dev](https://mainwp.dev/)
 
@@ -102,8 +107,27 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
+= 4.1.2 - 10-8-20 =
+* Removed: unused system information check
+
+= 4.1.1 - 10-7-20 =
+* Fixed: An issue with creating new users
+* Fixed: An issue with cloning sites
+* Fixed: An issue with creating post tags
+* Updated: Multiple database query improvements
+* Preventative: Multiple security improvements
+
+= 4.1 - 9-9-20 =
+* Fixed: An issue with posting Custom Post Types
+* Fixed: Multiple PHP Warnings
+* Added: New actions and filters
+* Added: phpDocs blocks for code documentation
+* Updated: refactored the code to meet WordPress coding standards
+* Updated: WordPress 5.5 compatibility
+* Preventative: Multiple security improvements
+
 = 4.0.7.2 - 8-6-20 =
-Updated: WordPress 5.5 compatibility
+* Updated: WordPress 5.5 compatibility
 
 = 4.0.7.1 - 4-30-20 =
 * Fixed: JSON decoding issues on specific setups
@@ -114,31 +138,31 @@ Updated: WordPress 5.5 compatibility
 * Fixed: An issue with saving Wordfence settings
 * Fixed: An issue with showing correct post and page creating time
 * Fixed: An issue with displaying correct author in reports
-* Added: support for WPVivid backups in the reporting system
-* Preventative: security improvements
+* Added: Support for WPVivid backups in the reporting system
+* Preventative: Security improvements
 
 = 4.0.7 - 2-25-20 =
-* Fixed: an issue with saving Bulk Setting Manager keys
-* Fixed: an issue with saving Wordfence extension settings
-* Fixed: an issue with overwriting PHP error reporting configuration
-* Added: pull request #9 to add an action to allow additional post customization when a new post is created - Thanks [joshlabau](https://github.com/joshlabau)
-* Added: pull request #13 to replace __autoload() with spl_autoload_register - Thanks [Christian Foellmann](https://github.com/cfoellmann)
-* Added: pull request #23 to fix a typo - Thanks [Marco Frodl](https://github.com/marcofrodl)
-* Added: pull request #24 to prevent overwriting PHP error reporting configuration - Thanks [Stanislav Khromov](https://github.com/khromov)
-* Updated: improved premium plugins and themes updates detection system
-* Removed: unused database options
+* Fixed: An issue with saving Bulk Setting Manager keys
+* Fixed: An issue with saving Wordfence extension settings
+* Fixed: An issue with overwriting PHP error reporting configuration
+* Added: Pull request #9 to add an action to allow additional post customization when a new post is created - Thanks [joshlabau](https://github.com/joshlabau)
+* Added: Pull request #13 to replace __autoload() with spl_autoload_register - Thanks [Christian Foellmann](https://github.com/cfoellmann)
+* Added: Pull request #23 to fix a typo - Thanks [Marco Frodl](https://github.com/marcofrodl)
+* Added: Pull request #24 to prevent overwriting PHP error reporting configuration - Thanks [Stanislav Khromov](https://github.com/khromov)
+* Updated: Improved premium plugins and themes updates detection system
+* Removed: Unused database options
 
 = 4.0.6.2 - 2-3-20 =
-* Fixed: connection problems caused by issues with json_encode function
+* Fixed: Connection problems caused by issues with json_encode function
 
 = 4.0.6.1 - 1-20-20 =
 * Updated: MainWP_Child_WPvivid_BackupRestore class
 
 = 4.0.6 - 1-17-20 =
-* Fixed: encoding problem in error messages
-* Added: site ID parameter in the sync request
+* Fixed: Encoding problem in error messages
+* Added: Site ID parameter in the sync request
 * Updated: MainWP_Child_WPvivid_BackupRestore class
-* Preventative: security improvements
+* Preventative: Security improvements
 
 = 4.0.5.1 - 12-13-19 =
 * Fixed: Child Reports data conversion problem
@@ -149,99 +173,99 @@ Updated: WordPress 5.5 compatibility
 
 = 4.0.4 - 11-11-19 =
 * Fixed: WordPress 5.3 compatibility problems
-* Fixed: an issue with managing BackWPup backups
-* Updated: multiple error messages
-* Removed: unused code
+* Fixed: An issue with managing BackWPup backups
+* Updated: Multiple error messages
+* Removed: Unused code
 
 = 4.0.3 - 10-1-19 =
 * Added: 'mainwp_child_branding_init_options' filter for disabling custom branding
-* Updated: support for the WPVulnDB API v3
-* Removed: unused code and files
+* Updated: Support for the WPVulnDB API v3
+* Removed: Unused code and files
 
 = 4.0.2 - 9-6-19 =
-* Fixed: an issue incorrect backups count in the Client Reports system
+* Fixed: An issue incorrect backups count in the Client Reports system
 
 = 4.0.1 - 9-3-19 =
-* Fixed: an issue with clearing and preloading WP Rocket cache
+* Fixed: An issue with clearing and preloading WP Rocket cache
 
 = 4.0 - 8-28-19 =
-* Fixed: various functionality problems
-* Added: support for upcoming 3rd party extensions
+* Fixed: Various functionality problems
+* Added: Support for upcoming 3rd party extensions
 * Added: .htaccess file with custom redirect to rule the MainWP Child plugin directory to hide the plugin from search engines
-* Updated: support for the MainWP Dashboard 4.0
-* Updated: notifications texts
-* Removed: unused code
+* Updated: Support for the MainWP Dashboard 4.0
+* Updated: Notifications texts
+* Removed: Unused code
 
 = 3.5.7 - 5-6-19 =
-* Fixed: multiple PHP Warnings
-* Fixed: multiple conflicts with 3rd party products
+* Fixed: Multiple PHP Warnings
+* Fixed: Multiple conflicts with 3rd party products
 * Fixed: An issue with Page Speed data for custom URLs
 * Fixed: An issue with logging WP Time Capsule backups on specific setups
 * Fixed: An issue with short login session
-* Added: multiple security enhancements
+* Added: Multiple security enhancements
 * Added: Support for the WP Staging Pro (free features only)
-* Added: support for plugin/theme installation requests to HTTP Basic Auth protected MainWP Dashboards
+* Added: Support for plugin/theme installation requests to HTTP Basic Auth protected MainWP Dashboards
 
 = 3.5.6 - 3-25-19 =
 * Fixed: An issue with checking Page Speed data
 * Fixed: An issue with empty update data
 * Fixed: An issue with incorrect plugin update data
 * Added: Send From field in the Branding support form
-* Updated: compatibility with the latest Yoast SEO plugin version
+* Updated: Compatibility with the latest Yoast SEO plugin version
 
 = 3.5.5 - 3-6-19 =
 * Fixed: An issue with the hook for controlling branding options for specific roles
-* Fixed: branding issues
-* Fixed: multiple PHP Warnings
-* Fixed: multiple typos
+* Fixed: Branding issues
+* Fixed: Multiple PHP Warnings
+* Fixed: Multiple typos
 * Fixed: MainWP UpdraftPlus Extension performance issues
 * Fixed: An issue with creating double media files when editing posts and pages from MainWP Dashboard
 * Fixed: An issue with creating duplicate Boilerplate posts and pages
-* Updated: added improvements for detecting premium plugin updates on specific setups
+* Updated: Added improvements for detecting premium plugin updates on specific setups
 
 = 3.5.4.1 - 2-19-19 =
-* Added: proper attribution to plugin code used for Extensions
-* Removed: unused code
+* Added: Proper attribution to plugin code used for Extensions
+* Removed: Unused code
 
 = 3.5.4 - 2-14-19 =
-* Fixed: issues with displaying broken links data for specific setups
-* Fixed: compatibility issues with the latest PageSpeed Insights plugin version
+* Fixed: Issues with displaying broken links data for specific setups
+* Fixed: Compatibility issues with the latest PageSpeed Insights plugin version
 * Fixed: An issue with publishing "future" posts
 * Fixed: An issue with sending email alerts in specific setups
 * Fixed: An issue with saving code snippets in wp-config.php when the file is in a custom location
 * Fixed: An issue with clearing unused scheduled Cron jobs
 * Added: Support for the new PageSpeed Insights plugin options
-* Updated: disabled the "Remove readme.html" security check feature for WPEngine hosted child sites
-* Updated: support for detecting premium themes updates
+* Updated: Disabled the "Remove readme.html" security check feature for WPEngine hosted child sites
+* Updated: Support for detecting premium themes updates
 
 = 3.5.3 - 12-19-18 =
 * Fixed: An issue with the X-Frame-Options configuration
 * Fixed: An issue with clearing WP Rocket cache
 * Fixed: An issue with saving BackWPup settings
-* Fixed: multiple compatibility issues for the Bulk Settings Manager extension
+* Fixed: Multiple compatibility issues for the Bulk Settings Manager extension
 * Fixed: An issue with submitting the Bulk Settings Manager keys on child sites protected with the HTTP Basic Authentication
 * Fixed: An issue with creating buckets in Backblaze remote option caused by disallowed characters
 * Fixed: An issue with tokens usage in the UpdraftPlus Webdav remote storage settings
-* Added: support for new WP Staging plugin options
-* Updated: update detection process to improve performance on some hosts
-* Updated: disabled site size calculation function as the default state
-* Updated: support for the latest Wordfence version
+* Added: Support for new WP Staging plugin options
+* Updated: Update detection process to improve performance on some hosts
+* Updated: Disabled site size calculation function as the default state
+* Updated: Support for the latest Wordfence version
 
 = 3.5.2 - 11-27-18 =
 * Fixed: An issue with detecting updates when a custom branding is applied
 * Fixed: An issue with passing WebDav remote storage info for the UpdraftPlus Extension
 * Fixed: An issue with grabbing fresh child site favicons
-* Updated: process to skip WooCommerce order notes in the comments section for Client Reports
+* Updated: Process to skip WooCommerce order notes in the comments section for Client Reports
 
 = 3.5.1 - 11-14-18 =
 * Fixed: An issue with detecting the Wordfence status info
 * Fixed: An issue with loading UpdraftPlus existing backups
-* Fixed: the File Uploader extension issue with renaming special files
+* Fixed: The File Uploader extension issue with renaming special files
 * Fixed: An issue with syncing BackupBuddy data
 * Fixed: An issue with logging BackWPup backups
 * Fixed: An issue with detecting premium plugin updates
-* Added: new options for the MainWP Staging Extension
-* Added: multiple security enhancements
+* Added: New options for the MainWP Staging Extension
+* Added: Multiple security enhancements
 * Added: Support for the upcoming 3rd party extension
 * Updated: Improved the updating process
 

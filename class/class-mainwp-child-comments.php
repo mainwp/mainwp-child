@@ -62,6 +62,8 @@ class MainWP_Child_Comments {
 
 	/**
 	 * MainWP Child Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::get_class_name()
 	 */
 	public function comment_action() {
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
@@ -154,16 +156,16 @@ class MainWP_Child_Comments {
 		add_filter( 'comments_clauses', array( &$this, 'comments_clauses' ) );
 
 		if ( isset( $_POST['postId'] ) ) {
-			$this->comments_and_clauses .= " AND $wpdb->comments.comment_post_ID = " . sanitize_text_field( wp_unslash( $_POST['postId'] ) );
+			$this->comments_and_clauses .= $wpdb->prepare( " AND $wpdb->comments.comment_post_ID = %d ", sanitize_text_field( wp_unslash( $_POST['postId'] ) ) );
 		} else {
-			if ( isset( $_POST['keyword'] ) ) {
-				$this->comments_and_clauses .= " AND $wpdb->comments.comment_content LIKE '%" . sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) . "%'";
+			if ( isset( $_POST['keyword'] ) && '' !== $_POST['keyword'] ) {
+				$this->comments_and_clauses .= $wpdb->prepare( " AND $wpdb->comments.comment_content LIKE %s ", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
-				$this->comments_and_clauses .= " AND $wpdb->comments.comment_date > '" . sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) . "'";
+				$this->comments_and_clauses .= $wpdb->prepare( " AND $wpdb->comments.comment_date > %s ", $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) );
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
-				$this->comments_and_clauses .= " AND $wpdb->comments.comment_date < '" . sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) . "'";
+				$this->comments_and_clauses .= $wpdb->prepare( " AND $wpdb->comments.comment_date < %s ", $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) );
 			}
 		}
 

@@ -248,7 +248,9 @@ class MainWP_Helper {
 				 * @const ( string ) Defined file system method.
 				 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Helper.html
 				 */
-				define( 'FS_METHOD', 'direct' );
+				if ( ! defined( 'FS_METHOD' ) ) {
+					define( 'FS_METHOD', 'direct' );
+				}
 			}
 			$init = \WP_Filesystem( $creds );
 		} else {

@@ -62,7 +62,7 @@ class MainWP_Child_Users {
 	 */
 	public function user_action() {
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		$extra     = isset( $_POST['extra'] ) ? sanitize_text_field( wp_unslash( $_POST['extra'] ) ) : '';
+		$extra     = isset( $_POST['extra'] ) ? wp_unslash( $_POST['extra'] ) : '';
 		$userId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$user_pass = isset( $_POST['user_pass'] ) ? wp_unslash( $_POST['user_pass'] ) : '';
 		$failed    = false;
@@ -97,7 +97,7 @@ class MainWP_Child_Users {
 				$failed = true;
 			}
 		} elseif ( 'update_user' === $action ) {
-			$my_user = isset( $_POST['extra'] ) ? sanitize_text_field( wp_unslash( $_POST['extra'] ) ) : '';
+			$my_user = $extra;
 			if ( is_array( $my_user ) ) {
 				foreach ( $my_user as $idx => $val ) {
 					if ( 'donotupdate' === $val || ( empty( $val ) && 'role' !== $idx ) ) {

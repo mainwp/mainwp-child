@@ -13,6 +13,8 @@ namespace MainWP\Child;
  * Class MainWP_Child_Server_Information
  *
  * MainWP Child server information handler.
+ *
+ * @uses \MainWP\Child\MainWP_Child_Server_Information_Base
  */
 class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Base {
 	const WARNING = 1;
@@ -85,6 +87,11 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	public static function render_warnings() {
 		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 		if ( isset( $_SERVER['REQUEST_URI'] ) && ( stristr( $request_uri, 'mainwp_child_tab' ) || stristr( $request_uri, 'mainwp-reports-page' ) || stristr( $request_uri, 'mainwp-reports-settings' ) ) ) {
+			return;
+		}
+
+		// improved query.
+		if ( self::is_mainwp_pages() ) {
 			return;
 		}
 
@@ -183,6 +190,22 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			</table>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Method is_mainwp_pages()
+	 *
+	 * Get the current page and check it for "mainwp_".
+	 *
+	 * @return boolean ture|false.
+	 */
+	public static function is_mainwp_pages() {
+		$screen = get_current_screen();
+		if ( $screen && strpos( $screen->base, 'mainwp_' ) !== false && strpos( $screen->base, 'mainwp_child_tab' ) === false ) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -547,6 +570,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @uses MainWP_Child_Server_Information::render_plugins_infor_rows() Render plugins information rows.
 	 *
 	 * @used-by MainWP_Child_Server_Information::render_page() Render the Server Information page.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	private static function render_server_infor() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
@@ -605,15 +630,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<td><?php echo esc_html( self::get_current_version() ); ?></td>
 			<td><?php echo esc_html( self::render_mainwp_version_check() ); ?></td>
 		</tr>
-		<?php self::render_mainwp_directory(); ?>
-		<?php $server = get_option( 'mainwp_child_server' ); ?>
-		<tr>
-			<td></td>
-			<td><?php esc_html_e( 'Currently connected to dashboard URL', 'mainwp-child' ); ?></td>
-			<td><?php echo esc_html( $server ); ?></td>
-			<td></td>
-			<td></td>
-		</tr>
+		<?php self::render_mainwp_directory(); ?>	
 		<tr>
 			<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WordPress', 'mainwp-child' ); ?></td>
 		</tr>
@@ -1049,6 +1066,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @uses MainWP_Child_Server_Information::render_directory_row() Render the directroy check row.
 	 *
 	 * @used-by MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	protected static function render_mainwp_directory() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
@@ -1074,8 +1093,10 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @param string $result    Check result.
 	 * @param string $passed    Show correct label depending on passed status.
 	 *
-	 * @used-by MainWP_Child_Server_Information::render_mainwp_directory() Render the MainWP directory check.
-	 */
+	 * @used-by \MainWP\Child\MainWP_Child_Server_Information::render_mainwp_directory() Render the MainWP directory check.
+	 *
+     * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
+     */
 	protected static function render_directory_row( $name, $directory, $check, $result, $passed ) {
 		?>
 		<tr class="mwp-not-generate-row">
@@ -1214,6 +1235,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @see https://developer.wordpress.org/reference/functions/wp_kses_post/
 	 *
 	 * @used-by MainWP_Child_Server_Information::render_error_page() Render the Error log page.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	public static function render_error_log() {
 		$log_errors = ini_get( 'log_errors' );
@@ -1338,6 +1361,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 	/**
 	 * Render the connection details page content.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	public static function render_connection_details() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
@@ -1354,12 +1379,12 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 		$uniqueId = get_option( 'mainwp_child_uniqueId' );
 		$details  = array(
-			'siteurl' => array(
+			'siteurl'       => array(
 				'title' => __( 'Site URL', 'mainwp-child' ),
 				'value' => get_bloginfo( 'url' ),
 				'desc'  => get_bloginfo( 'url' ),
 			),
-			'adminuser' => array(
+			'adminuser'     => array(
 				'title' => __( 'Administrator name', 'mainwp-child' ),
 				'value' => $current_user->user_login,
 				'desc'  => __( 'This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child' ),
@@ -1369,17 +1394,17 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				'value' => get_bloginfo( 'name' ),
 				'desc'  => __( 'For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child' ),
 			),
-			'uniqueid' => array(
+			'uniqueid'      => array(
 				'title' => __( 'Child unique security id', 'mainwp-child' ),
 				'value' => ! empty( $uniqueId ) ? $uniqueId : __( 'Leave the field blank', 'mainwp-child' ),
 				'desc'  => sprintf( __( 'Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child' ), stripslashes( $branding_title ) ),
 			),
-			'verify_ssl' => array(
+			'verify_ssl'    => array(
 				'title' => __( 'Verify certificate', 'mainwp-child' ),
 				'value' => __( 'Yes', 'mainwp-child' ),
 				'desc'  => __( 'If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child' ),
 			),
-			'ssl_version' => array(
+			'ssl_version'   => array(
 				'title' => __( 'SSL version', 'mainwp-child' ),
 				'value' => __( 'Auto Detect', 'mainwp-child' ),
 				'desc'  => __( 'Auto Detect', 'mainwp-child' ),

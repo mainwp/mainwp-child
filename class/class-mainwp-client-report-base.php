@@ -162,6 +162,8 @@ class MainWP_Client_Report_Base {
 	 * @param array $sections     An array containing sections.
 	 *
 	 * @return array Arguments array.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
 	 */
 	public function get_stream_get_params( $other_tokens, $sections ) {
 

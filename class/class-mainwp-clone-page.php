@@ -76,6 +76,8 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Render Clone page.
+     *
+     * @uses \MainWP\Child\MainWP_Clone::get_class_name()
 	 */
 	public static function render() {
 		$uploadError = false;
@@ -220,6 +222,8 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Render normal restore page.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	public static function render_normal_restore() {
 		$uploadError = false;
@@ -406,8 +410,9 @@ class MainWP_Clone_Page {
 	 * Render clone from server form.
 	 *
 	 * @param string $current_dir Current parent directory.
-	 *
 	 * @param string $url URL of file to upload.
+     *
+     * @uses MainWP_Clone::is_archive()
 	 */
 	private static function render_clone_from_server_form( $current_dir, $url ) {
 
@@ -493,6 +498,8 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Render javascript.
+     *
+     * @uses \MainWP\Child\MainWP_Clone::get_security_nonces()
 	 */
 	public static function render_java_script() {
 		$uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );
@@ -806,11 +813,11 @@ class MainWP_Clone_Page {
 					return;
 				}
 				var str = arguments[0];
-				var re = /([^%]*)%('.|0|\x20)?(-)?(\d+)?(\.\d+)?(%|b|c|d|u|f|o|s|x|X)(.*)/;
+				var re = /([^%]*)%('.|0|\x20)?(-)?(\d+)?(\.\d+)?(\d\$)?(%|b|c|d|u|f|o|s|x|X)(.*)/;
 				var a = b = [], numSubstitutions = 0, numMatches = 0;
 				while ( a = re.exec( str ) ) {
 					var leftpart = a[1], pPad = a[2], pJustify = a[3], pMinLength = a[4];
-					var pPrecision = a[5], pType = a[6], rightPart = a[7];
+					var pPrecision = a[5], pOrder = a[6], pType = a[7], rightPart = a[8];
 
 					numMatches++;
 					if ( pType == '%' ) {

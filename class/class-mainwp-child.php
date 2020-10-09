@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.1-beta3';
+	public static $version = '4.1.2';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -62,6 +62,16 @@ class MainWP_Child {
 	 * Run any time class is called.
 	 *
 	 * @param resource $plugin_file MainWP Child plugin file.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
+	 * @uses \MainWP\Child\MainWP_Child_Plugins_Check::instance()
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information::init()
+	 * @uses \MainWP\Child\MainWP_Child_Themes_Check::instance()
+	 * @uses \MainWP\Child\MainWP_Child_Updates::get_instance()
+	 * @uses \MainWP\Child\MainWP_Client_Report::init()
+	 * @uses \MainWP\Child\MainWP_Clone::init()
+	 * @uses \MainWP\Child\MainWP_Connect::check_other_auth()
+	 * @uses \MainWP\Child\MainWP_Pages::init()
 	 */
 	public function __construct( $plugin_file ) {
 		$this->update();
@@ -135,7 +145,7 @@ class MainWP_Child {
 			$notoptions = false;
 		}
 
-		if ( ! isset( $alloptions['mainwp_db_version'] ) ) {
+		if ( ! isset( $alloptions['mainwp_child_server'] ) ) {
 			$suppress = $wpdb->suppress_errors();
 			$options  = array(
 				'mainwp_child_auth',
@@ -156,6 +166,7 @@ class MainWP_Child {
 				'mainwp_linkschecker_ext_enabled',
 				'mainwp_child_branding_settings',
 				'mainwp_child_plugintheme_days_outdate',
+				'mainwp_wp_staging_ext_enabled',
 			);
 			$query    = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
 			foreach ( $options as $option ) {
@@ -228,11 +239,20 @@ class MainWP_Child {
 	 * Parse the init hook.
 	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Callable::init_call_functions()
+	 * @uses \MainWP\Child\MainWP_Clone::request_clone_funct()
+	 * @uses \MainWP\Child\MainWP_Connect::parse_login_required()
+	 * @uses \MainWP\Child\MainWP_Connect::register_site()
+	 * @uses \MainWP\Child\MainWP_Connect::auth()
+	 * @uses \MainWP\Child\MainWP_Connect::parse_init_auth()
+	 * @uses \MainWP\Child\MainWP_Debug::process()
+	 * @uses \MainWP\Child\MainWP_Security::fix_all()
 	 */
 	public function parse_init() {
 
 		if ( isset( $_REQUEST['cloneFunc'] ) ) {
-			$valid_clone = MainWP_Clone_Install::get()->request_clone_funct();
+			$valid_clone = MainWP_Clone::instance()->request_clone_funct();
 			if ( ! $valid_clone ) {
 				return;
 			}
@@ -299,10 +319,9 @@ class MainWP_Child {
 	/**
 	 * Method init_check_login()
 	 *
-	 * Initiate the chech login process.
+	 * Initiate the check login process.
 	 *
-	 * @uses MainWP_Connect::instance()->check_login() Auto-login user to the child site when
-	 *  the Open WP Admin feature from the MainWP Dashboard is used.
+	 * @uses MainWP_Connect::check_login()
 	 */
 	public function init_check_login() {
 		MainWP_Connect::instance()->check_login();
@@ -312,6 +331,8 @@ class MainWP_Child {
 	 * Method admin_init()
 	 *
 	 * If the current user is administrator initiate the admin ajax.
+	 *
+	 * @uses \MainWP\Child\MainWP_Clone::init_ajax()
 	 */
 	public function admin_init() {
 		if ( MainWP_Helper::is_admin() && is_admin() ) {
@@ -323,11 +344,26 @@ class MainWP_Child {
 	 * Method parse_init_extensions()
 	 *
 	 * Parse MainWP Extension initiations.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::branding_init()
+	 * @uses \MainWP\Child\MainWP_Client_Report::creport_init()
+	 * @uses \MainWP\Child\MainWP_Client_Report::ithemes_init()
+	 * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::updraftplus_init()
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::init()
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::init()
+	 * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::init()
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::instance()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::wordfence_init()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::init()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::init()
+	 * @uses \MainWP\Child\MainWP_Child_Pagespeed::init()
+	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::init()
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::init()
 	 */
 	private function parse_init_extensions() {
 		MainWP_Child_Branding::instance()->branding_init();
 		MainWP_Client_Report::instance()->creport_init();
-		MainWP_Child_IThemes_Security::instance()->ithemes_init();
+		MainWP_Client_Report::instance()->ithemes_init();
 		MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
 		MainWP_Child_Back_Up_WordPress::instance()->init();
 		MainWP_Child_WP_Rocket::instance()->init();

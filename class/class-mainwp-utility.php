@@ -281,6 +281,8 @@ class MainWP_Utility {
 	 * Start job if in cron and run query args are set.
 	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Child::$version
 	 */
 	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
@@ -290,14 +292,13 @@ class MainWP_Utility {
 			return;
 		}
 		session_write_close();
-		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ), true );
-		header( 'X-Robots-Tag: noindex, nofollow', true );
-		header( 'X-MainWP-Child-Version: ' . MainWP_Child::$version, true );
-		nocache_headers();
-		if ( 'test' == $_GET['mainwp_child_run'] ) {
-			die( 'MainWP Test' );
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ), true );
+			header( 'X-Robots-Tag: noindex, nofollow', true );
+			header( 'X-MainWP-Child-Version: ' . MainWP_Child::$version, true );
+			nocache_headers();
 		}
-		die( '' );
+		die( 'MainWP Test' );
 	}
 
 
@@ -594,6 +595,8 @@ class MainWP_Utility {
 	 * @param array  $postdata Array containg the post request information.
 	 *
 	 * @throws \Exception Error message.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child::$version
 	 */
 	public static function m_fetch_url( $url, $postdata ) {
 		$agent = 'Mozilla/5.0 (compatible; MainWP-Child/' . MainWP_Child::$version . '; +http://mainwp.com)';
