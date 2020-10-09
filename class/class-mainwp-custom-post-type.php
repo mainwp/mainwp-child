@@ -74,6 +74,8 @@ class MainWP_Custom_Post_Type {
 
 	/**
 	 * Custom post type action.
+	 *
+	 * @uses \MainWP\Child\MainWP_Custom_Post_Type::mainwp_custom_post_type_handle_fatal_error()
 	 */
 	public function action() {
 

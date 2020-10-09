@@ -16,6 +16,8 @@ class MainWP_Debug {
 	 * Render MainWP Backup & test debugging output.
 	 *
 	 * @param object $mainWPChild MainWP_Child class instance.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public static function process( &$mainWPChild ) {
 		if ( ! isset( $_GET['mainwpdebug'] ) ) {

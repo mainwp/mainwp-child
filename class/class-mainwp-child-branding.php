@@ -422,6 +422,9 @@ class MainWP_Child_Branding {
 	 * Initiate custom branding features.
 	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding_Render::instance()
+	 * @uses \MainWP\Child\MainWP_Child_Branding_Render::get_class_name()
 	 */
 	public function branding_init() {
 
@@ -535,6 +538,8 @@ class MainWP_Child_Branding {
 	 * Method admin_menu()
 	 *
 	 * Add the support form page admin menu item.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding_Render::instance()
 	 */
 	public function admin_menu() {
 

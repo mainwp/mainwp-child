@@ -177,6 +177,8 @@ class MainWP_Clone {
 	 * Method init()
 	 *
 	 * Initiate action hooks.
+	 *
+	 * @uses \MainWP\Child\MainWP_Clone_Page::get_class_name()
 	 */
 	public function init() {
 		add_action( 'check_admin_referer', array( self::get_class_name(), 'permalink_changed' ) );
@@ -206,6 +208,8 @@ class MainWP_Clone {
 	 * Request clone.
 	 *
 	 * @return bool|void true|void.
+	 *
+	 * @uses \MainWP\Child\MainWP_Connect::is_valid_auth()
 	 */
 	public function request_clone_funct() {
 
@@ -265,6 +269,8 @@ class MainWP_Clone {
 
 	/**
 	 * Create backup of clone.
+	 *
+	 * @uses \MainWP\Child\MainWP_Backup::create_full_backup()
 	 */
 	private function create_clone_backup() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		MainWP_Helper::end_session();
@@ -615,6 +621,8 @@ class MainWP_Clone {
 	 * Method clone_backup_extract()
 	 *
 	 * Extract the backup archive to clone the site.
+	 *
+	 * @uses \MainWP\Child\MainWP_Clone_Install()
 	 */
 	public function clone_backup_extract() {
 		try {
