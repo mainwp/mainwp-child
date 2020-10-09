@@ -76,8 +76,8 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Render Clone page.
-     *
-     * @uses \MainWP\Child\MainWP_Clone::get_class_name()
+	 *
+	 * @uses \MainWP\Child\MainWP_Clone::get_class_name()
 	 */
 	public static function render() {
 		$uploadError = false;
@@ -222,8 +222,8 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Render normal restore page.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	public static function render_normal_restore() {
 		$uploadError = false;
@@ -411,8 +411,8 @@ class MainWP_Clone_Page {
 	 *
 	 * @param string $current_dir Current parent directory.
 	 * @param string $url URL of file to upload.
-     *
-     * @uses MainWP_Clone::is_archive()
+	 *
+	 * @uses MainWP_Clone::is_archive()
 	 */
 	private static function render_clone_from_server_form( $current_dir, $url ) {
 
@@ -498,8 +498,8 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Render javascript.
-     *
-     * @uses \MainWP\Child\MainWP_Clone::get_security_nonces()
+	 *
+	 * @uses \MainWP\Child\MainWP_Clone::get_security_nonces()
 	 */
 	public static function render_java_script() {
 		$uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );
