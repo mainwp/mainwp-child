@@ -105,11 +105,11 @@ class MainWP_Custom_Post_Type {
 
 		add_filter( 'http_request_host_is_external', '__return_true' );
 
-		if ( ! isset( $_POST['data'] ) || strlen( wp_unslash( $_POST['data'] ) ) < 2 ) {
+		if ( ! isset( $_POST['data'] ) || strlen( $_POST['data'] ) < 2 ) {
 			return array( 'error' => __( 'Missing data', $this->plugin_translate ) );
 		}
 
-		$data = isset( $_POST['data'] ) ? stripslashes( wp_unslash( $_POST['data'] ) ) : '';
+		$data = isset( $_POST['data'] ) ? stripslashes( $_POST['data'] ) : '';
 
 		$data = json_decode( $data, true );
 
