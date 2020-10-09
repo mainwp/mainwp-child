@@ -414,6 +414,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_post_edit()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_page_edit()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::get_class_name()
 	 */
 	public function post_action() {
 		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
@@ -880,8 +881,11 @@ class MainWP_Child_Posts {
 	 *
 	 * @param array $post_custom Post custom meta data.
 	 *
-	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::instance()::is_activated()
 	 * @uses \get_rocket_option()
+	 * @see https://github.com/wp-media/wp-rocket/blob/master/inc/functions/options.php
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::instance()::is_activated()
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::is_activated()
 	 */
 	private function update_wp_rocket_custom_post( &$post_custom ) {
 		// Options fields.

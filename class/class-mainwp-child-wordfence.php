@@ -293,6 +293,9 @@ class MainWP_Child_Wordfence {
 	 * Add Wordfence data to the reports reports database table.
 	 *
 	 * @param string $ext Current extension.
+     *
+     * @uses \MainWP\Child\MainWP_Child_DB::to_query()
+     * @uses \MainWP\Child\MainWP_Child_DB::fetch_array()
 	 */
 	public function do_reports_log( $ext = '' ) {
 		if ( 'wordfence' !== $ext ) {

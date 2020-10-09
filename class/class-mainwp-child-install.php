@@ -68,6 +68,7 @@ class MainWP_Child_Install {
 	 * @see https://developer.wordpress.org/reference/functions/deactivate_plugin/
 	 *
 	 * @uses MainWP_Child_Install::delete_plugins() Delete a plugin from the Child Site.
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public function plugin_action() {
 
@@ -195,6 +196,8 @@ class MainWP_Child_Install {
 	 *
 	 * @uses switch_theme() Switches the theme.
 	 * @see https://developer.wordpress.org/reference/functions/switch_theme/
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public function theme_action() {
 

@@ -185,7 +185,19 @@ class MainWP_Child_Misc {
 	 *
 	 * @param bool $return Either return or not.
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @return array
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Security::prevent_listing_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_wp_version_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_rsd_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_wlw_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_database_reporting_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_php_reporting_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_scripts_version_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_registered_versions_ok()
+	 * @uses \MainWP\Child\MainWP_Security::admin_user_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
 	 */
 	public function get_security_stats( $return = false ) {
 		$information = array();
@@ -214,24 +226,25 @@ class MainWP_Child_Misc {
 	 *
 	 * Fix detected security issues and set feedback to sync information.
 	 *
-	 * @uses MainWP_Helper::update_option() Update option by name.
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 * @uses MainWP_Security::prevent_listing()
-	 * @uses MainWP_Security::prevent_listing_ok()
-	 * @uses MainWP_Security::remove_wp_version()
-	 * @uses MainWP_Security::remove_wp_version_ok()
-	 * @uses MainWP_Security::remove_rsd()
-	 * @uses MainWP_Security::remove_rsd_ok()
-	 * @uses MainWP_Security::remove_wlw()
-	 * @uses MainWP_Security::remove_wlw_ok()
-	 * @uses MainWP_Security::remove_database_reporting()
-	 * @uses MainWP_Security::remove_database_reporting_ok()
-	 * @uses MainWP_Security::remove_php_reporting()
-	 * @uses MainWP_Security::remove_php_reporting_ok()
-	 * @uses MainWP_Security::remove_generator_version()
-	 * @uses MainWP_Security::admin_user_ok()
-	 * @uses MainWP_Security::remove_readme()
-	 * @uses MainWP_Security::remove_readme_ok()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by name.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Security::prevent_listing()
+	 * @uses \MainWP\Child\MainWP_Security::prevent_listing_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_wp_version()
+	 * @uses \MainWP\Child\MainWP_Security::remove_wp_version_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_rsd()
+	 * @uses \MainWP\Child\MainWP_Security::remove_rsd_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_wlw()
+	 * @uses \MainWP\Child\MainWP_Security::remove_wlw_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_database_reporting()
+	 * @uses \MainWP\Child\MainWP_Security::remove_database_reporting_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_php_reporting()
+	 * @uses \MainWP\Child\MainWP_Security::remove_php_reporting_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_generator_version()
+	 * @uses \MainWP\Child\MainWP_Security::admin_user_ok()
+	 * @uses \MainWP\Child\MainWP_Security::remove_readme()
+	 * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public function do_security_fix() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$sync = false;
@@ -341,9 +354,10 @@ class MainWP_Child_Misc {
 	 *
 	 * Unfix fixed child site security issues.
 	 *
-	 * @uses MainWP_Helper::update_option() Update option by name.
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 * @uses MainWP_Security::remove_readme_ok()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by name.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 */
 	public function do_security_un_fix() {
 		$information = array();

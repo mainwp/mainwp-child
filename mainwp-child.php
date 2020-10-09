@@ -64,6 +64,8 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
  * MainWP Child Plugin Autoloader to load all other class files.
  *
  * @param string $class_name Name of the class to load.
+ *
+ * @uses \MainWP\Child\MainWP_Child()
  */
 function mainwp_child_autoload( $class_name ) {
 

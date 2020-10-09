@@ -171,24 +171,25 @@ class MainWP_Child_Back_WP_Up {
     /**
      * MainWP BackWPup Extension actions.
      *
-     * @uses MainWP_Child_Back_WP_Up::update_settings()
-     * @uses MainWP_Child_Back_WP_Up::insert_or_update_jobs()
-     * @uses MainWP_Child_Back_WP_Up::insert_or_update_jobs_global()
-     * @uses MainWP_Child_Back_WP_Up::get_child_tables()
-     * @uses MainWP_Child_Back_WP_Up::get_job_files()
-     * @uses MainWP_Child_Back_WP_Up::destination_email_check_email()
-     * @uses MainWP_Child_Back_WP_Up::backup_now()
-     * @uses MainWP_Child_Back_WP_Up::ajax_working()
-     * @uses MainWP_Child_Back_WP_Up::backup_abort()
-     * @uses MainWP_Child_Back_WP_Up::tables()
-     * @uses MainWP_Child_Back_WP_Up::view_log()
-     * @uses MainWP_Child_Back_WP_Up::delete_log()
-     * @uses MainWP_Child_Back_WP_Up::delete_job()
-     * @uses MainWP_Child_Back_WP_Up::delete_backup()
-     * @uses MainWP_Child_Back_WP_Up::wizard_system_scan()
-     * @uses MainWP_Child_Back_WP_Up::is_backwpup_pro()
-     * @uses MainWP_Child_Back_WP_Up::show_hide()
-     * @uses MainWP_Child_Back_WP_Up::$information
+     * @uses \MainWP\Child\MainMainWP_Child_Back_WP_Up::update_settings()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::insert_or_update_jobs()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::insert_or_update_jobs_global()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::get_child_tables()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::get_job_files()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::destination_email_check_email()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::backup_now()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::ajax_working()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::backup_abort()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::tables()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::view_log()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::delete_log()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::delete_job()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::delete_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::wizard_system_scan()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::is_backwpup_pro()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::show_hide()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::$information
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::mainwp_backwpup_handle_fatal_error()
      */
     public function action() {
         if ( ! $this->is_backwpup_installed ) {

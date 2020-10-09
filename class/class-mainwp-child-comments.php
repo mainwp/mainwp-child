@@ -62,6 +62,8 @@ class MainWP_Child_Comments {
 
 	/**
 	 * MainWP Child Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::get_class_name()
 	 */
 	public function comment_action() {
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';

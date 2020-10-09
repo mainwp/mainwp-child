@@ -77,6 +77,8 @@ class MainWP_Child_Branding_Render {
 	 * Render Contact Support.
 	 *
 	 * @return string Contact Support form html.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::$child_branding_options
 	 */
 	public function contact_support() {
 
@@ -201,6 +203,8 @@ class MainWP_Child_Branding_Render {
 	 * Send support email.
 	 *
 	 * @return bool Return TRUE on success FALSE on failure.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
 	public function send_support_mail() {
 		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
