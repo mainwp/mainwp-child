@@ -71,10 +71,11 @@ class MainWP_Child_Server_Information_Base {
 	 * @param string $message Return message - Directory not found, Directory not writable, writeable.
 	 * @param string $path    MainWP directory path.
 	 *
-	 * @uses MainWP_Helper::get_mainwp_dir()
-	 * @uses Exception::getMessage()
-	 *
 	 * @return bool TRUE if exists & writeable, FALSE if not.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses Exception::getMessage()
 	 */
 	protected static function check_mainwp_directory( &$message = '', &$path = '' ) {
 		$path = '';

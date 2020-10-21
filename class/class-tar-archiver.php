@@ -303,6 +303,9 @@ class Tar_Archiver {
 	 * @param bool   $excludenonwp     Exclude non-WordPress directories in site root.
 	 * @param bool   $append           Append to backup file name.
 	 *
+	 * @return bool Return false on failure, true on success.
+	 * @throws \Exception
+	 *
 	 * @uses Tar_Archiver::create_pid_file() Create PID file.
 	 * @uses Tar_Archiver::prepare_append() Prepare to append.
 	 * @uses Tar_Archiver::create() Create backup archive file.
@@ -316,8 +319,8 @@ class Tar_Archiver {
 	 * @uses Tar_Archiver::add_data() Add data to the backup archive file.
 	 * @uses Tar_Archiver::close() Close the bacukup archive file.
 	 * @uses Tar_Archiver::complete_pid_file() Complete the PID file.
-	 *
-	 * @return bool Return false on failure, true on success.
+	 * @uses \MainWP\Child\MainWP_Helper::starts_with()
+	 * @uses \MainWP\Child\MainWP_Helper::in_excludes()
 	 */
 	public function create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
 		$this->create_pid_file( $filepath );
@@ -391,7 +394,8 @@ class Tar_Archiver {
 	 *
 	 * @param array $nodes Default nodes.
 	 *
-	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 * @used-by  \MainWP\Child\Tar_Archiver::create_full_backup() Create full backup.
+	 * @uses    \MainWP\Child\MainWP_Helper::starts_with()
 	 */
 	private function include_core_files( &$nodes ) {
 		$coreFiles = array(
@@ -520,10 +524,11 @@ class Tar_Archiver {
 	 * @param string $path     File path.
 	 * @param array  $excludes List of file to exclude from the backup.
 	 *
-	 * @uses Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
-	 * @uses Tar_Archiver::add_file() Add file to the backup archive file.
+	 * @uses \MainWP\Child\Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
+	 * @uses \MainWP\Child\Tar_Archiver::add_file() Add file to the backup archive file.
+	 * @uses \MainWP\Child\MainWP_Helper::in_excludes()
 	 *
-	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
+	 * @used-by \MainWP\Child\Tar_Archiver::create_full_backup() Create full backup.
 	 */
 	public function add_dir( $path, $excludes ) {
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
@@ -776,12 +781,13 @@ class Tar_Archiver {
 	 * @param string $path      File path.
 	 * @param string $entryName Entry name.
 	 *
-	 * @uses Tar_Archiver::update_pid_file() Update the PID file.
-	 * @uses Tar_Archiver::add_data() Add data to the backup archive file.
-	 *
-	 * @used-by Tar_Archiver::create_full_backup() Create full backup.
-	 *
 	 * @return bool Return false on failure, true on success.
+	 * @throws \Exception
+	 *
+	 * @used-by \MainWP\Child\Tar_Archiver::create_full_backup() Create full backup.
+	 * @uses    \MainWP\Child\Tar_Archiver::add_data() Add data to the backup archive file.
+	 * @uses    \MainWP\Child\Tar_Archiver::update_pid_file() Update the PID file.
+	 * @uses    \MainWP\Child\MainWP_Helper::ends_with()
 	 */
 	private function add_file( $path, $entryName ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {

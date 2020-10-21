@@ -268,6 +268,8 @@ class MainWP_Utility {
 	 * Method handle_fatal_error()
 	 *
 	 * Handle fatal error for requests from the MainWP Dashboard.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::handle_shutdown()
 	 */
 	public static function handle_fatal_error() {
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
@@ -309,6 +311,9 @@ class MainWP_Utility {
 	 *
 	 * @param mixed $file Backup file.
 	 * @param int   $offset Offset value.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::ends_with()
 	 */
 	public function upload_file( $file, $offset = 0 ) {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
@@ -373,9 +378,11 @@ class MainWP_Utility {
 	 * @param bool   $check_file_existed Does the file exist? True or false.
 	 * @param int    $parent_id Attachment parent post ID.
 	 *
+	 * @return null NULL
 	 * @throws \Exception Error message.
 	 *
-	 * @return null NULL
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
 	 */
 	public static function upload_image( $img_url, $img_data = array(), $check_file_existed = false, $parent_id = 0 ) {
 		if ( ! is_array( $img_data ) ) {
@@ -641,6 +648,10 @@ class MainWP_Utility {
 	 * Check if the /mainwp/ directory is writable.
 	 *
 	 * @return bool $done Is the /mainwp/ directory writable? True or false.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::check_dir()
 	 */
 	public static function validate_mainwp_dir() {
 		$done = false;

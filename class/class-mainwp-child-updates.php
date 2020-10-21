@@ -103,9 +103,12 @@ class MainWP_Child_Updates {
 	 *
 	 * Fire off plugins and themes updates and write feedback to the synchronization information.
 	 *
-	 * @uses MainWP_Child_Updates::upgrade_plugin() Execute plugins updates.
-	 * @uses MainWP_Child_Updates::upgrade_theme() Execute themes updates.
+	 * @uses \MainWP\Child\MainWP_Child_Updates::upgrade_plugin() Execute plugins updates.
+	 * @uses \MainWP\Child\MainWP_Child_Updates::upgrade_theme() Execute themes updates.
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function upgrade_plugin_theme() {
 		// Prevent disable/re-enable at upgrade.
@@ -158,6 +161,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @uses MainWP_Child_Updates::to_upgrade_plugins() Complete the plugins update process.
 	 * @uses MainWP_Child_Updates::to_support_some_premiums_updates() Custom support for some premium plugins.
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 * @uses get_plugin_updates() The WordPress Core get plugin updates function.
 	 * @see https://developer.wordpress.org/reference/functions/get_plugin_updates/
 	 *
@@ -252,6 +256,8 @@ class MainWP_Child_Updates {
 	 * @param array $information An array containing the synchronization information.
 	 * @param array $plugins     An array containing plugins to be updated.
 	 *
+	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin() Initiate the plugin update process.
 	 */
 	private function to_update_plugins( &$information, $plugins ) {
@@ -300,10 +306,11 @@ class MainWP_Child_Updates {
 	 * @param array $mwp_premium_updates_todo_slugs An array containing the list of premium themes slugs to update.
 	 * @param bool  $premiumUpgrader                If true, use premium upgrader.
 	 *
-	 * @uses MainWP_Child_Updates::to_upgrade_themes() Complete the themes update process.
-	 * @uses MainWP_Child_Updates::upgrade_get_theme_updates() Get theme updates information.
+	 * @uses \MainWP\Child\MainWP_Child_Updates::to_upgrade_themes() Complete the themes update process.
+	 * @uses \MainWP\Child\MainWP_Child_Updates::upgrade_get_theme_updates() Get theme updates information.
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 *
-	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme() Fire off plugins and themes updates and write feedback to the synchronization information.
+	 * @used-by \MainWP\Child\MainWP_Child_Updates::upgrade_plugin_theme() Fire off plugins and themes updates and write feedback to the synchronization information.
 	 */
 	private function upgrade_theme( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs, &$premiumUpgrader ) {
 
@@ -385,7 +392,9 @@ class MainWP_Child_Updates {
 	 * @uses set_site_transient() Sets/updates the value of a site transient.
 	 * @see https://developer.wordpress.org/reference/functions/set_site_transient/
 	 *
-	 * @used-by MainWP_Child_Updates::upgrade_theme() Initiate the theme update process.
+	 * @used-by \MainWP\Child\MainWP_Child_Updates::upgrade_theme() Initiate the theme update process.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 */
 	private function to_upgrade_themes( &$information, $themes, $last_update ) {
 		$addFilterToFixUpdate_optimizePressTheme = false;
@@ -536,12 +545,13 @@ class MainWP_Child_Updates {
 	 *
 	 * Get theme updates information.
 	 *
+	 * @return array An array of available theme updates information.
+	 *
 	 * @uses get_theme_updates() The WordPress Core get theme updates function.
 	 * @see https://developer.wordpress.org/reference/functions/get_theme_updates/
 	 *
-	 * @used-by MainWP_Child_Updates::upgrade_theme() Execute themes updates.
-	 *
-	 * @return array An array of available theme updates information.
+	 * @used-by \MainWP\Child\MainWP_Child_Updates::upgrade_theme() Execute themes updates.
+	 * @uses \MainWP\Child\MainWP_Helper::search()
 	 */
 	public function upgrade_get_theme_updates() {
 		$themeUpdates    = get_theme_updates();
@@ -736,7 +746,9 @@ class MainWP_Child_Updates {
 	 *
 	 * Initiate the WordPress core files update.
 	 *
-	 * @uses MainWP_Child_Updates::do_upgrade_wp() Run the WordPress Core update.
+	 * @uses \MainWP\Child\MainWP_Child_Updates::do_upgrade_wp() Run the WordPress Core update.
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function upgrade_wp() {
 
@@ -851,6 +863,7 @@ class MainWP_Child_Updates {
 	 * Update translations and set feedback to the sync information.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function upgrade_translation() {
 		/**

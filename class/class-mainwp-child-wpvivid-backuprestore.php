@@ -96,28 +96,28 @@ class MainWP_Child_WPvivid_BackupRestore {
 	/**
 	 * Perform specific WPvivid actions.
 	 *
-	 * @uses MainWP_Child_WPvivid_BackupRestore::prepare_backup()
-	 * @uses MainWP_Child_WPvivid_BackupRestore::backup_now()
-	 * @uses MainWP_Child_WPvivid_BackupRestore::get_status()
-	 * @uses MainWP_Child_WPvivid_BackupRestore::get_backup_schedule()
-	 * @uses MainWP_Child_WPvivid_BackupRestore::get_backup_list();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::get_default_remote();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::delete_backup();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::delete_backup_array();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::set_security_lock();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::view_log();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::read_last_backup_log();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::view_backup_task_log();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::backup_cancel();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::init_download_page();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::prepare_download_backup();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::get_download_task();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::download_backup();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::set_general_setting();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::set_schedule();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::set_remote();
-	 * @uses MainWP_Child_WPvivid_BackupRestore::post_mainwp_data($_POST);
-	 * @uses MainWP_Child_WPvivid_BackupRestore::MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::prepare_backup()
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::backup_now()
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::get_status()
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::get_backup_schedule()
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::get_backup_list();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::get_default_remote();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::delete_backup();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::delete_backup_array();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::set_security_lock();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::view_log();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::read_last_backup_log();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::view_backup_task_log();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::backup_cancel();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::init_download_page();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::prepare_download_backup();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::get_download_task();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::download_backup();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::set_general_setting();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::set_schedule();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::set_remote();
+	 * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::post_mainwp_data($_POST);
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
 		$information = array();

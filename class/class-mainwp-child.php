@@ -72,6 +72,9 @@ class MainWP_Child {
 	 * @uses \MainWP\Child\MainWP_Clone::init()
 	 * @uses \MainWP\Child\MainWP_Connect::check_other_auth()
 	 * @uses \MainWP\Child\MainWP_Pages::init()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Utility::run_saved_snippets()
+	 * @uses \MainWP\Child\MainWP_Utility::get_class_name()
 	 */
 	public function __construct( $plugin_file ) {
 		$this->update();
@@ -204,6 +207,8 @@ class MainWP_Child {
 	 * Update the MainWP Child plugin version (mainwp_child_update_version) option.
 	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function update() {
 		$update_version = get_option( 'mainwp_child_update_version' );
@@ -228,6 +233,8 @@ class MainWP_Child {
 	 * Method template_redirect()
 	 *
 	 * Handle the template redirect for 404 maintenance alerts.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::maintenance_alert()
 	 */
 	public function template_redirect() {
 		MainWP_Utility::instance()->maintenance_alert();
@@ -248,6 +255,7 @@ class MainWP_Child {
 	 * @uses \MainWP\Child\MainWP_Connect::parse_init_auth()
 	 * @uses \MainWP\Child\MainWP_Debug::process()
 	 * @uses \MainWP\Child\MainWP_Security::fix_all()
+	 * @uses \MainWP\Child\MainWP_Utility::fix_for_custom_themes()
 	 */
 	public function parse_init() {
 
@@ -333,6 +341,7 @@ class MainWP_Child {
 	 * If the current user is administrator initiate the admin ajax.
 	 *
 	 * @uses \MainWP\Child\MainWP_Clone::init_ajax()
+	 * @uses \MainWP\Child\MainWP_Helper::is_admin()
 	 */
 	public function admin_init() {
 		if ( MainWP_Helper::is_admin() && is_admin() ) {
@@ -418,6 +427,8 @@ class MainWP_Child {
 	 * Method activation()
 	 *
 	 * Activate the MainWP Child plugin and delete unwanted data.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function activation() {
 		$mu_plugin_enabled = apply_filters( 'mainwp_child_mu_plugin_enabled', false );

@@ -64,9 +64,9 @@ class MainWP_Child_Maintenance {
 	 *
 	 * Fire off Child Site maintenance action and get feedback.
 	 *
-	 * @uses MainWP_Child_Maintenance::maintenance_action() Triggers action to perform, save_settings, enable_alert or clear_settings.
-	 * @uses MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Child_Maintenance::maintenance_action() Triggers action to perform, save_settings, enable_alert or clear_settings.
+	 * @uses \MainWP\Child\MainWP_Child_Maintenance::maintenance_db() Child site database maintenance.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 */
 	public function maintenance_site() {
 
@@ -317,10 +317,10 @@ class MainWP_Child_Maintenance {
 	 * @uses delete_option() Removes option by name. Prevents removal of protected WordPress options.
 	 * @see https://developer.wordpress.org/reference/functions/delete_option/
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 * @uses MainWP_Helper::update_option() Update option by name.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by name.
 	 *
-	 * @used-by MainWP_Child_Maintenance::maintenance_site() Fire off Child Site maintenance action and get feedback.
+	 * @used-by \MainWP\Child\MainWP_Child_Maintenance::maintenance_site() Fire off Child Site maintenance action and get feedback.
 	 */
 	private function maintenance_action( $action ) {
 		$information = array();

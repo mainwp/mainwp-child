@@ -97,6 +97,7 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
 	 * @uses \MainWP\Child\MainWP_Child_Server_Information::render_warnings()
+     * @uses \MainWP\Child\MainWP_Helper::is_admin()
 	 */
 	public function admin_notice() {
 		// Admin Notice...
@@ -560,6 +561,8 @@ class MainWP_Pages {
 
 	/**
 	 * Render connection settings sub page.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function render_settings() {
 		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-settings' ) ) {

@@ -695,7 +695,9 @@ class MainWP_Client_Report_Base {
 	 * @param string $context Record context.
 	 * @param array  $tokens  An array containg the report tokens.
 	 *
-	 * @return array Toeken values.
+	 * @return array Token values.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::log_debug()
 	 */
 	private function get_section_loop_token_values( $record, $context, $tokens ) {
 
@@ -750,6 +752,9 @@ class MainWP_Client_Report_Base {
 	 * @param string $token   Requested token.
 	 *
 	 * @return array Token value.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::format_date()
+	 * @uses \MainWP\Child\MainWP_Helper::format_time()
 	 */
 	public function get_section_token_value( $record, $data, $context, $token ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$tok_value = '';

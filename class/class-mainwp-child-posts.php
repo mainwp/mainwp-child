@@ -371,7 +371,7 @@ class MainWP_Child_Posts {
 	 * Build New Post.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::create_post()
-	 * @uses \MainWP\Child\ainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function new_post() {

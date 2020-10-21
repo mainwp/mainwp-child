@@ -118,6 +118,9 @@ class MainWP_Clone {
 	 * @param string $query_arg Contains the query argument.
 	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_admin()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function secure_request( $action = '', $query_arg = 'security' ) {
 		if ( ! MainWP_Helper::is_admin() ) {
@@ -210,6 +213,9 @@ class MainWP_Clone {
 	 * @return bool|void true|void.
 	 *
 	 * @uses \MainWP\Child\MainWP_Connect::is_valid_auth()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Utility::upload_file()
 	 */
 	public function request_clone_funct() {
 
@@ -271,6 +277,10 @@ class MainWP_Clone {
 	 * Create backup of clone.
 	 *
 	 * @uses \MainWP\Child\MainWP_Backup::create_full_backup()
+	 * @uses \MainWP\Child\MainWP_Helper::end_session()
+	 * @uses \MainWP\Child\MainWP_Helper::is_dir_empty()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	private function create_clone_backup() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		MainWP_Helper::end_session();
@@ -361,6 +371,10 @@ class MainWP_Clone {
 	 * Create backup of template site so it can be used to clone it.
 	 *
 	 * @throws \Exception Error message.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::end_session()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Utility::fetch_url()
 	 */
 	public function clone_backup_create() {
 		try {
@@ -430,6 +444,9 @@ class MainWP_Clone {
 	 * Create backup poll of template site so it can be used to clone it.
 	 *
 	 * @throws \Exception Error message.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::end_session()
+	 * @uses \MainWP\Child\MainWP_Utility::fetch_url()
 	 */
 	public function clone_backup_create_poll() {
 		try {
@@ -479,9 +496,12 @@ class MainWP_Clone {
 	 *
 	 * Download backup file of template site so it can be used to clone it.
 	 *
+	 * @return mixed Response message.
 	 * @throws \Exception Error message.
 	 *
-	 * @return mixed Response message.
+	 * @uses \MainWP\Child\MainWP_Helper::end_session()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Utility::fetch_url()
 	 */
 	public function clone_backup_download() {
 		try {
@@ -589,6 +609,9 @@ class MainWP_Clone {
 	 * Download backup file poll of template site so it can be used to clone it.
 	 *
 	 * @throws \Exception Error message.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::end_session()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 */
 	public function clone_backup_download_poll() {
 		try {
@@ -623,6 +646,9 @@ class MainWP_Clone {
 	 * Extract the backup archive to clone the site.
 	 *
 	 * @uses \MainWP\Child\MainWP_Clone_Install()
+	 * @uses \MainWP\Child\MainWP_Helper::end_session()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Helper::starts_with()
 	 */
 	public function clone_backup_extract() {
 		try {
@@ -700,9 +726,10 @@ class MainWP_Clone {
 	 * @param resource $file     Backup file to be downloaded.
 	 * @param bool     $testFull Return true if the file exists.
 	 *
+	 * @return resource Return the backup file.
 	 * @throws \Exception Error message.
 	 *
-	 * @return resource Return the backup file.
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 */
 	private function clone_backup_get_file( $file, &$testFull ) {
 		if ( '' == $file ) {
@@ -756,6 +783,8 @@ class MainWP_Clone {
 	 * @param array $themes  Array containig themes to be kept.
 	 *
 	 * @return array Array containing output feedback.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::delete_dir()
 	 */
 	private function clone_backup_delete_files( $plugins, $themes ) {
 		if ( false !== $plugins ) {

@@ -140,6 +140,10 @@ class MainWP_Child_Callable {
 	 * Initiate callable functions.
 	 *
 	 * @param bool $auth If true, regular authentication is required.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Utility::handle_fatal_error()
+	 * @uses \MainWP\Child\MainWP_Utility::fix_for_custom_themes()
 	 */
 	public function init_call_functions( $auth = false ) {
 		$callable         = false;
@@ -499,6 +503,8 @@ class MainWP_Child_Callable {
 	 * Method cloneinfo()
 	 *
 	 * Fire off the cloneinfo() function.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function cloneinfo() {
 
@@ -711,6 +717,8 @@ class MainWP_Child_Callable {
 	 * Method extra_execution()
 	 *
 	 * Additional functions to execute.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function extra_execution() {
 		$post        = $_POST;
@@ -843,6 +851,7 @@ class MainWP_Child_Callable {
 	 * Fire off the action() function.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::action()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function backup_wp() {
 		if ( ! version_compare( phpversion(), '5.3', '>=' ) ) {
@@ -878,6 +887,9 @@ class MainWP_Child_Callable {
 	 * Method delete_backup()
 	 *
 	 * Delete backup.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function delete_backup() {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
@@ -896,6 +908,9 @@ class MainWP_Child_Callable {
 	 * Method update_child_values()
 	 *
 	 * Update the MainWP Child site options.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function update_child_values() {
 		$unique_id = isset( $_POST['uniqueId'] ) ? sanitize_text_field( wp_unslash( $_POST['uniqueId'] ) ) : '';
@@ -929,6 +944,8 @@ class MainWP_Child_Callable {
 	 * Method disconnect()
 	 *
 	 * Disconnect the child site from the current MainWP Dashboard.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function disconnect() {
 
@@ -948,6 +965,9 @@ class MainWP_Child_Callable {
 	 * Method deactivate()
 	 *
 	 * Deactivate the MainWP Child plugin in the site.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::errpr()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function deactivate() {
 
