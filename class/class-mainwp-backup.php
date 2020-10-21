@@ -142,6 +142,9 @@ class MainWP_Backup {
 	 * @used-by MainWP_Backup::backup_full()
 	 *
 	 * @uses \MainWP\Child\Tar_Archiver()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::set_limit()
 	 */
 	public function create_full_backup(
 		$excludes,
@@ -242,8 +245,8 @@ class MainWP_Backup {
 	/**
 	 * Check whether the file is an archive or not & create a json_encoded, serialized, base64_encoded string.
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 * @uses MainWP_Helper::get_mainwp_dir() Get the MainWP directory.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir() Get the MainWP directory.
 	 * @uses \MainWP\Child\MainWP_Clone::is_archive()
 	 */
 	public function backup_poll() {
@@ -372,14 +375,20 @@ class MainWP_Backup {
 	 *
 	 * @param bool $write Whether or not to execute MainWP_Helper::write(), Default: true.
 	 *
-	 * @uses MainWP_Helper::set_limit() Set PHP Memory Limit and PHP Max Execution time values.
-	 * @uses MainWP_Helper::end_session() End session and flush the output buffer.
-	 * @uses MainWP_Helper::get_wp_filesystem() Get the WordPress filesystem.
-	 * @uses MainWP_Helper::ends_with() Check if the String 1 ends with the String 2.
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 * @uses MainWP_Backup::backup_full() Perform a full backup.
-	 *
 	 * @return array Array of information on the backup containing the type of backup performed, full, or DB & whether or not it was successful.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::set_limit() Set PHP Memory Limit and PHP Max Execution time values.
+	 * @uses \MainWP\Child\MainWP_Helper::end_session() End session and flush the output buffer.
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem() Get the WordPress filesystem.
+	 * @uses \MainWP\Child\MainWP_Helper::ends_with() Check if the String 1 ends with the String 2.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Backup::backup_full() Perform a full backup.
+	 * @uses \MainWP\Child\MainWP_Helper::set_limit()
+	 * @uses \MainWP\Child\MainWP_Helper::end_session()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::ends_with()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function backup( $write = true ) {
 
@@ -453,9 +462,10 @@ class MainWP_Backup {
 	 *
 	 * @param string $fileName Backup archive file name.
 	 *
-	 * @uses MainWP_Backup::create_full_backup() Create full backup.
-	 *
 	 * @return array|bool Returns an array containing the Backup location & file size. Return FALSE on failure.
+	 *
+	 * @uses \MainWP\Child\MainWP_Backup::create_full_backup() Create full backup.
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 */
 	public function backup_full( $fileName ) {
 		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() );
@@ -549,9 +559,9 @@ class MainWP_Backup {
 	 * @param string $fileName Backup arhive file name.
 	 * @param string $ext      Backup achive extension.
 	 *
-	 * @uses MainWP_Helper::update_option() Update database option by option name.
-	 * @uses MainWP_Helper::get_mainwp_dir() Get the MainWP directory.
-	 * @uses MainWP_Backup::create_backup_db() Create database backup.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update database option by option name.
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir() Get the MainWP directory.
+	 * @uses \MainWP\Child\MainWP_Backup::create_backup_db() Create database backup.
 	 *
 	 * @return array|bool $success Returns an array containing the Backup location & file size. Return FALSE on failure.
 	 */
@@ -594,9 +604,9 @@ class MainWP_Backup {
 	 * @param array  $files Files to zip.
 	 * @param string $archive Type of archive to create.
 	 *
-	 * @uses MainWP_Helper::set_limit() Set PHP memory limit.
-	 *
 	 * @return bool Return FALSE on failure, TRUE on success.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::set_limit() Set PHP memory limit.
 	 */
 	public function zip_file( $files, $archive ) {
 		$this->timeout = 20 * 60 * 60;
@@ -709,10 +719,10 @@ class MainWP_Backup {
 	 * @param bool   $excludezip         Exclude zip files from the backup.
 	 * @param bool   $excludenonwp       Exclude non-WordPress directories in site root.
 	 *
-	 * @uses MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
-	 * @uses MainWP_Helper::in_excludes() Check if the value is in the excludes list.
-	 * @uses MainWP_Backup::include_core_files() Include core files in backup.
-	 * @uses MainWP_Backup::add_config() Add config file to backup.
+	 * @uses \MainWP\Child\MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
+	 * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
+	 * @uses \MainWP\Child\MainWP_Backup::include_core_files() Include core files in backup.
+	 * @uses \MainWP\Child\MainWP_Backup::add_config() Add config file to backup.
 	 *
 	 * @return bool Return true on success & false on failure.
 	 */
@@ -781,7 +791,7 @@ class MainWP_Backup {
 	 *
 	 * @param array $nodes Default nodes.
 	 *
-	 * @uses MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
+	 * @uses \MainWP\Child\MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
 	 */
 	private function include_core_files( &$nodes ) {
 		$coreFiles = array(
@@ -908,9 +918,9 @@ class MainWP_Backup {
 	 * @param string $backupfolder Backup folder.
 	 * @param bool   $excludenonwp Whether or not to exclude any wp core files.
 	 *
-	 * @uses MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
-	 * @uses MainWP_Helper::in_excludes() Check if the value is in the excludes list.
-	 * @uses MainWP_Helper::ends_with() Check if the String 1 ends with the String 2.
+	 * @uses \MainWP\Child\MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
+	 * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
+	 * @uses \MainWP\Child\MainWP_Helper::ends_with() Check if the String 1 ends with the String 2.
 	 */
 	public function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp ) {
 		if ( ! is_array( $nodes ) ) {
@@ -954,18 +964,18 @@ class MainWP_Backup {
 	 * @param bool   $excludezip       Whether to exclude zip archives.
 	 * @param bool   $excludenonwp     Whether or not to exclude any wp core files.
 	 *
-	 * @uses MainWP_Helper::delete_dir() Delete wanted directory.
-	 * @uses MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
-	 * @uses MainWP_Backup::create_backup_db() Create database backup.
-	 * @uses MainWP_Backup::add_file_from_string_to_pcl_zip() Add file from a string to pclzip file.
+	 * @return bool Return true on success.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::delete_dir() Delete wanted directory.
+	 * @uses \MainWP\Child\MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
+	 * @uses \MainWP\Child\MainWP_Backup::create_backup_db() Create database backup.
+	 * @uses \MainWP\Child\MainWP_Backup::add_file_from_string_to_pcl_zip() Add file from a string to pclzip file.
 	 *
 	 * @uses wp_json_encode() Encode a variable into JSON, with some sanity checks.
 	 * @see https://developer.wordpress.org/reference/functions/wp_json_encode/
 	 *
 	 * @uses get_option() Get option by name.
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
-	 *
-	 * @return bool Return true on success.
 	 */
 	public function create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
 		// Create backup folder.
@@ -1077,7 +1087,7 @@ class MainWP_Backup {
 	 * @param string $path     Path to directory.
 	 * @param array  $excludes Files or directories to exclude.
 	 *
-	 * @uses MainWP_Helper::in_excludes() Check if the value is in the excludes list.
+	 * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
 	 */
 	public function zip_add_dir( $path, $excludes ) {
 		$this->zip->add_empty_dir( str_replace( ABSPATH, '', $path ) );
@@ -1159,6 +1169,8 @@ class MainWP_Backup {
 	 * @param string $zipEntryName File to add to zip.
 	 *
 	 * @return bool True|false.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::ends_with()
 	 */
 	public function add_file_to_zipp( $path, $zipEntryName ) {
 		if ( time() - $this->lastRun > 20 ) {

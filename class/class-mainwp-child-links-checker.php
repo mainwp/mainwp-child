@@ -82,6 +82,9 @@ class MainWP_Child_Links_Checker {
 	/**
 	 * MainWP Broken Links Checker actions: set_showhide, sync_data, sync_links_data, edit_link,
 	 *  unlink, set_dismiss, discard, save_settings, force_recheck.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::write()
+     * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function action() {
 		$information = array();
@@ -285,6 +288,8 @@ class MainWP_Child_Links_Checker {
 	 * Show or hide the Broken links checker plugin.
 	 *
 	 * @return array Return $information response array.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -331,7 +336,11 @@ class MainWP_Child_Links_Checker {
 	 * Get links data.
 	 *
 	 * @return array[]|void Return $information response array or void on failure.
-	 * @throws Exception Error exception.
+	 * @throws Exception|\Exception Error exception.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
 	 */
 	public function get_links_data() {
 
@@ -399,7 +408,11 @@ class MainWP_Child_Links_Checker {
 	 * Count links: broken, redirects, dismissed, warning, all.
 	 *
 	 * @return array[]|void Return $data response array or void on failure.
-	 * @throws Exception Error exception.
+	 * @throws Exception|\Exception Error exception.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
 	 */
 	public function get_count_links() {
 		if ( ! defined( 'BLC_DIRECTORY' ) ) {
@@ -434,8 +447,14 @@ class MainWP_Child_Links_Checker {
 	 * Link checker data.
 	 *
 	 * @param mixed $params Broken Links parameters.
+     *
 	 * @return array $return Links Array.
-	 * @throws Exception Error Exception.
+	 * @throws Exception|\Exception Error Exception.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::check_functions()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::check_properties()
 	 */
 	public function links_checker_data( $params ) {
 
@@ -804,8 +823,11 @@ class MainWP_Child_Links_Checker {
 	 *
 	 * @param object $container Instance of container.
 	 * @param string $container_field Container fields.
+     *
 	 * @return array|bool Array of content or FALSE on failure.
-	 * @throws Exception Error Exception.
+	 * @throws Exception|\Exception Error Exception.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
 	 */
 	public function ui_get_source_comment( $container, $container_field = '' ) {
 		// Display a comment icon.

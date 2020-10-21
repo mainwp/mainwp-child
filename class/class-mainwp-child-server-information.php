@@ -49,8 +49,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	/**
 	 * Dismiss warnings.
 	 *
-	 * @uses MainWP_Helper::update_option() Update option by option name.
-	 * @uses MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by option name.
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
 	 * @uses get_option() Retrieves an option value based on an option name.
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
 	 *
@@ -77,8 +77,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	/**
 	 * Render warnings.
 	 *
-	 * @uses MainWP_Helper::update_option() Update option by option name.
-	 * @uses MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by option name.
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
 	 * @uses get_option() Retrieves an option value based on an option name.
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
 	 *
@@ -1022,9 +1022,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @uses wp_get_schedules() Retrieve supported event recurrence schedules.
 	 * @see https://developer.wordpress.org/reference/functions/wp_get_schedules/
 	 *
-	 * @uses MainWP_Helper::format_timestamp() Format timestamp as per the WordPress general settings.
+	 * @uses \MainWP\Child\MainWP_Helper::format_timestamp() Format timestamp as per the WordPress general settings.
 	 *
-	 * @used-by MainWP_Child_Server_Information::render_page() Render the Server Information page.
+	 * @used-by \MainWP\Child\MainWP_Child_Server_Information::render_page() Render the Server Information page.
 	 */
 	private static function render_cron() {
 		$cron_array = _get_cron_array();

@@ -316,6 +316,8 @@ class MainWP_Child_WP_Rocket {
 	 * @param object $value Object containing update information.
 	 *
 	 * @return object $value Object containing update information.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
@@ -402,18 +404,19 @@ class MainWP_Child_WP_Rocket {
 	 *
 	 * Fire off certain WP Rocket plugin actions.
 	 *
-	 * @uses MainWP_Child_WP_Rocket::set_showhide() Hide or unhide the WP Rocket plugin.
-	 * @uses MainWP_Child_WP_Rocket::purge_cloudflare() Purge the Cloudflare cache.
-	 * @uses MainWP_Child_WP_Rocket::purge_cache_all() Purge all cache.
-	 * @uses MainWP_Child_WP_Rocket::preload_cache() Preload cache.
-	 * @uses MainWP_Child_WP_Rocket::generate_critical_css() Generate critical CSS.
-	 * @uses MainWP_Child_WP_Rocket::save_settings() Save the plugin settings.
-	 * @uses MainWP_Child_WP_Rocket::load_existing_settings() Load existing settings.
-	 * @uses MainWP_Child_WP_Rocket::optimize_database() Optimize database tables.
-	 * @uses MainWP_Child_WP_Rocket::get_optimize_info() Get the optimization information.
-	 * @uses MainWP_Child_WP_Rocket::do_admin_post_rocket_purge_opcache() Do admin post to purge opcache.
-	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::set_showhide() Hide or unhide the WP Rocket plugin.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::purge_cloudflare() Purge the Cloudflare cache.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::purge_cache_all() Purge all cache.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::preload_cache() Preload cache.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::generate_critical_css() Generate critical CSS.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::save_settings() Save the plugin settings.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::load_existing_settings() Load existing settings.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::optimize_database() Optimize database tables.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::get_optimize_info() Get the optimization information.
+	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::do_admin_post_rocket_purge_opcache() Do admin post to purge opcache.
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
 		if ( ! $this->is_plugin_installed ) {
@@ -470,9 +473,10 @@ class MainWP_Child_WP_Rocket {
 	 *
 	 * Hide or unhide the WP Rocket plugin.
 	 *
-	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 *
 	 * @return array Action result.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 * @uses    \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -556,9 +560,12 @@ class MainWP_Child_WP_Rocket {
 	 *
 	 * Preload cache.
 	 *
-	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 *
 	 * @return array Action result.
+	 * @throws \Exception
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
+	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
 	 */
 	public function preload_cache() {
 		MainWP_Helper::check_functions( array( 'run_rocket_sitemap_preload', 'run_rocket_bot' ) );
@@ -582,9 +589,12 @@ class MainWP_Child_WP_Rocket {
 	 *
 	 * Generate critical CSS.
 	 *
-	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 *
 	 * @return array Action result.
+	 * @throws \Exception
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 * @uses    \MainWP\Child\MainWP_Helper::check_properties()
+	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
 	 */
 	public function generate_critical_css() {
 		MainWP_Helper::check_classes_exists(
@@ -649,9 +659,12 @@ class MainWP_Child_WP_Rocket {
 	 *
 	 * Optimize database tables.
 	 *
-	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 * @return array Action result
+	 * @throws \Exception
 	 *
-	 * @return array Action result.
+	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
+	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
 	 */
 	public function optimize_database() {
 		MainWP_Helper::check_classes_exists(
@@ -686,9 +699,12 @@ class MainWP_Child_WP_Rocket {
 	 *
 	 * Get the optimization information.
 	 *
-	 * @used-by MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 *
 	 * @return array Action result and optimization information.
+	 * @throws \Exception
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
+	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
+	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
 	 */
 	public function get_optimize_info() {
 		MainWP_Helper::check_classes_exists(

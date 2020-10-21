@@ -67,8 +67,9 @@ class MainWP_Child_Install {
 	 * @uses deactivate_plugin() Deactivate a single plugin or multiple plugins.
 	 * @see https://developer.wordpress.org/reference/functions/deactivate_plugin/
 	 *
-	 * @uses MainWP_Child_Install::delete_plugins() Delete a plugin from the Child Site.
+	 * @uses \MainWP\Child\MainWP_Child_Install::delete_plugins() Delete a plugin from the Child Site.
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function plugin_action() {
 
@@ -137,7 +138,9 @@ class MainWP_Child_Install {
 	 * @uses is_plugin_active() Determines whether a plugin is active.
 	 * @see https://developer.wordpress.org/reference/functions/is_plugin_active/
 	 *
-	 * @used-by MainWP_Child_Install::plugin_action() Plugin Activate, Deactivate & Delete actions.
+	 * @uses \MainWP\Child\MainWP_Helper::check_wp_filesystem()
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_Install::plugin_action() Plugin Activate, Deactivate & Delete actions.
 	 */
 	private function delete_plugins( $plugins ) {
 
@@ -198,6 +201,8 @@ class MainWP_Child_Install {
 	 * @see https://developer.wordpress.org/reference/functions/switch_theme/
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
+	 * @uses \MainWP\Child\MainWP_Helper::check_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function theme_action() {
 
@@ -284,10 +289,14 @@ class MainWP_Child_Install {
 	 *
 	 * Plugin & Theme Installation functions.
 	 *
-	 * @uses MainWP_Child_Install::require_files() Include necessary files.
-	 * @uses MainWP_Child_Install::after_installed() After plugin or theme has been installed.
-	 * @uses MainWP_Child_Install::no_ssl_filter_function() Hook to set ssl verify value.
-	 * @uses MainWP_Child_Install::try_second_install() Alternative installation method.
+	 * @uses \MainWP\Child\MainWP_Child_Install::require_files() Include necessary files.
+	 * @uses \MainWP\Child\MainWP_Child_Install::after_installed() After plugin or theme has been installed.
+	 * @uses \MainWP\Child\MainWP_Child_Install::no_ssl_filter_function() Hook to set ssl verify value.
+	 * @uses \MainWP\Child\MainWP_Child_Install::try_second_install() Alternative installation method.
+	 * @uses \MainWP\Child\MainWP_Helper::check_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function install_plugin_theme() {
 
@@ -454,15 +463,17 @@ class MainWP_Child_Install {
 	 *
 	 * Alternative installation method.
 	 *
+	 * @return object $result Return error messages or TRUE.
+	 *
 	 * @param string $url       Package URL.
 	 * @param object $installer Instance of \WP_Upgrader.
 	 *
 	 * @uses is_wp_error() Check whether variable is a WordPress Error.
 	 * @see https://developer.wordpress.org/reference/functions/is_wp_error/
 	 *
-	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 *
-	 * @return object $result Return error messages or TRUE.
+	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
 	private function try_second_install( $url, $installer ) {
 		$result = $installer->run(

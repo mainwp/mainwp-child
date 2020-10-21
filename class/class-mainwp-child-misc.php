@@ -63,8 +63,8 @@ class MainWP_Child_Misc {
 	 *
 	 * Fire off the get favicon function and add to sync information.
 	 *
-	 * @uses MainWP_Child_Misc::get_favicon() Get the child site favicon.
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Child_Misc::get_favicon() Get the child site favicon.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 */
 	public function get_site_icon() {
 		$information = array();
@@ -421,7 +421,7 @@ class MainWP_Child_Misc {
 	 *
 	 * Fire off misc actions and set feedback to the sync information.
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 * @uses wp_destroy_all_sessions() Remove all session tokens for the current user from the database.
 	 * @see https://developer.wordpress.org/reference/functions/wp_destroy_all_sessions/
 	 *
@@ -461,10 +461,10 @@ class MainWP_Child_Misc {
 	 *
 	 * Initiate the file upload action.
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 * @uses MainWP_Child_Misc::uploader_upload_file() Upload file from the MainWP Dashboard.
-	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Child_Misc::uploader_upload_file() Upload file from the MainWP Dashboard.
 	 */
 	public function uploader_action() {
 		$file_url    = isset( $_POST['url'] ) ? base64_decode( wp_unslash( $_POST['url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
@@ -589,12 +589,13 @@ class MainWP_Child_Misc {
 	 *
 	 * Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 * @uses MainWP_Utility::execute_snippet() Execute code snippet.
-	 * @uses MainWP_Child_Misc::snippet_save_snippet() Save code snippet.
-	 * @uses MainWP_Child_Misc::snippet_delete_snippet() Delete code snippet.
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Utility::execute_snippet() Execute code snippet.
+	 * @uses \MainWP\Child\MainWP_Child_Misc::snippet_save_snippet() Save code snippet.
+	 * @uses \MainWP\Child\MainWP_Child_Misc::snippet_delete_snippet() Delete code snippet.
 	 * @uses get_option() Retrieves an option value based on an option name.
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
+	 * @uses \MainWP\Child\MainWP_Utility::execute_snippet()
 	 */
 	public function code_snippet() {
 
@@ -640,14 +641,14 @@ class MainWP_Child_Misc {
 	 * @param string $slug Snippet slug.
 	 * @param string $type Type of snippet.
 	 * @param string $code Snippet code.
-	 * @param array  $snippets An array containing all snipptes.
-	 *
-	 * @uses MainWP_Helper::update_option() Update option by name.
-	 * @uses MainWP_Child_Misc::snippet_update_wp_config() Update the child site wp-config.php file.
-	 *
-	 * @used-by MainWP_Child_Misc::code_snippet() Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
+	 * @param array  $snippets An array containing all snippets.
 	 *
 	 * @return array $return Status response.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by name.
+	 * @uses \MainWP\Child\MainWP_Child_Misc::snippet_update_wp_config() Update the child site wp-config.php file.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_Misc::code_snippet() Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
 	 */
 	private function snippet_save_snippet( $slug, $type, $code, $snippets ) {
 		$return = array();
@@ -673,14 +674,14 @@ class MainWP_Child_Misc {
 	 *
 	 * @param string $slug Snippet slug.
 	 * @param string $type Type of snippet.
-	 * @param array  $snippets An array containing all snipptes.
-	 *
-	 * @uses MainWP_Helper::update_option() Update option by name.
-	 * @uses MainWP_Child_Misc::snippet_update_wp_config() Update the child site wp-config.php file.
-	 *
-	 * @used-by MainWP_Child_Misc::code_snippet() Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
+	 * @param array  $snippets An array containing all snippets.
 	 *
 	 * @return array $return Status response.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by name.
+	 * @uses \MainWP\Child\MainWP_Child_Misc::snippet_update_wp_config() Update the child site wp-config.php file.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_Misc::code_snippet() Initiate Code Snippet actions run_snippet, save_snippet and delete_snippet.
 	 */
 	private function snippet_delete_snippet( $slug, $type, $snippets ) {
 		$return = array();

@@ -104,51 +104,50 @@ class MainWP_Child_Timecapsule {
 	/**
 	 * Fire off certain WP Time Capsule plugin actions.
 	 *
-	 * @uses MainWP_Child_Timecapsule::set_showhide()
-	 * @uses MainWP_Child_Timecapsule::get_root_files()
-	 * @uses MainWP_Child_Timecapsule::get_tables()
-	 * @uses MainWP_Child_Timecapsule::exclude_file_list()
-	 * @uses MainWP_Child_Timecapsule::exclude_table_list()
-	 * @uses MainWP_Child_Timecapsule::include_table_list()
-	 * @uses MainWP_Child_Timecapsule::include_table_structure_only()
-	 * @uses MainWP_Child_Timecapsule::include_file_list()
-	 * @uses MainWP_Child_Timecapsule::get_files_by_key()
-	 * @uses MainWP_Child_Timecapsule::process_wptc_login()
-	 * @uses MainWP_Child_Timecapsule::get_installed_plugins()
-	 * @uses MainWP_Child_Timecapsule::get_installed_themes()
-	 * @uses MainWP_Child_Timecapsule::is_staging_need_request()
-	 * @uses MainWP_Child_Timecapsule::get_staging_details_wptc()
-	 * @uses MainWP_Child_Timecapsule::start_fresh_staging_wptc()
-	 * @uses MainWP_Child_Timecapsule::get_staging_url_wptc()
-	 * @uses MainWP_Child_Timecapsule::stop_staging_wptc()
-	 * @uses MainWP_Child_Timecapsule::continue_staging_wptc()
-	 * @uses MainWP_Child_Timecapsule::delete_staging_wptc()
-	 * @uses MainWP_Child_Timecapsule::copy_staging_wptc()
-	 * @uses MainWP_Child_Timecapsule::get_staging_current_status_key()
-	 * @uses MainWP_Child_Timecapsule::wptc_sync_purchase()
-	 * @uses MainWP_Child_Timecapsule::init_restore()
-	 * @uses MainWP_Child_Timecapsule::save_settings_wptc()
-	 * @uses MainWP_Child_Timecapsule::analyze_inc_exc()
-	 * @uses MainWP_Child_Timecapsule::get_enabled_plugins()
-	 * @uses MainWP_Child_Timecapsule::get_enabled_themes()
-	 * @uses MainWP_Child_Timecapsule::get_system_info()
-	 * @uses MainWP_Child_Timecapsule::update_vulns_settings()
-	 * @uses MainWP_Child_Timecapsule::start_fresh_backup_tc_callback_wptc()
-	 * @uses MainWP_Child_Timecapsule::save_manual_backup_name_wptc()
-	 * @uses MainWP_Child_Timecapsule::progress_wptc()
-	 * @uses MainWP_Child_Timecapsule::stop_fresh_backup_tc_callback_wptc()
-	 * @uses MainWP_Child_Timecapsule::wptc_cron_status()
-	 * @uses MainWP_Child_Timecapsule::get_this_backups_html()
-	 * @uses MainWP_Child_Timecapsule::start_restore_tc_callback_wptc()
-	 * @uses MainWP_Child_Timecapsule::get_sibling_files_callback_wptc()
-	 * @uses MainWP_Child_Timecapsule::get_logs_rows()
-	 * @uses MainWP_Child_Timecapsule::clear_wptc_logs()
-	 * @uses MainWP_Child_Timecapsule::send_issue_report()
-	 * @uses MainWP_Child_Timecapsule::lazy_load_activity_log_wptc()
-	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 *
 	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::set_showhide()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_root_files()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_tables()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::exclude_file_list()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::exclude_table_list()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::include_table_list()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::include_table_structure_only()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::include_file_list()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_files_by_key()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::process_wptc_login()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_installed_plugins()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_installed_themes()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::is_staging_need_request()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_staging_details_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::start_fresh_staging_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_staging_url_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::stop_staging_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::continue_staging_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::delete_staging_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::copy_staging_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_staging_current_status_key()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::wptc_sync_purchase()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::init_restore()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::save_settings_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::analyze_inc_exc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_enabled_plugins()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_enabled_themes()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_system_info()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::update_vulns_settings()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::start_fresh_backup_tc_callback_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::save_manual_backup_name_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::progress_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::stop_fresh_backup_tc_callback_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::wptc_cron_status()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_this_backups_html()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::start_restore_tc_callback_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_sibling_files_callback_wptc()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_logs_rows()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::clear_wptc_logs()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::send_issue_report()
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::lazy_load_activity_log_wptc()
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 */
 	public function action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		if ( ! $this->is_plugin_installed ) {
@@ -307,7 +306,7 @@ class MainWP_Child_Timecapsule {
 	/**
 	 * Check if required files exist.
 	 *
-	 * @uses MainWP_Helper::check_files_exists() Check if requested files exist.
+	 * @uses \MainWP\Child\MainWP_Helper::check_files_exists() Check if requested files exist.
 	 */
 	public function require_files() {
 		if ( ! class_exists( '\WPTC_Base_Factory' ) && defined( 'WPTC_PLUGIN_DIR' ) ) {
@@ -325,11 +324,11 @@ class MainWP_Child_Timecapsule {
 	/**
 	 * Hide or unhide the WP Time Capsule plugin.
 	 *
-	 * @uses MainWP_Helper::update_option() Update database option by option name.
-	 *
-	 * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
-	 *
 	 * @return array Action result.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update database option by option name.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -344,14 +343,12 @@ class MainWP_Child_Timecapsule {
 	 * @param array $information Array containing the sync information.
 	 * @param array $data        Array containing the WP Time Capsule plugin data to be synced.
 	 *
-	 * @uses MainWP_Child_Timecapsule::get_sync_data() Get synced WP Time Capsule data.
+	 * @return array $information Array containing the sync information.
 	 *
-	 * @uses MainWP_Helper::update_option() Update database option by option name.
-	 *
+	 * @uses \MainWP\Child\MainWP_Child_Timecapsule::get_sync_data() Get synced WP Time Capsule data.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update database option by option name.
 	 * @uses get_option() Retrieves an option value based on an option name.
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
-	 *
-	 * @return array $information Array containing the sync information.
 	 */
 	public function sync_others_data( $information, $data = array() ) {
 		if ( isset( $data['syncWPTimeCapsule'] ) && $data['syncWPTimeCapsule'] ) {
@@ -366,12 +363,12 @@ class MainWP_Child_Timecapsule {
 	/**
 	 * Get synced WP Time Capsule data.
 	 *
-	 * @uses MainWP_Helper::check_classes_exists() Check if requested class exists.
-	 * @uses MainWP_Helper::check_methods() Check if requested method exists.
+	 * @return array|bool Return an array containing the synced data, or false on failure.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if requested method exists.
 	 *
 	 * @used-by MainWP_Child_Timecapsule::sync_others_data() Sync the WP Time Capsule plugin settings.
-	 *
-	 * @return array|bool Return an array containing the synced data, or false on failure.
 	 */
 	public function get_sync_data() {
 		try {
@@ -995,11 +992,12 @@ class MainWP_Child_Timecapsule {
 	 *
 	 * @param string $ext Current extension.
 	 *
-	 * @uses MainWP_Helper::check_classes_exists() Check if the requested class exists.
-	 * @uses MainWP_Helper::check_methods() Check if the requested method exists.
-	 * @uses MainWP_Utility::update_lasttime_backup() Get the last backup timestamp.
+	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if the requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if the requested method exists.
+	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup() Get the last backup timestamp.
+	 * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
 	 *
-	 * @used-by MainWP_Child_Timecapsule::do_site_stats() Add support for the reporting system.
+	 * @used-by \MainWP\Child\MainWP_Child_Timecapsule::do_site_stats() Add support for the reporting system.
 	 */
 	public function do_reports_log( $ext = '' ) {
 
@@ -1802,6 +1800,8 @@ class MainWP_Child_Timecapsule {
 	 * @param object $value Object containing update information.
 	 *
 	 * @return object $value Object containing update information.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
