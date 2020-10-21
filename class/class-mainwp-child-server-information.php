@@ -49,8 +49,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	/**
 	 * Dismiss warnings.
 	 *
-	 * @uses MainWP_Helper::update_option() Update option by option name.
-	 * @uses MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by option name.
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
 	 * @uses get_option() Retrieves an option value based on an option name.
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
 	 *
@@ -77,8 +77,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	/**
 	 * Render warnings.
 	 *
-	 * @uses MainWP_Helper::update_option() Update option by option name.
-	 * @uses MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by option name.
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information_Base::get_warnings() Initiate check on important System Variables and compare them to required defaults.
 	 * @uses get_option() Retrieves an option value based on an option name.
 	 * @see https://developer.wordpress.org/reference/functions/get_option/
 	 *
@@ -570,8 +570,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @uses MainWP_Child_Server_Information::render_plugins_infor_rows() Render plugins information rows.
 	 *
 	 * @used-by MainWP_Child_Server_Information::render_page() Render the Server Information page.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	private static function render_server_infor() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
@@ -1022,9 +1022,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @uses wp_get_schedules() Retrieve supported event recurrence schedules.
 	 * @see https://developer.wordpress.org/reference/functions/wp_get_schedules/
 	 *
-	 * @uses MainWP_Helper::format_timestamp() Format timestamp as per the WordPress general settings.
+	 * @uses \MainWP\Child\MainWP_Helper::format_timestamp() Format timestamp as per the WordPress general settings.
 	 *
-	 * @used-by MainWP_Child_Server_Information::render_page() Render the Server Information page.
+	 * @used-by \MainWP\Child\MainWP_Child_Server_Information::render_page() Render the Server Information page.
 	 */
 	private static function render_cron() {
 		$cron_array = _get_cron_array();
@@ -1066,8 +1066,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @uses MainWP_Child_Server_Information::render_directory_row() Render the directroy check row.
 	 *
 	 * @used-by MainWP_Child_Server_Information::render_system_infor_rows() Render system information rows.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	protected static function render_mainwp_directory() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
@@ -1095,8 +1095,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_Server_Information::render_mainwp_directory() Render the MainWP directory check.
 	 *
-     * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
-     */
+	 * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
+	 */
 	protected static function render_directory_row( $name, $directory, $check, $result, $passed ) {
 		?>
 		<tr class="mwp-not-generate-row">
@@ -1235,8 +1235,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @see https://developer.wordpress.org/reference/functions/wp_kses_post/
 	 *
 	 * @used-by MainWP_Child_Server_Information::render_error_page() Render the Error log page.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	public static function render_error_log() {
 		$log_errors = ini_get( 'log_errors' );
@@ -1361,8 +1361,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 	/**
 	 * Render the connection details page content.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
 	 */
 	public static function render_connection_details() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();

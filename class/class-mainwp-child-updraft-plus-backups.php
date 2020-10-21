@@ -132,29 +132,29 @@ class MainWP_Child_Updraft_Plus_Backups {
     /**
      * MainWP UpdraftPlus Extension actions.
      *
-     * @uses MainWP_Child_Updraft_Plus_Backups::is_plugin_installed()
-     * @uses MainWP_Child_Updraft_Plus_Backups::required_files()
-     * @uses MainWP_Child_Updraft_Plus_Backups::set_showhide()
-     * @uses MainWP_Child_Updraft_Plus_Backups::save_settings()
-     * @uses MainWP_Child_Updraft_Plus_Backups::addons_connect()
-     * @uses MainWP_Child_Updraft_Plus_Backups::backup_now()
-     * @uses MainWP_Child_Updraft_Plus_Backups::activejobs_list()
-     * @uses MainWP_Child_Updraft_Plus_Backups::diskspaceused()
-     * @uses MainWP_Child_Updraft_Plus_Backups::activejobs_list()
-     * @uses MainWP_Child_Updraft_Plus_Backups::last_backup_html()
-     * @uses MainWP_Child_Updraft_Plus_Backups::get_updraft_data()
-     * @uses MainWP_Child_Updraft_Plus_Backups::next_scheduled_backups()
-     * @uses MainWP_Child_Updraft_Plus_Backups::force_scheduled_resumption()
-     * @uses MainWP_Child_Updraft_Plus_Backups::fetch_updraft_log()
-     * @uses MainWP_Child_Updraft_Plus_Backups::activejobs_delete()
-     * @uses MainWP_Child_Updraft_Plus_Backups::historystatus()
-     * @uses MainWP_Child_Updraft_Plus_Backups::deleteset()
-     * @uses MainWP_Child_Updraft_Plus_Backups::updraft_download_backup()
-     * @uses MainWP_Child_Updraft_Plus_Backups::restore_alldownloaded()
-     * @uses MainWP_Child_Updraft_Plus_Backups::extradb_testconnection()
-     * @uses MainWP_Child_Updraft_Plus_Backups::delete_old_dirs_go()
-     * @uses MainWP_Child_Updraft_Plus_Backups::do_vault_connect()
-     * @uses MainWP_Child_Updraft_Plus_Backups::vault_disconnect()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::is_plugin_installed()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::required_files()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::set_showhide()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::save_settings()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::addons_connect()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::backup_now()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::activejobs_list()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::diskspaceused()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::activejobs_list()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::last_backup_html()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::get_updraft_data()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::next_scheduled_backups()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::force_scheduled_resumption()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::fetch_updraft_log()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::activejobs_delete()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::historystatus()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::deleteset()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::updraft_download_backup()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::restore_alldownloaded()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::extradb_testconnection()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::delete_old_dirs_go()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::do_vault_connect()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::vault_disconnect()
      * @uses \MainWP\Child\MainWP_Helper::write()
      * @uses UpdraftPlus()
      * @uses \Exception()
@@ -372,7 +372,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * UpdraftPlus Vault connection html.
      *
      * @return string $ret Returns connected to UpdraftPlus Vault message html.
-     * @throws Exception Error message.
+     * @throws Exception|\Exception Error message.
      *
      * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
      * @uses \MainWP\Child\MainWP_Helper::MainWP_Helper::check_methods()
@@ -503,8 +503,8 @@ class MainWP_Child_Updraft_Plus_Backups {
      *
      * @throws Exception Error message.
      *
-     * @uses UpdraftPlus_Options::get_updraft_option()
-     * @uses UpdraftPlus_Options::update_updraft_option()
+     * @uses \UpdraftPlus_Options::get_updraft_option()
+     * @uses \UpdraftPlus_Options::update_updraft_option()
      * @uses \MainWP\Child\MainWP_Utility::close_connection()
      */
     public function vault_disconnect() {
@@ -1362,9 +1362,11 @@ class MainWP_Child_Updraft_Plus_Backups {
      * Get next scheduled backup.
      *
      * @return array $out Return Next scheduled backup data.
-     * @throws Exception Error message.
+     * @throws Exception|\Exception Error message.
      *
      * @uses UpdraftPlus_Options::get_updraft_option()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
      */
     private function next_scheduled_backups() {
 
@@ -1611,7 +1613,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      *
      * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
      * @uses \MainWP\Child\MainWP_Helper::check_methods()
-     * @uses MainWP_Child_Updraft_Plus_Backups::existing_backup_table()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::existing_backup_table()
      * @uses \UpdraftPlus_Backup_History::get_history()
      */
     public function build_historystatus() {
@@ -3116,12 +3118,12 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @uses $updraftplus::get_backupable_file_entities()
      * @uses $updraftplus::jobdata_getarray()
      * @uses $updraftplus::is_db_encrypted()
-     * @uses MainWP_Child_Updraft_Plus_Backups::::delete_button()
-     * @uses MainWP_Child_Updraft_Plus_Backups::date_label()
-     * @uses MainWP_Child_Updraft_Plus_Backups::download_db_button()
-     * @uses MainWP_Child_Updraft_Plus_Backups::download_buttons()
-     * @uses MainWP_Child_Updraft_Plus_Backups::restore_button()
-     * @uses MainWP_Child_Updraft_Plus_Backups::log_button()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::::delete_button()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::date_label()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::download_db_button()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::download_buttons()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::restore_button()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::log_button()
      * @uses \MainWP\Child\MainWP_Helper::check_methods()
      */
     private function existing_backup_table( $backup_history = false ) { // phpcs:ignore -- third party credit.
@@ -4365,7 +4367,7 @@ ENDHERE;
      *
      * @return mixed $value Return response.
      *
-     * @uses MainWP_Helper::is_updates_screen()
+     * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
      */
     public function remove_update_nag( $value ) {
         if ( isset( $_POST['mainwpsignature'] ) ) {

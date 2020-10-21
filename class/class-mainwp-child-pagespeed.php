@@ -217,10 +217,11 @@ class MainWP_Child_Pagespeed {
 	 *
 	 * Fire off certain Google Pagespeed Insights plugin actions.
 	 *
-	 * @uses MainWP_Child_Pagespeed::save_settings() Save the plugin settings.
-	 * @uses MainWP_Child_Pagespeed::set_showhide() Hide or unhide the Google Pagespeed Insights plugin.
-	 * @uses MainWP_Child_Pagespeed::get_sync_data() Get the Google Pagespeed Insights plugin data and store it in the sync request.
-	 * @uses MainWP_Child_Pagespeed::check_pages() Check pages page speed.
+	 * @uses \MainWP\Child\MainWP_Child_Pagespeed::save_settings() Save the plugin settings.
+	 * @uses \MainWP\Child\MainWP_Child_Pagespeed::set_showhide() Hide or unhide the Google Pagespeed Insights plugin.
+	 * @uses \MainWP\Child\MainWP_Child_Pagespeed::get_sync_data() Get the Google Pagespeed Insights plugin data and store it in the sync request.
+	 * @uses \MainWP\Child\MainWP_Child_Pagespeed::check_pages() Check pages page speed.
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
 		$information = array();
@@ -386,9 +387,11 @@ class MainWP_Child_Pagespeed {
 	 *
 	 * Hide or unhide the Google Pagespeed Insights plugin.
 	 *
-	 * @used-by MainWP_Child_Pagespeed::actions() Fire off certain Google Pagespeed Insights plugin actions.
-	 *
 	 * @return array Action result.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 *
+	 * @used-by MainWP_Child_Pagespeed::actions() Fire off certain Google Pagespeed Insights plugin actions.
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';

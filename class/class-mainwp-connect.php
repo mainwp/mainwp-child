@@ -62,6 +62,9 @@ class MainWP_Connect {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::is_ssl_enabled()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function register_site() {
 
@@ -156,6 +159,7 @@ class MainWP_Connect {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Callable::is_callable_function()
 	 * @uses \MainWP\Child\MainWP_Child_Callable::is_callable_function_no_auth()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 */
 	public function parse_init_auth( $auth = false ) {
 
@@ -353,6 +357,8 @@ class MainWP_Connect {
 	 * Handle redirects.
 	 *
 	 * @return bool Returns false if $_REQUEST['fdl'] is set.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_file()
 	 */
 	private function check_redirects() {
 		if ( isset( $_REQUEST['fdl'] ) ) {
@@ -458,9 +464,10 @@ class MainWP_Connect {
 	 *
 	 * Auto-login user to the child site when the Open WP Admin feature from the MainWP Dashboard is used.
 	 *
-	 * @uses MainWP_Connect::login() Handle the login process.
-	 *
 	 * @return bool Return false if $_POST['mainwpsignature'] is not set.
+	 *
+	 * @uses MainWP_Connect::login() Handle the login process.
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 */
 	public function check_login() {
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
@@ -613,6 +620,9 @@ class MainWP_Connect {
 	 * Method check_other_auth()
 	 *
 	 * Check other authentication methods.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::rand_string()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function check_other_auth() {
 		$auths = get_option( 'mainwp_child_auth' );

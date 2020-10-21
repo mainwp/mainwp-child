@@ -66,6 +66,8 @@ class MainWP_Child_WooCommerce_Status {
 
 	/**
 	 * MainWP Child Woocommerce actions: sync_data, report_data, update_wc_db.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
 		$information = array();

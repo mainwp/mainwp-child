@@ -52,6 +52,8 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 	/**
 	 * Save Settings & Visit Site as Browser actions.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
 
@@ -90,6 +92,8 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 * Visit site as a browser.
 	 *
 	 * @return array|string[] Response array or Error message string within an array.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
 	 */
 	protected function visit_site_as_browser() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! isset( $_POST['url'] ) || ! is_string( wp_unslash( $_POST['url'] ) ) || strlen( wp_unslash( $_POST['url'] ) ) < 2 ) {

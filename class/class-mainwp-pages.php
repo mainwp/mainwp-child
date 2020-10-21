@@ -90,13 +90,14 @@ class MainWP_Pages {
 
 
 	/**
-     * Show disconnected admin notice.
-     *
+	 * Show disconnected admin notice.
+	 *
 	 * Show the Warning notice in case the site is not connected to MainWP Dashboard.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
-     * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
-     * @uses \MainWP\Child\MainWP_Child_Server_Information::render_warnings()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
+	 * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information::render_warnings()
+     * @uses \MainWP\Child\MainWP_Helper::is_admin()
 	 */
 	public function admin_notice() {
 		// Admin Notice...
@@ -126,8 +127,8 @@ class MainWP_Pages {
 
 	/**
 	 * Add and remove Admin Menu Items dependant upon Branding settings.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
 	public function admin_menu() {
 		$branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
@@ -186,8 +187,8 @@ class MainWP_Pages {
 	 *
 	 * @param string $child_menu_title New MainWP Child Plugin title defined in branding settings.
 	 * @param string $child_page_title New MainWP Child Plugin page title defined in branding settings.
-     *
-     * @uses \MainWP\Child\MainWP_Clone_Page::get_class_name()
+	 *
+	 * @uses \MainWP\Child\MainWP_Clone_Page::get_class_name()
 	 */
 	private function init_pages( $child_menu_title, $child_page_title ) {
 
@@ -281,13 +282,13 @@ class MainWP_Pages {
 	 * Render MainWP Child Plugin pages.
 	 *
 	 * @param string $shownPage Page that has been shown.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
-     * @uses \MainWP\Child\MainWP_Child_Server_Information::render_page()
-     * @uses \MainWP\Child\MainWP_Child_Server_Information::render_connection_details()
-     * @uses \MainWP\Child\MainWP_Clone_Page::render()
-     * @uses \MainWP\Child\MainWP_Clone_Page::render_normal_restore()
-     * @uses \MainWP\Child\MainWP_Clone_Page::render_restore()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information::render_page()
+	 * @uses \MainWP\Child\MainWP_Child_Server_Information::render_connection_details()
+	 * @uses \MainWP\Child\MainWP_Clone_Page::render()
+	 * @uses \MainWP\Child\MainWP_Clone_Page::render_normal_restore()
+	 * @uses \MainWP\Child\MainWP_Clone_Page::render_restore()
 	 */
 	public function render_pages( $shownPage ) {
 		$shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
@@ -357,8 +358,8 @@ class MainWP_Pages {
 	 *
 	 * @param string $shownPage Page shown.
 	 * @param bool   $subpage Whether or not a subpage. Default: true.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
 	public static function render_header( $shownPage, $subpage = true ) {
 		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
@@ -560,6 +561,8 @@ class MainWP_Pages {
 
 	/**
 	 * Render connection settings sub page.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function render_settings() {
 		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-settings' ) ) {

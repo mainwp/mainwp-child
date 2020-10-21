@@ -64,6 +64,7 @@ class MainWP_Child_Comments {
 	 * MainWP Child Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::get_class_name()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function comment_action() {
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
@@ -96,6 +97,8 @@ class MainWP_Child_Comments {
 
 	/**
 	 * MainWP Child Bulk Comment actions: approve, unapprove, spam, unspam, trash, restore, delete.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function comment_bulk_action() {
 		$action                 = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
@@ -143,6 +146,8 @@ class MainWP_Child_Comments {
 
 	/**
 	 * Get all comments.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_comments() {
 
