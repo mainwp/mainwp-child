@@ -50,8 +50,8 @@ class MainWP_Clone_Page {
 
 	/**
 	 * Method print_scripts()
-     *
-     * @uses \MainWP\Child\MainWP_Helper::starts_with()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::starts_with()
 	 */
 	public static function print_scripts() {
 		wp_enqueue_script( 'jquery-ui-tooltip' );
@@ -80,9 +80,9 @@ class MainWP_Clone_Page {
 	 * Render Clone page.
 	 *
 	 * @uses \MainWP\Child\MainWP_Clone::get_class_name()
-     * @uses \MainWP\Child\MainWP_Helper::return_bytes()
-     * @uses \MainWP\Child\MainWP_Helper::human_filesize()
-     * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::return_bytes()
+	 * @uses \MainWP\Child\MainWP_Helper::human_filesize()
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
 	 */
 	public static function render() {
 		$uploadError = false;
@@ -151,9 +151,9 @@ class MainWP_Clone_Page {
 	 * @param string $uploadSize Size of upload.
 	 * @param bool   $error true|false.
 	 * @param string $uploadError Upload error message.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::rand_string()
-     * @uses \MainWP\Child\MainWP_Helper::get_nice_url()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::rand_string()
+	 * @uses \MainWP\Child\MainWP_Helper::get_nice_url()
 	 */
 	private static function render_form( $sitesToClone, $uploadFile, $uploadSize, $error, $uploadError ) {
 
@@ -232,9 +232,9 @@ class MainWP_Clone_Page {
 	 * Render normal restore page.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_title()
-     * @uses \MainWP\Child\MainWP_Helper::return_bytes()
-     * @uses \MainWP\Child\MainWP_Helper::human_filesize()
-     * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+	 * @uses \MainWP\Child\MainWP_Helper::return_bytes()
+	 * @uses \MainWP\Child\MainWP_Helper::human_filesize()
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
 	 */
 	public static function render_normal_restore() {
 		$uploadError = false;
@@ -337,9 +337,9 @@ class MainWP_Clone_Page {
 	/**
 	 * Render Clone from server
 	 * Allows the Media Manager to add files from the webservers filesystem. Note: All files are copied to the uploads directory.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
-     * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	private static function render_clone_from_server() {
 		$page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
@@ -514,8 +514,8 @@ class MainWP_Clone_Page {
 	 * Render javascript.
 	 *
 	 * @uses \MainWP\Child\MainWP_Clone::get_security_nonces()
-     * @uses \MainWP\Child\MainWP_Helper::return_bytes()
-     * @uses \MainWP\Child\MainWP_Helper::human_filesize()
+	 * @uses \MainWP\Child\MainWP_Helper::return_bytes()
+	 * @uses \MainWP\Child\MainWP_Helper::human_filesize()
 	 */
 	public static function render_java_script() {
 		$uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );

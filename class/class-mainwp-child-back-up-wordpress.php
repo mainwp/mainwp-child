@@ -120,8 +120,8 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @param object $value Object containing update information.
 	 *
 	 * @return object $value Object containing update information.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
@@ -216,9 +216,9 @@ class MainWP_Child_Back_Up_WordPress {
 
 	/**
 	 * Check schedule and get the ID.
-     *
+	 *
 	 * @return int Schedule ID.
-     *
+	 *
 	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 * @uses sanitize_text_field() Sanitizes a string from user input or from the database.
 	 * @see https://developer.wordpress.org/reference/functions/sanitize_text_field/
@@ -264,8 +264,8 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Get synced BackUpWordPress data.
 	 *
-     * @return array Return an array containing the synced data.
-     *
+	 * @return array Return an array containing the synced data.
+	 *
 	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if requested class exists.
 	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if requested method exists.
 	 *
@@ -324,7 +324,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if the requested class exists.
 	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if the requested method exists.
 	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup() Get the last backup timestamp
-     * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
+	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_Back_Up_WordPress::do_site_stats() Add support for the reporting system.
 	 */
@@ -369,8 +369,8 @@ class MainWP_Child_Back_Up_WordPress {
 
 	/**
 	 * Hide or unhide the BackUpWordPress plugin.
-     *
-     * @return array Action result.
+	 *
+	 * @return array Action result.
 	 *
 	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update database option by option name.
 	 *

@@ -434,7 +434,7 @@ class MainWP_Child_Wordfence {
 	 *
 	 * @return void
 	 * @throws \Exception
-     *
+	 *
 	 * @uses \MainWP\Child\MainWP_Child_Wordfence::start_scan()
 	 * @uses \MainWP\Child\MainWP_Child_Wordfence::kill_scan()
 	 * @uses \MainWP\Child\MainWP_Child_Wordfence::request_scan()
@@ -981,13 +981,12 @@ class MainWP_Child_Wordfence {
 	 * Method set_showhide()
 	 *
 	 * Hide or unhide the Wordfence plugin.
-     *
-     * @return array Action result.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 *
+	 * @return array Action result.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 *
 	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
-	 *
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
