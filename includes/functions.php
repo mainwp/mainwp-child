@@ -122,3 +122,39 @@ if ( ! function_exists( 'mainwp_child_helper' ) ) {
 		return MainWP\Child\MainWP_Helper::instance();
 	}
 }
+
+if ( ! function_exists( 'mainwp_child_backwpup_wp_list_table_dependency' ) ) {
+
+	/**
+	 * Method mainwp_child_backwpup_wp_list_table_dependency()
+	 *
+	 * Init  backwpupwp list table dependency functions.
+	 */
+	function mainwp_child_backwpup_wp_list_table_dependency() {
+		if ( ! function_exists( 'convert_to_screen' ) ) {
+			/**
+			 * Convert to screen.
+			 *
+			 * We need this because BackWPup_Page_Jobs extends WP_List_Table.
+			 *  which uses convert_to_screen.
+			 *
+			 * @param $hook_name Hook name.
+			 * @return MainWP_Fake_Wp_Screen
+			 */
+			function convert_to_screen( $hook_name ) {
+				return new MainWP\Child\MainWP_Fake_Wp_Screen();
+			}
+		}
+
+		if ( ! function_exists( 'add_screen_option' ) ) {
+			/**
+			 * Adds the WP Fake Screen option.
+			 *
+			 * @param mixed $option Options.
+			 * @param array $args Arguments.
+			 */
+			function add_screen_option( $option, $args = array() ) {
+			}
+		}
+	}
+}

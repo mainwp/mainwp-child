@@ -324,16 +324,16 @@ class MainWP_Child_Posts {
 			}
 			if ( isset( $_POST['dtsstart'] ) && '' !== $_POST['dtsstart'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date > %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . '%' );
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date > %s", $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) );
 				} else {
-					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified > %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) . '%' );
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified > %s", $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstart'] ) ) ) );
 				}
 			}
 			if ( isset( $_POST['dtsstop'] ) && '' !== $_POST['dtsstop'] ) {
 				if ( $where_post_date ) {
-					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date < %s ", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . '%' );
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_date < %s ", $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) );
 				} else {
-					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified < %s", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) . '%' );
+					$this->posts_where_suffix .= $wpdb->prepare( " AND $wpdb->posts.post_modified < %s", $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['dtsstop'] ) ) ) );
 				}
 			}
 

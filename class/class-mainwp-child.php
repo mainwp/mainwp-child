@@ -347,7 +347,7 @@ class MainWP_Child {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Branding::branding_init()
 	 * @uses \MainWP\Child\MainWP_Client_Report::creport_init()
-	 * @uses \MainWP\Child\MainWP_Client_Report::ithemes_init()
+	 * @uses \MainWP\Child\MainWP_Child_IThemes_Security::ithemes_init()
 	 * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::updraftplus_init()
 	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::init()
 	 * @uses \MainWP\Child\MainWP_Child_WP_Rocket::init()
@@ -363,7 +363,7 @@ class MainWP_Child {
 	private function parse_init_extensions() {
 		MainWP_Child_Branding::instance()->branding_init();
 		MainWP_Client_Report::instance()->creport_init();
-		MainWP_Client_Report::instance()->ithemes_init();
+		MainWP_Child_IThemes_Security::instance()->ithemes_init();
 		MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
 		MainWP_Child_Back_Up_WordPress::instance()->init();
 		MainWP_Child_WP_Rocket::instance()->init();

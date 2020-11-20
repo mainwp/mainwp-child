@@ -1244,32 +1244,7 @@ class MainWP_Child_Back_WP_Up {
      * @uses MainWP_Child_Back_WP_Up::MainWP_Fake_Wp_Screen()
      */
     protected function wp_list_table_dependency() {
-        if ( ! function_exists( 'convert_to_screen' ) ) {
-            /**
-             * Convert to screen.
-             *
-             * We need this because BackWPup_Page_Jobs extends WP_List_Table.
-             *  which uses convert_to_screen.
-             *
-             * @param $hook_name Hook name.
-             * @return MainWP_Fake_Wp_Screen
-             */
-            function convert_to_screen( $hook_name ) {
-                return new MainWP_Fake_Wp_Screen();
-            }
-        }
-
-        if ( ! function_exists( 'add_screen_option' ) ) {
-            /**
-             * Adds the WP Fake Screen option.
-             *
-             * @param mixed $option Options.
-             * @param array $args Arguments.
-             */
-            function add_screen_option( $option, $args = array() ) {
-            }
-        }
-
+        mainwp_child_backwpup_wp_list_table_dependency();
         if ( ! class_exists( '\WP_List_Table' ) ) {
             require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
         }

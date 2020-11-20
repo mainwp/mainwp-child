@@ -229,7 +229,7 @@ class MainWP_Child_Stats {
 		$information['securityStats']  = MainWP_Child_Misc::get_instance()->get_security_stats( true );
 
 		// Directory listings!
-		$information['directories'] = $this->scan_dir( ABSPATH, 3 );
+		$information['directories'] = '';// not used.
 		$information['categories']  = $this->stats_get_categories();
 
 		$totalsize = $this->stats_get_total_size();
