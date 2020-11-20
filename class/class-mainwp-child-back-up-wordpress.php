@@ -120,6 +120,8 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @param object $value Object containing update information.
 	 *
 	 * @return object $value Object containing update information.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {
@@ -139,26 +141,22 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Fire off certain BackUpWordPress plugin actions.
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-	 *
-	 * @uses MainWP_Child_Back_Up_WordPress::is_activated() Check if the plugin is activated.
-	 *
-	 * @uses MainWP_Child_Back_Up_WordPress::set_showhide() Hide or unhide the BackUpWordPress plugin.
-	 * @uses MainWP_Child_Back_Up_WordPress::delete_schedule() Delete backup schedule.
-	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_request_cancel_backup() Cancel backup process.
-	 * @uses MainWP_Child_Back_Up_WordPress::get_backup_status() Get the bacukp process status.
-	 * @uses MainWP_Child_Back_Up_WordPress::reload_backups() Reload backups.
-	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_request_delete_backup() Delete backup.
-	 * @uses MainWP_Child_Back_Up_WordPress::run_schedule() Run schedules.
-	 * @uses MainWP_Child_Back_Up_WordPress::save_all_schedules() Save all schedules.
-	 * @uses MainWP_Child_Back_Up_WordPress::update_schedule() Update schedule.
-	 * @uses MainWP_Child_Back_Up_WordPress::get_excluded() Get excluded files.
-	 * @uses MainWP_Child_Back_Up_WordPress::directory_browse() Browse directory.
-	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_add_exclude_rule() Add exclusion rule.
-	 * @uses MainWP_Child_Back_Up_WordPress::hmbkp_remove_exclude_rule() Remove exclusion rule.
-	 * @uses MainWP_Child_Back_Up_WordPress::general_exclude_add_rule() General exclusion rules.
-	 *
-	 * @return void
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::is_activated() Check if the plugin is activated.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::set_showhide() Hide or unhide the BackUpWordPress plugin.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::delete_schedule() Delete backup schedule.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::hmbkp_request_cancel_backup() Cancel backup process.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::get_backup_status() Get the bacukp process status.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::reload_backups() Reload backups.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::hmbkp_request_delete_backup() Delete backup.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::run_schedule() Run schedules.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::save_all_schedules() Save all schedules.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::update_schedule() Update schedule.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::get_excluded() Get excluded files.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::directory_browse() Browse directory.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::hmbkp_add_exclude_rule() Add exclusion rule.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::hmbkp_remove_exclude_rule() Remove exclusion rule.
+	 * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::general_exclude_add_rule() General exclusion rules.
 	 */
 	public function action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$information = array();
@@ -219,12 +217,11 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Check schedule and get the ID.
 	 *
-	 * @uses MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
+	 * @return int Schedule ID.
 	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 * @uses sanitize_text_field() Sanitizes a string from user input or from the database.
 	 * @see https://developer.wordpress.org/reference/functions/sanitize_text_field/
-	 *
-	 * @return int Schedule ID.
 	 */
 	public function check_schedule() {
 		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? sanitize_text_field( wp_unslash( $_POST['schedule_id'] ) ) : '';
@@ -267,12 +264,12 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Get synced BackUpWordPress data.
 	 *
-	 * @uses MainWP_Helper::check_classes_exists() Check if requested class exists.
-	 * @uses MainWP_Helper::check_methods() Check if requested method exists.
-	 *
-	 * @used-by MainWP_Child_Back_Up_WordPress::sync_others_data() Sync the BackUpWordPress plugin settings.
-	 *
 	 * @return array Return an array containing the synced data.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if requested method exists.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_Back_Up_WordPress::sync_others_data() Sync the BackUpWordPress plugin settings.
 	 */
 	private function get_sync_data() {
 		MainWP_Helper::check_classes_exists( '\HM\BackUpWordPress\Schedules' );
@@ -324,11 +321,12 @@ class MainWP_Child_Back_Up_WordPress {
 	 *
 	 * @param string $ext Current extension.
 	 *
-	 * @uses MainWP_Helper::check_classes_exists() Check if the requested class exists.
-	 * @uses MainWP_Helper::check_methods() Check if the requested method exists.
-	 * @uses MainWP_Utility::update_lasttime_backup() Get the last backup timestamp.
+	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if the requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if the requested method exists.
+	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup() Get the last backup timestamp
+	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
 	 *
-	 * @used-by MainWP_Child_Back_Up_WordPress::do_site_stats() Add support for the reporting system.
+	 * @used-by \MainWP\Child\MainWP_Child_Back_Up_WordPress::do_site_stats() Add support for the reporting system.
 	 */
 	public function do_reports_log( $ext = '' ) {
 		if ( 'backupwordpress' !== $ext ) {
@@ -372,11 +370,11 @@ class MainWP_Child_Back_Up_WordPress {
 	/**
 	 * Hide or unhide the BackUpWordPress plugin.
 	 *
-	 * @uses MainWP_Helper::update_option() Update database option by option name.
-	 *
-	 * @used-by MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
-	 *
 	 * @return array Action result.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update database option by option name.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';

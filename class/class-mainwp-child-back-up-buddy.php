@@ -172,7 +172,7 @@ class MainWP_Child_Back_Up_Buddy {
      *
      * @param string $ext Extension to create log for.
      *
-     * @uses MainWP_Child_Back_Up_Buddy::is_backupbuddy_installed()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::is_backupbuddy_installed()
      * @uses \MainWP\Child\MainWP_Helper::check_methods()
      * @uses \MainWP\Child\MainWP_Helper::check_properties()
      * @uses \MainWP\Child\MainWP_Helper::check_methods()
@@ -297,55 +297,54 @@ class MainWP_Child_Back_Up_Buddy {
     /**
      * MainWP Child BackupBuddy actions.
      *
-     * @uses MainWP_Child_Back_Up_Buddy::is_backupbuddy_installed()
      * @uses \MainWP\Child\MainWP_Helper::write()
-     * @uses \MainWP\Child\MainWP_Helper::write()
-     * @uses MainWP_Child_Back_Up_Buddy::set_showhide()
-     * @uses MainWP_Child_Back_Up_Buddy::save_settings()
-     * @uses MainWP_Child_Back_Up_Buddy::reset_defaults()
-     * @uses MainWP_Child_Back_Up_Buddy::get_notifications()
-     * @uses MainWP_Child_Back_Up_Buddy::schedules_list()
-     * @uses MainWP_Child_Back_Up_Buddy::run_scheduled_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::save_scheduled_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::delete_scheduled_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::save_profile()
-     * @uses MainWP_Child_Back_Up_Buddy::delete_profile()
-     * @uses MainWP_Child_Back_Up_Buddy::delete_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::backup_list()
-     * @uses MainWP_Child_Back_Up_Buddy::save_note()
-     * @uses MainWP_Child_Back_Up_Buddy::get_hash()
-     * @uses MainWP_Child_Back_Up_Buddy::zip_viewer()
-     * @uses MainWP_Child_Back_Up_Buddy::exclude_tree()
-     * @uses MainWP_Child_Back_Up_Buddy::restore_file_view()
-     * @uses MainWP_Child_Back_Up_Buddy::restore_file_restore()
-     * @uses MainWP_Child_Back_Up_Buddy::view_log()
-     * @uses MainWP_Child_Back_Up_Buddy::view_detail()
-     * @uses MainWP_Child_Back_Up_Buddy::reset_integrity()
-     * @uses MainWP_Child_Back_Up_Buddy::download_archive()
-     * @uses MainWP_Child_Back_Up_Buddy::create_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::start_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::backup_status()
-     * @uses MainWP_Child_Back_Up_Buddy::stop_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::remote_save()
-     * @uses MainWP_Child_Back_Up_Buddy::remote_delete()
-     * @uses MainWP_Child_Back_Up_Buddy::remote_send()
-     * @uses MainWP_Child_Back_Up_Buddy::remote_list()
-     * @uses MainWP_Child_Back_Up_Buddy::get_main_log()
-     * @uses MainWP_Child_Back_Up_Buddy::settings_other()
-     * @uses MainWP_Child_Back_Up_Buddy::malware_scan()
-     * @uses MainWP_Child_Back_Up_Buddy::live_setup()
-     * @uses MainWP_Child_Back_Up_Buddy::live_save_settings()
-     * @uses MainWP_Child_Back_Up_Buddy::live_action_disconnect()
-     * @uses MainWP_Child_Back_Up_Buddy::live_action()
-     * @uses MainWP_Child_Back_Up_Buddy::download_troubleshooting()
-     * @uses MainWP_Child_Back_Up_Buddy::get_live_backups()
-     * @uses MainWP_Child_Back_Up_Buddy::copy_file_to_local()
-     * @uses MainWP_Child_Back_Up_Buddy::delete_file_backup()
-     * @uses MainWP_Child_Back_Up_Buddy::get_live_stats()
-     * @uses MainWP_Child_Back_Up_Buddy::load_products_license()
-     * @uses MainWP_Child_Back_Up_Buddy::save_license_settings()
-     * @uses MainWP_Child_Back_Up_Buddy::activate_package()
-     * @uses MainWP_Child_Back_Up_Buddy::deactivate_package()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::is_backupbuddy_installed()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::set_showhide()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::save_settings()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::reset_defaults()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::get_notifications()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::schedules_list()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::run_scheduled_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::save_scheduled_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::delete_scheduled_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::save_profile()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::delete_profile()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::delete_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::backup_list()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::save_note()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::get_hash()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::zip_viewer()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::exclude_tree()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::restore_file_view()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::restore_file_restore()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::view_log()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::view_detail()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::reset_integrity()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::download_archive()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::create_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::start_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::backup_status()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::stop_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::remote_save()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::remote_delete()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::remote_send()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::remote_list()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::get_main_log()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::settings_other()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::malware_scan()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::live_setup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::live_save_settings()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::live_action_disconnect()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::live_action()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::download_troubleshooting()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::get_live_backups()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::copy_file_to_local()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::delete_file_backup()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::get_live_stats()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::load_products_license()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::save_license_settings()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::activate_package()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::deactivate_package()
      */
     public function action() {
 		$information = array();
@@ -511,6 +510,8 @@ class MainWP_Child_Back_Up_Buddy {
      * Set show or hide BackupBuddy Plugin from Admin & plugins list.
      *
      * @return array $information Return results.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -1008,13 +1009,14 @@ class MainWP_Child_Back_Up_Buddy {
      * @return array|bool $out Return Updraft data array or FALSE on failure.
      * @throws Exception Error message.
      *
-     * @uses MainWP_Helper::check_classes_exists()
-     * @uses MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
      * @uses \pb_backupbuddy::plugin_path()
      * @uses \backupbuddy_core::get_plugins_root()
      * @uses \backupbuddy_core::get_themes_root()
      * @uses \backupbuddy_core::get_media_root()
-     * @uses MainWP_Child_Back_Up_Buddy::pb_additional_tables()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::pb_additional_tables()
+     * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
      */
     public function get_sync_data() {
 		try {
@@ -1347,7 +1349,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @param bool $display_size Display size. Default: false.
      *
      * @return string Additional table html.
-     * @throws Exception Error message.
+     * @throws Exception|\Exception Error message.
      *
      * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
      * @uses \MainWP\Child\MainWP_Helper::check_methods()
@@ -1555,6 +1557,7 @@ class MainWP_Child_Back_Up_Buddy {
      * @uses \pb_backupbuddy::$format::prettify()
      * @uses \pb_backupbuddy::$format::date()
      * @uses \pb_backupbuddy::$format::localize_time()
+     * @uses \MainWP\Child\MainWP_Utility::create_nonce_without_session()
      */
     public function get_backup_list( $type = 'default', $subsite_mode = false ) {
 		$backups           = array();

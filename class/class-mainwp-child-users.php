@@ -59,6 +59,8 @@ class MainWP_Child_Users {
 
 	/**
 	 * User actions: changeRole, update_password, edit, update_user.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function user_action() {
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
@@ -172,6 +174,8 @@ class MainWP_Child_Users {
 	 * @param bool $return Whether or not to return. Default: false.
 	 *
 	 * @return array Return array of $allusers.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_users( $return = false ) {
 		$roles    = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
@@ -203,6 +207,8 @@ class MainWP_Child_Users {
 
 	/**
 	 * Search child site users.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function search_users() {
 
@@ -472,6 +478,9 @@ class MainWP_Child_Users {
 
 	/**
 	 * Set a new administrator password.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 */
 	public function new_admin_password() {
 		$new_password = isset( $_POST['new_password'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_password'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -508,6 +517,9 @@ class MainWP_Child_Users {
 
 	/**
 	 * Create a new user.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Helper::error()
 	 */
 	public function new_user() {
 		$new_user      = isset( $_POST['new_user'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_user'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..

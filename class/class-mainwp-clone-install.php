@@ -212,6 +212,8 @@ class MainWP_Clone_Install {
 	 * Read configuration file.
 	 *
 	 * @throws \Exception Error message on failure.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function read_configuration_file() {
 		$configContents = $this->get_config_contents();
@@ -236,6 +238,8 @@ class MainWP_Clone_Install {
 	 * Clean file structure after installation.
 	 *
 	 * @uses \MainWP\Child\MainWP_Clone::is_archive()
+	 * @uses \MainWP\Child\MainWP_Helper::is_dir_empty()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 */
 	public function clean() {
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
@@ -500,6 +504,8 @@ class MainWP_Clone_Install {
 	 * Extract with unzip_file.
 	 *
 	 * @return bool true|false.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
 	 */
 	public function extract_wp_zip_backup() {
 		MainWP_Helper::get_wp_filesystem();

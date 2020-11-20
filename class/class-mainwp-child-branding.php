@@ -162,6 +162,8 @@ class MainWP_Child_Branding {
 	 * Method child_deactivation()
 	 *
 	 * Empty custom branding options upon MainWP Child plugin deactivation.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function child_deactivation() {
 		$brandingOptions_empty = array(
@@ -199,6 +201,7 @@ class MainWP_Child_Branding {
 	 * Fire off certain branding actions.
 	 *
 	 * @uses MainWP_Child_Branding::update_branding() Update custom branding settings.
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
 		$information = array();
@@ -216,9 +219,11 @@ class MainWP_Child_Branding {
 	 *
 	 * Update custom branding settings.
 	 *
-	 * @used-by MainWP_Child_Branding::action() Fire off certain Google Pagespeed Insights plugin actions.
-	 *
 	 * @return array Action result.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Child_Branding::action() Fire off certain Google Pagespeed Insights plugin actions.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function update_branding() {
 		$information = array();
@@ -383,9 +388,10 @@ class MainWP_Child_Branding {
 	 *
 	 * @param string $img_url Contains image URL.
 	 *
+	 * @return array An array containing the image information such as path and URL.
 	 * @throws \Exception Error message.
 	 *
-	 * @return array An array containing the image information such as path and URL.
+	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
 	 */
 	public function branding_upload_image( $img_url ) {
 		include_once ABSPATH . 'wp-admin/includes/file.php';
@@ -1218,7 +1224,7 @@ class MainWP_Child_Branding {
 	 * @param string $name Contains the option name.
 	 * @param string $val  Contains the option value.
 	 *
-	 * @uses MainWP_Helper::update_option() Update database option.
+	 * @uses \MainWP\Child\MainWP_Helper::update_option() Update database option.
 	 */
 	public function save_branding_options( $name, $val ) {
 		$this->child_branding_options[ $name ] = $val;
@@ -1308,6 +1314,8 @@ class MainWP_Child_Branding {
 	 * @param object $value Object containing the updates info.
 	 *
 	 * @return object $value Updated object containing the updates info.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {

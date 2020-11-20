@@ -135,25 +135,26 @@ class MainWP_Child_Staging {
 	 * Fires of certain WP Staging plugin actions.
 	 *
 	 * @uses \WPStaging\WPStaging::getInstance()
-	 * @uses MainWP_Helper::update_option
-	 * @uses MainWP_Child_Staging::set_showhide()
-	 * @uses MainWP_Child_Staging::save_settings()
-	 * @uses MainWP_Child_Staging::get_overview()
-	 * @uses MainWP_Child_Staging::get_scan()
-	 * @uses MainWP_Child_Staging::ajax_check_free_space()
-	 * @uses MainWP_Child_Staging::ajax_check_clone_name()
-	 * @uses MainWP_Child_Staging::ajax_start_clone()
-	 * @uses MainWP_Child_Staging::ajax_clone_database()
-	 * @uses MainWP_Child_Staging::ajax_prepare_directories()
-	 * @uses MainWP_Child_Staging::ajax_copy_files()
-	 * @uses MainWP_Child_Staging::ajax_replace_data()
-	 * @uses MainWP_Child_Staging::ajax_finish()
-	 * @uses MainWP_Child_Staging::ajax_delete_confirmation()
-	 * @uses MainWP_Child_Staging::ajax_delete_clone()
-	 * @uses MainWP_Child_Staging::ajax_cancel_clone()
-	 * @uses MainWP_Child_Staging::ajax_update_process()
-	 * @uses MainWP_Child_Staging::ajax_cancel_update()
-	 * @uses MainWP_Child_Staging::MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::set_showhide()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::save_settings()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::get_overview()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::get_scan()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_check_free_space()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_check_clone_name()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_start_clone()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_clone_database()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_prepare_directories()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_copy_files()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_replace_data()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_finish()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_delete_confirmation()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_delete_clone()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_cancel_clone()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_update_process()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::ajax_cancel_update()
+	 * @uses \MainWP\Child\MainWP_Child_Staging::MainWP_Helper::write()
 	 */
     public function action() { // phpcs:ignore -- ignore complex method notice.
 		if ( ! $this->is_plugin_installed ) {
@@ -238,6 +239,8 @@ class MainWP_Child_Staging {
 	 * Sets whether or not to hide the WP Staging Plugin.
 	 *
 	 * @return array $information Action result.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -628,10 +631,10 @@ class MainWP_Child_Staging {
 	/**
 	 * Remove WPStaging update Nag message.
 	 *
-	 * @uses MainWP_Helper::is_updates_screen()
-	 *
 	 * @param array $value WPStaging slug.
 	 * @return mixed $value Response array.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
 		if ( isset( $_POST['mainwpsignature'] ) ) {

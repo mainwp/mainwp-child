@@ -117,6 +117,8 @@ if ( ! function_exists( 'mainwp_child_helper' ) ) {
 	 * Get MainWP Child helper instance.
 	 *
 	 * @return mixed MainWP\Child\MainWP_Helper
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::instance()
 	 */
 	function mainwp_child_helper() {
 		return MainWP\Child\MainWP_Helper::instance();

@@ -293,9 +293,9 @@ class MainWP_Child_Wordfence {
 	 * Add Wordfence data to the reports reports database table.
 	 *
 	 * @param string $ext Current extension.
-     *
-     * @uses \MainWP\Child\MainWP_Child_DB::to_query()
-     * @uses \MainWP\Child\MainWP_Child_DB::fetch_array()
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_DB::to_query()
+	 * @uses \MainWP\Child\MainWP_Child_DB::fetch_array()
 	 */
 	public function do_reports_log( $ext = '' ) {
 		if ( 'wordfence' !== $ext ) {
@@ -432,77 +432,79 @@ class MainWP_Child_Wordfence {
 	 *
 	 * Fire off certain Wordfence plugin actions.
 	 *
-	 * @uses MainWP_Child_Wordfence::start_scan()
-	 * @uses MainWP_Child_Wordfence::kill_scan()
-	 * @uses MainWP_Child_Wordfence::request_scan()
-	 * @uses MainWP_Child_Wordfence::kill_ajax_scan()
-	 * @uses MainWP_Child_Wordfence::set_showhide()
-	 * @uses MainWP_Child_Wordfence::get_log()
-	 * @uses MainWP_Child_Wordfence::update_log()
-	 * @uses MainWP_Child_Wordfence::load_issues()
-	 * @uses MainWP_Child_Wordfence::ajax_load_issues_callback()
-	 * @uses MainWP_Child_Wordfence::load_waf_data()
-	 * @uses MainWP_Child_Wordfence::update_all_issues()
-	 * @uses MainWP_Child_Wordfence::update_issues_status()
-	 * @uses MainWP_Child_Wordfence::update_issue_status()
-	 * @uses MainWP_Child_Wordfence::delete_issues()
-	 * @uses MainWP_Child_Wordfence::bulk_operation()
-	 * @uses MainWP_Child_Wordfence::bulk_ajax_operation()
-	 * @uses MainWP_Child_Wordfence::delete_file()
-	 * @uses MainWP_Child_Wordfence::restore_file()
-	 * @uses MainWP_Child_Wordfence::save_setting()
-	 * @uses MainWP_Child_Wordfence::save_settings_new()
-	 * @uses MainWP_Child_Wordfence::save_options()
-	 * @uses MainWP_Child_Wordfence::recent_traffic()
-	 * @uses MainWP_Child_Wordfence::ticker()
-	 * @uses MainWP_Child_Wordfence::reverse_lookup()
-	 * @uses MainWP_Child_Wordfence::ajax_block_ip_callback()
-	 * @uses MainWP_Child_Wordfence::whois()
-	 * @uses MainWP_Child_Wordfence::ajax_create_block_callback()
-	 * @uses MainWP_Child_Wordfence::ajax_get_blocks_callback()
-	 * @uses MainWP_Child_Wordfence::ajax_delete_blocks_callback()
-	 * @uses MainWP_Child_Wordfence::ajax_make_permanent_blocks_callback()
-	 * @uses MainWP_Child_Wordfence::unblock_ip()
-	 * @uses MainWP_Child_Wordfence::load_static_panel()
-	 * @uses MainWP_Child_Wordfence::downgrade_license()
-	 * @uses MainWP_Child_Wordfence::import_settings()
-	 * @uses MainWP_Child_Wordfence::export_settings()
-	 * @uses MainWP_Child_Wordfence::save_cache_config()
-	 * @uses MainWP_Child_Wordfence::check_falcon_htaccess()
-	 * @uses MainWP_Child_Wordfence::check_htaccess()
-	 * @uses MainWP_Child_Wordfence::save_cache_options()
-	 * @uses MainWP_Child_Wordfence::clear_page_cache()
-	 * @uses MainWP_Child_Wordfence::get_cache_stats()
-	 * @uses MainWP_Child_Wordfence::add_cache_exclusion()
-	 * @uses MainWP_Child_Wordfence::load_cache_exclusions()
-	 * @uses MainWP_Child_Wordfence::remove_cache_exclusion()
-	 * @uses MainWP_Child_Wordfence::get_diagnostics()
-	 * @uses MainWP_Child_Wordfence::update_waf_rules()
-	 * @uses MainWP_Child_Wordfence::update_waf_rules_new()
-	 * @uses MainWP_Child_Wordfence::save_debugging_config()
-	 * @uses MainWP_Child_Wordfence::load_live_traffic()
-	 * @uses MainWP_Child_Wordfence::whitelist_waf_param_key()
-	 * @uses MainWP_Child_Wordfence::hide_file_htaccess()
-	 * @uses MainWP_Child_Wordfence::fix_fpd()
-	 * @uses MainWP_Child_Wordfence::disable_directory_listing()
-	 * @uses MainWP_Child_Wordfence::delete_database_option()
-	 * @uses MainWP_Child_Wordfence::mis_configured_how_get_ips_choice()
-	 * @uses MainWP_Child_Wordfence::delete_admin_user()
-	 * @uses MainWP_Child_Wordfence::revoke_admin_user()
-	 * @uses MainWP_Child_Wordfence::clear_all_blocked()
-	 * @uses MainWP_Child_Wordfence::permanently_block_all_ips()
-	 * @uses MainWP_Child_Wordfence::unlock_out_ip()
-	 * @uses MainWP_Child_Wordfence::unblock_range()
-	 * @uses MainWP_Child_Wordfence::block_ip_ua_range()
-	 * @uses MainWP_Child_Wordfence::load_block_ranges()
-	 * @uses MainWP_Child_Wordfence::save_waf_config()
-	 * @uses MainWP_Child_Wordfence::whitelist_bulk_delete()
-	 * @uses MainWP_Child_Wordfence::whitelist_bulk_enable()
-	 * @uses MainWP_Child_Wordfence::whitelist_bulk_disable()
-	 * @uses MainWP_Child_Wordfence::update_config()
-	 * @uses MainWP_Child_Wordfence::save_country_blocking()
-	 *
 	 * @return void
+	 * @throws \Exception
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::start_scan()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::kill_scan()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::request_scan()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::kill_ajax_scan()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::set_showhide()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::get_log()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::update_log()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::load_issues()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::ajax_load_issues_callback()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::load_waf_data()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::update_all_issues()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::update_issues_status()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::update_issue_status()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::delete_issues()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::bulk_operation()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::bulk_ajax_operation()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::delete_file()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::restore_file()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_setting()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_settings_new()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_options()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::recent_traffic()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::ticker()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::reverse_lookup()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::ajax_block_ip_callback()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::whois()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::ajax_create_block_callback()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::ajax_get_blocks_callback()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::ajax_delete_blocks_callback()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::ajax_make_permanent_blocks_callback()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::unblock_ip()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::load_static_panel()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::downgrade_license()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::import_settings()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::export_settings()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_cache_config()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::check_falcon_htaccess()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::check_htaccess()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_cache_options()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::clear_page_cache()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::get_cache_stats()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::add_cache_exclusion()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::load_cache_exclusions()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::remove_cache_exclusion()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::get_diagnostics()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::update_waf_rules()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::update_waf_rules_new()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_debugging_config()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::load_live_traffic()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::whitelist_waf_param_key()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::hide_file_htaccess()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::fix_fpd()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::disable_directory_listing()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::delete_database_option()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::mis_configured_how_get_ips_choice()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::delete_admin_user()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::revoke_admin_user()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::clear_all_blocked()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::permanently_block_all_ips()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::unlock_out_ip()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::unblock_range()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::block_ip_ua_range()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::load_block_ranges()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_waf_config()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::whitelist_bulk_delete()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::whitelist_bulk_enable()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::whitelist_bulk_disable()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::update_config()
+	 * @uses \MainWP\Child\MainWP_Child_Wordfence::save_country_blocking()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$information = array();
@@ -980,9 +982,11 @@ class MainWP_Child_Wordfence {
 	 *
 	 * Hide or unhide the Wordfence plugin.
 	 *
-	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
-	 *
 	 * @return array Action result.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 *
+	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
 	 */
 	public function set_showhide() {
 		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
@@ -2899,10 +2903,11 @@ SQL
 	 * Method check_falcon_htaccess()
 	 *
 	 * Check the .htaccess for the Wordfence falcon settings.
+     *
+     * @return array Action result.
 	 *
 	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
-	 *
-	 * @return array Action result.
+     * @uses \MainWP\Child\MainWP_Utility::create_nonce_without_session()
 	 */
 	public static function check_falcon_htaccess() {
 		if ( \wfUtils::isNginx() ) {
@@ -2960,9 +2965,10 @@ SQL
 	 *
 	 * Download the .htaccess file.
 	 *
-	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+	 * @return void Action result.
 	 *
-	 * @return array Action result.
+	 * @used-by \MainWP\Child\MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
+     * @uses \MainWP\Child\MainWP_Utility::verify_nonce_without_session()
 	 */
 	public static function download_htaccess() {
 		if ( ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {

@@ -103,9 +103,9 @@ class MainWP_Child_Back_WP_Up {
      *
      * Run any time the class is called.
      *
-     * @uses MainWP_Helper::check_files_exists()
-     * @uses MainWP_Helper::check_classes_exists()
-     * @uses MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
      * @uses \BackWPup::get_instance()
      * @uses \Exception
      */
@@ -151,8 +151,8 @@ class MainWP_Child_Back_WP_Up {
     /**
      * MainWP BackWPup fatal error handler.
      *
-     * @uses MainWP_Child_Back_WP_Up::$information
-     * @uses MainWP_Helper::write()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::$information
+     * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public static function mainwp_backwpup_handle_fatal_error() {
 
@@ -171,7 +171,7 @@ class MainWP_Child_Back_WP_Up {
     /**
      * MainWP BackWPup Extension actions.
      *
-     * @uses \MainWP\Child\MainMainWP_Child_Back_WP_Up::update_settings()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::update_settings()
      * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::insert_or_update_jobs()
      * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::insert_or_update_jobs_global()
      * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::get_child_tables()
@@ -190,6 +190,7 @@ class MainWP_Child_Back_WP_Up {
      * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::show_hide()
      * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::$information
      * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::mainwp_backwpup_handle_fatal_error()
+     * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public function action() {
         if ( ! $this->is_backwpup_installed ) {
@@ -321,10 +322,11 @@ class MainWP_Child_Back_WP_Up {
      *
      * @param string $ext Extension to create log for.
      *
-     * @uses MainWP_Child_Back_WP_Up::is_backwpup_installed()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::is_backwpup_installed()
      * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
      * @uses \MainWP\Child\MainWP_Helper::check_methods()
      * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
+     * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
      * @uses \BackWPup_File::get_absolute_path()
      * @uses \BackWPup_Job::read_logheader()
      * @uses \Exception
@@ -427,6 +429,8 @@ class MainWP_Child_Back_WP_Up {
      * @param array $data Other data to sync to $information array.
      *
      * @return array $information Returned information array with both sets of data.
+     *
+     * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
      */
     public function sync_others_data($information, $data = array() ) {
         if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
@@ -445,8 +449,8 @@ class MainWP_Child_Back_WP_Up {
     /**
      * Get backup destinations list.
      *
-     * @uses MainWP_Helper::check_classes_exists()
-     * @uses MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::check_methods()
      * @uses \BackWPup_Option::get_job_ids()
      * @uses \BackWPup::get_registered_destinations()
      * @uses \BackWPup_Option::get()
@@ -531,9 +535,9 @@ class MainWP_Child_Back_WP_Up {
     /**
      * Show/Hide BackWPup Plugin.
      *
-     * @uses MainWP_Helper::instance()::update_option()
-     *
      * @return int[]|string Return 1 on HIDE, Empty string on SHOW.
+     *
+     * @uses MainWP_Helper::instance()::update_option()
      */
     protected function show_hide() {
 

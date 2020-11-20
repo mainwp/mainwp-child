@@ -84,7 +84,8 @@ class MainWP_Security {
 	 *
 	 * Prevent directory listing by creating the index.php file.
 	 *
-	 * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
+	 * @used-by \MainWP\Child\MainWP_Security::fix_all() Fire off functions to fix detected security issues.
+	 * @uses    \MainWP\Child\MainWP_Helper::get_wp_filesystem()
 	 */
 	public static function prevent_listing() {
 		self::init_listing_directories();
@@ -314,9 +315,11 @@ class MainWP_Security {
 	 *
 	 * @param bool $force Force action if true, don't force if false.
 	 *
-	 * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-	 *
 	 * @return bool true Return true to skip the process if child site is on WP Engine host.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Security::fix_all() Fire off functions to fix detected security issues.
+	 * @uses \MainWP\Child\MainWP_Helper::is_wp_engine()
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
 	 */
 	public static function remove_readme( $force = false ) {
 		// to prevent remove readme.html file on WP Engine hosting.
@@ -350,9 +353,10 @@ class MainWP_Security {
 	 *
 	 * Check if the directory listing is prevented.
 	 *
-	 * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-	 *
 	 * @return bool true|false If directory listing prevented, return true, if not, return false.
+	 *
+	 * @used-by \MainWP\Child\MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
+	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
 	 */
 	public static function prevent_listing_ok() {
 
@@ -595,7 +599,9 @@ class MainWP_Security {
 	 *
 	 * @param string $option Security check option.
 	 *
-	 * @return array Security settings.
+	 * @return bool Security settings.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public static function get_security_option( $option ) {
 		$security = get_option( 'mainwp_security' );

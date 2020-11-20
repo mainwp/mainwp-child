@@ -86,9 +86,9 @@ class MainWP_Child_Stats {
 	 *
 	 * @param array $information Child Site Stats.
 	 *
-	 * @uses MainWP_Child::$version
-	 * @uses MainWP_Helper::is_wp_engine()
-	 * @uses MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child::$version
+	 * @uses \MainWP\Child\MainWP_Helper::is_wp_engine()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_site_stats_no_auth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
@@ -102,6 +102,7 @@ class MainWP_Child_Stats {
 		 * @global string $wp_version The installed version of WordPress.
 		 *
 		 * @uses \MainWP\Child\MainWP_Child::$version
+		 * @uses \MainWP\Child\MainWP_Helper::write()
 		 */
 		global $wp_version;
 
@@ -298,8 +299,8 @@ class MainWP_Child_Stats {
 	 *
 	 * @param array $information Child Site Stats array.
 	 *
-	 * @uses MainWP_Helper::update_option()
-	 * @uses MainWP_Helper::log_debug()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Helper::log_debug()
 	 */
 	private function stats_others_data( &$information ) {
 
@@ -439,6 +440,9 @@ class MainWP_Child_Stats {
 		 * @global string $wp_version The installed version of WordPress.
 		 *
 		 * @uses \MainWP\Child\MainWP_Child::$version
+		 * @uses \MainWP\Child\MainWP_Helper::is_wp_engine()
+		 * @uses \MainWP\Child\MainWP_Helper::is_ssl_enabled()
+		 * @uses \MainWP\Child\MainWP_Helper::update_option()
 		 */
 		global $wp_version;
 
@@ -524,11 +528,11 @@ class MainWP_Child_Stats {
 	/**
 	 * Check for premium updates.
 	 *
-	 * @uses MainWP_Helper::update_option()
-	 *
 	 * @param array $information Child Site stats.
 	 * @param array $premiumPlugins Active premium plugins.
 	 * @param array $premiumThemes Active premium themes.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	private function check_premium_updates( &$information, &$premiumPlugins, &$premiumThemes ) {
 
@@ -736,7 +740,7 @@ class MainWP_Child_Stats {
 	/**
 	 * Update options: mainwp_child_clone_sites, mainwp_child_siteid, mainwp_child_pluginDir.
 	 *
-	 * @uses MainWP_Helper::update_option()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function update_external_settings() {
 		if ( isset( $_POST['cloneSites'] ) ) {
@@ -766,6 +770,10 @@ class MainWP_Child_Stats {
 	 *
 	 * @param string $directory WordPress content directory.
 	 * @return float|int Return $size or 0.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::funct_exists()
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::ctype_digit()
 	 */
 	public function get_total_file_size( $directory = WP_CONTENT_DIR ) {
 		try {
@@ -902,8 +910,8 @@ class MainWP_Child_Stats {
 	/**
 	 * Get all themes.
 	 *
-	 * @uses MainWP_Child_Stats::get_all_themes_int()
-	 * @uses MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_all_themes_int()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_themes() {
 		$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
@@ -956,8 +964,8 @@ class MainWP_Child_Stats {
 	/**
 	 * Get all Plugins.
 	 *
-	 * @uses MainWP_Child_Stats::get_all_plugins_int()
-	 * @uses MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Child_Stats::get_all_plugins_int()
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_plugins() {
 		$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';

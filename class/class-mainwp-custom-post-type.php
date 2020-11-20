@@ -136,7 +136,10 @@ class MainWP_Custom_Post_Type {
 	 * @param string $post_content Post content to search.
 	 * @param string $upload_dir Upload directory.
 	 * @param bool   $check_image Check if file exists. Default: false.
+	 *
 	 * @return string|string[] Error message or post content string.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
 	 */
 	private function search_images( $post_content, $upload_dir, $check_image = false ) {
 		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $post_content, $matches, PREG_SET_ORDER );
@@ -378,6 +381,8 @@ class MainWP_Custom_Post_Type {
 	 * @param bool   $is_woocomerce Whether or not the post is a woocommerce product. true|false.
 	 *
 	 * @return array|bool|string[] Response array, true|false, Error message.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_image()\
 	 */
 	private function insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce ) {
 		foreach ( $data['postmeta'] as $key ) {
@@ -438,6 +443,8 @@ class MainWP_Custom_Post_Type {
 	 * @param bool  $check_image_existed Determins if the images already exists.
 	 *
 	 * @return array|bool Error message array or TRUE on success.
+	 *
+	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
 	 */
 	private function upload_postmeta_image( $product_images, &$meta_value, $check_image_existed ) {
 		$product_image_gallery = array();

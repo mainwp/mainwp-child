@@ -135,6 +135,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 	/**
 	 * Actions: save_sucuri_stream, save_backup_stream, get_stream, set_showhide.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
 
@@ -305,6 +307,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @param string $value Value to remove.
 	 *
 	 * @return string Response.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
 
