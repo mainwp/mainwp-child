@@ -140,7 +140,8 @@ if ( ! function_exists( 'mainwp_child_backwpup_wp_list_table_dependency' ) ) {
 			 * We need this because BackWPup_Page_Jobs extends WP_List_Table.
 			 *  which uses convert_to_screen.
 			 *
-			 * @param $hook_name Hook name.
+			 * @param string $hook_name Hook name.
+			 *
 			 * @return MainWP_Fake_Wp_Screen
 			 */
 			function convert_to_screen( $hook_name ) {

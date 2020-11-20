@@ -561,7 +561,7 @@ class MainWP_Child_WP_Rocket {
 	 * Preload cache.
 	 *
 	 * @return array Action result.
-	 * @throws \Exception
+	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
 	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
@@ -590,7 +590,7 @@ class MainWP_Child_WP_Rocket {
 	 * Generate critical CSS.
 	 *
 	 * @return array Action result.
-	 * @throws \Exception
+	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
 	 * @uses    \MainWP\Child\MainWP_Helper::check_properties()
@@ -660,7 +660,7 @@ class MainWP_Child_WP_Rocket {
 	 * Optimize database tables.
 	 *
 	 * @return array Action result
-	 * @throws \Exception
+	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
 	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
@@ -700,7 +700,7 @@ class MainWP_Child_WP_Rocket {
 	 * Get the optimization information.
 	 *
 	 * @return array Action result and optimization information.
-	 * @throws \Exception
+	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
 	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()

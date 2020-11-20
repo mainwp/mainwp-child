@@ -304,7 +304,7 @@ class Tar_Archiver {
 	 * @param bool   $append           Append to backup file name.
 	 *
 	 * @return bool Return false on failure, true on success.
-	 * @throws \Exception
+	 * @throws \Exception Error message.
 	 *
 	 * @uses Tar_Archiver::create_pid_file() Create PID file.
 	 * @uses Tar_Archiver::prepare_append() Prepare to append.
@@ -782,7 +782,7 @@ class Tar_Archiver {
 	 * @param string $entryName Entry name.
 	 *
 	 * @return bool Return false on failure, true on success.
-	 * @throws \Exception
+	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\Tar_Archiver::create_full_backup() Create full backup.
 	 * @uses    \MainWP\Child\Tar_Archiver::add_data() Add data to the backup archive file.

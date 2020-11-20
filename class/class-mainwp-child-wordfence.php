@@ -433,7 +433,7 @@ class MainWP_Child_Wordfence {
 	 * Fire off certain Wordfence plugin actions.
 	 *
 	 * @return void
-	 * @throws \Exception
+	 * @throws \Exception Error message.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Wordfence::start_scan()
 	 * @uses \MainWP\Child\MainWP_Child_Wordfence::kill_scan()
