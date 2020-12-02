@@ -66,8 +66,9 @@ class MainWP_Child_Wordfence {
 		'alertEmails',
 		'alertOn_adminLogin',
 		'alertOn_firstAdminLoginOnly',
-		'alertOn_block',
-		'alertOn_critical',
+		'alertOn_scanIssues', // new.
+		'alertOn_wafDeactivated', // new.
+		'alertOn_severityLevel', // new.
 		'alertOn_loginLockout',
 		'alertOn_breachLogin',
 		'alertOn_lostPasswdForm',
@@ -75,7 +76,7 @@ class MainWP_Child_Wordfence {
 		'alertOn_firstNonAdminLoginOnly',
 		'alertOn_wordfenceDeactivated',
 		'alertOn_update',
-		'alertOn_warnings',
+		'alertOn_block',
 		'alert_maxHourly',
 		'autoUpdate',
 		'firewallEnabled',
@@ -128,7 +129,6 @@ class MainWP_Child_Wordfence {
 		'scansEnabled_themes',
 		'scheduledScansEnabled',
 		'securityLevel',
-		'blockFakeBots',
 		'neverBlockBG',
 		'maxGlobalRequests',
 		'maxGlobalRequests_action',
@@ -162,11 +162,9 @@ class MainWP_Child_Wordfence {
 		'actUpdateInterval',
 		'debugOn',
 		'deleteTablesOnDeact',
-		'disableCookies',
 		'liveActivityPauseEnabled',
 		'startScansRemotely',
 		'disableCodeExecutionUploads',
-		'advancedCommentScanning',
 		'scansEnabled_checkGSB',
 		'checkSpamIP',
 		'spamvertizeCheck',
@@ -184,6 +182,7 @@ class MainWP_Child_Wordfence {
 		'other_blockBadPOST',
 		'displayTopLevelBlocking',
 		'betaThreatDefenseFeed',
+		'avoid_php_input',
 		'scanType',
 		'schedMode',
 		'wafStatus',
@@ -201,6 +200,7 @@ class MainWP_Child_Wordfence {
 		'startScansRemotely',
 		'ssl_verify',
 		'betaThreatDefenseFeed',
+		'avoid_php_input',
 	);
 
 	/**
@@ -750,7 +750,6 @@ class MainWP_Child_Wordfence {
 			'howGetIPs_trusted_proxies',
 			'other_hideWPVersion',
 			'disableCodeExecutionUploads',
-			'disableCookies',
 			'liveActivityPauseEnabled',
 			'actUpdateInterval',
 			'other_bypassLitespeedNoabort',
@@ -763,14 +762,15 @@ class MainWP_Child_Wordfence {
 			'notification_scanStatus',
 			'alertOn_update',
 			'alertOn_wordfenceDeactivated',
-			'alertOn_critical',
-			'alertOn_warnings',
 			'alertOn_block',
 			'alertOn_loginLockout',
 			'alertOn_breachLogin',
 			'alertOn_lostPasswdForm',
 			'alertOn_adminLogin',
 			'alertOn_firstAdminLoginOnly',
+			'alertOn_scanIssues', // new.
+			'alertOn_wafDeactivated', // new.
+			'alertOn_severityLevel', // new.
 			'alertOn_nonAdminLogin',
 			'alertOn_firstNonAdminLoginOnly',
 			'wafAlertOnAttacks',
@@ -779,9 +779,6 @@ class MainWP_Child_Wordfence {
 			'email_summary_interval',
 			'email_summary_excluded_directories',
 			'email_summary_dashboard_widget_enabled',
-			'other_noAnonMemberComments',
-			'other_scanComments',
-			'advancedCommentScanning',
 		);
 
 		$traffic_opts = array(
@@ -798,10 +795,10 @@ class MainWP_Child_Wordfence {
 		$firewall_opts = array(
 			'disableWAFIPBlocking',
 			'whitelisted',
+			'whitelistedServices',
 			'bannedURLs',
 			'wafAlertWhitelist',
 			'firewallEnabled',
-			'blockFakeBots',
 			'neverBlockBG',
 			'maxGlobalRequests',
 			'maxGlobalRequests_action',
@@ -880,6 +877,7 @@ class MainWP_Child_Wordfence {
 			'startScansRemotely',
 			'ssl_verify',
 			'betaThreatDefenseFeed',
+			'avoid_php_input',
 		);
 
 		$blocking_opts = array(
@@ -1582,7 +1580,6 @@ SQL
 					$regenerateHtaccess = true;
 				}
 			}
-
 			// save the settings!
 			foreach ( $opts as $key => $val ) {
 				// check saving section fields.
@@ -1591,7 +1588,18 @@ SQL
 						continue;
 					}
 					if ( in_array( $key, self::$firewall_options_filter ) ) {
-						\wfWAF::getInstance()->getStorageEngine()->setConfig( $key, $val );
+						\wfWAF::getInstance()->getStorageEngine()->setConfig( $key, $val );											
+					} elseif ( 'whitelistedServices' == $key ) {
+						if (is_string($val)) { //Already JSON.
+							\wfConfig::set($key, $val);
+						} else {
+							\wfConfig::setJSON($key, (array) $val);
+						}
+						// set whitelistedServiceIPs.				
+						\wfWAF::getInstance()->getStorageEngine()->setConfig('whitelistedServiceIPs', @json_encode(\wfUtils::whitelistedServiceIPs()), 'synced');
+						if (method_exists(\wfWAF::getInstance()->getStorageEngine(), 'purgeIPBlocks')) {
+							\wfWAF::getInstance()->getStorageEngine()->purgeIPBlocks(\wfWAFStorageInterface::IP_BLOCKS_BLACKLIST);
+						}
 					} else {
 						\wfConfig::set( $key, $val ); // save it!
 					}

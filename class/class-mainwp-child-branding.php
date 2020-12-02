@@ -972,7 +972,29 @@ class MainWP_Child_Branding {
 					if ( ! isset( $new[ $selector ] ) ) {
 						$new[ $selector ] = array();
 					}
+
 					$rules = explode( ';', $val[ ++$i ] );
+
+					// to fix css like this: 'data:image/svg+xml;charset=US-ASCII'.
+					$tmp_rules = array();
+					$j         = 0;
+					while ( $j < count( $rules ) ) {
+						$rule = $rules[ $j ];
+						$pos  = strpos( $rule, 'data:image/svg+xml' );
+						if ( 0 < $pos ) {
+							$len  = strlen( $rule );
+							$len1 = strlen( 'data:image/svg+xml' );
+							$len2 = $pos + $len1;
+							if ( $len == $len2 ) {
+								$rule = $rule . ';' . $rules[ $j + 1 ];
+								$j++;
+							}
+						}
+						$j++;
+						$tmp_rules[] = $rule;
+					}
+					$rules = $tmp_rules;
+
 					foreach ( $rules as $rule ) {
 						$rule = trim( $rule, " \r\n\t" );
 						if ( ! empty( $rule ) ) {

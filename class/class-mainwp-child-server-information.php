@@ -1319,7 +1319,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		// go to the end of the file.
 		fseek( $fh, 0, SEEK_END );
 
-		$count_lines = count( $lines );
+		$count_lines = 0;
 		do {
 			// need to know whether we can actually go back.
 			$can_read = $block_size;
@@ -1341,10 +1341,11 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			fseek( $fh, - $can_read, SEEK_CUR );
 
 			// split lines by \n. Then reverse them, now the last line is most likely not a complete line which is why we do not directly add it, but append it to the data read the next time.
-			$split_data = array_reverse( explode( "\n", $data ) );
-			$new_lines  = array_slice( $split_data, 0, - 1 );
-			$lines      = array_merge( $lines, $new_lines );
-			$leftover   = $split_data[ count( $split_data ) - 1 ];
+			$split_data  = array_reverse( explode( "\n", $data ) );
+			$new_lines   = array_slice( $split_data, 0, - 1 );
+			$lines       = array_merge( $lines, $new_lines );
+			$leftover    = $split_data[ count( $split_data ) - 1 ];
+			$count_lines = count( $lines );
 		} while ( $count_lines < $line_count && 0 !== ftell( $fh ) );
 
 		if ( 0 === ftell( $fh ) ) {
