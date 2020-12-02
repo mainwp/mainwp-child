@@ -978,7 +978,8 @@ class MainWP_Child_Branding {
 					// to fix css like this: 'data:image/svg+xml;charset=US-ASCII'.
 					$tmp_rules = array();
 					$j         = 0;
-					while ( $j < count( $rules ) ) {
+					$cou       = count( $rules );
+					while ( $j < $cou ) {
 						$rule = $rules[ $j ];
 						$pos  = strpos( $rule, 'data:image/svg+xml' );
 						if ( 0 < $pos ) {
