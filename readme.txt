@@ -5,7 +5,7 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 3.6
-Tested up to: 5.5.1
+Tested up to: 5.5.3
 Requires PHP: 5.6
 Stable tag: 4.1.3
 License: GPLv3 or later
@@ -106,6 +106,15 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.1.3 - 12-3-20 =
+* Fixed: An issue with publishing custom post type content
+* Fixed: An issue with loading BackWPup backups
+* Fixed: An issue with searching Posts and Pages
+* Fixed: Multiple usability issues
+* Fixed: An issue with saving custom branding settings
+* Updated: Support for new Wordfence options
+
 
 = 4.1.2 - 10-8-20 =
 * Removed: unused system information check
