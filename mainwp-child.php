@@ -14,7 +14,7 @@
  * Text Domain: mainwp-child
  * Version: 4.1.3
  * Requires at least: 3.6
- * Requires PHP: 5.6
+ * Requires PHP: 7.0
  */
 
 require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress.
