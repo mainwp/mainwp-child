@@ -238,6 +238,9 @@ class MainWP_Clone {
 			}
 			exit;
 		} elseif ( 'deleteCloneBackup' === $cloneFunc ) {
+			if ( empty( $_POST['f'] ) || stristr( $_POST['f'], '..' ) ) {
+				return false;
+			}
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir = $dirs[0];
 			$result    = isset( $_POST['f'] ) ? glob( $backupdir . wp_unslash( $_POST['f'] ) ) : array();

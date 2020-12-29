@@ -253,7 +253,6 @@ class MainWP_Child {
 	 * @uses \MainWP\Child\MainWP_Connect::register_site()
 	 * @uses \MainWP\Child\MainWP_Connect::auth()
 	 * @uses \MainWP\Child\MainWP_Connect::parse_init_auth()
-	 * @uses \MainWP\Child\MainWP_Debug::process()
 	 * @uses \MainWP\Child\MainWP_Security::fix_all()
 	 * @uses \MainWP\Child\MainWP_Utility::fix_for_custom_themes()
 	 */
@@ -276,8 +275,6 @@ class MainWP_Child {
 		}
 
 		MainWP_Security::fix_all();
-
-		MainWP_Debug::process( $this );
 
 		// Register does not require auth, so we register here.
 		if ( isset( $_POST['function'] ) && 'register' === $_POST['function'] ) {

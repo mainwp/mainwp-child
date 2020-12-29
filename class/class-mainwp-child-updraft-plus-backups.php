@@ -751,10 +751,20 @@ class MainWP_Child_Updraft_Plus_Backups {
                             if ( ! is_array( $opts ) ) {
                                 $opts = array();
                             }
-                            if ( is_array( $opts ) && isset( $opts['settings'] ) ) {
+                            if ( is_array( $opts ) && isset( $opts['settings'] ) && is_array( $settings[ $key ] ) && isset( $settings[ $key ]['account_id'] ) ) {
                                 $settings_key                                    = key( $opts['settings'] );
                                 $opts['settings'][ $settings_key ]['account_id'] = $settings[ $key ]['account_id'];
                                 $opts['settings'][ $settings_key ]['key']        = $settings[ $key ]['key'];
+
+                                if ( isset( $settings[ $key ]['single_bucket_key_id'] ) && ! empty( $settings[ $key ]['single_bucket_key_id'] ) ){
+                                    $single_bucket_key_id = trim( $settings[ $key ]['single_bucket_key_id'] );
+                                    if ( '[empty]' == $single_bucket_key_id ) {
+                                        $opts['settings'][ $settings_key ]['single_bucket_key_id'] = '';    
+                                    } elseif ( ! empty( $single_bucket_key_id ) ) {
+                                        $opts['settings'][ $settings_key ]['single_bucket_key_id'] = $single_bucket_key_id;
+                                    }                                    
+                                }
+
                                 $bname = $this->replace_tokens( $settings[ $key ]['bucket_name'] );
                                 $bpath = $this->replace_tokens( $settings[ $key ]['backup_path'] );
                                 $bname = str_replace( '.', '-', $bname );

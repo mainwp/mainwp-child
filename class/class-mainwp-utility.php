@@ -316,6 +316,11 @@ class MainWP_Utility {
 	 * @uses \MainWP\Child\MainWP_Helper::ends_with()
 	 */
 	public function upload_file( $file, $offset = 0 ) {
+
+		if ( empty( $file ) || stristr( $file, '..' ) ) {
+			return false;
+		}
+
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 

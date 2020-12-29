@@ -597,27 +597,56 @@ class MainWP_Child_WP_Rocket {
 	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
 	 */
 	public function generate_critical_css() {
-		MainWP_Helper::check_classes_exists(
-			array(
-				'\WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber',
-				'\WP_Rocket\Optimization\CSS\Critical_CSS',
-				'\WP_Rocket\Optimization\CSS\Critical_CSS_Generation',
-				'\WP_Rocket\Admin\Options',
-				'\WP_Rocket\Admin\Options_Data',
-			)
-		);
+		$old_version = false;
+		if ( class_exists( '\WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber' ) ) { // to compatible with old version.
+			MainWP_Helper::check_classes_exists(
+				array(
+					'\WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber',
+					'\WP_Rocket\Optimization\CSS\Critical_CSS',
+					'\WP_Rocket\Optimization\CSS\Critical_CSS_Generation',
+					'\WP_Rocket\Admin\Options',
+					'\WP_Rocket\Admin\Options_Data',
+				)
+			);
+			$old_version = true;
+		} else {
+			MainWP_Helper::check_classes_exists(
+				array(
+					'\WP_Rocket\Engine\CriticalPath\CriticalCSS',
+					'\WP_Rocket\Engine\CriticalPath\CriticalCSSGeneration',
+					'\WP_Rocket\Engine\CriticalPath\ProcessorService',
+					'\WP_Rocket\Engine\CriticalPath\DataManager',
+					'\WP_Rocket\Engine\CriticalPath\APIClient',
+					'\WP_Rocket\Admin\Options',
+					'\WP_Rocket\Admin\Options_Data',
+				)
+			);
+			MainWP_Helper::check_functions( array( '\rocket_direct_filesystem', '\rocket_get_constant' ) );
+		}
 
-		$critical_css = new \WP_Rocket\Optimization\CSS\Critical_CSS( new \WP_Rocket\Optimization\CSS\Critical_CSS_Generation() );
-		$options_api  = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
-		$options      = new \WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
+		if ( $old_version ) {
+			$critical_css = new \WP_Rocket\Optimization\CSS\Critical_CSS( new \WP_Rocket\Optimization\CSS\Critical_CSS_Generation() );
+			$options_api  = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
+			$options      = new \WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
 
-		$sitemap_preload = new \WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber( $critical_css, $options );
+			$sitemap_preload = new \WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber( $critical_css, $options );
 
-		MainWP_Helper::check_properties( $sitemap_preload, 'critical_css' );
-		MainWP_Helper::check_methods( $sitemap_preload->critical_css, 'process_handler' );
+			MainWP_Helper::check_properties( $sitemap_preload, 'critical_css' );
+			MainWP_Helper::check_methods( $sitemap_preload->critical_css, 'process_handler' );
 
-		$sitemap_preload->critical_css->process_handler();
+			$sitemap_preload->critical_css->process_handler();
+		} else {
 
+			$filesystem        = \rocket_direct_filesystem();
+			$options           = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
+			$options_data      = new \WP_Rocket\Admin\Options_Data( $options->get( 'settings', array() ) );
+			$critical_css_path = \rocket_get_constant( 'WP_ROCKET_CRITICAL_CSS_PATH' ) . get_current_blog_id() . '/';
+
+			$cpcss_service = new \WP_Rocket\Engine\CriticalPath\ProcessorService( new \WP_Rocket\Engine\CriticalPath\DataManager( $critical_css_path, $filesystem ), new \WP_Rocket\Engine\CriticalPath\APIClient() );
+
+			$critical_css = new \WP_Rocket\Engine\CriticalPath\CriticalCSS( new \WP_Rocket\Engine\CriticalPath\CriticalCSSGeneration( $cpcss_service ), $options_data, $filesystem );
+			$critical_css->process_handler();
+		}
 		return array( 'result' => 'SUCCESS' );
 	}
 

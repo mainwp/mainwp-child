@@ -856,7 +856,7 @@ class MainWP_Child_Posts {
 		}
 
 		$this->create_set_categories( $new_post_id, $post_category, $post_to_only_existing_categories );
-		$this->create_featured_image( $new_post_id, $post_featured_image, $check_image_existed );
+		$this->create_featured_image( $new_post_id, $post_featured_image, true ); // always checks featured img.
 
 		// post plus extension process.
 		if ( $is_post_plus ) {

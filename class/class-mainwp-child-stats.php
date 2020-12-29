@@ -230,7 +230,7 @@ class MainWP_Child_Stats {
 		$information['securityStats']  = MainWP_Child_Misc::get_instance()->get_security_stats( true );
 
 		// Directory listings!
-		$information['directories'] = '';// not used.
+		$information['directories'] = isset( $_POST['scan_dir'] ) && ! empty( $_POST['scan_dir'] ) ? $this->scan_dir( ABSPATH, 3 ) : '';
 		$information['categories']  = $this->stats_get_categories();
 
 		$totalsize = $this->stats_get_total_size();

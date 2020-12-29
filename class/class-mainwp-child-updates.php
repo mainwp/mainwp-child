@@ -211,6 +211,13 @@ class MainWP_Child_Updates {
 			$plugins = $newPlugins;
 		}
 
+		try {
+			$plugins = $this->check_update_requires( $plugins );
+		} catch ( \Exception $e ) {
+			$message = $e->getMessage();
+			MainWP_Helper::error( $message );
+		}
+
 		if ( count( $plugins ) > 0 ) {
 			$this->to_update_plugins( $information, $plugins );
 		}
@@ -246,6 +253,61 @@ class MainWP_Child_Updates {
 		if ( null !== $this->filterFunction ) {
 			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
+	}
+
+	/**
+	 * Method check_update_requires()
+	 *
+	 * Check update requires.
+	 *
+	 * @param array $plugins     An array containing plugins to be updated.
+	 *
+	 * @return array An array of available plugins updates.
+	 */
+	private function check_update_requires( $plugins ) {
+		if ( function_exists( 'is_php_version_compatible' ) && is_array( $plugins ) && count( $plugins ) > 0 ) {
+			$tmpPlugins = array();
+			foreach ( $plugins as $plugin ) {
+
+				$readme_file = WP_PLUGIN_DIR . '/' . dirname( $plugin ) . '/readme.txt';
+				$plugin_data = array(
+					'requires'     => '',
+					'requires_php' => '',
+				);
+
+				if ( file_exists( $readme_file ) ) {
+					$plugin_data = get_file_data(
+						$readme_file,
+						array(
+							'requires'     => 'Requires at least',
+							'requires_php' => 'Requires PHP',
+						),
+						'plugin'
+					);
+				}
+
+				$plugin_data = array_merge( $plugin_data, get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ) );
+
+				// Check for headers in the plugin's PHP file, give precedence to the plugin headers.
+				$plugin_data['requires']     = ! empty( $plugin_data['RequiresWP'] ) ? $plugin_data['RequiresWP'] : $plugin_data['requires'];
+				$plugin_data['requires_php'] = ! empty( $plugin_data['RequiresPHP'] ) ? $plugin_data['RequiresPHP'] : $plugin_data['requires_php'];
+
+				$plugin_data['wp_compatible']  = is_wp_version_compatible( $plugin_data['requires'] );
+				$plugin_data['php_compatible'] = is_php_version_compatible( $plugin_data['requires_php'] );
+
+				if ( ! $plugin_data['wp_compatible'] || ! $plugin_data['php_compatible'] ) {
+					// Current WordPress or PHP versions do not meet minimum requirements for update.
+					if ( 1 == count( $plugins ) ) {
+						throw new \Exception( 'Current WordPress or PHP versions do not meet minimum requirements for update.' );
+					}
+					continue;
+				}
+
+				$tmpPlugins[] = $plugin;
+			}
+			return $tmpPlugins;
+		}
+		return $plugins;
 	}
 
 	/**
