@@ -431,7 +431,7 @@ class MainWP_Utility {
 				$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 			}
 
-			if ( self::check_image_file_name( $local_img_path ) ) {
+			if ( self::instance()->check_image_file_name( $local_img_path ) ) {
 				$moved = $wp_filesystem->move( $temporary_file, $local_img_path );
 				if ( $moved ) {
 					return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );
@@ -454,7 +454,7 @@ class MainWP_Utility {
 	 *
 	 * @return true|false valid name or not.
 	 */
-	public static function check_image_file_name( $filename ) {
+	public function check_image_file_name( $filename ) {
 		if ( validate_file( $filename ) ) {
 			return false;
 		}

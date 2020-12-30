@@ -408,7 +408,7 @@ class MainWP_Child_Branding {
 			$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
-			if ( MainWP_Utility::check_image_file_name( $local_img_path ) ) {
+			if ( MainWP_Utility::instance()->check_image_file_name( $local_img_path ) ) {
 				$moved = rename( $temporary_file, $local_img_path );
 				if ( $moved ) {
 					return array(
