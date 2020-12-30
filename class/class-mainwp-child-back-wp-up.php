@@ -104,8 +104,8 @@ class MainWP_Child_Back_WP_Up {
      * Run any time the class is called.
      *
      * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \BackWPup::get_instance()
      * @uses \Exception
      */
@@ -136,8 +136,8 @@ class MainWP_Child_Back_WP_Up {
             }
 
             if ( $this->is_backwpup_installed ) {
-                MainWP_Helper::check_classes_exists( '\BackWPup' );
-                MainWP_Helper::check_methods( 'get_instance' );
+                MainWP_Helper::instance()->check_classes_exists( '\BackWPup' );
+                MainWP_Helper::instance()->check_methods( 'get_instance' );
                 \BackWPup::get_instance();
 
                 add_action( 'admin_init', array( $this, 'init_download_backup' ) );
@@ -323,8 +323,8 @@ class MainWP_Child_Back_WP_Up {
      * @param string $ext Extension to create log for.
      *
      * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::is_backwpup_installed()
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
      * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
      * @uses \BackWPup_File::get_absolute_path()
@@ -341,9 +341,9 @@ class MainWP_Child_Back_WP_Up {
 
         try {
 
-            MainWP_Helper::check_classes_exists( array( '\BackWPup_File', '\BackWPup_Job' ) );
-            MainWP_Helper::check_methods( '\BackWPup_File', array( 'get_absolute_path' ) );
-            MainWP_Helper::check_methods( '\BackWPup_Job', array( 'read_logheader' ) );
+            MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup_File', '\BackWPup_Job' ) );
+            MainWP_Helper::instance()->check_methods( '\BackWPup_File', array( 'get_absolute_path' ) );
+            MainWP_Helper::instance()->check_methods( '\BackWPup_Job', array( 'read_logheader' ) );
             $lasttime_logged = MainWP_Utility::get_lasttime_backup( 'backwpup' );
             $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
             $log_folder = \BackWPup_File::get_absolute_path( $log_folder );
@@ -449,8 +449,8 @@ class MainWP_Child_Back_WP_Up {
     /**
      * Get backup destinations list.
      *
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \BackWPup_Option::get_job_ids()
      * @uses \BackWPup::get_registered_destinations()
      * @uses \BackWPup_Option::get()
@@ -461,9 +461,9 @@ class MainWP_Child_Back_WP_Up {
      * @throws Exception Error Message.
      */
     public function get_destinations_list() {
-        MainWP_Helper::check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
-        MainWP_Helper::check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
-        MainWP_Helper::check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
+        MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
+        MainWP_Helper::instance()->check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
+        MainWP_Helper::instance()->check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
 
         $jobdest      = array();
         $jobids       = \BackWPup_Option::get_job_ids();

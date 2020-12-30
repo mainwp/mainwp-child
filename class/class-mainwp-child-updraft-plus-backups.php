@@ -374,13 +374,13 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @return string $ret Returns connected to UpdraftPlus Vault message html.
      * @throws Exception|\Exception Error message.
      *
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::MainWP_Helper::instance()->check_methods()
      * @uses UpdraftPlus_Options::get_updraft_option()
      */
     private function connected_html() {
-        MainWP_Helper::check_classes_exists( '\UpdraftPlus_Options' );
-        MainWP_Helper::check_methods( '\UpdraftPlus_Options', 'get_updraft_option' );
+        MainWP_Helper::instance()->check_classes_exists( '\UpdraftPlus_Options' );
+        MainWP_Helper::instance()->check_methods( '\UpdraftPlus_Options', 'get_updraft_option' );
 
         $vault_settings = \UpdraftPlus_Options::get_updraft_option( 'updraft_updraftvault' );
         if ( ! is_array( $vault_settings ) || empty( $vault_settings['token'] ) || empty( $vault_settings['email'] ) ) {
@@ -1280,8 +1280,8 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @uses UpdraftPlus()
      * @uses UpdraftPlus_Options::get_updraft_option()
      * @uses UpdraftPlus_Filesystem_Functions::really_is_writable()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
-     * @uses \MainWP\Child\MainWP_Helper::MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::MainWP_Helper::instance()->check_methods()
      * @uses MainWP_Child_Updraft_Plus_Backups::build_historystatus()
      * @uses MainWP_Child_Updraft_Plus_Backups::last_backup_html()
      */
@@ -1311,10 +1311,10 @@ class MainWP_Child_Updraft_Plus_Backups {
             $next_scheduled_backup = 'Nothing currently scheduled';
         }
 
-        MainWP_Helper::check_classes_exists( array( '\UpdraftPlus_Options', '\UpdraftPlus_Filesystem_Functions' ) );
-        MainWP_Helper::check_methods( '\UpdraftPlus_Options', 'get_updraft_option' );
-        MainWP_Helper::check_methods( '\UpdraftPlus_Filesystem_Functions', 'really_is_writable' );
-        MainWP_Helper::check_methods( $updraftplus, array( 'backups_dir_location' ) );
+        MainWP_Helper::instance()->check_classes_exists( array( '\UpdraftPlus_Options', '\UpdraftPlus_Filesystem_Functions' ) );
+        MainWP_Helper::instance()->check_methods( '\UpdraftPlus_Options', 'get_updraft_option' );
+        MainWP_Helper::instance()->check_methods( '\UpdraftPlus_Filesystem_Functions', 'really_is_writable' );
+        MainWP_Helper::instance()->check_methods( $updraftplus, array( 'backups_dir_location' ) );
 
         $next_scheduled_backup_database = wp_next_scheduled( 'updraft_backup_database' );
         if ( \UpdraftPlus_Options::get_updraft_option( 'updraft_interval_database', \UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) === \UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) {
@@ -1375,8 +1375,8 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @throws Exception|\Exception Error message.
      *
      * @uses UpdraftPlus_Options::get_updraft_option()
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      */
     private function next_scheduled_backups() {
 
@@ -1439,8 +1439,8 @@ class MainWP_Child_Updraft_Plus_Backups {
 			</tbody>
 		</table>';
 
-        MainWP_Helper::check_classes_exists( array( '\UpdraftPlus_Filesystem_Functions' ) );
-        MainWP_Helper::check_methods( '\UpdraftPlus_Filesystem_Functions', 'really_is_writable' );
+        MainWP_Helper::instance()->check_classes_exists( array( '\UpdraftPlus_Filesystem_Functions' ) );
+        MainWP_Helper::instance()->check_methods( '\UpdraftPlus_Filesystem_Functions', 'really_is_writable' );
 
         $updraft_dir     = $updraftplus->backups_dir_location();
         $backup_disabled = ( \UpdraftPlus_Filesystem_Functions::really_is_writable( $updraft_dir ) ) ? 0 : 1;
@@ -1621,15 +1621,15 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @return array Return response array.
      * @throws Exception Error message.
      *
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::existing_backup_table()
      * @uses \UpdraftPlus_Backup_History::get_history()
      */
     public function build_historystatus() {
 
-        MainWP_Helper::check_classes_exists( '\UpdraftPlus_Backup_History' );
-        MainWP_Helper::check_methods( '\UpdraftPlus_Backup_History', 'get_history' );
+        MainWP_Helper::instance()->check_classes_exists( '\UpdraftPlus_Backup_History' );
+        MainWP_Helper::instance()->check_methods( '\UpdraftPlus_Backup_History', 'get_history' );
 
         $backup_history = \UpdraftPlus_Backup_History::get_history();
 
@@ -3134,7 +3134,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::download_buttons()
      * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::restore_button()
      * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::log_button()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      */
     private function existing_backup_table( $backup_history = false ) { // phpcs:ignore -- third party credit.
 
@@ -3149,7 +3149,7 @@ class MainWP_Child_Updraft_Plus_Backups {
             return '<div class="ui yellow message">' . __( 'You have not yet made any backups.', 'updraftplus' ) . '</div>';
         }
 
-        MainWP_Helper::check_methods( $updraftplus, array( 'backups_dir_location', 'get_backupable_file_entities' ) );
+        MainWP_Helper::instance()->check_methods( $updraftplus, array( 'backups_dir_location', 'get_backupable_file_entities' ) );
 
         $updraft_dir         = $updraftplus->backups_dir_location();
         $backupable_entities = $updraftplus->get_backupable_file_entities( true, true );

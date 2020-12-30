@@ -365,18 +365,18 @@ class MainWP_Child_Timecapsule {
 	 *
 	 * @return array|bool Return an array containing the synced data, or false on failure.
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if requested class exists.
-	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if requested method exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists() Check if requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods() Check if requested method exists.
 	 *
 	 * @used-by MainWP_Child_Timecapsule::sync_others_data() Sync the WP Time Capsule plugin settings.
 	 */
 	public function get_sync_data() {
 		try {
 			$this->require_files();
-			MainWP_Helper::check_classes_exists( array( '\Wptc_Options_Helper', '\WPTC_Base_Factory', '\WPTC_Factory' ) );
+			MainWP_Helper::instance()->check_classes_exists( array( '\Wptc_Options_Helper', '\WPTC_Base_Factory', '\WPTC_Factory' ) );
 
 			$config = \WPTC_Factory::get( 'config' );
-			MainWP_Helper::check_methods( $config, 'get_option' );
+			MainWP_Helper::instance()->check_methods( $config, 'get_option' );
 
 			$main_account_email_var = $config->get_option( 'main_account_email' );
 			$last_backup_time       = $config->get_option( 'last_backup_time' );
@@ -384,8 +384,8 @@ class MainWP_Child_Timecapsule {
 
 			$options_helper = new \Wptc_Options_Helper();
 
-			MainWP_Helper::check_methods( $options_helper, array( 'get_plan_interval_from_subs_info', 'get_is_user_logged_in' ) );
-			MainWP_Helper::check_methods( $wptc_settings, array( 'get_connected_cloud_info' ) );
+			MainWP_Helper::instance()->check_methods( $options_helper, array( 'get_plan_interval_from_subs_info', 'get_is_user_logged_in' ) );
+			MainWP_Helper::instance()->check_methods( $wptc_settings, array( 'get_connected_cloud_info' ) );
 
 			$all_backups   = $this->get_backups();
 			$backups_count = 0;
@@ -992,8 +992,8 @@ class MainWP_Child_Timecapsule {
 	 *
 	 * @param string $ext Current extension.
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if the requested class exists.
-	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if the requested method exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists() Check if the requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods() Check if the requested method exists.
 	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup() Get the last backup timestamp.
 	 * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
 	 *
@@ -1010,11 +1010,11 @@ class MainWP_Child_Timecapsule {
 		}
 
 		try {
-			MainWP_Helper::check_classes_exists( array( '\WPTC_Factory' ) );
+			MainWP_Helper::instance()->check_classes_exists( array( '\WPTC_Factory' ) );
 
 			$config = \WPTC_Factory::get( 'config' );
 
-			MainWP_Helper::check_methods( $config, 'get_option' );
+			MainWP_Helper::instance()->check_methods( $config, 'get_option' );
 
 			$backup_time = $config->get_option( 'last_backup_time' );
 

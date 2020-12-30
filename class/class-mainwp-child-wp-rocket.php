@@ -564,15 +564,15 @@ class MainWP_Child_WP_Rocket {
 	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
-	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_methods()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
 	 */
 	public function preload_cache() {
-		MainWP_Helper::check_functions( array( 'run_rocket_sitemap_preload', 'run_rocket_bot' ) );
-		MainWP_Helper::check_classes_exists( '\WP_Rocket\Preload\Full_Process' );
+		MainWP_Helper::instance()->check_functions( array( 'run_rocket_sitemap_preload', 'run_rocket_bot' ) );
+		MainWP_Helper::instance()->check_classes_exists( '\WP_Rocket\Preload\Full_Process' );
 
 		$preload_process = new \WP_Rocket\Preload\Full_Process();
-		MainWP_Helper::check_methods( $preload_process, array( 'is_process_running' ) );
+		MainWP_Helper::instance()->check_methods( $preload_process, array( 'is_process_running' ) );
 
 		if ( $preload_process->is_process_running() ) {
 			return array( 'result' => 'RUNNING' );
@@ -593,13 +593,13 @@ class MainWP_Child_WP_Rocket {
 	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 * @uses    \MainWP\Child\MainWP_Helper::check_properties()
-	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_properties()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
 	 */
 	public function generate_critical_css() {
 		$old_version = false;
 		if ( class_exists( '\WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber' ) ) { // to compatible with old version.
-			MainWP_Helper::check_classes_exists(
+			MainWP_Helper::instance()->check_classes_exists(
 				array(
 					'\WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber',
 					'\WP_Rocket\Optimization\CSS\Critical_CSS',
@@ -610,7 +610,7 @@ class MainWP_Child_WP_Rocket {
 			);
 			$old_version = true;
 		} else {
-			MainWP_Helper::check_classes_exists(
+			MainWP_Helper::instance()->check_classes_exists(
 				array(
 					'\WP_Rocket\Engine\CriticalPath\CriticalCSS',
 					'\WP_Rocket\Engine\CriticalPath\CriticalCSSGeneration',
@@ -621,7 +621,7 @@ class MainWP_Child_WP_Rocket {
 					'\WP_Rocket\Admin\Options_Data',
 				)
 			);
-			MainWP_Helper::check_functions( array( '\rocket_direct_filesystem', '\rocket_get_constant' ) );
+			MainWP_Helper::instance()->check_functions( array( '\rocket_direct_filesystem', '\rocket_get_constant' ) );
 		}
 
 		if ( $old_version ) {
@@ -631,8 +631,8 @@ class MainWP_Child_WP_Rocket {
 
 			$sitemap_preload = new \WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber( $critical_css, $options );
 
-			MainWP_Helper::check_properties( $sitemap_preload, 'critical_css' );
-			MainWP_Helper::check_methods( $sitemap_preload->critical_css, 'process_handler' );
+			MainWP_Helper::instance()->check_properties( $sitemap_preload, 'critical_css' );
+			MainWP_Helper::instance()->check_methods( $sitemap_preload->critical_css, 'process_handler' );
 
 			$sitemap_preload->critical_css->process_handler();
 		} else {
@@ -692,11 +692,11 @@ class MainWP_Child_WP_Rocket {
 	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
-	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_methods()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
 	 */
 	public function optimize_database() {
-		MainWP_Helper::check_classes_exists(
+		MainWP_Helper::instance()->check_classes_exists(
 			array(
 				'\WP_Rocket\Admin\Database\Optimization',
 				'\WP_Rocket\Admin\Database\Optimization_Process',
@@ -708,7 +708,7 @@ class MainWP_Child_WP_Rocket {
 		$process      = new \WP_Rocket\Admin\Database\Optimization_Process();
 		$optimization = new \WP_Rocket\Admin\Database\Optimization( $process );
 
-		MainWP_Helper::check_methods( $optimization, array( 'process_handler', 'get_options' ) );
+		MainWP_Helper::instance()->check_methods( $optimization, array( 'process_handler', 'get_options' ) );
 
 		$options_api = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
 		$options     = new \WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
@@ -732,11 +732,11 @@ class MainWP_Child_WP_Rocket {
 	 * @throws \Exception Error message.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_WP_Rocket::actions() Fire off certain WP Rocket plugin actions.
-	 * @uses    \MainWP\Child\MainWP_Helper::check_classes_exists()
-	 * @uses    \MainWP\Child\MainWP_Helper::check_methods()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+	 * @uses    \MainWP\Child\MainWP_Helper::instance()->check_methods()
 	 */
 	public function get_optimize_info() {
-		MainWP_Helper::check_classes_exists(
+		MainWP_Helper::instance()->check_classes_exists(
 			array(
 				'\WP_Rocket\Admin\Database\Optimization',
 				'\WP_Rocket\Admin\Database\Optimization_Process',
@@ -746,7 +746,7 @@ class MainWP_Child_WP_Rocket {
 		$process      = new \WP_Rocket\Admin\Database\Optimization_Process();
 		$optimization = new \WP_Rocket\Admin\Database\Optimization( $process );
 
-		MainWP_Helper::check_methods( $optimization, 'count_cleanup_items' );
+		MainWP_Helper::instance()->check_methods( $optimization, 'count_cleanup_items' );
 
 		$information['optimize_info'] = array(
 			'total_revisions'          => $optimization->count_cleanup_items( 'database_revisions' ),

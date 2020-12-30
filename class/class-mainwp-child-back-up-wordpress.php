@@ -266,14 +266,14 @@ class MainWP_Child_Back_Up_WordPress {
 	 *
 	 * @return array Return an array containing the synced data.
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if requested class exists.
-	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if requested method exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists() Check if requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods() Check if requested method exists.
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_Back_Up_WordPress::sync_others_data() Sync the BackUpWordPress plugin settings.
 	 */
 	private function get_sync_data() {
-		MainWP_Helper::check_classes_exists( '\HM\BackUpWordPress\Schedules' );
-		MainWP_Helper::check_methods( '\HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ) );
+		MainWP_Helper::instance()->check_classes_exists( '\HM\BackUpWordPress\Schedules' );
+		MainWP_Helper::instance()->check_methods( '\HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ) );
 
 		\HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 		$schedules    = \HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
@@ -281,7 +281,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		if ( is_array( $schedules ) && count( $schedules ) ) {
 			foreach ( $schedules as $sche ) {
-				if ( true === MainWP_Helper::check_methods( $sche, array( 'get_backups' ), true ) ) {
+				if ( true === MainWP_Helper::instance()->check_methods( $sche, array( 'get_backups' ), true ) ) {
 					$existing_backup = $sche->get_backups();
 					if ( ! empty( $existing_backup ) ) {
 						$backups_time = array_merge( $backups_time, array_keys( $existing_backup ) );
@@ -321,8 +321,8 @@ class MainWP_Child_Back_Up_WordPress {
 	 *
 	 * @param string $ext Current extension.
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::check_classes_exists() Check if the requested class exists.
-	 * @uses \MainWP\Child\MainWP_Helper::check_methods() Check if the requested method exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists() Check if the requested class exists.
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods() Check if the requested method exists.
 	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup() Get the last backup timestamp
 	 * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
 	 *
@@ -337,15 +337,15 @@ class MainWP_Child_Back_Up_WordPress {
 		}
 
 		try {
-			MainWP_Helper::check_classes_exists( '\HM\BackUpWordPress\Schedules' );
-			MainWP_Helper::check_methods( '\HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ) );
+			MainWP_Helper::instance()->check_classes_exists( '\HM\BackUpWordPress\Schedules' );
+			MainWP_Helper::instance()->check_methods( '\HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ) );
 
 			// Refresh the schedules from the database to make sure we have the latest changes.
 			\HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 			$schedules = \HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
 			if ( is_array( $schedules ) && count( $schedules ) > 0 ) {
 				$check = current( $schedules );
-				MainWP_Helper::check_methods( $check, array( 'get_backups', 'get_type' ) );
+				MainWP_Helper::instance()->check_methods( $check, array( 'get_backups', 'get_type' ) );
 
 				foreach ( $schedules as $schedule ) {
 					foreach ( $schedule->get_backups() as $file ) {

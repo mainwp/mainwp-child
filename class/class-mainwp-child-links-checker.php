@@ -339,8 +339,8 @@ class MainWP_Child_Links_Checker {
 	 * @throws Exception|\Exception Error exception.
      *
      * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
 	 */
 	public function get_links_data() {
 
@@ -355,12 +355,12 @@ class MainWP_Child_Links_Checker {
 		require_once $file_path1;
 		require_once $file_path2;
 
-		MainWP_Helper::check_classes_exists( '\blcLinkQuery' );
-		MainWP_Helper::check_methods( '\blcLinkQuery', 'getInstance' );
+		MainWP_Helper::instance()->check_classes_exists( '\blcLinkQuery' );
+		MainWP_Helper::instance()->check_methods( '\blcLinkQuery', 'getInstance' );
 
 		$blc_link_query = \blcLinkQuery::getInstance();
 
-		MainWP_Helper::check_methods( $blc_link_query, 'get_filter_links' );
+		MainWP_Helper::instance()->check_methods( $blc_link_query, 'get_filter_links' );
 
 		$total = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 
@@ -411,8 +411,8 @@ class MainWP_Child_Links_Checker {
 	 * @throws Exception|\Exception Error exception.
      *
      * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
 	 */
 	public function get_count_links() {
 		if ( ! defined( 'BLC_DIRECTORY' ) ) {
@@ -427,13 +427,13 @@ class MainWP_Child_Links_Checker {
 		require_once $file_path1;
 		require_once $file_path2;
 
-		MainWP_Helper::check_classes_exists( '\blcLinkQuery' );
-		MainWP_Helper::check_methods( '\blcLinkQuery', 'getInstance' );
+		MainWP_Helper::instance()->check_classes_exists( '\blcLinkQuery' );
+		MainWP_Helper::instance()->check_methods( '\blcLinkQuery', 'getInstance' );
 
 		$data           = array();
 		$blc_link_query = \blcLinkQuery::getInstance();
 
-		MainWP_Helper::check_methods( $blc_link_query, 'get_filter_links' );
+		MainWP_Helper::instance()->check_methods( $blc_link_query, 'get_filter_links' );
 
 		$data['broken']    = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
 		$data['redirects'] = $blc_link_query->get_filter_links( 'redirects', array( 'count_only' => true ) );
@@ -451,15 +451,15 @@ class MainWP_Child_Links_Checker {
 	 * @return array $return Links Array.
 	 * @throws Exception|\Exception Error Exception.
      *
-     * @uses \MainWP\Child\MainWP_Helper::check_functions()
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
-     * @uses \MainWP\Child\MainWP_Helper::check_properties()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_functions()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_properties()
 	 */
 	public function links_checker_data( $params ) {
 
-		MainWP_Helper::check_functions( 'blc_get_links' );
-		MainWP_Helper::check_classes_exists( '\blcLink' );
+		MainWP_Helper::instance()->check_functions( 'blc_get_links' );
+		MainWP_Helper::instance()->check_classes_exists( '\blcLink' );
 
 		$links = blc_get_links( $params );
 
@@ -524,22 +524,22 @@ class MainWP_Child_Links_Checker {
 
 				$get_link = new \blcLink( intval( $link->link_id ) );
 				if ( $get_link->valid() ) {
-					MainWP_Helper::check_methods( $get_link, 'get_instances' );
+					MainWP_Helper::instance()->check_methods( $get_link, 'get_instances' );
 					$instances = $get_link->get_instances();
 				}
 
 				if ( ! empty( $instances ) ) {
 					$first_instance = reset( $instances );
 
-					MainWP_Helper::check_methods( $first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable' ) );
+					MainWP_Helper::instance()->check_methods( $first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable' ) );
 
 					$new_link->link_text          = $first_instance->ui_get_link_text();
 					$extra_info['count_instance'] = count( $instances );
 					$container                    = $first_instance->get_container();
 
 					if ( ! empty( $container ) ) {
-						if ( true === MainWP_Helper::check_properties( $first_instance, array( 'container_field' ), true ) ) {
-							if ( true === MainWP_Helper::check_properties( $container, array( 'container_type', 'container_id' ), true ) ) {
+						if ( true === MainWP_Helper::instance()->check_properties( $first_instance, array( 'container_field' ), true ) ) {
+							if ( true === MainWP_Helper::instance()->check_properties( $container, array( 'container_type', 'container_id' ), true ) ) {
 								$extra_info['container_type'] = $container->container_type;
 								$extra_info['container_id']   = $container->container_id;
 								$extra_info['source_data']    = $this->ui_get_source( $container, $first_instance->container_field );
@@ -827,7 +827,7 @@ class MainWP_Child_Links_Checker {
 	 * @return array|bool Array of content or FALSE on failure.
 	 * @throws Exception|\Exception Error Exception.
      *
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
 	 */
 	public function ui_get_source_comment( $container, $container_field = '' ) {
 		// Display a comment icon.
@@ -837,7 +837,7 @@ class MainWP_Child_Links_Checker {
 			$image = 'font-awesome/font-awesome-comment-alt.png';
 		}
 
-		if ( true !== MainWP_Helper::check_methods( $container, array( 'get_wrapped_object' ), true ) ) {
+		if ( true !== MainWP_Helper::instance()->check_methods( $container, array( 'get_wrapped_object' ), true ) ) {
 			return false;
 		}
 

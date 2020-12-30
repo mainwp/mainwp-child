@@ -480,7 +480,7 @@ class MainWP_Child_Users {
 	 * Set a new administrator password.
 	 *
 	 * @uses \MainWP\Child\MainWP_Helper::write()
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function new_admin_password() {
 		$new_password = isset( $_POST['new_password'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_password'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -505,9 +505,9 @@ class MainWP_Child_Users {
 		);
 		if ( $id !== $user->ID ) {
 			if ( is_wp_error( $id ) ) {
-				MainWP_Helper::error( $id->get_error_message() );
+				MainWP_Helper::instance()->error( $id->get_error_message() );
 			} else {
-				MainWP_Helper::error( __( 'Administrator password could not be changed.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( __( 'Administrator password could not be changed.', 'mainwp-child' ) );
 			}
 		}
 
@@ -519,7 +519,7 @@ class MainWP_Child_Users {
 	 * Create a new user.
 	 *
 	 * @uses \MainWP\Child\MainWP_Helper::write()
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function new_user() {
 		$new_user      = isset( $_POST['new_user'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_user'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -533,10 +533,10 @@ class MainWP_Child_Users {
 		$new_user_id = wp_insert_user( $new_user );
 
 		if ( is_wp_error( $new_user_id ) ) {
-			MainWP_Helper::error( $new_user_id->get_error_message() );
+			MainWP_Helper::instance()->error( $new_user_id->get_error_message() );
 		}
 		if ( 0 === $new_user_id ) {
-			MainWP_Helper::error( __( 'Undefined error!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Undefined error!', 'mainwp-child' ) );
 		}
 
 		if ( $send_password ) {

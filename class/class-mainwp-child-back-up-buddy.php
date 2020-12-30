@@ -173,11 +173,11 @@ class MainWP_Child_Back_Up_Buddy {
      * @param string $ext Extension to create log for.
      *
      * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::is_backupbuddy_installed()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
-     * @uses \MainWP\Child\MainWP_Helper::check_properties()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_properties()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \pb_backupbuddy_fileoptions()
      * @uses \pb_backupbuddy_fileoptions::is_ok()
      * @uses \pb_backupbuddy::$format::prettify()
@@ -195,7 +195,7 @@ class MainWP_Child_Back_Up_Buddy {
 
 		try {
 
-			MainWP_Helper::check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
+			MainWP_Helper::instance()->check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
 
 			if ( ! class_exists( '\backupbuddy_core' ) ) {
 				if ( file_exists( \pb_backupbuddy::plugin_path() . '/classes/core.php' ) ) {
@@ -207,8 +207,8 @@ class MainWP_Child_Back_Up_Buddy {
 				require_once \pb_backupbuddy::plugin_path() . '/classes/fileoptions.php';
 			}
 
-			MainWP_Helper::check_classes_exists( array( '\backupbuddy_core', '\pb_backupbuddy_fileoptions' ) );
-			MainWP_Helper::check_methods( '\backupbuddy_core', 'getLogDirectory' );
+			MainWP_Helper::instance()->check_classes_exists( array( '\backupbuddy_core', '\pb_backupbuddy_fileoptions' ) );
+			MainWP_Helper::instance()->check_methods( '\backupbuddy_core', 'getLogDirectory' );
 
 			$pretty_type = array(
 				'full'  => 'Full',
@@ -243,13 +243,13 @@ class MainWP_Child_Back_Up_Buddy {
 
 				$backupType = '';
 				if ( isset( $backup['profile'] ) && isset( $backup['profile']['type'] ) ) {
-					if ( true === MainWP_Helper::check_properties( '\pb_backupbuddy', 'format', true ) ) {
-						if ( true === MainWP_Helper::check_methods( \pb_backupbuddy::$format, array( 'prettify' ), true ) ) {
+					if ( true === MainWP_Helper::instance()->check_properties( '\pb_backupbuddy', 'format', true ) ) {
+						if ( true === MainWP_Helper::instance()->check_methods( \pb_backupbuddy::$format, array( 'prettify' ), true ) ) {
 							$backupType = \pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type );
 						}
 					}
 				} else {
-					if ( true === MainWP_Helper::check_methods( '\backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true ) ) {
+					if ( true === MainWP_Helper::instance()->check_methods( '\backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true ) ) {
 						$backupType = \backupbuddy_core::pretty_backup_type( \backupbuddy_core::getBackupTypeFromFile( $backup['archive_file'] ) );
 					}
 				}
@@ -268,8 +268,8 @@ class MainWP_Child_Back_Up_Buddy {
 			if ( file_exists( \pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php' ) ) {
 				require_once \pb_backupbuddy::plugin_path() . '/destinations/live/live_periodic.php';
 
-				MainWP_Helper::check_classes_exists( array( '\backupbuddy_live_periodic' ) );
-				MainWP_Helper::check_methods( '\backupbuddy_live_periodic', 'get_stats' );
+				MainWP_Helper::instance()->check_classes_exists( array( '\backupbuddy_live_periodic' ) );
+				MainWP_Helper::instance()->check_methods( '\backupbuddy_live_periodic', 'get_stats' );
 
 				$state = \backupbuddy_live_periodic::get_stats();
 				if ( is_array( $state ) && isset( $state['stats'] ) ) {
@@ -1009,8 +1009,8 @@ class MainWP_Child_Back_Up_Buddy {
      * @return array|bool $out Return Updraft data array or FALSE on failure.
      * @throws Exception Error message.
      *
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \pb_backupbuddy::plugin_path()
      * @uses \backupbuddy_core::get_plugins_root()
      * @uses \backupbuddy_core::get_themes_root()
@@ -1021,8 +1021,8 @@ class MainWP_Child_Back_Up_Buddy {
     public function get_sync_data() {
 		try {
 			if ( ! class_exists( '\backupbuddy_core' ) ) {
-				MainWP_Helper::check_classes_exists( '\pb_backupbuddy' );
-				MainWP_Helper::check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
+				MainWP_Helper::instance()->check_classes_exists( '\pb_backupbuddy' );
+				MainWP_Helper::instance()->check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
 
 				$plugin_path = \pb_backupbuddy::plugin_path();
 				if ( file_exists( $plugin_path . '/classes/core.php' ) ) {
@@ -1030,9 +1030,9 @@ class MainWP_Child_Back_Up_Buddy {
 				}
 			}
 
-			MainWP_Helper::check_classes_exists( array( '\backupbuddy_core', '\backupbuddy_api' ) );
-			MainWP_Helper::check_methods( '\backupbuddy_core', array( 'get_plugins_root', 'get_themes_root', 'get_media_root' ) );
-			MainWP_Helper::check_methods( '\backupbuddy_api', array( 'getOverview' ) );
+			MainWP_Helper::instance()->check_classes_exists( array( '\backupbuddy_core', '\backupbuddy_api' ) );
+			MainWP_Helper::instance()->check_methods( '\backupbuddy_core', array( 'get_plugins_root', 'get_themes_root', 'get_media_root' ) );
+			MainWP_Helper::instance()->check_methods( '\backupbuddy_api', array( 'getOverview' ) );
 
 			$data                      = array();
 			$data['plugins_root']      = \backupbuddy_core::get_plugins_root();
@@ -1351,20 +1351,20 @@ class MainWP_Child_Back_Up_Buddy {
      * @return string Additional table html.
      * @throws Exception|\Exception Error message.
      *
-     * @uses \MainWP\Child\MainWP_Helper::check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
-     * @uses \MainWP\Child\MainWP_Helper::check_properties()
-     * @uses \MainWP\Child\MainWP_Helper::check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_properties()
+     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses $wpdb::get_results()
      * @uses \pb_backupbuddy::$format::file_size()
      * @uses \pb_backupbuddy::plugin_url()
      */
     public function pb_additional_tables( $display_size = false ) {
 
-		MainWP_Helper::check_classes_exists( '\pb_backupbuddy' );
-		MainWP_Helper::check_methods( '\pb_backupbuddy', 'plugin_url' );
-		MainWP_Helper::check_properties( '\pb_backupbuddy', 'format' );
-		MainWP_Helper::check_methods( \pb_backupbuddy::$format, 'file_size' );
+		MainWP_Helper::instance()->check_classes_exists( '\pb_backupbuddy' );
+		MainWP_Helper::instance()->check_methods( '\pb_backupbuddy', 'plugin_url' );
+		MainWP_Helper::instance()->check_properties( '\pb_backupbuddy', 'format' );
+		MainWP_Helper::instance()->check_methods( \pb_backupbuddy::$format, 'file_size' );
 
 		$return      = '';
 		$size_string = '';

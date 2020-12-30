@@ -73,7 +73,7 @@ class MainWP_Helper {
 	 * @param string $error Contains error message.
 	 * @param mixed  $code Contains the error code.
 	 */
-	public static function error( $error, $code = null ) {
+	public function error( $error, $code = null ) {
 		$information['error'] = $error;
 		if ( null !== $code ) {
 			$information['error_code'] = $code;
@@ -167,7 +167,7 @@ class MainWP_Helper {
 			if ( ! file_exists( $dir ) ) {
 				$error = __( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . __( ' Is its parent directory writable by the server?', 'mainwp-child' );
 				if ( $die_on_error ) {
-					self::error( $error );
+					self::instance()->error( $error );
 				} else {
 					throw new \Exception( $error );
 				}
@@ -280,11 +280,11 @@ class MainWP_Helper {
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
-			self::error( $FTP_ERROR );
+			self::instance()->error( $FTP_ERROR );
 		} elseif ( is_wp_error( $wp_filesystem->errors ) ) {
 			$errorCodes = $wp_filesystem->errors->get_error_codes();
 			if ( ! empty( $errorCodes ) ) {
-				self::error( __( 'WordPress Filesystem error: ', 'mainwp-child' ) . $wp_filesystem->errors->get_error_message() );
+				self::instance()->error( __( 'WordPress Filesystem error: ', 'mainwp-child' ) . $wp_filesystem->errors->get_error_message() );
 			}
 		}
 		return $wp_filesystem;
@@ -782,7 +782,7 @@ class MainWP_Helper {
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing classes.
 	 */
-	public static function check_classes_exists( $classes = array(), $return = false ) {
+	public function check_classes_exists( $classes = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $classes ) ) {
 			foreach ( $classes as $name ) {
@@ -819,7 +819,7 @@ class MainWP_Helper {
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing methods.
 	 */
-	public static function check_methods( $object, $methods = array(), $return = false ) {
+	public function check_methods( $object, $methods = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $methods ) ) {
 				$missing = array();
@@ -857,7 +857,7 @@ class MainWP_Helper {
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing properties.
 	 */
-	public static function check_properties( $object, $properties = array(), $return = false ) {
+	public function check_properties( $object, $properties = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $properties ) ) {
 			foreach ( $properties as $name ) {
@@ -893,7 +893,7 @@ class MainWP_Helper {
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing functions.
 	 */
-	public static function check_functions( $funcs = array(), $return = false ) {
+	public function check_functions( $funcs = array(), $return = false ) {
 		$missing = array();
 		if ( is_array( $funcs ) ) {
 			foreach ( $funcs as $name ) {

@@ -371,7 +371,7 @@ class MainWP_Child_Posts {
 	 * Build New Post.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::create_post()
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function new_post() {
@@ -390,12 +390,12 @@ class MainWP_Child_Posts {
 		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
 
 		if ( is_array( $res ) && isset( $res['error'] ) ) {
-			MainWP_Helper::error( $res['error'] );
+			MainWP_Helper::instance()->error( $res['error'] );
 		}
 
 		$created = $res['success'];
 		if ( true !== $created ) {
-			MainWP_Helper::error( 'Undefined error' );
+			MainWP_Helper::instance()->error( 'Undefined error' );
 		}
 
 		$information['added']    = true;

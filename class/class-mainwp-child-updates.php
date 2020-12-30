@@ -107,7 +107,7 @@ class MainWP_Child_Updates {
 	 * @uses \MainWP\Child\MainWP_Child_Updates::upgrade_theme() Execute themes updates.
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function upgrade_plugin_theme() {
@@ -138,7 +138,7 @@ class MainWP_Child_Updates {
 		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
 			$this->upgrade_theme( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs, $premiumUpgrader );
 		} else {
-			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( count( $mwp_premium_updates_todo ) > 0 ) {
@@ -161,7 +161,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @uses MainWP_Child_Updates::to_upgrade_plugins() Complete the plugins update process.
 	 * @uses MainWP_Child_Updates::to_support_some_premiums_updates() Custom support for some premium plugins.
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 * @uses get_plugin_updates() The WordPress Core get plugin updates function.
 	 * @see https://developer.wordpress.org/reference/functions/get_plugin_updates/
 	 *
@@ -215,7 +215,7 @@ class MainWP_Child_Updates {
 			$plugins = $this->check_update_requires( $plugins );
 		} catch ( \Exception $e ) {
 			$message = $e->getMessage();
-			MainWP_Helper::error( $message );
+			MainWP_Helper::instance()->error( $message );
 		}
 
 		if ( count( $plugins ) > 0 ) {
@@ -247,7 +247,7 @@ class MainWP_Child_Updates {
 		}
 
 		if ( count( $plugins ) <= 0 && count( $premiumPlugins ) <= 0 ) {
-			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( null !== $this->filterFunction ) {
@@ -263,51 +263,53 @@ class MainWP_Child_Updates {
 	 * @param array $plugins     An array containing plugins to be updated.
 	 *
 	 * @return array An array of available plugins updates.
+	 * @throws Exception|\Exception Error Exception.
 	 */
 	private function check_update_requires( $plugins ) {
-		if ( function_exists( 'is_php_version_compatible' ) && is_array( $plugins ) && count( $plugins ) > 0 ) {
-			$tmpPlugins = array();
-			foreach ( $plugins as $plugin ) {
-
-				$readme_file = WP_PLUGIN_DIR . '/' . dirname( $plugin ) . '/readme.txt';
-				$plugin_data = array(
-					'requires'     => '',
-					'requires_php' => '',
-				);
-
-				if ( file_exists( $readme_file ) ) {
-					$plugin_data = get_file_data(
-						$readme_file,
-						array(
-							'requires'     => 'Requires at least',
-							'requires_php' => 'Requires PHP',
-						),
-						'plugin'
-					);
-				}
-
-				$plugin_data = array_merge( $plugin_data, get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ) );
-
-				// Check for headers in the plugin's PHP file, give precedence to the plugin headers.
-				$plugin_data['requires']     = ! empty( $plugin_data['RequiresWP'] ) ? $plugin_data['RequiresWP'] : $plugin_data['requires'];
-				$plugin_data['requires_php'] = ! empty( $plugin_data['RequiresPHP'] ) ? $plugin_data['RequiresPHP'] : $plugin_data['requires_php'];
-
-				$plugin_data['wp_compatible']  = is_wp_version_compatible( $plugin_data['requires'] );
-				$plugin_data['php_compatible'] = is_php_version_compatible( $plugin_data['requires_php'] );
-
-				if ( ! $plugin_data['wp_compatible'] || ! $plugin_data['php_compatible'] ) {
-					// Current WordPress or PHP versions do not meet minimum requirements for update.
-					if ( 1 == count( $plugins ) ) {
-						throw new \Exception( 'Current WordPress or PHP versions do not meet minimum requirements for update.' );
-					}
-					continue;
-				}
-
-				$tmpPlugins[] = $plugin;
-			}
-			return $tmpPlugins;
+		if ( ! function_exists( 'is_php_version_compatible' ) || ! is_array( $plugins ) ) {
+			return $plugins;
 		}
-		return $plugins;
+
+		$tmpPlugins = array();
+		foreach ( $plugins as $plugin ) {
+
+			$readme_file = WP_PLUGIN_DIR . '/' . dirname( $plugin ) . '/readme.txt';
+			$plugin_data = array(
+				'requires'     => '',
+				'requires_php' => '',
+			);
+
+			if ( file_exists( $readme_file ) ) {
+				$plugin_data = get_file_data(
+					$readme_file,
+					array(
+						'requires'     => 'Requires at least',
+						'requires_php' => 'Requires PHP',
+					),
+					'plugin'
+				);
+			}
+
+			$plugin_data = array_merge( $plugin_data, get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ) );
+
+			// Check for headers in the plugin's PHP file, give precedence to the plugin headers.
+			$plugin_data['requires']     = ! empty( $plugin_data['RequiresWP'] ) ? $plugin_data['RequiresWP'] : $plugin_data['requires'];
+			$plugin_data['requires_php'] = ! empty( $plugin_data['RequiresPHP'] ) ? $plugin_data['RequiresPHP'] : $plugin_data['requires_php'];
+
+			$plugin_data['wp_compatible']  = is_wp_version_compatible( $plugin_data['requires'] );
+			$plugin_data['php_compatible'] = is_php_version_compatible( $plugin_data['requires_php'] );
+
+			if ( ! $plugin_data['wp_compatible'] || ! $plugin_data['php_compatible'] ) {
+				// Current WordPress or PHP versions do not meet minimum requirements for update.
+				if ( 1 == count( $plugins ) ) {
+					throw new \Exception( 'Current WordPress or PHP versions do not meet minimum requirements for update.' );
+				}
+				continue;
+			}
+
+			$tmpPlugins[] = $plugin;
+		}
+		return $tmpPlugins;
 	}
 
 	/**
@@ -318,7 +320,7 @@ class MainWP_Child_Updates {
 	 * @param array $information An array containing the synchronization information.
 	 * @param array $plugins     An array containing plugins to be updated.
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin() Initiate the plugin update process.
 	 */
@@ -354,7 +356,7 @@ class MainWP_Child_Updates {
 		}
 
 		if ( $failed ) {
-			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
 	}
 
@@ -370,7 +372,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Updates::to_upgrade_themes() Complete the themes update process.
 	 * @uses \MainWP\Child\MainWP_Child_Updates::upgrade_get_theme_updates() Get theme updates information.
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_Updates::upgrade_plugin_theme() Fire off plugins and themes updates and write feedback to the synchronization information.
 	 */
@@ -431,7 +433,7 @@ class MainWP_Child_Updates {
 			$premiumUpgrader = new \Theme_Upgrader( new \Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 		}
 		if ( count( $themes ) <= 0 && count( $premiumThemes ) <= 0 ) {
-			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( null !== $this->filterFunction ) {
@@ -456,7 +458,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_Updates::upgrade_theme() Initiate the theme update process.
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	private function to_upgrade_themes( &$information, $themes, $last_update ) {
 		$addFilterToFixUpdate_optimizePressTheme = false;
@@ -487,7 +489,7 @@ class MainWP_Child_Updates {
 		}
 
 		if ( $failed ) {
-			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( null !== $this->filterFunction ) {

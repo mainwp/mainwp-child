@@ -93,7 +93,7 @@ class MainWP_Child_Stats {
 	public function get_site_stats_no_auth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
 			$hint = '<br/>' . __( 'Hint: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.', 'mainwp-child' );
-			MainWP_Helper::error( __( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
+			MainWP_Helper::instance()->error( __( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
 		}
 
 		/**

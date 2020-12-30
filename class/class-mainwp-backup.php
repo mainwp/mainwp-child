@@ -143,7 +143,7 @@ class MainWP_Backup {
 	 *
 	 * @uses \MainWP\Child\Tar_Archiver()
 	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 * @uses \MainWP\Child\MainWP_Helper::set_limit()
 	 */
 	public function create_full_backup(
@@ -188,7 +188,7 @@ class MainWP_Backup {
 			}
 
 			if ( ( time() - filemtime( $file ) ) < 160 ) {
-				MainWP_Helper::error( __( 'Another backup process is running. Please, try again later.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( __( 'Another backup process is running. Please, try again later.', 'mainwp-child' ) );
 			}
 		}
 

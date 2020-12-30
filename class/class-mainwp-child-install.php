@@ -294,7 +294,7 @@ class MainWP_Child_Install {
 	 * @uses \MainWP\Child\MainWP_Child_Install::no_ssl_filter_function() Hook to set ssl verify value.
 	 * @uses \MainWP\Child\MainWP_Child_Install::try_second_install() Alternative installation method.
 	 * @uses \MainWP\Child\MainWP_Helper::check_wp_filesystem()
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
@@ -303,7 +303,7 @@ class MainWP_Child_Install {
 		MainWP_Helper::check_wp_filesystem();
 
 		if ( ! isset( $_POST['type'] ) || ! isset( $_POST['url'] ) || ( 'plugin' !== $_POST['type'] && 'theme' !== $_POST['type'] ) || '' === $_POST['url'] ) {
-			MainWP_Helper::error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		$this->require_files();
@@ -471,7 +471,7 @@ class MainWP_Child_Install {
 	 * @uses is_wp_error() Check whether variable is a WordPress Error.
 	 * @see https://developer.wordpress.org/reference/functions/is_wp_error/
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 *
 	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
@@ -489,9 +489,9 @@ class MainWP_Child_Install {
 			$err_code = $result->get_error_code();
 			if ( $result->get_error_data() && is_string( $result->get_error_data() ) ) {
 				$error = $result->get_error_data();
-				MainWP_Helper::error( $error, $err_code );
+				MainWP_Helper::instance()->error( $error, $err_code );
 			} else {
-				MainWP_Helper::error( implode( ', ', $error ), $err_code );
+				MainWP_Helper::instance()->error( implode( ', ', $error ), $err_code );
 			}
 		}
 		return $result;

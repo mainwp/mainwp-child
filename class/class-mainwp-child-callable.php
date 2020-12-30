@@ -141,7 +141,7 @@ class MainWP_Child_Callable {
 	 *
 	 * @param bool $auth If true, regular authentication is required.
 	 *
-	 * @uses \MainWP\Child\MainWP_Helper::error()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 * @uses \MainWP\Child\MainWP_Utility::handle_fatal_error()
 	 * @uses \MainWP\Child\MainWP_Utility::fix_for_custom_themes()
 	 */
@@ -184,7 +184,7 @@ class MainWP_Child_Callable {
 			MainWP_Utility::fix_for_custom_themes();
 			$this->call_function_no_auth( $call_func );
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
-			MainWP_Helper::error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
 		}
 	}
 
@@ -982,7 +982,7 @@ class MainWP_Child_Callable {
 		deactivate_plugins( $mainWPChild->plugin_slug, true );
 		$information = array();
 		if ( is_plugin_active( $mainWPChild->plugin_slug ) ) {
-			MainWP_Helper::error( 'Plugin still active' );
+			MainWP_Helper::instance()->error( 'Plugin still active' );
 		}
 		$information['deactivated'] = true;
 		MainWP_Helper::write( $information );

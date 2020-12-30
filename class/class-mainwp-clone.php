@@ -238,12 +238,14 @@ class MainWP_Clone {
 			}
 			exit;
 		} elseif ( 'deleteCloneBackup' === $cloneFunc ) {
-			if ( empty( $_POST['f'] ) || stristr( $_POST['f'], '..' ) ) {
+			$df = isset( $_POST['f'] ) ? sanitize_text_field( wp_unslash( $_POST['f'] ) ) : '';
+			if ( empty( $df ) || stristr( $df, '..' ) ) {
 				return false;
 			}
+
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir = $dirs[0];
-			$result    = isset( $_POST['f'] ) ? glob( $backupdir . wp_unslash( $_POST['f'] ) ) : array();
+			$result    = glob( $backupdir . $df );
 			if ( 0 === count( $result ) ) {
 				return;
 			}
