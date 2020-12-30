@@ -431,9 +431,11 @@ class MainWP_Utility {
 				$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 			}
 
-			$moved = $wp_filesystem->move( $temporary_file, $local_img_path );
-			if ( $moved ) {
-				return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );
+			if ( self::check_image_file_name( $local_img_path ) ) {
+				$moved = $wp_filesystem->move( $temporary_file, $local_img_path );
+				if ( $moved ) {
+					return self::insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url );
+				}
 			}
 		}
 
@@ -441,6 +443,29 @@ class MainWP_Utility {
 			$wp_filesystem->delete( $temporary_file );
 		}
 		return null;
+	}
+
+	/**
+	 * Method check_image_file_name()
+	 *
+	 * Check if the file image.
+	 *
+	 * @param string $filename Contains image (file) name.
+	 *
+	 * @return true|false valid name or not.
+	 */
+	public static function check_image_file_name( $filename ) {
+		if ( validate_file( $filename ) ) {
+			return false;
+		}
+
+		$allowed_files = array( 'jpg', 'jpeg', 'jpe', 'gif', 'png', 'bmp', 'tif', 'tiff', 'ico' );
+		$file_ext      = strtolower( end( explode( '.', $filename ) ) );
+		if ( ! in_array( $file_ext, $allowed_files ) ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**

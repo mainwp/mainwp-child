@@ -407,12 +407,15 @@ class MainWP_Child_Branding {
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url );
 			$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
-			$moved          = rename( $temporary_file, $local_img_path );
-			if ( $moved ) {
-				return array(
-					'path' => $local_img_path,
-					'url'  => $local_img_url,
-				);
+
+			if ( MainWP_Utility::check_image_file_name( $local_img_path ) ) {
+				$moved = rename( $temporary_file, $local_img_path );
+				if ( $moved ) {
+					return array(
+						'path' => $local_img_path,
+						'url'  => $local_img_url,
+					);
+				}
 			}
 		}
 		if ( file_exists( $temporary_file ) ) {
