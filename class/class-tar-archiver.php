@@ -310,7 +310,7 @@ class Tar_Archiver {
 	 * @uses Tar_Archiver::prepare_append() Prepare to append.
 	 * @uses Tar_Archiver::create() Create backup archive file.
 	 * @uses Tar_Archiver::include_core_files() Include WordPress core files.
-	 * @uses Tar_Archiver::create_backup_db() Crate database backup.
+	 * @uses Tar_Archiver::create_backup_db() Create database backup.
 	 * @uses Tar_Archiver::add_file() Add file to backup archive file.
 	 * @uses Tar_Archiver::add_dir() Add directory to backup archive file.
 	 * @uses Tar_Archiver::add_config() Add config file to backup archive file.
