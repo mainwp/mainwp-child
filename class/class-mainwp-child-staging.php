@@ -45,6 +45,8 @@ class MainWP_Child_Staging {
 	 */
 	public $is_plugin_installed = false;
 
+	public $plugin_version = false;
+
 	/**
 	 * Create a public static instance of MainWP_Child_Staging.
 	 *
@@ -161,7 +163,7 @@ class MainWP_Child_Staging {
 			MainWP_Helper::write( array( 'error' => __( 'Please install WP Staging plugin on child website', 'mainwp-child' ) ) );
 		}
 
-		if ( ! class_exists( '\WPStaging\WPStaging' ) ) {
+		if ( ! class_exists( '\WPStaging\WPStaging' ) && ! class_exists( '\WPStaging\Core\WPStaging' ) ) {
 			if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php' ) ) {
 				require_once WPSTG_PLUGIN_DIR . 'app/Core/WPStaging.php';
 			} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Core/WPStaging.php' ) ) {
@@ -169,7 +171,14 @@ class MainWP_Child_Staging {
 			}
 		}
 
-		\WPStaging\WPStaging::getInstance();
+		if ( class_exists( '\WPStaging\Core\WPStaging' ) ) {
+			$this->plugin_version = '2.8';
+			\WPStaging\Core\WPStaging::getInstance();
+		} elseif ( class_exists( '\WPStaging\WPStaging' ) ) {
+			$this->plugin_version = '2.7';
+			\WPStaging\WPStaging::getInstance();
+		}
+		
 		$information = array();
 
 		if ( 'Y' !== get_option( 'mainwp_wp_staging_ext_enabled' ) ) {
@@ -310,7 +319,7 @@ class MainWP_Child_Staging {
 		$return = array(
 			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
 			'directoryListing' => $scan->directoryListing(),
-			'prefix'           => \WPStaging\WPStaging::getTablePrefix(),
+			'prefix'           => '2.8' == $this->plugin_version  ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
 		);
 		return $return;
 	}

@@ -161,6 +161,10 @@ class MainWP_Child_Timecapsule {
 			MainWP_Helper::write( array( 'error' => $error ) );
 		}
 
+		if ( method_exists( 'wptc_load_files' ) ) {
+			wptc_load_files();
+		}
+
 			$information = array();
 
 			$options_helper    = new \Wptc_Options_Helper();
