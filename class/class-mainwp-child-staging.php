@@ -178,7 +178,7 @@ class MainWP_Child_Staging {
 			$this->plugin_version = '2.7';
 			\WPStaging\WPStaging::getInstance();
 		}
-		
+
 		$information = array();
 
 		if ( 'Y' !== get_option( 'mainwp_wp_staging_ext_enabled' ) ) {
@@ -319,7 +319,7 @@ class MainWP_Child_Staging {
 		$return = array(
 			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
 			'directoryListing' => $scan->directoryListing(),
-			'prefix'           => '2.8' == $this->plugin_version  ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
+			'prefix'           => '2.8' == $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
 		);
 		return $return;
 	}
