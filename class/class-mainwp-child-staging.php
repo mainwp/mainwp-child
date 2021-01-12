@@ -45,6 +45,11 @@ class MainWP_Child_Staging {
 	 */
 	public $is_plugin_installed = false;
 
+	/**
+	 * Public variable to hold the information if the WP Staging plugin is installed on the child site.
+	 *
+	 * @var string version string.
+	 */
 	public $plugin_version = false;
 
 	/**
@@ -173,12 +178,12 @@ class MainWP_Child_Staging {
 
 		if ( class_exists( '\WPStaging\Core\WPStaging' ) ) {
 			$this->plugin_version = '2.8';
-			\WPStaging\Core\WPStaging::getInstance();
+			\WPStaging\Core\WPStaging::getInstance(); // phpcs:ignore -- to compatible WP Staging plugin.
 		} elseif ( class_exists( '\WPStaging\WPStaging' ) ) {
 			$this->plugin_version = '2.7';
-			\WPStaging\WPStaging::getInstance();
+			\WPStaging\WPStaging::getInstance(); // phpcs:ignore -- to compatible WP Staging plugin.
 		}
-		
+
 		$information = array();
 
 		if ( 'Y' !== get_option( 'mainwp_wp_staging_ext_enabled' ) ) {
@@ -319,7 +324,8 @@ class MainWP_Child_Staging {
 		$return = array(
 			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
 			'directoryListing' => $scan->directoryListing(),
-			'prefix'           => '2.8' == $this->plugin_version  ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
+			'prefix'           => '2.8' == $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(), // phpcs:ignore -- to compatible WP Staging plugin.
+			'directoryListing' => $scan->directoryListing(),
 		);
 		return $return;
 	}
