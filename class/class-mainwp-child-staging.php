@@ -178,10 +178,10 @@ class MainWP_Child_Staging {
 
 		if ( class_exists( '\WPStaging\Core\WPStaging' ) ) {
 			$this->plugin_version = '2.8';
-			\WPStaging\Core\WPStaging::getInstance(); // phpcs:ignore -- to compatible WP Staging plugin.
+			\WPStaging\Core\WPStaging::getInstance();
 		} elseif ( class_exists( '\WPStaging\WPStaging' ) ) {
 			$this->plugin_version = '2.7';
-			\WPStaging\WPStaging::getInstance(); // phpcs:ignore -- to compatible WP Staging plugin.
+			\WPStaging\WPStaging::getInstance();
 		}
 
 		$information = array();
@@ -324,7 +324,7 @@ class MainWP_Child_Staging {
 		$return = array(
 			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
 			'directoryListing' => $scan->directoryListing(),
-			'prefix'           => '2.8' == $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(), // phpcs:ignore -- to compatible WP Staging plugin.
+			'prefix'           => '2.8' == $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
 			'directoryListing' => $scan->directoryListing(),
 		);
 		return $return;
