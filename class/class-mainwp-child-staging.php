@@ -45,6 +45,11 @@ class MainWP_Child_Staging {
 	 */
 	public $is_plugin_installed = false;
 
+	/**
+	 * Public variable to hold the information if the WP Staging plugin is installed on the child site.
+	 *
+	 * @var string version string.
+	 */
 	public $plugin_version = false;
 
 	/**
@@ -320,6 +325,7 @@ class MainWP_Child_Staging {
 			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
 			'directoryListing' => $scan->directoryListing(),
 			'prefix'           => '2.8' == $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
+			'directoryListing' => $scan->directoryListing(),
 		);
 		return $return;
 	}
