@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 3.6
 Tested up to: 5.6
 Requires PHP: 7.0
-Stable tag: 4.1.3.1
+Stable tag: 4.1.4
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -106,6 +106,12 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.1.4 - 1-21-21 =
+* Updated: Compatibility with the latest WP Staging plugin version
+* Updated: Compatibility with the latest WP Time Capsule plugin version
+* Updated: Multiple DocBlock comments
+* Preventative: Multiple security improvements
 
 = 4.1.3.1 - 12-30-20 =
 * Fixed: An issue with uploading images in posts and pages
