@@ -323,7 +323,6 @@ class MainWP_Child_Staging {
 
 		$return = array(
 			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
-			'directoryListing' => $scan->directoryListing(),
 			'prefix'           => '2.8' == $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
 			'directoryListing' => $scan->directoryListing(),
 		);
