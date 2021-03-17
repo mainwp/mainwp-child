@@ -1238,7 +1238,6 @@ class MainWP_Child_Timecapsule {
 				return true;
 			}
 		}
-
 	}
 
 
