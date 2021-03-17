@@ -161,10 +161,14 @@ class MainWP_Child_Timecapsule {
 			MainWP_Helper::write( array( 'error' => $error ) );
 		}
 
-		if ( method_exists( 'wptc_load_files' ) ) {
-			wptc_load_files();
+		// to fix.
+		if ( isset( $_POST['mwp_action'] ) && ! defined( 'WP_ADMIN' ) ) {
+			define( 'WP_ADMIN', true );
 		}
 
+		if ( function_exists( '\wptc_load_files' ) ) {
+			\wptc_load_files();
+		}
 			$information = array();
 
 			$options_helper    = new \Wptc_Options_Helper();
@@ -1149,16 +1153,38 @@ class MainWP_Child_Timecapsule {
 		$config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$config->set_option( 'wptc_token', false );
 
-		$options->request_service(
+		$cust_info = $options->request_service(
 			array(
 				'email'                 => $email,
 				'pwd'                   => trim( wp_unslash( $pwd ) ),
-				'return_response'       => false,
+				'return_response'       => true,
 				'sub_action'            => false,
 				'login_request'         => true,
 				'reset_login_if_failed' => true,
 			)
 		);
+
+		if ( ! empty( $cust_info->error ) ) {
+			if ( ! empty( $cust_info->true_err_msg ) ) {
+				return array( 'error' => $cust_info->true_err_msg );
+			}
+
+			return array( 'error' => $cust_info->error );
+		}
+
+		$options->reset_plans();
+
+		$main_account_email = $email;
+		$main_account_pwd   = $pwd;
+
+		$options->set_option( 'main_account_email', strtolower( $main_account_email ) );
+		$options->set_option( 'main_account_pwd', $main_account_pwd );
+
+		$result = $this->proccess_cust_info( $options, $cust_info );
+
+		if ( is_array( $result ) && ! empty( $result['error'] ) ) {
+			return array( 'error' => $result['error'] );
+		}
 
 		$is_user_logged_in = $options->get_option( 'is_user_logged_in' );
 
@@ -1169,6 +1195,188 @@ class MainWP_Child_Timecapsule {
 			'result'    => 'ok',
 			'sync_data' => $this->get_sync_data(),
 		);
+	}
+
+	public function proccess_cust_info( $options, $cust_info ) {
+
+		if ( $this->process_service_info( $options, $cust_info ) ) {
+
+			if ( empty( $cust_info->success ) ) {
+				return false;                   // hack
+			}
+
+			$cust_req_info = $cust_info->success[0];
+			$this_d_name   = $cust_req_info->cust_display_name;
+			$this_token    = $cust_req_info->wptc_token;
+
+			$options->set_option( 'uuid', $cust_req_info->uuid );
+			$options->set_option( 'wptc_token', $this_token );
+			$options->set_option( 'main_account_name', $this_d_name );
+
+			do_action( 'update_white_labling_settings_wptc', $cust_req_info );
+
+			if ( isset( $cust_req_info->connected_sites_count ) ) {
+				$options->set_option( 'connected_sites_count', $cust_req_info->connected_sites_count );
+			} else {
+				$options->set_option( 'connected_sites_count', 1 ); // set default 1 sites connected if server does send sites count
+			}
+
+			if ( ! empty( $cust_info->logged_in_but_no_plans_yet ) ) {
+				$options->do_options_for_no_plans_yet( $cust_info );
+				return false;
+			}
+
+			$options->process_subs_info_wptc( $cust_req_info );
+			$this->process_privilege_wptc( $options, $cust_req_info );
+			$this->save_plan_info_limited( $options, $cust_req_info );
+
+			$is_cron_service = $this->check_if_cron_service_exists( $options );
+			wptc_log( $is_cron_service, '--------$is_cron_service--------' );
+
+			if ( $is_cron_service ) {
+				$options->set_option( 'is_user_logged_in', true );
+				return true;
+			}
+		}
+
+	}
+
+
+	private function save_plan_info_limited( $options, &$cust_info ) {
+		wptc_log( func_get_args(), '--------' . __FUNCTION__ . '--------' );
+		if ( empty( $cust_info ) || empty( $cust_info->plan_info_limited ) ) {
+			return $options->set_option( 'plan_info_limited', false );
+		} else {
+			$plans = json_decode( json_encode( $cust_info->plan_info_limited ), true );
+			wptc_log( $plans, '----------$plans----------------' );
+			return $options->set_option( 'plan_info_limited', serialize( $plans ) );
+		}
+	}
+
+
+	private function process_privilege_wptc( $options, $cust_req_info = null ) {
+
+		if ( empty( $cust_req_info->subscription_features ) ) {
+			$options->reset_privileges();
+			return false;
+		}
+
+		$sub_features = (array) $cust_req_info->subscription_features;
+
+		$privileged_feature = array();
+		$privileges_args    = array();
+
+		foreach ( $sub_features as $plan_id => $single_sub ) {
+			foreach ( $single_sub as $key => $v ) {
+				$privileged_feature[ $v->type ][]                    = 'Wptc_' . ucfirst( $v->feature );
+				$privileges_args[ 'Wptc_' . ucfirst( $v->feature ) ] = ( ! empty( $v->args ) ) ? $v->args : array();
+			}
+		}
+
+		// Remove on production
+		array_push( $privileges_args, 'Wptc_Rollback' );
+		array_push( $privileged_feature['pro'], 'Wptc_Rollback' );
+
+		$options->set_option( 'privileges_wptc', json_encode( $privileged_feature ) );
+		$options->set_option( 'privileges_args', json_encode( $privileges_args ) );
+		$revision_limit = new \Wptc_Revision_Limit();
+		$revision_limit->update_eligible_revision_limit( $privileges_args );
+	}
+
+	private function process_service_info( $options, &$cust_info ) {
+		if ( empty( $cust_info ) || ! empty( $cust_info->error ) ) {
+			$err_msg = $options->process_wptc_error_msg_then_take_action( $cust_info );
+
+			$options->set_option( 'card_added', false );
+
+			if ( $err_msg == 'logged_in_but_no_plans_yet' ) {
+				$options->do_options_for_no_plans_yet( $cust_info );
+
+				return true;            // hack
+			}
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+	public function check_if_cron_service_exists( $options ) {
+		if ( ! $options->get_option( 'wptc_server_connected' ) || ! $options->get_option( 'appID' ) || $options->get_option( 'signup' ) != 'done' ) {
+			if ( $options->get_option( 'main_account_email' ) ) {
+				$this->signup_wptc_server_wptc();
+			}
+		}
+		return true;
+	}
+
+	// Function for wptc cron service signup
+	public function signup_wptc_server_wptc() {
+
+		$config = \WPTC_Factory::get( 'config' );
+
+		$email         = trim( $config->get_option( 'main_account_email', true ) );
+		$emailhash     = md5( $email );
+		$email_encoded = base64_encode( $email );
+
+		$pwd         = trim( $config->get_option( 'main_account_pwd', true ) );
+		$pwd_encoded = base64_encode( $pwd );
+
+		if ( empty( $email ) || empty( $pwd ) ) {
+			return false;
+		}
+
+		wptc_log( $email, '--------email--------' );
+
+		$name = trim( $config->get_option( 'main_account_name' ) );
+		// $cron_url = site_url('wp-cron.php'); //wp cron commented because of new cron
+		$cron_url = get_wptc_cron_url();
+
+		$app_id = 0;
+		if ( $config->get_option( 'appID' ) ) {
+			$app_id = $config->get_option( 'appID' );
+		}
+
+		// $post_string = "name=" . $name . "&emailhash=" . $emailhash . "&cron_url=" . $cron_url . "&email=" . $email_encoded . "&pwd=" . $pwd_encoded . "&site_url=" . home_url();
+
+		$post_arr = array(
+			'email'     => $email_encoded,
+			'pwd'       => $pwd_encoded,
+			'cron_url'  => $cron_url,
+			'site_url'  => home_url(),
+			'name'      => $name,
+			'emailhash' => $emailhash,
+			'app_id'    => $app_id,
+		);
+
+		$result = do_cron_call_wptc( 'signup', $post_arr );
+
+		$resarr = json_decode( $result );
+
+		wptc_log( $resarr, '--------resarr-node reply--------' );
+
+		if ( ! empty( $resarr ) && $resarr->status == 'success' ) {
+			$config->set_option( 'wptc_server_connected', true );
+			$config->set_option( 'signup', 'done' );
+			$config->set_option( 'appID', $resarr->appID );
+
+			init_auto_backup_settings_wptc( $config );
+			$set = push_settings_wptc_server( $resarr->appID, 'signup' );
+			if ( WPTC_ENV !== 'production' ) {
+				// echo $set;
+			}
+
+			$to_url = network_admin_url() . 'admin.php?page=wp-time-capsule';
+			return true;
+		} else {
+			$config->set_option( 'last_service_error', $result );
+			$config->set_option( 'appID', false );
+
+			if ( WPTC_ENV !== 'production' ) {
+				echo 'Creating Cron service failed';
+			}
+
+			return false;
+		}
 	}
 
 	/**

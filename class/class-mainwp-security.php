@@ -102,9 +102,10 @@ class MainWP_Security {
 		foreach ( self::$listingDirectories as $directory ) {
 			$file = $directory . DIRECTORY_SEPARATOR . 'index.php';
 			if ( ! $wp_filesystem->exists( $file ) ) {
-				$wp_filesystem->put_contents( $file, "<?php \n" );
-				$wp_filesystem->put_contents( $file, "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n" );
-				$wp_filesystem->put_contents( $file, "die( '403 Forbidden' );\n" );
+				$content  = "<?php \n";
+				$content .= "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n";
+				$content .= "die( '403 Forbidden' );\n";
+				$wp_filesystem->put_contents( $file, $content );
 			}
 		}
 	}
@@ -266,7 +267,7 @@ class MainWP_Security {
 		if ( $force || self::get_security_option( 'generator_version' ) ) {
 			$types = array( 'html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export' );
 			foreach ( $types as $type ) {
-				add_filter( 'get_the_generator_' . $type, array( 'MainWP_Security', 'custom_the_generator' ), 10, 2 );
+				add_filter( 'get_the_generator_' . $type, array( self::get_class_name(), 'custom_the_generator' ), 10, 2 );
 			}
 		}
 	}

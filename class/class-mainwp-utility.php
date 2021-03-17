@@ -885,4 +885,22 @@ class MainWP_Utility {
 
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
 	}
+
+	/**
+	 * Method maybe_base64_decode()
+	 *
+	 * Maybe base64 decode string.
+	 *
+	 * @param string $str input string.
+	 *
+	 * @return string $decoded Maybe base64 decode string.
+	 */
+	public function maybe_base64_decode( $str ) {
+		$decoded = base64_decode( $str ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+		$Str1    = preg_replace( '/[\x00-\x1F\x7F-\xFF]/', '', $decoded );
+		if ( $Str1 != $decoded || $Str1 == '' ) {
+			return $str;
+		}
+		return $decoded;
+	}
 }

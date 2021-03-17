@@ -467,7 +467,7 @@ class MainWP_Child_Misc {
 	 * @uses \MainWP\Child\MainWP_Child_Misc::uploader_upload_file() Upload file from the MainWP Dashboard.
 	 */
 	public function uploader_action() {
-		$file_url    = isset( $_POST['url'] ) ? base64_decode( wp_unslash( $_POST['url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+		$file_url    = isset( $_POST['url'] ) ? MainWP_Utility::instance()->maybe_base64_decode( wp_unslash( $_POST['url'] ) ) : '';
 		$path        = isset( $_POST['path'] ) ? wp_unslash( $_POST['path'] ) : '';
 		$filename    = isset( $_POST['filename'] ) ? wp_unslash( $_POST['filename'] ) : '';
 		$information = array();
@@ -569,10 +569,19 @@ class MainWP_Child_Misc {
 			unlink( $full_file_name );
 			throw new \Exception( 'Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ) );
 		}
+		$fix_name = true;
 		if ( '.phpfile.txt' === substr( $file_name, - 12 ) ) {
 			$new_file_name = substr( $file_name, 0, - 12 ) . '.php';
 			$new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
-			$moved         = rename( $full_file_name, $new_file_name );
+		} elseif ( 0 === strpos( $file_name, 'fix_underscore' ) ) {
+			$new_file_name = str_replace( 'fix_underscore', '', $file_name );
+			$new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
+		} else {
+			$fix_name = false;
+		}
+
+		if ( $fix_name ) {
+			$moved = rename( $full_file_name, $new_file_name );
 			if ( $moved ) {
 				return array( 'path' => $new_file_name );
 			} else {

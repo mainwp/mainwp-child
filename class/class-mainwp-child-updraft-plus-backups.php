@@ -311,6 +311,8 @@ class MainWP_Child_Updraft_Plus_Backups {
             'updraft_ssl_disableverify',
             'updraft_report_warningsonly',
             'updraft_report_wholebackup',
+            'updraft_report_dbbackup',
+            'updraft_auto_updates',
             'updraft_log_syslog',
             'updraft_extradatabases',
             'updraft_split_every',
