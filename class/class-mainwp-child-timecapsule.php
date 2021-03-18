@@ -1198,7 +1198,11 @@ class MainWP_Child_Timecapsule {
 	}
 
 	/**
-	 * hash password.
+	 * Hash password.
+	 *
+	 * @param string $str String to hash.
+	 *
+	 * @return string Hashed password.
 	 */
 	public function hash_pwd( $str ) {
 		return md5( $str );
@@ -1206,6 +1210,9 @@ class MainWP_Child_Timecapsule {
 
 	/**
 	 * Process the sigin response info.
+	 *
+	 * @param object $options   Options object.
+	 * @param object $cust_info Custon info.
 	 *
 	 * @return bool Action result.
 	 */
@@ -1250,11 +1257,15 @@ class MainWP_Child_Timecapsule {
 				return true;
 			}
 		}
+
 	}
 
 
 	/**
 	 * Save the plan info.
+	 *
+	 * @param object $options   Options object.
+	 * @param object $cust_info Custon info.
 	 *
 	 * @return bool Action result.
 	 */
@@ -1271,6 +1282,11 @@ class MainWP_Child_Timecapsule {
 
 	/**
 	 * Process privilege wptc.
+	 *
+	 * @param object $options       Options object.
+	 * @param object $cust_req_info Custon info.
+	 *
+	 * @return bool Returns false on failure.
 	 */
 	private function process_privilege_wptc( $options, $cust_req_info = null ) {
 
@@ -1304,6 +1320,9 @@ class MainWP_Child_Timecapsule {
 	/**
 	 * Process service info.
 	 *
+	 * @param object $options   Options object.
+	 * @param object $cust_info Custon info.
+	 *
 	 * @return bool result.
 	 */
 	private function process_service_info( $options, &$cust_info ) {
@@ -1326,7 +1345,9 @@ class MainWP_Child_Timecapsule {
 	/**
 	 * Process service info.
 	 *
-	 * @return bool result.
+	 * @param object $options Options object.
+	 *
+	 * @return bool Result.
 	 */
 	public function check_if_cron_service_exists( $options ) {
 		if ( ! $options->get_option( 'wptc_server_connected' ) || ! $options->get_option( 'appID' ) || $options->get_option( 'signup' ) != 'done' ) {
@@ -1361,15 +1382,13 @@ class MainWP_Child_Timecapsule {
 		wptc_log( $email, '--------email--------' );
 
 		$name = trim( $config->get_option( 'main_account_name' ) );
-		// $cron_url = site_url('wp-cron.php'); //wp cron commented because of new cron
+
 		$cron_url = get_wptc_cron_url();
 
 		$app_id = 0;
 		if ( $config->get_option( 'appID' ) ) {
 			$app_id = $config->get_option( 'appID' );
 		}
-
-		// $post_string = "name=" . $name . "&emailhash=" . $emailhash . "&cron_url=" . $cron_url . "&email=" . $email_encoded . "&pwd=" . $pwd_encoded . "&site_url=" . home_url();
 
 		$post_arr = array(
 			'email'     => $email_encoded,
