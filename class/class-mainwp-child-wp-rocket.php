@@ -171,7 +171,7 @@ class MainWP_Child_WP_Rocket {
 			'google_analytics_cache'      => 0,
 			'facebook_pixel_cache'        => 0,
 			'do_cloudflare'               => 0,
-			'sucury_waf_cache_sync'       => 0,			
+			'sucury_waf_cache_sync'       => 0,
 			'cloudflare_api_key'          => '',
 			'cloudflare_email'            => '',
 			'cloudflare_zone_id'          => '',
