@@ -1275,7 +1275,7 @@ class MainWP_Child_Timecapsule {
 		} else {
 			$plans = json_decode( json_encode( $cust_info->plan_info_limited ), true );
 			wptc_log( $plans, '----------$plans----------------' );
-			return $options->set_option( 'plan_info_limited', serialize( $plans ) );
+			return $options->set_option( 'plan_info_limited', serialize( $plans ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		}
 	}
 
@@ -1369,10 +1369,10 @@ class MainWP_Child_Timecapsule {
 
 		$email         = trim( $config->get_option( 'main_account_email', true ) );
 		$emailhash     = md5( $email );
-		$email_encoded = base64_encode( $email );
+		$email_encoded = base64_encode( $email ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 
 		$pwd         = trim( $config->get_option( 'main_account_pwd', true ) );
-		$pwd_encoded = base64_encode( $pwd );
+		$pwd_encoded = base64_encode( $pwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 
 		if ( empty( $email ) || empty( $pwd ) ) {
 			return false;

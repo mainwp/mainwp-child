@@ -898,7 +898,7 @@ class MainWP_Utility {
 	public function maybe_base64_decode( $str ) {
 		$decoded = base64_decode( $str ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		$Str1    = preg_replace( '/[\x00-\x1F\x7F-\xFF]/', '', $decoded );
-		if ( $Str1 != $decoded || $Str1 == '' ) {
+		if ( $Str1 != $decoded || '' == $Str1 ) {
 			return $str;
 		}
 		return $decoded;
