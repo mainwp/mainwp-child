@@ -1221,7 +1221,7 @@ class MainWP_Child_Timecapsule {
 		if ( $this->process_service_info( $options, $cust_info ) ) {
 
 			if ( empty( $cust_info->success ) ) {
-				return false;                   // hack
+				return false;
 			}
 
 			$cust_req_info = $cust_info->success[0];
@@ -1237,7 +1237,7 @@ class MainWP_Child_Timecapsule {
 			if ( isset( $cust_req_info->connected_sites_count ) ) {
 				$options->set_option( 'connected_sites_count', $cust_req_info->connected_sites_count );
 			} else {
-				$options->set_option( 'connected_sites_count', 1 ); // set default 1 sites connected if server does send sites count
+				$options->set_option( 'connected_sites_count', 1 );
 			}
 
 			if ( ! empty( $cust_info->logged_in_but_no_plans_yet ) ) {
@@ -1257,7 +1257,6 @@ class MainWP_Child_Timecapsule {
 				return true;
 			}
 		}
-
 	}
 
 
@@ -1307,7 +1306,7 @@ class MainWP_Child_Timecapsule {
 			}
 		}
 
-		// Remove on production
+		// Remove on production!
 		array_push( $privileges_args, 'Wptc_Rollback' );
 		array_push( $privileged_feature['pro'], 'Wptc_Rollback' );
 
@@ -1331,10 +1330,10 @@ class MainWP_Child_Timecapsule {
 
 			$options->set_option( 'card_added', false );
 
-			if ( $err_msg == 'logged_in_but_no_plans_yet' ) {
+			if ( 'logged_in_but_no_plans_yet' == $err_msg ) {
 				$options->do_options_for_no_plans_yet( $cust_info );
 
-				return true;            // hack
+				return true;
 			}
 			return false;
 		} else {
@@ -1406,16 +1405,13 @@ class MainWP_Child_Timecapsule {
 
 		wptc_log( $resarr, '--------resarr-node reply--------' );
 
-		if ( ! empty( $resarr ) && $resarr->status == 'success' ) {
+		if ( ! empty( $resarr ) && 'success' == $resarr->status ) {
 			$config->set_option( 'wptc_server_connected', true );
 			$config->set_option( 'signup', 'done' );
 			$config->set_option( 'appID', $resarr->appID );
 
 			init_auto_backup_settings_wptc( $config );
 			$set = push_settings_wptc_server( $resarr->appID, 'signup' );
-			if ( WPTC_ENV !== 'production' ) {
-				// echo $set;
-			}
 
 			$to_url = network_admin_url() . 'admin.php?page=wp-time-capsule';
 			return true;
@@ -1423,7 +1419,7 @@ class MainWP_Child_Timecapsule {
 			$config->set_option( 'last_service_error', $result );
 			$config->set_option( 'appID', false );
 
-			if ( WPTC_ENV !== 'production' ) {
+			if ('production' !== WPTC_ENV ) {
 				echo 'Creating Cron service failed';
 			}
 
