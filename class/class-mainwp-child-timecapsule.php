@@ -1419,7 +1419,7 @@ class MainWP_Child_Timecapsule {
 			$config->set_option( 'last_service_error', $result );
 			$config->set_option( 'appID', false );
 
-			if ('production' !== WPTC_ENV ) {
+			if ( 'production' !== WPTC_ENV ) {
 				echo 'Creating Cron service failed';
 			}
 
