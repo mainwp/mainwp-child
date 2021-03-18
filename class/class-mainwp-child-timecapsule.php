@@ -1178,7 +1178,7 @@ class MainWP_Child_Timecapsule {
 		$main_account_pwd   = $pwd;
 
 		$options->set_option( 'main_account_email', strtolower( $main_account_email ) );
-		$options->set_option( 'main_account_pwd', $main_account_pwd );
+		$options->set_option( 'main_account_pwd', $this->hash_pwd( $main_account_pwd ) );
 
 		$result = $this->proccess_cust_info( $options, $cust_info );
 
@@ -1197,6 +1197,18 @@ class MainWP_Child_Timecapsule {
 		);
 	}
 
+	/**
+	 * hash password.
+	 */
+	public function hash_pwd( $str ) {
+		return md5( $str );
+	}
+
+	/**
+	 * Process the sigin response info.
+	 *
+	 * @return bool Action result.
+	 */
 	public function proccess_cust_info( $options, $cust_info ) {
 
 		if ( $this->process_service_info( $options, $cust_info ) ) {
@@ -1242,6 +1254,11 @@ class MainWP_Child_Timecapsule {
 	}
 
 
+	/**
+	 * Save the plan info.
+	 *
+	 * @return bool Action result.
+	 */
 	private function save_plan_info_limited( $options, &$cust_info ) {
 		wptc_log( func_get_args(), '--------' . __FUNCTION__ . '--------' );
 		if ( empty( $cust_info ) || empty( $cust_info->plan_info_limited ) ) {
@@ -1253,7 +1270,9 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
-
+	/**
+	 * Process privilege wptc.
+	 */
 	private function process_privilege_wptc( $options, $cust_req_info = null ) {
 
 		if ( empty( $cust_req_info->subscription_features ) ) {
@@ -1283,6 +1302,11 @@ class MainWP_Child_Timecapsule {
 		$revision_limit->update_eligible_revision_limit( $privileges_args );
 	}
 
+	/**
+	 * Process service info.
+	 *
+	 * @return bool result.
+	 */
 	private function process_service_info( $options, &$cust_info ) {
 		if ( empty( $cust_info ) || ! empty( $cust_info->error ) ) {
 			$err_msg = $options->process_wptc_error_msg_then_take_action( $cust_info );
@@ -1300,6 +1324,11 @@ class MainWP_Child_Timecapsule {
 		}
 	}
 
+	/**
+	 * Process service info.
+	 *
+	 * @return bool result.
+	 */
 	public function check_if_cron_service_exists( $options ) {
 		if ( ! $options->get_option( 'wptc_server_connected' ) || ! $options->get_option( 'appID' ) || $options->get_option( 'signup' ) != 'done' ) {
 			if ( $options->get_option( 'main_account_email' ) ) {
@@ -1309,7 +1338,12 @@ class MainWP_Child_Timecapsule {
 		return true;
 	}
 
-	// Function for wptc cron service signup
+
+	/**
+	 * Function for wptc cron service signup
+	 *
+	 * @return bool result.
+	 */
 	public function signup_wptc_server_wptc() {
 
 		$config = \WPTC_Factory::get( 'config' );
