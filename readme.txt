@@ -4,10 +4,10 @@ Tags: WordPress management, WordPress Manager, WordPress controller, multiple Wo
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
-Requires at least: 3.6
-Tested up to: 5.6.1
+Requires at least: 5.4
+Tested up to: 5.7
 Requires PHP: 7.0
-Stable tag: 4.1.4
+Stable tag: 4.1.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -106,6 +106,13 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.1.5 - 3-18-21 =
+* Fixed: An issue with uploading files with underscore in the file name
+* Fixed: Multiple PHP Warnings
+* Updated: Compatibility with the latest UpdraftPlus plugin version
+* Updated: Compatibility with the latest BackWPup plugin version
+* Updated: Compatibility with the latest WP Rocket plugin version
 
 = 4.1.4 - 1-21-21 =
 * Updated: Compatibility with the latest WP Staging plugin version
