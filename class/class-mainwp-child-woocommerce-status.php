@@ -196,7 +196,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );  //phpcs:ignore -- safe query.
 
-		$data                = array(
+		$data = array(
 			'sales'          => $sales,
 			'formated_sales' => wc_price( $sales ),
 			'top_seller'     => $top_seller,
@@ -301,7 +301,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
-		$data                = array(
+		$data = array(
 			'sales'          => $sales,
 			'formated_sales' => wc_price( $sales ),
 			'top_seller'     => $top_seller,
@@ -438,7 +438,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
-		$data                          = array(
+		$data = array(
 			'sales'          => $sales,
 			'formated_sales' => wc_price( $sales ),
 			'top_seller'     => $top_seller,
@@ -451,8 +451,8 @@ class MainWP_Child_WooCommerce_Status {
 		);
 
 		$data = apply_filters( 'mainwp_child_woocom_get_data', $data );
-		
-		$information['data']           = $data;
+
+		$information['data'] = $data;
 
 		$information['need_db_update'] = $this->check_db_update();
 		return $information;
