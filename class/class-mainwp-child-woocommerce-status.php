@@ -207,6 +207,9 @@ class MainWP_Child_WooCommerce_Status {
 			'lowstock'       => $lowinstock_count,
 			'outstock'       => $outofstock_count,
 		);
+
+		$data = apply_filters( 'mainwp_child_woocom_sync_data', $data );
+
 		$information['data'] = $data;
 
 		return $information;
@@ -309,6 +312,9 @@ class MainWP_Child_WooCommerce_Status {
 			'lowstock'       => $lowinstock_count,
 			'outstock'       => $outofstock_count,
 		);
+
+		$data = apply_filters( 'mainwp_child_woocom_report_data', $data );
+
 		$information['data'] = $data;
 
 		return $information;
@@ -443,7 +449,11 @@ class MainWP_Child_WooCommerce_Status {
 			'lowstock'       => $lowinstock_count,
 			'outstock'       => $outofstock_count,
 		);
+
+		$data = apply_filters( 'mainwp_child_woocom_get_data', $data );
+		
 		$information['data']           = $data;
+
 		$information['need_db_update'] = $this->check_db_update();
 		return $information;
 	}

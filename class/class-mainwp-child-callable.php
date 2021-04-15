@@ -90,6 +90,7 @@ class MainWP_Child_Callable {
 		'extra_excution'        => 'extra_execution', // deprecated!
 		'extra_execution'       => 'extra_execution',
 		'wpvivid_backuprestore' => 'wpvivid_backuprestore',
+		'check_abandoned'       => 'check_abandoned',
 	);
 
 	/**
@@ -601,6 +602,24 @@ class MainWP_Child_Callable {
 	 */
 	public function get_site_icon() {
 		MainWP_Child_Misc::get_instance()->get_site_icon();
+	}
+
+	/**
+	 * Method check_abandoned()
+	 *
+	 * Fire off the check_abandoned() function.
+	 */
+	public function check_abandoned() {
+		$which = sanitize_text_field( wp_unslash( $_POST['which'] ) );
+		$infor = array();
+		if ( 'plugin' == $which ) {			
+			MainWP_Child_Plugins_Check::instance()->run_check();
+			$infor['success'] = 1; 
+		} else {
+			MainWP_Child_Themes_Check::instance()->run_check();
+			$infor['success'] = 1;
+		}
+		MainWP_Helper::write( $infor );
 	}
 
 	/**
