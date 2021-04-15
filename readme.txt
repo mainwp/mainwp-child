@@ -107,6 +107,10 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
+= 4.1.6 - 4-15-21 =
+* Added: Support for the function to trigger Check for Abandoned plugins and themes process
+* Updated: Multiple performance improvements
+
 = 4.1.5 - 3-18-21 =
 * Fixed: An issue with uploading files with underscore in the file name
 * Fixed: Multiple PHP Warnings
