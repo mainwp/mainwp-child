@@ -184,7 +184,7 @@ class MainWP_Clone {
 	 * @uses \MainWP\Child\MainWP_Clone_Page::get_class_name()
 	 */
 	public function init() {
-		add_action( 'check_admin_referer', array( self::get_class_name(), 'permalink_changed' ) );		
+		add_action( 'check_admin_referer', array( self::get_class_name(), 'permalink_changed' ) );
 	}
 
 	/**
