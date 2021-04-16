@@ -196,7 +196,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) );  //phpcs:ignore -- safe query.
 
-		$data                = array(
+		$data = array(
 			'sales'          => $sales,
 			'formated_sales' => wc_price( $sales ),
 			'top_seller'     => $top_seller,
@@ -301,7 +301,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
-		$data                = array(
+		$data = array(
 			'sales'          => $sales,
 			'formated_sales' => wc_price( $sales ),
 			'top_seller'     => $top_seller,
@@ -438,7 +438,7 @@ class MainWP_Child_WooCommerce_Status {
 
 		$outofstock_count = absint( $wpdb->get_var( "SELECT COUNT( DISTINCT posts.ID ) {$query_from};" ) ); //phpcs:ignore -- safe query.
 
-		$data                          = array(
+		$data = array(
 			'sales'          => $sales,
 			'formated_sales' => wc_price( $sales ),
 			'top_seller'     => $top_seller,
@@ -449,7 +449,7 @@ class MainWP_Child_WooCommerce_Status {
 			'lowstock'       => $lowinstock_count,
 			'outstock'       => $outofstock_count,
 		);
-		
+
 		$data = apply_filters( 'mainwp_child_woocom_get_data', $data );
 
 		$information['data']           = $data;
