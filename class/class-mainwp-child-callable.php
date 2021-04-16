@@ -612,16 +612,16 @@ class MainWP_Child_Callable {
 	public function check_abandoned() {
 		$which = sanitize_text_field( wp_unslash( $_POST['which'] ) );
 		$infor = array();
-		if ( 'plugin' == $which ) {			
+		if ( 'plugin' == $which ) {
 			MainWP_Child_Plugins_Check::instance()->run_check();
-			$infor['success'] = 1; 
+			$infor['success'] = 1;
 		} else {
 			MainWP_Child_Themes_Check::instance()->run_check();
 			$infor['success'] = 1;
 		}
 		MainWP_Helper::write( $infor );
 	}
-	
+
 	/**
 	 * Method get_security_stats()
 	 *
