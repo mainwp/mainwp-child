@@ -619,6 +619,7 @@ class MainWP_Child_Callable {
 			MainWP_Child_Themes_Check::instance()->run_check();
 			$infor['success'] = 1;
 		}
+		$infor['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		MainWP_Helper::write( $infor );
 	}
 

@@ -322,7 +322,7 @@ class MainWP_Child_IThemes_Security {
 				if ( 'wordpress-salts' == $module ) {
 					$settings['last_generated'] = \ITSEC_Modules::get_setting( $module, 'last_generated' );
 				} elseif ( 'global' == $module ) {
-					$keep_olds = array( 'did_upgrade', 'log_info', 'show_new_dashboard_notice', 'show_security_check', 'nginx_file' );
+					$keep_olds = array( 'did_upgrade', 'log_info', 'show_new_dashboard_notice', 'show_security_check', 'nginx_file', 'manage_group' );
 					foreach ( $keep_olds as $key ) {
 						$settings[ $key ] = \ITSEC_Modules::get_setting( $module, $key );
 					}
@@ -897,10 +897,16 @@ class MainWP_Child_IThemes_Security {
 		if ( ! class_exists( '\ITSEC_File_Change_Scanner' ) ) {
 			require_once $mainwp_itsec_modules_path . 'file-change/scanner.php';
 		}
-		$result = \ITSEC_File_Change_Scanner::run_scan( false );
-		if ( false === $result || true === $result || -1 === $result ) {
+		
+		$results = \ITSEC_File_Change_Scanner::schedule_start();
+
+		if ( is_wp_error( $results ) ) {
+			$error = $results->get_error_message();
+			$return['result']      = 'failed';
+			$return['scan_error'] = $error;
+		} else {
 			$return['result']      = 'success';
-			$return['scan_result'] = $result;
+			$return['scan_result'] = $results;
 		}
 		return $return;
 	}
