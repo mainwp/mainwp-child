@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 5.4
 Tested up to: 5.7.1
 Requires PHP: 7.0
-Stable tag: 4.1.6.1
+Stable tag: 4.1.7-beta1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -106,6 +106,9 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.1.7-beta1 - 5-11-21 =
+* Added: Support for the new Vulnerability Checker API
 
 = 4.1.6.1 - 4-16-21 =
 * Fixed: An issue with disconnecting sites
