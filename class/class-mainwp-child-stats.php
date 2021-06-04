@@ -698,12 +698,13 @@ class MainWP_Child_Stats {
 	private function stats_get_total_size() {
 		$total = null;
 
-		$get_file_size = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
-		$get_file_size = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
+		$get_file_size        = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
+		$get_file_size        = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
+		$forced_get_file_size = apply_filters( 'mainwp_child_forced_get_total_size', false );
 
-		if ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) {
+		if ( $forced_get_file_size || ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) ) {
 			$max_exe = ini_get( 'max_execution_time' );
-			if ( $max_exe > 20 ) {
+			if ( $forced_get_file_size || $max_exe > 20 ) {
 				$total = $this->get_total_file_size();
 			}
 		}
