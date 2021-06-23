@@ -107,6 +107,10 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
+= 4.1.7-beta2 - 6-4-21 =
+
+* Updated: Support for the new Vulnerability Checker API
+
 = 4.1.7-beta1 - 5-11-21 =
 * Added: Support for the new Vulnerability Checker API
 
