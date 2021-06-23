@@ -161,7 +161,7 @@ class MainWP_Connect {
 	 * @uses \MainWP\Child\MainWP_Child_Callable::is_callable_function_no_auth()
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
-	public function parse_init_auth( $auth = false ) {
+	public function parse_init_auth( $auth = false ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) { // with 'mainwpsignature' then need to callable functions.
 			MainWP_Helper::instance()->error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
