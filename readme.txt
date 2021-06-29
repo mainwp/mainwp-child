@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 5.4
-Tested up to: 5.7.1
+Tested up to: 5.7.2
 Requires PHP: 7.0
-Stable tag: 4.1.7-beta2
+Stable tag: 4.1.7
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -107,11 +107,7 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
-= 4.1.7-beta2 - 6-4-21 =
-
-* Updated: Support for the new Vulnerability Checker API
-
-= 4.1.7-beta1 - 5-11-21 =
+= 4.1.7 - 6-29-21 =
 * Added: Support for the new Vulnerability Checker API
 
 = 4.1.6.1 - 4-16-21 =
