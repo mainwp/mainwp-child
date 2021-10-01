@@ -702,7 +702,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				'>=',
 				array(
 					'openssl_version_number' => 269484032,
-					'version'        => 'OpenSSL/1.1.0',
+					'version'                => 'OpenSSL/1.1.0',
 				),
 				'get_curl_ssl_version',
 				'',
