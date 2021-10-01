@@ -701,8 +701,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				'cURL SSL Version',
 				'>=',
 				array(
-					'version_number' => 0x009080cf,
-					'version'        => 'OpenSSL/0.9.8l',
+					'openssl_version_number' => 269484032,
+					'version'        => 'OpenSSL/1.1.0',
 				),
 				'get_curl_ssl_version',
 				'',
@@ -1166,8 +1166,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<td><?php echo( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
 			<?php if ( 'filesize' === $whatType ) { ?>
 				<td><?php echo( self::filesize_compare( $currentVersion, $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
-			<?php } elseif ( 'curlssl' === $whatType ) { ?>
-				<td><?php echo( self::curlssl_compare( $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
+			<?php } elseif ( 'get_curl_ssl_version' === $getter ) { ?>
+				<td><?php echo( self::curlssl_compare( $version ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
 			<?php } elseif ( ( 'get_max_input_time' === $getter || 'get_max_execution_time' === $getter ) && -1 == $currentVersion ) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
