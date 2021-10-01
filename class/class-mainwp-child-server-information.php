@@ -709,6 +709,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				'',
 				'curlssl'
 			);
+			if ( ! self::curlssl_compare( $openssl_version, '>=' ) ) {
+				echo "<tr><td colspan='5'><span class='mainwp-warning'><i class='fa fa-exclamation-circle'>" . sprintf( __( 'Your host needs to update OpenSSL to at least version 1.1.0 which is already over 4 years old and contains patches for over 60 vulnerabilities.%1$sThese range from Denial of Service to Remote Code Execution. %2$sClick here for more information.%3$s', 'mainwp' ), '<br/>', '<a href="https://community.letsencrypt.org/t/openssl-client-compatibility-changes-for-let-s-encrypt-certificates/143816" target="_blank">', '</a>' ) . '</span></td></tr>';
+			}
 		}
 	}
 
