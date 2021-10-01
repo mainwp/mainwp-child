@@ -205,7 +205,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Compare current cURL & SSL versions to required values.
 	 *
 	 * @param string $value    Required values to compare to.
-	 * @param null  $operator Comparison operator.
+	 * @param null   $operator Comparison operator.
 	 *
 	 * @return bool|int  When using the optional operator argument, the function will return TRUE if the
 	 * relationship is the one specified by the operator, FALSE otherwise. Returns -1 if the first version
