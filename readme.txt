@@ -108,7 +108,7 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 == Changelog ==
 
 = 4.1.7.1 - 10-1-2021 =
-Updated: OpenSSL version requirement to 1.1.0 or greater
+* Updated: OpenSSL version requirement to 1.1.0 or greater
 
 = 4.1.7 - 6-29-21 =
 * Added: Support for the new Vulnerability Checker API
