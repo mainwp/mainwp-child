@@ -521,8 +521,8 @@ class MainWP_Child_Staging {
 		$result = $delete->start();
 		if ( null === $result ) {
 			$result = json_encode( 'retry' ); // to fix.
-		}		
-		return  $result;
+		}
+		return $result;
 	}
 
 	/**

@@ -336,7 +336,7 @@ class MainWP_Child_Updates {
 		$result   = $upgrader->bulk_upgrade( $plugins );
 
 		do_action( 'mainwp_child_after_update', 'plugin', $result, $plugins );
-		
+
 		if ( ! empty( $result ) ) {
 			foreach ( $result as $plugin => $info ) {
 				if ( empty( $info ) ) {
@@ -483,7 +483,7 @@ class MainWP_Child_Updates {
 		$failed   = true;
 		$upgrader = new \Theme_Upgrader( new \Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 		$result   = $upgrader->bulk_upgrade( $themes );
-		
+
 		do_action( 'mainwp_child_after_update', 'theme', $result, $themes );
 
 		if ( ! empty( $result ) ) {
