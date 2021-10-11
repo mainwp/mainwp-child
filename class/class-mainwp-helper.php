@@ -612,7 +612,7 @@ class MainWP_Helper {
 		}
 		return apply_filters( 'mainwp_child_unique_id', $uniqueId );
 	}
-	
+
 	/**
 	 * Method in_excludes()
 	 *
