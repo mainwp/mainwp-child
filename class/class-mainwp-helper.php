@@ -598,6 +598,22 @@ class MainWP_Helper {
 	}
 
 	/**
+	 * Method get_site_unique_id()
+	 *
+	 * Get site unique id.
+	 *
+	 * @return string $uniqueId unique id.
+	 */
+	public static function get_site_unique_id() {
+		if ( defined( 'MAINWP_CHILD_UNIQUEID' ) ) {
+			$uniqueId = MAINWP_CHILD_UNIQUEID;
+		} else {
+			$uniqueId = get_option( 'mainwp_child_uniqueId', '' );
+		}
+		return apply_filters( 'mainwp_child_unique_id', $uniqueId );
+	}
+	
+	/**
 	 * Method in_excludes()
 	 *
 	 * Check if the value is in the excludes list.

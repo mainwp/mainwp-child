@@ -753,7 +753,7 @@ class MainWP_Child_Posts {
 				)
 			);
 		}
-		$this->update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus );
+		$this->update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus, $others );
 		// unlock if edit post.
 		if ( $edit_post_id ) {
 			update_post_meta( $edit_post_id, '_edit_lock', '' );
@@ -773,10 +773,11 @@ class MainWP_Child_Posts {
 	 * @param string $post_tags           Post tags.
 	 * @param string $edit_post_id        Edit Post ID.
 	 * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
+	 * @param array  $others        Post custom others meta data.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::update_wp_rocket_custom_post()
 	 */
-	private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus ) {
+	private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus, $others ) {
 
 		/**
 		 * Current user global.
@@ -856,7 +857,7 @@ class MainWP_Child_Posts {
 		}
 
 		$this->create_set_categories( $new_post_id, $post_category, $post_to_only_existing_categories );
-		$this->create_featured_image( $new_post_id, $post_featured_image, true ); // always checks featured img.
+		$this->create_featured_image( $new_post_id, $post_featured_image, true, $others ); // always checks featured img.
 
 		// post plus extension process.
 		if ( $is_post_plus ) {
@@ -1283,6 +1284,7 @@ class MainWP_Child_Posts {
 	 * @param string $new_post_id         New post ID.
 	 * @param string $post_featured_image Post featured image.
 	 * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
+	 * @param array  $others        Post custom others meta data.
 	 *
 	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
 	 * @uses \Excepsion()

@@ -264,7 +264,7 @@ class MainWP_Child_Stats {
 			$information['last_post_gmt'] = strtotime( $last_post['post_modified_gmt'] );
 		}
 		$information['mainwpdir']            = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
-		$information['uniqueId']             = get_option( 'mainwp_child_uniqueId', '' );
+		$information['uniqueId']             = MainWP_Helper::get_site_unique_id();
 		$information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
 		$information['themes_outdate_info']  = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
 		$information['health_site_status']   = $this->get_health_check_site_status();

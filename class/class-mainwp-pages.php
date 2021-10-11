@@ -582,7 +582,8 @@ class MainWP_Pages {
 					<div style="margin: 1em 0 4em 0;">
 						<input name="requireUniqueSecurityId" type="checkbox" id="requireUniqueSecurityId"
 						<?php
-						if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
+						$uniqueId = MainWP_Helper::get_site_unique_id();
+						if ( '' != $uniqueId ) {
 							echo 'checked'; }
 						?>
 						/>
@@ -590,7 +591,7 @@ class MainWP_Pages {
 					</div>
 					<div>
 						<?php
-						if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
+						if ( '' != $uniqueId ) {
 							echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">' . esc_html__( 'Your unique security ID is:', 'mainwp-child' ) . ' <span style="font-weight: bold; color: #7fb100;">' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</span></span>';
 						}
 						?>

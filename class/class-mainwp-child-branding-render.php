@@ -127,21 +127,21 @@ class MainWP_Child_Branding_Render {
 		$from_email      = $current_user ? $current_user->user_email : '';
 		?>
 		<form action="" method="post">
-			<div style="width: 99%;">
+			<div style="width: 99%;" class="whlb-support-form">
 				<h2><?php echo esc_html( $opts['contact_label'] ); ?></h2>
 				<div style="height: auto; margin-bottom: 10px; text-align: left">
-					<p><?php echo wp_kses_post( $support_message ); ?></p>
-					<p>
+					<p class="whlb-support-form"><?php echo wp_kses_post( $support_message ); ?></p>
+					<p class="whlb-support-form">
 						<label for="mainwp_branding_contact_message_subject"><?php esc_html_e( 'Subject:', 'mainwp-child' ); ?></label>
 						<br>
 						<input type="text" id="mainwp_branding_contact_message_subject" name="mainwp_branding_contact_message_subject" style="width: 650px;">
 					</p>
-					<p>
+					<p class="whlb-support-form">
 						<label for="mainwp_branding_contact_send_from"><?php esc_html_e( 'From:', 'mainwp-child' ); ?></label>
 						<br>
 						<input type="text" id="mainwp_branding_contact_send_from" name="mainwp_branding_contact_send_from" style="width: 650px;" value="<?php echo esc_attr( $from_email ); ?>">
 					</p>
-					<div style="max-width: 650px;">
+					<div style="max-width: 650px;" class="whlb-support-form">
 						<label for="mainwp_branding_contact_message_content"><?php esc_html_e( 'Your message:', 'mainwp-child' ); ?></label>
 						<br>
 						<?php
@@ -165,7 +165,9 @@ class MainWP_Child_Branding_Render {
 				$button_title = $opts['submit_button_title'];
 				$button_title = ! empty( $button_title ) ? $button_title : __( 'Submit', 'mainwp-child' );
 				?>
+				<div class="whlb-support-field">
 				<input id="mainwp-branding-contact-support-submit" type="submit" name="submit" value="<?php echo esc_attr( $button_title ); ?>" class="button-primary button" style="float: left"/>
+				</div>
 			</div>
 			<input type="hidden" name="mainwp_branding_send_from_page" value="<?php echo esc_url( $from_page ); ?>"/>
 			<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( '_contactNonce' ) ); ?>"/>

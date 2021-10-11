@@ -330,9 +330,13 @@ class MainWP_Child_Updates {
 		$url   = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
 		$nonce = 'bulk-update-plugins';
 
+		do_action( 'mainwp_child_before_update', 'plugin', $plugins );
+
 		$upgrader = new \Plugin_Upgrader( new \Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 		$result   = $upgrader->bulk_upgrade( $plugins );
 
+		do_action( 'mainwp_child_after_update', 'plugin', $result, $plugins );
+		
 		if ( ! empty( $result ) ) {
 			foreach ( $result as $plugin => $info ) {
 				if ( empty( $info ) ) {
@@ -474,9 +478,14 @@ class MainWP_Child_Updates {
 		$last_update2 = get_site_transient( 'update_themes' );
 		set_site_transient( 'update_themes', $last_update );
 
+		do_action( 'mainwp_child_before_update', 'theme', $themes );
+
 		$failed   = true;
 		$upgrader = new \Theme_Upgrader( new \Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 		$result   = $upgrader->bulk_upgrade( $themes );
+		
+		do_action( 'mainwp_child_after_update', 'theme', $result, $themes );
+
 		if ( ! empty( $result ) ) {
 			foreach ( $result as $theme => $info ) {
 				if ( empty( $info ) ) {

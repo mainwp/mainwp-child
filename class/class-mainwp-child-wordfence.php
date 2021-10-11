@@ -317,11 +317,14 @@ class MainWP_Child_Wordfence {
 			$lastcheck = time() - 3600 * 24 * 10;
 		}
 
+		$offset    = get_option( 'gmt_offset' );
+		$lastcheck = $lastcheck + ( -$offset * 60 * 60 );
+
 		$table_wfStatus = \wfDB::networkTable( 'wfStatus' );
 
 		// fix prepare sql empty.
-		$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 1 AND type = 'info' AND msg LIKE ", $lastcheck );
-		$sql .= " 'Scan Complete.%';";
+		$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 10 AND type = 'info' ", $lastcheck );
+		$sql .= " AND msg LIKE 'SUM_FINAL%' ";
 		$rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 
 		$scan_time = array();
@@ -334,8 +337,8 @@ class MainWP_Child_Wordfence {
 		if ( $scan_time ) {
 			$message = 'Wordfence scan completed';
 			foreach ( $scan_time as $ctime => $details ) {
-				$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' AND msg LIKE ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg.
-				$sql .= " 'SUM_FINAL:Scan complete.%';";
+				$sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg.
+				$sql .= "  AND msg LIKE 'SUM_FINAL%' ";
 
 				$sum_rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 				$result   = '';
@@ -350,6 +353,22 @@ class MainWP_Child_Wordfence {
 		}
 
 		update_option( 'mainwp_wordfence_lastcheck_scan', time() );
+	}
+
+	/**
+	 * Method get_substr()
+	 *
+	 * Get sub string.
+	 *
+	 * @param string $s String to get sub string.
+	 * @param int    $count count number.
+	 */
+	public function get_substr( $s, $count = 2 ) {
+		$p = 0;
+		for ( $i = 0; $i < $count; $i++ ) {
+			$p = strpos( $s, ' ', $p + 1 );
+		}
+		return substr( $s, 0, $p );
 	}
 
 	/**

@@ -85,6 +85,56 @@ class MainWP_Child_IThemes_Security {
 				$information['syncIThemeData'] = array(
 					'users_and_roles' => $this->get_available_admin_users_and_roles(),
 				);
+				
+				global $itsec_lockout;
+
+				if ( $itsec_lockout ) {
+					$lockout_query = array(
+						'limit'   => 100,
+						'current' => true,
+						'order'   => 'DESC',
+						'orderby' => 'lockout_start',
+					);
+					$lockouts = $itsec_lockout->get_lockouts( 'all', $lockout_query );
+					if ( $lockouts ) {
+						$information['syncIThemeData']['lockout_count'] = count( $lockouts );
+					}
+				}
+
+
+				$request = new \WP_REST_Request( 'GET', '/ithemes-security/v1/site-scanner/scans' );
+				
+				$range1 = \ITSEC_Core::get_current_time_gmt();
+				$range0 = strtotime( '-30 days', $range1 );
+				
+				
+				$request->set_query_params( [
+					'after'  => \ITSEC_Lib::to_rest_date( $range0 ),
+					'before' => \ITSEC_Lib::to_rest_date( $range1 ),
+				] );
+		
+				$response = rest_do_request( $request );
+				$scans = rest_get_server()->response_to_data( $response, true );
+				
+				if ( is_array( $scans ) && count( $scans ) > 0 ) {
+					$scan = current( $scans );
+					$information['syncIThemeData']['scan_info'] = array(
+						'time' => $scan['time'],
+						'description' => $scan['description'],
+						'status' => $scan['status'],						
+					);
+				}
+
+				if ( class_exists( '\iThemesSecurity\Ban_Users\Database_Repository' ) ) {
+					$repository = \ITSEC_Modules::get_container()->get( \iThemesSecurity\Ban_Users\Database_Repository::class );
+					$information['syncIThemeData']['count_bans'] = $repository->count_bans( new \iThemesSecurity\Ban_Hosts\Filters() );
+				}
+
+				$information['syncIThemeData']['lockouts_host'] = $this->get_lockouts( 'host', true );
+				$information['syncIThemeData']['lockouts_user'] = $this->get_lockouts( 'user', true );
+				$information['syncIThemeData']['lockouts_username'] = $this->get_lockouts( 'username', true );
+
+
 			} catch ( \Exception $e ) {
 				error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
 			}
@@ -307,6 +357,7 @@ class MainWP_Child_IThemes_Security {
 			'wordpress-tweaks',
 			'multisite-tweaks',
 			'notification-center',
+			'two-factor',
 		);
 
 		$require_permalinks = false;
@@ -318,6 +369,7 @@ class MainWP_Child_IThemes_Security {
 
 		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
+			$current_settings = \ITSEC_Modules::get_settings( $module );
 			if ( in_array( $module, $_itsec_modules ) ) {
 				if ( 'wordpress-salts' == $module ) {
 					$settings['last_generated'] = \ITSEC_Modules::get_setting( $module, 'last_generated' );
@@ -401,7 +453,10 @@ class MainWP_Child_IThemes_Security {
 				}
 
 				if ( ! $do_not_save ) {
-					\ITSEC_Modules::set_settings( $module, $settings );
+					foreach ( $settings as $key => $val ) {						
+						$current_settings[$key] = $val;
+					}
+					\ITSEC_Modules::set_settings( $module, $current_settings );
 					$updated = true;
 				}
 			}
@@ -426,9 +481,6 @@ class MainWP_Child_IThemes_Security {
 			'jquery_version'        => \ITSEC_Modules::get_setting( 'wordpress-tweaks', 'jquery_version' ),
 			'server_rules'          => \ITSEC_Lib_Config_File::get_server_config(),
 			'config_rules'          => \ITSEC_Lib_Config_File::get_wp_config(),
-			'lockouts_host'         => $this->get_lockouts( 'host', true ),
-			'lockouts_user'         => $this->get_lockouts( 'user', true ),
-			'lockouts_username'     => $this->get_lockouts( 'username', true ),
 			'default_log_location'  => \ITSEC_Modules::get_default( 'global', 'log_location' ),
 			'default_location'      => \ITSEC_Modules::get_default( 'backup', 'location' ),
 			'excludable_tables'     => $this->get_excludable_tables(),
@@ -541,7 +593,11 @@ class MainWP_Child_IThemes_Security {
         /** @global string $mainwp_itsec_modules_path MainWP itsec modules path.  */
 		global $mainwp_itsec_modules_path;
 
-		require_once $mainwp_itsec_modules_path . 'ipcheck/utilities.php';
+		if ( file_exists( $mainwp_itsec_modules_path . 'network-brute-force/utilities.php' ) ) {
+			require_once $mainwp_itsec_modules_path . 'network-brute-force/utilities.php';
+		} else if ( file_exists( $mainwp_itsec_modules_path . 'ipcheck/utilities.php' ) ) {
+			require_once $mainwp_itsec_modules_path . 'ipcheck/utilities.php';
+		}
 
 		$key = \ITSEC_Network_Brute_Force_Utilities::get_api_key( $settings['email'], $settings['updates_optin'] );
 		if ( is_wp_error( $key ) ) {

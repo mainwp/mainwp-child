@@ -1379,7 +1379,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		 */
 		global $current_user;
 
-		$uniqueId = get_option( 'mainwp_child_uniqueId' );
+		$uniqueId = MainWP_Helper::get_site_unique_id();
 		$details  = array(
 			'siteurl'       => array(
 				'title' => __( 'Site URL', 'mainwp-child' ),

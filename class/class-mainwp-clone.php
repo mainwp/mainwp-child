@@ -686,6 +686,7 @@ class MainWP_Clone {
 			$cloneInstall->extract_backup();
 
 			$pubkey       = get_option( 'mainwp_child_pubkey' );
+			$uniqueId     = MainWP_Helper::get_site_unique_id();
 			$uniqueId     = get_option( 'mainwp_child_uniqueId' );
 			$server       = get_option( 'mainwp_child_server' );
 			$nonce        = get_option( 'mainwp_child_nonce' );

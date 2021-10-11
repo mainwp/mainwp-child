@@ -90,11 +90,12 @@ class MainWP_Connect {
 			MainWP_Helper::instance()->error( __( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin and try again.', 'mainwp-child' ) );
 		}
 
+		$uniqueId = MainWP_Helper::get_site_unique_id();
 		// Check the Unique Security ID.
-		if ( '' != get_option( 'mainwp_child_uniqueId' ) ) {
+		if ( '' != $uniqueId ) {
 			if ( ! isset( $_POST['uniqueId'] ) || ( '' === $_POST['uniqueId'] ) ) {
 				MainWP_Helper::instance()->error( __( 'This child site is set to require a unique security ID. Please enter it before the connection can be established.', 'mainwp-child' ) );
-			} elseif ( get_option( 'mainwp_child_uniqueId' ) !== $_POST['uniqueId'] ) {
+			} elseif ( $uniqueId !== $_POST['uniqueId'] ) {
 				MainWP_Helper::instance()->error( __( 'The unique security ID mismatch! Please correct it before the connection can be established.', 'mainwp-child' ) );
 			}
 		}
@@ -141,7 +142,7 @@ class MainWP_Connect {
 
 		$information['nosslkey'] = $nossl_key;
 		$information['register'] = 'OK';
-		$information['uniqueId'] = get_option( 'mainwp_child_uniqueId', '' );
+		$information['uniqueId'] = MainWP_Helper::get_site_unique_id();
 		$information['user']     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.

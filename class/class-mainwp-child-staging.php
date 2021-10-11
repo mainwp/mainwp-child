@@ -301,9 +301,15 @@ class MainWP_Child_Staging {
 	 * @return array $return Action result.
 	 */
 	public function get_overview() {
-		$return = array(
-			'availableClones' => get_option( 'wpstg_existing_clones_beta', array() ),
-		);
+		if ( defined( '\WPStaging\Framework\Staging\Sites::STAGING_SITES_OPTION' ) ) {
+			$return = array(
+				'availableClones' => get_option( \WPStaging\Framework\Staging\Sites::STAGING_SITES_OPTION, array() ),
+			);
+		} else {
+			$return = array(
+				'availableClones' => get_option( 'wpstg_existing_clones_beta', array() ),
+			);
+		}
 		return $return;
 	}
 
@@ -355,30 +361,64 @@ class MainWP_Child_Staging {
 		return array( 'status' => 'success' );
 	}
 
-	/**
-	 * Start clone via ajax.
-	 *
-	 * @uses WPStaging\Backend\Modules\Jobs\Cloning::save()
-	 *
-	 * @return false|string|void Return FALSE on failure, ajax response string on success, ELSE returns VOID.
-	 */
+		/**
+		 * Start clone via ajax.
+		 *
+		 * @uses WPStaging\Backend\Modules\Jobs\Cloning::save()
+		 *
+		 * @return false|string|void Return FALSE on failure, ajax response string on success, ELSE returns VOID.
+		 */
 	public function ajax_start_clone() {
 
-		$this->url = '';
-		$cloning   = new \WPStaging\Backend\Modules\Jobs\Cloning();
+		if ( function_exists( '\WPStaging\Core\WPStaging::make' ) ) {
+			require_once WPSTG_PLUGIN_DIR . 'Backend/Modules/Jobs/ProcessLock.php';
+			// Check first if there is already a process running
+			$processLock = new \WPStaging\Backend\Modules\Jobs\ProcessLock();
+			if ( $this->isRunning( $processLock ) ) {
+				return;
+			}
 
-		if ( ! $cloning->save() ) {
-			return;
+			$cloning = \WPStaging\Core\WPStaging::make( \WPStaging\Backend\Modules\Jobs\Cloning::class );
+
+			if ( ! $cloning->save() ) {
+				return;
+			}
+		} else {
+			$this->url = '';
+			$cloning   = new \WPStaging\Backend\Modules\Jobs\Cloning();
+
+			if ( ! $cloning->save() ) {
+				return;
+			}
 		}
 
 		ob_start();
 		if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php' ) ) {
 			require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php';
-		} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php' ) ) {
+		} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php' ) ) { // new.
+			$this->assets = new \WPStaging\Framework\Assets\Assets( new \WPStaging\Framework\Security\AccessToken(), new \WPStaging\Core\DTO\Settings() ); // to fix error.
 			require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php';
 		}
 		$result = ob_get_clean();
 		return $result;
+	}
+
+	/**
+	 * @return bool
+	 */
+	protected function isRunning( $processlock ) {
+		if ( ! isset( $processlock->options ) || ! isset( $processlock->options->isRunning ) || ! isset( $processlock->options->expiresAt ) ) {
+			return false;
+		}
+
+		try {
+			$now       = new DateTime();
+			$expiresAt = new DateTime( $processlock->options->expiresAt );
+			return $processlock->options->isRunning === true && $now < $expiresAt;
+		} catch ( Exception $e ) {
+		}
+
+		return false;
 	}
 
 	/**
@@ -389,8 +429,12 @@ class MainWP_Child_Staging {
 	 * @return mixed Action result.
 	 */
 	public function ajax_clone_database() {
-		$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
-		return $cloning->start();
+		if ( function_exists( '\WPStaging\Core\WPStaging::make' ) ) {
+			return \WPStaging\Core\WPStaging::make( \WPStaging\Backend\Modules\Jobs\Cloning::class )->start(); // new.
+		} else {
+			$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
+			return $cloning->start();
+		}
 	}
 
 	/**
@@ -474,8 +518,11 @@ class MainWP_Child_Staging {
 	 */
 	public function ajax_delete_clone() {
 		$delete = new \WPStaging\Backend\Modules\Jobs\Delete();
-
-		return $delete->start();
+		$result = $delete->start();
+		if ( null === $result ) {
+			$result = json_encode( 'retry' ); // to fix.
+		}		
+		return  $result;
 	}
 
 	/**
@@ -485,8 +532,11 @@ class MainWP_Child_Staging {
 	 */
 	public function ajax_cancel_clone() {
 		$cancel = new \WPStaging\Backend\Modules\Jobs\Cancel();
-
-		return $cancel->start();
+		$result = $cancel->start();
+		if ( null === $result ) {
+			$result = json_encode( 'retry' ); // to fix.
+		}
+		return $result;
 	}
 
 	/**
