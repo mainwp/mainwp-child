@@ -1289,7 +1289,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
 	 * @uses \Excepsion()
 	 */
-	private function create_featured_image( $new_post_id, $post_featured_image, $check_image_existed ) {
+	private function create_featured_image( $new_post_id, $post_featured_image, $check_image_existed, $others ) {
 
 		$featured_image_exist = false;
 		// If featured image exists - set it.

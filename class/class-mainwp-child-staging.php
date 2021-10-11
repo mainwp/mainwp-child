@@ -372,9 +372,9 @@ class MainWP_Child_Staging {
 
 		if ( function_exists( '\WPStaging\Core\WPStaging::make' ) ) {
 			require_once WPSTG_PLUGIN_DIR . 'Backend/Modules/Jobs/ProcessLock.php';
-			// Check first if there is already a process running
+			// Check first if there is already a process running.
 			$processLock = new \WPStaging\Backend\Modules\Jobs\ProcessLock();
-			if ( $this->isRunning( $processLock ) ) {
+			if ( $this->is_running( $processLock ) ) {
 				return;
 			}
 
@@ -404,18 +404,24 @@ class MainWP_Child_Staging {
 	}
 
 	/**
+	 *
+	 * Check process lock running.
+	 *
+	 * @param mixed $processlock Process lock object.
+	 *
 	 * @return bool
 	 */
-	protected function isRunning( $processlock ) {
+	protected function is_running( $processlock ) {
 		if ( ! isset( $processlock->options ) || ! isset( $processlock->options->isRunning ) || ! isset( $processlock->options->expiresAt ) ) {
 			return false;
 		}
 
 		try {
-			$now       = new DateTime();
-			$expiresAt = new DateTime( $processlock->options->expiresAt );
-			return $processlock->options->isRunning === true && $now < $expiresAt;
-		} catch ( Exception $e ) {
+			$now       = new \DateTime();
+			$expiresAt = new \DateTime( $processlock->options->expiresAt );
+			return ( true === $processlock->options->isRunning ) && ( $now < $expiresAt );
+		} catch ( \Exception $e ) {
+			// ok.
 		}
 
 		return false;
@@ -521,8 +527,8 @@ class MainWP_Child_Staging {
 		$result = $delete->start();
 		if ( null === $result ) {
 			$result = json_encode( 'retry' ); // to fix.
-		}		
-		return  $result;
+		}
+		return $result;
 	}
 
 	/**
