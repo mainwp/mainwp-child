@@ -303,7 +303,7 @@ class MainWP_Child_Install {
 		MainWP_Helper::check_wp_filesystem();
 
 		if ( ! isset( $_POST['type'] ) || ! isset( $_POST['url'] ) || ( 'plugin' !== $_POST['type'] && 'theme' !== $_POST['type'] ) || '' === $_POST['url'] ) {
-			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( __( 'Plugin or theme not specified, or missing required data. Please reload the page and try again.', 'mainwp-child' ) );
 		}
 
 		$this->require_files();
