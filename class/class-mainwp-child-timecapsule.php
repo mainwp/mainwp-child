@@ -712,8 +712,8 @@ class MainWP_Child_Timecapsule {
 			$query = 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE show_user = 1   GROUP BY action_id ';
 		}
 
-		$orderby = ! empty( $_POST['orderby'] ) ? MainWP_Child_DB::real_escape_string( wp_unslash( $_POST['orderby'] ) ) : 'id';
-		$order   = ! empty( $_POST['order'] ) ? MainWP_Child_DB::real_escape_string( wp_unslash( $_POST['order'] ) ) : 'DESC';
+		$orderby = ! empty( $_POST['orderby'] ) ? sanitize_sql_orderby( wp_unslash( $_POST['orderby'] ) ) : 'id';
+		$order   = ! empty( $_POST['order'] ) ? sanitize_sql_orderby( wp_unslash( $_POST['order'] ) ) : 'DESC';
 		if ( ! empty( $orderby ) & ! empty( $order ) ) {
 			$query .= ' ORDER BY ' . $orderby . ' ' . $order;
 		}
