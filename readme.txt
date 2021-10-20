@@ -118,6 +118,7 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 * Added: 'mainwp_child_after_update' action to hook in after the update process completes
 * Updated: Disconnected site warning message style
 * Updated: Reworded error messages
+* Preventative: Multiple security improvements
 
 = 4.1.7.1 - 10-1-2021 =
 * Updated: OpenSSL version requirement to 1.1.0 or greater
