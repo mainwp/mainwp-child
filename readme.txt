@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 5.4
 Tested up to: 5.8.1
 Requires PHP: 7.0
-Stable tag: 4.1.7.1
+Stable tag: 4.1.8
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -106,6 +106,18 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.1.8 - 10-20-2021 =
+* Fixed: An error with missing metadata in the posting process
+* Fixed: An error with logging Wordfence scans
+* Fixed: New iThemes Security version compatibility problems
+* Fixed: New WP Staging version compatibility problems
+* Added: Support to define MAINWP_CHILD_UNIQUEID constant
+* Added: Custom CSS classes to the White Label support form elements
+* Added: 'mainwp_child_before_update' action to hook in before the update process starts
+* Added: 'mainwp_child_after_update' action to hook in after the update process completes
+* Updated: Disconnected site warning message style
+* Updated: Reworded error messages
 
 = 4.1.7.1 - 10-1-2021 =
 * Updated: OpenSSL version requirement to 1.1.0 or greater
