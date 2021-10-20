@@ -694,12 +694,12 @@ class MainWP_Child_Posts {
 		* @param string $post_category � Post categories.
 		* @param string $post_tags     � Post tags.
 		*/
-		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags );
+		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags, $others );
 
 		$edit_post_id = 0;
 		$is_post_plus = false;
 
-		$this->set_post_custom_data( $new_post, $post_custom, $post_tags, $edit_post_id, $is_post_plus );
+		$this->set_post_custom_data( $new_post, $post_custom, $post_tags, $edit_post_id, $is_post_plus, $others );
 
 		require_once ABSPATH . 'wp-admin/includes/post.php';
 
