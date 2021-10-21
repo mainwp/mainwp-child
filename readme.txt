@@ -107,7 +107,7 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
-= 4.1.8 - 10-20-2021 =
+= 4.1.8 - 10-21-2021 =
 * Fixed: An error with missing metadata in the posting process
 * Fixed: An error with logging Wordfence scans
 * Fixed: New iThemes Security version compatibility problems
