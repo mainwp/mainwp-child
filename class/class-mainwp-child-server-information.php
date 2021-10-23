@@ -699,8 +699,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			self::render_row_sec( 'cURL Version', '>=', '7.18.1', 'get_curl_version', '', '', null );
 
 			$openssl_version = array(
-				'version_text' => 'OpenSSL/1.1.0',
-				'version_number' => 0x1010000f
+				'version_text'   => 'OpenSSL/1.1.0',
+				'version_number' => 0x1010000f,
 			);
 
 			self::render_row_sec(
