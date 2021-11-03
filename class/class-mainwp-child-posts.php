@@ -215,11 +215,11 @@ class MainWP_Child_Posts {
 			$outPost['dts'] = strtotime( $post->post_date_gmt );
 		}
 
-		$usr               = get_user_by( 'id', $post->post_author );
-		$outPost['author'] = ! empty( $usr ) ? $usr->user_nicename : 'removed';
+		$usr                    = get_user_by( 'id', $post->post_author );
+		$outPost['author']      = ! empty( $usr ) ? $usr->user_nicename : 'removed';
 		$outPost['authorEmail'] = ! empty( $usr ) ? $usr->user_email : 'removed';
-		$categoryObjects   = get_the_category( $post->ID );
-		$categories        = '';
+		$categoryObjects        = get_the_category( $post->ID );
+		$categories             = '';
 		foreach ( $categoryObjects as $cat ) {
 			if ( '' !== $categories ) {
 				$categories .= ', ';
