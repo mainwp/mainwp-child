@@ -655,7 +655,9 @@ class MainWP_Utility {
 		$data        = curl_exec( $ch );
 		$http_status = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 		$err         = curl_error( $ch );
-		curl_close( $ch );
+		if ( 'resource' === gettype( $ch ) ) {
+			curl_close( $ch );
+		}
 
 		if ( ( false === $data ) && ( 0 === $http_status ) ) {
 			throw new \Exception( 'Http Error: ' . $err );

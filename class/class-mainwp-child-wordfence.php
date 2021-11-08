@@ -64,6 +64,9 @@ class MainWP_Child_Wordfence {
 	 */
 	public static $options_filter = array(
 		'alertEmails',
+		'displayTopLevelOptions',
+		'displayTopLevelBlocking',
+		'displayTopLevelLiveTraffic',
 		'alertOn_adminLogin',
 		'alertOn_firstAdminLoginOnly',
 		'alertOn_scanIssues', // new.
@@ -140,8 +143,6 @@ class MainWP_Child_Wordfence {
 		'maxRequestsHumans_action',
 		'max404Humans',
 		'max404Humans_action',
-		'maxScanHits',
-		'maxScanHits_action',
 		'blockedTime',
 		'liveTraf_ignorePublishers',
 		'liveTraf_displayExpandedRecords',
@@ -149,6 +150,7 @@ class MainWP_Child_Wordfence {
 		'liveTraf_ignoreIPs',
 		'liveTraf_ignoreUA',
 		'liveTraf_maxRows',
+		'liveTraf_maxAge',
 		'displayTopLevelLiveTraffic',
 		'whitelisted',
 		'bannedURLs',
@@ -180,8 +182,10 @@ class MainWP_Child_Wordfence {
 		'other_bypassLitespeedNoabort',
 		'disableWAFIPBlocking',
 		'other_blockBadPOST',
+		'blockCustomText',
 		'displayTopLevelBlocking',
 		'betaThreatDefenseFeed',
+		'wordfenceI18n',
 		'avoid_php_input',
 		'scanType',
 		'schedMode',
@@ -200,6 +204,7 @@ class MainWP_Child_Wordfence {
 		'startScansRemotely',
 		'ssl_verify',
 		'betaThreatDefenseFeed',
+		'wordfenceI18n',
 		'avoid_php_input',
 	);
 
@@ -765,6 +770,9 @@ class MainWP_Child_Wordfence {
 			'apiKey',
 			'autoUpdate',
 			'alertEmails',
+			'displayTopLevelOptions',
+			'displayTopLevelBlocking',
+			'displayTopLevelLiveTraffic',
 			'howGetIPs',
 			'howGetIPs_trusted_proxies',
 			'other_hideWPVersion',
@@ -808,6 +816,7 @@ class MainWP_Child_Wordfence {
 			'liveTraf_ignoreIPs',
 			'liveTraf_ignoreUA',
 			'liveTraf_maxRows',
+			'liveTraf_maxAge',
 			'displayTopLevelLiveTraffic',
 		);
 
@@ -829,8 +838,6 @@ class MainWP_Child_Wordfence {
 			'maxRequestsHumans_action',
 			'max404Humans',
 			'max404Humans_action',
-			'maxScanHits',
-			'maxScanHits_action',
 			'blockedTime',
 			'allowed404s',
 			'loginSecurityEnabled',
@@ -848,6 +855,7 @@ class MainWP_Child_Wordfence {
 			'loginSec_blockAdminReg',
 			'loginSec_disableAuthorScan',
 			'other_blockBadPOST',
+			'blockCustomText',
 			'other_pwStrengthOnUpdate',
 			'other_WFNet',
 			'wafStatus',
@@ -896,6 +904,7 @@ class MainWP_Child_Wordfence {
 			'startScansRemotely',
 			'ssl_verify',
 			'betaThreatDefenseFeed',
+			'wordfenceI18n',
 			'avoid_php_input',
 		);
 
@@ -1618,6 +1627,12 @@ SQL
 						\wfWAF::getInstance()->getStorageEngine()->setConfig('whitelistedServiceIPs', @json_encode(\wfUtils::whitelistedServiceIPs()), 'synced');
 						if (method_exists(\wfWAF::getInstance()->getStorageEngine(), 'purgeIPBlocks')) {
 							\wfWAF::getInstance()->getStorageEngine()->purgeIPBlocks(\wfWAFStorageInterface::IP_BLOCKS_BLACKLIST);
+						}
+					} elseif ( 'betaThreatDefenseFeed' == $key ) {
+						$val = \wfUtils::truthyToBoolean($val);
+						\wfConfig::set($key, $val);
+						if (class_exists('\wfWAFConfig')) {
+							\wfWAFConfig::set('betaThreatDefenseFeed', $val, 'synced');
 						}
 					} else {
 						\wfConfig::set( $key, $val ); // save it!
