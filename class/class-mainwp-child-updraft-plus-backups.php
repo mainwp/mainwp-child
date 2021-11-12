@@ -745,7 +745,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
                             if ( is_array( $opts ) && isset( $opts['settings'] ) ) {
                                 $settings_key                             = key( $opts['settings'] );
-                                $opts['settings'][ $settings_key ]['url'] = $this->replace_tokens( $settings[ $key ]['url'] );
+                                $opts['settings'][ $settings_key ]['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
                                 \UpdraftPlus_Options::update_updraft_option( 'updraft_webdav', $opts );
                             }
                         } elseif ( 'updraft_backblaze' === $key ) {
