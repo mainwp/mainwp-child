@@ -115,7 +115,7 @@ class MainWP_Child_Posts {
 	 * @uses MainWP_WordPress_SEO::instance()->parse_column_score_readability()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_out_post()
 	 */
-	public function get_recent_posts_int( $status, $pCount, $type = 'post', &$allPosts, $extra = null ) {
+	public function get_recent_posts_int( $status, $pCount, $type, &$allPosts, $extra = null ) {
 
 		$args = array(
 			'post_status'      => $status,
