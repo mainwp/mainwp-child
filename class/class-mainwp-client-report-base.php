@@ -323,9 +323,9 @@ class MainWP_Client_Report_Base {
 			'post_type'   => 'post',
 			'post_status' => 'publish',
 			'date_query'  => array(
-				'column'    => 'post_date',
-				'after'     => $args['date_from'],
-				'before'    => $args['date_to'],
+				'column' => 'post_date',
+				'after'  => $args['date_from'],
+				'before' => $args['date_to'],
 			),
 		);
 
@@ -917,21 +917,25 @@ class MainWP_Client_Report_Base {
 			$tok_value = $this->get_mainwp_maintenance_token_value( $record, $data );
 		} elseif ( 'wordfence_scan' === $context || 'mainwp_maintenance' === $context ) {
 			$meta_value = $this->get_stream_meta_data( $record, $data );
-			if ( 'wordfence_scan' === $context && 'result' == $data ) {
-				$completed_log  = __( 'Scan complete. Congratulations, no new problems found.', 'wordfence' );
-				$str_loc1       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 2 ); // loc string.
-				$str_loc2       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 3 ); // loc string.
-				$congra_str_loc = str_replace( $str_loc1, '', $str_loc2 );
-				$congra_str_loc = trim( $congra_str_loc, ' ,' );
+			if ( 'wordfence_scan' === $context ) {
+				if ( 'result' == $data ) {
+					$completed_log  = __( 'Scan complete. Congratulations, no new problems found.', 'wordfence' );
+					$str_loc1       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 2 ); // loc string.
+					$str_loc2       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 3 ); // loc string.
+					$congra_str_loc = str_replace( $str_loc1, '', $str_loc2 );
+					$congra_str_loc = trim( $congra_str_loc, ' ,' );
 
-				// SUM_FINAL:Scan complete. You have xxx new issues to fix. See below.
-				// SUM_FINAL:Scan complete. Congratulations, no new problems found.
-				if ( stripos( $meta_value, 'Congratulations' ) || stripos( $meta_value, $congra_str_loc ) ) {
-					$meta_value = 'No issues detected';
-				} elseif ( stripos( $meta_value, 'You have' ) ) {
-					$meta_value = 'Issues Detected';
-				} else {
-					$meta_value = '';
+					// SUM_FINAL:Scan complete. You have xxx new issues to fix. See below.
+					// SUM_FINAL:Scan complete. Congratulations, no new problems found.
+					if ( stripos( $meta_value, 'Congratulations' ) || stripos( $meta_value, $congra_str_loc ) ) {
+						$meta_value = 'No issues detected';
+					} elseif ( stripos( $meta_value, 'You have' ) ) {
+						$meta_value = 'Issues Detected';
+					} else {
+						$meta_value = '';
+					}
+				} elseif ( 'details' == $data ) {
+					$meta_value = str_replace( 'SUM_FINAL:', '', $meta_value );
 				}
 			}
 			$tok_value = $meta_value;

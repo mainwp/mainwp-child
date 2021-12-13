@@ -833,6 +833,7 @@ class MainWP_Child_Posts {
 	 * @param string $post_featured_image Post featured image.
 	 * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
 	 * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
+	 * @param array  $others        Others data.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::set_custom_post_fields()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::update_seo_meta()
@@ -841,7 +842,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_author()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_categories()
 	 */
-	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ) {
+	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus, $others ) {
 
 		$seo_ext_activated = false;
 		if ( class_exists( '\WPSEO_Meta' ) && class_exists( '\WPSEO_Admin' ) ) {
