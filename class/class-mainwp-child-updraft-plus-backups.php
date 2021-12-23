@@ -3579,6 +3579,7 @@ ENDHERE;
          * @global object $updraftplus UpdraftPlus object.
          */
         global $updraftplus_admin, $updraftplus;
+		if (empty($updraftplus_admin)) include_once(UPDRAFTPLUS_DIR.'/admin.php');
 
         $messages = null;
 
