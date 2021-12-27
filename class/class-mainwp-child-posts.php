@@ -563,6 +563,7 @@ class MainWP_Child_Posts {
 				'post_excerpt'   => $post->post_excerpt,
 				'comment_status' => $post->comment_status,
 				'ping_status'    => $post->ping_status,
+				'post_type'      => $post->post_type,
 			);
 
 			if ( null != $post_featured_image ) { // Featured image is set, retrieve URL.
@@ -746,6 +747,7 @@ class MainWP_Child_Posts {
 		if ( empty( $new_post_id ) ) {
 			return array( 'error' => 'Empty post id' );
 		}
+
 		if ( ! $edit_post_id ) {
 			wp_update_post(
 				array(
@@ -754,6 +756,21 @@ class MainWP_Child_Posts {
 				)
 			);
 		}
+
+		if ( is_array( $post_custom ) && isset( $post_custom['_mainwp_edit_post_save_to_post_type'] ) ) {
+			$saved_post_type = $post_custom['_mainwp_edit_post_save_to_post_type'];
+			$saved_post_type = is_array( $saved_post_type ) ? current( $saved_post_type ) : $saved_post_type;
+			if ( ! empty( $saved_post_type ) ) {
+				wp_update_post(
+					array(
+						'ID'        => $new_post_id,
+						'post_type' => $saved_post_type,
+					)
+				);
+			}
+			unset( $post_custom['_mainwp_edit_post_save_to_post_type'] );
+		}
+
 		$this->update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus, $others );
 		// unlock if edit post.
 		if ( $edit_post_id ) {
@@ -1213,6 +1230,9 @@ class MainWP_Child_Posts {
 			'_mainwp_edit_post_site_id',
 			'_mainwp_edit_post_id',
 			'_edit_post_status',
+			'_mainwp_edit_post_type',
+			'_mainwp_edit_post_status',
+			'_mainwp_edit_post_save_to_post_type',
 		);
 
 		if ( is_array( $post_custom ) ) {
