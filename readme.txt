@@ -107,7 +107,7 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
-= 4.1.9 - 10-21-2021 =
+= 4.1.9 - 10-28-2021 =
 * Fixed: Problem with saving UpdraftPlus settings
 * Fixed: Error with posting images
 * Fixed: Error with recording Wordfence scans for reports
