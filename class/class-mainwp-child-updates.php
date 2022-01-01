@@ -145,6 +145,15 @@ class MainWP_Child_Updates {
 			$this->update_premiums_todo( $information, $premiumUpgrader, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs );
 		}
 
+        /**
+         * WP-Rocket auto cache purge.
+         *
+         * Purge cache after updates.
+         * @params $information.
+         */
+        MainWP_Child_Cache_Purge::instance()->wprocket_auto_cache_purge($information);
+
+        // Save Status results.
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		MainWP_Helper::write( $information );
 	}
