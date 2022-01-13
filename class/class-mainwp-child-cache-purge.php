@@ -75,6 +75,9 @@ class MainWP_Child_Cache_Purge {
 
     public function init() {
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
+
+        //add_action( 'mainwp_child_after_update', array( $this, 'theme', 'auto_purge_cache'  ) );
+        //add_action( 'mainwp_child_after_update', array( $this, 'plugin',  'auto_purge_cache' ) );
     }
 
     /**
@@ -90,11 +93,8 @@ class MainWP_Child_Cache_Purge {
     function sync_others_data($information, $data = array() ) {
         if ( is_array( $data ) && isset( $data['auto_purge_cache'] ) ) {
             try {
-                /**** Wrong ****/
-                // $information['auto_purge_cache'] = $data['auto_purge_cache'];
-                /**** End ****/
 
-                // Fix like this.
+                // Grab Auto Purge Data.
                 update_option( 'mainwp_child_auto_purge_cache', ( $data['auto_purge_cache'] ? 1 : 0 ) );
 
             } catch ( \Exception $e ) {
@@ -102,6 +102,16 @@ class MainWP_Child_Cache_Purge {
             }
         }
         return $information;
+    }
+
+    /**
+     * WP-Rocket auto cache purge.
+     *
+     * Purge cache after updates.
+     * @params $information.
+     */
+    public function auto_purge_cache( $information ){
+        self::instance()->wprocket_auto_cache_purge( $information );
     }
 
     /**
@@ -125,7 +135,6 @@ class MainWP_Child_Cache_Purge {
         if (!defined('STDIN')) define('STDIN', fopen('php://stdin', 'r'));
         if (!defined('STDOUT')) define('STDOUT', fopen('php://stdout', 'w'));
         if (!defined('STDERR')) define('STDERR', fopen('php://stdout', 'w'));
-
 
         // grab Plugin directory.
         $wp_cli_phar = MAINWP_CHILD_PLUGIN_DIR . '/bin/wp-cli.phar';
