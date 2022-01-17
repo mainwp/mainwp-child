@@ -12,7 +12,7 @@
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 4.1.8
+ * Version: 4.1.9
  * Requires at least: 5.4
  * Requires PHP: 7.0
  */
@@ -90,4 +90,4 @@ require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'funct
 
 $mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
 register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );
-register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );
+register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );s

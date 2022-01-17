@@ -115,7 +115,7 @@ class MainWP_Child_Posts {
 	 * @uses MainWP_WordPress_SEO::instance()->parse_column_score_readability()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_out_post()
 	 */
-	public function get_recent_posts_int( $status, $pCount, $type = 'post', &$allPosts, $extra = null ) {
+	public function get_recent_posts_int( $status, $pCount, $type, &$allPosts, $extra = null ) {
 
 		$args = array(
 			'post_status'      => $status,
@@ -215,10 +215,11 @@ class MainWP_Child_Posts {
 			$outPost['dts'] = strtotime( $post->post_date_gmt );
 		}
 
-		$usr               = get_user_by( 'id', $post->post_author );
-		$outPost['author'] = ! empty( $usr ) ? $usr->user_nicename : 'removed';
-		$categoryObjects   = get_the_category( $post->ID );
-		$categories        = '';
+		$usr                    = get_user_by( 'id', $post->post_author );
+		$outPost['author']      = ! empty( $usr ) ? $usr->user_nicename : 'removed';
+		$outPost['authorEmail'] = ! empty( $usr ) ? $usr->user_email : 'removed';
+		$categoryObjects        = get_the_category( $post->ID );
+		$categories             = '';
 		foreach ( $categoryObjects as $cat ) {
 			if ( '' !== $categories ) {
 				$categories .= ', ';
@@ -562,6 +563,7 @@ class MainWP_Child_Posts {
 				'post_excerpt'   => $post->post_excerpt,
 				'comment_status' => $post->comment_status,
 				'ping_status'    => $post->ping_status,
+				'post_type'      => $post->post_type,
 			);
 
 			if ( null != $post_featured_image ) { // Featured image is set, retrieve URL.
@@ -745,6 +747,7 @@ class MainWP_Child_Posts {
 		if ( empty( $new_post_id ) ) {
 			return array( 'error' => 'Empty post id' );
 		}
+
 		if ( ! $edit_post_id ) {
 			wp_update_post(
 				array(
@@ -753,6 +756,21 @@ class MainWP_Child_Posts {
 				)
 			);
 		}
+
+		if ( is_array( $post_custom ) && isset( $post_custom['_mainwp_edit_post_save_to_post_type'] ) ) {
+			$saved_post_type = $post_custom['_mainwp_edit_post_save_to_post_type'];
+			$saved_post_type = is_array( $saved_post_type ) ? current( $saved_post_type ) : $saved_post_type;
+			if ( ! empty( $saved_post_type ) ) {
+				wp_update_post(
+					array(
+						'ID'        => $new_post_id,
+						'post_type' => $saved_post_type,
+					)
+				);
+			}
+			unset( $post_custom['_mainwp_edit_post_save_to_post_type'] );
+		}
+
 		$this->update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus, $others );
 		// unlock if edit post.
 		if ( $edit_post_id ) {
@@ -832,6 +850,7 @@ class MainWP_Child_Posts {
 	 * @param string $post_featured_image Post featured image.
 	 * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
 	 * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
+	 * @param array  $others        Others data.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::set_custom_post_fields()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::update_seo_meta()
@@ -840,7 +859,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_author()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::post_plus_update_categories()
 	 */
-	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus ) {
+	private function update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus, $others ) {
 
 		$seo_ext_activated = false;
 		if ( class_exists( '\WPSEO_Meta' ) && class_exists( '\WPSEO_Admin' ) ) {
@@ -1211,6 +1230,9 @@ class MainWP_Child_Posts {
 			'_mainwp_edit_post_site_id',
 			'_mainwp_edit_post_id',
 			'_edit_post_status',
+			'_mainwp_edit_post_type',
+			'_mainwp_edit_post_status',
+			'_mainwp_edit_post_save_to_post_type',
 		);
 
 		if ( is_array( $post_custom ) ) {
