@@ -90,4 +90,4 @@ require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'funct
 
 $mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
 register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );
-register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );s
+register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );
