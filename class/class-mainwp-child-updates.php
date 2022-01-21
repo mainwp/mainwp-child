@@ -872,6 +872,14 @@ class MainWP_Child_Updates {
 			remove_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
 
+        /**
+         * WP-Rocket auto cache purge.
+         *
+         * Purge cache after updates.
+         * @params $information.
+         */
+        MainWP_Child_Cache_Purge::instance()->wprocket_auto_cache_purge( $information );
+
 		MainWP_Helper::write( $information );
 	}
 

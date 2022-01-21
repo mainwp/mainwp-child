@@ -47,8 +47,6 @@ class MainWP_Child_Cache_Purge {
      * Run any time class is called.
      */
     public function __construct() {
-        // This hook on child site to get custom value and process ...
-        //add_filter( 'mainwp_site_sync_others_data',  array( $this, 'mychild_sync_others_data' ), 10, 2 );
 
     }
 
@@ -65,12 +63,6 @@ class MainWP_Child_Cache_Purge {
         }
 
         return self::$instance;
-    }
-
-    public function action($cache_plugin) {
-        if ($cache_plugin === 'wprocket'){
-            $this->mainwp_wprocket_cli_cache_purge();
-        }
     }
 
     public function init() {
@@ -90,7 +82,7 @@ class MainWP_Child_Cache_Purge {
      *
      * @return array $information Array containing the sync information.
      */
-    function sync_others_data($information, $data = array() ) {
+    function sync_others_data( $information, $data = array() ) {
         if ( is_array( $data ) && isset( $data['auto_purge_cache'] ) ) {
             try {
 
@@ -104,6 +96,7 @@ class MainWP_Child_Cache_Purge {
         return $information;
     }
 
+
     /**
      * WP-Rocket auto cache purge.
      *
@@ -112,6 +105,14 @@ class MainWP_Child_Cache_Purge {
      */
     public function auto_purge_cache( $information ){
         self::instance()->wprocket_auto_cache_purge( $information );
+    }
+
+
+
+    public function action( $cache_plugin ) {
+        if ( $cache_plugin === 'wprocket' ){
+            $this->mainwp_wprocket_cli_cache_purge();
+        }
     }
 
     /**
@@ -159,29 +160,33 @@ class MainWP_Child_Cache_Purge {
      * WP-Rocket auto cache purge.
      *
      * Purge cache after updates.
+     *
+     * @used-by  MainWP_Child_Updates::upgrade_plugin_theme()
+     * @used-by MainWP_Child_Updates::upgrade_wp()
      */
-    public function wprocket_auto_cache_purge($information){
+    public function wprocket_auto_cache_purge( $information ){
 
         // Setup timezone and upload directory for logs.
         date_default_timezone_set(wp_timezone());
         $upload_dir = wp_get_upload_dir();
         $upload_dir = $upload_dir['basedir'];
 
-        // Purge Cache if set to "1".
+        // Purge Cache if action is set to "1".
         $purge_result = array();
-
-        if ( get_option( 'mainwp_child_auto_purge_cache', false )) {
+        $action = get_option( 'mainwp_child_auto_purge_cache', false );
+        if ( $action == 1 ) {
             $purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
         }
 
-        // Create log file.
+        // Create log file. Save in /Upload dir.
+        // return SUCCESS or function_not_exist.
         if ( $purge_result['result'] === "SUCCESS" ){
             $information['cache_purge_action_result'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
+            file_put_contents($upload_dir . "/last_purge_log.txt", $information['cache_purge_action_result']);
         } else {
-            $information['cache_purge_action_result'] = "WP Rocket => Failed to auto clear cache. (" . current_time('mysql') . ")";
-
+            //$information['cache_purge_action_result'] = "WP Rocket => Failed to auto clear cache. (" . current_time('mysql') . ")";
+            file_put_contents($upload_dir . "/last_purge_log.txt", json_encode($purge_result));
         }
-        file_put_contents($upload_dir . "/last_purge_log.txt", $information['cache_purge_action_result']);
 
         return $information;
     }
