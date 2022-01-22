@@ -178,16 +178,19 @@ class MainWP_Child_Cache_Purge {
             $purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
         }
 
-        // Create log file. Save in /Upload dir.
-        // return SUCCESS or function_not_exist.
-        if ( $purge_result['result'] === "SUCCESS" ){
-            $information['cache_purge_action_result'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
-            file_put_contents($upload_dir . "/last_purge_log.txt", $information['cache_purge_action_result']);
-        } else {
-            //$information['cache_purge_action_result'] = "WP Rocket => Failed to auto clear cache. (" . current_time('mysql') . ")";
-            file_put_contents($upload_dir . "/last_purge_log.txt", json_encode($purge_result));
-        }
+        /**
+         * Record last Purge.
+         *
+         * Create log file & Save in /Upload dir.
+         * @howto define('MAINWP_DEBUG', 'true'); within wp-config.php.
+         */
+        if ( MAINWP_DEBUG === 'true' ) {
+            if ( $purge_result['result'] === "SUCCESS" ) {
+                $purge_result['cache_purge_action_result'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
 
+            }
+            file_put_contents($upload_dir . "/last_purge_log.txt", json_encode( $purge_result ) );
+        }
         return $information;
     }
 }
