@@ -157,7 +157,7 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Child_Comments::get_recent_comments()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_recent_posts()
 	 * @uses \MainWP\Child\MainWP_Child_DB::get_size()
-	 * @uses \MainWP\Child\MainWP_Child_Users:::get_all_users_int()
+	 * @uses \MainWP\Child\MainWP_Child_Users::get_all_users_int()
 	 * @uses \MainWP\Child\MainWP_Child_Plugins_Check::get_plugins_outdate_info()
 	 * @uses \MainWP\Child\MainWP_Child_Themes_Check::get_themes_outdate_info()
 	 * @uses \MainWP\Child\MainWP_Security::get_stats_security()

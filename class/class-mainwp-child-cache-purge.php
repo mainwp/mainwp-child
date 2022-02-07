@@ -9,11 +9,6 @@
 
 namespace MainWP\Child;
 
-//Exit if access directly.
-if ( ! defined( 'WP_CLI' ) ) {
-    return;
-}
-
 /**
  * Class MainWP_Child_Cache_Purge
  *
@@ -47,7 +42,7 @@ class MainWP_Child_Cache_Purge {
      * Run any time class is called.
      */
     public function __construct() {
-
+        add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
     }
 
     /**
@@ -66,10 +61,7 @@ class MainWP_Child_Cache_Purge {
     }
 
     public function init() {
-        add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 
-        //add_action( 'mainwp_child_after_update', array( $this, 'theme', 'auto_purge_cache'  ) );
-        //add_action( 'mainwp_child_after_update', array( $this, 'plugin',  'auto_purge_cache' ) );
     }
 
     /**
@@ -86,8 +78,11 @@ class MainWP_Child_Cache_Purge {
         if ( is_array( $data ) && isset( $data['auto_purge_cache'] ) ) {
             try {
 
-                // Grab Auto Purge Data.
+                // Update mainwp_child_auto_purge_cache option value with either yes|no.
                 update_option( 'mainwp_child_auto_purge_cache', ( $data['auto_purge_cache'] ? 1 : 0 ) );
+
+                // Send last purged time stamp to MainWP Dashboard.
+                $information['mainwp_cache_control_last_purged'] = get_option('mainwp_cache_control_last_purged', 0 );
 
             } catch ( \Exception $e ) {
                 error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
@@ -164,7 +159,7 @@ class MainWP_Child_Cache_Purge {
      * @used-by  MainWP_Child_Updates::upgrade_plugin_theme()
      * @used-by MainWP_Child_Updates::upgrade_wp()
      */
-    public function wprocket_auto_cache_purge( $information ){
+    public function wprocket_auto_cache_purge( &$information ){
 
         // Setup timezone and upload directory for logs.
         date_default_timezone_set(wp_timezone());
@@ -184,13 +179,14 @@ class MainWP_Child_Cache_Purge {
          * Create log file & Save in /Upload dir.
          * @howto define('MAINWP_DEBUG', 'true'); within wp-config.php.
          */
-        if ( MAINWP_DEBUG === 'true' ) {
-            if ( $purge_result['result'] === "SUCCESS" ) {
-                $purge_result['cache_purge_action_result'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
-
-            }
-            file_put_contents($upload_dir . "/last_purge_log.txt", json_encode( $purge_result ) );
+        if ( $purge_result['result'] === "SUCCESS" ) {
+            update_option( 'mainwp_cache_control_last_purged', current_time('mysql') );
+            $information['cache_purge_action_result'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
         }
+        if ( MAINWP_DEBUG === 'true' ) {
+           file_put_contents($upload_dir . "/last_purge_log.txt", json_encode( $information ) );
+        }
+
         return $information;
     }
 }
