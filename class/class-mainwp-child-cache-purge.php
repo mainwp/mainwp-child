@@ -37,15 +37,6 @@ class MainWP_Child_Cache_Purge {
     }
 
     /**
-     * MainWP_Child_Updates constructor.
-     *
-     * Run any time class is called.
-     */
-    public function __construct() {
-        add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
-    }
-
-    /**
      * Method instance()
      *
      * Create a public static instance.
@@ -60,6 +51,17 @@ class MainWP_Child_Cache_Purge {
         return self::$instance;
     }
 
+    /**
+     * MainWP_Child_Cache_Purge constructor.
+     *
+     * Run any time class is called.
+     */
+    public function __construct() {
+        add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
+        add_action( 'plugins_loaded', array( $this, 'check_cache_solution'), 10, 2 );
+
+    }
+
     public function init() {
 
     }
@@ -67,88 +69,95 @@ class MainWP_Child_Cache_Purge {
     /**
      * Method sync_others_data()
      *
-     * Sync others data settings.
+     * Sync data to & from the MainWP Dashboard.
      *
-     * @param array $information Array containing the sync information.
-     * @param array $data        Array containing the plugin data to be synced.
+     * @param array $information Array containing the data to be sent to the Dashboard.
+     * @param array $data        Array containing the data sent from the Dashboard; to be saved to the Child Site.
      *
-     * @return array $information Array containing the sync information.
+     * @return array $information Array containing the data to be sent to the Dashboard.
      */
-    function sync_others_data( $information, $data = array() ) {
+    public function sync_others_data( $information, $data = array() ) {
         if ( is_array( $data ) && isset( $data['auto_purge_cache'] ) ) {
             try {
 
                 // Update mainwp_child_auto_purge_cache option value with either yes|no.
                 update_option( 'mainwp_child_auto_purge_cache', ( $data['auto_purge_cache'] ? 1 : 0 ) );
 
-                // Send last purged time stamp to MainWP Dashboard.
-                $information['mainwp_cache_control_last_purged'] = get_option('mainwp_cache_control_last_purged', 0 );
 
             } catch ( \Exception $e ) {
                 error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
             }
         }
+        // Send last purged time stamp to MainWP Dashboard.
+        $information['mainwp_cache_control_last_purged'] = get_option('mainwp_cache_control_last_purged', 0 );
+
+        // Send active cache solution to MainWP Dashboard.
+        $information['mainwp_cache_control_cache_solution'] = get_option('mainwp_cache_control_cache_solution', 0 );
+
         return $information;
     }
 
-
     /**
-     * WP-Rocket auto cache purge.
+     * Check which Cache Plugin is installed and active.
      *
-     * Purge cache after updates.
-     * @params $information.
+     * @return false|string Return False if no plugin found | Plugin slug.
      */
-    public function auto_purge_cache( $information ){
-        self::instance()->wprocket_auto_cache_purge( $information );
+    public function check_cache_solution(){
+
+        $cache_plugin_solution = null;
+
+        $supported_cache_plugins = array(
+            'wp-rocket/wp-rocket.php',
+            'breeze/breeze.php'
+        );
+
+        // Check if a supported cache plugin is active.
+        foreach( $supported_cache_plugins as $plugin ) {
+            if ( is_plugin_active( $plugin ) ) {
+                $cache_plugin_solution = $plugin;
+            }
+        }
+
+        update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
     }
 
+    /**
+     * Auto purge cache based on which cache plugin is installed & activated.
+     *
+     * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
+     * @used-by MainWP_Child_Updates::upgrade_wp()
+     */
+    public function auto_purge_cache( $information )
+    {
+        // Grab detected cache solution.
+        $cache_plugin_solution = get_option('mainwp_cache_control_cache_solution', 0);
 
-
-    public function action( $cache_plugin ) {
-        if ( $cache_plugin === 'wprocket' ){
-            $this->mainwp_wprocket_cli_cache_purge();
+        // Run the corresponding cache plugin purge method.
+        switch ( $cache_plugin_solution ) {
+            case "wp-rocket/wp-rocket.php":
+                $this->wprocket_auto_cache_purge( $information );
+                break;
+            case "breeze/breeze.php":
+                $this->breeze_auto_cache_purge( $information );
+                break;
+            default:
+                break;
         }
     }
 
     /**
-     * Method mainwp_wprocket_cache_purge()
-     *
-     * Purge ALL WPRocket Cache by executing the WP-CLI command:
-     *      wp rocket clean --confirm
-     *
-     * @return array Results array. 0|false
+     * Breeze
      */
-    public function mainwp_wprocket_cli_cache_purge() {
+    public function breeze_auto_cache_purge( $information ){
+        if ( function_exists('breeze_cache_flush') ) {
+            breeze_cache_flush();
+        }
 
-//        tmp error reporting.
-//        error_reporting(E_ALL | E_STRICT);
-//        ini_set('display_errors', '1');
+        // Record results of cache purge.
+        $this->record_results( $information );
 
+        return $information;
 
-        //Redirect stdERR so we see warnings/errors
-        $suffix = ' 2>&1';
-
-        if (!defined('STDIN')) define('STDIN', fopen('php://stdin', 'r'));
-        if (!defined('STDOUT')) define('STDOUT', fopen('php://stdout', 'w'));
-        if (!defined('STDERR')) define('STDERR', fopen('php://stdout', 'w'));
-
-        // grab Plugin directory.
-        $wp_cli_phar = MAINWP_CHILD_PLUGIN_DIR . '/bin/wp-cli.phar';
-        $output = array();
-        $php_executable = PHP_BINDIR . '/php';
-        $php_ini_path = php_ini_loaded_file();
-
-        $executable = $php_executable . ' -c ' . $php_ini_path . ' -d error_reporting="E_ALL & ~E_NOTICE" -d memory_limit="2048M" -d max_execution_time=43200 ' . $wp_cli_phar . ' ';
-
-        $command = 'rocket clean --confirm';
-        $full_command = $executable . $command . $suffix;
-
-        exec($full_command, $output, $return_var);
-
-        return $purge_results = [
-            'status' => $return_var,
-            'output' => $output
-        ];
     }
 
     /**
@@ -159,35 +168,49 @@ class MainWP_Child_Cache_Purge {
      * @used-by  MainWP_Child_Updates::upgrade_plugin_theme()
      * @used-by MainWP_Child_Updates::upgrade_wp()
      */
-    public function wprocket_auto_cache_purge( &$information ){
+    public function wprocket_auto_cache_purge( $information ){
 
+        // Purge Cache if action is set to "1".
+        $action = get_option( 'mainwp_child_auto_purge_cache', false );
+        $purge_result = array();
+
+        if ( $action == 1 ) {
+            $purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
+        }
+
+        // Save last purge time to database on success.
+        if ( $purge_result['result'] === "SUCCESS" ) {
+            update_option( 'mainwp_cache_control_last_purged', time() );
+
+            // Store purge result for error log.
+            $information['log'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
+        } else {
+            // Store purge result for error log.
+            $information['log'] = $purge_result;
+        }
+
+        // Record results of cache purge to log file if debug mode is enabled.
+        if ( MAINWP_DEBUG === 'true' ) {
+            $this->record_results($information);
+        }
+
+        return $information;
+    }
+
+    /**
+     * Record last Purge.
+     *
+     * Create log file & Save in /Upload dir.
+     * @howto define('MAINWP_DEBUG', 'true'); within wp-config.php.
+     */
+    public function record_results( $information ){
         // Setup timezone and upload directory for logs.
         date_default_timezone_set(wp_timezone());
         $upload_dir = wp_get_upload_dir();
         $upload_dir = $upload_dir['basedir'];
 
-        // Purge Cache if action is set to "1".
-        $purge_result = array();
-        $action = get_option( 'mainwp_child_auto_purge_cache', false );
-        if ( $action == 1 ) {
-            $purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
-        }
-
-        /**
-         * Record last Purge.
-         *
-         * Create log file & Save in /Upload dir.
-         * @howto define('MAINWP_DEBUG', 'true'); within wp-config.php.
-         */
-        if ( $purge_result['result'] === "SUCCESS" ) {
-            update_option( 'mainwp_cache_control_last_purged', current_time('mysql') );
-            $information['cache_purge_action_result'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
-        }
-        if ( MAINWP_DEBUG === 'true' ) {
-           file_put_contents($upload_dir . "/last_purge_log.txt", json_encode( $information ) );
-        }
-
-        return $information;
+        // Save $Information to Log file.
+        file_put_contents($upload_dir . "/last_purge_log.txt", json_encode( $information ) );
     }
 }
 
