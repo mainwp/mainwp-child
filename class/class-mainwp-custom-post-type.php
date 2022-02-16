@@ -182,7 +182,7 @@ class MainWP_Custom_Post_Type {
 
 					$lnkToReplace = dirname( $imgUrl );
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
-						$post_content = str_replace( $imgUrl, $localUrl, $post_content ); // replace src image.								
+						$post_content = str_replace( $imgUrl, $localUrl, $post_content ); // replace src image.
 						$post_content = str_replace( $lnkToReplace, $linkToReplaceWith, $post_content );
 					}
 				} catch ( \Exception $e ) {
