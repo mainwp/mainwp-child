@@ -723,11 +723,11 @@ class MainWP_Child_Posts {
 		if ( $is_post_plus ) {
 			$this->create_post_plus( $new_post, $post_custom );
 		}
-			
+
 		if ( isset( $post_custom['_mainwp_replace_advance_img'] ) && true == $post_custom['_mainwp_replace_advance_img'][0] ) {
 			$new_post['post_content'] = self::replace_advanced_image( $new_post['post_content'], $upload_dir );
 			$new_post['post_content'] = self::replace_advanced_image( $new_post['post_content'], $upload_dir, true ); // to fix images url with slashes.
-			unset( $post_custom['_mainwp_replace_advance_img'] );			
+			unset( $post_custom['_mainwp_replace_advance_img'] );
 		}
 
 		// Save the post to the WP.
@@ -778,7 +778,7 @@ class MainWP_Child_Posts {
 		}
 
 		$this->update_post_data( $new_post_id, $post_custom, $post_category, $post_featured_image, $check_image_existed, $is_post_plus, $others );
-		
+
 		// unlock if edit post.
 		if ( $edit_post_id ) {
 			update_post_meta( $edit_post_id, '_edit_lock', '' );
@@ -969,7 +969,7 @@ class MainWP_Child_Posts {
 				$hrefLink = $match[2];
 				$imgUrl   = $match[4];
 
-				if ( ! isset( $upload_dir['baseurl'] ) || ( false === strripos( $imgUrl, $upload_dir['baseurl'] ) ) ) { // url of image is not in dashboard site. 
+				if ( ! isset( $upload_dir['baseurl'] ) || ( false === strripos( $imgUrl, $upload_dir['baseurl'] ) ) ) { // url of image is not in dashboard site.
 					continue;
 				}
 
@@ -1018,18 +1018,18 @@ class MainWP_Child_Posts {
 	 * @return mixed array of result.
 	 */
 	public static function replace_advanced_image( $content, $upload_dir, $withslashes = false ) {
-		
+
 		if ( empty( $upload_dir ) || ! isset( $upload_dir['baseurl'] ) ) {
 			return $content;
 		}
 
-		$dashboard_url = get_option( 'mainwp_child_server' );
+		$dashboard_url        = get_option( 'mainwp_child_server' );
 		$site_url_destination = get_site_url();
-		
+
 		// to fix url with slashes.
 		if ( $withslashes ) {
 			$site_url_destination = str_replace( '/', '\/', $site_url_destination );
-			$dashboard_url = str_replace( '/', '\/', $dashboard_url );
+			$dashboard_url        = str_replace( '/', '\/', $dashboard_url );
 		}
 
 		$foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination ) . ')[^\.]*(\.(png|gif|jpg|jpeg))#ix', $content, $matches, PREG_SET_ORDER );
@@ -1061,10 +1061,10 @@ class MainWP_Child_Posts {
 				}
 
 				try {
-					$downloadfile = MainWP_Utility::upload_image( wp_unslash( $originalImgUrl ), array(), true );
-					$localUrl     = $downloadfile['url'];
+					$downloadfile      = MainWP_Utility::upload_image( wp_unslash( $originalImgUrl ), array(), true );
+					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
-					$lnkToReplace = dirname( $imgUrl );
+					$lnkToReplace      = dirname( $imgUrl );
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
 						$content = str_replace( $imgUrl, $localUrl, $content ); // replace src image.
 						$content = str_replace( $lnkToReplace, $linkToReplaceWith, $content );
@@ -1078,7 +1078,7 @@ class MainWP_Child_Posts {
 				$content = str_replace( $dashboard_url, $site_url_destination, $content );
 			}
 		}
-		return $content;		
+		return $content;
 	}
 
 	/**
@@ -1323,7 +1323,7 @@ class MainWP_Child_Posts {
 			'mainwp_post_id',
 			'_mainwp_post_dripper_selected_drip_sites',
 			'_mainwp_post_dripper_total_drip_sites',
-			'_mainwp_replace_advance_img'
+			'_mainwp_replace_advance_img',
 		);
 
 		if ( is_array( $post_custom ) ) {
@@ -1342,7 +1342,7 @@ class MainWP_Child_Posts {
 									update_post_meta( $new_post_id, $meta_key, $meta_value );
 								} else {
 									update_post_meta( $new_post_id, $meta_key, $meta_value );
-								}								
+								}
 							}
 						} else {
 							if ( is_serialized( $meta_value ) ) {
