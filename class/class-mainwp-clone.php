@@ -217,7 +217,7 @@ class MainWP_Clone {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 * @uses \MainWP\Child\MainWP_Utility::upload_file()
 	 */
-	public function request_clone_funct() {
+	public function request_clone_funct() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		if ( ! isset( $_REQUEST['key'] ) ) {
 			return;
@@ -510,7 +510,7 @@ class MainWP_Clone {
 	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 * @uses \MainWP\Child\MainWP_Utility::fetch_url()
 	 */
-	public function clone_backup_download() {
+	public function clone_backup_download() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		try {
 			$this->secure_request( 'mainwp-child_clone_backupdownload' );
 

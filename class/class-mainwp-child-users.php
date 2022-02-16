@@ -62,7 +62,7 @@ class MainWP_Child_Users {
 	 *
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
-	public function user_action() {
+	public function user_action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		$extra     = isset( $_POST['extra'] ) ? wp_unslash( $_POST['extra'] ) : '';
 		$userId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';

@@ -285,7 +285,7 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Clone_Page::render_normal_restore()
 	 * @uses \MainWP\Child\MainWP_Clone_Page::render_restore()
 	 */
-	public function render_pages( $shownPage ) {
+	public function render_pages( $shownPage ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
 		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 
@@ -356,7 +356,7 @@ class MainWP_Pages {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
-	public static function render_header( $shownPage, $subpage = true ) {
+	public static function render_header( $shownPage, $subpage = true ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
 
 		if ( ! empty( $tab ) ) {

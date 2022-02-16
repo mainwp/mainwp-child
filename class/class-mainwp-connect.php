@@ -66,7 +66,7 @@ class MainWP_Connect {
 	 * @uses \MainWP\Child\MainWP_Helper::is_ssl_enabled()
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
-	public function register_site() {
+	public function register_site() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		/**
 		 * Current user global.
@@ -292,7 +292,7 @@ class MainWP_Connect {
 	 *
 	 * @return bool Return true on success, false on failure.
 	 */
-	public function parse_login_required() {
+	public function parse_login_required() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		/**
 		 * Current user global.
@@ -488,7 +488,7 @@ class MainWP_Connect {
 	 * @uses MainWP_Connect::login() Handle the login process.
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
-	public function check_login() {
+	public function check_login() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
 			return false;
 		}

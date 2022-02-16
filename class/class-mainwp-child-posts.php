@@ -1032,7 +1032,7 @@ class MainWP_Child_Posts {
 			$dashboard_url        = str_replace( '/', '\/', $dashboard_url );
 		}
 
-		$foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination ) . ')[^\.]*(\.(png|gif|jpg|jpeg))#ix', $content, $matches, PREG_SET_ORDER );
+		$foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination, null ) . ')[^\.]*(\.(png|gif|jpg|jpeg))#ix', $content, $matches, PREG_SET_ORDER );
 
 		if ( 0 < $foundMatches ) {
 
@@ -1338,7 +1338,7 @@ class MainWP_Child_Posts {
 							// if WordPress SEO plugin is not activated do not save yoast post meta.
 							if ( false === strpos( $meta_key, '_yoast_wpseo_' ) ) {
 								if ( is_serialized( $meta_value ) ) {
-									$meta_value = unserialize( $meta_value );
+									$meta_value = unserialize( $meta_value ); // phpcs:ignore -- compatible.
 									update_post_meta( $new_post_id, $meta_key, $meta_value );
 								} else {
 									update_post_meta( $new_post_id, $meta_key, $meta_value );
@@ -1346,7 +1346,7 @@ class MainWP_Child_Posts {
 							}
 						} else {
 							if ( is_serialized( $meta_value ) ) {
-								$meta_value = unserialize( $meta_value );
+								$meta_value = unserialize( $meta_value ); // phpcs:ignore -- compatible.
 								update_post_meta( $new_post_id, $meta_key, $meta_value );
 							} else {
 								update_post_meta( $new_post_id, $meta_key, $meta_value );
