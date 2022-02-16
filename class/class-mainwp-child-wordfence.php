@@ -322,9 +322,6 @@ class MainWP_Child_Wordfence {
 			$lastcheck = time() - 3600 * 24 * 10;
 		}
 
-		$offset    = get_option( 'gmt_offset' );
-		$lastcheck = $lastcheck + ( -$offset * 60 * 60 );
-
 		$table_wfStatus = \wfDB::networkTable( 'wfStatus' );
 
 		// fix prepare sql empty.

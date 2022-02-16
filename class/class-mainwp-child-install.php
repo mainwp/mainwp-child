@@ -261,7 +261,7 @@ class MainWP_Child_Install {
 				if ( $themeToDelete !== $theme_name && $themeToDelete !== $parent_name ) {
 					$theTheme = wp_get_theme( $themeToDelete );
 					if ( null !== $theTheme && '' !== $theTheme ) {
-						$tmp['theme'] = $theTheme['Template'];
+						$tmp['theme'] = $theTheme->stylesheet; // to fix delete parent theme issue.
 						if ( true === $themeUpgrader->delete_old_theme( null, null, null, $tmp ) ) {
 							$args = array(
 								'action' => 'delete',
