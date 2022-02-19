@@ -138,7 +138,7 @@ class MainWP_Child_Cache_Purge {
                 $this->wprocket_auto_cache_purge( $information );
                 break;
             case "breeze/breeze.php":
-                $this->breeze_auto_cache_purge( $information );
+                $this->breeze_auto_purge_cache( $information );
                 break;
             default:
                 break;
@@ -148,7 +148,7 @@ class MainWP_Child_Cache_Purge {
     /**
      * Breeze
      */
-    public function breeze_auto_cache_purge( $information ){
+    public function breeze_auto_purge_cache( $information ){
         if ( function_exists('breeze_cache_flush') ) {
             breeze_cache_flush();
         }
