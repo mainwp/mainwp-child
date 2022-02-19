@@ -57,7 +57,7 @@ class MainWP_Child_Branding_Render {
 	/**
 	 * Method admin_head_hide_elements().
 	 */
-	public function admin_head_hide_elements() {
+	public static function admin_head_hide_elements() {
 		?>
 		<script type="text/javascript">
 			document.addEventListener( "DOMContentLoaded", function( event ) {
@@ -380,3 +380,4 @@ class MainWP_Child_Branding_Render {
 	}
 
 }
+

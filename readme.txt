@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 5.4
-Tested up to: 5.8.1
+Tested up to: 5.9
 Requires PHP: 7.0
-Stable tag: 4.1.9
+Stable tag: 4.1.10
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -106,6 +106,13 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.1.10 - 2-16-2022 =
+* Fixed: Problem with loading UpdrafPlus data when `$updraftplus_admin` returns empty value
+* Fixed: Problem with posting images
+* Fixed: Problem with loading Wordfence Scan data in reports
+* Updated: Multiple error messages
+* Updated: Incorrect links
 
 = 4.1.9 - 12-28-2021 =
 * Fixed: Problem with saving UpdraftPlus settings

@@ -148,7 +148,7 @@ class MainWP_Custom_Post_Type {
 				$hrefLink = $match[2];
 				$imgUrl   = $match[4];
 
-				if ( ! isset( $upload_dir['baseurl'] ) || ( 0 !== strripos( $imgUrl, $upload_dir['baseurl'] ) ) ) {
+				if ( ! isset( $upload_dir['baseurl'] ) || ( false === strripos( $imgUrl, $upload_dir['baseurl'] ) ) ) {
 					continue;
 				}
 
@@ -174,6 +174,7 @@ class MainWP_Custom_Post_Type {
 						} elseif ( strpos( $hrefLink, 'http' ) !== false ) {
 							$lnkToReplace = dirname( $hrefLink );
 							if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
+								$post_content = str_replace( $imgUrl, $localUrl, $post_content ); // replace src image.
 								$post_content = str_replace( $lnkToReplace, $linkToReplaceWith, $post_content );
 							}
 						}
@@ -181,6 +182,7 @@ class MainWP_Custom_Post_Type {
 
 					$lnkToReplace = dirname( $imgUrl );
 					if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
+						$post_content = str_replace( $imgUrl, $localUrl, $post_content ); // replace src image.
 						$post_content = str_replace( $lnkToReplace, $linkToReplaceWith, $post_content );
 					}
 				} catch ( \Exception $e ) {

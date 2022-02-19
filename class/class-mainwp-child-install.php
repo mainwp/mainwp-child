@@ -204,7 +204,7 @@ class MainWP_Child_Install {
 	 * @uses \MainWP\Child\MainWP_Helper::check_wp_filesystem()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
-	public function theme_action() {
+	public function theme_action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
 		$theme  = isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : '';
@@ -261,7 +261,7 @@ class MainWP_Child_Install {
 				if ( $themeToDelete !== $theme_name && $themeToDelete !== $parent_name ) {
 					$theTheme = wp_get_theme( $themeToDelete );
 					if ( null !== $theTheme && '' !== $theTheme ) {
-						$tmp['theme'] = $theTheme['Template'];
+						$tmp['theme'] = $theTheme->stylesheet; // to fix delete parent theme issue.
 						if ( true === $themeUpgrader->delete_old_theme( null, null, null, $tmp ) ) {
 							$args = array(
 								'action' => 'delete',
@@ -497,3 +497,4 @@ class MainWP_Child_Install {
 		return $result;
 	}
 }
+
