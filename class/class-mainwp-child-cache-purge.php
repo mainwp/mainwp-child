@@ -19,22 +19,18 @@ namespace MainWP\Child;
 class MainWP_Child_Cache_Purge {
 
     /**
+     * Public variable to state if supported plugin is installed on the child site.
+     *
+     * @var bool If supported plugin is installed, return true, if not, return false.
+     */
+    public $is_plugin_installed = false;
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
      */
     protected static $instance = null;
-
-    /**
-     * Method get_class_name()
-     *
-     * Get class name.
-     *
-     * @return string __CLASS__ Class name.
-     */
-    public static function get_class_name() {
-        return __CLASS__;
-    }
 
     /**
      * Method instance()
@@ -59,11 +55,38 @@ class MainWP_Child_Cache_Purge {
     public function __construct() {
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
         add_action( 'plugins_loaded', array( $this, 'check_cache_solution'), 10, 2 );
-
     }
 
     public function init() {
+        // fired off in system but no need to use it?
+        if ( ! $this->is_plugin_installed ) {
+            return;
+        }
+    }
 
+    /**
+     * Check which Cache Plugin is installed and active.
+     *
+     * @return false|string Return False if no plugin found | Plugin slug.
+     */
+    public function check_cache_solution(){
+
+        $cache_plugin_solution = null;
+
+        $supported_cache_plugins = array(
+            'wp-rocket/wp-rocket.php',
+            'breeze/breeze.php'
+        );
+
+        // Check if a supported cache plugin is active.
+        foreach( $supported_cache_plugins as $plugin ) {
+            if ( is_plugin_active( $plugin ) ) {
+                $cache_plugin_solution = $plugin;
+                $this->is_plugin_installed = true;
+            }
+        }
+
+        update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
     }
 
     /**
@@ -98,77 +121,105 @@ class MainWP_Child_Cache_Purge {
     }
 
     /**
-     * Check which Cache Plugin is installed and active.
-     *
-     * @return false|string Return False if no plugin found | Plugin slug.
-     */
-    public function check_cache_solution(){
-
-        $cache_plugin_solution = null;
-
-        $supported_cache_plugins = array(
-            'wp-rocket/wp-rocket.php',
-            'breeze/breeze.php'
-        );
-
-        // Check if a supported cache plugin is active.
-        foreach( $supported_cache_plugins as $plugin ) {
-            if ( is_plugin_active( $plugin ) ) {
-                $cache_plugin_solution = $plugin;
-            }
-        }
-
-        update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
-    }
-
-    /**
      * Auto purge cache based on which cache plugin is installed & activated.
      *
      * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
      * @used-by MainWP_Child_Updates::upgrade_wp()
      */
-    public function auto_purge_cache( $information )
+    public function auto_purge_cache()
     {
+//        if ( ! $this->is_plugin_installed ) {
+//            MainWP_Helper::write( array( 'error' => __( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
+//            return;
+//        }
+
+        $information = array();
+
         // Grab detected cache solution.
         $cache_plugin_solution = get_option('mainwp_cache_control_cache_solution', 0);
 
         // Run the corresponding cache plugin purge method.
-        switch ( $cache_plugin_solution ) {
-            case "wp-rocket/wp-rocket.php":
-                $this->wprocket_auto_cache_purge( $information );
-                break;
-            case "breeze/breeze.php":
-                $this->breeze_auto_purge_cache( $information );
-                break;
-            default:
-                break;
+        try {
+            switch ( $cache_plugin_solution ) {
+                case "wp-rocket/wp-rocket.php":
+                    $information = $this->wprocket_auto_cache_purge();
+                    break;
+                case "breeze/breeze.php":
+                    $information = $this->breeze_auto_purge_cache();
+                    break;
+                default:
+                    break;
+            }
+        } catch ( \Exception $e ) {
+            $information = array( 'error' => $e->getMessage() );
         }
+
+        // Record results of cache purge to log file if debug mode is enabled.
+        if ( MAINWP_DEBUG === 'true' ) {
+            $this->record_results( $information );
+        }
+
+       // return $information;
+    }
+
+    public function run_breeze_auto_purge_cache(){
+
+        add_action( 'plugins_loaded', array( $this, 'breeze_auto_purge_cache'), 10, 2 );
+
+
+
     }
 
     /**
-     * Breeze
+     * Purge Breeze cache.
      */
-    public function breeze_auto_purge_cache( $information ){
-        if ( function_exists('breeze_cache_flush') ) {
-            breeze_cache_flush();
+    public function breeze_auto_purge_cache(){
+
+        if ( class_exists( 'Breeze_Admin' ) ) {
+
+            //Other methods to clear “all cache” or “varnish cache”
+                // for all cache
+                //do_action( ‘breeze_clear_all_cache’ ) <-- this is the hook that I want to fire off. but doesn't
+                // seam to do anything at all.
+            $clear_all = do_action( 'breeze_clear_all_cache' );
+
+            // for varnish
+            $varnish_clear = do_action( 'breeze_clear_varnish');
+
+            // Clears varnish cache ~ no idea if this is even working.
+            $admin = new \Breeze_Admin();
+            $admin->breeze_clear_varnish();
+
+            //For local static files: Clears files within /cache/breeze-minification/ folder.
+            $size_cache = \Breeze_Configuration::breeze_clean_cache();
+
+            //delete minify
+            $mini = \Breeze_MinificationCache::clear_minification();
+
+            //clear normal cache.
+            $results = \Breeze_PurgeCache::breeze_cache_flush();
+
+            // record results
+            update_option( 'mainwp_cache_control_last_purged', time() );
+
+            // Save last purge time to database on success & return results.
+//            if ( $purge_result === true ) {
+//                update_option('mainwp_cache_control_last_purged', time());
+//                return array('result' => "Breeze => Cache auto cleared on: (" . current_time('mysql') . ")");
+//            } else {
+//                return array('error' => 'There was an issue purging your cache.');
+//            }
+            return array( 'result' => 'Function Exists' . json_encode($admin).json_encode($size_cache).json_encode($results).json_encode($mini).json_encode($clear_all).json_encode($varnish_clear));
+        } else {
+            return array( 'error' => 'Please make sure Breeze plugin is installed on the Child Site.' );
         }
-
-        // Record results of cache purge.
-        $this->record_results( $information );
-
-        return $information;
 
     }
 
     /**
-     * WP-Rocket auto cache purge.
-     *
-     * Purge cache after updates.
-     *
-     * @used-by  MainWP_Child_Updates::upgrade_plugin_theme()
-     * @used-by MainWP_Child_Updates::upgrade_wp()
+     * Purge WP-Rocket cache.
      */
-    public function wprocket_auto_cache_purge( $information ){
+    public function wprocket_auto_cache_purge(){
 
         // Purge Cache if action is set to "1".
         $action = get_option( 'mainwp_child_auto_purge_cache', false );
@@ -181,20 +232,10 @@ class MainWP_Child_Cache_Purge {
         // Save last purge time to database on success.
         if ( $purge_result['result'] === "SUCCESS" ) {
             update_option( 'mainwp_cache_control_last_purged', time() );
-
-            // Store purge result for error log.
-            $information['log'] = "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")";
+            return array( 'result' => "WP Rocket => Cache auto cleared on: (" . current_time('mysql') . ")" );
         } else {
-            // Store purge result for error log.
-            $information['log'] = $purge_result;
+            return array( 'error' => 'There was an issue purging your cache.' );
         }
-
-        // Record results of cache purge to log file if debug mode is enabled.
-        if ( MAINWP_DEBUG === 'true' ) {
-            $this->record_results($information);
-        }
-
-        return $information;
     }
 
     /**
@@ -209,7 +250,16 @@ class MainWP_Child_Cache_Purge {
         $upload_dir = wp_get_upload_dir();
         $upload_dir = $upload_dir['basedir'];
 
-        // Save $Information to Log file.
+        // Additional Cache Plugin & MainWP Child information.
+//        $information = array(
+//            'result'            => $information['result'],
+//            'error'             => $information['error'],
+//            'last_cache_purge'  => get_option( 'mainwp_cache_control_last_purged', false ),
+//            'cache_solution'    => get_option( 'mainwp_cache_control_cache_solution', false ),
+//            'breeze_path'       => BREEZE_PLUGIN_FULL_PATH
+//        );
+
+        // Save $information array to Log file.
         file_put_contents($upload_dir . "/last_purge_log.txt", json_encode( $information ) );
     }
 }
