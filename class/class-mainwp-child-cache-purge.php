@@ -66,8 +66,8 @@ class MainWP_Child_Cache_Purge {
 
     /**
      * Check which Cache Plugin is installed and active.
-     *
-     * @return false|string Return False if no plugin found | Plugin slug.
+     * Set 'mainwp_cache_control_cache_solution' option to active plugin,
+     * and set public varible 'is_plugin_installed = true' if plugin is active.
      */
     public function check_cache_solution(){
 
@@ -158,16 +158,6 @@ class MainWP_Child_Cache_Purge {
         if ( MAINWP_DEBUG === 'true' ) {
             $this->record_results( $information );
         }
-
-       // return $information;
-    }
-
-    public function run_breeze_auto_purge_cache(){
-
-        add_action( 'plugins_loaded', array( $this, 'breeze_auto_purge_cache'), 10, 2 );
-
-
-
     }
 
     /**
@@ -178,42 +168,43 @@ class MainWP_Child_Cache_Purge {
         if ( class_exists( 'Breeze_Admin' ) ) {
 
             //Other methods to clear “all cache” or “varnish cache”
-                // for all cache
-                //do_action( ‘breeze_clear_all_cache’ ) <-- this is the hook that I want to fire off. but doesn't
-                // seam to do anything at all.
-            $clear_all = do_action( 'breeze_clear_all_cache' );
 
+            // for all cache
+            //do_action( 'breeze_clear_all_cache')<-- this is the hook that I want to fire off. but doesn't
+
+//            Suposed to fire below methods but doesn't seams to actually do anything at all.
+//
+//            public function breeze_clear_all_cache() {
+//                //delete minify
+//                Breeze_MinificationCache::clear_minification();
+//                //clear normal cache
+//                Breeze_PurgeCache::breeze_cache_flush();
+//                //clear varnish cache
+//                $this->breeze_clear_varnish();
+//            }
+//
             // for varnish
-            $varnish_clear = do_action( 'breeze_clear_varnish');
+            //do_action( 'breeze_clear_varnish');
 
             // Clears varnish cache ~ no idea if this is even working.
             $admin = new \Breeze_Admin();
             $admin->breeze_clear_varnish();
 
-            //For local static files: Clears files within /cache/breeze-minification/ folder.
+            // For local static files: Clears files within /cache/breeze-minification/ folder.
             $size_cache = \Breeze_Configuration::breeze_clean_cache();
 
-            //delete minify
-            $mini = \Breeze_MinificationCache::clear_minification();
+            // Delete minify
+            \Breeze_MinificationCache::clear_minification();
 
-            //clear normal cache.
-            $results = \Breeze_PurgeCache::breeze_cache_flush();
+            // Clear normal cache.
+            \Breeze_PurgeCache::breeze_cache_flush();
 
             // record results
-            update_option( 'mainwp_cache_control_last_purged', time() );
-
-            // Save last purge time to database on success & return results.
-//            if ( $purge_result === true ) {
-//                update_option('mainwp_cache_control_last_purged', time());
-//                return array('result' => "Breeze => Cache auto cleared on: (" . current_time('mysql') . ")");
-//            } else {
-//                return array('error' => 'There was an issue purging your cache.');
-//            }
-            return array( 'result' => 'Function Exists' . json_encode($admin).json_encode($size_cache).json_encode($results).json_encode($mini).json_encode($clear_all).json_encode($varnish_clear));
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "Breeze => Cache auto cleared on: (" . current_time('mysql') . ") And " . $size_cache . " local files removed. ");
         } else {
-            return array( 'error' => 'Please make sure Breeze plugin is installed on the Child Site.' );
+            return array('error' => 'Please make sure Breeze plugin is installed on the Child Site.');
         }
-
     }
 
     /**
