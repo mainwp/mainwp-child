@@ -65,17 +65,19 @@ class MainWP_Child_Cache_Purge {
     }
 
     /**
-     * Check which Cache Plugin is installed and active.
-     * Set 'mainwp_cache_control_cache_solution' option to active plugin,
-     * and set public varible 'is_plugin_installed = true' if plugin is active.
+     * Check which supported plugin is installed,
+     * Set wp_option 'mainwp_cache_control_cache_solution' to active plugin,
+     * and set public variable 'is_plugin_installed' to TRUE.
+     *
+     * If a supported plugin is not installed check to see if CloudFlair solution is enabled.
      */
     public function check_cache_solution(){
-
-        $cache_plugin_solution = null;
+        $cache_plugin_solution = '';
 
         $supported_cache_plugins = array(
             'wp-rocket/wp-rocket.php',
-            'breeze/breeze.php'
+            'breeze/breeze.php',
+            'litespeed-cache/litespeed-cache.php'
         );
 
         // Check if a supported cache plugin is active.
@@ -83,6 +85,8 @@ class MainWP_Child_Cache_Purge {
             if ( is_plugin_active( $plugin ) ) {
                 $cache_plugin_solution = $plugin;
                 $this->is_plugin_installed = true;
+            } else if ( !get_option( 'mainwp_child_cloud_flair_enabled' ) == '0' ) {
+                $cache_plugin_solution  = 'Cloudflare';
             }
         }
 
@@ -100,17 +104,29 @@ class MainWP_Child_Cache_Purge {
      * @return array $information Array containing the data to be sent to the Dashboard.
      */
     public function sync_others_data( $information, $data = array() ) {
-        if ( is_array( $data ) && isset( $data['auto_purge_cache'] ) ) {
+
+
+        //** Grab data synced from MainWP Dashboard & update options. **//
+        if ( is_array( $data ) ) {
             try {
 
                 // Update mainwp_child_auto_purge_cache option value with either yes|no.
                 update_option( 'mainwp_child_auto_purge_cache', ( $data['auto_purge_cache'] ? 1 : 0 ) );
 
+                // Update mainwp_child_cloud_flair_enabled options value.
+                update_option( 'mainwp_child_cloud_flair_enabled', ( $data['cloud_flair_enabled'] ? 1 : 0 ) );
+
+                // Update Cloudflair API Credentials option values.
+                update_option( 'mainwp_cloudflair_email', ( $data['mainwp_cloudflair_email'] ) );
+                update_option( 'mainwp_cloudflair_key', ( $data['mainwp_cloudflair_key'] ) );
 
             } catch ( \Exception $e ) {
                 error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
             }
         }
+
+        //** Send data to MainWP Dashboard. **//
+
         // Send last purged time stamp to MainWP Dashboard.
         $information['mainwp_cache_control_last_purged'] = get_option('mainwp_cache_control_last_purged', 0 );
 
@@ -135,7 +151,7 @@ class MainWP_Child_Cache_Purge {
 
         $information = array();
 
-        // Grab detected cache solution.
+        // Grab detected cache solution..
         $cache_plugin_solution = get_option('mainwp_cache_control_cache_solution', 0);
 
         // Run the corresponding cache plugin purge method.
@@ -146,6 +162,12 @@ class MainWP_Child_Cache_Purge {
                     break;
                 case "breeze/breeze.php":
                     $information = $this->breeze_auto_purge_cache();
+                    break;
+                case "litespeed-cache/litespeed-cache.php":
+                    $information = $this->litespeed_auto_purge_cache();
+                    break;
+                case "Cloudflare":
+                    $information = $this->cloudflair_auto_purge_cache();
                     break;
                 default:
                     break;
@@ -161,49 +183,102 @@ class MainWP_Child_Cache_Purge {
     }
 
     /**
+     * Purge Cloudflair Cache after updates.
+     */
+    public function cloudflair_auto_purge_cache() {
+
+        // Credentials for Cloudflare.
+        $cust_email = get_option( 'mainwp_cloudflair_email' );
+        $cust_xauth =  get_option( 'mainwp_cloudflair_key' );
+        $cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
+
+        if($cust_email == "" || $cust_xauth == "" || $cust_domain == "") return;
+
+        //Get the Zone-ID from Cloudflare since they don't provide that in the Backend
+        $ch_query = curl_init();
+        curl_setopt($ch_query, CURLOPT_URL, "https://api.cloudflare.com/client/v4/zones?name=".$cust_domain."&status=active&page=1&per_page=5&order=status&direction=desc&match=all");
+        curl_setopt($ch_query, CURLOPT_RETURNTRANSFER, 1);
+        $qheaders = array(
+            'X-Auth-Email: '.$cust_email.'',
+            'X-Auth-Key: '.$cust_xauth.'',
+            'Content-Type: application/json'
+        );
+        curl_setopt($ch_query, CURLOPT_HTTPHEADER, $qheaders);
+        $qresult = json_decode(curl_exec($ch_query),true);
+        curl_close($ch_query);
+
+        $cust_zone = $qresult['result'][0]['id'];
+
+        //Purge the entire cache via API
+        $ch_purge = curl_init();
+        curl_setopt($ch_purge, CURLOPT_URL, "https://api.cloudflare.com/client/v4/zones/".$cust_zone."/purge_cache");
+        curl_setopt($ch_purge, CURLOPT_CUSTOMREQUEST, "DELETE");
+        curl_setopt($ch_purge, CURLOPT_RETURNTRANSFER, 1);
+        $headers = [
+            'X-Auth-Email: '.$cust_email,
+            'X-Auth-Key: '.$cust_xauth,
+            'Content-Type: application/json'
+        ];
+        $data = json_encode(array("purge_everything" => true));
+        curl_setopt($ch_purge, CURLOPT_POST, true);
+        curl_setopt($ch_purge, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch_purge, CURLOPT_HTTPHEADER, $headers);
+
+        $result = json_decode(curl_exec($ch_purge),true);
+        curl_close($ch_purge);
+
+        // Save last purge time to database on success.
+        if ( $result['success']==1 ) {
+            update_option( 'mainwp_cache_control_last_purged', time() );
+            return array( 'result' => "Cloudflare => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array( 'error' => 'There was an issue purging your cache.' . json_encode( $result ) );
+        }
+    }
+
+    /**
+     * Purge LiteSpeed Cache after updates.
+     */
+    public function litespeed_auto_purge_cache() {
+        if ( class_exists ( 'Purge' ) ) {
+
+            // Purge all cache.
+            \Purge::_purge_all();
+            //do_action( 'litespeed_purge_all' );
+
+            // record results.
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "Litespeed => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
+        }
+    }
+
+    /**
      * Purge Breeze cache.
      */
     public function breeze_auto_purge_cache(){
 
         if ( class_exists( 'Breeze_Admin' ) ) {
 
-            //Other methods to clear “all cache” or “varnish cache”
-
-            // for all cache
-            //do_action( 'breeze_clear_all_cache')<-- this is the hook that I want to fire off. but doesn't
-
-//            Suposed to fire below methods but doesn't seams to actually do anything at all.
-//
-//            public function breeze_clear_all_cache() {
-//                //delete minify
-//                Breeze_MinificationCache::clear_minification();
-//                //clear normal cache
-//                Breeze_PurgeCache::breeze_cache_flush();
-//                //clear varnish cache
-//                $this->breeze_clear_varnish();
-//            }
-//
-            // for varnish
-            //do_action( 'breeze_clear_varnish');
-
-            // Clears varnish cache ~ no idea if this is even working.
+            // Clears varnish cache.
             $admin = new \Breeze_Admin();
             $admin->breeze_clear_varnish();
 
             // For local static files: Clears files within /cache/breeze-minification/ folder.
             $size_cache = \Breeze_Configuration::breeze_clean_cache();
 
-            // Delete minify
+            // Delete minified files.
             \Breeze_MinificationCache::clear_minification();
 
             // Clear normal cache.
             \Breeze_PurgeCache::breeze_cache_flush();
 
-            // record results
+            // record results.
             update_option('mainwp_cache_control_last_purged', time());
             return array('result' => "Breeze => Cache auto cleared on: (" . current_time('mysql') . ") And " . $size_cache . " local files removed. ");
         } else {
-            return array('error' => 'Please make sure Breeze plugin is installed on the Child Site.');
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
         }
     }
 
