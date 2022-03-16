@@ -59,9 +59,7 @@ class MainWP_Child_Cache_Purge {
 
     public function init() {
         // fired off in system but no need to use it?
-        if ( ! $this->is_plugin_installed ) {
-            return;
-        }
+
     }
 
     /**
@@ -77,10 +75,11 @@ class MainWP_Child_Cache_Purge {
         $supported_cache_plugins = array(
             'wp-rocket/wp-rocket.php',
             'breeze/breeze.php',
-            'litespeed-cache/litespeed-cache.php'
+            'litespeed-cache/litespeed-cache.php',
+            'sg-cachepress/sg-cachepress.php'
         );
 
-        // Check if a supported cache plugin is active.
+        // Check if a supported cache plugin is active then check if CloudFlair is active.
         foreach( $supported_cache_plugins as $plugin ) {
             if ( is_plugin_active( $plugin ) ) {
                 $cache_plugin_solution = $plugin;
@@ -166,6 +165,9 @@ class MainWP_Child_Cache_Purge {
                 case "litespeed-cache/litespeed-cache.php":
                     $information = $this->litespeed_auto_purge_cache();
                     break;
+                case "sg-cachepress/sg-cachepress.php":
+                    $information = $this->sitegrounds_optimizer_auto_purge_cache();
+                    break;
                 case "Cloudflare":
                     $information = $this->cloudflair_auto_purge_cache();
                     break;
@@ -178,7 +180,25 @@ class MainWP_Child_Cache_Purge {
 
         // Record results of cache purge to log file if debug mode is enabled.
         if ( MAINWP_DEBUG === 'true' ) {
+            error_log( $information );
+            error_log( print_r( $information, true ) );
             $this->record_results( $information );
+        }
+    }
+    /**
+     * Purge SiteGrounds Optimiser Cache after Updates.
+     */
+    public function sitegrounds_optimizer_auto_purge_cache(){
+        if ( function_exists( 'sg_cachepress_purge_everything') ){
+
+            // Purge all SG CachePress cache.
+            sg_cachepress_purge_everything();
+
+            // record results.
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "SG CachePress => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
         }
     }
 
@@ -308,7 +328,7 @@ class MainWP_Child_Cache_Purge {
      * Record last Purge.
      *
      * Create log file & Save in /Upload dir.
-     * @howto define('MAINWP_DEBUG', 'true'); within wp-config.php.
+     * @howto define('MAINWP_DEBUG', true); within wp-config.php.
      */
     public function record_results( $information ){
         // Setup timezone and upload directory for logs.
