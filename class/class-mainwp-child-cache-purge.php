@@ -63,36 +63,6 @@ class MainWP_Child_Cache_Purge {
     }
 
     /**
-     * Check which supported plugin is installed,
-     * Set wp_option 'mainwp_cache_control_cache_solution' to active plugin,
-     * and set public variable 'is_plugin_installed' to TRUE.
-     *
-     * If a supported plugin is not installed check to see if CloudFlair solution is enabled.
-     */
-    public function check_cache_solution(){
-        $cache_plugin_solution = '';
-
-        $supported_cache_plugins = array(
-            'wp-rocket/wp-rocket.php',
-            'breeze/breeze.php',
-            'litespeed-cache/litespeed-cache.php',
-            'sg-cachepress/sg-cachepress.php'
-        );
-
-        // Check if a supported cache plugin is active then check if CloudFlair is active.
-        foreach( $supported_cache_plugins as $plugin ) {
-            if ( is_plugin_active( $plugin ) ) {
-                $cache_plugin_solution = $plugin;
-                $this->is_plugin_installed = true;
-            } else if ( !get_option( 'mainwp_child_cloud_flair_enabled' ) == '0' ) {
-                $cache_plugin_solution  = 'Cloudflare';
-            }
-        }
-
-        update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
-    }
-
-    /**
      * Method sync_others_data()
      *
      * Sync data to & from the MainWP Dashboard.
@@ -136,6 +106,38 @@ class MainWP_Child_Cache_Purge {
     }
 
     /**
+     * Check which supported plugin is installed,
+     * Set wp_option 'mainwp_cache_control_cache_solution' to active plugin,
+     * and set public variable 'is_plugin_installed' to TRUE.
+     *
+     * If a supported plugin is not installed check to see if CloudFlair solution is enabled.
+     */
+    public function check_cache_solution(){
+        $cache_plugin_solution = '';
+
+        $supported_cache_plugins = array(
+            'wp-rocket/wp-rocket.php'                   => 'WP Rocket',
+            'breeze/breeze.php'                         => 'Breeze',
+            'litespeed-cache/litespeed-cache.php'       => 'LiteSpeed Cache',
+            'sg-cachepress/sg-cachepress.php'           => 'SG CachePress',
+            'swift-performance-lite/performance.php'    => 'Swift Performance Lite',
+            'wp-fastest-cache/wpFastestCache.php'       => 'WP Fastest Cache'
+        );
+
+        // Check if a supported cache plugin is active then check if CloudFlair is active.
+        foreach( $supported_cache_plugins as $plugin => $name ) {
+            if ( is_plugin_active( $plugin ) ) {
+                $cache_plugin_solution = $name;
+                $this->is_plugin_installed = true;
+            } else if ( !get_option( 'mainwp_child_cloud_flair_enabled' ) == '0' ) {
+                $cache_plugin_solution  = 'Cloudflare';
+            }
+        }
+
+        update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
+    }
+
+    /**
      * Auto purge cache based on which cache plugin is installed & activated.
      *
      * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
@@ -156,17 +158,23 @@ class MainWP_Child_Cache_Purge {
         // Run the corresponding cache plugin purge method.
         try {
             switch ( $cache_plugin_solution ) {
-                case "wp-rocket/wp-rocket.php":
+                case "WP Rocket":
                     $information = $this->wprocket_auto_cache_purge();
                     break;
-                case "breeze/breeze.php":
+                case "Breeze":
                     $information = $this->breeze_auto_purge_cache();
                     break;
-                case "litespeed-cache/litespeed-cache.php":
+                case "LiteSpeed Cache":
                     $information = $this->litespeed_auto_purge_cache();
                     break;
-                case "sg-cachepress/sg-cachepress.php":
+                case "SG CachePress":
                     $information = $this->sitegrounds_optimizer_auto_purge_cache();
+                    break;
+                case "Swift Performance Lite":
+                    $information = $this->swift_performance_auto_purge_cache();
+                    break;
+                case "WP Fastest Cache":
+                    $information = $this->wp_fastest_cache_auto_purge_cache();
                     break;
                 case "Cloudflare":
                     $information = $this->cloudflair_auto_purge_cache();
@@ -185,6 +193,41 @@ class MainWP_Child_Cache_Purge {
             $this->record_results( $information );
         }
     }
+
+    /**
+     * Purge WP Fastest Cache after updates.
+     */
+    public function wp_fastest_cache_auto_purge_cache(){
+        if ( class_exists( 'WpFastestCache' ) ){
+
+            // Clear WP Fastest Cache after update.
+            do_action("wpfc_clear_all_cache");
+
+            // record results.
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "WP Fastest Cache => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
+        }
+    }
+
+    /**
+     * Purge Swift Performance Lite Cache after Updates.
+     */
+    public function swift_performance_auto_purge_cache(){
+        if ( class_exists( 'Swift_Performance_Cache' ) ){
+
+            // Clear All Swift Performance Lite Cache.
+            \Swift_Performance_Cache::clear_all_cache();
+
+            // record results.
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "Swift Performance Lite => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
+        }
+    }
+
     /**
      * Purge SiteGrounds Optimiser Cache after Updates.
      */
