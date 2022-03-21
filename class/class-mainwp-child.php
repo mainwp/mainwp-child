@@ -188,6 +188,9 @@ class MainWP_Child {
 					$alloptions[ $o->option_name ] = $o->option_value;
 					unset( $options[ array_search( $o->option_name, $options ) ] );
 				}
+				if ( ! is_array( $notoptions ) ) {
+					$notoptions = array();
+				}
 				foreach ( $options as $option ) {
 					$notoptions[ $option ] = true;
 				}

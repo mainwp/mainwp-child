@@ -915,12 +915,20 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_themes() {
-		$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
-		$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-		$filter  = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
-		$rslt    = $this->get_all_themes_int( $filter, $keyword, $status );
-
-		MainWP_Helper::write( $rslt );
+		$keyword      = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+		$status       = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$filter       = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
+		$not_criteria = isset( $_POST['not_criteria'] ) ? sanitize_text_field( wp_unslash( $_POST['not_criteria'] ) ) : false;
+		$rslt         = $this->get_all_themes_int( $filter, $keyword, $status );
+		if ( $not_criteria && empty( $rslt ) ) {
+			$rslt   = $this->get_all_themes_int( false );
+			$result = array(
+				'not_criteria_themes' => $rslt,
+			);
+			MainWP_Helper::write( $result );
+		} else {
+			MainWP_Helper::write( $rslt );
+		}
 	}
 
 	/**
@@ -937,16 +945,34 @@ class MainWP_Child_Stats {
 		$themes = wp_get_themes();
 
 		if ( is_array( $themes ) ) {
-			$theme_name = wp_get_theme()->get( 'Name' );
-
+			$theme_name  = wp_get_theme()->get( 'Name' );
+			$parent_name = '';
+			$parent      = wp_get_theme()->parent();
+			if ( $parent ) {
+				$parent_name = $parent->get( 'Name' );
+			}
+			$current_is_child = false;
 			foreach ( $themes as $theme ) {
-				$out                = array();
-				$out['name']        = $theme->get( 'Name' );
-				$out['title']       = $theme->display( 'Name', true, false );
-				$out['description'] = $theme->display( 'Description', true, false );
-				$out['version']     = $theme->display( 'Version', true, false );
-				$out['active']      = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
-				$out['slug']        = $theme->get_stylesheet();
+				$out                  = array();
+				$out['name']          = $theme->get( 'Name' );
+				$out['title']         = $theme->display( 'Name', true, false );
+				$out['description']   = $theme->display( 'Description', true, false );
+				$out['version']       = $theme->display( 'Version', true, false );
+				$out['active']        = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
+				$out['slug']          = $theme->get_stylesheet();
+				$out['parent_active'] = ( $parent_name == $out['name'] ) ? 1 : 0;
+
+				if ( $parent_name == $out['name'] ) {
+					$out['parent_active'] = 1;
+					$out['child_theme']   = $theme_name;
+				} else {
+					$out['parent_active'] = 0;
+				}
+
+				if ( $parent && $out['name'] == $theme_name ) {
+					$out['child_active'] = 1; // actived child theme.
+				}
+
 				if ( ! $filter ) {
 					if ( '' == $keyword || stristr( $out['title'], $keyword ) ) {
 						$rslt[] = $out;
@@ -958,7 +984,6 @@ class MainWP_Child_Stats {
 				}
 			}
 		}
-
 		return $rslt;
 	}
 
@@ -969,12 +994,21 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_plugins() {
-		$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
-		$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-		$filter  = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
-		$rslt    = $this->get_all_plugins_int( $filter, $keyword, $status );
+		$keyword      = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+		$status       = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$filter       = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
+		$not_criteria = isset( $_POST['not_criteria'] ) ? sanitize_text_field( wp_unslash( $_POST['not_criteria'] ) ) : false;
+		$rslt         = $this->get_all_plugins_int( $filter, $keyword, $status );
 
-		MainWP_Helper::write( $rslt );
+		if ( $not_criteria && empty( $rslt ) ) {
+			$rslt   = $this->get_all_plugins_int( false );
+			$result = array(
+				'not_criteria_plugins' => $rslt,
+			);
+			MainWP_Helper::write( $result );
+		} else {
+			MainWP_Helper::write( $rslt );
+		}
 	}
 
 	/**

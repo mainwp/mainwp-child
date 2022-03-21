@@ -848,6 +848,12 @@ class MainWP_Child_Updates {
 		include_once ABSPATH . '/wp-admin/includes/file.php';
 		include_once ABSPATH . '/wp-admin/includes/misc.php';
 
+		$locked = $this->check_core_updater_locked();
+		if ( $locked ) {
+			$information['error'] = __( 'Another update is currently in progress.', 'mainwp-child' );
+			MainWP_Helper::write( $information );
+		}
+
 		if ( null !== $this->filterFunction ) {
 			add_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );
 		}
@@ -878,6 +884,8 @@ class MainWP_Child_Updates {
 	private function do_upgrade_wp( &$information ) {
 		// Check for new versions.
 		wp_version_check();
+
+		global $wp_version;
 
 		$core_updates = get_core_updates();
 		if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
@@ -929,6 +937,25 @@ class MainWP_Child_Updates {
 			$information['upgrade'] = 'NORESPONSE';
 		}
 	}
+
+	/**
+	 * Method check_core_updater_locked()
+	 *
+	 * Check core updater locked.
+	 *
+	 *  @return bool true locked.
+	 */
+	private function check_core_updater_locked() {
+		global $wpdb;
+		$query  = "SELECT option_name, option_value FROM $wpdb->options ";
+		$query .= 'WHERE option_name = "core_updater.lock"';
+		$found = $wpdb->get_results( $query ); // phpcs:ignore -- safe query, required to achieve desired results, pull request solutions appreciated.
+		if ( $found ) {
+			return true;
+		}
+		return false;
+	}
+
 
 	/**
 	 * Method upgrade_translation()
