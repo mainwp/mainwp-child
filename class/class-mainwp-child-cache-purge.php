@@ -116,12 +116,15 @@ class MainWP_Child_Cache_Purge {
         $cache_plugin_solution = '';
 
         $supported_cache_plugins = array(
-            'wp-rocket/wp-rocket.php'                   => 'WP Rocket',
-            'breeze/breeze.php'                         => 'Breeze',
-            'litespeed-cache/litespeed-cache.php'       => 'LiteSpeed Cache',
-            'sg-cachepress/sg-cachepress.php'           => 'SG CachePress',
-            'swift-performance-lite/performance.php'    => 'Swift Performance Lite',
-            'wp-fastest-cache/wpFastestCache.php'       => 'WP Fastest Cache'
+            'wp-rocket/wp-rocket.php'                    => 'WP Rocket',
+            'breeze/breeze.php'                          => 'Breeze',
+            'litespeed-cache/litespeed-cache.php'        => 'LiteSpeed Cache',
+            'sg-cachepress/sg-cachepress.php'            => 'SG CachePress',
+            'swift-performance-lite/performance.php'     => 'Swift Performance Lite',
+            'wp-fastest-cache/wpFastestCache.php'        => 'WP Fastest Cache',
+            'w3-total-cache/w3-total-cache.php'          => 'W3 Total Cache',
+            'hummingbird-performance/wp-hummingbird.php' => 'Hummingbird Performance',
+            'cache-enabler/cache-enabler.php'            => 'Cache Enabler'
         );
 
         // Check if a supported cache plugin is active then check if CloudFlair is active.
@@ -129,7 +132,7 @@ class MainWP_Child_Cache_Purge {
             if ( is_plugin_active( $plugin ) ) {
                 $cache_plugin_solution = $name;
                 $this->is_plugin_installed = true;
-            } else if ( !get_option( 'mainwp_child_cloud_flair_enabled' ) == '0' ) {
+            } else if ( !get_option( 'mainwp_child_cloud_flair_enabled' ) == '0' &&  $cache_plugin_solution == '' ) {
                 $cache_plugin_solution  = 'Cloudflare';
             }
         }
@@ -145,52 +148,107 @@ class MainWP_Child_Cache_Purge {
      */
     public function auto_purge_cache()
     {
-//        if ( ! $this->is_plugin_installed ) {
-//            MainWP_Helper::write( array( 'error' => __( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
-//            return;
-//        }
+        // Check if Cache Control is enabled.
+        if ( get_option( 'mainwp_child_auto_purge_cache' ) == '1' ){
+            $information = array();
 
-        $information = array();
+            // Grab detected cache solution..
+            $cache_plugin_solution = get_option('mainwp_cache_control_cache_solution', 0);
 
-        // Grab detected cache solution..
-        $cache_plugin_solution = get_option('mainwp_cache_control_cache_solution', 0);
-
-        // Run the corresponding cache plugin purge method.
-        try {
-            switch ( $cache_plugin_solution ) {
-                case "WP Rocket":
-                    $information = $this->wprocket_auto_cache_purge();
-                    break;
-                case "Breeze":
-                    $information = $this->breeze_auto_purge_cache();
-                    break;
-                case "LiteSpeed Cache":
-                    $information = $this->litespeed_auto_purge_cache();
-                    break;
-                case "SG CachePress":
-                    $information = $this->sitegrounds_optimizer_auto_purge_cache();
-                    break;
-                case "Swift Performance Lite":
-                    $information = $this->swift_performance_auto_purge_cache();
-                    break;
-                case "WP Fastest Cache":
-                    $information = $this->wp_fastest_cache_auto_purge_cache();
-                    break;
-                case "Cloudflare":
-                    $information = $this->cloudflair_auto_purge_cache();
-                    break;
-                default:
-                    break;
+            // Run the corresponding cache plugin purge method.
+            try {
+                switch ( $cache_plugin_solution ) {
+                    case "WP Rocket":
+                        $information = $this->wprocket_auto_cache_purge();
+                        break;
+                    case "Breeze":
+                        $information = $this->breeze_auto_purge_cache();
+                        break;
+                    case "LiteSpeed Cache":
+                        $information = $this->litespeed_auto_purge_cache();
+                        break;
+                    case "SG CachePress":
+                        $information = $this->sitegrounds_optimizer_auto_purge_cache();
+                        break;
+                    case "Swift Performance Lite":
+                        $information = $this->swift_performance_auto_purge_cache();
+                        break;
+                    case "WP Fastest Cache":
+                        $information = $this->wp_fastest_cache_auto_purge_cache();
+                        break;
+                    case "W3 Total Cache":
+                        $information = $this->w3_total_cache_auto_purge_cache();
+                        break;
+                    case "Hummingbird Performance":
+                        $information = $this->wp_hummingbird_auto_purge_cache();
+                        break;
+                    case "Cache Enabler":
+                        $information = $this->cache_enabler_auto_purge_cache();
+                        break;
+                    case "Cloudflare":
+                        $information = $this->cloudflair_auto_purge_cache();
+                        break;
+                    default:
+                        break;
+                }
+            } catch ( \Exception $e ) {
+                $information = array( 'error' => $e->getMessage() );
             }
-        } catch ( \Exception $e ) {
-            $information = array( 'error' => $e->getMessage() );
-        }
-
-        // Record results of cache purge to log file if debug mode is enabled.
-        if ( MAINWP_DEBUG === 'true' ) {
-            error_log( $information );
-            error_log( print_r( $information, true ) );
             $this->record_results( $information );
+        } else {
+            $information = array( 'status' => 'Disabled' );
+            $this->record_results( $information );
+        }
+    }
+
+    /**
+     * Purge WP Hummingbird cache after updates.
+     */
+    public function wp_hummingbird_auto_purge_cache(){
+        if ( class_exists( 'WP_Hummingbird' ) ){
+
+            // Clear WP Hummingbird Cache after update.
+            \WP_Hummingbird::flush_cache();
+
+            // record results.
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "Hummingbird Performance => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
+        }
+    }
+
+    /**
+     * Purge Cache Enabler cache after updates.
+     */
+    public function cache_enabler_auto_purge_cache(){
+        if ( class_exists( 'Cache_Enabler' ) ){
+
+            // Clear WP Fastest Cache after update.
+            \Cache_Enabler::clear_complete_cache();
+
+            // record results.
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "Cache Enabler => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
+        }
+    }
+
+    /**
+     * Purge W3 Total Cache after updates.
+     */
+    public function w3_total_cache_auto_purge_cache(){
+        if ( function_exists( 'w3tc_flush_all') ){
+
+            // Purge all W3 total cache.
+            w3tc_flush_all();
+
+            // record results.
+            update_option('mainwp_cache_control_last_purged', time());
+            return array('result' => "W3 Total Cache => Cache auto cleared on: (" . current_time('mysql') . ")" );
+        } else {
+            return array('error' => 'Please make sure a supported plugin is installed on the Child Site.');
         }
     }
 
