@@ -737,7 +737,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                                 }
                             }
                             \UpdraftPlus_Options::update_updraft_option( 'updraft_sftp', $opts );
-                        } elseif ( 'updraft_webdav_settings' == $key ) {
+                        } elseif ( 'updraft_webdav_settings' == $key && is_array( $settings[ $key ] ) ) {
                             $opts = \UpdraftPlus_Options::get_updraft_option( 'updraft_webdav' );
                             if ( ! is_array( $opts ) ) {
                                 $opts = array();

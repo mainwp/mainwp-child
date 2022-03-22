@@ -1711,7 +1711,7 @@ SQL
 						if ( $keyData['ok'] && $keyData['apiKey'] ) {
 							\wfConfig::set( 'apiKey', $keyData['apiKey'] );
 							\wfConfig::set( 'isPaid', 0 );
-							\wfConfig::set( 'keyType', \wfAPI::KEY_TYPE_FREE );
+							\wfConfig::set( 'keyType', \wfLicense::KEY_TYPE_FREE );
 							\wordfence::licenseStatusChanged();
 							$result['apiKey'] = $keyData['apiKey'];
 							$apiKey           = $keyData['apiKey'];
@@ -1735,7 +1735,7 @@ SQL
 							\wfConfig::set( 'isPaid', $isPaid ); // res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
 							\wordfence::licenseStatusChanged();
 							if ( ! $isPaid ) {
-								\wfConfig::set( 'keyType', \wfAPI::KEY_TYPE_FREE );
+								\wfConfig::set( 'keyType', \wfLicense::KEY_TYPE_FREE );
 							}
 
 							$result['apiKey'] = $apiKey;
@@ -1762,7 +1762,7 @@ SQL
 
 					$api = new \wfAPI( $apiKey, \wfUtils::getWPVersion() );
 					try {
-						$keyType = \wfAPI::KEY_TYPE_FREE;
+						$keyType = \wfLicense::KEY_TYPE_FREE;
 						$keyData = $api->call(
 							'ping_api_key',
 							array(),
@@ -1796,7 +1796,7 @@ SQL
 						\wfConfig::set( 'keyType', $keyType );
 
 						if ( ! isset( $result['apiKey'] ) ) {
-							$isPaid           = ( \wfAPI::KEY_TYPE_FREE == $keyType ) ? false : true;
+							$isPaid           = ( \wfLicense::KEY_TYPE_FREE == $keyType ) ? false : true;
 							$result['apiKey'] = $apiKey;
 							$result['isPaid'] = $isPaid;
 							if ( $isPaid ) {
