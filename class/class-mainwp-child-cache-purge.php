@@ -310,8 +310,8 @@ class MainWP_Child_Cache_Purge {
 			return;
 		}
 
-		// Get the Zone-ID from Cloudflare since they don't provide that in the Backend
-		$ch_query = curl_init();
+		// Get the Zone-ID from Cloudflare since they don't provide that in the Backend.
+		$ch_query = curl_init(); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_query, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones?name=' . $cust_domain . '&status=active&page=1&per_page=5&order=status&direction=desc&match=all' ); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_query, CURLOPT_RETURNTRANSFER, 1 ); // phpcs:ignore -- use core function.
 		$qheaders = array(
@@ -320,15 +320,15 @@ class MainWP_Child_Cache_Purge {
 			'Content-Type: application/json',
 		);
 		curl_setopt( $ch_query, CURLOPT_HTTPHEADER, $qheaders ); // phpcs:ignore -- use core function.
-		$qresult = json_decode( curl_exec( $ch_query ), true );
+		$qresult = json_decode( curl_exec( $ch_query ), true ); // phpcs:ignore -- use core function.
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_query ); // phpcs:ignore -- use core function.
 		}
 
 		$cust_zone = $qresult['result'][0]['id'];
 
-		// Purge the entire cache via API
-		$ch_purge = curl_init();
+		// Purge the entire cache via API.
+		$ch_purge = curl_init(); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_purge, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones/' . $cust_zone . '/purge_cache' ); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_purge, CURLOPT_CUSTOMREQUEST, 'DELETE' ); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_purge, CURLOPT_RETURNTRANSFER, 1 ); // phpcs:ignore -- use core function.
@@ -337,12 +337,12 @@ class MainWP_Child_Cache_Purge {
 			'X-Auth-Key: ' . $cust_xauth,
 			'Content-Type: application/json',
 		);
-		$data    = json_encode( array( 'purge_everything' => true ) );
+		$data    = json_encode( array( 'purge_everything' => true ) ); // phpcs:ignore -- ok.
 		curl_setopt( $ch_purge, CURLOPT_POST, true ); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_purge, CURLOPT_POSTFIELDS, $data ); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_purge, CURLOPT_HTTPHEADER, $headers ); // phpcs:ignore -- use core function.
 
-		$result = json_decode( curl_exec( $ch_purge ), true );
+		$result = json_decode( curl_exec( $ch_purge ), true ); // phpcs:ignore -- use core function.
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_purge ); // phpcs:ignore -- use core function.
 		}
@@ -352,7 +352,7 @@ class MainWP_Child_Cache_Purge {
 			update_option( 'mainwp_cache_control_last_purged', time() );
 			return array( 'result' => 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
-			return array( 'error' => 'There was an issue purging your cache.' . json_encode( $result ) );
+			return array( 'error' => 'There was an issue purging your cache.' . json_encode( $result ) ); // phpcs:ignore -- ok.
 		}
 	}
 
@@ -364,7 +364,6 @@ class MainWP_Child_Cache_Purge {
 
 			// Purge all cache.
 			\Purge::_purge_all();
-			// do_action( 'litespeed_purge_all' );
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
@@ -435,12 +434,12 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function record_results( $information ) {
 		// Setup timezone and upload directory for logs.
-		date_default_timezone_set( wp_timezone() );
+		date_default_timezone_set( wp_timezone() ); // phpcs:ignore -- use core function.
 		$upload_dir = wp_get_upload_dir();
 		$upload_dir = $upload_dir['basedir'];
 
 		// Save $information array to Log file.
-		file_put_contents( $upload_dir . '/last_purge_log.txt', json_encode( $information ) );
+		file_put_contents( $upload_dir . '/last_purge_log.txt', json_encode( $information ) ); // phpcs:ignore -- ok.
 	}
 }
 
