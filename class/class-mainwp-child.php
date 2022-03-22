@@ -122,9 +122,6 @@ class MainWP_Child {
             MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
         }
 
-        /**
-         * Initiate Cron.
-         */
         if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
             if ( isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) {
                 add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
@@ -199,6 +196,9 @@ class MainWP_Child {
 				foreach ( (array) $alloptions_db as $o ) {
 					$alloptions[ $o->option_name ] = $o->option_value;
 					unset( $options[ array_search( $o->option_name, $options ) ] );
+				}
+				if ( ! is_array( $notoptions ) ) {
+					$notoptions = array();
 				}
 				foreach ( $options as $option ) {
 					$notoptions[ $option ] = true;

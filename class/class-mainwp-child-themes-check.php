@@ -208,7 +208,7 @@ class MainWP_Child_Themes_Check {
 			}
 		}
 		if ( $update ) {
-			set_transient( $this->tran_name_theme_timestamps, $themes_outdate, DAY_IN_SECONDS );
+			set_transient( $this->tran_name_theme_timestamps, $themes_outdate, WEEK_IN_SECONDS );
 		}
 
 		return $themes_outdate;
@@ -298,7 +298,7 @@ class MainWP_Child_Themes_Check {
 		}
 
 		// Store the master response for usage in the plugin table.
-		set_transient( $this->tran_name_theme_timestamps, $responses, DAY_IN_SECONDS );
+		set_transient( $this->tran_name_theme_timestamps, $responses, WEEK_IN_SECONDS );
 
 		if ( 0 === count( $all_themes ) ) {
 			delete_transient( $this->tran_name_themes_to_batch );
