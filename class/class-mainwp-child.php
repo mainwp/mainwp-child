@@ -75,7 +75,7 @@ class MainWP_Child {
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 * @uses \MainWP\Child\MainWP_Utility::run_saved_snippets()
 	 * @uses \MainWP\Child\MainWP_Utility::get_class_name()
-     * @uses \MainWP\Child\MainWP_Child_Cache_Purge::init()
+	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::init()
 	 */
 	public function __construct( $plugin_file ) {
 		$this->update();
@@ -110,23 +110,23 @@ class MainWP_Child {
 		MainWP_Child_Themes_Check::instance();
 		MainWP_Utility::instance()->run_saved_snippets();
 
-        /**
-         * Initiate MainWP_Child_Cache_Purge class instance.
-         */
-        MainWP_Child_Cache_Purge::instance()->init();
+		/**
+		 * Initiate MainWP_Child_Cache_Purge class instance.
+		 */
+		MainWP_Child_Cache_Purge::instance()->init();
 
-        /**
-         * Initiate Branding Options.
-         */
-        if ( ! get_option( 'mainwp_child_pubkey' ) ) {
-            MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
-        }
+		/**
+		 * Initiate Branding Options.
+		 */
+		if ( ! get_option( 'mainwp_child_pubkey' ) ) {
+			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
+		}
 
-        if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
-            if ( isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) {
-                add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
-            }
-        }
+		if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+			if ( isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) {
+				add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
+			}
+		}
 	}
 
 	/**

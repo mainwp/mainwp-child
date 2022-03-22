@@ -90,16 +90,16 @@ class MainWP_Child_WP_Rocket {
 			add_action( 'admin_init', array( $this, 'remove_notices' ) );
 		}
 
-        /**
-         * WP CLI interface for WP Rocket.
-         *
-         * Gives access to a set of `wp rocket` commands.
-         *
-         * Plugin-URI: https://github.com/wp-media/wp-rocket-cli
-         * Author: WP Media
-         * Author URI: http://wp-media.me
-         */
-        require( MAINWP_CHILD_PLUGIN_DIR . 'bin/wp-rocket-cli/wp-rocket-cli.php' );
+		/**
+		 * WP CLI interface for WP Rocket.
+		 *
+		 * Gives access to a set of `wp rocket` commands.
+		 *
+		 * Plugin-URI: https://github.com/wp-media/wp-rocket-cli
+		 * Author: WP Media
+		 * Author URI: http://wp-media.me
+		 */
+		require MAINWP_CHILD_PLUGIN_DIR . 'bin/wp-rocket-cli/wp-rocket-cli.php';
 	}
 
 	/**
