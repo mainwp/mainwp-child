@@ -380,3 +380,4 @@ class MainWP_Child_Branding_Render {
 	}
 
 }
+

@@ -1393,3 +1393,4 @@ class MainWP_Child_Branding {
 		return $plugins;
 	}
 }
+

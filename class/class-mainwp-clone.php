@@ -862,3 +862,4 @@ class MainWP_Clone {
 	}
 
 }
+

@@ -319,24 +319,13 @@ class MainWP_Child_Plugins_Check {
 			}
 		}
 
-		if ( ! defined( 'DAY_IN_SECONDS' ) ) {
-
-			/**
-			 * Defines days in seconds.
-			 *
-			 * @const ( string ) Default: true.
-			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Plugins_Check.html
-			 */
-			define( 'DAY_IN_SECONDS', 24 * 60 * 60 );
-		}
-
 		// Store the master response for usage in the plugin table.
 		set_transient( $this->tran_name_plugin_timestamps, $responses, WEEK_IN_SECONDS );
 
 		if ( 0 === count( $all_plugins ) ) {
 			delete_transient( $this->tran_name_plugins_to_batch );
 		} else {
-			set_transient( $this->tran_name_plugins_to_batch, $all_plugins, DAY_IN_SECONDS );
+			set_transient( $this->tran_name_plugins_to_batch, $all_plugins, WEEK_IN_SECONDS );
 			wp_schedule_single_event( time(), $this->cron_name_batching );
 		}
 	}

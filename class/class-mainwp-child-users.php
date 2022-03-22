@@ -560,3 +560,4 @@ class MainWP_Child_Users {
 	}
 
 }
+

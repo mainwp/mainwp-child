@@ -497,3 +497,4 @@ class MainWP_Child_Install {
 		return $result;
 	}
 }
+

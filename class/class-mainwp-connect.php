@@ -702,3 +702,4 @@ class MainWP_Connect {
 	}
 
 }
+
