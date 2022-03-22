@@ -95,10 +95,10 @@ class MainWP_Child_Cache_Purge {
 		// ** Send data to MainWP Dashboard. **//
 
 		// Send last purged time stamp to MainWP Dashboard.
-		$information['mainwp_cache_control_last_purged'] = get_option('mainwp_cache_control_last_purged', 0 );
+		$information['mainwp_cache_control_last_purged'] = get_option( 'mainwp_cache_control_last_purged', 0 );
 
 		// Send active cache solution to MainWP Dashboard.
-		$information['mainwp_cache_control_cache_solution'] = get_option('mainwp_cache_control_cache_solution', 0 );
+		$information['mainwp_cache_control_cache_solution'] = get_option( 'mainwp_cache_control_cache_solution', 0 );
 
 		return $information;
 	}
@@ -150,7 +150,7 @@ class MainWP_Child_Cache_Purge {
 			$information = array();
 
 			// Grab detected cache solution..
-			$cache_plugin_solution = get_option('mainwp_cache_control_cache_solution', 0);
+			$cache_plugin_solution = get_option( 'mainwp_cache_control_cache_solution', 0 );
 
 			// Run the corresponding cache plugin purge method.
 			try {
@@ -208,8 +208,8 @@ class MainWP_Child_Cache_Purge {
 			\WP_Hummingbird::flush_cache();
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'Hummingbird Performance => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'Hummingbird Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -225,8 +225,8 @@ class MainWP_Child_Cache_Purge {
 			\Cache_Enabler::clear_complete_cache();
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'Cache Enabler => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'Cache Enabler => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -236,14 +236,14 @@ class MainWP_Child_Cache_Purge {
 	 * Purge W3 Total Cache after updates.
 	 */
 	public function w3_total_cache_auto_purge_cache() {
-		if ( function_exists( 'w3tc_flush_all') ) {
+		if ( function_exists( 'w3tc_flush_all' ) ) {
 
 			// Purge all W3 total cache.
 			w3tc_flush_all();
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'W3 Total Cache => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'W3 Total Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -256,11 +256,11 @@ class MainWP_Child_Cache_Purge {
 		if ( class_exists( 'WpFastestCache' ) ) {
 
 			// Clear WP Fastest Cache after update.
-			do_action('wpfc_clear_all_cache');
+			do_action( 'wpfc_clear_all_cache' );
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'WP Fastest Cache => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'WP Fastest Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -276,8 +276,8 @@ class MainWP_Child_Cache_Purge {
 			\Swift_Performance_Cache::clear_all_cache();
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'Swift Performance Lite => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'Swift Performance Lite => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -287,14 +287,14 @@ class MainWP_Child_Cache_Purge {
 	 * Purge SiteGrounds Optimiser Cache after Updates.
 	 */
 	public function sitegrounds_optimizer_auto_purge_cache() {
-		if ( function_exists( 'sg_cachepress_purge_everything') ) {
+		if ( function_exists( 'sg_cachepress_purge_everything' ) ) {
 
 			// Purge all SG CachePress cache.
 			sg_cachepress_purge_everything();
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'SG CachePress => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'SG CachePress => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -316,41 +316,41 @@ class MainWP_Child_Cache_Purge {
 
 		// Get the Zone-ID from Cloudflare since they don't provide that in the Backend
 		$ch_query = curl_init();
-		curl_setopt($ch_query, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones?name=' . $cust_domain . '&status=active&page=1&per_page=5&order=status&direction=desc&match=all');
-		curl_setopt($ch_query, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt( $ch_query, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones?name=' . $cust_domain . '&status=active&page=1&per_page=5&order=status&direction=desc&match=all' );
+		curl_setopt( $ch_query, CURLOPT_RETURNTRANSFER, 1 );
 		$qheaders = array(
 			'X-Auth-Email: ' . $cust_email . '',
 			'X-Auth-Key: ' . $cust_xauth . '',
 			'Content-Type: application/json',
 		);
-		curl_setopt($ch_query, CURLOPT_HTTPHEADER, $qheaders);
-		$qresult = json_decode(curl_exec($ch_query), true);
-		curl_close($ch_query);
+		curl_setopt( $ch_query, CURLOPT_HTTPHEADER, $qheaders );
+		$qresult = json_decode( curl_exec( $ch_query ), true );
+		curl_close( $ch_query );
 
 		$cust_zone = $qresult['result'][0]['id'];
 
 		// Purge the entire cache via API
 		$ch_purge = curl_init();
-		curl_setopt($ch_purge, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones/' . $cust_zone . '/purge_cache');
-		curl_setopt($ch_purge, CURLOPT_CUSTOMREQUEST, 'DELETE');
-		curl_setopt($ch_purge, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt( $ch_purge, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones/' . $cust_zone . '/purge_cache' );
+		curl_setopt( $ch_purge, CURLOPT_CUSTOMREQUEST, 'DELETE' );
+		curl_setopt( $ch_purge, CURLOPT_RETURNTRANSFER, 1 );
 		$headers = array(
 			'X-Auth-Email: ' . $cust_email,
 			'X-Auth-Key: ' . $cust_xauth,
 			'Content-Type: application/json',
 		);
-		$data    = json_encode(array( 'purge_everything' => true ));
-		curl_setopt($ch_purge, CURLOPT_POST, true);
-		curl_setopt($ch_purge, CURLOPT_POSTFIELDS, $data);
-		curl_setopt($ch_purge, CURLOPT_HTTPHEADER, $headers);
+		$data    = json_encode( array( 'purge_everything' => true ) );
+		curl_setopt( $ch_purge, CURLOPT_POST, true );
+		curl_setopt( $ch_purge, CURLOPT_POSTFIELDS, $data );
+		curl_setopt( $ch_purge, CURLOPT_HTTPHEADER, $headers );
 
-		$result = json_decode(curl_exec($ch_purge), true);
-		curl_close($ch_purge);
+		$result = json_decode( curl_exec( $ch_purge ), true );
+		curl_close( $ch_purge );
 
 		// Save last purge time to database on success.
 		if ( $result['success'] == 1 ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array( 'result' => 'Cloudflare => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			return array( 'result' => 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'There was an issue purging your cache.' . json_encode( $result ) );
 		}
@@ -360,15 +360,15 @@ class MainWP_Child_Cache_Purge {
 	 * Purge LiteSpeed Cache after updates.
 	 */
 	public function litespeed_auto_purge_cache() {
-		if ( class_exists ( 'Purge' ) ) {
+		if ( class_exists( 'Purge' ) ) {
 
 			// Purge all cache.
 			\Purge::_purge_all();
 			// do_action( 'litespeed_purge_all' );
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'Litespeed => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'Litespeed => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -395,8 +395,8 @@ class MainWP_Child_Cache_Purge {
 			\Breeze_PurgeCache::breeze_cache_flush();
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'Breeze => Cache auto cleared on: (' . current_time('mysql') . ') And ' . $size_cache . ' local files removed. ' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'Breeze => Cache auto cleared on: (' . current_time( 'mysql' ) . ') And ' . $size_cache . ' local files removed. ' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}
@@ -418,7 +418,7 @@ class MainWP_Child_Cache_Purge {
 		// Save last purge time to database on success.
 		if ( $purge_result['result'] === 'SUCCESS' ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array( 'result' => 'WP Rocket => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			return array( 'result' => 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'There was an issue purging your cache.' );
 		}
@@ -428,12 +428,14 @@ class MainWP_Child_Cache_Purge {
 	 * Record last Purge.
 	 *
 	 * Create log file & Save in /Upload dir.
+	 * 
+	 * @param array $information Array containing the data to be sent to the Dashboard.
 	 *
 	 * @howto define('MAINWP_DEBUG', true); within wp-config.php.
 	 */
 	public function record_results( $information ) {
 		// Setup timezone and upload directory for logs.
-		date_default_timezone_set(wp_timezone());
+		date_default_timezone_set( wp_timezone() );
 		$upload_dir = wp_get_upload_dir();
 		$upload_dir = $upload_dir['basedir'];
 
@@ -447,7 +449,7 @@ class MainWP_Child_Cache_Purge {
 		// );
 
 		// Save $information array to Log file.
-		file_put_contents($upload_dir . '/last_purge_log.txt', json_encode( $information ) );
+		file_put_contents( $upload_dir . '/last_purge_log.txt', json_encode( $information ) );
 	}
 }
 
