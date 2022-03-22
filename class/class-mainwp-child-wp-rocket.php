@@ -99,7 +99,7 @@ class MainWP_Child_WP_Rocket {
 		 * Author: WP Media
 		 * Author URI: http://wp-media.me
 		 */
-		require MAINWP_CHILD_PLUGIN_DIR . 'bin/wp-rocket-cli/wp-rocket-cli.php';
+		//require MAINWP_CHILD_PLUGIN_DIR . 'bin/wp-rocket-cli/wp-rocket-cli.php';
 	}
 
 	/**
