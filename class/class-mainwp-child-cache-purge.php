@@ -428,7 +428,7 @@ class MainWP_Child_Cache_Purge {
 	 * Record last Purge.
 	 *
 	 * Create log file & Save in /Upload dir.
-	 * 
+	 *
 	 * @param array $information Array containing the data to be sent to the Dashboard.
 	 *
 	 * @howto define('MAINWP_DEBUG', true); within wp-config.php.
