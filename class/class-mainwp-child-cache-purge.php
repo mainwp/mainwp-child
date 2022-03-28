@@ -434,7 +434,10 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function record_results( $information ) {
 		// Setup timezone and upload directory for logs.
-		date_default_timezone_set( wp_timezone() ); // phpcs:ignore -- use core function.
+		$ti = wp_timezone();
+		if ( is_array( $ti ) && isset( $ti['timezone'] ) ) {
+			date_default_timezone_set( $ti['timezone'] ); // phpcs:ignore -- use core function.
+		}
 		$upload_dir = wp_get_upload_dir();
 		$upload_dir = $upload_dir['basedir'];
 
