@@ -361,11 +361,9 @@ class MainWP_Child_Cache_Purge {
      * Purge LiteSpeed Cache after updates.
      */
     public function litespeed_auto_purge_cache() {
-        if ( class_exists ( 'Purge' ) ) {
-
-            // Purge all cache.
-            \Purge::_purge_all();
-            //do_action( 'litespeed_purge_all' );
+        // Purge all LS Cache.
+        if ( defined( 'LSCWP_V' ) ) {
+            do_action( 'litespeed_purge_all' );
 
             // record results.
             update_option('mainwp_cache_control_last_purged', time());
