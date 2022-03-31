@@ -57,6 +57,7 @@ class MainWP_Child_Wordfence {
 	const OPTIONS_TYPE_DIAGNOSTICS  = 'diagnostics';
 	const OPTIONS_TYPE_ALL          = 'alloptions';
 
+	public $keyType = null;
 	/**
 	 * Public static variable to hold the information about Wordfence options.
 	 *
@@ -251,6 +252,9 @@ class MainWP_Child_Wordfence {
 
 		if ( $this->is_wordfence_installed ) {
 			add_action( 'wp_ajax_mainwp_wordfence_download_htaccess', array( $this, 'download_htaccess' ) );
+			if ( null === $this->keyType ) {
+				$this->keyType = defined( '\wfLicense::KEY_TYPE_FREE' ) ? \wfLicense::KEY_TYPE_FREE : ( defined( '\wfAPI::KEY_TYPE_FREE' ) ? \wfAPI::KEY_TYPE_FREE : 'free' );
+			}
 		}
 	}
 
@@ -1711,7 +1715,7 @@ SQL
 						if ( $keyData['ok'] && $keyData['apiKey'] ) {
 							\wfConfig::set( 'apiKey', $keyData['apiKey'] );
 							\wfConfig::set( 'isPaid', 0 );
-							\wfConfig::set( 'keyType', \wfLicense::KEY_TYPE_FREE );
+							\wfConfig::set( 'keyType', $this->keyType );
 							\wordfence::licenseStatusChanged();
 							$result['apiKey'] = $keyData['apiKey'];
 							$apiKey           = $keyData['apiKey'];
@@ -1735,7 +1739,7 @@ SQL
 							\wfConfig::set( 'isPaid', $isPaid ); // res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
 							\wordfence::licenseStatusChanged();
 							if ( ! $isPaid ) {
-								\wfConfig::set( 'keyType', \wfLicense::KEY_TYPE_FREE );
+								\wfConfig::set( 'keyType', $this->keyType );
 							}
 
 							$result['apiKey'] = $apiKey;
@@ -1762,7 +1766,6 @@ SQL
 
 					$api = new \wfAPI( $apiKey, \wfUtils::getWPVersion() );
 					try {
-						$keyType = \wfLicense::KEY_TYPE_FREE;
 						$keyData = $api->call(
 							'ping_api_key',
 							array(),
@@ -1772,7 +1775,7 @@ SQL
 							)
 						);
 						if ( isset( $keyData['_isPaidKey'] ) ) {
-							$keyType = \wfConfig::get( 'keyType' );
+							$key_type = \wfConfig::get( 'keyType' );
 						}
 						if ( isset( $keyData['dashboard'] ) ) {
 							\wfConfig::set( 'lastDashboardCheck', time() );
@@ -1793,10 +1796,10 @@ SQL
 							}
 						}
 
-						\wfConfig::set( 'keyType', $keyType );
+						\wfConfig::set( 'keyType', $this->keyType );
 
 						if ( ! isset( $result['apiKey'] ) ) {
-							$isPaid           = ( \wfLicense::KEY_TYPE_FREE == $keyType ) ? false : true;
+							$isPaid           = ( $this->keyType == $key_type ) ? false : true;
 							$result['apiKey'] = $apiKey;
 							$result['isPaid'] = $isPaid;
 							if ( $isPaid ) {

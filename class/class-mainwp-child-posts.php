@@ -382,14 +382,13 @@ class MainWP_Child_Posts {
 		$post_tags           = isset( $new_post['post_tags'] ) ? rawurldecode( $new_post['post_tags'] ) : null;
 		$post_featured_image = isset( $_POST['post_featured_image'] ) ? base64_decode( wp_unslash( $_POST['post_featured_image'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$upload_dir          = isset( $_POST['mainwp_upload_dir'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_password       = isset( $_POST['post_password'] ) ? wp_unslash( $_POST['post_password'] ) : null;
 
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) && ! empty( $_POST['featured_image_data'] ) ) {
 			$others['featured_image_data'] = ! empty( $_POST['featured_image_data'] ) ? unserialize( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 
-		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $post_password, $others );
+		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
 
 		if ( is_array( $res ) && isset( $res['error'] ) ) {
 			MainWP_Helper::instance()->error( $res['error'] );
@@ -565,6 +564,7 @@ class MainWP_Child_Posts {
 				'comment_status' => $post->comment_status,
 				'ping_status'    => $post->ping_status,
 				'post_type'      => $post->post_type,
+				'post_password'  => $post->post_password,
 			);
 
 			if ( null != $post_featured_image ) { // Featured image is set, retrieve URL.
@@ -616,6 +616,7 @@ class MainWP_Child_Posts {
 				'post_excerpt'   => $post->post_excerpt,
 				'comment_status' => $post->comment_status,
 				'ping_status'    => $post->ping_status,
+				'post_password'  => $post->post_password,
 			);
 
 			if ( null != $post_featured_image ) {
@@ -667,7 +668,6 @@ class MainWP_Child_Posts {
 	 * @param string $post_featured_image Post featured image.
 	 * @param string $upload_dir          Upload directory.
 	 * @param string $post_tags           Post tags.
-	 * @param mixed  $post_password The post password.
 	 * @param array  $others              Other data.
 	 *
 	 * @return array|string[] $ret Return success array, permalink & Post ID.
@@ -685,7 +685,6 @@ class MainWP_Child_Posts {
 		$post_featured_image,
 		$upload_dir,
 		$post_tags,
-		$post_password = null,
 		$others = array()
 		) {
 
@@ -699,7 +698,7 @@ class MainWP_Child_Posts {
 		* @param string $post_category � Post categories.
 		* @param string $post_tags     � Post tags.
 		*/
-		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags, $others, $post_password );
+		do_action( 'mainwp_before_post_update', $new_post, $post_custom, $post_category, $post_tags, $others );
 
 		$edit_post_id = 0;
 		$is_post_plus = false;
@@ -715,10 +714,6 @@ class MainWP_Child_Posts {
 				$error = sprintf( __( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
 				return array( 'error' => $error );
 			}
-		}
-
-		if ( null !== $post_password ) {
-			$new_post['post_password'] = $post_password;
 		}
 
 		// if editing post then will check if image existed.
