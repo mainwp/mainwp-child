@@ -365,8 +365,8 @@ class MainWP_Child_Cache_Purge {
 			do_action( 'litespeed_purge_all' );
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time());
-			return array( 'result' => 'Litespeed => Cache auto cleared on: (' . current_time('mysql') . ')' );
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array( 'result' => 'Litespeed => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' );
 		} else {
 			return array( 'error' => 'Please make sure a supported plugin is installed on the Child Site.' );
 		}

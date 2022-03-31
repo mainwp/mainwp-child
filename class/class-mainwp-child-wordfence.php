@@ -57,6 +57,11 @@ class MainWP_Child_Wordfence {
 	const OPTIONS_TYPE_DIAGNOSTICS  = 'diagnostics';
 	const OPTIONS_TYPE_ALL          = 'alloptions';
 
+	/**
+	 * Public variable to hold the KEY_TYPE_FREE value.
+	 *
+	 * @var string the KEY_TYPE_FREE value.
+	 */
 	public $keyType = null;
 	/**
 	 * Public static variable to hold the information about Wordfence options.
