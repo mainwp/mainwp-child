@@ -3309,17 +3309,24 @@ SQL
 					<?php foreach ( $tests['results'] as $result ) : ?>
 						<tr>
 							<td style="width: 75%;" colspan="<?php echo $cols - 1; ?>">
-								<?php
+							<?php
+								$string = isset($result['label']) ? $result['label'] : '';
+								if (is_array($string) && isset( $string['value']) ){
+									$string = $string['value'];
+								} 
+								if ( ! is_string($string )){
+									$string = '';
+								}
 								echo wp_kses(
-									$result['label'],
+									$string,
 									array(
-										'code'   => array(),
-										'strong' => array(),
-										'em'     => array(),
+										'code'   => true,
+										'strong' => true,
+										'em'     => true,
 										'a'      => array( 'href' => true ),
 									)
 								);
-								?>
+							?>
 							</td>
 							<td>
 								<?php if ( $result['test'] ) : ?>
@@ -3350,17 +3357,24 @@ SQL
 								<?php foreach ( $tests['results'] as $result ) : ?>
 								<li>
 									<div style="width: 75%;" colspan="<?php echo $cols - 1; ?>">
-										<?php
+									<?php
+										$string = isset($result['label']) ? $result['label'] : '';
+										if (is_array($string) && isset( $string['value']) ){
+											$string = $string['value'];
+										} 
+										if ( ! is_string($string )){
+											$string = '';
+										}
 										echo wp_kses(
-											$result['label'],
+											$string,
 											array(
-												'code'   => array(),
-												'strong' => array(),
-												'em'     => array(),
+												'code'   => true,
+												'strong' => true,
+												'em'     => true,
 												'a'      => array( 'href' => true ),
 											)
 										);
-										?>
+									?>
 									</div>
 									<?php if ( $result['test'] ) : ?>
 										<div class="wf-result-success"><?php echo esc_html( $result['message'] ); ?></div>
