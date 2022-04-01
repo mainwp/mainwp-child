@@ -156,6 +156,16 @@ class MainWP_Child_Updates {
 
 		// Save Status results.
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+
+		// ** Send data to MainWP Dashboard. **//
+
+		// Send last purged time stamp to MainWP Dashboard.
+		$information['mainwp_cache_control_last_purged'] = get_option( 'mainwp_cache_control_last_purged', 0 );
+		// Send active cache solution to MainWP Dashboard.
+		$information['mainwp_cache_control_cache_solution'] = get_option( 'mainwp_cache_control_cache_solution', 0 );
+		// Send data for Cache Control Logs.
+		$information['mainwp_cache_control_logs'] = get_option( 'mainwp_cache_control_log', '' );
+
 		MainWP_Helper::write( $information );
 	}
 
@@ -887,6 +897,13 @@ class MainWP_Child_Updates {
 		 * @params $information.
 		 */
 		MainWP_Child_Cache_Purge::instance()->auto_purge_cache( $information );
+
+		// Send last purged time stamp to MainWP Dashboard.
+		$information['mainwp_cache_control_last_purged'] = get_option( 'mainwp_cache_control_last_purged', 0 );
+		// Send active cache solution to MainWP Dashboard.
+		$information['mainwp_cache_control_cache_solution'] = get_option( 'mainwp_cache_control_cache_solution', 0 );
+		// Send data for Cache Control Logs.
+		$information['mainwp_cache_control_logs'] = get_option( 'mainwp_cache_control_log', '' );
 
 		MainWP_Helper::write( $information );
 	}
