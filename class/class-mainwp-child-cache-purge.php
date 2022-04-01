@@ -482,7 +482,7 @@ class MainWP_Child_Cache_Purge {
 			do_action( 'litespeed_purge_all' );
 
 			// record results.
-			update_option('mainwp_cache_control_last_purged', time() );
+			update_option( 'mainwp_cache_control_last_purged', time() );
 			return array(
 				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
 				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
@@ -606,6 +606,6 @@ class MainWP_Child_Cache_Purge {
 
 		// Save Cache Control Log Data.
 
-		update_option( 'mainwp_cache_control_log', json_encode( $information ) );
+		update_option( 'mainwp_cache_control_log', wp_json_encode( $information ) );
 	}
 }
