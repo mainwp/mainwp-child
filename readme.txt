@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 5.4
-Tested up to: 5.9
+Tested up to: 5.9.2
 Requires PHP: 7.0
-Stable tag: 4.2-beta1
+Stable tag: 4.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -106,6 +106,15 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.2 - 4-5-2022 =
+* Fixed: An issue with detecting abandoned plugins and themes on some setups
+* Fixed: An issue with the update process getting stuck on specific server configurations
+* Fixed: An issue with syncing Wordfence extension data
+* Added: Plugin privacy policy file to the plugin directory
+* Added: Support for the Negative Search feature
+* Added: Support for the feature that prevents parent theme of active child theme from being deleted
+* Added: Support for the automatic cache clearing after updates feature
 
 = 4.1.10 - 2-16-2022 =
 * Fixed: Problem with loading UpdrafPlus data when `$updraftplus_admin` returns empty value
