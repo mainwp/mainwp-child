@@ -21,6 +21,10 @@ The [MainWP WordPress Management](https://mainwp.com) system is self-hosted, ope
 
 MainWP is the perfect solution for WordPress consultants, marketers, developers, WordPress shops, or anyone with multiple WordPress sites
 
+= Your Guarantee of Privacy =
+
+The MainWP plugins come with their own [privacy policies](https://mainwp.com/mainwp-plugin-privacy-policy/) to ensure you that the plugins do not collect any personally identifiable information (PII) please review them before activating the plugin.
+
 = How does the MainWP system work? =
 
 First, Install and Activate the  [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) plugin on a WordPress site you will use for controlling all other sites; this is your Dashboard Site.  We highly recommend this be a new, clean WordPress installation and not on one of your operating sites. Using a clean site helps to eliminate any unnecessary plugin conflicts or security issues.
