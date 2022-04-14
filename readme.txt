@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 5.4
 Tested up to: 5.9.2
 Requires PHP: 7.0
-Stable tag: 4.2
+Stable tag: 4.2.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -46,7 +46,7 @@ Still not sure how MainWP works? [Review these detailed steps on installing your
 = More Information =
 [MainWP Documentation](https://kb.mainwp.com/)
 
-[MainWP Community](https://meta.mainwp.com/)
+[MainWP Community](https://managers.mainwp.com/)
 
 [MainWP Support](https://mainwp.com/support/)
 
@@ -74,7 +74,7 @@ Yes, please review the [documentation site](https://kb.mainwp.com).
 Yes, please read the [Quick Start – Setting up your MainWP](https://kb.mainwp.com/docs/set-up-the-mainwp-plugin/) guide on the doc site.
 
 = Where do I go for support or to ask for help? =
-Please post in the [MainWP Community](https://meta.mainwp.com)
+Please post in the [MainWP Community](https://managers.mainwp.com)
 
 = What is the difference between ManageWP and MainWP? =
 Essentially MainWP and ManageWP provide the same type of service but with different philosophies on WordPress management.
@@ -92,7 +92,7 @@ We also participate in the [HackerOne](https://www.hackerone.com) bug bounty pro
 If you want to make some basic changes to the look of your Dashboard, you can use our prebuilt [Custom Dashbboard](https://mainwp.com/extension/mainwp-custom-dashboard-extension/) Extension, or if you want to dig in and build Extensions, you can learn all about Extension creation at [MainWP.dev](https://mainwp.dev/)
 
 = I have an idea for MainWP; how do I let you know? =
-Please follow the steps outlined in the [MainWP Feature Requests](https://meta.mainwp.com/c/feature/16) so you can add your idea to the MainWP Community to be voted on.
+Please follow the steps outlined in the [MainWP Feature Requests](https://managers.mainwp.com/c/feature/16) so you can add your idea to the MainWP Community to be voted on.
 
 = I have more questions, do you have any other information? =
 Sure we have a quick FAQ with a lot more questions and answers [here](https://mainwp.com/presales-faq/).
@@ -110,6 +110,12 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.2.1 - 4-14-2022 =
+* Fixed: An issue with setting BackupBuddy plugin Settings
+* Fixed: An issue with generating client reports on setups with large amount of data
+* Updated: `meta.mainwp.com` URLs changed to `managers.mainwp.com`
+* Updated: `privacy-policy.txt` file
 
 = 4.2 - 4-5-2022 =
 * Fixed: An issue with detecting abandoned plugins and themes on some setups
