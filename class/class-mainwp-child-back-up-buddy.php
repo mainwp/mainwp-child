@@ -1864,7 +1864,7 @@ class MainWP_Child_Back_Up_Buddy {
 				$array = $ret;
 			}
 
-			\pb_backupbuddy_aasort( $recentBackups, 'start_timestamp' ); // Sort by multidimensional array with key start_timestamp.
+			pb_backupbuddy_aasort( $recentBackups, 'start_timestamp' ); // Sort by multidimensional array with key start_timestamp.
 			$recentBackups = array_reverse( $recentBackups ); // Reverse array order to show newest first.
 		}
 

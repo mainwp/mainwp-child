@@ -203,7 +203,7 @@ class MainWP_Utility {
                          <div style="float: left;font-size:45px;"><a href="https://mainwp.com">MainWP</a></div>
                          <div style="float: right; margin-top: .6em ;">
                             <span style="display: inline-block; margin-right: .8em;"><a href="https://mainwp.com/mainwp-extensions/" style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;">Extensions</a></span>
-                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://meta.mainwp.com/">Community</a></span>
+                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://managers.mainwp.com/">Community</a></span>
                             <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://kb.mainwp.com/">Knowledgebase</a></span>
                          </div><div style="clear: both;"></div>
                       </div>

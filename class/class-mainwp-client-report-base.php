@@ -218,7 +218,7 @@ class MainWP_Client_Report_Base {
 			$args['hide_child_reports'] = 1;
 		}
 
-		$args['records_per_page'] = 9999;
+		$args['records_per_page'] = 599999;
 
 		return $args;
 	}
