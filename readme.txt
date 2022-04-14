@@ -112,7 +112,10 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 == Changelog ==
 
 = 4.2.1 - 4-14-2022 =
+* Fixed: An issue with setting BackupBuddy plugin Settings
+* Fixed: An issue with generating client reports on setups with large amount of data
 * Updated: `meta.mainwp.com` URLs changed to `managers.mainwp.com`
+* Updated: `privacy-policy.txt` file
 
 = 4.2 - 4-5-2022 =
 * Fixed: An issue with detecting abandoned plugins and themes on some setups
