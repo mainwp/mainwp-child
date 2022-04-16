@@ -478,7 +478,7 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function litespeed_auto_purge_cache() {
 		// Purge all LS Cache.
-        if (class_exists('\LiteSpeed\Purge')) {
+        if ( class_exists( '\LiteSpeed\Purge' ) ) {
             \LiteSpeed\Purge::purge_all();
 
 			// record results.
