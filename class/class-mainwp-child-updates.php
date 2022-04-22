@@ -111,17 +111,7 @@ class MainWP_Child_Updates {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function upgrade_plugin_theme() {
-		// Prevent disable/re-enable at upgrade.
-		if ( ! defined( 'DOING_CRON' ) ) {
-
-			/**
-			 * Checks whether cron is in progress.
-			 *
-			 * @const ( bool ) Default: true
-			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Updates.html
-			 */
-			define( 'DOING_CRON', true );
-		}
+		MainWP_Helper::maybe_set_doing_cron();
 
 		MainWP_Helper::get_wp_filesystem();
 
@@ -1002,13 +992,8 @@ class MainWP_Child_Updates {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function upgrade_translation() {
-		/**
-		 * Checks whether cron is in progress.
-		 *
-		 * @const ( bool ) Default: true
-		 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Callable.html
-		 */
-		define( 'DOING_CRON', true );
+		MainWP_Helper::maybe_set_doing_cron();
+
 
 		MainWP_Helper::get_wp_filesystem();
 		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';

@@ -162,7 +162,7 @@ class MainWP_Child_Plugins_Check {
 	 * @throws \Exception Error message on failure.
 	 */
 	public function perform_watchdog() {
-		if ( false === wp_next_scheduled( $this->cron_name_daily ) && false === wp_next_scheduled( $this->cron_name_batching ) ) {
+		if ( ! wp_next_scheduled( $this->cron_name_batching ) ) {
 			$last_run = get_option( $this->option_name_last_daily_run );
 
 			if ( false === $last_run || ! is_integer( $last_run ) ) {
@@ -215,7 +215,7 @@ class MainWP_Child_Plugins_Check {
 			}
 		}
 		if ( $update ) {
-			set_transient( $this->tran_name_plugin_timestamps, $plugins_outdate, WEEK_IN_SECONDS );
+			set_transient( $this->tran_name_plugin_timestamps, $plugins_outdate, 2 * DAY_IN_SECONDS );
 		}
 
 		return $plugins_outdate;
@@ -320,12 +320,12 @@ class MainWP_Child_Plugins_Check {
 		}
 
 		// Store the master response for usage in the plugin table.
-		set_transient( $this->tran_name_plugin_timestamps, $responses, WEEK_IN_SECONDS );
+		set_transient( $this->tran_name_plugin_timestamps, $responses, 2 * DAY_IN_SECONDS );
 
 		if ( 0 === count( $all_plugins ) ) {
 			delete_transient( $this->tran_name_plugins_to_batch );
 		} else {
-			set_transient( $this->tran_name_plugins_to_batch, $all_plugins, WEEK_IN_SECONDS );
+			set_transient( $this->tran_name_plugins_to_batch, $all_plugins, 2 * DAY_IN_SECONDS );
 			wp_schedule_single_event( time(), $this->cron_name_batching );
 		}
 	}

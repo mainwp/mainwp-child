@@ -285,15 +285,7 @@ class MainWP_Child {
 
 		// Register does not require auth, so we register here.
 		if ( isset( $_POST['function'] ) && 'register' === $_POST['function'] ) {
-
-			/**
-			 * Checks whether cron is in progress.
-			 *
-			 * @const ( bool ) Default: true
-			 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
-			 */
-			define( 'DOING_CRON', true );
-
+			MainWP_Helper::maybe_set_doing_cron();
 			MainWP_Utility::fix_for_custom_themes();
 			MainWP_Connect::instance()->register_site(); // register the site and exit.
 		}
