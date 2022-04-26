@@ -122,6 +122,7 @@ class MainWP_Child_Cache_Purge {
 			'w3-total-cache/w3-total-cache.php'          => 'W3 Total Cache',
 			'hummingbird-performance/wp-hummingbird.php' => 'Hummingbird Performance',
 			'cache-enabler/cache-enabler.php'            => 'Cache Enabler',
+            'nginx-helper/nginx-helper.php'              => 'Nginx Helper'
 		);
 
 		// Check if a supported cache plugin is active then check if CloudFlair is active.
@@ -181,6 +182,9 @@ class MainWP_Child_Cache_Purge {
 					case 'Cache Enabler':
 						$information = $this->cache_enabler_auto_purge_cache();
 						break;
+                    case 'Nginx Helper':
+                        $information = $this->nginx_helper_auto_purge_cache();
+                        break;
 					case 'Cloudflare':
 						$information = $this->cloudflair_auto_purge_cache();
 						break;
@@ -196,6 +200,39 @@ class MainWP_Child_Cache_Purge {
 			$this->record_results( $information );
 		}
 	}
+
+    /**
+     * Purge Nginx Helper cache after updates.
+     */
+    public function nginx_helper_auto_purge_cache() {
+        if ( class_exists( 'Nginx_Helper' ) ) {
+
+            // Clear Nginx Helper Cache after update.
+            do_action( 'rt_nginx_helper_purge_all' );
+
+            // record results.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Nginx Helper Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+            );
+        } else {
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Nginx Helper Cache => There was an issue purging your cache.',
+            );
+        }
+    }
 
 	/**
 	 * Purge WP Hummingbird cache after updates.
