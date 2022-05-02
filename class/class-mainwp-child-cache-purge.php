@@ -122,6 +122,9 @@ class MainWP_Child_Cache_Purge {
 			'w3-total-cache/w3-total-cache.php'          => 'W3 Total Cache',
 			'hummingbird-performance/wp-hummingbird.php' => 'Hummingbird Performance',
 			'cache-enabler/cache-enabler.php'            => 'Cache Enabler',
+            'nginx-helper/nginx-helper.php'              => 'Nginx Helper',
+            'nitropack/main.php'                         => 'Nitropack',
+            'autoptimize/autoptimize.php'                => 'Autoptimize'
 		);
 
 		// Check if a supported cache plugin is active then check if CloudFlair is active.
@@ -181,6 +184,15 @@ class MainWP_Child_Cache_Purge {
 					case 'Cache Enabler':
 						$information = $this->cache_enabler_auto_purge_cache();
 						break;
+                    case 'Nginx Helper':
+                        $information = $this->nginx_helper_auto_purge_cache();
+                        break;
+                    case 'Nitropack':
+                        $information = $this->nitropack_auto_purge_cache();
+                        break;
+                    case 'Autoptimize':
+                        $information = $this->autoptimize_auto_purge_cache();
+                        break;
 					case 'Cloudflare':
 						$information = $this->cloudflair_auto_purge_cache();
 						break;
@@ -196,6 +208,111 @@ class MainWP_Child_Cache_Purge {
 			$this->record_results( $information );
 		}
 	}
+
+    /**
+     * Purge Autoptimize cache after updates.
+     */
+    public function autoptimize_auto_purge_cache(){
+        if ( class_exists('autoptimizeCache' ) ) {
+
+            // Clear Cache.
+            \autoptimizeCache::clearall();
+
+            // record results.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Autoptimize Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+            );
+        } else {
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Autoptimize Cache => There was an issue purging your cache.',
+            );
+        }
+    }
+
+    /**
+     * Purge Nitropack cache after updates.
+     *
+     * nitropack_purge($url = NULL, $tag = NULL, $reason = NULL);
+     *
+     * In case you want to do a full purge, you must leave the values
+     * for URL and Tag empty. In case you want to create a targeted purge
+     * you can replace them with the URL or tag of the page.
+     */
+    public function nitropack_auto_purge_cache(){
+        if ( function_exists( 'nitropack_purge' ) ) {
+
+            // Clear Nitropack Cache after update.
+            nitropack_purge();
+
+            // record results.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Nitropack Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+            );
+        } else {
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Nitropack Cache => There was an issue purging your cache.',
+            );
+        }
+    }
+
+    /**
+     * Purge Nginx Helper cache after updates.
+     */
+    public function nginx_helper_auto_purge_cache() {
+        if ( class_exists( 'Nginx_Helper' ) ) {
+
+            // Clear Nginx Helper Cache after update.
+            do_action( 'rt_nginx_helper_purge_all' );
+
+            // record results.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Nginx Helper Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+            );
+        } else {
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'Nginx Helper Cache => There was an issue purging your cache.',
+            );
+        }
+    }
 
 	/**
 	 * Purge WP Hummingbird cache after updates.
