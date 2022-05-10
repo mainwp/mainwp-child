@@ -58,11 +58,11 @@ class MainWP_Helper {
 	public static function write( $value ) {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = wp_json_encode( $value );
-		else :
-			$output = serialize( $value ); // phpcs:ignore -- Required for backwards compatibility.
-		endif;
+			else :
+				$output = serialize( $value ); // phpcs:ignore -- Required for backwards compatibility.
+			endif;
 
-		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+			die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
 	}
 
 	/**
@@ -749,6 +749,41 @@ class MainWP_Helper {
 	public static function is_wp_engine() {
 		return function_exists( 'is_wpe' ) && is_wpe();
 	}
+
+	/**
+	 * Method is_wp_engine_php8()
+	 *
+	 * Check if the child site is hosted on the WP Engine server and PHP8.
+	 *
+	 * @return bool true|false If the child site is hosted on the WP Engine and PHP8, return true, if not, return false.
+	 */
+	public static function is_wp_engine_php8() {
+		if ( self::is_wp_engine() && version_compare( phpversion(), '8.0', '>=' ) ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Method maybe_set_doing_cron()
+	 *
+	 * May be define doing cron.
+	 */
+	public static function maybe_set_doing_cron() {
+		if ( ! self::is_wp_engine_php8() ) {
+			// Prevent disable/re-enable.
+			if ( ! defined( 'DOING_CRON' ) ) {
+				/**
+				 * Checks whether cron is in progress.
+				 *
+				 * @const ( bool ) Default: true
+				 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Updates.html
+				 */
+				define( 'DOING_CRON', true );
+			}
+		}
+	}
+
 
 	/**
 	 * Method check_files_exists()

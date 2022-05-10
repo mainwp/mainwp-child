@@ -5,7 +5,7 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 5.4
-Tested up to: 5.9.2
+Tested up to: 6.0
 Requires PHP: 7.0
 Stable tag: 4.2.1
 License: GPLv3 or later
@@ -110,6 +110,14 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.2.2 - 5-10-2022 =
+* Fixed: An issue with detecting abandoned plugins and themes on specific setups
+* Fixed: An issue with running scheduled events on specific setups
+* Added: Nginx Helper to the Purge Cache system
+* Added: Nitropack to the Purge Cache system
+* Added: Autoptimize to the Purge Cache system
+* Updated: Tested up to tag to WP 6.0
 
 = 4.2.1 - 4-14-2022 =
 * Fixed: An issue with setting BackupBuddy plugin Settings
