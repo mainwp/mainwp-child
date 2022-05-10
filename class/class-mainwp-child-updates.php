@@ -994,7 +994,6 @@ class MainWP_Child_Updates {
 	public function upgrade_translation() {
 		MainWP_Helper::maybe_set_doing_cron();
 
-
 		MainWP_Helper::get_wp_filesystem();
 		include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
 		if ( file_exists( ABSPATH . '/wp-admin/includes/screen.php' ) ) {
