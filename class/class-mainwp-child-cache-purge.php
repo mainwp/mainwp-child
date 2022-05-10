@@ -146,7 +146,7 @@ class MainWP_Child_Cache_Purge {
 	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
 	 * @used-by MainWP_Child_Updates::upgrade_wp()
 	 */
-	public function auto_purge_cache() {
+	public function auto_purge_cache() {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// Check if Cache Control is enabled.
 		if ( get_option( 'mainwp_child_auto_purge_cache' ) == '1' ) {
 			$information = array();
@@ -213,7 +213,7 @@ class MainWP_Child_Cache_Purge {
 	 * Purge Autoptimize cache after updates.
 	 */
 	public function autoptimize_auto_purge_cache() {
-		if ( class_exists('autoptimizeCache' ) ) {
+		if ( class_exists( 'autoptimizeCache' ) ) {
 
 			// Clear Cache.
 			\autoptimizeCache::clearall();
@@ -245,7 +245,7 @@ class MainWP_Child_Cache_Purge {
 	/**
 	 * Purge Nitropack cache after updates.
 	 *
-	 * nitropack_purge($url = NULL, $tag = NULL, $reason = NULL);
+	 * Nitropack_purge($url = NULL, $tag = NULL, $reason = NULL);
 	 *
 	 * In case you want to do a full purge, you must leave the values
 	 * for URL and Tag empty. In case you want to create a targeted purge
