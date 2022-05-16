@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 5.4
 Tested up to: 6.0
 Requires PHP: 7.0
-Stable tag: 4.2.2
+Stable tag: 4.2.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,9 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.2.3 - 5-16-2022 =
+Added: Swift Performance Pro to the Purge Cache system
 
 = 4.2.2 - 5-10-2022 =
 * Fixed: An issue with detecting abandoned plugins and themes on specific setups
