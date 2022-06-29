@@ -1328,6 +1328,12 @@ class MainWP_Child_Posts {
 			'_mainwp_replace_advance_img',
 		);
 
+		if ( $seo_ext_activated ) {
+			// update those custom fields later.
+			$not_allowed[] = \WPSEO_Meta::$meta_prefix . 'opengraph-image-id';
+			$not_allowed[] = \WPSEO_Meta::$meta_prefix . 'opengraph-image';
+		}
+
 		if ( is_array( $post_custom ) ) {
 			foreach ( $post_custom as $meta_key => $meta_values ) {
 				if ( ! in_array( $meta_key, $not_allowed ) ) {
@@ -1396,6 +1402,7 @@ class MainWP_Child_Posts {
 				$upload = MainWP_Utility::upload_image( $_seo_opengraph_image ); // Upload image to WP.
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, \WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
+					update_post_meta( $new_post_id, \WPSEO_Meta::$meta_prefix . 'opengraph-image-id', $upload['id'] ); // Add the id image to the post!
 				}
 			} catch ( \Exception $e ) {
 				// ok!

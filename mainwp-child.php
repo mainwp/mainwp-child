@@ -25,7 +25,9 @@ require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // V
  * @const ( bool ) Whether or not MainWP Child is in debug mode. Default: false.
  * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
  */
-define( 'MAINWP_CHILD_DEBUG', false );
+if ( ! defined( 'MAINWP_CHILD_DEBUG' ) ) {
+	define( 'MAINWP_CHILD_DEBUG', false );
+}
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 
