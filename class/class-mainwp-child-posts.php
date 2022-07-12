@@ -746,8 +746,12 @@ class MainWP_Child_Posts {
 			}
 			$new_post['post_status'] = $post_status; // child reports: to logging as update post.
 		}
-		$wp_error    = null;
-		$new_post_id = wp_insert_post( $new_post, $wp_error ); // insert post.
+		$wp_error = false;
+		if ( $edit_post_id ) {
+			$new_post_id = wp_update_post( $new_post, $wp_error ); // to fix: update post.
+		} else {
+			$new_post_id = wp_insert_post( $new_post, $wp_error ); // insert post.
+		}
 		// Show errors if something went wrong.
 		if ( is_wp_error( $wp_error ) ) {
 			return $wp_error->get_error_message();
