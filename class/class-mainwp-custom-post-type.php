@@ -203,7 +203,7 @@ class MainWP_Custom_Post_Type {
 	 *
 	 * @return array|bool|string[] Response array, true|false, Error message.
 	 */
-	private function insert_post( $data, $edit_id, $parent_id = 0 ) {
+	private function insert_post( $data, $edit_id, $parent_id = 0 ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		$data_insert                = array();
 		$data_post                  = $data['post'];
 		$data_insert['post_author'] = get_current_user_id();
