@@ -746,8 +746,12 @@ class MainWP_Child_Posts {
 			}
 			$new_post['post_status'] = $post_status; // child reports: to logging as update post.
 		}
-		$wp_error    = null;
-		$new_post_id = wp_insert_post( $new_post, $wp_error ); // insert post.
+		$wp_error = false;
+		if ( $edit_post_id ) {
+			$new_post_id = wp_update_post( $new_post, $wp_error ); // to fix: update post.
+		} else {
+			$new_post_id = wp_insert_post( $new_post, $wp_error ); // insert post.
+		}
 		// Show errors if something went wrong.
 		if ( is_wp_error( $wp_error ) ) {
 			return $wp_error->get_error_message();
@@ -1328,6 +1332,12 @@ class MainWP_Child_Posts {
 			'_mainwp_replace_advance_img',
 		);
 
+		if ( $seo_ext_activated ) {
+			// update those custom fields later.
+			$not_allowed[] = \WPSEO_Meta::$meta_prefix . 'opengraph-image-id';
+			$not_allowed[] = \WPSEO_Meta::$meta_prefix . 'opengraph-image';
+		}
+
 		if ( is_array( $post_custom ) ) {
 			foreach ( $post_custom as $meta_key => $meta_values ) {
 				if ( ! in_array( $meta_key, $not_allowed ) ) {
@@ -1396,6 +1406,7 @@ class MainWP_Child_Posts {
 				$upload = MainWP_Utility::upload_image( $_seo_opengraph_image ); // Upload image to WP.
 				if ( null !== $upload ) {
 					update_post_meta( $new_post_id, \WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
+					update_post_meta( $new_post_id, \WPSEO_Meta::$meta_prefix . 'opengraph-image-id', $upload['id'] ); // Add the id image to the post!
 				}
 			} catch ( \Exception $e ) {
 				// ok!

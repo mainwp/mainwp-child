@@ -385,7 +385,36 @@ class MainWP_Child_Staging {
 			}
 		} else {
 			$this->url = '';
-			$cloning   = new \WPStaging\Backend\Modules\Jobs\Cloning();
+
+			// to compatible with new version.
+			if ( class_exists( '\WPStaging\Framework\Database\SelectedTables' ) ) {
+
+				if ( isset( $_POST['includedTables'] ) && is_array( $_POST['includedTables'] ) ) {
+					$_POST['includedTables'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['includedTables'] );
+				}
+
+				if ( isset( $_POST['excludedTables'] ) && is_array( $_POST['excludedTables'] ) ) {
+					$_POST['excludedTables'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['excludedTables'] );
+				}
+
+				if ( isset( $_POST['selectedTablesWithoutPrefix'] ) && is_array( $_POST['selectedTablesWithoutPrefix'] ) ) {
+					$_POST['selectedTablesWithoutPrefix'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['selectedTablesWithoutPrefix'] );
+				}
+
+				if ( isset( $_POST['includedDirectories'] ) && is_array( $_POST['includedDirectories'] ) ) {
+					$_POST['includedDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['includedDirectories'] );
+				}
+
+				if ( isset( $_POST['excludedDirectories'] ) && is_array( $_POST['excludedDirectories'] ) ) {
+					$_POST['excludedDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['excludedDirectories'] );
+				}
+
+				if ( isset( $_POST['extraDirectories'] ) && is_array( $_POST['extraDirectories'] ) ) {
+					$_POST['extraDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['extraDirectories'] );
+				}
+			}
+
+			$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
 
 			if ( ! $cloning->save() ) {
 				return;

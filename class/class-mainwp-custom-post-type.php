@@ -280,7 +280,13 @@ class MainWP_Custom_Post_Type {
 		if ( ! empty( $parent_id ) ) {
 			$data_insert['post_parent'] = $parent_id;
 		}
-		$post_id = wp_insert_post( $data_insert, true );
+
+		if ( ! empty( $edit_id ) ) {
+			$post_id = wp_update_post( $data_insert, true );
+		} else {
+			$post_id = wp_insert_post( $data_insert, true );
+		}
+
 		if ( is_wp_error( $post_id ) ) {
 			return array( 'error' => __( 'Error when insert new post:', $this->plugin_translate ) . ' ' . $post_id->get_error_message() );
 		}
