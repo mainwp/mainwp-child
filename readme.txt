@@ -112,9 +112,9 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 == Changelog ==
 
 = 4.2.4 - 7-14-2022 =
-Fixed: An issue with falling back to the Filesystem API in chrooted configurations
-Fixed: Compatibility issues with the new version of the WP Staging plugin
-Fixed: A problem with overwriting page attributes
+* Fixed: An issue with falling back to the Filesystem API in chrooted configurations
+* Fixed: Compatibility issues with the new version of the WP Staging plugin
+* Fixed: A problem with overwriting page attributes
 
 = 4.2.3 - 5-16-2022 =
 Added: Swift Performance Pro to the Purge Cache system
