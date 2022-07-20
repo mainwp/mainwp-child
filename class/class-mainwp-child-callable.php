@@ -91,6 +91,7 @@ class MainWP_Child_Callable {
 		'extra_execution'       => 'extra_execution',
 		'wpvivid_backuprestore' => 'wpvivid_backuprestore',
 		'check_abandoned'       => 'check_abandoned',
+		'wp_seopress'           => 'wp_seopress',
 	);
 
 	/**
@@ -761,6 +762,17 @@ class MainWP_Child_Callable {
 	 */
 	public function wordpress_seo() {
 		MainWP_WordPress_SEO::instance()->action();
+	}
+
+	/**
+	 * Method wp_seopress()
+	 *
+	 * Fire off the action() function.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_WP_Seopress::action();
+	 */
+	public function wp_seopress() {
+		MainWP_Child_WP_Seopress::instance()->action();
 	}
 
 	/**
