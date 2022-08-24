@@ -179,7 +179,7 @@ class MainWP_Child_DB {
 	 */
 	public static function is_result( $result ) {
 		if ( self::use_mysqli() ) {
-			return ( $result instanceof mysqli_result );
+			return ( $result instanceof \mysqli_result );
 		} else {
 			return is_resource( $result );
 		}
