@@ -451,7 +451,18 @@ class MainWP_Security {
 	 * @return bool true|false If the PHP error reporting has been disabled, return true, if not, return false.
 	 */
 	public static function remove_php_reporting_ok() {
-		return ! ( ( ( 0 != ini_get( 'display_errors' ) ) && ( 'off' != ini_get( 'display_errors' ) ) ) || ( ( 0 != ini_get( 'display_startup_errors' ) ) && ( 'off' != ini_get( 'display_startup_errors' ) ) ) );
+		$is_ok       = true;
+		$display_off = ini_get( 'display_errors' );
+		if ( ! empty( $display_off ) ) {
+			$display_off = strtolower( $display_off );
+			$is_ok       = ( $is_ok || 'off' === $display_off );
+		}
+		$display_startup_off = ini_get( 'display_startup_errors' );
+		if ( ! empty( $display_startup_off ) ) {
+			$display_startup_off = strtolower( $display_startup_off );
+			$is_ok               = ( $is_ok || 'off' === $display_startup_off );
+		}
+		return $is_ok;
 	}
 
 	/**
