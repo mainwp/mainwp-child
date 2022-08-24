@@ -451,7 +451,7 @@ class MainWP_Security {
 	 * @return bool true|false If the PHP error reporting has been disabled, return true, if not, return false.
 	 */
 	public static function remove_php_reporting_ok() {
-		$is_ok = true;
+		$is_ok       = true;
 		$display_off = ini_get( 'display_errors' );
 		if ( ! empty( $display_off ) ) {
 			$display_off = strtolower( $display_off );
