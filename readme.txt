@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 5.4
 Tested up to: 6.0.1
 Requires PHP: 7.0
-Stable tag: 4.2.5
+Stable tag: 4.2.6
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,9 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 9. Global Dashboard Screen
 
 == Changelog ==
+
+= 4.2.6 - 8-26-2022 =
+* Fixed: An issue with support for the new extension
 
 = 4.2.5 - 8-25-2022 =
 * Added: Support for the new extension
