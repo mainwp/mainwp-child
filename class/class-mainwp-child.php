@@ -124,6 +124,8 @@ class MainWP_Child {
 		}
 
 		/**
+		 * Action to response data result.
+		 *
 		 * @since 4.3
 		 */
 		add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
