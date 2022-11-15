@@ -51,7 +51,11 @@ class MainWP_Child_Actions {
 	 */
 	protected static $enable_actions_notification = null;
 
-	/** @var array Old plugins array. */
+	/** 
+	 * Old plugins.
+	 * 
+	 * @var array Old plugins array. 
+	 * */
 	private $current_plugins_info = array();
 
 	/**
@@ -129,7 +133,7 @@ class MainWP_Child_Actions {
 			add_action( $action, array( $this, 'callback' ), 10, 99 );
 		}
 		if ( 1 === self::$enable_actions_notification ) {
-			// to do.
+			self::$enable_actions_notification = 0; // to do.
 		}
 	}
 
@@ -139,9 +143,9 @@ class MainWP_Child_Actions {
 	 */
 	public function callback() {
 		$current  = current_filter();
-		$callback = array( $this, 'callback_' . preg_replace( '/[^A-Za-z0-9_\-]/', '_', $current ) ); // to fix A-Z charater in callback name
+		$callback = array( $this, 'callback_' . preg_replace( '/[^A-Za-z0-9_\-]/', '_', $current ) ); // to fix A-Z charater in callback name.
 
-		// Call the real function
+		// Call the real function.
 		if ( is_callable( $callback ) ) {
 			return call_user_func_array( $callback, func_get_args() );
 		}
@@ -187,10 +191,10 @@ class MainWP_Child_Actions {
 	/**
 	 * Method to save actions info.
 	 *
-	 * @param string $context Context name.
-	 * @param string $action Action name.
-	 * @param int    $index index.
-	 * @param array  $data Action data .
+	 * @param int   $index index.
+	 * @param array $data Action data .
+	 *
+	 * @return bool Return TRUE.
 	 */
 	private function update_actions_data( $index, $data ) {
 		$index                        = strval( $index );
@@ -209,8 +213,8 @@ class MainWP_Child_Actions {
 		if ( empty( $checked ) ) {
 			update_option( 'mainwp_child_actions_data_checked', time() );
 		} else {
-			$checked = date( 'Y-m-d', $checked );
-			if ( $checked != date( 'Y-m-d' ) ) {
+			$checked = date( 'Y-m-d', $checked ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
+			if ( $checked != date( 'Y-m-d' ) ) { // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
 				$days_number = intval( get_option( 'mainwp_child_actions_saved_number_of_days', 30 ) );
 				$days_number = apply_filters( 'mainwp_child_actions_saved_number_of_days', $days_number );
 				$days_number = ( 3 > $days_number || 6 * 30 < $days_number ) ? 30 : $days_number;
@@ -247,7 +251,7 @@ class MainWP_Child_Actions {
 	 *
 	 * @return bool Return TRUE|FALSE.
 	 */
-	public function callback_upgrader_process_complete( $upgrader, $extra ) {
+	public function callback_upgrader_process_complete( $upgrader, $extra ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		$logs    = array();
 		$success = ! is_wp_error( $upgrader->skin->result );
 		$error   = null;
@@ -282,7 +286,7 @@ class MainWP_Child_Actions {
 				$slug    = $upgrader->result['destination_name'];
 				$name    = $data['Name'];
 				$version = $data['Version'];
-			} else { // theme
+			} else { // theme.
 				$slug = $upgrader->theme_info();
 
 				if ( ! $slug ) {
@@ -334,14 +338,14 @@ class MainWP_Child_Actions {
 					if ( isset( $this->current_plugins_info[ $slug ] ) ) {
 						$old_version = $this->current_plugins_info[ $slug ]['Version'];
 					} else {
-						$old_version = $upgrader->skin->plugin_info['Version']; // to fix old version
+						$old_version = $upgrader->skin->plugin_info['Version']; // to fix old version.
 					}
 
 					if ( version_compare( $version, $old_version, '>' ) ) {
 						$logs[] = compact( 'slug', 'name', 'old_version', 'version', 'message', 'action' );
 					}
 				}
-			} else { // theme
+			} else { // theme.
 				if ( isset( $extra['bulk'] ) && true === $extra['bulk'] ) {
 					$slugs = $extra['themes'];
 				} else {
@@ -358,8 +362,7 @@ class MainWP_Child_Actions {
 						)
 					);
 					$name       = $theme['Name'];
-					// $old_version = $theme['Version'];
-					$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'];
+					$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'].
 					$version     = $theme_data['Version'];
 
 					$logs[] = compact( 'slug', 'name', 'old_version', 'version', 'message', 'action' );
@@ -393,8 +396,8 @@ class MainWP_Child_Actions {
 	/**
 	 * Activate plugin callback.
 	 *
-	 * @param string                             $slug Plugin slug.
-	 * @param $network_wide Check if network wide.
+	 * @param string $slug Plugin slug.
+	 * @param bool   $network_wide Check if network wide.
 	 */
 	public function callback_activate_plugin( $slug, $network_wide ) {
 		$_plugins     = $this->get_plugins();
@@ -417,10 +420,11 @@ class MainWP_Child_Actions {
 		);
 	}
 
-	/** Decativate plugin callback.
+	/**
+	 * Decativate plugin callback.
 	 *
-	 * @param string                             $slug Plugin slug.
-	 * @param $network_wide Check if network wide.
+	 * @param string $slug Plugin slug.
+	 * @param bool   $network_wide Check if network wide.
 	 */
 	public function callback_deactivate_plugin( $slug, $network_wide ) {
 		$_plugins     = $this->get_plugins();
@@ -488,9 +492,6 @@ class MainWP_Child_Actions {
 
 	/**
 	 * Uninstall plugins callback.
-	 *
-	 * @todo Core needs an uninstall_plugin hook
-	 * @todo This does not work in WP-CLI
 	 */
 	public function callback_pre_option_uninstall_plugins() {
 		if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) {
@@ -507,8 +508,8 @@ class MainWP_Child_Actions {
 	/**
 	 * Uninstall plugins callback.
 	 *
-	 * @todo Core needs an uninstall_plugin hook
-	 * @todo This does not work in WP-CLI
+	 * @param string $plugin_file  plugin file name.
+	 * @param bool   $deleted deleted or not.
 	 */
 	public function callback_deleted_plugin( $plugin_file, $deleted ) {
 		if ( $deleted ) {
@@ -543,7 +544,7 @@ class MainWP_Child_Actions {
 	 * @action automatic_updates_complete
 	 *
 	 * @param string $update_results  Update results.
-	 * @return void
+	 * @return mixed bool|null.
 	 */
 	public function callback_automatic_updates_complete( $update_results ) {
 		global $pagenow, $wp_version;
@@ -571,11 +572,13 @@ class MainWP_Child_Actions {
 	/**
 	 * Core updated successfully callback.
 	 *
-	 * @param $new_version New WordPress verison.
+	 * @param string $new_version New WordPress verison.
 	 */
 	public function callback__core_updated_successfully( $new_version ) {
 
 		/**
+		 * Global variables.
+		 *
 		 * @global string $pagenow Current page.
 		 * @global string $wp_version WordPress version.
 		 */
@@ -585,10 +588,10 @@ class MainWP_Child_Actions {
 		$auto_updated = ( 'update-core.php' !== $pagenow );
 
 		if ( $auto_updated ) {
-			// translators: Placeholder refers to a version number (e.g. "4.2")
+			// translators: Placeholder refers to a version number (e.g. "4.2").
 			$message = esc_html__( 'WordPress auto-updated to %s', 'mainwp-child' );
 		} else {
-			// translators: Placeholder refers to a version number (e.g. "4.2")
+			// translators: Placeholder refers to a version number (e.g. "4.2").
 			$message = esc_html__( 'WordPress updated to %s', 'mainwp-child' );
 		}
 
@@ -630,7 +633,11 @@ class MainWP_Child_Actions {
 	 */
 	public function save_actions( $message, $args, $context, $action ) {
 
-		/** @global object $wp_roles WordPress user roles object.  */
+		/**
+		 * Global variable.
+		 *
+		 * @global object $wp_roles WordPress user roles object.
+		 * */
 		global $wp_roles;
 
 		if ( defined( 'WP_IMPORTING' ) && WP_IMPORTING ) {
@@ -838,6 +845,8 @@ class MainWP_Child_Actions {
 	 * Method send_installer_notification()
 	 *
 	 * To send email notification for plugins/themes/core change.
+	 *
+	 * @param array $data  Action Data.
 	 */
 	public function send_actions_notification( $data ) {
 

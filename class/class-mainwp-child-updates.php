@@ -113,6 +113,8 @@ class MainWP_Child_Updates {
 	public function upgrade_plugin_theme() {
 
 		/**
+		 * Action before update plugin, theme.
+		 *
 		 * @since 4.3
 		 */
 		do_action( 'mainwp_child_before_update_plugin_theme' );
@@ -871,6 +873,7 @@ class MainWP_Child_Updates {
 		}
 
 		/**
+		 * Action before update WP.
 		 * @since 4.3
 		 */
 		do_action( 'mainwp_child_before_update_wp' );

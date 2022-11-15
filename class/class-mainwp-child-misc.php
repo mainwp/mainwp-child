@@ -199,7 +199,7 @@ class MainWP_Child_Misc {
 	 * @uses \MainWP\Child\MainWP_Security::admin_user_ok()
 	 * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
 	 */
-	public function get_security_stats( $return = false ) {
+	public function get_security_stats( $return = false ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		$information = array();
 
 		$information['listing']             = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );

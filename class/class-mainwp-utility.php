@@ -7,7 +7,7 @@
 
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- Custom functions required to achieve desired results, pull request solutions appreciated.
+// phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Custom functions required to achieve desired results, pull request solutions appreciated.
 
 /**
  * Class MainWP_Utility
@@ -119,8 +119,8 @@ class MainWP_Utility {
 	 * Sends notification email.
 	 *
 	 * @param string|array $to          Array or comma-separated list of email addresses to send message.
-	 * @param string       $subject     Email subject
-	 * @param string       $message     Message contents
+	 * @param string       $subject     Email subject.
+	 * @param string       $message     Message contents.
 	 * @param string|array $headers     Optional. Additional headers.
 	 *
 	 * @return bool Whether the email contents were sent successfully.
@@ -841,7 +841,7 @@ class MainWP_Utility {
 	 *
 	 * @return mixed If activated any of the supported backup systems, return the last backup timestamp.
 	 */
-	public static function get_lasttime_backup( $by ) {
+	public static function get_lasttime_backup( $by ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		if ( 'backupwp' == $by ) {
 			$by = 'backupwordpress';
 		}
