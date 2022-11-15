@@ -874,6 +874,7 @@ class MainWP_Child_Updates {
 
 		/**
 		 * Action before update WP.
+		 *
 		 * @since 4.3
 		 */
 		do_action( 'mainwp_child_before_update_wp' );

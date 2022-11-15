@@ -51,10 +51,10 @@ class MainWP_Child_Actions {
 	 */
 	protected static $enable_actions_notification = null;
 
-	/** 
+	/**
 	 * Old plugins.
-	 * 
-	 * @var array Old plugins array. 
+	 *
+	 * @var array Old plugins array.
 	 * */
 	private $current_plugins_info = array();
 
@@ -353,15 +353,15 @@ class MainWP_Child_Actions {
 				}
 
 				foreach ( $slugs as $slug ) {
-					$theme      = wp_get_theme( $slug );
-					$stylesheet = $theme['Stylesheet Dir'] . '/style.css';
-					$theme_data = get_file_data(
+					$theme       = wp_get_theme( $slug );
+					$stylesheet  = $theme['Stylesheet Dir'] . '/style.css';
+					$theme_data  = get_file_data(
 						$stylesheet,
 						array(
 							'Version' => 'Version',
 						)
 					);
-					$name       = $theme['Name'];
+					$name        = $theme['Name'];
 					$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'].
 					$version     = $theme_data['Version'];
 
