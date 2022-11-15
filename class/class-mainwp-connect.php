@@ -635,7 +635,7 @@ class MainWP_Connect {
 
 			$logged_in = ( is_user_logged_in() && $current_user->user_login === $username );
 
-			if( $logged_in ){
+			if ( $logged_in ) {
 				$this->check_compatible_connect_info( $logged_in );
 			}
 
@@ -715,11 +715,11 @@ class MainWP_Connect {
 	 * Method check_compatible_connect_info()
 	 *
 	 * Check check compatible connected info.
+	 *
 	 * @param bool $logged_in logged in or not.
-	 * 
 	 */
 	public function check_compatible_connect_info( $logged_in ) {
-		global $current_user; 
+		global $current_user;
 		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';
 		if ( ! empty( $connect_user ) && $current_user->user_login == $connect_user ) {
 			$connected_admin = get_option( 'mainwp_child_connected_admin', '' );

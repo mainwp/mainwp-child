@@ -274,7 +274,7 @@ class MainWP_Child_Callable {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Updates::upgrade_wp()
 	 */
-	public function upgrade_wp() {		
+	public function upgrade_wp() {
 		MainWP_Child_Updates::get_instance()->upgrade_wp();
 	}
 

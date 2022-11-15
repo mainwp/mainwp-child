@@ -46,7 +46,7 @@ class MainWP_Child_Format {
 		return self::$instance;
 	}
 
-	
+
 	/**
 	 * Method format_email()
 	 *
@@ -113,6 +113,6 @@ class MainWP_Child_Format {
 </div>
 <br>';
 	}
-	
+
 
 }

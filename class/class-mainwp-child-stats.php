@@ -275,7 +275,6 @@ class MainWP_Child_Stats {
 		$information['health_site_status']      = $this->get_health_check_site_status();
 		$information['child_site_actions_data'] = MainWP_Child_Actions::get_actions_data();
 
-
 		if ( isset( $_POST['user'] ) ) {
 			$user = get_user_by( 'login', sanitize_text_field( wp_unslash( $_POST['user'] ) ) );
 			if ( $user && property_exists( $user, 'ID' ) && $user->ID ) {
