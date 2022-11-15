@@ -553,7 +553,7 @@ class MainWP_Child_Users {
 			$message .= sprintf( __( 'Password: %s' ), $new_user['user_pass'] ) . "\r\n";
 			$message .= wp_login_url() . "\r\n";
 
-			wp_mail( $user_email, sprintf( __( '[%s] Your username and password' ), $blogname ), $message, '' );
+			MainWP_Utility::instance()->send_wp_mail( $user_email, sprintf( __( '[%s] Your username and password' ), $blogname ), $message );
 		}
 		$information['added'] = true;
 		MainWP_Helper::write( $information );

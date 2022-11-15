@@ -199,7 +199,7 @@ class MainWP_Child_Misc {
 	 * @uses \MainWP\Child\MainWP_Security::admin_user_ok()
 	 * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
 	 */
-	public function get_security_stats( $return = false ) {
+	public function get_security_stats( $return = false ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		$information = array();
 
 		$information['listing']             = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
@@ -212,6 +212,10 @@ class MainWP_Child_Misc {
 		$information['registered_versions'] = ( MainWP_Security::remove_registered_versions_ok() ? 'Y' : 'N' );
 		$information['admin']               = ( MainWP_Security::admin_user_ok() ? 'Y' : 'N' );
 		$information['readme']              = ( MainWP_Security::remove_readme_ok() ? 'Y' : 'N' );
+		$information['wp_uptodate']         = ( MainWP_Security::wpcore_updated_ok() ? 'Y' : 'N' );
+		$information['phpversion_matched']  = ( MainWP_Security::phpversion_ok() ? 'Y' : 'N' );
+		$information['sslprotocol']         = ( MainWP_Security::sslprotocol_ok() ? 'Y' : 'N' );
+		$information['debug_disabled']      = ( MainWP_Security::debug_disabled_ok() ? 'Y' : 'N' );
 
 		if ( $return ) {
 			return $information;

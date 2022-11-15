@@ -111,6 +111,14 @@ class MainWP_Child_Updates {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function upgrade_plugin_theme() {
+
+		/**
+		 * Action before update plugin, theme.
+		 *
+		 * @since 4.3
+		 */
+		do_action( 'mainwp_child_before_update_plugin_theme' );
+
 		MainWP_Helper::maybe_set_doing_cron();
 
 		MainWP_Helper::get_wp_filesystem();
@@ -863,6 +871,13 @@ class MainWP_Child_Updates {
 			$information['error'] = __( 'Another update is currently in progress.', 'mainwp-child' );
 			MainWP_Helper::write( $information );
 		}
+
+		/**
+		 * Action before update WP.
+		 *
+		 * @since 4.3
+		 */
+		do_action( 'mainwp_child_before_update_wp' );
 
 		if ( null !== $this->filterFunction ) {
 			add_filter( 'pre_site_transient_update_core', $this->filterFunction, 99 );

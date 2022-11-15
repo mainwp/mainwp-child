@@ -227,12 +227,6 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		// fix invalid data, or skip records!
 		$skip_records = array();
 
-		// fix for incorrect posts created logs!
-		// query created posts from WP posts data to simulate records logging for created posts.
-		if ( isset( $_POST['direct_posts'] ) && ! empty( $_POST['direct_posts'] ) ) {
-			$this->fix_logs_posts_created( $records, $skip_records );
-		}
-
 		$other_tokens_data = $this->get_stream_others_tokens( $records, $other_tokens, $skip_records );
 		$sections_data     = $this->get_stream_sections_data( $records, $sections, $skip_records );
 

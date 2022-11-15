@@ -3518,7 +3518,7 @@ SQL
 							),
 							'WP_DEBUG_DISPLAY'             => array(
 								'description' => 'WordPress error display override',
-								'value'       => defined( 'WP_DEBUG_DISPLAY' ) ? ( WP_DEBUG_LOG ? 'Enabled' : 'Disabled' ) : '(not set)',
+								'value'       => defined( 'WP_DEBUG_DISPLAY' ) ? ( WP_DEBUG_DISPLAY ? 'Enabled' : 'Disabled' ) : '(not set)',
 							),
 							'SCRIPT_DEBUG'                 => array(
 								'description' => 'WordPress script debug mode',

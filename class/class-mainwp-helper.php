@@ -58,11 +58,11 @@ class MainWP_Helper {
 	public static function write( $value ) {
 		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
 			$output = wp_json_encode( $value );
-			else :
-				$output = serialize( $value ); // phpcs:ignore -- Required for backwards compatibility.
-			endif;
+		else :
+			$output = serialize( $value ); // phpcs:ignore -- Required for backwards compatibility.
+		endif;
 
-			die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
 	}
 
 	/**
@@ -534,8 +534,12 @@ class MainWP_Helper {
 	 *
 	 * @return string $timestamp The timestamp including the GMT offset.
 	 */
-	public static function get_timestamp( $timestamp ) {
+	public static function get_timestamp( $timestamp = false ) {
+		if ( false === $timestamp ) {
+			$timestamp = time();
+		}
 		$gmtOffset = get_option( 'gmt_offset' );
+
 		return ( $gmtOffset ? ( $gmtOffset * HOUR_IN_SECONDS ) + $timestamp : $timestamp );
 	}
 

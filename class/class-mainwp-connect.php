@@ -138,6 +138,7 @@ class MainWP_Connect {
 
 		// Update the mainwp_child_nossl_key option.
 		MainWP_Helper::update_option( 'mainwp_child_nossl_key', $nossl_key, 'yes' );
+		MainWP_Helper::update_option( 'mainwp_child_connected_admin', $current_user->user_login, 'yes' );
 
 		$information['nosslkey'] = $nossl_key;
 		$information['register'] = 'OK';
@@ -612,10 +613,13 @@ class MainWP_Connect {
 				// to fix issue multi user session.
 				$user_id = wp_validate_auth_cookie();
 				if ( $user_id && $user_id === $current_user->ID ) {
+					$this->check_compatible_connect_info( true );
 					return true;
 				}
 
 				wp_set_auth_cookie( $current_user->ID );
+
+				$this->check_compatible_connect_info( true );
 				return true;
 			}
 			do_action( 'wp_logout' );
@@ -629,7 +633,13 @@ class MainWP_Connect {
 				do_action( 'wp_login', $user->user_login );
 			}
 
-			return ( is_user_logged_in() && $current_user->user_login === $username );
+			$logged_in = ( is_user_logged_in() && $current_user->user_login === $username );
+
+			if ( $logged_in ) {
+				$this->check_compatible_connect_info( $logged_in );
+			}
+
+			return $logged_in;
 		}
 
 		return false;
@@ -699,6 +709,25 @@ class MainWP_Connect {
 	 */
 	public function get_max_history() {
 		return $this->maxHistory;
+	}
+
+	/**
+	 * Method check_compatible_connect_info()
+	 *
+	 * Check check compatible connected info.
+	 *
+	 * @param bool $logged_in logged in or not.
+	 */
+	public function check_compatible_connect_info( $logged_in ) {
+		global $current_user;
+		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';
+		if ( ! empty( $connect_user ) && $current_user->user_login == $connect_user ) {
+			$connected_admin = get_option( 'mainwp_child_connected_admin', '' );
+			if ( empty( $connected_admin ) ) {
+				// to comparable.
+				MainWP_Helper::update_option( 'mainwp_child_connected_admin', $connect_user, 'yes' );
+			}
+		}
 	}
 
 }

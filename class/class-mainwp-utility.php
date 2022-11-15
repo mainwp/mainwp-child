@@ -7,7 +7,7 @@
 
 namespace MainWP\Child;
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- Custom functions required to achieve desired results, pull request solutions appreciated.
+// phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Custom functions required to achieve desired results, pull request solutions appreciated.
 
 /**
  * Class MainWP_Utility
@@ -114,141 +114,26 @@ class MainWP_Utility {
 	}
 
 	/**
-	 * Method maintenance_alert()
+	 * Method send_wp_mail()
 	 *
-	 * MainWP Maintenance Extension feature to send email notification for 404 (Page not found) errors.
+	 * Sends notification email.
+	 *
+	 * @param string|array $to          Array or comma-separated list of email addresses to send message.
+	 * @param string       $subject     Email subject.
+	 * @param string       $message     Message contents.
+	 * @param string|array $headers     Optional. Additional headers.
+	 *
+	 * @return bool Whether the email contents were sent successfully.
 	 */
-	public function maintenance_alert() {
-		if ( ! is_404() ) {
-			return;
-		}
-
-		if ( 1 !== (int) get_option( 'mainwp_maintenance_opt_alert_404' ) ) {
-			return;
-		}
-
-		$email = get_option( 'mainwp_maintenance_opt_alert_404_email' );
-
-		if ( empty( $email ) || ! preg_match( '/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/is', $email ) ) {
-			return;
-		}
-
-		// set status.
-		header( 'HTTP/1.1 404 Not Found' );
-		header( 'Status: 404 Not Found' );
-
-		// site info.
-		$blog       = get_bloginfo( 'name' );
-		$site       = get_bloginfo( 'url' ) . '/';
-		$from_email = get_bloginfo( 'admin_email' );
-
-		// referrer.
-		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : 'undefined';
-
-		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-		// request URI.
-		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) : 'undefined';
-
-		// query string.
-		$string = isset( $_SERVER['QUERY_STRING'] ) ? sanitize_text_field( wp_unslash( $_SERVER['QUERY_STRING'] ) ) : 'undefined';
-		// IP address.
-		$address = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'undefined';
-
-		// user agent.
-		$agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : 'undefined';
-
-		// identity.
-		$remote = isset( $_SERVER['REMOTE_IDENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_IDENT'] ) ) : 'undefined';
-
-		// log time.
-		$time = sanitize_text_field( wp_unslash( date( 'F jS Y, h:ia', time() ) ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
-
-		$mail = '<div>404 alert</div><div></div>' .
-				'<div>TIME: ' . $time . '</div>' .
-				'<div>*404: ' . $request . '</div>' .
-				'<div>SITE: ' . $site . '</div>' .
-				'<div>REFERRER: ' . $referer . '</div>' .
-				'<div>QUERY STRING: ' . $string . '</div>' .
-				'<div>REMOTE ADDRESS: ' . $address . '</div>' .
-				'<div>REMOTE IDENTITY: ' . $remote . '</div>' .
-				'<div>USER AGENT: ' . $agent . '</div>';
-		wp_mail(
-			$email,
-			'MainWP - 404 Alert: ' . $blog,
-			self::format_email( $email, $mail ),
-			array(
-				'content-type: text/html',
-			)
+	public function send_wp_mail( $to, $subject, $message, $headers = '' ) {
+		return wp_mail(
+			$to,
+			$subject,
+			$message,
+			$headers
 		);
 	}
 
-	/**
-	 * Method format_email()
-	 *
-	 * Format emails.
-	 *
-	 * @param string $to_email Contains the send to email address.
-	 * @param string $body Contains the email content.
-	 *
-	 * @return string Return formatted email.
-	 */
-	public static function format_email( $to_email, $body ) {
-		return '<br>
-<div>
-            <br>
-            <div style="background:#ffffff;padding:0 1.618em;font:13px/20px Helvetica,Arial,Sans-serif;padding-bottom:50px!important">
-                <div style="width:600px;background:#fff;margin-left:auto;margin-right:auto;margin-top:10px;margin-bottom:25px;padding:0!important;border:10px Solid #fff;border-radius:10px;overflow:hidden">
-                    <div style="display: block; width: 100%;border-bottom: 2px Solid #7fb100 ; overflow: hidden;">
-                      <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
-                         <div style="float: left;font-size:45px;"><a href="https://mainwp.com">MainWP</a></div>
-                         <div style="float: right; margin-top: .6em ;">
-                            <span style="display: inline-block; margin-right: .8em;"><a href="https://mainwp.com/mainwp-extensions/" style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;">Extensions</a></span>
-                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://managers.mainwp.com/">Community</a></span>
-                            <span style="display: inline-block; margin-right: .8em;"><a style="font-family: Helvetica, Sans; color: #7fb100; text-transform: uppercase; font-size: 14px;" href="https://kb.mainwp.com/">Knowledgebase</a></span>
-                         </div><div style="clear: both;"></div>
-                      </div>
-                    </div>
-                    <div>
-                        <p>Hello MainWP User!<br></p>
-                        ' . $body . '
-                        <div></div>
-                        <br />
-                        <div>MainWP</div>
-                        <div><a href="https://www.MainWP.com" target="_blank">www.MainWP.com</a></div>
-                        <p></p>
-                    </div>
-
-                    <div style="display: block; width: 100% ; background: #1c1d1b;">
-                      <div style="display: block; width: 95% ; margin-left: auto ; margin-right: auto ; padding: .5em 0 ;">
-                        <div style="padding: .5em 0 ; float: left;"><p style="color: #fff; font-family: Helvetica, Sans; font-size: 12px ;">© 2013 MainWP. All Rights Reserved.</p></div>
-                      </div>
-                   </div>
-                </div>
-                <center>
-                    <br><br><br><br><br><br>
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border-top:1px solid #e5e5e5">
-                        <tbody><tr>
-                            <td align="center" valign="top" style="padding-top:20px;padding-bottom:20px">
-                                <table border="0" cellpadding="0" cellspacing="0">
-                                    <tbody><tr>
-                                        <td align="center" valign="top" style="color:#606060;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:150%;padding-right:20px;padding-bottom:5px;padding-left:20px;text-align:center">
-                                            This email is sent from your MainWP Dashboard.
-                                            <br>
-                                            If you do not wish to receive these notices please re-check your preferences in the MainWP Settings page.
-                                            <br>
-                                            <br>
-                                        </td>
-                                    </tr>
-                                </tbody></table>
-                            </td>
-                        </tr>
-                    </tbody></table>
-
-                </center>
-            </div>
-</div>
-<br>';
-	}
 
 	/**
 	 * Method handle_shutdown()
@@ -752,6 +637,119 @@ class MainWP_Utility {
 		flush();
 	}
 
+		/**
+		 * Method send_maintenance_alert()
+		 *
+		 * MainWP Maintenance Extension feature to send email notification for 404 (Page not found) errors.
+		 */
+	public function send_maintenance_alert() {
+		if ( ! is_404() ) {
+			return;
+		}
+
+		if ( 1 !== (int) get_option( 'mainwp_maintenance_opt_alert_404' ) ) {
+			return;
+		}
+
+		$email = get_option( 'mainwp_maintenance_opt_alert_404_email' );
+
+		if ( empty( $email ) || ! preg_match( '/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/is', $email ) ) {
+			return;
+		}
+
+		// set status.
+		header( 'HTTP/1.1 404 Not Found' );
+		header( 'Status: 404 Not Found' );
+
+		// site info.
+		$blog = get_bloginfo( 'name' );
+		$site = get_bloginfo( 'url' ) . '/';
+
+		// referrer.
+		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : 'undefined';
+
+		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
+		// request URI.
+		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_strip_all_tags( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : 'undefined';
+
+		// query string.
+		$string = isset( $_SERVER['QUERY_STRING'] ) ? sanitize_text_field( wp_strip_all_tags( wp_unslash( $_SERVER['QUERY_STRING'] ) ) ) : 'undefined';
+		// IP address.
+		$address = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_strip_all_tags( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) ) : 'undefined';
+
+		// user agent.
+		$agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_strip_all_tags( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) ) : 'undefined';
+
+		// identity.
+		$remote = isset( $_SERVER['REMOTE_IDENT'] ) ? sanitize_text_field( wp_strip_all_tags( wp_unslash( $_SERVER['REMOTE_IDENT'] ) ) ) : 'undefined';
+
+		// log time.
+		$time = sanitize_text_field( wp_unslash( date( 'F jS Y, h:ia', time() ) ) ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
+
+		$mail = '<div>404 alert</div><div></div>' .
+				'<div>TIME: ' . $time . '</div>' .
+				'<div>*404: ' . $request . '</div>' .
+				'<div>SITE: ' . $site . '</div>' .
+				'<div>REFERRER: ' . $referer . '</div>' .
+				'<div>QUERY STRING: ' . $string . '</div>' .
+				'<div>REMOTE ADDRESS: ' . $address . '</div>' .
+				'<div>REMOTE IDENTITY: ' . $remote . '</div>' .
+				'<div>USER AGENT: ' . $agent . '</div>';
+		$this->send_wp_mail(
+			$email,
+			'MainWP - 404 Alert: ' . $blog,
+			MainWP_Child_Format::format_email( $mail ),
+			array(
+				'content-type: text/html',
+			)
+		);
+	}
+
+	/**
+	 * Send support email.
+	 *
+	 * @return bool Return TRUE on success FALSE on failure.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
+	 */
+	public function send_support_mail() {
+		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
+		$email   = $opts['support_email'];
+		$sub     = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : '';
+		$from    = isset( $_POST['mainwp_branding_contact_send_from'] ) ? trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) ) : '';
+		$subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
+		$content = isset( $_POST['mainwp_branding_contact_message_content'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) ) : '';
+		$mail    = '';
+		$headers = '';
+
+		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : '';
+
+		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
+
+			/**
+			 * Current user global.
+			 *
+			 * @global string
+			 */
+			global $current_user;
+
+			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
+			if ( ! empty( $from ) ) {
+				$headers .= 'From: "' . $from . '" <' . $from . ">\r\n";
+			}
+			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
+			$mail .= '<p>Sent from WordPress page: ' . ( ! empty( $from_page ) ? "<a href='" . esc_url( $from_page ) . "'>" . esc_url( $from_page ) . "</a></p>\r\n\r\n" : '' );
+			$mail .= '<p>Client Email: ' . $current_user->user_email . " </p>\r\n\r\n";
+			$mail .= "<p>Support Text:</p>\r\n\r\n";
+			$mail .= '<p>' . $content . "</p>\r\n\r\n";
+
+			self::instance()->send_wp_mail( $email, $subject, $mail, $headers );
+
+			return true;
+		}
+		return false;
+	}
+
 	/**
 	 * Method create_nonce_without_session()
 	 *
@@ -821,7 +819,7 @@ class MainWP_Utility {
 	 * @return bool true|false If updated, return true, if the last backup time not updated, return false.
 	 */
 	public static function update_lasttime_backup( $by, $time ) {
-		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule' );
+		$backup_by = array( 'backupbuddy', 'backupwordpress', 'backwpup', 'updraftplus', 'wptimecapsule', 'wpvivid' );
 		if ( ! in_array( $by, $backup_by ) ) {
 			return false;
 		}
@@ -843,7 +841,7 @@ class MainWP_Utility {
 	 *
 	 * @return mixed If activated any of the supported backup systems, return the last backup timestamp.
 	 */
-	public static function get_lasttime_backup( $by ) {
+	public static function get_lasttime_backup( $by ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		if ( 'backupwp' == $by ) {
 			$by = 'backupwordpress';
 		}
@@ -875,6 +873,11 @@ class MainWP_Utility {
 					$activated = false;
 				}
 				break;
+			case 'wpvivid':
+				if ( ! is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) ) {
+					$activated = false;
+				}
+				break;
 			default:
 				$activated = false;
 				break;
@@ -885,6 +888,22 @@ class MainWP_Utility {
 		}
 
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );
+	}
+
+	/**
+	 * Get an array of user roles
+	 *
+	 * @return array
+	 */
+	public function get_roles() {
+		$wp_roles = new \WP_Roles();
+		$roles    = array();
+
+		foreach ( $wp_roles->get_names() as $role => $label ) {
+			$roles[ $role ] = translate_user_role( $label );
+		}
+
+		return $roles;
 	}
 
 	/**

@@ -192,6 +192,11 @@ class MainWP_Child_Stats {
 
 		MainWP_Child_Plugins_Check::may_outdate_number_change();
 
+		if ( isset( $_POST['child_actions_saved_days_number'] ) ) {
+			$days_number = intval( $_POST['child_actions_saved_days_number'] );
+			MainWP_Helper::update_option( 'mainwp_child_actions_saved_number_of_days', $days_number );
+		}
+
 		$this->stats_get_info( $information );
 
 		include_once ABSPATH . '/wp-admin/includes/update.php';
@@ -263,11 +268,12 @@ class MainWP_Child_Stats {
 		if ( isset( $last_post ) && isset( $last_post['post_modified_gmt'] ) ) {
 			$information['last_post_gmt'] = strtotime( $last_post['post_modified_gmt'] );
 		}
-		$information['mainwpdir']            = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
-		$information['uniqueId']             = MainWP_Helper::get_site_unique_id();
-		$information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
-		$information['themes_outdate_info']  = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
-		$information['health_site_status']   = $this->get_health_check_site_status();
+		$information['mainwpdir']               = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
+		$information['uniqueId']                = MainWP_Helper::get_site_unique_id();
+		$information['plugins_outdate_info']    = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
+		$information['themes_outdate_info']     = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
+		$information['health_site_status']      = $this->get_health_check_site_status();
+		$information['child_site_actions_data'] = MainWP_Child_Actions::get_actions_data();
 
 		if ( isset( $_POST['user'] ) ) {
 			$user = get_user_by( 'login', sanitize_text_field( wp_unslash( $_POST['user'] ) ) );

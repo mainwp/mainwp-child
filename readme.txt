@@ -1,6 +1,6 @@
-=== MainWP Child - Securely connects sites to the MainWP WordPress Manager Dashboard ===
+=== MainWP Child - Securely Connects Sites to the MainWP WordPress Manager Dashboard ===
 Contributors: mainwp
-Tags: WordPress management, WordPress Manager, WordPress controller, multiple WordPress Sites, multisite
+Tags: MainWP, MainWP Dashboard, WordPress Manager, WordPress Management, Manage WordPress, Manage Multiple Sites, Control Multiple Sites, WordPress Site Management, WordPress Management Dashboard, ManageWP, Manage WP Sites, WordPress Maintenance, Uptime Monitor, Backup, Security, Lighthouse, Client Reports, Manage Plugins, Updates Manager, Manage WordPress Websites, Client Management, REST API, Hooks
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
@@ -11,37 +11,72 @@ Stable tag: 4.2.6
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Securely connects unlimited sites to your MainWP WordPress Manager. The MainWP WordPress Management System is both open source and private.
+Securely connects Unlimited WordPress sites to your MainWP Dashboard, allowing you to control them from a single screen.
 
 == Description ==
 
-The Child plugin connects your WordPress sites to the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/)
+This is a Child Plugin for [“MainWP Dashboard”](https://wordpress.org/plugins/mainwp/) that connects your WordPress sites to the MainWP Dashboard.
 
-The [MainWP WordPress Management](https://mainwp.com) system is self-hosted, open source, and private.  Connect and control all the WordPress sites you administer, even those on different hosts and servers.
+The [MainWP](https://mainwp.com/), a complete WordPress Management solution, is self-hosted, open source, and private, allowing you to control multiple WordPress websites (even those on different hosting) from your own private self-hosted WordPress website.
 
-MainWP is the perfect solution for WordPress consultants, marketers, developers, WordPress shops, or anyone with multiple WordPress sites
+MainWP is the **perfect solution for**
+- Agencies
+- Freelancers
+- Developers
+- Designers
+- Consultants
+- Marketers
+- In fact, anyone who wants to manage multiple WordPress sites
 
-= Your Guarantee of Privacy =
+== Here’s Why WordPress Managers Love MainWP! ==
+💰 Free Forever
+🏷️ White Label
+♾️ Connect Unlimited Websites
+👥 Full Client Management
+🌐 Organize Sites via Tags
+🕒 Uptime & Site Health Monitoring
+🚩 1-Click Lighthouse Stats
+🔄 Effortless Bulk Updates
+🚧 Staging, Cloning
+📝 Professional Reports
+🔒 Full Privacy, Self-hosted, Lock Your Dashboard
+💬 Bulk Manage Comments
+🛡️ Bulk Manage Security
+📈 SEO, Traffic, Analytics, etc.
+🚀 WP Rocket, Cache-Control
+✏️ Fully Customizable
+🌐 Domain Monitoring
+🔗 Security & Backup Integrations
+😌 Bulk Content Management (Draft, Publish, Edit, Trash)
+🦾 40+ Integrations
 
-The MainWP plugins come with their own [privacy policies](https://mainwp.com/mainwp-plugin-privacy-policy/) to ensure you that the plugins do not collect any personally identifiable information (PII). Please review them before activating the plugin.
+And [a lot more](https://mainwp.com/mainwp-extensions/)…
 
-= How does the MainWP system work? =
+== HOW DOES THE MAINWP WORK? ==
 
-First, Install and Activate the  [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) plugin on a WordPress site you will use for controlling all other sites; this is your Dashboard Site.  We highly recommend this be a new, clean WordPress installation and not on one of your operating sites. Using a clean site helps to eliminate any unnecessary plugin conflicts or security issues.
+First, Install and Activate the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) plugin on a WordPress site you will use for controlling all other sites; this is your Dashboard Site.
 
-Next, Install and Activate the MainWP Child plugin (this plugin) on a WordPress site you want to connect to your MainWP Dashboard.  WordPress sites connected to your Dashboard are referred to as Child sites.
+We highly recommend this be a new, clean WordPress installation and not on one of your operating sites. Using a clean site helps to eliminate any unnecessary plugin conflicts or security issues.
 
-Lastly, you securely connect your child site to your MainWP Dashboard.  Once connected, your Dashboard can control most aspects of the Child site.
+Next, Install and Activate the MainWP Child plugin (this plugin) on all the WordPress sites you want to connect to your MainWP Dashboard. WordPress sites connected to your Dashboard are referred to as Child Sites.
 
-Still not sure how MainWP works? [Review these detailed steps on installing your Dashboard and connecting your first Child site.](https://mainwp.com/getting-started-with-mainwp/)
+Once connected, you can manage them from your MainWP Dashboard.
 
-**Features include:**
+Still not sure how MainWP works? [Review these detailed steps on installing your Dashboard and connecting your first Child Site.](https://mainwp.com/getting-started-with-mainwp/)
 
-* Connect and control all your WordPress installs, even those on different hosts!
-* Update all WordPress installs, Plugins and Themes from one location
-* Manage and Add all your Posts from one location
-* Manage and Add all your Pages from one location
-* Run everything from 1 Dashboard that you host!
+== Features Include: ==
+
+- Connect and control all your WordPress installs, even those on different hosts!
+- Update all WordPress installs, Plugins, and Themes from one location
+- Manage and Add all your Posts from one location
+- Manage and Add all your Pages from one location
+- Run everything from one Dashboard that you host!
+- One-click login to your Child Sites
+- Easy plugin management (Bulk update, add, remove, etc.)
+- Fully customizable
+- Self-Hosted, Private, and Open Source
+
+To know more about the MainWP WordPress management system, take a look at the [MainWP Dashboard.](https://wordpress.org/plugins/mainwp/)
 
 = More Information =
 [MainWP Documentation](https://kb.mainwp.com/)

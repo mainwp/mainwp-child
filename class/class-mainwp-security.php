@@ -602,6 +602,23 @@ class MainWP_Security {
 		if ( ! self::remove_readme_ok() ) {
 			$total_issues ++;
 		}
+
+		if ( ! self::wpcore_updated_ok() ) {
+			$total_issues ++;
+		}
+
+		if ( ! self::phpversion_ok() ) {
+			$total_issues ++;
+		}
+
+		if ( ! self::sslprotocol_ok() ) {
+			$total_issues ++;
+		}
+
+		if ( ! self::debug_disabled_ok() ) {
+			$total_issues ++;
+		}
+
 		return $total_issues;
 	}
 
@@ -622,6 +639,7 @@ class MainWP_Security {
 		return ! empty( $security ) && isset( $security[ $option ] ) && ( true === $security[ $option ] );
 	}
 
+
 	/**
 	 * Method update_security_option()
 	 *
@@ -636,5 +654,55 @@ class MainWP_Security {
 			$security[ $key ] = $value;
 		}
 		MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
+	}
+
+	/**
+	 * Method wpcore_updated_ok()
+	 *
+	 * Check WP core updated.
+	 */
+	public static function wpcore_updated_ok() {
+		include_once ABSPATH . '/wp-admin/includes/update.php';
+		$ok           = true;
+		$core_updates = get_core_updates();
+		foreach ( $core_updates as $core => $update ) {
+			if ( 'upgrade' === $update->response ) {
+				$ok = false;
+			}
+		}
+		return $ok;
+	}
+
+
+	/**
+	 * Method phpversion_ok()
+	 *
+	 * Check PHP version matches the WP requirement.
+	 */
+	public static function phpversion_ok() {
+		require_once ABSPATH . WPINC . '/version.php';
+		global $required_php_version;
+		return version_compare( phpversion(), $required_php_version, '>=' );
+	}
+
+	/**
+	 * Method sslprotocol_ok()
+	 *
+	 * Check SSL protocol is in place.
+	 */
+	public static function sslprotocol_ok() {
+		return is_ssl();
+	}
+
+
+	/**
+	 * Method debug_disabled_ok()
+	 *
+	 * Check WP Config and check if debugging is disabled.
+	 */
+	public static function debug_disabled_ok() {
+		$ok = ! defined( 'WP_DEBUG' ) || ! WP_DEBUG;
+		$ok = $ok && ( ! defined( 'WP_DEBUG_LOG' ) || ! WP_DEBUG_LOG );
+		return $ok;
 	}
 }
