@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.2.6';
+	public static $version = '4.3';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -122,6 +122,11 @@ class MainWP_Child {
 				add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
 			}
 		}
+
+		/**
+		 * @since 4.3
+		 */
+		add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
 	}
 
 	/**
@@ -174,8 +179,11 @@ class MainWP_Child {
 				'mainwp_child_branding_settings',
 				'mainwp_child_plugintheme_days_outdate',
 				'mainwp_wp_staging_ext_enabled',
+				'mainwp_child_connected_admin',
+				'mainwp_child_actions_saved_number_of_days',
+
 			);
-			$query    = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
+			$query = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
 			foreach ( $options as $option ) {
 				$query .= "'" . $option . "', ";
 			}
@@ -240,11 +248,9 @@ class MainWP_Child {
 	 * Method template_redirect()
 	 *
 	 * Handle the template redirect for 404 maintenance alerts.
-	 *
-	 * @uses \MainWP\Child\MainWP_Utility::maintenance_alert()
 	 */
 	public function template_redirect() {
-		MainWP_Utility::instance()->maintenance_alert();
+		MainWP_Utility::instance()->send_maintenance_alert();
 	}
 
 	/**
@@ -343,6 +349,7 @@ class MainWP_Child {
 		if ( MainWP_Helper::is_admin() && is_admin() ) {
 			MainWP_Clone::instance()->init_ajax();
 		}
+		MainWP_Child_Actions::get_instance()->init_hooks();
 	}
 
 	/**
@@ -403,6 +410,7 @@ class MainWP_Child {
 			'mainwp_child_nossl_key',
 			'mainwp_security',
 			'mainwp_child_server',
+			'mainwp_child_connected_admin',
 		);
 		$to_delete[] = 'mainwp_ext_snippets_enabled';
 		$to_delete[] = 'mainwp_ext_code_snippets';
@@ -437,6 +445,7 @@ class MainWP_Child {
 			'mainwp_child_nonce',
 			'mainwp_child_nossl',
 			'mainwp_child_nossl_key',
+			'mainwp_child_connected_admin',
 		);
 		foreach ( $to_delete as $delete ) {
 			if ( get_option( $delete ) ) {

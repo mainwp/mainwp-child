@@ -186,7 +186,7 @@ class MainWP_Child_Branding_Render {
 		$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
 		$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';
 
-		if ( $this->send_support_mail() ) {
+		if ( MainWP_Utility::instance()->send_support_mail() ) {
 			$send_email_message = isset( $opts['send_email_message'] ) ? $opts['send_email_message'] : '';
 			if ( ! empty( $send_email_message ) ) {
 				$send_email_message = stripslashes( $send_email_message );
@@ -199,51 +199,6 @@ class MainWP_Child_Branding_Render {
 		?>
 		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>
 		<?php
-	}
-
-	/**
-	 * Send support email.
-	 *
-	 * @return bool Return TRUE on success FALSE on failure.
-	 *
-	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
-	 */
-	public function send_support_mail() {
-		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
-		$email   = $opts['support_email'];
-		$sub     = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : '';
-		$from    = isset( $_POST['mainwp_branding_contact_send_from'] ) ? trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) ) : '';
-		$subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
-		$content = isset( $_POST['mainwp_branding_contact_message_content'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) ) : '';
-		$mail    = '';
-		$headers = '';
-
-		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : '';
-
-		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
-
-			/**
-			 * Current user global.
-			 *
-			 * @global string
-			 */
-			global $current_user;
-
-			$headers .= "Content-Type: text/html;charset=utf-8\r\n";
-			if ( ! empty( $from ) ) {
-				$headers .= 'From: "' . $from . '" <' . $from . ">\r\n";
-			}
-			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
-			$mail .= '<p>Sent from WordPress page: ' . ( ! empty( $from_page ) ? "<a href='" . esc_url( $from_page ) . "'>" . esc_url( $from_page ) . "</a></p>\r\n\r\n" : '' );
-			$mail .= '<p>Client Email: ' . $current_user->user_email . " </p>\r\n\r\n";
-			$mail .= "<p>Support Text:</p>\r\n\r\n";
-			$mail .= '<p>' . $content . "</p>\r\n\r\n";
-
-			wp_mail( $email, $subject, $mail, $headers );
-
-			return true;
-		}
-		return false;
 	}
 
 	/**

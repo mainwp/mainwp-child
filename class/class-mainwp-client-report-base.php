@@ -312,66 +312,6 @@ class MainWP_Client_Report_Base {
 	}
 
 	/**
-	 * Fix logging for posts creation action.
-	 *
-	 * @param array $records An array containg actions records.
-	 * @param array $skip_records An array containg records to skip.
-	 */
-	protected function fix_logs_posts_created( &$records, &$skip_records ) {
-
-		$args = array(
-			'post_type'   => 'post',
-			'post_status' => 'publish',
-			'date_query'  => array(
-				'column' => 'post_date',
-				'after'  => $args['date_from'],
-				'before' => $args['date_to'],
-			),
-		);
-
-		$result                = new \WP_Query( $args );
-		$records_created_posts = $result->posts;
-
-		if ( $records_created_posts ) {
-
-			$count_records = count( $records );
-			for ( $i = 0; $i < $count_records; $i++ ) {
-				$record = $records[ $i ];
-				if ( 'posts' == $record->connector && 'post' == $record->context && 'created' == $record->action ) {
-					if ( ! in_array( $record->ID, $skip_records ) ) {
-						$skip_records[] = $record->ID;
-					}
-				}
-			}
-
-			$post_authors = array();
-
-			foreach ( $records_created_posts as $_post ) {
-				$au_id = $_post->post_author;
-				if ( ! isset( $post_authors[ $au_id ] ) ) {
-					$au                     = get_user_by( 'id', $au_id );
-					$post_authors[ $au_id ] = $au->display_name;
-				}
-				$au_name = $post_authors[ $au_id ];
-
-				// simulate logging created posts record.
-				$stdObj            = new \stdClass();
-				$stdObj->ID        = 0; // simulate ID value.
-				$stdObj->connector = 'posts';
-				$stdObj->context   = 'post';
-				$stdObj->action    = 'created';
-				$stdObj->created   = $_post->post_date;
-				$stdObj->meta      = array(
-					'post_title' => array( $_post->post_title ),
-					'user_meta'  => array( $au_name ),
-				);
-
-				$records[] = $stdObj;
-			}
-		}
-	}
-
-	/**
 	 * Get the other tokens data.
 	 *
 	 * @param array $records      An array containg actions records.

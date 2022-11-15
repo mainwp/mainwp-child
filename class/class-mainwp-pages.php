@@ -190,14 +190,6 @@ class MainWP_Pages {
 		$settingsPage = add_submenu_page( 'options-general.php', $child_page_title, $child_menu_title, 'manage_options', 'mainwp_child_tab', array( &$this, 'render_pages' ) );
 
 		add_action( 'admin_print_scripts-' . $settingsPage, array( MainWP_Clone_Page::get_class_name(), 'print_scripts' ) );
-		$subpageargs = array(
-			'child_slug'  => 'options-general.php',
-			'branding'    => ( null === self::$brandingTitle ) ? 'MainWP' : self::$brandingTitle,
-			'parent_menu' => $settingsPage,
-		);
-
-		do_action_deprecated( 'mainwp-child-subpages', array( $subpageargs ), '4.0.7.1', 'mainwp_child_subpages' );
-		do_action( 'mainwp_child_subpages', $subpageargs );
 
 		$sub_pages = array();
 

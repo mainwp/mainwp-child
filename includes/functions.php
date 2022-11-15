@@ -53,7 +53,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 						 * This is a fake post field to fix some conflict with wp_verify_nonce().
 						 * Just return false to unverify nonce, does not exit.
 						 */
-						if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
+						if ( isset( $_REQUEST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_REQUEST[ $action ] ) ) {
 							return false;
 						}
 
@@ -93,7 +93,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 					 * This is a fake post field to fix some conflict with wp_verify_nonce().
 					 * Just return false to unverify nonce, does not exit.
 					 */
-					if ( isset( $_POST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_POST[ $action ] ) ) {
+					if ( isset( $_REQUEST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_REQUEST[ $action ] ) ) {
 						return false;
 					}
 
