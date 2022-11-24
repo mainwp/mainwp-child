@@ -146,7 +146,7 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
-= 4.3 - 11-24-2022 =
+= 4.3.0.1 - 11-24-2022 =
 * Fixed: An issue with logging Non-MainWP changes for the connected admin user
 * Removed: Unused DB field
 
