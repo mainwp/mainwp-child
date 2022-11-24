@@ -790,6 +790,16 @@ class MainWP_Helper {
 
 
 	/**
+	 * Method is_dashboard_request()
+	 *
+	 * If it is dashboard request.
+	 */
+	public static function is_dashboard_request() {
+		return isset( $_POST['mainwpsignature'] ) && isset( $_POST['function'] ) ? true : false;
+	}
+
+
+	/**
 	 * Method check_files_exists()
 	 *
 	 * Check if a certain files exist.

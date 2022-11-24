@@ -654,19 +654,19 @@ class MainWP_Child_Actions {
 			return false;
 		}
 
-		$notification = apply_filters( 'mainwp_child_actions_save_data', true, $context, $action, $args, $message );
-
-		if ( ! $notification ) {
-			return false;
-		}
-
 		$user_id = get_current_user_id();
 		$user    = get_user_by( 'id', $user_id );
 
 		$connected_user = get_option( 'mainwp_child_connected_admin', '' );
 
-		if ( ! empty( $user->user_login ) && $connected_user == $user->user_login ) {
+		if ( ! empty( $user->user_login ) && $connected_user == $user->user_login && MainWP_Helper::is_dashboard_request() ) {
 			return false;  // not save action.
+		}
+
+		$actions_save = apply_filters( 'mainwp_child_actions_save_data', true, $context, $action, $args, $message, $user_id );
+
+		if ( ! $actions_save ) {
+			return false;
 		}
 
 		$user_role_label = '';

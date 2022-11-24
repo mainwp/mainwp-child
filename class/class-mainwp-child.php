@@ -33,14 +33,14 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.3';
+	public static $version = '4.3.0.1';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
 	 *
 	 * @var string MainWP Child update version.
 	 */
-	private $update_version = '1.5';
+	private $update_version = '1.6';
 
 	/**
 	 * Public variable containing the MainWP Child plugin slug.
@@ -232,6 +232,10 @@ class MainWP_Child {
 
 		if ( $update_version === $this->update_version ) {
 			return;
+		}
+
+		if ( version_compare( $update_version, '1.6', '<' ) ) {
+			delete_option( 'mainwp_child_subpages ' );
 		}
 
 		MainWP_Helper::update_option( 'mainwp_child_update_version', $this->update_version, 'yes' );
