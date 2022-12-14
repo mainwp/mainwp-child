@@ -147,6 +147,11 @@ class MainWP_Child_Bulk_Settings_Manager {
 			),
 		);
 
+		$skip_invalid_nonce = false;
+		if ( isset( $_REQUEST['skip_invalid_nonce'] ) && ! empty( $_REQUEST['skip_invalid_nonce'] ) ) {
+			$skip_invalid_nonce = true;
+		}
+
 		if ( isset( $args['get'] ) ) {
 			$get_args = $args['get'];
 			parse_str( $args['get'], $get_args );
@@ -158,6 +163,10 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 		$get_args['bulk_settings_manageruse_nonce_key']  = intval( time() );
 		$get_args['bulk_settings_manageruse_nonce_hmac'] = hash_hmac( 'sha256', $get_args['bulk_settings_manageruse_nonce_key'], NONCE_KEY );
+
+		if ( true === $skip_invalid_nonce ) {
+			$get_args['bulk_settings_skip_invalid_nonce'] = $skip_invalid_nonce;
+		}
 
 		$good_nonce = null;
 		if ( isset( $args['nonce'] ) && ! empty( $args['nonce'] ) ) {
@@ -174,6 +183,10 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 			if ( ! empty( $good_nonce ) ) {
 				$temp_post = array_merge( $temp_post, $good_nonce );
+			}
+
+			if ( true === $skip_invalid_nonce ) {
+				$temp_post['bulk_settings_skip_invalid_nonce'] = $skip_invalid_nonce;
 			}
 
 			$post_args['body'] = $temp_post;

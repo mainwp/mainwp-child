@@ -80,9 +80,12 @@ class MainWP_Child_Cache_Purge {
 				update_option( 'mainwp_child_cloud_flair_enabled', ( $data['cloud_flair_enabled'] ? 1 : 0 ) );
 
 				// Update Cloudflair API Credentials option values.
-				update_option( 'mainwp_cloudflair_email', ( $data['mainwp_cloudflair_email'] ) );
-				update_option( 'mainwp_cloudflair_key', ( $data['mainwp_cloudflair_key'] ) );
-
+				if ( isset( $data['mainwp_cloudflair_email'] ) ) {
+					update_option( 'mainwp_cloudflair_email', ( $data['mainwp_cloudflair_email'] ) );
+				}
+				if ( isset( $data['mainwp_cloudflair_key'] ) ) {
+					update_option( 'mainwp_cloudflair_key', ( $data['mainwp_cloudflair_key'] ) );
+				}
 			} catch ( \Exception $e ) {
                 error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
 			}

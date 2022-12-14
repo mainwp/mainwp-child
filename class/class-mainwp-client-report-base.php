@@ -895,7 +895,7 @@ class MainWP_Client_Report_Base {
 		$tok_value = '';
 		$scan_data = $this->get_stream_meta_data( $record, 'scan_data' );
 		if ( ! empty( $scan_data ) ) {
-			$scan_data = maybe_unserialize( base64_decode( $scan_data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+			$scan_data = json_decode( base64_decode( $scan_data ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 			if ( is_array( $scan_data ) ) {
 
 				$blacklisted    = $scan_data['blacklisted'];

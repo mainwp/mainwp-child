@@ -56,12 +56,7 @@ class MainWP_Helper {
 	 * @param mixed $value Contains information to be written.
 	 */
 	public static function write( $value ) {
-		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-			$output = wp_json_encode( $value );
-		else :
-			$output = serialize( $value ); // phpcs:ignore -- Required for backwards compatibility.
-		endif;
-
+		$output = wp_json_encode( $value );
 		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
 	}
 

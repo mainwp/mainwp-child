@@ -483,7 +483,7 @@ class MainWP_Child_Users {
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function new_admin_password() {
-		$new_password = isset( $_POST['new_password'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_password'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$new_password = isset( $_POST['new_password'] ) ? base64_decode( wp_unslash( $_POST['new_password'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$user  = null;
 		$uname = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';
@@ -500,7 +500,7 @@ class MainWP_Child_Users {
 		$id = wp_update_user(
 			array(
 				'ID'        => $user->ID,
-				'user_pass' => $new_password['user_pass'],
+				'user_pass' => $new_password,
 			)
 		);
 		if ( $id !== $user->ID ) {
@@ -522,7 +522,7 @@ class MainWP_Child_Users {
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function new_user() {
-		$new_user      = isset( $_POST['new_user'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['new_user'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$new_user      = isset( $_POST['new_user'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_user'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$send_password = isset( $_POST['send_password'] ) ? sanitize_text_field( wp_unslash( $_POST['send_password'] ) ) : '';
 		if ( isset( $new_user['role'] ) ) {
 			if ( ! get_role( $new_user['role'] ) ) {

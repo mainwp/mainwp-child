@@ -61,6 +61,11 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 						ob_start();
 						debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ); // phpcs:ignore -- debug feature.
 						$stackTrace = "\n" . ob_get_clean();
+
+						// Invalid nonce.
+						if ( isset( $_REQUEST['bulk_settings_skip_invalid_nonce'] ) && ! empty( $_REQUEST['bulk_settings_skip_invalid_nonce'] ) ) {
+							return false;
+						}
 						die( '<mainwp>' . base64_encode( wp_json_encode( array( 'error' => 'You dont send nonce: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 					}
 
@@ -101,6 +106,10 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 					debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ); // phpcs:ignore -- debug feature.
 					$stackTrace = "\n" . ob_get_clean();
 
+					// Invalid nonce.
+					if ( isset( $_REQUEST['bulk_settings_skip_invalid_nonce'] ) && ! empty( $_REQUEST['bulk_settings_skip_invalid_nonce'] ) ) {
+						return false;
+					}
 					// Invalid nonce.
 					die( '<mainwp>' . base64_encode( wp_json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 				}

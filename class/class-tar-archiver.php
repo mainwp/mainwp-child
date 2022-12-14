@@ -488,33 +488,18 @@ class Tar_Archiver {
 		}
 		closedir( $fh );
 
-		if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
-			$string = wp_json_encode(
-				array(
-					'siteurl' => get_option( 'siteurl' ),
-					'home'    => get_option( 'home' ),
-					'abspath' => ABSPATH,
-					'prefix'  => $wpdb->prefix,
-					'lang'    => get_bloginfo( 'language' ),
-					'plugins' => $plugins,
-					'themes'  => $themes,
-				)
-			);
-		} else {
-			$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-				serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
-					array(
-						'siteurl' => get_option( 'siteurl' ),
-						'home'    => get_option( 'home' ),
-						'abspath' => ABSPATH,
-						'prefix'  => $wpdb->prefix,
-						'lang'    => get_bloginfo( 'language' ),
-						'plugins' => $plugins,
-						'themes'  => $themes,
-					)
-				)
-			);
-		}
+		$string = wp_json_encode(
+			array(
+				'siteurl' => get_option( 'siteurl' ),
+				'home'    => get_option( 'home' ),
+				'abspath' => ABSPATH,
+				'prefix'  => $wpdb->prefix,
+				'lang'    => get_bloginfo( 'language' ),
+				'plugins' => $plugins,
+				'themes'  => $themes,
+			)
+		);
+
 		return $string;
 	}
 

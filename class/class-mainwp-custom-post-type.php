@@ -64,11 +64,8 @@ class MainWP_Custom_Post_Type {
 			$data = self::$information;
 		}
 
-		if ( isset( $_REQUEST['json_result'] ) && wp_unslash( $_REQUEST['json_result'] ) ) {
-			$data = wp_json_encode( $data );
-		} else {
-			$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required to achieve desired results, pull request solutions appreciated.
-		}
+		$data = wp_json_encode( $data );
+
 		die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 	}
 

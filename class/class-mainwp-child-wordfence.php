@@ -605,9 +605,6 @@ class MainWP_Child_Wordfence {
 				case 'restore_file':
 					$information = $this->restore_file();
 					break;
-				case 'save_setting':
-					$information = $this->save_setting();
-					break;
 				case 'save_settings_new':
 					$information = $this->save_settings_new();
 					break;
@@ -1503,51 +1500,11 @@ SQL
 		);
 	}
 
-	/**
-	 * Method simple_crypt()
-	 *
-	 * Encrypt or decrypt data.
-	 *
-	 * @param  string $key    Contains the cryption key.
-	 * @param  array  $data   Array containing data that needs to be encrypted or decrypted.
-	 * @param  string $action Contains preferred action, encrypt or decrypt.
-	 *
-	 * @used-by save_settings_new() Save new Wordfence settigns.
-	 * @used-by save_settings() Save Wordfence settigns.
-	 *
-	 * @return string Encrypted or decrypted data.
-	 */
-	public function simple_crypt( $key, $data, $action = 'encrypt' ) {
-		$res = '';
-		if ( 'encrypt' == $action ) {
-			$string = base64_encode( serialize( $data ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
-		} else {
-			$string = $data;
-		}
-		$string_lenght = strlen( $string );
-		for ( $i = 0; $i < $string_lenght; $i++ ) {
-			$c = ord( substr( $string, $i ) );
-			if ( 'encrypt' == $action ) {
-				$c   += ord( substr( $key, ( ( $i + 1 ) % strlen( $key ) ) ) );
-				$res .= chr( $c & 0xFF );
-			} else {
-				$c   -= ord( substr( $key, ( ( $i + 1 ) % strlen( $key ) ) ) );
-				$res .= chr( abs( $c ) & 0xFF );
-			}
-		}
-
-		if ( 'encrypt' !== $action ) {
-			$res = unserialize( base64_decode( $res ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
-		}
-		return $res;
-	}
 
 	/**
 	 * Method save_settings_new()
 	 *
 	 * Save new Wordfence settings.
-	 *
-	 * @uses simple_crypt() Encrypt or decrypt data.
 	 *
 	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
 	 *
@@ -1556,12 +1513,9 @@ SQL
 	 * @return array Action result.
 	 */
 	public function save_settings_new() {
-		if ( isset( $_POST['encrypted'] ) ) {
-			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // custom fix to pass through security rules of Dreamhost!
-		} else {
-			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
-		}
-
+		
+		$settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] )), true ) : array(); // phpcs:ignore -- custom fix to pass through security rules of Dreamhost.
+		
 		$section     = isset( $_POST['savingSection'] ) ? sanitize_text_field( wp_unslash( $_POST['savingSection'] ) ) : '';
 		$saving_opts = self::get_section_settings( $section );
 
@@ -1842,173 +1796,6 @@ SQL
 		return \wordfence::ajax_recentTraffic_callback();
 	}
 
-	/**
-	 * Method save_settings()
-	 *
-	 * Save Wordfence settings.
-	 *
-	 * @uses simple_crypt() Encrypt or decrypt data.
-	 *
-	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
-	 *
-	 * @throws \Exception Error message.
-	 *
-	 * @return array Action result.
-	 */
-	public function save_setting() {
-		if ( isset( $_POST['encrypted'] ) ) {
-			$settings = $this->simple_crypt( 'thisisakey', $_POST['settings'], 'decrypt' ); // to fix pass through sec rules of Dreamhost!
-		} else {
-			$settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		}
-
-		if ( is_array( $settings ) && count( $settings ) > 0 ) {
-			$result       = array();
-			$reload       = '';
-			$opts         = $settings;
-			$validUsers   = array();
-			$invalidUsers = array();
-			foreach ( explode( ',', $opts['liveTraf_ignoreUsers'] ) as $val ) {
-				$val = trim( $val );
-				if ( strlen( $val ) > 0 ) {
-					if ( get_user_by( 'login', $val ) ) {
-						$validUsers[] = $val;
-					} else {
-						$invalidUsers[] = $val;
-					}
-				}
-			}
-
-			if ( count( $invalidUsers ) > 0 ) {
-				$result['invalid_users'] = htmlentities( implode( ', ', $invalidUsers ) );
-			}
-
-			if ( count( $validUsers ) > 0 ) {
-				$opts['liveTraf_ignoreUsers'] = implode( ',', $validUsers );
-			} else {
-				$opts['liveTraf_ignoreUsers'] = '';
-			}
-
-			if ( ! $opts['other_WFNet'] ) {
-				$wfdb            = new \wfDB();
-				$table_wfBlocks7 = \wfDB::networkTable( 'wfBlocks7' );
-				$wfdb->queryWrite( "delete from {$table_wfBlocks7} where wfsn=1 and permanent=0" );
-			}
-
-			$regenerateHtaccess = false;
-			if ( \wfConfig::get( 'bannedURLs', false ) !== $opts['bannedURLs'] ) {
-				$regenerateHtaccess = true;
-			}
-
-			foreach ( $opts as $key => $val ) {
-				if ( in_array( $key, self::$options_filter ) ) {
-					if ( 'apiKey' !== $key ) { // Don't save API key yet!
-						\wfConfig::set( $key, $val );
-					}
-				}
-			}
-
-			if ( $regenerateHtaccess && ( 'falcon' == \wfConfig::get( 'cacheType' ) ) ) {
-				\wfCache::addHtaccessCode( 'add' );
-			}
-
-			if ( '1' === $opts['autoUpdate'] ) {
-				\wfConfig::enableAutoUpdate();
-			} elseif ( '0' === $opts['autoUpdate'] ) {
-				\wfConfig::disableAutoUpdate();
-			}
-
-			if ( isset( $opts['disableCodeExecutionUploads'] ) ) {
-				try {
-					if ( $opts['disableCodeExecutionUploads'] ) {
-						\wfConfig::disableCodeExecutionForUploads();
-					} else {
-						\wfConfig::removeCodeExecutionProtectionForUploads();
-					}
-				} catch ( \wfConfig\Exception $e ) {
-					return array( 'error' => $e->getMessage() );
-				}
-			}
-
-			if ( isset( $opts['email_summary_enabled'] ) ) {
-				if ( ! empty( $opts['email_summary_enabled'] ) ) {
-					\wfConfig::set( 'email_summary_enabled', 1 );
-					\wfConfig::set( 'email_summary_interval', $opts['email_summary_interval'] );
-					\wfConfig::set( 'email_summary_excluded_directories', $opts['email_summary_excluded_directories'] );
-					\wfActivityReport::scheduleCronJob();
-				} else {
-					\wfConfig::set( 'email_summary_enabled', 0 );
-					\wfActivityReport::disableCronJob();
-				}
-			}
-
-			$sch = isset( $opts['scheduleScan'] ) ? $opts['scheduleScan'] : '';
-			if ( get_option( 'mainwp_child_wordfence_cron_time' ) !== $sch ) {
-				update_option( 'mainwp_child_wordfence_cron_time', $sch );
-				$sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
-				if ( false !== $sched ) {
-					wp_unschedule_event( $sched, 'mainwp_child_wordfence_cron_scan' );
-				}
-			}
-
-			$result['cacheType']  = \wfConfig::get( 'cacheType' );
-			$result['paidKeyMsg'] = false;
-			$apiKey               = trim( $_POST['apiKey'] );
-			if ( ! $apiKey ) { // Empty API key (after trim above), then try to get one.
-				$api = new \wfAPI( '', \wfUtils::getWPVersion() );
-				try {
-					$keyData = $api->call( 'get_anon_api_key' );
-					if ( $keyData['ok'] && $keyData['apiKey'] ) {
-						\wfConfig::set( 'apiKey', $keyData['apiKey'] );
-						\wfConfig::set( 'isPaid', 0 );
-						$result['apiKey'] = $keyData['apiKey'];
-						$result['isPaid'] = 0;
-						$reload           = 'reload';
-					} else {
-						throw new \Exception( "We could not understand the Wordfence server's response because it did not contain an 'ok' and 'apiKey' element." );
-					}
-				} catch ( \Exception $e ) {
-					$result['error'] = 'Your options have been saved, but we encountered a problem. You left your API key blank, so we tried to get you a free API key from the Wordfence servers. However we encountered a problem fetching the free key: ' . htmlentities( $e->getMessage() );
-
-					return $result;
-				}
-			} elseif ( \wfConfig::get( 'apiKey' ) !== $apiKey ) {
-				$api = new \wfAPI( $apiKey, \wfUtils::getWPVersion() );
-				try {
-					$res = $api->call( 'check_api_key', array(), array() );
-					if ( $res['ok'] && isset( $res['isPaid'] ) ) {
-						\wfConfig::set( 'apiKey', $apiKey );
-						\wfConfig::set( 'isPaid', $res['isPaid'] ); // res['isPaid'] is boolean coming back as JSON and turned back into PHP struct. Assuming JSON to PHP handles bools.
-						$result['apiKey'] = $apiKey;
-						$result['isPaid'] = $res['isPaid'];
-						if ( $res['isPaid'] ) {
-							$result['paidKeyMsg'] = true;
-						}
-						$reload = 'reload';
-					} else {
-						throw new \Exception( 'We could not understand the Wordfence API server reply when updating your API key.' );
-					}
-				} catch ( \Exception $e ) {
-					$result['error'] = 'Your options have been saved. However we noticed you changed your API key and we tried to verify it with the Wordfence servers and received an error: ' . htmlentities( $e->getMessage() );
-
-					return $result;
-				}
-			} else {
-				try {
-					$api = new \wfAPI( $apiKey, \wfUtils::getWPVersion() );
-					$res = $api->call( 'ping_api_key', array(), array() );
-				} catch ( \Exception $e ) {
-					$result['error'] = 'Your options have been saved. However we noticed you do not change your API key and we tried to verify it with the Wordfence servers and received an error: ' . htmlentities( $e->getMessage() );
-
-					return $result;
-				}
-			}
-			$result['ok']     = 1;
-			$result['reload'] = $reload;
-
-			return $result;
-		}
-	}
 
 	/**
 	 * Method export_settings()
@@ -3163,7 +2950,7 @@ SQL
 	public static function add_cache_exclusion() {
 		$ex = \wfConfig::get( 'cacheExclusions', false );
 		if ( $ex ) {
-			$ex = unserialize( $ex ); // phpcs:ignore -- third party credit.
+			$ex = unserialize( $ex ); // phpcs:ignore -- safe internal value, third party credit.
 		} else {
 			$ex = array();
 		}
@@ -3206,7 +2993,7 @@ SQL
 		if ( ! $ex ) {
 			return array( 'ex' => false );
 		}
-		$ex = unserialize( $ex ); // phpcs:ignore -- third party credit.
+		$ex = unserialize( $ex ); // phpcs:ignore -- safe internal value, third party.
 		return array(
 			'ok' => 1,
 			'ex' => $ex,
@@ -3228,7 +3015,7 @@ SQL
 		if ( ! $ex ) {
 			return array( 'ok' => 1 );
 		}
-		$ex              = unserialize( $ex ); // phpcs:ignore -- third party credit.
+		$ex              = unserialize( $ex ); // phpcs:ignore -- safe internal value, third party.
 		$rewriteHtaccess = false;
 		$removed         = false;
 		$count_ex        = count( $ex );

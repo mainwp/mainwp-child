@@ -423,7 +423,6 @@ class MainWP_Clone {
 					'f'           => $rand,
 					'wpversion'   => $wp_version,
 					'zipmethod'   => $method,
-					'json_result' => true,
 				)
 			);
 
@@ -483,7 +482,6 @@ class MainWP_Clone {
 					'cloneFunc'   => 'createCloneBackupPoll',
 					'key'         => $key,
 					'f'           => $rand,
-					'json_result' => true,
 				)
 			);
 
@@ -595,7 +593,6 @@ class MainWP_Clone {
 								'cloneFunc'   => 'deleteCloneBackup',
 								'key'         => $siteToClone['extauth'],
 								'f'           => $file,
-								'json_result' => true,
 							)
 						);
 					}

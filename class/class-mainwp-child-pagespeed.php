@@ -266,11 +266,9 @@ class MainWP_Child_Pagespeed {
 		if ( $checkstatus ) {
 			return array( 'result' => 'RUNNING' );
 		}
-
 		$information = array();
 
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
-		$settings = maybe_unserialize( base64_decode( $settings ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+		$settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 
 		if ( is_array( $settings ) ) {
 

@@ -579,7 +579,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @uses $updraftplus::schedule_backup_database()
      */
     public function save_settings() {
-        $settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
         $keys_filter = $this->get_settings_keys();
 
@@ -858,7 +858,7 @@ class MainWP_Child_Updraft_Plus_Backups {
             }
         }
 
-        $addons_options = isset( $_POST['addons_options'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['addons_options'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $addons_options = isset( $_POST['addons_options'] ) ? json_decode( base64_decode( wp_unslash( $_POST['addons_options'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         if ( ! is_array( $addons_options ) ) {
             $addons_options = array();
         }
@@ -4227,13 +4227,7 @@ ENDHERE;
      * @param string $txt Return Base64 Encoded output.
      */    
 	public function close_browser_connection($txt = '') {
-
-        if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-            $output = wp_json_encode( $txt );
-        else :
-            $output = serialize( $txt ); // phpcs:ignore -- to compatible.
-        endif;
-
+        $output = wp_json_encode( $txt );
         $txt = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		// Close browser connection so that it can resume AJAX polling

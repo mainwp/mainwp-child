@@ -526,8 +526,6 @@ class MainWP_Utility {
 			$postdata = array();
 		}
 
-		$postdata['json_result'] = true; // forced all response in json format.
-
 		// phpcs:disable WordPress.WP.AlternativeFunctions -- Custom functions required to achieve desired results, pull request solutions appreciated.
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, $url );
@@ -616,12 +614,7 @@ class MainWP_Utility {
 	 * @param array $val Array containing connection information.
 	 */
 	public static function close_connection( $val = null ) {
-		if ( isset( $_REQUEST['json_result'] ) && true == $_REQUEST['json_result'] ) :
-			$output = wp_json_encode( $val );
-		else :
-			$output = serialize( $val ); // phpcs:ignore -- Required for backwards compatibility.
-		endif;
-
+		$output = wp_json_encode( $val );
 		$output = '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
 		// Close browser connection so that it can resume AJAX polling.
 		header( 'Content-Length: ' . strlen( $output ) );
@@ -737,6 +730,9 @@ class MainWP_Utility {
 			if ( ! empty( $from ) ) {
 				$headers .= 'From: "' . $from . '" <' . $from . ">\r\n";
 			}
+
+			$headers = apply_filters( 'mainwp_child_contact_support_mail_headers', $headers, $email, $from );
+
 			$mail .= "<p>Support Email from: <a href='" . site_url() . "'>" . site_url() . "</a></p>\r\n\r\n";
 			$mail .= '<p>Sent from WordPress page: ' . ( ! empty( $from_page ) ? "<a href='" . esc_url( $from_page ) . "'>" . esc_url( $from_page ) . "</a></p>\r\n\r\n" : '' );
 			$mail .= '<p>Client Email: ' . $current_user->user_email . " </p>\r\n\r\n";
@@ -900,7 +896,9 @@ class MainWP_Utility {
 		$roles    = array();
 
 		foreach ( $wp_roles->get_names() as $role => $label ) {
-			$roles[ $role ] = translate_user_role( $label );
+			if ( is_string( $label ) ) {
+				$roles[ $role ] = translate_user_role( $label );
+			}
 		}
 
 		return $roles;

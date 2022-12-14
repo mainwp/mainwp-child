@@ -878,35 +878,17 @@ class MainWP_Backup {
 			$themes[] = $entry;
 		}
 		closedir( $fh );
-
-		if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
-			$string = wp_json_encode(
-				array(
-					'siteurl' => get_option( 'siteurl' ),
-					'home'    => get_option( 'home' ),
-					'abspath' => ABSPATH,
-					'prefix'  => $wpdb->prefix,
-					'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
-					'plugins' => $plugins,
-					'themes'  => $themes,
-				)
-			);
-		} else {
-			$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Safe requst, required for backwards compatibility.
-				serialize( // phpcs:ignore -- Safe requst, required for backwards compatibility.
-					array(
-						'siteurl' => get_option( 'siteurl' ),
-						'home'    => get_option( 'home' ),
-						'abspath' => ABSPATH,
-						'prefix'  => $wpdb->prefix,
-						'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
-						'plugins' => $plugins,
-						'themes'  => $themes,
-					)
-				)
-			);
-		}
-
+		$string = wp_json_encode(
+			array(
+				'siteurl' => get_option( 'siteurl' ),
+				'home'    => get_option( 'home' ),
+				'abspath' => ABSPATH,
+				'prefix'  => $wpdb->prefix,
+				'lang'    => defined( 'WPLANG' ) ? WPLANG : '',
+				'plugins' => $plugins,
+				'themes'  => $themes,
+			)
+		);
 		$this->add_file_from_string_to_zip( 'clone/config.txt', $string );
 	}
 
@@ -1049,29 +1031,15 @@ class MainWP_Backup {
 			 */
 			global $wpdb;
 
-			if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
-				$string = wp_json_encode(
-					array(
-						'siteurl' => get_option( 'siteurl' ),
-						'home'    => get_option( 'home' ),
-						'abspath' => ABSPATH,
-						'prefix'  => $wpdb->prefix,
-						'lang'    => WPLANG,
-					)
-				);
-			} else {
-				$string = base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Safe requst, required for backwards compatibility.
-					serialize( // phpcs:ignore -- Safe requst, required for backwards compatibility.
-						array(
-							'siteurl' => get_option( 'siteurl' ),
-							'home'    => get_option( 'home' ),
-							'abspath' => ABSPATH,
-							'prefix'  => $wpdb->prefix,
-							'lang'    => WPLANG,
-						)
-					)
-				);
-			}
+			$string = wp_json_encode(
+				array(
+					'siteurl' => get_option( 'siteurl' ),
+					'home'    => get_option( 'home' ),
+					'abspath' => ABSPATH,
+					'prefix'  => $wpdb->prefix,
+					'lang'    => WPLANG,
+				)
+			);
 
 			$this->add_file_from_string_to_pcl_zip( 'clone/config.txt', $string, $filepath );
 		}
