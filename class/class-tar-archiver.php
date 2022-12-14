@@ -499,7 +499,7 @@ class Tar_Archiver {
 				'themes'  => $themes,
 			)
 		);
-		
+
 		return $string;
 	}
 

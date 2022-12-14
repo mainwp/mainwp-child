@@ -1030,7 +1030,7 @@ class MainWP_Backup {
 			 * @global object $wpdb
 			 */
 			global $wpdb;
-			
+
 			$string = wp_json_encode(
 				array(
 					'siteurl' => get_option( 'siteurl' ),
@@ -1040,7 +1040,7 @@ class MainWP_Backup {
 					'lang'    => WPLANG,
 				)
 			);
-			
+
 			$this->add_file_from_string_to_pcl_zip( 'clone/config.txt', $string, $filepath );
 		}
 		// Remove backup folder.

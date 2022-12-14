@@ -65,7 +65,7 @@ class MainWP_Custom_Post_Type {
 		}
 
 		$data = wp_json_encode( $data );
-		
+
 		die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 	}
 

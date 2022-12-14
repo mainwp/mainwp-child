@@ -147,7 +147,6 @@ class MainWP_Child_Bulk_Settings_Manager {
 			),
 		);
 
-		
 		$skip_invalid_nonce = false;
 		if ( isset( $_REQUEST['skip_invalid_nonce'] ) && ! empty( $_REQUEST['skip_invalid_nonce'] ) ) {
 			$skip_invalid_nonce = true;
