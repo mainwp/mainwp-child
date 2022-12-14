@@ -736,7 +736,7 @@ class MainWP_Child_Actions {
 			'meta_data'   => $other_meta,
 			'new'         => $new_action,
 		);
-		$index     = time() . rand( 1000, 9999 );
+		$index     = time() . rand( 1000, 9999 ); // phpcs:ignore -- ok for index.
 		$this->update_actions_data( $index, $recordarr );
 
 		if ( 1 === $new_action ) {
