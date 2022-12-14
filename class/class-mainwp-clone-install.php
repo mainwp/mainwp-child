@@ -220,12 +220,7 @@ class MainWP_Clone_Install {
 		if ( false === $configContents ) {
 			throw new \Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
-		if ( defined( 'MAINWP_CHILD_DEBUG' ) && MAINWP_CHILD_DEBUG ) {
-			$this->config = wp_json_decode( $configContents );
-		} else {
-			$this->config = maybe_unserialize( base64_decode( $configContents ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
-		}
-
+		$this->config = wp_json_decode( $configContents );
 		if ( isset( $this->config['plugins'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $this->config['plugins'] );
 		}

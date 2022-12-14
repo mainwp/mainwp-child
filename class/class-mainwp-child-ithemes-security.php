@@ -365,7 +365,7 @@ class MainWP_Child_IThemes_Security {
 		$errors             = array();
 		$nbf_settings       = array();
 
-		$update_settings = isset( $_POST['settings'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['settings'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$update_settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
@@ -519,7 +519,7 @@ class MainWP_Child_IThemes_Security {
      * @uses \ITSEC_Modules::activate()
      */
     public static function activate_network_brute_force() {
-		$data        = isset( $_POST['data'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['data'] ) ) ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$data        = isset( $_POST['data'] ) ? json_decode( base64_decode( wp_unslash( $_POST['data'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$information = array();
 		if ( is_array( $data ) ) {
 			$settings                  = \ITSEC_Modules::get_settings( 'network-brute-force' );

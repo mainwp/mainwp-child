@@ -261,7 +261,8 @@ class MainWP_Child_Plugins_Check {
 
 		// If there wasn't a previous cache.
 		if ( false === $all_plugins || ! is_array( $all_plugins ) ) {
-			$plugins = get_plugins();
+			$all_plugins = array();
+			$plugins     = get_plugins();
 			if ( is_array( $plugins ) ) {
 				foreach ( $plugins as $slug => $plugin ) {
 					if ( isset( $plugin['Name'] ) && ! empty( $plugin['Name'] ) ) {

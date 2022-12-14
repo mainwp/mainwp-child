@@ -88,7 +88,7 @@ class MainWP_Child_Install {
 
 			foreach ( $plugins as $idx => $plugin ) {
 				if ( $plugin !== $mainWPChild->plugin_slug ) {
-					$thePlugin = get_plugin_data( $plugin );
+					$thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
 					if ( null !== $thePlugin && '' !== $thePlugin ) {
 						if ( 'quotes-collection/quotes-collection.php' == $plugin ) {
 							activate_plugin( $plugin, '', false, true );
@@ -103,7 +103,7 @@ class MainWP_Child_Install {
 
 			foreach ( $plugins as $idx => $plugin ) {
 				if ( $plugin !== $mainWPChild->plugin_slug ) {
-					$thePlugin = get_plugin_data( $plugin );
+					$thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
 					if ( null !== $thePlugin && '' !== $thePlugin ) {
 						deactivate_plugins( $plugin );
 					}
@@ -171,7 +171,7 @@ class MainWP_Child_Install {
 			if ( $plugin !== $mainWPChild->plugin_slug ) {
 				if ( isset( $all_plugins[ $plugin ] ) ) {
 					if ( is_plugin_active( $plugin ) ) {
-						$thePlugin = get_plugin_data( $plugin );
+						$thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
 						if ( null !== $thePlugin && '' !== $thePlugin ) {
 								deactivate_plugins( $plugin );
 						}

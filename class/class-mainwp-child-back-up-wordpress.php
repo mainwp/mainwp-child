@@ -1253,7 +1253,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 */
 	public function update_schedule() {
 		$sch_id  = isset( $_POST['schedule_id'] ) ? sanitize_text_field( rawurldecode( wp_unslash( $_POST['schedule_id'] ) ) ) : 0;
-		$options = isset( $_POST['options'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['options'] ) ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$options = isset( $_POST['options'] ) ? json_decode( base64_decode( wp_unslash( $_POST['options'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {
 			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );
@@ -1311,7 +1311,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function save_all_schedules() {
-		$schedules = isset( $_POST['all_schedules'] ) ? maybe_unserialize( base64_decode( wp_unslash( $_POST['all_schedules'] ) ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$schedules = isset( $_POST['all_schedules'] ) ? json_decode( base64_decode( wp_unslash( $_POST['all_schedules'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $schedules ) || empty( $schedules ) ) {
 			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );
