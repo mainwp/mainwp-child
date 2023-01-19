@@ -473,14 +473,14 @@ class MainWP_Child {
 	 *
 	 * On the plugins page add a link to the MainWP settings page.
 	 *
-	 * @param array $actions
+	 * @param array  $actions
 	 * @param string $plugin_file
 	 *
 	 * @return array
 	 */
-	public function plugin_settings_link($actions,$plugin_file) {
+	public function plugin_settings_link( $actions, $plugin_file ) {
 		$mainwp_plugin_file = ltrim(str_replace( WP_PLUGIN_DIR, '', MAINWP_CHILD_FILE), DIRECTORY_SEPARATOR);
-		if ($mainwp_plugin_file === $plugin_file) {
+		if ( $mainwp_plugin_file === $plugin_file ) {
 			$href          = admin_url( 'options-general.php?page=mainwp_child_tab' );
 			$settings_link = '<a href="' . $href . '">' . __( 'Settings' ) . '</a>'; // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
 			array_unshift( $actions, $settings_link );
