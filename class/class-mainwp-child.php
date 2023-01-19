@@ -87,6 +87,7 @@ class MainWP_Child {
 		add_action( 'init', array( &$this, 'parse_init' ), 9999 );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
+		add_action( 'plugin_action_links', array( &$this, 'plugin_settings_link' ), 10, 2 );
 
 		// support for better detection for premium plugins.
 		add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
@@ -467,4 +468,24 @@ class MainWP_Child {
 		}
 	}
 
+	/**
+	 * Method plugin_settings_link()
+	 *
+	 * On the plugins page add a link to the MainWP settings page.
+	 *
+	 * @param array $actions
+	 * @param string $plugin_file
+	 *
+	 * @return array
+	 */
+	public function plugin_settings_link($actions,$plugin_file) {
+		$mainwp_plugin_file = ltrim(str_replace( WP_PLUGIN_DIR, '', MAINWP_CHILD_FILE), DIRECTORY_SEPARATOR);
+		if ($mainwp_plugin_file === $plugin_file) {
+			$href          = admin_url( 'options-general.php?page=mainwp_child_tab' );
+			$settings_link = '<a href="' . $href . '">' . __( 'Settings' ) . '</a>'; // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
+			array_unshift( $actions, $settings_link );
+		}
+
+		return $actions;
+	}
 }
