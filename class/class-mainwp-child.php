@@ -10,7 +10,7 @@ namespace MainWP\Child;
 // phpcs:disable -- required for debugging.
 if ( isset( $_REQUEST['mainwpsignature'] ) ) {
 	// if not debug.
-	if ( ! defined('MAINWP_CHILD_DEBUG') || false == MAINWP_CHILD_DEBUG ) {
+	if ( ! defined( 'MAINWP_CHILD_DEBUG' ) || false == MAINWP_CHILD_DEBUG ) {
 		ini_set( 'display_errors', false );
 		error_reporting( 0 );
 	}
@@ -87,7 +87,7 @@ class MainWP_Child {
 		add_action( 'init', array( &$this, 'parse_init' ), 9999 );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
-		add_action( 'plugin_action_links', array( &$this, 'plugin_settings_link' ), 10, 2 );
+		add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
 
 		// support for better detection for premium plugins.
 		add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
@@ -186,11 +186,11 @@ class MainWP_Child {
 				'mainwp_child_actions_saved_number_of_days',
 
 			);
-			$query = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
+			$query    = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
 			foreach ( $options as $option ) {
 				$query .= "'" . $option . "', ";
 			}
-			$query  = substr( $query, 0, strlen( $query ) - 2 );
+			$query = substr( $query, 0, strlen( $query ) - 2 );
 			$query .= ")"; // phpcs:ignore -- simple style problem.
 
 			$alloptions_db = $wpdb->get_results( $query ); // phpcs:ignore -- safe query, required to achieve desired results, pull request solutions appreciated.
@@ -473,18 +473,14 @@ class MainWP_Child {
 	 *
 	 * On the plugins page add a link to the MainWP settings page.
 	 *
-	 * @param array $actions
-	 * @param string $plugin_file
+	 * @param array $actions An array of plugin action links. Should include `deactivate`.
 	 *
 	 * @return array
 	 */
-	public function plugin_settings_link($actions,$plugin_file) {
-		$mainwp_plugin_file = ltrim(str_replace( WP_PLUGIN_DIR, '', MAINWP_CHILD_FILE), DIRECTORY_SEPARATOR);
-		if ($mainwp_plugin_file === $plugin_file) {
-			$href          = admin_url( 'options-general.php?page=mainwp_child_tab' );
-			$settings_link = '<a href="' . $href . '">' . __( 'Settings' ) . '</a>'; // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
-			array_unshift( $actions, $settings_link );
-		}
+	public function plugin_settings_link( $actions ) {
+		$href          = admin_url( 'options-general.php?page=mainwp_child_tab' );
+		$settings_link = '<a href="' . $href . '">' . __( 'Settings' ) . '</a>'; // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
+		array_unshift( $actions, $settings_link );
 
 		return $actions;
 	}
