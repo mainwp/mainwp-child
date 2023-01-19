@@ -10,7 +10,7 @@ namespace MainWP\Child;
 // phpcs:disable -- required for debugging.
 if ( isset( $_REQUEST['mainwpsignature'] ) ) {
 	// if not debug.
-	if ( ! defined( 'MAINWP_CHILD_DEBUG' ) || false == MAINWP_CHILD_DEBUG ) {
+	if ( ! defined('MAINWP_CHILD_DEBUG') || false == MAINWP_CHILD_DEBUG ) {
 		ini_set( 'display_errors', false );
 		error_reporting( 0 );
 	}
@@ -186,11 +186,11 @@ class MainWP_Child {
 				'mainwp_child_actions_saved_number_of_days',
 
 			);
-			$query    = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
+			$query = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
 			foreach ( $options as $option ) {
 				$query .= "'" . $option . "', ";
 			}
-			$query = substr( $query, 0, strlen( $query ) - 2 );
+			$query  = substr( $query, 0, strlen( $query ) - 2 );
 			$query .= ")"; // phpcs:ignore -- simple style problem.
 
 			$alloptions_db = $wpdb->get_results( $query ); // phpcs:ignore -- safe query, required to achieve desired results, pull request solutions appreciated.
