@@ -79,7 +79,7 @@ class MainWP_Connect {
 
 		// Check if the user is valid & login.
 		if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
-			MainWP_Helper::instance()->error( sprintf( __( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://kb.mainwp.com/docs/cant-connect-website-getting-the-invalid-request-error-message/" target="_blank">', '</a></strong>' ) );
+			MainWP_Helper::instance()->error( sprintf( esc_html__( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://kb.mainwp.com/docs/cant-connect-website-getting-the-invalid-request-error-message/" target="_blank">', '</a></strong>' ) );
 		}
 
 		// Already added - can't readd. Deactivate plugin.
@@ -87,31 +87,31 @@ class MainWP_Connect {
 
 			// Set disconnect status to yes here, it will empty after reconnected.
 			MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
-			MainWP_Helper::instance()->error( __( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ) );
 		}
 
 		$uniqueId = MainWP_Helper::get_site_unique_id();
 		// Check the Unique Security ID.
 		if ( '' != $uniqueId ) {
 			if ( ! isset( $_POST['uniqueId'] ) || ( '' === $_POST['uniqueId'] ) ) {
-				MainWP_Helper::instance()->error( __( 'This child site is set to require a unique security ID. Please enter it before the connection can be established.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( esc_html__( 'This child site is set to require a unique security ID. Please enter it before the connection can be established.', 'mainwp-child' ) );
 			} elseif ( $uniqueId !== $_POST['uniqueId'] ) {
-				MainWP_Helper::instance()->error( __( 'The unique security ID mismatch! Please correct it before the connection can be established.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( esc_html__( 'The unique security ID mismatch! Please correct it before the connection can be established.', 'mainwp-child' ) );
 			}
 		}
 
 		// Check SSL Requirement.
 		if ( ! MainWP_Helper::is_ssl_enabled() && ( ! defined( 'MAINWP_ALLOW_NOSSL_CONNECT' ) || ! MAINWP_ALLOW_NOSSL_CONNECT ) ) {
-			MainWP_Helper::instance()->error( __( 'OpenSSL library is required on the child site to set up a secure connection.', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'OpenSSL library is required on the child site to set up a secure connection.', 'mainwp-child' ) );
 		}
 
 		// Check if the user exists and if yes, check if it's Administartor user.
 		if ( isset( $_POST['user'] ) ) {
 			if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
-				MainWP_Helper::instance()->error( __( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 			}
 			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! $current_user->has_cap( 'level_10' ) ) {
-				MainWP_Helper::instance()->error( __( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( esc_html__( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 			}
 		}
 
@@ -165,7 +165,7 @@ class MainWP_Connect {
 	public function parse_init_auth( $auth = false ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) { // with 'mainwpsignature' then need to callable functions.
-			MainWP_Helper::instance()->error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this child site and try again.', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this child site and try again.', 'mainwp-child' ) );
 		}
 
 		if ( ! $auth && isset( $_POST['function'] ) ) {
@@ -174,7 +174,7 @@ class MainWP_Connect {
 			$callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
 
 			if ( $callable && ! $callable_no_auth ) {
-				MainWP_Helper::instance()->error( __( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
 			}
 		}
 
@@ -213,11 +213,11 @@ class MainWP_Connect {
 				}
 
 				if ( ! $user ) {
-					MainWP_Helper::instance()->error( __( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+					MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 				}
 
 				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
-					MainWP_Helper::instance()->error( __( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
+					MainWP_Helper::instance()->error( esc_html__( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 				}
 
 				// try to login.
@@ -504,7 +504,7 @@ class MainWP_Connect {
 		$auth = self::instance()->auth( $mainwpsignature, $function, $nonce, $nossl );
 
 		if ( ! $auth ) {
-			MainWP_Helper::instance()->error( __( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate and re-activate the MainWP Child plugin on this site.', 'mainwp-child' ) );
 		}
 		$auth_user = false;
 		if ( $auth ) {
@@ -527,10 +527,10 @@ class MainWP_Connect {
 					$auth_user = $uname;
 				}
 				if ( ! $user ) {
-					MainWP_Helper::instance()->error( __( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+					MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 				}
 				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
-					MainWP_Helper::instance()->error( __( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
+					MainWP_Helper::instance()->error( esc_html__( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 				}
 				$this->login( $auth_user );
 			}

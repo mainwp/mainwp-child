@@ -479,13 +479,33 @@ class MainWP_Child_Server_Information_Base {
 	}
 
 	/**
+	 * Get db size.
+	 *
+	 * @return string Return current db size.
+	 */
+	public static function get_db_size() {
+		global $wpdb;
+		$sql = $wpdb->prepare(
+			'SELECT
+		ROUND(SUM(DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2)
+		FROM INFORMATION_SCHEMA.TABLES
+		WHERE
+		TABLE_SCHEMA = %s',
+			$wpdb->dbname
+		);
+
+		$dbsize_mb = $wpdb->get_var( $sql ); // phpcs:ignore unprepared SQL.
+		return $dbsize_mb;
+	}
+
+	/**
 	 * Get the current Memory usage.
 	 */
 	protected static function memory_usage() {
 		if ( function_exists( 'memory_get_usage' ) ) {
 			$memory_usage = round( memory_get_usage() / 1024 / 1024, 2 ) . ' MB';
 		} else {
-			$memory_usage = __( 'N/A', 'mainwp-child' );
+			$memory_usage = esc_html__( 'N/A', 'mainwp-child' );
 		}
 		echo esc_html( $memory_usage );
 	}
@@ -504,9 +524,9 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_php_safe_mode() {
 		if ( version_compare( phpversion(), '5.3.0' ) < 0 && ini_get( 'safe_mode' ) ) {
-			$safe_mode = __( 'ON', 'mainwp-child' );
+			$safe_mode = esc_html__( 'ON', 'mainwp-child' );
 		} else {
-			$safe_mode = __( 'OFF', 'mainwp-child' );
+			$safe_mode = esc_html__( 'OFF', 'mainwp-child' );
 		}
 		echo esc_html( $safe_mode );
 	}
@@ -528,7 +548,7 @@ class MainWP_Child_Server_Information_Base {
 			$sql_mode = $mysqlinfo[0]->Value;
 		}
 		if ( empty( $sql_mode ) ) {
-			$sql_mode = __( 'NOT SET', 'mainwp-child' );
+			$sql_mode = esc_html__( 'NOT SET', 'mainwp-child' );
 		}
 		echo esc_html( $sql_mode );
 	}
@@ -538,9 +558,9 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_php_allow_url_fopen() {
 		if ( ini_get( 'allow_url_fopen' ) ) {
-			$allow_url_fopen = __( 'ON', 'mainwp-child' );
+			$allow_url_fopen = esc_html__( 'ON', 'mainwp-child' );
 		} else {
-			$allow_url_fopen = __( 'OFF', 'mainwp-child' );
+			$allow_url_fopen = esc_html__( 'OFF', 'mainwp-child' );
 		}
 		echo esc_html( $allow_url_fopen );
 	}
@@ -550,9 +570,9 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_php_exif() {
 		if ( is_callable( 'exif_read_data' ) ) {
-			$exif = __( 'YES', 'mainwp-child' ) . ' ( V' . substr( phpversion( 'exif' ), 0, 4 ) . ')';
+			$exif = esc_html__( 'YES', 'mainwp-child' ) . ' ( V' . substr( phpversion( 'exif' ), 0, 4 ) . ')';
 		} else {
-			$exif = __( 'NO', 'mainwp-child' );
+			$exif = esc_html__( 'NO', 'mainwp-child' );
 		}
 		echo esc_html( $exif );
 	}
@@ -562,9 +582,9 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_php_ip_tc() {
 		if ( is_callable( 'iptcparse' ) ) {
-			$iptc = __( 'YES', 'mainwp-child' );
+			$iptc = esc_html__( 'YES', 'mainwp-child' );
 		} else {
-			$iptc = __( 'NO', 'mainwp-child' );
+			$iptc = esc_html__( 'NO', 'mainwp-child' );
 		}
 		echo esc_html( $iptc );
 	}
@@ -574,9 +594,9 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_php_xml() {
 		if ( is_callable( 'xml_parser_create' ) ) {
-			$xml = __( 'YES', 'mainwp-child' );
+			$xml = esc_html__( 'YES', 'mainwp-child' );
 		} else {
-			$xml = __( 'NO', 'mainwp-child' );
+			$xml = esc_html__( 'NO', 'mainwp-child' );
 		}
 		echo esc_html( $xml );
 	}
@@ -662,7 +682,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Check if HTTPS is on.
 	 */
 	protected static function get_https() {
-		echo ! empty( $_SERVER['HTTPS'] ) ? esc_html( __( 'ON', 'mainwp-child' ) . ' - ' . sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ) ) : esc_html__( 'OFF', 'mainwp-child' );
+		echo ! empty( $_SERVER['HTTPS'] ) ? esc_html( esc_html__( 'ON', 'mainwp-child' ) . ' - ' . sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ) ) : esc_html__( 'OFF', 'mainwp-child' );
 	}
 
 	/**
@@ -680,19 +700,19 @@ class MainWP_Child_Server_Information_Base {
 		$response    = wp_remote_post( $url, $args );
 		$test_result = '';
 		if ( is_wp_error( $response ) ) {
-			$test_result .= sprintf( __( 'The HTTP response test get an error "%s"', 'mainwp-child' ), $response->get_error_message() );
+			$test_result .= sprintf( esc_html__( 'The HTTP response test get an error "%s"', 'mainwp-child' ), $response->get_error_message() );
 		}
 		$response_code = wp_remote_retrieve_response_code( $response );
 		if ( $response_code < 200 && $response_code > 204 ) {
-			$test_result .= sprintf( __( 'The HTTP response test get a false http status (%s)', 'mainwp-child' ), wp_remote_retrieve_response_code( $response ) );
+			$test_result .= sprintf( esc_html__( 'The HTTP response test get a false http status (%s)', 'mainwp-child' ), wp_remote_retrieve_response_code( $response ) );
 		} else {
 			$response_body = wp_remote_retrieve_body( $response );
 			if ( false === strstr( $response_body, 'MainWP Test' ) ) {
-				$test_result .= sprintf( __( 'Not expected HTTP response body: %s', 'mainwp-child' ), esc_attr( wp_strip_all_tags( $response_body ) ) );
+				$test_result .= sprintf( esc_html__( 'Not expected HTTP response body: %s', 'mainwp-child' ), esc_attr( wp_strip_all_tags( $response_body ) ) );
 			}
 		}
 		if ( empty( $test_result ) ) {
-			_e( 'Response Test O.K.', 'mainwp-child' );
+			esc_html_e( 'Response Test O.K.', 'mainwp-child' );
 		} else {
 			echo $test_result;
 		}

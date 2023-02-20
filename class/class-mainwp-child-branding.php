@@ -77,7 +77,7 @@ class MainWP_Child_Branding {
 		}
 
 		if ( ! isset( $opts['contact_label'] ) || empty( $opts['contact_label'] ) ) {
-			$opts['contact_label'] = __( 'Contact Support', 'mainwp-child' );
+			$opts['contact_label'] = esc_html__( 'Contact Support', 'mainwp-child' );
 		}
 
 		$disconnected       = isset( $opts['branding_disconnected'] ) ? $opts['branding_disconnected'] : '';

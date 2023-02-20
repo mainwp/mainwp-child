@@ -393,6 +393,9 @@ class MainWP_Child {
 		MainWP_Child_Pagespeed::instance()->init();
 		MainWP_Child_Links_Checker::instance()->init();
 		MainWP_Child_WPvivid_BackupRestore::instance()->init();
+		MainWP_Child_DB_Updater::instance();
+		MainWP_Child_Jetpack_Protect::instance();
+		MainWP_Child_Jetpack_Scan::instance();
 	}
 
 	/**

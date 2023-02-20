@@ -235,6 +235,7 @@ class MainWP_Child_IThemes_Security {
 		MainWP_Helper::write( $information );
 	}
 
+	
     /**
      * Set show or hide UpdraftPlus Plugin from Admin & plugins list.
      *
@@ -406,7 +407,7 @@ class MainWP_Child_IThemes_Security {
 					if ( isset( $settings['enabled'] ) && ! empty( $settings['enabled'] ) ) {
 						$permalink_structure = get_option( 'permalink_structure', false );
 						if ( empty( $permalink_structure ) && ! is_multisite() ) {
-							$errors[]           = __( 'You must change <strong>WordPress permalinks</strong> to a setting other than "Plain" in order to use "Hide Backend" feature.', 'mainwp-child' );
+							$errors[]           = esc_html__( 'You must change <strong>WordPress permalinks</strong> to a setting other than "Plain" in order to use "Hide Backend" feature.', 'mainwp-child' );
 							$require_permalinks = true;
 							$do_not_save        = true;
 						}
@@ -504,7 +505,7 @@ class MainWP_Child_IThemes_Security {
 		if ( $updated ) {
 			$return['result'] = 'success';
 		} else {
-			$return['error'] = __( 'Not Updated', 'mainwp-child' );
+			$return['error'] = esc_html__( 'Not Updated', 'mainwp-child' );
 		}
 
 		return $return;
@@ -566,7 +567,7 @@ class MainWP_Child_IThemes_Security {
 		}
 
 		if ( empty( $error ) && ! \ITSEC_Lib_Directory::is_writable( $folder ) ) {
-			$error = sprintf( __( 'The directory supplied in %1$s is not writable. Please select a directory that can be written to.', 'mainwp-child' ), $name );
+			$error = sprintf( esc_html__( 'The directory supplied in %1$s is not writable. Please select a directory that can be written to.', 'mainwp-child' ), $name );
 		}
 
 		if ( empty( $error ) ) {
@@ -703,8 +704,8 @@ class MainWP_Child_IThemes_Security {
 			);
 			add_site_option( 'itsec_temp_whitelist_ip', $response );
 			$response['exp_diff'] = human_time_diff( $itsec_globals['current_time'], $response['exp'] );
-			$response['message1'] = __( 'Your IP Address', 'mainwp-child' );
-			$response['message2'] = __( 'is whitelisted for', 'mainwp-child' );
+			$response['message1'] = esc_html__( 'Your IP Address', 'mainwp-child' );
+			$response['message2'] = esc_html__( 'is whitelisted for', 'mainwp-child' );
 
 			return $response;
 		}
@@ -760,7 +761,7 @@ class MainWP_Child_IThemes_Security {
 			$return['result']  = 'success';
 			$return['message'] = $result;
 		} else {
-			$str_error = sprintf( __( 'The backup request returned an unexpected response. It returned a response of type <code>%1$s</code>.', 'mainwp-child' ), gettype( $result ) );
+			$str_error = sprintf( esc_html__( 'The backup request returned an unexpected response. It returned a response of type <code>%1$s</code>.', 'mainwp-child' ), gettype( $result ) );
 		}
 
 		if ( ! empty( $str_error ) ) {
@@ -799,7 +800,7 @@ class MainWP_Child_IThemes_Security {
 			}
 		} else {
 			$return['result']  = 'success';
-			$return['message'] = __( 'The WordPress salts were successfully regenerated.', 'mainwp-child' );
+			$return['message'] = esc_html__( 'The WordPress salts were successfully regenerated.', 'mainwp-child' );
 			$last_generated    = \ITSEC_Core::get_current_time_gmt();
 			\ITSEC_Modules::set_setting( 'wordpress-salts', 'last_generated', $last_generated );
 		}
@@ -888,10 +889,10 @@ class MainWP_Child_IThemes_Security {
 				$row[]       = sprintf( '%o', $permissions );
 
 				if ( ! $permissions || $permissions != $suggested_permissions ) {
-					$row[] = __( 'WARNING', 'mainwp-child' );
+					$row[] = esc_html__( 'WARNING', 'mainwp-child' );
 					$row[] = '<div style="background-color: #FEFF7F; border: 1px solid #E2E2E2;">&nbsp;&nbsp;&nbsp;</div>';
 				} else {
-					$row[] = __( 'OK', 'mainwp-child' );
+					$row[] = esc_html__( 'OK', 'mainwp-child' );
 					$row[] = '<div style="background-color: #22EE5B; border: 1px solid #E2E2E2;">&nbsp;&nbsp;&nbsp;</div>';
 				}
 
@@ -1003,7 +1004,7 @@ class MainWP_Child_IThemes_Security {
 			global $current_user;
 
 			if ( ! $username_exists ) {
-				$msg = __( 'Admin user already changes.', 'mainwp-child' );
+				$msg = esc_html__( 'Admin user already changes.', 'mainwp-child' );
 			} elseif ( 'admin' == $current_user->user_login ) {
 				$return['result'] = 'CHILD_ADMIN';
 				return $return;
@@ -1014,7 +1015,7 @@ class MainWP_Child_IThemes_Security {
 			if ( ! empty( $msg ) ) {
 				$msg .= '<br/>';
 			}
-			$msg .= __( 'Admin user ID already changes.', 'mainwp-child' );
+			$msg .= esc_html__( 'Admin user ID already changes.', 'mainwp-child' );
 		}
 
 		$admin_success = true;
@@ -1213,7 +1214,7 @@ class MainWP_Child_IThemes_Security {
 				$return['error'] = $str_error;
 			} else {
 				$return['result']  = 'success';
-				$return['message'] = sprintf( __( 'The database table prefix was successfully changed to <code>%1$s</code>.', 'mainwp-child' ), $result['new_prefix'] );
+				$return['message'] = sprintf( esc_html__( 'The database table prefix was successfully changed to <code>%1$s</code>.', 'mainwp-child' ), $result['new_prefix'] );
 
 			}
 		}
@@ -1471,7 +1472,7 @@ class MainWP_Child_IThemes_Security {
 		}
 
 		$type    = 'updated';
-		$message = __( 'The selected lockouts have been cleared.', 'mainwp-child' );
+		$message = esc_html__( 'The selected lockouts have been cleared.', 'mainwp-child' );
 
 		foreach ( $lockout_ids as $value ) {
 			$wpdb->update(
@@ -1637,7 +1638,7 @@ class MainWP_Child_IThemes_Security {
 
 				foreach ( $users as $user ) {
 					/* translators: 1: user display name, 2: user login */
-					$available_users[ $user->ID ] = sprintf( __( '%1$s (%2$s)', 'mainwp-child' ), $user->display_name, $user->user_login );
+					$available_users[ $user->ID ] = sprintf( esc_html__( '%1$s (%2$s)', 'mainwp-child' ), $user->display_name, $user->user_login );
 				}
 			}
 		}

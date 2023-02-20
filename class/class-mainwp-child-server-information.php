@@ -539,7 +539,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<div class="updated below-h2">
 				<p><?php esc_html_e( 'Please include this information when requesting support:', 'mainwp-child' ); ?></p>
 				<span class="mwp_child_close_srv_info">
-					<a href="#" id="mwp_child_download_srv_info"><?php esc_html_e( 'Download', 'mainwp-child' ); ?></a> | <a href="#" id="mwp_child_close_srv_info"><i class="fa fa-eye-slash"></i> <?php _e( 'Hide', 'mainwp-child' ); ?></a>
+					<a href="#" id="mwp_child_download_srv_info"><?php esc_html_e( 'Download', 'mainwp-child' ); ?></a> | <a href="#" id="mwp_child_close_srv_info"><i class="fa fa-eye-slash"></i> <?php esc_html_e( 'Hide', 'mainwp-child' ); ?></a>
 				</span>
 				<p class="submit">
 					<a class="button-primary mwp-child-get-system-report-btn" href="#"><?php esc_html_e( 'Get system report', 'mainwp-child' ); ?></a>
@@ -625,7 +625,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		</tr>
 		<tr>
 			<td></td>
-			<td><?php echo esc_html( stripslashes( $branding_title ) ) . ' ' . __( 'Version', 'mainwp-chil' ); ?></td>
+			<td><?php echo esc_html( stripslashes( $branding_title ) ) . ' ' . esc_html__( 'Version', 'mainwp-chil' ); ?></td>
 			<td><?php echo esc_html( self::get_mainwp_version() ); ?></td>
 			<td><?php echo esc_html( self::get_current_version() ); ?></td>
 			<td><?php echo esc_html( self::render_mainwp_version_check() ); ?></td>
@@ -710,7 +710,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				'curlssl'
 			);
 			if ( ! self::curlssl_compare( $openssl_version, '>=' ) ) {
-				echo "<tr style=\"background:#fffaf3\"><td colspan='5'><span class=\"mainwp-warning\"><i class='fa fa-exclamation-circle'>" . sprintf( __( 'Your host needs to update OpenSSL to at least version 1.1.0 which is already over 4 years old and contains patches for over 60 vulnerabilities.%1$sThese range from Denial of Service to Remote Code Execution. %2$sClick here for more information.%3$s', 'mainwp' ), '<br/>', '<a href="https://community.letsencrypt.org/t/openssl-client-compatibility-changes-for-let-s-encrypt-certificates/143816" target="_blank">', '</a>' ) . '</span></td></tr>';
+				echo "<tr style=\"background:#fffaf3\"><td colspan='5'><span class=\"mainwp-warning\"><i class='fa fa-exclamation-circle'>" . sprintf( esc_html__( 'Your host needs to update OpenSSL to at least version 1.1.0 which is already over 4 years old and contains patches for over 60 vulnerabilities.%1$sThese range from Denial of Service to Remote Code Execution. %2$sClick here for more information.%3$s', 'mainwp' ), '<br/>', '<a href="https://community.letsencrypt.org/t/openssl-client-compatibility-changes-for-let-s-encrypt-certificates/143816" target="_blank">', '</a>' ) . '</span></td></tr>';
 			}
 		}
 	}
@@ -753,7 +753,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	private static function render_plugins_infor_rows( $branding_title ) {
 		?>
 		<tr>
-			<td style="background: #333; color: #fff;" colspan="5"><?php _e( 'WordPress PLUGINS', 'mainwp-child' ); ?></td>
+			<td style="background: #333; color: #fff;" colspan="5"><?php esc_html_e( 'WordPress PLUGINS', 'mainwp-child' ); ?></td>
 		</tr>
 		<?php
 		$all_plugins = get_plugins();
@@ -770,7 +770,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				<td></td>
 				<td><?php echo esc_html( $plugin['Name'] ); ?></td>
 				<td><?php echo esc_html( $plugin['Version'] ); ?></td>
-				<td><?php echo is_plugin_active( $slug ) ? __( 'Active', 'mainwp-child' ) : __( 'Inactive', 'mainwp-child' ); ?></td>
+				<td><?php echo is_plugin_active( $slug ) ? esc_html__( 'Active', 'mainwp-child' ) : esc_html__( 'Inactive', 'mainwp-child' ); ?></td>
 				<td></td>
 			</tr>
 			<?php
@@ -1382,43 +1382,43 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		$uniqueId = MainWP_Helper::get_site_unique_id();
 		$details  = array(
 			'siteurl'       => array(
-				'title' => __( 'Site URL', 'mainwp-child' ),
+				'title' => esc_html__( 'Site URL', 'mainwp-child' ),
 				'value' => get_bloginfo( 'url' ),
 				'desc'  => get_bloginfo( 'url' ),
 			),
 			'adminuser'     => array(
-				'title' => __( 'Administrator name', 'mainwp-child' ),
+				'title' => esc_html__( 'Administrator name', 'mainwp-child' ),
 				'value' => $current_user->user_login,
-				'desc'  => __( 'This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child' ),
+				'desc'  => esc_html__( 'This is your Administrator username, however, you can use any existing Administrator username.', 'mainwp-child' ),
 			),
 			'friendly_name' => array(
-				'title' => __( 'Friendly site name', 'mainwp-child' ),
+				'title' => esc_html__( 'Friendly site name', 'mainwp-child' ),
 				'value' => get_bloginfo( 'name' ),
-				'desc'  => __( 'For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child' ),
+				'desc'  => esc_html__( 'For the friendly site name, you can use any name, this is just a suggestion.', 'mainwp-child' ),
 			),
 			'uniqueid'      => array(
-				'title' => __( 'Child unique security id', 'mainwp-child' ),
-				'value' => ! empty( $uniqueId ) ? $uniqueId : __( 'Leave the field blank', 'mainwp-child' ),
-				'desc'  => sprintf( __( 'Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child' ), stripslashes( $branding_title ) ),
+				'title' => esc_html__( 'Child unique security id', 'mainwp-child' ),
+				'value' => ! empty( $uniqueId ) ? $uniqueId : esc_html__( 'Leave the field blank', 'mainwp-child' ),
+				'desc'  => sprintf( esc_html__( 'Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child' ), stripslashes( $branding_title ) ),
 			),
 			'verify_ssl'    => array(
-				'title' => __( 'Verify certificate', 'mainwp-child' ),
-				'value' => __( 'Yes', 'mainwp-child' ),
-				'desc'  => __( 'If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child' ),
+				'title' => esc_html__( 'Verify certificate', 'mainwp-child' ),
+				'value' => esc_html__( 'Yes', 'mainwp-child' ),
+				'desc'  => esc_html__( 'If there is an issue with SSL certificate on this site, try to set this option to No.', 'mainwp-child' ),
 			),
 			'ssl_version'   => array(
-				'title' => __( 'SSL version', 'mainwp-child' ),
-				'value' => __( 'Auto Detect', 'mainwp-child' ),
-				'desc'  => __( 'Auto Detect', 'mainwp-child' ),
+				'title' => esc_html__( 'SSL version', 'mainwp-child' ),
+				'value' => esc_html__( 'Auto Detect', 'mainwp-child' ),
+				'desc'  => esc_html__( 'Auto Detect', 'mainwp-child' ),
 			),
 
 		);
 		?>
 		<div class="postbox" id="connection_detail">
-			<h3 class="mainwp_box_title"><span><?php _e( 'Connection details', 'mainwp-child' ); ?></span></h3>
+			<h3 class="mainwp_box_title"><span><?php esc_html_e( 'Connection details', 'mainwp-child' ); ?></span></h3>
 			<div class="inside">
 				<div class="mainwp-postbox-actions-top mainwp-padding-5">
-					<?php echo sprintf( __( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), stripslashes( $branding_title ) ); ?>
+					<?php echo sprintf( esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), stripslashes( $branding_title ) ); ?>
 				</div>
 				<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
 					<tbody>

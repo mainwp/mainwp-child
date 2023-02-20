@@ -92,6 +92,9 @@ class MainWP_Child_Callable {
 		'wpvivid_backuprestore' => 'wpvivid_backuprestore',
 		'check_abandoned'       => 'check_abandoned',
 		'wp_seopress'           => 'wp_seopress',
+		'db_updater'            => 'db_updater',
+		'jetpack_protect'       => 'jetpack_protect',
+		'jetpack_scan'          => 'jetpack_scan',
 	);
 
 	/**
@@ -172,7 +175,7 @@ class MainWP_Child_Callable {
 			MainWP_Utility::fix_for_custom_themes();
 			$this->call_function_no_auth( $call_func );
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
-			MainWP_Helper::instance()->error( __( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
 		}
 	}
 
@@ -873,7 +876,7 @@ class MainWP_Child_Callable {
 	 */
 	public function backup_wp() {
 		if ( ! version_compare( phpversion(), '5.3', '>=' ) ) {
-			$error = sprintf( __( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
+			$error = sprintf( esc_html__( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
 			MainWP_Helper::write( array( 'error' => $error ) );
 		}
 		MainWP_Child_Back_Up_WordPress::instance()->action();
@@ -900,6 +903,36 @@ class MainWP_Child_Callable {
 	public function backwpup() {
 		MainWP_Child_Back_WP_Up::instance()->action();
 	}
+
+
+	/**
+	 * Method db_updater()
+	 *
+	 * Fire off the action() function.
+	 */
+	public function db_updater() {
+		MainWP_Child_DB_Updater::instance()->action();
+	}
+
+	/**
+	 * Method jetpack_protect()
+	 *
+	 * Fire off the action() function.
+	 */
+	public function jetpack_protect() {
+		MainWP_Child_Jetpack_Protect::instance()->action();
+	}
+
+
+	/**
+	 * Method jetpack_scan()
+	 *
+	 * Fire off the action() function.
+	 */
+	public function jetpack_scan() {
+		MainWP_Child_Jetpack_Scan::instance()->action();
+	}
+
 
 	/**
 	 * Method delete_backup()

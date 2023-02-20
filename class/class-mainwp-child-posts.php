@@ -737,7 +737,7 @@ class MainWP_Child_Posts {
 			$user_id = wp_check_post_lock( $edit_post_id );
 			if ( $user_id ) {
 				$user  = get_userdata( $user_id );
-				$error = sprintf( __( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
+				$error = sprintf( esc_html__( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
 				return array( 'error' => $error );
 			}
 		}
@@ -850,6 +850,14 @@ class MainWP_Child_Posts {
 
 		// Set up a new post (adding additional information).
 		$new_post['post_author'] = isset( $new_post['post_author'] ) && ! empty( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
+
+		if ( isset( $new_post['post_title'] ) ) {
+			$new_post['post_title'] = htmlspecialchars( $new_post['post_title'] );
+		}
+
+		if ( isset( $new_post['post_excerpt'] ) ) {
+			$new_post['post_excerpt'] = MainWP_Utility::esc_content( $new_post['post_excerpt'], 'mixed' );
+		}
 
 		if ( isset( $new_post['custom_post_author'] ) && ! empty( $new_post['custom_post_author'] ) ) {
 			$_author = get_user_by( 'login', $new_post['custom_post_author'] );
@@ -1457,9 +1465,9 @@ class MainWP_Child_Posts {
 						wp_update_post(
 							array(
 								'ID'           => $upload['id'],
-								'post_excerpt' => $_image_data['caption'],
+								'post_excerpt' => MainWP_Utility::esc_content( $_image_data['caption'], 'mixed' ),
 								'post_content' => $_image_data['description'],
-								'post_title'   => $_image_data['title'],
+								'post_title'   => htmlspecialchars( $_image_data['title'] ),
 							)
 						);
 					}

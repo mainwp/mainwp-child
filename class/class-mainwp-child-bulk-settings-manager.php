@@ -273,7 +273,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
 		if ( ! is_array( $settings ) || empty( $settings ) ) {
-			return array( 'error' => __( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
+			return array( 'error' => esc_html__( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
 		}
 
 		$whitelist_options = array(

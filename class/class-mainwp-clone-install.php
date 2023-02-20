@@ -156,13 +156,13 @@ class MainWP_Clone_Install {
 	 */
 	public function test_download() {
 		if ( ! $this->file_exists( 'wp-content/' ) ) {
-			throw new \Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
+			throw new \Exception( esc_html__( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-admin/' ) ) {
-			throw new \Exception( __( 'This is not a full backup.', 'mainwp-child' ) );
+			throw new \Exception( esc_html__( 'This is not a full backup.', 'mainwp-child' ) );
 		}
 		if ( ! $this->file_exists( 'wp-content/dbBackup.sql' ) ) {
-			throw new \Exception( __( 'Database backup is missing.', 'mainwp-child' ) );
+			throw new \Exception( esc_html__( 'Database backup is missing.', 'mainwp-child' ) );
 		}
 	}
 
@@ -218,9 +218,9 @@ class MainWP_Clone_Install {
 	public function read_configuration_file() {
 		$configContents = $this->get_config_contents();
 		if ( false === $configContents ) {
-			throw new \Exception( __( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
+			throw new \Exception( esc_html__( 'Cant read configuration file from the backup.', 'mainwp-child' ) );
 		}
-		$this->config = wp_json_decode( $configContents );
+		$this->config = json_decode( $configContents, 1 );
 		if ( isset( $this->config['plugins'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $this->config['plugins'] );
 		}
@@ -372,7 +372,7 @@ class MainWP_Clone_Install {
 				}
 
 				if ( ! feof( $handle ) ) {
-					throw new \Exception( __( 'Error: unexpected end of file for database.', 'mainwp-child' ) );
+					throw new \Exception( esc_html__( 'Error: unexpected end of file for database.', 'mainwp-child' ) );
 				}
 				fclose( $handle );
 			}

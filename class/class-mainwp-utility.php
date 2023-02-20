@@ -430,9 +430,9 @@ class MainWP_Utility {
 		$wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
 		$attachment  = array(
 			'post_mime_type' => $wp_filetype['type'],
-			'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? $img_data['title'] : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
+			'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? htmlspecialchars( $img_data['title'] ) : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
 			'post_content'   => isset( $img_data['description'] ) && ! empty( $img_data['description'] ) ? $img_data['description'] : '',
-			'post_excerpt'   => isset( $img_data['caption'] ) && ! empty( $img_data['caption'] ) ? $img_data['caption'] : '',
+			'post_excerpt'   => isset( $img_data['caption'] ) && ! empty( $img_data['caption'] ) ? self::esc_content( $img_data['caption'], 'mixed' ) : '',
 			'post_status'    => 'inherit',
 			'guid'           => $local_img_url,
 		);
@@ -549,9 +549,9 @@ class MainWP_Utility {
 			$information = json_decode( $result_base, true );
 			return $information;
 		} elseif ( '' === $data ) {
-			throw new \Exception( __( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
+			throw new \Exception( esc_html__( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
 		} else {
-			throw new \Exception( __( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
+			throw new \Exception( esc_html__( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
 		}
 		// phpcs:enable
 	}
@@ -920,5 +920,155 @@ class MainWP_Utility {
 			return $str;
 		}
 		return $decoded;
+	}
+
+
+	/**
+	 * Method esc_content()
+	 *
+	 * Escape content,
+	 * allowed content (a,href,title,br,em,strong,p,hr,ul,ol,li,h1,h2 ... ).
+	 *
+	 * @param mixed  $content Content to escape.
+	 * @param string $type Type of content. Default = note.
+	 * @param mixed  $more_allowed input allowed tags - options.
+	 *
+	 * @return string Filtered content containing only the allowed HTML.
+	 */
+	public static function esc_content( $content, $type = 'note', $more_allowed = array() ) {
+		if ( ! is_string( $content ) ) {
+			return $content;
+		}
+
+		if ( 'note' === $type ) {
+
+			$allowed_html = array(
+				'a'      => array(
+					'href'  => array(),
+					'title' => array(),
+				),
+				'br'     => array(),
+				'em'     => array(),
+				'strong' => array(),
+				'p'      => array(),
+				'hr'     => array(),
+				'ul'     => array(),
+				'ol'     => array(),
+				'li'     => array(),
+				'h1'     => array(),
+				'h2'     => array(),
+			);
+
+			if ( is_array( $more_allowed ) && ! empty( $more_allowed ) ) {
+				$allowed_html = array_merge( $allowed_html, $more_allowed );
+			}
+
+			$content = wp_kses( $content, $allowed_html );
+
+		} elseif ( 'mixed' == $type ) {
+
+			$allowed_html = array(
+				'a'      => array(
+					'href'    => array(),
+					'title'   => array(),
+					'class'   => array(),
+					'onclick' => array(),
+				),
+				'img'    => array(
+					'src'     => array(),
+					'title'   => array(),
+					'class'   => array(),
+					'onclick' => array(),
+					'alt'     => array(),
+					'width'   => array(),
+					'height'  => array(),
+					'sizes'   => array(),
+					'srcset'  => array(),
+					'usemap'  => array(),
+				),
+				'br'     => array(),
+				'em'     => array(),
+				'strong' => array(),
+				'p'      => array(),
+				'hr'     => array(),
+				'ul'     => array(
+					'style' => array(),
+				),
+				'ol'     => array(),
+				'li'     => array(),
+				'h1'     => array(),
+				'h2'     => array(),
+				'head'   => array(),
+				'html'   => array(
+					'lang' => array(),
+				),
+				'meta'   => array(
+					'name'       => array(),
+					'http-equiv' => array(),
+					'content'    => array(),
+					'charset'    => array(),
+				),
+				'title'  => array(),
+				'body'   => array(
+					'style' => array(),
+				),
+				'span'   => array(
+					'id'    => array(),
+					'style' => array(),
+					'class' => array(),
+				),
+				'form'   => array(
+					'id'       => array(),
+					'method'   => array(),
+					'action'   => array(),
+					'onsubmit' => array(),
+				),
+				'table'  => array(
+					'class' => array(),
+				),
+				'thead'  => array(
+					'class' => array(),
+				),
+				'tbody'  => array(
+					'class' => array(),
+				),
+				'tr'     => array(
+					'id' => array(),
+				),
+				'td'     => array(
+					'class' => array(),
+				),
+				'div'    => array(
+					'id'    => array(),
+					'style' => array(),
+					'class' => array(),
+				),
+				'input'  => array(
+					'type'    => array(),
+					'name'    => array(),
+					'class'   => array(),
+					'value'   => array(),
+					'onclick' => array(),
+				),
+				'button' => array(
+					'type'    => array(),
+					'name'    => array(),
+					'value'   => array(),
+					'class'   => array(),
+					'title'   => array(),
+					'onclick' => array(),
+				),
+			);
+
+			if ( is_array( $more_allowed ) && ! empty( $more_allowed ) ) {
+				$allowed_html = array_merge( $allowed_html, $more_allowed );
+			}
+
+			$content = wp_kses( $content, $allowed_html );
+		} else {
+			$content = wp_kses_post( $content );
+		}
+
+		return $content;
 	}
 }

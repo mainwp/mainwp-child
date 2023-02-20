@@ -160,7 +160,7 @@ class MainWP_Helper {
 			}
 
 			if ( ! file_exists( $dir ) ) {
-				$error = __( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . __( ' Is its parent directory writable by the server?', 'mainwp-child' );
+				$error = esc_html__( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . esc_html__( ' Is its parent directory writable by the server?', 'mainwp-child' );
 				if ( $die_on_error ) {
 					self::instance()->error( $error );
 				} else {
@@ -279,7 +279,7 @@ class MainWP_Helper {
 		} elseif ( is_wp_error( $wp_filesystem->errors ) ) {
 			$errorCodes = $wp_filesystem->errors->get_error_codes();
 			if ( ! empty( $errorCodes ) ) {
-				self::instance()->error( __( 'WordPress Filesystem error: ', 'mainwp-child' ) . $wp_filesystem->errors->get_error_message() );
+				self::instance()->error( esc_html__( 'WordPress Filesystem error: ', 'mainwp-child' ) . $wp_filesystem->errors->get_error_message() );
 			}
 		}
 		return $wp_filesystem;
@@ -903,6 +903,7 @@ class MainWP_Helper {
 		}
 		return true;
 	}
+
 
 	/**
 	 * Method check_properties()

@@ -107,12 +107,12 @@ class MainWP_Pages {
 			$dashboard_name = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Dashboard' : $branding_opts['branding_preserve_title'] . ' Dashboard';
 
 			$msg  = '<div style="margin:50px 20px 20px 0;background:#fff;border:1px solid #c3c4c7;border-top-color:#d63638;border-top-width:5px;padding:20px;">';
-			$msg .= '<h3 style="margin-top:0;color:#d63638;font-weight:900;">' . __( 'Attention! ', 'mainwp-child' ) . $child_name . __( ' plugin is activated but not connected.', 'mainwp-child' ) . '</h3>';
-			$msg .= '<p style="font-size:15px">' . __( 'Please add this site to your ', 'mainwp-child' ) . $dashboard_name . ' ' . __( '<strong>NOW</strong> or deactivate the ', 'mainwp-child' ) . $child_name . __( ' plugin until you are ready to connect this site to your Dashboard in order to avoid unexpected security issues. ', 'mainwp-child' );
-			$msg .= sprintf( __( 'If you are not sure how to do it, please review this %1$shelp document%2$s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/add-site-to-your-dashboard/" target="_blank">', '</a>' ) . '</p>';
+			$msg .= '<h3 style="margin-top:0;color:#d63638;font-weight:900;">' . esc_html__( 'Attention! ', 'mainwp-child' ) . $child_name . esc_html__( ' plugin is activated but not connected.', 'mainwp-child' ) . '</h3>';
+			$msg .= '<p style="font-size:15px">' . esc_html__( 'Please add this site to your ', 'mainwp-child' ) . $dashboard_name . ' ' . esc_html__( '<strong>NOW</strong> or deactivate the ', 'mainwp-child' ) . $child_name . esc_html__( ' plugin until you are ready to connect this site to your Dashboard in order to avoid unexpected security issues. ', 'mainwp-child' );
+			$msg .= sprintf( esc_html__( 'If you are not sure how to do it, please review this %1$shelp document%2$s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/add-site-to-your-dashboard/" target="_blank">', '</a>' ) . '</p>';
 			if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
-				$msg .= '<p style="font-size:15px">' . __( 'You can also turn on the unique security ID option in ', 'mainwp-child' ) . $child_name . sprintf( __( ' %1$ssettings%2$s if you would like extra security and additional time to add this site to your Dashboard. ', 'maiwnip-child' ), '<a href="admin.php?page=mainwp_child_tab">', '</a>' );
-				$msg .= sprintf( __( 'Find out more in this %1$shelp document%2$s how to do it.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/set-unique-security-id/" target="_blank">', '</a>' ) . '</p>';
+				$msg .= '<p style="font-size:15px">' . esc_html__( 'You can also turn on the unique security ID option in ', 'mainwp-child' ) . $child_name . sprintf( esc_html__( ' %1$ssettings%2$s if you would like extra security and additional time to add this site to your Dashboard. ', 'maiwnip-child' ), '<a href="admin.php?page=mainwp_child_tab">', '</a>' );
+				$msg .= sprintf( esc_html__( 'Find out more in this %1$shelp document%2$s how to do it.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/set-unique-security-id/" target="_blank">', '</a>' ) . '</p>';
 			}
 			$msg .= '</div>';
 			echo wp_kses_post( $msg );
@@ -434,7 +434,7 @@ class MainWP_Pages {
 				if ( 'settings' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
-" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php _e( 'Settings', 'mainwp-child' ); ?></a>
+" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php if ( ! $hide_restore ) { ?>
 				<a class="nav-tab pos-nav-tab
@@ -442,7 +442,7 @@ class MainWP_Pages {
 				if ( 'restore-clone' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
-" tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? __( 'Restore / Clone', 'mainwp-child' ) : __( 'Restore', 'mainwp-child' ); ?></a>
+" tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? esc_html__( 'Restore / Clone', 'mainwp-child' ) : esc_html__( 'Restore', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php if ( ! $hide_server_info ) { ?>
 				<a class="nav-tab pos-nav-tab
@@ -450,7 +450,7 @@ class MainWP_Pages {
 				if ( 'server-info' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
-" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php _e( 'Server information', 'mainwp-child' ); ?></a>
+" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php esc_html_e( 'Server information', 'mainwp-child' ); ?></a>
 			<?php } ?>
 						<?php if ( ! $hide_connection_detail ) { ?>
 				<a class="nav-tab pos-nav-tab
@@ -458,7 +458,7 @@ class MainWP_Pages {
 							if ( 'connection-detail' === $shownPage ) {
 								echo 'nav-tab-active'; }
 							?>
-" tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php _e( 'Connection Details', 'mainwp-child' ); ?></a>
+" tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php
 			if ( isset( self::$subPages ) && is_array( self::$subPages ) ) {

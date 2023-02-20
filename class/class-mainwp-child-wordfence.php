@@ -57,6 +57,10 @@ class MainWP_Child_Wordfence {
 	const OPTIONS_TYPE_DIAGNOSTICS  = 'diagnostics';
 	const OPTIONS_TYPE_ALL          = 'alloptions';
 
+	public const BLOCK_TYPE_COMPLEX     = 'complex';
+	public const BLOCK_TYPE_BRUTE_FORCE = 'bruteforce';
+	public const BLOCK_TYPE_BLACKLIST   = 'blacklist';
+
 	/**
 	 * Public variable to hold the KEY_TYPE_FREE value.
 	 *
@@ -319,6 +323,12 @@ class MainWP_Child_Wordfence {
 			return;
 		}
 
+		if ( true !== MainWP_Helper::instance()->check_classes_exists( array( '\wfDB' ), true ) ) {
+			return;
+		} elseif ( true !== MainWP_Helper::instance()->check_methods( '\wfDB', 'networkTable', true ) ) {
+			return;
+		}
+
 		/**
 		 * Object, providing access to the WordPress database.
 		 *
@@ -539,7 +549,7 @@ class MainWP_Child_Wordfence {
 	public function action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$information = array();
 		if ( ! $this->is_wordfence_installed ) {
-			MainWP_Helper::write( array( 'error' => __( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
+			MainWP_Helper::write( array( 'error' => esc_html__( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
 			return;
 		}
 
@@ -547,216 +557,223 @@ class MainWP_Child_Wordfence {
 			$information['error'] = 'NO_WORDFENCE';
 			MainWP_Helper::write( $information );
 		}
-		if ( isset( $_POST['mwp_action'] ) ) {
 
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
-			switch ( $mwp_action ) {
-				case 'start_scan':
-					$information = $this->start_scan();
-					break;
-				case 'kill_scan':
-					$information = $this->kill_scan();
-					break;
-				case 'requestScan':
-					$information = $this->request_scan();
-					break;
-				case 'killScan':
-					$information = $this->kill_ajax_scan();
-					break;
-				case 'set_showhide':
-					$information = $this->set_showhide();
-					break;
-				case 'get_log':
-					$information = $this->get_log();
-					break;
-				case 'update_log':
-					$information = $this->update_log();
-					break;
-				case 'load_issues': // not used in from version 2.0 of WF ext!
-					$information = $this->load_issues();
-					break;
-				case 'loadIssues':
-					$information = $this->ajax_load_issues_callback();
-					break;
-				case 'load_wafData':
-					$information = $this->load_waf_data();
-					break;
-				case 'update_all_issues':
-					$information = $this->update_all_issues();
-					break;
-				case 'update_issues_status':
-					$information = $this->update_issues_status();
-					break;
-				case 'updateIssueStatus':
-					$information = $this->update_issue_status();
-					break;
-				case 'delete_issues':
-					$information = $this->delete_issues();
-					break;
-				case 'bulk_operation':
-					$information = $this->bulk_operation();
-					break;
-				case 'bulkOperation':
-					$information = $this->bulk_ajax_operation(); // new version.
-					break;
-				case 'delete_file':
-					$information = $this->delete_file();
-					break;
-				case 'restore_file':
-					$information = $this->restore_file();
-					break;
-				case 'save_settings_new':
-					$information = $this->save_settings_new();
-					break;
-				case 'saveOptions':
-					$information = $this->save_options();
-					break;
-				case 'recentTraffic':
-					$information = $this->recent_traffic();
-					break;
-				case 'ticker':
-					$information = $this->ticker();
-					break;
-				case 'reverse_lookup':
-					$information = $this->reverse_lookup();
-					break;
-				case 'block_ip':
-					$information = $this->ajax_block_ip_callback();
-					break;
-				case 'whois':
-					$information = $this->whois();
-					break;
-				case 'createBlock':
-					$information = $this->ajax_create_block_callback();
-					break;
-				case 'getBlocks':
-					$information = $this->ajax_get_blocks_callback();
-					break;
-				case 'deleteBlocks':
-					$information = $this->ajax_delete_blocks_callback();
-					break;
-				case 'makePermanentBlocks':
-					$information = $this->ajax_make_permanent_blocks_callback();
-					break;
-				case 'unblock_ip':
-					$information = $this->unblock_ip();
-					break;
-				case 'load_static_panel':
-					$information = $this->load_static_panel();
-					break;
-				case 'downgrade_license':
-					$information = $this->downgrade_license();
-					break;
-				case 'import_settings':
-					$information = $this->import_settings();
-					break;
-				case 'export_settings':
-					$information = $this->export_settings();
-					break;
-				case 'save_cache_config':
-					$information = $this->save_cache_config();
-					break;
-				case 'check_falcon_htaccess':
-					$information = self::check_falcon_htaccess();
-					break;
-				case 'checkHtaccess':
-					$information = $this->check_htaccess();
-					break;
-				case 'save_cache_options':
-					$information = $this->save_cache_options();
-					break;
-				case 'clear_page_cache':
-					$information = $this->clear_page_cache();
-					break;
-				case 'get_cache_stats':
-					$information = $this->get_cache_stats();
-					break;
-				case 'add_cache_exclusion':
-					$information = $this->add_cache_exclusion();
-					break;
-				case 'load_cache_exclusions':
-					$information = $this->load_cache_exclusions();
-					break;
-				case 'remove_cache_exclusion':
-					$information = $this->remove_cache_exclusion();
-					break;
-				case 'get_diagnostics':
-					$information = $this->get_diagnostics();
-					break;
-				case 'update_waf_rules':
-					$information = $this->update_waf_rules();
-					break;
-				case 'update_waf_rules_new':
-					$information = $this->update_waf_rules_new();
-					break;
-				case 'save_debugging_config':
-					$information = $this->save_debugging_config();
-					break;
-				case 'load_live_traffic':
-					$information = $this->load_live_traffic();
-					break;
-				case 'white_list_waf':
-					$information = $this->whitelist_waf_param_key();
-					break;
-				case 'hide_file_htaccess':
-					$information = $this->hide_file_htaccess();
-					break;
-				case 'fix_fpd':
-					$information = $this->fix_fpd();
-					break;
-				case 'disable_directory_listing':
-					$information = $this->disable_directory_listing();
-					break;
-				case 'delete_database_option':
-					$information = $this->delete_database_option();
-					break;
-				case 'misconfigured_howget_ips_choice':
-					$information = $this->mis_configured_how_get_ips_choice();
-					break;
-				case 'delete_admin_user':
-					$information = $this->delete_admin_user();
-					break;
-				case 'revoke_admin_user':
-					$information = $this->revoke_admin_user();
-					break;
-				case 'clear_all_blocked':
-					$information = $this->clear_all_blocked();
-					break;
-				case 'permanently_block_all_ips':
-					$information = $this->permanently_block_all_ips();
-					break;
-				case 'unlockout_ip':
-					$information = $this->unlock_out_ip();
-					break;
-				case 'unblock_range':
-					$information = $this->unblock_range();
-					break;
-				case 'block_ip_ua_range':
-					$information = $this->block_ip_ua_range();
-					break;
-				case 'load_block_ranges':
-					$information = $this->load_block_ranges();
-					break;
-				case 'save_waf_config':
-					$information = $this->save_waf_config();
-					break;
-				case 'whitelist_bulk_delete':
-					$information = $this->whitelist_bulk_delete();
-					break;
-				case 'whitelist_bulk_enable':
-					$information = $this->whitelist_bulk_enable();
-					break;
-				case 'whitelist_bulk_disable':
-					$information = $this->whitelist_bulk_disable();
-					break;
-				case 'update_config':
-					$information = $this->update_config();
-					break;
-				case 'save_country_blocking':
-					$information = $this->save_country_blocking();
-					break;
+		try {
+
+			if ( isset( $_POST['mwp_action'] ) ) {
+
+				$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+				switch ( $mwp_action ) {
+					case 'start_scan':
+						$information = $this->start_scan();
+						break;
+					case 'kill_scan':
+						$information = $this->kill_scan();
+						break;
+					case 'requestScan':
+						$information = $this->request_scan();
+						break;
+					case 'killScan':
+						$information = $this->kill_ajax_scan();
+						break;
+					case 'set_showhide':
+						$information = $this->set_showhide();
+						break;
+					case 'get_log':
+						$information = $this->get_log();
+						break;
+					case 'update_log':
+						$information = $this->update_log();
+						break;
+					case 'load_issues': // not used in from version 2.0 of WF ext!
+						$information = $this->load_issues();
+						break;
+					case 'loadIssues':
+						$information = $this->ajax_load_issues_callback();
+						break;
+					case 'load_wafData':
+						$information = $this->load_waf_data();
+						break;
+					case 'update_all_issues':
+						$information = $this->update_all_issues();
+						break;
+					case 'update_issues_status':
+						$information = $this->update_issues_status();
+						break;
+					case 'updateIssueStatus':
+						$information = $this->update_issue_status();
+						break;
+					case 'delete_issues':
+						$information = $this->delete_issues();
+						break;
+					case 'bulk_operation':
+						$information = $this->bulk_operation();
+						break;
+					case 'bulkOperation':
+						$information = $this->bulk_ajax_operation(); // new version.
+						break;
+					case 'delete_file':
+						$information = $this->delete_file();
+						break;
+					case 'restore_file':
+						$information = $this->restore_file();
+						break;
+					case 'save_settings_new':
+						$information = $this->save_settings_new();
+						break;
+					case 'saveOptions':
+						$information = $this->save_options();
+						break;
+					case 'recentTraffic':
+						$information = $this->recent_traffic();
+						break;
+					case 'ticker':
+						$information = $this->ticker();
+						break;
+					case 'reverse_lookup':
+						$information = $this->reverse_lookup();
+						break;
+					case 'block_ip':
+						$information = $this->ajax_block_ip_callback();
+						break;
+					case 'whois':
+						$information = $this->whois();
+						break;
+					case 'createBlock':
+						$information = $this->ajax_create_block_callback();
+						break;
+					case 'getBlocks':
+						$information = $this->ajax_get_blocks_callback();
+						break;
+					case 'deleteBlocks':
+						$information = $this->ajax_delete_blocks_callback();
+						break;
+					case 'makePermanentBlocks':
+						$information = $this->ajax_make_permanent_blocks_callback();
+						break;
+					case 'unblock_ip':
+						$information = $this->unblock_ip();
+						break;
+					case 'load_static_panel':
+						$information = $this->load_static_panel();
+						break;
+					case 'downgrade_license':
+						$information = $this->downgrade_license();
+						break;
+					case 'import_settings':
+						$information = $this->import_settings();
+						break;
+					case 'export_settings':
+						$information = $this->export_settings();
+						break;
+					case 'save_cache_config':
+						$information = $this->save_cache_config();
+						break;
+					case 'check_falcon_htaccess':
+						$information = self::check_falcon_htaccess();
+						break;
+					case 'checkHtaccess':
+						$information = $this->check_htaccess();
+						break;
+					case 'save_cache_options':
+						$information = $this->save_cache_options();
+						break;
+					case 'clear_page_cache':
+						$information = $this->clear_page_cache();
+						break;
+					case 'get_cache_stats':
+						$information = $this->get_cache_stats();
+						break;
+					case 'add_cache_exclusion':
+						$information = $this->add_cache_exclusion();
+						break;
+					case 'load_cache_exclusions':
+						$information = $this->load_cache_exclusions();
+						break;
+					case 'remove_cache_exclusion':
+						$information = $this->remove_cache_exclusion();
+						break;
+					case 'get_diagnostics':
+						$information = $this->get_diagnostics();
+						break;
+					case 'update_waf_rules':
+						$information = $this->update_waf_rules();
+						break;
+					case 'update_waf_rules_new':
+						$information = $this->update_waf_rules_new();
+						break;
+					case 'save_debugging_config':
+						$information = $this->save_debugging_config();
+						break;
+					case 'load_live_traffic':
+						$information = $this->load_live_traffic();
+						break;
+					case 'white_list_waf':
+						$information = $this->whitelist_waf_param_key();
+						break;
+					case 'hide_file_htaccess':
+						$information = $this->hide_file_htaccess();
+						break;
+					case 'fix_fpd':
+						$information = $this->fix_fpd();
+						break;
+					case 'disable_directory_listing':
+						$information = $this->disable_directory_listing();
+						break;
+					case 'delete_database_option':
+						$information = $this->delete_database_option();
+						break;
+					case 'misconfigured_howget_ips_choice':
+						$information = $this->mis_configured_how_get_ips_choice();
+						break;
+					case 'delete_admin_user':
+						$information = $this->delete_admin_user();
+						break;
+					case 'revoke_admin_user':
+						$information = $this->revoke_admin_user();
+						break;
+					case 'clear_all_blocked':
+						$information = $this->clear_all_blocked();
+						break;
+					case 'permanently_block_all_ips':
+						$information = $this->permanently_block_all_ips();
+						break;
+					case 'unlockout_ip':
+						$information = $this->unlock_out_ip();
+						break;
+					case 'unblock_range':
+						$information = $this->unblock_range();
+						break;
+					case 'block_ip_ua_range':
+						$information = $this->block_ip_ua_range();
+						break;
+					case 'load_block_ranges':
+						$information = $this->load_block_ranges();
+						break;
+					case 'save_waf_config':
+						$information = $this->save_waf_config();
+						break;
+					case 'whitelist_bulk_delete':
+						$information = $this->whitelist_bulk_delete();
+						break;
+					case 'whitelist_bulk_enable':
+						$information = $this->whitelist_bulk_enable();
+						break;
+					case 'whitelist_bulk_disable':
+						$information = $this->whitelist_bulk_disable();
+						break;
+					case 'update_config':
+						$information = $this->update_config();
+						break;
+					case 'save_country_blocking':
+						$information = $this->save_country_blocking();
+						break;
+				}
 			}
+		} catch ( \Exception $e ) {
+			$information['error'] = $e->getMessage();
 		}
+
 		MainWP_Helper::write( $information );
 	}
 
@@ -971,6 +988,10 @@ class MainWP_Child_Wordfence {
 	 * @return array Action result.
 	 */
 	private function kill_scan() {
+		MainWP_Helper::instance()->check_classes_exists( array( '\wfUtils', '\wfScanEngine' ) );
+		MainWP_Helper::instance()->check_methods( '\wfUtils', array( 'clearScanLock' ) );
+		MainWP_Helper::instance()->check_methods( '\wfScanEngine', array( 'requestKill' ) );
+
 		\wordfence::status( 1, 'info', 'Scan kill request received.' );
 		\wordfence::status( 10, 'info', 'SUM_KILLED:A request was received to kill the previous scan.' );
 		\wfUtils::clearScanLock(); // Clear the lock now because there may not be a scan running to pick up the kill request and clear the lock.
@@ -1166,6 +1187,9 @@ class MainWP_Child_Wordfence {
 	 * @return array Action result.
 	 */
 	public function count_attacks_blocked( $maxAgeDays ) {
+
+		MainWP_Helper::instance()->check_classes_exists( array( '\wfDB' ) );
+		MainWP_Helper::instance()->check_methods( '\wfDB', array( 'networkTable' ) );
 
 		/**
 		 * Object, providing access to the WordPress database.
@@ -1834,12 +1858,12 @@ SQL
 					'token' => $res['token'],
 				);
 			} elseif ( $res['err'] ) {
-				return array( 'errorExport' => __( 'An error occurred: ', 'wordfence' ) . $res['err'] );
+				return array( 'errorExport' => esc_html__( 'An error occurred: ', 'wordfence' ) . $res['err'] );
 			} else {
-				throw new \Exception( __( 'Invalid response: ', 'wordfence' ) );
+				throw new \Exception( esc_html__( 'Invalid response: ', 'wordfence' ) );
 			}
 		} catch ( \Exception $e ) {
-			return array( 'errorExport' => __( 'An error occurred: ', 'wordfence' ) . $e->getMessage() );
+			return array( 'errorExport' => esc_html__( 'An error occurred: ', 'wordfence' ) . $e->getMessage() );
 		}
 	}
 
@@ -1863,7 +1887,7 @@ SQL
 				$totalSet = 0;
 				$import   = json_decode( $res['export'], true );
 				if ( ! is_array( $import ) ) {
-					return array( 'errorImport' => __( 'An error occurred: Invalid options format received.', 'wordfence' ) );
+					return array( 'errorImport' => esc_html__( 'An error occurred: Invalid options format received.', 'wordfence' ) );
 				}
 
 				// Basic Options.
@@ -2397,7 +2421,7 @@ SQL
 				if ( true !== $errors ) {
 					if ( count( $errors ) == 1 ) {
 						return array(
-							'error' => sprintf( __( 'An error occurred while saving the configuration: %s', 'wordfence' ), $errors[0]['error'] ),
+							'error' => sprintf( esc_html__( 'An error occurred while saving the configuration: %s', 'wordfence' ), $errors[0]['error'] ),
 						);
 					} elseif ( count( $errors ) > 1 ) {
 						$compoundMessage = array();
@@ -2405,12 +2429,12 @@ SQL
 							$compoundMessage[] = $e['error'];
 						}
 						return array(
-							'error' => sprintf( __( 'Errors occurred while saving the configuration: %s', 'wordfence' ), implode( ', ', $compoundMessage ) ),
+							'error' => sprintf( esc_html__( 'Errors occurred while saving the configuration: %s', 'wordfence' ), implode( ', ', $compoundMessage ) ),
 						);
 					}
 
 					return array(
-						'error' => __( 'Errors occurred while saving the configuration.', 'wordfence' ),
+						'error' => esc_html__( 'Errors occurred while saving the configuration.', 'wordfence' ),
 					);
 				}
 
@@ -2418,7 +2442,7 @@ SQL
 				return array( 'success' => true );
 			} catch ( \wfWAFStorageFile\Exception $e ) {
 				return array(
-					'error' => __( 'An error occurred while saving the configuration.', 'wordfence' ),
+					'error' => esc_html__( 'An error occurred while saving the configuration.', 'wordfence' ),
 				);
 			} catch ( \Exception $e ) {
 				return array(
@@ -2428,7 +2452,7 @@ SQL
 		}
 
 		return array(
-			'error' => __( 'No configuration changes were provided to save.', 'wordfence' ),
+			'error' => esc_html__( 'No configuration changes were provided to save.', 'wordfence' ),
 		);
 	}
 
@@ -3056,6 +3080,8 @@ SQL
 	 */
 	public function get_diagnostics() {
 
+		MainWP_Helper::instance()->check_classes_exists( array( '\wfDiagnostic', '\wfConfig', '\wfPersistenceController', '\wfDB', '\wfErrorLogHandler' ) );
+
 		$diagnostic           = new \wfDiagnostic();
 		$plugins              = get_plugins();
 		$activePlugins        = array_flip( get_option( 'active_plugins' ) );
@@ -3064,6 +3090,8 @@ SQL
 		$themes               = wp_get_themes();
 		$currentTheme         = wp_get_theme();
 		$cols                 = 3;
+
+		MainWP_Helper::instance()->check_methods( $diagnostic, array( 'getResults' ) );
 
 		$w = new \wfConfig();
 
@@ -3089,7 +3117,7 @@ SQL
 					<table>
 						<thead>
 							<tr>
-								<th colspan="<?php echo $cols; ?>"><?php echo esc_html( __( $title, 'wordfence' ) ); ?></th>
+								<th colspan="<?php echo $cols; ?>"><?php esc_html_e( $title, 'wordfence' ); ?></th>
 							</tr>
 						</thead>
 					<tbody>
@@ -3099,10 +3127,10 @@ SQL
 							<?php
 								$string = isset($result['label']) ? $result['label'] : '';
 								if (is_array($string) && isset( $string['value']) ){
-									$string = $string['value'];
+								$string = $string['value'];
 								} 
 								if ( ! is_string($string )){
-									$string = '';
+								$string = '';
 								}
 								echo wp_kses(
 									$string,
@@ -3131,8 +3159,8 @@ SQL
 						<div class="wf-block-header">
 							<div class="wf-block-header-content">
 								<div class="wf-block-title">
-									<strong><?php echo esc_html( __( $title, 'wordfence' ) ); ?></strong>
-									<span class="wf-text-small"><?php echo esc_html( __( $tests['description'], 'wordfence' ) ); ?></span>
+									<strong><?php echo esc_html__( $title, 'wordfence' ); ?></strong>
+									<span class="wf-text-small"><?php echo esc_html__( $tests['description'], 'wordfence' ); ?></span>
 								</div>
 								<div class="wf-block-header-action">
 									<div class="wf-block-header-action-disclosure"></div>
@@ -3147,10 +3175,10 @@ SQL
 									<?php
 										$string = isset($result['label']) ? $result['label'] : '';
 										if (is_array($string) && isset( $string['value']) ){
-											$string = $string['value'];
+										$string = $string['value'];
 										} 
 										if ( ! is_string($string )){
-											$string = '';
+										$string = '';
 										}
 										echo wp_kses(
 											$string,
@@ -3276,8 +3304,8 @@ SQL
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
-							<strong><?php _e( 'WordPress Settings', 'wordfence' ); ?></strong>
-							<span class="wf-text-small"><?php _e( 'WordPress version and internal settings/constants.', 'wordfence' ); ?></span>
+							<strong><?php esc_html_e( 'WordPress Settings', 'wordfence' ); ?></strong>
+							<span class="wf-text-small"><?php esc_html_e( 'WordPress version and internal settings/constants.', 'wordfence' ); ?></span>
 						</div>
 						<div class="wf-block-header-action">
 							<div class="wf-block-header-action-disclosure"></div>
@@ -3469,8 +3497,8 @@ SQL
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
-							<strong><?php _e( 'WordPress Plugins', 'wordfence' ); ?></strong>
-							<span class="wf-text-small"><?php _e( 'Status of installed plugins.', 'wordfence' ); ?></span>
+							<strong><?php esc_html_e( 'WordPress Plugins', 'wordfence' ); ?></strong>
+							<span class="wf-text-small"><?php esc_html_e( 'Status of installed plugins.', 'wordfence' ); ?></span>
 						</div>
 						<div class="wf-block-header-action">
 							<div class="wf-block-header-action-disclosure"></div>
@@ -3505,8 +3533,8 @@ SQL
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
-							<strong><?php _e( 'Must-Use WordPress Plugins', 'wordfence' ); ?></strong>
-							<span class="wf-text-small"><?php _e( 'WordPress "mu-plugins" that are always active, incluing those provided by hosts.', 'wordfence' ); ?></span>
+							<strong><?php esc_html_e( 'Must-Use WordPress Plugins', 'wordfence' ); ?></strong>
+							<span class="wf-text-small"><?php esc_html_e( 'WordPress "mu-plugins" that are always active, incluing those provided by hosts.', 'wordfence' ); ?></span>
 						</div>
 						<div class="wf-block-header-action">
 							<div class="wf-block-header-action-disclosure"></div>
@@ -3543,8 +3571,8 @@ SQL
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
-							<strong><?php _e( 'Themes', 'wordfence' ); ?></strong>
-							<span class="wf-text-small"><?php _e( 'Status of installed themes.', 'wordfence' ); ?></span>
+							<strong><?php esc_html_e( 'Themes', 'wordfence' ); ?></strong>
+							<span class="wf-text-small"><?php esc_html_e( 'Status of installed themes.', 'wordfence' ); ?></span>
 						</div>
 						<div class="wf-block-header-action">
 							<div class="wf-block-header-action-disclosure"></div>
@@ -3582,8 +3610,8 @@ SQL
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
-							<strong><?php _e( 'Cron Jobs', 'wordfence' ); ?></strong>
-							<span class="wf-text-small"><?php _e( 'List of WordPress cron jobs scheduled by WordPress, plugins, or themes.', 'wordfence' ); ?></span>
+							<strong><?php esc_html_e( 'Cron Jobs', 'wordfence' ); ?></strong>
+							<span class="wf-text-small"><?php esc_html_e( 'List of WordPress cron jobs scheduled by WordPress, plugins, or themes.', 'wordfence' ); ?></span>
 						</div>
 						<div class="wf-block-header-action">
 							<div class="wf-block-header-action-disclosure"></div>
@@ -3636,8 +3664,8 @@ SQL
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
-							<strong><?php _e( 'Database Tables', 'wordfence' ); ?></strong>
-							<span class="wf-text-small"><?php _e( 'Database table names, sizes, timestamps, and other metadata.', 'wordfence' ); ?></span>
+							<strong><?php esc_html_e( 'Database Tables', 'wordfence' ); ?></strong>
+							<span class="wf-text-small"><?php esc_html_e( 'Database table names, sizes, timestamps, and other metadata.', 'wordfence' ); ?></span>
 						</div>
 						<div class="wf-block-header-action">
 							<div class="wf-block-header-action-disclosure"></div>
@@ -3687,8 +3715,8 @@ SQL
 				<div class="wf-block-header">
 					<div class="wf-block-header-content">
 						<div class="wf-block-title">
-							<strong><?php _e( 'Log Files', 'wordfence' ); ?></strong>
-							<span class="wf-text-small"><?php _e( 'PHP error logs generated by your site, if enabled by your host.', 'wordfence' ); ?></span>
+							<strong><?php esc_html_e( 'Log Files', 'wordfence' ); ?></strong>
+							<span class="wf-text-small"><?php esc_html_e( 'PHP error logs generated by your site, if enabled by your host.', 'wordfence' ); ?></span>
 						</div>
 						<div class="wf-block-header-action">
 							<div class="wf-block-header-action-disclosure"></div>

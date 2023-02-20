@@ -627,7 +627,7 @@ class MainWP_Child_Links_Checker {
 
 		$rez = $link->edit( $new_url, $new_text );
 		if ( false === $rez ) {
-			$information['error'] = __( 'An unexpected error occurred!', 'mainwp-child' );
+			$information['error'] = esc_html__( 'An unexpected error occurred!', 'mainwp-child' );
 
 			return $information;
 		} else {
@@ -709,7 +709,7 @@ class MainWP_Child_Links_Checker {
 				return $response;
 			}
 		} else {
-			$information['error'] = __( 'Error: link_id is not specified.', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Error: link_id is not specified.', 'mainwp-child' );
 
 			return $information;
 		}
@@ -752,7 +752,7 @@ class MainWP_Child_Links_Checker {
 
 			return $information;
 		} else {
-			$information['error'] = __( 'Error: link_id not specified.', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Error: link_id not specified.', 'mainwp-child' );
 
 			return $information;
 		}
@@ -785,7 +785,7 @@ class MainWP_Child_Links_Checker {
 			$link->broken             = false;
 			$link->false_positive     = true;
 			$link->last_check_attempt = time();
-			$link->log                = __( 'This link was manually marked as working by the user.', 'mainwp-child' );
+			$link->log                = esc_html__( 'This link was manually marked as working by the user.', 'mainwp-child' );
 
 			// Save the changes.
 			if ( $link->save() ) {
@@ -795,7 +795,7 @@ class MainWP_Child_Links_Checker {
 				$information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link.
 			}
 		} else {
-			$information['error'] = __( 'Error: link_id is not specified.', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Error: link_id is not specified.', 'mainwp-child' );
 		}
 
 		return $information;

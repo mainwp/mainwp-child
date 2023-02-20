@@ -438,7 +438,7 @@ class MainWP_Child_Misc {
 			switch ( $mwp_action ) {
 				case 'force_destroy_sessions':
 					if ( 0 === get_current_user_id() ) {
-						MainWP_Helper::write( array( 'error' => __( 'Cannot get user_id', 'mainwp-child' ) ) );
+						MainWP_Helper::write( array( 'error' => esc_html__( 'Cannot get user_id', 'mainwp-child' ) ) );
 					}
 
 					wp_destroy_all_sessions();
@@ -448,15 +448,15 @@ class MainWP_Child_Misc {
 					if ( empty( $sessions ) ) {
 						MainWP_Helper::write( array( 'success' => 1 ) );
 					} else {
-						MainWP_Helper::write( array( 'error' => __( 'Cannot destroy sessions', 'mainwp-child' ) ) );
+						MainWP_Helper::write( array( 'error' => esc_html__( 'Cannot destroy sessions', 'mainwp-child' ) ) );
 					}
 					break;
 
 				default:
-					MainWP_Helper::write( array( 'error' => __( 'Invalid action', 'mainwp-child' ) ) );
+					MainWP_Helper::write( array( 'error' => esc_html__( 'Invalid action', 'mainwp-child' ) ) );
 			}
 		} else {
-			MainWP_Helper::write( array( 'error' => __( 'Missing action', 'mainwp-child' ) ) );
+			MainWP_Helper::write( array( 'error' => esc_html__( 'Missing action', 'mainwp-child' ) ) );
 		}
 	}
 

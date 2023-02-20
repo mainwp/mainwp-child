@@ -123,7 +123,7 @@ class MainWP_WordPress_SEO {
 					if ( $this->import_seo_settings( $temporary_file ) ) {
 						$information['success'] = true;
 					} else {
-						throw new \Exception( __( 'Settings could not be imported.', 'mainwp-child' ) );
+						throw new \Exception( esc_html__( 'Settings could not be imported.', 'mainwp-child' ) );
 					}
 				}
 			} catch ( \Exception $e ) {
@@ -155,7 +155,7 @@ class MainWP_WordPress_SEO {
 					$information['success'] = true;
 
 				} else {
-					throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
+					throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
 			} catch ( \Exception $e ) {
 				$information['error'] = $e->getMessage();
@@ -217,21 +217,21 @@ class MainWP_WordPress_SEO {
 
 						return true;
 					} else {
-						throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
+						throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) );
 					}
 					unset( $options, $name, $optgroup );
 				} else {
-					throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) );
+					throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
 				unlink( $filename );
 				unlink( $p_path );
 			} else {
-				throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( __( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) );
+				throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( esc_html__( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) );
 			}
 			unset( $zip, $unzipped );
 			unlink( $file );
 		} else {
-			throw new \Exception( __( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . __( 'Upload failed.', 'mainwp-child' ) );
+			throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . esc_html__( 'Upload failed.', 'mainwp-child' ) );
 		}
 
 		return false;
@@ -247,11 +247,11 @@ class MainWP_WordPress_SEO {
 	public function parse_column_score( $post_id ) {
 		if ( '1' === \WPSEO_Meta::get_value( 'meta-robots-noindex', $post_id ) ) {
 			$rank  = new \WPSEO_Rank( \WPSEO_Rank::NO_INDEX );
-			$title = __( 'Post is set to noindex.', 'mainwp-child' );
+			$title = esc_html__( 'Post is set to noindex.', 'mainwp-child' );
 			\WPSEO_Meta::set_value( 'linkdex', 0, $post_id );
 		} elseif ( '' === \WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
 			$rank  = new \WPSEO_Rank( \WPSEO_Rank::NO_FOCUS );
-			$title = __( 'Focus keyword not set.', 'mainwp-child' );
+			$title = esc_html__( 'Focus keyword not set.', 'mainwp-child' );
 		} else {
 			$score = (int) \WPSEO_Meta::get_value( 'linkdex', $post_id );
 			$rank  = \WPSEO_Rank::from_numeric_score( $score );

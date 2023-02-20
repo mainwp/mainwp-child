@@ -99,10 +99,10 @@ class MainWP_Clone_Page {
 				if ( $movefile ) {
 					$uploadFile = str_replace( ABSPATH, '', $movefile['file'] );
 				} else {
-					$uploadError = __( 'File could not be uploaded.', 'mainwp-child' );
+					$uploadError = esc_html__( 'File could not be uploaded.', 'mainwp-child' );
 				}
 			} else {
-				$uploadError = __( 'File is empty. Please upload something more substantial. This error could also be caused by uploads being disabled in your php.ini or by post_max_size being defined as smaller than upload_max_filesize in php.ini.', 'mainwp-child' );
+				$uploadError = esc_html__( 'File is empty. Please upload something more substantial. This error could also be caused by uploads being disabled in your php.ini or by post_max_size being defined as smaller than upload_max_filesize in php.ini.', 'mainwp-child' );
 			}
 		}
 
@@ -194,7 +194,7 @@ class MainWP_Clone_Page {
 								}
 								?>
 							</div>
-							<p><?php _e( 'The site selected above will replace this site\'s files and database', 'mainwp-child' ); ?></p>
+							<p><?php esc_html_e( 'The site selected above will replace this site\'s files and database', 'mainwp-child' ); ?></p>
 						</div>
 						<div class="mainwp-child_clonebutton_container">
 							<?php if ( ! $error ) { ?>
@@ -251,10 +251,10 @@ class MainWP_Clone_Page {
 				if ( $movefile ) {
 					$uploadFile = str_replace( ABSPATH, '', $movefile['file'] );
 				} else {
-					$uploadError = __( 'File could not be uploaded.', 'mainwp-child' );
+					$uploadError = esc_html__( 'File could not be uploaded.', 'mainwp-child' );
 				}
 			} else {
-				$uploadError = __( 'File is empty. Please upload something more substantial. This error could also be caused by uploads being disabled in your php.ini or by post_max_size being defined as smaller than upload_max_filesize in php.ini.', 'mainwp-child' );
+				$uploadError = esc_html__( 'File is empty. Please upload something more substantial. This error could also be caused by uploads being disabled in your php.ini or by post_max_size being defined as smaller than upload_max_filesize in php.ini.', 'mainwp-child' );
 			}
 		}
 
@@ -392,15 +392,15 @@ class MainWP_Clone_Page {
 			$dirparts = '<a href="' . $durl . '">' . $part . DIRECTORY_SEPARATOR . '</a>' . $dirparts;
 		}
 
-		echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . __( '<strong>Current Directory:</strong> <span>' . $dirparts . '</span>', 'mainwp-child' ) . '</div>';
+		echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . esc_html__( '<strong>Current Directory:</strong> <span>' . $dirparts . '</span>', 'mainwp-child' ) . '</div>';
 		$quick_dirs   = array();
-		$quick_dirs[] = array( __( 'Site Root', 'mainwp-child' ), ABSPATH );
-		$quick_dirs[] = array( __( 'Backup', 'mainwp-child' ), $backup_dir );
+		$quick_dirs[] = array( esc_html__( 'Site Root', 'mainwp-child' ), ABSPATH );
+		$quick_dirs[] = array( esc_html__( 'Backup', 'mainwp-child' ), $backup_dir );
 		$uploads      = wp_upload_dir();
 		if ( $uploads && false === $uploads['error'] ) {
-			$quick_dirs[] = array( __( 'Uploads Folder', 'mainwp-child' ), $uploads['path'] );
+			$quick_dirs[] = array( esc_html__( 'Uploads Folder', 'mainwp-child' ), $uploads['path'] );
 		}
-		$quick_dirs[] = array( __( 'Content Folder', 'mainwp-child' ), WP_CONTENT_DIR );
+		$quick_dirs[] = array( esc_html__( 'Content Folder', 'mainwp-child' ), WP_CONTENT_DIR );
 
 		$quick_links = array();
 		foreach ( $quick_dirs as $dir ) {
@@ -414,7 +414,7 @@ class MainWP_Clone_Page {
 		}
 
 		if ( ! empty( $quick_links ) ) {
-			echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . __( implode( ' | ', $quick_links ) ) . '</div>';
+			echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . esc_html__( implode( ' | ', $quick_links ) ) . '</div>';
 		}
 
 		self::render_clone_from_server_form( $current_dir, $url );

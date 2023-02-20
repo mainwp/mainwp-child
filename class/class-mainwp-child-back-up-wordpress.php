@@ -489,7 +489,7 @@ class MainWP_Child_Back_Up_WordPress {
 			$task = new \HM\Backdrop\Task( '\HM\BackUpWordPress\run_schedule_async', $schedule_id );
 			$task->schedule();
 		} else {
-			return array( 'error' => __( 'Error while trying to trigger the schedule', 'mainwp-child' ) );
+			return array( 'error' => esc_html__( 'Error while trying to trigger the schedule', 'mainwp-child' ) );
 		}
 		return array( 'result' => 'SUCCESS' );
 	}
@@ -590,7 +590,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 */
 	public function hmbkp_request_delete_backup() {
 		if ( ! isset( $_POST['hmbkp_backuparchive'] ) || empty( $_POST['hmbkp_backuparchive'] ) ) {
-			return array( 'error' => __( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
+			return array( 'error' => esc_html__( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
 		}
 
 		$schedule_id = $this->check_schedule();
@@ -673,16 +673,16 @@ class MainWP_Child_Back_Up_WordPress {
 	public function hmbkp_get_site_size_text( \HM\BackUpWordPress\Scheduled_Backup $schedule ) {
 		if ( method_exists( $schedule, 'is_site_size_cached' ) ) {
 			if ( ( 'database' === $schedule->get_type() ) || $schedule->is_site_size_cached() ) {
-				return sprintf( '(<code title="' . __( 'Backups will be compressed and should be smaller than this.', 'mainwp-child' ) . '">%s</code>)', esc_attr( $schedule->get_formatted_site_size() ) );
+				return sprintf( '(<code title="' . esc_html__( 'Backups will be compressed and should be smaller than this.', 'mainwp-child' ) . '">%s</code>)', esc_attr( $schedule->get_formatted_site_size() ) );
 			}
 		} else {
 			$site_size = new \HM\BackUpWordPress\Site_Size( $schedule->get_type(), $schedule->get_excludes() );
 			if ( ( 'database' === $schedule->get_type() ) || $site_size->is_site_size_cached() ) {
-				return sprintf( '(<code title="' . __( 'Backups will be compressed and should be smaller than this.', 'mainwp-child' ) . '">%s</code>)', esc_attr( $site_size->get_formatted_site_size() ) );
+				return sprintf( '(<code title="' . esc_html__( 'Backups will be compressed and should be smaller than this.', 'mainwp-child' ) . '">%s</code>)', esc_attr( $site_size->get_formatted_site_size() ) );
 			}
 		}
 
-		return sprintf( '(<code class="calculating" title="' . __( 'this shouldn\'t take long&hellip;', 'mainwp-child' ) . '">' . __( 'calculating the size of your backup&hellip;', 'mainwp-child' ) . '</code>)' );
+		return sprintf( '(<code class="calculating" title="' . esc_html__( 'this shouldn\'t take long&hellip;', 'mainwp-child' ) . '">' . esc_html__( 'calculating the size of your backup&hellip;', 'mainwp-child' ) . '</code>)' );
 	}
 
 	/**
@@ -1121,7 +1121,7 @@ class MainWP_Child_Back_Up_WordPress {
 	public function hmbkp_add_exclude_rule() {
 
 		if ( ! isset( $_POST['exclude_pathname'] ) || empty( $_POST['exclude_pathname'] ) ) {
-			return array( 'error' => __( 'Empty exclude directory path.', 'mainwp-child' ) );
+			return array( 'error' => esc_html__( 'Empty exclude directory path.', 'mainwp-child' ) );
 		}
 
 		$schedule_id = $this->check_schedule();
@@ -1156,7 +1156,7 @@ class MainWP_Child_Back_Up_WordPress {
 	public function hmbkp_remove_exclude_rule() {
 
 		if ( ! isset( $_POST['remove_rule'] ) || empty( $_POST['remove_rule'] ) ) {
-			return array( 'error' => __( 'Empty exclude directory path.', 'mainwp-child' ) );
+			return array( 'error' => esc_html__( 'Empty exclude directory path.', 'mainwp-child' ) );
 		}
 
 		$schedule_id = $this->check_schedule();
@@ -1256,7 +1256,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$options = isset( $_POST['options'] ) ? json_decode( base64_decode( wp_unslash( $_POST['options'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {
-			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );
+			return array( 'error' => esc_html__( 'Schedule data', 'mainwp-child' ) );
 		}
 
 		$filter_opts = array(
@@ -1314,7 +1314,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$schedules = isset( $_POST['all_schedules'] ) ? json_decode( base64_decode( wp_unslash( $_POST['all_schedules'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		if ( ! is_array( $schedules ) || empty( $schedules ) ) {
-			return array( 'error' => __( 'Schedule data', 'mainwp-child' ) );
+			return array( 'error' => esc_html__( 'Schedule data', 'mainwp-child' ) );
 		}
 
 		$out = array();
