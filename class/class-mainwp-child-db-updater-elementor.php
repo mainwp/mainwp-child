@@ -264,8 +264,8 @@ class MainWP_Child_DB_Updater_Elementor {
 	 * Method check_parent_method().
 	 *
 	 * Check parent method.
-	 * 
-	 * @param mixed $obj  Object to check.
+	 *
+	 * @param mixed  $obj  Object to check.
 	 * @param string $func Function to check.
 	 *
 	 * @return array Action result.
