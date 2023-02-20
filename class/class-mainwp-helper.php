@@ -903,7 +903,7 @@ class MainWP_Helper {
 		}
 		return true;
 	}
-	
+
 
 	/**
 	 * Method check_properties()
