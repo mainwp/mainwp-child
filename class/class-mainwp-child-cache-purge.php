@@ -145,6 +145,33 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
+	 * Method actions()
+	 *
+	 * Fire off certain MainWP Cache Control actions.
+	 *
+	 * @return void
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::auto_purge_cache() Purge All Cache.
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 */
+//	public function action() {
+//
+//		$information = array();
+//
+//		if ( isset( $_POST['mwp_action'] ) ) {
+//			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+//			try {
+//				if ( $mwp_action == 'purge_all_cache' ) {
+//					$information = $this->auto_purge_cache();
+//				}
+//			} catch ( \Exception $e ) {
+//				$information = array( 'error' => $e->getMessage() );
+//			}
+//		}
+//		MainWP_Helper::write( $information );
+//	}
+
+	/**
 	 * Auto purge cache based on which cache plugin is installed & activated.
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
@@ -206,14 +233,20 @@ class MainWP_Child_Cache_Purge {
 					default:
 						break;
 				}
+//			} catch ( \Exception $e ) {
+//				$information = array( 'error' => $e->getMessage() );
+//			}
+//			$this->record_results( $information );
+//		} else {
+//			$information = array( 'status' => 'Disabled' );
+//
+//			$this->record_results( $information );
+//		}
 			} catch ( \Exception $e ) {
 				$information = array( 'error' => $e->getMessage() );
 			}
-			$this->record_results( $information );
-		} else {
-			$information = array( 'status' => 'Disabled' );
-			$this->record_results( $information );
 		}
+		MainWP_Helper::write( $information );
 	}
 
 	/**
@@ -675,7 +708,11 @@ class MainWP_Child_Cache_Purge {
 			$admin->breeze_clear_varnish();
 
 			// For local static files: Clears files within /cache/breeze-minification/ folder.
-			$size_cache = \Breeze_Configuration::breeze_clean_cache();
+			if ( class_exists( '\Breeze_Configuration' ) ) {
+				$size_cache = \Breeze_Configuration::breeze_clean_cache();
+			} else {
+				$size_cache = 0;
+			}
 
 			// Delete minified files.
 			\Breeze_MinificationCache::clear_minification();
@@ -693,6 +730,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Breeze => Cache auto cleared on: (' . current_time( 'mysql' ) . ') And ' . $size_cache . ' local files removed.',
+				'action'         => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -703,6 +741,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Breeze => There was an issue purging your cache.',
+				'action_result'         => 'FAILURE',
 			);
 		}
 	}
