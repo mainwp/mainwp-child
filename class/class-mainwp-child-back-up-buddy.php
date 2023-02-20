@@ -1006,9 +1006,6 @@ class MainWP_Child_Back_Up_Buddy {
     /**
      * Get sync data.
      *
-     * @return array|bool $out Return Updraft data array or FALSE on failure.
-     * @throws Exception Error message.
-     *
      * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
      * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \pb_backupbuddy::plugin_path()

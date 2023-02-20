@@ -1276,9 +1276,6 @@ class MainWP_Child_Updraft_Plus_Backups {
      *
      * @param bool $with_hist Whether or not to build history.
      *
-     * @return array|bool $out Return Updraft data array or FALSE on failure.
-     * @throws Exception Error message.
-     *
      * @uses UpdraftPlus()
      * @uses UpdraftPlus_Options::get_updraft_option()
      * @uses UpdraftPlus_Filesystem_Functions::really_is_writable()
@@ -4395,9 +4392,6 @@ ENDHERE;
      * Get sync data.
      *
      * @param bool $with_hist Whether or not to include history.
-     *
-     * @return array|bool $out Return Updraft data array or FALSE on failure.
-     * @throws Exception Error message.
      *
      * @uses MainWP_Child_Updraft_Plus_Backups::required_files()
      * @uses MainWP_Child_Updraft_Plus_Backups::get_updraft_data()

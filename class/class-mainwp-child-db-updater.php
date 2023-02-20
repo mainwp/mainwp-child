@@ -102,8 +102,6 @@ class MainWP_Child_DB_Updater {
 	/**
 	 * Get sync data.
 	 *
-	 * @return array|bool $out Return Updraft data array or FALSE on failure.
-	 * @throws Exception Error message.
 	 */
 	public function get_sync_data() {
 		$sync_plugin_db_upgrades = apply_filters( 'mainwp_child_db_updater_sync_data', array() );
