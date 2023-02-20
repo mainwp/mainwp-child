@@ -10,6 +10,9 @@
 
 namespace MainWP\Child;
 
+//phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+
+
 /**
  * Class MainWP_Client_Report_Base
  *
@@ -22,9 +25,21 @@ class MainWP_Client_Report_Base {
 	 *
 	 * @var mixed Default null
 	 */
-	public static $instance  = null;
+	public static $instance = null;
+
+	/**
+	 * Static variable to hold date from.
+	 *
+	 * @var int $date_from.
+	 */
 	public static $date_from = null;
-	public static $date_to   = null;
+
+	/**
+	 * Static variable to hold date to.
+	 *
+	 * @var int $date_to.
+	 */
+	public static $date_to = null;
 
 	/**
 	 * Method get_class_name()
@@ -331,7 +346,7 @@ class MainWP_Client_Report_Base {
 	 *
 	 * @return array An array containg the tokens values.
 	 */
-	public function get_other_tokens_data( $records, $tokens, &$skip_records ) {
+	public function get_other_tokens_data( $records, $tokens, &$skip_records ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
 		$token_values = array();
 
@@ -372,9 +387,9 @@ class MainWP_Client_Report_Base {
 					case 'count':
 						if ( 'wordfence_scan' === $context ) { // wordfence.blocked.count.
 							if ( 'blocked' === $action ) {
-								$token_values[ $token ] = $this->wfc_getBlockedCount();
+								$token_values[ $token ] = $this->wfc_getblockedcount();
 							} elseif ( 'issue' === $action ) {
-								$token_values[ $token ] = $this->wfc_getIssueCount();
+								$token_values[ $token ] = $this->wfc_getissuecount();
 							} else {
 								$token_values[ $token ] = 0;
 							}
@@ -1026,7 +1041,7 @@ class MainWP_Client_Report_Base {
 
 
 	/**
-	 * Method wfc_getBlockedCount()
+	 * Method wfc_getblockedcount()
 	 *
 	 * Get the number of blocked attackes.
 	 *
@@ -1034,7 +1049,7 @@ class MainWP_Client_Report_Base {
 	 *
 	 * @return array Action result.
 	 */
-	public function wfc_getBlockedCount( $grouping = null ) {
+	public function wfc_getblockedcount( $grouping = null ) {
 
 		try {
 			MainWP_Helper::instance()->check_classes_exists( array( '\wfDB', '\wfConfig' ) );
@@ -1067,7 +1082,7 @@ class MainWP_Client_Report_Base {
 			$interval_toDays = floor( $toDays / 86400 );
 		}
 
-		// Possible values for blockType: throttle, manual, brute, fakegoogle, badpost, country, advanced, blacklist, waf
+		// Possible values for blockType: throttle, manual, brute, fakegoogle, badpost, country, advanced, blacklist, waf.
 		$groupingWHERE = '';
 		switch ( $grouping ) {
 			case MainWP_Child_Wordfence::BLOCK_TYPE_COMPLEX:
@@ -1087,27 +1102,26 @@ class MainWP_Client_Report_Base {
 		global $wpdb;
 
 		$table_wfBlockedIPLog = \wfDB::networkTable( 'wfBlockedIPLog' );
-		$count                = $wpdb->get_var(
+
+		$count_sql =
 			<<<SQL
 SELECT SUM(blockCount) as blockCount
 FROM {$table_wfBlockedIPLog}
 WHERE unixday >= {$interval_fromDays} AND unixday <= {$interval_toDays} {$groupingWHERE}
-SQL
-		);
+SQL;
+		$wpdb->get_var( $count_sql ); // phpcs:ignore unprepared SQL.
 
 		return intval( $count );
 	}
 
 	/**
-	 * Method wfc_getIssueCount()
+	 * Method wfc_getissuecount()
 	 *
 	 * Get the issues found in most recent scan.
 	 *
-	 * @param string $grouping Contains the grouping blocked attacks to count blocked attacks.
-	 *
 	 * @return array Action result.
 	 */
-	public function wfc_getIssueCount() {
+	public function wfc_getissuecount() {
 		try {
 			MainWP_Helper::instance()->check_classes_exists( array( '\wfIssues' ) );
 			$wfIssues = new \wfIssues();
@@ -1141,8 +1155,8 @@ SQL
 		}
 
 		$period = array(
-			'start' => date( 'Y-m-d 00:00:00', self::$date_from ),
-			'end'   => date( 'Y-m-d 23:59:59', self::$date_to ),
+			'start' => date( 'Y-m-d 00:00:00', self::$date_from ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
+			'end'   => date( 'Y-m-d 23:59:59', self::$date_to ), // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
 		);
 
 		$count = 0;
@@ -1182,11 +1196,13 @@ SQL
 	 *
 	 * @return array all lockouts in the system
 	 */
-	public function ithemes_get_lockouts( $type = 'all', $args = array() ) {
+	public function ithemes_get_lockouts( $type = 'all', $args = array() ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
 		global $wpdb;
 
-		$where  = $limit = $order = '';
+		$where  = '';
+		$limit  = '';
+		$order  = '';
 		$wheres = array();
 
 		switch ( $type ) {
@@ -1204,14 +1220,14 @@ SQL
 
 		if ( isset( $args['after'] ) ) {
 			$after = is_int( $args['after'] ) ? $args['after'] : strtotime( $args['after'] );
-			$after = date( 'Y-m-d H:i:s', $after );
+			$after = date( 'Y-m-d H:i:s', $after ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
 
 			$wheres[] = "`lockout_start_gmt` > '{$after}'";
 		}
 
 		if ( isset( $args['before'] ) ) {
 			$before = is_int( $args['before'] ) ? $args['before'] : strtotime( $args['before'] );
-			$before = date( 'Y-m-d H:i:s', $before );
+			$before = date( 'Y-m-d H:i:s', $before ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
 
 			$wheres[] = "`lockout_start_gmt` < '{$before}'";
 		}
@@ -1245,7 +1261,7 @@ SQL
 
 		$sql = "{$select} FROM `{$wpdb->base_prefix}itsec_lockouts` {$where}{$order}{$limit};";
 
-		$results = $wpdb->get_results( $sql, ARRAY_A );
+		$results = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore unprepared SQL.
 
 		if ( $is_count ) {
 			return $results ? $results[0]['COUNT'] : 0;

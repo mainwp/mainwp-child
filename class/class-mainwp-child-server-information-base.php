@@ -494,7 +494,7 @@ class MainWP_Child_Server_Information_Base {
 			$wpdb->dbname
 		);
 
-		$dbsize_mb = $wpdb->get_var( $sql );
+		$dbsize_mb = $wpdb->get_var( $sql ); // phpcs:ignore unprepared SQL.
 		return $dbsize_mb;
 	}
 

@@ -169,7 +169,7 @@ class MainWP_Child_DB_Updater_Elementor {
 		try {
 			return $this->do_db_upgrade();
 		} catch ( \Exception $e ) {
-			error_log( $e->getMessage() );
+			error_log( $e->getMessage() ); // phpcs:ignore
 			return false;
 		}
 	}
@@ -260,13 +260,16 @@ class MainWP_Child_DB_Updater_Elementor {
 		return true;
 	}
 
-	 /**
-	  * Method check_parent_method()
-	  *
-	  * Check parent method.
-	  *
-	  * @return array Action result.
-	  */
+	/**
+	 * Method check_parent_method().
+	 *
+	 * Check parent method.
+	 * 
+	 * @param mixed $obj  Object to check.
+	 * @param string $func Function to check.
+	 *
+	 * @return array Action result.
+	 */
 	public function check_parent_method( $obj, $func ) {
 
 		if ( method_exists( $obj, $func ) ) {

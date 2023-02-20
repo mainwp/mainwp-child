@@ -79,9 +79,9 @@ class MainWP_Child_DB_Updater_WC {
 	}
 
 	/**
-	 * Get sync data.
+	 * Get db updater sync data.
 	 *
-	 * @return array|bool $out Return Updraft data array or FALSE on failure.
+	 * @return array $db_upgrades Return data array.
 	 * @throws Exception Error message.
 	 */
 	public function hook_db_updater_sync_data( $db_upgrades ) {
