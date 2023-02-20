@@ -143,27 +143,32 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		$information = array();
 
 		if ( ! function_exists( '\wp_mainwp_stream_get_instance' ) ) {
-			$information['error'] = __( 'No MainWP Child Reports plugin installed.', 'mainwp-child' );
+			$information['error'] = esc_html__( 'No MainWP Child Reports plugin installed.', 'mainwp-child' );
 			MainWP_Helper::write( $information );
 		}
 
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
-			switch ( $mwp_action ) {
-				case 'save_sucuri_stream':
-					$information = $this->save_sucuri_stream();
-					break;
-				case 'save_backup_stream':
-					$information = $this->save_backup_stream();
-					break;
-				case 'get_stream':
-					$information = $this->get_stream();
-					break;
-				case 'set_showhide':
-					$information = $this->set_showhide();
-					break;
+		try {
+			if ( isset( $_POST['mwp_action'] ) ) {
+				$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+				switch ( $mwp_action ) {
+					case 'save_sucuri_stream':
+						$information = $this->save_sucuri_stream();
+						break;
+					case 'save_backup_stream':
+						$information = $this->save_backup_stream();
+						break;
+					case 'get_stream':
+						$information = $this->get_stream();
+						break;
+					case 'set_showhide':
+						$information = $this->set_showhide();
+						break;
+				}
 			}
+		} catch ( \Exception $e ) {
+			$information['error'] = $e->getMessage();
 		}
+
 		MainWP_Helper::write( $information );
 	}
 

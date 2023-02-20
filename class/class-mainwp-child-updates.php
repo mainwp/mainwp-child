@@ -136,7 +136,7 @@ class MainWP_Child_Updates {
 		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
 			$this->upgrade_theme( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs, $premiumUpgrader );
 		} else {
-			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( count( $mwp_premium_updates_todo ) > 0 ) {
@@ -265,7 +265,7 @@ class MainWP_Child_Updates {
 		}
 
 		if ( count( $plugins ) <= 0 && count( $premiumPlugins ) <= 0 ) {
-			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( null !== $this->filterFunction ) {
@@ -378,7 +378,7 @@ class MainWP_Child_Updates {
 		}
 
 		if ( $failed ) {
-			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Invalid request!', 'mainwp-child' ) );
 		}
 	}
 
@@ -455,7 +455,7 @@ class MainWP_Child_Updates {
 			$premiumUpgrader = new \Theme_Upgrader( new \Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
 		}
 		if ( count( $themes ) <= 0 && count( $premiumThemes ) <= 0 ) {
-			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( null !== $this->filterFunction ) {
@@ -516,7 +516,7 @@ class MainWP_Child_Updates {
 		}
 
 		if ( $failed ) {
-			MainWP_Helper::instance()->error( __( 'Invalid request!', 'mainwp-child' ) );
+			MainWP_Helper::instance()->error( esc_html__( 'Invalid request!', 'mainwp-child' ) );
 		}
 
 		if ( null !== $this->filterFunction ) {
@@ -868,7 +868,7 @@ class MainWP_Child_Updates {
 
 		$locked = $this->check_core_updater_locked();
 		if ( $locked ) {
-			$information['error'] = __( 'Another update is currently in progress.', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Another update is currently in progress.', 'mainwp-child' );
 			MainWP_Helper::write( $information );
 		}
 

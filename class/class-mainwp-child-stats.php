@@ -92,8 +92,8 @@ class MainWP_Child_Stats {
 	 */
 	public function get_site_stats_no_auth( $information = array() ) {
 		if ( get_option( 'mainwp_child_pubkey' ) ) {
-			$hint = '<br/>' . __( 'Hint: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.', 'mainwp-child' );
-			MainWP_Helper::instance()->error( __( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
+			$hint = '<br/>' . esc_html__( 'Hint: Go to the child site, deactivate and reactivate the MainWP Child plugin and try again.', 'mainwp-child' );
+			MainWP_Helper::instance()->error( esc_html__( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
 		}
 
 		/**
@@ -195,6 +195,16 @@ class MainWP_Child_Stats {
 		if ( isset( $_POST['child_actions_saved_days_number'] ) ) {
 			$days_number = intval( $_POST['child_actions_saved_days_number'] );
 			MainWP_Helper::update_option( 'mainwp_child_actions_saved_number_of_days', $days_number );
+		}
+
+		$others_sync = null;
+
+		if ( isset( $_POST['othersData'] ) ) {
+			$others_sync = isset( $_POST['othersData'] ) ? json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true ) : array();
+			if ( ! is_array( $others_sync ) ) {
+				$others_sync = array();
+			}
+			$this->stats_before_sync_data( $information, $others_sync );
 		}
 
 		$this->stats_get_info( $information );
@@ -301,6 +311,21 @@ class MainWP_Child_Stats {
 	}
 
 	/**
+	 * Process before sync data.
+	 *
+	 * @param array $information Child Site Stats array.
+	 * @param array $others_data Others sync data.
+	 */
+	private function stats_before_sync_data( &$information, $others_data ) {
+		if ( isset( $others_data['users_number'] ) ) {
+			$users_number = get_option( 'mainwp_child_sync_users_number', 0 );
+			if ( $users_number != $others_data['users_number'] ) {
+				MainWP_Helper::update_option( 'mainwp_child_sync_users_number', intval( $others_data['users_number'] ) );
+			}
+		}
+	}
+
+	/**
 	 * Get other stats data.
 	 *
 	 * @param array $information Child Site Stats array.
@@ -325,7 +350,6 @@ class MainWP_Child_Stats {
 		try {
 			$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );
 			$information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );
-
 		} catch ( \Exception $e ) {
 			MainWP_Helper::log_debug( $e->getMessage() );
 		}
@@ -464,6 +488,7 @@ class MainWP_Child_Stats {
 			'child_version'  => MainWP_Child::$version,
 			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
 			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
+			'db_size'        => MainWP_Child_Server_Information::get_db_size(),
 			'themeactivated' => $theme_name,
 			'ip'             => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
 		);

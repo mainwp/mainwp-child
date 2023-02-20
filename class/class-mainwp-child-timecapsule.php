@@ -1891,9 +1891,9 @@ class MainWP_Child_Timecapsule {
 		ob_start();
 
 		echo '<table class="wp-list-table widefat fixed" cellspacing="0" >';
-		echo '<thead><tr><th width="35%">' . __( 'Setting', 'wp-time-capsule' ) . '</th><th>' . __( 'Value', 'wp-time-capsule' ) . '</th></tr></thead>';
-		echo '<tr title="&gt;=3.9.14"><td>' . __( 'WordPress version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $wptc_settings->get_plugin_data( 'wp_version' ) ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'WP Time Capsule version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $wptc_settings->get_plugin_data( 'Version' ) ) . '</td></tr>';
+		echo '<thead><tr><th width="35%">' . esc_html__( 'Setting', 'wp-time-capsule' ) . '</th><th>' . esc_html__( 'Value', 'wp-time-capsule' ) . '</th></tr></thead>';
+		echo '<tr title="&gt;=3.9.14"><td>' . esc_html__( 'WordPress version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $wptc_settings->get_plugin_data( 'wp_version' ) ) . '</td></tr>';
+		echo '<tr title=""><td>' . esc_html__( 'WP Time Capsule version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $wptc_settings->get_plugin_data( 'Version' ) ) . '</td></tr>';
 
 		$bit = '';
 		if ( PHP_INT_SIZE === 4 ) {
@@ -1903,60 +1903,60 @@ class MainWP_Child_Timecapsule {
 			$bit = ' (64bit)';
 		}
 
-		echo '<tr title="&gt;=5.3.1"><td>' . __( 'PHP version', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_VERSION . ' ' . $bit ) . '</td></tr>';
-		echo '<tr title="&gt;=5.0.15"><td>' . __( 'MySQL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $wpdb->get_var( 'SELECT VERSION() AS version' ) ) . '</td></tr>';
+		echo '<tr title="&gt;=5.3.1"><td>' . esc_html__( 'PHP version', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_VERSION . ' ' . $bit ) . '</td></tr>';
+		echo '<tr title="&gt;=5.0.15"><td>' . esc_html__( 'MySQL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $wpdb->get_var( 'SELECT VERSION() AS version' ) ) . '</td></tr>';
 
 		if ( function_exists( 'curl_version' ) ) {
 			$curlversion = curl_version();
-			echo '<tr title=""><td>' . __( 'cURL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion['version'] ) . '</td></tr>';
-			echo '<tr title=""><td>' . __( 'cURL SSL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion['ssl_version'] ) . '</td></tr>';
+			echo '<tr title=""><td>' . esc_html__( 'cURL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion['version'] ) . '</td></tr>';
+			echo '<tr title=""><td>' . esc_html__( 'cURL SSL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $curlversion['ssl_version'] ) . '</td></tr>';
 		} else {
-			echo '<tr title=""><td>' . __( 'cURL version', 'wp-time-capsule' ) . '</td><td>' . __( 'unavailable', 'wp-time-capsule' ) . '</td></tr>';
+			echo '<tr title=""><td>' . esc_html__( 'cURL version', 'wp-time-capsule' ) . '</td><td>' . esc_html__( 'unavailable', 'wp-time-capsule' ) . '</td></tr>';
 		}
 
 		echo '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Server', 'wp-time-capsule' ) . '</td><td>' . ( isset( $_SERVER['SERVER_SOFTWARE'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ) ) : '' ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Operating System', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_OS ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'PHP SAPI', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_SAPI ) . '</td></tr>';
+		echo '<tr title=""><td>' . esc_html__( 'Server', 'wp-time-capsule' ) . '</td><td>' . ( isset( $_SERVER['SERVER_SOFTWARE'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ) ) : '' ) . '</td></tr>';
+		echo '<tr title=""><td>' . esc_html__( 'Operating System', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_OS ) . '</td></tr>';
+		echo '<tr title=""><td>' . esc_html__( 'PHP SAPI', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_SAPI ) . '</td></tr>';
 
-		$php_user = __( 'Function Disabled', 'wp-time-capsule' );
+		$php_user = esc_html__( 'Function Disabled', 'wp-time-capsule' );
 		if ( function_exists( 'get_current_user' ) ) {
 			$php_user = get_current_user();
 		}
 
-		echo '<tr title=""><td>' . __( 'Current PHP user', 'wp-time-capsule' ) . '</td><td>' . esc_html( $php_user ) . '</td></tr>';
-		echo '<tr title="&gt;=30"><td>' . __( 'Maximum execution time', 'wp-time-capsule' ) . '</td><td>' . esc_html( ini_get( 'max_execution_time' ) ) . ' ' . __( 'seconds', 'wp-time-capsule' ) . '</td></tr>';
+		echo '<tr title=""><td>' . esc_html__( 'Current PHP user', 'wp-time-capsule' ) . '</td><td>' . esc_html( $php_user ) . '</td></tr>';
+		echo '<tr title="&gt;=30"><td>' . esc_html__( 'Maximum execution time', 'wp-time-capsule' ) . '</td><td>' . esc_html( ini_get( 'max_execution_time' ) ) . ' ' . esc_html__( 'seconds', 'wp-time-capsule' ) . '</td></tr>';
 
 		if ( defined( 'FS_CHMOD_DIR' ) ) {
-			echo '<tr title="FS_CHMOD_DIR"><td>' . __( 'CHMOD Dir', 'wp-time-capsule' ) . '</td><td>' . esc_html( FS_CHMOD_DIR ) . '</td></tr>';
+			echo '<tr title="FS_CHMOD_DIR"><td>' . esc_html__( 'CHMOD Dir', 'wp-time-capsule' ) . '</td><td>' . esc_html( FS_CHMOD_DIR ) . '</td></tr>';
 		} else {
-			echo '<tr title="FS_CHMOD_DIR"><td>' . __( 'CHMOD Dir', 'wp-time-capsule' ) . '</td><td>0755</td></tr>';
+			echo '<tr title="FS_CHMOD_DIR"><td>' . esc_html__( 'CHMOD Dir', 'wp-time-capsule' ) . '</td><td>0755</td></tr>';
 		}
 
 		$now = localtime( time(), true );
-		echo '<tr title=""><td>' . __( 'Server Time', 'wp-time-capsule' ) . '</td><td>' . esc_html( $now['tm_hour'] . ':' . $now['tm_min'] ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Blog Time', 'wp-time-capsule' ) . '</td><td>' . date( 'H:i', current_time( 'timestamp' ) ) . '</td></tr>'; // phpcs:ignore -- local time.
-		echo '<tr title="WPLANG"><td>' . __( 'Blog language', 'wp-time-capsule' ) . '</td><td>' . get_bloginfo( 'language' ) . '</td></tr>';
-		echo '<tr title="utf8"><td>' . __( 'MySQL Client encoding', 'wp-time-capsule' ) . '</td><td>';
+		echo '<tr title=""><td>' . esc_html__( 'Server Time', 'wp-time-capsule' ) . '</td><td>' . esc_html( $now['tm_hour'] . ':' . $now['tm_min'] ) . '</td></tr>';
+		echo '<tr title=""><td>' . esc_html__( 'Blog Time', 'wp-time-capsule' ) . '</td><td>' . date( 'H:i', current_time( 'timestamp' ) ) . '</td></tr>'; // phpcs:ignore -- local time.
+		echo '<tr title="WPLANG"><td>' . esc_html__( 'Blog language', 'wp-time-capsule' ) . '</td><td>' . get_bloginfo( 'language' ) . '</td></tr>';
+		echo '<tr title="utf8"><td>' . esc_html__( 'MySQL Client encoding', 'wp-time-capsule' ) . '</td><td>';
 		echo defined( 'DB_CHARSET' ) ? DB_CHARSET : '';
 		echo '</td></tr>';
-		echo '<tr title="URF-8"><td>' . __( 'Blog charset', 'wp-time-capsule' ) . '</td><td>' . get_bloginfo( 'charset' ) . '</td></tr>';
-		echo '<tr title="&gt;=128M"><td>' . __( 'PHP Memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( ini_get( 'memory_limit' ) ) . '</td></tr>';
-		echo '<tr title="WP_MEMORY_LIMIT"><td>' . __( 'WP memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( WP_MEMORY_LIMIT ) . '</td></tr>';
-		echo '<tr title="WP_MAX_MEMORY_LIMIT"><td>' . __( 'WP maximum memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( WP_MAX_MEMORY_LIMIT ) . '</td></tr>';
-		echo '<tr title=""><td>' . __( 'Memory in use', 'wp-time-capsule' ) . '</td><td>' . size_format( memory_get_usage( true ), 2 ) . '</td></tr>';
+		echo '<tr title="URF-8"><td>' . esc_html__( 'Blog charset', 'wp-time-capsule' ) . '</td><td>' . get_bloginfo( 'charset' ) . '</td></tr>';
+		echo '<tr title="&gt;=128M"><td>' . esc_html__( 'PHP Memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( ini_get( 'memory_limit' ) ) . '</td></tr>';
+		echo '<tr title="WP_MEMORY_LIMIT"><td>' . esc_html__( 'WP memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( WP_MEMORY_LIMIT ) . '</td></tr>';
+		echo '<tr title="WP_MAX_MEMORY_LIMIT"><td>' . esc_html__( 'WP maximum memory limit', 'wp-time-capsule' ) . '</td><td>' . esc_html( WP_MAX_MEMORY_LIMIT ) . '</td></tr>';
+		echo '<tr title=""><td>' . esc_html__( 'Memory in use', 'wp-time-capsule' ) . '</td><td>' . size_format( memory_get_usage( true ), 2 ) . '</td></tr>';
 
 		// disabled PHP functions.
 		$disabled = esc_html( ini_get( 'disable_functions' ) );
 		if ( ! empty( $disabled ) ) {
 			$disabledarry = explode( ',', $disabled );
-			echo '<tr title=""><td>' . __( 'Disabled PHP Functions:', 'wp-time-capsule' ) . '</td><td>';
+			echo '<tr title=""><td>' . esc_html__( 'Disabled PHP Functions:', 'wp-time-capsule' ) . '</td><td>';
 			echo implode( ', ', $disabledarry );
 			echo '</td></tr>';
 		}
 
 		// Loaded PHP Extensions.
-		echo '<tr title=""><td>' . __( 'Loaded PHP Extensions:', 'wp-time-capsule' ) . '</td><td>';
+		echo '<tr title=""><td>' . esc_html__( 'Loaded PHP Extensions:', 'wp-time-capsule' ) . '</td><td>';
 		$extensions = get_loaded_extensions();
 		sort( $extensions );
 		echo esc_html( implode( ', ', $extensions ) );

@@ -22,7 +22,9 @@ class MainWP_Client_Report_Base {
 	 *
 	 * @var mixed Default null
 	 */
-	public static $instance = null;
+	public static $instance  = null;
+	public static $date_from = null;
+	public static $date_to   = null;
 
 	/**
 	 * Method get_class_name()
@@ -77,6 +79,7 @@ class MainWP_Client_Report_Base {
 			'backups'     => 'backups',
 			'backup'      => 'backups',
 			'media'       => 'media',
+			'ithemes'     => 'ithemes_scan',
 		);
 
 		$context = isset( $mapping_contexts[ $context ] ) ? $mapping_contexts[ $context ] : $context;
@@ -110,6 +113,7 @@ class MainWP_Client_Report_Base {
 			'sucuri_scan'        => 'mainwp_sucuri',
 			'mainwp_maintenance' => 'mainwp_maintenance',
 			'wordfence_scan'     => 'mainwp_wordfence',
+			'ithemes_scan'       => 'mainwp_ithemes',
 			'media'              => 'media',
 		);
 
@@ -150,6 +154,10 @@ class MainWP_Client_Report_Base {
 		} elseif ( 'wordfence_scan' == $context ) {
 			if ( 'scan' == $action ) {
 				$action = 'wordfence_scan';
+			}
+		} elseif ( 'ithemes_scan' == $context ) {
+			if ( 'scan' == $action ) {
+				$action = 'ithemes_scan';
 			}
 		}
 		return $action;
@@ -196,6 +204,9 @@ class MainWP_Client_Report_Base {
 				unset( $args[ $arg ] );
 			}
 		}
+
+		self::$date_from = isset( $args['date_from'] ) ? $args['date_from'] : 0;
+		self::$date_to   = isset( $args['date_to'] ) ? $args['date_to'] : 0;
 
 		$exclude_connector_posts = $this->get_stream_get_not_in_params( $sections, $other_tokens );
 		if ( $exclude_connector_posts ) {
@@ -345,6 +356,7 @@ class MainWP_Client_Report_Base {
 				} elseif ( 3 === count( $array_tmp ) ) {
 					list( $context, $action, $data ) = $array_tmp;
 				}
+
 				$context = $this->get_compatible_context( $context );
 				// to compatible with new version of child report.
 				// to check condition for grabbing report data.
@@ -358,7 +370,37 @@ class MainWP_Client_Report_Base {
 				}
 				switch ( $data ) {
 					case 'count':
-						$token_values[ $token ] = $this->get_other_tokens_count( $records, $connector, $context, $action, $skip_records, $backups_created_time_to_fix );
+						if ( 'wordfence_scan' === $context ) { // wordfence.blocked.count.
+							if ( 'blocked' === $action ) {
+								$token_values[ $token ] = $this->wfc_getBlockedCount();
+							} elseif ( 'issue' === $action ) {
+								$token_values[ $token ] = $this->wfc_getIssueCount();
+							} else {
+								$token_values[ $token ] = 0;
+							}
+						} elseif ( 'ithemes_scan' === $context ) {
+							if ( 'ithemes_scan' === $context ) {
+								if ( 'blocked' === $action ) { // ithemes.blocked.count.
+									$token_values[ $token ] = $this->ithemes_query_events_count( 'blocked' );
+								} elseif ( 'lockout' === $action ) { // ithemes.lockout.count.
+									$count                  = $this->ithemes_get_lockouts(
+										'all',
+										array(
+											'return' => 'count',
+											'after'  => (int) self::$date_from,
+											'before' => (int) self::$date_to,
+										)
+									);
+									$token_values[ $token ] = $count;
+								} else {
+									$token_values[ $token ] = 0;
+								}
+							}
+						}
+
+						if ( ! isset( $token_values[ $token ] ) ) {
+							$token_values[ $token ] = $this->get_other_tokens_count( $records, $connector, $context, $action, $skip_records, $backups_created_time_to_fix );
+						}
 						break;
 				}
 			}
@@ -599,6 +641,7 @@ class MainWP_Client_Report_Base {
 					continue;
 				}
 			}
+
 			$token_values = $this->get_section_loop_token_values( $record, $context, $tokens );
 			if ( ! empty( $token_values ) ) {
 				$loops[ $loop_count ] = $token_values;
@@ -832,7 +875,7 @@ class MainWP_Client_Report_Base {
 		$value = $this->get_stream_meta_data( $record, $data );
 
 		if ( empty( $value ) && 'comments' === $context ) {
-			$value = __( 'Guest', 'mainwp-child' );
+			$value = esc_html__( 'Guest', 'mainwp-child' );
 		}
 
 		// check compatibility with old meta data.
@@ -859,7 +902,7 @@ class MainWP_Client_Report_Base {
 			$meta_value = $this->get_stream_meta_data( $record, $data );
 			if ( 'wordfence_scan' === $context ) {
 				if ( 'result' == $data ) {
-					$completed_log  = __( 'Scan complete. Congratulations, no new problems found.', 'wordfence' );
+					$completed_log  = esc_html__( 'Scan complete. Congratulations, no new problems found.', 'wordfence' );
 					$str_loc1       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 2 ); // loc string.
 					$str_loc2       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 3 ); // loc string.
 					$congra_str_loc = str_replace( $str_loc1, '', $str_loc2 );
@@ -876,6 +919,23 @@ class MainWP_Client_Report_Base {
 					}
 				} elseif ( 'details' == $data ) {
 					$meta_value = str_replace( 'SUM_FINAL:', '', $meta_value );
+				}
+			}
+			$tok_value = $meta_value;
+		} elseif ( 'ithemes_scan' === $context ) {
+
+			$meta_value = $this->get_stream_meta_data( $record, $data );
+			if ( 'result' == $data ) {
+				if ( empty( $meta_value ) ) {
+					$meta_value = 'No issues detected';
+				} else {
+					$meta_value = 'Issues Detected';
+				}
+			} elseif ( 'details' == $data ) {
+				if ( empty( $meta_value ) ) {
+					$meta_value = 'Scan complete. Congratulations, no new problems found.';
+				} else {
+					$meta_value = 'Scan complete. You have ' . intval( $meta_value ) . ' new issues to fix.';
 				}
 			}
 			$tok_value = $meta_value;
@@ -903,14 +963,14 @@ class MainWP_Client_Report_Base {
 
 				$status = array();
 				if ( $blacklisted ) {
-					$status[] = __( 'Site Blacklisted', 'mainwp-child' ); }
+					$status[] = esc_html__( 'Site Blacklisted', 'mainwp-child' ); }
 				if ( $malware_exists ) {
-					$status[] = __( 'Site With Warnings', 'mainwp-child' ); }
+					$status[] = esc_html__( 'Site With Warnings', 'mainwp-child' ); }
 
 				if ( 'status' == $data ) {
-					$tok_value = count( $status ) > 0 ? implode( ', ', $status ) : __( 'Verified Clear', 'mainwp-child' );
+					$tok_value = count( $status ) > 0 ? implode( ', ', $status ) : esc_html__( 'Verified Clear', 'mainwp-child' );
 				} elseif ( 'webtrust' == $data ) {
-					$tok_value = $blacklisted ? __( 'Site Blacklisted', 'mainwp-child' ) : __( 'Trusted', 'mainwp-child' );
+					$tok_value = $blacklisted ? esc_html__( 'Site Blacklisted', 'mainwp-child' ) : esc_html__( 'Trusted', 'mainwp-child' );
 				}
 			}
 		} else {
@@ -930,16 +990,16 @@ class MainWP_Client_Report_Base {
 	private function get_mainwp_maintenance_token_value( $record, $data ) {
 
 		$maintenance_details = array(
-			'revisions'     => __( 'Delete all post revisions', 'mainwp-child' ),
-			'revisions_max' => __( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
-			'autodraft'     => __( 'Delete all auto draft posts', 'mainwp-child' ),
-			'trashpost'     => __( 'Delete trash posts', 'mainwp-child' ),
-			'spam'          => __( 'Delete spam comments', 'mainwp-child' ),
-			'pending'       => __( 'Delete pending comments', 'mainwp-child' ),
-			'trashcomment'  => __( 'Delete trash comments', 'mainwp-child' ),
-			'tags'          => __( 'Delete tags with 0 posts associated', 'mainwp-child' ),
-			'categories'    => __( 'Delete categories with 0 posts associated', 'mainwp-child' ),
-			'optimize'      => __( 'Optimize database tables', 'mainwp-child' ),
+			'revisions'     => esc_html__( 'Delete all post revisions', 'mainwp-child' ),
+			'revisions_max' => esc_html__( 'Delete all post revisions, except for the last:', 'mainwp-child' ),
+			'autodraft'     => esc_html__( 'Delete all auto draft posts', 'mainwp-child' ),
+			'trashpost'     => esc_html__( 'Delete trash posts', 'mainwp-child' ),
+			'spam'          => esc_html__( 'Delete spam comments', 'mainwp-child' ),
+			'pending'       => esc_html__( 'Delete pending comments', 'mainwp-child' ),
+			'trashcomment'  => esc_html__( 'Delete trash comments', 'mainwp-child' ),
+			'tags'          => esc_html__( 'Delete tags with 0 posts associated', 'mainwp-child' ),
+			'categories'    => esc_html__( 'Delete categories with 0 posts associated', 'mainwp-child' ),
+			'optimize'      => esc_html__( 'Optimize database tables', 'mainwp-child' ),
 		);
 
 		$meta_value = $this->get_stream_meta_data( $record, $data );
@@ -963,4 +1023,241 @@ class MainWP_Client_Report_Base {
 		$tok_value = implode( ', ', $details );
 		return $tok_value;
 	}
+
+
+	/**
+	 * Method wfc_getBlockedCount()
+	 *
+	 * Get the number of blocked attackes.
+	 *
+	 * @param string $grouping Contains the grouping blocked attacks to count blocked attacks.
+	 *
+	 * @return array Action result.
+	 */
+	public function wfc_getBlockedCount( $grouping = null ) {
+
+		try {
+			MainWP_Helper::instance()->check_classes_exists( array( '\wfDB', '\wfConfig' ) );
+			MainWP_Helper::instance()->check_methods( '\wfDB', array( 'networkTable' ) );
+			MainWP_Helper::instance()->check_methods( '\wfConfig', array( 'get' ) );
+		} catch ( \Exception $e ) {
+			return 0;
+		}
+
+		$fromDays = (int) self::$date_from;
+		$toDays   = (int) self::$date_to;
+
+		if ( $fromDays <= 0 ) {
+			$interval_fromDays = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval 7 day)) / 86400)';
+			switch ( \wfConfig::get( 'email_summary_interval', 'weekly' ) ) {
+				case 'daily':
+					$interval_fromDays = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval 1 day)) / 86400)';
+					break;
+				case 'monthly':
+					$interval_fromDays = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval 1 month)) / 86400)';
+					break;
+			}
+		} else {
+			$interval_fromDays = floor( $fromDays / 86400 );
+		}
+
+		if ( $toDays <= 0 ) {
+			$interval_toDays = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval 0 day)) / 86400)';
+		} else {
+			$interval_toDays = floor( $toDays / 86400 );
+		}
+
+		// Possible values for blockType: throttle, manual, brute, fakegoogle, badpost, country, advanced, blacklist, waf
+		$groupingWHERE = '';
+		switch ( $grouping ) {
+			case MainWP_Child_Wordfence::BLOCK_TYPE_COMPLEX:
+				$groupingWHERE = ' AND blockType IN ("fakegoogle", "badpost", "country", "advanced", "waf")';
+				break;
+			case MainWP_Child_Wordfence::BLOCK_TYPE_BRUTE_FORCE:
+				$groupingWHERE = ' AND blockType IN ("throttle", "brute")';
+				break;
+			case MainWP_Child_Wordfence::BLOCK_TYPE_BLACKLIST:
+				$groupingWHERE = ' AND blockType IN ("blacklist", "manual")';
+				break;
+			default:
+				$groupingWHERE = ' AND blockType IN ("fakegoogle", "badpost", "country", "advanced", "waf", "throttle", "brute", "blacklist", "manual" )';
+				break;
+		}
+
+		global $wpdb;
+
+		$table_wfBlockedIPLog = \wfDB::networkTable( 'wfBlockedIPLog' );
+		$count                = $wpdb->get_var(
+			<<<SQL
+SELECT SUM(blockCount) as blockCount
+FROM {$table_wfBlockedIPLog}
+WHERE unixday >= {$interval_fromDays} AND unixday <= {$interval_toDays} {$groupingWHERE}
+SQL
+		);
+
+		return intval( $count );
+	}
+
+	/**
+	 * Method wfc_getIssueCount()
+	 *
+	 * Get the issues found in most recent scan.
+	 *
+	 * @param string $grouping Contains the grouping blocked attacks to count blocked attacks.
+	 *
+	 * @return array Action result.
+	 */
+	public function wfc_getIssueCount() {
+		try {
+			MainWP_Helper::instance()->check_classes_exists( array( '\wfIssues' ) );
+			$wfIssues = new \wfIssues();
+			MainWP_Helper::instance()->check_methods( $wfIssues, array( 'getIssueCount' ) );
+		} catch ( \Exception $e ) {
+			return 0;
+		}
+		$issueCount = 0;
+		if ( $wfIssues ) {
+			$issueCount = $wfIssues->getIssueCount();
+		}
+		return $issueCount;
+	}
+
+	/**
+	 * Method ithemes_getEventsCount()
+	 *
+	 * Get the number of Events.
+	 *
+	 * @param string $event event to count.
+	 *
+	 * @return array Action result.
+	 */
+	public function ithemes_query_events_count( $event = 'blocked' ) {
+
+		try {
+			MainWP_Helper::instance()->check_classes_exists( array( '\ITSEC_Dashboard_Util' ) );
+			MainWP_Helper::instance()->check_methods( '\ITSEC_Dashboard_Util', array( 'count_events' ) );
+		} catch ( \Exception $e ) {
+			return 0;
+		}
+
+		$period = array(
+			'start' => date( 'Y-m-d 00:00:00', self::$date_from ),
+			'end'   => date( 'Y-m-d 23:59:59', self::$date_to ),
+		);
+
+		$count = 0;
+
+		if ( 'blocked' === $event ) {
+			$blocked = \ITSEC_Dashboard_Util::count_events(
+				array(
+					'blacklist-four_oh_four',
+					'blacklist-brute_force',
+					'blacklist-brute_force_admin_user',
+					'blacklist-recaptcha',
+					'lockout-user',
+					'lockout-username',
+					'lockout-host',
+					'fingerprint-login-blocked',
+					'recaptcha-empty',
+					'recaptcha-invalid',
+					'fingerprint-session-destroyed',
+				),
+				$period
+			);
+			$count   = is_wp_error( $blocked ) ? 0 : array_sum( $blocked );
+
+		}
+
+		return $count;
+	}
+
+
+	/**
+	 * Shows all lockouts currently in the database.
+	 *
+	 * @since 4.0
+	 *
+	 * @param string $type 'all', 'host', 'user' or 'username'.
+	 * @param array  $args Additional arguments.
+	 *
+	 * @return array all lockouts in the system
+	 */
+	public function ithemes_get_lockouts( $type = 'all', $args = array() ) {
+
+		global $wpdb;
+
+		$where  = $limit = $order = '';
+		$wheres = array();
+
+		switch ( $type ) {
+
+			case 'host':
+				$wheres[] = "`lockout_host` IS NOT NULL AND `lockout_host` != ''";
+				break;
+			case 'user':
+				$wheres[] = '`lockout_user` != 0';
+				break;
+			case 'username':
+				$wheres[] = "`lockout_username` IS NOT NULL AND `lockout_username` != ''";
+				break;
+		}
+
+		if ( isset( $args['after'] ) ) {
+			$after = is_int( $args['after'] ) ? $args['after'] : strtotime( $args['after'] );
+			$after = date( 'Y-m-d H:i:s', $after );
+
+			$wheres[] = "`lockout_start_gmt` > '{$after}'";
+		}
+
+		if ( isset( $args['before'] ) ) {
+			$before = is_int( $args['before'] ) ? $args['before'] : strtotime( $args['before'] );
+			$before = date( 'Y-m-d H:i:s', $before );
+
+			$wheres[] = "`lockout_start_gmt` < '{$before}'";
+		}
+
+		if ( $wheres ) {
+			$where = ' WHERE ' . implode( ' AND ', $wheres );
+		}
+
+		if ( ! empty( $args['orderby'] ) ) {
+			$columns   = array( 'lockout_id', 'lockout_start', 'lockout_expire' );
+			$direction = isset( $args['order'] ) ? $args['order'] : 'DESC';
+
+			if ( ! in_array( $args['orderby'], $columns, true ) ) {
+				$args['orderby'] = 'lockout_id';
+			}
+
+			if ( ! in_array( $direction, array( 'ASC', 'DESC' ), true ) ) {
+				$direction = 'DESC';
+			}
+
+			$order = " ORDER BY `{$args['orderby']}` $direction";
+		}
+
+		if ( isset( $args['return'] ) && 'count' === $args['return'] ) {
+			$select   = 'SELECT COUNT(1) as COUNT';
+			$is_count = true;
+		} else {
+			$select   = "SELECT `{$wpdb->base_prefix}itsec_lockouts`.*";
+			$is_count = false;
+		}
+
+		$sql = "{$select} FROM `{$wpdb->base_prefix}itsec_lockouts` {$where}{$order}{$limit};";
+
+		$results = $wpdb->get_results( $sql, ARRAY_A );
+
+		if ( $is_count ) {
+			return $results ? $results[0]['COUNT'] : 0;
+		}
+
+		if ( $results ) {
+			foreach ( $results as $result ) {
+				wp_cache_add( $result['lockout_id'], $result, 'itsec-lockouts' );
+			}
+		}
+
+		return $results;
+	}
+
 }

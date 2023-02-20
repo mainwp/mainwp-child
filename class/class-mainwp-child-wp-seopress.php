@@ -89,14 +89,14 @@ class MainWP_Child_WP_Seopress {
 	 */
 	public function export_settings() {
 		if ( ! function_exists( 'seopress_return_settings' ) ) {
-			$information['error'] = __( 'Settings could not be exported. Missing function `seopress_return_settings`', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Settings could not be exported. Missing function `seopress_return_settings`', 'mainwp-child' );
 			return $information;
 		}
 
 		$settings = seopress_return_settings();
 
 		$information['settings'] = $settings;
-		$information['message']  = __( 'Export completed', 'mainwp-child' );
+		$information['message']  = esc_html__( 'Export completed', 'mainwp-child' );
 
 		return $information;
 	}
@@ -109,7 +109,7 @@ class MainWP_Child_WP_Seopress {
 	public function import_settings() {
 		if ( isset( $_POST['settings'] ) ) {
 			if ( ! function_exists( 'seopress_do_import_settings' ) ) {
-				$information['error'] = __( 'Settings could not be imported. Missing function `seopress_do_import_settings`', 'mainwp-child' );
+				$information['error'] = esc_html__( 'Settings could not be imported. Missing function `seopress_do_import_settings`', 'mainwp-child' );
 				return $information;
 			}
 
@@ -117,7 +117,7 @@ class MainWP_Child_WP_Seopress {
 
 			seopress_do_import_settings( $settings );
 
-			$information['message'] = __( 'Import completed', 'mainwp-child' );
+			$information['message'] = esc_html__( 'Import completed', 'mainwp-child' );
 
 			return $information;
 		}
@@ -130,7 +130,7 @@ class MainWP_Child_WP_Seopress {
 	 */
 	public function sync_settings() {
 		if ( ! function_exists( 'seopress_mainwp_save_settings' ) ) {
-			$information['error'] = __( 'Settings could not be saved. Missing function `seopress_mainwp_save_settings`', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Settings could not be saved. Missing function `seopress_mainwp_save_settings`', 'mainwp-child' );
 			return $information;
 		}
 
@@ -139,12 +139,12 @@ class MainWP_Child_WP_Seopress {
 			$option   = sanitize_text_field( $_POST['option'] ?? '' );
 
 			if ( empty( $option ) ) {
-				$information['error'] = __( 'Settings could not be saved. Missing option name.', 'mainwp-child' );
+				$information['error'] = esc_html__( 'Settings could not be saved. Missing option name.', 'mainwp-child' );
 				return $information;
 			}
 
 			if ( 'seopress_pro_option_name' === $option && ! $this->is_seopress_pro_version_active() ) {
-				$information['error'] = __( 'SEOPress Pro plugin is not active on child site.', 'mainwp-child' );
+				$information['error'] = esc_html__( 'SEOPress Pro plugin is not active on child site.', 'mainwp-child' );
 				return $information;
 			}
 
@@ -154,7 +154,7 @@ class MainWP_Child_WP_Seopress {
 
 			seopress_mainwp_save_settings( $settings, $option );
 
-			$information['message'] = __( 'Save successful', 'mainwp-child' );
+			$information['message'] = esc_html__( 'Save successful', 'mainwp-child' );
 
 			return $information;
 		}
@@ -169,12 +169,12 @@ class MainWP_Child_WP_Seopress {
 	 */
 	public function save_pro_licence() {
 		if ( ! $this->is_seopress_pro_version_active() ) {
-			$information['error'] = __( 'SEOPress Pro plugin is not active on child site.', 'mainwp-child' );
+			$information['error'] = esc_html__( 'SEOPress Pro plugin is not active on child site.', 'mainwp-child' );
 			return $information;
 		}
 
 		if ( ! function_exists( 'seopress_save_pro_licence' ) ) {
-			$information['error'] = __( 'Settings could not be saved. Missing function `seopress_save_pro_licence`', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Settings could not be saved. Missing function `seopress_save_pro_licence`', 'mainwp-child' );
 			return $information;
 		}
 
@@ -185,7 +185,7 @@ class MainWP_Child_WP_Seopress {
 		$response = seopress_save_pro_licence( $licence );
 
 		if ( ! is_wp_error( $response ) ) {
-			$information['message'] = __( 'Save successful', 'mainwp-child' );
+			$information['message'] = esc_html__( 'Save successful', 'mainwp-child' );
 		} else {
 			$information['error'] = $response->get_error_message();
 		}
@@ -202,18 +202,18 @@ class MainWP_Child_WP_Seopress {
 	 */
 	public function reset_pro_licence() {
 		if ( ! $this->is_seopress_pro_version_active() ) {
-			$information['error'] = __( 'SEOPress Pro plugin is not active on child site.', 'mainwp-child' );
+			$information['error'] = esc_html__( 'SEOPress Pro plugin is not active on child site.', 'mainwp-child' );
 			return $information;
 		}
 
 		if ( ! function_exists( 'seopress_reset_pro_licence' ) ) {
-			$information['error'] = __( 'Licence could not be reset. Missing function `seopress_reset_pro_licence`', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Licence could not be reset. Missing function `seopress_reset_pro_licence`', 'mainwp-child' );
 			return $information;
 		}
 
 		seopress_reset_pro_licence( $licence );
 
-		$information['message'] = __( 'Reset successful', 'mainwp-child' );
+		$information['message'] = esc_html__( 'Reset successful', 'mainwp-child' );
 
 		return $information;
 	}
@@ -227,13 +227,13 @@ class MainWP_Child_WP_Seopress {
 	 */
 	public function flush_rewrite_rules() {
 		if ( ! function_exists( 'seopress_flush_rewrite_rules' ) ) {
-			$information['error'] = __( 'Action could not be executed. Missing function `seopress_flush_rewrite_rules`', 'mainwp-child' );
+			$information['error'] = esc_html__( 'Action could not be executed. Missing function `seopress_flush_rewrite_rules`', 'mainwp-child' );
 			return $information;
 		}
 
 		seopress_flush_rewrite_rules();
 
-		$information['message'] = __( 'Save successful', 'mainwp-child' );
+		$information['message'] = esc_html__( 'Save successful', 'mainwp-child' );
 
 		return $information;
 	}

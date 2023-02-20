@@ -163,7 +163,7 @@ class MainWP_Child_Branding_Render {
 				<br/>
 				<?php
 				$button_title = $opts['submit_button_title'];
-				$button_title = ! empty( $button_title ) ? $button_title : __( 'Submit', 'mainwp-child' );
+				$button_title = ! empty( $button_title ) ? $button_title : esc_html__( 'Submit', 'mainwp-child' );
 				?>
 				<div class="whlb-support-field">
 				<input id="mainwp-branding-contact-support-submit" type="submit" name="submit" value="<?php echo esc_attr( $button_title ); ?>" class="button-primary button" style="float: left"/>
@@ -191,10 +191,10 @@ class MainWP_Child_Branding_Render {
 			if ( ! empty( $send_email_message ) ) {
 				$send_email_message = stripslashes( $send_email_message );
 			} else {
-				$send_email_message = __( 'Message has been submitted successfully.', 'mainwp-child' );
+				$send_email_message = esc_html__( 'Message has been submitted successfully.', 'mainwp-child' );
 			}
 		} else {
-			$send_email_message = __( 'Sending email failed!', 'mainwp-child' );
+			$send_email_message = esc_html__( 'Sending email failed!', 'mainwp-child' );
 		}
 		?>
 		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>

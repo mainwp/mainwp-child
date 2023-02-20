@@ -132,7 +132,7 @@ class MainWP_Clone {
 		}
 
 		if ( ! $this->check_security( $action, $query_arg ) ) {
-			die( wp_json_encode( array( 'error' => __( 'Invalid request!', 'mainwp-child' ) ) ) );
+			die( wp_json_encode( array( 'error' => esc_html__( 'Invalid request!', 'mainwp-child' ) ) ) );
 		}
 
 		if ( isset( $_POST['dts'] ) ) {
@@ -143,7 +143,7 @@ class MainWP_Clone {
 
 			// If already processed, just quit!
 			if ( isset( $ajaxPosts[ $action ] ) && ( $ajaxPosts[ $action ] == $_POST['dts'] ) ) {
-				die( wp_json_encode( array( 'error' => __( 'Double request!', 'mainwp-child' ) ) ) );
+				die( wp_json_encode( array( 'error' => esc_html__( 'Double request!', 'mainwp-child' ) ) ) );
 			}
 
 			$ajaxPosts[ $action ] = isset( $_POST['dts'] ) ? sanitize_text_field( wp_unslash( $_POST['dts'] ) ) : '';
@@ -386,7 +386,7 @@ class MainWP_Clone {
 			$this->secure_request( 'mainwp-child_clone_backupcreate' );
 
 			if ( ! isset( $_POST['siteId'] ) ) {
-				throw new \Exception( __( 'No site given', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'No site given', 'mainwp-child' ) );
 			}
 
 			$siteId = isset( $_POST['siteId'] ) ? intval( wp_unslash( $_POST['siteId'] ) ) : false;
@@ -395,7 +395,7 @@ class MainWP_Clone {
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 			if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
-				throw new \Exception( __( 'Site not found', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'Site not found', 'mainwp-child' ) );
 			}
 
 			$siteToClone = $sitesToClone[ $siteId ];
@@ -427,7 +427,7 @@ class MainWP_Clone {
 			);
 
 			if ( ! $result['backup'] ) {
-				throw new \Exception( __( 'Could not create backupfile on child', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'Could not create backupfile on child', 'mainwp-child' ) );
 			}
 			MainWP_Helper::update_option( 'mainwp_temp_clone_plugins', $result['plugins'] );
 			MainWP_Helper::update_option( 'mainwp_temp_clone_themes', $result['themes'] );
@@ -459,14 +459,14 @@ class MainWP_Clone {
 			$this->secure_request( 'mainwp-child_clone_backupcreatepoll' );
 
 			if ( ! isset( $_POST['siteId'] ) ) {
-				throw new \Exception( __( 'No site given', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'No site given', 'mainwp-child' ) );
 			}
 			$siteId = isset( $_POST['siteId'] ) ? sanitize_text_field( wp_unslash( $_POST['siteId'] ) ) : '';
 			$rand   = isset( $_POST['rand'] ) ? sanitize_text_field( wp_unslash( $_POST['rand'] ) ) : '';
 
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 			if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
-				throw new \Exception( __( 'Site not found', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'Site not found', 'mainwp-child' ) );
 			}
 
 			$siteToClone = $sitesToClone[ $siteId ];
@@ -486,7 +486,7 @@ class MainWP_Clone {
 			);
 
 			if ( ! isset( $result['size'] ) ) {
-				throw new \Exception( __( 'Invalid response', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'Invalid response', 'mainwp-child' ) );
 			}
 
 			$output = array( 'size' => round( $result['size'] / 1024, 0 ) );
@@ -513,7 +513,7 @@ class MainWP_Clone {
 			$this->secure_request( 'mainwp-child_clone_backupdownload' );
 
 			if ( ! isset( $_POST['file'] ) ) {
-				throw new \Exception( __( 'No download link given', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'No download link given', 'mainwp-child' ) );
 			}
 
 			$file = isset( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : '';
@@ -523,7 +523,7 @@ class MainWP_Clone {
 				$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
 				if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
-					throw new \Exception( __( 'Site not found', 'mainwp-child' ) );
+					throw new \Exception( esc_html__( 'Site not found', 'mainwp-child' ) );
 				}
 
 				$siteToClone = $sitesToClone[ $siteId ];
@@ -635,7 +635,7 @@ class MainWP_Clone {
 				}
 			}
 			if ( false === $archiveFile ) {
-				throw new \Exception( __( 'No download file found', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'No download file found', 'mainwp-child' ) );
 			}
 			$output = array( 'size' => filesize( $archiveFile ) / 1024 );
 		} catch ( \Exception $e ) {
@@ -756,7 +756,7 @@ class MainWP_Clone {
 				}
 			}
 			if ( false === $archiveFile ) {
-				throw new \Exception( __( 'No download file found', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'No download file found', 'mainwp-child' ) );
 			}
 			$file = $archiveFile;
 		} elseif ( file_exists( $file ) ) {
@@ -764,7 +764,7 @@ class MainWP_Clone {
 		} else {
 			$file = ABSPATH . $file;
 			if ( ! file_exists( $file ) ) {
-				throw new \Exception( __( 'Backup file not found', 'mainwp-child' ) );
+				throw new \Exception( esc_html__( 'Backup file not found', 'mainwp-child' ) );
 			}
 			$testFull = true;
 		}

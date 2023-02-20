@@ -452,7 +452,7 @@ class MainWP_Child_Actions {
 	public function callback_switch_theme( $name, $theme ) {
 		unset( $theme );
 		$this->save_actions(
-			__( '"%s" theme activated', 'mainwp-child' ),
+			esc_html__( '"%s" theme activated', 'mainwp-child' ),
 			compact( 'name' ),
 			'themes',
 			'activated'
@@ -483,7 +483,7 @@ class MainWP_Child_Actions {
 		// @todo Can we get the name of the theme? Or has it already been eliminated
 
 		$this->save_actions(
-			__( '"%s" theme deleted', 'mainwp-child' ),
+			esc_html__( '"%s" theme deleted', 'mainwp-child' ),
 			compact( 'name' ),
 			'themes',
 			'deleted'
@@ -527,7 +527,7 @@ class MainWP_Child_Actions {
 					$network_wide = $data['Network'] ? esc_html__( 'network wide', 'mainwp-child' ) : '';
 
 					$this->save_actions(
-						__( '"%s" plugin deleted', 'mainwp-child' ),
+						esc_html__( '"%s" plugin deleted', 'mainwp-child' ),
 						compact( 'name', 'plugin', 'network_wide' ),
 						'plugins',
 						'deleted'

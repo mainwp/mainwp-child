@@ -188,7 +188,7 @@ class MainWP_Backup {
 			}
 
 			if ( ( time() - filemtime( $file ) ) < 160 ) {
-				MainWP_Helper::instance()->error( __( 'Another backup process is running. Please, try again later.', 'mainwp-child' ) );
+				MainWP_Helper::instance()->error( esc_html__( 'Another backup process is running. Please, try again later.', 'mainwp-child' ) );
 			}
 		}
 

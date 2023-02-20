@@ -437,7 +437,7 @@ class MainWP_Child_Pagespeed {
 		if ( defined( 'GPI_DIRECTORY' ) ) {
 			$checkstatus = apply_filters( 'gpi_check_status', false );
 			if ( $checkstatus ) {
-				$information['error'] = __( 'The API is busy checking other pages, please try again later.', 'gpagespeedi' );
+				$information['error'] = esc_html__( 'The API is busy checking other pages, please try again later.', 'gpagespeedi' );
 			} else {
 				do_action( 'run_gpi', $forceRecheck );
 				$information['checked_pages'] = 1;
