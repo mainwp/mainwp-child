@@ -63,8 +63,7 @@ class MainWP_Child_DB_Updater_Elementor {
 	/**
 	 * Get sync data.
 	 *
-	 * @return array|bool $out Return Updraft data array or FALSE on failure.
-	 * @throws Exception Error message.
+	 * @return array $db_upgrades Return data array.
 	 */
 	public function hook_db_updater_sync_data( $db_upgrades ) {
 
@@ -198,7 +197,7 @@ class MainWP_Child_DB_Updater_Elementor {
 		MainWP_Helper::instance()->check_classes_exists( array( $manager_class, '\Elementor\Plugin' ) );
 
 		// core\upgrade\manager.php.
-		/** @var \Elementor\Core\Upgrade\Manager $manager */
+		// var \Elementor\Core\Upgrade\Manager $manager.
 		$manager = new $manager_class();
 
 		if ( ! $this->check_parent_method( $manager, 'get_task_runner' ) ) {
