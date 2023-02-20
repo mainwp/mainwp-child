@@ -63,7 +63,10 @@ class MainWP_Child_DB_Updater_Elementor {
 	/**
 	 * Get sync data.
 	 *
+	 * @param array $db_upgrades Input sync data.
+	 * 
 	 * @return array $db_upgrades Return data array.
+	 * 
 	 */
 	public function hook_db_updater_sync_data( $db_upgrades ) {
 
