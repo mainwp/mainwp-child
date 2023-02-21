@@ -233,19 +233,17 @@ class MainWP_Child_Cache_Purge {
 					default:
 						break;
 				}
-//			} catch ( \Exception $e ) {
-//				$information = array( 'error' => $e->getMessage() );
-//			}
-//			$this->record_results( $information );
-//		} else {
-//			$information = array( 'status' => 'Disabled' );
-//
-//			$this->record_results( $information );
-//		}
 			} catch ( \Exception $e ) {
 				$information = array( 'error' => $e->getMessage() );
 			}
+		} else {
+			$information = array( 'status' => 'Disabled' );
 		}
+
+		// Save to DB.
+		$this->record_results( $information );
+
+		// Return results in JSON format.
 		MainWP_Helper::write( $information );
 	}
 
