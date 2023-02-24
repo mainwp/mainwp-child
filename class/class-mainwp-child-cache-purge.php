@@ -129,6 +129,7 @@ class MainWP_Child_Cache_Purge {
 			'nginx-helper/nginx-helper.php'              => 'Nginx Helper',
 			'nitropack/main.php'                         => 'Nitropack',
 			'autoptimize/autoptimize.php'                => 'Autoptimize',
+            'flying-press/flying-press.php'              => 'FlyingPress',
 		);
 
 		// Check if a supported cache plugin is active then check if CloudFlair is active.
@@ -143,33 +144,6 @@ class MainWP_Child_Cache_Purge {
 
 		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
 	}
-
-	/**
-	 * Method actions()
-	 *
-	 * Fire off certain MainWP Cache Control actions.
-	 *
-	 * @return void
-	 *
-	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::auto_purge_cache() Purge All Cache.
-	 * @uses \MainWP\Child\MainWP_Helper::write()
-	 */
-//	public function action() {
-//
-//		$information = array();
-//
-//		if ( isset( $_POST['mwp_action'] ) ) {
-//			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
-//			try {
-//				if ( $mwp_action == 'purge_all_cache' ) {
-//					$information = $this->auto_purge_cache();
-//				}
-//			} catch ( \Exception $e ) {
-//				$information = array( 'error' => $e->getMessage() );
-//			}
-//		}
-//		MainWP_Helper::write( $information );
-//	}
 
 	/**
 	 * Auto purge cache based on which cache plugin is installed & activated.
@@ -227,6 +201,9 @@ class MainWP_Child_Cache_Purge {
 					case 'Autoptimize':
 						$information = $this->autoptimize_auto_purge_cache();
 						break;
+                    case 'FlyingPress':
+                        $information = $this->flyingpress_auto_purge_cache();
+                        break;
 					case 'Cloudflare':
 						$information = $this->cloudflair_auto_purge_cache();
 						break;
@@ -246,6 +223,41 @@ class MainWP_Child_Cache_Purge {
 		// Return results in JSON format.
 		MainWP_Helper::write( $information );
 	}
+
+    /**
+     * Purge FlyingPress cache after updates.
+     */
+    public function flyingpress_auto_purge_cache() {
+        if ( class_exists( '\FlyingPress\Purge' ) ) {
+
+            // Clear Cache.
+            \FlyingPress\Purge::purge_everything();
+
+            // record results.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'FlyingPress Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+                'action'                => 'SUCCESS',
+            );
+        } else {
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'FlyingPress Cache => There was an issue purging your cache.',
+                'action'                => 'SUCCESS',
+            );
+        }
+    }
 
 	/**
 	 * Purge Autoptimize cache after updates.
