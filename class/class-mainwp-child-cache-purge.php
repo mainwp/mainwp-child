@@ -145,33 +145,6 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Method actions()
-	 *
-	 * Fire off certain MainWP Cache Control actions.
-	 *
-	 * @return void
-	 *
-	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::auto_purge_cache() Purge All Cache.
-	 * @uses \MainWP\Child\MainWP_Helper::write()
-	 */
-//	public function action() {
-//
-//		$information = array();
-//
-//		if ( isset( $_POST['mwp_action'] ) ) {
-//			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
-//			try {
-//				if ( $mwp_action == 'purge_all_cache' ) {
-//					$information = $this->auto_purge_cache();
-//				}
-//			} catch ( \Exception $e ) {
-//				$information = array( 'error' => $e->getMessage() );
-//			}
-//		}
-//		MainWP_Helper::write( $information );
-//	}
-
-	/**
 	 * Auto purge cache based on which cache plugin is installed & activated.
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
