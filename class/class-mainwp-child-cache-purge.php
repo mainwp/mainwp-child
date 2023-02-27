@@ -130,6 +130,7 @@ class MainWP_Child_Cache_Purge {
 			'nitropack/main.php'                         => 'Nitropack',
 			'autoptimize/autoptimize.php'                => 'Autoptimize',
 			'flying-press/flying-press.php'              => 'FlyingPress',
+			'wp-super-cache/wp-cache.php'                => 'WP Super Cache',
 		);
 
 		// Check if a supported cache plugin is active then check if CloudFlair is active.
@@ -204,6 +205,9 @@ class MainWP_Child_Cache_Purge {
 					case 'FlyingPress':
 						$information = $this->flyingpress_auto_purge_cache();
 						break;
+                    case 'WP Super Cache':
+                        $information = $this->wp_super_cache_auto_purge_cache();
+                        break;
 					case 'Cloudflare':
 						$information = $this->cloudflair_auto_purge_cache();
 						break;
@@ -223,6 +227,44 @@ class MainWP_Child_Cache_Purge {
 		// Return results in JSON format.
 		MainWP_Helper::write( $information );
 	}
+
+    /**
+     * Purge WP Super Cache after updates.
+     */
+    public function wp_super_cache_auto_purge_cache() {
+
+        if ( function_exists( '\wp_cache_clean_cache' ) ) {
+
+            // Clear Cache.
+            global $file_prefix;
+            \wp_cache_clean_cache( $file_prefix, true );
+
+
+            // record results.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'WP Super Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+                'action'                => 'SUCCESS',
+            );
+        } else {
+            return array(
+                'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+                'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+                'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+                'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+                'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+                'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+                'result'                => 'WP Super Cache => There was an issue purging your cache.',
+                'action'                => 'SUCCESS',
+            );
+        }
+    }
 
 	/**
 	 * Purge FlyingPress cache after updates.
