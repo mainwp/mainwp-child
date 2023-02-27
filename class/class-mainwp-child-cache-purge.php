@@ -348,14 +348,14 @@ class MainWP_Child_Cache_Purge {
 	 * Purge FlyingPress cache after updates.
 	 */
 	public function flyingpress_auto_purge_cache() {
-        if ( class_exists( '\FlyingPress\Purge' ) && class_exists( '\FlyingPress\Preload' ) ) {
+		if ( class_exists( '\FlyingPress\Purge' ) && class_exists( '\FlyingPress\Preload' ) ) {
 
-            // Clear Cache.
-            \FlyingPress\Purge::purge_everything();
+			// Clear Cache.
+			\FlyingPress\Purge::purge_everything();
 
-            sleep(3);
-            // Preload Cache.
-            \FlyingPress\Preload::preload_cache();
+			sleep(3);
+			// Preload Cache.
+			\FlyingPress\Preload::preload_cache();
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
