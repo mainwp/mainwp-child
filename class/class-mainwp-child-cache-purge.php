@@ -222,10 +222,9 @@ class MainWP_Child_Cache_Purge {
 			}
 
 			// Fire off CloudFlare purge if enabled.
-			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ){
+			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
 				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
 			}
-
 		} else {
 			$information = array( 'status' => 'Disabled' );
 		}
