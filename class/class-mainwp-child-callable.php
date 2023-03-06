@@ -94,6 +94,8 @@ class MainWP_Child_Callable {
 		'wp_seopress'           => 'wp_seopress',
 		'db_updater'            => 'db_updater',
 		'cache_purge_action'    => 'cache_purge_action',
+		'jetpack_protect'       => 'jetpack_protect',
+		'jetpack_scan'          => 'jetpack_scan',
 	);
 
 	/**
@@ -913,6 +915,25 @@ class MainWP_Child_Callable {
 		MainWP_Child_DB_Updater::instance()->action();
 	}
 
+
+	/**
+	 * Method jetpack_protect()
+	 *
+	 * Fire off the action() function.
+	 */
+	public function jetpack_protect() {
+		MainWP_Child_Jetpack_Protect::instance()->action();
+	}
+
+
+	/**
+	 * Method jetpack_scan()
+	 *
+	 * Fire off the action() function.
+	 */
+	public function jetpack_scan() {
+		MainWP_Child_Jetpack_Scan::instance()->action();
+	}
 
 
 	/**
