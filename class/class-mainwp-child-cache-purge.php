@@ -140,8 +140,6 @@ class MainWP_Child_Cache_Purge {
 			if ( is_plugin_active( $plugin ) ) {
 				$cache_plugin_solution     = $name;
 				$this->is_plugin_installed = true;
-			} elseif ( false != get_option( 'mainwp_child_cloud_flair_enabled' ) && '' == $cache_plugin_solution ) {
-				$cache_plugin_solution = 'Cloudflare';
 			}
 		}
 
@@ -216,15 +214,18 @@ class MainWP_Child_Cache_Purge {
 					case 'Comet Cache':
 						$information = $this->comet_cache_auto_purge_cache();
 						break;
-					case 'Cloudflare':
-						$information = $this->cloudflair_auto_purge_cache();
-						break;
 					default:
 						break;
 				}
 			} catch ( \Exception $e ) {
 				$information = array( 'error' => $e->getMessage() );
 			}
+
+			// Fire off CloudFlare purge if enabled.
+			if ( get_option('mainwp_child_cloud_flair_enabled' ) ){
+				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
+			}
+
 			$this->record_results( $information );
 		} else {
 			$information = array( 'status' => 'Disabled' );
