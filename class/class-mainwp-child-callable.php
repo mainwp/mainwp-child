@@ -93,7 +93,6 @@ class MainWP_Child_Callable {
 		'check_abandoned'       => 'check_abandoned',
 		'wp_seopress'           => 'wp_seopress',
 		'db_updater'            => 'db_updater',
-		'cache_purge_action'    => 'cache_purge_action',
 		'jetpack_protect'       => 'jetpack_protect',
 		'jetpack_scan'          => 'jetpack_scan',
 	);
@@ -915,7 +914,6 @@ class MainWP_Child_Callable {
 		MainWP_Child_DB_Updater::instance()->action();
 	}
 
-
 	/**
 	 * Method jetpack_protect()
 	 *
@@ -980,18 +978,6 @@ class MainWP_Child_Callable {
 	 */
 	public function branding_child_plugin() {
 		MainWP_Child_Branding::instance()->action();
-	}
-
-	/**
-	 * Method update_child_plugin()
-	 *
-	 * Fire off the action() function.
-	 *
-	 * @uses MainWP_Child_Cache_Purge::action()
-	 * @used-by \MainWP\Extensions\CacheControl\MainWP_Cache_Control_Purge_View::ajax_cache_control_purge_cache_all()
-	 */
-	public function cache_purge_action() {
-		MainWP_Child_Cache_Purge::instance()->auto_purge_cache();
 	}
 
 	/**
