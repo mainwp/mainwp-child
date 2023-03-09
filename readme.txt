@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 5.4
 Tested up to: 6.1.1
 Requires PHP: 7.0
-Stable tag: 4.4
+Stable tag: 4.4.0.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,12 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 10. Manage Clients Screen
 
 == Changelog ==
+
+= 4.4.0.1 - 3-9-2023 =
+* Fixed: PHP 7.0 compatibility warning
+* Fixed: Incorrect Wordfence scans count
+* Fixed: Cosmetic issues caused by escaping HTML tags in notifications
+* Updated: Increased the PHP version minimal requirement to PHP 7.4
 
 = 4.4 - 2-20-2023 =
 * Added: support for new extensions
