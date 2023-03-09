@@ -87,7 +87,7 @@ class MainWP_Child_Cache_Purge {
 					update_option( 'mainwp_cloudflair_key', ( $data['mainwp_cloudflair_key'] ) );
 				}
 			} catch ( \Exception $e ) {
-                error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
+				error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
 			}
 		}
 
@@ -152,7 +152,7 @@ class MainWP_Child_Cache_Purge {
 	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
 	 * @used-by MainWP_Child_Updates::upgrade_wp()
 	 */
-	public function auto_purge_cache() {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+	public function auto_purge_cache( $bulk = '' ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// Check if Cache Control is enabled.
 		if ( get_option( 'mainwp_child_auto_purge_cache' ) == '1' ) {
 			$information = array();
@@ -172,7 +172,7 @@ class MainWP_Child_Cache_Purge {
 					case 'LiteSpeed Cache':
 						$information = $this->litespeed_auto_purge_cache();
 						break;
-					case 'SG CachePress':
+					case 'SiteGround Optimizer':
 						$information = $this->sitegrounds_optimizer_auto_purge_cache();
 						break;
 					case 'Swift Performance Lite':
@@ -222,14 +222,20 @@ class MainWP_Child_Cache_Purge {
 			}
 
 			// Fire off CloudFlare purge if enabled.
-			if ( get_option('mainwp_child_cloud_flair_enabled' ) ){
+			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
 				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
 			}
 
-			$this->record_results( $information );
 		} else {
 			$information = array( 'status' => 'Disabled' );
-			$this->record_results( $information );
+		}
+
+		// Save to DB.
+		$this->record_results( $information );
+
+		if ( $bulk === 'true' ) {
+			// Return results in JSON format.
+			MainWP_Helper::write( $information );
 		}
 	}
 
@@ -252,6 +258,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Comet Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -262,6 +269,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Comet Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -288,6 +296,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Optimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -298,6 +307,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Optimize => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -351,6 +361,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Super Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -361,6 +372,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Super Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -388,6 +400,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'FlyingPress Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -398,6 +411,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'FlyingPress Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -421,6 +435,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Autoptimize Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -431,6 +446,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Autoptimize Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -460,6 +476,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Nitropack Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -470,6 +487,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Nitropack Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -493,6 +511,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Nginx Helper Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -503,6 +522,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Nginx Helper Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -528,6 +548,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Hummingbird Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -538,6 +559,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Hummingbird Performance => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -561,6 +583,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Cache Enabler => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -571,6 +594,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Cache Enabler => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -594,6 +618,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'W3 Total Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -604,6 +629,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'W3 Total Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -627,6 +653,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Fastest Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -637,6 +664,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Fastest Cache => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -660,6 +688,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Swift Performance Lite => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -670,6 +699,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Swift Performance Lite => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -693,6 +723,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Swift Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -703,6 +734,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Swift Performance => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -725,7 +757,8 @@ class MainWP_Child_Cache_Purge {
 				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'SG CachePress => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'result'                => 'SiteGround Optimizer => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -735,7 +768,8 @@ class MainWP_Child_Cache_Purge {
 				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'SG CachePress => There was an issue purging your cache.',
+				'result'                => 'SiteGround Optimizer => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -802,6 +836,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -811,7 +846,8 @@ class MainWP_Child_Cache_Purge {
 				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-                'result'                => 'Cloudflare => There was an issue purging your cache.' . json_encode( $result ) // phpcs:ignore -- ok.
+				'result'                => 'Cloudflare => There was an issue purging your cache.' . json_encode( $result ), // phpcs:ignore -- ok.
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -835,6 +871,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Litespeed => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -845,6 +882,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Litespeed => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -861,7 +899,11 @@ class MainWP_Child_Cache_Purge {
 			$admin->breeze_clear_varnish();
 
 			// For local static files: Clears files within /cache/breeze-minification/ folder.
-			$size_cache = \Breeze_Configuration::breeze_clean_cache();
+			if ( class_exists( '\Breeze_Configuration' ) ) {
+				$size_cache = \Breeze_Configuration::breeze_clean_cache();
+			} else {
+				$size_cache = 0;
+			}
 
 			// Delete minified files.
 			\Breeze_MinificationCache::clear_minification();
@@ -879,6 +921,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Breeze => Cache auto cleared on: (' . current_time( 'mysql' ) . ') And ' . $size_cache . ' local files removed.',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -889,6 +932,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'Breeze => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -917,6 +961,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'                => 'SUCCESS',
 			);
 		} else {
 			return array(
@@ -927,6 +972,7 @@ class MainWP_Child_Cache_Purge {
 				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
 				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
 				'result'                => 'WP Rocket => There was an issue purging your cache.',
+				'action'                => 'ERROR',
 			);
 		}
 	}
@@ -949,7 +995,6 @@ class MainWP_Child_Cache_Purge {
 		}
 
 		// Save Cache Control Log Data.
-
 		update_option( 'mainwp_cache_control_log', wp_json_encode( $information ) );
 	}
 }
