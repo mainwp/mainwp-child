@@ -57,9 +57,9 @@ class MainWP_Child_Wordfence {
 	const OPTIONS_TYPE_DIAGNOSTICS  = 'diagnostics';
 	const OPTIONS_TYPE_ALL          = 'alloptions';
 
-	public const BLOCK_TYPE_COMPLEX     = 'complex';
-	public const BLOCK_TYPE_BRUTE_FORCE = 'bruteforce';
-	public const BLOCK_TYPE_BLACKLIST   = 'blacklist';
+	const BLOCK_TYPE_COMPLEX     = 'complex';
+	const BLOCK_TYPE_BRUTE_FORCE = 'bruteforce';
+	const BLOCK_TYPE_BLACKLIST   = 'blacklist';
 
 	/**
 	 * Public variable to hold the KEY_TYPE_FREE value.

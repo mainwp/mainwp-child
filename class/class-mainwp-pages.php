@@ -108,7 +108,7 @@ class MainWP_Pages {
 
 			$msg  = '<div style="margin:50px 20px 20px 0;background:#fff;border:1px solid #c3c4c7;border-top-color:#d63638;border-top-width:5px;padding:20px;">';
 			$msg .= '<h3 style="margin-top:0;color:#d63638;font-weight:900;">' . esc_html__( 'Attention! ', 'mainwp-child' ) . $child_name . esc_html__( ' plugin is activated but not connected.', 'mainwp-child' ) . '</h3>';
-			$msg .= '<p style="font-size:15px">' . esc_html__( 'Please add this site to your ', 'mainwp-child' ) . $dashboard_name . ' ' . esc_html__( '<strong>NOW</strong> or deactivate the ', 'mainwp-child' ) . $child_name . esc_html__( ' plugin until you are ready to connect this site to your Dashboard in order to avoid unexpected security issues. ', 'mainwp-child' );
+			$msg .= '<p style="font-size:15px">' . esc_html__( 'Please add this site to your ', 'mainwp-child' ) . $dashboard_name . ' ' . esc_html__( 'NOW or deactivate the ', 'mainwp-child' ) . $child_name . esc_html__( ' plugin until you are ready to connect this site to your Dashboard in order to avoid unexpected security issues. ', 'mainwp-child' );
 			$msg .= sprintf( esc_html__( 'If you are not sure how to do it, please review this %1$shelp document%2$s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/add-site-to-your-dashboard/" target="_blank">', '</a>' ) . '</p>';
 			if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
 				$msg .= '<p style="font-size:15px">' . esc_html__( 'You can also turn on the unique security ID option in ', 'mainwp-child' ) . $child_name . sprintf( esc_html__( ' %1$ssettings%2$s if you would like extra security and additional time to add this site to your Dashboard. ', 'maiwnip-child' ), '<a href="admin.php?page=mainwp_child_tab">', '</a>' );

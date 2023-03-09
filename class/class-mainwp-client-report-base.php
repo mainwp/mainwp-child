@@ -390,8 +390,6 @@ class MainWP_Client_Report_Base {
 								$token_values[ $token ] = $this->wfc_getblockedcount();
 							} elseif ( 'issue' === $action ) {
 								$token_values[ $token ] = $this->wfc_getissuecount();
-							} else {
-								$token_values[ $token ] = 0;
 							}
 						} elseif ( 'ithemes_scan' === $context ) {
 							if ( 'ithemes_scan' === $context ) {
@@ -407,8 +405,6 @@ class MainWP_Client_Report_Base {
 										)
 									);
 									$token_values[ $token ] = $count;
-								} else {
-									$token_values[ $token ] = 0;
 								}
 							}
 						}

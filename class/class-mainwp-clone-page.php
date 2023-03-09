@@ -392,7 +392,7 @@ class MainWP_Clone_Page {
 			$dirparts = '<a href="' . $durl . '">' . $part . DIRECTORY_SEPARATOR . '</a>' . $dirparts;
 		}
 
-		echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . esc_html__( '<strong>Current Directory:</strong> <span>' . $dirparts . '</span>', 'mainwp-child' ) . '</div>';
+		echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . sprintf( esc_html__( '%1$sCurrent Directory:%2$s %3$s', 'mainwp-child' ), '<strong>', '</strong>', '<span>' . $dirparts . '</span>' ) . '</div>';
 		$quick_dirs   = array();
 		$quick_dirs[] = array( esc_html__( 'Site Root', 'mainwp-child' ), ABSPATH );
 		$quick_dirs[] = array( esc_html__( 'Backup', 'mainwp-child' ), $backup_dir );
@@ -414,7 +414,7 @@ class MainWP_Clone_Page {
 		}
 
 		if ( ! empty( $quick_links ) ) {
-			echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . esc_html__( implode( ' | ', $quick_links ) ) . '</div>';
+			echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . implode( ' | ', $quick_links ) . '</div>';
 		}
 
 		self::render_clone_from_server_form( $current_dir, $url );
