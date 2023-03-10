@@ -803,6 +803,11 @@ class MainWP_Child_Cache_Purge {
 			curl_close( $ch_query ); // phpcs:ignore -- use core function.
 		}
 
+		// If the Zone-ID is not found, return. ( stop execution of this function and return back to auto_purge_cache() ).
+		if (  ! isset( $qresult['result'][0]['id'] ) ) {
+			return;
+		}
+
 		$cust_zone = $qresult['result'][0]['id'];
 
 		// Purge the entire cache via API.
