@@ -87,6 +87,7 @@ class MainWP_Child {
 		add_action( 'init', array( &$this, 'parse_init' ), 9999 );
 		add_action( 'init', array( &$this, 'localization' ), 33 );
 		add_action( 'admin_init', array( &$this, 'admin_init' ) );
+		add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
 
 		// support for better detection for premium plugins.
 		add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
@@ -470,4 +471,20 @@ class MainWP_Child {
 		}
 	}
 
+	/**
+	 * Method plugin_settings_link()
+	 *
+	 * On the plugins page add a link to the MainWP settings page.
+	 *
+	 * @param array $actions An array of plugin action links. Should include `deactivate`.
+	 *
+	 * @return array
+	 */
+	public function plugin_settings_link( $actions ) {
+		$href          = admin_url( 'options-general.php?page=mainwp_child_tab' );
+		$settings_link = '<a href="' . $href . '">' . __( 'Settings' ) . '</a>'; // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
+		array_unshift( $actions, $settings_link );
+
+		return $actions;
+	}
 }
