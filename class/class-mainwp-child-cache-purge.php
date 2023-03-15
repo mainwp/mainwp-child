@@ -140,6 +140,9 @@ class MainWP_Child_Cache_Purge {
 			if ( is_plugin_active( $plugin ) ) {
 				$cache_plugin_solution     = $name;
 				$this->is_plugin_installed = true;
+			} else {
+				$cache_plugin_solution     = "Plugin Not Found";
+				$this->is_plugin_installed = false;
 			}
 		}
 
@@ -223,11 +226,18 @@ class MainWP_Child_Cache_Purge {
 
 			// Fire off CloudFlare purge if enabled.
 			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
-				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
+				$information = $this->cloudflair_auto_purge_cache();
+				if ( $information !== null && $cache_plugin_solution !== 'Plugin Not Found' ) {
+					$information['cloudflare'] = $information;
+				} else {
+					$information = array( 'status' => 'Disabled' );
+					$information['cloudflare'] = array( 'action' => 'SUCCESS' );
+				}
 			}
 
+
 		} else {
-			$information = array( 'status' => 'Disabled' );
+			$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
 		}
 
 		// Save to DB.
