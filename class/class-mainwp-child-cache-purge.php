@@ -217,6 +217,12 @@ class MainWP_Child_Cache_Purge {
 					case 'Comet Cache':
 						$information = $this->comet_cache_auto_purge_cache();
 						break;
+//					case 'No Plugin Found':
+//						$information = array(
+//
+//							'action'                => 'SUCCESS',
+//						);
+//						break;
 					default:
 						break;
 				}
@@ -226,11 +232,18 @@ class MainWP_Child_Cache_Purge {
 
 			// Fire off CloudFlare purge if enabled.
 			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
-				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
+				$information = $this->cloudflair_auto_purge_cache();
+				if ( $information !== null && $cache_plugin_solution !== 'No Plugin Found' ) {
+					$information['cloudflare'] = $information;
+				} else {
+					$information = array( 'status' => 'Disabled' );
+					$information['cloudflare'] = array( 'action' => 'SUCCESS' );
+				}
 			}
 
+
 		} else {
-			$information = array( 'status' => 'Disabled' );
+			$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
 		}
 
 		// Save to DB.
