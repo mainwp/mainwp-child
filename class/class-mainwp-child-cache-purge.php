@@ -140,6 +140,9 @@ class MainWP_Child_Cache_Purge {
 			if ( is_plugin_active( $plugin ) ) {
 				$cache_plugin_solution     = $name;
 				$this->is_plugin_installed = true;
+			} else {
+				$cache_plugin_solution     = "No Plugin Found";
+				$this->is_plugin_installed = false;
 			}
 		}
 
