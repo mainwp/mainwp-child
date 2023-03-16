@@ -117,6 +117,12 @@ class MainWP_Child_Cache_Purge {
 		// Default value for cache solution.
 		$cache_plugin_solution = 'Plugin Not Found';
 
+		// Grab all mu-plugins & check for Rocket.net mu-plugin. If found, set cache solution to CDN Cache Plugin.
+		$mu_plugings_list = get_mu_plugins();
+		if ( array_key_exists( 'cdn-cache-management.php', $mu_plugings_list ) ) {
+			$cache_plugin_solution     = 'CDN Cache Plugin';
+		}
+
 		$supported_cache_plugins = array(
 			'wp-rocket/wp-rocket.php'                    => 'WP Rocket',
 			'breeze/breeze.php'                          => 'Breeze',
@@ -218,6 +224,9 @@ class MainWP_Child_Cache_Purge {
 					case 'Comet Cache':
 						$information = $this->comet_cache_auto_purge_cache();
 						break;
+					case 'CDN Cache Plugin':
+						$information = $this->cdn_cache_plugin_auto_purge_cache();
+						break;
 					default:
 						break;
 				}
@@ -230,8 +239,8 @@ class MainWP_Child_Cache_Purge {
 				$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
 			}
 
-			// Fire off CloudFlare purge if enabled.
-			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
+			// Fire off CloudFlare purge if enabled & not using a CDN Cache Plugin. ( Stops double purging Cloudflare ).
+			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' && $cache_plugin_solution !== 'CDN Cache Plugin' ) {
 				$information[ 'cloudflare' ] = $this->cloudflair_auto_purge_cache();
 			}
 
@@ -247,6 +256,43 @@ class MainWP_Child_Cache_Purge {
 		if ( $bulk === 'true' ) {
 			// Return results in JSON format.
 			MainWP_Helper::write( $information );
+		}
+	}
+
+	/**
+	 * Purge CDN Cache Plugin cache after updates.
+	 */
+	public function cdn_cache_plugin_auto_purge_cache() {
+		if ( !class_exists('CDN_Clear_Cache_Hooks' ) ) {
+//			include WPMU_PLUGIN_DIR . '/cdn-cache-management/includes/index.php';
+//
+//			// Clear Cache.
+//			$purge = new CDN_Cache_Admin::get_instance();
+//			$purge::get_instance()->purge_everything_cache();
+
+			// record results.
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return array(
+				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+				'result'                => 'CDN Cache Plugin => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
+				'action'				=> 'SUCCESS',
+			);
+		} else {
+			return array(
+				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
+				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
+				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
+				'result'                => 'CDN Cache Plugin => There was an issue purging your cache.',
+				'action'                => 'ERROR',
+			);
 		}
 	}
 
