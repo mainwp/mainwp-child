@@ -113,7 +113,9 @@ class MainWP_Child_Cache_Purge {
 	 * If a supported plugin is not installed check to see if CloudFlair solution is enabled.
 	 */
 	public function check_cache_solution() {
-		$cache_plugin_solution = '';
+
+		// Default value for cache solution.
+		$cache_plugin_solution = 'Plugin Not Found';
 
 		$supported_cache_plugins = array(
 			'wp-rocket/wp-rocket.php'                    => 'WP Rocket',
@@ -135,18 +137,17 @@ class MainWP_Child_Cache_Purge {
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
 		);
 
-		// Check if a supported cache plugin is active then check if CloudFlair is active.
+		// Check if a supported cache plugin is active
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution     = $name;
+				$cache_plugin_solution = $name;
 				$this->is_plugin_installed = true;
-			} else {
-				$cache_plugin_solution     = "Plugin Not Found";
-				$this->is_plugin_installed = false;
 			}
 		}
 
+		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
 		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
+
 	}
 
 	/**
@@ -224,25 +225,25 @@ class MainWP_Child_Cache_Purge {
 				$information = array( 'error' => $e->getMessage() );
 			}
 
-			// Fire off CloudFlare purge if enabled.
-			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
-				$information = $this->cloudflair_auto_purge_cache();
-				if ( $information !== null && $cache_plugin_solution !== 'Plugin Not Found' ) {
-					$information['cloudflare'] = $information;
-				} else {
-					$information = array( 'status' => 'Disabled' );
-					$information['cloudflare'] = array( 'action' => 'SUCCESS' );
-				}
+			// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
+			if ( $cache_plugin_solution == 'Plugin Not Found' ) {
+				$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
 			}
 
+			// Fire off CloudFlare purge if enabled.
+			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
+				$information[ 'cloudflare' ] = $this->cloudflair_auto_purge_cache();
+			}
 
 		} else {
+			// If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
 			$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
 		}
 
 		// Save to DB.
 		$this->record_results( $information );
 
+		// Only fire off if this is a 'bulk' action.
 		if ( $bulk === 'true' ) {
 			// Return results in JSON format.
 			MainWP_Helper::write( $information );
@@ -813,9 +814,11 @@ class MainWP_Child_Cache_Purge {
 			curl_close( $ch_query ); // phpcs:ignore -- use core function.
 		}
 
-		// If the Zone-ID is not found, return. ( stop execution of this function and return back to auto_purge_cache() ).
+		// If the Zone-ID is not found, return status no-id but still return "SUCCESS" action because it did not fail.
+		// Explanation: When no Child Site is found on CF account, this will stop execution of this function and return
+		//              back to auto_purge_cache() function for further processing.
 		if (  ! isset( $qresult['result'][0]['id'] ) ) {
-			return;
+			return array( 'status' => 'no-id', 'action' => 'SUCCESS' );
 		}
 
 		$cust_zone = $qresult['result'][0]['id'];
