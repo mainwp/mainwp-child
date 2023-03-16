@@ -299,7 +299,8 @@ class Tar_Archiver {
 	 * @param string $file_log         Log file path.
 	 */
 	public function init_log_handle( $file_log ) {
-		// $this->logHandle = fopen( $file_log, 'a+' ); //phpcs:ignore -- for debug.
+		//phpcs:ignore -- for debug.
+		// $this->logHandle = fopen( $file_log, 'a+' );
 	}
 
 	/**
