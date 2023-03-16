@@ -488,7 +488,7 @@ class MainWP_Child_Stats {
 			'child_version'  => MainWP_Child::$version,
 			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
 			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
-			'db_size'        => MainWP_Child_Server_Information::get_db_size(),
+			'db_size'        => MainWP_Child_Server_Information_Base::get_db_size(),
 			'themeactivated' => $theme_name,
 			'ip'             => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
 		);

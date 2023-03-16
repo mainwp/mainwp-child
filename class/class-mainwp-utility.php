@@ -221,7 +221,8 @@ class MainWP_Utility {
 		header( 'Cache-Control: must-revalidate' );
 		header( 'Pragma: public' );
 		header( 'Content-Length: ' . filesize( $backupdir . $file ) );
-		while ( ob_end_flush() ) {; // phpcs:ignore -- Required to achieve desired results, pull request solutions appreciated.
+		while ( ob_get_level() ) {
+			ob_end_clean();
 		}
 		$this->readfile_chunked( $backupdir . $file, $offset );
 	}
@@ -248,8 +249,10 @@ class MainWP_Utility {
 		while ( ! feof( $handle ) ) {
 			$buffer = fread( $handle, $chunksize );
 			echo $buffer;
-			ob_flush();
-			flush();
+			if ( ob_get_length() ) {
+				ob_flush();
+				flush();
+			}
 			$buffer = null;
 		}
 

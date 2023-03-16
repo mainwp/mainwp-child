@@ -322,11 +322,11 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$where = isset( $_REQUEST['where'] ) ? rawurldecode( wp_unslash( $_REQUEST['where'] ) ) : null;
-		$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
-		$nossl = isset( $_REQUEST['nossl'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nossl'] ) ) : 0;
+		$function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
+		$nonce    = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		$nossl    = isset( $_REQUEST['nossl'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nossl'] ) ) : 0;
 
-		$auth = self::instance()->auth( $signature, $where, $nonce, $nossl );
+		$auth = self::instance()->auth( $signature, $function, $nonce, $nossl );
 
 		if ( ! $auth ) {
 			return false;

@@ -127,6 +127,9 @@ class MainWP_Child_DB_Updater {
 				case 'elementor/elementor.php':
 					$success = MainWP_Child_DB_Updater_Elementor::instance()->update_db();
 					break;
+				case 'elementor-pro/elementor-pro.php':
+					$success = MainWP_Child_DB_Updater_Elementor::instance()->update_db( true );
+					break;
 			}
 			if ( $success ) {
 				$upgrades[ $slug ] = 1;
