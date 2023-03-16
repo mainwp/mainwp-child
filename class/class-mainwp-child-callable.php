@@ -999,7 +999,7 @@ class MainWP_Child_Callable {
 	 * @used-by \MainWP\Extensions\CacheControl\MainWP_Cache_Control_Purge_View::ajax_cache_control_purge_cache_all()
 	 */
 	public function cache_purge_action() {
-		MainWP_Child_Cache_Purge::instance()->auto_purge_cache( $bulk = 'true' );
+		MainWP_Child_Cache_Purge::instance()->auto_purge_cache( 'true' );
 	}
 
 	/**
