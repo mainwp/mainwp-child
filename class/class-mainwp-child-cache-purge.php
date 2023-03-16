@@ -140,14 +140,13 @@ class MainWP_Child_Cache_Purge {
 		// Check if a supported cache plugin is active
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution = $name;
+				$cache_plugin_solution     = $name;
 				$this->is_plugin_installed = true;
 			}
 		}
 
 		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
 		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
-
 	}
 
 	/**
@@ -227,17 +226,22 @@ class MainWP_Child_Cache_Purge {
 
 			// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
 			if ( $cache_plugin_solution == 'Plugin Not Found' ) {
-				$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
+				$information = array(
+					'status' => 'Disabled',
+					'action' => 'SUCCESS',
+				);
 			}
 
 			// Fire off CloudFlare purge if enabled.
 			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
-				$information[ 'cloudflare' ] = $this->cloudflair_auto_purge_cache();
+				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
 			}
-
 		} else {
 			// If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
-			$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
+			$information = array(
+				'status' => 'Disabled',
+				'action' => 'SUCCESS',
+			);
 		}
 
 		// Save to DB.
@@ -816,9 +820,12 @@ class MainWP_Child_Cache_Purge {
 
 		// If the Zone-ID is not found, return status no-id but still return "SUCCESS" action because it did not fail.
 		// Explanation: When no Child Site is found on CF account, this will stop execution of this function and return
-		//              back to auto_purge_cache() function for further processing.
-		if (  ! isset( $qresult['result'][0]['id'] ) ) {
-			return array( 'status' => 'no-id', 'action' => 'SUCCESS' );
+		// back to auto_purge_cache() function for further processing.
+		if ( ! isset( $qresult['result'][0]['id'] ) ) {
+			return array(
+				'status' => 'no-id',
+				'action' => 'SUCCESS',
+			);
 		}
 
 		$cust_zone = $qresult['result'][0]['id'];
