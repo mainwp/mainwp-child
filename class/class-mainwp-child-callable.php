@@ -96,6 +96,7 @@ class MainWP_Child_Callable {
 		'cache_purge_action'    => 'cache_purge_action',
 		'jetpack_protect'       => 'jetpack_protect',
 		'jetpack_scan'          => 'jetpack_scan',
+		'delete_actions'        => 'delete_actions',
 	);
 
 	/**
@@ -934,7 +935,15 @@ class MainWP_Child_Callable {
 		MainWP_Child_Jetpack_Scan::instance()->action();
 	}
 
-
+	/**
+	 * Method delete_actions()
+	 *
+	 * Delete Non-MainWP actions.
+	 */
+	public function delete_actions() {
+		MainWP_Child_Actions::get_instance()->delete_actions();
+	}
+	
 	/**
 	 * Method delete_backup()
 	 *
