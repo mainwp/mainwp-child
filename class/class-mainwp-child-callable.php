@@ -943,7 +943,7 @@ class MainWP_Child_Callable {
 	public function delete_actions() {
 		MainWP_Child_Actions::get_instance()->delete_actions();
 	}
-	
+
 	/**
 	 * Method delete_backup()
 	 *
