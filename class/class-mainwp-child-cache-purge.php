@@ -263,12 +263,10 @@ class MainWP_Child_Cache_Purge {
 	 * Purge CDN Cache Plugin cache after updates.
 	 */
 	public function cdn_cache_plugin_auto_purge_cache() {
-		if ( !class_exists('CDN_Clear_Cache_Hooks' ) ) {
-//			include WPMU_PLUGIN_DIR . '/cdn-cache-management/includes/index.php';
-//
-//			// Clear Cache.
-//			$purge = new CDN_Cache_Admin::get_instance();
-//			$purge::get_instance()->purge_everything_cache();
+
+		if ( class_exists('CDN_Clear_Cache_Api' ) ) {
+
+			\CDN_Clear_Cache_Api::cache_api_call([], 'purge_everything');
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
