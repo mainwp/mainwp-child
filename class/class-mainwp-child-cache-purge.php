@@ -51,6 +51,12 @@ class MainWP_Child_Cache_Purge {
 	 * MainWP_Child_Cache_Purge constructor.
 	 *
 	 * Run any time class is called.
+	 *
+	 * Add filter to sync data to & from the MainWP Dashboard.
+	 * Add action to check for supported cache plugins.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::sync_others_data()
+	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::check_cache_solution()
 	 */
 	public function __construct() {
 		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
@@ -79,7 +85,7 @@ class MainWP_Child_Cache_Purge {
 				// Update mainwp_child_cloud_flair_enabled options value.
 				update_option( 'mainwp_child_cloud_flair_enabled', ( $data['cloud_flair_enabled'] ? 1 : 0 ) );
 
-				// Update Cloudflair API Credentials option values.
+				// Update Cloudflare API Credentials option values.
 				if ( isset( $data['mainwp_cloudflair_email'] ) ) {
 					update_option( 'mainwp_cloudflair_email', ( $data['mainwp_cloudflair_email'] ) );
 				}
@@ -111,6 +117,8 @@ class MainWP_Child_Cache_Purge {
 	 * and set public variable 'is_plugin_installed' to TRUE.
 	 *
 	 * If a supported plugin is not installed check to see if CloudFlair solution is enabled.
+	 *
+	 * @return void
 	 */
 	public function check_cache_solution() {
 
@@ -161,6 +169,10 @@ class MainWP_Child_Cache_Purge {
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
 	 * @used-by MainWP_Child_Updates::upgrade_wp()
+	 *
+	 * @param string $bulk Bulk update distinguisher.
+	 *
+	 * @return void
 	 */
 	public function auto_purge_cache( $bulk = '' ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// Check if Cache Control is enabled.
@@ -260,10 +272,12 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Build purge results array for return.
+	 * Build purge results array for return to dashboard.
 	 *
 	 * @param string $message Result message.
 	 * @param string $action Action result.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function purge_result( $message, $action ) {
 		$result = array(
@@ -282,7 +296,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge CDN Cache Plugin cache after updates.
+	 * Purge CDN Cache Plugin cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function cdn_cache_plugin_auto_purge_cache() {
 
@@ -304,7 +320,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Comet Cache after updates.
+	 * Purge Comet Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function comet_cache_auto_purge_cache() {
 
@@ -328,7 +346,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Optimize cache after updates.
+	 * Purge WP Optimize cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_optimize_auto_purge_cache() {
 
@@ -353,7 +373,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Optimize cache after updates.
+	 * Preload WP Optimize cache after purge.
+	 *
+	 * @return bool True if successful, false if not.
 	 */
 	public function wp_optimize_preload_cache() {
 		if ( class_exists( '\WP_Optimize_Cache_Commands' ) && class_exists( '\WP_Optimize_Page_Cache_Preloader' ) ) {
@@ -367,7 +389,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Optimize cache after updates.
+	 * Preload WP Optimize cache after purge.
+	 *
+	 * @return bool True if successful, false if not.
 	 */
 	public function wp_optimize_purge_cache() {
 		if ( class_exists( '\WP_Optimize_Cache_Commands' ) && class_exists( '\WP_Optimize_Page_Cache_Preloader' ) ) {
@@ -381,7 +405,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Super Cache after updates.
+	 * Purge WP Super Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_super_cache_auto_purge_cache() {
 
@@ -405,7 +431,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge FlyingPress cache after updates.
+	 * Purge FlyingPress cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function flyingpress_auto_purge_cache() {
 
@@ -432,7 +460,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Autoptimize cache after updates.
+	 * Purge Autoptimize cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function autoptimize_auto_purge_cache() {
 
@@ -455,13 +485,15 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Nitropack cache after updates.
+	 * Purge Nitropack cache.
 	 *
 	 * Nitropack_purge($url = NULL, $tag = NULL, $reason = NULL);
 	 *
 	 * In case you want to do a full purge, you must leave the values
 	 * for URL and Tag empty. In case you want to create a targeted purge
 	 * you can replace them with the URL or tag of the page.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function nitropack_auto_purge_cache() {
 
@@ -484,7 +516,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Nginx Helper cache after updates.
+	 * Purge Nginx Helper cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function nginx_helper_auto_purge_cache() {
 
@@ -507,9 +541,11 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Hummingbird cache after updates.
+	 * Purge WP Hummingbird cache.
 	 *
 	 * @note needs to have namespace or it will not work.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_hummingbird_auto_purge_cache() {
 
@@ -532,7 +568,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Cache Enabler cache after updates.
+	 * Purge Cache Enabler cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function cache_enabler_auto_purge_cache() {
 
@@ -541,7 +579,7 @@ class MainWP_Child_Cache_Purge {
 
 		if ( class_exists( 'Cache_Enabler' ) ) {
 
-			// Clear WP Fastest Cache after update.
+			// Clear the Cache after update.
 			\Cache_Enabler::clear_complete_cache();
 
 			// record results.
@@ -555,7 +593,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge W3 Total Cache after updates.
+	 * Purge W3 Total Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function w3_total_cache_auto_purge_cache() {
 
@@ -578,7 +618,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Fastest Cache after updates.
+	 * Purge WP Fastest Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_fastest_cache_auto_purge_cache() {
 
@@ -587,7 +629,7 @@ class MainWP_Child_Cache_Purge {
 
 		if ( class_exists( 'WpFastestCache' ) ) {
 
-			// Clear WP Fastest Cache after update.
+			// Clear the Cache after update.
 			do_action( 'wpfc_clear_all_cache' );
 
 			// record results.
@@ -601,7 +643,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Swift Performance Lite Cache after Updates.
+	 * Purge Swift Performance Lite Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function swift_performance_lite_auto_purge_cache() {
 
@@ -624,7 +668,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Swift Performance Cache after Updates.
+	 * Purge Swift Performance Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function swift_performance_auto_purge_cache() {
 
@@ -647,7 +693,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge SiteGrounds Optimiser Cache after Updates.
+	 * Purge SiteGrounds Optimiser Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function sitegrounds_optimizer_auto_purge_cache() {
 
@@ -669,7 +717,11 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Cloudflair Cache after updates.
+	 * Purge Cloudflair Cache.
+	 *
+	 * @noinspection PhpIdempotentOperationInspection
+	 *
+	 * @return array Purge results array.
 	 */
 	public function cloudflair_auto_purge_cache() {
 
@@ -743,7 +795,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge LiteSpeed Cache after updates.
+	 * Purge LiteSpeed Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function litespeed_auto_purge_cache() {
 
@@ -769,6 +823,8 @@ class MainWP_Child_Cache_Purge {
 
 	/**
 	 * Purge Breeze cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function breeze_auto_purge_cache() {
 
@@ -808,6 +864,8 @@ class MainWP_Child_Cache_Purge {
 
 	/**
 	 * Purge WP-Rocket cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wprocket_auto_cache_purge() {
 
@@ -841,8 +899,6 @@ class MainWP_Child_Cache_Purge {
 	 * Create log file & Save in /Upload dir.
 	 *
 	 * @param array $information Array containing the data to be sent to the Dashboard.
-	 *
-	 * @howto define('MAINWP_DEBUG', true); within wp-config.php.
 	 */
 	public function record_results( $information ) {
 
