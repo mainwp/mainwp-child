@@ -678,7 +678,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<td style="background: #333; color: #fff;"
 				colspan="5"><?php esc_html_e( 'PHP SETTINGS', 'mainwp-child' ); ?></td>
 		</tr>
-		<?php self::render_row( 'PHP Version', '>=', '5.6', 'get_php_version' ); ?>
+		<?php self::render_row( 'PHP Version', '>=', '7.4', 'get_php_version' ); ?>
 		<tr>
 			<td></td>
 			<td><?php esc_html_e( 'PHP Safe Mode Disabled', 'mainwp-child' ); ?></td>

@@ -84,6 +84,16 @@ class MainWP_Child_DB_Updater_Elementor {
 				'db_version' => $this->get_current_version(),
 			);
 		}
+
+		if ( self::has_pro() ) {
+			if ( $this->should_upgrade( true ) ) {
+				$db_upgrades['elementor-pro/elementor-pro.php'] = array(
+					'update'     => $this->get_needs_db_update( true ),
+					'Name'       => 'Elementor Pro',
+					'db_version' => $this->get_current_version( true ),
+				);
+			}
+		}
 		return $db_upgrades;
 	}
 
@@ -91,17 +101,30 @@ class MainWP_Child_DB_Updater_Elementor {
 	/**
 	 * Is a DB update needed?
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @since  3.2.0
 	 * @return boolean
 	 */
-	public function get_needs_db_update() {
-		$db_versions    = array(
-			'new_db_version' => '',
-			'slug'           => 'elementor/elementor.php',
-		);
-		$new_db_version = $this->get_new_version();
-		if ( $this->should_upgrade() ) {
-			$db_versions['new_db_version'] = $new_db_version;
+	public function get_needs_db_update( $pro = false ) {
+		if ( $pro ) {
+			$db_versions    = array(
+				'new_db_version' => '',
+				'slug'           => 'elementor-pro/elementor-pro.php',
+			);
+			$new_db_version = $this->get_new_version( true );
+			if ( $this->should_upgrade( true ) ) {
+				$db_versions['new_db_version'] = $new_db_version;
+			}
+		} else {
+			$db_versions    = array(
+				'new_db_version' => '',
+				'slug'           => 'elementor/elementor.php',
+			);
+			$new_db_version = $this->get_new_version();
+			if ( $this->should_upgrade() ) {
+				$db_versions['new_db_version'] = $new_db_version;
+			}
 		}
 		return $db_versions;
 	}
@@ -112,63 +135,86 @@ class MainWP_Child_DB_Updater_Elementor {
 	 *
 	 * Get should upgrade.
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @return bool version compare result.
 	 */
-	public function should_upgrade() {
-		$current_version = $this->get_current_version();
+	public function should_upgrade( $pro = false ) {
+		$current_version = $this->get_current_version( $pro );
 		// It's a new install.
 		if ( ! $current_version ) {
 			return false;
 		}
-		return version_compare( $this->get_new_version(), $current_version, '>' );
+		return version_compare( $this->get_new_version( $pro ), $current_version, '>' );
 	}
+
+	/**
+	 * Method has_pro().
+	 *
+	 * Has pro version.
+	 */
+	public static function has_pro() {
+		return defined( 'ELEMENTOR_PRO_VERSION' );
+	}
+
 
 	/**
 	 * Method get_current_version().
 	 *
 	 * Get current version.
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @return string version result.
 	 */
-	public function get_current_version() {
-		return get_option( $this->get_version_option_name() );
+	public function get_current_version( $pro = false ) {
+		return get_option( $this->get_version_option_name( $pro ) );
 	}
+
 
 	/**
 	 * Method get_new_version().
 	 *
 	 * Get new elementor version.
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @return string version result.
 	 */
-	public function get_new_version() {
-		return ELEMENTOR_VERSION;
+	public function get_new_version( $pro = false ) {
+		return $pro ? ELEMENTOR_PRO_VERSION : ELEMENTOR_VERSION;
 	}
+
 
 	/**
 	 * Method get_version_option_name().
 	 *
 	 * Get version option name.
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @return string option name.
 	 */
-	public function get_version_option_name() {
-		return 'elementor_version';
+	public function get_version_option_name( $pro = false ) {
+		return $pro ? 'elementor_pro_version' : 'elementor_version';
 	}
+
 
 	/**
 	 * Method update_db()
 	 *
 	 * Update Elementor DB.
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @return array Action result.
 	 */
-	public function update_db() {
+	public function update_db( $pro = false ) {
 		if ( ! self::$is_plugin_elementor_installed ) {
 			return false;
 		}
 		try {
-			return $this->do_db_upgrade();
+			return $this->do_db_upgrade( $pro );
 		} catch ( \Exception $e ) {
 			error_log( $e->getMessage() ); // phpcs:ignore
 			return false;
@@ -180,9 +226,14 @@ class MainWP_Child_DB_Updater_Elementor {
 	 *
 	 * Get update db manager class.
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @return array Action result.
 	 */
-	protected function get_update_db_manager_class() {
+	protected function get_update_db_manager_class( $pro = false ) {
+		if ( $pro ) {
+			return '\ElementorPro\Core\Upgrade\Manager';
+		}
 		return '\Elementor\Core\Upgrade\Manager';
 	}
 
@@ -191,10 +242,12 @@ class MainWP_Child_DB_Updater_Elementor {
 	 *
 	 * Do DB upgrade.
 	 *
+	 * @param bool $pro Pro version or not.
+	 *
 	 * @return array Action result.
 	 */
-	protected function do_db_upgrade() {
-		$manager_class = $this->get_update_db_manager_class();
+	protected function do_db_upgrade( $pro = false ) {
+		$manager_class = $this->get_update_db_manager_class( $pro );
 
 		MainWP_Helper::instance()->check_classes_exists( array( $manager_class, '\Elementor\Plugin' ) );
 

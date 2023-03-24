@@ -744,6 +744,16 @@ class MainWP_Child_Actions {
 		}
 	}
 
+
+	/**
+	 * Delete actions logs.
+	 */
+	public function delete_actions() {
+		delete_option( 'mainwp_child_actions_saved_data' );
+		delete_option( 'mainwp_child_send_action_notification_next_time' );
+		MainWP_Helper::write( array( 'success' => 'ok' ) );
+	}
+
 	/**
 	 * Get valid context.
 	 *

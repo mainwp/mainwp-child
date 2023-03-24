@@ -12,9 +12,9 @@
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 4.4
+ * Version: 4.4.0.2
  * Requires at least: 5.4
- * Requires PHP: 7.0
+ * Requires PHP: 7.4
  */
 
 require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress.

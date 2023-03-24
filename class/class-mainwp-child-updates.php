@@ -112,6 +112,20 @@ class MainWP_Child_Updates {
 	 */
 	public function upgrade_plugin_theme() {
 
+		if ( false !== MainWP_Helper::check_external_process_working() ) {
+			$ext_notices = MainWP_Helper::get_external_process_notices();
+			if ( false !== $ext_notices ) {
+				MainWP_Helper::send( $ext_notices );
+				/**
+				 * Action: external process before update plugin, theme.
+				 *
+				 * @since 4.4.0.2
+				 */
+				do_action( 'mainwp_child_before_update_plugin_theme_external_process' );
+				return;
+			}
+		}
+
 		/**
 		 * Action before update plugin, theme.
 		 *
@@ -166,6 +180,7 @@ class MainWP_Child_Updates {
 
 		MainWP_Helper::write( $information );
 	}
+
 
 	/**
 	 * Method upgrade_plugin()

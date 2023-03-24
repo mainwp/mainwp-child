@@ -187,6 +187,7 @@ class Tar_Archiver {
 	public function zip_file( $files, $archive ) {
 		$this->create( $archive );
 		if ( $this->archive ) {
+			$this->init_log_handle( $archive . '.log' );
 			foreach ( $files as $filepath ) {
 				$this->add_file( $filepath, basename( $filepath ) );
 			}
@@ -293,6 +294,16 @@ class Tar_Archiver {
 	}
 
 	/**
+	 * Init log file handle.
+	 *
+	 * @param string $file_log         Log file path.
+	 */
+	public function init_log_handle( $file_log ) {
+		//phpcs:ignore -- for debug.
+		// $this->logHandle = fopen( $file_log, 'a+' );
+	}
+
+	/**
 	 * Create full backup.
 	 *
 	 * @param string $filepath         Backup file path.
@@ -323,6 +334,9 @@ class Tar_Archiver {
 	 * @uses \MainWP\Child\MainWP_Helper::in_excludes()
 	 */
 	public function create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
+
+		$this->init_log_handle( $filepath . '.log' );
+
 		$this->create_pid_file( $filepath );
 
 		$this->excludeZip = $excludezip;
