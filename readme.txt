@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 5.4
-Tested up to: 6.1.1
+Tested up to: 6.2
 Requires PHP: 7.0
-Stable tag: 4.4.0.2
+Stable tag: 4.4.0.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,11 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 10. Manage Clients Screen
 
 == Changelog ==
+
+= 4.4.0.3 - 3-30-2023 =
+* Fixed: An issue with adding sites caused by incompatible file-system
+* Updated: Support for the Jetpack Scan extension
+* Updated: Compatibility for older WordPress versions
 
 = 4.4.0.2 - 3-16-2023 =
 * Fixed: Problem with downloading backup files from Child sites

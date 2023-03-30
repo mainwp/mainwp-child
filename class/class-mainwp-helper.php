@@ -67,8 +67,16 @@ class MainWP_Helper {
 	 * Send response data to be sent to the MainWP Dashboard.
 	 *
 	 * @param mixed $value Contains information to be send.
+	 * @param mixed $action action send message.
 	 */
-	public static function send( $value ) {
+	public static function send( $value, $action = '' ) {
+		/**
+		 * Action: process before send close message.
+		 *
+		 * @since 4.4.0.3
+		 */
+		do_action( 'mainwp_child_before_send_close_message', $value, $action );
+
 		MainWP_Utility::close_connection( $value );
 	}
 
@@ -86,33 +94,6 @@ class MainWP_Helper {
 			$information['error_code'] = $code;
 		}
 		self::write( $information );
-	}
-
-
-	/**
-	 * Check external process working.
-	 */
-	public static function check_external_process_working() {
-		return get_option( 'mainwp_child_external_process.lock', false );
-	}
-
-	/**
-	 * Get external process notices.
-	 */
-	public static function get_external_process_notices() {
-		$ext_notices = apply_filters( 'mainwp_child_external_process_notices', false );
-		if ( ! empty( $ext_notices ) ) {
-			if ( is_string( $ext_notices ) || is_array( $ext_notices ) ) {
-				$ext_notices = array( 'notices' => $ext_notices );
-			} else {
-				$ext_notices = array();
-			}
-			if ( empty( $ext_notices ) ) {
-				return false;
-			}
-			return $ext_notices;
-		}
-		return false;
 	}
 
 	/**

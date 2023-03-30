@@ -51,6 +51,12 @@ class MainWP_Child_Cache_Purge {
 	 * MainWP_Child_Cache_Purge constructor.
 	 *
 	 * Run any time class is called.
+	 *
+	 * Add filter to sync data to & from the MainWP Dashboard.
+	 * Add action to check for supported cache plugins.
+	 *
+	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::sync_others_data()
+	 * @uses \MainWP\Child\MainWP_Child_Cache_Purge::check_cache_solution()
 	 */
 	public function __construct() {
 		add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
@@ -79,7 +85,7 @@ class MainWP_Child_Cache_Purge {
 				// Update mainwp_child_cloud_flair_enabled options value.
 				update_option( 'mainwp_child_cloud_flair_enabled', ( $data['cloud_flair_enabled'] ? 1 : 0 ) );
 
-				// Update Cloudflair API Credentials option values.
+				// Update Cloudflare API Credentials option values.
 				if ( isset( $data['mainwp_cloudflair_email'] ) ) {
 					update_option( 'mainwp_cloudflair_email', ( $data['mainwp_cloudflair_email'] ) );
 				}
@@ -111,11 +117,19 @@ class MainWP_Child_Cache_Purge {
 	 * and set public variable 'is_plugin_installed' to TRUE.
 	 *
 	 * If a supported plugin is not installed check to see if CloudFlair solution is enabled.
+	 *
+	 * @return void
 	 */
 	public function check_cache_solution() {
 
 		// Default value for cache solution.
 		$cache_plugin_solution = 'Plugin Not Found';
+
+		// Grab all mu-plugins & check for Rocket.net mu-plugin. If found, set cache solution to CDN Cache Plugin.
+		$mu_plugings_list = get_mu_plugins();
+		if ( array_key_exists( 'cdn-cache-management.php', $mu_plugings_list ) ) {
+			$cache_plugin_solution     = 'CDN Cache Plugin';
+		}
 
 		$supported_cache_plugins = array(
 			'wp-rocket/wp-rocket.php'                    => 'WP Rocket',
@@ -155,6 +169,10 @@ class MainWP_Child_Cache_Purge {
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme()
 	 * @used-by MainWP_Child_Updates::upgrade_wp()
+	 *
+	 * @param string $bulk Bulk update distinguisher.
+	 *
+	 * @return void
 	 */
 	public function auto_purge_cache( $bulk = '' ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// Check if Cache Control is enabled.
@@ -218,6 +236,9 @@ class MainWP_Child_Cache_Purge {
 					case 'Comet Cache':
 						$information = $this->comet_cache_auto_purge_cache();
 						break;
+					case 'CDN Cache Plugin':
+						$information = $this->cdn_cache_plugin_auto_purge_cache();
+						break;
 					default:
 						break;
 				}
@@ -230,8 +251,8 @@ class MainWP_Child_Cache_Purge {
 				$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
 			}
 
-			// Fire off CloudFlare purge if enabled.
-			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' ) {
+			// Fire off CloudFlare purge if enabled & not using a CDN Cache Plugin. ( Stops double purging Cloudflare ).
+			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' && $cache_plugin_solution !== 'CDN Cache Plugin' ) {
 				$information[ 'cloudflare' ] = $this->cloudflair_auto_purge_cache();
 			}
 
@@ -251,9 +272,64 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge Comet Cache after updates.
+	 * Build purge results array for return to dashboard.
+	 *
+	 * @param string $message Result message.
+	 * @param string $action Action result.
+	 *
+	 * @return array Purge results array.
+	 */
+	public function purge_result( $message, $action ) {
+		$result = array(
+			'Last Purged' => get_option( 'mainwp_cache_control_last_purged', false ),
+			'Cache Solution' => get_option( 'mainwp_cache_control_cache_solution', false ),
+			'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
+			'Cloudflair Enabled' => get_option( 'mainwp_child_cloud_flair_enabled' ),
+		);
+		$result[ 'result' ] = $message;
+		if ( 'SUCCESS' === $action ) {
+			$result[ 'action' ] = 'SUCCESS';
+		} else {
+			$result[ 'action' ] = 'ERROR';
+		}
+		return $result;
+	}
+
+	/**
+	 * Purge CDN Cache Plugin cache.
+	 *
+	 * @return array Purge results array.
+	 */
+	public function cdn_cache_plugin_auto_purge_cache() {
+
+		$success_message = 'CDN Cache Plugin => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'CDN Cache Plugin => There was an issue purging your cache.';
+
+		if ( class_exists('CDN_Clear_Cache_Api' ) ) {
+
+			\CDN_Clear_Cache_Api::cache_api_call([], 'purge_everything');
+
+			// record results.
+			update_option( 'mainwp_cache_control_last_purged', time() );
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
+		} else {
+			return $this->purge_result( $error_message, 'ERROR' );
+		}
+	}
+
+	/**
+	 * Purge Comet Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function comet_cache_auto_purge_cache() {
+
+		$success_message = 'Comet Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Comet Cache => There was an issue purging your cache.';
+
+
 		if ( class_exists( '\comet_cache' ) ) {
 
 			// Clear Cache.
@@ -261,34 +337,23 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Comet Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Comet Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge WP Optimize cache after updates.
+	 * Purge WP Optimize cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_optimize_auto_purge_cache() {
+
+		$success_message = 'WP Optimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'WP Optimize => There was an issue purging your cache.';
 
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
@@ -299,32 +364,18 @@ class MainWP_Child_Cache_Purge {
 		// Check response & return results.
 		if ( $purge === true && $preload === true ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Optimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Optimize => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge WP Optimize cache after updates.
+	 * Preload WP Optimize cache after purge.
+	 *
+	 * @return bool True if successful, false if not.
 	 */
 	public function wp_optimize_preload_cache() {
 		if ( class_exists( '\WP_Optimize_Cache_Commands' ) && class_exists( '\WP_Optimize_Page_Cache_Preloader' ) ) {
@@ -338,7 +389,9 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Optimize cache after updates.
+	 * Preload WP Optimize cache after purge.
+	 *
+	 * @return bool True if successful, false if not.
 	 */
 	public function wp_optimize_purge_cache() {
 		if ( class_exists( '\WP_Optimize_Cache_Commands' ) && class_exists( '\WP_Optimize_Page_Cache_Preloader' ) ) {
@@ -352,9 +405,14 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Purge WP Super Cache after updates.
+	 * Purge WP Super Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_super_cache_auto_purge_cache() {
+
+		$success_message = 'WP Super Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'WP Super Cache => There was an issue purging your cache.';
 
 		if ( function_exists( '\wp_cache_clean_cache' ) ) {
 
@@ -364,34 +422,24 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Super Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Super Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge FlyingPress cache after updates.
+	 * Purge FlyingPress cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function flyingpress_auto_purge_cache() {
+
+		$success_message = 'FlyingPress Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'FlyingPress Cache => There was an issue purging your cache.';
+
 		if ( class_exists( '\FlyingPress\Purge' ) && class_exists( '\FlyingPress\Preload' ) ) {
 
 			// Clear Cache.
@@ -403,34 +451,24 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'FlyingPress Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'FlyingPress Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge Autoptimize cache after updates.
+	 * Purge Autoptimize cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function autoptimize_auto_purge_cache() {
+
+		$success_message = 'Autoptimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Autoptimize => There was an issue purging your cache.';
+
 		if ( class_exists( 'autoptimizeCache' ) ) {
 
 			// Clear Cache.
@@ -438,40 +476,30 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Autoptimize Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Autoptimize Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge Nitropack cache after updates.
+	 * Purge Nitropack cache.
 	 *
 	 * Nitropack_purge($url = NULL, $tag = NULL, $reason = NULL);
 	 *
 	 * In case you want to do a full purge, you must leave the values
 	 * for URL and Tag empty. In case you want to create a targeted purge
 	 * you can replace them with the URL or tag of the page.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function nitropack_auto_purge_cache() {
+
+		$success_message = 'Nitropack => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Nitropack => There was an issue purging your cache.';
+
 		if ( function_exists( 'nitropack_purge' ) ) {
 
 			// Clear Nitropack Cache after update.
@@ -479,34 +507,24 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Nitropack Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Nitropack Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge Nginx Helper cache after updates.
+	 * Purge Nginx Helper cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function nginx_helper_auto_purge_cache() {
+
+		$success_message = 'Nginx Helper => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Nginx Helper => There was an issue purging your cache.';
+
 		if ( class_exists( 'Nginx_Helper' ) ) {
 
 			// Clear Nginx Helper Cache after update.
@@ -514,36 +532,26 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Nginx Helper Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Nginx Helper Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge WP Hummingbird cache after updates.
+	 * Purge WP Hummingbird cache.
 	 *
 	 * @note needs to have namespace or it will not work.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_hummingbird_auto_purge_cache() {
+
+		$success_message = 'Hummingbird => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Hummingbird => There was an issue purging your cache.';
+
 		if ( class_exists( 'Hummingbird\Core\Modules\\Page_Cache' ) ) {
 
 			// Clear WP Hummingbird Cache after update.
@@ -551,69 +559,49 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Hummingbird Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Hummingbird Performance => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge Cache Enabler cache after updates.
+	 * Purge Cache Enabler cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function cache_enabler_auto_purge_cache() {
+
+		$success_message = 'Cache Enabler => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Cache Enabler => There was an issue purging your cache.';
+
 		if ( class_exists( 'Cache_Enabler' ) ) {
 
-			// Clear WP Fastest Cache after update.
+			// Clear the Cache after update.
 			\Cache_Enabler::clear_complete_cache();
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Cache Enabler => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Cache Enabler => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge W3 Total Cache after updates.
+	 * Purge W3 Total Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function w3_total_cache_auto_purge_cache() {
+
+		$success_message = 'W3 Total Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'W3 Total Cache => There was an issue purging your cache.';
+
 		if ( function_exists( 'w3tc_flush_all' ) ) {
 
 			// Purge all W3 total cache.
@@ -621,69 +609,49 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'W3 Total Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'W3 Total Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge WP Fastest Cache after updates.
+	 * Purge WP Fastest Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wp_fastest_cache_auto_purge_cache() {
+
+		$success_message = 'WP Fastest Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'WP Fastest Cache => There was an issue purging your cache.';
+
 		if ( class_exists( 'WpFastestCache' ) ) {
 
-			// Clear WP Fastest Cache after update.
+			// Clear the Cache after update.
 			do_action( 'wpfc_clear_all_cache' );
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Fastest Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Fastest Cache => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge Swift Performance Lite Cache after Updates.
+	 * Purge Swift Performance Lite Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function swift_performance_lite_auto_purge_cache() {
+
+		$success_message = 'Swift Performance Lite => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Swift Performance Lite => There was an issue purging your cache.';
+
 		if ( class_exists( 'Swift_Performance_Cache' ) ) {
 
 			// Clear All Swift Performance Lite Cache.
@@ -691,34 +659,24 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Swift Performance Lite => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Swift Performance Lite => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge Swift Performance Cache after Updates.
+	 * Purge Swift Performance Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function swift_performance_auto_purge_cache() {
+
+		$success_message = 'Swift Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Swift Performance => There was an issue purging your cache.';
+
 		if ( class_exists( 'Swift_Performance_Cache' ) ) {
 
 			// Clear All Swift Performance Cache.
@@ -726,34 +684,24 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Swift Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Swift Performance => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge SiteGrounds Optimiser Cache after Updates.
+	 * Purge SiteGrounds Optimiser Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function sitegrounds_optimizer_auto_purge_cache() {
+
+		$success_message = 'SiteGround Optimizer => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'SiteGround Optimizer => There was an issue purging your cache.';
+
 		if ( function_exists( 'sg_cachepress_purge_everything' ) ) {
 
 			// Purge all SG CachePress cache.
@@ -761,32 +709,19 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'SiteGround Optimizer => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'SiteGround Optimizer => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge Cloudflair Cache after updates.
+	 * Purge Cloudflair Cache.
+	 *
+	 * @noinspection PhpIdempotentOperationInspection
+	 *
+	 * @return array Purge results array.
 	 */
 	public function cloudflair_auto_purge_cache() {
 
@@ -843,72 +778,58 @@ class MainWP_Child_Cache_Purge {
 			curl_close( $ch_purge ); // phpcs:ignore -- use core function.
 		}
 
+		$success_message = 'Cloudflair => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Cloudflare => There was an issue purging your cache.' . json_encode( $result ); // phpcs:ignore -- ok.
+
 		// Save last purge time to database on success.
 		if ( 1 == $result['success'] ) {
+			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			// Return success message.
+			return $this->purge_result( $success_message, 'SUCCESS' );
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Cloudflare => There was an issue purging your cache.' . json_encode( $result ), // phpcs:ignore -- ok.
-				'action'                => 'ERROR',
-			);
+			// Return error message.
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
-	 * Purge LiteSpeed Cache after updates.
+	 * Purge LiteSpeed Cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function litespeed_auto_purge_cache() {
-		// Purge all LS Cache.
+
+		$success_message = 'LiteSpeed => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'LiteSpeed => There was an issue purging your cache.';
 
 		if ( class_exists( '\LiteSpeed\Purge' ) ) {
+
+			// Purge all LS Cache.
 			\LiteSpeed\Purge::purge_all();
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Litespeed => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			// Return success message.
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Litespeed => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			// Return error message.
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
 	 * Purge Breeze cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function breeze_auto_purge_cache() {
+
+		$success_message = 'Breeze => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Breeze => There was an issue purging your cache.';
 
 		if ( class_exists( 'Breeze_Admin' ) ) {
 
@@ -931,34 +852,25 @@ class MainWP_Child_Cache_Purge {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Breeze => Cache auto cleared on: (' . current_time( 'mysql' ) . ') And ' . $size_cache . ' local files removed.',
-				'action'                => 'SUCCESS',
-			);
+
+			// Return success message.
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'Breeze => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			// Return error message.
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
 	/**
 	 * Purge WP-Rocket cache.
+	 *
+	 * @return array Purge results array.
 	 */
 	public function wprocket_auto_cache_purge() {
+
+		$success_message = 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'WP Rocket => There was an issue purging your cache.';
 
 		// Purge Cache if action is set to "1".
 		$action       = get_option( 'mainwp_child_auto_purge_cache', false );
@@ -971,27 +883,13 @@ class MainWP_Child_Cache_Purge {
 		// Save last purge time to database on success.
 		if ( 'SUCCESS' === $purge_result['result'] ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')',
-				'action'                => 'SUCCESS',
-			);
+
+			// Return success message.
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
 		} else {
-			return array(
-				'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-				'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-				'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-				'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
-				'CloudFlair Email'      => get_option( 'mainwp_cloudflair_email' ),
-				'Cloudflair Key'        => get_option( 'mainwp_cloudflair_key' ),
-				'result'                => 'WP Rocket => There was an issue purging your cache.',
-				'action'                => 'ERROR',
-			);
+			// Return error message.
+			return $this->purge_result( $error_message, 'ERROR' );
 		}
 	}
 
@@ -1001,8 +899,6 @@ class MainWP_Child_Cache_Purge {
 	 * Create log file & Save in /Upload dir.
 	 *
 	 * @param array $information Array containing the data to be sent to the Dashboard.
-	 *
-	 * @howto define('MAINWP_DEBUG', true); within wp-config.php.
 	 */
 	public function record_results( $information ) {
 

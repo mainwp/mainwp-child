@@ -131,6 +131,12 @@ class MainWP_Child_Jetpack_Protect {
 					'connected' => $this->connection->is_connected(),
 				);
 
+				if ( MainWP_Helper::instance()->check_classes_exists( '\Automattic\Jetpack\My_Jetpack\Products\Scan', true ) ) {
+					$protect_san = new \Automattic\Jetpack\My_Jetpack\Products\Scan();
+					if ( MainWP_Helper::instance()->check_methods( $protect_san, 'is_active', true ) ) {
+						$information['sync_JetpackProtect_Data']['is_active'] = $protect_san::is_active() ? 1 : 0;
+					}
+				}
 			} catch ( \Exception $e ) {
 				// error!
 			}
@@ -277,6 +283,14 @@ class MainWP_Child_Jetpack_Protect {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
+		?>
+		<script type="text/javascript">
+			document.addEventListener( "DOMContentLoaded", function( event ) {
+				document.getElementById( "wp-admin-bar-jetpack-protect" ).outerHTML = '';
+				document.getElementById( "toplevel_page_jetpack" ).outerHTML = '';
+			} );
+		</script>
+		<?php
 	}
 
 	/**

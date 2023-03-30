@@ -631,13 +631,14 @@ class MainWP_Utility {
 			ob_end_flush();
 		}
 		flush();
+		sleep( 10 );
 	}
 
-		/**
-		 * Method send_maintenance_alert()
-		 *
-		 * MainWP Maintenance Extension feature to send email notification for 404 (Page not found) errors.
-		 */
+	/**
+	 * Method send_maintenance_alert()
+	 *
+	 * MainWP Maintenance Extension feature to send email notification for 404 (Page not found) errors.
+	 */
 	public function send_maintenance_alert() {
 		if ( ! is_404() ) {
 			return;
