@@ -90,6 +90,7 @@ class MainWP_Child_Jetpack_Protect {
 		if ( 'hide' === get_option( 'mainwp_child_jetpack_protect_hide_plugin' ) ) {
 			add_filter( 'all_plugins', array( $this, 'hook_all_plugins' ) );
 			add_action( 'admin_menu', array( $this, 'hook_remove_menu' ) );
+			add_action( 'admin_head', array( $this, 'admin_head' ) );
 			add_filter( 'site_transient_update_plugins', array( &$this, 'hook_remove_update_nag' ) );
 			add_filter( 'mainwp_child_hide_update_notice', array( &$this, 'hook_hide_update_notice' ) );
 		}
@@ -274,7 +275,7 @@ class MainWP_Child_Jetpack_Protect {
 	}
 
 	/**
-	 * Remove WPStaging WordPress Menu.
+	 * Remove the plugin menu.
 	 */
 	public function hook_remove_menu() {
 		remove_menu_page( 'jetpack-protect' );
@@ -283,15 +284,24 @@ class MainWP_Child_Jetpack_Protect {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
+	}
+
+	/**
+	 * Hide plugin menus.
+	 */
+	public function admin_head() {
 		?>
-		<script type="text/javascript">
-			document.addEventListener( "DOMContentLoaded", function( event ) {
-				document.getElementById( "wp-admin-bar-jetpack-protect" ).outerHTML = '';
-				document.getElementById( "toplevel_page_jetpack" ).outerHTML = '';
-			} );
-		</script>
+		<style type="text/css">
+			#wp-admin-bar-jetpack-protect{
+				display: none !important;
+			}
+			#toplevel_page_jetpack{
+				display: none !important;
+			}
+		</style>
 		<?php
 	}
+
 
 	/**
 	 * Hide all admin update notices.
