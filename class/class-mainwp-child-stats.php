@@ -703,12 +703,15 @@ class MainWP_Child_Stats {
 	 * @return array $categories Available Child Site Categories.
 	 */
 	private function stats_get_categories() {
-
+		$number = isset( $_POST['categories_number'] ) ? intval( $_POST['categories_number'] ) : 300;
+		if ( 300 >= $number ) {
+			$number = 300;
+		}
 		$cats       = get_categories(
 			array(
 				'hide_empty'   => 0,
 				'hierarchical' => true,
-				'number'       => 300,
+				'number'       => $number,
 			)
 		);
 		$categories = array();

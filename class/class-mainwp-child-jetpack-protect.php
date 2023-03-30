@@ -131,6 +131,12 @@ class MainWP_Child_Jetpack_Protect {
 					'connected' => $this->connection->is_connected(),
 				);
 
+				if ( MainWP_Helper::instance()->check_classes_exists( '\Automattic\Jetpack\My_Jetpack\Products\Scan', true ) ) {
+					$protect_san = new \Automattic\Jetpack\My_Jetpack\Products\Scan();
+					if ( MainWP_Helper::instance()->check_methods( $protect_san, 'is_active', true ) ) {
+						$information['sync_JetpackProtect_Data']['is_active'] = $protect_san::is_active() ? 1 : 0;
+					}
+				}
 			} catch ( \Exception $e ) {
 				// error!
 			}

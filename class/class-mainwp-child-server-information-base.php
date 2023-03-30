@@ -261,7 +261,7 @@ class MainWP_Child_Server_Information_Base {
 	 *
 	 * @return string $fs The returned file system method.
 	 */
-	protected static function get_file_system_method() {
+	public static function get_file_system_method() {
 		if ( defined( 'MAINWP_SAVE_FS_METHOD' ) ) {
 			return MAINWP_SAVE_FS_METHOD;
 		}

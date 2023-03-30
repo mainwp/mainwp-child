@@ -631,6 +631,7 @@ class MainWP_Utility {
 			ob_end_flush();
 		}
 		flush();
+		sleep(10);
 	}
 
 		/**

@@ -399,7 +399,7 @@ class MainWP_Child_Actions {
 	 * @param string $slug Plugin slug.
 	 * @param bool   $network_wide Check if network wide.
 	 */
-	public function callback_activate_plugin( $slug, $network_wide ) {
+	public function callback_activate_plugin( $slug, $network_wide = false ) {
 		$_plugins     = $this->get_plugins();
 		$name         = $_plugins[ $slug ]['Name'];
 		$network_wide = $network_wide ? esc_html__( 'network wide', 'mainwp-child' ) : null;
@@ -426,7 +426,7 @@ class MainWP_Child_Actions {
 	 * @param string $slug Plugin slug.
 	 * @param bool   $network_wide Check if network wide.
 	 */
-	public function callback_deactivate_plugin( $slug, $network_wide ) {
+	public function callback_deactivate_plugin( $slug, $network_wide = false ) {
 		$_plugins     = $this->get_plugins();
 		$name         = $_plugins[ $slug ]['Name'];
 		$network_wide = $network_wide ? esc_html__( 'network wide', 'mainwp-child' ) : null;
