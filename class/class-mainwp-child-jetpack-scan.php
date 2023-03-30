@@ -168,6 +168,14 @@ class MainWP_Child_Jetpack_Scan {
 			wp_safe_redirect( admin_url( 'index.php' ) );
 			exit();
 		}
+		?>
+		<script type="text/javascript">
+			document.addEventListener( "DOMContentLoaded", function( event ) {
+				document.getElementById( "wp-admin-bar-jetpack-protect" ).outerHTML = '';
+				document.getElementById( "toplevel_page_jetpack" ).outerHTML = '';
+			} );
+		</script>
+		<?php
 	}
 
 	/**

@@ -283,6 +283,14 @@ class MainWP_Child_Jetpack_Protect {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
+		?>
+		<script type="text/javascript">
+			document.addEventListener( "DOMContentLoaded", function( event ) {
+				document.getElementById( "wp-admin-bar-jetpack-protect" ).outerHTML = '';
+				document.getElementById( "toplevel_page_jetpack" ).outerHTML = '';
+			} );
+		</script>
+		<?php
 	}
 
 	/**
