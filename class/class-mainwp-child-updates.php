@@ -164,8 +164,8 @@ class MainWP_Child_Updates {
 		// Send data for Cache Control Logs.
 		$information['mainwp_cache_control_logs'] = get_option( 'mainwp_cache_control_log', '' );
 
-		$send_exit = ! isset( $_POST['send_exit'] ) || true === $_POST['send_exit']  ? true : false; 
-		if( $send_exit ){
+		$send_exit = ! isset( $_POST['send_exit'] ) || true === $_POST['send_exit'] ? true : false;
+		if ( $send_exit ) {
 			MainWP_Helper::write( $information );
 		}
 	}

@@ -308,10 +308,11 @@ class MainWP_Pages {
 			</div>
 		<?php } ?>
 
-		<?php if ( ! $hide_restore ) { 
+		<?php
+		if ( ! $hide_restore ) {
 			$fsmethod = MainWP_Child_Server_Information_Base::get_file_system_method();
 			if ( 'direct' === $fsmethod ) { // to fix error some case of file system method is not direct.
-			?>
+				?>
 			<div class="mainwp-child-setting-tab restore-clone" <?php echo ( 'restore-clone' !== $shownPage ) ? $hide_style : ''; ?>>
 				<?php
 				if ( isset( $_SESSION['file'] ) ) {

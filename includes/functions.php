@@ -174,13 +174,12 @@ if ( ! function_exists( 'mainwp_child_backwpup_wp_list_table_dependency' ) ) {
 if ( ! function_exists( 'apply_filters_deprecated' ) ) {
 	/**
 	 * Support old WP version 4.0.
-	 * 
+	 *
 	 * Fires functions attached to a deprecated filter hook.
 	 *
 	 * When a filter hook is deprecated, the apply_filters() call is replaced with
 	 * apply_filters_deprecated(), which triggers a deprecation notice and then fires
 	 * the original filter hook.
-	 *
 	 *
 	 * @param string $hook_name   The name of the filter hook.
 	 * @param array  $args        Array of additional function arguments to be passed to apply_filters().
