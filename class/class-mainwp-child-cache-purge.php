@@ -254,7 +254,7 @@ class MainWP_Child_Cache_Purge {
 			}
 
 			// Fire off CloudFlare purge if enabled & not using a CDN Cache Plugin. ( Stops double purging Cloudflare ).
-			if ( '1' === get_option( 'mainwp_child_cloud_flair_enabled' )  && 'CDN Cache Plugin' !== $cache_plugin_solution ) {
+			if ( '1' === get_option( 'mainwp_child_cloud_flair_enabled' ) && 'CDN Cache Plugin' !== $cache_plugin_solution ) {
 				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
 			}
 		} else {
