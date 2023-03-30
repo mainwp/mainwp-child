@@ -151,7 +151,7 @@ class MainWP_Child_Cache_Purge {
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
 		);
 
-		// Check if a supported cache plugin is active
+		// Check if a supported cache plugin is active.
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
 				$cache_plugin_solution     = $name;
@@ -246,7 +246,7 @@ class MainWP_Child_Cache_Purge {
 			}
 
 			// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
-			if ( $cache_plugin_solution == 'Plugin Not Found' ) {
+			if ( 'Plugin Not Found' == $cache_plugin_solution ) {
 				$information = array(
 					'status' => 'Disabled',
 					'action' => 'SUCCESS',
@@ -254,7 +254,7 @@ class MainWP_Child_Cache_Purge {
 			}
 
 			// Fire off CloudFlare purge if enabled & not using a CDN Cache Plugin. ( Stops double purging Cloudflare ).
-			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' && $cache_plugin_solution !== 'CDN Cache Plugin' ) {
+			if ( '1' === get_option( 'mainwp_child_cloud_flair_enabled' )  && 'CDN Cache Plugin' !== $cache_plugin_solution ) {
 				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
 			}
 		} else {
@@ -269,7 +269,7 @@ class MainWP_Child_Cache_Purge {
 		$this->record_results( $information );
 
 		// Only fire off if this is a 'bulk' action.
-		if ( $bulk === 'true' ) {
+		if ( 'true' === $bulk ) {
 			// Return results in JSON format.
 			MainWP_Helper::write( $information );
 		}
@@ -309,9 +309,9 @@ class MainWP_Child_Cache_Purge {
 		$success_message = 'CDN Cache Plugin => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'CDN Cache Plugin => There was an issue purging your cache.';
 
-		if ( class_exists('CDN_Clear_Cache_Api' ) ) {
+		if ( class_exists( 'CDN_Clear_Cache_Api' ) ) {
 
-			\CDN_Clear_Cache_Api::cache_api_call(array(), 'purge_everything');
+			\CDN_Clear_Cache_Api::cache_api_call( array(), 'purge_everything' );
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
@@ -365,7 +365,7 @@ class MainWP_Child_Cache_Purge {
 		$preload = self::wp_optimize_preload_cache();
 
 		// Check response & return results.
-		if ( $purge === true && $preload === true ) {
+		if ( true === $purge && true === $preload ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			return $this->purge_result( $success_message, 'SUCCESS' );
@@ -448,7 +448,7 @@ class MainWP_Child_Cache_Purge {
 			// Clear Cache.
 			\FlyingPress\Purge::purge_everything();
 
-			sleep(3);
+			sleep( 3 );
 			// Preload Cache.
 			\FlyingPress\Preload::preload_cache();
 
