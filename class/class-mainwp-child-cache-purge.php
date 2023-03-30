@@ -128,7 +128,7 @@ class MainWP_Child_Cache_Purge {
 		// Grab all mu-plugins & check for Rocket.net mu-plugin. If found, set cache solution to CDN Cache Plugin.
 		$mu_plugings_list = get_mu_plugins();
 		if ( array_key_exists( 'cdn-cache-management.php', $mu_plugings_list ) ) {
-			$cache_plugin_solution     = 'CDN Cache Plugin';
+			$cache_plugin_solution = 'CDN Cache Plugin';
 		}
 
 		$supported_cache_plugins = array(
@@ -154,14 +154,13 @@ class MainWP_Child_Cache_Purge {
 		// Check if a supported cache plugin is active
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution = $name;
+				$cache_plugin_solution     = $name;
 				$this->is_plugin_installed = true;
 			}
 		}
 
 		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
 		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
-
 	}
 
 	/**
@@ -248,17 +247,22 @@ class MainWP_Child_Cache_Purge {
 
 			// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
 			if ( $cache_plugin_solution == 'Plugin Not Found' ) {
-				$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
+				$information = array(
+					'status' => 'Disabled',
+					'action' => 'SUCCESS',
+				);
 			}
 
 			// Fire off CloudFlare purge if enabled & not using a CDN Cache Plugin. ( Stops double purging Cloudflare ).
 			if ( get_option( 'mainwp_child_cloud_flair_enabled' ) === '1' && $cache_plugin_solution !== 'CDN Cache Plugin' ) {
-				$information[ 'cloudflare' ] = $this->cloudflair_auto_purge_cache();
+				$information['cloudflare'] = $this->cloudflair_auto_purge_cache();
 			}
-
 		} else {
 			// If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
-			$information = array( 'status' => 'Disabled', 'action' => 'SUCCESS' );
+			$information = array(
+				'status' => 'Disabled',
+				'action' => 'SUCCESS',
+			);
 		}
 
 		// Save to DB.
@@ -280,17 +284,17 @@ class MainWP_Child_Cache_Purge {
 	 * @return array Purge results array.
 	 */
 	public function purge_result( $message, $action ) {
-		$result = array(
-			'Last Purged' => get_option( 'mainwp_cache_control_last_purged', false ),
-			'Cache Solution' => get_option( 'mainwp_cache_control_cache_solution', false ),
+		$result           = array(
+			'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
+			'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
 			'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-			'Cloudflair Enabled' => get_option( 'mainwp_child_cloud_flair_enabled' ),
+			'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
 		);
-		$result[ 'result' ] = $message;
+		$result['result'] = $message;
 		if ( 'SUCCESS' === $action ) {
-			$result[ 'action' ] = 'SUCCESS';
+			$result['action'] = 'SUCCESS';
 		} else {
-			$result[ 'action' ] = 'ERROR';
+			$result['action'] = 'ERROR';
 		}
 		return $result;
 	}
@@ -307,7 +311,7 @@ class MainWP_Child_Cache_Purge {
 
 		if ( class_exists('CDN_Clear_Cache_Api' ) ) {
 
-			\CDN_Clear_Cache_Api::cache_api_call([], 'purge_everything');
+			\CDN_Clear_Cache_Api::cache_api_call(array(), 'purge_everything');
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
@@ -328,7 +332,6 @@ class MainWP_Child_Cache_Purge {
 
 		$success_message = 'Comet Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'Comet Cache => There was an issue purging your cache.';
-
 
 		if ( class_exists( '\comet_cache' ) ) {
 
@@ -751,9 +754,12 @@ class MainWP_Child_Cache_Purge {
 
 		// If the Zone-ID is not found, return status no-id but still return "SUCCESS" action because it did not fail.
 		// Explanation: When no Child Site is found on CF account, this will stop execution of this function and return
-		//              back to auto_purge_cache() function for further processing.
-		if (  ! isset( $qresult['result'][0]['id'] ) ) {
-			return array( 'status' => 'no-id', 'action' => 'SUCCESS' );
+		// back to auto_purge_cache() function for further processing.
+		if ( ! isset( $qresult['result'][0]['id'] ) ) {
+			return array(
+				'status' => 'no-id',
+				'action' => 'SUCCESS',
+			);
 		}
 
 		$cust_zone = $qresult['result'][0]['id'];
