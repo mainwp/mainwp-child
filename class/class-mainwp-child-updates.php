@@ -374,6 +374,8 @@ class MainWP_Child_Updates {
 							}
 						}
 					}
+				} elseif ( is_wp_error( $info ) ) {
+					$information['upgrades_error'][ $plugin ] = $info->get_error_message();
 				} else {
 					$information['upgrades'][ $plugin ] = true;
 				}
