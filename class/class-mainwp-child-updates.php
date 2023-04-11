@@ -1007,7 +1007,7 @@ class MainWP_Child_Updates {
 	private function check_core_updater_locked() {
 		$lock_option = 'core_updater.lock';
 		$lock_result = get_option( $lock_option );
-		//There isn't a lock, bail.
+		// There isn't a lock, bail.
 		if ( ! $lock_result ) {
 			return false;
 		}

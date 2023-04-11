@@ -109,7 +109,7 @@ class MainWP_Child_Stats {
 		$information['version']   = MainWP_Child::$version;
 		$information['wpversion'] = $wp_version;
 		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
-		$information['wphost']       = MainWP_Helper::get_wp_host();
+		$information['wphost']    = MainWP_Helper::get_wp_host();
 		MainWP_Helper::write( $information );
 	}
 
@@ -481,7 +481,7 @@ class MainWP_Child_Stats {
 		$information['wpversion'] = $wp_version;
 		$information['siteurl']   = get_option( 'siteurl' );
 		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
-		$information['wphost']       = MainWP_Helper::get_wp_host();
+		$information['wphost']    = MainWP_Helper::get_wp_host();
 
 		$theme_name               = wp_get_theme()->get( 'Name' );
 		$information['site_info'] = array(
