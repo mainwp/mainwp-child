@@ -109,6 +109,7 @@ class MainWP_Child_Stats {
 		$information['version']   = MainWP_Child::$version;
 		$information['wpversion'] = $wp_version;
 		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
+		$information['wphost']       = MainWP_Helper::get_wp_host();
 		MainWP_Helper::write( $information );
 	}
 
@@ -257,7 +258,7 @@ class MainWP_Child_Stats {
 
 		$max_his                = MainWP_Connect::instance()->get_max_history();
 		$auths                  = get_option( 'mainwp_child_auth' );
-		$information['extauth'] = ( $auths && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
+		$information['extauth'] = ( is_array( $auths ) && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
 
 		$information['plugins'] = $this->get_all_plugins_int( false );
 		$information['themes']  = $this->get_all_themes_int( false );
@@ -480,6 +481,8 @@ class MainWP_Child_Stats {
 		$information['wpversion'] = $wp_version;
 		$information['siteurl']   = get_option( 'siteurl' );
 		$information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
+		$information['wphost']       = MainWP_Helper::get_wp_host();
+
 		$theme_name               = wp_get_theme()->get( 'Name' );
 		$information['site_info'] = array(
 			'wpversion'      => $wp_version,

@@ -656,7 +656,7 @@ class MainWP_Connect {
 	public function check_other_auth() {
 		$auths = get_option( 'mainwp_child_auth' );
 
-		if ( ! $auths ) {
+		if ( ! is_array( $auths ) ) {
 			$auths = array();
 		}
 
@@ -690,7 +690,7 @@ class MainWP_Connect {
 	 */
 	public function is_valid_auth( $key ) {
 		$auths = get_option( 'mainwp_child_auth' );
-		if ( ! $auths ) {
+		if ( ! is_array( $auths ) ) {
 			return false;
 		}
 		for ( $i = 0; $i <= $this->maxHistory; $i ++ ) {

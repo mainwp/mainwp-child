@@ -784,6 +784,41 @@ class MainWP_Helper {
 	}
 
 	/**
+	 * Method get_wp_host()
+	 *
+	 * Get host if hosted on the FLYWHEEL or Pressable host.
+	 *
+	 * @return string flywheel|pressable If the child site is hosted on FLYWHEEL or Pressable host.
+	 */
+	public static function get_wp_host() {
+		return self::is_flywheel_host() ? 'flywheel' : ( self::is_pressable_host() ? 'pressable' : '' );
+	}
+
+	/**
+	 * Method is_flywheel_host()
+	 *
+	 * Check if the child site is hosted on the FLYWHEEL server.
+	 *
+	 * @return bool true|false If the child site is hosted on the FLYWHEEL, return true, if not, return false.
+	 */
+	public static function is_flywheel_host() {
+		return defined( 'FLYWHEEL_PLUGIN_DIR' ) && ! empty( FLYWHEEL_PLUGIN_DIR );
+	}
+
+	/**
+	 * Method is_pressable_host()
+	 *
+	 * Check if the child site is hosted on the Pressable host.
+	 *
+	 * @return bool true|false If the child site is hosted on the Pressable host, return true, if not, return false.
+	 */
+	public static function is_pressable_host() {
+		$press_site_id = get_option( 'pressable_site_id', false );
+		return ! empty( $press_site_id );
+	}
+
+
+	/**
 	 * Method maybe_set_doing_cron()
 	 *
 	 * May be define doing cron.

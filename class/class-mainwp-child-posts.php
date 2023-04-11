@@ -852,7 +852,7 @@ class MainWP_Child_Posts {
 		$new_post['post_author'] = isset( $new_post['post_author'] ) && ! empty( $new_post['post_author'] ) ? $new_post['post_author'] : $current_uid;
 
 		if ( isset( $new_post['post_title'] ) ) {
-			$new_post['post_title'] = htmlspecialchars( $new_post['post_title'] );
+			$new_post['post_title'] = MainWP_Utility::esc_content( $new_post['post_title'], 'mixed' );
 		}
 
 		if ( isset( $new_post['post_excerpt'] ) ) {
