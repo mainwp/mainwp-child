@@ -628,7 +628,7 @@ class MainWP_Child_Misc {
 			}
 		}
 
-		$code = isset( $_POST['code'] ) ? stripslashes( wp_unslash( $_POST['code'] ) ) : '';
+		$code = isset( $_POST['code'] ) ? wp_unslash( $_POST['code'] ) : '';
 
 		$information = array();
 		if ( 'run_snippet' === $action ) {

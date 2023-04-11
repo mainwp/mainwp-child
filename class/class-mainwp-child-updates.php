@@ -131,8 +131,11 @@ class MainWP_Child_Updates {
 		$mwp_premium_updates_todo_slugs = array();
 		$premiumUpgrader                = false;
 
+		$plugin_update = false;
+
 		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
 			$this->upgrade_plugin( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs, $premiumUpgrader );
+			$plugin_update = true;
 		} elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
 			$this->upgrade_theme( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs, $premiumUpgrader );
 		} else {
@@ -152,8 +155,10 @@ class MainWP_Child_Updates {
 		 */
 		MainWP_Child_Cache_Purge::instance()->auto_purge_cache( $information );
 
-		// Save Status results.
-		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+		if ( ! $plugin_update ) {
+			// Save Status results.
+			$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false ); // causing sync plugins updates info are not correct.
+		}
 
 		// ** Send data to MainWP Dashboard. **//
 
@@ -366,14 +371,23 @@ class MainWP_Child_Updates {
 					$information['upgrades'][ $plugin ] = false;
 					$api                                = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
 
+					if ( is_wp_error( $api ) ) {
+						$information['upgrades_error'][ $plugin ] = $api->get_error_message();
+					}
+
 					if ( ! is_wp_error( $api ) && ! empty( $api ) ) {
 						if ( isset( $api->download_link ) ) {
 							$res = $upgrader->install( $api->download_link );
 							if ( ! is_wp_error( $res ) && ! ( is_null( $res ) ) ) {
 								$information['upgrades'][ $plugin ] = true;
 							}
+							if ( is_wp_error( $res ) ) {
+								$information['upgrades_error'][ $plugin ] = $res->get_error_message();
+							}
 						}
 					}
+				} elseif ( is_wp_error( $info ) ) {
+					$information['upgrades_error'][ $plugin ] = $info->get_error_message();
 				} else {
 					$information['upgrades'][ $plugin ] = true;
 				}
@@ -991,11 +1005,16 @@ class MainWP_Child_Updates {
 	 *  @return bool true locked.
 	 */
 	private function check_core_updater_locked() {
-		global $wpdb;
-		$query  = "SELECT option_name, option_value FROM $wpdb->options ";
-		$query .= 'WHERE option_name = "core_updater.lock"';
-		$found = $wpdb->get_results( $query ); // phpcs:ignore -- safe query, required to achieve desired results, pull request solutions appreciated.
-		if ( $found ) {
+		$lock_option = 'core_updater.lock';
+		$lock_result = get_option( $lock_option );
+		// There isn't a lock, bail.
+		if ( ! $lock_result ) {
+			return false;
+		}
+
+		$release_timeout = 15 * MINUTE_IN_SECONDS;
+		// Check to see if the lock is still valid. If it is, bail.
+		if ( $lock_result > ( time() - $release_timeout ) ) {
 			return true;
 		}
 		return false;

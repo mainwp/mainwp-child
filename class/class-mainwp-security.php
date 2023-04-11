@@ -335,15 +335,16 @@ class MainWP_Security {
 		 * @global object $wp_filesystem Filesystem object.
 		 */
 		global $wp_filesystem;
-
-		$abs_path = $wp_filesystem->abspath();
 		if ( $force || self::get_security_option( 'readme' ) ) {
-			if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
-				if ( ! unlink( ABSPATH . 'readme.html' ) ) {
-					$wp_filesystem->delete( $abs_path . 'readme.html' );
-					if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
-						// prevent repeat delete.
-						self::update_security_option( 'readme', false );
+			if ( $wp_filesystem->connect() ) {
+				$abs_path = $wp_filesystem->abspath();
+				if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
+					if ( ! unlink( ABSPATH . 'readme.html' ) ) {
+						$wp_filesystem->delete( $abs_path . 'readme.html' );
+						if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
+							// prevent repeat delete.
+							self::update_security_option( 'readme', false );
+						}
 					}
 				}
 			}
