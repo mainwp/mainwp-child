@@ -1317,6 +1317,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 		// phpcs:disable WordPress.WP.AlternativeFunctions -- to custom read file.
 		$fh = fopen( $path, 'r' );
+		if ( false === $fh || ! is_resource( $fh ) ) {
+			return $lines;
+		}
 		// go to the end of the file.
 		fseek( $fh, 0, SEEK_END );
 
