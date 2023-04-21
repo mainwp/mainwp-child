@@ -161,6 +161,7 @@ class MainWP_Child_Cache_Purge {
 
 		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
 		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
+
 	}
 
 	/**
@@ -733,9 +734,13 @@ class MainWP_Child_Cache_Purge {
 		$cust_xauth  = get_option( 'mainwp_cloudflair_key' );
 		$cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
 
+		// Check if we have all the required data.f
 		if ( '' == $cust_email || '' == $cust_xauth || '' == $cust_domain ) {
 			return;
 		}
+
+		// Strip subdomains. Cloudflare doesn't like them.
+		$cust_domain = $this->strip_subdomains( $cust_domain );
 
 		// Get the Zone-ID from Cloudflare since they don't provide that in the Backend.
 		$ch_query = curl_init(); // phpcs:ignore -- use core function.
@@ -916,5 +921,28 @@ class MainWP_Child_Cache_Purge {
 
 		// Save Cache Control Log Data.
 		update_option( 'mainwp_cache_control_log', wp_json_encode( $information ) );
+	}
+
+	/**
+	 * Strip subdomains from a url.
+	 *
+	 * @param $url string The url to strip subdomains from.
+	 *
+	 * @return string The url without subdomains (if any).
+	 */
+	public function strip_subdomains( $url ){
+
+		# credits to gavingmiller for maintaining this list
+		$second_level_domains = file_get_contents("https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv" );
+
+		# presume sld first ...
+		$possible_sld = implode('.', array_slice(explode('.', $url), -2 ) );
+
+		# and then verify it
+		if ( strpos( $second_level_domains, $possible_sld ) ){
+			return  implode('.', array_slice(explode('.', $url), -3 ) );
+		} else {
+			return  implode('.', array_slice(explode('.', $url), -2 ) );
+		}
 	}
 }
