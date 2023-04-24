@@ -352,12 +352,17 @@ class MainWP_Child_Cache_Purge {
 	/**
 	 * Purge WP Optimize cache.
 	 *
-	 * @return array Purge results array.
+	 * @return array|void Purge results array.
 	 */
 	public function wp_optimize_auto_purge_cache() {
 
+
 		$success_message = 'WP Optimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'WP Optimize => There was an issue purging your cache.';
+		$bypass_message  = 'WP Optimize => Page Cache is not enabled.';
+
+		// Check if WP Optimize is activated & page cache is enabled before proceeding.
+		if ( ! $this->wp_optimize_activated_check() ) return $this->purge_result( $bypass_message, 'SUCCESS' );
 
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
@@ -393,7 +398,7 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Preload WP Optimize cache after purge.
+	 * Purge WP Optimize cache.
 	 *
 	 * @return bool True if successful, false if not.
 	 */
@@ -406,6 +411,14 @@ class MainWP_Child_Cache_Purge {
 			return true;
 		}
 		return false;
+	}
+
+	public function wp_optimize_activated_check() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = WP_Optimize()->get_page_cache();
+			if ( ! $cache->is_enabled() ) return false;
+		}
+
 	}
 
 	/**
@@ -725,7 +738,7 @@ class MainWP_Child_Cache_Purge {
 	 *
 	 * @noinspection PhpIdempotentOperationInspection
 	 *
-	 * @return array Purge results array.
+	 * @return array|void Return array of purge results or void.
 	 */
 	public function cloudflair_auto_purge_cache() {
 
@@ -734,7 +747,7 @@ class MainWP_Child_Cache_Purge {
 		$cust_xauth  = get_option( 'mainwp_cloudflair_key' );
 		$cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
 
-		// Check if we have all the required data.f
+		// Check if we have all the required data.
 		if ( '' == $cust_email || '' == $cust_xauth || '' == $cust_domain ) {
 			return;
 		}
