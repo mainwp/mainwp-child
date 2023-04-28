@@ -115,7 +115,7 @@ class MainWP_Child_Cache_Purge {
 	public function check_cache_solution() {
 
 		// Default value for cache solution.
-		$cache_plugin_solution= array();
+		$cache_plugin_solution = array();
 
 		// Grab all mu-plugins & check for Rocket.net mu-plugin. If found, set cache solution to CDN Cache Plugin.
 		$mu_plugings_list = get_mu_plugins();
@@ -146,7 +146,7 @@ class MainWP_Child_Cache_Purge {
 		// Check if a supported cache plugin is active.
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution[]     = $name;
+				$cache_plugin_solution[] = $name;
 			}
 		}
 
@@ -157,7 +157,6 @@ class MainWP_Child_Cache_Purge {
 
 		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
 		update_option( 'mainwp_cache_control_cache_solution', json_encode( $cache_plugin_solution ) );
-
 	}
 
 	/**
@@ -360,13 +359,14 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function wp_optimize_auto_purge_cache() {
 
-
 		$success_message = 'WP Optimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'WP Optimize => There was an issue purging your cache.';
 		$bypass_message  = 'WP Optimize => Page Cache is not enabled.';
 
 		// Check if WP Optimize is activated & page cache is enabled before proceeding.
-		if ( ! $this->wp_optimize_activated_check() ) return $this->purge_result( $bypass_message, 'SUCCESS' );
+		if ( ! $this->wp_optimize_activated_check() ) {
+			return $this->purge_result( $bypass_message, 'SUCCESS' );
+		}
 
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
@@ -420,9 +420,10 @@ class MainWP_Child_Cache_Purge {
 	public function wp_optimize_activated_check() {
 		if ( class_exists( '\WP_Optimize' ) ) {
 			$cache = WP_Optimize()->get_page_cache();
-			if ( ! $cache->is_enabled() ) return false;
+			if ( ! $cache->is_enabled() ) {
+				return false;
+			}
 		}
-
 	}
 
 	/**
@@ -947,19 +948,19 @@ class MainWP_Child_Cache_Purge {
 	 *
 	 * @return string The url without subdomains (if any).
 	 */
-	public function strip_subdomains( $url ){
+	public function strip_subdomains( $url ) {
 
-		# credits to gavingmiller for maintaining this list
-		$second_level_domains = file_get_contents("https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv" );
+		// credits to gavingmiller for maintaining this list
+		$second_level_domains = file_get_contents('https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
 
-		# presume sld first ...
+		// presume sld first ...
 		$possible_sld = implode('.', array_slice(explode('.', $url), -2 ) );
 
-		# and then verify it
-		if ( strpos( $second_level_domains, $possible_sld ) ){
-			return  implode('.', array_slice(explode('.', $url), -3 ) );
+		// and then verify it
+		if ( strpos( $second_level_domains, $possible_sld ) ) {
+			return implode('.', array_slice(explode('.', $url), -3 ) );
 		} else {
-			return  implode('.', array_slice(explode('.', $url), -2 ) );
+			return implode('.', array_slice(explode('.', $url), -2 ) );
 		}
 	}
 }
