@@ -250,7 +250,7 @@ class MainWP_Child_Cache_Purge {
 
 				// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
 				if ( 'Plugin Not Found' == $cache_plugin_solution ) {
-					$information = array(
+					$information['is_disabled'] = array(
 						'status' => 'Disabled',
 						'action' => 'SUCCESS',
 					);
@@ -263,7 +263,7 @@ class MainWP_Child_Cache_Purge {
 			}
 		} else {
 			// If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
-			$information = array(
+			$information['is_disabled'] = array(
 				'status' => 'Disabled',
 				'action' => 'SUCCESS',
 			);
@@ -289,10 +289,11 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function purge_result( $message, $action ) {
 		$result           = array(
-			'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-			'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-			'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-			'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+			'Last Purged'            => get_option( 'mainwp_cache_control_last_purged', false ),
+			'cloudflare_last_purged' => get_option( 'mainwp_cache_control_last_purged', false ),
+			'Cache Solution'         => get_option( 'mainwp_cache_control_cache_solution', false ),
+			'Cache Control Enabled'  => get_option( 'mainwp_child_auto_purge_cache' ),
+			'Cloudflair Enabled'     => get_option( 'mainwp_child_cloud_flair_enabled' ),
 		);
 		$result['result'] = $message;
 		if ( 'SUCCESS' === $action ) {
@@ -778,7 +779,7 @@ class MainWP_Child_Cache_Purge {
 		// back to auto_purge_cache() function for further processing.
 		if ( ! isset( $qresult['result'][0]['id'] ) ) {
 			return array(
-				'status' => 'no-id',
+				'reason' => 'no-id',
 				'action' => 'SUCCESS',
 			);
 		}
