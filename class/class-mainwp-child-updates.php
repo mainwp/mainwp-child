@@ -204,7 +204,6 @@ class MainWP_Child_Updates {
 		// to fix conflict.
 		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
 
-
 		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 
 		$this->to_support_some_premiums_updates( $plugins );

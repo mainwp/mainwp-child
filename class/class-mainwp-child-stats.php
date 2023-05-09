@@ -643,7 +643,6 @@ class MainWP_Child_Stats {
 		// to fix conflict.
 		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
 
-
 		/**
 		 * Retrieve the name of the current filter or action.
 		 *
