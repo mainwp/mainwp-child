@@ -891,6 +891,44 @@ class MainWP_Utility {
 	}
 
 	/**
+	 * Method remove_filters_by_hook_name()
+	 *
+	 * Remove filters with method name.
+	 *
+	 * @param string $hook_name   Contains the hook name.
+	 * @param int    $priority    Contains the priority value.
+	 *
+	 * @return bool Return false if filtr is not set.
+	 */
+	public static function remove_filters_by_hook_name( $hook_name = '', $priority = 0 ) {
+
+		/**
+		 * WordPress filter array.
+		 *
+		 * @global array $wp_filter WordPress filter array.
+		 */
+		global $wp_filter;
+
+		// Take only filters on right hook name and priority.
+		if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
+			return false;
+		}
+		// Loop on filters registered.
+		foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
+			// Test if filter is an object (suppoted object only).
+			if ( isset( $filter_array['function'] ) && is_object( $filter_array['function'] ) ) {
+				// Test for WordPress >= 4.7 WP_Hook class.
+				if ( is_a( $wp_filter[ $hook_name ], 'WP_Hook' ) ) {
+					unset( $wp_filter[ $hook_name ]->callbacks[ $priority ][ $unique_id ] );
+				} else {
+					unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Get an array of user roles
 	 *
 	 * @return array

@@ -579,19 +579,26 @@ class MainWP_Child_WP_Rocket {
 	 */
 	public function preload_cache() {
 		MainWP_Helper::instance()->check_functions( array( 'run_rocket_sitemap_preload', 'run_rocket_bot' ) );
-		MainWP_Helper::instance()->check_classes_exists( '\WP_Rocket\Preload\Full_Process' );
+		$existed = MainWP_Helper::instance()->check_classes_exists( '\WP_Rocket\Engine\Preload\FullProcess', true );
+		// compatible.
+		if ( true === $existed ) {
+			$preload_process = new \WP_Rocket\Engine\Preload\FullProcess();
+			MainWP_Helper::instance()->check_methods( $preload_process, array( 'is_process_running' ) );
 
-		$preload_process = new \WP_Rocket\Preload\Full_Process();
-		MainWP_Helper::instance()->check_methods( $preload_process, array( 'is_process_running' ) );
+			if ( $preload_process->is_process_running() ) {
+				return array( 'result' => 'RUNNING' );
+			}
 
-		if ( $preload_process->is_process_running() ) {
-			return array( 'result' => 'RUNNING' );
+			delete_transient( 'rocket_preload_errors' );
+			run_rocket_bot( 'cache-preload', '' );
+			run_rocket_sitemap_preload();
+			return array( 'result' => 'SUCCESS' );
+		} else {
+			// Preload cache.
+			run_rocket_bot();
+			run_rocket_sitemap_preload();
+			return array( 'result' => 'SUCCESS' );
 		}
-
-		delete_transient( 'rocket_preload_errors' );
-		run_rocket_bot( 'cache-preload', '' );
-		run_rocket_sitemap_preload();
-		return array( 'result' => 'SUCCESS' );
 	}
 
 	/**
