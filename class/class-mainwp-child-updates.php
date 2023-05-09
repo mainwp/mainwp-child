@@ -201,6 +201,9 @@ class MainWP_Child_Updates {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
+		// to fix conflict.
+		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
+
 		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 
 		$this->to_support_some_premiums_updates( $plugins );
@@ -1046,6 +1049,9 @@ class MainWP_Child_Updates {
 		include_once ABSPATH . '/wp-admin/includes/file.php';
 
 		include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+		// to fix conflict.
+		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
 
 		wp_version_check();
 		wp_update_themes();

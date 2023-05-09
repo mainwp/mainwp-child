@@ -640,6 +640,9 @@ class MainWP_Child_Stats {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
 
+		// to fix conflict.
+		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
+
 		/**
 		 * Retrieve the name of the current filter or action.
 		 *

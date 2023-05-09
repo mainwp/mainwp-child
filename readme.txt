@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 5.4
 Tested up to: 6.2
 Requires PHP: 7.0
-Stable tag: 4.4.1
+Stable tag: 4.4.1.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,10 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 10. Manage Clients Screen
 
 == Changelog ==
+
+= 4.4.1.1 - 5-9-2023 =
+* Fixed: Potential conflict with the Oxygen Builder 4.6
+* Fixed: WP Rocket plugin compatibility problems 
 
 = 4.4.1 - 4-18-2023 =
 * Fixed: An issue with saving code snippets
