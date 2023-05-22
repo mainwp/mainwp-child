@@ -19,13 +19,6 @@ namespace MainWP\Child;
 class MainWP_Child_Cache_Purge {
 
 	/**
-	 * Public variable to state if supported plugin is installed on the child site.
-	 *
-	 * @var bool If supported plugin is installed, return true, if not, return false.
-	 */
-	public $is_plugin_installed = false;
-
-	/**
 	 * Public static variable to hold the single instance of the class.
 	 *
 	 * @var mixed Default null
@@ -113,8 +106,7 @@ class MainWP_Child_Cache_Purge {
 
 	/**
 	 * Check which supported plugin is installed,
-	 * Set wp_option 'mainwp_cache_control_cache_solution' to active plugin,
-	 * and set public variable 'is_plugin_installed' to TRUE.
+	 * Set wp_option 'mainwp_cache_control_cache_solution' to active plugins.
 	 *
 	 * If a supported plugin is not installed check to see if CloudFlair solution is enabled.
 	 *
@@ -123,12 +115,12 @@ class MainWP_Child_Cache_Purge {
 	public function check_cache_solution() {
 
 		// Default value for cache solution.
-		$cache_plugin_solution = 'Plugin Not Found';
+		$cache_plugin_solution = array();
 
 		// Grab all mu-plugins & check for Rocket.net mu-plugin. If found, set cache solution to CDN Cache Plugin.
 		$mu_plugings_list = get_mu_plugins();
 		if ( array_key_exists( 'cdn-cache-management.php', $mu_plugings_list ) ) {
-			$cache_plugin_solution = 'CDN Cache Plugin';
+			$cache_plugin_solution[] = 'CDN Cache Plugin';
 		}
 
 		$supported_cache_plugins = array(
@@ -154,13 +146,17 @@ class MainWP_Child_Cache_Purge {
 		// Check if a supported cache plugin is active.
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution     = $name;
-				$this->is_plugin_installed = true;
+				$cache_plugin_solution[] = $name;
 			}
 		}
 
+		// If no supported cache plugin is active, set array to Plugin Not Found.
+		if ( empty( $cache_plugin_solution ) ) {
+			$cache_plugin_solution[] = 'Plugin Not Found';
+		}
+
 		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
-		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
+		update_option( 'mainwp_cache_control_cache_solution', json_encode( $cache_plugin_solution ) );
 	}
 
 	/**
@@ -178,79 +174,86 @@ class MainWP_Child_Cache_Purge {
 		if ( get_option( 'mainwp_child_auto_purge_cache' ) == '1' ) {
 			$information = array();
 
-			// Grab detected cache solution..
-			$cache_plugin_solution = get_option( 'mainwp_cache_control_cache_solution', 0 );
+			// Grab detected cache solution and loop through to find each active cache plugin then purge cache.
+			$cache_plugin_solution = json_decode( get_option( 'mainwp_cache_control_cache_solution', 0 ) );
 
-			// Run the corresponding cache plugin purge method.
-			try {
-				switch ( $cache_plugin_solution ) {
-					case 'WP Rocket':
-						$information = $this->wprocket_auto_cache_purge();
-						break;
-					case 'Breeze':
-						$information = $this->breeze_auto_purge_cache();
-						break;
-					case 'LiteSpeed Cache':
-						$information = $this->litespeed_auto_purge_cache();
-						break;
-					case 'SiteGround Optimizer':
-						$information = $this->sitegrounds_optimizer_auto_purge_cache();
-						break;
-					case 'Swift Performance Lite':
-						$information = $this->swift_performance_lite_auto_purge_cache();
-						break;
-					case 'Swift Performance':
-						$information = $this->swift_performance_auto_purge_cache();
-						break;
-					case 'WP Fastest Cache':
-						$information = $this->wp_fastest_cache_auto_purge_cache();
-						break;
-					case 'W3 Total Cache':
-						$information = $this->w3_total_cache_auto_purge_cache();
-						break;
-					case 'Hummingbird Performance':
-						$information = $this->wp_hummingbird_auto_purge_cache();
-						break;
-					case 'Cache Enabler':
-						$information = $this->cache_enabler_auto_purge_cache();
-						break;
-					case 'Nginx Helper':
-						$information = $this->nginx_helper_auto_purge_cache();
-						break;
-					case 'Nitropack':
-						$information = $this->nitropack_auto_purge_cache();
-						break;
-					case 'Autoptimize':
-						$information = $this->autoptimize_auto_purge_cache();
-						break;
-					case 'FlyingPress':
-						$information = $this->flyingpress_auto_purge_cache();
-						break;
-					case 'WP Super Cache':
-						$information = $this->wp_super_cache_auto_purge_cache();
-						break;
-					case 'WP Optimize':
-						$information = $this->wp_optimize_auto_purge_cache();
-						break;
-					case 'Comet Cache':
-						$information = $this->comet_cache_auto_purge_cache();
-						break;
-					case 'CDN Cache Plugin':
-						$information = $this->cdn_cache_plugin_auto_purge_cache();
-						break;
-					default:
-						break;
+			// Loop through each active cache plugin & purge cache if found.
+			foreach ( $cache_plugin_solution as $solution ) {
+
+				// Set switch variable to active cache plugin.
+				$cache_plugin_solution = $solution;
+
+				// Run the corresponding cache plugin purge method.
+				try {
+					switch ( $cache_plugin_solution ) {
+						case 'WP Rocket':
+							$information[ $cache_plugin_solution ] = $this->wprocket_auto_cache_purge();
+							break;
+						case 'Breeze':
+							$information[ $cache_plugin_solution ] = $this->breeze_auto_purge_cache();
+							break;
+						case 'LiteSpeed Cache':
+							$information[ $cache_plugin_solution ] = $this->litespeed_auto_purge_cache();
+							break;
+						case 'SiteGround Optimizer':
+							$information[ $cache_plugin_solution ] = $this->sitegrounds_optimizer_auto_purge_cache();
+							break;
+						case 'Swift Performance Lite':
+							$information[ $cache_plugin_solution ] = $this->swift_performance_lite_auto_purge_cache();
+							break;
+						case 'Swift Performance':
+							$information[ $cache_plugin_solution ] = $this->swift_performance_auto_purge_cache();
+							break;
+						case 'WP Fastest Cache':
+							$information[ $cache_plugin_solution ] = $this->wp_fastest_cache_auto_purge_cache();
+							break;
+						case 'W3 Total Cache':
+							$information[ $cache_plugin_solution ] = $this->w3_total_cache_auto_purge_cache();
+							break;
+						case 'Hummingbird Performance':
+							$information[ $cache_plugin_solution ] = $this->wp_hummingbird_auto_purge_cache();
+							break;
+						case 'Cache Enabler':
+							$information[ $cache_plugin_solution ] = $this->cache_enabler_auto_purge_cache();
+							break;
+						case 'Nginx Helper':
+							$information[ $cache_plugin_solution ] = $this->nginx_helper_auto_purge_cache();
+							break;
+						case 'Nitropack':
+							$information[ $cache_plugin_solution ] = $this->nitropack_auto_purge_cache();
+							break;
+						case 'Autoptimize':
+							$information[ $cache_plugin_solution ] = $this->autoptimize_auto_purge_cache();
+							break;
+						case 'FlyingPress':
+							$information[ $cache_plugin_solution ] = $this->flyingpress_auto_purge_cache();
+							break;
+						case 'WP Super Cache':
+							$information[ $cache_plugin_solution ] = $this->wp_super_cache_auto_purge_cache();
+							break;
+						case 'WP Optimize':
+							$information[ $cache_plugin_solution ] = $this->wp_optimize_auto_purge_cache();
+							break;
+						case 'Comet Cache':
+							$information[ $cache_plugin_solution ] = $this->comet_cache_auto_purge_cache();
+							break;
+						case 'CDN Cache Plugin':
+							$information[ $cache_plugin_solution ] = $this->cdn_cache_plugin_auto_purge_cache();
+							break;
+						default:
+							break;
+					}
+				} catch ( \Exception $e ) {
+					$information['error'] = $e->getMessage();
 				}
-			} catch ( \Exception $e ) {
-				$information = array( 'error' => $e->getMessage() );
-			}
 
-			// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
-			if ( 'Plugin Not Found' == $cache_plugin_solution ) {
-				$information = array(
-					'status' => 'Disabled',
-					'action' => 'SUCCESS',
-				);
+				// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
+				if ( 'Plugin Not Found' == $cache_plugin_solution ) {
+					$information['is_disabled'] = array(
+						'status' => 'Disabled',
+						'action' => 'SUCCESS',
+					);
+				}
 			}
 
 			// Fire off CloudFlare purge if enabled & not using a CDN Cache Plugin. ( Stops double purging Cloudflare ).
@@ -259,7 +262,7 @@ class MainWP_Child_Cache_Purge {
 			}
 		} else {
 			// If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
-			$information = array(
+			$information['is_disabled'] = array(
 				'status' => 'Disabled',
 				'action' => 'SUCCESS',
 			);
@@ -285,10 +288,11 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function purge_result( $message, $action ) {
 		$result           = array(
-			'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
-			'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
-			'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
-			'Cloudflair Enabled'    => get_option( 'mainwp_child_cloud_flair_enabled' ),
+			'Last Purged'            => get_option( 'mainwp_cache_control_last_purged', false ),
+			'cloudflare_last_purged' => get_option( 'mainwp_cache_control_last_purged', false ),
+			'Cache Solution'         => get_option( 'mainwp_cache_control_cache_solution', false ),
+			'Cache Control Enabled'  => get_option( 'mainwp_child_auto_purge_cache' ),
+			'Cloudflair Enabled'     => get_option( 'mainwp_child_cloud_flair_enabled' ),
 		);
 		$result['result'] = $message;
 		if ( 'SUCCESS' === $action ) {
@@ -351,12 +355,18 @@ class MainWP_Child_Cache_Purge {
 	/**
 	 * Purge WP Optimize cache.
 	 *
-	 * @return array Purge results array.
+	 * @return array|void Purge results array.
 	 */
 	public function wp_optimize_auto_purge_cache() {
 
 		$success_message = 'WP Optimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'WP Optimize => There was an issue purging your cache.';
+		$bypass_message  = 'WP Optimize => Page Cache is not enabled.';
+
+		// Check if WP Optimize is activated & page cache is enabled before proceeding.
+		if ( ! $this->wp_optimize_activated_check() ) {
+			return $this->purge_result( $bypass_message, 'SUCCESS' );
+		}
 
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
@@ -392,7 +402,7 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
-	 * Preload WP Optimize cache after purge.
+	 * Purge WP Optimize cache.
 	 *
 	 * @return bool True if successful, false if not.
 	 */
@@ -405,6 +415,15 @@ class MainWP_Child_Cache_Purge {
 			return true;
 		}
 		return false;
+	}
+
+	public function wp_optimize_activated_check() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = WP_Optimize()->get_page_cache();
+			if ( ! $cache->is_enabled() ) {
+				return false;
+			}
+		}
 	}
 
 	/**
@@ -724,7 +743,7 @@ class MainWP_Child_Cache_Purge {
 	 *
 	 * @noinspection PhpIdempotentOperationInspection
 	 *
-	 * @return array Purge results array.
+	 * @return array|void Return array of purge results or void.
 	 */
 	public function cloudflair_auto_purge_cache() {
 
@@ -733,9 +752,13 @@ class MainWP_Child_Cache_Purge {
 		$cust_xauth  = get_option( 'mainwp_cloudflair_key' );
 		$cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
 
+		// Check if we have all the required data.
 		if ( '' == $cust_email || '' == $cust_xauth || '' == $cust_domain ) {
 			return;
 		}
+
+		// Strip subdomains. Cloudflare doesn't like them.
+		$cust_domain = $this->strip_subdomains( $cust_domain );
 
 		// Get the Zone-ID from Cloudflare since they don't provide that in the Backend.
 		$ch_query = curl_init(); // phpcs:ignore -- use core function.
@@ -757,7 +780,7 @@ class MainWP_Child_Cache_Purge {
 		// back to auto_purge_cache() function for further processing.
 		if ( ! isset( $qresult['result'][0]['id'] ) ) {
 			return array(
-				'status' => 'no-id',
+				'reason' => 'no-id',
 				'action' => 'SUCCESS',
 			);
 		}
@@ -916,5 +939,28 @@ class MainWP_Child_Cache_Purge {
 
 		// Save Cache Control Log Data.
 		update_option( 'mainwp_cache_control_log', wp_json_encode( $information ) );
+	}
+
+	/**
+	 * Strip subdomains from a url.
+	 *
+	 * @param $url string The url to strip subdomains from.
+	 *
+	 * @return string The url without subdomains (if any).
+	 */
+	public function strip_subdomains( $url ) {
+
+		// credits to gavingmiller for maintaining this list
+		$second_level_domains = file_get_contents('https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
+
+		// presume sld first ...
+		$possible_sld = implode('.', array_slice(explode('.', $url), -2 ) );
+
+		// and then verify it
+		if ( strpos( $second_level_domains, $possible_sld ) ) {
+			return implode('.', array_slice(explode('.', $url), -3 ) );
+		} else {
+			return implode('.', array_slice(explode('.', $url), -2 ) );
+		}
 	}
 }
