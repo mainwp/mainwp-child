@@ -197,20 +197,18 @@ if ( ! function_exists( 'apply_filters_deprecated' ) ) {
 }
 
 $post_smtp_enabled = get_option( 'post_smtp_use_from_main_site' );
-if( !function_exists( 'wp_mail' ) && $post_smtp_enabled ) {
-	
+if ( ! function_exists( 'wp_mail' ) && $post_smtp_enabled ) {
+
 	function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ) {
-		
+
 		$response = MainWP\Child\MainWP_Child_Post_SMTP::get_instance()->process_email( $to, $subject, $message, $headers, $attachments );
-		
-		if( is_wp_error( $response ) ) {
-        
+
+		if ( is_wp_error( $response ) ) {
+
 			return false;
 
 		}
 
 		return true;
-		
 	}
-	
 }
