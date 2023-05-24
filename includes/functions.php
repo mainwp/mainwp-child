@@ -212,17 +212,15 @@ if( !function_exists( 'wp_mail' ) && $post_smtp_enabled ) {
      * @version 1.0
      */
 	function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ) {
-		
+
 		$response = MainWP\Child\MainWP_Child_Post_SMTP::get_instance()->process_email( $to, $subject, $message, $headers, $attachments );
-		
-		if( is_wp_error( $response ) ) {
-        
+
+		if ( is_wp_error( $response ) ) {
+
 			return false;
 
 		}
 
 		return true;
-		
 	}
-	
 }
