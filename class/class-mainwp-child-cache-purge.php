@@ -810,7 +810,7 @@ class MainWP_Child_Cache_Purge {
 			curl_close( $ch_purge ); // phpcs:ignore -- use core function.
 		}
 
-		$success_message = 'Cloudflair => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'Cloudflare => There was an issue purging your cache.' . json_encode( $result ); // phpcs:ignore -- ok.
 
 		// Save last purge time to database on success.
