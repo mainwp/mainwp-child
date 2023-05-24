@@ -147,15 +147,29 @@ class MainWP_Child_Cache_Purge {
 			'autoptimize/autoptimize.php'                => 'Autoptimize',
 			'flying-press/flying-press.php'              => 'FlyingPress',
 			'wp-super-cache/wp-cache.php'                => 'WP Super Cache',
-			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
+			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 		);
 
 		// Check if a supported cache plugin is active.
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution     = $name;
-				$this->is_plugin_installed = true;
+				//$cache_plugin_solution     = $name;
+
+				if ( 'wp-optimize/wp-optimize.php' == $plugin ) {
+					if ( class_exists( '\WP_Optimize' ) ) {
+						$cache = WP_Optimize()->get_page_cache();
+						if ( $cache->is_enabled() === false ) {
+							continue;
+						} elseif ( $cache->is_enabled() === true ) {
+							{
+								$cache_plugin_solution = 'WP Optimize';
+							}
+						}
+					}
+				} else {
+					$cache_plugin_solution = $name;
+				}
 			}
 		}
 
@@ -389,6 +403,14 @@ class MainWP_Child_Cache_Purge {
 			return true;
 		}
 		return false;
+	}
+
+	// Check if WP Optimize is installed and cache is enabled.
+	public function wp_optimize_activated_check() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = WP_Optimize()->get_page_cache();
+			if ( ! $cache->is_enabled() ) return false;
+		}
 	}
 
 	/**
