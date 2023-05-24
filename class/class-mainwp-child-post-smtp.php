@@ -68,8 +68,6 @@ class MainWP_Child_Post_SMTP {
             
 			$this->base_url = wp_parse_url( $server, PHP_URL_SCHEME ) . "://" . wp_parse_url( $server, PHP_URL_HOST ) . '/wp-json/post-smtp-for-mainwp/v1/send-email';
 
-			$this->base_url = parse_url( $server, PHP_URL_SCHEME ) . '://' . parse_url( $server, PHP_URL_HOST ) . '/' . 'wp-json/post-smtp-for-mainwp/v1/send-email';
-
 		}
 	}
 
@@ -173,9 +171,4 @@ class MainWP_Child_Post_SMTP {
 		
 	}
 
-
-	public function disable_from_main_site() {
-
-		return delete_option( 'post_smtp_use_from_main_site' );
-	}
 }
