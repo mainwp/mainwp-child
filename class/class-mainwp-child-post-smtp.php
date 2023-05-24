@@ -23,7 +23,12 @@ namespace MainWP\Child;
  * MainWP Post SMTP extension handler.
  */
 class MainWP_Child_Post_SMTP {
-	
+
+	/**
+	 * Base URL
+	 * 
+	 * @var string
+	 */
 	private $base_url = false;
 	
 	
@@ -49,13 +54,19 @@ class MainWP_Child_Post_SMTP {
 		return self::$instance;
 	}
 	
+
+	/**
+	 * Constructor
+	 * 
+	 * @version 1.0
+	 */
 	public function __construct() {
 		
 		$server = get_option( 'mainwp_child_server' );
 
         if( $server ) {
             
-			$this->base_url = parse_url( $server, PHP_URL_SCHEME ) . "://" . parse_url( $server, PHP_URL_HOST ) . "/" . 'wp-json/post-smtp-for-mainwp/v1/send-email';
+			$this->base_url = wp_parse_url( $server, PHP_URL_SCHEME ) . "://" . wp_parse_url( $server, PHP_URL_HOST ) . '/wp-json/post-smtp-for-mainwp/v1/send-email';
 
         }
 		
@@ -65,8 +76,8 @@ class MainWP_Child_Post_SMTP {
      * Process email
      * 
      * @param string|array $to Array or comma-separated list of email addresses to send message.
-     * @param string $subject Email subject
-     * @param string $message Message contents
+     * @param string $subject Email subject.
+     * @param string $message Message contents.
      * @param string|array $headers Optional. Additional headers.
      * @param string|array $attachments Optional. Files to attach.
      * @return bool Whether the email contents were sent successfully.
@@ -83,14 +94,14 @@ class MainWP_Child_Post_SMTP {
 			'API-Key'	=>	$pubkey
         );
 		
-		//let's manage attachments
+		//let's manage attachments.
 		if( !empty( $attachments ) && $attachments ) {
 
 			$_attachments = $attachments;
 			$attachments = array();
 			foreach( $_attachments as $attachment ) {
 				
-				$attachments[$attachment] = file_get_contents( $attachment );
+				$attachments[$attachment] = wp_remote_get( $attachment );
 					
 			}
 			
@@ -116,6 +127,11 @@ class MainWP_Child_Post_SMTP {
 	}
 	
 	
+	/**
+	 * Action
+	 * 
+	 * @version 1.0
+	 */
 	public function action() {
 		
 		$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
@@ -133,6 +149,12 @@ class MainWP_Child_Post_SMTP {
 	}
 	
 	
+	/**
+	 * Enable from main site
+	 * 
+	 * @return bool
+	 * @version 1.0
+	 */
 	public function enable_from_main_site() {
 		
 		return update_option( 'post_smtp_use_from_main_site', '1' );
@@ -140,6 +162,12 @@ class MainWP_Child_Post_SMTP {
 	}
 
 	
+	/**
+	 * Disable from main site
+	 * 
+	 * @return bool
+	 * @version 1.0
+	 */
 	public function disable_from_main_site() {
 		
 		return delete_option( 'post_smtp_use_from_main_site' );
