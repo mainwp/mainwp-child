@@ -26,7 +26,7 @@ class MainWP_Child_Post_SMTP {
 
 	/**
 	 * Base URL
-	 * 
+	 *
 	 * @var string
 	 */
 	private $base_url = false;
@@ -53,20 +53,20 @@ class MainWP_Child_Post_SMTP {
 
 		return self::$instance;
 	}
-	
+
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @version 1.0
 	 */
 	public function __construct() {
 
 		$server = get_option( 'mainwp_child_server' );
 
-        if( $server ) {
-            
-			$this->base_url = wp_parse_url( $server, PHP_URL_SCHEME ) . "://" . wp_parse_url( $server, PHP_URL_HOST ) . '/wp-json/post-smtp-for-mainwp/v1/send-email';
+		if ( $server ) {
+
+			$this->base_url = wp_parse_url( $server, PHP_URL_SCHEME ) . '://' . wp_parse_url( $server, PHP_URL_HOST ) . '/wp-json/post-smtp-for-mainwp/v1/send-email';
 
 			$this->base_url = parse_url( $server, PHP_URL_SCHEME ) . '://' . parse_url( $server, PHP_URL_HOST ) . '/' . 'wp-json/post-smtp-for-mainwp/v1/send-email';
 
@@ -74,36 +74,36 @@ class MainWP_Child_Post_SMTP {
 	}
 
 	/**
-     * Process email
-     * 
-     * @param string|array $to Array or comma-separated list of email addresses to send message.
-     * @param string $subject Email subject.
-     * @param string $message Message contents.
-     * @param string|array $headers Optional. Additional headers.
-     * @param string|array $attachments Optional. Files to attach.
-     * @return bool Whether the email contents were sent successfully.
-     * 
-     * @version 1.0
-     */
+	 * Process email
+	 *
+	 * @param string|array $to Array or comma-separated list of email addresses to send message.
+	 * @param string       $subject Email subject.
+	 * @param string       $message Message contents.
+	 * @param string|array $headers Optional. Additional headers.
+	 * @param string|array $attachments Optional. Files to attach.
+	 * @return bool Whether the email contents were sent successfully.
+	 *
+	 * @version 1.0
+	 */
 	public function process_email( $to, $subject, $message, $headers = '', $attachments = array() ) {
-		
-		$body = array();
-		$pubkey = get_option( 'mainwp_child_pubkey' );
-		$pubkey = $pubkey ? md5( $pubkey ) : '';
-        $request_headers = array(
-            'Site-URL'	=>	site_url( '/' ),
-			'API-Key'	=>	$pubkey
-        );
-		
-		//let's manage attachments.
-		if( !empty( $attachments ) && $attachments ) {
+
+		$body            = array();
+		$pubkey          = get_option( 'mainwp_child_pubkey' );
+		$pubkey          = $pubkey ? md5( $pubkey ) : '';
+		$request_headers = array(
+			'Site-URL'  => site_url( '/' ),
+			'API-Key'   => $pubkey,
+		);
+
+		// let's manage attachments.
+		if ( ! empty( $attachments ) && $attachments ) {
 
 			$_attachments = $attachments;
-			$attachments = array();
-			foreach( $_attachments as $attachment ) {
-				
-				$attachments[$attachment] = wp_remote_get( $attachment );
-					
+			$attachments  = array();
+			foreach ( $_attachments as $attachment ) {
+
+				$attachments[ $attachment ] = wp_remote_get( $attachment );
+
 			}
 		}
 
@@ -124,11 +124,11 @@ class MainWP_Child_Post_SMTP {
 
 		}
 	}
-	
-	
+
+
 	/**
 	 * Action
-	 * 
+	 *
 	 * @version 1.0
 	 */
 	public function action() {
@@ -144,33 +144,30 @@ class MainWP_Child_Post_SMTP {
 		}
 
 		MainWP_Helper::write( $information );
-		
 	}
-	
-	
+
+
 	/**
 	 * Enable from main site
-	 * 
+	 *
 	 * @return bool
 	 * @version 1.0
 	 */
 	public function enable_from_main_site() {
-		
+
 		return update_option( 'post_smtp_use_from_main_site', '1' );
-		
 	}
 
-	
+
 	/**
 	 * Disable from main site
-	 * 
+	 *
 	 * @return bool
 	 * @version 1.0
 	 */
 	public function disable_from_main_site() {
-		
+
 		return delete_option( 'post_smtp_use_from_main_site' );
-		
 	}
 
 
