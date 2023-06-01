@@ -804,7 +804,7 @@ class MainWP_Child_Cache_Purge {
 		}
 		error_log(print_r($result, true));
 		$success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-		$error_message   = 'Cloudflare => There was an issue purging the cache.' . json_encode( $qresult['errors'][0] ) . "-" . json_encode( $result['errors'][0] ); // phpcs:ignore -- ok.
+		$error_message   = 'Cloudflare => There was an issue purging the cache. ' . json_encode( $qresult['errors'][0], JSON_UNESCAPED_SLASHES ) . "-" . json_encode( $result['errors'][0], JSON_UNESCAPED_SLASHES ); // phpcs:ignore -- ok.
 
 		// Save last purge time to database on success.
 		if ( 1 == $result['success'] ) {
