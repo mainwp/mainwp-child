@@ -607,7 +607,9 @@ class MainWP_Child_Actions {
 	 * Upgrader pre-instaler callback.
 	 */
 	public function callback_upgrader_pre_install() {
-		$this->current_plugins_info = $this->get_plugins();
+		if ( empty( $this->current_plugins_info ) ) {
+			$this->current_plugins_info = $this->get_plugins();
+		}
 	}
 
 	/**
