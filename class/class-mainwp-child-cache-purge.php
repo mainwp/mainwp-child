@@ -139,14 +139,28 @@ class MainWP_Child_Cache_Purge {
 			'autoptimize/autoptimize.php'                => 'Autoptimize',
 			'flying-press/flying-press.php'              => 'FlyingPress',
 			'wp-super-cache/wp-cache.php'                => 'WP Super Cache',
-			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
+			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 		);
 
 		// Check if a supported cache plugin is active.
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution[] = $name;
+				// Check if WP Optimize is active and page cache is enabled or disabled. If disabled, continue to next plugin as if it is not installed.
+				if ( 'wp-optimize/wp-optimize.php' == $plugin ) {
+					if ( class_exists( '\WP_Optimize' ) ) {
+						$cache = WP_Optimize()->get_page_cache();
+						if ( $cache->is_enabled() === false ) {
+							continue;
+						} elseif ( $cache->is_enabled() === true ) {
+							{
+								$cache_plugin_solution = 'WP Optimize';
+							}
+						}
+					}
+				} else {
+					$cache_plugin_solution = $name;
+				}
 			}
 		}
 
@@ -399,6 +413,14 @@ class MainWP_Child_Cache_Purge {
 			return true;
 		}
 		return false;
+	}
+
+	// Check if WP Optimize is installed and cache is enabled.
+	public function wp_optimize_activated_check() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = WP_Optimize()->get_page_cache();
+			if ( ! $cache->is_enabled() ) return false;
+		}
 	}
 
 	/**
@@ -774,7 +796,7 @@ class MainWP_Child_Cache_Purge {
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_query ); // phpcs:ignore -- use core function.
 		}
-
+		
 		// If the Zone-ID is not found, return status no-id but still return "SUCCESS" action because it did not fail.
 		// Explanation: When no Child Site is found on CF account, this will stop execution of this function and return
 		// back to auto_purge_cache() function for further processing.
@@ -806,18 +828,19 @@ class MainWP_Child_Cache_Purge {
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_purge ); // phpcs:ignore -- use core function.
 		}
-
-		$success_message = 'Cloudflair => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-		$error_message   = 'Cloudflare => There was an issue purging your cache.' . json_encode( $result ); // phpcs:ignore -- ok.
+		error_log(print_r($result, true));
+		$success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Cloudflare => There was an issue purging the cache. ' . json_encode( $qresult['errors'][0], JSON_UNESCAPED_SLASHES ) . "-" . json_encode( $result['errors'][0], JSON_UNESCAPED_SLASHES ); // phpcs:ignore -- ok.
 
 		// Save last purge time to database on success.
 		if ( 1 == $result['success'] ) {
+
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			// Return success message.
 			return $this->purge_result( $success_message, 'SUCCESS' );
-		} else {
+		} elseif ( ( 1 != $qresult['success'] ) || ( 1 != $result['success'] ) ) {
 			// Return error message.
 			return $this->purge_result( $error_message, 'ERROR' );
 		}
