@@ -762,6 +762,12 @@ class MainWP_Client_Report_Base {
 			case 'time':
 				$tok_value = MainWP_Helper::format_time( MainWP_Helper::get_timestamp( strtotime( $record->created ) ) );
 				break;
+			case 'utime':
+				$tok_value = $record->created;
+				break;
+			case 'slug':
+				$tok_value = $this->get_stream_meta_data( $record, $data );
+				break;
 			case 'area':
 				$data      = 'sidebar_name';
 				$tok_value = $this->get_stream_meta_data( $record, $data );
