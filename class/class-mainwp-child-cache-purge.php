@@ -147,15 +147,30 @@ class MainWP_Child_Cache_Purge {
 			'autoptimize/autoptimize.php'                => 'Autoptimize',
 			'flying-press/flying-press.php'              => 'FlyingPress',
 			'wp-super-cache/wp-cache.php'                => 'WP Super Cache',
-			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
+			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
+			'seraphinite-accelerator/plugin_root.php'    => 'Seraphinite Accelerator',
 		);
 
 		// Check if a supported cache plugin is active.
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
-				$cache_plugin_solution     = $name;
-				$this->is_plugin_installed = true;
+
+				// Check if WP Optimize is active and page cache is enabled or disabled. If disabled, continue to next plugin as if it is not installed.
+				if ( 'wp-optimize/wp-optimize.php' == $plugin ) {
+					if ( class_exists( '\WP_Optimize' ) ) {
+						$cache = WP_Optimize()->get_page_cache();
+						if ( $cache->is_enabled() === false ) {
+							continue;
+						} elseif ( $cache->is_enabled() === true ) {
+							{
+								$cache_plugin_solution = 'WP Optimize';
+							}
+						}
+					}
+				} else {
+					$cache_plugin_solution = $name;
+				}
 			}
 		}
 
@@ -238,6 +253,9 @@ class MainWP_Child_Cache_Purge {
 					case 'CDN Cache Plugin':
 						$information = $this->cdn_cache_plugin_auto_purge_cache();
 						break;
+					case 'Seraphinite Accelerator':
+						$information = $this->seraphinite_auto_purge_cache();
+						break;
 					default:
 						break;
 				}
@@ -297,6 +315,30 @@ class MainWP_Child_Cache_Purge {
 			$result['action'] = 'ERROR';
 		}
 		return $result;
+	}
+
+	/**
+	 * Purge Seraphinite Accelerator plugin cache.
+	 *
+	 * @return array Purge results array.
+	 */
+	public function seraphinite_auto_purge_cache() {
+
+		$success_message = 'Seraphinite Accelerator => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Seraphinite Accelerator => There was an issue purging your cache.';
+
+		if ( class_exists( '\seraph_accel\API' ) ) {
+
+			\seraph_accel\API::OperateCache( \seraph_accel\API::CACHE_OP_DEL );
+
+			// record results.
+			update_option( 'mainwp_cache_control_last_purged', time() );
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
+		} else {
+			return $this->purge_result( $error_message, 'ERROR' );
+		}
 	}
 
 	/**
@@ -389,6 +431,18 @@ class MainWP_Child_Cache_Purge {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Check if WP Optimize is installed and cache is enabled.
+	 */
+	public function wp_optimize_activated_check() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = WP_Optimize()->get_page_cache();
+			if ( ! $cache->is_enabled() ) {
+				return false;
+			}
+		}
 	}
 
 	/**
@@ -733,9 +787,13 @@ class MainWP_Child_Cache_Purge {
 		$cust_xauth  = get_option( 'mainwp_cloudflair_key' );
 		$cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
 
+		// Check if we have all the required data.
 		if ( '' == $cust_email || '' == $cust_xauth || '' == $cust_domain ) {
 			return;
 		}
+
+		// Strip subdomains. Cloudflare doesn't like them.
+		$cust_domain = $this->strip_subdomains( $cust_domain );
 
 		// Get the Zone-ID from Cloudflare since they don't provide that in the Backend.
 		$ch_query = curl_init(); // phpcs:ignore -- use core function.
@@ -750,16 +808,6 @@ class MainWP_Child_Cache_Purge {
 		$qresult = json_decode( curl_exec( $ch_query ), true ); // phpcs:ignore -- use core function.
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_query ); // phpcs:ignore -- use core function.
-		}
-
-		// If the Zone-ID is not found, return status no-id but still return "SUCCESS" action because it did not fail.
-		// Explanation: When no Child Site is found on CF account, this will stop execution of this function and return
-		// back to auto_purge_cache() function for further processing.
-		if ( ! isset( $qresult['result'][0]['id'] ) ) {
-			return array(
-				'status' => 'no-id',
-				'action' => 'SUCCESS',
-			);
 		}
 
 		$cust_zone = $qresult['result'][0]['id'];
@@ -783,18 +831,18 @@ class MainWP_Child_Cache_Purge {
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_purge ); // phpcs:ignore -- use core function.
 		}
-
-		$success_message = 'Cloudflair => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-		$error_message   = 'Cloudflare => There was an issue purging your cache.' . json_encode( $result ); // phpcs:ignore -- ok.
+		$success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Cloudflare => There was an issue purging the cache. ' . json_encode( $qresult['errors'][0], JSON_UNESCAPED_SLASHES ) . "-" . json_encode( $result['errors'][0], JSON_UNESCAPED_SLASHES ); // phpcs:ignore -- ok.
 
 		// Save last purge time to database on success.
 		if ( 1 == $result['success'] ) {
+
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			// Return success message.
 			return $this->purge_result( $success_message, 'SUCCESS' );
-		} else {
+		} elseif ( ( 1 != $qresult['success'] ) || ( 1 != $result['success'] ) ) {
 			// Return error message.
 			return $this->purge_result( $error_message, 'ERROR' );
 		}
@@ -916,5 +964,28 @@ class MainWP_Child_Cache_Purge {
 
 		// Save Cache Control Log Data.
 		update_option( 'mainwp_cache_control_log', wp_json_encode( $information ) );
+	}
+
+	/**
+	 * Strip subdomains from a url.
+	 *
+	 * @param string $url string The url to strip subdomains from.
+	 *
+	 * @return string The url without subdomains (if any).
+	 */
+	public function strip_subdomains( $url ) {
+
+		// credits to gavingmiller for maintaining this list.
+		$second_level_domains = file_get_contents( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' ); //phpcs:ignore -- to do.
+
+		// presume sld first ...
+		$possible_sld = implode( '.', array_slice( explode( '.', $url ), -2 ) );
+
+		// and then verify it.
+		if ( strpos( $second_level_domains, $possible_sld ) ) {
+			return implode( '.', array_slice( explode( '.', $url ), -3 ) );
+		} else {
+			return implode( '.', array_slice( explode( '.', $url ), -2 ) );
+		}
 	}
 }

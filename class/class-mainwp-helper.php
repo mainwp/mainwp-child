@@ -105,8 +105,13 @@ class MainWP_Helper {
 	 * @param bool   $die_on_error If true, process will die on error, if false, process will continue.
 	 *
 	 * @return array Return directory and directory URL.
+	 * @throws Exception Error Message.
 	 */
 	public static function get_mainwp_dir( $what = null, $die_on_error = true ) {
+
+		if ( ! self::fs_is_connected() ) {
+			throw new \Exception( esc_html__( 'Unable to connect to the filesystem.', 'mainwp-child' ) );
+		}
 
 		/**
 		 * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
@@ -114,8 +119,6 @@ class MainWP_Helper {
 		 * @global object $wp_filesystem Filesystem object.
 		 */
 		global $wp_filesystem;
-
-		self::get_wp_filesystem();
 
 		$upload_dir = wp_upload_dir();
 		$dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
@@ -143,6 +146,22 @@ class MainWP_Helper {
 
 		return array( $dir, $url );
 	}
+
+
+	/**
+	 * Method fs_is_connected()
+	 *
+	 * Check if WP FileSystem is connected.
+	 */
+	public static function fs_is_connected() {
+		self::get_wp_filesystem();
+		global $wp_filesystem;
+		if ( ! empty( $wp_filesystem ) && $wp_filesystem->connect() ) {
+			return true;
+		}
+		return false;
+	}
+
 
 	/**
 	 * Method check_dir()

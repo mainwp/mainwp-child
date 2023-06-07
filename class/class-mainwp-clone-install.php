@@ -9,6 +9,8 @@
 
 namespace MainWP\Child;
 
+use Stringable;
+
 // phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
@@ -237,9 +239,12 @@ class MainWP_Clone_Install {
 	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 */
 	public function clean() {
-		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql.php' );
 		foreach ( $files as $file ) {
 			unlink( $file );
+		}
+		if ( file_exists( WP_CONTENT_DIR . '/dbBackup.sql' ) ) {
+			unlink( WP_CONTENT_DIR . '/dbBackup.sql' );
 		}
 		if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
 			unlink( ABSPATH . 'clone/config.txt' );
@@ -340,17 +345,27 @@ class MainWP_Clone_Install {
 		$tableName = '';
 		$wpdb->query( 'SET foreign_key_checks = 0' );
 
-		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+		$protect_content_string = '<?php exit(); ?>';
+
+		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql.php' );
 		foreach ( $files as $file ) {
 			$handle = fopen( $file, 'r' );
 
 			$lastRun = 0;
 			if ( $handle ) {
-				$readline = '';
+				$readline       = '';
+				$remove_protect = true;
 				while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
 					if ( time() - $lastRun > 20 ) {
 						set_time_limit( 0 ); // reset timer..
 						$lastRun = time();
+					}
+
+					if ( $remove_protect ) {
+						if ( false !== stristr( $line, $protect_content_string ) ) {
+							$line           = str_replace( $protect_content_string, '', $line );
+							$remove_protect = false;
+						}
 					}
 
 					$readline .= $line;
