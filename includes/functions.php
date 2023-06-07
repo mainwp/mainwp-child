@@ -196,31 +196,3 @@ if ( ! function_exists( 'apply_filters_deprecated' ) ) {
 	}
 }
 
-$post_smtp_enabled = get_option( 'post_smtp_use_from_main_site' );
-if ( ! function_exists( 'wp_mail' ) && $post_smtp_enabled ) {
-
-	/**
-	 * Overwrite wp_mail function
-	 *
-	 * @param string|array $to Array or comma-separated list of email addresses to send message.
-	 * @param string       $subject Email subject.
-	 * @param string       $message Message contents.
-	 * @param string|array $headers Optional. Additional headers.
-	 * @param string|array $attachments Optional. Files to attach.
-	 * @return bool Whether the email contents were sent successfully.
-	 *
-	 * @version 1.0
-	 */
-	function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ) {
-
-		$response = MainWP\Child\MainWP_Child_Post_SMTP::get_instance()->process_email( $to, $subject, $message, $headers, $attachments );
-
-		if ( is_wp_error( $response ) ) {
-
-			return false;
-
-		}
-
-		return true;
-	}
-}
