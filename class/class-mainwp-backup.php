@@ -283,7 +283,7 @@ class MainWP_Backup {
 			MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
 		} else {
 			// When not an archive.
-			$backupFile = 'dbBackup-' . $fileNameUID . '-*.sql';
+			$backupFile = 'dbBackup-' . $fileNameUID . '-*.sql.php';
 			$dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir  = $dirs[0];
 			$result     = glob( $backupdir . $backupFile . '*' );
@@ -581,6 +581,9 @@ class MainWP_Backup {
 		if ( $dh ) {
 			while ( ( $file = readdir( $dh ) ) !== false ) {
 				if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
+					unlink( $dir . $file );
+				}
+				if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql.php(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
 					unlink( $dir . $file );
 				}
 			}
@@ -1262,13 +1265,16 @@ class MainWP_Backup {
 
 			$table = $curr_table[0];
 
-			$currentfile = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql';
+			$currentfile = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
 			$db_files[]  = $currentfile;
 			if ( file_exists( $currentfile ) ) {
 				continue;
 			}
 			$fh = fopen( $currentfile . '.tmp', 'w' );
 
+			$protect_content_string = '<?php exit(); ?>';
+
+			fwrite( $fh, $protect_content_string );
 			fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
 			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 			fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );

@@ -149,6 +149,7 @@ class MainWP_Child_Cache_Purge {
 			'wp-super-cache/wp-cache.php'                => 'WP Super Cache',
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
 			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
+			'seraphinite-accelerator/plugin_root.php'    => 'Seraphinite Accelerator',
 		);
 
 		// Check if a supported cache plugin is active.
@@ -252,6 +253,9 @@ class MainWP_Child_Cache_Purge {
 					case 'CDN Cache Plugin':
 						$information = $this->cdn_cache_plugin_auto_purge_cache();
 						break;
+					case 'Seraphinite Accelerator':
+						$information = $this->seraphinite_auto_purge_cache();
+						break;
 					default:
 						break;
 				}
@@ -311,6 +315,30 @@ class MainWP_Child_Cache_Purge {
 			$result['action'] = 'ERROR';
 		}
 		return $result;
+	}
+
+	/**
+	 * Purge Seraphinite Accelerator plugin cache.
+	 *
+	 * @return array Purge results array.
+	 */
+	public function seraphinite_auto_purge_cache() {
+
+		$success_message = 'Seraphinite Accelerator => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Seraphinite Accelerator => There was an issue purging your cache.';
+
+		if ( class_exists( '\seraph_accel\API' ) ) {
+
+			\seraph_accel\API::OperateCache( \seraph_accel\API::CACHE_OP_DEL );
+
+			// record results.
+			update_option( 'mainwp_cache_control_last_purged', time() );
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
+		} else {
+			return $this->purge_result( $error_message, 'ERROR' );
+		}
 	}
 
 	/**
@@ -409,7 +437,9 @@ class MainWP_Child_Cache_Purge {
 	public function wp_optimize_activated_check() {
 		if ( class_exists( '\WP_Optimize' ) ) {
 			$cache = WP_Optimize()->get_page_cache();
-			if ( ! $cache->is_enabled() ) return false;
+			if ( ! $cache->is_enabled() ) {
+				return false;
+			}
 		}
 	}
 
@@ -777,9 +807,6 @@ class MainWP_Child_Cache_Purge {
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_query ); // phpcs:ignore -- use core function.
 		}
-		error_log(print_r($qresult, true));
-
-
 
 		$cust_zone = $qresult['result'][0]['id'];
 
@@ -802,7 +829,6 @@ class MainWP_Child_Cache_Purge {
 		if ( 'resource' === gettype( $ch_query ) ) {
 			curl_close( $ch_purge ); // phpcs:ignore -- use core function.
 		}
-		error_log(print_r($result, true));
 		$success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'Cloudflare => There was an issue purging the cache. ' . json_encode( $qresult['errors'][0], JSON_UNESCAPED_SLASHES ) . "-" . json_encode( $result['errors'][0], JSON_UNESCAPED_SLASHES ); // phpcs:ignore -- ok.
 
@@ -948,16 +974,16 @@ class MainWP_Child_Cache_Purge {
 	public function strip_subdomains( $url ) {
 
 		// credits to gavingmiller for maintaining this list
-		$second_level_domains = file_get_contents('https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
+		$second_level_domains = file_get_contents( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
 
 		// presume sld first ...
-		$possible_sld = implode('.', array_slice(explode('.', $url), -2 ) );
+		$possible_sld = implode( '.', array_slice( explode( '.', $url ), -2 ) );
 
 		// and then verify it
 		if ( strpos( $second_level_domains, $possible_sld ) ) {
-			return implode('.', array_slice(explode('.', $url), -3 ) );
+			return implode( '.', array_slice( explode( '.', $url ), -3 ) );
 		} else {
-			return implode('.', array_slice(explode('.', $url), -2 ) );
+			return implode( '.', array_slice( explode( '.', $url ), -2 ) );
 		}
 	}
 }

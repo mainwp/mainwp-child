@@ -289,9 +289,12 @@ class MainWP_Clone {
 	 */
 	private function create_clone_backup() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		MainWP_Helper::end_session();
-		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql' );
+		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql.php' );
 		foreach ( $files as $file ) {
 			unlink( $file );
+		}
+		if ( file_exists( WP_CONTENT_DIR . '/dbBackup.sql' ) ) {
+			unlink( WP_CONTENT_DIR . '/dbBackup.sql' );
 		}
 		if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
 			unlink( ABSPATH . 'clone/config.txt' );
