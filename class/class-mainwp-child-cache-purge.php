@@ -433,7 +433,9 @@ class MainWP_Child_Cache_Purge {
 		return false;
 	}
 
-	// Check if WP Optimize is installed and cache is enabled.
+	/**
+	 * Check if WP Optimize is installed and cache is enabled.
+	 */
 	public function wp_optimize_activated_check() {
 		if ( class_exists( '\WP_Optimize' ) ) {
 			$cache = WP_Optimize()->get_page_cache();
@@ -967,19 +969,19 @@ class MainWP_Child_Cache_Purge {
 	/**
 	 * Strip subdomains from a url.
 	 *
-	 * @param $url string The url to strip subdomains from.
+	 * @param string $url string The url to strip subdomains from.
 	 *
 	 * @return string The url without subdomains (if any).
 	 */
 	public function strip_subdomains( $url ) {
 
-		// credits to gavingmiller for maintaining this list
-		$second_level_domains = file_get_contents( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
+		// credits to gavingmiller for maintaining this list.
+		$second_level_domains = file_get_contents( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' ); //phpcs:ignore -- to do.
 
 		// presume sld first ...
 		$possible_sld = implode( '.', array_slice( explode( '.', $url ), -2 ) );
 
-		// and then verify it
+		// and then verify it.
 		if ( strpos( $second_level_domains, $possible_sld ) ) {
 			return implode( '.', array_slice( explode( '.', $url ), -3 ) );
 		} else {

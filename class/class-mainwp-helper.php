@@ -105,6 +105,7 @@ class MainWP_Helper {
 	 * @param bool   $die_on_error If true, process will die on error, if false, process will continue.
 	 *
 	 * @return array Return directory and directory URL.
+	 * @throws Exception Error Message.
 	 */
 	public static function get_mainwp_dir( $what = null, $die_on_error = true ) {
 
