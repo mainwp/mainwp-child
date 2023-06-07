@@ -1,4 +1,4 @@
-# How to contribute to MainWP
+# How to contribute to MainWP Child plugin
 
 Community made patches, localizations, bug reports and contributions are always welcome. Your help making it even more awesome will be greatly appreciated :)
 
