@@ -397,7 +397,6 @@ class MainWP_Child {
 		MainWP_Child_DB_Updater::instance();
 		MainWP_Child_Jetpack_Protect::instance();
 		MainWP_Child_Jetpack_Scan::instance();
-		MainWP_Child_Post_SMTP::get_instance();
 	}
 
 	/**

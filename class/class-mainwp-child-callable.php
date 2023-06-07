@@ -97,7 +97,6 @@ class MainWP_Child_Callable {
 		'jetpack_protect'       => 'jetpack_protect',
 		'jetpack_scan'          => 'jetpack_scan',
 		'delete_actions'        => 'delete_actions',
-		'post_smtp'             => 'post_smtp',
 	);
 
 	/**
@@ -1061,17 +1060,4 @@ class MainWP_Child_Callable {
 		$information['deactivated'] = true;
 		MainWP_Helper::write( $information );
 	}
-
-	/**
-	 * Method post_smtp()
-	 *
-	 * Fire off the action() function.
-	 *
-	 * @uses \MainWP\Child\MainWP_Child_Post_SMTP::action()
-	 */
-	public function post_smtp() {
-
-		MainWP_Child_Post_SMTP::get_instance()->action();
-	}
-
 }
