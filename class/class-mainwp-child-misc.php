@@ -491,8 +491,9 @@ class MainWP_Child_Misc {
 		if ( '/' === $path ) {
 			$dir = ABSPATH;
 		} else {
-			$path = str_replace( ' ', '-', $path );
-			$path = str_replace( '.', '-', $path );
+			// fix invalid name.
+			$path = str_replace( '../', '--/', $path );
+			$path = str_replace( './', '-/', $path );
 			$dir  = ABSPATH . $path;
 		}
 
