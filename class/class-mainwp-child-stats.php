@@ -485,15 +485,15 @@ class MainWP_Child_Stats {
 
 		$theme_name               = wp_get_theme()->get( 'Name' );
 		$information['site_info'] = array(
-			'wpversion'      => $wp_version,
-			'debug_mode'     => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
-			'phpversion'     => phpversion(),
-			'child_version'  => MainWP_Child::$version,
-			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
-			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
-			'db_size'        => MainWP_Child_Server_Information_Base::get_db_size(),
-			'themeactivated' => $theme_name,
-			'ip'             => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
+			'wpversion'               => $wp_version,
+			'debug_mode'              => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
+			'phpversion'              => phpversion(),
+			'child_version'           => MainWP_Child::$version,
+			'memory_limit'            => MainWP_Child_Server_Information::get_php_memory_limit(),
+			'mysql_version'           => MainWP_Child_Server_Information::get_my_sql_version(),
+			'db_size'                 => MainWP_Child_Server_Information_Base::get_db_size(),
+			'themeactivated'          => $theme_name,
+			'ip'                      => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
 		);
 
 		// Try to switch to SSL if SSL is enabled in between.
@@ -955,32 +955,25 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_themes() {
-		$keyword      = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
-		$status       = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-		$filter       = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
-		$not_criteria = isset( $_POST['not_criteria'] ) ? sanitize_text_field( wp_unslash( $_POST['not_criteria'] ) ) : false;
-		$rslt         = $this->get_all_themes_int( $filter, $keyword, $status );
-		if ( $not_criteria && empty( $rslt ) ) {
-			$rslt   = $this->get_all_themes_int( false );
-			$result = array(
-				'not_criteria_themes' => $rslt,
-			);
-			MainWP_Helper::write( $result );
-		} else {
-			MainWP_Helper::write( $rslt );
-		}
+		$keyword     = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+		$status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
+		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
+		$rslt        = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
+		MainWP_Helper::write( $rslt );
 	}
 
 	/**
 	 * Initiate get all themes.
 	 *
-	 * @param string $filter Sites filter field.
-	 * @param string $keyword Keyword Search field.
-	 * @param string $status Active or Inactive filed.
+	 * @param string  $filter Sites filter field.
+	 * @param string  $keyword Keyword Search field.
+	 * @param string  $status Active or Inactive filed.
+	 * @param boolean $get_un_criteria Get criteria or un-criteria items.
 	 *
 	 * @return array $rslt Returned themes results.
 	 */
-	public function get_all_themes_int( $filter, $keyword = '', $status = '' ) {
+	public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) {
 		$rslt   = array();
 		$themes = wp_get_themes();
 
@@ -1013,18 +1006,42 @@ class MainWP_Child_Stats {
 					$out['child_active'] = 1; // actived child theme.
 				}
 
-				if ( ! $filter ) {
-					if ( '' == $keyword || stristr( $out['title'], $keyword ) ) {
-						$rslt[] = $out;
-					}
-				} elseif ( ( ( 'active' === $status ) ? 1 : 0 ) === $out['active'] ) {
-					if ( '' == $keyword || stristr( $out['title'], $keyword ) ) {
-						$rslt[] = $out;
-					}
-				}
+				$rslt[] = $out;
+
 			}
 		}
-		return $rslt;
+
+		$results = array();
+
+		foreach ( $rslt as $out ) {
+
+			$get_it = false;
+
+			if ( ! $filter ) {
+				if ( '' == $keyword ) {
+					$get_it = true;
+				} elseif ( stristr( $out['title'], $keyword ) ) {
+					$get_it = true;
+				} elseif ( $get_un_criteria ) {
+					$get_it = true;
+				}
+			} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
+				if ( '' == $keyword ) {
+					$get_it = true;
+				} elseif ( stristr( $out['title'], $keyword ) ) {
+					$get_it = true;
+				} elseif ( $get_un_criteria ) {
+					$get_it = true;
+				}
+			}
+
+			if ( ! $get_it ) {
+				continue;
+			}
+			$results[] = $out;
+		}
+
+		return $results;
 	}
 
 	/**
@@ -1034,33 +1051,25 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_plugins() {
-		$keyword      = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
-		$status       = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-		$filter       = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
-		$not_criteria = isset( $_POST['not_criteria'] ) ? sanitize_text_field( wp_unslash( $_POST['not_criteria'] ) ) : false;
-		$rslt         = $this->get_all_plugins_int( $filter, $keyword, $status );
-
-		if ( $not_criteria && empty( $rslt ) ) {
-			$rslt   = $this->get_all_plugins_int( false );
-			$result = array(
-				'not_criteria_plugins' => $rslt,
-			);
-			MainWP_Helper::write( $result );
-		} else {
-			MainWP_Helper::write( $rslt );
-		}
+		$keyword     = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+		$status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
+		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
+		$rslt        = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
+		MainWP_Helper::write( $rslt );
 	}
 
 	/**
 	 * Initiate get all plugins.
 	 *
-	 * @param string $filter Sites filter field.
-	 * @param string $keyword Keyword Search field.
-	 * @param string $status Active or Inactive filed.
+	 * @param string  $filter Sites filter field.
+	 * @param string  $keyword Keyword Search field.
+	 * @param string  $status Active or Inactive filed.
+	 * @param boolean $get_un_criteria Get criteria or un-criteria items.
 	 *
 	 * @return array $rslt Returned themes results.
 	 */
-	public function get_all_plugins_int( $filter, $keyword = '', $status = '' ) {
+	public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
@@ -1085,15 +1094,7 @@ class MainWP_Child_Stats {
 				$out['description'] = $plugin['Description'];
 				$out['version']     = $plugin['Version'];
 				$out['active']      = is_plugin_active( $pluginslug ) ? 1 : 0;
-				if ( ! $filter ) {
-					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
-						$rslt[] = $out;
-					}
-				} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
-					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
-						$rslt[] = $out;
-					}
-				}
+				$rslt[]             = $out;
 			}
 		}
 
@@ -1108,19 +1109,43 @@ class MainWP_Child_Stats {
 				$out['version']     = $plugin['Version'];
 				$out['active']      = 1;
 				$out['mu']          = 1;
-				if ( ! $filter ) {
-					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
-						$rslt[] = $out;
-					}
-				} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
-					if ( '' == $keyword || stristr( $out['name'], $keyword ) ) {
-						$rslt[] = $out;
-					}
-				}
+				$rslt[]             = $out;
 			}
 		}
 
-		return $rslt;
+		$results = array();
+
+		foreach ( $rslt as $out ) {
+
+			$get_it = false;
+
+			if ( ! $filter ) {
+				if ( '' == $keyword ) {
+					$get_it = true;
+				} elseif ( stristr( $out['name'], $keyword ) ) {
+					$get_it = true;
+				} elseif ( $get_un_criteria ) {
+					$get_it = true;
+				}
+			} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
+				if ( '' == $keyword ) {
+					$get_it = true;
+				} elseif ( stristr( $out['name'], $keyword ) ) {
+					$get_it = true;
+				} elseif ( $get_un_criteria ) {
+					$get_it = true;
+				}
+			}
+
+			if ( ! $get_it ) {
+				continue;
+			}
+
+			$results[] = $out;
+
+		}
+
+		return $results;
 	}
 
 	/**

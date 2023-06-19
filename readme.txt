@@ -1,23 +1,23 @@
 === MainWP Child - Securely Connects Sites to the MainWP WordPress Manager Dashboard ===
 Contributors: mainwp
-Tags: MainWP, MainWP Dashboard, WordPress Manager, WordPress Management, Manage WordPress, Manage Multiple Sites, Control Multiple Sites, WordPress Site Management, WordPress Management Dashboard, ManageWP, Manage WP Sites, WordPress Maintenance, Uptime Monitor, Backup, Security, Lighthouse, Client Reports, Manage Plugins, Updates Manager, Manage WordPress Websites, Client Management, REST API, Hooks
+Tags: Manage Multiple Sites, Maintenance, Client, Admin, Update, Monitoring, Dashboard, Backup, Performance, Lighthouse, Analytics, Security
 Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 5.4
-Tested up to: 6.2
+Tested up to: 6.2.2
 Requires PHP: 7.0
-Stable tag: 4.4.1.2
+Stable tag: 4.4.1.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Securely connects Unlimited WordPress sites to your MainWP Dashboard, allowing you to control them from a single screen.
+Securely connects Unlimited WordPress sites to your MainWP Dashboard, allowing you to control them from a single screen
 
 == Description ==
 
 This is a Child Plugin for [“MainWP Dashboard”](https://wordpress.org/plugins/mainwp/) that connects your WordPress sites to the MainWP Dashboard.
 
-The [MainWP](https://mainwp.com/), a complete WordPress Management solution, is self-hosted, open source, and private, allowing you to control multiple WordPress websites (even those on different hosting) from your own private self-hosted WordPress website.
+The [MainWP](https://mainwp.com/), a complete WordPress Management solution, is self-hosted, open source, and private, allowing you to control multiple WordPress websites (even those on different hosting) from your own WordPress website.
 
 MainWP is the **perfect solution for**
 - Agencies
@@ -29,34 +29,44 @@ MainWP is the **perfect solution for**
 - In fact, anyone who wants to manage multiple WordPress sites
 
 == Here’s Why WordPress Managers Love MainWP! ==
+
 💰 Free Forever
 🏷️ White Label
 ♾️ Connect Unlimited Websites
+🧑‍💻 Manage all Sites, Users, Plugins, Themes, Updates
 👥 Full Client Management
-🌐 Organize Sites via Tags
+🌐 Organize Sites & Clients via Colorful Tags
 🕒 Uptime & Site Health Monitoring
-🚩 1-Click Lighthouse Stats
+🚩 1-Click Lighthouse Stats for all Sites
 🔄 Effortless Bulk Updates
 🚧 Staging, Cloning
-📝 Professional Reports
-🔒 Full Privacy, Self-hosted, Lock Your Dashboard
+📝 Professional Reports for Clients
 💬 Bulk Manage Comments
 🛡️ Bulk Manage Security
-📈 SEO, Traffic, Analytics, etc.
-🚀 WP Rocket, Cache-Control
+🚀 Purge Cache from the Dashboard
 ✏️ Fully Customizable
-🌐 Domain Monitoring
-🔗 Security & Backup Integrations
+🔍 Domain & SSL Certificate Monitoring
+🔑 Passwordless 1-click Login to all Connected Sites
+🔒 Full Privacy, Self-hosted, Lock Your Dashboard
 😌 Bulk Content Management (Draft, Publish, Edit, Trash)
-🦾 40+ Integrations
+➕ Perform Pressable hosting-specific tasks
 
-And [a lot more](https://mainwp.com/mainwp-extensions/)…
+With MainWP, you can **easily manage & control settings** for several plugins/services directly from the dashboard.
+
+🗃️ UpdraftPlus, WPvivid, WP Staging, BackWPup, BackupBuddy, Time Capsule
+🔒 Termageddon, Wordfence, Jetpack Protect & Scan, Sucuri, iThemes Security, Virusdie, Activity Log, Security Ninja
+🚀 WP Rocket, WP Compress, Google Lighthouse Stats
+✅ Atarim, WooCommerce, Database Updater
+📈 Yoast, SEOPress, Google Analytics (GA4), Matomo Stats
+🌐 Uptime Robot, NodePing, Site24x7, Better Uptime
+
+And a lot more. 👉 [Free vs. Pro: Know the Difference](https://mainwp.com/free-vs-pro/)
 
 == HOW DOES THE MAINWP WORK? ==
 
 First, Install and Activate the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) plugin on a WordPress site you will use for controlling all other sites; this is your Dashboard Site.
 
-We highly recommend this be a new, clean WordPress installation and not on one of your operating sites. Using a clean site helps to eliminate any unnecessary plugin conflicts or security issues.
+We highly recommend this be a new, clean WordPress installation and not on one of your production sites. Using a clean site helps to eliminate any unnecessary plugin conflicts or security issues.
 
 Next, Install and Activate the MainWP Child plugin (this plugin) on all the WordPress sites you want to connect to your MainWP Dashboard. WordPress sites connected to your Dashboard are referred to as Child Sites.
 
@@ -70,67 +80,73 @@ Still not sure how MainWP works? [Review these detailed steps on installing your
 - Update all WordPress installs, Plugins, and Themes from one location
 - Manage and Add all your Posts from one location
 - Manage and Add all your Pages from one location
-- Run everything from one Dashboard that you host!
+- Run everything from one Dashboard!
 - One-click login to your Child Sites
 - Easy plugin management (Bulk update, add, remove, etc.)
 - Fully customizable
 - Self-Hosted, Private, and Open Source
 
+👉 [View all features](https://mainwp.com/free-vs-pro/)
+
 To know more about the MainWP WordPress management system, take a look at the [MainWP Dashboard.](https://wordpress.org/plugins/mainwp/)
 
 = More Information =
-[MainWP Documentation](https://kb.mainwp.com/)
-
-[MainWP Community](https://managers.mainwp.com/)
-
-[MainWP Support](https://mainwp.com/support/)
-
-[MainWP Videos](http://www.youtube.com/user/MyMainWP)
-
-[MainWP Extensions](https://mainwp.com/mainwp-extensions/)
-
-[Develop MainWP Extensions](https://mainwp.com/develop-mainwp/)
-
-[MainWP on Github](https://mainwp.com/github/)
+- [MainWP Documentation](https://kb.mainwp.com/)
+- [MainWP Community](https://managers.mainwp.com/)
+- [MainWP Support](https://mainwp.com/support/)
+- [MainWP Videos](https://www.youtube.com/user/MyMainWP)
+- [MainWP Extensions](https://mainwp.com/mainwp-extensions/)
+- [Develop MainWP Extensions](https://mainwp.com/develop-mainwp/)
+- [MainWP on Github](https://mainwp.com/github/)
 
 == Installation ==
 
-1. Upload the MainWP Child folder to the /wp-content/plugins/ directory
-2. Activate the MainWP Child plugin through the 'Plugins' menu in WordPress
+Install & Activate this (MainWP Child) plugin on all your WordPress sites (called Child Sites) that you want to control directly from your Dashboard site.
+
+This acts as a bridge to communicate with the Dashboard site.
+
+Or, [Review these detailed steps on setting up MainWP](https://mainwp.com/getting-started-with-mainwp/)
 
 == Frequently Asked Questions ==
 = Do I need any other plugins for MainWP? =
-Yes, you need to install the [MainWP WordPress Manager Dashboard](https://wordpress.org/plugins/mainwp/) on a new WordPress site or subdomain.
+Yes, you need to install the [MainWP Child Plugin](https://wordpress.org/plugins/mainwp-child/) on the sites you want to control with the Dashboard plugin.
 
 = Do you have any documentation? =
 Yes, please review the [documentation site](https://kb.mainwp.com).
 
 = I just want to start using MainWP, do you have a Quick Start Guide? =
-Yes, please read the [Quick Start – Setting up your MainWP](https://kb.mainwp.com/docs/set-up-the-mainwp-plugin/) guide on the doc site.
+Yes, please read the [Quick Start – Setting up your MainWP](https://mainwp.com/install-mainwp/).
 
 = Where do I go for support or to ask for help? =
-Please post in the [MainWP Community](https://managers.mainwp.com)
+Please post in the [MainWP Community](https://managers.mainwp.com), or feel free to [contact us](https://mainwp.com/support/).
 
 = What is the difference between ManageWP and MainWP? =
 Essentially MainWP and ManageWP provide the same type of service but with different philosophies on WordPress management.
 
-ManageWP is a Service as a Solution (SaaS) property owned by Godaddy.  The SaaS system makes ManageWP a type of "Walled Garden" with limited customization options.
+ManageWP is a Service as a Solution (SaaS) property owned by GoDaddy. The SaaS system makes ManageWP a type of "Walled Garden" with limited customization options.
 
-MainWP follows the tradition of WordPress and is [open source](https://github.com/mainwp/mainwp-child/), [private](https://mainwp.com/protect-your-data/), and [fully extendable](https://mainwp.dev/). .   The fact that MainWP is open source and extendable means you have almost unlimited customization option, this allows you to run your WordPress management business as you see fit.
+MainWP follows the tradition of WordPress and is [open source](https://github.com/mainwp/mainwp), [private](https://mainwp.com/protect-your-data/), and [fully extendable](https://mainwp.dev). The fact that MainWP is open source and extendable means you have almost unlimited customization options, allowing you to run your WordPress management business as you see fit.
+
+👉 [ManageWP vs. MainWP: Know the Difference](https://mainwp.com/managewp-vs-mainwp/)
 
 = How do I know my sites are secure using MainWP? =
-We take security very seriously at MainWP. We welcome any peer review of our [100% open source code](https://github.com/mainwp/mainwp-child/) to ensure nobody's MainWP management system is ever compromised or hacked.
+We take security very seriously at MainWP. We welcome any peer review of our [100% open source code](https://github.com/mainwp/mainwp) to ensure nobody's MainWP management system is ever compromised or hacked.
 
-We also participate in the [HackerOne](https://www.hackerone.com) bug bounty program; this allows ethical hackers to review MainWP code and directly share any vulnerability information with us in return for a monetary reward.
+We participate in the [HackerOne](https://www.hackerone.com) bug bounty program; this allows ethical hackers to review MainWP code and directly share any vulnerability information with us in return for a monetary reward.
+
+We are also a part of the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/mainwp/), which assists in enhancing the security of MainWP plugins.
+
+= Where do I report security bugs found in MainWP? =
+You can report any security bugs found in the source code of MainWP plugins through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/mainwp/). The Patchstack team will assist you with verification, CVE assignment and take care of notifying us.
 
 = How do I customize MainWP for my needs? =
-If you want to make some basic changes to the look of your Dashboard, you can use our prebuilt [Custom Dashbboard](https://mainwp.com/extension/mainwp-custom-dashboard-extension/) Extension, or if you want to dig in and build Extensions, you can learn all about Extension creation at [MainWP.dev](https://mainwp.dev/)
+If you want to make some basic changes to the look of your Dashboard, you can use our prebuilt [Custom Dashbboard](https://mainwp.com/extension/mainwp-custom-dashboard-extension/) Extension, or if you want to dig in and build Extensions, you can learn all about developing Extension at [MainWP.dev](https://mainwp.dev)
 
 = I have an idea for MainWP; how do I let you know? =
-Please follow the steps outlined in the [MainWP Feature Requests](https://managers.mainwp.com/c/feature/16) so you can add your idea to the MainWP Community to be voted on.
+Please follow the steps outlined in the [MainWP Feature Requests](https://feedback.mainwp.com/) so you can add your idea to the MainWP Community to be voted on.
 
 = I have more questions, do you have any other information? =
-Sure we have a quick FAQ with a lot more questions and answers [here](https://mainwp.com/presales-faq/).
+Yes, we have a quick FAQ with a lot more questions and answers [here](https://mainwp.com/preinstall-faq/).
 
 == Screenshots ==
 
@@ -146,6 +162,11 @@ Sure we have a quick FAQ with a lot more questions and answers [here](https://ma
 10. Manage Clients Screen
 
 == Changelog ==
+
+= 4.4.1.3 - 6-19-2023 =
+* Fixed: File Uploader extension related issue where underscore replaces dots in file path
+* Fixed: An issue with the negative search feature
+* Updated: Plugin info in readme.txt
 
 = 4.4.1.2 - 6-8-2023 =
 * Fixed: Potential issues caused by incorrect FileSystem settings
