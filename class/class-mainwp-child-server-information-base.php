@@ -382,16 +382,16 @@ class MainWP_Child_Server_Information_Base {
 	 * @return false|string Return error message if there are warnings, FALSE otherwise.
 	 */
 	protected static function get_ssl_warning() {
-		$conf   = array( 'private_key_bits' => 2048 );
+		$conf = array( 'private_key_bits' => 2048 );
 		$str  = '';
 		if ( function_exists( 'openssl_pkey_new' ) ) {
 			$res = openssl_pkey_new( $conf );
 			openssl_pkey_export( $res, $privkey );
 
 			$str = openssl_error_string();
-			}
+		}
 		return ( stristr( $str, 'NCONF_get_string:no value' ) ? '' : $str );
-			}
+	}
 
 	/**
 	 * Get current PHP version.
