@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.4.1.3';
+	public static $version = '4.5-beta1';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -424,6 +424,7 @@ class MainWP_Child {
 		);
 		$to_delete[] = 'mainwp_ext_snippets_enabled';
 		$to_delete[] = 'mainwp_ext_code_snippets';
+		$to_delete[] = 'mainwp_child_openssl_sign_algo';
 
 		foreach ( $to_delete as $delete ) {
 			if ( get_option( $delete ) ) {
@@ -456,6 +457,7 @@ class MainWP_Child {
 			'mainwp_child_nossl',
 			'mainwp_child_nossl_key',
 			'mainwp_child_connected_admin',
+			'mainwp_child_openssl_sign_algo',
 		);
 		foreach ( $to_delete as $delete ) {
 			if ( get_option( $delete ) ) {

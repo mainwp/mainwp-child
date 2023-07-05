@@ -382,17 +382,62 @@ class MainWP_Child_Server_Information_Base {
 	 * @return false|string Return error message if there are warnings, FALSE otherwise.
 	 */
 	protected static function get_ssl_warning() {
+
 		$conf = array( 'private_key_bits' => 2048 );
-		$str  = '';
+		$errors = array();
 		if ( function_exists( 'openssl_pkey_new' ) ) {
 			$res = openssl_pkey_new( $conf );
 			openssl_pkey_export( $res, $privkey );
 
-			$str = openssl_error_string();
+			$error = '';
+			while ( ( $errorRow = openssl_error_string() ) !== false ) {
+				$error = $errorRow . "\n" . $error;
 		}
-		return ( stristr( $str, 'NCONF_get_string:no value' ) ? '' : $str );
+			// $error = ( stristr( $error, 'NCONF_get_string:no value' ) ? '' : $error );
+			if ( ! empty( $error ) ) {
+				$errors[] = $error;
+	}
+		}
+
+		return empty( $errors ) ? '' : implode( ' - ', $errors );
 	}
 
+
+	/**
+	 * To verify openssl working.
+	 *
+	 * @return bool Working status.
+	 */
+	public static function get_openssl_working_status() {
+
+		$ok = false;
+
+		if ( function_exists( 'openssl_verify' ) && function_exists( 'openssl_pkey_new' ) ) {
+
+			$conf = array(
+				'private_key_bits' => 2048,
+			);
+
+			$res = openssl_pkey_new( $conf );
+
+			@openssl_pkey_export( $res, $privkey, null, $conf ); // phpcs:ignore -- prevent warning.
+			$details = openssl_pkey_get_details( $res );
+
+			if ( is_array( $details ) && isset( $details['key'] ) ) {
+				$publicKey = $details['key'];
+
+				$data = 'working status';
+
+				openssl_sign( $data, $signature, $privkey ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode used for http encoding compatible.
+
+				if ( ! empty( $signature ) ) {
+					$ok = openssl_verify( $data, $signature, $publicKey );
+				}
+			}
+		}
+
+		return 1 === $ok;
+	}
 	/**
 	 * Get current PHP version.
 	 *
