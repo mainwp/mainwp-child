@@ -34,6 +34,13 @@ class MainWP_Child_Branding {
 	public $child_plugin_dir;
 
 	/**
+	 * Public variable to hold the MainWP Child plugin branding options.
+	 *
+	 * @var string Default null
+	 */
+	public $child_branding_options = null;
+
+	/**
 	 * Method instance()
 	 *
 	 * Create a public static instance.
@@ -58,7 +65,9 @@ class MainWP_Child_Branding {
 		$this->child_plugin_dir = dirname( dirname( __FILE__ ) );
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 		add_filter( 'mainwp_child_plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 3 );
-		$this->child_branding_options = $this->init_options();
+		if ( null === $this->child_branding_options ) {
+			$this->child_branding_options = $this->init_options();
+		}
 	}
 
 	/**

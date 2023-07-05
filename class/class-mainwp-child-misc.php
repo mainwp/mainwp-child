@@ -549,10 +549,15 @@ class MainWP_Child_Misc {
 	 * @return array Full path and file name of uploaded file.
 	 */
 	public function uploader_upload_file( $file_url, $path, $file_name ) {
+
+		add_filter( 'mime_types', array( $this, 'add_mime_types' ), 10, 2 );
+
 		// Fixes: Uploader Extension rename htaccess file issue.
 		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
 			$file_name = sanitize_file_name( $file_name );
 		}
+
+		remove_filter( 'mime_types', array( $this, 'add_mime_types' ), 10, 2 );
 
 		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name;
 
@@ -596,6 +601,19 @@ class MainWP_Child_Misc {
 		}
 
 		return array( 'path' => $full_file_name );
+	}
+
+	/**
+	 * Method add_mime_types()
+	 *
+	 * Add mime types to support uploader.
+	 *
+	 * @param array $mime_types mime types.
+	 */
+	public function add_mime_types( $mime_types ) {
+		$mime_types['min'] = 'min-js';
+		$mime_types        = apply_filters( 'mainwp_child_file_uploader_mime_types', $mime_types );
+		return $mime_types;
 	}
 
 	/**

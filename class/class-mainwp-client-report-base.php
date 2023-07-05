@@ -927,7 +927,7 @@ class MainWP_Client_Report_Base {
 
 					// SUM_FINAL:Scan complete. You have xxx new issues to fix. See below.
 					// SUM_FINAL:Scan complete. Congratulations, no new problems found.
-					if ( stripos( $meta_value, 'Congratulations' ) || stripos( $meta_value, $congra_str_loc ) ) {
+					if ( stripos( $meta_value, 'Congratulations' ) || stripos( $meta_value, $congra_str_loc ) || $meta_value == $completed_log ) {
 						$meta_value = 'No issues detected';
 					} elseif ( stripos( $meta_value, 'You have' ) ) {
 						$meta_value = 'Issues Detected';

@@ -743,7 +743,7 @@ class MainWP_Utility {
 			$mail .= "<p>Support Text:</p>\r\n\r\n";
 			$mail .= '<p>' . $content . "</p>\r\n\r\n";
 
-			self::instance()->send_wp_mail( $email, $subject, $mail, $headers );
+			$this->send_wp_mail( $email, $subject, $mail, $headers );
 
 			return true;
 		}
