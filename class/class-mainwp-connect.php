@@ -373,9 +373,8 @@ class MainWP_Connect {
 	 * Method check_to_requires_reconnect_for_sha1_safe()
 	 *
 	 * Check if need to deactive/active child plugin.
-	 * 
+	 *
 	 * @param int $alg_new Algo value.
-	 * 
 	 */
 	public static function check_to_requires_reconnect_for_sha1_safe( $alg_new ) {
 		$child_sign_algo = get_option( 'mainwp_child_openssl_sign_algo', false );
