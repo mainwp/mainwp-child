@@ -275,13 +275,13 @@ class MainWP_Connect {
 			$serverNoSsl = ( isset( $nossl ) && 1 === (int) $nossl );
 			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
 				$nossl_key = get_option( 'mainwp_child_nossl_key' );
-				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
+				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
 			} else {
 				$algo = false;
 				if ( isset( $_REQUEST['sign_algo'] ) ) {
 					$algo = sanitize_text_field( wp_unslash( $_REQUEST['sign_algo'] ) );
 				}
-				$auth = self::connect_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ), $algo );
+				$auth = self::connect_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ), $algo ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- trust value.
 				if ( 1 !== $auth ) {
 					$auth = false;
 				}
@@ -298,7 +298,7 @@ class MainWP_Connect {
 	 * @param string $data Data sign.
 	 * @param string $signature signature.
 	 * @param string $pubkey Public key.
-	 * @param mixed  $algorithm signature algorithm.
+	 * @param mixed  $alg signature algorithm.
 	 *
 	 * @return bool Connect valid or not.
 	 */
@@ -344,6 +344,15 @@ class MainWP_Connect {
 		return $alg;
 	}
 
+	/**
+	 * Method is_valid_supported_sign_alg().
+	 *
+	 * Check if valid supported Sign Algo value.
+	 *
+	 * @param mixed $alg Input value.
+	 *
+	 * @return mixed $valid Valid algorithm value.
+	 */
 	public static function is_valid_supported_sign_alg( $alg ) {
 		$valid = false;
 		if ( defined( 'OPENSSL_ALGO_SHA1' ) && OPENSSL_ALGO_SHA1 === $alg ) {
@@ -364,6 +373,9 @@ class MainWP_Connect {
 	 * Method check_to_requires_reconnect_for_sha1_safe()
 	 *
 	 * Check if need to deactive/active child plugin.
+	 * 
+	 * @param int $alg_new Algo value.
+	 * 
 	 */
 	public static function check_to_requires_reconnect_for_sha1_safe( $alg_new ) {
 		$child_sign_algo = get_option( 'mainwp_child_openssl_sign_algo', false );

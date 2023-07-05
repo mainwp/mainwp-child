@@ -393,6 +393,7 @@ class MainWP_Child_Server_Information_Base {
 			while ( ( $errorRow = openssl_error_string() ) !== false ) {
 				$error = $errorRow . "\n" . $error;
 			}
+			//phpcs:ignore -- Note.
 			// $error = ( stristr( $error, 'NCONF_get_string:no value' ) ? '' : $error );
 			if ( ! empty( $error ) ) {
 				$errors[] = $error;

@@ -33,8 +33,12 @@ class MainWP_Child_Branding {
 	 */
 	public $child_plugin_dir;
 
+	/**
+	 * Public variable to hold the MainWP Child plugin branding options.
+	 *
+	 * @var string Default null
+	 */
 	public $child_branding_options = null;
-
 
 	/**
 	 * Method instance()

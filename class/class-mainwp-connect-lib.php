@@ -64,15 +64,23 @@ class MainWP_Connect_Lib {
 		// constructor.
 	}
 
+	/**
+	 * Method autoload_files()
+	 *
+	 * Handle autoload files.
+	 */
 	public static function autoload_files() {
 		require_once MAINWP_CHILD_PLUGIN_DIR . 'libs' . DIRECTORY_SEPARATOR . 'phpseclib' . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 	}
-
 
 	/**
 	 * Method verify()
 	 *
 	 * Verify data.
+	 *
+	 * @param  mixed $data  Data to verify.
+	 * @param  mixed $signature  signature to verify.
+	 * @param  mixed $pubkey  pubkey to verify.
 	 */
 	public static function verify( $data, $signature, $pubkey ) {
 		self::autoload_files();
