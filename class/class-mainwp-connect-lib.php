@@ -85,6 +85,7 @@ class MainWP_Connect_Lib {
 	public static function verify( $data, $signature, $pubkey ) {
 		self::autoload_files();
 		try {
+			//phpcs:ignore -- Note.
 			// RSA::useInternalEngine(); // to use PHP engine.
 			$public = PublicKeyLoader::loadPublicKey( $pubkey );
 			return $public->verify( $data, $signature ) ? 1 : 0;

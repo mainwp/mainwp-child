@@ -374,6 +374,7 @@ class MainWP_Connect {
 	 *
 	 * Check if need to deactive/active child plugin.
 	 *
+	 * @throws Exception|\Exception Error exception.
 	 * @param int $alg_new Algo value.
 	 */
 	public static function check_to_requires_reconnect_for_sha1_safe( $alg_new ) {
