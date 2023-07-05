@@ -383,7 +383,7 @@ class MainWP_Child_Server_Information_Base {
 	 */
 	protected static function get_ssl_warning() {
 
-		$conf = array( 'private_key_bits' => 2048 );
+		$conf   = array( 'private_key_bits' => 2048 );
 		$errors = array();
 		if ( function_exists( 'openssl_pkey_new' ) ) {
 			$res = openssl_pkey_new( $conf );
@@ -392,11 +392,11 @@ class MainWP_Child_Server_Information_Base {
 			$error = '';
 			while ( ( $errorRow = openssl_error_string() ) !== false ) {
 				$error = $errorRow . "\n" . $error;
-		}
+			}
 			// $error = ( stristr( $error, 'NCONF_get_string:no value' ) ? '' : $error );
 			if ( ! empty( $error ) ) {
 				$errors[] = $error;
-	}
+			}
 		}
 
 		return empty( $errors ) ? '' : implode( ' - ', $errors );
