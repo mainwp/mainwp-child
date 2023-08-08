@@ -21,9 +21,6 @@
 		<exclude name="WordPress.NamingConventions.ValidVariableName"/>
 		<exclude name="WordPress.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition"/>
 		
-		<!-- Disable Nonce verification due to large number of false positives. -->
-		<exclude name="WordPress.Security.NonceVerification"/>
-		
 		<!-- Disable Strict comparison check. Not applicable in the mojority of cases. -->
 		<exclude name="WordPress.PHP.StrictComparisons"/>
                 
