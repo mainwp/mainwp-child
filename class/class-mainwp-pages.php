@@ -430,7 +430,7 @@ class MainWP_Pages {
 		</style>
 
 		<div class="wrap">
-		<h2><i class="fa fa-file"></i> <?php echo ( null === self::$brandingTitle ? esc_html( 'MainWP Child' ) : esc_html( self::$brandingTitle ) ); ?></h2>
+		<h2><i class="fa fa-file"></i> <?php echo esc_html( null === self::$brandingTitle ? 'MainWP Child' : self::$brandingTitle ); ?></h2>
 		<div style="clear: both;"></div><br/>
 		<div class="mainwp-tabs" id="mainwp-tabs">
 			<?php if ( ! $hide_settings ) { ?>
@@ -447,7 +447,7 @@ class MainWP_Pages {
 				if ( 'restore-clone' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
-" tab-slug="restore-clone" href="<?php echo ( $subpage ? esc_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone' ) : '#' ); ?>"><?php echo ( 0 !== (int) $sitesToClone ? esc_html__( 'Restore / Clone', 'mainwp-child' ) : esc_html__( 'Restore', 'mainwp-child' ) ); ?></a>
+" tab-slug="restore-clone" href="<?php echo esc_url( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#' ); ?>"><?php echo esc_html__( 0 !== (int) $sitesToClone ? 'Restore / Clone' : 'Restore', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php if ( ! $hide_server_info ) { ?>
 				<a class="nav-tab pos-nav-tab

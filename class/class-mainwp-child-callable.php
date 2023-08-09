@@ -982,8 +982,9 @@ class MainWP_Child_Callable {
 	public function delete_backup() {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
-
-		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		// phpcs:disable WordPress.Security.NonceVerification
+		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( file_exists( $backupdir . $file ) ) {
 			unlink( $backupdir . $file );

@@ -1104,7 +1104,9 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function directory_browse() {
-		$browse_dir                = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		 // phpcs:disable WordPress.Security.NonceVerification
+		$browse_dir                = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
+		 // phpcs:enable WordPress.Security.NonceVerification
 		$out                       = array();
 		$return                    = $this->get_excluded( $browse_dir );
 		$out['e']                  = $return['e'];
