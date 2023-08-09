@@ -465,7 +465,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_tables() {
 		 // phpcs:disable WordPress.Security.NonceVerification
-		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : '';
+		$category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : '';
 		 // phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_tables();
@@ -967,7 +967,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_root_files() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : '';
+		$category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_root_files();

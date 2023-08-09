@@ -739,7 +739,7 @@ class MainWP_Child_Callable {
 	 */
 	public function extra_execution() {
 		 // phpcs:disable WordPress.Security.NonceVerification
-		$post        = $_POST;
+		$post = $_POST;
 		 // phpcs:enable WordPress.Security.NonceVerification
 		$information = array();
 		/**
