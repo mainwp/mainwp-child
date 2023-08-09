@@ -343,12 +343,12 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::log_debug()
 	 */
 	private function stats_others_data( &$information ) {
-
-		$othersData = isset( $_POST['othersData'] ) ? json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
+		// phpcs:disable WordPress.Security.NonceVerification
+		$othersData = isset( $_POST['othersData'] ) ? json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true ) : array();
 		if ( ! is_array( $othersData ) ) {
 			$othersData = array();
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		try {
 			$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );
 			$information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );

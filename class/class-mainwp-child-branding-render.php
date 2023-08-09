@@ -198,7 +198,7 @@ class MainWP_Child_Branding_Render {
 			$send_email_message = esc_html__( 'Sending email failed!', 'mainwp-child' );
 		}
 		?>
-		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>
+		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; // phpcs:ignore WordPress.Security.EscapeOutput -- black_link is trusted. ?></div>
 		<?php
 		// phpcs:enable WordPress.Security.NonceVerification
 	}
