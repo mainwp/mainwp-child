@@ -179,7 +179,7 @@ class MainWP_Child_WP_Seopress {
 			return $information;
 		}
 
-		$licence = $_POST['licence'] ?? array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$licence = $_POST['licence'] ?? array(); //phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		$licence = $this->sanitize_options( $licence );
 

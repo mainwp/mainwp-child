@@ -117,7 +117,7 @@ class MainWP_Child_DB_Updater {
 	public function update_db() {
 		$information = array();
 		// phpcs:disable WordPress.Security.NonceVerification
-		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); //phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		// phpcs:enable WordPress.Security.NonceVerification
 		$upgrades = array();
 		foreach ( $plugins as $slug ) {

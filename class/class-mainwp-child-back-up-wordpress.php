@@ -224,7 +224,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @see https://developer.wordpress.org/reference/functions/sanitize_text_field/
 	 */
 	public function check_schedule() {
-		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? sanitize_text_field( wp_unslash( $_POST['schedule_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? sanitize_text_field( wp_unslash( $_POST['schedule_id'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( empty( $schedule_id ) ) {
 			$information = array( 'error' => 'Empty schedule id' );
 			MainWP_Helper::write( $information );
@@ -503,7 +503,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 */
 	public function reload_backups() {
 
-		$scheduleIds = isset( $_POST['schedule_ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['schedule_ids'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$scheduleIds = isset( $_POST['schedule_ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['schedule_ids'] ) ) : array(); //phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		\HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 
 		$all_schedules_ids = array();
@@ -1104,7 +1104,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function directory_browse() {
-		$browse_dir                = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$browse_dir                = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$out                       = array();
 		$return                    = $this->get_excluded( $browse_dir );
 		$out['e']                  = $return['e'];

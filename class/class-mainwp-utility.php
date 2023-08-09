@@ -164,7 +164,7 @@ class MainWP_Utility {
 	 * @uses \MainWP\Child\MainWP_Utility::handle_shutdown()
 	 */
 	public static function handle_fatal_error() {
-		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) { //phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			register_shutdown_function( '\MainWP\Child\MainWP_Utility::handle_shutdown' );
 		}
 	}
