@@ -89,7 +89,7 @@ class MainWP_WordPress_SEO {
 			MainWP_Helper::write( $information );
 		}
 		$result     = array();
-		$mwp_action    = MainWP_System::instance()->validate_params( 'action' );
+		$mwp_action = MainWP_System::instance()->validate_params( 'action' );
 		switch ( $mwp_action ) {
 			case 'import_settings':
 				$information = $this->import_settings();

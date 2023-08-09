@@ -186,7 +186,7 @@ class MainWP_Child_Users {
 	 */
 	public function get_all_users( $return = false ) {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$roles    = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
+		$roles = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
 		// phpcs:enable WordPress.Security.NonceVerification
 		$allusers = array();
 		if ( is_array( $roles ) ) {

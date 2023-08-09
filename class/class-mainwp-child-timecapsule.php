@@ -756,7 +756,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function lazy_load_activity_log_wptc() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		if ( ! isset( $_POST['data'] ) ) { 
+		if ( ! isset( $_POST['data'] ) ) {
 			return false;
 		}
 
@@ -1127,8 +1127,8 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function get_files_by_key() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$key               = isset( $_POST['key'] ) ? wp_unslash( $_POST['key'] ) : '';
-		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array();
+		$key      = isset( $_POST['key'] ) ? wp_unslash( $_POST['key'] ) : '';
+		$category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array();
 		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_files_by_key( $key );

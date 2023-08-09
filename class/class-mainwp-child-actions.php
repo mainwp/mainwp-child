@@ -497,7 +497,7 @@ class MainWP_Child_Actions {
 		if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) {
 			return false;
 		}
-		$plugin                       = $_POST['plugin'];
+		$plugin = $_POST['plugin'];
 		// phpcs:enable WordPress.Security.NonceVerification
 		$_plugins                     = $this->get_plugins();
 		$plugins_to_delete            = array();

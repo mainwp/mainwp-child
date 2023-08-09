@@ -154,7 +154,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 		}
 
 		// phpcs:enable WordPress.Security.NonceVerification
-		
+
 		if ( isset( $args['get'] ) ) {
 			$get_args = $args['get'];
 			parse_str( $args['get'], $get_args );

@@ -80,7 +80,7 @@ class MainWP_Child_Install {
 		 */
 		global $mainWPChild;
 		// phpcs:disable WordPress.Security.NonceVerification
-		$action = MainWP_System::instance()->validate_params( 'action' );
+		$action  = MainWP_System::instance()->validate_params( 'action' );
 		$plugins = isset( $_POST['plugin'] ) ? explode( '||', wp_unslash( $_POST['plugin'] ) ) : '';
 
 		if ( 'activate' === $action ) {
@@ -129,7 +129,7 @@ class MainWP_Child_Install {
 			$information['status'] = 'SUCCESS';
 		}
 		if ( 'changelog_info' !== $action ) {
-		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+			$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		}
 		MainWP_Helper::write( $information );
 	}

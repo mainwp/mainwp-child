@@ -79,7 +79,7 @@ class MainWP_Custom_Post_Type {
 		register_shutdown_function( '\MainWP\Child\MainWP_Custom_Post_Type::mainwp_custom_post_type_handle_fatal_error' );
 		// phpcs:disable WordPress.Security.NonceVerification
 		$information = array();
-		$mwp_action    = MainWP_System::instance()->validate_params( 'action' );
+		$mwp_action  = MainWP_System::instance()->validate_params( 'action' );
 		// phpcs:enable WordPress.Security.NonceVerification
 		switch ( $mwp_action ) {
 			case 'custom_post_type_import':
@@ -118,7 +118,7 @@ class MainWP_Custom_Post_Type {
 		}
 		$edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? intval( wp_unslash( $_POST['post_id'] ) ) : 0;
 		// phpcs:enable WordPress.Security.NonceVerification
-		$return  = $this->insert_post( $data, $edit_id, $parent_id = 0 );
+		$return = $this->insert_post( $data, $edit_id, $parent_id = 0 );
 		if ( isset( $return['success'] ) && 1 == $return['success'] ) {
 			if ( isset( $data['product_variation'] ) && is_array( $data['product_variation'] ) ) {
 				foreach ( $data['product_variation'] as $product_variation ) {

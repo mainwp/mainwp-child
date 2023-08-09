@@ -76,7 +76,7 @@ class MainWP_Child_WooCommerce_Status {
 			MainWP_Helper::write( $information );
 		}
 
-		$is_ver220 = $this->is_version_220();
+		$is_ver220  = $this->is_version_220();
 		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
 		if ( ! empty( $mwp_action ) ) {
 			switch ( $mwp_action ) {

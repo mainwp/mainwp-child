@@ -953,7 +953,7 @@ class MainWP_Child_Stats {
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
 		// phpcs:enable WordPress.Security.NonceVerification
-		$rslt        = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
+		$rslt = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
 		MainWP_Helper::write( $rslt );
 	}
 
@@ -1051,7 +1051,7 @@ class MainWP_Child_Stats {
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
 		// phpcs:enable WordPress.Security.NonceVerification
-		$rslt        = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
+		$rslt = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
 		MainWP_Helper::write( $rslt );
 	}
 

@@ -105,7 +105,7 @@ class MainWP_Child_Comments {
 	public function comment_bulk_action() {
 		$action = MainWP_System::instance()->validate_params( 'action' );
 		// phpcs:disable WordPress.Security.NonceVerification
-		$commentIds             = isset( $_POST['ids'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) : array();
+		$commentIds = isset( $_POST['ids'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) : array();
 		// phpcs:enable WordPress.Security.NonceVerification
 		$information['success'] = 0;
 		foreach ( $commentIds as $commentId ) {

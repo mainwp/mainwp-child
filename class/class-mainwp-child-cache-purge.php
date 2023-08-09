@@ -792,7 +792,7 @@ class MainWP_Child_Cache_Purge {
 	public function cloudflair_auto_purge_cache() {
 
 		// Credentials for Cloudflare.
-		$cust_email  = get_option( 'mainwp_cloudflair_email' );
+		$cust_email = get_option( 'mainwp_cloudflair_email' );
 		$cust_xauth = get_option( 'mainwp_child_cloudflair_key' );
 		if ( ! empty( $cust_xauth ) ) {
 			$cust_xauth = MainWP_Child_Keys_Manager::instance()->decrypt_string( $cust_xauth );

@@ -227,7 +227,7 @@ class MainWP_Child_Updates {
 
 		$information['plugin_updates'] = get_plugin_updates();
 
-		$plugins        = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 		// phpcs:enable WordPress.Security.NonceVerification
 
 		$premiumPlugins = array();
