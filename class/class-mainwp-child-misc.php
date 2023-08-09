@@ -252,7 +252,7 @@ class MainWP_Child_Misc {
 	 */
 	public function do_security_fix() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$sync = false;
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : '';
 
 		if ( 'all' === $feature ) {
@@ -263,7 +263,7 @@ class MainWP_Child_Misc {
 		if ( ! is_array( $skips ) ) {
 			$skips = array();
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		$information = array();
 		$security    = get_option( 'mainwp_security' );
 		if ( ! is_array( $security ) ) {
@@ -366,7 +366,7 @@ class MainWP_Child_Misc {
 	public function do_security_un_fix() {
 		$information = array();
 
-		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : '';
+		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
 		$sync = false;
 		if ( 'all' === $feature ) {
@@ -433,8 +433,10 @@ class MainWP_Child_Misc {
 	 * @see https://developer.wordpress.org/reference/functions/wp_get_all_sessions/
 	 */
 	public function settings_tools() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['action'] ) ) {
-			$mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+			$mwp_action = MainWP_System::instance()->validate_params( 'action' );
+			// phpcs:enable WordPress.Security.NonceVerification
 			switch ( $mwp_action ) {
 				case 'force_destroy_sessions':
 					if ( 0 === get_current_user_id() ) {
@@ -471,11 +473,12 @@ class MainWP_Child_Misc {
 	 * @uses \MainWP\Child\MainWP_Child_Misc::uploader_upload_file() Upload file from the MainWP Dashboard.
 	 */
 	public function uploader_action() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$file_url    = isset( $_POST['url'] ) ? MainWP_Utility::instance()->maybe_base64_decode( wp_unslash( $_POST['url'] ) ) : '';
 		$path        = isset( $_POST['path'] ) ? wp_unslash( $_POST['path'] ) : '';
 		$filename    = isset( $_POST['filename'] ) ? wp_unslash( $_POST['filename'] ) : '';
 		$information = array();
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( empty( $file_url ) || empty( $path ) ) {
 			MainWP_Helper::write( $information );
 
@@ -630,8 +633,8 @@ class MainWP_Child_Misc {
 	 * @uses \MainWP\Child\MainWP_Utility::execute_snippet()
 	 */
 	public function code_snippet() {
-
-		$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		// phpcs:disable WordPress.Security.NonceVerification
+		$action = MainWP_System::instance()->validate_params( 'action' );
 		$type   = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 		$slug   = isset( $_POST['slug'] ) ? wp_unslash( $_POST['slug'] ) : '';
 
@@ -648,7 +651,7 @@ class MainWP_Child_Misc {
 		}
 
 		$code = isset( $_POST['code'] ) ? wp_unslash( $_POST['code'] ) : '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		$information = array();
 		if ( 'run_snippet' === $action ) {
 			$information = MainWP_Utility::execute_snippet( $code );

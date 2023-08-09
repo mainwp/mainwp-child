@@ -185,7 +185,7 @@ class MainWP_Child_Stats {
 		if ( $exit ) {
 			$this->update_external_settings();
 		}
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );
 		if ( isset( $_POST['server'] ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
@@ -304,10 +304,18 @@ class MainWP_Child_Stats {
 			$this->stats_others_data( $information );
 		}
 
+		if ( isset( $_POST['pingnonce'] ) ) {
+			$nonce   = sanitize_text_field( wp_unslash( $_POST['pingnonce'] ) );
+			$current = get_option( 'mainwp_child_pingnonce' );
+			if ( 0 !== strcmp( $nonce, $current ) ) {
+				MainWP_Helper::update_option( 'mainwp_child_pingnonce', $nonce );
+			}
+		}
+
 		if ( $exit ) {
 			MainWP_Helper::write( $information );
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $information;
 	}
 
@@ -336,16 +344,9 @@ class MainWP_Child_Stats {
 	 */
 	private function stats_others_data( &$information ) {
 
-		$othersData = isset( $_POST['othersData'] ) ? json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true ) : array();
+		$othersData = isset( $_POST['othersData'] ) ? json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! is_array( $othersData ) ) {
 			$othersData = array();
-		}
-
-		if ( isset( $othersData['wpvulndbToken'] ) ) {
-			$wpvulndb_token = get_option( 'mainwp_child_wpvulndb_token', '' );
-			if ( $wpvulndb_token != $othersData['wpvulndbToken'] ) {
-				MainWP_Helper::update_option( 'mainwp_child_wpvulndb_token', $othersData['wpvulndbToken'] );
-			}
 		}
 
 		try {
@@ -495,17 +496,6 @@ class MainWP_Child_Stats {
 			'themeactivated'          => $theme_name,
 			'ip'                      => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
 		);
-
-		// Try to switch to SSL if SSL is enabled in between.
-		$pubkey = get_option( 'mainwp_child_pubkey' );
-		$nossl  = get_option( 'mainwp_child_nossl' );
-		if ( 1 == $nossl ) {
-			if ( isset( $pubkey ) && MainWP_Helper::is_ssl_enabled() ) {
-				MainWP_Helper::update_option( 'mainwp_child_nossl', 0, 'yes' );
-				$nossl = 0;
-			}
-		}
-		$information['nossl'] = ( 1 == $nossl ? 1 : 0 );
 	}
 
 	/**
@@ -709,7 +699,7 @@ class MainWP_Child_Stats {
 	 * @return array $categories Available Child Site Categories.
 	 */
 	private function stats_get_categories() {
-		$number = isset( $_POST['categories_number'] ) ? intval( $_POST['categories_number'] ) : 300;
+		$number = isset( $_POST['categories_number'] ) ? intval( $_POST['categories_number'] ) : 300; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( 300 >= $number ) {
 			$number = 300;
 		}
@@ -742,7 +732,7 @@ class MainWP_Child_Stats {
 		$get_file_size        = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
 		$forced_get_file_size = apply_filters( 'mainwp_child_forced_get_total_size', false );
 
-		if ( $forced_get_file_size || ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) ) {
+		if ( $forced_get_file_size || ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			$max_exe = ini_get( 'max_execution_time' );
 			if ( $forced_get_file_size || $max_exe > 20 ) {
 				$total = $this->get_total_file_size();
@@ -760,7 +750,7 @@ class MainWP_Child_Stats {
 	private function get_recent_number() {
 
 		$recent_number = 5;
-
+		 // phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST ) && isset( $_POST['recent_number'] ) ) {
 			$recent_number = intval( wp_unslash( $_POST['recent_number'] ) );
 			if ( get_option( 'mainwp_child_recent_number', 5 ) != $recent_number ) {
@@ -773,7 +763,7 @@ class MainWP_Child_Stats {
 		if ( $recent_number <= 0 || $recent_number > 30 ) {
 			$recent_number = 5;
 		}
-
+ 		// phpcs:enable WordPress.Security.NonceVerification
 		return $recent_number;
 	}
 
@@ -784,6 +774,7 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function update_external_settings() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['cloneSites'] ) ) {
 			if ( '0' !== $_POST['cloneSites'] ) {
 				$arr = isset( $_POST['cloneSites'] ) ? json_decode( urldecode( wp_unslash( $_POST['cloneSites'] ) ), 1 ) : '';
@@ -804,6 +795,7 @@ class MainWP_Child_Stats {
 		} elseif ( false !== get_option( 'mainwp_child_pluginDir' ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_pluginDir', false, 'yes' );
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**
@@ -955,10 +947,12 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_themes() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$keyword     = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
 		$status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
+		// phpcs:enable WordPress.Security.NonceVerification
 		$rslt        = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
 		MainWP_Helper::write( $rslt );
 	}
@@ -1051,10 +1045,12 @@ class MainWP_Child_Stats {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_plugins() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$keyword     = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
 		$status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
+		// phpcs:enable WordPress.Security.NonceVerification
 		$rslt        = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
 		MainWP_Helper::write( $rslt );
 	}

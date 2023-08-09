@@ -228,6 +228,7 @@ class MainWP_Child_Plugins_Check {
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public static function may_outdate_number_change() {
+		 // phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['numberdaysOutdatePluginTheme'] ) ) {
 			$days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 			if ( $days_outdate != $_POST['numberdaysOutdatePluginTheme'] ) {
@@ -237,6 +238,7 @@ class MainWP_Child_Plugins_Check {
 				MainWP_Child_Themes_Check::instance()->cleanup_deactivation( false );
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**

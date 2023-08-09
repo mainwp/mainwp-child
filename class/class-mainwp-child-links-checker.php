@@ -96,8 +96,8 @@ class MainWP_Child_Links_Checker {
 
 		MainWP_Helper::update_option( 'mainwp_linkschecker_ext_enabled', 'Y', 'yes' );
 		try {
-			if ( isset( $_POST['mwp_action'] ) ) {
-				$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+			if ( ! empty( $mwp_action ) ) {
 				switch ( $mwp_action ) {
 					case 'set_showhide':
 						$information = $this->set_showhide();
@@ -292,7 +292,7 @@ class MainWP_Child_Links_Checker {
      * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_linkschecker_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
 

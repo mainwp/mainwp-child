@@ -1310,7 +1310,7 @@ class Tar_Archiver {
 						$read .= fread( $fh, 1000 );
 						while ( ( $pos = strpos( $read, $text, 2 ) ) !== false ) {
 							for ( $i = 0; $i < 10; $i ++ ) {
-								echo ord( $read[ $i ] ) . "\n";
+								echo ord( $read[ $i ] ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 							}
 
 							if ( ! $this->is_valid_block( substr( $read, 10, $pos - 10 ) ) ) {

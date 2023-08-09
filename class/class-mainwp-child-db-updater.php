@@ -86,7 +86,7 @@ class MainWP_Child_DB_Updater {
 		$information = array();
 		MainWP_Child_DB_Updater_WC::instance()->requires_files();
 		try {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
 			switch ( $mwp_action ) {
 				case 'update_db':
 					$information = $this->update_db();
@@ -116,8 +116,10 @@ class MainWP_Child_DB_Updater {
 	 */
 	public function update_db() {
 		$information = array();
-		$plugins     = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
-		$upgrades    = array();
+		// phpcs:disable WordPress.Security.NonceVerification
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
+		// phpcs:enable WordPress.Security.NonceVerification
+		$upgrades = array();
 		foreach ( $plugins as $slug ) {
 			$success = false;
 			switch ( $slug ) {

@@ -90,7 +90,16 @@ class MainWP_Child_Cache_Purge {
 					update_option( 'mainwp_cloudflair_email', ( $data['mainwp_cloudflair_email'] ) );
 				}
 				if ( isset( $data['mainwp_cloudflair_key'] ) ) {
-					update_option( 'mainwp_cloudflair_key', ( $data['mainwp_cloudflair_key'] ) );
+					if ( ! empty( $data['mainwp_cloudflair_key'] ) ) {
+						$encrypted = MainWP_Child_Keys_Manager::instance()->encrypt_string( $data['mainwp_cloudflair_key'] );
+					} else {
+						$encrypted = '';
+					}
+					update_option( 'mainwp_child_cloudflair_key', $encrypted );
+					$old = get_option( 'mainwp_cloudflair_key' );
+					if ( false !== $old ) {
+						delete_option( 'mainwp_cloudflair_key' );
+					}
 				}
 			} catch ( \Exception $e ) {
 				error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
@@ -784,7 +793,10 @@ class MainWP_Child_Cache_Purge {
 
 		// Credentials for Cloudflare.
 		$cust_email  = get_option( 'mainwp_cloudflair_email' );
-		$cust_xauth  = get_option( 'mainwp_cloudflair_key' );
+		$cust_xauth = get_option( 'mainwp_child_cloudflair_key' );
+		if ( ! empty( $cust_xauth ) ) {
+			$cust_xauth = MainWP_Child_Keys_Manager::instance()->decrypt_string( $cust_xauth );
+		}
 		$cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
 
 		// Check if we have all the required data.

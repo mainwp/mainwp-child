@@ -190,8 +190,8 @@ class MainWP_Child_Staging {
 			MainWP_Helper::update_option( 'mainwp_wp_staging_ext_enabled', 'Y', 'yes' );
 		}
 
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
@@ -246,7 +246,7 @@ class MainWP_Child_Staging {
 					break;
 			}
 		}
-			MainWP_Helper::write( $information );
+		MainWP_Helper::write( $information );
 	}
 
 	/**
@@ -257,7 +257,7 @@ class MainWP_Child_Staging {
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_wp_staging_hide_plugin', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
 		return $information;
@@ -269,7 +269,7 @@ class MainWP_Child_Staging {
 	 * @return string[] Return 'Success'.
 	 */
 	public function save_settings() {
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 		$filters  = array(
 			'queryLimit',
 			'fileLimit',
@@ -342,7 +342,7 @@ class MainWP_Child_Staging {
 	 * @return array|string[] Action result array[status, message] or return 'success'.
 	 */
 	public function ajax_check_clone_name() {
-		$cloneName       = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : '';
+		$cloneName       = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		$cloneNameLength = strlen( $cloneName );
 		$clones          = get_option( 'wpstg_existing_clones_beta', array() );
 
@@ -385,7 +385,7 @@ class MainWP_Child_Staging {
 			}
 		} else {
 			$this->url = '';
-
+			// phpcs:disable WordPress.Security.NonceVerification
 			// to compatible with new version.
 			if ( class_exists( '\WPStaging\Framework\Database\SelectedTables' ) ) {
 
@@ -413,7 +413,7 @@ class MainWP_Child_Staging {
 					$_POST['extraDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['extraDirectories'] );
 				}
 			}
-
+			// phpcs:enable WordPress.Security.NonceVerification
 			$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
 
 			if ( ! $cloning->save() ) {
@@ -736,7 +736,7 @@ class MainWP_Child_Staging {
 	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
-		if ( isset( $_POST['mainwpsignature'] ) ) {
+		if ( MainWP_Helper::is_dashboard_request() ) {
 			return $value;
 		}
 

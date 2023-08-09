@@ -204,7 +204,7 @@ class MainWP_Child_Back_WP_Up {
         if ( ! isset( $_POST['action'] ) ) {
             $information = array( 'error' => esc_html__( 'Missing action.', 'mainwp-child' ) );
         } else {
-            $mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+            $mwp_action = MainWP_System::instance()->validate_params( 'action' );
             switch ( $mwp_action ) {
                 case 'backwpup_update_settings':
                     $information = $this->update_settings();

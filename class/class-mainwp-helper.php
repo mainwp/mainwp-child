@@ -57,7 +57,7 @@ class MainWP_Helper {
 	 */
 	public static function write( $value ) {
 		$output = wp_json_encode( $value );
-		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+		die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.EscapeOutput -- base64_encode function is used for backwards compatibility.
 	}
 
 
@@ -336,8 +336,9 @@ class MainWP_Helper {
 	 */
 	public static function reject_unsafe_urls( $r, $url ) {
 		$r['reject_unsafe_urls'] = false;
-		$wpadmin_user            = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : '';
-		$wpadmin_passwd          = isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ? wp_unslash( $_POST['wpadmin_passwd'] ) : '';
+		// phpcs:disable WordPress.Security.NonceVerification
+		$wpadmin_user   = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : '';
+		$wpadmin_passwd = isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ? wp_unslash( $_POST['wpadmin_passwd'] ) : '';
 
 		if ( ! empty( $wpadmin_user ) && ! empty( $wpadmin_passwd ) ) {
 			$auth                          = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
@@ -347,7 +348,7 @@ class MainWP_Helper {
 		if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
 			$r['sslverify'] = false;
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $r;
 	}
 
@@ -862,9 +863,19 @@ class MainWP_Helper {
 	 * Method is_dashboard_request()
 	 *
 	 * If it is dashboard request.
+	 *
+	 * @param bool $and_func If true, check 'function' params existed.
+	 *
+	 * @return bool true|false If is dashboard request.
 	 */
-	public static function is_dashboard_request() {
-		return isset( $_POST['mainwpsignature'] ) && isset( $_POST['function'] ) ? true : false;
+	public static function is_dashboard_request( $and_func = false ) {
+		// phpcs:disable WordPress.Security.NonceVerification
+		$check = isset( $_POST['mainwpsignature'] ) ? true : false;
+		if ( $and_func ) {
+			$check = $check && isset( $_POST['function'] );
+		}
+		// phpcs:enable WordPress.Security.NonceVerification
+		return $check;
 	}
 
 

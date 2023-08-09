@@ -139,14 +139,14 @@ class MainWP_Child_Posts {
 		if ( 0 !== $pCount ) {
 			$args['numberposts'] = $pCount;
 		}
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$wp_seo_enabled = false;
 		if ( ! empty( $_POST['WPSEOEnabled'] ) ) {
 			if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) && class_exists( '\WPSEO_Link_Column_Count' ) && class_exists( '\WPSEO_Meta' ) ) {
 				$wp_seo_enabled = true;
 			}
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		$posts = get_posts( $args );
 
 		if ( is_array( $posts ) ) {
@@ -259,7 +259,9 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::get_all_posts_by_type()
 	 */
 	public function get_all_posts() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$post_type = ( isset( $_POST['post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['post_type'] ) ) : 'post' );
+		// phpcs:enable WordPress.Security.NonceVerification
 		$this->get_all_posts_by_type( $post_type );
 	}
 
@@ -306,6 +308,7 @@ class MainWP_Child_Posts {
 		 */
 		global $wpdb;
 
+		// phpcs:disable WordPress.Security.NonceVerification
 		add_filter( 'posts_where', array( &$this, 'posts_where' ) );
 		$where_post_date = isset( $_POST['where_post_date'] ) && ! empty( $_POST['where_post_date'] ) ? true : false;
 		if ( isset( $_POST['postId'] ) ) {
@@ -364,6 +367,7 @@ class MainWP_Child_Posts {
 		$extra['where_post_date'] = $where_post_date;
 		$rslt                     = isset( $_POST['status'] ) ? $this->get_recent_posts( explode( ',', wp_unslash( $_POST['status'] ) ), $maxPages, $type, $extra ) : '';
 		$this->posts_where_suffix = '';
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		MainWP_Helper::write( $rslt );
 	}
@@ -418,7 +422,8 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::get_class_name()
 	 */
 	public function post_action() {
-		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		// phpcs:disable WordPress.Security.NonceVerification
+		$action  = MainWP_System::instance()->validate_params( 'action' );
 		$postId  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$my_post = array();
 
@@ -489,6 +494,8 @@ class MainWP_Child_Posts {
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
+
 		$information['my_post'] = $my_post;
 		MainWP_Helper::write( $information );
 	}
@@ -1134,6 +1141,7 @@ class MainWP_Child_Posts {
 		if ( has_shortcode( $new_post['post_content'], 'gallery' ) ) {
 			if ( preg_match_all( '/\[gallery[^\]]+ids=\"(.*?)\"[^\]]*\]/ix', $new_post['post_content'], $matches, PREG_SET_ORDER ) ) {
 				$replaceAttachedIds = array();
+				// phpcs:disable WordPress.Security.NonceVerification
 				if ( isset( $_POST['post_gallery_images'] ) ) {
 					$post_gallery_images = isset( $_POST['post_gallery_images'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_gallery_images'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 					if ( is_array( $post_gallery_images ) ) {
@@ -1151,6 +1159,7 @@ class MainWP_Child_Posts {
 						}
 					}
 				}
+				// phpcs:enable WordPress.Security.NonceVerification
 				if ( count( $replaceAttachedIds ) > 0 ) {
 					foreach ( $matches as $match ) {
 						$idsToReplace     = $match[1];

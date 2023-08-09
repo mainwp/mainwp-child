@@ -560,9 +560,8 @@ class MainWP_Child_Wordfence {
 
 		try {
 
-			if ( isset( $_POST['mwp_action'] ) ) {
-
-				$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+			if ( ! empty( $mwp_action ) ) {
 				switch ( $mwp_action ) {
 					case 'start_scan':
 						$information = $this->start_scan();
@@ -1039,7 +1038,7 @@ class MainWP_Child_Wordfence {
 	 * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_wordfence_hide_plugin', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
 
@@ -1096,8 +1095,10 @@ class MainWP_Child_Wordfence {
 	 * @return array Action result.
 	 */
 	public function load_issues() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
 		$limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$i      = new \wfIssues();
 		$iss    = $i->getIssues( $offset, $limit );
@@ -1128,8 +1129,10 @@ class MainWP_Child_Wordfence {
 	 * @return array Action result.
 	 */
 	public static function ajax_load_issues_callback() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
 		$limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$i      = new \wfIssues();
 		$iss    = $i->getIssues( $offset, $limit );

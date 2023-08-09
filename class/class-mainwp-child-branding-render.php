@@ -181,6 +181,7 @@ class MainWP_Child_Branding_Render {
 	 * @param array $opts An array containg message options.
 	 */
 	private function render_submit_message( $opts ) {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : '';
 		$back_link = $opts['message_return_sender'];
 		$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
@@ -199,6 +200,7 @@ class MainWP_Child_Branding_Render {
 		?>
 		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; ?></div>
 		<?php
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**

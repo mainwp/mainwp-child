@@ -76,7 +76,7 @@ class MainWP_Connect {
 		global $current_user;
 
 		$information = array();
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		// Check if the user is valid & login.
 		if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
 			MainWP_Helper::instance()->error( sprintf( esc_html__( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://kb.mainwp.com/docs/cant-connect-website-getting-the-invalid-request-error-message/" target="_blank">', '</a></strong>' ) );
@@ -124,27 +124,12 @@ class MainWP_Connect {
 		// Save the nonce.
 		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 );
 
-		// Update the mainwp_child_nossl option.
-		MainWP_Helper::update_option( 'mainwp_child_nossl', ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::is_ssl_enabled() ? 1 : 0 ), 'yes' );
-
-		$information['nossl'] = ( '-1' === $_POST['pubkey'] || ! MainWP_Helper::is_ssl_enabled() ? 1 : 0 );
-
-		if ( function_exists( 'random_bytes' ) ) {
-			$nossl_key = random_bytes( 32 );
-			$nossl_key = bin2hex( $nossl_key );
-		} else {
-			$nossl_key = uniqid( '', true );
-		}
-
-		// Update the mainwp_child_nossl_key option.
-		MainWP_Helper::update_option( 'mainwp_child_nossl_key', $nossl_key, 'yes' );
 		MainWP_Helper::update_option( 'mainwp_child_connected_admin', $current_user->user_login, 'yes' );
 
-		$information['nosslkey'] = $nossl_key;
 		$information['register'] = 'OK';
 		$information['uniqueId'] = MainWP_Helper::get_site_unique_id();
 		$information['user']     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.
 	}
 
@@ -163,7 +148,7 @@ class MainWP_Connect {
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function parse_init_auth( $auth = false ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) { // with 'mainwpsignature' then need to callable functions.
 			MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this child site and try again.', 'mainwp-child' ) );
 		}
@@ -252,6 +237,8 @@ class MainWP_Connect {
 			}
 		}
 
+		// phpcs:enable WordPress.Security.NonceVerification
+
 		return true;
 	}
 
@@ -263,28 +250,20 @@ class MainWP_Connect {
 	 * @param  string $signature MainWP Dashboard signature.
 	 * @param  string $func      Function to run.
 	 * @param  string $nonce     Security nonce.
-	 * @param  int    $nossl     OpenSSL not availalbe. NoSSL connection required.
 	 *
 	 * @return int|bool $auth  Returns 1 if authenticated, false if authentication fails.
 	 */
-	public function auth( $signature, $func, $nonce, $nossl ) {
-		if ( empty( $signature ) || ! isset( $func ) || ( ! get_option( 'mainwp_child_pubkey' ) && ! get_option( 'mainwp_child_nossl_key' ) ) ) {
+	public function auth( $signature, $func, $nonce ) {
+		if ( empty( $signature ) || ! isset( $func ) || ! get_option( 'mainwp_child_pubkey' ) ) {
 			$auth = false;
 		} else {
-			$nossl       = get_option( 'mainwp_child_nossl' );
-			$serverNoSsl = ( isset( $nossl ) && 1 === (int) $nossl );
-			if ( ( 1 === (int) $nossl ) || $serverNoSsl ) {
-				$nossl_key = get_option( 'mainwp_child_nossl_key' );
-				$auth      = hash_equals( md5( $func . $nonce . $nossl_key ), base64_decode( $signature ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
-			} else {
 				$algo = false;
-				if ( isset( $_REQUEST['sign_algo'] ) ) {
-					$algo = sanitize_text_field( wp_unslash( $_REQUEST['sign_algo'] ) );
-				}
+			if ( isset( $_REQUEST['sign_algo'] ) ) {
+				$algo = sanitize_text_field( wp_unslash( $_REQUEST['sign_algo'] ) );
+			}
 				$auth = self::connect_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ), $algo ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- trust value.
-				if ( 1 !== $auth ) {
-					$auth = false;
-				}
+			if ( 1 !== $auth ) {
+				$auth = false;
 			}
 		}
 		return $auth;
@@ -441,7 +420,7 @@ class MainWP_Connect {
 		 * @global string
 		 */
 		global $current_user;
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$alter_login_required = false;
 		$username             = isset( $_REQUEST['user'] ) ? rawurldecode( wp_unslash( $_REQUEST['user'] ) ) : '';
 
@@ -464,10 +443,9 @@ class MainWP_Connect {
 
 		$function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
 		$nonce    = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
-		$nossl    = isset( $_REQUEST['nossl'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nossl'] ) ) : 0;
 
 		try {
-			$auth = $this->auth( $signature, $function, $nonce, $nossl );
+			$auth = $this->auth( $signature, $function, $nonce );
 		} catch ( \Exception $ex ) {
 			$auth = false;
 		}
@@ -492,6 +470,7 @@ class MainWP_Connect {
 				}
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		$this->check_redirects();
 		return true;
 	}
@@ -504,6 +483,7 @@ class MainWP_Connect {
 	 * @return resource Requested file.
 	 */
 	private function get_request_files() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
 			$file = ! empty( $_REQUEST['f'] ) ? wp_unslash( $_REQUEST['f'] ) : '';
@@ -512,6 +492,7 @@ class MainWP_Connect {
 		} elseif ( isset( $_REQUEST['fdl'] ) ) {
 			$file = ! empty( $_REQUEST['fdl'] ) ? wp_unslash( $_REQUEST['fdl'] ) : '';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $file;
 	}
 
@@ -525,6 +506,7 @@ class MainWP_Connect {
 	 * @uses \MainWP\Child\MainWP_Utility::upload_file()
 	 */
 	private function check_redirects() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_REQUEST['fdl'] ) ) {
 			$fdl = isset( $_REQUEST['fdl'] ) ? wp_unslash( $_REQUEST['fdl'] ) : '';
 			if ( empty( $fdl ) || stristr( $fdl, '..' ) ) {
@@ -542,7 +524,7 @@ class MainWP_Connect {
 		if ( ! empty( $open_locatio ) ) {
 			$this->open_location_redirect( $open_location );
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		$this->where_redirect();
 	}
 
@@ -604,6 +586,7 @@ class MainWP_Connect {
 	 * Safe redirect to wanted location.
 	 */
 	private function where_redirect() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$where = isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : '';
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
 			$file = '';
@@ -619,6 +602,7 @@ class MainWP_Connect {
 			$_SESSION['file'] = $file;
 			$_SESSION['size'] = isset( $_POST['size'] ) ? sanitize_text_field( wp_unslash( $_POST['size'] ) ) : '';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		wp_safe_redirect( admin_url( $where ) );
 		exit();
 	}
@@ -635,6 +619,7 @@ class MainWP_Connect {
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function check_login() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
 			return false;
 		}
@@ -643,11 +628,10 @@ class MainWP_Connect {
 
 		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : '';
 		$function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
-		$nonce           = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-		$nossl           = isset( $_POST['nossl'] ) ? sanitize_text_field( wp_unslash( $_POST['nossl'] ) ) : 0;
+		$nonce           = MainWP_System::instance()->validate_params( 'nonce' );
 
 		try {
-			$auth = $this->auth( $mainwpsignature, $function, $nonce, $nossl );
+			$auth = $this->auth( $mainwpsignature, $function, $nonce );
 		} catch ( \Exception $ex ) {
 			$error = $ex->getMessage();
 			if ( ! empty( $error ) && is_string( $error ) ) {
@@ -703,6 +687,7 @@ class MainWP_Connect {
 				die();
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**
@@ -873,7 +858,7 @@ class MainWP_Connect {
 	 */
 	public function check_compatible_connect_info( $logged_in ) {
 		global $current_user;
-		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';
+		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! empty( $connect_user ) && $current_user->user_login == $connect_user ) {
 			$connected_admin = get_option( 'mainwp_child_connected_admin', '' );
 			if ( empty( $connected_admin ) ) {

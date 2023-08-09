@@ -69,9 +69,9 @@ class MainWP_Child_Maintenance {
 	 * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
 	 */
 	public function maintenance_site() {
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['action'] ) ) {
-			$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+			$action = MainWP_System::instance()->validate_params( 'action' );
 			$this->maintenance_action( $action ); // exit.
 		}
 
@@ -82,6 +82,7 @@ class MainWP_Child_Maintenance {
 		}
 
 		$max_revisions = isset( $_POST['revisions'] ) ? intval( wp_unslash( $_POST['revisions'] ) ) : 0;
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$information = $this->maintenance_db( $maint_options, $max_revisions );
 
@@ -324,6 +325,7 @@ class MainWP_Child_Maintenance {
 	 */
 	private function maintenance_action( $action ) {
 		$information = array();
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( 'save_settings' === $action ) {
 			if ( isset( $_POST['enable_alert'] ) && '1' === $_POST['enable_alert'] ) {
 				MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404', 1, 'yes' );
@@ -346,7 +348,7 @@ class MainWP_Child_Maintenance {
 			$information['result'] = 'SUCCESS';
 			MainWP_Helper::write( $information );
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Helper::write( $information );
 	}
 }

@@ -100,9 +100,8 @@ class MainWP_Child_Actions {
 	 * Init WP hooks.
 	 */
 	public function init_hooks() {
-
 		// avoid actions.
-		if ( isset( $_POST['mainwpsignature'] ) ) {
+		if ( MainWP_Helper::is_dashboard_request() ) {
 			return;
 		}
 
@@ -494,10 +493,12 @@ class MainWP_Child_Actions {
 	 * Uninstall plugins callback.
 	 */
 	public function callback_pre_option_uninstall_plugins() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) {
 			return false;
 		}
 		$plugin                       = $_POST['plugin'];
+		// phpcs:enable WordPress.Security.NonceVerification
 		$_plugins                     = $this->get_plugins();
 		$plugins_to_delete            = array();
 		$plugins_to_delete[ $plugin ] = isset( $_plugins[ $plugin ] ) ? $_plugins[ $plugin ] : array();
@@ -514,7 +515,7 @@ class MainWP_Child_Actions {
 	public function callback_deleted_plugin( $plugin_file, $deleted ) {
 		if ( $deleted ) {
 
-			if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) {
+			if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification
 				return;
 			}
 			$plugins_to_delete = get_option( 'wp_mainwp_stream_plugins_to_delete' );
@@ -661,7 +662,7 @@ class MainWP_Child_Actions {
 
 		$connected_user = get_option( 'mainwp_child_connected_admin', '' );
 
-		if ( ! empty( $user->user_login ) && $connected_user == $user->user_login && MainWP_Helper::is_dashboard_request() ) {
+		if ( ! empty( $user->user_login ) && $connected_user == $user->user_login && MainWP_Helper::is_dashboard_request( true ) ) {
 			return false;  // not save action.
 		}
 

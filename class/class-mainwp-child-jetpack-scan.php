@@ -111,8 +111,8 @@ class MainWP_Child_Jetpack_Scan {
 
 		$information = array();
 
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			try {
 				switch ( $mwp_action ) {
 					case 'set_showhide':
@@ -134,7 +134,7 @@ class MainWP_Child_Jetpack_Scan {
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_child_jetpack_scan_hide_plugin', $hide, 'yes' );
 		MainWP_Helper::update_option( 'mainwp_child_jetpack_protect_hide_plugin', $hide, 'yes' );
 		$information['result'] = 'SUCCESS';
@@ -212,7 +212,7 @@ class MainWP_Child_Jetpack_Scan {
 	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function hook_remove_update_nag( $value ) {
-		if ( isset( $_POST['mainwpsignature'] ) ) {
+		if ( MainWP_Helper::is_dashboard_request() ) {
 			return $value;
 		}
 

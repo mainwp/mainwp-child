@@ -582,13 +582,13 @@ class MainWP_Client_Report_Base {
 	 * @return array Loops.
 	 */
 	public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$loops      = array();
 		$loop_count = 0;
 
 		$max_items_get    = ( isset( $_POST['max_items_get'] ) && ! empty( $_POST['max_items_get'] ) ) ? intval( $_POST['max_items_get'] ) : 0;
 		$limit_connectors = ( isset( $_POST['limit_reports'] ) && ! empty( $_POST['limit_reports'] ) ) ? intval( $_POST['limit_reports'] ) : array();
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( ! is_array( $limit_connectors ) || empty( $limit_connectors ) ) {
 			$limit_connectors = array( 'mainwp_sucuri', 'mainwp_maintenance', 'mainwp_backups' );
 		}
