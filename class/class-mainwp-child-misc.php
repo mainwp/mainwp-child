@@ -366,7 +366,7 @@ class MainWP_Child_Misc {
 	public function do_security_un_fix() {
 		$information = array();
 
-		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- verified
 
 		$sync = false;
 		if ( 'all' === $feature ) {

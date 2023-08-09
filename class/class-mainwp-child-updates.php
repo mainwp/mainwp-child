@@ -438,7 +438,7 @@ class MainWP_Child_Updates {
 		add_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ) );
 
 		$information['theme_updates'] = $this->upgrade_get_theme_updates();
-		$themes                       = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array(); //phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$themes                       = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification -- verified
 		$premiumThemes                = array();
 		$premiumUpdates               = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -1062,7 +1062,7 @@ class MainWP_Child_Updates {
 		wp_update_plugins();
 
 		$upgrader             = new \Language_Pack_Upgrader( new \Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
-		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array(); //phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification -- verified
 		$all_language_updates = wp_get_translation_updates();
 
 		$language_updates = array();

@@ -1162,7 +1162,7 @@ class MainWP_Clone_Page {
 	 * Method permalink_admin_notice()
 	 */
 	public static function permalink_admin_notice() {
-		if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) { //phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified
 			return;
 		}
 		?>

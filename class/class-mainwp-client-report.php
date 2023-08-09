@@ -75,7 +75,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return string $agent Current user agent.
 	 */
 	public function current_agent( $agent ) {
-		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) ) { //phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified
 			$agent = '';
 		}
 		return $agent;
