@@ -53,7 +53,13 @@ class MainWP_Child_DB_Updater_WC {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 		if ( function_exists( 'WC' ) && is_plugin_active( 'woocommerce/woocommerce.php' ) ) {
-			self::$is_plugin_woocom_installed = true;
+			$supported = true;
+			if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '3.3', '<' ) ) {
+				$supported = false;
+			}
+			if ( $supported ) {
+				self::$is_plugin_woocom_installed = true;
+			}
 		}
 
 		if ( self::$is_plugin_woocom_installed ) {
