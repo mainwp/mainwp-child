@@ -269,7 +269,7 @@ class MainWP_Child_Staging {
 	 * @return string[] Return 'Success'.
 	 */
 	public function save_settings() {
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$filters  = array(
 			'queryLimit',
 			'fileLimit',
@@ -342,7 +342,7 @@ class MainWP_Child_Staging {
 	 * @return array|string[] Action result array[status, message] or return 'success'.
 	 */
 	public function ajax_check_clone_name() {
-		$cloneName       = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$cloneName       = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$cloneNameLength = strlen( $cloneName );
 		$clones          = get_option( 'wpstg_existing_clones_beta', array() );
 

@@ -119,7 +119,7 @@ class MainWP_Child {
 		}
 
 		if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
-			if ( isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			if ( isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
 			}
 		}

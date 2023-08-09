@@ -278,7 +278,7 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Clone_Page::render_restore()
 	 */
 	public function render_pages( $shownPage ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		$shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 
 		$hide_settings          = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
@@ -354,7 +354,7 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
 	public static function render_header( $shownPage, $subpage = true ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		if ( ! empty( $tab ) ) {
 			$shownPage = $tab;
@@ -524,7 +524,7 @@ class MainWP_Pages {
 	 * Render admin header.
 	 */
 	public function admin_head() {
-		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			?>
 			<style type="text/css">
 				.mainwp-postbox-actions-top {

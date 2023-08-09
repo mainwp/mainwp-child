@@ -605,7 +605,7 @@ class MainWP_Child_Callable {
 	 * Fire off the check_abandoned() function.
 	 */
 	public function check_abandoned() {
-		$which = sanitize_text_field( wp_unslash( $_POST['which'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$which = sanitize_text_field( wp_unslash( $_POST['which'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$infor = array();
 		if ( 'plugin' == $which ) {
 			MainWP_Child_Plugins_Check::instance()->run_check();
@@ -736,7 +736,7 @@ class MainWP_Child_Callable {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function extra_execution() {
-		$post        = $_POST; // phpcs:ignore WordPress.Security.NonceVerification
+		$post        = $_POST; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$information = array();
 		/**
 		 * Filter 'mainwp_child_extra_execution'
@@ -979,7 +979,7 @@ class MainWP_Child_Callable {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 
-		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		if ( file_exists( $backupdir . $file ) ) {
 			unlink( $backupdir . $file );
@@ -997,7 +997,7 @@ class MainWP_Child_Callable {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function update_child_values() {
-		$unique_id = isset( $_POST['uniqueId'] ) ? sanitize_text_field( wp_unslash( $_POST['uniqueId'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$unique_id = isset( $_POST['uniqueId'] ) ? sanitize_text_field( wp_unslash( $_POST['uniqueId'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $unique_id );
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
 	}

@@ -515,7 +515,7 @@ class MainWP_Child_Actions {
 	public function callback_deleted_plugin( $plugin_file, $deleted ) {
 		if ( $deleted ) {
 
-			if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+			if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				return;
 			}
 			$plugins_to_delete = get_option( 'wp_mainwp_stream_plugins_to_delete' );
