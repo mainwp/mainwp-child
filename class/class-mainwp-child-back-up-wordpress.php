@@ -124,7 +124,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
-		if ( isset( $_POST['mainwpsignature'] ) ) {
+		if ( MainWP_Helper::is_dashboard_request() ) {
 			return $value;
 		}
 
@@ -164,8 +164,8 @@ class MainWP_Child_Back_Up_WordPress {
 			$information['error'] = 'NO_BACKUPWORDPRESS';
 			MainWP_Helper::write( $information );
 		}
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
@@ -224,7 +224,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @see https://developer.wordpress.org/reference/functions/sanitize_text_field/
 	 */
 	public function check_schedule() {
-		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? sanitize_text_field( wp_unslash( $_POST['schedule_id'] ) ) : '';
+		$schedule_id = ( isset( $_POST['schedule_id'] ) && ! empty( $_POST['schedule_id'] ) ) ? sanitize_text_field( wp_unslash( $_POST['schedule_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( empty( $schedule_id ) ) {
 			$information = array( 'error' => 'Empty schedule id' );
 			MainWP_Helper::write( $information );
@@ -377,7 +377,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @used-by \MainWP\Child\MainWP_Child_Back_Up_WordPress::action() Fire off certain BackUpWordPress plugin actions.
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_backupwordpress_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
 
@@ -503,7 +503,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 */
 	public function reload_backups() {
 
-		$scheduleIds = isset( $_POST['schedule_ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['schedule_ids'] ) ) : array();
+		$scheduleIds = isset( $_POST['schedule_ids'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['schedule_ids'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 		\HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 
 		$all_schedules_ids = array();
@@ -589,6 +589,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function hmbkp_request_delete_backup() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['hmbkp_backuparchive'] ) || empty( $_POST['hmbkp_backuparchive'] ) ) {
 			return array( 'error' => esc_html__( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
 		}
@@ -598,6 +599,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
 		$deleted = isset( $_POST['hmbkp_backuparchive'] ) ? $schedule->delete_backup( base64_decode( rawurldecode( wp_unslash( $_POST['hmbkp_backuparchive'] ) ) ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ( is_wp_error( $deleted ) ) {
 			return array( 'error' => $deleted->get_error_message() );
@@ -708,18 +710,18 @@ class MainWP_Child_Back_Up_WordPress {
 				if ( function_exists( 'hmbkp_is_path_accessible' ) ) {
 					if ( hmbkp_is_path_accessible( hmbkp_path() ) ) {
 						?>
-						<a href="#" onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="download-action"><?php esc_html_e( 'Download', 'mainwp-child' ); ?></a> |
+						<a href="#" onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo esc_js( $encoded_file ); ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="download-action"><?php esc_html_e( 'Download', 'mainwp-child' ); ?></a> |
 						<?php
 					};
 				} elseif ( function_exists( '\HM\BackUpWordPress\is_path_accessible' ) ) {
 					if ( \HM\BackUpWordPress\is_path_accessible( \HM\BackUpWordPress\Path::get_path() ) ) {
 						?>
-						<a href="#" onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="download-action"><?php esc_html_e( 'Download', 'maiwnp-child' ); ?></a> |
+						<a href="#" onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo esc_js( $encoded_file ); ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="download-action"><?php esc_html_e( 'Download', 'maiwnp-child' ); ?></a> |
 						<?php
 					};
 				}
 				?>
-				<a href="#" onclick="event.preventDefault(); mainwp_backupwp_delete_backup('<?php echo $encoded_file; ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="delete-action"><?php esc_html_e( 'Delete', 'mainwp-child' ); ?></a>
+				<a href="#" onclick="event.preventDefault(); mainwp_backupwp_delete_backup('<?php echo esc_js( $encoded_file ); ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="delete-action"><?php esc_html_e( 'Delete', 'mainwp-child' ); ?></a>
 			</td>
 		</tr>
 		<?php
@@ -1102,7 +1104,9 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function directory_browse() {
-		$browse_dir                = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
+		 // phpcs:disable WordPress.Security.NonceVerification
+		$browse_dir = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
+		 // phpcs:enable WordPress.Security.NonceVerification
 		$out                       = array();
 		$return                    = $this->get_excluded( $browse_dir );
 		$out['e']                  = $return['e'];
@@ -1119,7 +1123,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function hmbkp_add_exclude_rule() {
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['exclude_pathname'] ) || empty( $_POST['exclude_pathname'] ) ) {
 			return array( 'error' => esc_html__( 'Empty exclude directory path.', 'mainwp-child' ) );
 		}
@@ -1142,7 +1146,7 @@ class MainWP_Child_Back_Up_WordPress {
 		$return                    = $this->get_excluded( $current_path );
 		$out['e']                  = $return['e'];
 		$out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $out;
 	}
 
@@ -1154,7 +1158,7 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function hmbkp_remove_exclude_rule() {
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['remove_rule'] ) || empty( $_POST['remove_rule'] ) ) {
 			return array( 'error' => esc_html__( 'Empty exclude directory path.', 'mainwp-child' ) );
 		}
@@ -1183,7 +1187,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$out['e']                  = $return['e'];
 		$out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? wp_unslash( $_POST['browse_dir'] ) : '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $out;
 	}
 
@@ -1198,7 +1202,7 @@ class MainWP_Child_Back_Up_WordPress {
 
 		$sch_id   = $this->check_schedule();
 		$schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $sch_id ) );
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$exclude_paths = isset( $_POST['exclude_paths'] ) ? rawurldecode( wp_unslash( $_POST['exclude_paths'] ) ) : '';
 		$exclude_paths = explode( "\n", $exclude_paths );
 		if ( is_array( $exclude_paths ) && count( $exclude_paths ) > 0 ) {
@@ -1240,7 +1244,7 @@ class MainWP_Child_Back_Up_WordPress {
 					$schedule->save();
 			}
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		return array( 'result' => 'SUCCESS' );
 	}
 
@@ -1252,9 +1256,10 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function update_schedule() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$sch_id  = isset( $_POST['schedule_id'] ) ? sanitize_text_field( rawurldecode( wp_unslash( $_POST['schedule_id'] ) ) ) : 0;
 		$options = isset( $_POST['options'] ) ? json_decode( base64_decode( wp_unslash( $_POST['options'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {
 			return array( 'error' => esc_html__( 'Schedule data', 'mainwp-child' ) );
 		}
@@ -1311,8 +1316,9 @@ class MainWP_Child_Back_Up_WordPress {
 	 * @return array Action result.
 	 */
 	public function save_all_schedules() {
-		$schedules = isset( $_POST['all_schedules'] ) ? json_decode( base64_decode( wp_unslash( $_POST['all_schedules'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-
+		// phpcs:disable WordPress.Security.NonceVerification
+		$schedules = isset( $_POST['all_schedules'] ) ? json_decode( base64_decode( wp_unslash( $_POST['all_schedules'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification -- base64_encode function is used for http encode compatible..
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( ! is_array( $schedules ) || empty( $schedules ) ) {
 			return array( 'error' => esc_html__( 'Schedule data', 'mainwp-child' ) );
 		}

@@ -76,9 +76,9 @@ class MainWP_Child_WooCommerce_Status {
 			MainWP_Helper::write( $information );
 		}
 
-		$is_ver220 = $this->is_version_220();
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$is_ver220  = $this->is_version_220();
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			switch ( $mwp_action ) {
 				case 'sync_data':
 					$information = ! $is_ver220 ? $this->sync_data() : $this->sync_data_two();
@@ -235,12 +235,13 @@ class MainWP_Child_WooCommerce_Status {
 		} else {
 			return false;
 		}
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
 		$end_date   = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
 		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time.
 		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		// Get sales.
 		$sales = $wpdb->get_var(
@@ -337,8 +338,10 @@ class MainWP_Child_WooCommerce_Status {
 	 * Sync Woocomerce data for specific date range.
 	 */
 	public function report_data_two() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
 		$end_date   = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}

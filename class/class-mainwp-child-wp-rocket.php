@@ -330,7 +330,7 @@ class MainWP_Child_WP_Rocket {
 	 * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
 	 */
 	public function remove_update_nag( $value ) {
-		if ( isset( $_POST['mainwpsignature'] ) ) {
+		if ( MainWP_Helper::is_dashboard_request() ) {
 			return $value;
 		}
 
@@ -436,8 +436,8 @@ class MainWP_Child_WP_Rocket {
 
 		$information = array();
 
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			try {
 				switch ( $mwp_action ) {
 					case 'set_showhide':
@@ -489,7 +489,7 @@ class MainWP_Child_WP_Rocket {
 	 * @uses    \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_wprocket_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
 
@@ -677,6 +677,7 @@ class MainWP_Child_WP_Rocket {
 	 * @return array Action result.
 	 */
 	public function save_settings() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $options ) || empty( $options ) ) {
 			return array( 'error' => 'INVALID_OPTIONS' );
@@ -696,7 +697,7 @@ class MainWP_Child_WP_Rocket {
 		if ( isset( $_POST['do_database_optimization'] ) && ! empty( $_POST['do_database_optimization'] ) ) {
 			$this->optimize_database();
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		return array( 'result' => 'SUCCESS' );
 	}
 

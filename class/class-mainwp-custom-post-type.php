@@ -66,7 +66,7 @@ class MainWP_Custom_Post_Type {
 
 		$data = wp_json_encode( $data );
 
-		die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+		die( '<mainwp>' . base64_encode( $data ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.EscapeOutput -- base64_encode required for backwards compatibility.
 	}
 
 	/**
@@ -77,9 +77,10 @@ class MainWP_Custom_Post_Type {
 	public function action() {
 
 		register_shutdown_function( '\MainWP\Child\MainWP_Custom_Post_Type::mainwp_custom_post_type_handle_fatal_error' );
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$information = array();
-		$mwp_action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$mwp_action  = MainWP_System::instance()->validate_params( 'action' );
+		// phpcs:enable WordPress.Security.NonceVerification
 		switch ( $mwp_action ) {
 			case 'custom_post_type_import':
 				$information = $this->import_custom_post();
@@ -103,7 +104,7 @@ class MainWP_Custom_Post_Type {
 	private function import_custom_post() {
 
 		add_filter( 'http_request_host_is_external', '__return_true' );
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['data'] ) || strlen( $_POST['data'] ) < 2 ) {
 			return array( 'error' => esc_html__( 'Missing data', $this->plugin_translate ) );
 		}
@@ -116,7 +117,8 @@ class MainWP_Custom_Post_Type {
 			return array( 'error' => esc_html__( 'Cannot decode data', $this->plugin_translate ) );
 		}
 		$edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? intval( wp_unslash( $_POST['post_id'] ) ) : 0;
-		$return  = $this->insert_post( $data, $edit_id, $parent_id = 0 );
+		// phpcs:enable WordPress.Security.NonceVerification
+		$return = $this->insert_post( $data, $edit_id, $parent_id = 0 );
 		if ( isset( $return['success'] ) && 1 == $return['success'] ) {
 			if ( isset( $data['product_variation'] ) && is_array( $data['product_variation'] ) ) {
 				foreach ( $data['product_variation'] as $product_variation ) {

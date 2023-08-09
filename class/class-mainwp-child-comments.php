@@ -67,7 +67,8 @@ class MainWP_Child_Comments {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function comment_action() {
-		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$action = MainWP_System::instance()->validate_params( 'action' );
+		// phpcs:disable WordPress.Security.NonceVerification
 		$commentId = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 
 		if ( 'approve' === $action ) {
@@ -92,6 +93,7 @@ class MainWP_Child_Comments {
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Helper::write( $information );
 	}
 
@@ -101,8 +103,10 @@ class MainWP_Child_Comments {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function comment_bulk_action() {
-		$action                 = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		$commentIds             = isset( $_POST['ids'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) : array();
+		$action = MainWP_System::instance()->validate_params( 'action' );
+		// phpcs:disable WordPress.Security.NonceVerification
+		$commentIds = isset( $_POST['ids'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) : array();
+		// phpcs:enable WordPress.Security.NonceVerification
 		$information['success'] = 0;
 		foreach ( $commentIds as $commentId ) {
 			if ( $commentId ) {
@@ -159,7 +163,7 @@ class MainWP_Child_Comments {
 		global $wpdb;
 
 		add_filter( 'comments_clauses', array( &$this, 'comments_clauses' ) );
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['postId'] ) ) {
 			$this->comments_and_clauses .= $wpdb->prepare( " AND $wpdb->comments.comment_post_ID = %d ", sanitize_text_field( wp_unslash( $_POST['postId'] ) ) );
 		} else {
@@ -189,7 +193,7 @@ class MainWP_Child_Comments {
 		$status                     = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$rslt                       = $this->get_recent_comments( explode( ',', $status ), $maxComments );
 		$this->comments_and_clauses = '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Helper::write( $rslt );
 	}
 

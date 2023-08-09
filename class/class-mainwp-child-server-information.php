@@ -57,6 +57,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @used-by MainWP_Child_Server_Information::init() Add hooks after WordPress has finished loading but before any headers are sent.
 	 */
 	public static function dismiss_warnings() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['what'] ) ) {
 			$dismissWarnings = get_option( 'mainwp_child_dismiss_warnings' );
 			if ( ! is_array( $dismissWarnings ) ) {
@@ -72,6 +73,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			}
 			MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**
@@ -184,7 +186,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				if ( $warnings > 0 ) {
 					$warning .= '<tr><td colspan="2">This site may not connect to your dashboard or may have other issues. Check your <a href="options-general.php?page=mainwp_child_tab">MainWP server information page</a>.</td><td style="text-align: right;"><a href="#" id="mainwp-child-connect-warning-dismiss">Dismiss</a></td></tr>';
 				}
-				echo $warning;
+				echo $warning; // phpcs:ignore WordPress.Security.EscapeOutput
 				?>
 				</tbody>
 			</table>

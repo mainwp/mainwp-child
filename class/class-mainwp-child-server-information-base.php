@@ -760,7 +760,7 @@ class MainWP_Child_Server_Information_Base {
 		if ( empty( $test_result ) ) {
 			esc_html_e( 'Response Test O.K.', 'mainwp-child' );
 		} else {
-			echo $test_result;
+			echo $test_result; // phpcs:ignore WordPress.Security.EscapeOutput
 		}
 	}
 
@@ -776,7 +776,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Get server remote host.
 	 */
 	protected static function get_remote_host() {
-		echo ! empty( $_SERVER['REMOTE_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_HOST'] ) ) : esc_html( 'N/A' );
+		echo ! empty( $_SERVER['REMOTE_HOST'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_HOST'] ) ) ) : esc_html( 'N/A' );
 	}
 
 	/**

@@ -126,8 +126,8 @@ class MainWP_Child_WPvivid_BackupRestore {
 			MainWP_Helper::write( $information );
 		}
 
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			try {
 				switch ( $mwp_action ) {
 					case 'prepare_backup':

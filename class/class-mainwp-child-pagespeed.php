@@ -229,8 +229,8 @@ class MainWP_Child_Pagespeed {
 			$information['error'] = 'Please install Google Pagespeed Insights plugin on child website';
 			MainWP_Helper::write( $information );
 		}
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			switch ( $mwp_action ) {
 				case 'save_settings':
 					$information = $this->save_settings();
@@ -267,7 +267,7 @@ class MainWP_Child_Pagespeed {
 			return array( 'result' => 'RUNNING' );
 		}
 		$information = array();
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 
 		if ( is_array( $settings ) ) {
@@ -337,6 +337,7 @@ class MainWP_Child_Pagespeed {
 				$information['result'] = 'NOTCHANGE';
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$strategy = $current_values['strategy'];
 
@@ -392,7 +393,7 @@ class MainWP_Child_Pagespeed {
 	 * @used-by MainWP_Child_Pagespeed::actions() Fire off certain Google Pagespeed Insights plugin actions.
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_pagespeed_hide_plugin', $hide );
 		$information['result'] = 'SUCCESS';
 
@@ -411,11 +412,13 @@ class MainWP_Child_Pagespeed {
 	 * @return array Action result.
 	 */
 	public function check_pages() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['force_recheck'] ) && ! empty( $_POST['force_recheck'] ) ) {
 			$recheck = true;
 		} else {
 			$recheck = false;
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		$information = $this->do_check_pages( $recheck );
 		if ( isset( $information['checked_pages'] ) && $information['checked_pages'] ) {
 			$information['result'] = 'SUCCESS';

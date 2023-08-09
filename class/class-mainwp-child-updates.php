@@ -132,7 +132,7 @@ class MainWP_Child_Updates {
 		$premiumUpgrader                = false;
 
 		$plugin_update = false;
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
 			$this->upgrade_plugin( $information, $mwp_premium_updates_todo, $mwp_premium_updates_todo_slugs, $premiumUpgrader );
 			$plugin_update = true;
@@ -173,6 +173,7 @@ class MainWP_Child_Updates {
 		if ( $send_exit ) {
 			MainWP_Helper::write( $information );
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 
@@ -200,10 +201,10 @@ class MainWP_Child_Updates {
 		if ( null !== $this->filterFunction ) {
 			add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		// to fix conflict.
 		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
 
 		$this->to_support_some_premiums_updates( $plugins );
@@ -226,7 +227,9 @@ class MainWP_Child_Updates {
 
 		$information['plugin_updates'] = get_plugin_updates();
 
-		$plugins        = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
+		// phpcs:enable WordPress.Security.NonceVerification
+
 		$premiumPlugins = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -435,7 +438,7 @@ class MainWP_Child_Updates {
 		add_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ) );
 
 		$information['theme_updates'] = $this->upgrade_get_theme_updates();
-		$themes                       = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array();
+		$themes                       = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 		$premiumThemes                = array();
 		$premiumUpdates               = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -815,7 +818,7 @@ class MainWP_Child_Updates {
 	 * @uses \MainWP\Child\MainWP_Child_Callable::call_function()
 	 */
 	public function detect_premium_themesplugins_updates() {
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_GET['_detect_plugins_updates'] ) && 'yes' == $_GET['_detect_plugins_updates'] ) {
 			// to fix some premium plugins update notification.
 			$current = get_site_transient( 'update_plugins' );
@@ -851,6 +854,7 @@ class MainWP_Child_Updates {
 				}
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**
@@ -1056,11 +1060,11 @@ class MainWP_Child_Updates {
 		wp_version_check();
 		wp_update_themes();
 		wp_update_plugins();
-
+		 // phpcs:disable WordPress.Security.NonceVerification
 		$upgrader             = new \Language_Pack_Upgrader( new \Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
 		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
 		$all_language_updates = wp_get_translation_updates();
-
+ 		// phpcs:enable WordPress.Security.NonceVerification
 		$language_updates = array();
 		foreach ( $all_language_updates as $current_language_update ) {
 			if ( in_array( $current_language_update->slug, $translations ) ) {

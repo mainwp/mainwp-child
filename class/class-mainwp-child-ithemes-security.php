@@ -176,8 +176,8 @@ class MainWP_Child_IThemes_Security {
 
 		$mainwp_itsec_modules_path = \ITSEC_Core::get_core_dir() . '/modules/';
 
-		if ( isset( $_POST['mwp_action'] ) ) {
-			$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+		if ( ! empty( $mwp_action ) ) {
 			switch ( $mwp_action ) {
 				case 'set_showhide':
 					$information = $this->set_showhide();
@@ -244,7 +244,7 @@ class MainWP_Child_IThemes_Security {
      * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Helper::update_option( 'mainwp_ithemes_hide_plugin', $hide );
 		$information['result'] = 'success';
 
@@ -366,7 +366,8 @@ class MainWP_Child_IThemes_Security {
 		$errors             = array();
 		$nbf_settings       = array();
 
-		$update_settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		// phpcs:disable WordPress.Security.NonceVerification
+		$update_settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions  -- base64_encode function is used for http encode compatible..
 
 		foreach ( $update_settings as $module => $settings ) {
 			$do_not_save = false;
@@ -462,6 +463,7 @@ class MainWP_Child_IThemes_Security {
 				}
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ( isset( $update_settings['itsec_active_modules'] ) ) {
 			$current_val = get_site_option( 'itsec_active_modules', array() );
@@ -683,7 +685,7 @@ class MainWP_Child_IThemes_Security {
         /** @global array $itsec_globals itsec globals. */
 		global $itsec_globals;
 
-		$ip       = isset( $_POST['ip'] ) ? sanitize_text_field( wp_unslash( $_POST['ip'] ) ) : '';
+		$ip       = isset( $_POST['ip'] ) ? sanitize_text_field( wp_unslash( $_POST['ip'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		$add_temp = false;
 		$temp_ip  = get_site_option( 'itsec_temp_whitelist_ip' );
 		if ( false !== $temp_ip ) {
@@ -978,7 +980,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function admin_user() {
 
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! is_array( $settings ) ) {
 			$settings = array();
@@ -1196,7 +1198,7 @@ class MainWP_Child_IThemes_Security {
 		$str_error = '';
 		$return    = array();
 
-		if ( isset( $_POST['change_prefix'] ) && 'yes' === $_POST['change_prefix'] ) {
+		if ( isset( $_POST['change_prefix'] ) && 'yes' === $_POST['change_prefix'] ) { // phpcs:ignore WordPress.Security.NonceVerification
 			$result = \ITSEC_Database_Prefix_Utility::change_database_prefix();
 			$return = $result['errors'];
 			if ( is_array( $result['errors'] ) ) {
@@ -1466,7 +1468,7 @@ class MainWP_Child_IThemes_Security {
 			require \ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
-		$lockout_ids = array_map( 'sanitize_text_field', wp_unslash( $_POST['lockout_ids'] ) );
+		$lockout_ids = array_map( 'sanitize_text_field', wp_unslash( $_POST['lockout_ids'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! is_array( $lockout_ids ) ) {
 			$lockout_ids = array();
 		}
@@ -1508,7 +1510,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function update_module_status() {
 
-		$active_modules = isset( $_POST['active_modules'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['active_modules'] ) ) : array();
+		$active_modules = isset( $_POST['active_modules'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['active_modules'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! is_array( $active_modules ) ) {
 			$active_modules = array();

@@ -278,7 +278,7 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Clone_Page::render_restore()
 	 */
 	public function render_pages( $shownPage ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		$shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+		$shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 
 		$hide_settings          = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
@@ -303,7 +303,7 @@ class MainWP_Pages {
 		self::render_header( $shownPage, false );
 		?>
 		<?php if ( ! $hide_settings ) { ?>
-			<div class="mainwp-child-setting-tab settings" <?php echo ( 'settings' !== $shownPage ) ? $hide_style : ''; ?>>
+			<div class="mainwp-child-setting-tab settings" <?php echo esc_attr( 'settings' !== $shownPage ? $hide_style : '' ); ?>>
 				<?php $this->render_settings(); ?>
 			</div>
 		<?php } ?>
@@ -313,7 +313,7 @@ class MainWP_Pages {
 			$fsmethod = MainWP_Child_Server_Information_Base::get_file_system_method();
 			if ( 'direct' === $fsmethod ) { // to fix error some case of file system method is not direct.
 				?>
-			<div class="mainwp-child-setting-tab restore-clone" <?php echo ( 'restore-clone' !== $shownPage ) ? $hide_style : ''; ?>>
+			<div class="mainwp-child-setting-tab restore-clone" <?php echo esc_attr( 'restore-clone' !== $shownPage ? $hide_style : '' ); ?>>
 				<?php
 				if ( isset( $_SESSION['file'] ) ) {
 					MainWP_Clone_Page::render_restore();
@@ -331,13 +331,13 @@ class MainWP_Pages {
 		<?php } ?>
 
 		<?php if ( ! $hide_server_info ) { ?>
-			<div class="mainwp-child-setting-tab server-info" <?php echo ( 'server-info' !== $shownPage ) ? $hide_style : ''; ?>>
+			<div class="mainwp-child-setting-tab server-info" <?php echo esc_attr( 'server-info' !== $shownPage ? $hide_style : '' ); ?>>
 				<?php MainWP_Child_Server_Information::render_page(); ?>
 			</div>
 		<?php } ?>
 
 			<?php if ( ! $hide_connection_detail ) { ?>
-			<div class="mainwp-child-setting-tab connection-detail" <?php echo ( 'connection-detail' !== $shownPage ) ? $hide_style : ''; ?>>
+			<div class="mainwp-child-setting-tab connection-detail" <?php echo esc_attr( 'connection-detail' !== $shownPage ? $hide_style : '' ); ?>>
 					<?php MainWP_Child_Server_Information::render_connection_details(); ?>
 			</div>
 		<?php } ?>
@@ -354,7 +354,7 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
 	public static function render_header( $shownPage, $subpage = true ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! empty( $tab ) ) {
 			$shownPage = $tab;
@@ -430,7 +430,7 @@ class MainWP_Pages {
 		</style>
 
 		<div class="wrap">
-		<h2><i class="fa fa-file"></i> <?php echo ( null === self::$brandingTitle ? 'MainWP Child' : self::$brandingTitle ); ?></h2>
+		<h2><i class="fa fa-file"></i> <?php echo esc_html( null === self::$brandingTitle ? 'MainWP Child' : self::$brandingTitle ); ?></h2>
 		<div style="clear: both;"></div><br/>
 		<div class="mainwp-tabs" id="mainwp-tabs">
 			<?php if ( ! $hide_settings ) { ?>
@@ -439,7 +439,7 @@ class MainWP_Pages {
 				if ( 'settings' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
-" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
+" tab-slug="settings" href="<?php echo ( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#' ); ?>" style="margin-left: 0 !important;"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php if ( ! $hide_restore ) { ?>
 				<a class="nav-tab pos-nav-tab
@@ -447,7 +447,7 @@ class MainWP_Pages {
 				if ( 'restore-clone' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
-" tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo ( 0 !== (int) $sitesToClone ) ? esc_html__( 'Restore / Clone', 'mainwp-child' ) : esc_html__( 'Restore', 'mainwp-child' ); ?></a>
+" tab-slug="restore-clone" href="<?php echo esc_url( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#' ); ?>"><?php echo esc_html__( 0 !== (int) $sitesToClone ? 'Restore / Clone' : 'Restore', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php if ( ! $hide_server_info ) { ?>
 				<a class="nav-tab pos-nav-tab
@@ -455,7 +455,7 @@ class MainWP_Pages {
 				if ( 'server-info' === $shownPage ) {
 					echo 'nav-tab-active'; }
 				?>
-" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php esc_html_e( 'Server information', 'mainwp-child' ); ?></a>
+" tab-slug="server-info" href="<?php echo ( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#' ); ?>"><?php esc_html_e( 'Server information', 'mainwp-child' ); ?></a>
 			<?php } ?>
 						<?php if ( ! $hide_connection_detail ) { ?>
 				<a class="nav-tab pos-nav-tab
@@ -463,7 +463,7 @@ class MainWP_Pages {
 							if ( 'connection-detail' === $shownPage ) {
 								echo 'nav-tab-active'; }
 							?>
-" tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
+" tab-slug="connection-detail" href="<?php echo ( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#' ); ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
 			<?php } ?>
 			<?php
 			if ( isset( self::$subPages ) && is_array( self::$subPages ) ) {
@@ -474,7 +474,7 @@ class MainWP_Pages {
 					if ( $shownPage == $subPage['slug'] ) {
 						echo 'nav-tab-active'; }
 					?>
-" tab-slug="<?php echo esc_attr( $subPage['slug'] ); ?>" href="options-general.php?page=<?php echo rawurlencode( $subPage['page'] ); ?>"><?php echo esc_html( $subPage['title'] ); ?></a>
+" tab-slug="<?php echo esc_attr( $subPage['slug'] ); ?>" href="options-general.php?page=<?php echo esc_html( rawurlencode( $subPage['page'] ) ); ?>"><?php echo esc_html( $subPage['title'] ); ?></a>
 					<?php
 				}
 			}
@@ -524,7 +524,7 @@ class MainWP_Pages {
 	 * Render admin header.
 	 */
 	public function admin_head() {
-		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) {
+		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
 			?>
 			<style type="text/css">
 				.mainwp-postbox-actions-top {
@@ -557,6 +557,7 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function render_settings() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-settings' ) ) {
 			if ( isset( $_POST['requireUniqueSecurityId'] ) ) {
 				MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 8 ) );
@@ -564,7 +565,7 @@ class MainWP_Pages {
 				MainWP_Helper::update_option( 'mainwp_child_uniqueId', '' );
 			}
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		?>
 		<div class="postbox">
 			<h2 class="hndle"><span><?php esc_html_e( 'Connection settings', 'mainwp-child' ); ?></span></h2>
@@ -591,7 +592,7 @@ class MainWP_Pages {
 					<p class="submit" style="margin-top: 4em;">
 						<input type="submit" name="submit" id="submit" class="button button-primary button-hero" value="<?php esc_attr_e( 'Save changes', 'mainwp-child' ); ?>">
 					</p>
-					<input type="hidden" name="nonce" value="<?php echo wp_create_nonce( 'child-settings' ); ?>">
+					<input type="hidden" name="nonce" value="<?php echo esc_html( wp_create_nonce( 'child-settings' ) ); ?>">
 				</form>
 			</div>
 		</div>

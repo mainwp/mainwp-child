@@ -250,10 +250,11 @@ class MainWP_Backup {
 	 * @uses \MainWP\Child\MainWP_Clone::is_archive()
 	 */
 	public function backup_poll() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$fileNameUID = ( isset( $_POST['fileNameUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileNameUID'] ) ) : '' );
 		$fileName    = ( isset( $_POST['fileName'] ) ? wp_unslash( $_POST['fileName'] ) : '' );
 		$type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( 'full' === $type ) {
 			if ( '' !== $fileName ) {
 				$backupFile = $fileName;
@@ -318,8 +319,9 @@ class MainWP_Backup {
 	 * @see https://developer.wordpress.org/reference/classes/wp_filesystem_base/get_contents/
 	 */
 	public function backup_checkpid() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : 0;
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 
@@ -421,6 +423,7 @@ class MainWP_Backup {
 			}
 		}
 
+		// phpcs:disable WordPress.Security.NonceVerification
 		$fileName = isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
 		$type     = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 
@@ -453,7 +456,7 @@ class MainWP_Backup {
 		if ( $write ) {
 			MainWP_Helper::write( $information );
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $information;
 	}
 
@@ -468,6 +471,7 @@ class MainWP_Backup {
 	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 */
 	public function backup_full( $fileName ) {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() );
 		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
 		$uploadDir  = MainWP_Helper::get_mainwp_dir();
@@ -550,6 +554,7 @@ class MainWP_Backup {
 		$pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : false;
 
 		$append = ( isset( $_POST['append'] ) && ( '1' == $_POST['append'] ) );
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $this->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
 	}
 

@@ -75,7 +75,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return string $agent Current user agent.
 	 */
 	public function current_agent( $agent ) {
-		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) ) {
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			$agent = '';
 		}
 		return $agent;
@@ -148,8 +148,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		}
 
 		try {
-			if ( isset( $_POST['mwp_action'] ) ) {
-				$mwp_action = ! empty( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : '';
+			$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+			if ( ! empty( $mwp_action ) ) {
 				switch ( $mwp_action ) {
 					case 'save_sucuri_stream':
 						$information = $this->save_sucuri_stream();
@@ -178,10 +178,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return bool true|false.
 	 */
 	public function save_sucuri_stream() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$scan_data   = isset( $_POST['scan_data'] ) ? wp_unslash( $_POST['scan_data'] ) : '';
 		$scan_time   = isset( $_POST['scan_time'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_time'] ) ) : 0;
 		$scan_status = isset( $_POST['scan_status'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_status'] ) ) : '';
 		$result      = isset( $_POST['result'] ) ? wp_unslash( $_POST['result'] ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification
 		do_action( 'mainwp_reports_sucuri_scan', $result, $scan_status, $scan_data, $scan_time );
 		return true;
 	}
@@ -192,12 +194,13 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @return bool true|false.
 	 */
 	public function save_backup_stream() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$destination = isset( $_POST['destination'] ) ? wp_unslash( $_POST['destination'] ) : '';
 		$message     = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : '';
 		$size        = isset( $_POST['size'] ) ? wp_unslash( $_POST['size'] ) : '';
 		$status      = isset( $_POST['status'] ) ? wp_unslash( $_POST['status'] ) : '';
 		$type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		do_action( 'mainwp_backup', $destination, $message, $size, $status, $type );
 		return true;
 	}
@@ -209,6 +212,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 */
 	public function get_stream() {
 
+		// phpcs:disable WordPress.Security.NonceVerification
 		$sections = isset( $_POST['sections'] ) ? json_decode( base64_decode( wp_unslash( $_POST['sections'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $sections ) ) {
 			$sections = array();
@@ -221,6 +225,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
 		unset( $_POST['sections'] );
 		unset( $_POST['other_tokens'] );
+
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$args    = $this->get_stream_get_params( $other_tokens, $sections );
 		$records = \wp_mainwp_stream_get_instance()->db->query( $args );
@@ -250,7 +256,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
 	 */
 	public function set_showhide() {
-		$hide = isset( $_POST['showhide'] ) && ( 'hide' === $_POST['showhide'] ) ? 'hide' : '';
+		$hide = MainWP_System::instance()->validate_params( 'showhide' );
 		MainWP_Child_Branding::instance()->save_branding_options( 'hide_child_reports', $hide );
 		$information['result'] = 'SUCCESS';
 
@@ -311,7 +317,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 */
 	public function remove_update_nag( $value ) {
 
-		if ( isset( $_POST['mainwpsignature'] ) ) {
+		if ( MainWP_Helper::is_dashboard_request() ) {
 			return $value;
 		}
 

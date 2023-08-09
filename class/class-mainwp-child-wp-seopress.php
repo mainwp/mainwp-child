@@ -61,8 +61,7 @@ class MainWP_Child_WP_Seopress {
 			MainWP_Helper::write( $information );
 		}
 
-		$mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-
+		$mwp_action = MainWP_System::instance()->validate_params( 'action' );
 		if ( ! empty( $mwp_action ) && method_exists( $this, $mwp_action ) ) {
 			$information = $this->{$mwp_action}();
 			MainWP_Helper::write( $information );
@@ -107,6 +106,7 @@ class MainWP_Child_WP_Seopress {
 	 * @used-by MainWP_Child_WP_Seopress::action() Fire off certain SEOPRESS plugin actions.
 	 */
 	public function import_settings() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['settings'] ) ) {
 			if ( ! function_exists( 'seopress_do_import_settings' ) ) {
 				$information['error'] = esc_html__( 'Settings could not be imported. Missing function `seopress_do_import_settings`', 'mainwp-child' );
@@ -121,6 +121,7 @@ class MainWP_Child_WP_Seopress {
 
 			return $information;
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**
@@ -133,11 +134,11 @@ class MainWP_Child_WP_Seopress {
 			$information['error'] = esc_html__( 'Settings could not be saved. Missing function `seopress_mainwp_save_settings`', 'mainwp-child' );
 			return $information;
 		}
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['settings'] ) ) {
 			$settings = $_POST['settings'] ?? array();
 			$option   = sanitize_text_field( $_POST['option'] ?? '' );
-
+			// phpcs:enable WordPress.Security.NonceVerification
 			if ( empty( $option ) ) {
 				$information['error'] = esc_html__( 'Settings could not be saved. Missing option name.', 'mainwp-child' );
 				return $information;
@@ -178,7 +179,9 @@ class MainWP_Child_WP_Seopress {
 			return $information;
 		}
 
+		// phpcs:disable WordPress.Security.NonceVerification
 		$licence = $_POST['licence'] ?? array();
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$licence = $this->sanitize_options( $licence );
 

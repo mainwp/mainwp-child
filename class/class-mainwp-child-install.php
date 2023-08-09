@@ -79,8 +79,8 @@ class MainWP_Child_Install {
 		 * @global object
 		 */
 		global $mainWPChild;
-
-		$action  = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		// phpcs:disable WordPress.Security.NonceVerification
+		$action  = MainWP_System::instance()->validate_params( 'action' );
 		$plugins = isset( $_POST['plugin'] ) ? explode( '||', wp_unslash( $_POST['plugin'] ) ) : '';
 
 		if ( 'activate' === $action ) {
@@ -111,14 +111,26 @@ class MainWP_Child_Install {
 			}
 		} elseif ( 'delete' === $action ) {
 			$this->delete_plugins( $plugins );
+		} elseif ( 'changelog_info' === $action ) {
+			include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
+			$api                   = plugins_api(
+				'plugin_information',
+				array(
+					'slug' => sanitize_key( wp_unslash( $_POST['slug'] ) ),
+				)
+			);
+			$information['update'] = $api;
 		} else {
 			$information['status'] = 'FAIL';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
-		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+		if ( 'changelog_info' !== $action ) {
+			$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+		}
 		MainWP_Helper::write( $information );
 	}
 
@@ -205,10 +217,10 @@ class MainWP_Child_Install {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function theme_action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-
-		$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		// phpcs:disable WordPress.Security.NonceVerification
+		$action = MainWP_System::instance()->validate_params( 'action' );
 		$theme  = isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : '';
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
 			$theTheme = wp_get_theme( $theme );
@@ -301,7 +313,7 @@ class MainWP_Child_Install {
 	public function install_plugin_theme() {
 
 		MainWP_Helper::check_wp_filesystem();
-
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['type'] ) || ! isset( $_POST['url'] ) || ( 'plugin' !== $_POST['type'] && 'theme' !== $_POST['type'] ) || '' === $_POST['url'] ) {
 			MainWP_Helper::instance()->error( esc_html__( 'Plugin or theme not specified, or missing required data. Please reload the page and try again.', 'mainwp-child' ) );
 		}
@@ -354,6 +366,7 @@ class MainWP_Child_Install {
 			$basename                     = basename( rawurldecode( $url ) );
 			$install_results[ $basename ] = is_array( $result ) && isset( $result['destination_name'] ) ? true : false;
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$information['installation']     = 'SUCCESS';
 		$information['destination_name'] = $result['destination_name'];
@@ -418,6 +431,7 @@ class MainWP_Child_Install {
 			'success' => 1,
 			'action'  => 'install',
 		);
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
 			$path     = $result['destination'];
 			$fileName = '';
@@ -456,6 +470,7 @@ class MainWP_Child_Install {
 			do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
 			do_action( 'mainwp_child_install_plugin_theme', $args );
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**
@@ -476,6 +491,7 @@ class MainWP_Child_Install {
 	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
 	private function try_second_install( $url, $installer ) {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$result = $installer->run(
 			array(
 				'package'           => $url,
@@ -485,6 +501,7 @@ class MainWP_Child_Install {
 				'hook_extra'        => array(),
 			)
 		);
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( is_wp_error( $result ) ) {
 			$err_code = $result->get_error_code();
 			if ( $result->get_error_data() && is_string( $result->get_error_data() ) ) {

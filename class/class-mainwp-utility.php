@@ -23,6 +23,14 @@ class MainWP_Utility {
 	 */
 	public static $instance = null;
 
+
+	/**
+	 * Public variable to hold the mail from.
+	 *
+	 * @var mixed Default empty.
+	 */
+	public $mail_from = '';
+
 	/**
 	 * Method get_class_name()
 	 *
@@ -56,13 +64,14 @@ class MainWP_Utility {
 	 * @return void
 	 */
 	public function run_saved_snippets() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['action'] ) && isset( $_POST['mainwpsignature'] ) ) {
-			$action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+			$action = MainWP_System::instance()->validate_params( 'action' );
 			if ( 'run_snippet' === $action || 'save_snippet' === $action || 'delete_snippet' === $action ) {
 				return;
 			}
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( get_option( 'mainwp_ext_snippets_enabled' ) ) {
 			$snippets = get_option( 'mainwp_ext_code_snippets' );
 			if ( is_array( $snippets ) && count( $snippets ) > 0 ) {
@@ -155,7 +164,7 @@ class MainWP_Utility {
 	 * @uses \MainWP\Child\MainWP_Utility::handle_shutdown()
 	 */
 	public static function handle_fatal_error() {
-		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			register_shutdown_function( '\MainWP\Child\MainWP_Utility::handle_shutdown' );
 		}
 	}
@@ -171,9 +180,6 @@ class MainWP_Utility {
 	 */
 	public static function cron_active() {
 		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
-			return;
-		}
-		if ( empty( $_GET['mainwp_child_run'] ) || 'test' !== $_GET['mainwp_child_run'] ) {
 			return;
 		}
 		session_write_close();
@@ -248,7 +254,7 @@ class MainWP_Utility {
 
 		while ( ! feof( $handle ) ) {
 			$buffer = fread( $handle, $chunksize );
-			echo $buffer;
+			echo $buffer; // phpcs:ignore WordPress.Security.EscapeOutput
 			if ( ob_get_length() ) {
 				ob_flush();
 				flush();
@@ -626,7 +632,7 @@ class MainWP_Utility {
 		if ( session_id() ) {
 			session_write_close();
 		}
-		echo $output;
+		echo $output; // phpcs:ignore WordPress.Security.EscapeOutput
 		if ( ob_get_level() ) {
 			ob_end_flush();
 		}
@@ -710,6 +716,7 @@ class MainWP_Utility {
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
 	public function send_support_mail() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
 		$email   = $opts['support_email'];
 		$sub     = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : '';
@@ -743,11 +750,34 @@ class MainWP_Utility {
 			$mail .= "<p>Support Text:</p>\r\n\r\n";
 			$mail .= '<p>' . $content . "</p>\r\n\r\n";
 
+			if ( ! empty( $from ) ) {
+				$this->mail_from = $from;
+			}
+
+			add_filter( 'wp_mail_from', array( &$this, 'hook_wp_mail_from' ), 99 ); // to fix.
 			$this->send_wp_mail( $email, $subject, $mail, $headers );
+			remove_filter( 'wp_mail_from', array( &$this, 'hook_wp_mail_from' ), 99 );
 
 			return true;
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		return false;
+	}
+
+	/**
+	 * Method hook_wp_mail_from()
+	 *
+	 * Hook hook_wp_mail.
+	 *
+	 * @param mixed $from_name From email.
+	 *
+	 * @return mixed $from_name From email.
+	 */
+	public function hook_wp_mail_from( $from_name ) {
+		if ( ! empty( $from_name ) && ! empty( $this->mail_from ) ) {
+			$from_name = $this->mail_from;
+		}
+		return $from_name;
 	}
 
 	/**
@@ -770,6 +800,7 @@ class MainWP_Utility {
 
 		return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
 	}
+
 
 	/**
 	 * Method verify_nonce_without_session()
@@ -805,6 +836,131 @@ class MainWP_Utility {
 			return 2;
 		}
 
+		return false;
+	}
+
+
+	/**
+	 * Method hook_get_ping_nonce()
+	 *
+	 * Get mainwp ping nonce.
+	 *
+	 * @return string nonce.
+	 */
+	public static function hook_get_ping_nonce() {
+		return get_option( 'mainwp_child_pingnonce' );
+	}
+
+	/**
+	 * Method hook_create_nonce_action()
+	 *
+	 * Create nonce without session and user id.
+	 *
+	 * @param bool  $false Boolean value, it should always be FALSE.
+	 * @param mixed $action Action to perform.
+	 *
+	 * @return string Custom nonce.
+	 */
+	public static function hook_create_nonce_action( $false, $action = - 1 ) {
+		$data = array(
+			'action' => $action,
+			'nonce'  => self::create_nonce_action( $action ),
+		);
+		return rawurlencode( wp_json_encode( $data ) );
+	}
+
+	/**
+	 * Method create_nonce_action()
+	 *
+	 * Create nonce without session and user id.
+	 *
+	 * @param mixed $action Action to perform.
+	 *
+	 * @return string Custom nonce.
+	 */
+	public static function create_nonce_action( $action = - 1 ) {
+		$i = wp_nonce_tick();
+		return substr( wp_hash( $i . '|' . $action, 'nonce' ), - 12, 10 );
+	}
+
+
+	/**
+	 * Method hook_verify_authed_action_nonce()
+	 *
+	 * Verify nonce without session and user id.
+	 *
+	 * @param bool   $false Boolean value, it should always be FALSE.
+	 * @param string $act_nonce Nonce action to verify.
+	 *
+	 * @return mixed If verified return 1 or 2, if not return false.
+	 */
+	public static function hook_verify_authed_action_nonce( $false, $act_nonce = '' ) {
+		return self::verify_action_nonce( $act_nonce );
+	}
+
+	/**
+	 * Method verify_action_nonce()
+	 *
+	 * Verify nonce without session and user id.
+	 *
+	 * @param string $act_nonce Nonce action to verify.
+	 *
+	 * @return mixed If verified return 1 or 2, if not return false.
+	 */
+	public static function verify_action_nonce( $act_nonce = '' ) {
+
+		if ( empty( $act_nonce ) ) {
+			return false;
+		}
+
+		$data = rawurldecode( wp_unslash( $act_nonce ) );
+		if ( empty( $data ) || ! is_string( $data ) ) {
+			return false;
+		}
+
+		$data = json_decode( $data, true );
+
+		if ( ! is_array( $data ) || empty( $data['action'] ) || empty( $data['nonce'] ) ) {
+			return false;
+		}
+
+		return self::verify_authed_nonce( $data['nonce'], $data['action'] );
+	}
+
+	/**
+	 * Method verify_authed_nonce()
+	 *
+	 * Verify nonce without session and user id.
+	 *
+	 * @param string $nonce Nonce to verify.
+	 * @param mixed  $action Action to perform.
+	 *
+	 * @return mixed If verified return 1 or 2, if not return false.
+	 */
+	public static function verify_authed_nonce( $nonce, $action = - 1 ) {
+		$nonce = (string) $nonce;
+
+		if ( empty( $nonce ) ) {
+			return false;
+		}
+
+		$user = wp_get_current_user();
+		$uid  = (int) $user->ID;
+		if ( ! $uid ) {
+			return false;
+		}
+
+		$i = wp_nonce_tick();
+
+		$expected = substr( wp_hash( $i . '|' . $action, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 1;
+		}
+
+		$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action, 'nonce' ), - 12, 10 );
+		if ( hash_equals( $expected, $nonce ) ) {
+			return 2;
+		}
 		return false;
 	}
 
@@ -1112,5 +1268,35 @@ class MainWP_Utility {
 		}
 
 		return $content;
+	}
+
+	/**
+	 * Encrypt or Decrypt.
+	 *
+	 * @param string $str  String input.
+	 * @param bool   $encrypt True to encrypt, FAlSE to decrypt.
+	 *
+	 * @return string Encrypted string.
+	 */
+	public static function encrypt_decrypt( $str, $encrypt = true ) {
+		$pass = wp_salt( 'auth' );
+		if ( $encrypt ) {
+			$pass = str_split( str_pad( '', strlen( $str ), $pass, STR_PAD_RIGHT ) );
+			$stra = str_split( $str );
+			foreach ( $stra as $k => $v ) {
+				$tmp        = ord( $v ) + ord( $pass[ $k ] );
+				$stra[ $k ] = chr( 255 < $tmp ? ( $tmp - 256 ) : $tmp );
+			}
+			return base64_encode( join( '', $stra ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode used for http encoding compatible.
+		} else {
+			$str  = base64_decode( $str ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode used for http encoding compatible.
+			$pass = str_split( str_pad( '', strlen( $str ), $pass, STR_PAD_RIGHT ) );
+			$stra = str_split( $str );
+			foreach ( $stra as $k => $v ) {
+				$tmp        = ord( $v ) - ord( $pass[ $k ] );
+				$stra[ $k ] = chr( 0 > $tmp ? ( $tmp + 256 ) : $tmp );
+			}
+			return join( '', $stra );
+		}
 	}
 }

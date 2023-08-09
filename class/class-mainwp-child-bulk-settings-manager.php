@@ -69,7 +69,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 		register_shutdown_function( '\MainWP\Child\mainwp_bulk_settings_manager_handle_fatal_error' );
 
-		$mwp_action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		$mwp_action = MainWP_System::instance()->validate_params( 'action' );
 		switch ( $mwp_action ) {
 			case 'skeleton_key_visit_site_as_browser': // deprecated.
 				$information = $this->visit_site_as_browser();
@@ -96,6 +96,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
 	 */
 	protected function visit_site_as_browser() { // phpcs:ignore -- ignore complex method notice.
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['url'] ) || ! is_string( wp_unslash( $_POST['url'] ) ) || strlen( wp_unslash( $_POST['url'] ) ) < 2 ) {
 			return array( 'error' => 'Missing url' );
 		}
@@ -151,6 +152,8 @@ class MainWP_Child_Bulk_Settings_Manager {
 		if ( isset( $_REQUEST['skip_invalid_nonce'] ) && ! empty( $_REQUEST['skip_invalid_nonce'] ) ) {
 			$skip_invalid_nonce = true;
 		}
+
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ( isset( $args['get'] ) ) {
 			$get_args = $args['get'];
@@ -270,7 +273,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 * @return array|bool|string[] Result array ok|error or FALSE or $whitelist_options[].
 	 */
 	public function save_settings() {
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! is_array( $settings ) || empty( $settings ) ) {
 			return array( 'error' => esc_html__( 'Invalid data. Please check and try again.', 'mainwp-child' ) );

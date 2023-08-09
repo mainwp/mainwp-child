@@ -63,7 +63,8 @@ class MainWP_Child_Users {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function user_action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		$action    = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
+		// phpcs:disable WordPress.Security.NonceVerification
+		$action    = MainWP_System::instance()->validate_params( 'action' );
 		$extra     = isset( $_POST['extra'] ) ? wp_unslash( $_POST['extra'] ) : '';
 		$userId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$user_pass = isset( $_POST['user_pass'] ) ? wp_unslash( $_POST['user_pass'] ) : '';
@@ -127,6 +128,7 @@ class MainWP_Child_Users {
 				$information['users'] = $this->get_all_users_int( 500 );
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Helper::write( $information );
 	}
 
@@ -183,7 +185,9 @@ class MainWP_Child_Users {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function get_all_users( $return = false ) {
-		$roles    = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
+		// phpcs:disable WordPress.Security.NonceVerification
+		$roles = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
+		// phpcs:enable WordPress.Security.NonceVerification
 		$allusers = array();
 		if ( is_array( $roles ) ) {
 			foreach ( $roles as $role ) {
@@ -220,6 +224,7 @@ class MainWP_Child_Users {
 		$search_user_role = array();
 		$check_users_role = false;
 
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['role'] ) && ! empty( $_POST['role'] ) ) {
 			$check_users_role = true;
 			$all_users_role   = $this->get_all_users( true );
@@ -273,7 +278,7 @@ class MainWP_Child_Users {
 				}
 			}
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Helper::write( $allusers );
 	}
 
@@ -488,6 +493,7 @@ class MainWP_Child_Users {
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function new_admin_password() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$new_password = isset( $_POST['new_password'] ) ? base64_decode( wp_unslash( $_POST['new_password'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$user  = null;
@@ -495,7 +501,7 @@ class MainWP_Child_Users {
 		if ( ! empty( $uname ) ) {
 			$user = get_user_by( 'login', $uname );
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( empty( $user ) ) {
 			MainWP_Helper::write( array() );
 		}
@@ -527,6 +533,7 @@ class MainWP_Child_Users {
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function new_user() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$new_user      = isset( $_POST['new_user'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_user'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$send_password = isset( $_POST['send_password'] ) ? sanitize_text_field( wp_unslash( $_POST['send_password'] ) ) : '';
 		if ( isset( $new_user['role'] ) ) {
@@ -534,6 +541,7 @@ class MainWP_Child_Users {
 				$new_user['role'] = 'subscriber';
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$new_user_id = wp_insert_user( $new_user );
 
