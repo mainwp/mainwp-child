@@ -984,7 +984,7 @@ class MainWP_Child_Callable {
 		$backupdir = $dirs[0];
 		// phpcs:disable WordPress.Security.NonceVerification
 		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : '';
-		// phpcs:ignore WordPress.Security.NonceVerification
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ( file_exists( $backupdir . $file ) ) {
 			unlink( $backupdir . $file );

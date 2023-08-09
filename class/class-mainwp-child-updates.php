@@ -438,9 +438,11 @@ class MainWP_Child_Updates {
 		add_filter( 'pre_site_transient_update_themes', array( $this, 'set_cached_update_themes' ) );
 
 		$information['theme_updates'] = $this->upgrade_get_theme_updates();
-		$themes                       = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
-		$premiumThemes                = array();
-		$premiumUpdates               = get_option( 'mainwp_premium_updates' );
+		// phpcs:disable WordPress.Security.NonceVerification
+		$themes = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array();
+		// phpcs:enable WordPress.Security.NonceVerification
+		$premiumThemes  = array();
+		$premiumUpdates = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
 			$newThemes = array();
 			foreach ( $themes as $theme ) {

@@ -301,13 +301,13 @@ class MainWP_Clone_Page {
 					<?php
 						$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
 					if ( '' != $branding_title ) {
-						$branding_msg = 'If you have a FULL backup created by basic ' . esc_html( stripslashes( $branding_title ) ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
+						$branding_msg = 'If you have a FULL backup created by basic ' . stripslashes( $branding_title ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
 					} else {
 						$branding_msg = esc_html__( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
 					}
 					?>
 						<em>
-							<?php echo $branding_msg; ?><br/>
+							<?php echo esc_html( $branding_msg ); ?><br/>
 							<?php esc_html_e( 'A database only backup will not work.', 'mainwp-child' ); ?>
 						</em><br/><br/>
 					<form action="<?php echo esc_attr( admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone&upload=yes' ) ); ?>" method="post" enctype="multipart/form-data">
@@ -342,6 +342,7 @@ class MainWP_Clone_Page {
 	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	private static function render_clone_from_server() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 		$url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
@@ -356,7 +357,7 @@ class MainWP_Clone_Page {
 				$current_dir = get_option( 'mainwp_child_clone_from_server_last_folder' ) . $current_dir;
 			}
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( ! is_readable( $current_dir ) ) {
 			$current_dir = WP_CONTENT_DIR;
 		}

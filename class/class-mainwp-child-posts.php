@@ -380,6 +380,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function new_post() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$new_post            = isset( $_POST['new_post'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_post'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$post_custom         = isset( $_POST['post_custom'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_custom'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		$post_category       = isset( $_POST['post_category'] ) ? rawurldecode( base64_decode( wp_unslash( $_POST['post_category'] ) ) ) : null; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -391,7 +392,7 @@ class MainWP_Child_Posts {
 		if ( isset( $_POST['featured_image_data'] ) ) {
 			$others['featured_image_data'] = ! empty( $_POST['featured_image_data'] ) ? json_decode( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
 
 		if ( is_array( $res ) && isset( $res['error'] ) ) {

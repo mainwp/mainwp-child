@@ -112,7 +112,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 						return false;
 					}
 					// Invalid nonce.
-					die( '<mainwp>' . base64_encode( wp_json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification -- base64_encode function is used for http encode compatible..
+					die( '<mainwp>' . base64_encode( wp_json_encode( array( 'error' => 'Invalid nonce! Try to use: ' . $action . '<br/>Trace: ' . $stackTrace ) ) ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification,WordPress.Security.EscapeOutput -- base64_encode function is used for http encode compatible..
 				}
 			endif;
 		}

@@ -108,6 +108,7 @@ class MainWP_WordPress_SEO {
 	 * @throws \Exception Error message.
 	 */
 	public function import_settings() {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['file_url'] ) ) {
 			$file_url       = ! empty( $_POST['file_url'] ) ? base64_decode( wp_unslash( $_POST['file_url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
 			$temporary_file = '';
@@ -161,7 +162,7 @@ class MainWP_WordPress_SEO {
 				$information['error'] = $e->getMessage();
 			}
 		}
-
+		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Helper::write( $information );
 	}
 

@@ -254,6 +254,7 @@ class MainWP_Connect {
 	 * @return int|bool $auth  Returns 1 if authenticated, false if authentication fails.
 	 */
 	public function auth( $signature, $func, $nonce ) {
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( empty( $signature ) || ! isset( $func ) || ! get_option( 'mainwp_child_pubkey' ) ) {
 			$auth = false;
 		} else {
@@ -266,6 +267,7 @@ class MainWP_Connect {
 				$auth = false;
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $auth;
 	}
 
@@ -282,7 +284,9 @@ class MainWP_Connect {
 	 * @return bool Connect valid or not.
 	 */
 	public static function connect_verify( $data, $signature, $pubkey, $alg ) {
+		// phpcs:disable WordPress.Security.NonceVerification
 		$use_seclib = isset( $_REQUEST['verifylib'] ) && ! empty( $_REQUEST['verifylib'] ) ? true : false;
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( $use_seclib ) {
 			return MainWP_Connect_Lib::verify( $data, $signature, $pubkey );
 		} else {
@@ -353,8 +357,8 @@ class MainWP_Connect {
 	 *
 	 * Check if need to deactive/active child plugin.
 	 *
-	 * @throws Exception|\Exception Error exception.
 	 * @param int $alg_new Algo value.
+	 * @throws Exception|\Exception Error exception.
 	 */
 	public static function check_to_requires_reconnect_for_sha1_safe( $alg_new ) {
 		$child_sign_algo = get_option( 'mainwp_child_openssl_sign_algo', false );
@@ -378,6 +382,8 @@ class MainWP_Connect {
 	 * Method maybe_update_child_sign_algo()
 	 *
 	 * Check if need to update child sign algo settings.
+	 *
+	 * @param int $alg_new Algo value.
 	 */
 	public static function maybe_update_child_sign_algo( $alg_new ) {
 
