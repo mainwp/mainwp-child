@@ -205,7 +205,7 @@ class MainWP_Child_Jetpack_Protect {
 	 * @return array $return connect result.
 	 */
 	public function set_connect_disconnect() {
-		$status = isset( $_POST['status'] ) ? $_POST['status'] : ''; // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		$status = isset( $_POST['status'] ) ? $_POST['status'] : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( 'connect' === $status ) {
 			MainWP_Helper::instance()->check_methods( $this->connection, array( 'set_plugin_instance', 'try_registration', 'is_connected' ) );
 

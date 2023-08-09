@@ -858,7 +858,7 @@ class MainWP_Connect {
 	 */
 	public function check_compatible_connect_info( $logged_in ) {
 		global $current_user;
-		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! empty( $connect_user ) && $current_user->user_login == $connect_user ) {
 			$connected_admin = get_option( 'mainwp_child_connected_admin', '' );
 			if ( empty( $connected_admin ) ) {

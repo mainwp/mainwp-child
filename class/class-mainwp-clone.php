@@ -855,7 +855,7 @@ class MainWP_Clone {
 	 */
 	public static function permalink_changed( $action ) {
 		if ( 'update-permalink' === $action ) {
-			if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified
+			if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) || isset( $_POST['tag_base'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 				delete_option( 'mainwp_child_clone_permalink' );
 				delete_option( 'mainwp_child_restore_permalink' );
 			}

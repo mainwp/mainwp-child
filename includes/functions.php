@@ -4,7 +4,8 @@
  *
  * @package MainWP/Child
  */
-// phpcs:disable WordPress.Security.NonceVerification
+
+ // phpcs:disable WordPress.Security.NonceVerification
 if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ) {
 	$bulk_settings_manageruse_nonce_key  = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
 	$bulk_settings_manageruse_nonce_hmac = ! empty( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ? wp_unslash( $_GET['bulk_settings_manageruse_nonce_hmac'] ) : '';

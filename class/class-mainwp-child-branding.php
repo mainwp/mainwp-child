@@ -476,7 +476,7 @@ class MainWP_Child_Branding {
 
 		add_filter( 'map_meta_cap', array( $this, 'branding_map_meta_cap' ), 10, 5 );
 
-		if ( 'T' === $opts['disable_change'] && ! MainWP_Helper::is_dashboard_request() ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		if ( 'T' === $opts['disable_change'] && ! MainWP_Helper::is_dashboard_request() ) { // phpcs:ignore WordPress.Security.NonceVerification
 
 			// Disable the WordPress plugin update notifications.
 			remove_action( 'load-update-core.php', 'wp_update_plugins' );

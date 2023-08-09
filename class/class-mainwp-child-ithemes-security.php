@@ -685,7 +685,7 @@ class MainWP_Child_IThemes_Security {
         /** @global array $itsec_globals itsec globals. */
 		global $itsec_globals;
 
-		$ip       = isset( $_POST['ip'] ) ? sanitize_text_field( wp_unslash( $_POST['ip'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		$ip       = isset( $_POST['ip'] ) ? sanitize_text_field( wp_unslash( $_POST['ip'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		$add_temp = false;
 		$temp_ip  = get_site_option( 'itsec_temp_whitelist_ip' );
 		if ( false !== $temp_ip ) {
@@ -980,7 +980,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function admin_user() {
 
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! is_array( $settings ) ) {
 			$settings = array();
@@ -1198,7 +1198,7 @@ class MainWP_Child_IThemes_Security {
 		$str_error = '';
 		$return    = array();
 
-		if ( isset( $_POST['change_prefix'] ) && 'yes' === $_POST['change_prefix'] ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		if ( isset( $_POST['change_prefix'] ) && 'yes' === $_POST['change_prefix'] ) { // phpcs:ignore WordPress.Security.NonceVerification
 			$result = \ITSEC_Database_Prefix_Utility::change_database_prefix();
 			$return = $result['errors'];
 			if ( is_array( $result['errors'] ) ) {
@@ -1468,7 +1468,7 @@ class MainWP_Child_IThemes_Security {
 			require \ITSEC_Core::get_core_dir() . '/core/class-itsec-lib.php';
 		}
 
-		$lockout_ids = array_map( 'sanitize_text_field', wp_unslash( $_POST['lockout_ids'] ) ); // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		$lockout_ids = array_map( 'sanitize_text_field', wp_unslash( $_POST['lockout_ids'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! is_array( $lockout_ids ) ) {
 			$lockout_ids = array();
 		}
@@ -1510,7 +1510,7 @@ class MainWP_Child_IThemes_Security {
      */
     public function update_module_status() {
 
-		$active_modules = isset( $_POST['active_modules'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['active_modules'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		$active_modules = isset( $_POST['active_modules'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['active_modules'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! is_array( $active_modules ) ) {
 			$active_modules = array();

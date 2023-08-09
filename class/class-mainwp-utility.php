@@ -164,7 +164,7 @@ class MainWP_Utility {
 	 * @uses \MainWP\Child\MainWP_Utility::handle_shutdown()
 	 */
 	public static function handle_fatal_error() {
-		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			register_shutdown_function( '\MainWP\Child\MainWP_Utility::handle_shutdown' );
 		}
 	}
@@ -866,7 +866,7 @@ class MainWP_Utility {
 			'action' => $action,
 			'nonce'  => self::create_nonce_action( $action ),
 		);
-		return base64_encode( wp_json_encode( $data ) );
+		return rawurlencode( wp_json_encode( $data ) );
 	}
 
 	/**
@@ -913,7 +913,7 @@ class MainWP_Utility {
 			return false;
 		}
 
-		$data = base64_decode( $act_nonce );
+		$data = rawurldecode( wp_unslash( $act_nonce ) );
 		if ( empty( $data ) || ! is_string( $data ) ) {
 			return false;
 		}
@@ -1274,7 +1274,6 @@ class MainWP_Utility {
 	 * Encrypt or Decrypt.
 	 *
 	 * @param string $str  String input.
-	 * @param string $pass String.
 	 * @param bool   $encrypt True to encrypt, FAlSE to decrypt.
 	 *
 	 * @return string Encrypted string.

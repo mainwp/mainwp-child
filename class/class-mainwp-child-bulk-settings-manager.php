@@ -273,7 +273,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 * @return array|bool|string[] Result array ok|error or FALSE or $whitelist_options[].
 	 */
 	public function save_settings() {
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification -- verified
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! is_array( $settings ) || empty( $settings ) ) {
 			return array( 'error' => esc_html__( 'Invalid data. Please check and try again.', 'mainwp-child' ) );

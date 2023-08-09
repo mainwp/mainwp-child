@@ -103,7 +103,7 @@ class MainWP_Child_Keys_Manager {
 		$encryptedValue = $iv . $ciphertext . $tag;
 
 		// Encode the encrypted value using base64 for storage.
-		$encodedValue = base64_encode( $encryptedValue );
+		$encodedValue = base64_encode( $encryptedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe values.
 
 		return $encodedValue;
 	}
@@ -122,7 +122,7 @@ class MainWP_Child_Keys_Manager {
 		$key = $this->get_key_val();
 
 		// Decode the base64 encoded value.
-		$encryptedValue = base64_decode( $encodedValue );
+		$encryptedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
 
 		// Extract the IV, ciphertext, and tag.
 		$iv         = substr( $encryptedValue, 0, 16 );
@@ -140,7 +140,7 @@ class MainWP_Child_Keys_Manager {
 		$aes->setTag( $tag );
 
 		// Decrypt the value.
-		 $keypass = $aes->decrypt( $ciphertext );
+		$keypass = $aes->decrypt( $ciphertext );
 
 		return $keypass;
 	}
