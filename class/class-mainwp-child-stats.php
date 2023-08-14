@@ -486,15 +486,15 @@ class MainWP_Child_Stats {
 
 		$theme_name               = wp_get_theme()->get( 'Name' );
 		$information['site_info'] = array(
-			'wpversion'               => $wp_version,
-			'debug_mode'              => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
-			'phpversion'              => phpversion(),
-			'child_version'           => MainWP_Child::$version,
-			'memory_limit'            => MainWP_Child_Server_Information::get_php_memory_limit(),
-			'mysql_version'           => MainWP_Child_Server_Information::get_my_sql_version(),
-			'db_size'                 => MainWP_Child_Server_Information_Base::get_db_size(),
-			'themeactivated'          => $theme_name,
-			'ip'                      => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
+			'wpversion'      => $wp_version,
+			'debug_mode'     => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
+			'phpversion'     => phpversion(),
+			'child_version'  => MainWP_Child::$version,
+			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
+			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
+			'db_size'        => MainWP_Child_Server_Information_Base::get_db_size(),
+			'themeactivated' => $theme_name,
+			'ip'             => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
 		);
 	}
 
@@ -954,8 +954,14 @@ class MainWP_Child_Stats {
 		$status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
+		$not_int     = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
 		// phpcs:enable WordPress.Security.NonceVerification
-		$rslt = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
+
+		$rslt         = array();
+		$rslt['data'] = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
+		if ( $not_int && empty( $rslt['data'] ) ) {
+			$rslt['installed_themes'] = $this->get_all_themes_int( false ); // to list installed themes.
+		}
 		MainWP_Helper::write( $rslt );
 	}
 
@@ -1007,6 +1013,9 @@ class MainWP_Child_Stats {
 			}
 		}
 
+		$multi_kws = explode( ',', $keyword );
+		$multi_kws = array_filter( array_map( 'trim', $multi_kws ) );
+
 		$results = array();
 
 		foreach ( $rslt as $out ) {
@@ -1016,17 +1025,17 @@ class MainWP_Child_Stats {
 			if ( ! $filter ) {
 				if ( '' == $keyword ) {
 					$get_it = true;
-				} elseif ( stristr( $out['title'], $keyword ) ) {
+				} elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
 					$get_it = true;
-				} elseif ( $get_un_criteria ) {
+				} elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
 					$get_it = true;
 				}
 			} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
 				if ( '' == $keyword ) {
 					$get_it = true;
-				} elseif ( stristr( $out['title'], $keyword ) ) {
+				} elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
 					$get_it = true;
-				} elseif ( $get_un_criteria ) {
+				} elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
 					$get_it = true;
 				}
 			}
@@ -1052,8 +1061,14 @@ class MainWP_Child_Stats {
 		$status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
+		$not_int     = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
 		// phpcs:enable WordPress.Security.NonceVerification
-		$rslt = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
+
+		$rslt         = array();
+		$rslt['data'] = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
+		if ( $not_int && empty( $rslt['data'] ) ) {
+			$rslt['installed_plugins'] = $this->get_all_plugins_int( false ); // to list installed plugins.
+		}
 		MainWP_Helper::write( $rslt );
 	}
 
@@ -1111,6 +1126,9 @@ class MainWP_Child_Stats {
 			}
 		}
 
+		$multi_kws = explode( ',', $keyword );
+		$multi_kws = array_filter( array_map( 'trim', $multi_kws ) );
+
 		$results = array();
 
 		foreach ( $rslt as $out ) {
@@ -1120,17 +1138,17 @@ class MainWP_Child_Stats {
 			if ( ! $filter ) {
 				if ( '' == $keyword ) {
 					$get_it = true;
-				} elseif ( stristr( $out['name'], $keyword ) ) {
+				} elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
 					$get_it = true;
-				} elseif ( $get_un_criteria ) {
+				} elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
 					$get_it = true;
 				}
 			} elseif ( ( ( 'active' == $status ) ? 1 : 0 ) == $out['active'] ) {
 				if ( '' == $keyword ) {
 					$get_it = true;
-				} elseif ( stristr( $out['name'], $keyword ) ) {
+				} elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
 					$get_it = true;
-				} elseif ( $get_un_criteria ) {
+				} elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
 					$get_it = true;
 				}
 			}
@@ -1144,6 +1162,26 @@ class MainWP_Child_Stats {
 		}
 
 		return $results;
+	}
+
+	/**
+	 * Find for multi keywords.
+	 *
+	 * @param string $name_str string find on.
+	 * @param array  $words Array string input.
+	 * @return bool True|False.
+	 */
+	public function multi_find_keywords( $name_str, $words = array() ) {
+		if ( ! is_array( $words ) ) {
+			return false;
+		}
+		foreach ( $words as $word ) {
+			if ( stristr( $name_str, $word ) ) {
+				return true;
+
+			}
+		}
+		return false;
 	}
 
 	/**

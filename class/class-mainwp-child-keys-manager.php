@@ -119,30 +119,39 @@ class MainWP_Child_Keys_Manager {
 	 */
 	public function decrypt_string( $encodedValue ) {
 
-		$key = $this->get_key_val();
+		if ( empty( $encodedValue ) ) {
+			return '';
+		}
 
-		// Decode the base64 encoded value.
-		$encryptedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
+		try {
+			$key = $this->get_key_val();
 
-		// Extract the IV, ciphertext, and tag.
-		$iv         = substr( $encryptedValue, 0, 16 );
-		$ciphertext = substr( $encryptedValue, 16, -16 );
-		$tag        = substr( $encryptedValue, -16 );
+			// Decode the base64 encoded value.
+			$encryptedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
 
-		// Create AES instance.
-		$aes = new AES( 'gcm' ); // MODE_GCM.
-		$aes->setKey( $key );
+			// Extract the IV, ciphertext, and tag.
+			$iv         = substr( $encryptedValue, 0, 16 );
+			$ciphertext = substr( $encryptedValue, 16, -16 );
+			$tag        = substr( $encryptedValue, -16 );
 
-		$aes->setNonce( $iv );  // Nonces are only used in GCM mode.
-		$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
+			// Create AES instance.
+			$aes = new AES( 'gcm' ); // MODE_GCM.
+			$aes->setKey( $key );
 
-		// Set the authentication tag.
-		$aes->setTag( $tag );
+			$aes->setNonce( $iv );  // Nonces are only used in GCM mode.
+			$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
 
-		// Decrypt the value.
-		$keypass = $aes->decrypt( $ciphertext );
+			// Set the authentication tag.
+			$aes->setTag( $tag );
 
-		return $keypass;
+			// Decrypt the value.
+			$keypass = $aes->decrypt( $ciphertext );
+
+			return $keypass;
+		} catch ( \Exception $ex ) {
+			// error.
+		}
+		return '';
 	}
 
 }
