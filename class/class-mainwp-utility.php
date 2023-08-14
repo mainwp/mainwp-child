@@ -918,12 +918,12 @@ class MainWP_Utility {
 		if ( false !== stripos( $act_nonce, '\\\\\\' ) ) { // find "\\\" if existed.
 			$act_nonce = wp_unslash( $act_nonce ); // unslash twice.
 		}
-		$data = rawurldecode( wp_unslash( $act_nonce ) ); 
+		$data = rawurldecode( wp_unslash( $act_nonce ) );
 
 		if ( empty( $data ) || ! is_string( $data ) ) {
 			return false;
 		}
-		
+
 		$data = json_decode( $data, true );
 
 		if ( ! is_array( $data ) || empty( $data['action'] ) || empty( $data['nonce'] ) ) {
