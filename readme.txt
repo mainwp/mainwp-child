@@ -5,7 +5,7 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 5.4
-Tested up to: 6.2.2
+Tested up to: 6.3
 Requires PHP: 7.4
 Stable tag: 4.5
 License: GPLv3 or later
@@ -164,7 +164,7 @@ Yes, we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
-= 4.5 - 6-15-2023 =
+= 4.5 - 8-15-2023 =
 * Added: Support for alternative OpenSSL signature verification algorithm
 * Added: PHPSecLib as a fallback for missing or Misconfigured OpenSSL
 * Added: New encryption & decryption system for safer storing sensitive data
