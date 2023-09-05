@@ -164,6 +164,12 @@ Yes, we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
+= 4.5.1 - 9-5-2023 =
+* Fixed: Problem with loading tabs content on the MainWP Child settings page
+* Fixed: An issue with selecting Clone options
+* Fixed: Usability problem with file name sanitation for the File Uploader
+* Updated: Removed clone options for all users except for the Admin user that is used for establishing the connection with the MainWP Dashboard
+
 = 4.5 - 8-15-2023 =
 * Added: Support for alternative OpenSSL signature verification algorithm
 * Added: PHPSecLib as a fallback for missing or Misconfigured OpenSSL

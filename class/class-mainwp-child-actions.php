@@ -379,7 +379,7 @@ class MainWP_Child_Actions {
 							$old_version = $old_theme['version'];
 						}
 					} elseif ( ! empty( $upgrader->skin->theme_info ) ) {
-						$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'];
+						$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'].
 					}
 					$version = $theme_data['Version'];
 

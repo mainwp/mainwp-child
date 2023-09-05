@@ -603,7 +603,7 @@ class MainWP_Child_Misc {
 
 
 	/**
-	 * @credit WordPress.
+	 * 
 	 * Sanitizes a filename, replacing whitespace with dashes.
 	 *
 	 * Removes special characters that are illegal in filenames on certain
@@ -614,7 +614,7 @@ class MainWP_Child_Misc {
 	 * filename that is allowed to be uploaded.
 	 *
 	 * @since 2.1.0
-	 *
+	 * @credit WordPress.
 	 * @param string $filename The filename to be sanitized.
 	 * @return string The sanitized filename.
 	 */

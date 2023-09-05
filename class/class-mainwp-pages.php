@@ -383,7 +383,7 @@ class MainWP_Pages {
 		if ( $connected ) {
 			$current_user = wp_get_current_user();
 			if ( $current_user ) {
-				$is_connected_admin = $current_user->user_login === get_option( 'mainwp_child_connected_admin' ) ? true : false;
+				$is_connected_admin = get_option( 'mainwp_child_connected_admin' ) === $current_user->user_login ? true : false;
 			}
 		}
 		$show_clone_funcs = $connected && $is_connected_admin ? true : false;
