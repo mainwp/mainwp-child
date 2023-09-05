@@ -113,7 +113,7 @@ class MainWP_Child_Install {
 			$this->delete_plugins( $plugins );
 		} elseif ( 'changelog_info' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
-			$_slug = wp_unslash( $_POST['slug'] );
+			$_slug                 = wp_unslash( $_POST['slug'] );
 			$api                   = plugins_api(
 				'plugin_information',
 				array(
