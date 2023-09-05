@@ -780,7 +780,7 @@ class MainWP_Child_Misc {
 					$return['status'] = 'SUCCESS';
 				}
 			} else {
-				$return['status'] = 'SUCCESS';
+				$return['status']   = 'SUCCESS';
 				$return['notfound'] = 1;
 			}
 		}

@@ -666,7 +666,6 @@ class MainWP_Child_Actions {
 				}
 			}
 		}
-
 	}
 
 	/**
