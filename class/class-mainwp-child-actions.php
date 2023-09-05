@@ -59,6 +59,14 @@ class MainWP_Child_Actions {
 	private $current_plugins_info = array();
 
 	/**
+	 * Old themes.
+	 *
+	 * @var array Old themes array.
+	 * */
+	public $current_themes_info = array();
+
+
+	/**
 	 * Method get_class_name()
 	 *
 	 * Get class name.
@@ -352,17 +360,28 @@ class MainWP_Child_Actions {
 				}
 
 				foreach ( $slugs as $slug ) {
-					$theme       = wp_get_theme( $slug );
-					$stylesheet  = $theme['Stylesheet Dir'] . '/style.css';
-					$theme_data  = get_file_data(
+					$theme      = wp_get_theme( $slug );
+					$stylesheet = $theme['Stylesheet Dir'] . '/style.css';
+					$theme_data = get_file_data(
 						$stylesheet,
 						array(
 							'Version' => 'Version',
 						)
 					);
-					$name        = $theme['Name'];
-					$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'].
-					$version     = $theme_data['Version'];
+					$name       = $theme['Name'];
+
+					$old_version = '';
+
+					if ( isset( $this->current_themes_info[ $slug ] ) ) {
+						$old_theme = $this->current_themes_info[ $slug ];
+
+						if ( isset( $old_theme['version'] ) ) {
+							$old_version = $old_theme['version'];
+						}
+					} elseif ( ! empty( $upgrader->skin->theme_info ) ) {
+						$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'];
+					}
+					$version = $theme_data['Version'];
 
 					$logs[] = compact( 'slug', 'name', 'old_version', 'version', 'message', 'action' );
 				}
@@ -611,6 +630,43 @@ class MainWP_Child_Actions {
 		if ( empty( $this->current_plugins_info ) ) {
 			$this->current_plugins_info = $this->get_plugins();
 		}
+
+		if ( empty( $this->current_themes_info ) ) {
+			$this->current_themes_info = array();
+
+			if ( ! function_exists( '\wp_get_themes' ) ) {
+				require_once ABSPATH . '/wp-admin/includes/theme.php';
+			}
+
+			$themes = wp_get_themes();
+
+			if ( is_array( $themes ) ) {
+				$theme_name  = wp_get_theme()->get( 'Name' );
+				$parent_name = '';
+				$parent      = wp_get_theme()->parent();
+				if ( $parent ) {
+					$parent_name = $parent->get( 'Name' );
+				}
+				foreach ( $themes as $theme ) {
+
+					$_slug = $theme->get_stylesheet();
+					if ( isset( $this->current_themes_info[ $_slug ] ) ) {
+						continue;
+					}
+
+					$out                  = array();
+					$out['name']          = $theme->get( 'Name' );
+					$out['title']         = $theme->display( 'Name', true, false );
+					$out['version']       = $theme->display( 'Version', true, false );
+					$out['active']        = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
+					$out['slug']          = $_slug;
+					$out['parent_active'] = ( $parent_name == $out['name'] ) ? 1 : 0;
+
+					$this->current_themes_info[ $_slug ] = $out;
+				}
+			}
+		}
+
 	}
 
 	/**

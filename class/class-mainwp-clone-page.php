@@ -528,7 +528,7 @@ class MainWP_Clone_Page {
 			<?php
 			$security_nonces = MainWP_Clone::instance()->get_security_nonces();
 			foreach ( $security_nonces as $k => $v ) {
-				echo esc_html( 'child_security_nonces[' . "'" . $k . "'" . '] = ' . "'" . $v ) . "';\n";
+				echo ( 'child_security_nonces[' . "'" . esc_html( $k ) . "'" . '] = ' . "'" . esc_html( $v ) ) . "';\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 			}
 			?>
 

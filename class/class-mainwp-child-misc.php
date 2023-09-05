@@ -555,14 +555,7 @@ class MainWP_Child_Misc {
 	 */
 	public function uploader_upload_file( $file_url, $path, $file_name ) {
 
-		add_filter( 'mime_types', array( $this, 'add_mime_types' ), 10, 2 );
-
-		// Fixes: Uploader Extension rename htaccess file issue.
-		if ( '.htaccess' != $file_name && '.htpasswd' != $file_name ) {
-			$file_name = sanitize_file_name( $file_name );
-		}
-
-		remove_filter( 'mime_types', array( $this, 'add_mime_types' ), 10, 2 );
+		$file_name = $this->sanitize_file_name( $file_name );
 
 		$full_file_name = $path . DIRECTORY_SEPARATOR . $file_name;
 
@@ -588,7 +581,7 @@ class MainWP_Child_Misc {
 		if ( '.phpfile.txt' === substr( $file_name, - 12 ) ) {
 			$new_file_name = substr( $file_name, 0, - 12 ) . '.php';
 			$new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
-		} elseif ( 0 === strpos( $file_name, 'fix_underscore' ) ) {
+		} elseif ( 0 === strpos( $file_name, 'fix_underscore' ) ) { // to compatible.
 			$new_file_name = str_replace( 'fix_underscore', '', $file_name );
 			$new_file_name = $path . DIRECTORY_SEPARATOR . $new_file_name;
 		} else {
@@ -608,18 +601,72 @@ class MainWP_Child_Misc {
 		return array( 'path' => $full_file_name );
 	}
 
+
 	/**
-	 * Method add_mime_types()
+	 * @credit WordPress.
+	 * Sanitizes a filename, replacing whitespace with dashes.
 	 *
-	 * Add mime types to support uploader.
+	 * Removes special characters that are illegal in filenames on certain
+	 * operating systems and special characters requiring special escaping
+	 * to manipulate at the command line. Replaces spaces and consecutive
+	 * dashes with a single dash. Trims period, dash and underscore from beginning
+	 * and end of filename. It is not guaranteed that this function will return a
+	 * filename that is allowed to be uploaded.
 	 *
-	 * @param array $mime_types mime types.
+	 * @since 2.1.0
+	 *
+	 * @param string $filename The filename to be sanitized.
+	 * @return string The sanitized filename.
 	 */
-	public function add_mime_types( $mime_types ) {
-		$mime_types['min'] = 'min-js';
-		$mime_types        = apply_filters( 'mainwp_child_file_uploader_mime_types', $mime_types );
-		return $mime_types;
+	private function sanitize_file_name( $filename ) {
+		$filename_raw = $filename;
+		$filename     = remove_accents( $filename );
+
+		$special_chars = array( '?', '[', ']', '/', '\\', '=', '<', '>', ':', ';', ',', "'", '"', '&', '$', '#', '*', '(', ')', '|', '~', '`', '!', '{', '}', '%', '+', '’', '«', '»', '”', '“', chr( 0 ) );
+
+		// Check for support for utf8 in the installed PCRE library once and store the result in a static.
+		static $utf8_pcre = null;
+		if ( ! isset( $utf8_pcre ) ) {
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			$utf8_pcre = @preg_match( '/^./u', 'a' );
+		}
+
+		if ( ! seems_utf8( $filename ) ) {
+			$_ext     = pathinfo( $filename, PATHINFO_EXTENSION );
+			$_name    = pathinfo( $filename, PATHINFO_FILENAME );
+			$filename = sanitize_title_with_dashes( $_name ) . '.' . $_ext;
+		}
+
+		if ( $utf8_pcre ) {
+			$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
+		}
+
+		/**
+		 * Filters the list of characters to remove from a filename.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param string[] $special_chars Array of characters to remove.
+		 * @param string   $filename_raw  The original filename to be sanitized.
+		 */
+		$special_chars = apply_filters( 'sanitize_file_name_chars', $special_chars, $filename_raw );
+
+		$filename = str_replace( $special_chars, '', $filename );
+		$filename = str_replace( array( '%20', '+' ), '-', $filename );
+		$filename = preg_replace( '/\.{2,}/', '.', $filename );
+		$filename = preg_replace( '/[\r\n\t -]+/', '-', $filename );
+
+		/**
+		 * Filters a sanitized filename string.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param string $filename     Sanitized filename.
+		 * @param string $filename_raw The filename prior to sanitization.
+		 */
+		return apply_filters( 'sanitize_file_name', $filename, $filename_raw );
 	}
+
 
 	/**
 	 * Method code_snippet()
@@ -734,6 +781,7 @@ class MainWP_Child_Misc {
 				}
 			} else {
 				$return['status'] = 'SUCCESS';
+				$return['notfound'] = 1;
 			}
 		}
 		return $return;

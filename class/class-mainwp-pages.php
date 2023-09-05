@@ -286,8 +286,6 @@ class MainWP_Pages {
 		$hide_server_info       = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
 		$hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
 
-		$hide_style = 'style="display:none"';
-
 		if ( '' == $shownPage ) {
 			if ( ! $hide_settings ) {
 					$shownPage = 'settings';
@@ -300,20 +298,25 @@ class MainWP_Pages {
 			}
 		}
 
-		self::render_header( $shownPage, false );
+		self::render_header( $shownPage, false, $show_clones );
+
+		if ( is_null( $show_clones ) ) {
+			$show_clones = true;
+		}
+
 		?>
 		<?php if ( ! $hide_settings ) { ?>
-			<div class="mainwp-child-setting-tab settings" <?php echo esc_attr( 'settings' !== $shownPage ? $hide_style : '' ); ?>>
+			<div class="mainwp-child-setting-tab settings" <?php echo 'settings' !== $shownPage ? 'style="display:none"' : ''; ?>>
 				<?php $this->render_settings(); ?>
 			</div>
 		<?php } ?>
 
 		<?php
-		if ( ! $hide_restore ) {
+		if ( ! $hide_restore && $show_clones ) {
 			$fsmethod = MainWP_Child_Server_Information_Base::get_file_system_method();
 			if ( 'direct' === $fsmethod ) { // to fix error some case of file system method is not direct.
 				?>
-			<div class="mainwp-child-setting-tab restore-clone" <?php echo esc_attr( 'restore-clone' !== $shownPage ? $hide_style : '' ); ?>>
+			<div class="mainwp-child-setting-tab restore-clone" <?php echo 'restore-clone' !== $shownPage ? 'style="display:none"' : ''; ?>>
 				<?php
 				if ( isset( $_SESSION['file'] ) ) {
 					MainWP_Clone_Page::render_restore();
@@ -331,13 +334,13 @@ class MainWP_Pages {
 		<?php } ?>
 
 		<?php if ( ! $hide_server_info ) { ?>
-			<div class="mainwp-child-setting-tab server-info" <?php echo esc_attr( 'server-info' !== $shownPage ? $hide_style : '' ); ?>>
+			<div class="mainwp-child-setting-tab server-info" <?php echo 'server-info' !== $shownPage ? 'style="display:none"' : ''; ?>>
 				<?php MainWP_Child_Server_Information::render_page(); ?>
 			</div>
 		<?php } ?>
 
 			<?php if ( ! $hide_connection_detail ) { ?>
-			<div class="mainwp-child-setting-tab connection-detail" <?php echo esc_attr( 'connection-detail' !== $shownPage ? $hide_style : '' ); ?>>
+			<div class="mainwp-child-setting-tab connection-detail" <?php echo 'connection-detail' !== $shownPage ? 'style="display:none"' : ''; ?>>
 					<?php MainWP_Child_Server_Information::render_connection_details(); ?>
 			</div>
 		<?php } ?>
@@ -350,10 +353,11 @@ class MainWP_Pages {
 	 *
 	 * @param string $shownPage Page shown.
 	 * @param bool   $subpage Whether or not a subpage. Default: true.
+	 * @param bool   $show_clone_funcs Whether or not to show clone tabs.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
-	public static function render_header( $shownPage, $subpage = true ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+	public static function render_header( $shownPage, $subpage = true, &$show_clone_funcs = true ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! empty( $tab ) ) {
@@ -372,6 +376,17 @@ class MainWP_Pages {
 		$hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
 
 		$sitesToClone = get_option( 'mainwp_child_clone_sites' );
+
+		// put here to support hooks to show header.
+		$is_connected_admin = false;
+		$connected          = '' != get_option( 'mainwp_child_pubkey' ) ? true : false;
+		if ( $connected ) {
+			$current_user = wp_get_current_user();
+			if ( $current_user ) {
+				$is_connected_admin = $current_user->user_login === get_option( 'mainwp_child_connected_admin' ) ? true : false;
+			}
+		}
+		$show_clone_funcs = $connected && $is_connected_admin ? true : false;
 
 		?>
 		<style type="text/css">
@@ -441,7 +456,7 @@ class MainWP_Pages {
 				?>
 " tab-slug="settings" href="<?php echo ( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#' ); ?>" style="margin-left: 0 !important;"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
 			<?php } ?>
-			<?php if ( ! $hide_restore ) { ?>
+			<?php if ( ! $hide_restore && $show_clone_funcs ) { ?>
 				<a class="nav-tab pos-nav-tab
 				<?php
 				if ( 'restore-clone' === $shownPage ) {
@@ -592,7 +607,7 @@ class MainWP_Pages {
 					<p class="submit" style="margin-top: 4em;">
 						<input type="submit" name="submit" id="submit" class="button button-primary button-hero" value="<?php esc_attr_e( 'Save changes', 'mainwp-child' ); ?>">
 					</p>
-					<input type="hidden" name="nonce" value="<?php echo esc_html( wp_create_nonce( 'child-settings' ) ); ?>">
+					<input type="hidden" name="nonce" value="<?php echo esc_attr( wp_create_nonce( 'child-settings' ) ); ?>">
 				</form>
 			</div>
 		</div>
