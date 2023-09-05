@@ -603,7 +603,7 @@ class MainWP_Child_Misc {
 
 
 	/**
-	 * 
+	 *
 	 * Sanitizes a filename, replacing whitespace with dashes.
 	 *
 	 * Removes special characters that are illegal in filenames on certain
