@@ -360,7 +360,7 @@ class MainWP_Child_Cache_Purge {
 				return $this->purge_result( $bypass_message, 'SUCCESS' );
 			}
 
-			// record results. ( below needs to stay untouched )
+			// record results. ( below needs to stay untouched ).
 			update_option( 'mainwp_cache_control_last_purged', time() );
 			return $this->purge_result( $success_message, 'SUCCESS' );
 		} else {
