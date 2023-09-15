@@ -159,7 +159,7 @@ class MainWP_Child_Cache_Purge {
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
 			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 			'seraphinite-accelerator/plugin_root.php'    => 'Seraphinite Accelerator',
-			'swis-performance/swis-performance.php'      =>  'Swis Performance',
+			'swis-performance/swis-performance.php'      => 'Swis Performance',
 		);
 
 		// Check if a supported cache plugin is active.
