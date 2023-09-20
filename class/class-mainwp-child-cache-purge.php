@@ -159,6 +159,7 @@ class MainWP_Child_Cache_Purge {
 			'comet-cache/comet-cache.php'                => 'Comet Cache',
 			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 			'seraphinite-accelerator/plugin_root.php'    => 'Seraphinite Accelerator',
+			'swis-performance/swis-performance.php'      => 'Swis Performance',
 		);
 
 		// Check if a supported cache plugin is active.
@@ -265,6 +266,9 @@ class MainWP_Child_Cache_Purge {
 					case 'Seraphinite Accelerator':
 						$information = $this->seraphinite_auto_purge_cache();
 						break;
+					case 'Swis Performance':
+						$information = $this->swis_performance_auto_purge_cache();
+						break;
 					default:
 						break;
 				}
@@ -324,6 +328,44 @@ class MainWP_Child_Cache_Purge {
 			$result['action'] = 'ERROR';
 		}
 		return $result;
+	}
+
+	/**
+	 * Purge Swis Performance plugin cache.
+	 *
+	 * @return array Purge results array.
+	 */
+	public function swis_performance_auto_purge_cache() {
+
+		$success_message = 'Swis Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'Swis Performance => There was an issue purging your cache.';
+		$bypass_message  = 'Swis Performance => Purge was bypassed due to Swis Auto Purge Settings.';
+
+		if ( is_callable( 'swis' ) ) {
+
+			// Get Swis Cache Settings.
+			$swis_cache_settings = swis()->cache->get_settings();
+
+			// Check if Swis Auto Purge is enabled.
+			if ( empty( $swis_cache_settings['clear_complete_cache_on_changed_plugin'] ) ) {
+
+				// Purge Cache.
+				do_action( 'swis_clear_complete_cache' );
+
+				sleep( 3 );
+
+				// Preload Cache.
+				swis()->cache_preload->start_preload();
+			} else {
+				return $this->purge_result( $bypass_message, 'SUCCESS' );
+			}
+
+			// record results. ( below needs to stay untouched ).
+			update_option( 'mainwp_cache_control_last_purged', time() );
+			return $this->purge_result( $success_message, 'SUCCESS' );
+		} else {
+			return $this->purge_result( $error_message, 'ERROR' );
+		}
 	}
 
 	/**
