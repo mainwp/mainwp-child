@@ -575,7 +575,7 @@ class MainWP_Pages {
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-settings' ) ) {
 			if ( isset( $_POST['requireUniqueSecurityId'] ) ) {
-				MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 8 ) );
+				MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 12 ) );
 			} else {
 				MainWP_Helper::update_option( 'mainwp_child_uniqueId', '' );
 			}

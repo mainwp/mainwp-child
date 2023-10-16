@@ -195,7 +195,7 @@ class MainWP_Child_Server_Information_Base {
 	 *
 	 * @return string Current cURL Version.
 	 */
-	protected static function get_curl_version() {
+	public static function get_curl_version() {
 		$curlversion = curl_version();
 
 		return $curlversion['version'];
@@ -224,7 +224,7 @@ class MainWP_Child_Server_Information_Base {
 	 *
 	 * @return string SSL version.
 	 */
-	protected static function get_curl_ssl_version() {
+	public static function get_curl_ssl_version() {
 		$curlversion = curl_version();
 
 		return $curlversion['ssl_version'];

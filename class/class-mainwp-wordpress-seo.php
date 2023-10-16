@@ -17,7 +17,7 @@
  * Licence: GPL v3
  */
 
-namespace MainWP\Dashboard;
+namespace MainWP\Child;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results. Pull requests appreciated.
 

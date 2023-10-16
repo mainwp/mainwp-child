@@ -1200,6 +1200,13 @@ SQL;
 	 */
 	public function ithemes_get_lockouts( $type = 'all', $args = array() ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
+		try {
+			MainWP_Helper::instance()->check_classes_exists( array( '\ITSEC_Dashboard_Util' ) );
+			MainWP_Helper::instance()->check_methods( '\ITSEC_Dashboard_Util', array( 'count_events' ) );
+		} catch ( \Exception $e ) {
+			return 0;
+		}
+
 		global $wpdb;
 
 		$where  = '';

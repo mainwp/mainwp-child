@@ -28,6 +28,13 @@ class MainWP_Child_Actions {
 	 *
 	 * @var mixed Default null
 	 */
+	protected $init_actions = array();
+
+	/**
+	 * Public static variable.
+	 *
+	 * @var mixed Default null
+	 */
 	protected static $actions_data = null;
 
 	/**
@@ -56,7 +63,7 @@ class MainWP_Child_Actions {
 	 *
 	 * @var array Old plugins array.
 	 * */
-	private $current_plugins_info = array();
+	public $current_plugins_info = array();
 
 	/**
 	 * Old themes.
@@ -85,6 +92,17 @@ class MainWP_Child_Actions {
 	public function __construct() {
 		self::$connected_admin             = get_option( 'mainwp_child_connected_admin', '' );
 		self::$enable_actions_notification = (int) get_option( 'mainwp_child_actions_notification_enable', 0 );
+		$this->init_actions                = array(
+			'upgrader_pre_install',
+			'upgrader_process_complete',
+			'activate_plugin',
+			'deactivate_plugin',
+			'switch_theme',
+			'delete_site_transient_update_themes',
+			'pre_option_uninstall_plugins',
+			'deleted_plugin',
+			'_core_updated_successfully',
+		);
 	}
 
 	/**
@@ -136,12 +154,59 @@ class MainWP_Child_Actions {
 			'_core_updated_successfully',
 		);
 
-		foreach ( $actions as $action ) {
+		foreach ( $this->init_actions as $action ) {
 			add_action( $action, array( $this, 'callback' ), 10, 99 );
 		}
 		if ( 1 === self::$enable_actions_notification ) {
 			self::$enable_actions_notification = 0; // to do.
 		}
+	}
+
+	/**
+	 * Method init_custom_hooks().
+	 *
+	 * Init WP custom hooks.
+	 *
+	 * @param string $actions action name.
+	 */
+	public function init_custom_hooks( $actions ) {
+
+		if ( is_string( $actions ) ) {
+			$actions = array( $actions );
+		}
+
+		if ( ! is_array( $actions ) ) {
+			return;
+		}
+
+		$allow_acts = array(
+			'upgrader_pre_install',
+		);
+		foreach ( $actions as $action ) {
+			if ( ! in_array( $action, $allow_acts ) ) {
+				continue;
+			}
+			add_action( $action, array( $this, 'callback' ), 10, 99 );
+		}
+	}
+
+	/**
+	 * Method get_current_plugins_info().
+	 *
+	 * Get current plugins info.
+	 */
+	public function get_current_plugins_info() {
+		return $this->current_plugins_info;
+	}
+
+
+	/**
+	 * Method get_current_themes_info().
+	 *
+	 * Get current themes info.
+	 */
+	public function get_current_themes_info() {
+		return $this->current_themes_info;
 	}
 
 	/**
@@ -369,6 +434,7 @@ class MainWP_Child_Actions {
 						)
 					);
 					$name       = $theme['Name'];
+					$version    = $theme_data['Version'];
 
 					$old_version = '';
 
@@ -381,7 +447,6 @@ class MainWP_Child_Actions {
 					} elseif ( ! empty( $upgrader->skin->theme_info ) ) {
 						$old_version = $upgrader->skin->theme_info->get( 'Version' ); // to fix old version  //$theme['Version'].
 					}
-					$version = $theme_data['Version'];
 
 					$logs[] = compact( 'slug', 'name', 'old_version', 'version', 'message', 'action' );
 				}

@@ -692,7 +692,7 @@ class MainWP_Clone {
 			$pubkey       = get_option( 'mainwp_child_pubkey' );
 			$uniqueId     = MainWP_Helper::get_site_unique_id();
 			$uniqueId     = get_option( 'mainwp_child_uniqueId' );
-			$server       = get_option( 'mainwp_child_server' );
+			$server       = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
 			$nonce        = get_option( 'mainwp_child_nonce' );
 			$sitesToClone = get_option( 'mainwp_child_clone_sites' );
 			$username     = get_option( 'mainwp_child_connected_admin' );
@@ -709,7 +709,7 @@ class MainWP_Clone {
 
 			MainWP_Helper::update_option( 'mainwp_child_pubkey', $pubkey, 'yes' );
 			MainWP_Helper::update_option( 'mainwp_child_uniqueId', $uniqueId );
-			MainWP_Helper::update_option( 'mainwp_child_server', $server );
+			MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', $server );
 			MainWP_Helper::update_option( 'mainwp_child_nonce', $nonce );
 			MainWP_Helper::update_option( 'mainwp_child_clone_sites', $sitesToClone );
 			MainWP_Helper::update_option( 'mainwp_child_just_clone_admin', $clone_admin );

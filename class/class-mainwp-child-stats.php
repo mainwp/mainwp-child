@@ -188,7 +188,7 @@ class MainWP_Child_Stats {
 		// phpcs:disable WordPress.Security.NonceVerification
 		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );
 		if ( isset( $_POST['server'] ) ) {
-			MainWP_Helper::update_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
+			MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
 		}
 
 		MainWP_Child_Plugins_Check::may_outdate_number_change();
@@ -486,15 +486,17 @@ class MainWP_Child_Stats {
 
 		$theme_name               = wp_get_theme()->get( 'Name' );
 		$information['site_info'] = array(
-			'wpversion'      => $wp_version,
-			'debug_mode'     => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
-			'phpversion'     => phpversion(),
-			'child_version'  => MainWP_Child::$version,
-			'memory_limit'   => MainWP_Child_Server_Information::get_php_memory_limit(),
-			'mysql_version'  => MainWP_Child_Server_Information::get_my_sql_version(),
-			'db_size'        => MainWP_Child_Server_Information_Base::get_db_size(),
-			'themeactivated' => $theme_name,
-			'ip'             => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
+			'wpversion'             => $wp_version,
+			'debug_mode'            => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
+			'phpversion'            => phpversion(),
+			'child_version'         => MainWP_Child::$version,
+			'memory_limit'          => MainWP_Child_Server_Information::get_php_memory_limit(),
+			'mysql_version'         => MainWP_Child_Server_Information::get_my_sql_version(),
+			'db_size'               => MainWP_Child_Server_Information_Base::get_db_size(),
+			'themeactivated'        => $theme_name,
+			'ip'                    => isset( $_SERVER['SERVER_ADDR'] ) ? wp_unslash( $_SERVER['SERVER_ADDR'] ) : '',
+			'child_curl_version'    => MainWP_Child_Server_Information_Base::get_curl_version(),
+			'child_openssl_version' => MainWP_Child_Server_Information_Base::get_curl_ssl_version(),
 		);
 	}
 
@@ -562,7 +564,6 @@ class MainWP_Child_Stats {
 
 		// First check for new premium updates.
 		$update_check = apply_filters( 'mwp_premium_update_check', array() );
-
 		if ( ! empty( $update_check ) ) {
 			foreach ( $update_check as $updateFeedback ) {
 				if ( is_array( $updateFeedback['callback'] ) && isset( $updateFeedback['callback'][0] ) && isset( $updateFeedback['callback'][1] ) ) {

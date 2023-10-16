@@ -436,17 +436,15 @@ class MainWP_Helper {
 	 *
 	 * Generate random string.
 	 *
-	 * @param int    $length Contains the string lenghts.
-	 * @param string $charset Contain all allowed characters for the generated string.
+	 * @param int $length Contains the string lenghts.
 	 *
 	 * @return string $str Generated random string.
 	 */
-	public static function rand_string( $length, $charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' ) {
-		$str   = '';
-		$count = strlen( $charset );
-		while ( $length -- ) {
-			$str .= $charset[ mt_rand( 0, $count - 1 ) ]; // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+	public static function rand_string( $length ) {
+		if ( ! function_exists( '\wp_generate_password' ) ) {
+			include_once ABSPATH . WPINC . '/pluggable.php';
 		}
+		$str = \wp_generate_password( $length, false );
 		return $str;
 	}
 
@@ -626,7 +624,7 @@ class MainWP_Helper {
 	 * @param string $option_value Contains the option value.
 	 * @param string $autoload Autoload? Yes or no.
 	 *
-	 * @return mixed $success Option updated.
+	 * @return bool $success true|false Option updated.
 	 */
 	public static function update_option( $option_name, $option_value, $autoload = 'no' ) {
 		$success = add_option( $option_name, $option_value, '', $autoload );

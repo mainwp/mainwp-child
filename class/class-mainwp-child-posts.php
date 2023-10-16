@@ -393,23 +393,25 @@ class MainWP_Child_Posts {
 			$others['featured_image_data'] = ! empty( $_POST['featured_image_data'] ) ? json_decode( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 		// phpcs:enable WordPress.Security.NonceVerification
-		$res = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
+		$result = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
 
-		if ( is_array( $res ) && isset( $res['error'] ) ) {
-			MainWP_Helper::instance()->error( $res['error'] );
+		if ( is_array( $result ) && isset( $result['error'] ) ) {
+			MainWP_Helper::instance()->error( $result['error'] );
 		}
 
-		$created = $res['success'];
+		$created = $result['success'];
 		if ( true !== $created ) {
 			MainWP_Helper::instance()->error( 'Undefined error' );
 		}
 
-		$information['added']    = true;
-		$information['added_id'] = $res['added_id'];
-		$information['link']     = $res['link'];
+		do_action( 'mainwp_child_after_newpost', $result );
 
-		do_action( 'mainwp_child_after_newpost', $res );
-
+		$information['added']      = true;
+		$information['added_id']   = $result['added_id'];
+		$information['link']       = $result['link'];
+		$information['other_data'] = array(
+			'new_post_data' => is_array( $result ) && isset( $result['new_post_data'] ) ? $result['new_post_data'] : array(),
+		);
 		MainWP_Helper::write( $information );
 	}
 
@@ -428,8 +430,16 @@ class MainWP_Child_Posts {
 		$postId  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 		$my_post = array();
 
-		if ( 'publish' === $action ) {
+		$old_post_type_name = '';
+		$post_current       = false;
+		if ( $postId ) {
 			$post_current = get_post( $postId );
+			if ( $post_current ) {
+				$old_post_type_name = strtolower( $this->get_post_type_name( $post_current->post_type ) );
+			}
+		}
+
+		if ( 'publish' === $action ) {
 			if ( empty( $post_current ) ) {
 				$information['status'] = 'FAIL';
 			} else {
@@ -465,6 +475,7 @@ class MainWP_Child_Posts {
 		} elseif ( 'delete' === $action ) {
 			add_action( 'delete_post', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_post_deleted' ) );
 			wp_delete_post( $postId, true );
+
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
 		} elseif ( 'update_meta' === $action ) {
@@ -497,8 +508,56 @@ class MainWP_Child_Posts {
 		}
 		// phpcs:enable WordPress.Security.NonceVerification
 
-		$information['my_post'] = $my_post;
+		$post_dt = array();
+		// support logging.
+		if ( 'delete' === $action ) {
+			if ( $post_current ) {
+				$post_dt = array(
+					'post_type'     => $post_current->post_type,
+					'post_title'    => $post_current->post_title,
+					'singular_name' => $old_post_type_name,
+				);
+			}
+		} else {
+			$post_updated = get_post( $postId );
+			if ( $post_updated ) {
+				$post_type_name = strtolower( $this->get_post_type_name( $post_updated->post_type ) );
+				$post_dt        = array(
+					'post_id'       => $postId,
+					'post_type'     => $post_updated->post_type,
+					'post_title'    => $post_updated->post_title,
+					'post_date'     => $post_updated->post_date,
+					'post_date_gmt' => $post_updated->post_date_gmt,
+					'new_status'    => $post_updated->post_status,
+					'old_status'    => $post_current->post_status,
+					'singular_name' => $post_type_name,
+				);
+			}
+		}
+
+		$information['other_data'] = array(
+			'post_action_data' => $post_dt,
+		);
+		$information['my_post']    = $my_post;
 		MainWP_Helper::write( $information );
+	}
+
+	/**
+	 * Gets the singular post type label
+	 *
+	 * @param string $post_type_slug Post type slug.
+	 *
+	 * @return string Post type label
+	 */
+	public function get_post_type_name( $post_type_slug ) {
+		$name = esc_html__( 'Post', 'mainwp' ); // Default.
+
+		if ( post_type_exists( $post_type_slug ) ) {
+			$post_type = get_post_type_object( $post_type_slug );
+			$name      = $post_type->labels->singular_name;
+		}
+
+		return $name;
 	}
 
 	/**
@@ -771,6 +830,7 @@ class MainWP_Child_Posts {
 		$post_status             = $new_post['post_status']; // save post_status.
 		$new_post['post_status'] = 'auto-draft'; // to fix reports, to log as created post.
 
+		$current_post = false;
 		// Update post.
 		if ( $edit_post_id ) {
 			// check if post existed.
@@ -823,11 +883,30 @@ class MainWP_Child_Posts {
 		if ( $edit_post_id ) {
 			update_post_meta( $edit_post_id, '_edit_lock', '' );
 		}
-		$permalink       = get_permalink( $new_post_id );
-		$ret['success']  = true;
-		$ret['link']     = $permalink;
-		$ret['added_id'] = $new_post_id;
-		return $ret;
+
+		$post_added = get_post( $new_post_id );
+		$post_dt    = array();
+		if ( $post_added ) {
+			$post_type_name = strtolower( $this->get_post_type_name( $post_added->post_type ) );
+			$post_dt        = array(
+				'post_id'       => $new_post_id,
+				'post_type'     => $post_added->post_type,
+				'post_title'    => $post_added->post_title,
+				'post_date'     => $post_added->post_date,
+				'post_date_gmt' => $post_added->post_date_gmt,
+				'new_status'    => $post_added->post_status,
+				'old_status'    => $current_post ? $current_post->post_status : '',
+				'singular_name' => $post_type_name,
+				'is_editing'    => $edit_post_id ? 1 : 0,
+			);
+		}
+
+		$result                  = array();
+		$result['success']       = true;
+		$result['link']          = get_permalink( $new_post_id );
+		$result['added_id']      = $new_post_id;
+		$result['new_post_data'] = $post_dt;
+		return $result;
 	}
 
 	/**
@@ -1034,7 +1113,7 @@ class MainWP_Child_Posts {
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
-						$server     = get_option( 'mainwp_child_server' );
+						$server     = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
 						$serverHost = wp_parse_url( $server, PHP_URL_HOST );
 						if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
 							$serverHref               = 'href="' . $serverHost;
@@ -1071,7 +1150,8 @@ class MainWP_Child_Posts {
 			return $content;
 		}
 
-		$dashboard_url        = get_option( 'mainwp_child_server' );
+		$dashboard_url = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+
 		$site_url_destination = get_site_url();
 
 		// to fix url with slashes.
@@ -1429,7 +1509,7 @@ class MainWP_Child_Posts {
 		$_seo_opengraph_image = isset( $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
 		$_seo_opengraph_image = current( $_seo_opengraph_image );
 		$_server_domain       = '';
-		$_server              = get_option( 'mainwp_child_server' );
+		$_server              = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
 		if ( preg_match( '/(https?:\/\/[^\/]+\/).+/', $_server, $matchs ) ) {
 			$_server_domain = isset( $matchs[1] ) ? $matchs[1] : '';
 		}

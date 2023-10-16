@@ -764,9 +764,20 @@ class MainWP_Child_Branding {
 	 * Prevent updates by redirecting access from the Updates and Plugins page.
 	 */
 	public function branding_redirect() {
-		$pos1 = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'update-core.php' ) : false;
-		$pos2 = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'plugins.php' ) : false;
-		if ( false !== $pos1 || false !== $pos2 ) {
+		$redirect = false;
+		if ( isset( $_SERVER['REQUEST_URI'] ) ) {
+			$uri = wp_unslash( $_SERVER['REQUEST_URI'] );
+			if ( false !== stripos( $uri, 'update-core.php' ) ) {
+				$redirect = true;
+			} elseif ( false !== stripos( $uri, 'plugins.php' ) ) {
+				$redirect = true;
+			} elseif ( false !== stripos( $uri, 'plugin-install.php' ) ) {
+				$redirect = true;
+			} elseif ( false !== stripos( $uri, 'plugin-editor.php' ) ) {
+				$redirect = true;
+			}
+		}
+		if ( $redirect ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
 		}
