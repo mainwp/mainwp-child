@@ -83,6 +83,8 @@ class MainWP_Child_Install {
 		$action  = MainWP_System::instance()->validate_params( 'action' );
 		$plugins = isset( $_POST['plugin'] ) ? explode( '||', wp_unslash( $_POST['plugin'] ) ) : '';
 
+		$action_items = array();
+
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/plugin.php';
 
@@ -95,6 +97,11 @@ class MainWP_Child_Install {
 						} else {
 							activate_plugin( $plugin );
 						}
+						$action_items[ $plugin ] = array(
+							'name'    => $thePlugin['Name'],
+							'version' => $thePlugin['Version'],
+							'slug'    => $plugin,
+						);
 					}
 				}
 			}
@@ -106,11 +113,19 @@ class MainWP_Child_Install {
 					$thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
 					if ( null !== $thePlugin && '' !== $thePlugin ) {
 						deactivate_plugins( $plugin );
+						$action_items[ $plugin ] = array(
+							'name'    => $thePlugin['Name'],
+							'version' => $thePlugin['Version'],
+							'slug'    => $plugin,
+						);
 					}
 				}
 			}
 		} elseif ( 'delete' === $action ) {
-			$this->delete_plugins( $plugins );
+			$this->delete_plugins( $plugins, $output );
+			if ( ! empty( $output ) ) {
+				$action_items = $output;
+			}
 		} elseif ( 'changelog_info' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
 			$_slug                 = wp_unslash( $_POST['slug'] );
@@ -132,6 +147,9 @@ class MainWP_Child_Install {
 		if ( 'changelog_info' !== $action ) {
 			$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		}
+		$information['other_data'] = array(
+			'plugin_action_data' => $action_items,
+		);
 		MainWP_Helper::write( $information );
 	}
 
@@ -141,6 +159,7 @@ class MainWP_Child_Install {
 	 * Delete a plugin from the Child Site.
 	 *
 	 * @param array $plugins An array of plugins to delete.
+	 * @param array $output An array output data.
 	 *
 	 * @uses get_plugin_data() Parses the plugin contents to retrieve plugin’s metadata.
 	 * @see https://developer.wordpress.org/reference/functions/get_plugin_data/
@@ -155,7 +174,7 @@ class MainWP_Child_Install {
 	 *
 	 * @used-by \MainWP\Child\MainWP_Child_Install::plugin_action() Plugin Activate, Deactivate & Delete actions.
 	 */
-	private function delete_plugins( $plugins ) {
+	private function delete_plugins( $plugins, &$output = array() ) {
 
 		/**
 		 * MainWP Child instance.
@@ -183,6 +202,7 @@ class MainWP_Child_Install {
 		foreach ( $plugins as $idx => $plugin ) {
 			if ( $plugin !== $mainWPChild->plugin_slug ) {
 				if ( isset( $all_plugins[ $plugin ] ) ) {
+					$old_plugin = $all_plugins[ $plugin ];
 					if ( is_plugin_active( $plugin ) ) {
 						$thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
 						if ( null !== $thePlugin && '' !== $thePlugin ) {
@@ -193,9 +213,14 @@ class MainWP_Child_Install {
 					if ( true === $pluginUpgrader->delete_old_plugin( null, null, null, $tmp ) ) {
 						$args = array(
 							'action' => 'delete',
-							'Name'   => $all_plugins[ $plugin ]['Name'],
+							'Name'   => $old_plugin['Name'],
 						);
 						do_action( 'mainwp_child_plugin_action', $args );
+						$output[ $plugin ] = array(
+							'name'    => $old_plugin['Name'],
+							'version' => $old_plugin['Version'],
+							'slug'    => $plugin,
+						);
 					}
 				}
 			}
@@ -219,14 +244,30 @@ class MainWP_Child_Install {
 	 */
 	public function theme_action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// phpcs:disable WordPress.Security.NonceVerification
-		$action = MainWP_System::instance()->validate_params( 'action' );
-		$theme  = isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : '';
+		$action           = MainWP_System::instance()->validate_params( 'action' );
+		$theme            = isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : '';
+		$action_items     = array();
+		$deactivate_theme = array();
 		// phpcs:enable WordPress.Security.NonceVerification
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
 			$theTheme = wp_get_theme( $theme );
 			if ( null !== $theTheme && '' !== $theTheme ) {
+
+				$current_theme = wp_get_theme()->get( 'Name' );
+
+				$deactivate_theme[ $current_theme ] = array(
+					'name'    => $current_theme,
+					'version' => wp_get_theme()->display( 'Version', true, false ),
+					'slug'    => wp_get_theme()->get_stylesheet(),
+				);
+
 				switch_theme( $theTheme['Template'], $theTheme['Stylesheet'] );
+				$action_items[ $theme ] = array(
+					'name'    => $theTheme->get( 'Name' ),
+					'version' => $theTheme->display( 'Version', true, false ),
+					'slug'    => $theTheme->get_stylesheet(),
+				);
 			}
 		} elseif ( 'delete' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
@@ -281,6 +322,12 @@ class MainWP_Child_Install {
 								'Name'   => $theTheme['Name'],
 							);
 							do_action( 'mainwp_child_theme_action', $args );
+
+							$action_items[ $themeToDelete ] = array(
+								'name'    => $theTheme->get( 'Name' ),
+								'version' => $theTheme->display( 'Version', true, false ),
+								'slug'    => $theTheme->get_stylesheet(),
+							);
 						}
 					}
 				}
@@ -294,6 +341,15 @@ class MainWP_Child_Install {
 		}
 
 		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+
+		$information['other_data'] = array(
+			'theme_action_data' => $action_items,
+		);
+
+		if ( 'activate' === $action && ! empty( $deactivate_theme ) ) {
+			$information['other_data']['theme_deactivate_data'] = $deactivate_theme;
+		}
+
 		MainWP_Helper::write( $information );
 	}
 
@@ -319,6 +375,8 @@ class MainWP_Child_Install {
 			MainWP_Helper::instance()->error( esc_html__( 'Plugin or theme not specified, or missing required data. Please reload the page and try again.', 'mainwp-child' ) );
 		}
 
+		$type = $_POST['type'];
+
 		$this->require_files();
 
 		$urlgot = isset( $_POST['url'] ) ? json_decode( stripslashes( wp_unslash( $_POST['url'] ) ) ) : '';
@@ -332,6 +390,7 @@ class MainWP_Child_Install {
 
 		$install_results = array();
 		$result          = array();
+		$install_items   = array();
 		foreach ( $urls as $url ) {
 			$installer  = new \WP_Upgrader();
 			$ssl_verify = true;
@@ -345,7 +404,7 @@ class MainWP_Child_Install {
 			$result = $installer->run(
 				array(
 					'package'           => $url,
-					'destination'       => ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
+					'destination'       => ( 'plugin' === $type ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
 					'clear_destination' => ( isset( $_POST['overwrite'] ) && sanitize_text_field( wp_unslash( $_POST['overwrite'] ) ) ),
 					'clear_working'     => true,
 					'hook_extra'        => array(),
@@ -363,15 +422,33 @@ class MainWP_Child_Install {
 			if ( false == $ssl_verify ) {
 				remove_filter( 'http_request_args', array( self::get_class_name(), 'no_ssl_filter_function' ), 99 );
 			}
-			$this->after_installed( $result );
+			$this->after_installed( $result, $output );
 			$basename                     = basename( rawurldecode( $url ) );
 			$install_results[ $basename ] = is_array( $result ) && isset( $result['destination_name'] ) ? true : false;
+
+			if ( is_array( $output ) ) {
+				if ( 'plugin' === $type && isset( $output['Name'] ) ) {
+					$install_items[] = array(
+						'name'    => $output['Name'],
+						'version' => $output['Version'],
+						'slug'    => $output['slug'],
+					);
+				} elseif ( 'theme' === $type && isset( $output['slug'] ) ) {
+					$install_items[] = array(
+						'name'    => isset( $output['name'] ) ? $output['name'] : $output['slug'],
+						'slug'    => $output['slug'],
+						'version' => isset( $output['version'] ) ? $output['version'] : '',
+					);
+				}
+			}
 		}
 		// phpcs:enable WordPress.Security.NonceVerification
 
-		$information['installation']     = 'SUCCESS';
-		$information['destination_name'] = $result['destination_name'];
-		$information['install_results']  = $install_results;
+		$information['installation']                = 'SUCCESS';
+		$information['destination_name']            = $result['destination_name'];
+		$information['install_results']             = $install_results;
+		$information['other_data']['install_items'] = $install_items;
+
 		MainWP_Helper::write( $information );
 	}
 
@@ -415,6 +492,7 @@ class MainWP_Child_Install {
 	 * After plugin or theme has been installed.
 	 *
 	 * @param array $result Results array from self::install_plugin_theme().
+	 * @param array $output Results output array.
 	 *
 	 * @uses wp_cache_set() Saves the data to the cache.
 	 * @see https://developer.wordpress.org/reference/functions/wp_cache_set/
@@ -427,7 +505,7 @@ class MainWP_Child_Install {
 	 *
 	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 */
-	private function after_installed( $result ) {
+	private function after_installed( $result, &$output ) {
 		$args = array(
 			'success' => 1,
 			'action'  => 'install',
@@ -467,10 +545,20 @@ class MainWP_Child_Install {
 			}
 		} else {
 			$args['type'] = 'theme';
-			$args['slug'] = $result['destination_name'];
+			$slug         = $result['destination_name'];
+			$args['slug'] = $slug;
+			if ( ! empty( $slug ) ) {
+				wp_clean_themes_cache();
+				$theme = wp_get_theme( $slug );
+				if ( $theme ) {
+					$args['name']    = $theme->name;
+					$args['version'] = $theme->version;
+				}
+			}
 			do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
 			do_action( 'mainwp_child_install_plugin_theme', $args );
 		}
+		$output = $args;
 		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
@@ -515,4 +603,3 @@ class MainWP_Child_Install {
 		return $result;
 	}
 }
-

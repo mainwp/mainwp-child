@@ -1897,7 +1897,7 @@ class MainWP_Child_Updraft_Plus_Backups {
             require_once $method_include;
         }
 
-        $objname = "UpdraftPlus_BackupModule_${service}";
+        $objname = "UpdraftPlus_BackupModule_{$service}";
         if ( method_exists( $objname, 'download' ) ) {
             $remote_obj = new $objname();
 
@@ -3359,7 +3359,7 @@ ENDHERE;
 
         $ret .= <<<ENDHERE
 							<div style="float:left; clear: none;">
-								<form id="uddownloadform_${bkey}_${key}_0" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', $key, '$bkey', '#mwp_ud_downloadstatus', '0', '$esc_pretty_date', true, this )" method="post">
+								<form id="uddownloadform_{$bkey}_{$key}_0" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', $key, '$bkey', '#mwp_ud_downloadstatus', '0', '$esc_pretty_date', true, this )" method="post">
 									$nonce_field
 									<input type="hidden" name="action" value="mainwp_updraft_download_backup" />
 									<input type="hidden" name="type" value="$bkey" />
@@ -3509,7 +3509,7 @@ ENDHERE;
     private function download_button($type, $key, $findex, $info, $nonce_field, $ide, $pdescrip, $esc_pretty_date, $set_contents ) {
         $ret = <<<ENDHERE
 							<div style="float: left; clear: none;">
-								<form id="uddownloadform_${type}_${key}_${findex}" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', '$key', '$type', '#mwp_ud_downloadstatus', '$set_contents', '$esc_pretty_date', true, this )" method="post">
+								<form id="uddownloadform_{$type}_{$key}_{$findex}" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', '$key', '$type', '#mwp_ud_downloadstatus', '$set_contents', '$esc_pretty_date', true, this )" method="post">
 									$nonce_field
 									<input type="hidden" name="action" value="mainwp_updraft_download_backup" />
 									<input type="hidden" name="type" value="$type" />

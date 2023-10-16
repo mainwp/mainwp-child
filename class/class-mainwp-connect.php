@@ -118,8 +118,8 @@ class MainWP_Connect {
 		// Update the mainwp_child_pubkey option.
 		MainWP_Helper::update_option( 'mainwp_child_pubkey', ( isset( $_POST['pubkey'] ) ? base64_encode( wp_unslash( $_POST['pubkey'] ) ) : '' ), 'yes' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for the backwards compatibility.
 
-		// Save the public key.
-		MainWP_Helper::update_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
+		// Save the server.
+		MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
 
 		// Save the nonce.
 		MainWP_Helper::update_option( 'mainwp_child_nonce', 0 );

@@ -127,9 +127,15 @@ class MainWP_Child_Updates {
 
 		$information                    = array();
 		$information['upgrades']        = array();
+		$information['other_data']      = array();
 		$mwp_premium_updates_todo       = array();
 		$mwp_premium_updates_todo_slugs = array();
 		$premiumUpgrader                = false;
+
+		$hooks = array(
+			'upgrader_pre_install',
+		);
+		MainWP_Child_Actions::get_instance()->init_custom_hooks( $hooks );
 
 		$plugin_update = false;
 		// phpcs:disable WordPress.Security.NonceVerification
@@ -371,14 +377,21 @@ class MainWP_Child_Updates {
 		do_action( 'mainwp_child_after_update', 'plugin', $result, $plugins );
 
 		if ( ! empty( $result ) ) {
+
+			$plugins_info = MainWP_Child_Actions::get_instance()->get_current_plugins_info();
+
+			$updated_plugins = array();
 			foreach ( $result as $plugin => $info ) {
+				$success = false;
+				$error   = '';
 				if ( empty( $info ) ) {
 
 					$information['upgrades'][ $plugin ] = false;
 					$api                                = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
 
 					if ( is_wp_error( $api ) ) {
-						$information['upgrades_error'][ $plugin ] = $api->get_error_message();
+						$error                                    = $api->get_error_message();
+						$information['upgrades_error'][ $plugin ] = $error;
 					}
 
 					if ( ! is_wp_error( $api ) && ! empty( $api ) ) {
@@ -386,19 +399,52 @@ class MainWP_Child_Updates {
 							$res = $upgrader->install( $api->download_link );
 							if ( ! is_wp_error( $res ) && ! ( is_null( $res ) ) ) {
 								$information['upgrades'][ $plugin ] = true;
+								$success                            = true;
 							}
 							if ( is_wp_error( $res ) ) {
-								$information['upgrades_error'][ $plugin ] = $res->get_error_message();
+								$error                                    = $api->get_error_message();
+								$information['upgrades_error'][ $plugin ] = $error;
 							}
 						}
 					}
 				} elseif ( is_wp_error( $info ) ) {
-					$information['upgrades_error'][ $plugin ] = $info->get_error_message();
+					$error                                    = $info->get_error_message();
+					$information['upgrades_error'][ $plugin ] = $error;
 				} else {
 					$information['upgrades'][ $plugin ] = true;
+					$success                            = true;
 				}
+				$old_info = isset( $plugins_info[ $plugin ] ) ? $plugins_info[ $plugin ] : array();
+				if ( ! is_array( $old_info ) ) {
+					$old_info = array();
+				}
+				$info = array(
+					'name'        => isset( $old_info['Name'] ) ? $old_info['Name'] : '',
+					'old_version' => isset( $old_info['Version'] ) ? $old_info['Version'] : '',
+					'slug'        => $plugin,
+					'success'     => $success ? 1 : 0,
+				);
+
+				if ( ! empty( $error ) ) {
+					$info['error'] = $error;
+				}
+
+				$current_info = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
+				if ( ! is_array( $current_info ) ) {
+					$current_info = array();
+				}
+				if ( ! empty( $current_info['Version'] ) ) {
+					$info['version'] = $current_info['Version'];
+				}
+
+				if ( empty( $info['name'] ) && ! empty( $current_info['Name'] ) ) {
+					$info['name'] = $current_info['Name'];
+				}
+
+				$updated_plugins[ $plugin ] = $info;
 			}
-			$failed = false;
+			$information['other_data']['updated_data'] = $updated_plugins;
+			$failed                                    = false;
 		}
 
 		if ( $failed ) {
@@ -515,6 +561,9 @@ class MainWP_Child_Updates {
 			add_filter( 'site_transient_update_themes', array( $this, 'hook_fix_optimize_press_theme_update' ), 99 );
 		}
 
+		$url   = 'update.php?action=update-selected&amp;themes=' . rawurlencode( implode( ',', $themes ) );
+		$nonce = 'bulk-update-themes';
+
 		if ( null !== $this->filterFunction ) {
 			remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
 		}
@@ -531,14 +580,43 @@ class MainWP_Child_Updates {
 		do_action( 'mainwp_child_after_update', 'theme', $result, $themes );
 
 		if ( ! empty( $result ) ) {
-			foreach ( $result as $theme => $info ) {
-				if ( empty( $info ) ) {
+			wp_clean_themes_cache();
+			$themes_info    = MainWP_Child_Actions::get_instance()->get_current_themes_info();
+			$updated_themes = array();
+			foreach ( $result as $theme => $value ) {
+				$success = false;
+				if ( empty( $value ) ) {
 					$information['upgrades'][ $theme ] = false;
 				} else {
 					$information['upgrades'][ $theme ] = true;
+					$success                           = true;
 				}
+
+				$old_info = isset( $themes_info[ $theme ] ) ? $themes_info[ $theme ] : array();
+				if ( ! is_array( $old_info ) ) {
+					$old_info = array();
+				}
+				$info = array(
+					'name'        => isset( $old_info['name'] ) ? $old_info['name'] : '',
+					'old_version' => isset( $old_info['version'] ) ? $old_info['version'] : '',
+					'slug'        => $theme,
+					'success'     => $success ? 1 : 0,
+				);
+
+				$current_info = wp_get_theme( $theme );
+				if ( ! is_array( $current_info ) ) {
+					$current_info = array();
+				}
+
+				$current_info = wp_get_theme( $theme );
+				if ( is_object( $current_info ) ) {
+					$info['version'] = $current_info->display( 'Version', true, false );
+				}
+
+				$updated_themes[ $theme ] = $info;
 			}
-			$failed = false;
+			$information['other_data']['updated_data'] = $updated_themes;
+			$failed                                    = false;
 		}
 
 		if ( $failed ) {
@@ -961,6 +1039,9 @@ class MainWP_Child_Updates {
 				if ( 'latest' === $core_update->response ) {
 					$information['upgrade'] = 'SUCCESS';
 				} elseif ( 'upgrade' === $core_update->response && get_locale() === $core_update->locale && version_compare( $wp_version, $core_update->current, '<=' ) ) {
+					$old_ver     = $wp_version;
+					$current_ver = $core_update->current;
+
 					// Upgrade!
 					$upgrade = false;
 					if ( class_exists( '\Core_Upgrader' ) ) {
@@ -972,7 +1053,9 @@ class MainWP_Child_Updates {
 					// 3rd option: 'wp_update_core'.
 
 					if ( ! is_wp_error( $upgrade ) ) {
-						$information['upgrade'] = 'SUCCESS';
+						$information['upgrade']     = 'SUCCESS';
+						$information['old_version'] = $old_ver;
+						$information['version']     = $current_ver;
 					} else {
 						$information['upgrade'] = 'WPERROR';
 					}
@@ -983,6 +1066,8 @@ class MainWP_Child_Updates {
 			if ( ! isset( $information['upgrade'] ) ) {
 				foreach ( $core_updates as $core_update ) {
 					if ( 'upgrade' === $core_update->response && version_compare( $wp_version, $core_update->current, '<=' ) ) {
+						$old_ver     = $wp_version;
+						$current_ver = $core_update->current;
 						// Upgrade!
 						$upgrade = false;
 						if ( class_exists( '\Core_Upgrader' ) ) {
@@ -993,7 +1078,9 @@ class MainWP_Child_Updates {
 						// So users can upgrade older versions too.
 						// 3rd option: 'wp_update_core'.
 						if ( ! is_wp_error( $upgrade ) ) {
-							$information['upgrade'] = 'SUCCESS';
+							$information['upgrade']     = 'SUCCESS';
+							$information['old_version'] = $old_ver;
+							$information['version']     = $current_ver;
 						} else {
 							$information['upgrade'] = 'WPERROR';
 						}
@@ -1074,20 +1161,44 @@ class MainWP_Child_Updates {
 			}
 		}
 
+		$updated_trans = array();
+
 		$result = count( $language_updates ) == 0 ? false : $upgrader->bulk_upgrade( $language_updates );
 		if ( ! empty( $result ) ) {
 			$count_result = count( $result );
 			for ( $i = 0; $i < $count_result; $i++ ) {
+				$success = false;
 				if ( empty( $result[ $i ] ) || is_wp_error( $result[ $i ] ) ) {
 					$information['upgrades'][ $language_updates[ $i ]->slug ] = false;
 				} else {
 					$information['upgrades'][ $language_updates[ $i ]->slug ] = true;
+					$success = true;
+				}
+
+				if ( isset( $language_updates[ $i ] ) ) {
+					$array_item = (array) $language_updates[ $i ];
+					if ( isset( $array_item['slug'] ) ) {
+						$_slug = $array_item['slug'];
+						$name  = $upgrader->get_name_for_update( $language_updates[ $i ] );
+						if ( empty( $name ) || ! is_string( $name ) ) {
+							$name = $_slug;
+						}
+						$item            = array();
+						$item['name']    = $name;
+						$item['slug']    = $_slug;
+						$item['type']    = isset( $array_item['type'] ) ? $array_item['type'] : '';
+						$item['version'] = isset( $array_item['version'] ) ? $array_item['version'] : '';
+						$item['success'] = $success ? 1 : 0;
+
+						$updated_trans[ $language_updates[ $i ]->slug ] = $item;
+					}
 				}
 			}
 		} else {
 			$information['upgrades'] = array(); // Fix error message when translations updated.
 		}
-		$information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+		$information['other_data']['updated_data'] = $updated_trans;
+		$information['sync']                       = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		MainWP_Helper::write( $information );
 	}
 

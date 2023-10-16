@@ -80,6 +80,19 @@ class MainWP_Child_Users {
 		$reassign = ( isset( $current_user ) && isset( $current_user->ID ) ) ? $current_user->ID : 0;
 		include_once ABSPATH . '/wp-admin/includes/user.php';
 
+		$act_dt = array();
+
+		$theUser = $userId ? get_user_by( 'id', $userId ) : false;
+
+		if ( $theUser ) {
+			$roles  = array_values( $theUser->roles );
+			$act_dt = array(
+				'user_id'      => $userId,
+				'display_name' => $theUser->display_name,
+				'roles'        => ! empty( $roles ) ? implode( ',', $roles ) : '',
+			);
+		}
+
 		if ( 'delete' === $action ) {
 			wp_delete_user( $userId, $reassign );
 		} elseif ( 'changeRole' === $action ) {
@@ -87,6 +100,8 @@ class MainWP_Child_Users {
 			$my_user['ID']   = $userId;
 			$my_user['role'] = $extra;
 			wp_update_user( $my_user );
+			$act_dt['old_roles'] = $act_dt[ $userId ]['roles'];
+			$act_dt['roles']     = $extra;
 		} elseif ( 'update_password' === $action ) {
 			$my_user              = array();
 			$my_user['ID']        = $userId;
@@ -128,6 +143,11 @@ class MainWP_Child_Users {
 				$information['users'] = $this->get_all_users_int( 500 );
 			}
 		}
+
+		$information['other_data'] = array(
+			'users_data' => $act_dt,
+		);
+
 		// phpcs:enable WordPress.Security.NonceVerification
 		MainWP_Helper::write( $information );
 	}
@@ -508,21 +528,41 @@ class MainWP_Child_Users {
 
 		require_once ABSPATH . WPINC . '/registration.php';
 
-		$id = wp_update_user(
+		$id     = wp_update_user(
 			array(
 				'ID'        => $user->ID,
 				'user_pass' => $new_password,
 			)
 		);
+		$_error = '';
 		if ( $id !== $user->ID ) {
 			if ( is_wp_error( $id ) ) {
-				MainWP_Helper::instance()->error( $id->get_error_message() );
+				$_error = $id->get_error_message();
 			} else {
-				MainWP_Helper::instance()->error( esc_html__( 'Administrator password could not be changed.', 'mainwp-child' ) );
+				$_error = esc_html__( 'Administrator password could not be changed.', 'mainwp-child' );
 			}
 		}
 
-		$information['added'] = true;
+		$information = array();
+
+		$roles  = array_values( $user->roles );
+		$act_dt = array(
+			'display_name' => $user->display_name,
+			'user_id'      => $user->ID,
+			'roles'        => ! empty( $roles ) ? implode( ',', $roles ) : '',
+		);
+
+		if ( ! empty( $_error ) ) {
+			$information['error'] = $_error;
+			$act_dt['error']      = $_error;
+		} else {
+			$information['added'] = true;
+		}
+
+		$information['other_data'] = array(
+			'update_admin_password' => $act_dt,
+		);
+
 		MainWP_Helper::write( $information );
 	}
 
@@ -568,9 +608,24 @@ class MainWP_Child_Users {
 
 			MainWP_Utility::instance()->send_wp_mail( $user_email, sprintf( esc_html__( '[%s] Your username and password' ), $blogname ), $message );
 		}
+
 		$information['added'] = true;
+
+		if ( empty( $user ) ) {
+			$user = new \WP_User( $new_user_id );
+		}
+		if ( $user->exists() ) {
+			$act_dt                    = array(
+				'user_id'      => $new_user_id,
+				'display_name' => $user->display_name,
+				'roles'        => ! empty( $user->roles ) ? implode( ',', $user->roles ) : '',
+			);
+			$information['other_data'] = array(
+				'new_user_data' => $act_dt,
+			);
+		}
+
 		MainWP_Helper::write( $information );
 	}
 
 }
-

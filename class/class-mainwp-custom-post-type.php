@@ -164,7 +164,7 @@ class MainWP_Custom_Post_Type {
 					$localUrl          = $downloadfile['url'];
 					$linkToReplaceWith = dirname( $localUrl );
 					if ( '' !== $hrefLink ) {
-						$server     = get_option( 'mainwp_child_server' );
+						$server     = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
 						$serverHost = wp_parse_url( $server, PHP_URL_HOST );
 						if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
 							$serverHref        = 'href="' . $serverHost;

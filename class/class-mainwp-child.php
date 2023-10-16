@@ -164,7 +164,7 @@ class MainWP_Child {
 			$notoptions = false;
 		}
 
-		if ( ! isset( $alloptions['mainwp_child_server'] ) ) {
+		if ( ! isset( $alloptions['mainwp_child_pubkey'] ) ) {
 			$suppress = $wpdb->suppress_errors();
 			$options  = array(
 				'mainwp_child_auth',

@@ -81,31 +81,36 @@ class MainWP_Child_Keys_Manager {
 	 */
 	public function encrypt_string( $keypass ) {
 
-		$key = $this->get_key_val();
+		try {
+			$key = $this->get_key_val();
 
-		// Generate a random IV (Initialization Vector).
-		$iv = Random::string( 16 );
+			// Generate a random IV (Initialization Vector).
+			$iv = Random::string( 16 );
 
-		// Create AES instance.
-		$aes = new AES( 'gcm' ); // MODE_GCM.
-		$aes->setKey( $key );
+			// Create AES instance.
+			$aes = new AES( 'gcm' ); // MODE_GCM.
+			$aes->setKey( $key );
 
-		$aes->setNonce( $iv ); // Nonces are only used in GCM mode.
-		$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
+			$aes->setNonce( $iv ); // Nonces are only used in GCM mode.
+			$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
 
-		// Encrypt the value.
-		$ciphertext = $aes->encrypt( $keypass );
+			// Encrypt the value.
+			$ciphertext = $aes->encrypt( $keypass );
 
-		// Get the authentication tag.
-		$tag = $aes->getTag();
+			// Get the authentication tag.
+			$tag = $aes->getTag();
 
-		// Combine IV, ciphertext, and tag.
-		$encryptedValue = $iv . $ciphertext . $tag;
+			// Combine IV, ciphertext, and tag.
+			$encryptedValue = $iv . $ciphertext . $tag;
 
-		// Encode the encrypted value using base64 for storage.
-		$encodedValue = base64_encode( $encryptedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe values.
+			// Encode the encrypted value using base64 for storage.
+			$encodedValue = base64_encode( $encryptedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe values.
 
-		return $encodedValue;
+			return $encodedValue;
+		} catch ( \Exception $ex ) {
+			// error.
+		}
+		return '';
 	}
 
 	/**
@@ -154,4 +159,55 @@ class MainWP_Child_Keys_Manager {
 		return '';
 	}
 
+	/**
+	 * Method get_encrypted_option()
+	 *
+	 * Handle get encrypted value.
+	 *
+	 * @param string $option option name.
+	 * @param mixed  $default default value (option), default: false.
+	 *
+	 * @return string Decrypt value.
+	 */
+	public static function get_encrypted_option( $option, $default = false ) {
+
+		$val = get_option( $option, $default );
+
+		if ( empty( $val ) ) {
+			return $val;
+		}
+
+		$dec_val = self::instance()->decrypt_string( $val );
+		if ( empty( $dec_val ) ) {
+			return $val; // it's not encrypted or error happen.
+		}
+
+		return $dec_val;
+	}
+
+
+
+	/**
+	 * Method update_encrypted_option()
+	 *
+	 * Handle update encrypted value.
+	 *
+	 * @param string $option option name.
+	 * @param string $value option value.
+	 *
+	 * @return bool true|false updated success or failed.
+	 */
+	public static function update_encrypted_option( $option, $value ) {
+		if ( empty( $value ) ) {
+			return MainWP_Helper::update_option( $option, $value );
+		}
+
+		$enc_val = self::instance()->encrypt_string( $value );
+
+		if ( empty( $enc_val ) ) {
+			$enc_val = $value; // error happen.
+		}
+
+		return MainWP_Helper::update_option( $option, $enc_val );
+	}
 }
