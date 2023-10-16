@@ -432,7 +432,7 @@ class MainWP_Child_Actions {
 						)
 					);
 					$name       = $theme['Name'];
-					$version = $theme_data['Version'];
+					$version    = $theme_data['Version'];
 
 					$old_version = '';
 

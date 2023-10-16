@@ -1206,7 +1206,7 @@ SQL;
 		} catch ( \Exception $e ) {
 			return 0;
 		}
-		
+
 		global $wpdb;
 
 		$where  = '';
