@@ -367,7 +367,7 @@ class MainWP_Child_Install {
 	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
-	public function install_plugin_theme() {
+	public function install_plugin_theme() { //phpcs:ignore -- complex method.
 
 		MainWP_Helper::check_wp_filesystem();
 		// phpcs:disable WordPress.Security.NonceVerification
