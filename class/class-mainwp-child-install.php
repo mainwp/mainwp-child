@@ -71,7 +71,7 @@ class MainWP_Child_Install {
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
-	public function plugin_action() {
+	public function plugin_action() { //phpcs:ignore -- complex method.
 
 		/**
 		 * MainWP Child instance.

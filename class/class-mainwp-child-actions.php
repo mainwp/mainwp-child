@@ -166,6 +166,8 @@ class MainWP_Child_Actions {
 	 * Method init_custom_hooks().
 	 *
 	 * Init WP custom hooks.
+	 *
+	 * @param string $actions action name.
 	 */
 	public function init_custom_hooks( $actions ) {
 

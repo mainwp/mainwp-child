@@ -545,12 +545,12 @@ class MainWP_Child_Posts {
 	/**
 	 * Gets the singular post type label
 	 *
-	 * @param string $post_type_slug
+	 * @param string $post_type_slug Post type slug.
 	 *
 	 * @return string Post type label
 	 */
 	public function get_post_type_name( $post_type_slug ) {
-		$name = esc_html__( 'Post', 'mainwp' ); // Default
+		$name = esc_html__( 'Post', 'mainwp' ); // Default.
 
 		if ( post_type_exists( $post_type_slug ) ) {
 			$post_type = get_post_type_object( $post_type_slug );
