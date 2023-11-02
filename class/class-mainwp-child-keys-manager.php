@@ -64,10 +64,28 @@ class MainWP_Child_Keys_Manager {
 	 *
 	 * Get salt value.
 	 *
+	 * @param string $scheme scheme key.
+	 * @param int    $lenth length of key.
+	 *
 	 * @return string Decrypt value.
 	 */
-	public function get_key_val() {
-		return substr( wp_salt( 'auth' ), 0, 16 );
+	public function get_key_val( $scheme = 'auth', $length = 16 ) {
+		if ( ! in_array( $scheme, array( 'auth', 'nonce' ), true ) ) {
+			$scheme = 'auth';
+		}
+		return substr( wp_salt( $scheme ), 0, $length );
+	}
+
+	/**
+	 * Method get_sodium_key()
+	 *
+	 * Get key value for sodium.
+	 *
+	 * @return string key value.
+	 */
+	public function get_sodium_key() {
+		$keybytes     = defined( 'SODIUM_CRYPTO_SECRETBOX_KEYBYTES' ) ? SODIUM_CRYPTO_SECRETBOX_KEYBYTES : 32; //phpcs:ignore -- ok.
+		return $this->get_key_val( 'auth', $keybytes ); // must be CRYPTO_SECRETBOX_KEYBYTES long.
 	}
 
 	/**
@@ -81,34 +99,45 @@ class MainWP_Child_Keys_Manager {
 	 */
 	public function encrypt_string( $keypass ) {
 
-		try {
-			$key = $this->get_key_val();
-
-			// Generate a random IV (Initialization Vector).
-			$iv = Random::string( 16 );
-
-			// Create AES instance.
-			$aes = new AES( 'gcm' ); // MODE_GCM.
-			$aes->setKey( $key );
-
-			$aes->setNonce( $iv ); // Nonces are only used in GCM mode.
-			$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
-
-			// Encrypt the value.
-			$ciphertext = $aes->encrypt( $keypass );
-
-			// Get the authentication tag.
-			$tag = $aes->getTag();
-
-			// Combine IV, ciphertext, and tag.
-			$encryptedValue = $iv . $ciphertext . $tag;
-
-			// Encode the encrypted value using base64 for storage.
-			$encodedValue = base64_encode( $encryptedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe values.
-
+		if ( ! $this->valid_phpseclib3_supported() ) {
+			if ( is_callable( 'sodium_crypto_secretbox' ) ) {
+				$nonce        = $this->get_key_val( 'nonce', 24 ); // $nonce A Number to be used Once; must be 24 bytes.
+				$key          = $this->get_sodium_key();
+				$encodedValue = sodium_crypto_secretbox( $keypass, $nonce, $key ); //phpcs:ignore -- ok.
+				$encodedValue = base64_encode( $encodedValue ); //phpcs:ignore -- safe.
+			} else {
+				$encodedValue = MainWP_Utility::encrypt_decrypt( $keypass );
+			}
 			return $encodedValue;
-		} catch ( \Exception $ex ) {
-			// error.
+		} else {
+			try {
+				$key = $this->get_key_val();
+
+				// Generate a random IV (Initialization Vector).
+				$iv = Random::string( 16 );
+
+				// Create AES instance.
+				$aes = new AES( 'gcm' ); // MODE_GCM.
+				$aes->setKey( $key );
+
+				$aes->setNonce( $iv ); // Nonces are only used in GCM mode.
+				$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
+
+				// Encrypt the value.
+				$ciphertext = $aes->encrypt( $keypass );
+
+				// Get the authentication tag.
+				$tag = $aes->getTag();
+
+				// Combine IV, ciphertext, and tag.
+				$encryptedValue = $iv . $ciphertext . $tag;
+
+				// Encode the encrypted value using base64 for storage.
+				$encodedValue = base64_encode( $encryptedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe values.
+				return $encodedValue;
+			} catch ( \Exception $ex ) {
+				// error.
+			}
 		}
 		return '';
 	}
@@ -128,33 +157,47 @@ class MainWP_Child_Keys_Manager {
 			return '';
 		}
 
-		try {
-			$key = $this->get_key_val();
+		if ( ! $this->valid_phpseclib3_supported() ) {
+			if ( is_callable( 'sodium_crypto_secretbox_open' ) ) {
+				$encodedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
+				$nonce        = $this->get_key_val( 'nonce', 24 ); // $nonce A Number to be used Once; must be 24 bytes.
+				$key          = $this->get_sodium_key();
+				$decoded      = sodium_crypto_secretbox_open( $encodedValue, $nonce, $key ); //phpcs:ignore -- ok.
+			} else {
+				$decoded = MainWP_Utility::encrypt_decrypt( $encodedValue, false );
+			}
+			return $decoded;
+		} else {
 
-			// Decode the base64 encoded value.
-			$encryptedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
+			try {
+				$key = $this->get_key_val();
 
-			// Extract the IV, ciphertext, and tag.
-			$iv         = substr( $encryptedValue, 0, 16 );
-			$ciphertext = substr( $encryptedValue, 16, -16 );
-			$tag        = substr( $encryptedValue, -16 );
+				// Decode the base64 encoded value.
+				$encryptedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
 
-			// Create AES instance.
-			$aes = new AES( 'gcm' ); // MODE_GCM.
-			$aes->setKey( $key );
+				// Extract the IV, ciphertext, and tag.
+				$iv         = substr( $encryptedValue, 0, 16 );
+				$ciphertext = substr( $encryptedValue, 16, -16 );
+				$tag        = substr( $encryptedValue, -16 );
 
-			$aes->setNonce( $iv );  // Nonces are only used in GCM mode.
-			$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
+				// Create AES instance.
+				$aes = new AES( 'gcm' ); // MODE_GCM.
 
-			// Set the authentication tag.
-			$aes->setTag( $tag );
+				$aes->setKey( $key );
 
-			// Decrypt the value.
-			$keypass = $aes->decrypt( $ciphertext );
+				$aes->setNonce( $iv );  // Nonces are only used in GCM mode.
+				$aes->setAAD( 'authentication_data' ); // only used in GCM mode.
 
-			return $keypass;
-		} catch ( \Exception $ex ) {
-			// error.
+				// Set the authentication tag.
+				$aes->setTag( $tag );
+
+				// Decrypt the value.
+				$keypass = $aes->decrypt( $ciphertext );
+
+				return $keypass;
+			} catch ( \Exception $ex ) {
+				// error.
+			}
 		}
 		return '';
 	}
@@ -209,5 +252,17 @@ class MainWP_Child_Keys_Manager {
 		}
 
 		return MainWP_Helper::update_option( $option, $enc_val );
+	}
+
+	/**
+	 * Method valid_phpseclib3_supported()
+	 *
+	 * @return bool true|false valid supported phpseclib3 or not.
+	 */
+	public function valid_phpseclib3_supported() {
+		if ( is_callable( 'php_uname' ) ) {
+			return true;
+		}
+		return false;
 	}
 }

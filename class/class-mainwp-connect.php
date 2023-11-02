@@ -105,6 +105,11 @@ class MainWP_Connect {
 			MainWP_Helper::instance()->error( esc_html__( 'OpenSSL library is required on the child site to set up a secure connection.', 'mainwp-child' ) );
 		}
 
+		// Check Curl SSL Requirement.
+		if ( ! MainWP_Child_Server_Information_Base::get_curl_support() ) {
+			MainWP_Helper::instance()->error( esc_html__( 'cURL Extension not enabled on the child site server. Please contact your host support and have them enabled it for you.', 'mainwp-child' ) );
+		}
+
 		// Check if the user exists and if yes, check if it's Administartor user.
 		if ( isset( $_POST['user'] ) ) {
 			if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {

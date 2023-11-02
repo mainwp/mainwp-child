@@ -359,6 +359,118 @@ class MainWP_Child_WooCommerce_Status {
 	}
 
 	/**
+	 * Get top seller.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function get_top_seller( $start_date, $end_date ) {
+
+		$top_seller = false;
+		if ( class_exists( '\Automattic\WooCommerce\Admin\API\Reports\Products\Query' ) ) {
+			$page       = 0;
+			$total_page = 1;
+			$top_count  = 0;
+			while ( $page < $total_page ) {
+				++$page;
+				$args  = array(
+					'before' => $start_date,
+					'after'  => $end_date,
+					'page'   => $page,
+				);
+
+				$report = new \Automattic\WooCommerce\Admin\API\Reports\Products\Query( $args );
+
+				$product_data = $report->get_data();
+				$all_page     = 1;
+				$page_no      = 1;
+				$products     = array();
+
+				if ( is_object( $product_data ) ) {
+					$products = ! empty( $product_data->data ) ? $product_data->data : array();
+					if ( ! is_array( $products ) ) {
+						$products = array();
+					}
+					foreach ( $products as $prod_sel ) {
+						if ( is_array( $prod_sel ) && isset( $prod_sel['items_sold'] ) && $prod_sel['items_sold'] > $top_count ) {
+							$top_seller = $prod_sel;
+							$top_count  = $prod_sel['items_sold'];
+						}
+					}
+					if ( ! empty( $product_data->pages ) && $product_data->pages > $total_page ) {
+						$total_page = $product_data->pages;
+					}
+				} else {
+					break;
+				}
+			}
+		}
+
+		$top_data = array();
+		if ( ! empty( $top_seller ) ) {
+			$top_data         = array(
+				'product_id' => $top_seller['product_id'],
+				'qty'        => $top_seller['items_sold'],
+			);
+			$product          = wc_get_product( $top_seller['product_id'] );
+			$top_data['name'] = ! empty( $product ) ? $product->get_name() : 'N/A';
+		}
+		return $top_data;
+	}
+
+	/**
+	 * Get Woocommerce 8 reports.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function get_woocom_reports( $start_date, $end_date ) {
+
+		$args          = array(
+			'before'    => $start_date,
+			'after'     => $end_date,
+			'status_is' => array( 'on-hold', 'processing' ),
+		);
+		$report        = new \Automattic\WooCommerce\Admin\API\Reports\Orders\Stats\Query( $args );
+		$order_data    = $report->get_data();
+		$on_hold_count = is_object( $order_data ) && ! empty( $order_data->totals->orders_count ) ? $order_data->totals->orders_count : 0;
+
+		$processing_count = 0;
+		if ( function_exists( 'wc_processing_order_count' ) ) {
+			$processing_count = wc_processing_order_count();
+		}
+
+		$args         = array(
+			'before' => $start_date,
+			'after'  => $end_date,
+		);
+		$report       = new \Automattic\WooCommerce\Admin\API\Reports\Revenue\Query( $args );
+		$revenue_data = $report->get_data();
+		$total_sales  = is_object( $revenue_data ) && ! empty( $revenue_data->totals->total_sales ) ? $revenue_data->totals->total_sales : 0;
+
+		$top_seller = $this->get_top_seller( $start_date, $end_date );
+
+		$report     = new \Automattic\WooCommerce\Admin\API\Reports\Stock\Stats\Query();
+		$stock_data = $report->get_data();
+
+		$data = array(
+			'sales'          => $total_sales,
+			'formated_sales' => wc_price( $total_sales ),
+			'top_seller'     => ! empty( $top_seller ) ? (object) $top_seller : false,
+			'onhold'         => $on_hold_count,
+			'awaiting'       => $processing_count,
+			'lowstock'       => is_array( $stock_data ) && isset( $stock_data['lowstock'] ) ? intval( $stock_data['lowstock'] ) : 0,
+			'outstock'       => is_array( $stock_data ) && isset( $stock_data['outofstock'] ) ? intval( $stock_data['outofstock'] ) : 0,
+		);
+
+		return $data;
+	}
+
+	/**
 	 * Get Woocommerce data.
 	 *
 	 * @param string $start_date Start Date.
@@ -367,6 +479,28 @@ class MainWP_Child_WooCommerce_Status {
 	 * @return array $information Woocommerce data grabed.
 	 */
 	public function get_woocom_data( $start_date, $end_date ) {
+
+		if ( class_exists( '\Automattic\WooCommerce\Admin\API\Reports\Orders\Stats\Query' ) ) {
+			$data = $this->get_woocom_reports( $start_date, $end_date );
+		} else {
+			$data = $this->get_woocom_reports_old( $start_date, $end_date );
+		}
+
+		$information['data']           = $data;
+		$information['need_db_update'] = $this->check_db_update();
+		return $information;
+	}
+
+
+	/**
+	 * Get Woocommerce reports old.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function get_woocom_reports_old( $start_date, $end_date ) {
 
 		/**
 		 * Object, providing access to the WordPress database.
@@ -454,10 +588,7 @@ class MainWP_Child_WooCommerce_Status {
 		);
 
 		$data = apply_filters( 'mainwp_child_woocom_get_data', $data );
-
-		$information['data']           = $data;
-		$information['need_db_update'] = $this->check_db_update();
-		return $information;
+		return $data;
 	}
 
 	/**

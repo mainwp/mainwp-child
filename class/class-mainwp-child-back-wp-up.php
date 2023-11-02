@@ -1786,7 +1786,13 @@ class MainWP_Child_Back_WP_Up {
             }
         } elseif ( 'dest-DROPBOX' == $settings['tab'] ) {
             unset( $settings['value'] );
-            \BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
+            if(isset($_POST['settings']['value']['dropboxdir'])){
+                $val = wp_unslash( $_POST['settings']['value']['dropboxdir'] );
+                if( '%do-not-update%' === $val || '%do-not-update%/' === $val ){
+                    $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get($job_id, 'dropboxdir');
+                }
+            }
+            //\BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
         } else {
             \BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
         }
