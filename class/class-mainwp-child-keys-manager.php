@@ -65,7 +65,7 @@ class MainWP_Child_Keys_Manager {
 	 * Get salt value.
 	 *
 	 * @param string $scheme scheme key.
-	 * @param int    $lenth length of key.
+	 * @param int    $length length of key.
 	 *
 	 * @return string Decrypt value.
 	 */
