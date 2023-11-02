@@ -375,7 +375,7 @@ class MainWP_Child_WooCommerce_Status {
 			$top_count  = 0;
 			while ( $page < $total_page ) {
 				++$page;
-				$args  = array(
+				$args = array(
 					'before' => $start_date,
 					'after'  => $end_date,
 					'page'   => $page,
