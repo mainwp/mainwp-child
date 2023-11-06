@@ -188,7 +188,10 @@ class MainWP_Child_Stats {
 		// phpcs:disable WordPress.Security.NonceVerification
 		MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', '' );
 		if ( isset( $_POST['server'] ) ) {
-			MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
+			$current_url = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+			if ( $current_url !== $_POST['server'] ) {
+				MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? wp_unslash( $_POST['server'] ) : '' );
+			}
 		}
 
 		MainWP_Child_Plugins_Check::may_outdate_number_change();
