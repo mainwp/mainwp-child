@@ -171,6 +171,8 @@ Yes, we have a quick FAQ with a lot more questions and answers [here](https://ma
 * Fixed: Potential functionality issues arising from the disabled state of the php_uname function within PHP environments.
 * Added: Support for the `%do-not-update%` token within the MainWP BackWPup Extension to improve update management.
 
+[See Video Changelog](https://www.youtube.com/watch?v=TA2YSualmkQ)
+
 = 4.5.2 - 10-16-2023 =
 * Added: Support for the Dashboard Insights logging
 * Added: Encryption process for the connection Dashboard URL info
