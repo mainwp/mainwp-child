@@ -23,7 +23,6 @@ namespace MainWP\Child;
 
 // phpcs:disable -- third party credit code.
 
-
 /**
  * Class MainWP_Child_IThemes_Security
  */
@@ -467,7 +466,7 @@ class MainWP_Child_IThemes_Security {
 				}
 			}
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ( isset( $update_settings['itsec_active_modules'] ) ) {
 			$current_val = get_site_option( 'itsec_active_modules', array() );
@@ -1140,6 +1139,7 @@ class MainWP_Child_IThemes_Security {
 			$itsec_files->release_file_lock( 'admin_user' );
 			return true;
 		}
+		//phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 		return false;
 	}
 
@@ -1514,7 +1514,6 @@ class MainWP_Child_IThemes_Security {
 				)
 			);
 		}
-		//phpcs:enable
 
 		\ITSEC_Lib::clear_caches();
 

@@ -255,7 +255,7 @@ class MainWP_Backup {
 		$fileNameUID = isset( $_POST['fileNameUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileNameUID'] ) ) : '';
 		$fileName    = isset( $_POST['fileName'] ) ? sanitize_text_field( wp_unslash( $_POST['fileName'] ) ) : '';
 		$type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( 'full' === $type ) {
 			if ( '' !== $fileName ) {
 				$backupFile = $fileName;
@@ -322,7 +322,7 @@ class MainWP_Backup {
 	public function backup_checkpid() {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : 0;
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 
@@ -457,7 +457,7 @@ class MainWP_Backup {
 		if ( $write ) {
 			MainWP_Helper::write( $information );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $information;
 	}
 
@@ -471,7 +471,7 @@ class MainWP_Backup {
 	 * @uses \MainWP\Child\MainWP_Backup::create_full_backup() Create full backup.
 	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 */
-	public function backup_full( $fileName ) {
+	public function backup_full( $fileName ) { //phpcs:ignore -- complex method.
 		// phpcs:disable WordPress.Security.NonceVerification
 		$excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ok.
 		$excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
@@ -555,7 +555,7 @@ class MainWP_Backup {
 		$pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : false;
 
 		$append = ( isset( $_POST['append'] ) && ( '1' === $_POST['append'] ) );
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		return $this->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
 	}
 
@@ -1324,7 +1324,7 @@ class MainWP_Backup {
 				}
 			}
 		}
-		//phpcs:enable
+		//phpcs:enable WordPress.WP.AlternativeFunctions
 
 		return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );
 	}

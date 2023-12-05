@@ -766,7 +766,7 @@ class MainWP_Child_Branding {
 	public function branding_redirect() {
 		$redirect = false;
 		if ( isset( $_SERVER['REQUEST_URI'] ) ) {
-			$uri = sanitize_url( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+			$uri = esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 			if ( false !== stripos( $uri, 'update-core.php' ) ) {
 				$redirect = true;
 			} elseif ( false !== stripos( $uri, 'plugins.php' ) ) {
@@ -1182,10 +1182,10 @@ class MainWP_Child_Branding {
 		}
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_GET['from_page'] ) ) {
-			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . ( ! empty( $_GET['from_page'] ) ? rawurlencode( sanitize_url( wp_unslash( $_GET['from_page'] ) ) ) : '' ) );
+			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . ( ! empty( $_GET['from_page'] ) ? rawurlencode( esc_url_raw( wp_unslash( $_GET['from_page'] ) ) ) : '' ) );
 		} else {
 			$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-			$fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . sanitize_url( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . sanitize_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+			$fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 			$href     = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( $fullurl ) );
 		}
 		// phpcs:enable

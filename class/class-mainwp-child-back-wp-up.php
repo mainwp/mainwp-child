@@ -525,7 +525,7 @@ class MainWP_Child_Back_WP_Up {
         remove_menu_page( 'backwpup' );
 
         // Create a WP Safe Redirect for the page URL.
-        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( sanitize_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=backwpup' ) : false;
+        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=backwpup' ) : false;
         if ( false !== $pos ) {
             wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
             exit();

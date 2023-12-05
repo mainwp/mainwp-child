@@ -71,7 +71,7 @@ class MainWP_Utility {
 				return;
 			}
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( get_option( 'mainwp_ext_snippets_enabled' ) ) {
 			$snippets = get_option( 'mainwp_ext_code_snippets' );
 			if ( is_array( $snippets ) && count( $snippets ) > 0 ) {
@@ -168,7 +168,7 @@ class MainWP_Utility {
 		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' === $_POST['function'] ) ) {
 			register_shutdown_function( '\MainWP\Child\MainWP_Utility::handle_shutdown' );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	/**
@@ -263,7 +263,7 @@ class MainWP_Utility {
 			$buffer = null;
 		}
 		return fclose( $handle );
-		//phpcs:enable
+		//phpcs:enable WordPress.WP.AlternativeFunctions
 	}
 
 	/**
@@ -563,7 +563,7 @@ class MainWP_Utility {
 		} else {
 			throw new \Exception( esc_html__( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 	}
 
 	/**
@@ -602,16 +602,16 @@ class MainWP_Utility {
 			}
 		}
 
-		//phpcs:disable -- System functions required to achieve desired results, pull request solutions appreciated.
+		//phpcs:disable WordPress.WP.AlternativeFunctions -- System functions required to achieve desired results, pull request solutions appreciated.
 		if ( ! $done ) {
 			if ( ! file_exists( $dir ) ) {
-				@mkdirs( $dir );
+				mkdirs( $dir );
 			}
 			if ( is_writable( $dir ) ) {
 				$done = true;
 			}
 		}
-		//phpcs:enable
+		//phpcs:enable WordPress.WP.AlternativeFunctions
 
 		return $done;
 	}
@@ -674,7 +674,7 @@ class MainWP_Utility {
 
 		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
 		// request URI.
-		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . sanitize_url( wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_strip_all_tags( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : 'undefined';
+		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_strip_all_tags( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : 'undefined';
 
 		// query string.
 		$string = isset( $_SERVER['QUERY_STRING'] ) ? sanitize_text_field( wp_strip_all_tags( wp_unslash( $_SERVER['QUERY_STRING'] ) ) ) : 'undefined';
@@ -761,7 +761,7 @@ class MainWP_Utility {
 
 			return true;
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		return false;
 	}
 

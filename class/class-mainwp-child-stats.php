@@ -319,7 +319,7 @@ class MainWP_Child_Stats {
 		if ( $exit_done ) {
 			MainWP_Helper::write( $information );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 		return $information;
 	}
 
@@ -352,7 +352,7 @@ class MainWP_Child_Stats {
 		if ( ! is_array( $othersData ) ) {
 			$othersData = array();
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 		try {
 			$information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );
 			$information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );
@@ -770,7 +770,7 @@ class MainWP_Child_Stats {
 		if ( $recent_number <= 0 || $recent_number > 30 ) {
 			$recent_number = 5;
 		}
- 		// phpcs:enable
+ 		// phpcs:enable WordPress.WP.AlternativeFunctions
 		return $recent_number;
 	}
 
@@ -802,7 +802,7 @@ class MainWP_Child_Stats {
 		} elseif ( false !== get_option( 'mainwp_child_pluginDir' ) ) {
 			MainWP_Helper::update_option( 'mainwp_child_pluginDir', false, 'yes' );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 	}
 
 	/**
@@ -960,7 +960,7 @@ class MainWP_Child_Stats {
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
 		$not_int     = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 
 		$rslt         = array();
 		$rslt['data'] = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
@@ -980,7 +980,7 @@ class MainWP_Child_Stats {
 	 *
 	 * @return array $rslt Returned themes results.
 	 */
-	public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) {
+	public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) { //phpcs:ignore -- complex method.
 		$rslt   = array();
 		$themes = wp_get_themes();
 
@@ -1067,7 +1067,7 @@ class MainWP_Child_Stats {
 		$filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
 		$un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
 		$not_int     = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 
 		$rslt         = array();
 		$rslt['data'] = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
@@ -1087,7 +1087,7 @@ class MainWP_Child_Stats {
 	 *
 	 * @return array $rslt Returned themes results.
 	 */
-	public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) {
+	public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) { //phpcs:ignore -- complex method.
 		if ( ! function_exists( 'get_plugins' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}

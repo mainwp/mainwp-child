@@ -466,7 +466,7 @@ class MainWP_Child_Timecapsule {
 	public function get_tables() {
 		 // phpcs:disable WordPress.Security.NonceVerification
 		$category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		 // phpcs:enable
+		 // phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_tables();
 		die();
@@ -485,7 +485,7 @@ class MainWP_Child_Timecapsule {
 		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj->exclude_file_list( $data );
 		die();
 	}
@@ -603,7 +603,7 @@ class MainWP_Child_Timecapsule {
 		$type               = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 		$treeRecursiveCount = isset( $_POST['treeRecursiveCount'] ) ? sanitize_text_field( wp_unslash( $_POST['treeRecursiveCount'] ) ) : '';
 		$processed_files    = \WPTC_Factory::get( 'processed-files' );
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$result = $processed_files->get_this_backups_html( $this_backup_ids, $specific_dir, $type, $treeRecursiveCount );
 		return array( 'result' => $result );
 	}
@@ -620,7 +620,7 @@ class MainWP_Child_Timecapsule {
 		} else {
 			// phpcs:disable WordPress.Security.NonceVerification
 			$request = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			// phpcs:enable
+			// phpcs:enable WordPress.Security.NonceVerification
 		}
 
 		include_once WPTC_CLASSES_DIR . 'class-prepare-restore-bridge.php';
@@ -645,7 +645,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$backup_id       = isset( $_POST['data']['backup_id'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['backup_id'] ) ) : '';
 		$recursive_count = isset( $_POST['data']['recursive_count'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['recursive_count'] ) ) : '';
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		echo $processed_files->get_this_backups_html( $backup_id, $file_name, $type = 'sibling', (int) $recursive_count ); // phpcs:ignore WordPress.Security.EscapeOutput
 		die();
@@ -683,7 +683,7 @@ class MainWP_Child_Timecapsule {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_DB::real_escape_string()
 	 */
-	public function prepare_items() {
+	public function prepare_items() { //phpcs:ignore -- complex method.
 
 		/**
 		 * Object, providing access to the WordPress database.
@@ -738,7 +738,7 @@ class MainWP_Child_Timecapsule {
 			$offset = ( $paged - 1 ) * $perpage;
 			$query .= ' LIMIT ' . (int) $offset . ',' . (int) $perpage;
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		return array(
 			'items'      => $wpdb->get_results( $query ), // phpcs:ignore -- safe query required to achieve desired results, pull request solutions appreciated.
@@ -771,7 +771,7 @@ class MainWP_Child_Timecapsule {
 		if ( ! isset( $data['action_id'] ) || ! isset( $data['limit'] ) ) {
 			return false;
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		/**
 		 * Object, providing access to the WordPress database.
@@ -970,7 +970,7 @@ class MainWP_Child_Timecapsule {
 	public function get_root_files() {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_root_files();
 		die();
@@ -990,7 +990,7 @@ class MainWP_Child_Timecapsule {
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$exclude_class_obj->exclude_table_list( $data );
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		die();
 	}
 
@@ -1086,7 +1086,7 @@ class MainWP_Child_Timecapsule {
 		$category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj->include_table_list( $data );
 		die();
 	}
@@ -1105,7 +1105,7 @@ class MainWP_Child_Timecapsule {
 		$category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj->include_table_structure_only( $data );
 		die();
 	}
@@ -1123,7 +1123,7 @@ class MainWP_Child_Timecapsule {
 		$category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj->include_file_list( wp_unslash( $data ) );
 		die();
 	}
@@ -1137,7 +1137,7 @@ class MainWP_Child_Timecapsule {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$key      = isset( $_POST['key'] ) ? wp_unslash( $_POST['key'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$exclude_class_obj = new \Wptc_ExcludeOption( $category );
 		$exclude_class_obj->get_files_by_key( $key );
 		die();
@@ -1162,7 +1162,7 @@ class MainWP_Child_Timecapsule {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$email = isset( $_POST['acc_email'] ) ? sanitize_text_field( wp_unslash( $_POST['acc_email'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$pwd   = isset( $_POST['acc_pwd'] ) ? wp_unslash( $_POST['acc_pwd'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		if ( empty( $email ) || empty( $pwd ) ) {
 			return array( 'error' => 'Username and password cannot be empty' );
 		}
@@ -1525,7 +1525,7 @@ class MainWP_Child_Timecapsule {
 		}
 
 		$staging->choose_action( wp_unslash( $_POST['path'] ), $reqeust_type = 'fresh' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		die();
 	}
 
@@ -1627,7 +1627,7 @@ class MainWP_Child_Timecapsule {
 		}
 		$restore_to_staging = \WPTC_Base_Factory::get( 'Wptc_Restore_To_Staging' );
 		$restore_to_staging->init_restore( $_POST );
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		die();
 	}
 
@@ -1652,7 +1652,7 @@ class MainWP_Child_Timecapsule {
 
 		$tabName    = isset( $_POST['tabname'] ) ? sanitize_text_field( wp_unslash( $_POST['tabname'] ) ) : '';
 		$is_general = isset( $_POST['is_general'] ) ? sanitize_text_field( wp_unslash( $_POST['is_general'] ) ) : '';
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		$saved  = false;
 		$config = \WPTC_Factory::get( 'config' );
@@ -2003,7 +2003,7 @@ class MainWP_Child_Timecapsule {
 		$vulns_obj = \WPTC_Base_Factory::get( 'Wptc_Vulns' );
 		// phpcs:disable WordPress.Security.NonceVerification
 		$data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$vulns_obj->update_vulns_settings( $data );
 
 		return array( 'success' => 1 );
@@ -2033,7 +2033,7 @@ class MainWP_Child_Timecapsule {
 	public function save_manual_backup_name_wptc() {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$backup_name = isset( $_POST['backup_name'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_name'] ) ) : '';
-		// phpcs:enable
+		// phpcs:enable WordPress.Security.NonceVerification
 		$processed_files = \WPTC_Factory::get( 'processed-files' );
 		$processed_files->save_manual_backup_name_wptc( $backup_name );
 		die();
@@ -2062,7 +2062,7 @@ class MainWP_Child_Timecapsule {
 	 */
 	public function remove_menu() {
 		remove_menu_page( 'wp-time-capsule-monitor' );
-		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( sanitize_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=wp-time-capsule-monitor' ) : false;
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=wp-time-capsule-monitor' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();

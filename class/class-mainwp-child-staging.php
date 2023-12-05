@@ -375,7 +375,7 @@ class MainWP_Child_Staging {
 		 *
 		 * @return false|string|void Return FALSE on failure, ajax response string on success, ELSE returns VOID.
 		 */
-	public function ajax_start_clone() {
+	public function ajax_start_clone() { //phpcs:ignore -- complex method.
 
 		if ( function_exists( '\WPStaging\Core\WPStaging::make' ) ) {
 			require_once WPSTG_PLUGIN_DIR . 'Backend/Modules/Jobs/ProcessLock.php';

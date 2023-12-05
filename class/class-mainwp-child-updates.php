@@ -179,7 +179,7 @@ class MainWP_Child_Updates {
 		if ( $send_exit ) {
 			MainWP_Helper::write( $information );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 	}
 
 
@@ -201,7 +201,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin_theme() Fire off plugins and themes updates and write feedback to the synchronization information.
 	 */
-	private function upgrade_plugin( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs, &$premiumUpgrader ) {
+	private function upgrade_plugin( &$information, &$mwp_premium_updates_todo, &$mwp_premium_updates_todo_slugs, &$premiumUpgrader ) { //phpcs:ignore -- complex method.
 
 		include_once ABSPATH . '/wp-admin/includes/update.php';
 		if ( null !== $this->filterFunction ) {
@@ -234,7 +234,7 @@ class MainWP_Child_Updates {
 		$information['plugin_updates'] = get_plugin_updates();
 
 		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 
 		$premiumPlugins = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
@@ -363,7 +363,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @used-by MainWP_Child_Updates::upgrade_plugin() Initiate the plugin update process.
 	 */
-	private function to_update_plugins( &$information, $plugins ) {
+	private function to_update_plugins( &$information, $plugins ) { //phpcs:ignore -- complex method.
 		$failed = true;
 			// fix updates for Yithemes premium plugins that hook into upgrader_pre_download.
 		$url   = 'update.php?action=update-selected&amp;plugins=' . rawurlencode( implode( ',', $plugins ) );
@@ -486,7 +486,7 @@ class MainWP_Child_Updates {
 		$information['theme_updates'] = $this->upgrade_get_theme_updates();
 		// phpcs:disable WordPress.Security.NonceVerification
 		$themes = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 		$premiumThemes  = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -554,7 +554,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
-	private function to_upgrade_themes( &$information, $themes, $last_update ) {
+	private function to_upgrade_themes( &$information, $themes, $last_update ) { //phpcs:ignore -- complex method.
 		$addFilterToFixUpdate_optimizePressTheme = false;
 		if ( in_array( 'optimizePressTheme', $themes ) ) {
 			$addFilterToFixUpdate_optimizePressTheme = true;
@@ -934,7 +934,7 @@ class MainWP_Child_Updates {
 				}
 			}
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 	}
 
 	/**
@@ -1125,7 +1125,7 @@ class MainWP_Child_Updates {
 	 * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
-	public function upgrade_translation() {
+	public function upgrade_translation() { //phpcs:ignore -- complex method.
 		MainWP_Helper::maybe_set_doing_cron();
 
 		MainWP_Helper::get_wp_filesystem();
@@ -1153,7 +1153,7 @@ class MainWP_Child_Updates {
 		$upgrader             = new \Language_Pack_Upgrader( new \Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
 		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$all_language_updates = wp_get_translation_updates();
- 		// phpcs:enable
+ 		// phpcs:enable WordPress.WP.AlternativeFunctions
 		$language_updates = array();
 		foreach ( $all_language_updates as $current_language_update ) {
 			if ( in_array( $current_language_update->slug, $translations ) ) {
