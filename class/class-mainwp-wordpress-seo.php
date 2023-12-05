@@ -110,7 +110,7 @@ class MainWP_WordPress_SEO {
 	public function import_settings() {
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['file_url'] ) ) {
-			$file_url       = ! empty( $_POST['file_url'] ) ? base64_decode( wp_unslash( $_POST['file_url'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+			$file_url       = ! empty( $_POST['file_url'] ) ? sanitize_text_field( base64_decode( wp_unslash( $_POST['file_url'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
 			$temporary_file = '';
 
 			try {
@@ -120,23 +120,21 @@ class MainWP_WordPress_SEO {
 				remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
 				if ( is_wp_error( $temporary_file ) ) {
 					throw new \Exception( 'Error: ' . $temporary_file->get_error_message() );
-				} else {
-					if ( $this->import_seo_settings( $temporary_file ) ) {
+				} elseif ( $this->import_seo_settings( $temporary_file ) ) {
 						$information['success'] = true;
-					} else {
-						throw new \Exception( esc_html__( 'Settings could not be imported.', 'mainwp-child' ) );
-					}
+				} else {
+					throw new \Exception( esc_html__( 'Settings could not be imported.', 'mainwp-child' ) );
 				}
 			} catch ( \Exception $e ) {
 				$information['error'] = $e->getMessage();
 			}
 
 			if ( file_exists( $temporary_file ) ) {
-				unlink( $temporary_file );
+				wp_delete_file( $temporary_file );
 			}
 		} elseif ( isset( $_POST['settings'] ) ) {
 			try {
-				$settings = ! empty( $_POST['settings'] ) ? base64_decode( wp_unslash( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+				$settings = ! empty( $_POST['settings'] ) ? base64_decode( wp_unslash( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
 				$options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
 				if ( is_array( $options ) && array() !== $options ) {
 
@@ -162,7 +160,7 @@ class MainWP_WordPress_SEO {
 				$information['error'] = $e->getMessage();
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Helper::write( $information );
 	}
 
@@ -224,13 +222,13 @@ class MainWP_WordPress_SEO {
 				} else {
 					throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) );
 				}
-				unlink( $filename );
-				unlink( $p_path );
+				wp_delete_file( $filename );
+				wp_delete_file( $p_path );
 			} else {
-				throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( esc_html__( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) );
+				throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . sprintf( esc_html__( 'Unzipping failed with error "%s".', 'mainwp-child' ), $unzipped->get_error_message() ) ); //phpcs:ignore -- escaped.
 			}
 			unset( $zip, $unzipped );
-			unlink( $file );
+			wp_delete_file( $file );
 		} else {
 			throw new \Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . esc_html__( 'Upload failed.', 'mainwp-child' ) );
 		}
@@ -291,5 +289,4 @@ class MainWP_WordPress_SEO {
 
 		return '<div aria-hidden="true" title="' . esc_attr( $title ) . '" class="wpseo-score-icon ' . esc_attr( $rank->get_css_class() ) . '"></div><span class="screen-reader-text">' . $title . '</span>';
 	}
-
 }

@@ -50,8 +50,8 @@ class MainWP_Child_Updates {
 	 * Run any time class is called.
 	 */
 	public function __construct() {
-		$this->filterFunction = function( $a ) {
-			if ( null == $a ) {
+		$this->filterFunction = function ( $a ) {
+			if ( empty( $a ) ) {
 				return false;
 			}
 			if ( is_object( $a ) && property_exists( $a, 'last_checked' ) && ! property_exists( $a, 'checked' ) ) {
@@ -179,7 +179,7 @@ class MainWP_Child_Updates {
 		if ( $send_exit ) {
 			MainWP_Helper::write( $information );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 
@@ -211,7 +211,7 @@ class MainWP_Child_Updates {
 		// to fix conflict.
 		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
 		// phpcs:disable WordPress.Security.NonceVerification
-		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		$this->to_support_some_premiums_updates( $plugins );
 
@@ -233,8 +233,8 @@ class MainWP_Child_Updates {
 
 		$information['plugin_updates'] = get_plugin_updates();
 
-		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array();
-		// phpcs:enable WordPress.Security.NonceVerification
+		$plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		// phpcs:enable
 
 		$premiumPlugins = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
@@ -340,7 +340,7 @@ class MainWP_Child_Updates {
 
 			if ( ! $plugin_data['wp_compatible'] || ! $plugin_data['php_compatible'] ) {
 				// Current WordPress or PHP versions do not meet minimum requirements for update.
-				if ( 1 == count( $plugins ) ) {
+				if ( 1 === count( $plugins ) ) {
 					throw new \Exception( 'Current WordPress or PHP versions do not meet minimum requirements for update.' );
 				}
 				continue;
@@ -485,8 +485,8 @@ class MainWP_Child_Updates {
 
 		$information['theme_updates'] = $this->upgrade_get_theme_updates();
 		// phpcs:disable WordPress.Security.NonceVerification
-		$themes = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array();
-		// phpcs:enable WordPress.Security.NonceVerification
+		$themes = isset( $_POST['list'] ) ? explode( ',', wp_unslash( $_POST['list'] ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		// phpcs:enable
 		$premiumThemes  = array();
 		$premiumUpdates = get_option( 'mainwp_premium_updates' );
 		if ( is_array( $premiumUpdates ) ) {
@@ -814,7 +814,7 @@ class MainWP_Child_Updates {
 	 *
 	 * Support cached premium plugins update info, hooking in the bulk_upgrade().
 	 *
-	 * @param bool   $false true|false.
+	 * @param bool   $false_value true|false.
 	 * @param object $_transient_data Contains the transient data.
 	 *
 	 * @uses get_site_transient() Retrieves the value of a site transient.
@@ -822,7 +822,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @return object $_transient_data Contains the updated transient data.
 	 */
-	public function set_cached_update_plugins( $false = false, $_transient_data = null ) {
+	public function set_cached_update_plugins( $false_value = false, $_transient_data = null ) {
 
 		if ( ! is_object( $_transient_data ) ) {
 			$_transient_data = new \stdClass();
@@ -839,8 +839,8 @@ class MainWP_Child_Updates {
 			}
 		}
 
-		if ( false == $pre ) {
-			return $false;
+		if ( false === $pre ) {
+			return $false_value;
 		}
 
 		return $_transient_data;
@@ -851,7 +851,7 @@ class MainWP_Child_Updates {
 	 *
 	 * Support cached premium themes update info, hooking in the bulk_upgrade().
 	 *
-	 * @param bool   $false true|false.
+	 * @param bool   $false_value true|false.
 	 * @param object $_transient_data Contains the transient data.
 	 *
 	 * @uses get_site_transient() Retrieves the value of a site transient.
@@ -859,7 +859,7 @@ class MainWP_Child_Updates {
 	 *
 	 * @return object $_transient_data Contains the updated transient data.
 	 */
-	public function set_cached_update_themes( $false = false, $_transient_data = null ) {
+	public function set_cached_update_themes( $false_value = false, $_transient_data = null ) {
 
 		if ( ! is_object( $_transient_data ) ) {
 			$_transient_data = new \stdClass();
@@ -876,8 +876,8 @@ class MainWP_Child_Updates {
 			}
 		}
 
-		if ( false == $pre ) {
-			return $false;
+		if ( false === $pre ) {
+			return $false_value;
 		}
 
 		return $_transient_data;
@@ -899,7 +899,7 @@ class MainWP_Child_Updates {
 	 */
 	public function detect_premium_themesplugins_updates() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		if ( isset( $_GET['_detect_plugins_updates'] ) && 'yes' == $_GET['_detect_plugins_updates'] ) {
+		if ( isset( $_GET['_detect_plugins_updates'] ) && 'yes' === $_GET['_detect_plugins_updates'] ) {
 			// to fix some premium plugins update notification.
 			$current = get_site_transient( 'update_plugins' );
 			set_site_transient( 'update_plugins', $current );
@@ -911,7 +911,7 @@ class MainWP_Child_Updates {
 			set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS );
 		}
 
-		if ( isset( $_GET['_detect_themes_updates'] ) && 'yes' == $_GET['_detect_themes_updates'] ) {
+		if ( isset( $_GET['_detect_themes_updates'] ) && 'yes' === $_GET['_detect_themes_updates'] ) {
 			add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
 			$themes = get_theme_updates();
 			remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
@@ -921,8 +921,8 @@ class MainWP_Child_Updates {
 
 		$type = isset( $_GET['_request_update_premiums_type'] ) ? sanitize_text_field( wp_unslash( $_GET['_request_update_premiums_type'] ) ) : '';
 
-		if ( 'plugin' == $type || 'theme' == $type ) {
-			$list = isset( $_GET['list'] ) ? wp_unslash( $_GET['list'] ) : '';
+		if ( 'plugin' === $type || 'theme' === $type ) {
+			$list = isset( $_GET['list'] ) ? wp_unslash( $_GET['list'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 			if ( ! empty( $list ) ) {
 				$_POST['type'] = $type;
@@ -934,7 +934,7 @@ class MainWP_Child_Updates {
 				}
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**
@@ -1151,9 +1151,9 @@ class MainWP_Child_Updates {
 		wp_update_plugins();
 		 // phpcs:disable WordPress.Security.NonceVerification
 		$upgrader             = new \Language_Pack_Upgrader( new \Language_Pack_Upgrader_Skin( compact( 'url', 'nonce', 'title', 'context' ) ) );
-		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( $_POST['list'] ) ) : array();
+		$translations         = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$all_language_updates = wp_get_translation_updates();
- 		// phpcs:enable WordPress.Security.NonceVerification
+ 		// phpcs:enable
 		$language_updates = array();
 		foreach ( $all_language_updates as $current_language_update ) {
 			if ( in_array( $current_language_update->slug, $translations ) ) {
@@ -1163,7 +1163,7 @@ class MainWP_Child_Updates {
 
 		$updated_trans = array();
 
-		$result = count( $language_updates ) == 0 ? false : $upgrader->bulk_upgrade( $language_updates );
+		$result = count( $language_updates ) === 0 ? false : $upgrader->bulk_upgrade( $language_updates );
 		if ( ! empty( $result ) ) {
 			$count_result = count( $result );
 			for ( $i = 0; $i < $count_result; $i++ ) {
@@ -1201,5 +1201,4 @@ class MainWP_Child_Updates {
 		$information['sync']                       = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
 		MainWP_Helper::write( $information );
 	}
-
 }

@@ -113,6 +113,4 @@ class MainWP_Child_Format {
 </div>
 <br>';
 	}
-
-
 }

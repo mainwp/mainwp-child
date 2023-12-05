@@ -337,7 +337,7 @@ class MainWP_Child_Wordfence {
 		global $wpdb;
 
 		$lastcheck = get_option( 'mainwp_wordfence_lastcheck_scan' );
-		if ( false == $lastcheck ) {
+		if ( false === $lastcheck ) {
 			$lastcheck = time() - 3600 * 24 * 10;
 		}
 
@@ -405,10 +405,8 @@ class MainWP_Child_Wordfence {
 			if ( false === $sched ) {
 				$sched = wp_schedule_event( time(), $sch, 'mainwp_child_wordfence_cron_scan' );
 			}
-		} else {
-			if ( false !== $sched ) {
+		} elseif ( false !== $sched ) {
 				wp_unschedule_event( $sched, 'mainwp_child_wordfence_cron_scan' );
-			}
 		}
 	}
 
@@ -1098,7 +1096,7 @@ class MainWP_Child_Wordfence {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
 		$limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		$i      = new \wfIssues();
 		$iss    = $i->getIssues( $offset, $limit );
@@ -1132,7 +1130,7 @@ class MainWP_Child_Wordfence {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
 		$limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		$i      = new \wfIssues();
 		$iss    = $i->getIssues( $offset, $limit );
@@ -1346,7 +1344,7 @@ SQL
 					continue;
 				}
 				if ( 'del' === $op ) {
-					if ( unlink( $localFile ) ) {
+					if ( wp_delete_file( $localFile ) ) {
 						$issues->updateIssue( $id, 'delete' );
 						$filesWorkedOn ++;
 					} else {
@@ -1457,7 +1455,7 @@ SQL
 		if ( strpos( $localFile, ABSPATH ) !== 0 ) {
 			return array( 'errorMsg' => 'An invalid file was requested for deletion.' );
 		}
-		if ( unlink( $localFile ) ) {
+		if ( wp_delete_file( $localFile ) ) {
 			$wfIssues->updateIssue( $issueID, 'delete' );
 
 			return array(
@@ -1599,12 +1597,12 @@ SQL
 			foreach ( $opts as $key => $val ) {
 				// check saving section fields.
 				if ( in_array( $key, $saving_opts ) ) {
-					if ( 'apiKey' == $key ) { // Don't save API key yet!
+					if ( 'apiKey' === $key ) { // Don't save API key yet!
 						continue;
 					}
 					if ( in_array( $key, self::$firewall_options_filter ) ) {
 						\wfWAF::getInstance()->getStorageEngine()->setConfig( $key, $val );											
-					} elseif ( 'whitelistedServices' == $key ) {
+					} elseif ( 'whitelistedServices' === $key ) {
 						if (is_string($val)) { //Already JSON.
 							\wfConfig::set($key, $val);
 						} else {
@@ -1615,7 +1613,7 @@ SQL
 						if (method_exists(\wfWAF::getInstance()->getStorageEngine(), 'purgeIPBlocks')) {
 							\wfWAF::getInstance()->getStorageEngine()->purgeIPBlocks(\wfWAFStorageInterface::IP_BLOCKS_BLACKLIST);
 						}
-					} elseif ( 'betaThreatDefenseFeed' == $key ) {
+					} elseif ( 'betaThreatDefenseFeed' === $key ) {
 						$val = \wfUtils::truthyToBoolean($val);
 						\wfConfig::set($key, $val);
 						if (class_exists('\wfWAFConfig')) {
@@ -1627,7 +1625,7 @@ SQL
 				}
 			}
 
-			if ( $regenerateHtaccess && ( 'falcon' == \wfConfig::get( 'cacheType' ) ) ) {
+			if ( $regenerateHtaccess && ( 'falcon' === \wfConfig::get( 'cacheType' ) ) ) {
 				\wfCache::addHtaccessCode( 'add' );
 			}
 
@@ -1714,7 +1712,7 @@ SQL
 						$result['error'] = 'Your options have been saved, but you left your license key blank, so we tried to get you a free license key from the Wordfence servers. There was a problem fetching the free key: ' . wp_kses( $e->getMessage(), array() );
 						return $result;
 					}
-				} elseif ( ! empty( $apiKey ) && $existingAPIKey != $apiKey ) {
+				} elseif ( ! empty( $apiKey ) && $existingAPIKey !== $apiKey ) {
 					$api = new \wfAPI( $apiKey, \wfUtils::getWPVersion() );
 					try {
 						$res = $api->call( 'check_api_key', array(), array( 'previousLicense' => $existingAPIKey ) );
@@ -1777,7 +1775,7 @@ SQL
 						}
 						if ( isset( $keyData['scanSchedule'] ) && is_array( $keyData['scanSchedule'] ) ) {
 							\wfConfig::set_ser( 'noc1ScanSchedule', $keyData['scanSchedule'] );
-							if ( \wfScanner::shared()->schedulingMode() == \wfScanner::SCAN_SCHEDULING_MODE_AUTOMATIC ) {
+							if ( \wfScanner::shared()->schedulingMode() === \wfScanner::SCAN_SCHEDULING_MODE_AUTOMATIC ) {
 								\wfScanner::shared()->scheduleScans();
 							}
 						}
@@ -1785,7 +1783,7 @@ SQL
 						\wfConfig::set( 'keyType', $this->keyType );
 
 						if ( ! isset( $result['apiKey'] ) ) {
-							$isPaid           = ( $this->keyType == $key_type ) ? false : true;
+							$isPaid           = ( $this->keyType === $key_type ) ? false : true;
 							$result['apiKey'] = $apiKey;
 							$result['isPaid'] = $isPaid;
 							if ( $isPaid ) {
@@ -1999,7 +1997,7 @@ SQL
 		} elseif ( 'perfStats' === $alsoGet ) {
 			$newestEventTime = isset( $_POST['otherParams'] ) ? wp_unslash( $_POST['otherParams'] ) : '';
 			$events          = \wordfence::getLog()->getPerfStats( $newestEventTime );
-		} elseif ( 'liveTraffic' == $alsoGet ) {
+		} elseif ( 'liveTraffic' === $alsoGet ) {
 			if ( get_site_option( 'wordfence_syncAttackDataAttempts' ) > 10 ) {
 				\wordfence::syncAttackData( false );
 			}
@@ -2422,7 +2420,7 @@ SQL
 				$errors = \wfConfig::validate( $changes );
 
 				if ( true !== $errors ) {
-					if ( count( $errors ) == 1 ) {
+					if ( count( $errors ) === 1 ) {
 						return array(
 							'error' => sprintf( esc_html__( 'An error occurred while saving the configuration: %s', 'wordfence' ), $errors[0]['error'] ),
 						);
@@ -2666,20 +2664,20 @@ SQL
 		}
 
 		$cacheType = isset( $_POST['cacheType'] ) ? sanitize_text_field( wp_unslash( $_POST['cacheType'] ) ) : '';
-		if ( 'falcon' == $cacheType || 'php' == $cacheType ) {
+		if ( 'falcon' === $cacheType || 'php' === $cacheType ) {
 			$plugins    = get_plugins();
 			$badPlugins = array();
 			foreach ( $plugins as $pluginFile => $data ) {
 				if ( is_plugin_active( $pluginFile ) ) {
-					if ( 'w3-total-cache/w3-total-cache.php' == $pluginFile ) {
+					if ( 'w3-total-cache/w3-total-cache.php' === $pluginFile ) {
 						$badPlugins[] = 'W3 Total Cache';
-					} elseif ( 'quick-cache/quick-cache.php' == $pluginFile ) {
+					} elseif ( 'quick-cache/quick-cache.php' === $pluginFile ) {
 						$badPlugins[] = 'Quick Cache';
-					} elseif ( 'wp-super-cache/wp-cache.php' == $pluginFile ) {
+					} elseif ( 'wp-super-cache/wp-cache.php' === $pluginFile ) {
 						$badPlugins[] = 'WP Super Cache';
-					} elseif ( 'wp-fast-cache/wp-fast-cache.php' == $pluginFile ) {
+					} elseif ( 'wp-fast-cache/wp-fast-cache.php' === $pluginFile ) {
 						$badPlugins[] = 'WP Fast Cache';
-					} elseif ( 'wp-fastest-cache/wpFastestCache.php' == $pluginFile ) {
+					} elseif ( 'wp-fastest-cache/wpFastestCache.php' === $pluginFile ) {
 						$badPlugins[] = 'WP Fastest Cache';
 					}
 				}
@@ -2692,20 +2690,20 @@ SQL
 				return array( 'errorMsg' => "Wordfence caching currently does not support sites that are installed in a subdirectory and have a home page that is more than 2 directory levels deep. e.g. we don't support sites who's home page is http://example.com/levelOne/levelTwo/levelThree" );
 			}
 		}
-		if ( 'falcon' == $cacheType ) {
+		if ( 'falcon' === $cacheType ) {
 			if ( ! get_option( 'permalink_structure', '' ) ) {
 				return array( 'errorMsg' => 'You need to enable Permalinks for your site to use Falcon Engine. You can enable Permalinks in WordPress by going to the Settings - Permalinks menu and enabling it there. Permalinks change your site URL structure from something that looks like /p=123 to pretty URLs like /my-new-post-today/ that are generally more search engine friendly.' );
 			}
 		}
 		$warnHtaccess = false;
-		if ( 'disable' == $cacheType || 'php' == $cacheType ) {
+		if ( 'disable' === $cacheType || 'php' === $cacheType ) {
 			$removeError  = \wfCache::addHtaccessCode( 'remove' );
 			$removeError2 = \wfCache::updateBlockedIPs( 'remove' );
 			if ( $removeError || $removeError2 ) {
 				$warnHtaccess = true;
 			}
 		}
-		if ( 'php' == $cacheType || 'falcon' == $cacheType ) {
+		if ( 'php' === $cacheType || 'falcon' === $cacheType ) {
 			$err = \wfCache::cacheDirectoryTest();
 			if ( $err ) {
 				return array(
@@ -2717,29 +2715,29 @@ SQL
 		}
 
 		// Mainly we clear the cache here so that any footer cache diagnostic comments are rebuilt. We could just leave it intact unless caching is being disabled.
-		if ( \wfConfig::get( 'cacheType', false ) != $cacheType ) {
+		if ( \wfConfig::get( 'cacheType', false ) !== $cacheType ) {
 			\wfCache::scheduleCacheClear();
 		}
 		$htMsg = '';
 		if ( $warnHtaccess ) {
 			$htMsg = " <strong style='color: #F00;'>Warning: We could not remove the caching code from your .htaccess file. you need to remove this manually yourself.</strong> ";
 		}
-		if ( 'disable' == $cacheType ) {
+		if ( 'disable' === $cacheType ) {
 			\wfConfig::set( 'cacheType', false );
 			return array(
 				'ok'      => 1,
 				'heading' => 'Caching successfully disabled.',
 				'body'    => "{$htMsg}Caching has been disabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>",
 			);
-		} elseif ( 'php' == $cacheType ) {
+		} elseif ( 'php' === $cacheType ) {
 			\wfConfig::set( 'cacheType', 'php' );
 			return array(
 				'ok'      => 1,
 				'heading' => 'Wordfence Basic Caching Enabled',
 				'body'    => "{$htMsg}Wordfence basic caching has been enabled on your system.<br /><br /><center><input type='button' name='wfReload' value='Click here now to refresh this page' onclick='window.location.reload(true);' /></center>",
 			);
-		} elseif ( 'falcon' == $cacheType ) {
-			if ( '1' != $noEditHtaccess ) {
+		} elseif ( 'falcon' === $cacheType ) {
+			if ( '1' !== $noEditHtaccess ) {
 				$err = \wfCache::addHtaccessCode( 'add' );
 				if ( $err ) {
 					return array(
@@ -2863,12 +2861,12 @@ SQL
 	 */
 	public static function save_cache_options() {
 		$changed = false;
-		if ( \wfConfig::get( 'allowHTTPSCaching', false ) != $_POST['allowHTTPSCaching'] ) {
+		if ( \wfConfig::get( 'allowHTTPSCaching', false ) !== $_POST['allowHTTPSCaching'] ) {
 			$changed = true;
 		}
-		\wfConfig::set( 'allowHTTPSCaching', '1' == $_POST['allowHTTPSCaching'] ? 1 : 0 );
-		\wfConfig::set( 'clearCacheSched', 1 == $_POST['clearCacheSched'] ? '1' : 0 );
-		if ( $changed && \wfConfig::get( 'cacheType', false ) == 'falcon' ) {
+		\wfConfig::set( 'allowHTTPSCaching', '1' === $_POST['allowHTTPSCaching'] ? 1 : 0 );
+		\wfConfig::set( 'clearCacheSched', '1' === $_POST['clearCacheSched'] ? '1' : 0 );
+		if ( $changed && \wfConfig::get( 'cacheType', false ) === 'falcon' ) {
 			$err = \wfCache::addHtaccessCode( 'add' );
 			if ( $err ) {
 				return array(
@@ -2922,7 +2920,7 @@ SQL
 	 */
 	public static function get_cache_stats() {
 		$s = \wfCache::getCacheStats();
-		if ( 0 == $s['files'] ) {
+		if ( empty( $s['files'] ) ) {
 			return array(
 				'ok'      => 1,
 				'heading' => 'Cache Stats',
@@ -2992,7 +2990,7 @@ SQL
 		}
 		\wfConfig::set( 'cacheExclusions', serialize( $ex ) ); // phpcs:ignore -- third party credit.
 		\wfCache::scheduleCacheClear();
-		if ( \wfConfig::get( 'cacheType', false ) == 'falcon' && preg_match( '/^(?:uac|uaeq|cc)$/', $_POST['patternType'] ) ) {
+		if ( \wfConfig::get( 'cacheType', false ) === 'falcon' && preg_match( '/^(?:uac|uaeq|cc)$/', $_POST['patternType'] ) ) {
 			if ( \wfCache::addHtaccessCode( 'add' ) ) {
 				return array(
 					'errorMsg' => 'We added the rule you requested but could not modify your .htaccess file. Please delete this rule, check the permissions on your .htaccess file and then try again.',
@@ -3047,8 +3045,8 @@ SQL
 		$removed         = false;
 		$count_ex        = count( $ex );
 		for ( $i = 0; $i < $count_ex; $i++ ) {
-			if ( (string) $ex[ $i ]['id'] == (string) $id ) {
-				if ( \wfConfig::get( 'cacheType', false ) == 'falcon' && preg_match( '/^(?:uac|uaeq|cc)$/', $ex[ $i ]['pt'] ) ) {
+			if ( (string) $ex[ $i ]['id'] === (string) $id ) {
+				if ( \wfConfig::get( 'cacheType', false ) === 'falcon' && preg_match( '/^(?:uac|uaeq|cc)$/', $ex[ $i ]['pt'] ) ) {
 					$rewriteHtaccess = true;
 				}
 				array_splice( $ex, $i, 1 );

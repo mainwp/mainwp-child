@@ -231,14 +231,14 @@ class MainWP_Child_Plugins_Check {
 		 // phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['numberdaysOutdatePluginTheme'] ) ) {
 			$days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
-			if ( $days_outdate != $_POST['numberdaysOutdatePluginTheme'] ) {
+			if ( (int) $days_outdate !== (int) $_POST['numberdaysOutdatePluginTheme'] ) {
 				$days_outdate = intval( $_POST['numberdaysOutdatePluginTheme'] );
 				MainWP_Helper::update_option( 'mainwp_child_plugintheme_days_outdate', $days_outdate );
 				self::instance()->cleanup_deactivation( false );
 				MainWP_Child_Themes_Check::instance()->cleanup_deactivation( false );
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**

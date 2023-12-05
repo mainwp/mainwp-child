@@ -170,14 +170,8 @@ class MainWP_Child_WP_Rocket {
 			'analytics_enabled'           => 0,
 			'google_analytics_cache'      => 0,
 			'facebook_pixel_cache'        => 0,
-			'do_cloudflare'               => 0,
 			'sucury_waf_cache_sync'       => 0,
-			'cloudflare_api_key'          => '',
-			'cloudflare_email'            => '',
 			'cloudflare_zone_id'          => '',
-			'cloudflare_devmode'          => 0,
-			'cloudflare_protocol_rewrite' => 0,
-			'sucury_waf_cache_sync'       => 0,
 			'sucury_waf_api_key'          => '',
 		);
 	}
@@ -266,7 +260,7 @@ class MainWP_Child_WP_Rocket {
 			// Test if filter is an array ! (always for class/method).
 			if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
 				// Test if object is a class and method is equal to param !
-				if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && $filter_array['function'][1] == $method_name ) {
+				if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && $filter_array['function'][1] === $method_name ) {
 					// Test for WordPress >= 4.7 WP_Hook class.
 					if ( is_a( $wp_filter[ $hook_name ], 'WP_Hook' ) ) {
 						unset( $wp_filter[ $hook_name ]->callbacks[ $priority ][ $unique_id ] );
@@ -382,7 +376,7 @@ class MainWP_Child_WP_Rocket {
 				}
 			}
 		}
-		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php?page=wprocket' ) : false;
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'options-general.php?page=wprocket' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();
@@ -678,7 +672,7 @@ class MainWP_Child_WP_Rocket {
 	 */
 	public function save_settings() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $options ) || empty( $options ) ) {
 			return array( 'error' => 'INVALID_OPTIONS' );
 		}
@@ -697,7 +691,7 @@ class MainWP_Child_WP_Rocket {
 		if ( isset( $_POST['do_database_optimization'] ) && ! empty( $_POST['do_database_optimization'] ) ) {
 			$this->optimize_database();
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		return array( 'result' => 'SUCCESS' );
 	}
 
@@ -797,5 +791,4 @@ class MainWP_Child_WP_Rocket {
 			'options' => $options,
 		);
 	}
-
 }

@@ -142,13 +142,13 @@ class Tar_Archiver {
 		$this->backup  = $backup;
 
 		$this->type = $type;
-		if ( 'tar.bz2' == $this->type ) {
+		if ( 'tar.bz2' === $this->type ) {
 			if ( ! function_exists( 'bzopen' ) ) {
 				$this->type = 'tar.gz';
 			}
 		}
 
-		if ( 'tar.gz' == $this->type ) {
+		if ( 'tar.gz' === $this->type ) {
 			if ( ! function_exists( 'gzopen' ) ) {
 				$this->type = 'tar';
 			}
@@ -161,10 +161,10 @@ class Tar_Archiver {
 	 * @return string Aarchive file extension, .tar.bz2, .tar.gz or .tar.
 	 */
 	public function get_extension() {
-		if ( 'tar.bz2' == $this->type ) {
+		if ( 'tar.bz2' === $this->type ) {
 			return '.tar.bz2';
 		}
-		if ( 'tar.gz' == $this->type ) {
+		if ( 'tar.gz' === $this->type ) {
 			return '.tar.gz';
 		}
 
@@ -392,7 +392,7 @@ class Tar_Archiver {
 			$this->add_data( pack( 'a1024', '' ) );
 			$this->close();
 			foreach ( $db_files as $db_file ) {
-				unlink( $db_file );
+				wp_delete_file( $db_file );
 			}
 
 			$this->complete_pid_file();
@@ -442,7 +442,7 @@ class Tar_Archiver {
 				unset( $nodes[ $key ] );
 			} else {
 				foreach ( $coreFiles as $coreFile ) {
-					if ( ABSPATH . $coreFile == $node ) {
+					if ( ABSPATH . $coreFile === $node ) {
 						unset( $nodes[ $key ] );
 					}
 				}
@@ -495,7 +495,7 @@ class Tar_Archiver {
 			if ( ! is_dir( $dir . $entry ) ) {
 				continue;
 			}
-			if ( ( '.' == $entry ) || ( '..' == $entry ) ) {
+			if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
 				continue;
 			}
 			$themes[] = $entry;
@@ -530,7 +530,7 @@ class Tar_Archiver {
 	 * @used-by \MainWP\Child\Tar_Archiver::create_full_backup() Create full backup.
 	 */
 	public function add_dir( $path, $excludes ) {
-		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
+		if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
 			return;
 		}
 
@@ -544,7 +544,7 @@ class Tar_Archiver {
 
 		foreach ( $iterator as $path ) {
 			$name = $path->__toString();
-			if ( ( '.' == basename( $name ) ) || ( '..' == basename( $name ) ) ) {
+			if ( ( '.' === basename( $name ) ) || ( '..' === basename( $name ) ) ) {
 				continue;
 			}
 
@@ -586,11 +586,11 @@ class Tar_Archiver {
 			return;
 		}
 
-		if ( 'tar.gz' == $this->type ) {
+		if ( 'tar.gz' === $this->type ) {
 			if ( false === gzwrite( $this->archive, $data, strlen( $data ) ) ) {
 				throw new \Exception( 'Could not write to archive' );
 			}
-		} elseif ( 'tar.bz2' == $this->type ) {
+		} elseif ( 'tar.bz2' === $this->type ) {
 			if ( false === bzwrite( $this->archive, $data, strlen( $data ) ) ) {
 				throw new \Exception( 'Could not write to archive' );
 			}
@@ -609,18 +609,18 @@ class Tar_Archiver {
 	 */
 	private function write_chunk() {
 		$len = strlen( $this->chunk );
-		if ( 0 == $len ) {
+		if ( 0 === $len ) {
 			return;
 		}
 
-		if ( 'tar.gz' == $this->type ) {
+		if ( 'tar.gz' === $this->type ) {
 			$this->log( 'writing & flushing ' . $len );
 			$this->chunk = gzencode( $this->chunk );
 			if ( false === fwrite( $this->archive, $this->chunk, strlen( $this->chunk ) ) ) {
 				throw new \Exception( 'Could not write to archive' );
 			}
 			fflush( $this->archive );
-		} elseif ( 'tar.bz2' == $this->type ) {
+		} elseif ( 'tar.bz2' === $this->type ) {
 			if ( false === bzwrite( $this->archive, $this->chunk, strlen( $len ) ) ) {
 				throw new \Exception( 'Could not write to archive' );
 			}
@@ -665,7 +665,7 @@ class Tar_Archiver {
 	 * @used-by Tar_Archiver::add_empty_dir() Fire off the add_empty_directory() function.
 	 */
 	private function add_empty_directory( $entryName, $mode, $uid, $gid, $mtime ) {
-		if ( self::APPEND == $this->mode ) {
+		if ( self::APPEND === $this->mode ) {
 			if ( true === $this->check_before_append( $entryName ) ) {
 				return true;
 			}
@@ -701,7 +701,7 @@ class Tar_Archiver {
 				);
 
 				$checksum = 0;
-				for ( $i = 0; $i < 512; $i ++ ) {
+				for ( $i = 0; $i < 512; $i++ ) {
 					$checksum += ord( substr( $block, $i, 1 ) );
 				}
 				$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
@@ -735,7 +735,7 @@ class Tar_Archiver {
 		);
 
 		$checksum = 0;
-		for ( $i = 0; $i < 512; $i ++ ) {
+		for ( $i = 0; $i < 512; $i++ ) {
 			$checksum += ord( substr( $block, $i, 1 ) );
 		}
 		$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
@@ -789,7 +789,7 @@ class Tar_Archiver {
 	 * @uses    \MainWP\Child\MainWP_Helper::ends_with()
 	 */
 	private function add_file( $path, $entryName ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		if ( ( '.' == basename( $path ) ) || ( '..' == basename( $path ) ) ) {
+		if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
 			return false;
 		}
 
@@ -804,7 +804,7 @@ class Tar_Archiver {
 		$this->update_pid_file();
 
 		$rslt = false;
-		if ( self::APPEND == $this->mode ) {
+		if ( self::APPEND === $this->mode ) {
 			$rslt = $this->check_before_append( $entryName );
 			if ( true === $rslt ) {
 				return true;
@@ -816,7 +816,7 @@ class Tar_Archiver {
 			$this->lastRun = time();
 		}
 
-		$this->gcCnt ++;
+		++$this->gcCnt;
 		if ( $this->gcCnt > 20 ) {
 			if ( function_exists( 'gc_enable' ) ) {
 				gc_enable();
@@ -863,7 +863,7 @@ class Tar_Archiver {
 				);
 
 				$checksum = 0;
-				for ( $i = 0; $i < 512; $i ++ ) {
+				for ( $i = 0; $i < 512; $i++ ) {
 					$checksum += ord( substr( $block, $i, 1 ) );
 				}
 				$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
@@ -901,7 +901,7 @@ class Tar_Archiver {
 		);
 
 		$checksum = 0;
-		for ( $i = 0; $i < 512; $i ++ ) {
+		for ( $i = 0; $i < 512; $i++ ) {
 			$checksum += ord( substr( $this->block, $i, 1 ) );
 		}
 		$checksum    = pack( 'a8', sprintf( '%07o', $checksum ) );
@@ -962,7 +962,7 @@ class Tar_Archiver {
 	private function add_file_from_string( $entryName, $content ) {
 		$this->log( 'Add from string ' . $entryName );
 
-		if ( self::APPEND == $this->mode ) {
+		if ( self::APPEND === $this->mode ) {
 			if ( true === $this->check_before_append( $entryName ) ) {
 				return true;
 			}
@@ -998,7 +998,7 @@ class Tar_Archiver {
 				);
 
 				$checksum = 0;
-				for ( $i = 0; $i < 512; $i ++ ) {
+				for ( $i = 0; $i < 512; $i++ ) {
 					$checksum += ord( substr( $block, $i, 1 ) );
 				}
 				$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
@@ -1032,7 +1032,7 @@ class Tar_Archiver {
 		);
 
 		$checksum = 0;
-		for ( $i = 0; $i < 512; $i ++ ) {
+		for ( $i = 0; $i < 512; $i++ ) {
 			$checksum += ord( substr( $block, $i, 1 ) );
 		}
 		$checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
@@ -1040,8 +1040,8 @@ class Tar_Archiver {
 
 		$this->add_data( $block );
 		$i = 0;
-		while ( ( $line = substr( $content, $i * 512, 512 ) ) != '' ) {
-			$i++;
+		while ( ( $line = substr( $content, $i * 512, 512 ) ) !== '' ) {
+			++$i;
 			$this->add_data( pack( 'a512', $line ) );
 		}
 
@@ -1071,18 +1071,18 @@ class Tar_Archiver {
 		$this->log( 'Reopen archive to append from here' );
 		$this->append( $this->archivePath );
 		if ( is_array( $rslt ) ) {
-			if ( 'tar' == $this->type ) {
+			if ( 'tar' === $this->type ) {
 				$startOffset = $rslt['startOffset'];
 				fseek( $this->archive, $startOffset );
 				ftruncate( $this->archive, $startOffset );
-			} elseif ( 'tar.gz' == $this->type ) {
+			} elseif ( 'tar.gz' === $this->type ) {
 				$readOffset = $rslt['readOffset'];
 				$bytesRead  = $rslt['bytesRead'];
 
 				$out = array( 'bytesRead' => $bytesRead );
 			}
 		} elseif ( false === $rslt ) {
-			if ( 'tar' == $this->type ) {
+			if ( 'tar' === $this->type ) {
 				fseek( $this->archive, 0, SEEK_END );
 			}
 		} else {
@@ -1109,16 +1109,16 @@ class Tar_Archiver {
 		try {
 			$block = fread( $this->archive, 512 );
 
-			if ( false === $block || 0 == strlen( $block ) ) {
+			if ( false === $block || 0 === strlen( $block ) ) {
 				return $rslt;
 			}
 
-			if ( 512 != strlen( $block ) ) {
+			if ( 512 !== strlen( $block ) ) {
 				throw new \Exception( 'Invalid block found' );
 			}
 
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			if ( 'L' == $temp['type'] ) {
+			if ( 'L' === $temp['type'] ) {
 				$fname          = trim( fread( $this->archive, 512 ) );
 				$block          = fread( $this->archive, 512 );
 				$temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -1139,16 +1139,16 @@ class Tar_Archiver {
 				'magic'    => $temp['magic'],
 			);
 
-			if ( 5 == $file['type'] ) {
-				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
+			if ( 5 === (int) $file['type'] ) {
+				if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					$this->log( 'Skipping directory [' . $file['name'] . ']' );
 
 					return true;
 				} else {
 					throw new \Exception( 'Unexpected directory [' . $file['name'] . ']' );
 				}
-			} elseif ( 0 == $file['type'] ) {
-				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
+			} elseif ( 0 === (int) $file['type'] ) {
+				if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					return $this->read_next_bytes( $file );
 				} else {
 					$this->log( 'Unexpected file [' . $file['name'] . ']' );
@@ -1173,11 +1173,11 @@ class Tar_Archiver {
 	 */
 	private function read_next_bytes( $file ) {
 		$previousFtell = ftell( $this->archive );
-		$bytes         = $file['stat'][7] + ( 512 == ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+		$bytes         = $file['stat'][7] + ( 512 === ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
 		fseek( $this->archive, ftell( $this->archive ) + $bytes );
 		$ftell = ftell( $this->archive );
-		if ( 'tar.gz' == $this->type ) {
-			if ( ( false === $ftell ) || ( -1 == $ftell ) ) {
+		if ( 'tar.gz' === $this->type ) {
+			if ( ( false === $ftell ) || ( -1 === $ftell ) ) {
 				fseek( $this->archive, $previousFtell );
 
 				$bytesRead   = 0;
@@ -1187,7 +1187,7 @@ class Tar_Archiver {
 					$readNow            = $bytesToRead > 1024 ? 1024 : $bytesToRead;
 					$bytesCurrentlyRead = strlen( fread( $this->archive, $readNow ) );
 
-					if ( 0 == $bytesCurrentlyRead ) {
+					if ( 0 === $bytesCurrentlyRead ) {
 						break;
 					}
 
@@ -1195,8 +1195,8 @@ class Tar_Archiver {
 					$bytesToRead -= $bytesCurrentlyRead;
 				}
 
-				if ( 0 == $bytesToRead ) {
-					$toRead = ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
+				if ( 0 === $bytesToRead ) {
+					$toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
 					if ( $toRead > 0 ) {
 						$read       = strlen( fread( $this->archive, $toRead ) );
 						$bytesRead += $read;
@@ -1210,7 +1210,7 @@ class Tar_Archiver {
 
 				return $rslt;
 			}
-		} elseif ( ( 'tar' == $this->type ) && ( ( false === $ftell ) || ( -1 == $ftell ) ) ) {
+		} elseif ( ( 'tar' === $this->type ) && ( ( false === $ftell ) || ( -1 === $ftell ) ) ) {
 			$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
 
 			return $rslt;
@@ -1238,7 +1238,7 @@ class Tar_Archiver {
 	public function create( $filepath ) {
 		$this->log( 'Creating ' . $filepath );
 		if ( $this->debug ) {
-			if ( 'tar.bz2' == $this->type ) {
+			if ( 'tar.bz2' === $this->type ) {
 				$this->archive = bzopen( $filepath, 'w' );
 			} else {
 				$this->archive = fopen( $filepath, 'wb+' );
@@ -1247,9 +1247,9 @@ class Tar_Archiver {
 			return;
 		}
 
-		if ( 'tar.gz' == $this->type ) {
+		if ( 'tar.gz' === $this->type ) {
 			$this->archive = gzopen( $filepath, 'wb' );
-		} elseif ( 'tar.bz2' == $this->type ) {
+		} elseif ( 'tar.bz2' === $this->type ) {
 			$this->archive = bzopen( $filepath, 'w' );
 		} else {
 			$this->archive = fopen( $filepath, 'wb+' );
@@ -1264,7 +1264,7 @@ class Tar_Archiver {
 	public function append( $filepath ) {
 		$this->log( 'Appending to ' . $filepath );
 		if ( $this->debug ) {
-			if ( 'tar.bz2' == $this->type ) {
+			if ( 'tar.bz2' === $this->type ) {
 				$this->archive = bzopen( $filepath, 'a' );
 			} else {
 				$this->archive = fopen( $filepath, 'ab+' );
@@ -1273,9 +1273,9 @@ class Tar_Archiver {
 			return;
 		}
 
-		if ( 'tar.gz' == $this->type ) {
+		if ( 'tar.gz' === $this->type ) {
 			$this->archive = gzopen( $filepath, 'ab' );
-		} elseif ( 'tar.bz2' == $this->type ) {
+		} elseif ( 'tar.bz2' === $this->type ) {
 			$this->archive = bzopen( $filepath, 'a' );
 		} else {
 			$this->archive = fopen( $filepath, 'ab+' );
@@ -1300,7 +1300,7 @@ class Tar_Archiver {
 	 */
 	public function prepare_append( $filepath ) {
 		if ( $this->debug ) {
-			if ( 'tar.gz' == substr( $filepath, - 6 ) ) {
+			if ( 'tar.gz' === substr( $filepath, - 6 ) ) {
 				$text        = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 );
 				$fh          = fopen( $filepath, 'rb' );
 				$read        = '';
@@ -1309,7 +1309,7 @@ class Tar_Archiver {
 					while ( ! feof( $fh ) ) {
 						$read .= fread( $fh, 1000 );
 						while ( ( $pos = strpos( $read, $text, 2 ) ) !== false ) {
-							for ( $i = 0; $i < 10; $i ++ ) {
+							for ( $i = 0; $i < 10; $i++ ) {
 								echo ord( $read[ $i ] ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 							}
 
@@ -1349,10 +1349,10 @@ class Tar_Archiver {
 		$this->log( 'Reading ' . $filepath );
 		$this->archiveSize = false;
 
-		if ( 'tar.gz' == substr( $filepath, - 6 ) ) {
+		if ( 'tar.gz' === substr( $filepath, - 6 ) ) {
 			$this->type    = 'tar.gz';
 			$this->archive = gzopen( $filepath, 'r' );
-		} elseif ( 'tar.bz2' == substr( $filepath, - 7 ) ) {
+		} elseif ( 'tar.bz2' === substr( $filepath, - 7 ) ) {
 			$this->type    = 'tar.bz2';
 			$this->archive = bzopen( $filepath, 'r' );
 		} else {
@@ -1382,9 +1382,9 @@ class Tar_Archiver {
 		}
 
 		if ( $this->archive ) {
-			if ( 'tar.gz' == $this->type ) {
+			if ( 'tar.gz' === $this->type ) {
 				gzclose( $this->archive );
-			} elseif ( 'tar.bz2' == $this->type ) {
+			} elseif ( 'tar.bz2' === $this->type ) {
 				bzclose( $this->archive );
 			} else {
 				fclose( $this->archive );
@@ -1410,7 +1410,7 @@ class Tar_Archiver {
 		fseek( $this->archive, 0 );
 		while ( $block = fread( $this->archive, 512 ) ) {
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			if ( 'L' == $temp['type'] ) {
+			if ( 'L' === $temp['type'] ) {
 				$fname          = trim( fread( $this->archive, 512 ) );
 				$block          = fread( $this->archive, 512 );
 				$temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -1431,20 +1431,20 @@ class Tar_Archiver {
 				'magic'    => $temp['magic'],
 			);
 
-			if ( 0x00000000 == $file['checksum'] ) {
+			if ( 0x00000000 === $file['checksum'] ) {
 				break;
-			} elseif ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
+			} elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
 				break;
 			}
 
 			$block    = substr_replace( $block, '        ', 148, 8 );
 			$checksum = 0;
-			for ( $i = 0; $i < 512; $i ++ ) {
+			for ( $i = 0; $i < 512; $i++ ) {
 				$checksum += ord( substr( $block, $i, 1 ) );
 			}
 
-			if ( 0 == $file['type'] ) {
-				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
+			if ( 0 === (int) $file['type'] ) {
+				if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					if ( $file['stat'][7] > 0 ) {
 						$content = fread( $this->archive, $file['stat'][7] );
 					} else {
@@ -1452,7 +1452,7 @@ class Tar_Archiver {
 					}
 					break;
 				} else {
-					$bytes = $file['stat'][7] + ( ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+					$bytes = $file['stat'][7] + ( ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
 					fseek( $this->archive, ftell( $this->archive ) + $bytes );
 				}
 			}
@@ -1481,7 +1481,7 @@ class Tar_Archiver {
 		fseek( $this->archive, 0 );
 		while ( $block = fread( $this->archive, 512 ) ) {
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			if ( 'L' == $temp['type'] ) {
+			if ( 'L' === $temp['type'] ) {
 				$fname          = trim( fread( $this->archive, 512 ) );
 				$block          = fread( $this->archive, 512 );
 				$temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -1502,27 +1502,27 @@ class Tar_Archiver {
 				'magic'    => $temp['magic'],
 			);
 
-			if ( 0x00000000 == $file['checksum'] ) {
+			if ( 0x00000000 === $file['checksum'] ) {
 				break;
-			} elseif ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
+			} elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
 				break;
 			}
 
 			$block    = substr_replace( $block, '        ', 148, 8 );
 			$checksum = 0;
-			for ( $i = 0; $i < 512; $i ++ ) {
+			for ( $i = 0; $i < 512; $i++ ) {
 				$checksum += ord( substr( $block, $i, 1 ) );
 			}
 
-			if ( 5 == $file['type'] ) {
-				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
+			if ( 5 === (int) $file['type'] ) {
+				if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					return true;
 				}
-			} elseif ( 0 == $file['type'] ) {
-				if ( 0 == strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
+			} elseif ( 0 === $file['type'] ) {
+				if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
 					return true;
 				} else {
-					$bytes = $file['stat'][7] + ( ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+					$bytes = $file['stat'][7] + ( ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
 					fseek( $this->archive, ftell( $this->archive ) + $bytes );
 				}
 			}
@@ -1553,7 +1553,7 @@ class Tar_Archiver {
 		fseek( $this->archive, 0 );
 		while ( $block = fread( $this->archive, 512 ) ) {
 			$temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-			if ( 'L' == $temp['type'] ) {
+			if ( 'L' === $temp['type'] ) {
 				$fname          = trim( fread( $this->archive, 512 ) );
 				$block          = fread( $this->archive, 512 );
 				$temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -1574,17 +1574,17 @@ class Tar_Archiver {
 				'magic'    => $temp['magic'],
 			);
 
-			if ( 0x00000000 == $file['checksum'] ) {
+			if ( 0x00000000 === $file['checksum'] ) {
 				break;
-			} elseif ( 'ustar' != substr( $file['magic'], 0, 5 ) ) {
+			} elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
 				break;
 			}
 			$block    = substr_replace( $block, '        ', 148, 8 );
 			$checksum = 0;
-			for ( $i = 0; $i < 512; $i ++ ) {
+			for ( $i = 0; $i < 512; $i++ ) {
 				$checksum += ord( substr( $block, $i, 1 ) );
 			}
-			if ( 5 == $file['type'] ) {
+			if ( 5 === (int) $file['type'] ) {
 				if ( ! is_dir( $to . $file['name'] ) ) {
 					if ( ! empty( $wp_filesystem ) ) {
 						$wp_filesystem->mkdir( $to . $file['name'], FS_CHMOD_DIR );
@@ -1592,7 +1592,7 @@ class Tar_Archiver {
 						mkdir( $to . $file['name'], 0777, true );
 					}
 				}
-			} elseif ( 0 == $file['type'] ) {
+			} elseif ( 0 === (int) $file['type'] ) {
 				if ( ! is_dir( dirname( $to . $file['name'] ) ) ) {
 					if ( ! empty( $wp_filesystem ) ) {
 						$wp_filesystem->mkdir( dirname( $to . $file['name'] ), FS_CHMOD_DIR );
@@ -1610,16 +1610,16 @@ class Tar_Archiver {
 						$bytesToRead -= $readNow;
 					}
 
-					$toRead = ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
+					$toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
 					if ( $toRead > 0 ) {
-						fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+						fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
 					}
 
-					if ( 'wp-config.php' != $file['name'] ) {
+					if ( 'wp-config.php' !== $file['name'] ) {
 						$wp_filesystem->put_contents( $to . $file['name'], $contents, FS_CHMOD_FILE );
 					}
 				} else {
-					if ( 'wp-config.php' != $file['name'] ) {
+					if ( 'wp-config.php' !== $file['name'] ) {
 						$new = fopen( $to . $file['name'], 'wb+' );
 					} else {
 						$new = false;
@@ -1635,11 +1635,11 @@ class Tar_Archiver {
 						$bytesToRead -= $readNow;
 					}
 
-					$toRead = ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
+					$toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
 					if ( $toRead > 0 ) {
-						fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) == 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+						fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
 					}
-					if ( false != $new ) {
+					if ( false !== $new ) {
 						fclose( $new );
 					}
 				}
@@ -1666,6 +1666,6 @@ class Tar_Archiver {
 		$crcFound = substr( $block, strlen( $block ) - 8, 4 );
 		$crcFound = ( ord( $crcFound[3] ) << 24 ) + ( ord( $crcFound[2] ) << 16 ) + ( ord( $crcFound[1] ) << 8 ) + ( ord( $crcFound[0] ) );
 
-		return $crcFound == $crc;
+		return $crcFound === $crc;
 	}
 }

@@ -97,7 +97,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 */
 	protected function visit_site_as_browser() { // phpcs:ignore -- ignore complex method notice.
 		// phpcs:disable WordPress.Security.NonceVerification
-		if ( ! isset( $_POST['url'] ) || ! is_string( wp_unslash( $_POST['url'] ) ) || strlen( wp_unslash( $_POST['url'] ) ) < 2 ) {
+		if ( ! isset( $_POST['url'] ) || ! is_string( wp_unslash( $_POST['url'] ) ) || strlen( wp_unslash( $_POST['url'] ) ) < 2 ) { //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			return array( 'error' => 'Missing url' );
 		}
 
@@ -107,11 +107,11 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 		$_POST = stripslashes_deep( wp_unslash( $_POST ) );
 
-		$args = isset( $_POST['args'] ) ? wp_unslash( $_POST['args'] ) : array();
+		$args = isset( $_POST['args'] ) ? wp_unslash( $_POST['args'] ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		$current_user = wp_get_current_user();
 
-		$url = isset( $_POST['url'] ) ? '/' . wp_unslash( $_POST['url'] ) : '';
+		$url = isset( $_POST['url'] ) ? '/' . sanitize_text_field( wp_unslash( $_POST['url'] ) ) : '';
 
 		$expiration = time() + 600;
 		$manager    = \WP_Session_Tokens::get_instance( $current_user->ID );
@@ -153,7 +153,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 			$skip_invalid_nonce = true;
 		}
 
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		if ( isset( $args['get'] ) ) {
 			$get_args = $args['get'];
@@ -222,7 +222,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 		if ( isset( $args['search']['ok'] ) ) {
 			foreach ( $args['search']['ok'] as $search ) {
 				if ( preg_match( '/' . preg_quote( $search, '/' ) . '/i', $received_content ) ) {
-					++ $search_ok_counter;
+					++$search_ok_counter;
 				}
 			}
 		}
@@ -230,7 +230,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 		if ( isset( $args['search']['fail'] ) ) {
 			foreach ( $args['search']['fail'] as $search ) {
 				if ( preg_match( '/' . preg_quote( $search, '/' ) . '/i', $received_content ) ) {
-					++ $search_fail_counter;
+					++$search_fail_counter;
 				}
 			}
 		}
@@ -251,20 +251,20 @@ class MainWP_Child_Bulk_Settings_Manager {
 	/**
 	 * Create WP nonce.
 	 *
-	 * @param array $array An array containing the nonce.
+	 * @param array $arr An array containing the nonce.
 	 *
 	 * @return array An array containing the nonce.
 	 */
-	private function wp_create_nonce_recursive( $array ) {
-		foreach ( $array as $key => $value ) {
-			if ( is_array( $array[ $key ] ) ) {
-				$array[ $key ] = $this->wp_create_nonce_recursive( $array[ $key ] );
+	private function wp_create_nonce_recursive( $arr ) {
+		foreach ( $arr as $key => $value ) {
+			if ( is_array( $arr[ $key ] ) ) {
+				$arr[ $key ] = $this->wp_create_nonce_recursive( $arr[ $key ] );
 			} else {
-				$array[ $key ] = wp_create_nonce( $array[ $key ] );
+				$arr[ $key ] = wp_create_nonce( $arr[ $key ] );
 			}
 		}
 
-		return $array;
+		return $arr;
 	}
 
 	/**
@@ -273,7 +273,7 @@ class MainWP_Child_Bulk_Settings_Manager {
 	 * @return array|bool|string[] Result array ok|error or FALSE or $whitelist_options[].
 	 */
 	public function save_settings() {
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( ! is_array( $settings ) || empty( $settings ) ) {
 			return array( 'error' => esc_html__( 'Invalid data. Please check and try again.', 'mainwp-child' ) );
@@ -326,5 +326,4 @@ class MainWP_Child_Bulk_Settings_Manager {
 
 		return array( 'result' => 'ok' );
 	}
-
 }

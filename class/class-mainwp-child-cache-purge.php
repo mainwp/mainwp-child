@@ -167,7 +167,7 @@ class MainWP_Child_Cache_Purge {
 			if ( is_plugin_active( $plugin ) ) {
 
 				// Check if WP Optimize is active and page cache is enabled or disabled. If disabled, continue to next plugin as if it is not installed.
-				if ( 'wp-optimize/wp-optimize.php' == $plugin ) {
+				if ( 'wp-optimize/wp-optimize.php' === $plugin ) {
 					if ( class_exists( '\WP_Optimize' ) ) {
 						$cache = WP_Optimize()->get_page_cache();
 						if ( $cache->is_enabled() === false ) {
@@ -200,7 +200,7 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function auto_purge_cache( $bulk = '' ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// Check if Cache Control is enabled.
-		if ( get_option( 'mainwp_child_auto_purge_cache' ) == '1' ) {
+		if ( get_option( 'mainwp_child_auto_purge_cache' ) === '1' ) {
 			$information = array();
 
 			// Grab detected cache solution..
@@ -277,7 +277,7 @@ class MainWP_Child_Cache_Purge {
 			}
 
 			// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
-			if ( 'Plugin Not Found' == $cache_plugin_solution ) {
+			if ( 'Plugin Not Found' === $cache_plugin_solution ) {
 				$information = array(
 					'status' => 'Disabled',
 					'action' => 'SUCCESS',
@@ -842,7 +842,7 @@ class MainWP_Child_Cache_Purge {
 		$cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
 
 		// Check if we have all the required data.
-		if ( '' == $cust_email || '' == $cust_xauth || '' == $cust_domain ) {
+		if ( '' === $cust_email || '' === $cust_xauth || '' === $cust_domain ) {
 			return;
 		}
 
@@ -876,7 +876,7 @@ class MainWP_Child_Cache_Purge {
 			'X-Auth-Key: ' . $cust_xauth,
 			'Content-Type: application/json',
 		);
-		$data    = json_encode( array( 'purge_everything' => true ) ); // phpcs:ignore -- ok.
+		$data    = wp_json_encode( array( 'purge_everything' => true ) ); // phpcs:ignore -- ok.
 		curl_setopt( $ch_purge, CURLOPT_POST, true ); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_purge, CURLOPT_POSTFIELDS, $data ); // phpcs:ignore -- use core function.
 		curl_setopt( $ch_purge, CURLOPT_HTTPHEADER, $headers ); // phpcs:ignore -- use core function.
@@ -886,17 +886,17 @@ class MainWP_Child_Cache_Purge {
 			curl_close( $ch_purge ); // phpcs:ignore -- use core function.
 		}
 		$success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-		$error_message   = 'Cloudflare => There was an issue purging the cache. ' . json_encode( $qresult['errors'][0], JSON_UNESCAPED_SLASHES ) . "-" . json_encode( $result['errors'][0], JSON_UNESCAPED_SLASHES ); // phpcs:ignore -- ok.
+		$error_message   = 'Cloudflare => There was an issue purging the cache. ' . wp_json_encode( $qresult['errors'][0], JSON_UNESCAPED_SLASHES ) . "-" . wp_json_encode( $result['errors'][0], JSON_UNESCAPED_SLASHES ); // phpcs:ignore -- ok.
 
 		// Save last purge time to database on success.
-		if ( 1 == $result['success'] ) {
+		if ( 1 === (int) $result['success'] ) {
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			// Return success message.
 			return $this->purge_result( $success_message, 'SUCCESS' );
-		} elseif ( ( 1 != $qresult['success'] ) || ( 1 != $result['success'] ) ) {
+		} elseif ( ( 1 !== (int) $qresult['success'] ) || ( 1 !== (int) $result['success'] ) ) {
 			// Return error message.
 			return $this->purge_result( $error_message, 'ERROR' );
 		}
@@ -984,7 +984,7 @@ class MainWP_Child_Cache_Purge {
 		$action       = get_option( 'mainwp_child_auto_purge_cache', false );
 		$purge_result = array();
 
-		if ( 1 == $action ) {
+		if ( 1 === (int) $action ) {
 			$purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
 		}
 
@@ -1030,7 +1030,7 @@ class MainWP_Child_Cache_Purge {
 	public function strip_subdomains( $url ) {
 
 		// credits to gavingmiller for maintaining this list.
-		$second_level_domains = file_get_contents( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' ); //phpcs:ignore -- to do.
+		$second_level_domains = wp_remote_get( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
 
 		// presume sld first ...
 		$possible_sld = implode( '.', array_slice( explode( '.', $url ), -2 ) );

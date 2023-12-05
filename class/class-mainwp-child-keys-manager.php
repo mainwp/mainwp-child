@@ -41,7 +41,7 @@ class MainWP_Child_Keys_Manager {
 	 * @return Instance class.
 	 */
 	public static function instance() {
-		if ( null == self::$instance ) {
+		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		MainWP_Connect_Lib::autoload_files(); // to fix.
@@ -208,13 +208,13 @@ class MainWP_Child_Keys_Manager {
 	 * Handle get encrypted value.
 	 *
 	 * @param string $option option name.
-	 * @param mixed  $default default value (option), default: false.
+	 * @param mixed  $def_value default value (option), default: false.
 	 *
 	 * @return string Decrypt value.
 	 */
-	public static function get_encrypted_option( $option, $default = false ) {
+	public static function get_encrypted_option( $option, $def_value = false ) {
 
-		$val = get_option( $option, $default );
+		$val = get_option( $option, $def_value );
 
 		if ( empty( $val ) ) {
 			return $val;
@@ -228,7 +228,21 @@ class MainWP_Child_Keys_Manager {
 		return $dec_val;
 	}
 
-
+	/**
+	 * Method hook_get_encrypted_option()
+	 *
+	 * Handle get encrypted option value.
+	 *
+	 * @param string $empty_value empty input value.
+	 * @param string $option option name.
+	 * @param mixed  $def_value default value (option), default: false.
+	 *
+	 * @return string Decrypt value.
+	 */
+	public static function hook_get_encrypted_option( $empty_value, $option, $def_value = false ) {
+		unset( $empty_value );
+		return self::get_encrypted_option( $option, $def_value );
+	}
 
 	/**
 	 * Method update_encrypted_option()

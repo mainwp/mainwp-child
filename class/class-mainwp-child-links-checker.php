@@ -6,6 +6,8 @@
  *
  * @deprecated This Extension has been Retired @since January 2020
  * @link https://mainwp.com/retired-extensions/
+ *
+ * @package MainWP\Child
  */
 
 /**
@@ -28,13 +30,17 @@ namespace MainWP\Child;
 class MainWP_Child_Links_Checker {
 
 	/**
+	 * Holds the Public static instance of MainWP_Child_Links_Checker.
+	 *
 	 * @static
-	 * @var null Holds the Public static instance of MainWP_Child_Links_Checker.
+	 * @var null instance of class.
 	 */
 	public static $instance = null;
 
 	/**
-	 * @var bool Whether or not the Broken Links Checker Extension is installed. Default: false.
+	 * Whether or not the Broken Links Checker Extension is installed.
+	 *
+	 * @var bool Default: false.
 	 */
 	public $is_plugin_installed = false;
 
@@ -63,8 +69,8 @@ class MainWP_Child_Links_Checker {
 
 	/**
 	 * MainWP_Child_Links_Checker constructor.
-     *
-     * Run any time class is called.
+	 *
+	 * Run any time class is called.
 	 */
 	public function __construct() {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -82,9 +88,9 @@ class MainWP_Child_Links_Checker {
 	/**
 	 * MainWP Broken Links Checker actions: set_showhide, sync_data, sync_links_data, edit_link,
 	 *  unlink, set_dismiss, discard, save_settings, force_recheck.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::write()
-     * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::write()
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function action() {
 		$information = array();
@@ -112,7 +118,7 @@ class MainWP_Child_Links_Checker {
 						$information = $this->edit_link();
 						break;
 					case 'unlink':
-						$information = $this->unlink();
+						$information = $this->del_file();
 						break;
 					case 'set_dismiss':
 						$information = $this->set_link_dismissed();
@@ -151,7 +157,7 @@ class MainWP_Child_Links_Checker {
 	/**
 	 * Method hook_trashed_comment().
 	 *
-	 * @param $comment_id Comment ID.
+	 * @param int $comment_id Comment ID.
 	 */
 	public static function hook_trashed_comment( $comment_id ) {
 		if ( get_option( 'mainwp_linkschecker_ext_enabled' ) !== 'Y' ) {
@@ -174,7 +180,7 @@ class MainWP_Child_Links_Checker {
 	 */
 	public function save_settings() {
 		$information     = array();
-		$check_threshold = isset( $_POST['check_threshold'] ) ? intval( wp_unslash( $_POST['check_threshold'] ) ) : 0;
+		$check_threshold = isset( $_POST['check_threshold'] ) ? intval( wp_unslash( $_POST['check_threshold'] ) ) : 0; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 		if ( $check_threshold > 0 ) {
 			$conf                             = blc_get_configuration();
 			$conf->options['check_threshold'] = $check_threshold;
@@ -202,7 +208,6 @@ class MainWP_Child_Links_Checker {
 	 */
 	public function initiate_recheck() {
 
-		/** @global object $wpdb wpdb  */
 		global $wpdb;
 
 		// Delete all discovered instances.
@@ -219,7 +224,7 @@ class MainWP_Child_Links_Checker {
 	/**
 	 * Method hook_post_deleted().
 	 *
-	 * @param $post_id Post ID.
+	 * @param int $post_id Post ID.
 	 */
 	public static function hook_post_deleted( $post_id ) {
 		if ( get_option( 'mainwp_linkschecker_ext_enabled' ) !== 'Y' ) {
@@ -251,7 +256,7 @@ class MainWP_Child_Links_Checker {
 	/**
 	 * Method hide_plugin().
 	 *
-	 * @param $plugins Plugins array.
+	 * @param array $plugins Plugins array.
 	 * @return mixed $plugins array.
 	 */
 	public function hide_plugin( $plugins ) {
@@ -268,7 +273,7 @@ class MainWP_Child_Links_Checker {
 	/**
 	 * Method update_footer().
 	 *
-	 * @param $text Test to add to footer.
+	 * @param string $text Test to add to footer.
 	 * @return string Footer html.
 	 */
 	public function update_footer( $text ) {
@@ -288,8 +293,8 @@ class MainWP_Child_Links_Checker {
 	 * Show or hide the Broken links checker plugin.
 	 *
 	 * @return array Return $information response array.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::update_option()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::update_option()
 	 */
 	public function set_showhide() {
 		$hide = MainWP_System::instance()->validate_params( 'showhide' );
@@ -320,10 +325,9 @@ class MainWP_Child_Links_Checker {
 	/**
 	 * Get synced link data.
 	 *
-	 * @param string $strategy Sync method.
 	 * @return array Return $information response array.
 	 */
-	public function get_sync_data( $strategy = '' ) {
+	public function get_sync_data() {
 		$information = array();
 		$data        = $this->get_count_links();
 		if ( is_array( $data ) ) {
@@ -337,10 +341,10 @@ class MainWP_Child_Links_Checker {
 	 *
 	 * @return array[]|void Return $information response array or void on failure.
 	 * @throws Exception|\Exception Error exception.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
 	 */
 	public function get_links_data() {
 
@@ -364,8 +368,8 @@ class MainWP_Child_Links_Checker {
 
 		$total = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 
-		$max_results = isset( $_POST['max_results'] ) ? intval( wp_unslash( $_POST['max_results'] ) ) : 50;
-		$offset      = isset( $_POST['offset'] ) ? intval( wp_unslash( $_POST['offset'] ) ) : 0;
+		$max_results = isset( $_POST['max_results'] ) ? intval( wp_unslash( $_POST['max_results'] ) ) : 50; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
+		$offset      = isset( $_POST['offset'] ) ? intval( wp_unslash( $_POST['offset'] ) ) : 0; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
 		$params = array(
 			array( 'load_instances' => true ),
@@ -409,10 +413,10 @@ class MainWP_Child_Links_Checker {
 	 *
 	 * @return array[]|void Return $data response array or void on failure.
 	 * @throws Exception|\Exception Error exception.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::check_files_exists()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
 	 */
 	public function get_count_links() {
 		if ( ! defined( 'BLC_DIRECTORY' ) ) {
@@ -447,14 +451,14 @@ class MainWP_Child_Links_Checker {
 	 * Link checker data.
 	 *
 	 * @param mixed $params Broken Links parameters.
-     *
+	 *
 	 * @return array $return Links Array.
 	 * @throws Exception|\Exception Error Exception.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_functions()
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_properties()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_functions()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_properties()
 	 */
 	public function links_checker_data( $params ) {
 
@@ -547,9 +551,10 @@ class MainWP_Child_Links_Checker {
 						}
 					}
 
-					$can_edit_text       = false;
-					$can_edit_url        = false;
-					$editable_link_texts = $non_editable_link_texts = array();
+					$can_edit_text           = false;
+					$can_edit_url            = false;
+					$editable_link_texts     = array();
+					$non_editable_link_texts = array();
 
 					foreach ( $instances as $instance ) {
 						if ( $instance->is_link_text_editable() ) {
@@ -602,7 +607,7 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 
-		$link_id = isset( $_POST['link_id'] ) ? sanitize_text_field( wp_unslash( $_POST['link_id'] ) ) : '';
+		$link_id = isset( $_POST['link_id'] ) ? sanitize_text_field( wp_unslash( $_POST['link_id'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
 		// Load the link.
 		$link = new \blcLink( intval( $link_id ) );
@@ -612,14 +617,14 @@ class MainWP_Child_Links_Checker {
 		}
 
 		// Validate the new URL.
-		$new_url = isset( $_POST['new_url'] ) ? stripslashes( wp_unslash( $_POST['new_url'] ) ) : '';
-		$parsed  = @parse_url( $new_url );
+		$new_url = isset( $_POST['new_url'] ) ? stripslashes( sanitize_text_field( wp_unslash( $_POST['new_url'] ) ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
+		$parsed  = parse_url( $new_url );
 		if ( ! $parsed ) {
 			$information['error'] = 'URLINVALID'; // Oops, the new URL is invalid!
 			return $information;
 		}
 
-		$new_text = isset( $_POST['new_text'] ) ? sanitize_text_field( wp_unslash( $_POST['new_text'] ) ) : null;
+		$new_text = isset( $_POST['new_text'] ) ? sanitize_text_field( wp_unslash( $_POST['new_text'] ) ) : null; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
 		if ( ! empty( $new_text ) ) {
 			$new_text = stripslashes( wp_filter_post_kses( addslashes( $new_text ) ) ); // wp_filter_post_kses expects slashed data.
@@ -631,8 +636,7 @@ class MainWP_Child_Links_Checker {
 
 			return $information;
 		} else {
-			$new_link = $rez['new_link'];
-			/** @var blcLink $new_link */
+			$new_link     = $rez['new_link'];
 			$new_status   = $new_link->analyse_status();
 			$ui_link_text = null;
 			if ( isset( $new_text ) ) {
@@ -670,7 +674,7 @@ class MainWP_Child_Links_Checker {
 	 *
 	 * @return array Return $information response array.
 	 */
-	public function unlink() {
+	public function del_file() {
 		$information = array();
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
@@ -678,8 +682,8 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 
-		if ( isset( $_POST['link_id'] ) ) {
-			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : '';
+		if ( isset( $_POST['link_id'] ) ) { //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
+			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
 			// Load the link.
 			$link = new \blcLink( $link_id );
@@ -702,7 +706,6 @@ class MainWP_Child_Links_Checker {
 					'errors'    => array(),
 				);
 				foreach ( $rez['errors'] as $error ) {
-					/** @var \WP_Error $error */
 					array_push( $response['errors'], implode( ', ', $error->get_error_messages() ) );
 				}
 
@@ -722,7 +725,7 @@ class MainWP_Child_Links_Checker {
 	 */
 	private function set_link_dismissed() {
 		$information = array();
-		$dismiss     = isset( $_POST['dismiss'] ) ? sanitize_text_field( wp_unslash( $_POST['dismiss'] ) ) : '';
+		$dismiss     = isset( $_POST['dismiss'] ) ? sanitize_text_field( wp_unslash( $_POST['dismiss'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			$information['error'] = 'NOTALLOW';
@@ -730,8 +733,8 @@ class MainWP_Child_Links_Checker {
 			return $information;
 		}
 
-		if ( isset( $_POST['link_id'] ) ) {
-			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : '';
+		if ( isset( $_POST['link_id'] ) ) { //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
+			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
 			// Load the link.
 			$link = new \blcLink( $link_id );
@@ -770,8 +773,8 @@ class MainWP_Child_Links_Checker {
 
 			return $information;
 		}
-		if ( isset( $_POST['link_id'] ) ) {
-			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : '';
+		if ( isset( $_POST['link_id'] ) ) { //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
+			$link_id = isset( $_POST['link_id'] ) ? intval( $_POST['link_id'] ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
 			// Load the link.
 			$link = new \blcLink( $link_id );
@@ -823,11 +826,11 @@ class MainWP_Child_Links_Checker {
 	 *
 	 * @param object $container Instance of container.
 	 * @param string $container_field Container fields.
-     *
+	 *
 	 * @return array|bool Array of content or FALSE on failure.
 	 * @throws Exception|\Exception Error Exception.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
 	 */
 	public function ui_get_source_comment( $container, $container_field = '' ) {
 		// Display a comment icon.
@@ -863,10 +866,9 @@ class MainWP_Child_Links_Checker {
 	 * Get Post Source.
 	 *
 	 * @param object $container Instance of container.
-	 * @param string $container_field Container fields.
 	 * @return array Return array of content.
 	 */
-	public function ui_get_source_post( $container, $container_field = '' ) {
+	public function ui_get_source_post( $container ) {
 		return array(
 			'post_title'        => get_the_title( $container->container_id ),
 			'post_status'       => get_post_status( $container->container_id ),

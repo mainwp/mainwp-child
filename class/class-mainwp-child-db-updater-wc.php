@@ -200,7 +200,7 @@ class MainWP_Child_DB_Updater_WC {
 						),
 						'woocommerce-db-updates'
 					);
-					$loop++;
+					++$loop;
 				}
 			}
 		}
@@ -231,4 +231,3 @@ class MainWP_Child_DB_Updater_WC {
 		do_action( 'woocommerce_hide_' . $name . '_notice' );
 	}
 }
-

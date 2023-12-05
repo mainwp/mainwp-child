@@ -179,11 +179,11 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 */
 	public function save_sucuri_stream() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$scan_data   = isset( $_POST['scan_data'] ) ? wp_unslash( $_POST['scan_data'] ) : '';
+		$scan_data   = isset( $_POST['scan_data'] ) ? wp_unslash( $_POST['scan_data'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$scan_time   = isset( $_POST['scan_time'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_time'] ) ) : 0;
 		$scan_status = isset( $_POST['scan_status'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_status'] ) ) : '';
-		$result      = isset( $_POST['result'] ) ? wp_unslash( $_POST['result'] ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification
+		$result      = isset( $_POST['result'] ) ? wp_unslash( $_POST['result'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		// phpcs:enable
 		do_action( 'mainwp_reports_sucuri_scan', $result, $scan_status, $scan_data, $scan_time );
 		return true;
 	}
@@ -195,12 +195,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	 */
 	public function save_backup_stream() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$destination = isset( $_POST['destination'] ) ? wp_unslash( $_POST['destination'] ) : '';
-		$message     = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : '';
-		$size        = isset( $_POST['size'] ) ? wp_unslash( $_POST['size'] ) : '';
-		$status      = isset( $_POST['status'] ) ? wp_unslash( $_POST['status'] ) : '';
+		$destination = isset( $_POST['destination'] ) ? wp_unslash( $_POST['destination'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$message     = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$size        = isset( $_POST['size'] ) ? wp_unslash( $_POST['size'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		do_action( 'mainwp_backup', $destination, $message, $size, $status, $type );
 		return true;
 	}
@@ -213,12 +213,12 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 	public function get_stream() {
 
 		// phpcs:disable WordPress.Security.NonceVerification
-		$sections = isset( $_POST['sections'] ) ? json_decode( base64_decode( wp_unslash( $_POST['sections'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$sections = isset( $_POST['sections'] ) ? json_decode( base64_decode( wp_unslash( $_POST['sections'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $sections ) ) {
 			$sections = array();
 		}
 
-		$other_tokens = isset( $_POST['other_tokens'] ) ? json_decode( base64_decode( wp_unslash( $_POST['other_tokens'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$other_tokens = isset( $_POST['other_tokens'] ) ? json_decode( base64_decode( wp_unslash( $_POST['other_tokens'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		if ( ! is_array( $other_tokens ) ) {
 			$other_tokens = array();
 		}
@@ -226,7 +226,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		unset( $_POST['sections'] );
 		unset( $_POST['other_tokens'] );
 
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		$args    = $this->get_stream_get_params( $other_tokens, $sections );
 		$records = \wp_mainwp_stream_get_instance()->db->query( $args );
@@ -274,7 +274,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 		$branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 		$hide_nag      = false;
 
-		if ( isset( $branding_opts['hide_child_reports'] ) && 'hide' == $branding_opts['hide_child_reports'] ) {
+		if ( isset( $branding_opts['hide_child_reports'] ) && 'hide' === $branding_opts['hide_child_reports'] ) {
 			add_filter( 'all_plugins', array( $this, 'creport_branding_plugin' ) );
 			add_action( 'admin_menu', array( $this, 'creport_remove_menu' ) );
 			$hide_nag = true;

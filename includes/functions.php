@@ -8,7 +8,7 @@
  // phpcs:disable WordPress.Security.NonceVerification
 if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ) {
 	$bulk_settings_manageruse_nonce_key  = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
-	$bulk_settings_manageruse_nonce_hmac = ! empty( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ? wp_unslash( $_GET['bulk_settings_manageruse_nonce_hmac'] ) : '';
+	$bulk_settings_manageruse_nonce_hmac = ! empty( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ? wp_unslash( $_GET['bulk_settings_manageruse_nonce_hmac'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	$bulk_settings_managercurrent_time   = intval( time() );
 
 	if ( $bulk_settings_managercurrent_time >= $bulk_settings_manageruse_nonce_key && $bulk_settings_managercurrent_time <= ( $bulk_settings_manageruse_nonce_key + 30 ) ) {
@@ -54,7 +54,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 						 * This is a fake post field to fix some conflict with wp_verify_nonce().
 						 * Just return false to unverify nonce, does not exit.
 						 */
-						if ( isset( $_REQUEST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_REQUEST[ $action ] ) ) {
+						if ( isset( $_REQUEST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' === $_REQUEST[ $action ] ) ) {
 							return false;
 						}
 
@@ -75,7 +75,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 					 * This is a fake post field to fix some conflict with wp_verify_nonce().
 					 * Just return false to unverify nonce, does not exit.
 					 */
-					if ( 'mainwp-bsm-unverify-nonce' == $nonce ) {
+					if ( 'mainwp-bsm-unverify-nonce' === $nonce ) {
 						return false;
 					}
 
@@ -99,7 +99,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
 					 * This is a fake post field to fix some conflict with wp_verify_nonce().
 					 * Just return false to unverify nonce, does not exit.
 					 */
-					if ( isset( $_REQUEST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' == $_REQUEST[ $action ] ) ) {
+					if ( isset( $_REQUEST[ $action ] ) && ( 'mainwp-bsm-unverify-nonce' === $_REQUEST[ $action ] ) ) {
 						return false;
 					}
 
@@ -150,11 +150,9 @@ if ( ! function_exists( 'mainwp_child_backwpup_wp_list_table_dependency' ) ) {
 			 * We need this because BackWPup_Page_Jobs extends WP_List_Table.
 			 *  which uses convert_to_screen.
 			 *
-			 * @param string $hook_name Hook name.
-			 *
 			 * @return MainWP_Fake_Wp_Screen
 			 */
-			function convert_to_screen( $hook_name ) {
+			function convert_to_screen() {
 				return new MainWP\Child\MainWP_Fake_Wp_Screen();
 			}
 		}
@@ -196,4 +194,3 @@ if ( ! function_exists( 'apply_filters_deprecated' ) ) {
 		return apply_filters_ref_array( $hook_name, $args );
 	}
 }
-
