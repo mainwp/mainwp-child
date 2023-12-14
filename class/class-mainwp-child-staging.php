@@ -53,6 +53,13 @@ class MainWP_Child_Staging {
 	public $plugin_version = false;
 
 	/**
+	 * Public assets variable.
+	 *
+	 * @var object assets.
+	 */
+	public $assets = null;
+
+	/**
 	 * Create a public static instance of MainWP_Child_Staging.
 	 *
 	 * @return MainWP_Child_Staging|null
@@ -269,7 +276,7 @@ class MainWP_Child_Staging {
 	 * @return string[] Return 'Success'.
 	 */
 	public function save_settings() {
-		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
+		$settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$filters  = array(
 			'queryLimit',
 			'fileLimit',
@@ -328,8 +335,8 @@ class MainWP_Child_Staging {
 		$options = $scan->getOptions();
 
 		$return = array(
-			'options'          => serialize( $options ), // phpcs:ignore -- to compatible http encoding.
-			'prefix'           => '2.8' == $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
+			'options'          => wp_json_encode( $options ), // phpcs:ignore -- to compatible http encoding.
+			'prefix'           => '2.8' === $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
 			'directoryListing' => $scan->directoryListing(),
 		);
 		return $return;
@@ -368,7 +375,7 @@ class MainWP_Child_Staging {
 		 *
 		 * @return false|string|void Return FALSE on failure, ajax response string on success, ELSE returns VOID.
 		 */
-	public function ajax_start_clone() {
+	public function ajax_start_clone() { //phpcs:ignore -- complex method.
 
 		if ( function_exists( '\WPStaging\Core\WPStaging::make' ) ) {
 			require_once WPSTG_PLUGIN_DIR . 'Backend/Modules/Jobs/ProcessLock.php';
@@ -385,35 +392,35 @@ class MainWP_Child_Staging {
 			}
 		} else {
 			$this->url = '';
-			// phpcs:disable WordPress.Security.NonceVerification
+			// phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			// to compatible with new version.
 			if ( class_exists( '\WPStaging\Framework\Database\SelectedTables' ) ) {
 
 				if ( isset( $_POST['includedTables'] ) && is_array( $_POST['includedTables'] ) ) {
-					$_POST['includedTables'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['includedTables'] );
+					$_POST['includedTables'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, wp_unslash( $_POST['includedTables'] ) );
 				}
 
 				if ( isset( $_POST['excludedTables'] ) && is_array( $_POST['excludedTables'] ) ) {
-					$_POST['excludedTables'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['excludedTables'] );
+					$_POST['excludedTables'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, wp_unslash( $_POST['excludedTables'] ) );
 				}
 
 				if ( isset( $_POST['selectedTablesWithoutPrefix'] ) && is_array( $_POST['selectedTablesWithoutPrefix'] ) ) {
-					$_POST['selectedTablesWithoutPrefix'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['selectedTablesWithoutPrefix'] );
+					$_POST['selectedTablesWithoutPrefix'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, wp_unslash( $_POST['selectedTablesWithoutPrefix'] ) );
 				}
 
 				if ( isset( $_POST['includedDirectories'] ) && is_array( $_POST['includedDirectories'] ) ) {
-					$_POST['includedDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['includedDirectories'] );
+					$_POST['includedDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, wp_unslash( $_POST['includedDirectories'] ) );
 				}
 
 				if ( isset( $_POST['excludedDirectories'] ) && is_array( $_POST['excludedDirectories'] ) ) {
-					$_POST['excludedDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['excludedDirectories'] );
+					$_POST['excludedDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, wp_unslash( $_POST['excludedDirectories'] ) );
 				}
 
 				if ( isset( $_POST['extraDirectories'] ) && is_array( $_POST['extraDirectories'] ) ) {
-					$_POST['extraDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, $_POST['extraDirectories'] );
+					$_POST['extraDirectories'] = implode( \WPStaging\Framework\Filesystem\Scanning\ScanConst::DIRECTORIES_SEPARATOR, wp_unslash( $_POST['extraDirectories'] ) );
 				}
 			}
-			// phpcs:enable WordPress.Security.NonceVerification
+			// phpcs:enable
 			$cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
 
 			if ( ! $cloning->save() ) {
@@ -421,14 +428,35 @@ class MainWP_Child_Staging {
 			}
 		}
 
-		ob_start();
 		if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php' ) ) {
+			ob_start();
 			require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php';
+			$result = ob_get_clean();
 		} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php' ) ) { // new.
-			$this->assets = new \WPStaging\Framework\Assets\Assets( new \WPStaging\Framework\Security\AccessToken(), new \WPStaging\Core\DTO\Settings() ); // to fix error.
-			require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php';
+			if ( defined( 'WPSTG_VERSION' ) && version_compare( WPSTG_VERSION, '3.0', '>=' ) ) {
+				if ( file_exists( WPSTG_PLUGIN_DIR . 'Core/WPStaging.php' ) ) {
+					include_once WPSTG_PLUGIN_DIR . 'Core/WPStaging.php';
+					$this->assets = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Assets\Assets::class ); // to fix error since ver 3.1.3.
+
+					$subDirectory = str_replace( get_home_path(), '', ABSPATH );
+					$urlsHelper   = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Utils\Urls::class );
+					$url          = $urlsHelper->getHomeUrl() . str_replace( '/', '', $subDirectory );
+					$result       = array(
+						'url'       => $url,
+						'blog_name' => get_bloginfo( 'name' ),
+						'clone'     => $cloning->getOptions()->clone,
+						'img_src'   => $this->assets->getAssetsUrl( 'img/admin_dashboard.png' ),
+						'version3'  => 1,
+					);
+				}
+			} else {
+				// to compatible with version 2.x.
+				ob_start();
+				$this->assets = new \WPStaging\Framework\Assets\Assets( new \WPStaging\Framework\Security\AccessToken(), new \WPStaging\Core\DTO\Settings() ); // to fix error.
+				require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php';
+				$result = ob_get_clean();
+			}
 		}
-		$result = ob_get_clean();
 		return $result;
 	}
 
@@ -555,7 +583,7 @@ class MainWP_Child_Staging {
 		$delete = new \WPStaging\Backend\Modules\Jobs\Delete();
 		$result = $delete->start();
 		if ( null === $result ) {
-			$result = json_encode( 'retry' ); // to fix.
+			$result = wp_json_encode( 'retry' ); // to fix.
 		}
 		return $result;
 	}
@@ -569,7 +597,7 @@ class MainWP_Child_Staging {
 		$cancel = new \WPStaging\Backend\Modules\Jobs\Cancel();
 		$result = $cancel->start();
 		if ( null === $result ) {
-			$result = json_encode( 'retry' ); // to fix.
+			$result = wp_json_encode( 'retry' ); // to fix.
 		}
 		return $result;
 	}
@@ -601,13 +629,24 @@ class MainWP_Child_Staging {
 			return;
 		}
 
-		ob_start();
 		if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/update.php' ) ) {
+			ob_start();
 			require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/update.php';
+			$result = ob_get_clean();
 		} elseif ( file_exists( WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/update.php' ) ) {
-			require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/update.php';
+			if ( defined( 'WPSTG_VERSION' ) && version_compare( WPSTG_VERSION, '3.0', '>=' ) ) {
+				$result = array(
+					'clone'    => $cloning->getOptions()->clone,
+					'mainJob'  => $cloning->getOptions()->mainJob,
+					'version3' => 1,
+				);
+			} else {
+				ob_start();
+				require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/update.php';
+				$result = ob_get_clean();
+			}
 		}
-		$result = ob_get_clean();
+
 		return $result;
 	}
 
@@ -708,7 +747,7 @@ class MainWP_Child_Staging {
 	 */
 	public function remove_menu() {
 		remove_menu_page( 'wpstg_clone' );
-		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'admin.php?page=wpstg_clone' ) : false;
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=wpstg_clone' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();

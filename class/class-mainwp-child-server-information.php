@@ -63,7 +63,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			if ( ! is_array( $dismissWarnings ) ) {
 				$dismissWarnings = array();
 			}
-			if ( 'warning' == $_POST['what'] ) {
+			if ( 'warning' === $_POST['what'] ) {
 				if ( isset( $_POST['warnings'] ) ) {
 					$warnings = intval( $_POST['warnings'] );
 				} else {
@@ -73,7 +73,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			}
 			MainWP_Helper::update_option( 'mainwp_child_dismiss_warnings', $dismissWarnings );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**
@@ -87,7 +87,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @used-by MainWP_Child_Server_Information::init() Add hooks after WordPress has finished loading but before any headers are sent.
 	 */
 	public static function render_warnings() {
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		if ( isset( $_SERVER['REQUEST_URI'] ) && ( stristr( $request_uri, 'mainwp_child_tab' ) || stristr( $request_uri, 'mainwp-reports-page' ) || stristr( $request_uri, 'mainwp-reports-settings' ) ) ) {
 			return;
 		}
@@ -162,7 +162,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				border-radius: 3px;
 				margin: 1em 0 !important;
 
-				background-image: url( '<?php echo esc_url( plugins_url( 'images/mainwp-icon-orange.png', dirname( __FILE__ ) ) ); ?>' ) !important;
+				background-image: url( '<?php echo esc_url( plugins_url( 'images/mainwp-icon-orange.png', __DIR__ ) ); ?>' ) !important;
 				background-position: 1.5em 50% !important;
 				background-repeat: no-repeat !important;
 				background-size: 30px !important;
@@ -577,7 +577,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 */
 	private static function render_server_infor() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
-		if ( '' == $branding_title ) {
+		if ( '' === $branding_title ) {
 			$branding_title = 'MainWP Child';
 		}
 		?>
@@ -729,7 +729,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				echo "<tr style=\"background:#fffaf3\"><td colspan='5'><span class=\"mainwp-warning\"><i class='fa fa-exclamation-circle'>" . sprintf( esc_html__( 'Your host needs to update OpenSSL to at least version 1.1.0 which is already over 4 years old and contains patches for over 60 vulnerabilities.%1$sThese range from Denial of Service to Remote Code Execution. %2$sClick here for more information.%3$s', 'mainwp' ), '<br/>', '<a href="https://community.letsencrypt.org/t/openssl-client-compatibility-changes-for-let-s-encrypt-certificates/143816" target="_blank">', '</a>' ) . '</span></td></tr>';
 			}
 		}
-		// phpcs:enable WordPress.Security.EscapeOutput
+		// phpcs:enable
 	}
 
 	/**
@@ -775,10 +775,10 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 		<?php
 		$all_plugins = get_plugins();
 		foreach ( $all_plugins as $slug => $plugin ) {
-			if ( ! empty( $branding_title ) && ( 'mainwp-child/mainwp-child.php' == $slug || 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) ) {
-				if ( 'mainwp-child/mainwp-child.php' == $slug ) {
+			if ( ! empty( $branding_title ) && ( 'mainwp-child/mainwp-child.php' === $slug || 'mainwp-child-reports/mainwp-child-reports.php' === $slug ) ) {
+				if ( 'mainwp-child/mainwp-child.php' === $slug ) {
 					$plugin['Name'] = esc_html( stripslashes( $branding_title ) );
-				} elseif ( 'mainwp-child-reports/mainwp-child-reports.php' == $slug ) {
+				} elseif ( 'mainwp-child-reports/mainwp-child-reports.php' === $slug ) {
 					$plugin['Name'] = esc_html( stripslashes( $branding_title ) ) . ' reports';
 				}
 			}
@@ -1089,7 +1089,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 */
 	protected static function render_mainwp_directory() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
-		if ( '' == $branding_title ) {
+		if ( '' === $branding_title ) {
 			$branding_title = 'MainWP';
 		}
 		$branding_title .= ' Upload Directory';
@@ -1187,14 +1187,14 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 				<td><?php echo ( self::filesize_compare( $currentVersion, $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
 			<?php } elseif ( 'get_curl_ssl_version' === $getter ) { ?>
 				<td><?php echo ( self::curlssl_compare( $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
-			<?php } elseif ( ( 'get_max_input_time' === $getter || 'get_max_execution_time' === $getter ) && -1 == $currentVersion ) { ?>
+			<?php } elseif ( ( 'get_max_input_time' === $getter || 'get_max_execution_time' === $getter ) && -1 === (int) $currentVersion ) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
-				<td><?php echo ( version_compare( $currentVersion, $version, $compare ) || ( ( null != $extra_compare ) && version_compare( $currentVersion, $extra_version, $extra_compare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
+				<td><?php echo ( version_compare( $currentVersion, $version, $compare ) || ( ! empty( $extra_compare ) && version_compare( $currentVersion, $extra_version, $extra_compare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
 			<?php } ?>
 		</tr>
 		<?php
-		// phpcs:enable WordPress.Security.EscapeOutput
+		// phpcs:enable
 	}
 
 	/**
@@ -1207,7 +1207,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 * @return string Warning message HTML.
 	 */
 	public static function render_warning_text( $errorType = self::WARNING ) {
-		if ( self::WARNING == $errorType ) {
+		if ( self::WARNING === $errorType ) {
 			return '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>';
 		}
 		return '<span class="mainwp-fail"><i class="fa fa-exclamation-circle"></i> Fail</span>';
@@ -1280,7 +1280,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 
 		if ( empty( $lines ) ) {
 			$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
-			if ( '' == $branding_title ) {
+			if ( '' === $branding_title ) {
 				$branding_title = 'MainWP';
 			}
 			$msg = stripslashes( $branding_title ) . ' is unable to find your error logs, please contact your host for server error logs.';
@@ -1392,7 +1392,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 	 */
 	public static function render_connection_details() {
 		$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
-		if ( '' == $branding_title ) {
+		if ( '' === $branding_title ) {
 			$branding_title = 'MainWP';
 		}
 
@@ -1443,7 +1443,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<h3 class="mainwp_box_title"><span><?php esc_html_e( 'Connection details', 'mainwp-child' ); ?></span></h3>
 			<div class="inside">
 				<div class="mainwp-postbox-actions-top mainwp-padding-5">
-					<?php echo sprintf( esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?>
+					<?php printf( esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?>
 				</div>
 				<table id="mainwp-table" class="wp-list-table widefat" cellspacing="0" style="border: 0">
 					<tbody>
@@ -1463,7 +1463,6 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			</div>
 		</div>
 		<?php
-		// phpcs:enable WordPress.Security.EscapeOutput
+		// phpcs:enable
 	}
-
 }

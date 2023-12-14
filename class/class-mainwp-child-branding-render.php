@@ -115,10 +115,10 @@ class MainWP_Child_Branding_Render {
 
 		$from_page = '';
 		if ( isset( $_GET['from_page'] ) ) {
-			$from_page = isset( $_GET['from_page'] ) ? rawurldecode( wp_unslash( $_GET['from_page'] ) ) : '';
+			$from_page = isset( $_GET['from_page'] ) ? rawurldecode( wp_unslash( $_GET['from_page'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		} else {
 			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-			$fullurl   = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+			$fullurl   = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 			$from_page = rawurldecode( $fullurl );
 		}
 
@@ -182,7 +182,7 @@ class MainWP_Child_Branding_Render {
 	 */
 	private function render_submit_message( $opts ) {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : '';
+		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? sanitize_text_field( wp_unslash( $_POST['mainwp_branding_send_from_page'] ) ) : '';
 		$back_link = $opts['message_return_sender'];
 		$back_link = ! empty( $back_link ) ? $back_link : 'Go Back';
 		$back_link = ! empty( $from_page ) ? '<a href="' . esc_url( $from_page ) . '" title="' . esc_attr( $back_link ) . '">' . esc_html( $back_link ) . '</a>' : '';
@@ -200,7 +200,7 @@ class MainWP_Child_Branding_Render {
 		?>
 		<div class="mainwp_info-box-yellow"><?php echo esc_html( $send_email_message ) . '&nbsp;&nbsp' . $back_link; // phpcs:ignore WordPress.Security.EscapeOutput -- black_link is trusted. ?></div>
 		<?php
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**
@@ -213,7 +213,7 @@ class MainWP_Child_Branding_Render {
 			$hide_slugs = array();
 		}
 
-		if ( 0 == count( $hide_slugs ) ) {
+		if ( 0 === count( $hide_slugs ) ) {
 			return;
 		}
 
@@ -227,12 +227,12 @@ class MainWP_Child_Branding_Render {
 		if ( is_array( $updates ) ) {
 			foreach ( $updates as $slug => $data ) {
 				if ( in_array( $slug, $hide_slugs ) ) {
-					$count_hide++;
+					++$count_hide;
 				}
 			}
 		}
 
-		if ( 0 == $count_hide ) {
+		if ( 0 === $count_hide ) {
 			return;
 		}
 		?>
@@ -273,12 +273,12 @@ class MainWP_Child_Branding_Render {
 		if ( is_array( $updates ) ) {
 			foreach ( $updates as $slug => $data ) {
 				if ( in_array( $slug, $hide_slugs ) ) {
-					$count_hide++;
+					++$count_hide;
 				}
 			}
 		}
 
-		if ( 0 == $count_hide ) {
+		if ( 0 === $count_hide ) {
 			return;
 		}
 
@@ -286,7 +286,7 @@ class MainWP_Child_Branding_Render {
 		<script type="text/javascript">
 			var mainwpCountHide = <?php echo esc_attr( $count_hide ); ?>;
 			document.addEventListener( "DOMContentLoaded", function( event ) {
-				if ( typeof( pagenow ) !== 'undefined' && pagenow == 'plugins' ) {
+				if ( typeof( pagenow ) !== 'undefined' && pagenow === 'plugins' ) {
 					<?php
 					// hide update notice row.
 					if ( in_array( 'mainwp-child/mainwp-child.php', $hide_slugs ) ) {
@@ -335,6 +335,4 @@ class MainWP_Child_Branding_Render {
 		</script>
 		<?php
 	}
-
 }
-

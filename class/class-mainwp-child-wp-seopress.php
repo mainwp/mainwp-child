@@ -113,7 +113,7 @@ class MainWP_Child_WP_Seopress {
 				return $information;
 			}
 
-			$settings = json_decode( stripslashes( $_POST['settings'] ), true );
+			$settings = json_decode( stripslashes( wp_unslash( $_POST['settings'] ) ), true );  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 			seopress_do_import_settings( $settings );
 
@@ -121,7 +121,7 @@ class MainWP_Child_WP_Seopress {
 
 			return $information;
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**
@@ -136,9 +136,9 @@ class MainWP_Child_WP_Seopress {
 		}
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['settings'] ) ) {
-			$settings = $_POST['settings'] ?? array();
-			$option   = sanitize_text_field( $_POST['option'] ?? '' );
-			// phpcs:enable WordPress.Security.NonceVerification
+			$settings = wp_unslash( $_POST['settings'] ) ?? array();  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$option   = isset( $_POST['option'] ) ? sanitize_text_field( wp_unslash( $_POST['option'] ) ) : '';
+			// phpcs:enable
 			if ( empty( $option ) ) {
 				$information['error'] = esc_html__( 'Settings could not be saved. Missing option name.', 'mainwp-child' );
 				return $information;
@@ -180,8 +180,8 @@ class MainWP_Child_WP_Seopress {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification
-		$licence = $_POST['licence'] ?? array();
-		// phpcs:enable WordPress.Security.NonceVerification
+		$licence = isset( $_POST['licence'] ) ? wp_unslash( $_POST['licence'] ) : array();  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		// phpcs:enable
 
 		$licence = $this->sanitize_options( $licence );
 
@@ -253,16 +253,12 @@ class MainWP_Child_WP_Seopress {
 			foreach ( $option as $field => $value ) {
 				if ( is_numeric( $value ) ) {
 					$option[ $field ] = $value;
-				} else {
-					if ( is_array( $value ) ) {
+				} elseif ( is_array( $value ) ) {
 						$option[ $field ] = $this->sanitize_options( $value );
-					} else {
-						if ( 'seopress_robots_file' === $field || 'seopress_instant_indexing_google_api_key' === $field ) {
-							$option[ $field ] = wp_kses_post( wp_unslash( $value ) );
-						} else {
-							$option[ $field ] = wp_unslash( $value );
-						}
-					}
+				} elseif ( 'seopress_robots_file' === $field || 'seopress_instant_indexing_google_api_key' === $field ) {
+						$option[ $field ] = wp_kses_post( wp_unslash( $value ) );
+				} else {
+					$option[ $field ] = wp_unslash( $value );
 				}
 			}
 		}

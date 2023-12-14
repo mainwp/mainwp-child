@@ -163,7 +163,7 @@ class MainWP_Child_Jetpack_Scan {
 	 */
 	public function hook_remove_menu() {
 		remove_menu_page( 'jetpack' );
-		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'admin.php?page=jetpack' ) : false;
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=jetpack' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( admin_url( 'index.php' ) );
 			exit();

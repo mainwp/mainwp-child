@@ -10,7 +10,7 @@ namespace MainWP\Child;
 // phpcs:disable -- required for debugging.
 if ( isset( $_REQUEST['mainwpsignature'] ) ) {
 	// if not debug.
-	if ( ! defined('MAINWP_CHILD_DEBUG') || false == MAINWP_CHILD_DEBUG ) {
+	if ( ! defined('MAINWP_CHILD_DEBUG') || false === MAINWP_CHILD_DEBUG ) {
 		ini_set( 'display_errors', false );
 		error_reporting( 0 );
 	}
@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.5.3';
+	public static $version = '4.6-RC1';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -134,6 +134,7 @@ class MainWP_Child {
 		add_filter( 'mainwp_child_create_action_nonce', array( MainWP_Utility::class, 'hook_create_nonce_action' ), 10, 2 );
 		add_filter( 'mainwp_child_verify_authed_acion_nonce', array( MainWP_Utility::class, 'hook_verify_authed_action_nonce' ), 10, 2 );
 		add_filter( 'mainwp_child_get_ping_nonce', array( MainWP_Utility::class, 'hook_get_ping_nonce' ), 10, 2 );
+		add_filter( 'mainwp_child_get_encrypted_option', array( MainWP_Child_Keys_Manager::class, 'hook_get_encrypted_option' ), 10, 3 );
 	}
 
 	/**
@@ -306,11 +307,11 @@ class MainWP_Child {
 			MainWP_Connect::instance()->register_site(); // register the site and exit.
 		}
 
-		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : '';
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$function        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : null;
 		$nonce           = MainWP_System::instance()->validate_params( 'nonce' );
 
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		// Authenticate here.
 		$auth = MainWP_Connect::instance()->auth( $mainwpsignature, $function, $nonce );
@@ -354,7 +355,6 @@ class MainWP_Child {
 	 * If the current user is administrator initiate the admin ajax.
 	 *
 	 * @uses \MainWP\Child\MainWP_Clone::init_ajax()
-	 * @uses \MainWP\Child\MainWP_Helper::is_admin()
 	 */
 	public function admin_init() {
 		if ( MainWP_Helper::is_admin() && is_admin() ) {

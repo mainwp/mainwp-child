@@ -167,7 +167,7 @@ class MainWP_Child_Pagespeed {
 
 		if ( isset( $submenu['tools.php'] ) ) {
 			foreach ( $submenu['tools.php'] as $key => $menu ) {
-				if ( 'google-pagespeed-insights' == $menu[2] ) {
+				if ( 'google-pagespeed-insights' === $menu[2] ) {
 					unset( $submenu['tools.php'][ $key ] );
 					break;
 				}
@@ -200,7 +200,7 @@ class MainWP_Child_Pagespeed {
 			$count   = 0;
 		} else {
 			$recheck = false;
-			$count ++;
+			++$count;
 		}
 		update_option( 'mainwp_child_pagespeed_count_checking', $count );
 
@@ -268,7 +268,7 @@ class MainWP_Child_Pagespeed {
 		}
 		$information = array();
 		// phpcs:disable WordPress.Security.NonceVerification
-		$settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
+		$settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
 
 		if ( is_array( $settings ) ) {
 
@@ -337,7 +337,7 @@ class MainWP_Child_Pagespeed {
 				$information['result'] = 'NOTCHANGE';
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		$strategy = $current_values['strategy'];
 
@@ -418,7 +418,7 @@ class MainWP_Child_Pagespeed {
 		} else {
 			$recheck = false;
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		$information = $this->do_check_pages( $recheck );
 		if ( isset( $information['checked_pages'] ) && $information['checked_pages'] ) {
 			$information['result'] = 'SUCCESS';
@@ -534,7 +534,7 @@ class MainWP_Child_Pagespeed {
 		$gpi_page_stats = $wpdb->prefix . 'gpi_page_stats';
 		if ( ! empty( $data_typestocheck ) ) {
 
-			$allpagedata = $wpdb->get_results(
+			$allpagedata = $wpdb->get_results( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$wpdb->prepare(
 					"SELECT ID, URL, $score_column FROM $gpi_page_stats WHERE ( $data_typestocheck[0] )", // phpcs:ignore -- safe query.
 					$data_typestocheck[1]
@@ -550,7 +550,7 @@ class MainWP_Child_Pagespeed {
 
 		if ( ! empty( $reports_typestocheck ) ) {
 
-			$allpagereports = $wpdb->get_results(
+			$allpagereports = $wpdb->get_results( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$wpdb->prepare(
 					"SELECT     r.rule_key, r.rule_name FROM $gpi_page_stats d INNER JOIN $gpi_page_reports r ON r.page_id = d.ID AND r.strategy = '$strategy' WHERE ( $reports_typestocheck[0] )", // phpcs:ignore -- safe query.
 					$reports_typestocheck[1]
@@ -611,27 +611,27 @@ class MainWP_Child_Pagespeed {
 		$typestocheck = array();
 
 		if ( $gpi_options['check_pages'] ) {
-			if ( 'all' == $restrict_type || 'ignored' == $restrict_type || 'pages' == $restrict_type ) {
+			if ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'pages' === $restrict_type ) {
 				$typestocheck[] = 'type = %s';
 				$types[1][]     = 'page';
 			}
 		}
 
 		if ( $gpi_options['check_posts'] ) {
-			if ( 'all' == $restrict_type || 'ignored' == $restrict_type || 'posts' == $restrict_type ) {
+			if ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'posts' === $restrict_type ) {
 				$typestocheck[] = 'type = %s';
 				$types[1][]     = 'post';
 			}
 		}
 
 		if ( $gpi_options['check_categories'] ) {
-			if ( 'all' == $restrict_type || 'ignored' == $restrict_type || 'categories' == $restrict_type ) {
+			if ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'categories' === $restrict_type ) {
 				$typestocheck[] = 'type = %s';
 				$types[1][]     = 'category';
 			}
 		}
 		if ( $gpi_options['cpt_whitelist'] ) {
-			if ( 'all' == $restrict_type || 'ignored' == $restrict_type || stristr( $restrict_type, 'gpi_custom_posts' ) ) {
+			if ( 'all' === $restrict_type || 'ignored' === $restrict_type || stristr( $restrict_type, 'gpi_custom_posts' ) ) {
 
 				$cpt_whitelist_arr = false;
 				if ( ! empty( $gpi_options['cpt_whitelist'] ) ) {
@@ -642,11 +642,11 @@ class MainWP_Child_Pagespeed {
 					'_builtin' => false,
 				);
 				$custom_post_types = get_post_types( $args, 'names', 'and' );
-				if ( 'gpi_custom_posts' != $restrict_type && 'all' != $restrict_type && 'ignored' != $restrict_type ) {
+				if ( 'gpi_custom_posts' !== $restrict_type && 'all' !== $restrict_type && 'ignored' !== $restrict_type ) {
 					$restrict_type = str_replace( 'gpi_custom_posts-', '', $restrict_type );
 					foreach ( $custom_post_types as $post_type ) {
 						if ( $cpt_whitelist_arr && in_array( $post_type, $cpt_whitelist_arr ) ) {
-							if ( $post_type == $restrict_type ) {
+							if ( $post_type === $restrict_type ) {
 								$typestocheck[] = 'type = %s';
 								$types[1][]     = $custom_post_types[ $post_type ];
 							}
@@ -672,7 +672,7 @@ class MainWP_Child_Pagespeed {
 			 */
 			global $wpdb;
 
-			$custom_url_types = $wpdb->get_col( 'SELECT DISTINCT type FROM ' . $wpdb->prefix . 'gpi_custom_urls ' );
+			$custom_url_types = $wpdb->get_col( 'SELECT DISTINCT type FROM ' . $wpdb->prefix . 'gpi_custom_urls ' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 			if ( ! empty( $custom_url_types ) ) {
 				foreach ( $custom_url_types as $custom_url_type ) {
 					$typestocheck[] = 'type = %s';
@@ -698,5 +698,4 @@ class MainWP_Child_Pagespeed {
 		}
 		return null;
 	}
-
 }

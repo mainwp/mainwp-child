@@ -62,7 +62,7 @@ class MainWP_Child_Branding {
 	 * @return void
 	 */
 	public function __construct() {
-		$this->child_plugin_dir = dirname( dirname( __FILE__ ) );
+		$this->child_plugin_dir = dirname( __DIR__ );
 		add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
 		add_filter( 'mainwp_child_plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 3 );
 		if ( null === $this->child_branding_options ) {
@@ -236,7 +236,7 @@ class MainWP_Child_Branding {
 	 */
 	public function update_branding() {
 		$information = array();
-		$settings    = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification -- Required for bacwards compatibility.
+		$settings    = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Required for bacwards compatibility.
 		if ( ! is_array( $settings ) ) {
 			return $information;
 		}
@@ -350,7 +350,7 @@ class MainWP_Child_Branding {
 						if ( isset( $current_extra_setting['login_image']['path'] ) ) {
 							$old_file = $current_extra_setting['login_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
-								unlink( $old_file );
+								wp_delete_file( $old_file );
 							}
 						}
 					}
@@ -376,7 +376,7 @@ class MainWP_Child_Branding {
 						if ( isset( $current_extra_setting['favico_image']['path'] ) ) {
 							$old_file = $current_extra_setting['favico_image']['path'];
 							if ( ! empty( $old_file ) && file_exists( $old_file ) ) {
-								unlink( $old_file );
+								wp_delete_file( $old_file );
 							}
 						}
 					}
@@ -410,7 +410,7 @@ class MainWP_Child_Branding {
 		remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
 
 		if ( is_wp_error( $temporary_file ) ) {
-			throw new \Exception( $temporary_file->get_error_message() );
+			throw new \Exception( esc_html( $temporary_file->get_error_message() ) );
 		} else {
 			$upload_dir     = wp_upload_dir();
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url );
@@ -418,7 +418,7 @@ class MainWP_Child_Branding {
 			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
 			if ( MainWP_Utility::instance()->check_image_file_name( $local_img_path ) ) {
-				$moved = rename( $temporary_file, $local_img_path );
+				$moved = MainWP_Helper::move( $temporary_file, $local_img_path );
 				if ( $moved ) {
 					return array(
 						'path' => $local_img_path,
@@ -428,7 +428,7 @@ class MainWP_Child_Branding {
 			}
 		}
 		if ( file_exists( $temporary_file ) ) {
-			unlink( $temporary_file );
+			wp_delete_file( $temporary_file );
 		}
 
 		return null;
@@ -486,7 +486,7 @@ class MainWP_Child_Branding {
 			remove_action( 'load-update-core.php', 'wp_update_themes' );
 			add_filter(
 				'pre_site_transient_update_themes',
-				function( $a ) {
+				function () {
 					return null;
 				}
 			);
@@ -499,8 +499,8 @@ class MainWP_Child_Branding {
 			function remove_core_updates() {
 				add_action(
 					'init',
-					function( $a ) {
-							remove_action( 'wp_version_check', 'wp_version_check' );
+					function () {
+						remove_action( 'wp_version_check', 'wp_version_check' );
 					},
 					2
 				);
@@ -570,7 +570,7 @@ class MainWP_Child_Branding {
 		 */
 		$enable_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
 
-		if ( ! $enable_contact && ! current_user_can( 'administrator' ) ) {
+		if ( ! $enable_contact && ! MainWP_Helper::is_admin() ) {
 			return false;
 		}
 
@@ -598,7 +598,7 @@ class MainWP_Child_Branding {
 				);
 			}
 
-			if ( isset( $extra_setting['show_button_in'] ) && ( 1 === $extra_setting['show_button_in'] || 3 === $extra_setting['show_button_in'] ) ) {
+			if ( isset( $extra_setting['show_button_in'] ) && ( 1 === (int) $extra_setting['show_button_in'] || 3 === (int) $extra_setting['show_button_in'] ) ) {
 				add_submenu_page(
 					null,
 					$title,
@@ -766,7 +766,7 @@ class MainWP_Child_Branding {
 	public function branding_redirect() {
 		$redirect = false;
 		if ( isset( $_SERVER['REQUEST_URI'] ) ) {
-			$uri = wp_unslash( $_SERVER['REQUEST_URI'] );
+			$uri = esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 			if ( false !== stripos( $uri, 'update-core.php' ) ) {
 				$redirect = true;
 			} elseif ( false !== stripos( $uri, 'plugins.php' ) ) {
@@ -873,11 +873,10 @@ class MainWP_Child_Branding {
 	 *
 	 * @param array  $translations An array containing the list of available translations.
 	 * @param string $text         Contains the text to replace.
-	 * @param string $domain       Contains the language domain.
 	 *
 	 * @return array $translations An array containing the list of available translations.
 	 */
-	public function custom_gettext( $translations, $text, $domain = 'default' ) {
+	public function custom_gettext( $translations, $text ) {
 		$extra_setting = $this->get_extra_options();
 		$texts_replace = $extra_setting['texts_replace'];
 		if ( is_array( $texts_replace ) && count( $texts_replace ) > 0 ) {
@@ -1009,12 +1008,12 @@ class MainWP_Child_Branding {
 							$len  = strlen( $rule );
 							$len1 = strlen( 'data:image/svg+xml' );
 							$len2 = $pos + $len1;
-							if ( $len == $len2 ) {
+							if ( $len === $len2 ) {
 								$rule = $rule . ';' . $rules[ $j + 1 ];
-								$j++;
+								++$j;
 							}
 						}
-						$j++;
+						++$j;
 						$tmp_rules[] = $rule;
 					}
 					$rules = $tmp_rules;
@@ -1178,18 +1177,18 @@ class MainWP_Child_Branding {
 		 */
 		$enable_contact = apply_filters( 'mainwp_branding_role_cap_enable_contact_form', false );
 
-		if ( ! $enable_contact && ! current_user_can( 'administrator' ) ) {
+		if ( ! $enable_contact && ! MainWP_Helper::is_admin() ) {
 			return false;
 		}
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_GET['from_page'] ) ) {
-			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . ( ! empty( $_GET['from_page'] ) ? rawurlencode( wp_unslash( $_GET['from_page'] ) ) : '' ) );
+			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . ( ! empty( $_GET['from_page'] ) ? rawurlencode( esc_url_raw( wp_unslash( $_GET['from_page'] ) ) ) : '' ) );
 		} else {
 			$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-			$fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+			$fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 			$href     = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( $fullurl ) );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		$args = array(
 			'id'     => 999,
 			'title'  => $this->child_branding_options['contact_label'],
@@ -1285,12 +1284,10 @@ class MainWP_Child_Branding {
 	 *
 	 * @param array  $caps    An array of capabiilities.
 	 * @param string $cap     Contains the capability.
-	 * @param int    $user_id Current user ID.
-	 * @param array  $args    An array of arguments to process.
 	 *
 	 * @return array $caps An array of updated capabiilities.
 	 */
-	public function branding_map_meta_cap( $caps, $cap, $user_id, $args ) {
+	public function branding_map_meta_cap( $caps, $cap ) {
 		if ( isset( $this->child_branding_options['disable_switching_theme'] ) && 'T' === $this->child_branding_options['disable_switching_theme'] ) {
 			if ( 'switch_themes' === $cap ) {
 				$caps[0] = 'do_not_allow';
@@ -1414,4 +1411,3 @@ class MainWP_Child_Branding {
 		return $plugins;
 	}
 }
-

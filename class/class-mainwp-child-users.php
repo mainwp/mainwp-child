@@ -65,9 +65,9 @@ class MainWP_Child_Users {
 	public function user_action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// phpcs:disable WordPress.Security.NonceVerification
 		$action    = MainWP_System::instance()->validate_params( 'action' );
-		$extra     = isset( $_POST['extra'] ) ? wp_unslash( $_POST['extra'] ) : '';
+		$extra     = isset( $_POST['extra'] ) ? wp_unslash( $_POST['extra'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$userId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
-		$user_pass = isset( $_POST['user_pass'] ) ? wp_unslash( $_POST['user_pass'] ) : '';
+		$user_pass = isset( $_POST['user_pass'] ) ? wp_unslash( $_POST['user_pass'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$failed    = false;
 
 		/**
@@ -148,7 +148,7 @@ class MainWP_Child_Users {
 			'users_data' => $act_dt,
 		);
 
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Helper::write( $information );
 	}
 
@@ -198,16 +198,16 @@ class MainWP_Child_Users {
 	/**
 	 * Get all child site users.
 	 *
-	 * @param bool $return Whether or not to return. Default: false.
+	 * @param bool $return_results Whether or not to return. Default: false.
 	 *
 	 * @return array Return array of $allusers.
 	 *
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
-	public function get_all_users( $return = false ) {
+	public function get_all_users( $return_results = false ) {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$roles = isset( $_POST['role'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['role'] ) ) ) : array();
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		$allusers = array();
 		if ( is_array( $roles ) ) {
 			foreach ( $roles as $role ) {
@@ -228,7 +228,7 @@ class MainWP_Child_Users {
 				}
 			}
 		}
-		if ( $return ) {
+		if ( $return_results ) {
 			return $allusers;
 		}
 		MainWP_Helper::write( $allusers );
@@ -254,7 +254,7 @@ class MainWP_Child_Users {
 			unset( $all_users_role );
 		}
 
-		$columns  = isset( $_POST['search_columns'] ) ? explode( ',', wp_unslash( $_POST['search_columns'] ) ) : array();
+		$columns  = isset( $_POST['search_columns'] ) ? explode( ',', wp_unslash( $_POST['search_columns'] ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$allusers = array();
 		$exclude  = array();
 
@@ -265,7 +265,7 @@ class MainWP_Child_Users {
 
 			$user_query = new \WP_User_Query(
 				array(
-					'search'         => isset( $_POST['search'] ) ? wp_unslash( $_POST['search'] ) : '',
+					'search'         => isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '',
 					'fields'         => 'all_with_meta',
 					'search_columns' => array( $col ),
 					'query_orderby'  => array( $col ),
@@ -298,7 +298,7 @@ class MainWP_Child_Users {
 				}
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Helper::write( $allusers );
 	}
 
@@ -340,7 +340,7 @@ class MainWP_Child_Users {
 			$potential_role = isset( $wp_roles->role_objects[ $new_role ] ) ? $wp_roles->role_objects[ $new_role ] : false;
 			// Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
 			// Multisite super admins can freely edit their blog roles -- they possess all caps.
-			if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || get_current_user_id() != $user_id || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
+			if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || (int) get_current_user_id() !== (int) $user_id || ( $potential_role && $potential_role->has_cap( 'edit_users' ) ) ) {
 					$user->role = $new_role;
 			}
 			// If the new role isn't editable by the logged-in user die with error.
@@ -362,7 +362,7 @@ class MainWP_Child_Users {
 		}
 
 		if ( isset( $data['url'] ) ) {
-			if ( empty( $data['url'] ) || 'http://' == $data['url'] ) {
+			if ( empty( $data['url'] ) || 'http://' === $data['url'] ) {
 				$user->user_url = '';
 			} else {
 				$user->user_url = esc_url_raw( $data['url'] );
@@ -390,7 +390,7 @@ class MainWP_Child_Users {
 		$errors = new \WP_Error();
 
 		// checking that username has been typed.
-		if ( '' == $user->user_login ) {
+		if ( '' === $user->user_login ) {
 			$errors->add( 'user_login', esc_html__( '<strong>ERROR</strong>: Please enter a username.' ) );
 		}
 
@@ -406,7 +406,7 @@ class MainWP_Child_Users {
 				$errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Passwords may not contain the character "\\".' ), array( 'form-field' => 'pass1' ) );
 			}
 			// Checking the password has been typed twice the same.
-			if ( ( $update || ! empty( $pass1 ) ) && $pass1 != $pass2 ) {
+			if ( ( $update || ! empty( $pass1 ) ) && $pass1 !== $pass2 ) {
 				$errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Please enter the same password in both password fields.' ), array( 'form-field' => 'pass1' ) );
 			}
 
@@ -429,7 +429,7 @@ class MainWP_Child_Users {
 			$errors->add( 'empty_email', esc_html__( '<strong>ERROR</strong>: Please enter an email address.' ), array( 'form-field' => 'email' ) );
 		} elseif ( ! is_email( $user->user_email ) ) {
 			$errors->add( 'invalid_email', esc_html__( '<strong>ERROR</strong>: The email address isn&#8217;t correct.' ), array( 'form-field' => 'email' ) );
-		} elseif ( ( $owner_id ) && ( ! $update || ( $owner_id != $user->ID ) ) ) {
+		} elseif ( ( $owner_id ) && ( ! $update || ( (int) $owner_id !== (int) $user->ID ) ) ) {
 			$errors->add( 'email_exists', esc_html__( '<strong>ERROR</strong>: This email is already registered, please choose another one.' ), array( 'form-field' => 'email' ) );
 		}
 
@@ -514,14 +514,14 @@ class MainWP_Child_Users {
 	 */
 	public function new_admin_password() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$new_password = isset( $_POST['new_password'] ) ? base64_decode( wp_unslash( $_POST['new_password'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$new_password = isset( $_POST['new_password'] ) ? base64_decode( wp_unslash( $_POST['new_password'] ) ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$user  = null;
-		$uname = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';
+		$uname = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( ! empty( $uname ) ) {
 			$user = get_user_by( 'login', $uname );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		if ( empty( $user ) ) {
 			MainWP_Helper::write( array() );
 		}
@@ -574,14 +574,14 @@ class MainWP_Child_Users {
 	 */
 	public function new_user() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$new_user      = isset( $_POST['new_user'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_user'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$send_password = isset( $_POST['send_password'] ) ? sanitize_text_field( wp_unslash( $_POST['send_password'] ) ) : '';
+		$new_user      = isset( $_POST['new_user'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_user'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$send_password = isset( $_POST['send_password'] ) ? wp_unslash( $_POST['send_password'] ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( isset( $new_user['role'] ) ) {
 			if ( ! get_role( $new_user['role'] ) ) {
 				$new_user['role'] = 'subscriber';
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		$new_user_id = wp_insert_user( $new_user );
 
@@ -627,5 +627,4 @@ class MainWP_Child_Users {
 
 		MainWP_Helper::write( $information );
 	}
-
 }

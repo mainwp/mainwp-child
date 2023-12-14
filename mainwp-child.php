@@ -12,7 +12,7 @@
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 4.5.3
+ * Version: 4.6-RC1
  * Requires at least: 5.4
  * Requires PHP: 7.4
  */
@@ -76,7 +76,7 @@ function mainwp_child_autoload( $class_name ) {
 		$class_name = substr( $class_name, 13 );
 	}
 
-	$autoload_dir  = \trailingslashit( dirname( __FILE__ ) . '/class' );
+	$autoload_dir  = \trailingslashit( __DIR__ . '/class' );
 	$autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
 
 	if ( file_exists( $autoload_path ) ) {

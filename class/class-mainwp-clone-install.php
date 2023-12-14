@@ -177,7 +177,7 @@ class MainWP_Clone_Install {
 	 */
 	private function file_exists( $file ) {
 		if ( 'extracted' === $this->file ) {
-			return file_get_contents( '../clone/config.txt' );
+			return file_get_contents( '../clone/config.txt' ); //phpcs:ignore WordPress.WP.AlternativeFunctions
 		}
 
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
@@ -241,16 +241,16 @@ class MainWP_Clone_Install {
 	public function clean() {
 		$files = glob( WP_CONTENT_DIR . '/dbBackup*.sql.php' );
 		foreach ( $files as $file ) {
-			unlink( $file );
+			wp_delete_file( $file );
 		}
 		if ( file_exists( WP_CONTENT_DIR . '/dbBackup.sql' ) ) {
-			unlink( WP_CONTENT_DIR . '/dbBackup.sql' );
+			wp_delete_file( WP_CONTENT_DIR . '/dbBackup.sql' );
 		}
 		if ( file_exists( ABSPATH . 'clone/config.txt' ) ) {
-			unlink( ABSPATH . 'clone/config.txt' );
+			wp_delete_file( ABSPATH . 'clone/config.txt' );
 		}
 		if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
-			rmdir( ABSPATH . 'clone' );
+			MainWP_Helper::rmdir( ABSPATH . 'clone' );
 		}
 
 		try {
@@ -260,7 +260,7 @@ class MainWP_Clone_Install {
 			$files = glob( $backupdir . '*' );
 			foreach ( $files as $file ) {
 				if ( MainWP_Clone::is_archive( $file ) ) {
-					unlink( $file );
+					wp_delete_file( $file );
 				}
 			}
 		} catch ( \Exception $e ) {
@@ -272,12 +272,12 @@ class MainWP_Clone_Install {
 	 * Update wp-config.php file.
 	 */
 	public function update_wp_config() {
-		$wpConfig = file_get_contents( ABSPATH . 'wp-config.php' );
+		$wpConfig = file_get_contents( ABSPATH . 'wp-config.php' ); //phpcs:ignore WordPress.WP.AlternativeFunctions
 		$wpConfig = $this->replace_var( 'table_prefix', $this->config['prefix'], $wpConfig );
 		if ( isset( $this->config['lang'] ) ) {
 			$wpConfig = $this->replace_define( 'WPLANG', $this->config['lang'], $wpConfig );
 		}
-		file_put_contents( ABSPATH . 'wp-config.php', $wpConfig );
+		MainWP_Helper::file_put_contents( ABSPATH . 'wp-config.php', $wpConfig ); //phpcs:ignore WordPress.WP.AlternativeFunctions
 	}
 
 	/**
@@ -343,7 +343,7 @@ class MainWP_Clone_Install {
 
 		$query     = '';
 		$tableName = '';
-		$wpdb->query( 'SET foreign_key_checks = 0' );
+		$wpdb->query( 'SET foreign_key_checks = 0' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 
 		$protect_content_string = '<?php exit(); ?>';
 
@@ -375,14 +375,14 @@ class MainWP_Clone_Install {
 
 					$splitLine       = explode( ";\n", $readline );
 					$splitLineLength = count( $splitLine );
-					for ( $i = 0; $i < $splitLineLength - 1; $i ++ ) {
+					for ( $i = 0; $i < $splitLineLength - 1; $i++ ) {
 						$wpdb->query( $splitLine[ $i ] ); // phpcs:ignore -- safe query.
 					}
 
 					$readline = $splitLine[ count( $splitLine ) - 1 ];
 				}
 
-				if ( trim( $readline ) != '' ) {
+				if ( trim( $readline ) !== '' ) {
 					$wpdb->query( $readline ); // phpcs:ignore -- safe query.
 				}
 
@@ -408,7 +408,7 @@ class MainWP_Clone_Install {
 		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['home'], $home, $tables );
 		$this->icit_srdb_replacer( $wpdb->dbh, $this->config['siteurl'], $site_url, $tables );
 
-		$wpdb->query( 'SET foreign_key_checks = 1' );
+		$wpdb->query( 'SET foreign_key_checks = 1' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 
 		return true;
 	}
@@ -420,7 +420,7 @@ class MainWP_Clone_Install {
 	 */
 	public function get_config_contents() {
 		if ( 'extracted' === $this->file ) {
-			return file_get_contents( '../clone/config.txt' );
+			return file_get_contents( '../clone/config.txt' ); //phpcs:ignore WordPress.WP.AlternativeFunctions
 		}
 
 		if ( ! $this->file || ! file_exists( $this->file ) ) {
@@ -434,30 +434,28 @@ class MainWP_Clone_Install {
 			$content = $this->archiver->get_from_name( 'clone/config.txt' );
 
 			return $content;
-		} else {
-
-			if ( $this->check_zip_console() ) {
-				return false;
-			} elseif ( $this->check_zip_support() ) {
-				$zip    = new \ZipArchive();
-				$zipRes = $zip->open( $this->file );
-				if ( $zipRes ) {
-					$content = $zip->getFromName( 'clone/config.txt' );
-					$zip->close();
-
-					return $content;
-				}
+		} elseif ( $this->check_zip_console() ) {
 
 				return false;
-			} else {
-				$zip     = new \PclZip( $this->file );
-				$content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt', PCLZIP_OPT_EXTRACT_AS_STRING );
-				if ( ! is_array( $content ) || ! isset( $content[0]['content'] ) ) {
-					return false;
-				}
+		} elseif ( $this->check_zip_support() ) {
+			$zip    = new \ZipArchive();
+			$zipRes = $zip->open( $this->file );
+			if ( $zipRes ) {
+				$content = $zip->getFromName( 'clone/config.txt' );
+				$zip->close();
 
-				return $content[0]['content'];
+				return $content;
 			}
+
+			return false;
+		} else {
+			$zip     = new \PclZip( $this->file );
+			$content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt', PCLZIP_OPT_EXTRACT_AS_STRING );
+			if ( ! is_array( $content ) || ! isset( $content[0]['content'] ) ) {
+				return false;
+			}
+
+			return $content[0]['content'];
 		}
 
 		return false;
@@ -547,11 +545,11 @@ class MainWP_Clone_Install {
 	 */
 	public function extract_zip_pcl_backup() {
 		$zip = new \PclZip( $this->file );
-		if ( 0 === $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
+		if ( 0 === (int) $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
 			return false;
 		}
 		if ( PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {
-			throw new \Exception( $zip->errorInfo( true ) );
+			throw new \Exception( $zip->errorInfo( true ) ); //phpcs:ignore -- compatible.
 		}
 
 		return true;
@@ -657,7 +655,7 @@ class MainWP_Clone_Install {
 		);
 		if ( is_array( $tables ) && ! empty( $tables ) ) {
 			foreach ( $tables as $table ) {
-				$report['tables'] ++;
+				++$report['tables'];
 
 				$columns = array();
 
@@ -671,13 +669,13 @@ class MainWP_Clone_Install {
 				$row_count   = MainWP_Child_DB::to_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection );
 				$rows_result = MainWP_Child_DB::fetch_array( $row_count );
 				$row_count   = $rows_result['count'];
-				if ( 0 === $row_count ) {
+				if ( empty( $row_count ) ) {
 					continue;
 				}
 
 				$page_size = 50000;
 				$pages     = ceil( $row_count / $page_size );
-				for ( $page = 0; $page < $pages; $page ++ ) {
+				for ( $page = 0; $page < $pages; $page++ ) {
 					$current_row = 0;
 					$start       = $page * $page_size;
 					$end         = $start + $page_size;
@@ -689,8 +687,8 @@ class MainWP_Clone_Install {
 
 					while ( $row = MainWP_Child_DB::fetch_array( $data ) ) {
 
-						$report['rows'] ++; // Increment the row counter.
-						$current_row ++;
+						++$report['rows']; // Increment the row counter.
+						++$current_row;
 
 						$update_sql = array();
 						$where_sql  = array();
@@ -707,7 +705,7 @@ class MainWP_Clone_Install {
 							$edited_data = $this->recursive_unserialize_replace( $search, $replace, $data_to_fix );
 							// Something was changed.
 							if ( $edited_data !== $data_to_fix ) {
-								$report['change'] ++;
+								++$report['change'];
 								$update_sql[] = $column . ' = "' . MainWP_Child_DB::real_escape_string( $edited_data ) . '"';
 								$upd          = true;
 							}
@@ -723,7 +721,7 @@ class MainWP_Clone_Install {
 							if ( ! $result ) {
 								$report['errors'][] = MainWP_Child_DB::error();
 							} else {
-								$report['updates'] ++;
+								++$report['updates'];
 							}
 						} elseif ( $upd ) {
 							$report['errors'][] = sprintf( '"%s" has no primary key, manual change needed on row %s.', $table, $current_row );
@@ -780,10 +778,8 @@ class MainWP_Clone_Install {
 					$data = str_replace( $from, $to, $data );
 					$data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 				}
-			} else {
-				if ( is_string( $data ) ) {
+			} elseif ( is_string( $data ) ) {
 					$data = str_replace( $from, $to, $data );
-				}
 			}
 
 			if ( $serialised ) {
@@ -795,5 +791,4 @@ class MainWP_Clone_Install {
 
 		return $data;
 	}
-
 }

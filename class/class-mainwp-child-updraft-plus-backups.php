@@ -480,10 +480,10 @@ class MainWP_Child_Updraft_Plus_Backups {
                 break;
             case 'authfailed':
                 if ( ! empty( $response['authproblem'] ) ) {
-                    if ( 'invalidpassword' == $response['authproblem'] ) {
+                    if ( 'invalidpassword' === $response['authproblem'] ) {
                         $authfail_error = new \WP_Error( 'authfailed', esc_html__( 'Your email address was valid, but your password was not recognised by UpdraftPlus.Com.', 'updraftplus' ) . ' <a href="https://updraftplus.com/my-account/lost-password/">' . esc_html__( 'If you have forgotten your password, then go here to change your password on updraftplus.com.', 'updraftplus' ) . '</a>' );
                         return $authfail_error;
-                    } elseif ( 'invaliduser' == $response['authproblem'] ) {
+                    } elseif ( 'invaliduser' === $response['authproblem'] ) {
                         return new \WP_Error( 'authfailed', esc_html__( 'You entered an email address that was not recognised by UpdraftPlus.Com', 'updraftplus' ) );
                     }
                 }
@@ -630,7 +630,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                                 $opts['settings'][ $settings_key ]['accesskey'] = $settings[ $key ]['accesskey'];
                                 $opts['settings'][ $settings_key ]['secretkey'] = $settings[ $key ]['secretkey'];
                                 $opts['settings'][ $settings_key ]['path']      = $this->replace_tokens( $settings[ $key ]['path'] );
-                                if ( ! empty( $opts['settings'][ $settings_key ]['path'] ) && '/' == substr( $opts['settings'][ $settings_key ]['path'], 0, 1 ) ) {
+                                if ( ! empty( $opts['settings'][ $settings_key ]['path'] ) && '/' === substr( $opts['settings'][ $settings_key ]['path'], 0, 1 ) ) {
                                     $opts['settings'][ $settings_key ]['path'] = substr( $opts['settings'][ $settings_key ]['path'], 1 );
                                 }
                                 if ( isset( $settings[ $key ]['rrs'] ) ) { // premium settings.
@@ -641,7 +641,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                                 $opts['accesskey'] = $settings[ $key ]['accesskey'];
                                 $opts['secretkey'] = $settings[ $key ]['secretkey'];
                                 $opts['path']      = $this->replace_tokens( $settings[ $key ]['path'] );
-                                if ( ! empty( $opts['path'] ) && '/' == substr( $opts['path'], 0, 1 ) ) {
+                                if ( ! empty( $opts['path'] ) && '/' === substr( $opts['path'], 0, 1 ) ) {
                                     $opts['path'] = substr( $opts['path'], 1 );
                                 }
                                 if ( isset( $settings[ $key ]['rrs'] ) ) { // premium settings.
@@ -737,7 +737,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                                 }
                             }
                             \UpdraftPlus_Options::update_updraft_option( 'updraft_sftp', $opts );
-                        } elseif ( 'updraft_webdav_settings' == $key && is_array( $settings[ $key ] ) ) {
+                        } elseif ( 'updraft_webdav_settings' === $key && is_array( $settings[ $key ] ) ) {
                             $opts = \UpdraftPlus_Options::get_updraft_option( 'updraft_webdav' );
                             if ( ! is_array( $opts ) ) {
                                 $opts = array();
@@ -760,7 +760,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
                                 if ( isset( $settings[ $key ]['single_bucket_key_id'] ) && ! empty( $settings[ $key ]['single_bucket_key_id'] ) ){
                                     $single_bucket_key_id = trim( $settings[ $key ]['single_bucket_key_id'] );
-                                    if ( '[empty]' == $single_bucket_key_id ) {
+                                    if ( '[empty]' === $single_bucket_key_id ) {
                                         $opts['settings'][ $settings_key ]['single_bucket_key_id'] = '';    
                                     } elseif ( ! empty( $single_bucket_key_id ) ) {
                                         $opts['settings'][ $settings_key ]['single_bucket_key_id'] = $single_bucket_key_id;
@@ -1398,7 +1398,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         }
 
         $next_scheduled_backup_database = wp_next_scheduled( 'updraft_backup_database' );
-        if ( \UpdraftPlus_Options::get_updraft_option( 'updraft_interval_database', \UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) == \UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) {
+        if ( (int) \UpdraftPlus_Options::get_updraft_option( 'updraft_interval_database', \UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) === (int) \UpdraftPlus_Options::get_updraft_option( 'updraft_interval' ) ) {
             if ( isset( $files_not_scheduled ) ) {
                 $next_scheduled_backup_database = $next_scheduled_backup;
                 $database_not_scheduled         = true;
@@ -1521,13 +1521,13 @@ class MainWP_Child_Updraft_Plus_Backups {
 
         $delete_from_service = array();
 
-        if ( isset( $_POST['delete_remote'] ) && 1 == $_POST['delete_remote'] ) {
+        if ( isset( $_POST['delete_remote'] ) && 1 === (int) $_POST['delete_remote'] ) {
             // Locate backup set.
             if ( isset( $backups[ $timestamp ]['service'] ) ) {
                 $services = is_string( $backups[ $timestamp ]['service'] ) ? array( $backups[ $timestamp ]['service'] ) : $backups[ $timestamp ]['service'];
                 if ( is_array( $services ) ) {
                     foreach ( $services as $service ) {
-                        if ( 'none' != $service ) {
+                        if ( 'none' !== $service ) {
                             $delete_from_service[] = $service;
                         }
                     }
@@ -1566,14 +1566,14 @@ class MainWP_Child_Updraft_Plus_Backups {
             }
             foreach ( $files as $file ) {
                 if ( is_file( $updraft_dir . '/' . $file ) ) {
-                    if ( unlink( $updraft_dir . '/' . $file ) ) {
+                    if ( wp_delete_file( $updraft_dir . '/' . $file ) ) {
                         $local_deleted ++;
                     }
                 }
             }
-            if ( 'log' != $key && count( $delete_from_service ) > 0 ) {
+            if ( 'log' !== $key && count( $delete_from_service ) > 0 ) {
                 foreach ( $delete_from_service as $service ) {
-                    if ( 'email' == $service ) {
+                    if ( 'email' === $service ) {
                         continue;
                     }
                     if ( file_exists( UPDRAFTPLUS_DIR . "/methods/$service.php" ) ) {
@@ -1734,12 +1734,12 @@ class MainWP_Child_Updraft_Plus_Backups {
         $backupable_entities = $updraftplus->get_backupable_file_entities( true );
         $type_match          = false;
         foreach ( $backupable_entities as $type => $info ) {
-            if ( $_REQUEST['type'] == $type ) {
+            if ( $_REQUEST['type'] === $type ) {
                 $type_match = true;
             }
         }
 
-        if ( ! $type_match && 'db' != substr( $_REQUEST['type'], 0, 2 ) ) {
+        if ( ! $type_match && 'db' !== substr( $_REQUEST['type'], 0, 2 ) ) {
             exit;
         }
 
@@ -1774,14 +1774,14 @@ class MainWP_Child_Updraft_Plus_Backups {
         // Where it should end up being downloaded to.
         $fullpath = $updraftplus->backups_dir_location() . '/' . $file;
 
-        if ( isset( $_POST['stage'] ) && '2' == $_POST['stage'] ) {
+        if ( isset( $_POST['stage'] ) && '2' === $_POST['stage'] ) {
             $updraftplus->spool_file( $type, $fullpath );
 
             return array();
         }
 
-        if ( isset( $_POST['stage'] ) && 'delete' == $_POST['stage'] ) {
-            unlink( $fullpath );
+        if ( isset( $_POST['stage'] ) && 'delete' === $_POST['stage'] ) {
+            wp_delete_file( $fullpath );
             $updraftplus->log( 'The file has been deleted' );
 
             return 'deleted';
@@ -1842,7 +1842,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                 } else {
                     clearstatcache();
                     if ( 0 === filesize( $fullpath ) ) {
-                        unlink( $fullpath );
+                        wp_delete_file( $fullpath );
                     }
                     $updraftplus->log( 'Remote fetch failed' );
                 }
@@ -1866,7 +1866,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
         fclose( $updraftplus->logfile_handle );
         if ( ! $debug_mode ) {
-            unlink( $updraftplus->logfile_name );
+            wp_delete_file( $updraftplus->logfile_name );
         }
 
         return array( 'result' => 'OK' );
@@ -1919,7 +1919,7 @@ class MainWP_Child_Updraft_Plus_Backups {
      * @return false|string Return Pruned $updraft_dir or FALSE on failure.
      */
     public function prune_updraft_dir_prefix( $updraft_dir ) {
-        if ( '/' == substr( $updraft_dir, 0, 1 ) || '\\' === substr( $updraft_dir, 0, 1 ) || preg_match( '/^[a-zA-Z]:/', $updraft_dir ) ) {
+        if ( '/' === substr( $updraft_dir, 0, 1 ) || '\\' === substr( $updraft_dir, 0, 1 ) || preg_match( '/^[a-zA-Z]:/', $updraft_dir ) ) {
             $wcd = trailingslashit( WP_CONTENT_DIR );
             if ( strpos( $updraft_dir, $wcd ) === 0 ) {
                 $updraft_dir = substr( $updraft_dir, strlen( $wcd ) );
@@ -2285,7 +2285,7 @@ class MainWP_Child_Updraft_Plus_Backups {
         $ret = true;
         foreach ( $list as $item ) {
             $name = ( is_array( $item ) ) ? $item['name'] : $item;
-            if ( '-old' == substr( $name, - 4, 4 ) ) {
+            if ( '-old' === substr( $name, - 4, 4 ) ) {
                 // recursively delete.
                 print '<strong>' . esc_html__( 'Delete', 'updraftplus' ) . ': </strong>' . htmlspecialchars( $name ) . ': ';
 
@@ -2397,7 +2397,7 @@ class MainWP_Child_Updraft_Plus_Backups {
 
             if ( $ciphertext ) {
                 $new_db_file = $updraft_dir . '/' . basename( $db_file, '.crypt' );
-                if ( ! file_put_contents( $new_db_file, $ciphertext ) ) {
+                if ( ! file_put_contents( $new_db_file, $ciphertext ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
                     $err[] = esc_html__( 'Failed to write out the decrypted database to the filesystem.', 'updraftplus' );
 
                     return array( $mess, $warn, $err, $info );
@@ -2664,7 +2664,7 @@ class MainWP_Child_Updraft_Plus_Backups {
             return array( $mess, $warn, $err, $info );
         }
 
-        $is_plain = ( '.gz' == substr( $db_file, -3, 3 ) ) ? false : true;
+        $is_plain = ( '.gz' === substr( $db_file, -3, 3 ) ) ? false : true;
 
         $dbhandle = ( $is_plain ) ? fopen( $db_file, 'r' ) : $this->gzopen_for_read( $db_file, $warn, $err );
         if ( ! is_resource( $dbhandle ) ) {
@@ -2716,17 +2716,17 @@ class MainWP_Child_Updraft_Plus_Backups {
             // Up to 1MB.
             $buffer = ( $is_plain ) ? rtrim( fgets( $dbhandle, 1048576 ) ) : rtrim( gzgets( $dbhandle, 1048576 ) );
             // Comments are what we are interested in.
-            if ( substr( $buffer, 0, 1 ) == '#' ) {
+            if ( substr( $buffer, 0, 1 ) === '#' ) {
                 $processing_create = false;
-                if ( '' == $old_siteurl && preg_match( '/^\# Backup of: (http(.*))$/', $buffer, $matches ) ) {
+                if ( '' === $old_siteurl && preg_match( '/^\# Backup of: (http(.*))$/', $buffer, $matches ) ) {
                     $old_siteurl = untrailingslashit( $matches[1] );
                     $mess[]      = esc_html__( 'Backup of:', 'updraftplus' ) . ' ' . htmlspecialchars( $old_siteurl ) . ( ( ! empty( $old_wp_version ) ) ? ' ' . sprintf( esc_html__( '(version: %s)', 'updraftplus' ), $old_wp_version ) : '' );
                     // Check for should-be migration.
-                    if ( untrailingslashit( site_url() ) != $old_siteurl ) {
+                    if ( untrailingslashit( site_url() ) !== $old_siteurl ) {
                         if ( ! $migration_warning ) {
                             $migration_warning = true;
                             $info['migration'] = true;
-                            if ( \UpdraftPlus_Manipulation_Functions::normalise_url( $old_siteurl ) == \UpdraftPlus_Manipulation_Functions::normalise_url( site_url() ) ) {
+                            if ( \UpdraftPlus_Manipulation_Functions::normalise_url( $old_siteurl ) === \UpdraftPlus_Manipulation_Functions::normalise_url( site_url() ) ) {
                                 // Same site migration with only http/https difference.
                                 $info['same_url']      = false;
                                 $old_siteurl_parsed    = wp_parse_url( $old_siteurl );
@@ -2736,9 +2736,9 @@ class MainWP_Child_Updraft_Plus_Backups {
                                 } else {
                                     $powarn = '';
                                 }
-                                if ( ( 'https' == $old_siteurl_parsed['scheme'] && 'http' == $actual_siteurl_parsed['scheme'] ) || ( 'http' == $old_siteurl_parsed['scheme'] && 'https' == $actual_siteurl_parsed['scheme'] ) ) {
+                                if ( ( 'https' === $old_siteurl_parsed['scheme'] && 'http' === $actual_siteurl_parsed['scheme'] ) || ( 'http' === $old_siteurl_parsed['scheme'] && 'https' === $actual_siteurl_parsed['scheme'] ) ) {
                                     $powarn .= sprintf( esc_html__( 'This backup set is of this site, but at the time of the backup you were using %1$s, whereas the site now uses %2$s.', 'updraftplus' ), $old_siteurl_parsed['scheme'], $actual_siteurl_parsed['scheme'] );
-                                    if ( 'https' == $old_siteurl_parsed['scheme'] ) {
+                                    if ( 'https' === $old_siteurl_parsed['scheme'] ) {
                                         $powarn .= ' ' . apply_filters( 'updraftplus_https_to_http_additional_warning', sprintf( esc_html__( 'This restoration will work if you still have an SSL certificate (i.e. can use https) to access the site. Otherwise, you will want to use %s to search/replace the site address so that the site can be visited without https.', 'updraftplus' ), '<a href="https://updraftplus.com/shop/migrator/">' . esc_html__( 'the migrator add-on', 'updraftplus' ) . '</a>' ) );
                                     } else {
                                         $powarn .= ' ' . apply_filters( 'updraftplus_http_to_https_additional_warning', sprintf( esc_html__( 'As long as your web hosting allows http (i.e. non-SSL access) or will forward requests to https (which is almost always the case), this is no problem. If that is not yet set up, then you should set it up, or use %s so that the non-https links are automatically replaced.', 'updraftplus' ), apply_filters( 'updraftplus_migrator_addon_link', '<a href="https://updraftplus.com/shop/migrator/">' . esc_html__( 'the migrator add-on', 'updraftplus' ) . '</a>' ) ) );
@@ -2764,10 +2764,10 @@ class MainWP_Child_Updraft_Plus_Backups {
                         // For exactly same URL site restoration.
                         $info['same_url'] = true;
                     }
-                } elseif ( '' == $old_home && preg_match( '/^\# Home URL: (http(.*))$/', $buffer, $matches ) ) {
+                } elseif ( '' === $old_home && preg_match( '/^\# Home URL: (http(.*))$/', $buffer, $matches ) ) {
                     $old_home = untrailingslashit( $matches[1] );
                     // Check for should-be migration.
-                    if ( ! $migration_warning && home_url() != $old_home ) {
+                    if ( ! $migration_warning && home_url() !== $old_home ) {
                         $migration_warning = true;
                         $powarn            = apply_filters( 'updraftplus_dbscan_urlchange', '<a href="https://updraftplus.com/shop/migrator/">' . esc_html__( 'This backup set is from a different site - this is not a restoration, but a migration. You need the Migrator add-on in order to make this work.', 'updraftplus' ) . '</a>', $old_home, $res );
                         if ( ! empty( $powarn ) ) {
@@ -2776,7 +2776,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                     }
                 } elseif ( ! isset( $info['created_by_version'] ) && preg_match( '/^\# Created by UpdraftPlus version ([\d\.]+)/', $buffer, $matches ) ) {
                     $info['created_by_version'] = trim( $matches[1] );
-                } elseif ( '' == $old_wp_version && preg_match( '/^\# WordPress Version: ([0-9]+(\.[0-9]+)+)(-[-a-z0-9]+,)?(.*)$/', $buffer, $matches ) ) {
+                } elseif ( '' === $old_wp_version && preg_match( '/^\# WordPress Version: ([0-9]+(\.[0-9]+)+)(-[-a-z0-9]+,)?(.*)$/', $buffer, $matches ) ) {
                     $old_wp_version = $matches[1];
                     if ( ! empty( $matches[3] ) ) {
                         $old_wp_version .= substr( $matches[3], 0, strlen( $matches[3] ) - 1 );
@@ -2791,13 +2791,13 @@ class MainWP_Child_Updraft_Plus_Backups {
                             $warn[] = sprintf( esc_html__( 'The site in this backup was running on a webserver with version %1$s of %2$s. ', 'updraftplus' ), $old_php_version, 'PHP' ) . ' ' . sprintf( esc_html__( 'This is significantly newer than the server which you are now restoring onto (version %s).', 'updraftplus' ), PHP_VERSION ) . ' ' . sprintf( esc_html__( 'You should only proceed if you cannot update the current server and are confident (or willing to risk) that your plugins/themes/etc. are compatible with the older %s version.', 'updraftplus' ), 'PHP' ) . ' ' . sprintf( esc_html__( 'Any support requests to do with %s should be raised with your web hosting company.', 'updraftplus' ), 'PHP' );
                         }
                     }
-                } elseif ( '' == $old_table_prefix && ( preg_match( '/^\# Table prefix: (\S+)$/', $buffer, $matches ) || preg_match( '/^-- Table prefix: (\S+)$/i', $buffer, $matches ) ) ) {
+                } elseif ( '' === $old_table_prefix && ( preg_match( '/^\# Table prefix: (\S+)$/', $buffer, $matches ) || preg_match( '/^-- Table prefix: (\S+)$/i', $buffer, $matches ) ) ) {
                     $old_table_prefix = $matches[1];
                 } elseif ( empty( $info['label'] ) && preg_match( '/^\# Label: (.*)$/', $buffer, $matches ) ) {
                     $info['label'] = $matches[1];
                     $mess[]        = esc_html__( 'Backup label:', 'updraftplus' ) . ' ' . htmlspecialchars( $info['label'] );
                 } elseif ( $gathering_siteinfo && preg_match( '/^\# Site info: (\S+)$/', $buffer, $matches ) ) {
-                    if ( 'end' == $matches[1] ) {
+                    if ( 'end' === $matches[1] ) {
                         $gathering_siteinfo = false;
                         // Sanity checks.
                         if ( isset( $old_siteinfo['multisite'] ) && ! $old_siteinfo['multisite'] && is_multisite() ) {
@@ -2812,7 +2812,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                     } elseif ( preg_match( '/^([^=]+)=(.*)$/', $matches[1], $kvmatches ) ) {
                         $key = $kvmatches[1];
                         $val = $kvmatches[2];
-                        if ( 'multisite' == $key ) {
+                        if ( 'multisite' === $key ) {
                             $info['multisite'] = $val ? true : false;
                             if ( $val ) {
                                 $mess[] = '<strong>' . esc_html__( 'Site information:', 'updraftplus' ) . '</strong> backup is of a WordPress Network';
@@ -2833,7 +2833,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                         $wanted_tables = array_diff( $wanted_tables, array( $table ) );
                     }
                 }
-                if ( ';' != substr( $buffer, -1, 1 ) ) {
+                if ( ';' !== substr( $buffer, -1, 1 ) ) {
                     $processing_create                                     = true;
                     $db_supported_charset_related_to_unsupported_collation = true;
                 }
@@ -2866,7 +2866,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                         }
                     }
                 }
-                if ( ';' == substr( $buffer, -1, 1 ) ) {
+                if ( ';' === substr( $buffer, -1, 1 ) ) {
                     $processing_create                                     = false;
                     $db_supported_charset_related_to_unsupported_collation = false;
                 }
@@ -2959,7 +2959,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                     $option_other_attr = array();
                     if ( $db_charset_forbidden && isset( $collate_info_obj->Charset ) ) {
                         $option_other_attr[] = 'data-charset=' . esc_attr( $collate_info_obj->Charset );
-                        if ( $similar_type_charset != $collate_info_obj->Charset ) {
+                        if ( $similar_type_charset !== $collate_info_obj->Charset ) {
                             $option_other_attr[] = 'style="display:none;"';
                         }
                     }

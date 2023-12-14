@@ -205,7 +205,7 @@ class MainWP_Child_Jetpack_Protect {
 	 * @return array $return connect result.
 	 */
 	public function set_connect_disconnect() {
-		$status = isset( $_POST['status'] ) ? $_POST['status'] : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( 'connect' === $status ) {
 			MainWP_Helper::instance()->check_methods( $this->connection, array( 'set_plugin_instance', 'try_registration', 'is_connected' ) );
 
@@ -279,7 +279,7 @@ class MainWP_Child_Jetpack_Protect {
 	 */
 	public function hook_remove_menu() {
 		remove_menu_page( 'jetpack-protect' );
-		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'admin.php?page=jetpack-protect' ) : false;
+		$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=jetpack-protect' ) : false;
 		if ( false !== $pos ) {
 			wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			exit();

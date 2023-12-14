@@ -249,7 +249,7 @@ class MainWP_Child_Actions {
 			$username = get_option( 'mainwp_child_connected_admin', '' );
 			if ( ! isset( self::$actions_data['connected_admin'] ) ) {
 				self::$actions_data['connected_admin'] = $username;
-			} elseif ( '' != $username && $username != self::$actions_data['connected_admin'] ) {
+			} elseif ( '' !== $username && $username !== self::$actions_data['connected_admin'] ) {
 				self::$actions_data = array( 'connected_admin' => $username ); // if it is not same the connected user then clear the actions data.
 				update_option( 'mainwp_child_actions_saved_data', self::$actions_data );
 				delete_option( 'mainwp_child_send_action_notification_next_time' );
@@ -286,7 +286,7 @@ class MainWP_Child_Actions {
 			update_option( 'mainwp_child_actions_data_checked', time() );
 		} else {
 			$checked = date( 'Y-m-d', $checked ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
-			if ( $checked != date( 'Y-m-d' ) ) { // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
+			if ( $checked !== date( 'Y-m-d' ) ) { // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
 				$days_number = intval( get_option( 'mainwp_child_actions_saved_number_of_days', 30 ) );
 				$days_number = apply_filters( 'mainwp_child_actions_saved_number_of_days', $days_number );
 				$days_number = ( 3 > $days_number || 6 * 30 < $days_number ) ? 30 : $days_number;
@@ -383,7 +383,7 @@ class MainWP_Child_Actions {
 			$logs[] = compact( 'slug', 'name', 'version', 'message', 'action' );
 		} elseif ( 'update' === $action ) {
 
-			if ( is_object( $upgrader ) && property_exists( $upgrader, 'skin' ) && 'Automatic_Upgrader_Skin' == get_class( $upgrader->skin ) ) {
+			if ( is_object( $upgrader ) && property_exists( $upgrader, 'skin' ) && 'Automatic_Upgrader_Skin' === get_class( $upgrader->skin ) ) {
 				return false;
 			}
 
@@ -581,8 +581,8 @@ class MainWP_Child_Actions {
 		if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) {
 			return false;
 		}
-		$plugin = $_POST['plugin'];
-		// phpcs:enable WordPress.Security.NonceVerification
+		$plugin = isset( $_POST['plugin'] ) ? sanitize_text_field( wp_unslash( $_POST['plugin'] ) ) : '';
+		// phpcs:enable
 		$_plugins                     = $this->get_plugins();
 		$plugins_to_delete            = array();
 		$plugins_to_delete[ $plugin ] = isset( $_plugins[ $plugin ] ) ? $_plugins[ $plugin ] : array();
@@ -607,7 +607,7 @@ class MainWP_Child_Actions {
 				return;
 			}
 			foreach ( $plugins_to_delete as $plugin => $data ) {
-				if ( $plugin_file == $plugin ) {
+				if ( $plugin_file === $plugin ) {
 					$name         = $data['Name'];
 					$network_wide = $data['Network'] ? esc_html__( 'network wide', 'mainwp-child' ) : '';
 
@@ -656,10 +656,8 @@ class MainWP_Child_Actions {
 
 	/**
 	 * Core updated successfully callback.
-	 *
-	 * @param string $new_version New WordPress verison.
 	 */
-	public function callback__core_updated_successfully( $new_version ) {
+	public function callback__core_updated_successfully() {
 
 		/**
 		 * Global variables.
@@ -725,7 +723,7 @@ class MainWP_Child_Actions {
 					$out['version']       = $theme->display( 'Version', true, false );
 					$out['active']        = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
 					$out['slug']          = $_slug;
-					$out['parent_active'] = ( $parent_name == $out['name'] ) ? 1 : 0;
+					$out['parent_active'] = ( $parent_name === $out['name'] ) ? 1 : 0;
 
 					$this->current_themes_info[ $_slug ] = $out;
 				}
@@ -782,7 +780,7 @@ class MainWP_Child_Actions {
 
 		$connected_user = get_option( 'mainwp_child_connected_admin', '' );
 
-		if ( ! empty( $user->user_login ) && $connected_user == $user->user_login && MainWP_Helper::is_dashboard_request( true ) ) {
+		if ( ! empty( $user->user_login ) && $connected_user === $user->user_login && MainWP_Helper::is_dashboard_request( true ) ) {
 			return false;  // not save action.
 		}
 
@@ -824,8 +822,8 @@ class MainWP_Child_Actions {
 		// Prevent any meta with null values from being logged.
 		$other_meta = array_filter(
 			$args,
-			function ( $var ) {
-				return ! is_null( $var );
+			function ( $val ) {
+				return ! is_null( $val );
 			}
 		);
 
@@ -921,17 +919,15 @@ class MainWP_Child_Actions {
 	 * @return string Return User Login or Display Names.
 	 */
 	public function get_display_name( $user ) {
-		if ( 0 == $user->ID ) {
+		if ( empty( $user->ID ) ) {
 			if ( 'wp_cli' === $this->get_current_agent() ) {
 				return 'WP-CLI';
 			}
 			return esc_html__( 'N/A', 'mainwp-child' );
-		} else {
-			if ( ! empty( $user->display_name ) ) {
+		} elseif ( ! empty( $user->display_name ) ) {
 				return $user->display_name;
-			} else {
-				return $user->user_login;
-			}
+		} else {
+			return $user->user_login;
 		}
 	}
 

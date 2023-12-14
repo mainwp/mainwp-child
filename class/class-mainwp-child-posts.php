@@ -126,11 +126,11 @@ class MainWP_Child_Posts {
 		$tokens = array();
 		if ( is_array( $extra ) && isset( $extra['tokens'] ) ) {
 			$tokens = $extra['tokens'];
-			if ( 1 == $extra['extract_post_type'] ) {
+			if ( 1 === (int) $extra['extract_post_type'] ) {
 				$args['post_type'] = 'post';
-			} elseif ( 2 == $extra['extract_post_type'] ) {
+			} elseif ( 2 === (int) $extra['extract_post_type'] ) {
 				$args['post_type'] = 'page';
-			} elseif ( 3 == $extra['extract_post_type'] ) {
+			} elseif ( 3 === (int) $extra['extract_post_type'] ) {
 				$args['post_type'] = array( 'post', 'page' );
 			}
 		}
@@ -207,11 +207,11 @@ class MainWP_Child_Posts {
 			$outPost['dts'] = strtotime( $post->post_modified_gmt );
 		}
 
-		if ( 'page' == $post->post_type ) {
+		if ( 'page' === $post->post_type ) {
 			$outPost['dts'] = strtotime( $post->post_modified_gmt ); // to order by modified date.
 		}
 
-		if ( 'future' == $post->post_status ) {
+		if ( 'future' === $post->post_status ) {
 			$outPost['dts'] = strtotime( $post->post_date_gmt );
 		}
 
@@ -299,7 +299,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::posts_where_suffix()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
-	public function get_all_posts_by_type( $type ) {
+	public function get_all_posts_by_type( $type ) { //phpcs:ignore -- complex method.
 
 		/**
 		 * Object, providing access to the WordPress database.
@@ -318,9 +318,9 @@ class MainWP_Child_Posts {
 		} else {
 			if ( isset( $_POST['keyword'] ) && '' !== $_POST['keyword'] ) {
 				$search_on = isset( $_POST['search_on'] ) ? sanitize_text_field( wp_unslash( $_POST['search_on'] ) ) : '';
-				if ( 'title' == $search_on ) {
+				if ( 'title' === $search_on ) {
 					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_title LIKE %s ) ", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
-				} elseif ( 'content' == $search_on ) {
+				} elseif ( 'content' === $search_on ) {
 					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_content LIKE %s )", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
 				} else {
 					$this->posts_where_suffix .= $wpdb->prepare( " AND ( $wpdb->posts.post_content LIKE %s OR $wpdb->posts.post_title LIKE  %s )", '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%', '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) ) . '%' );
@@ -341,7 +341,7 @@ class MainWP_Child_Posts {
 				}
 			}
 
-			if ( isset( $_POST['exclude_page_type'] ) && wp_unslash( $_POST['exclude_page_type'] ) ) {
+			if ( isset( $_POST['exclude_page_type'] ) && sanitize_text_field( wp_unslash( $_POST['exclude_page_type'] ) ) ) {
 				$this->posts_where_suffix .= " AND $wpdb->posts.post_type NOT IN ('page')";
 			}
 		}
@@ -360,12 +360,12 @@ class MainWP_Child_Posts {
 
 		$extra = array();
 		if ( isset( $_POST['extract_tokens'] ) ) {
-			$extra['tokens']            = isset( $_POST['extract_tokens'] ) ? json_decode( base64_decode( wp_unslash( $_POST['extract_tokens'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$extra['tokens']            = isset( $_POST['extract_tokens'] ) ? json_decode( base64_decode( wp_unslash( $_POST['extract_tokens'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode function is used for http encode compatible..
 			$extra['extract_post_type'] = isset( $_POST['extract_post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['extract_post_type'] ) ) : '';
 		}
 
 		$extra['where_post_date'] = $where_post_date;
-		$rslt                     = isset( $_POST['status'] ) ? $this->get_recent_posts( explode( ',', wp_unslash( $_POST['status'] ) ), $maxPages, $type, $extra ) : '';
+		$rslt                     = isset( $_POST['status'] ) ? $this->get_recent_posts( explode( ',', sanitize_text_field( wp_unslash( $_POST['status'] ) ) ), $maxPages, $type, $extra ) : '';
 		$this->posts_where_suffix = '';
 		// phpcs:enable WordPress.Security.NonceVerification
 
@@ -381,16 +381,16 @@ class MainWP_Child_Posts {
 	 */
 	public function new_post() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$new_post            = isset( $_POST['new_post'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_post'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_custom         = isset( $_POST['post_custom'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_custom'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_category       = isset( $_POST['post_category'] ) ? rawurldecode( base64_decode( wp_unslash( $_POST['post_category'] ) ) ) : null; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$post_tags           = isset( $new_post['post_tags'] ) ? rawurldecode( $new_post['post_tags'] ) : null;
-		$post_featured_image = isset( $_POST['post_featured_image'] ) && ! empty( $_POST['post_featured_image'] ) ? base64_decode( wp_unslash( $_POST['post_featured_image'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-		$upload_dir          = isset( $_POST['mainwp_upload_dir'] ) ? json_decode( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$new_post            = isset( $_POST['new_post'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_post'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_custom         = isset( $_POST['post_custom'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_custom'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_category       = isset( $_POST['post_category'] ) ? rawurldecode( base64_decode( wp_unslash( $_POST['post_category'] ) ) ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$post_tags           = isset( $new_post['post_tags'] ) ? rawurldecode( $new_post['post_tags'] ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$post_featured_image = isset( $_POST['post_featured_image'] ) && ! empty( $_POST['post_featured_image'] ) ? base64_decode( wp_unslash( $_POST['post_featured_image'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+		$upload_dir          = isset( $_POST['mainwp_upload_dir'] ) ? json_decode( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
 		$others = array();
 		if ( isset( $_POST['featured_image_data'] ) ) {
-			$others['featured_image_data'] = ! empty( $_POST['featured_image_data'] ) ? json_decode( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$others['featured_image_data'] = ! empty( $_POST['featured_image_data'] ) ? json_decode( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 		}
 		// phpcs:enable WordPress.Security.NonceVerification
 		$result = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
@@ -424,7 +424,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 * @uses \MainWP\Child\MainWP_Child_Links_Checker::get_class_name()
 	 */
-	public function post_action() {
+	public function post_action() { //phpcs:ignore -- complex method.
 		// phpcs:disable WordPress.Security.NonceVerification
 		$action  = MainWP_System::instance()->validate_params( 'action' );
 		$postId  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
@@ -442,8 +442,7 @@ class MainWP_Child_Posts {
 		if ( 'publish' === $action ) {
 			if ( empty( $post_current ) ) {
 				$information['status'] = 'FAIL';
-			} else {
-				if ( 'future' == $post_current->post_status ) {
+			} elseif ( 'future' === $post_current->post_status ) {
 					wp_publish_post( $postId );
 					wp_update_post(
 						array(
@@ -452,17 +451,16 @@ class MainWP_Child_Posts {
 							'post_date_gmt' => current_time( 'mysql', true ),
 						)
 					);
-				} else {
-					wp_update_post(
-						array(
-							'ID'          => $postId,
-							'post_status' => 'publish',
-						)
-					);
-				}
+			} else {
+				wp_update_post(
+					array(
+						'ID'          => $postId,
+						'post_status' => 'publish',
+					)
+				);
 			}
 		} elseif ( 'update' === $action ) {
-			$postData = isset( $_POST['post_data'] ) ? wp_unslash( $_POST['post_data'] ) : array();
+			$postData = isset( $_POST['post_data'] ) ? wp_unslash( $_POST['post_data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			$my_post  = is_array( $postData ) ? $postData : array();
 			wp_update_post( $my_post );
 		} elseif ( 'unpublish' === $action ) {
@@ -479,7 +477,7 @@ class MainWP_Child_Posts {
 		} elseif ( 'restore' === $action ) {
 			wp_untrash_post( $postId );
 		} elseif ( 'update_meta' === $action ) {
-			$values     = isset( $_POST['values'] ) ? json_decode( base64_decode( wp_unslash( $_POST['values'] ) ), true ) : array(); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+			$values     = isset( $_POST['values'] ) ? json_decode( base64_decode( wp_unslash( $_POST['values'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 			$meta_key   = $values['meta_key'];
 			$meta_value = $values['meta_value'];
 			$check_prev = $values['check_prev'];
@@ -494,7 +492,7 @@ class MainWP_Child_Posts {
 		} elseif ( 'get_edit' === $action ) {
 			$postId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 			$post_type = isset( $_POST['post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['post_type'] ) ) : '';
-			if ( 'post' == $post_type ) {
+			if ( 'post' === $post_type ) {
 				$my_post = $this->get_post_edit( $postId );
 			} else {
 				$my_post = $this->get_page_edit( $postId );
@@ -634,7 +632,7 @@ class MainWP_Child_Posts {
 				'post_password'  => $post->post_password,
 			);
 
-			if ( null != $post_featured_image ) { // Featured image is set, retrieve URL.
+			if ( empty( $post_featured_image ) ) { // Featured image is set, retrieve URL.
 				$img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
 				$post_featured_image = $img[0];
 			}
@@ -699,7 +697,7 @@ class MainWP_Child_Posts {
 				'post_password'  => $post->post_password,
 			);
 
-			if ( null != $post_featured_image ) {
+			if ( empty( $post_featured_image ) ) {
 					$img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
 					$post_featured_image = $img[0];
 			}
@@ -771,7 +769,7 @@ class MainWP_Child_Posts {
 	 * @uses \MainWP\Child\MainWP_Child_Posts::create_post_plus()
 	 * @uses \MainWP\Child\MainWP_Child_Posts::update_post_data()
 	 */
-	private function create_post(
+	private function create_post( //phpcs:ignore -- complex method.
 		$new_post,
 		$post_custom,
 		$post_category,
@@ -779,7 +777,7 @@ class MainWP_Child_Posts {
 		$upload_dir,
 		$post_tags,
 		$others = array()
-		) {
+	) {
 
 		/**
 		* Hook: `mainwp_before_post_update`
@@ -819,7 +817,7 @@ class MainWP_Child_Posts {
 			$this->create_post_plus( $new_post, $post_custom );
 		}
 
-		if ( isset( $post_custom['_mainwp_replace_advance_img'] ) && true == $post_custom['_mainwp_replace_advance_img'][0] ) {
+		if ( isset( $post_custom['_mainwp_replace_advance_img'] ) && ! empty( $post_custom['_mainwp_replace_advance_img'][0] ) ) {
 			$new_post['post_content'] = self::replace_advanced_image( $new_post['post_content'], $upload_dir );
 			$new_post['post_content'] = self::replace_advanced_image( $new_post['post_content'], $upload_dir, true ); // to fix images url with slashes.
 			unset( $post_custom['_mainwp_replace_advance_img'] );
@@ -835,7 +833,7 @@ class MainWP_Child_Posts {
 		if ( $edit_post_id ) {
 			// check if post existed.
 			$current_post = get_post( $edit_post_id );
-			if ( $current_post && ( ( ! isset( $new_post['post_type'] ) && 'post' == $current_post->post_type ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] == $current_post->post_type ) ) ) {
+			if ( $current_post && ( ( ! isset( $new_post['post_type'] ) && 'post' === $current_post->post_type ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] === $current_post->post_type ) ) ) {
 				$new_post['ID'] = $edit_post_id;
 			}
 			$new_post['post_status'] = $post_status; // child reports: to logging as update post.
@@ -917,11 +915,10 @@ class MainWP_Child_Posts {
 	 * @param string $post_tags           Post tags.
 	 * @param string $edit_post_id        Edit Post ID.
 	 * @param bool   $is_post_plus        TRUE|FALSE, Whether or not this came from MainWP Post Plus Extension.
-	 * @param array  $others        Post custom others meta data.
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Posts::update_wp_rocket_custom_post()
 	 */
-	private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus, $others ) {
+	private function set_post_custom_data( &$new_post, $post_custom, $post_tags, &$edit_post_id, &$is_post_plus ) {
 
 		/**
 		 * Current user global.
@@ -958,13 +955,13 @@ class MainWP_Child_Posts {
 		$is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 
 		if ( $is_post_plus ) {
-			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' != $new_post['post_date_gmt'] ) {
+			if ( isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' !== $new_post['post_date_gmt'] ) {
 				$post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
 				$new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp ); // phpcs:ignore -- local time.
 			}
 		}
 
-		if ( isset( $post_tags ) && '' != $post_tags ) {
+		if ( isset( $post_tags ) && '' !== $post_tags ) {
 			$new_post['tags_input'] = $post_tags;
 		}
 
@@ -1224,7 +1221,7 @@ class MainWP_Child_Posts {
 				$replaceAttachedIds = array();
 				// phpcs:disable WordPress.Security.NonceVerification
 				if ( isset( $_POST['post_gallery_images'] ) ) {
-					$post_gallery_images = isset( $_POST['post_gallery_images'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_gallery_images'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+					$post_gallery_images = isset( $_POST['post_gallery_images'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_gallery_images'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 					if ( is_array( $post_gallery_images ) ) {
 						foreach ( $post_gallery_images as $gallery ) {
 							if ( isset( $gallery['src'] ) ) {
@@ -1571,5 +1568,4 @@ class MainWP_Child_Posts {
 			delete_post_meta( $new_post_id, '_thumbnail_id' );
 		}
 	}
-
 }

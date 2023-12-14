@@ -162,6 +162,78 @@ class MainWP_Helper {
 		return false;
 	}
 
+	/**
+	 * Method fwrite()
+	 *
+	 * @param string $file File path.
+	 * @param string $content content write.
+	 */
+	public static function file_put_contents( $file, $content ) {
+		if ( self::fs_is_connected() ) {
+			global $wp_filesystem;
+			return $wp_filesystem->put_contents( $file, $content, FS_CHMOD_FILE );
+		} else {
+			return file_put_contents( $file, $content );// phpcs:ignore WordPress.WP.AlternativeFunctions
+		}
+	}
+
+	/**
+	 * Method mkdir()
+	 *
+	 * @param string $file File path.
+	 * @param int    $mode File mode.
+	 */
+	public static function mkdir( $file, $mode = FS_CHMOD_DIR ) {
+		if ( self::fs_is_connected() ) {
+			global $wp_filesystem;
+			return $wp_filesystem->mkdir( $file, $mode );
+		} else {
+			return mkdir( $file );// phpcs:ignore WordPress.WP.AlternativeFunctions
+		}
+	}
+
+	/**
+	 * Method move()
+	 *
+	 * @param string $source File source.
+	 * @param string $desc File desc.
+	 */
+	public static function move( $source, $desc ) {
+		if ( self::fs_is_connected() ) {
+			global $wp_filesystem;
+			return $wp_filesystem->move( $source, $desc );
+		} else {
+			return rename( $source, $desc );// phpcs:ignore WordPress.WP.AlternativeFunctions
+		}
+	}
+
+	/**
+	 * Method is_writable()
+	 *
+	 * @param string $dir dir path.
+	 */
+	public static function is_writable( $dir ) {
+		if ( self::fs_is_connected() ) {
+			global $wp_filesystem;
+			return $wp_filesystem->is_writable( $dir );
+		} else {
+			return is_writable( $dir );// phpcs:ignore WordPress.WP.AlternativeFunctions
+		}
+	}
+
+	/**
+	 * Method is_writable()
+	 *
+	 * @param string $dir dir path.
+	 */
+	public static function rmdir( $dir ) {
+		if ( self::fs_is_connected() ) {
+			global $wp_filesystem;
+			return $wp_filesystem->rmdir( $dir );
+		} else {
+			return rmdir( $dir );// phpcs:ignore WordPress.WP.AlternativeFunctions
+		}
+	}
 
 	/**
 	 * Method check_dir()
@@ -203,7 +275,7 @@ class MainWP_Helper {
 				if ( $die_on_error ) {
 					self::instance()->error( $error );
 				} else {
-					throw new \Exception( $error );
+					throw new \Exception( $error ); //phpcs:ignore -- escaped.
 				}
 			}
 		}
@@ -214,21 +286,21 @@ class MainWP_Helper {
 	 *
 	 * Nested search field value in an array or object.
 	 *
-	 * @param array|object $array Array or object to search.
+	 * @param array|object $arr Array or object to search.
 	 * @param string       $key Field value to search for in the $array.
 	 *
 	 * @return mixed If found return field value, if not, return NULL.
 	 */
-	public static function search( $array, $key ) {
-		if ( is_object( $array ) ) {
-			$array = (array) $array;
+	public static function search( $arr, $key ) {
+		if ( is_object( $arr ) ) {
+			$arr = (array) $arr;
 		}
-		if ( is_array( $array ) || is_object( $array ) ) {
-			if ( isset( $array[ $key ] ) ) {
-				return $array[ $key ];
+		if ( is_array( $arr ) || is_object( $arr ) ) {
+			if ( isset( $arr[ $key ] ) ) {
+				return $arr[ $key ];
 			}
 
-			foreach ( $array as $subarray ) {
+			foreach ( $arr as $subarray ) {
 				$result = self::search( $subarray, $key );
 				if ( null !== $result ) {
 					return $result;
@@ -329,16 +401,15 @@ class MainWP_Helper {
 	 *
 	 * Reject unsafe URLs in HTTP Basic Authentication handler.
 	 *
-	 * @param array  $r Array containing the request data.
-	 * @param string $url URL to check.
+	 * @param array $r Array containing the request data.
 	 *
 	 * @return array $r Updated array containing the request data.
 	 */
-	public static function reject_unsafe_urls( $r, $url ) {
+	public static function reject_unsafe_urls( $r ) {
 		$r['reject_unsafe_urls'] = false;
 		// phpcs:disable WordPress.Security.NonceVerification
-		$wpadmin_user   = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : '';
-		$wpadmin_passwd = isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ? wp_unslash( $_POST['wpadmin_passwd'] ) : '';
+		$wpadmin_user   = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$wpadmin_passwd = isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ? wp_unslash( $_POST['wpadmin_passwd'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( ! empty( $wpadmin_user ) && ! empty( $wpadmin_passwd ) ) {
 			$auth                          = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
@@ -348,7 +419,7 @@ class MainWP_Helper {
 		if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
 			$r['sslverify'] = false;
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		return $r;
 	}
 
@@ -378,10 +449,10 @@ class MainWP_Helper {
 	 */
 	public static function ends_with( $haystack, $needle ) {
 		$length = strlen( $needle );
-		if ( 0 == $length ) {
+		if ( 0 === $length ) {
 			return true;
 		}
-		return ( substr( $haystack, - $length ) == $needle );
+		return ( substr( $haystack, - $length ) === $needle );
 	}
 
 	/**
@@ -405,10 +476,8 @@ class MainWP_Helper {
 			if ( ! $show_http ) {
 				$url = substr( $url, 8 );
 			}
-		} else {
-			if ( $show_http ) {
-				$url = 'http://' . $url;
-			}
+		} elseif ( $show_http ) {
+			$url = 'http://' . $url;
 		}
 
 		if ( self::ends_with( $url, '/' ) ) {
@@ -524,11 +593,11 @@ class MainWP_Helper {
 				if ( is_dir( $node ) ) {
 					self::delete_dir( $node . DIRECTORY_SEPARATOR );
 				} else {
-					unlink( $node );
+					wp_delete_file( $node );
 				}
 			}
 		}
-		rmdir( $dir );
+		self::rmdir( $dir );
 	}
 
 	/**
@@ -664,13 +733,13 @@ class MainWP_Helper {
 		if ( empty( $value ) ) {
 			return false;
 		}
-		if ( null != $excludes ) {
+		if ( empty( $excludes ) ) {
 			foreach ( $excludes as $exclude ) {
 				if ( self::ends_with( $exclude, '*' ) ) {
 					if ( self::starts_with( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
 						return true;
 					}
-				} elseif ( $value == $exclude ) {
+				} elseif ( $value === $exclude ) {
 					return true;
 				} elseif ( self::starts_with( $value, $exclude . '/' ) ) {
 					return true;
@@ -718,25 +787,60 @@ class MainWP_Helper {
 	/**
 	 * Method is_admin()
 	 *
-	 * Check if the current user is administrator.
+	 * Check if the user is administrator.
 	 *
-	 * @return bool true|false If the current user is administrator (Level 10), return true, if not, return false.
+	 * @param object|null $user user check.
+	 *
+	 * @return bool true|false If the user is administrator (Level 10), return true, if not, return false.
 	 */
-	public static function is_admin() {
+	public static function is_admin( $user = null ) {
 
-		/**
-		 * Current user global.
-		 *
-		 * @global string
-		 */
-		global $current_user;
+		if ( null === $user ) {
+			$user = wp_get_current_user();
+		}
 
-		if ( 0 == $current_user->ID ) {
+		if ( empty( $user ) || empty( $user->ID ) ) {
 			return false;
 		}
-		if ( 10 == $current_user->wp_user_level || ( isset( $current_user->user_level ) && 10 == $current_user->user_level ) || current_user_can( 'level_10' ) ) {
+		if ( ( property_exists( $user, 'wp_user_level' ) && 10 === (int) $user->wp_user_level ) || ( isset( $user->user_level ) && 10 === (int) $user->user_level ) || self::current_user_has_role( 'administrator', $user ) ) {
 			return true;
 		}
+
+		return false;
+	}
+
+	/**
+	 * Method current_user_has_role()
+	 *
+	 * Check if the user has role.
+	 *
+	 * @param string|array $roles role or array of roles to check.
+	 * @param object|null  $user user check.
+	 *
+	 * @return bool true|false If the user is administrator (Level 10), return true, if not, return false.
+	 */
+	public static function current_user_has_role( $roles, $user = null ) {
+
+		if ( null === $user ) {
+			$user = wp_get_current_user();
+		}
+
+		if ( empty( $user ) || empty( $user->ID ) ) {
+			return false;
+		}
+
+		if ( is_string( $roles ) ) {
+			$allowed_roles = array( $roles );
+		} elseif ( is_array( $roles ) ) {
+			$allowed_roles = $roles;
+		} else {
+			return false;
+		}
+
+		if ( array_intersect( $allowed_roles, $user->roles ) ) {
+			return true;
+		}
+
 		return false;
 	}
 
@@ -768,7 +872,7 @@ class MainWP_Helper {
 		if ( function_exists( 'get_current_screen' ) ) {
 			$screen = get_current_screen();
 			if ( $screen ) {
-				if ( 'update-core' == $screen->base && 'index.php' == $screen->parent_file ) {
+				if ( 'update-core' === $screen->base && 'index.php' === $screen->parent_file ) {
 					return true;
 				}
 			}
@@ -872,7 +976,7 @@ class MainWP_Helper {
 		if ( $and_func ) {
 			$check = $check && isset( $_POST['function'] );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		return $check;
 	}
 
@@ -883,13 +987,13 @@ class MainWP_Helper {
 	 * Check if a certain files exist.
 	 *
 	 * @param array $files Array containing list of files to check.
-	 * @param bool  $return If true, return feedback.
+	 * @param bool  $return_results If true, return feedback.
 	 *
 	 * @throws \Exception Error message.
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing files.
 	 */
-	public static function check_files_exists( $files = array(), $return = false ) {
+	public static function check_files_exists( $files = array(), $return_results = false ) {
 		$missing = array();
 		if ( is_array( $files ) ) {
 			foreach ( $files as $name ) {
@@ -897,17 +1001,15 @@ class MainWP_Helper {
 					$missing[] = $name;
 				}
 			}
-		} else {
-			if ( ! file_exists( $files ) ) {
+		} elseif ( ! file_exists( $files ) ) {
 					$missing[] = $files;
-			}
 		}
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing file(s): ' . implode( ',', $missing );
-			if ( $return ) {
+			if ( $return_results ) {
 				return $message;
 			} else {
-				throw new \Exception( $message );
+				throw new \Exception( esc_html( $message ) );
 			}
 		}
 		return true;
@@ -919,13 +1021,13 @@ class MainWP_Helper {
 	 * Check if a certain classes exist.
 	 *
 	 * @param array $classes Array containing list of classes to check.
-	 * @param bool  $return If true, return feedback.
+	 * @param bool  $return_results If true, return feedback.
 	 *
 	 * @throws \Exception Error message.
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing classes.
 	 */
-	public function check_classes_exists( $classes = array(), $return = false ) {
+	public function check_classes_exists( $classes = array(), $return_results = false ) {
 		$missing = array();
 		if ( is_array( $classes ) ) {
 			foreach ( $classes as $name ) {
@@ -933,17 +1035,15 @@ class MainWP_Helper {
 					$missing[] = $name;
 				}
 			}
-		} else {
-			if ( ! class_exists( $classes ) ) {
+		} elseif ( ! class_exists( $classes ) ) {
 				$missing[] = $classes;
-			}
 		}
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing classes: ' . implode( ',', $missing );
-			if ( $return ) {
+			if ( $return_results ) {
 				return $message;
 			} else {
-				throw new \Exception( $message );
+				throw new \Exception( esc_html( $message ) );
 			}
 		}
 		return true;
@@ -954,34 +1054,34 @@ class MainWP_Helper {
 	 *
 	 * Check if a certain methods exist.
 	 *
-	 * @param object $object Object to check.
+	 * @param object $obj Object to check.
 	 * @param array  $methods Array containing list of methods to check.
-	 * @param bool   $return If true, return feedback.
+	 * @param bool   $return_results If true, return feedback.
 	 *
 	 * @throws \Exception Error message.
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing methods.
 	 */
-	public function check_methods( $object, $methods = array(), $return = false ) {
+	public function check_methods( $obj, $methods = array(), $return_results = false ) {
 		$missing = array();
 		if ( is_array( $methods ) ) {
 				$missing = array();
 			foreach ( $methods as $name ) {
-				if ( ! method_exists( $object, $name ) ) {
+				if ( ! method_exists( $obj, $name ) ) {
 					$missing[] = $name;
 				}
 			}
 		} elseif ( ! empty( $methods ) ) {
-			if ( ! method_exists( $object, $methods ) ) {
+			if ( ! method_exists( $obj, $methods ) ) {
 				$missing[] = $methods;
 			}
 		}
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing method: ' . implode( ',', $missing );
-			if ( $return ) {
+			if ( $return_results ) {
 				return $message;
 			} else {
-				throw new \Exception( $message );
+				throw new \Exception( esc_html( $message ) );
 			}
 		}
 		return true;
@@ -993,33 +1093,33 @@ class MainWP_Helper {
 	 *
 	 * Check if a certain properties exist.
 	 *
-	 * @param object $object Object to check.
+	 * @param object $obj Object to check.
 	 * @param array  $properties Array containing list of properties to check.
-	 * @param bool   $return If true, return feedback.
+	 * @param bool   $return_results If true, return feedback.
 	 *
 	 * @throws \Exception Error message.
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing properties.
 	 */
-	public function check_properties( $object, $properties = array(), $return = false ) {
+	public function check_properties( $obj, $properties = array(), $return_results = false ) {
 		$missing = array();
 		if ( is_array( $properties ) ) {
 			foreach ( $properties as $name ) {
-				if ( ! property_exists( $object, $name ) ) {
+				if ( ! property_exists( $obj, $name ) ) {
 					$missing[] = $name;
 				}
 			}
 		} elseif ( ! empty( $properties ) ) {
-			if ( ! property_exists( $object, $properties ) ) {
+			if ( ! property_exists( $obj, $properties ) ) {
 				$missing[] = $properties;
 			}
 		}
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing properties: ' . implode( ',', $missing );
-			if ( $return ) {
+			if ( $return_results ) {
 				return $message;
 			} else {
-				throw new \Exception( $message );
+				throw new \Exception( esc_html( $message ) );
 			}
 		}
 		return true;
@@ -1031,13 +1131,13 @@ class MainWP_Helper {
 	 * Check if a certain functions exist.
 	 *
 	 * @param array $funcs Array containing list of functions to check.
-	 * @param bool  $return If true, return feedback.
+	 * @param bool  $return_results If true, return feedback.
 	 *
 	 * @throws \Exception Error message.
 	 *
 	 * @return mixed If exists, return true, if not, return list of missing functions.
 	 */
-	public function check_functions( $funcs = array(), $return = false ) {
+	public function check_functions( $funcs = array(), $return_results = false ) {
 		$missing = array();
 		if ( is_array( $funcs ) ) {
 			foreach ( $funcs as $name ) {
@@ -1052,10 +1152,10 @@ class MainWP_Helper {
 		}
 		if ( ! empty( $missing ) ) {
 			$message = 'Missing functions: ' . implode( ',', $missing );
-			if ( $return ) {
+			if ( $return_results ) {
 				return $message;
 			} else {
-				throw new \Exception( $message );
+				throw new \Exception( esc_html( $message ) );
 			}
 		}
 		return true;

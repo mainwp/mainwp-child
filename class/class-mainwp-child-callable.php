@@ -181,7 +181,7 @@ class MainWP_Child_Callable {
 		} elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
 			MainWP_Helper::instance()->error( esc_html__( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**
@@ -606,10 +606,10 @@ class MainWP_Child_Callable {
 	 */
 	public function check_abandoned() {
 		 // phpcs:disable WordPress.Security.NonceVerification
-		$which = sanitize_text_field( wp_unslash( $_POST['which'] ) );
-		 // phpcs:enable WordPress.Security.NonceVerification
+		$which = isset( $_POST['which'] ) ? sanitize_text_field( wp_unslash( $_POST['which'] ) ) : '';
+		 // phpcs:enable
 		$infor = array();
-		if ( 'plugin' == $which ) {
+		if ( 'plugin' === $which ) {
 			MainWP_Child_Plugins_Check::instance()->run_check();
 			$infor['success'] = 1;
 		} else {
@@ -661,7 +661,7 @@ class MainWP_Child_Callable {
 	 * @uses \MainWP\Child\MainWP_Child_Misc::do_security_un_fix()
 	 */
 	public function settings_tools() {
-		MainWP_Child_Misc::get_instance()->do_security_un_fix();
+		MainWP_Child_Misc::get_instance()->settings_tools();
 	}
 
 	/**
@@ -740,7 +740,7 @@ class MainWP_Child_Callable {
 	public function extra_execution() {
 		 // phpcs:disable WordPress.Security.NonceVerification
 		$post = $_POST;
-		 // phpcs:enable WordPress.Security.NonceVerification
+		 // phpcs:enable
 		$information = array();
 		/**
 		 * Filter 'mainwp_child_extra_execution'
@@ -958,13 +958,13 @@ class MainWP_Child_Callable {
 	 */
 	public function verify_action() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		if ( isset( $_REQUEST['actionnonce'] ) && ! empty( $_REQUEST['actionnonce'] ) ) {
-			$valid = MainWP_Utility::instance()->verify_action_nonce( $_REQUEST['actionnonce'] );
+		if ( isset( $_REQUEST['actionnonce'] ) && ! empty( sanitize_text_field( wp_unslash( $_REQUEST['actionnonce'] ) ) ) ) {
+			$valid = MainWP_Utility::instance()->verify_action_nonce( sanitize_text_field( wp_unslash( $_REQUEST['actionnonce'] ) ) );
 			if ( $valid ) {
 				MainWP_Helper::write( array( 'success' => 1 ) );
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Helper::write( array( 'failed' => 1 ) );
 	}
 
@@ -983,11 +983,11 @@ class MainWP_Child_Callable {
 		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 		$backupdir = $dirs[0];
 		// phpcs:disable WordPress.Security.NonceVerification
-		$file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification
+		$file = isset( $_REQUEST['del'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['del'] ) ) : '';
+		// phpcs:enable
 
 		if ( file_exists( $backupdir . $file ) ) {
-			unlink( $backupdir . $file );
+			wp_delete_file( $backupdir . $file );
 		}
 
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
@@ -1004,7 +1004,7 @@ class MainWP_Child_Callable {
 	public function update_child_values() {
 		 // phpcs:disable WordPress.Security.NonceVerification
 		$unique_id = isset( $_POST['uniqueId'] ) ? sanitize_text_field( wp_unslash( $_POST['uniqueId'] ) ) : '';
-		 // phpcs:enable WordPress.Security.NonceVerification
+		 // phpcs:enable
 		MainWP_Helper::update_option( 'mainwp_child_uniqueId', $unique_id );
 		MainWP_Helper::write( array( 'result' => 'ok' ) );
 	}

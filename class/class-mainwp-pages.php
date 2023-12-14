@@ -97,7 +97,6 @@ class MainWP_Pages {
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
 	 * @uses \MainWP\Child\MainWP_Child_Server_Information::render_warnings()
-	 * @uses \MainWP\Child\MainWP_Helper::is_admin()
 	 */
 	public function admin_notice() {
 		// Admin Notice...
@@ -125,14 +124,14 @@ class MainWP_Pages {
 	 *
 	 * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
 	 */
-	public function admin_menu() {
+	public function admin_menu() { //phpcs:ignore -- complex method.
 		$branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
 		$is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
 		$cancelled_branding = $branding_opts['cancelled_branding'];
-
+		$uri                = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		if ( isset( $branding_opts['remove_wp_tools'] ) && $branding_opts['remove_wp_tools'] && ! $cancelled_branding ) {
 			remove_menu_page( 'tools.php' );
-			$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'tools.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'import.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'export.php' ) : false;
+			$pos = $uri ? stripos( $uri, 'tools.php' ) || stripos( $uri, 'import.php' ) || stripos( $uri, 'export.php' ) : false;
 			if ( false !== $pos ) {
 				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 			}
@@ -140,7 +139,7 @@ class MainWP_Pages {
 		// if preserve branding and do not remove menus.
 		if ( isset( $branding_opts['remove_wp_setting'] ) && $branding_opts['remove_wp_setting'] && ! $cancelled_branding ) {
 			remove_menu_page( 'options-general.php' );
-			$pos = isset( $_SERVER['REQUEST_URI'] ) ? ( stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-writing.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-reading.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-discussion.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-media.php' ) || stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-permalink.php' ) ) : false;
+			$pos = $uri ? ( stripos( $uri, 'options-general.php' ) || stripos( $uri, 'options-writing.php' ) || stripos( $uri, 'options-reading.php' ) || stripos( $uri, 'options-discussion.php' ) || stripos( $uri, 'options-media.php' ) || stripos( $uri, 'options-permalink.php' ) ) : false;
 			if ( false !== $pos ) {
 				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
@@ -149,7 +148,7 @@ class MainWP_Pages {
 
 		if ( isset( $branding_opts['remove_permalink'] ) && $branding_opts['remove_permalink'] && ! $cancelled_branding ) {
 			remove_submenu_page( 'options-general.php', 'options-permalink.php' );
-			$pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-permalink.php' ) : false;
+			$pos = $uri ? stripos( $uri, 'options-permalink.php' ) : false;
 			if ( false !== $pos ) {
 				wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
 				exit();
@@ -235,7 +234,7 @@ class MainWP_Pages {
 
 		if ( isset( $submenu['options-general.php'] ) ) {
 			foreach ( $submenu['options-general.php'] as $index => $item ) {
-				if ( 'mainwp-reports-page' == $item[2] || 'mainwp-reports-settings' == $item[2] ) {
+				if ( 'mainwp-reports-page' === $item[2] || 'mainwp-reports-settings' === $item[2] ) {
 					unset( $submenu['options-general.php'][ $index ] );
 				}
 			}
@@ -286,7 +285,7 @@ class MainWP_Pages {
 		$hide_server_info       = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
 		$hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
 
-		if ( '' == $shownPage ) {
+		if ( '' === $shownPage ) {
 			if ( ! $hide_settings ) {
 					$shownPage = 'settings';
 			} elseif ( ! $hide_restore ) {
@@ -379,7 +378,7 @@ class MainWP_Pages {
 
 		// put here to support hooks to show header.
 		$is_connected_admin = false;
-		$connected          = '' != get_option( 'mainwp_child_pubkey' ) ? true : false;
+		$connected          = ! empty( get_option( 'mainwp_child_pubkey' ) ) ? true : false;
 		if ( $connected ) {
 			$current_user = wp_get_current_user();
 			if ( $current_user ) {
@@ -486,7 +485,7 @@ class MainWP_Pages {
 					?>
 					<a class="nav-tab pos-nav-tab
 					<?php
-					if ( $shownPage == $subPage['slug'] ) {
+					if ( $shownPage === $subPage['slug'] ) {
 						echo 'nav-tab-active'; }
 					?>
 " tab-slug="<?php echo esc_attr( $subPage['slug'] ); ?>" href="options-general.php?page=<?php echo esc_html( rawurlencode( $subPage['page'] ) ); ?>"><?php echo esc_html( $subPage['title'] ); ?></a>
@@ -539,7 +538,7 @@ class MainWP_Pages {
 	 * Render admin header.
 	 */
 	public function admin_head() {
-		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' == $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+		if ( isset( $_GET['page'] ) && 'mainwp_child_tab' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
 			?>
 			<style type="text/css">
 				.mainwp-postbox-actions-top {
@@ -580,7 +579,7 @@ class MainWP_Pages {
 				MainWP_Helper::update_option( 'mainwp_child_uniqueId', '' );
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		?>
 		<div class="postbox">
 			<h2 class="hndle"><span><?php esc_html_e( 'Connection settings', 'mainwp-child' ); ?></span></h2>
@@ -591,7 +590,7 @@ class MainWP_Pages {
 						<input name="requireUniqueSecurityId" type="checkbox" id="requireUniqueSecurityId"
 						<?php
 						$uniqueId = MainWP_Helper::get_site_unique_id();
-						if ( '' != $uniqueId ) {
+						if ( ! empty( $uniqueId ) ) {
 							echo 'checked'; }
 						?>
 						/>
@@ -599,7 +598,7 @@ class MainWP_Pages {
 					</div>
 					<div>
 						<?php
-						if ( '' != $uniqueId ) {
+						if ( ! empty( $uniqueId ) ) {
 							echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">' . esc_html__( 'Your unique security ID is:', 'mainwp-child' ) . ' <span style="font-weight: bold; color: #7fb100;">' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</span></span>';
 						}
 						?>
@@ -614,7 +613,4 @@ class MainWP_Pages {
 
 		<?php
 	}
-
-
 }
-

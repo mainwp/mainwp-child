@@ -277,14 +277,11 @@ class MainWP_Security {
 	 *
 	 * Set custom generator.
 	 *
-	 * @param string $generator Generator to process.
-	 * @param array  $type Array containing the generator types.
-	 *
 	 * @used-by MainWP_Security::remove_generator_version() Remove the WordPress Generator version.
 	 *
 	 * @return string Return empty string.
 	 */
-	public static function custom_the_generator( $generator, $type = '' ) {
+	public static function custom_the_generator() {
 		return '';
 	}
 
@@ -339,7 +336,7 @@ class MainWP_Security {
 			if ( $wp_filesystem->connect() ) {
 				$abs_path = $wp_filesystem->abspath();
 				if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
-					if ( ! unlink( ABSPATH . 'readme.html' ) ) {
+					if ( ! wp_delete_file( ABSPATH . 'readme.html' ) ) {
 						$wp_filesystem->delete( $abs_path . 'readme.html' );
 						if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
 							// prevent repeat delete.
@@ -532,7 +529,8 @@ class MainWP_Security {
 		if ( ! $user ) {
 			return true;
 		}
-		if ( 10 !== $user->wp_user_level && ( ! isset( $user->user_level ) || 10 !== $user->user_level ) && ! user_can( $user, 'level_10' ) ) {
+
+		if ( ! MainWP_Helper::is_admin( $user ) ) {
 			return true;
 		}
 		return false;
@@ -574,50 +572,50 @@ class MainWP_Security {
 	public static function get_stats_security() {
 		$total_issues = 0;
 		if ( ! self::prevent_listing_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_wp_version_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_rsd_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_wlw_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_database_reporting_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_php_reporting_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_scripts_version_ok() || ! self::remove_styles_version_ok() || ! self::remove_generator_version_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_registered_versions_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::admin_user_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 		if ( ! self::remove_readme_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 
 		if ( ! self::wpcore_updated_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 
 		if ( ! self::phpversion_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 
 		if ( ! self::sslprotocol_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 
 		if ( ! self::debug_disabled_ok() ) {
-			$total_issues ++;
+			++$total_issues;
 		}
 
 		return $total_issues;

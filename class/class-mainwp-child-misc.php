@@ -95,7 +95,7 @@ class MainWP_Child_Misc {
 		$favi_url = '';
 		$favi     = '';
 		$site_url = get_option( 'siteurl' );
-		if ( substr( $site_url, - 1 ) != '/' ) {
+		if ( substr( $site_url, - 1 ) !== '/' ) {
 			$site_url .= '/';
 		}
 
@@ -183,7 +183,7 @@ class MainWP_Child_Misc {
 	 *
 	 * Get security issues information.
 	 *
-	 * @param bool $return Either return or not.
+	 * @param bool $return_results Either return or not.
 	 *
 	 * @return array
 	 *
@@ -199,7 +199,7 @@ class MainWP_Child_Misc {
 	 * @uses \MainWP\Child\MainWP_Security::admin_user_ok()
 	 * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
 	 */
-	public function get_security_stats( $return = false ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+	public function get_security_stats( $return_results = false ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 		$information = array();
 
 		$information['listing']             = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
@@ -217,7 +217,7 @@ class MainWP_Child_Misc {
 		$information['sslprotocol']         = ( MainWP_Security::sslprotocol_ok() ? 'Y' : 'N' );
 		$information['debug_disabled']      = ( MainWP_Security::debug_disabled_ok() ? 'Y' : 'N' );
 
-		if ( $return ) {
+		if ( $return_results ) {
 			return $information;
 		}
 
@@ -263,7 +263,7 @@ class MainWP_Child_Misc {
 		if ( ! is_array( $skips ) ) {
 			$skips = array();
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		$information = array();
 		$security    = get_option( 'mainwp_security' );
 		if ( ! is_array( $security ) ) {
@@ -368,7 +368,7 @@ class MainWP_Child_Misc {
 
 		// phpcs:disable WordPress.Security.NonceVerification
 		$feature = isset( $_POST['feature'] ) ? sanitize_text_field( wp_unslash( $_POST['feature'] ) ) : '';
-		 // phpcs:enable WordPress.Security.NonceVerification
+		 // phpcs:enable
 
 		$sync = false;
 		if ( 'all' === $feature ) {
@@ -438,7 +438,7 @@ class MainWP_Child_Misc {
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_POST['action'] ) ) {
 			$mwp_action = MainWP_System::instance()->validate_params( 'action' );
-			// phpcs:enable WordPress.Security.NonceVerification
+			// phpcs:enable
 			switch ( $mwp_action ) {
 				case 'force_destroy_sessions':
 					if ( 0 === get_current_user_id() ) {
@@ -476,11 +476,11 @@ class MainWP_Child_Misc {
 	 */
 	public function uploader_action() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$file_url    = isset( $_POST['url'] ) ? MainWP_Utility::instance()->maybe_base64_decode( wp_unslash( $_POST['url'] ) ) : '';
-		$path        = isset( $_POST['path'] ) ? wp_unslash( $_POST['path'] ) : '';
-		$filename    = isset( $_POST['filename'] ) ? wp_unslash( $_POST['filename'] ) : '';
+		$file_url    = isset( $_POST['url'] ) ? MainWP_Utility::instance()->maybe_base64_decode( wp_unslash( $_POST['url'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$path        = isset( $_POST['path'] ) ? sanitize_text_field( wp_unslash( $_POST['path'] ) ) : '';
+		$filename    = isset( $_POST['filename'] ) ? sanitize_text_field( wp_unslash( $_POST['filename'] ) ) : '';
 		$information = array();
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		if ( empty( $file_url ) || empty( $path ) ) {
 			MainWP_Helper::write( $information );
 
@@ -503,7 +503,7 @@ class MainWP_Child_Misc {
 		}
 
 		if ( ! file_exists( $dir ) ) {
-			if ( false === mkdir( $dir, 0777, true ) ) {
+			if ( false === mkdir( $dir, 0777, true ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
 				$information['error'] = 'ERRORCREATEDIR';
 				MainWP_Helper::write( $information );
 
@@ -569,13 +569,13 @@ class MainWP_Child_Misc {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			unlink( $full_file_name );
-			throw new \Exception( 'Error: ' . $response->get_error_message() );
+			wp_delete_file( $full_file_name );
+			throw new \Exception( 'Error: ' . esc_html( $response->get_error_message() ) );
 		}
 
 		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			unlink( $full_file_name );
-			throw new \Exception( 'Error 404: ' . trim( wp_remote_retrieve_response_message( $response ) ) );
+			wp_delete_file( $full_file_name );
+			throw new \Exception( 'Error 404: ' . esc_html( trim( wp_remote_retrieve_response_message( $response ) ) ) );
 		}
 		$fix_name = true;
 		if ( '.phpfile.txt' === substr( $file_name, - 12 ) ) {
@@ -589,11 +589,11 @@ class MainWP_Child_Misc {
 		}
 
 		if ( $fix_name ) {
-			$moved = rename( $full_file_name, $new_file_name );
+			$moved = rename( $full_file_name, $new_file_name ); //phpcs:ignore WordPress.WP.AlternativeFunctions
 			if ( $moved ) {
 				return array( 'path' => $new_file_name );
 			} else {
-				unlink( $full_file_name );
+				wp_delete_file( $full_file_name );
 				throw new \Exception( 'Error: Copy file.' );
 			}
 		}
@@ -685,7 +685,7 @@ class MainWP_Child_Misc {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$action = MainWP_System::instance()->validate_params( 'action' );
 		$type   = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-		$slug   = isset( $_POST['slug'] ) ? wp_unslash( $_POST['slug'] ) : '';
+		$slug   = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
 
 		$snippets = get_option( 'mainwp_ext_code_snippets' );
 
@@ -699,8 +699,8 @@ class MainWP_Child_Misc {
 			}
 		}
 
-		$code = isset( $_POST['code'] ) ? wp_unslash( $_POST['code'] ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification
+		$code = isset( $_POST['code'] ) ? wp_unslash( $_POST['code'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		// phpcs:enable
 		$information = array();
 		if ( 'run_snippet' === $action ) {
 			$information = MainWP_Utility::execute_snippet( $code );
@@ -773,16 +773,14 @@ class MainWP_Child_Misc {
 			if ( false !== $this->snippet_update_wp_config( 'delete', $slug ) ) {
 				$return['status'] = 'SUCCESS';
 			}
-		} else {
-			if ( isset( $snippets[ $slug ] ) ) {
+		} elseif ( isset( $snippets[ $slug ] ) ) {
 				unset( $snippets[ $slug ] );
-				if ( MainWP_Helper::update_option( 'mainwp_ext_code_snippets', $snippets ) ) {
-					$return['status'] = 'SUCCESS';
-				}
-			} else {
-				$return['status']   = 'SUCCESS';
-				$return['notfound'] = 1;
+			if ( MainWP_Helper::update_option( 'mainwp_ext_code_snippets', $snippets ) ) {
+				$return['status'] = 'SUCCESS';
 			}
+		} else {
+			$return['status']   = 'SUCCESS';
+			$return['notfound'] = 1;
 		}
 		return $return;
 	}
@@ -813,17 +811,16 @@ class MainWP_Child_Misc {
 		}
 
 		if ( ! empty( $config_file ) ) {
-			$wpConfig = file_get_contents( $config_file );
+			$wpConfig = file_get_contents( $config_file ); //phpcs:ignore WordPress.WP.AlternativeFunctions
 
 			if ( 'delete' === $action ) {
 				$wpConfig = preg_replace( '/' . PHP_EOL . '{1,2}\/\*\*\*snippet_' . $slug . '\*\*\*\/(.*)\/\*\*\*end_' . $slug . '\*\*\*\/' . PHP_EOL . '/is', '', $wpConfig );
 			} elseif ( 'save' === $action ) {
 				$wpConfig = preg_replace( '/(\$table_prefix *= *[\'"][^\'|^"]*[\'"] *;)/is', '${1}' . PHP_EOL . PHP_EOL . '/***snippet_' . $slug . '***/' . PHP_EOL . $code . PHP_EOL . '/***end_' . $slug . '***/' . PHP_EOL, $wpConfig );
 			}
-			file_put_contents( $config_file, $wpConfig );
+			MainWP_Helper::file_put_contents( $config_file, $wpConfig ); //phpcs:ignore WordPress.WP.AlternativeFunctions
 			return true;
 		}
 		return false;
 	}
-
 }

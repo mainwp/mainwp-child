@@ -93,7 +93,7 @@ class MainWP_Child_Comments {
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Helper::write( $information );
 	}
 
@@ -106,11 +106,11 @@ class MainWP_Child_Comments {
 		$action = MainWP_System::instance()->validate_params( 'action' );
 		// phpcs:disable WordPress.Security.NonceVerification
 		$commentIds = isset( $_POST['ids'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) : array();
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		$information['success'] = 0;
 		foreach ( $commentIds as $commentId ) {
 			if ( $commentId ) {
-				$information['success'] ++;
+				++$information['success'];
 				if ( 'approve' === $action ) {
 					wp_set_comment_status( $commentId, 'approve' );
 				} elseif ( 'unapprove' === $action ) {
@@ -126,7 +126,7 @@ class MainWP_Child_Comments {
 				} elseif ( 'delete' === $action ) {
 					wp_delete_comment( $commentId, true );
 				} else {
-					$information['success']--;
+					--$information['success'];
 				}
 			}
 		}
@@ -193,7 +193,7 @@ class MainWP_Child_Comments {
 		$status                     = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$rslt                       = $this->get_recent_comments( explode( ',', $status ), $maxComments );
 		$this->comments_and_clauses = '';
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Helper::write( $rslt );
 	}
 

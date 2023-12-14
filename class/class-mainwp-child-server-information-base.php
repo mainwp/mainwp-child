@@ -40,28 +40,28 @@ class MainWP_Child_Server_Information_Base {
 	protected static function get_warnings() {
 		$i = 0;
 		if ( ! self::check( '>=', '3.4', 'get_wordpress_version' ) ) {
-			$i ++;
+			++$i;
 		}
 		if ( ! self::check( '>=', '5.2.4', 'get_php_version' ) ) {
-			$i ++;
+			++$i;
 		}
 		if ( ! self::check( '>=', '5.0', 'get_my_sql_version' ) ) {
-			$i ++;
+			++$i;
 		}
 		if ( ! self::check( '>=', '30', 'get_max_execution_time', '=', '0' ) ) {
-			$i ++;
+			++$i;
 		}
 		if ( ! self::check( '>=', '2M', 'get_upload_max_filesize', null, null, true ) ) {
-			$i ++;
+			++$i;
 		}
 		if ( ! self::check( '>=', '2M', 'get_post_max_size', null, null, true ) ) {
-			$i ++;
+			++$i;
 		}
 		if ( ! self::check( '>=', '10000', 'get_output_buffer_size' ) ) {
-			$i ++;
+			++$i;
 		}
 		if ( ! self::check_mainwp_directory() ) {
-			$i ++;
+			++$i;
 		}
 
 		return $i;
@@ -108,11 +108,9 @@ class MainWP_Child_Server_Information_Base {
 				$message = 'Directory not writable';
 				return false;
 			}
-		} else {
-			if ( ! is_writable( $path ) ) {
+		} elseif ( ! is_writable( $path ) ) {
 				$message = 'Directory not writable';
 				return false;
-			}
 		}
 		$message = 'Writable';
 		return true;
@@ -245,7 +243,7 @@ class MainWP_Child_Server_Information_Base {
 			$arr = explode( ',', $disabled_functions );
 			sort( $arr );
 			$arr_length = count( $arr );
-			for ( $i = 0; $i < $arr_length; $i ++ ) {
+			for ( $i = 0; $i < $arr_length; $i++ ) {
 				echo esc_html( $arr[ $i ] . ', ' );
 			}
 		} else {
@@ -443,7 +441,7 @@ class MainWP_Child_Server_Information_Base {
 			}
 		}
 
-		return 1 === $ok;
+		return ! empty( $ok );
 	}
 	/**
 	 * Get current PHP version.
@@ -495,7 +493,7 @@ class MainWP_Child_Server_Information_Base {
 		 */
 		global $wpdb;
 
-		return $wpdb->get_var( "SHOW VARIABLES LIKE 'version'", 1 );
+		return $wpdb->get_var( "SHOW VARIABLES LIKE 'version'", 1 ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 	}
 
 	/**
@@ -546,7 +544,7 @@ class MainWP_Child_Server_Information_Base {
 			$wpdb->dbname
 		);
 
-		$dbsize_mb = $wpdb->get_var( $sql ); // phpcs:ignore unprepared SQL.
+		$dbsize_mb = $wpdb->get_var( $sql ); // phpcs:ignore -- unprepared SQL.
 		return $dbsize_mb;
 	}
 
@@ -595,7 +593,7 @@ class MainWP_Child_Server_Information_Base {
 		 */
 		global $wpdb;
 
-		$mysqlinfo = $wpdb->get_results( "SHOW VARIABLES LIKE 'sql_mode'" );
+		$mysqlinfo = $wpdb->get_results( "SHOW VARIABLES LIKE 'sql_mode'" ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		if ( is_array( $mysqlinfo ) ) {
 			$sql_mode = $mysqlinfo[0]->Value;
 		}
@@ -720,7 +718,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Get server complete URL.
 	 */
 	protected static function get_complete_url() {
-		echo ! empty( $_SERVER['HTTP_REFERER'] ) ? esc_html( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
+		echo ! empty( $_SERVER['HTTP_REFERER'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) ) : '';
 	}
 
 	/**
@@ -810,7 +808,7 @@ class MainWP_Child_Server_Information_Base {
 	 * Get current page URL.
 	 */
 	protected static function get_current_page_uri() {
-		echo ! empty( $_SERVER['REQUEST_URI'] ) ? esc_html( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		echo ! empty( $_SERVER['REQUEST_URI'] ) ? esc_html( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : '';
 	}
 
 	/**

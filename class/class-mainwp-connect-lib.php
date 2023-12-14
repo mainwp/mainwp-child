@@ -38,7 +38,7 @@ class MainWP_Connect_Lib {
 	 * @return Instance class.
 	 */
 	public static function instance() {
-		if ( null == self::$instance ) {
+		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
 		return self::$instance;

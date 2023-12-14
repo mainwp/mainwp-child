@@ -165,7 +165,7 @@ class MainWP_Utility {
 	 */
 	public static function handle_fatal_error() {
  		// phpcs:disable WordPress.Security.NonceVerification
-		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' == $_POST['function'] ) ) {
+		if ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ( isset( $_POST['mwp_action'] ) || 'wordpress_seo' === $_POST['function'] ) ) {
 			register_shutdown_function( '\MainWP\Child\MainWP_Utility::handle_shutdown' );
 		}
 		// phpcs:enable WordPress.Security.NonceVerification
@@ -246,14 +246,13 @@ class MainWP_Utility {
 	 * @return mixed Close file.
 	 */
 	public function readfile_chunked( $filename, $offset ) {
+		//phpcs:disable WordPress.WP.AlternativeFunctions
 		$chunksize = 1024;
 		$handle    = fopen( $filename, 'rb' );
 		if ( false === $handle ) {
 			return false;
 		}
-
 		fseek( $handle, $offset );
-
 		while ( ! feof( $handle ) ) {
 			$buffer = fread( $handle, $chunksize );
 			echo $buffer; // phpcs:ignore WordPress.Security.EscapeOutput
@@ -263,8 +262,8 @@ class MainWP_Utility {
 			}
 			$buffer = null;
 		}
-
 		return fclose( $handle );
+		//phpcs:enable WordPress.WP.AlternativeFunctions
 	}
 
 	/**
@@ -304,7 +303,7 @@ class MainWP_Utility {
 		remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
 
 		if ( is_wp_error( $temporary_file ) ) {
-			throw new \Exception( 'Error: ' . $temporary_file->get_error_message() );
+			throw new \Exception( 'Error: ' . esc_html( $temporary_file->get_error_message() ) );
 		} else {
 			$filename       = basename( $img_url );
 			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename;
@@ -386,7 +385,7 @@ class MainWP_Utility {
 		global $wp_filesystem;
 
 		if ( $wp_filesystem->exists( $local_img_path ) ) {
-			if ( filesize( $local_img_path ) == filesize( $temporary_file ) ) {
+			if ( filesize( $local_img_path ) === filesize( $temporary_file ) ) {
 				$result = self::get_maybe_existed_attached_id( $local_img_url );
 				if ( is_array( $result ) ) {
 					$attach = current( $result );
@@ -409,7 +408,7 @@ class MainWP_Utility {
 					$basedir        = $upload_dir['basedir'];
 					$baseurl        = $upload_dir['baseurl'];
 					$local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
-					if ( $wp_filesystem->exists( $local_img_path ) && ( $wp_filesystem->size( $local_img_path ) == $wp_filesystem->size( $temporary_file ) ) ) {
+					if ( $wp_filesystem->exists( $local_img_path ) && ( $wp_filesystem->size( $local_img_path ) === $wp_filesystem->size( $temporary_file ) ) ) {
 						if ( $wp_filesystem->exists( $temporary_file ) ) {
 							$wp_filesystem->delete( $temporary_file );
 						}
@@ -486,9 +485,9 @@ class MainWP_Utility {
 		global $wpdb;
 
 		if ( $full_guid ) {
-			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) );
+			return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		}
-		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 	}
 
 	/**
@@ -552,8 +551,8 @@ class MainWP_Utility {
 			curl_close( $ch );
 		}
 
-		if ( ( false === $data ) && ( 0 === $http_status ) ) {
-			throw new \Exception( 'Http Error: ' . $err );
+		if ( ( false === $data ) && ( 0 === (int) $http_status ) ) {
+			throw new \Exception( 'Http Error: ' . esc_html( $err ) );
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
 			$result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
@@ -564,7 +563,7 @@ class MainWP_Utility {
 		} else {
 			throw new \Exception( esc_html__( 'Child plugin is disabled or the security key is incorrect. Please resync with your main installation.', 'mainwp-child' ) );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.WP.AlternativeFunctions
 	}
 
 	/**
@@ -603,16 +602,16 @@ class MainWP_Utility {
 			}
 		}
 
-		//phpcs:disable -- System functions required to achieve desired results, pull request solutions appreciated.
+		//phpcs:disable WordPress.WP.AlternativeFunctions -- System functions required to achieve desired results, pull request solutions appreciated.
 		if ( ! $done ) {
 			if ( ! file_exists( $dir ) ) {
-				@mkdirs( $dir );
+				mkdirs( $dir );
 			}
 			if ( is_writable( $dir ) ) {
 				$done = true;
 			}
 		}
-		//phpcs:enable
+		//phpcs:enable WordPress.WP.AlternativeFunctions
 
 		return $done;
 	}
@@ -675,7 +674,7 @@ class MainWP_Utility {
 
 		$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
 		// request URI.
-		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_strip_all_tags( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : 'undefined';
+		$request = isset( $_SERVER['REQUEST_URI'] ) && isset( $_SERVER['HTTP_HOST'] ) ? $protocol . esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) . wp_strip_all_tags( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : 'undefined';
 
 		// query string.
 		$string = isset( $_SERVER['QUERY_STRING'] ) ? sanitize_text_field( wp_strip_all_tags( wp_unslash( $_SERVER['QUERY_STRING'] ) ) ) : 'undefined';
@@ -721,14 +720,14 @@ class MainWP_Utility {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$opts    = MainWP_Child_Branding::instance()->get_branding_options();
 		$email   = $opts['support_email'];
-		$sub     = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : '';
-		$from    = isset( $_POST['mainwp_branding_contact_send_from'] ) ? trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) ) : '';
+		$sub     = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$from    = isset( $_POST['mainwp_branding_contact_send_from'] ) ? trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
-		$content = isset( $_POST['mainwp_branding_contact_message_content'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) ) : '';
+		$content = isset( $_POST['mainwp_branding_contact_message_content'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$mail    = '';
 		$headers = '';
 
-		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : '';
+		$from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( ! empty( $_POST['mainwp_branding_contact_message_content'] ) && ! empty( $email ) ) {
 
@@ -858,12 +857,13 @@ class MainWP_Utility {
 	 *
 	 * Create nonce without session and user id.
 	 *
-	 * @param bool  $false Boolean value, it should always be FALSE.
+	 * @param bool  $false_value Boolean value, it should always be FALSE.
 	 * @param mixed $action Action to perform.
 	 *
 	 * @return string Custom nonce.
 	 */
-	public static function hook_create_nonce_action( $false, $action = - 1 ) {
+	public static function hook_create_nonce_action( $false_value, $action = - 1 ) {
+		unset( $false_value );
 		$data = array(
 			'action' => $action,
 			'nonce'  => self::create_nonce_action( $action ),
@@ -891,12 +891,13 @@ class MainWP_Utility {
 	 *
 	 * Verify nonce without session and user id.
 	 *
-	 * @param bool   $false Boolean value, it should always be FALSE.
+	 * @param bool   $false_value Boolean value, it should always be FALSE.
 	 * @param string $act_nonce Nonce action to verify.
 	 *
 	 * @return mixed If verified return 1 or 2, if not return false.
 	 */
-	public static function hook_verify_authed_action_nonce( $false, $act_nonce = '' ) {
+	public static function hook_verify_authed_action_nonce( $false_value, $act_nonce = '' ) {
+		unset( $false_value );
 		return self::verify_action_nonce( $act_nonce );
 	}
 
@@ -1004,7 +1005,7 @@ class MainWP_Utility {
 	 * @return mixed If activated any of the supported backup systems, return the last backup timestamp.
 	 */
 	public static function get_lasttime_backup( $by ) { // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-		if ( 'backupwp' == $by ) {
+		if ( 'backupwp' === $by ) {
 			$by = 'backupwordpress';
 		}
 
@@ -1120,7 +1121,7 @@ class MainWP_Utility {
 	public function maybe_base64_decode( $str ) {
 		$decoded = base64_decode( $str ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 		$Str1    = preg_replace( '/[\x00-\x1F\x7F-\xFF]/', '', $decoded );
-		if ( $Str1 != $decoded || '' == $Str1 ) {
+		if ( $Str1 !== $decoded || '' === $Str1 ) {
 			return $str;
 		}
 		return $decoded;
@@ -1169,7 +1170,7 @@ class MainWP_Utility {
 
 			$content = wp_kses( $content, $allowed_html );
 
-		} elseif ( 'mixed' == $type ) {
+		} elseif ( 'mixed' === $type ) {
 
 			$allowed_html = array(
 				'a'      => array(

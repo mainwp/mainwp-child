@@ -81,7 +81,7 @@ class MainWP_Child_Install {
 		global $mainWPChild;
 		// phpcs:disable WordPress.Security.NonceVerification
 		$action  = MainWP_System::instance()->validate_params( 'action' );
-		$plugins = isset( $_POST['plugin'] ) ? explode( '||', wp_unslash( $_POST['plugin'] ) ) : '';
+		$plugins = isset( $_POST['plugin'] ) ? explode( '||', sanitize_text_field( wp_unslash( $_POST['plugin'] ) ) ) : '';
 
 		$action_items = array();
 
@@ -92,7 +92,7 @@ class MainWP_Child_Install {
 				if ( $plugin !== $mainWPChild->plugin_slug ) {
 					$thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
 					if ( null !== $thePlugin && '' !== $thePlugin ) {
-						if ( 'quotes-collection/quotes-collection.php' == $plugin ) {
+						if ( 'quotes-collection/quotes-collection.php' === $plugin ) {
 							activate_plugin( $plugin, '', false, true );
 						} else {
 							activate_plugin( $plugin );
@@ -128,7 +128,7 @@ class MainWP_Child_Install {
 			}
 		} elseif ( 'changelog_info' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/plugin-install.php';
-			$_slug                 = wp_unslash( $_POST['slug'] );
+			$_slug                 = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
 			$api                   = plugins_api(
 				'plugin_information',
 				array(
@@ -139,7 +139,7 @@ class MainWP_Child_Install {
 		} else {
 			$information['status'] = 'FAIL';
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		if ( ! isset( $information['status'] ) ) {
 			$information['status'] = 'SUCCESS';
@@ -245,10 +245,10 @@ class MainWP_Child_Install {
 	public function theme_action() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// phpcs:disable WordPress.Security.NonceVerification
 		$action           = MainWP_System::instance()->validate_params( 'action' );
-		$theme            = isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : '';
+		$theme            = isset( $_POST['theme'] ) ? sanitize_text_field( wp_unslash( $_POST['theme'] ) ) : '';
 		$action_items     = array();
 		$deactivate_theme = array();
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		if ( 'activate' === $action ) {
 			include_once ABSPATH . '/wp-admin/includes/theme.php';
 			$theTheme = wp_get_theme( $theme );
@@ -293,13 +293,13 @@ class MainWP_Child_Install {
 
 			$themes = array_filter( $themes );
 
-			if ( count( $themes ) == 1 ) {
+			if ( count( $themes ) === 1 ) {
 				$themeToDelete = current( $themes );
-				if ( $themeToDelete == $theme_name ) {
+				if ( $themeToDelete === $theme_name ) {
 					$information['error']['is_activated_theme'] = $themeToDelete;
 					MainWP_Helper::write( $information );
 					return;
-				} elseif ( $themeToDelete == $parent_name ) {
+				} elseif ( $themeToDelete === $parent_name ) {
 					$information['error']['is_activated_parent'] = $themeToDelete;
 					MainWP_Helper::write( $information );
 					return;
@@ -307,9 +307,9 @@ class MainWP_Child_Install {
 			}
 
 			foreach ( $themes as $idx => $themeToDelete ) {
-				if ( $themeToDelete == $theme_name ) {
+				if ( $themeToDelete === $theme_name ) {
 					$information['error']['is_activated_theme'] = $themeToDelete;
-				} elseif ( $themeToDelete == $parent_name ) {
+				} elseif ( $themeToDelete === $parent_name ) {
 					$information['error']['is_activated_parent'] = $themeToDelete;
 				}
 				if ( $themeToDelete !== $theme_name && $themeToDelete !== $parent_name ) {
@@ -375,11 +375,11 @@ class MainWP_Child_Install {
 			MainWP_Helper::instance()->error( esc_html__( 'Plugin or theme not specified, or missing required data. Please reload the page and try again.', 'mainwp-child' ) );
 		}
 
-		$type = $_POST['type'];
+		$type = sanitize_text_field( wp_unslash( $_POST['type'] ) );
 
 		$this->require_files();
 
-		$urlgot = isset( $_POST['url'] ) ? json_decode( stripslashes( wp_unslash( $_POST['url'] ) ) ) : '';
+		$urlgot = isset( $_POST['url'] ) ? json_decode( stripslashes( wp_unslash( $_POST['url'] ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		$urls = array();
 		if ( ! is_array( $urlgot ) ) {
@@ -412,14 +412,14 @@ class MainWP_Child_Install {
 			);
 
 			if ( is_wp_error( $result ) ) {
-				if ( true == $ssl_verify && strpos( $url, 'https://' ) === 0 ) {
+				if ( true === $ssl_verify && strpos( $url, 'https://' ) === 0 ) {
 					$ssl_verify = false;
 					$result     = $this->try_second_install( $url, $installer );
 				}
 			}
 
 			remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
-			if ( false == $ssl_verify ) {
+			if ( false === $ssl_verify ) {
 				remove_filter( 'http_request_args', array( self::get_class_name(), 'no_ssl_filter_function' ), 99 );
 			}
 			$this->after_installed( $result, $output );
@@ -442,7 +442,7 @@ class MainWP_Child_Install {
 				}
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		$information['installation']                = 'SUCCESS';
 		$information['destination_name']            = $result['destination_name'];
@@ -457,14 +457,13 @@ class MainWP_Child_Install {
 	 *
 	 * Hook to set ssl verify value.
 	 *
-	 * @param array  $r Request's array values.
-	 * @param string $url URL request.
+	 * @param array $r Request's array values.
 	 *
 	 * @used-by install_plugin_theme() Plugin & Theme Installation functions.
 	 *
 	 * @return array $r Request's array values.
 	 */
-	public static function no_ssl_filter_function( $r, $url ) {
+	public static function no_ssl_filter_function( $r ) {
 		$r['sslverify'] = false;
 		return $r;
 	}
@@ -536,7 +535,7 @@ class MainWP_Child_Install {
 
 				if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
 					// to fix activate issue.
-					if ( 'quotes-collection/quotes-collection.php' == $args['slug'] ) {
+					if ( 'quotes-collection/quotes-collection.php' === $args['slug'] ) {
 						activate_plugin( $path . $fileName, '', false, true );
 					} else {
 						activate_plugin( $path . $fileName, '' );
@@ -559,7 +558,7 @@ class MainWP_Child_Install {
 			do_action( 'mainwp_child_install_plugin_theme', $args );
 		}
 		$output = $args;
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**
@@ -590,7 +589,7 @@ class MainWP_Child_Install {
 				'hook_extra'        => array(),
 			)
 		);
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		if ( is_wp_error( $result ) ) {
 			$err_code = $result->get_error_code();
 			if ( $result->get_error_data() && is_string( $result->get_error_data() ) ) {

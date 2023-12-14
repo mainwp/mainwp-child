@@ -76,7 +76,7 @@ class MainWP_Connect {
 		global $current_user;
 
 		$information = array();
-		// phpcs:disable WordPress.Security.NonceVerification
+		// phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		// Check if the user is valid & login.
 		if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
 			MainWP_Helper::instance()->error( sprintf( esc_html__( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://kb.mainwp.com/docs/cant-connect-website-getting-the-invalid-request-error-message/" target="_blank">', '</a></strong>' ) );
@@ -92,7 +92,7 @@ class MainWP_Connect {
 
 		$uniqueId = MainWP_Helper::get_site_unique_id();
 		// Check the Unique Security ID.
-		if ( '' != $uniqueId ) {
+		if ( '' !== $uniqueId ) {
 			if ( ! isset( $_POST['uniqueId'] ) || ( '' === $_POST['uniqueId'] ) ) {
 				MainWP_Helper::instance()->error( esc_html__( 'This child site is set to require a unique security ID. Please enter it before the connection can be established.', 'mainwp-child' ) );
 			} elseif ( $uniqueId !== $_POST['uniqueId'] ) {
@@ -115,7 +115,7 @@ class MainWP_Connect {
 			if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
 				MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 			}
-			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! $current_user->has_cap( 'level_10' ) ) {
+			if ( ! MainWP_Helper::is_admin() ) {
 				MainWP_Helper::instance()->error( esc_html__( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 			}
 		}
@@ -134,7 +134,7 @@ class MainWP_Connect {
 		$information['register'] = 'OK';
 		$information['uniqueId'] = MainWP_Helper::get_site_unique_id();
 		$information['user']     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.
 	}
 
@@ -188,7 +188,7 @@ class MainWP_Connect {
 				$clone_sync       = false;
 				if ( ! empty( $just_clone_admin ) ) {
 					delete_option( 'mainwp_child_just_clone_admin' );
-					if ( $username != $just_clone_admin ) {
+					if ( $username !== $just_clone_admin ) {
 						$username   = $just_clone_admin;
 						$clone_sync = true;
 					}
@@ -206,7 +206,7 @@ class MainWP_Connect {
 					MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 				}
 
-				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
+				if ( ! MainWP_Helper::is_admin( $user ) ) {
 					MainWP_Helper::instance()->error( esc_html__( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 				}
 
@@ -242,7 +242,7 @@ class MainWP_Connect {
 			}
 		}
 
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		return true;
 	}
@@ -272,7 +272,7 @@ class MainWP_Connect {
 				$auth = false;
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		return $auth;
 	}
 
@@ -291,7 +291,7 @@ class MainWP_Connect {
 	public static function connect_verify( $data, $signature, $pubkey, $alg ) {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$use_seclib = isset( $_REQUEST['verifylib'] ) && ! empty( $_REQUEST['verifylib'] ) ? true : false;
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		if ( $use_seclib ) {
 			return MainWP_Connect_Lib::verify( $data, $signature, $pubkey );
 		} else {
@@ -433,26 +433,26 @@ class MainWP_Connect {
 		global $current_user;
 		// phpcs:disable WordPress.Security.NonceVerification
 		$alter_login_required = false;
-		$username             = isset( $_REQUEST['user'] ) ? rawurldecode( wp_unslash( $_REQUEST['user'] ) ) : '';
+		$username             = isset( $_REQUEST['user'] ) ? rawurldecode( wp_unslash( $_REQUEST['user'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( isset( $_REQUEST['alt_user'] ) ) {
-			$alter_login_required = ! empty( $_REQUEST['alt_user'] ) ? $this->check_login_as( wp_unslash( $_REQUEST['alt_user'] ) ) : false;
+			$alter_login_required = ! empty( $_REQUEST['alt_user'] ) ? $this->check_login_as( wp_unslash( $_REQUEST['alt_user'] ) ) : false; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			if ( $alter_login_required ) {
-				$username = isset( $_REQUEST['alt_user'] ) ? rawurldecode( wp_unslash( $_REQUEST['alt_user'] ) ) : '';
+				$username = isset( $_REQUEST['alt_user'] ) ? rawurldecode( wp_unslash( $_REQUEST['alt_user'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			}
 		}
 
 		if ( is_user_logged_in() ) {
-			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
+			if ( ! MainWP_Helper::is_admin() ) {
 				do_action( 'wp_logout' );
 			}
 		}
 
-		$signature = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? wp_unslash( $_REQUEST['mainwpsignature'] ) : '' );
+		$signature = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? wp_unslash( $_REQUEST['mainwpsignature'] ) : '' ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		$file = $this->get_request_files();
 
-		$function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
+		$function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$nonce    = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
 
 		try {
@@ -470,7 +470,7 @@ class MainWP_Connect {
 				return false;
 			}
 
-			if ( 10 !== $current_user->wp_user_level && ( ! isset( $current_user->user_level ) || 10 !== $current_user->user_level ) && ! current_user_can( 'level_10' ) ) {
+			if ( ! MainWP_Helper::is_admin() ) {
 				// if is not alternative admin login.
 				// it is connected admin login.
 				if ( ! $alter_login_required ) {
@@ -481,7 +481,7 @@ class MainWP_Connect {
 				}
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		$this->check_redirects();
 		return true;
 	}
@@ -497,13 +497,13 @@ class MainWP_Connect {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$file = '';
 		if ( isset( $_REQUEST['f'] ) ) {
-			$file = ! empty( $_REQUEST['f'] ) ? wp_unslash( $_REQUEST['f'] ) : '';
+			$file = ! empty( $_REQUEST['f'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['f'] ) ) : '';
 		} elseif ( isset( $_REQUEST['file'] ) ) {
-			$file = ! empty( $_REQUEST['file'] ) ? wp_unslash( $_REQUEST['file'] ) : '';
+			$file = ! empty( $_REQUEST['file'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['file'] ) ) : '';
 		} elseif ( isset( $_REQUEST['fdl'] ) ) {
-			$file = ! empty( $_REQUEST['fdl'] ) ? wp_unslash( $_REQUEST['fdl'] ) : '';
+			$file = ! empty( $_REQUEST['fdl'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['fdl'] ) ) : '';
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		return $file;
 	}
 
@@ -519,23 +519,23 @@ class MainWP_Connect {
 	private function check_redirects() {
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( isset( $_REQUEST['fdl'] ) ) {
-			$fdl = isset( $_REQUEST['fdl'] ) ? wp_unslash( $_REQUEST['fdl'] ) : '';
+			$fdl = isset( $_REQUEST['fdl'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['fdl'] ) ) : '';
 			if ( empty( $fdl ) || stristr( $fdl, '..' ) ) {
 				return false;
 			}
 
-			$foffset = isset( $_REQUEST['foffset'] ) ? wp_unslash( $_REQUEST['foffset'] ) : 0;
+			$foffset = isset( $_REQUEST['foffset'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['foffset'] ) ) : 0;
 
 			MainWP_Utility::instance()->upload_file( $fdl, $foffset );
 			exit;
 		}
 
-		$open_location = ! empty( $_REQUEST['open_location'] ) ? wp_unslash( $_REQUEST['open_location'] ) : '';
+		$open_location = ! empty( $_REQUEST['open_location'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['open_location'] ) ) : '';
 		// support for custom wp-admin slug.
 		if ( ! empty( $open_locatio ) ) {
 			$this->open_location_redirect( $open_location );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		$this->where_redirect();
 	}
 
@@ -559,10 +559,8 @@ class MainWP_Connect {
 			}
 			$open_url      = rtrim( $open_url, '&' );
 			$open_location = '/wp-admin/' . $_path . '?' . $open_url;
-		} else {
-			if ( strpos( $open_location, 'nonce=child_temp_nonce' ) !== false ) {
+		} elseif ( strpos( $open_location, 'nonce=child_temp_nonce' ) !== false ) {
 				$open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . wp_create_nonce( 'wp-ajax' ), $open_location );
-			}
 		}
 		wp_safe_redirect( site_url() . $open_location );
 		exit();
@@ -573,20 +571,20 @@ class MainWP_Connect {
 	 *
 	 * Parse query
 	 *
-	 * @param  string $var Contains the parameter to prase.
+	 * @param  string $val Contains the parameter to prase.
 	 *
 	 * @return array  $arr Array containing parsed arguments.
 	 */
-	public static function parse_query( $var ) {
-		$var = wp_parse_url( $var, PHP_URL_QUERY );
-		$var = html_entity_decode( $var );
-		$var = explode( '&', $var );
+	public static function parse_query( $val ) {
+		$val = wp_parse_url( $val, PHP_URL_QUERY );
+		$val = html_entity_decode( $val );
+		$val = explode( '&', $val );
 		$arr = array();
-		foreach ( $var as $val ) {
-			$x            = explode( '=', $val );
+		foreach ( $val as $v ) {
+			$x            = explode( '=', $v );
 			$arr[ $x[0] ] = $x[1];
 		}
-		unset( $val, $x, $var );
+		unset( $v, $x, $val );
 
 		return $arr;
 	}
@@ -598,13 +596,13 @@ class MainWP_Connect {
 	 */
 	private function where_redirect() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$where = isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : '';
+		$where = isset( $_REQUEST['where'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['where'] ) ) : '';
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
 			$file = '';
 			if ( isset( $_POST['f'] ) ) {
-				$file = ! empty( $_POST['f'] ) ? wp_unslash( $_POST['f'] ) : '';
+				$file = ! empty( $_POST['f'] ) ? sanitize_text_field( wp_unslash( $_POST['f'] ) ) : '';
 			} elseif ( isset( $_POST['file'] ) ) {
-				$file = ! empty( $_POST['file'] ) ? wp_unslash( $_POST['file'] ) : '';
+				$file = ! empty( $_POST['file'] ) ? sanitize_text_field( wp_unslash( $_POST['file'] ) ) : '';
 			}
 			$where = 'admin.php?page=mainwp_child_tab&tab=restore-clone';
 			if ( '' === session_id() ) {
@@ -613,7 +611,7 @@ class MainWP_Connect {
 			$_SESSION['file'] = $file;
 			$_SESSION['size'] = isset( $_POST['size'] ) ? sanitize_text_field( wp_unslash( $_POST['size'] ) ) : '';
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		wp_safe_redirect( admin_url( $where ) );
 		exit();
 	}
@@ -637,8 +635,8 @@ class MainWP_Connect {
 
 		$file = $this->get_request_files();
 
-		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : '';
-		$function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) );
+		$mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['where'] ) ) : $file ) );
 		$nonce           = MainWP_System::instance()->validate_params( 'nonce' );
 
 		try {
@@ -662,7 +660,7 @@ class MainWP_Connect {
 			if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
 				$user = null;
 				if ( isset( $_POST['alt_user'] ) ) {
-					if ( ! empty( $_POST['alt_user'] ) && $this->check_login_as( wp_unslash( $_POST['alt_user'] ) ) ) {
+					if ( ! empty( $_POST['alt_user'] ) && $this->check_login_as( sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) ) ) {
 						$auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
 						$user      = get_user_by( 'login', $auth_user );
 					}
@@ -677,7 +675,7 @@ class MainWP_Connect {
 				if ( ! $user ) {
 					MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
 				}
-				if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
+				if ( ! MainWP_Helper::is_admin( $user ) ) {
 					MainWP_Helper::instance()->error( esc_html__( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
 				}
 				$this->login( $auth_user );
@@ -698,7 +696,7 @@ class MainWP_Connect {
 				die();
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 	}
 
 	/**
@@ -723,7 +721,7 @@ class MainWP_Connect {
 				return false;
 			}
 
-			if ( 10 != $user->wp_user_level && ( ! isset( $user->user_level ) || 10 != $user->user_level ) && ! $user->has_cap( 'level_10' ) ) {
+			if ( ! MainWP_Helper::is_admin( $user ) ) {
 				// That user is not an administrator.
 				return false;
 			}
@@ -762,13 +760,13 @@ class MainWP_Connect {
 				// to fix issue multi user session.
 				$user_id = wp_validate_auth_cookie();
 				if ( $user_id && $user_id === $current_user->ID ) {
-					$this->check_compatible_connect_info( true );
+					$this->check_compatible_connect_info();
 					return true;
 				}
 
 				wp_set_auth_cookie( $current_user->ID );
 
-				$this->check_compatible_connect_info( true );
+				$this->check_compatible_connect_info();
 				return true;
 			}
 			do_action( 'wp_logout' );
@@ -785,7 +783,7 @@ class MainWP_Connect {
 			$logged_in = ( is_user_logged_in() && $current_user->user_login === $username );
 
 			if ( $logged_in ) {
-				$this->check_compatible_connect_info( $logged_in );
+				$this->check_compatible_connect_info();
 			}
 
 			return $logged_in;
@@ -811,7 +809,7 @@ class MainWP_Connect {
 
 		if ( ! isset( $auths['last'] ) || $auths['last'] < mktime( 0, 0, 0, date( 'm' ), date( 'd' ), date( 'Y' ) ) ) { // phpcs:ignore -- local time required to achieve desired results, pull request solutions appreciated.
 			// Generate code for today.
-			for ( $i = 0; $i < $this->maxHistory; $i ++ ) {
+			for ( $i = 0; $i < $this->maxHistory; $i++ ) {
 				if ( ! isset( $auths[ $i + 1 ] ) ) {
 					continue;
 				}
@@ -820,7 +818,7 @@ class MainWP_Connect {
 			}
 			$newI = $this->maxHistory + 1;
 			while ( isset( $auths[ $newI ] ) ) {
-				unset( $auths[ $newI ++ ] );
+				unset( $auths[ $newI++ ] );
 			}
 			$auths[ $this->maxHistory ] = md5( MainWP_Helper::rand_string( 14 ) );
 			$auths['last']              = time();
@@ -842,7 +840,7 @@ class MainWP_Connect {
 		if ( ! is_array( $auths ) ) {
 			return false;
 		}
-		for ( $i = 0; $i <= $this->maxHistory; $i ++ ) {
+		for ( $i = 0; $i <= $this->maxHistory; $i++ ) {
 			if ( isset( $auths[ $i ] ) && ( $auths[ $i ] === $key ) ) {
 				return true;
 			}
@@ -864,13 +862,11 @@ class MainWP_Connect {
 	 * Method check_compatible_connect_info()
 	 *
 	 * Check check compatible connected info.
-	 *
-	 * @param bool $logged_in logged in or not.
 	 */
-	public function check_compatible_connect_info( $logged_in ) {
+	public function check_compatible_connect_info() {
 		global $current_user;
-		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
-		if ( ! empty( $connect_user ) && $current_user->user_login == $connect_user ) {
+		$connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput,InputNotSanitized,WordPress.Security.NonceVerification
+		if ( ! empty( $connect_user ) && $current_user->user_login === $connect_user ) {
 			$connected_admin = get_option( 'mainwp_child_connected_admin', '' );
 			if ( empty( $connected_admin ) ) {
 				// to comparable.
@@ -878,6 +874,4 @@ class MainWP_Connect {
 			}
 		}
 	}
-
 }
-

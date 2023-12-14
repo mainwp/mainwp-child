@@ -69,9 +69,9 @@ class MainWP_Clone_Page {
 		$ui      = $wp_scripts->query( 'jquery-ui-core' );
 		$version = $ui->ver;
 		if ( MainWP_Helper::starts_with( $version, '1.10' ) ) {
-			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.10', 'all' );
+			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', __DIR__ ), array(), '1.10', 'all' );
 		} else {
-			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ), array(), '1.11', 'all' );
+			wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', __DIR__ ), array(), '1.11', 'all' );
 		}
 	}
 
@@ -92,7 +92,7 @@ class MainWP_Clone_Page {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = isset( $_FILES['file'] ) ? wp_unslash( $_FILES['file'] ) : '';
+				$uploadedfile     = isset( $_FILES['file'] ) ? sanitize_text_field( wp_unslash( $_FILES['file'] ) ) : '';
 				$upload_overrides = array( 'test_form' => false );
 				add_filter( 'upload_mimes', array( MainWP_Clone::get_class_name(), 'upload_mimes' ) );
 				$movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
@@ -125,8 +125,7 @@ class MainWP_Clone_Page {
 		 * @global object $wp_filesystem Filesystem object.
 		 */
 		global $wp_filesystem;
-
-		if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
+		if ( ! MainWP_Helper::is_writable( WP_CONTENT_DIR ) ) {
 			echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
 			$error = true;
 		}
@@ -245,7 +244,7 @@ class MainWP_Clone_Page {
 				if ( ! function_exists( 'wp_handle_upload' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/file.php';
 				}
-				$uploadedfile     = isset( $_FILES['file'] ) ? wp_unslash( $_FILES['file'] ) : '';
+				$uploadedfile     = isset( $_FILES['file'] ) ? sanitize_text_field( wp_unslash( $_FILES['file'] ) ) : '';
 				$upload_overrides = array( 'test_form' => false );
 				$movefile         = wp_handle_upload( $uploadedfile, $upload_overrides );
 				if ( $movefile ) {
@@ -276,7 +275,7 @@ class MainWP_Clone_Page {
 				 */
 				global $wp_filesystem;
 
-				if ( ( ! empty( $wp_filesystem ) && ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) || ( empty( $wp_filesystem ) && ! is_writable( WP_CONTENT_DIR ) ) ) {
+				if ( ! MainWP_Helper::is_writable( WP_CONTENT_DIR ) ) {
 					echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html__( 'Your content directory is not writable. Please set 0755 permission to ', 'mainwp-child' ) . esc_html( basename( WP_CONTENT_DIR ) ) . '. (' . esc_html( WP_CONTENT_DIR ) . ')</strong></div>';
 					$error = true;
 				}
@@ -300,7 +299,7 @@ class MainWP_Clone_Page {
 					<p><?php esc_html_e( 'Upload backup in .zip format (Maximum filesize for your server settings: ', 'mainwp-child' ); ?><?php echo esc_html( $uploadSize ); ?>)</p>
 					<?php
 						$branding_title = MainWP_Child_Branding::instance()->get_branding_title();
-					if ( '' != $branding_title ) {
+					if ( '' !== $branding_title ) {
 						$branding_msg = 'If you have a FULL backup created by basic ' . stripslashes( $branding_title ) . ' Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.';
 					} else {
 						$branding_msg = esc_html__( 'If you have a FULL backup created by basic MainWP Backup system you may restore it by uploading here. Backups created by 3rd party plugins will not work.', 'mainwp-child' );
@@ -351,13 +350,13 @@ class MainWP_Clone_Page {
 		$backup_dir   = $current_dir;
 
 		if ( isset( $_REQUEST['dir'] ) ) {
-			$current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( wp_unslash( $_REQUEST['dir'] ) ) ) : '';
+			$current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( wp_unslash( $_REQUEST['dir'] ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			$current_dir = '/' . ltrim( $current_dir, '/' );
 			if ( ! is_readable( $current_dir ) && get_option( 'mainwp_child_clone_from_server_last_folder' ) ) {
 				$current_dir = get_option( 'mainwp_child_clone_from_server_last_folder' ) . $current_dir;
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		if ( ! is_readable( $current_dir ) ) {
 			$current_dir = WP_CONTENT_DIR;
 		}
@@ -383,7 +382,7 @@ class MainWP_Clone_Page {
 		$parts       = explode( '/', ltrim( $current_dir, '/' ) );
 		$dirparts    = '';
 		$count_parts = count( $parts );
-		for ( $i = $count_parts - 1; $i >= 0; $i -- ) {
+		for ( $i = $count_parts - 1; $i >= 0; $i-- ) {
 			$part = $parts[ $i ];
 			$adir = implode( '/', array_slice( $parts, 0, $i + 1 ) );
 			if ( strlen( $adir ) > 1 ) {
@@ -441,12 +440,10 @@ class MainWP_Clone_Page {
 			}
 			if ( is_dir( $current_dir . '/' . $file ) ) {
 				$directories[] = $file;
-			} else {
-				if ( ! MainWP_Clone::is_archive( $file ) ) {
+			} elseif ( ! MainWP_Clone::is_archive( $file ) ) {
 					$rejected_files[] = $file;
-				} else {
-					$files[] = $file;
-				}
+			} else {
+				$files[] = $file;
 			}
 		}
 
@@ -1201,8 +1198,8 @@ class MainWP_Clone_Page {
 			session_start();
 		}
 
-		$file = isset( $_SESSION['file'] ) ? wp_unslash( $_SESSION['file'] ) : null;
-		$size = isset( $_SESSION['size'] ) ? wp_unslash( $_SESSION['size'] ) : null;
+		$file = isset( $_SESSION['file'] ) ? sanitize_text_field( wp_unslash( $_SESSION['file'] ) ) : null;
+		$size = isset( $_SESSION['size'] ) ? sanitize_text_field( wp_unslash( $_SESSION['size'] ) ) : null;
 
 		if ( isset( $_SESSION['file'] ) ) {
 			unset( $_SESSION['file'] );

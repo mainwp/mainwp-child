@@ -53,32 +53,39 @@ class MainWP_System {
 	 * Handle to valid request params.
 	 *
 	 * @param string $name Field name.
-	 * @param mixed  $default Default value.
+	 * @param mixed  $def_value Default value.
 	 *
 	 * @return mixed value.
 	 */
-	public function validate_params( $name = '', $default = '' ) {
-		$value = $default;
+	public function validate_params( $name = '', $def_value = '' ) {
+		$value = $def_value;
 		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! empty( $name ) ) {
 			if ( 'showhide' === $name ) {
-				$value = isset( $_POST['showhide'] ) && 'hide' === $_POST['showhide'] ? 'hide' : $default;
+				$value = isset( $_POST['showhide'] ) && 'hide' === $_POST['showhide'] ? 'hide' : $def_value;
 			} elseif ( 'mwp_action' === $name ) {
-				$value = isset( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : $default;
+				$value = isset( $_POST['mwp_action'] ) ? sanitize_text_field( wp_unslash( $_POST['mwp_action'] ) ) : $def_value;
 			} elseif ( 'action' === $name ) {
-				$value = isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : $default;
+				$value = isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : $def_value;
 			} elseif ( 'nonce' === $name ) {
-				$value = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : $default;
+				$value = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : $def_value;
 			} elseif ( isset( $_POST[ $name ] ) ) {
 				if ( is_string( $_POST[ $name ] ) ) {
 					$value = sanitize_text_field( wp_unslash( $_POST[ $name ] ) );
 				} else {
-					$value = wp_unslash( $_POST[ $name ] );
+					$value = wp_unslash( $_POST[ $name ] ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitize in next process.
 				}
 			}
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		return $value;
 	}
 
+	/**
+	 * Handle wp version check.
+	 */
+	public static function wp_mainwp_version_check() {
+		add_filter( 'automatic_updater_disabled', '__return_true' ); // to prevent auto update on this version check.
+		wp_version_check();
+	}
 }

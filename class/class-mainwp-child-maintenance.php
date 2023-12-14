@@ -75,14 +75,14 @@ class MainWP_Child_Maintenance {
 			$this->maintenance_action( $action ); // exit.
 		}
 
-		$maint_options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : false;
+		$maint_options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : false; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( ! is_array( $maint_options ) ) {
 			MainWP_Helper::write( array( 'status' => 'FAIL' ) ); // exit.
 		}
 
 		$max_revisions = isset( $_POST['revisions'] ) ? intval( wp_unslash( $_POST['revisions'] ) ) : 0;
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		$information = $this->maintenance_db( $maint_options, $max_revisions );
 
@@ -151,10 +151,15 @@ class MainWP_Child_Maintenance {
 		}
 
 		if ( in_array( 'tags', $maint_options ) ) {
-			$post_tags = get_terms( 'post_tag', array( 'hide_empty' => false ) );
+			$post_tags = get_terms(
+				array(
+					'taxonomy'   => 'category',
+					'hide_empty' => false,
+				)
+			);
 			if ( is_array( $post_tags ) ) {
 				foreach ( $post_tags as $tag ) {
-					if ( 0 === $tag->count ) {
+					if ( 0 === (int) $tag->count ) {
 						wp_delete_term( $tag->term_id, 'post_tag' );
 					}
 				}
@@ -163,10 +168,16 @@ class MainWP_Child_Maintenance {
 		}
 
 		if ( in_array( 'categories', $maint_options ) ) {
-			$post_cats = get_terms( 'category', array( 'hide_empty' => false ) );
+			$post_cats = get_terms(
+				array(
+					'taxonomy'   => 'category',
+					'hide_empty' => false,
+				)
+			);
+
 			if ( is_array( $post_cats ) ) {
 				foreach ( $post_cats as $cat ) {
-					if ( 0 === $cat->count ) {
+					if ( 0 === (int) $cat->count ) {
 						wp_delete_term( $cat->term_id, 'category' );
 					}
 				}
@@ -213,7 +224,7 @@ class MainWP_Child_Maintenance {
 		 */
 		global $wpdb;
 
-		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
+		return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 	}
 
 	/**
@@ -245,13 +256,13 @@ class MainWP_Child_Maintenance {
 		}
 		$count_deleted  = 0;
 		$results_length = count( $results );
-		for ( $i = 0; $i < $results_length; $i ++ ) {
+		for ( $i = 0; $i < $results_length; $i++ ) {
 			$number_to_delete = $results[ $i ]->cnt - $max_revisions;
 			$count_deleted   += $number_to_delete;
-			$results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) );
+			$results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 			$delete_ids       = array();
 			if ( is_array( $results_posts ) && count( $results_posts ) > 0 ) {
-				for ( $j = 0; $j < $number_to_delete; $j ++ ) {
+				for ( $j = 0; $j < $number_to_delete; $j++ ) {
 					$delete_ids[] = $results_posts[ $j ]->ID;
 				}
 			}
@@ -332,7 +343,7 @@ class MainWP_Child_Maintenance {
 			} else {
 				delete_option( 'mainwp_maintenance_opt_alert_404' );
 			}
-			$email = ! empty( $_POST['email'] ) ? wp_unslash( $_POST['email'] ) : '';
+			$email = ! empty( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 			if ( ! empty( $email ) ) {
 				MainWP_Helper::update_option( 'mainwp_maintenance_opt_alert_404_email', $email, 'yes' );
 			} else {
@@ -348,7 +359,7 @@ class MainWP_Child_Maintenance {
 			$information['result'] = 'SUCCESS';
 			MainWP_Helper::write( $information );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 		MainWP_Helper::write( $information );
 	}
 }

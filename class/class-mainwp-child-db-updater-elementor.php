@@ -343,4 +343,3 @@ class MainWP_Child_DB_Updater_Elementor {
 		return false;
 	}
 }
-

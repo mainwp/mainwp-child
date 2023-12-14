@@ -130,7 +130,7 @@ class MainWP_Child_WooCommerce_Status {
 		}
 
 		// Get sales.
-		$sales = $wpdb->get_var(
+		$sales = $wpdb->get_var( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 			$wpdb->prepare(
 				"SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
 				LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
@@ -150,7 +150,7 @@ class MainWP_Child_WooCommerce_Status {
 		);
 
 		// Get top seller.
-		$top_seller = $wpdb->get_row(
+		$top_seller = $wpdb->get_row( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 			$wpdb->prepare( // phpcs:ignore -- safe query.
 				"SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
 				FROM {$wpdb->posts} as posts
@@ -241,10 +241,10 @@ class MainWP_Child_WooCommerce_Status {
 
 		$start_date = date( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore -- local time.
 		$end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		// Get sales.
-		$sales = $wpdb->get_var(
+		$sales = $wpdb->get_var( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 			"SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
 			LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
 			LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
@@ -260,7 +260,7 @@ class MainWP_Child_WooCommerce_Status {
 		);
 
 		// Get top seller.
-		$top_seller = $wpdb->get_row(
+		$top_seller = $wpdb->get_row( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 			"SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
 			FROM {$wpdb->posts} as posts
 			LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
@@ -341,7 +341,7 @@ class MainWP_Child_WooCommerce_Status {
 		// phpcs:disable WordPress.Security.NonceVerification
 		$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
 		$end_date   = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification
+		// phpcs:enable
 
 		return $this->get_woocom_data( $start_date, $end_date );
 	}
@@ -376,17 +376,17 @@ class MainWP_Child_WooCommerce_Status {
 			while ( $page < $total_page ) {
 				++$page;
 				$args = array(
-					'before' => $start_date,
-					'after'  => $end_date,
-					'page'   => $page,
+					'before'   => $end_date,
+					'after'    => $start_date,
+					'page'     => $page,
+					'per_page' => 1000,
 				);
 
 				$report = new \Automattic\WooCommerce\Admin\API\Reports\Products\Query( $args );
 
 				$product_data = $report->get_data();
-				$all_page     = 1;
-				$page_no      = 1;
-				$products     = array();
+
+				$products = array();
 
 				if ( is_object( $product_data ) ) {
 					$products = ! empty( $product_data->data ) ? $product_data->data : array();
@@ -430,29 +430,24 @@ class MainWP_Child_WooCommerce_Status {
 	 */
 	public function get_woocom_reports( $start_date, $end_date ) {
 
-		$args          = array(
-			'before'    => $start_date,
-			'after'     => $end_date,
-			'status_is' => array( 'on-hold', 'processing' ),
-		);
-		$report        = new \Automattic\WooCommerce\Admin\API\Reports\Orders\Stats\Query( $args );
-		$order_data    = $report->get_data();
-		$on_hold_count = is_object( $order_data ) && ! empty( $order_data->totals->orders_count ) ? $order_data->totals->orders_count : 0;
+		if ( class_exists( '\Automattic\WooCommerce\Admin\Features\Features' ) && \Automattic\WooCommerce\Admin\Features\Features::is_enabled( 'analytics' ) ) {
+			return $this->get_woocom_analytics( $start_date, $end_date );
+		}
+
+		$on_hold_count = 0;
+		if ( function_exists( 'wc_orders_count' ) ) {
+			$status_counts = array_map( 'wc_orders_count', array( 'on-hold' ) );
+			$on_hold_count = array_sum( $status_counts );
+		}
 
 		$processing_count = 0;
 		if ( function_exists( 'wc_processing_order_count' ) ) {
 			$processing_count = wc_processing_order_count();
 		}
 
-		$args         = array(
-			'before' => $start_date,
-			'after'  => $end_date,
-		);
-		$report       = new \Automattic\WooCommerce\Admin\API\Reports\Revenue\Query( $args );
-		$revenue_data = $report->get_data();
-		$total_sales  = is_object( $revenue_data ) && ! empty( $revenue_data->totals->total_sales ) ? $revenue_data->totals->total_sales : 0;
+		$total_sales = $this->get_total_sales( $start_date, $end_date );
 
-		$top_seller = $this->get_top_seller( $start_date, $end_date );
+		$top_seller = $this->get_top_sellers_report( $start_date, $end_date );
 
 		$report     = new \Automattic\WooCommerce\Admin\API\Reports\Stock\Stats\Query();
 		$stock_data = $report->get_data();
@@ -624,4 +619,180 @@ class MainWP_Child_WooCommerce_Status {
 		return array( 'result' => 'success' );
 	}
 
+	/**
+	 * Get top seller.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function get_top_sellers_report( $start_date, $end_date ) {
+
+		include_once WC()->plugin_path() . '/includes/admin/reports/class-wc-admin-report.php';
+
+		$report = new \WC_Admin_Report();
+
+		$_GET['start_date'] = gmdate( 'Y-m-d H:i:s', $start_date );
+		$_GET['end_date']   = gmdate( 'Y-m-d H:i:s', $end_date );
+
+		$report->calculate_current_range( 'custom' );
+
+		$top_sellers = $report->get_order_report_data(
+			array(
+				'data'         => array(
+					'_product_id' => array(
+						'type'            => 'order_item_meta',
+						'order_item_type' => 'line_item',
+						'function'        => '',
+						'name'            => 'product_id',
+					),
+					'_qty'        => array(
+						'type'            => 'order_item_meta',
+						'order_item_type' => 'line_item',
+						'function'        => 'SUM',
+						'name'            => 'order_item_qty',
+					),
+				),
+				'order_by'     => 'order_item_qty DESC',
+				'group_by'     => 'product_id',
+				'limit'        => 1000,
+				'query_type'   => 'get_results',
+				'filter_range' => true,
+			)
+		);
+
+		$top_product = false;
+
+		$top_count = 0;
+		foreach ( $top_sellers as $top_seller ) {
+			if ( is_object( $top_seller ) && isset( $top_seller->order_item_qty ) && $top_seller->order_item_qty > $top_count ) {
+				$top_product = $top_seller;
+				$top_count   = $top_seller->order_item_qty;
+			}
+		}
+
+		$top_data = array();
+		if ( ! empty( $top_product ) ) {
+			$top_data         = array(
+				'product_id' => $top_product->product_id,
+				'qty'        => $top_product->order_item_qty,
+			);
+			$product          = wc_get_product( $top_product->product_id );
+			$top_data['name'] = ! empty( $product ) ? $product->get_name() : 'N/A';
+		}
+		return $top_data;
+	}
+
+	/**
+	 * Get total sales.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return int $total_sales Total sales.
+	 */
+	public function get_total_sales( $start_date, $end_date ) {
+
+		include_once WC()->plugin_path() . '/includes/admin/reports/class-wc-admin-report.php';
+		include_once WC()->plugin_path() . '/includes/admin/reports/class-wc-report-sales-by-date.php';
+
+		$total_sales = 0;
+
+		$_GET['start_date'] = gmdate( 'Y-m-d H:i:s', $start_date );
+		$_GET['end_date']   = gmdate( 'Y-m-d H:i:s', $end_date );
+
+		$report = new \WC_Report_Sales_By_Date();
+		$report->calculate_current_range( 'custom' );
+		$report_data = $report->get_report_data();
+		if ( is_object( $report_data ) && ! empty( $report_data->total_sales ) ) {
+			$total_sales = $report_data->total_sales;
+		}
+
+		return $total_sales;
+	}
+
+
+	/**
+	 * Get Woocommerce 8 analytics.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function get_woocom_analytics( $start_date, $end_date ) {
+		$on_hold_count = 0;
+		if ( function_exists( 'wc_orders_count' ) ) {
+			$status_counts = array_map( 'wc_orders_count', array( 'on-hold' ) );
+			$on_hold_count = array_sum( $status_counts );
+		}
+
+		$processing_count = 0;
+		if ( function_exists( 'wc_processing_order_count' ) ) {
+			$processing_count = wc_processing_order_count();
+		}
+
+		$sales_data  = $this->get_sales_data( $start_date, $end_date );
+		$total_sales = $sales_data['total_sales'];
+		$top_seller  = $sales_data['top_seller'];
+
+		$report     = new \Automattic\WooCommerce\Admin\API\Reports\Stock\Stats\Query();
+		$stock_data = $report->get_data();
+
+		$data = array(
+			'sales'          => $total_sales,
+			'formated_sales' => wc_price( $total_sales ),
+			'top_seller'     => ! empty( $top_seller ) ? (object) $top_seller : false,
+			'onhold'         => $on_hold_count,
+			'awaiting'       => $processing_count,
+			'lowstock'       => is_array( $stock_data ) && isset( $stock_data['lowstock'] ) ? intval( $stock_data['lowstock'] ) : 0,
+			'outstock'       => is_array( $stock_data ) && isset( $stock_data['outofstock'] ) ? intval( $stock_data['outofstock'] ) : 0,
+		);
+
+		return $data;
+	}
+
+
+	/**
+	 * Get sales data.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return array Sales data.
+	 */
+	public function get_sales_data( $start_date, $end_date ) {
+
+		$start_date = gmdate( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore
+		$end_date   = gmdate( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore
+
+		$args          = array(
+			'before'    => $end_date,
+			'after'     => $start_date,
+			'status_is' => array( 'on-hold', 'processing' ),
+			'per_page'  => 1000,
+		);
+		$report        = new \Automattic\WooCommerce\Admin\API\Reports\Orders\Stats\Query( $args );
+		$order_data    = $report->get_data();
+		$on_hold_count = is_object( $order_data ) && ! empty( $order_data->totals->orders_count ) ? $order_data->totals->orders_count : 0;
+
+		$args         = array(
+			'before'   => $end_date,
+			'after'    => $start_date,
+			'fields'   => array( 'total_sales' ),
+			'per_page' => 1000,
+		);
+		$report       = new \Automattic\WooCommerce\Admin\API\Reports\Revenue\Query( $args );
+		$revenue_data = $report->get_data();
+		$total_sales  = is_object( $revenue_data ) && ! empty( $revenue_data->totals->total_sales ) ? $revenue_data->totals->total_sales : 0;
+
+		$top_seller = $this->get_top_seller( $start_date, $end_date );
+
+		return array(
+			'top_seller'    => $top_seller,
+			'on_hold_count' => $on_hold_count,
+			'total_sales'   => $total_sales,
+		);
+	}
 }
