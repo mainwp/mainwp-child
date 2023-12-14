@@ -661,7 +661,7 @@ class MainWP_Child_Callable {
 	 * @uses \MainWP\Child\MainWP_Child_Misc::do_security_un_fix()
 	 */
 	public function settings_tools() {
-		MainWP_Child_Misc::get_instance()->do_security_un_fix();
+		MainWP_Child_Misc::get_instance()->settings_tools();
 	}
 
 	/**

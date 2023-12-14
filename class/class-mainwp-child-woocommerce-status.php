@@ -376,9 +376,10 @@ class MainWP_Child_WooCommerce_Status {
 			while ( $page < $total_page ) {
 				++$page;
 				$args = array(
-					'before' => $start_date,
-					'after'  => $end_date,
-					'page'   => $page,
+					'before'   => $end_date,
+					'after'    => $start_date,
+					'page'     => $page,
+					'per_page' => 1000,
 				);
 
 				$report = new \Automattic\WooCommerce\Admin\API\Reports\Products\Query( $args );
@@ -428,6 +429,10 @@ class MainWP_Child_WooCommerce_Status {
 	 * @return array $information Woocommerce data grabed.
 	 */
 	public function get_woocom_reports( $start_date, $end_date ) {
+
+		if ( class_exists( '\Automattic\WooCommerce\Admin\Features\Features' ) && \Automattic\WooCommerce\Admin\Features\Features::is_enabled( 'analytics' ) ) {
+			return $this->get_woocom_analytics( $start_date, $end_date );
+		}
 
 		$on_hold_count = 0;
 		if ( function_exists( 'wc_orders_count' ) ) {
@@ -651,7 +656,7 @@ class MainWP_Child_WooCommerce_Status {
 				),
 				'order_by'     => 'order_item_qty DESC',
 				'group_by'     => 'product_id',
-				'limit'        => 12,
+				'limit'        => 1000,
 				'query_type'   => 'get_results',
 				'filter_range' => true,
 			)
@@ -707,6 +712,48 @@ class MainWP_Child_WooCommerce_Status {
 		return $total_sales;
 	}
 
+
+	/**
+	 * Get Woocommerce 8 analytics.
+	 *
+	 * @param string $start_date Start Date.
+	 * @param string $end_date End Date.
+	 *
+	 * @return array $information Woocommerce data grabed.
+	 */
+	public function get_woocom_analytics( $start_date, $end_date ) {
+		$on_hold_count = 0;
+		if ( function_exists( 'wc_orders_count' ) ) {
+			$status_counts = array_map( 'wc_orders_count', array( 'on-hold' ) );
+			$on_hold_count = array_sum( $status_counts );
+		}
+
+		$processing_count = 0;
+		if ( function_exists( 'wc_processing_order_count' ) ) {
+			$processing_count = wc_processing_order_count();
+		}
+
+		$sales_data  = $this->get_sales_data( $start_date, $end_date );
+		$total_sales = $sales_data['total_sales'];
+		$top_seller  = $sales_data['top_seller'];
+
+		$report     = new \Automattic\WooCommerce\Admin\API\Reports\Stock\Stats\Query();
+		$stock_data = $report->get_data();
+
+		$data = array(
+			'sales'          => $total_sales,
+			'formated_sales' => wc_price( $total_sales ),
+			'top_seller'     => ! empty( $top_seller ) ? (object) $top_seller : false,
+			'onhold'         => $on_hold_count,
+			'awaiting'       => $processing_count,
+			'lowstock'       => is_array( $stock_data ) && isset( $stock_data['lowstock'] ) ? intval( $stock_data['lowstock'] ) : 0,
+			'outstock'       => is_array( $stock_data ) && isset( $stock_data['outofstock'] ) ? intval( $stock_data['outofstock'] ) : 0,
+		);
+
+		return $data;
+	}
+
+
 	/**
 	 * Get sales data.
 	 *
@@ -717,18 +764,24 @@ class MainWP_Child_WooCommerce_Status {
 	 */
 	public function get_sales_data( $start_date, $end_date ) {
 
+		$start_date = gmdate( 'Y-m-d H:i:s', $start_date ); // phpcs:ignore
+		$end_date   = gmdate( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore
+
 		$args          = array(
-			'before'    => $start_date,
-			'after'     => $end_date,
+			'before'    => $end_date,
+			'after'     => $start_date,
 			'status_is' => array( 'on-hold', 'processing' ),
+			'per_page'  => 1000,
 		);
 		$report        = new \Automattic\WooCommerce\Admin\API\Reports\Orders\Stats\Query( $args );
 		$order_data    = $report->get_data();
 		$on_hold_count = is_object( $order_data ) && ! empty( $order_data->totals->orders_count ) ? $order_data->totals->orders_count : 0;
 
 		$args         = array(
-			'before' => $start_date,
-			'after'  => $end_date,
+			'before'   => $end_date,
+			'after'    => $start_date,
+			'fields'   => array( 'total_sales' ),
+			'per_page' => 1000,
 		);
 		$report       = new \Automattic\WooCommerce\Admin\API\Reports\Revenue\Query( $args );
 		$revenue_data = $report->get_data();
@@ -739,7 +792,7 @@ class MainWP_Child_WooCommerce_Status {
 		return array(
 			'top_seller'    => $top_seller,
 			'on_hold_count' => $on_hold_count,
-
+			'total_sales'   => $total_sales,
 		);
 	}
 }

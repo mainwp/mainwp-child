@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.5.3';
+	public static $version = '4.6-RC1';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.

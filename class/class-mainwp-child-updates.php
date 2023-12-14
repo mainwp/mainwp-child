@@ -1029,7 +1029,7 @@ class MainWP_Child_Updates {
 	 */
 	private function do_upgrade_wp( &$information ) {
 		// Check for new versions.
-		wp_version_check();
+		MainWP_System::wp_mainwp_version_check();
 
 		global $wp_version;
 
@@ -1146,7 +1146,7 @@ class MainWP_Child_Updates {
 		// to fix conflict.
 		MainWP_Utility::remove_filters_by_hook_name( 'update_plugins_oxygenbuilder.com', 10 );
 
-		wp_version_check();
+		MainWP_System::wp_mainwp_version_check();
 		wp_update_themes();
 		wp_update_plugins();
 		 // phpcs:disable WordPress.Security.NonceVerification

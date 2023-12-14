@@ -598,7 +598,7 @@ class MainWP_Child_Branding {
 				);
 			}
 
-			if ( isset( $extra_setting['show_button_in'] ) && ( 1 === $extra_setting['show_button_in'] || 3 === $extra_setting['show_button_in'] ) ) {
+			if ( isset( $extra_setting['show_button_in'] ) && ( 1 === (int) $extra_setting['show_button_in'] || 3 === (int) $extra_setting['show_button_in'] ) ) {
 				add_submenu_page(
 					null,
 					$title,

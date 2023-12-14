@@ -80,4 +80,12 @@ class MainWP_System {
 		// phpcs:enable
 		return $value;
 	}
+
+	/**
+	 * Handle wp version check.
+	 */
+	public static function wp_mainwp_version_check() {
+		add_filter( 'automatic_updater_disabled', '__return_true' ); // to prevent auto update on this version check.
+		wp_version_check();
+	}
 }

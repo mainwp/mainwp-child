@@ -689,7 +689,7 @@ class MainWP_Backup {
 		$error = false;
 		foreach ( $files as $file ) {
 			$rslt = $this->zip->add( $file, PCLZIP_OPT_REMOVE_PATH, dirname( $file ) );
-			if ( 0 === $rslt ) {
+			if ( empty( $rslt ) ) {
 				$error = true;
 			}
 		}

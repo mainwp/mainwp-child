@@ -267,7 +267,7 @@ class MainWP_Child_Stats {
 		$information['plugins'] = $this->get_all_plugins_int( false );
 		$information['themes']  = $this->get_all_themes_int( false );
 
-		if ( isset( $_POST['optimize'] ) && ( '1' === $_POST['optimize'] ) ) {
+		if ( isset( $_POST['optimize'] ) && ( 1 === (int) $_POST['optimize'] ) ) {
 			$information['users'] = MainWP_Child_Users::get_instance()->get_all_users_int( 500 );
 		}
 
@@ -529,7 +529,7 @@ class MainWP_Child_Stats {
 			add_filter( 'pre_transient_update_core', $this->filterFunction, 99 );
 		}
 
-		wp_version_check();
+		MainWP_System::wp_mainwp_version_check();
 
 		$core_updates = get_core_updates();
 

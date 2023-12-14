@@ -545,7 +545,7 @@ class MainWP_Clone_Install {
 	 */
 	public function extract_zip_pcl_backup() {
 		$zip = new \PclZip( $this->file );
-		if ( 0 === $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
+		if ( 0 === (int) $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
 			return false;
 		}
 		if ( PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {
@@ -669,7 +669,7 @@ class MainWP_Clone_Install {
 				$row_count   = MainWP_Child_DB::to_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection );
 				$rows_result = MainWP_Child_DB::fetch_array( $row_count );
 				$row_count   = $rows_result['count'];
-				if ( 0 === $row_count ) {
+				if ( empty( $row_count ) ) {
 					continue;
 				}
 

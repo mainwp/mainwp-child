@@ -441,7 +441,7 @@ class MainWP_Child_Server_Information_Base {
 			}
 		}
 
-		return 1 === $ok;
+		return ! empty( $ok );
 	}
 	/**
 	 * Get current PHP version.

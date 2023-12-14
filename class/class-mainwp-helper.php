@@ -802,7 +802,7 @@ class MainWP_Helper {
 		if ( empty( $user ) || empty( $user->ID ) ) {
 			return false;
 		}
-		if ( ( property_exists( $user, 'wp_user_level' ) && 10 === $user->wp_user_level ) || ( isset( $user->user_level ) && 10 === $user->user_level ) || self::current_user_has_role( 'administrator', $user ) ) {
+		if ( ( property_exists( $user, 'wp_user_level' ) && 10 === (int) $user->wp_user_level ) || ( isset( $user->user_level ) && 10 === (int) $user->user_level ) || self::current_user_has_role( 'administrator', $user ) ) {
 			return true;
 		}
 

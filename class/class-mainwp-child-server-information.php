@@ -1190,7 +1190,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
 			<?php } elseif ( ( 'get_max_input_time' === $getter || 'get_max_execution_time' === $getter ) && -1 === (int) $currentVersion ) { ?>
 				<td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
 			<?php } else { ?>
-				<td><?php echo ( version_compare( $currentVersion, $version, $compare ) || ( empty( $extra_compare ) && version_compare( $currentVersion, $extra_version, $extra_compare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
+				<td><?php echo ( version_compare( $currentVersion, $version, $compare ) || ( ! empty( $extra_compare ) && version_compare( $currentVersion, $extra_version, $extra_compare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : self::render_warning_text( $errorType ) ); ?></td>
 			<?php } ?>
 		</tr>
 		<?php

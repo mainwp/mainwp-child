@@ -378,7 +378,7 @@ class MainWP_Pages {
 
 		// put here to support hooks to show header.
 		$is_connected_admin = false;
-		$connected          = '' !== (string) get_option( 'mainwp_child_pubkey' ) ? true : false;
+		$connected          = ! empty( get_option( 'mainwp_child_pubkey' ) ) ? true : false;
 		if ( $connected ) {
 			$current_user = wp_get_current_user();
 			if ( $current_user ) {
@@ -598,7 +598,7 @@ class MainWP_Pages {
 					</div>
 					<div>
 						<?php
-						if ( empty( $uniqueId ) ) {
+						if ( ! empty( $uniqueId ) ) {
 							echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">' . esc_html__( 'Your unique security ID is:', 'mainwp-child' ) . ' <span style="font-weight: bold; color: #7fb100;">' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</span></span>';
 						}
 						?>

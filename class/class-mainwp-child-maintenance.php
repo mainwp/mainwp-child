@@ -159,7 +159,7 @@ class MainWP_Child_Maintenance {
 			);
 			if ( is_array( $post_tags ) ) {
 				foreach ( $post_tags as $tag ) {
-					if ( 0 === $tag->count ) {
+					if ( 0 === (int) $tag->count ) {
 						wp_delete_term( $tag->term_id, 'post_tag' );
 					}
 				}
@@ -177,7 +177,7 @@ class MainWP_Child_Maintenance {
 
 			if ( is_array( $post_cats ) ) {
 				foreach ( $post_cats as $cat ) {
-					if ( 0 === $cat->count ) {
+					if ( 0 === (int) $cat->count ) {
 						wp_delete_term( $cat->term_id, 'category' );
 					}
 				}

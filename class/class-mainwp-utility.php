@@ -551,7 +551,7 @@ class MainWP_Utility {
 			curl_close( $ch );
 		}
 
-		if ( ( false === $data ) && ( 0 === $http_status ) ) {
+		if ( ( false === $data ) && ( 0 === (int) $http_status ) ) {
 			throw new \Exception( 'Http Error: ' . esc_html( $err ) );
 		} elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
 			$result      = $results[1];
