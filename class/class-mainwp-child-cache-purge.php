@@ -1030,7 +1030,8 @@ class MainWP_Child_Cache_Purge {
 	public function strip_subdomains( $url ) {
 
 		// credits to gavingmiller for maintaining this list.
-		$second_level_domains = wp_remote_get( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
+		$get_second_level_domains = wp_remote_get( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
+		$second_level_domains = $get_second_level_domains['body'];
 
 		// presume sld first ...
 		$possible_sld = implode( '.', array_slice( explode( '.', $url ), -2 ) );
