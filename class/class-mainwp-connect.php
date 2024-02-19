@@ -513,8 +513,6 @@ class MainWP_Connect {
 	 * Handle redirects.
 	 *
 	 * @return bool Returns false if $_REQUEST['fdl'] is set.
-	 *
-	 * @uses \MainWP\Child\MainWP_Utility::upload_file()
 	 */
 	private function check_redirects() {
 		// phpcs:disable WordPress.Security.NonceVerification
@@ -526,17 +524,17 @@ class MainWP_Connect {
 
 			$foffset = isset( $_REQUEST['foffset'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['foffset'] ) ) : 0;
 
-			MainWP_Utility::instance()->upload_file( $fdl, $foffset );
+			MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
 			exit;
 		}
 
 		$open_location = ! empty( $_REQUEST['open_location'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['open_location'] ) ) : '';
 		// support for custom wp-admin slug.
-		if ( ! empty( $open_locatio ) ) {
+		if ( ! empty( $open_location ) ) {
 			$this->open_location_redirect( $open_location );
 		}
 		// phpcs:enable
-		$this->where_redirect();
+		$this->where_authed_redirect();
 	}
 
 	/**
@@ -590,12 +588,12 @@ class MainWP_Connect {
 	}
 
 	/**
-	 * Method where_redirect()
+	 * Method where_authed_redirect()
 	 *
 	 * Safe redirect to wanted location.
 	 */
-	private function where_redirect() {
-		// phpcs:disable WordPress.Security.NonceVerification
+	private function where_authed_redirect() {
+		// phpcs:disable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$where = isset( $_REQUEST['where'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['where'] ) ) : '';
 		if ( isset( $_POST['f'] ) || isset( $_POST['file'] ) ) {
 			$file = '';
@@ -610,10 +608,67 @@ class MainWP_Connect {
 			}
 			$_SESSION['file'] = $file;
 			$_SESSION['size'] = isset( $_POST['size'] ) ? sanitize_text_field( wp_unslash( $_POST['size'] ) ) : '';
+		} elseif ( isset( $_REQUEST['filedl'] ) && ! empty( $_REQUEST['filedl'] ) ) {
+			$auth_dl = array(
+				'file' => sanitize_text_field( wp_unslash( $_REQUEST['filedl'] ) ),
+				'dir'  => isset( $_REQUEST['dirdl'] ) && ! empty( $_REQUEST['dirdl'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['dirdl'] ) ) : false,
+			);
+			$auth_dl = apply_filters( 'mainwp_child_authed_download_params', $auth_dl );
+			if ( ! empty( $auth_dl['file'] ) && isset( $auth_dl['dir'] ) ) {
+				$allow_dl = $this->validate_pre_download_file( $auth_dl['file'], $auth_dl['dir'] );
+				if ( $allow_dl ) {
+					$downloading = MainWP_Utility::instance()->upload_file( $auth_dl['file'], $auth_dl['dir'] );
+					if ( true === $downloading ) {
+						exit;
+					}
+				}
+			}
 		}
 		// phpcs:enable
 		wp_safe_redirect( admin_url( $where ) );
 		exit();
+	}
+
+	/**
+	 * Method validate_pre_download_file()
+	 *
+	 * @param string $file File param  request.
+	 * @param string $dir Directory param  request.
+	 *
+	 * @return bool Valid or not valid to download file.
+	 */
+	public function validate_pre_download_file( $file, $dir ) {
+
+		if ( empty( $dir ) ) {
+			$dir = dirname( $file ); // get dir of file to validate.
+		}
+
+		if ( false === stripos( ABSPATH, $dir ) ) {
+			$parent_dir = dirname( $dir );
+			if ( false === stripos( ABSPATH, $parent_dir ) ) {  // check parent folder of download folder.
+				$parent_parent_dir = dirname( $parent_dir );
+				if ( false === stripos( ABSPATH, $parent_parent_dir ) ) { // check parent parent folder of download folder.
+					return false;  // only allows download in related home folder.
+				}
+			}
+		}
+
+		if ( empty( $dir ) || '/' === $dir || '\\' === $dir || '.' === $dir || stristr( $dir, '..' ) ) {
+			return false; // not allow.
+		}
+
+		$file = str_replace( $dir . '/', '', $file );
+
+		if ( stristr( $file, '/' ) ) {
+			return false; // not allow to secure.
+		}
+
+		// file not found.
+		if ( ! file_exists( $dir . '/' . $file ) ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
@@ -628,7 +683,7 @@ class MainWP_Connect {
 	 * @uses \MainWP\Child\MainWP_Helper::instance()->error()
 	 */
 	public function check_login() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		// phpcs:disable WordPress.Security.NonceVerification
+	// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! isset( $_POST['mainwpsignature'] ) || empty( $_POST['mainwpsignature'] ) ) {
 			return false;
 		}
@@ -696,7 +751,7 @@ class MainWP_Connect {
 				die();
 			}
 		}
-		// phpcs:enable
+	// phpcs:enable
 	}
 
 	/**

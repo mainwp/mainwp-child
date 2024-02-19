@@ -206,14 +206,46 @@ class MainWP_Utility {
 	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 * @uses \MainWP\Child\MainWP_Helper::ends_with()
 	 */
-	public function upload_file( $file, $offset = 0 ) {
+	public function upload_file_backup( $file, $offset = 0 ) {
+		if ( empty( $file ) || stristr( $file, '..' ) ) {
+			return false;
+		}
+		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+		$backupdir = $dirs[0];
+		$this->upload_file( $file, $backupdir, $offset );
+	}
+
+	/**
+	 * Method upload_file()
+	 *
+	 * Upload bacup fils to execute clone or restore proces.
+	 *
+	 * @param mixed       $file Backup file.
+	 * @param mixed|false $dir dir value.
+	 * @param int         $offset Offset value.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+	 * @uses \MainWP\Child\MainWP_Helper::ends_with()
+	 */
+	public function upload_file( $file, $dir = false, $offset = 0 ) {
 
 		if ( empty( $file ) || stristr( $file, '..' ) ) {
 			return false;
 		}
 
-		$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-		$backupdir = $dirs[0];
+		if ( empty( $dir ) ) {
+			$fullpath = $file;
+		} else {
+			$fullpath = $dir . $file;
+		}
+
+		if ( false !== stripos( $fullpath, 'wp-config.php' ) ) {
+			return false;
+		}
+
+		if ( ! file_exists( $fullpath ) ) {
+			return false;
+		}
 
 		header( 'Content-Description: File Transfer' );
 
@@ -228,11 +260,12 @@ class MainWP_Utility {
 		header( 'Expires: 0' );
 		header( 'Cache-Control: must-revalidate' );
 		header( 'Pragma: public' );
-		header( 'Content-Length: ' . filesize( $backupdir . $file ) );
+		header( 'Content-Length: ' . filesize( $fullpath ) );
 		while ( ob_get_level() ) {
 			ob_end_clean();
 		}
-		$this->readfile_chunked( $backupdir . $file, $offset );
+		$this->readfile_chunked( $fullpath, $offset );
+		return true;
 	}
 
 	/**
@@ -1047,7 +1080,7 @@ class MainWP_Utility {
 		}
 
 		if ( ! $activated ) {
-			return 0;
+			return false;
 		}
 
 		return get_option( 'mainwp_lasttime_backup_' . $by, 0 );

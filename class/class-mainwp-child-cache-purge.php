@@ -834,15 +834,15 @@ class MainWP_Child_Cache_Purge {
 	public function cloudflair_auto_purge_cache() {
 
 		// Credentials for Cloudflare.
-		$cust_email = get_option( 'mainwp_cloudflair_email' );
-		$cust_xauth = get_option( 'mainwp_child_cloudflair_key' );
+		$cust_email = get_option( 'mainwp_cloudflair_email', '' );
+		$cust_xauth = get_option( 'mainwp_child_cloudflair_key', '' );
 		if ( ! empty( $cust_xauth ) ) {
 			$cust_xauth = MainWP_Child_Keys_Manager::instance()->decrypt_string( $cust_xauth );
 		}
 		$cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
 
 		// Check if we have all the required data.
-		if ( '' === $cust_email || '' === $cust_xauth || '' === $cust_domain ) {
+		if ( '' === $cust_email || '' === $cust_xauth ) {
 			return;
 		}
 
@@ -1028,18 +1028,15 @@ class MainWP_Child_Cache_Purge {
 	 * @return string The url without subdomains (if any).
 	 */
 	public function strip_subdomains( $url ) {
-
-		// credits to gavingmiller for maintaining this list.
-		$second_level_domains = wp_remote_get( 'https://raw.githubusercontent.com/gavingmiller/second-level-domains/master/SLDs.csv' );
-
-		// presume sld first ...
-		$possible_sld = implode( '.', array_slice( explode( '.', $url ), -2 ) );
-
-		// and then verify it.
-		if ( strpos( $second_level_domains, $possible_sld ) ) {
-			return implode( '.', array_slice( explode( '.', $url ), -3 ) );
+		$parts     = explode( '/', $url );
+		$url_first = $parts[0]; // get first part.
+		$count     = count( explode( '.', $url_first ) );
+		$domain    = '';
+		if ( 4 <= $count ) {
+			$domain = implode( '.', array_slice( explode( '.', $url_first ), -3 ) );
 		} else {
-			return implode( '.', array_slice( explode( '.', $url ), -2 ) );
+			$domain = implode( '.', array_slice( explode( '.', $url_first ), -2 ) );
 		}
+		return $domain;
 	}
 }
