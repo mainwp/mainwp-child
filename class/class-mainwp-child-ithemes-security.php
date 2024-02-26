@@ -461,6 +461,12 @@ class MainWP_Child_IThemes_Security {
 					foreach ( $settings as $key => $val ) {						
 						$current_settings[$key] = $val;
 					}
+					if('two-factor' === $module ){
+						$active = \ITSEC_Modules::is_active( 'two-factor' );
+						if(!$active){
+							\ITSEC_Modules::activate( 'two-factor' );
+						}
+					}
 					\ITSEC_Modules::set_settings( $module, $current_settings );
 					$updated = true;
 				}

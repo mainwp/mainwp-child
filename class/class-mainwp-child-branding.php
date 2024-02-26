@@ -583,7 +583,6 @@ class MainWP_Child_Branding {
 		if ( 'T' === $opts['show_support'] ) {
 			$title = $opts['contact_label'];
 			if ( isset( $extra_setting['show_button_in'] ) && ( 2 === (int) $extra_setting['show_button_in'] || 3 === (int) $extra_setting['show_button_in'] ) ) {
-				$title = $opts['contact_label'];
 				add_menu_page(
 					$title,
 					$title,
@@ -600,9 +599,9 @@ class MainWP_Child_Branding {
 
 			if ( isset( $extra_setting['show_button_in'] ) && ( 1 === (int) $extra_setting['show_button_in'] || 3 === (int) $extra_setting['show_button_in'] ) ) {
 				add_submenu_page(
-					null,
+					'admin.php',
 					$title,
-					$opts['contact_label'],
+					$title,
 					'read',
 					'ContactSupport',
 					array(

@@ -98,7 +98,7 @@ class MainWP_Child_Callable {
 		'jetpack_scan'          => 'jetpack_scan',
 		'delete_actions'        => 'delete_actions',
 		'verify_action'         => 'verify_action',
-
+		'api_backups_mysqldump' => 'api_backups_mysqldump',
 	);
 
 	/**
@@ -1089,5 +1089,17 @@ class MainWP_Child_Callable {
 		}
 		$information['deactivated'] = true;
 		MainWP_Helper::write( $information );
+	}
+
+	/**
+	 * Method api_backups_mysqldump()
+	 *
+	 * Fire off the action() function.
+	 *
+	 * @uses MainWP_Child_Api_Backups::action()
+	 * @used-by \MainWP\Extensions\ApiBackups\MainWP_API_Backups_3rd_Party::api_backups_mysqldump()
+	 */
+	public function api_backups_mysqldump() {
+		MainWP_Child_Api_Backups::instance()->api_backups_mysqldump();
 	}
 }

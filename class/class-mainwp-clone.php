@@ -215,7 +215,6 @@ class MainWP_Clone {
 	 * @uses \MainWP\Child\MainWP_Connect::is_valid_auth()
 	 * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
 	 * @uses \MainWP\Child\MainWP_Helper::write()
-	 * @uses \MainWP\Child\MainWP_Utility::upload_file()
 	 */
 	public function request_clone_funct() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 		// phpcs:disable WordPress.Security.NonceVerification
@@ -234,7 +233,7 @@ class MainWP_Clone {
 		if ( 'dl' === $cloneFunc ) {
 			$f = isset( $_REQUEST['f'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['f'] ) ) : '';
 			if ( ! empty( $f ) ) {
-				MainWP_Utility::instance()->upload_file( sanitize_text_field( wp_unslash( $_REQUEST['f'] ) ) );
+				MainWP_Utility::instance()->upload_file_backup( sanitize_text_field( wp_unslash( $_REQUEST['f'] ) ) );
 			}
 			exit;
 		} elseif ( 'deleteCloneBackup' === $cloneFunc ) {
