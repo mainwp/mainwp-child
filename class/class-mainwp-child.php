@@ -33,7 +33,7 @@ class MainWP_Child {
 	 *
 	 * @var string MainWP Child plugin version.
 	 */
-	public static $version = '4.6';
+	public static $version = '5.0';
 
 	/**
 	 * Private variable containing the latest MainWP Child update version.
@@ -96,7 +96,12 @@ class MainWP_Child {
 		add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
 
 		MainWP_Pages::get_instance()->init();
+
+		// Initiate MainWP Cache Control class.
 		MainWP_Child_Cache_Purge::instance();
+
+		// Initiate MainWP Child API Backups class.
+		MainWP_Child_Api_Backups::instance();
 
 		if ( is_admin() ) {
 			MainWP_Helper::update_option( 'mainwp_child_plugin_version', self::$version, 'yes' );

@@ -272,8 +272,11 @@ class MainWP_Child_Stats {
 		}
 
 		if ( ! empty( $_POST['primaryBackup'] ) ) {
-			$primary_bk                           = ! empty( $_POST['primaryBackup'] ) ? sanitize_text_field( wp_unslash( $_POST['primaryBackup'] ) ) : '';
-			$information['primaryLasttimeBackup'] = MainWP_Utility::get_lasttime_backup( $primary_bk );
+			$primary_bk = ! empty( $_POST['primaryBackup'] ) ? sanitize_text_field( wp_unslash( $_POST['primaryBackup'] ) ) : '';
+			$last_time  = MainWP_Utility::get_lasttime_backup( $primary_bk );
+			if ( false !== $last_time ) {
+				$information['primaryLasttimeBackup'] = $last_time; // to fix overwrite other last time primary backup.
+			}
 		}
 
 		$last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );

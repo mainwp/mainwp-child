@@ -104,14 +104,18 @@ class MainWP_Custom_Post_Type {
 	private function import_custom_post() {
 
 		add_filter( 'http_request_host_is_external', '__return_true' );
-		// phpcs:disable WordPress.Security.NonceVerification
-		if ( ! isset( $_POST['data'] ) || strlen( wp_unslash( $_POST['data'] ) ) < 2 ) { //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+		// phpcs:disable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( ! isset( $_POST['data'] ) || ( is_string( $_POST['data'] ) && strlen( wp_unslash( $_POST['data'] ) ) < 2 ) ) {
 			return array( 'error' => esc_html__( 'Missing data', $this->plugin_translate ) );
 		}
-
-		$data = isset( $_POST['data'] ) ? stripslashes( wp_unslash( $_POST['data'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-
-		$data = json_decode( $data, true );
+		$data = array();
+		if ( is_string( $_POST['data'] ) ) { // to compatible.
+			$data = stripslashes( wp_unslash( $_POST['data'] ) );
+			$data = json_decode( $data, true );
+		} elseif ( is_array( $_POST['data'] ) ) {
+			$data = wp_unslash( $_POST['data'] );
+		}
 
 		if ( empty( $data ) || ! is_array( $data ) || ! isset( $data['post'] ) ) {
 			return array( 'error' => esc_html__( 'Cannot decode data', $this->plugin_translate ) );

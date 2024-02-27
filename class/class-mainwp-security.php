@@ -664,9 +664,11 @@ class MainWP_Security {
 		include_once ABSPATH . '/wp-admin/includes/update.php';
 		$ok           = true;
 		$core_updates = get_core_updates();
-		foreach ( $core_updates as $core => $update ) {
-			if ( 'upgrade' === $update->response ) {
-				$ok = false;
+		if ( is_array( $core_updates ) ) {
+			foreach ( $core_updates as $core => $update ) {
+				if ( 'upgrade' === $update->response ) {
+					$ok = false;
+				}
 			}
 		}
 		return $ok;
