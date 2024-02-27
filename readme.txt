@@ -164,6 +164,10 @@ Yes, we have a quick FAQ with a lot more questions and answers [here](https://ma
 
 == Changelog ==
 
+= 5.0 - 2-27-2024 =
+* Added: Support for the new API Backups providers - cPanel and Plesk
+* Updated: Updated the phpSecLib library to enhance security and performance.
+
 = 4.6 - 1-3-2024 =
 * Refactored: Updated and optimized the plugin codebase to align with the latest WordPress coding standards, contributing to better compatibility and performance.
 
