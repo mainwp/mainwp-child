@@ -980,11 +980,11 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function wprocket_auto_cache_purge() {
 
-		// Purge Cache if action is set to "1". ( change to "do_purge").
-		$action       = get_option( 'mainwp_child_auto_purge_cache', false );
+		// Purge Cache if action is set to "1".
+		$do_purge       = get_option( 'mainwp_child_auto_purge_cache', false );
 		$purge_result = array();
 
-		if ( 1 === (int) $action ) {
+		if ( 1 === (int) $do_purge ) {
 			$purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
 		}
 
