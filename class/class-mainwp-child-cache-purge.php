@@ -199,8 +199,11 @@ class MainWP_Child_Cache_Purge {
 	 * @return void
 	 */
 	public function auto_purge_cache( $bulk = '' ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		// Check if Cache Control is enabled.
-		if ( get_option( 'mainwp_child_auto_purge_cache' ) === '1' ) {
+
+		// If Cache Control is enabled, run the cache purge.
+		if ( 1 === get_option( 'mainwp_child_auto_purge_cache' ) ) {
+
+			// Set information array.
 			$information = array();
 
 			// Grab detected cache solution..
@@ -977,10 +980,7 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function wprocket_auto_cache_purge() {
 
-		$success_message = 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-		$error_message   = 'WP Rocket => There was an issue purging your cache.';
-
-		// Purge Cache if action is set to "1".
+		// Purge Cache if action is set to "1". ( change to "do_purge").
 		$action       = get_option( 'mainwp_child_auto_purge_cache', false );
 		$purge_result = array();
 
@@ -988,16 +988,22 @@ class MainWP_Child_Cache_Purge {
 			$purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
 		}
 
-		// Save last purge time to database on success.
+		// Record results & return response.
 		if ( 'SUCCESS' === $purge_result['result'] ) {
+
+			// Save last purge time to database on success.
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			// Return success message.
+			$success_message = 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 			return $this->purge_result( $success_message, 'SUCCESS' );
 
 		} else {
+
 			// Return error message.
+			$error_message   = 'WP Rocket => There was an issue purging your cache.';
 			return $this->purge_result( $error_message, 'ERROR' );
+
 		}
 	}
 
