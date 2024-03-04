@@ -461,7 +461,6 @@ class MainWP_Child_Cache_Purge {
 
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
-		//$flush = self::wp_optimize_cache_flush();
 
 		// Purge Minified files.
 		$minify = self::wp_optimize_purge_minify();
@@ -487,7 +486,6 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function wp_optimize_preload_cache() {
 		if ( class_exists( '\WP_Optimize_Cache_Commands' ) && class_exists( '\WP_Optimize_Page_Cache_Preloader' ) ) {
-
 			// Clear Cache.
 			$purge = new \WP_Optimize_Cache_Commands();
 			$purge->run_cache_preload();
@@ -512,6 +510,21 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
+	 * Purge WP Optimize cache.
+	 *
+	 * @return bool True if successful, false if not.
+	 */
+	public function wp_optimize_purge_cache() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = \WP_Optimize()->get_page_cache()->purge();
+
+			// $cache returns true if successful, false if not.
+			return $cache;
+		}
+		return false;
+	}
+
+	/**
 	 * Check if WP Optimize is installed and cache is enabled.
 	 */
 	public function wp_optimize_activated_check() {
@@ -521,35 +534,6 @@ class MainWP_Child_Cache_Purge {
 				return false;
 			}
 		}
-	}
-
-	/**
-	 * Preload WP Optimize cache after purge.
-	 *
-	 * @return bool True if successful, false if not.
-	 */
-	public function wp_optimize_purge_cache() {
-		if ( class_exists( '\WP_Optimize_Cache_Commands' ) ) {
-
-			// Clear Cache.
-			$purge = new \WP_Optimize_Cache_Commands();
-			$purge->purge_page_cache();
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * Preload WP Optimize cache after purge.
-	 *
-	 * @return bool True if successful, false if not.
-	 */
-	public function wp_optimize_cache_flush() {
-		if ( class_exists( '\WP_Optimize_Cache_Commands' ) ) {
-			wpo_cache_flush();
-			return true;
-		}
-		return false;
 	}
 
 	/**
