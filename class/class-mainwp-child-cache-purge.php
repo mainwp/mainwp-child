@@ -188,7 +188,6 @@ class MainWP_Child_Cache_Purge {
 		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
 		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
 
-		$this->wp_optimize_auto_purge_cache();
 	}
 
 	/**
