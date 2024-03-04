@@ -461,6 +461,7 @@ class MainWP_Child_Cache_Purge {
 
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
+		//$flush = self::wp_optimize_cache_flush();
 
 		// Purge Minified files.
 		$minify = self::wp_optimize_purge_minify();
@@ -469,7 +470,7 @@ class MainWP_Child_Cache_Purge {
 		$preload = self::wp_optimize_preload_cache();
 
 		// Check response & return results.
-		if ( true === $purge && true === $preload || true === $minify && true === $purge && true === $preload ) {
+		if ( true === $purge && true === $preload  || true === $minify && true === $purge && true === $preload  ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			return $this->purge_result( $success_message, 'SUCCESS' );
@@ -528,11 +529,24 @@ class MainWP_Child_Cache_Purge {
 	 * @return bool True if successful, false if not.
 	 */
 	public function wp_optimize_purge_cache() {
-		if ( class_exists( '\WP_Optimize_Cache_Commands' ) && class_exists( '\WP_Optimize_Page_Cache_Preloader' ) ) {
+		if ( class_exists( '\WP_Optimize_Cache_Commands' ) ) {
 
 			// Clear Cache.
 			$purge = new \WP_Optimize_Cache_Commands();
 			$purge->purge_page_cache();
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Preload WP Optimize cache after purge.
+	 *
+	 * @return bool True if successful, false if not.
+	 */
+	public function wp_optimize_cache_flush() {
+		if ( class_exists( '\WP_Optimize_Cache_Commands' ) ) {
+			wpo_cache_flush();
 			return true;
 		}
 		return false;
