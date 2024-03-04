@@ -166,6 +166,7 @@ class MainWP_Child_Cache_Purge {
 		foreach ( $supported_cache_plugins as $plugin => $name ) {
 			if ( is_plugin_active( $plugin ) ) {
 
+				// NOTE: check why this is here & or move it to purge method instead of here.
 				// Check if WP Optimize is active and page cache is enabled or disabled. If disabled, continue to next plugin as if it is not installed.
 				if ( 'wp-optimize/wp-optimize.php' === $plugin ) {
 					if ( class_exists( '\WP_Optimize' ) ) {
@@ -186,6 +187,8 @@ class MainWP_Child_Cache_Purge {
 
 		// Update wp_option 'mainwp_cache_control_cache_solution' with active plugin or "Plugin Not Found".
 		update_option( 'mainwp_cache_control_cache_solution', $cache_plugin_solution );
+
+		$this->wp_optimize_auto_purge_cache();
 	}
 
 	/**
@@ -200,8 +203,9 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function auto_purge_cache( $bulk = '' ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
+		$do_purge = get_option( 'mainwp_child_auto_purge_cache' );
 		// If Cache Control is enabled, run the cache purge.
-		if ( 1 === get_option( 'mainwp_child_auto_purge_cache' ) ) {
+		if ( 1 === $do_purge || '1' === $do_purge ) {
 
 			// Set information array.
 			$information = array();
@@ -281,6 +285,7 @@ class MainWP_Child_Cache_Purge {
 
 			// If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
 			if ( 'Plugin Not Found' === $cache_plugin_solution ) {
+
 				$information = array(
 					'status' => 'Disabled',
 					'action' => 'SUCCESS',
@@ -296,6 +301,7 @@ class MainWP_Child_Cache_Purge {
 			$information = array(
 				'status' => 'Disabled',
 				'action' => 'SUCCESS',
+				'do_purge' => $do_purge,
 			);
 		}
 
@@ -457,11 +463,14 @@ class MainWP_Child_Cache_Purge {
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
 
+		// Purge Minified files.
+		$minify = self::wp_optimize_purge_minify();
+
 		// Preload cache.
 		$preload = self::wp_optimize_preload_cache();
 
 		// Check response & return results.
-		if ( true === $purge && true === $preload ) {
+		if ( true === $purge && true === $preload || true === $minify && true === $purge && true === $preload ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			return $this->purge_result( $success_message, 'SUCCESS' );
@@ -482,6 +491,21 @@ class MainWP_Child_Cache_Purge {
 			// Clear Cache.
 			$purge = new \WP_Optimize_Cache_Commands();
 			$purge->run_cache_preload();
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Purge WP Optimize minified files.
+	 *
+	 * @return bool True if successful, false if not.
+	 */
+	public function wp_optimize_purge_minify() {
+		if ( class_exists( '\WP_Optimize_Minify_Commands') ) {
+			// Clear Cache.
+			$purge = new \WP_Optimize_Minify_Commands();
+			$purge->purge_all_minify_cache();
 			return true;
 		}
 		return false;
