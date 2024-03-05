@@ -500,14 +500,16 @@ class MainWP_Child_Cache_Purge {
 	 * @return bool True if successful, false if not.
 	 */
 	public function wp_optimize_purge_minify() {
-		if ( class_exists( '\WP_Optimize_Minify_Commands') ) {
-			// Clear Cache.
-			$purge = new \WP_Optimize_Minify_Commands();
-			$purge->purge_all_minify_cache();
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = \WP_Optimize()->get_page_cache()->purge();
+
+			// $cache returns true if successful, false if not.
 			return true;
 		}
 		return false;
 	}
+
+
 
 	/**
 	 * Purge WP Optimize cache.
@@ -516,10 +518,10 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function wp_optimize_purge_cache() {
 		if ( class_exists( '\WP_Optimize' ) ) {
-			$cache = \WP_Optimize()->get_page_cache()->purge();
+			$cache = \WP_Optimize()->get_page_cache();
+			$cache->purge();
 
-			// $cache returns true if successful, false if not.
-			return $cache;
+			return true;
 		}
 		return false;
 	}
