@@ -466,7 +466,7 @@ class MainWP_Child_Cache_Purge {
 		$preload = self::wp_optimize_preload_cache();
 
 		// Check response & return results.
-		if ( true === $purge && true === $preload  || true === $minify && true === $purge && true === $preload  ) {
+		if ( ( true === $purge && true === $preload )  || (  true === $minify && true === $purge && true === $preload )  ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			return $this->purge_result( $success_message, 'SUCCESS' );
