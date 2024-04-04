@@ -295,8 +295,8 @@ class MainWP_Child_Cache_Purge {
 		} else {
 			// If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
 			$information = array(
-				'status' => 'Disabled',
-				'action' => 'SUCCESS',
+				'status'   => 'Disabled',
+				'action'   => 'SUCCESS',
 				'do_purge' => $do_purge,
 			);
 		}
@@ -1000,7 +1000,7 @@ class MainWP_Child_Cache_Purge {
 	public function wprocket_auto_cache_purge() {
 
 		// Purge Cache if action is set to "1".
-		$do_purge       = get_option( 'mainwp_child_auto_purge_cache', false );
+		$do_purge     = get_option( 'mainwp_child_auto_purge_cache', false );
 		$purge_result = array();
 
 		if ( 1 === (int) $do_purge ) {
@@ -1020,7 +1020,7 @@ class MainWP_Child_Cache_Purge {
 		} else {
 
 			// Return error message.
-			$error_message   = 'WP Rocket => There was an issue purging your cache.';
+			$error_message = 'WP Rocket => There was an issue purging your cache.';
 			return $this->purge_result( $error_message, 'ERROR' );
 
 		}
