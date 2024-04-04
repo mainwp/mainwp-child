@@ -530,7 +530,7 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
-	private function require_file_path($functionName, $fileName) {
+	private function require_file_path( $functionName, $fileName ) {
 		if ( ! function_exists( $functionName ) && defined( 'WP_ROCKET_FUNCTIONS_PATH' ) ) {
 			require_once WP_ROCKET_FUNCTIONS_PATH . $fileName;
 		}
