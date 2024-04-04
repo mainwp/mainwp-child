@@ -276,6 +276,7 @@ class MainWP_Child_Cache_Purge {
 						break;
 					case 'Pressable Cache Management':
 						$information = $this->pressable_cache_management_auto_purge_cache();
+						break;
 					default:
 						break;
 				}
