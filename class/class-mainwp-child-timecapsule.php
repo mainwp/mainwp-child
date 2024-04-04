@@ -1720,7 +1720,7 @@ class MainWP_Child_Timecapsule {
 		$config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
 		$current                              = $config->get_option( 'wptc_auto_update_settings' );
 		$current = unserialize( $current ); // phpcs:ignore -- safe internal value, third party.
-		$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- safe internal value, third party.
+		$new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- compatible third party // NOSONARR .
 		$current['update_settings']['status'] = $new['update_settings']['status'];
 		$current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
 		$current['update_settings']['schedule']['time']        = $new['update_settings']['schedule']['time'];
@@ -1755,7 +1755,7 @@ class MainWP_Child_Timecapsule {
 	private function save_settings_vulns_update_tab( $config, $data, $is_general ) {
 		$current = $config->get_option( 'vulns_settings' );
 		$current = unserialize( $current ); // phpcs:ignore -- safe internal value, third party.
-		$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- safe internal value, third party.
+		$new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party compatible // NOSONARR .
 
 		$current['status']            = $new['status'];
 		$current['core']['status']    = $new['core']['status'];

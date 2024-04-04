@@ -572,7 +572,7 @@ class MainWP_Child_Posts {
 			$categories      = '';
 			foreach ( $categoryObjects as $cat ) {
 				if ( '' !== $categories ) {
-					$categories .= ', ';
+					$categories .= ',';
 				}
 				$categories .= $cat->name;
 			}
@@ -583,7 +583,7 @@ class MainWP_Child_Posts {
 			if ( is_array( $tagObjects ) ) {
 				foreach ( $tagObjects as $tag ) {
 					if ( '' !== $tags ) {
-						$tags .= ', ';
+						$tags .= ',';
 					}
 					$tags .= $tag->name;
 				}
@@ -1086,7 +1086,8 @@ class MainWP_Child_Posts {
 	private function update_found_images( &$new_post, $upload_dir, $check_image_existed ) {
 
 		// Some images have a href tag to click to navigate to the image.. we need to replace this too.
-		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
+		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg|avif))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
+
 		if ( $foundMatches > 0 ) {
 			// We found images, now to download them so we can start balbal.
 			foreach ( $matches as $match ) {
@@ -1157,7 +1158,7 @@ class MainWP_Child_Posts {
 			$dashboard_url        = str_replace( '/', '\/', $dashboard_url );
 		}
 
-		$foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination, null ) . ')[^\.]*(\.(png|gif|jpg|jpeg))#ix', $content, $matches, PREG_SET_ORDER );
+		$foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination, null ) . ')[^\.]*(\.(png|gif|jpg|jpeg|avif))#ix', $content, $matches, PREG_SET_ORDER );
 
 		if ( 0 < $foundMatches ) {
 

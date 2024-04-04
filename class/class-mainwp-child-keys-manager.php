@@ -98,7 +98,7 @@ class MainWP_Child_Keys_Manager {
 	 * @return string Encrypted value.
 	 */
 	public function encrypt_string( $keypass ) {
-
+		MainWP_Connect_Lib::autoload_files(); // to fix.
 		if ( ! $this->valid_phpseclib3_supported() ) {
 			if ( is_callable( 'sodium_crypto_secretbox' ) ) {
 				$nonce        = $this->get_key_val( 'nonce', 24 ); // $nonce A Number to be used Once; must be 24 bytes.

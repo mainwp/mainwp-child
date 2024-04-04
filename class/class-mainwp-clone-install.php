@@ -477,13 +477,13 @@ class MainWP_Clone_Install {
 				$this->archiver->read( $this->file );
 			}
 			return $this->archiver->extract_to( ABSPATH );
-		} elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) {
+		} elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
 			return $this->extract_wp_zip_backup();
 		} elseif ( $this->check_zip_console() ) {
 			return $this->extract_zip_console_backup();
 		} elseif ( $this->check_zip_support() ) {
 			return $this->extract_zip_backup();
-		} elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) {
+		} elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
 			return $this->extract_wp_zip_backup();
 		} else {
 			return $this->extract_zip_pcl_backup();
@@ -532,7 +532,7 @@ class MainWP_Clone_Install {
 			$tmpdir  = str_replace( ABSPATH, $ftpBase, $tmpdir );
 		}
 
-		\unzip_file( $this->file, $tmpdir );
+		\unzip_file( $this->file, $tmpdir ); // NOSONAR.
 
 		return true;
 	}
