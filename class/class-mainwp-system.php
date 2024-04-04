@@ -86,6 +86,7 @@ class MainWP_System {
 	 */
 	public static function wp_mainwp_version_check() {
 		add_filter( 'automatic_updater_disabled', '__return_true' ); // to prevent auto update on this version check.
+		remove_action( 'wp_maybe_auto_update', 'wp_maybe_auto_update' );
 		wp_version_check();
 	}
 }

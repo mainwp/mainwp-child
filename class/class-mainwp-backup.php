@@ -231,7 +231,7 @@ class MainWP_Backup {
 		} elseif ( $this->check_zip_support() ) {
 			$success = $this->create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
 		} elseif ( $this->check_zip_console() ) {
-			$success = $this->create_zip_console_full_backup();
+			$success = $this->create_zip_console_full_backup(); // NOSONAR .
 		} else {
 			$success = $this->create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
 		}
@@ -239,7 +239,7 @@ class MainWP_Backup {
 		return ( $success ) ? array(
 			'timestamp' => $timestamp,
 			'file'      => $fileurl,
-			'filesize'  => filesize( $filepath ),
+			'filesize'  => filesize( $filepath ), // NOSONAR .
 		) : false;
 	}
 
@@ -265,7 +265,7 @@ class MainWP_Backup {
 
 			$dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir = $dirs[0];
-			$result    = glob( $backupdir . $backupFile . '*' );
+			$result    = glob( $backupdir . $backupFile . '*' ); // NOSONAR .
 
 			// Check if archive, set $archiveFile = $file & break.
 			$archiveFile = false;
@@ -288,7 +288,7 @@ class MainWP_Backup {
 			$backupFile = 'dbBackup-' . $fileNameUID . '-*.sql.php';
 			$dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
 			$backupdir  = $dirs[0];
-			$result     = glob( $backupdir . $backupFile . '*' );
+			$result     = glob( $backupdir . $backupFile . '*' ); // NOSONAR .
 
 			if ( 0 === count( $result ) ) {
 				MainWP_Helper::write( array() );
@@ -598,12 +598,12 @@ class MainWP_Backup {
 
 		$result = $this->create_backup_db( $filepath_prefix, $ext );
 
-		MainWP_Helper::update_option( 'mainwp_child_last_db_backup_size', filesize( $result['filepath'] ) );
+		MainWP_Helper::update_option( 'mainwp_child_last_db_backup_size', filesize( $result['filepath'] ) ); // NOSONAR .
 
 		return ( ! $result ) ? false : array(
 			'timestamp' => $timestamp,
 			'file'      => basename( $result['filepath'] ),
-			'filesize'  => filesize( $result['filepath'] ),
+			'filesize'  => filesize( $result['filepath'] ), // NOSONAR .
 		);
 	}
 
@@ -784,7 +784,7 @@ class MainWP_Backup {
 
 			$return = $this->zip->close();
 			foreach ( $db_files as $db_file ) {
-				wp_delete_file( $db_file );
+				wp_delete_file( $db_file ); // NOSONAR .
 			}
 
 			return true;
@@ -937,7 +937,7 @@ class MainWP_Backup {
 						continue;
 					}
 
-					copy( $node, str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+					copy( $node, str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated - // NOSONAR .
 				}
 			}
 		}
@@ -1019,8 +1019,8 @@ class MainWP_Backup {
 		$this->copy_dir( $nodes, $excludes, $backupFolder, $excludenonwp, true );
 
 		foreach ( $db_files as $db_file ) {
-			copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
-			wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+			copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
+			wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR.
 		}
 
 		unset( $nodes );
@@ -1128,7 +1128,7 @@ class MainWP_Backup {
 				PCLZIP_OPT_ADD_PATH,
 				$localpath
 			);
-			wp_delete_file( $tmpfilename );
+			wp_delete_file( $tmpfilename ); // NOSONAR .
 			if ( ! empty( $add ) ) {
 				return true;
 			}
@@ -1160,13 +1160,13 @@ class MainWP_Backup {
 		$this->zipArchiveSizeCount += filesize( $path );
 		++$this->gcCnt;
 
-		if ( ! $this->loadFilesBeforeZip || ( filesize( $path ) > 5 * 1024 * 1024 ) ) {
+		if ( ! $this->loadFilesBeforeZip || ( filesize( $path ) > 5 * 1024 * 1024 ) ) { // NOSONAR .
 			++$this->zipArchiveFileCount;
 			$added = $this->zip->add_file( $path, $zipEntryName );
 		} else {
 			++$this->zipArchiveFileCount;
 
-			$this->testContent = file_get_contents( $path ); //phpcs:ignore WordPress.WP.AlternativeFunctions
+			$this->testContent = file_get_contents( $path ); //phpcs:ignore WordPress.WP.AlternativeFunctions -- // NOSONAR .
 			if ( false === $this->testContent ) {
 				return false;
 			}
@@ -1261,7 +1261,7 @@ class MainWP_Backup {
 			if ( file_exists( $currentfile ) ) {
 				continue;
 			}
-			$fh = fopen( $currentfile . '.tmp', 'w' );
+			$fh = fopen( $currentfile . '.tmp', 'w' ); // NOSONAR .
 
 			$protect_content_string = '<?php exit(); ?>';
 
@@ -1302,10 +1302,10 @@ class MainWP_Backup {
 			$rows = null;
 			fflush( $fh );
 			fclose( $fh );
-			rename( $currentfile . '.tmp', $currentfile );
+			rename( $currentfile . '.tmp', $currentfile ); // NOSONAR .
 		}
 
-		fclose( fopen( $filepath_prefix . '.sql', 'w' ) );
+		fclose( fopen( $filepath_prefix . '.sql', 'w' ) ); // NOSONAR .
 		$db_files[] = $filepath_prefix . '.sql';
 
 		$archivefilePath = null;

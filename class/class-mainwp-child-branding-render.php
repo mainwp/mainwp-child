@@ -118,7 +118,8 @@ class MainWP_Child_Branding_Render {
 			$from_page = isset( $_GET['from_page'] ) ? rawurldecode( wp_unslash( $_GET['from_page'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		} else {
 			$protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-			$fullurl   = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+			$fullurl   = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+			$fullurl   = $protocol . str_replace( array( 'https://', 'http://' ), '', $fullurl );
 			$from_page = rawurldecode( $fullurl );
 		}
 
