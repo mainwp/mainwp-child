@@ -530,7 +530,7 @@ class MainWP_Child_WP_Rocket {
 		}
 	}
 
-	private function require_file_path($functionName, $fileName) {
+	private function require_file_path( $functionName, $fileName ) {
 		if ( ! function_exists( $functionName ) && defined( 'WP_ROCKET_FUNCTIONS_PATH' ) ) {
 			require_once WP_ROCKET_FUNCTIONS_PATH . $fileName;
 		}
@@ -550,9 +550,9 @@ class MainWP_Child_WP_Rocket {
 			set_transient( 'rocket_clear_cache', 'all', HOUR_IN_SECONDS );
 
 			// Require files to make sure the functions are available.
-			$this->require_file_path('get_rocket_i18n_uri', 'i18n.php');
-			$this->require_file_path('get_rocket_parse_url', 'formatting.php');
-			$this->require_file_path('create_rocket_uniqid', 'admin.php');
+			$this->require_file_path( 'get_rocket_i18n_uri', 'i18n.php' );
+			$this->require_file_path( 'get_rocket_parse_url', 'formatting.php' );
+			$this->require_file_path( 'create_rocket_uniqid', 'admin.php' );
 
 			rocket_clean_domain();
 			rocket_clean_minify();
