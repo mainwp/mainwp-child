@@ -1,21 +1,21 @@
 <?php
-/**
- * MainWP Child Site Cache Purge
- *
- * Manages clearing the selected Cache.
- *
- * @package MainWP\Child
- */
+	/**
+	 * MainWP Child Site Cache Purge
+	 *
+	 * Manages clearing the selected Cache.
+	 *
+	 * @package MainWP\Child
+	 */
 
-namespace MainWP\Child;
+	namespace MainWP\Child;
 
-/**
- * Class MainWP_Child_Cache_Purge
- *
- * This class handles purging Child Site cache when requested.
- *
- * @package MainWP\Child
- */
+	/**
+	 * Class MainWP_Child_Cache_Purge
+	 *
+	 * This class handles purging Child Site cache when requested.
+	 *
+	 * @package MainWP\Child
+	 */
 class MainWP_Child_Cache_Purge {
 
 	/**
@@ -160,6 +160,7 @@ class MainWP_Child_Cache_Purge {
 			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 			'seraphinite-accelerator/plugin_root.php'    => 'Seraphinite Accelerator',
 			'swis-performance/swis-performance.php'      => 'Swis Performance',
+			'pressable-cache-management/pressable-cache-management.php' => 'Pressable Cache Management',
 		);
 
 		// Check if a supported cache plugin is active.
@@ -273,6 +274,8 @@ class MainWP_Child_Cache_Purge {
 					case 'Swis Performance':
 						$information = $this->swis_performance_auto_purge_cache();
 						break;
+					case 'Pressable Cache Management':
+						$information = $this->pressable_cache_management_auto_purge_cache();
 					default:
 						break;
 				}
@@ -333,6 +336,21 @@ class MainWP_Child_Cache_Purge {
 			$result['action'] = 'ERROR';
 		}
 		return $result;
+	}
+
+	/**
+	 * Purge Pressable Cache Management.
+	 */
+	public function pressable_cache_management_auto_purge_cache() {
+
+		$success_message = 'Pressable Cache Management => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+
+		if ( is_callable( 'flush_pressable_cache_callback' ) ) {
+			flush_pressable_cache_callback();
+		}
+		// record results.
+		update_option( 'mainwp_cache_control_last_purged', time() );
+		return $this->purge_result( $success_message, 'SUCCESS' );
 	}
 
 	/**
