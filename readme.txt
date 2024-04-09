@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 5.0.3
+Stable tag: 5.0.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -118,5 +118,8 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 * Fixed: Last purged time not being refreshed when clearing the Cache Control cache
 * Fixed: Resolved a problem with invalid URL encountered when navigating back after submitting a White Label Support Form.
 * Added: Introduced support for the AVIF image format in post and page creation processes.
+* Added: We’ve expanded support for Cache Control extension to include Pressable Cache Management and add the changelog video link the same as in dashboard
+
+[See Video Changelog](https://www.youtube.com/watch?v=5idFDPrgFf8)
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)
