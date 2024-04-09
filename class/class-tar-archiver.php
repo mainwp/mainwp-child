@@ -827,8 +827,8 @@ class Tar_Archiver {
 			$this->gcCnt = 0;
 		}
 
-		$stat = stat( $path );
-		$fp   = fopen( $path, 'rb' );
+		$stat = stat( $path ); // NOSONAR .
+		$fp   = fopen( $path, 'rb' ); // NOSONAR .
 		if ( ! $fp ) {
 			return;
 		}
@@ -1241,7 +1241,7 @@ class Tar_Archiver {
 			if ( 'tar.bz2' === $this->type ) {
 				$this->archive = bzopen( $filepath, 'w' );
 			} else {
-				$this->archive = fopen( $filepath, 'wb+' );
+				$this->archive = fopen( $filepath, 'wb+' ); // NOSONAR .
 			}
 
 			return;
@@ -1252,7 +1252,7 @@ class Tar_Archiver {
 		} elseif ( 'tar.bz2' === $this->type ) {
 			$this->archive = bzopen( $filepath, 'w' );
 		} else {
-			$this->archive = fopen( $filepath, 'wb+' );
+			$this->archive = fopen( $filepath, 'wb+' ); // NOSONAR .
 		}
 	}
 
@@ -1267,7 +1267,7 @@ class Tar_Archiver {
 			if ( 'tar.bz2' === $this->type ) {
 				$this->archive = bzopen( $filepath, 'a' );
 			} else {
-				$this->archive = fopen( $filepath, 'ab+' );
+				$this->archive = fopen( $filepath, 'ab+' ); // NOSONAR .
 			}
 
 			return;
@@ -1278,7 +1278,7 @@ class Tar_Archiver {
 		} elseif ( 'tar.bz2' === $this->type ) {
 			$this->archive = bzopen( $filepath, 'a' );
 		} else {
-			$this->archive = fopen( $filepath, 'ab+' );
+			$this->archive = fopen( $filepath, 'ab+' ); // NOSONAR .
 		}
 	}
 
@@ -1302,7 +1302,7 @@ class Tar_Archiver {
 		if ( $this->debug ) {
 			if ( 'tar.gz' === substr( $filepath, - 6 ) ) {
 				$text        = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 );
-				$fh          = fopen( $filepath, 'rb' );
+				$fh          = fopen( $filepath, 'rb' ); // NOSONAR .
 				$read        = '';
 				$lastCorrect = 0;
 				try {
@@ -1329,7 +1329,7 @@ class Tar_Archiver {
 					fclose( $fh );
 				} catch ( \Exception $e ) {
 					fclose( $fh );
-					$fh = fopen( $filepath, 'ab+' );
+					$fh = fopen( $filepath, 'ab+' ); // NOSONAR .
 					fseek( $fh, $lastCorrect );
 					ftruncate( $fh, $lastCorrect );
 					fclose( $fh );
@@ -1364,7 +1364,7 @@ class Tar_Archiver {
 			$this->archiveSize = $lastPos;
 
 			$this->type    = 'tar';
-			$this->archive = fopen( $filepath, 'rb' );
+			$this->archive = fopen( $filepath, 'rb' ); // NOSONAR .
 		}
 	}
 

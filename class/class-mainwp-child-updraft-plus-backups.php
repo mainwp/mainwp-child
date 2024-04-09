@@ -582,6 +582,9 @@ class MainWP_Child_Updraft_Plus_Backups {
         $settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
         $keys_filter = $this->get_settings_keys();
+        
+        /** @global object $updraftplus UpdraftPlus instance. */
+        global $updraftplus;
 
         $updated = false;
         if ( is_array( $settings ) ) {
@@ -777,6 +780,9 @@ class MainWP_Child_Updraft_Plus_Backups {
                                 $opts['settings'][ $settings_key ]['backup_path'] = $bpath;
                                 \UpdraftPlus_Options::update_updraft_option( $key, $opts );
                             }
+                        } elseif ( 'updraft_interval_increments' === $key ) {
+                            $value = $updraftplus->schedule_backup_increments( $settings[ $key ] );
+                            \UpdraftPlus_Options::update_updraft_option( $key,  $value );
                         } else {
                             \UpdraftPlus_Options::update_updraft_option( $key, $settings[ $key ] );
                         }
@@ -787,10 +793,7 @@ class MainWP_Child_Updraft_Plus_Backups {
                 if ( ! isset( $settings['do_not_save_remote_settings'] ) || empty( $settings['do_not_save_remote_settings'] ) ) {
                     \UpdraftPlus_Options::update_updraft_option( 'updraft_service', $settings['updraft_service'] );
                 }
-
-	            /** @global object $updraftplus UpdraftPlus instance. */
-                global $updraftplus;
-
+	         
                 if ( isset( $settings['updraft_interval'] ) ) {
                     // fix for premium version.
                     $_POST['updraft_interval']        = $settings['updraft_interval'];

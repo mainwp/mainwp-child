@@ -1,21 +1,21 @@
 <?php
-/**
- * MainWP Child Site Cache Purge
- *
- * Manages clearing the selected Cache.
- *
- * @package MainWP\Child
- */
+	/**
+	 * MainWP Child Site Cache Purge
+	 *
+	 * Manages clearing the selected Cache.
+	 *
+	 * @package MainWP\Child
+	 */
 
-namespace MainWP\Child;
+	namespace MainWP\Child;
 
-/**
- * Class MainWP_Child_Cache_Purge
- *
- * This class handles purging Child Site cache when requested.
- *
- * @package MainWP\Child
- */
+	/**
+	 * Class MainWP_Child_Cache_Purge
+	 *
+	 * This class handles purging Child Site cache when requested.
+	 *
+	 * @package MainWP\Child
+	 */
 class MainWP_Child_Cache_Purge {
 
 	/**
@@ -160,6 +160,7 @@ class MainWP_Child_Cache_Purge {
 			'wp-optimize/wp-optimize.php'                => 'WP Optimize',
 			'seraphinite-accelerator/plugin_root.php'    => 'Seraphinite Accelerator',
 			'swis-performance/swis-performance.php'      => 'Swis Performance',
+			'pressable-cache-management/pressable-cache-management.php' => 'Pressable Cache Management',
 		);
 
 		// Check if a supported cache plugin is active.
@@ -199,8 +200,12 @@ class MainWP_Child_Cache_Purge {
 	 * @return void
 	 */
 	public function auto_purge_cache( $bulk = '' ) {  // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		// Check if Cache Control is enabled.
-		if ( get_option( 'mainwp_child_auto_purge_cache' ) === '1' ) {
+
+		$do_purge = get_option( 'mainwp_child_auto_purge_cache' );
+		// If Cache Control is enabled, run the cache purge.
+		if ( 1 === $do_purge || '1' === $do_purge ) {
+
+			// Set information array.
 			$information = array();
 
 			// Grab detected cache solution..
@@ -269,6 +274,9 @@ class MainWP_Child_Cache_Purge {
 					case 'Swis Performance':
 						$information = $this->swis_performance_auto_purge_cache();
 						break;
+					case 'Pressable Cache Management':
+						$information = $this->pressable_cache_management_auto_purge_cache();
+						break;
 					default:
 						break;
 				}
@@ -291,8 +299,9 @@ class MainWP_Child_Cache_Purge {
 		} else {
 			// If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
 			$information = array(
-				'status' => 'Disabled',
-				'action' => 'SUCCESS',
+				'status'   => 'Disabled',
+				'action'   => 'SUCCESS',
+				'do_purge' => $do_purge,
 			);
 		}
 
@@ -328,6 +337,21 @@ class MainWP_Child_Cache_Purge {
 			$result['action'] = 'ERROR';
 		}
 		return $result;
+	}
+
+	/**
+	 * Purge Pressable Cache Management.
+	 */
+	public function pressable_cache_management_auto_purge_cache() {
+
+		$success_message = 'Pressable Cache Management => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+
+		if ( is_callable( 'flush_pressable_cache_callback' ) ) {
+			flush_pressable_cache_callback();
+		}
+		// record results.
+		update_option( 'mainwp_cache_control_last_purged', time() );
+		return $this->purge_result( $success_message, 'SUCCESS' );
 	}
 
 	/**
@@ -454,11 +478,14 @@ class MainWP_Child_Cache_Purge {
 		// Clear Cache.
 		$purge = self::wp_optimize_purge_cache();
 
+		// Purge Minified files.
+		$minify = self::wp_optimize_purge_minify();
+
 		// Preload cache.
 		$preload = self::wp_optimize_preload_cache();
 
 		// Check response & return results.
-		if ( true === $purge && true === $preload ) {
+		if ( ( true === $purge && true === $preload ) || ( true === $minify && true === $purge && true === $preload ) ) {
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			return $this->purge_result( $success_message, 'SUCCESS' );
@@ -485,6 +512,36 @@ class MainWP_Child_Cache_Purge {
 	}
 
 	/**
+	 * Purge WP Optimize minified files.
+	 *
+	 * @return bool True if successful, false if not.
+	 */
+	public function wp_optimize_purge_minify() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = \WP_Optimize()->get_page_cache()->purge();
+
+			// $cache returns true if successful, false if not.
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Purge WP Optimize cache.
+	 *
+	 * @return bool True if successful, false if not.
+	 */
+	public function wp_optimize_purge_cache() {
+		if ( class_exists( '\WP_Optimize' ) ) {
+			$cache = \WP_Optimize()->get_page_cache();
+			$cache->purge();
+
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Check if WP Optimize is installed and cache is enabled.
 	 */
 	public function wp_optimize_activated_check() {
@@ -494,22 +551,6 @@ class MainWP_Child_Cache_Purge {
 				return false;
 			}
 		}
-	}
-
-	/**
-	 * Preload WP Optimize cache after purge.
-	 *
-	 * @return bool True if successful, false if not.
-	 */
-	public function wp_optimize_purge_cache() {
-		if ( class_exists( '\WP_Optimize_Cache_Commands' ) && class_exists( '\WP_Optimize_Page_Cache_Preloader' ) ) {
-
-			// Clear Cache.
-			$purge = new \WP_Optimize_Cache_Commands();
-			$purge->purge_page_cache();
-			return true;
-		}
-		return false;
 	}
 
 	/**
@@ -977,27 +1018,30 @@ class MainWP_Child_Cache_Purge {
 	 */
 	public function wprocket_auto_cache_purge() {
 
-		$success_message = 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-		$error_message   = 'WP Rocket => There was an issue purging your cache.';
-
 		// Purge Cache if action is set to "1".
-		$action       = get_option( 'mainwp_child_auto_purge_cache', false );
+		$do_purge     = get_option( 'mainwp_child_auto_purge_cache', false );
 		$purge_result = array();
 
-		if ( 1 === (int) $action ) {
+		if ( 1 === (int) $do_purge ) {
 			$purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
 		}
 
-		// Save last purge time to database on success.
+		// Record results & return response.
 		if ( 'SUCCESS' === $purge_result['result'] ) {
+
+			// Save last purge time to database on success.
 			update_option( 'mainwp_cache_control_last_purged', time() );
 
 			// Return success message.
+			$success_message = 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 			return $this->purge_result( $success_message, 'SUCCESS' );
 
 		} else {
+
 			// Return error message.
+			$error_message = 'WP Rocket => There was an issue purging your cache.';
 			return $this->purge_result( $error_message, 'ERROR' );
+
 		}
 	}
 

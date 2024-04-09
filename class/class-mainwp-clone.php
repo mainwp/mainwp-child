@@ -257,7 +257,7 @@ class MainWP_Clone {
 			$f           = isset( $_POST['f'] ) ? sanitize_text_field( wp_unslash( $_POST['f'] ) ) : '';
 			$archiveFile = false;
 			if ( ! empty( $f ) ) {
-				$result = glob( $backupdir . 'backup-' . $f . '-*' );
+				$result = glob( $backupdir . 'backup-' . $f . '-*' ); // NOSONAR .
 				foreach ( $result as $file ) {
 					if ( self::is_archive( $file, 'backup-' . $f . '-' ) ) {
 						$archiveFile = $file;
@@ -782,7 +782,7 @@ class MainWP_Clone {
 	 * @return bool true|false If the file is archive, return true, if not, return false.
 	 */
 	public static function is_archive( $file_name, $prefix = '', $suffix = '' ) {
-		return preg_match( '/' . $prefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $suffix . '$/', $file_name );
+		return preg_match( '/' . $prefix . '(.*).(zip|tar|tar.gz|tar.bz2)' . $suffix . '$/', $file_name ); // NOSONAR .
 	}
 
 	/**

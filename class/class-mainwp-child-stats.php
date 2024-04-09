@@ -250,8 +250,9 @@ class MainWP_Child_Stats {
 		$information['securityStats']  = MainWP_Child_Misc::get_instance()->get_security_stats( true );
 
 		// Directory listings!
-		$information['directories'] = isset( $_POST['scan_dir'] ) && ! empty( $_POST['scan_dir'] ) ? $this->scan_dir( ABSPATH, 3 ) : '';
-		$information['categories']  = $this->stats_get_categories();
+		$information['directories']     = isset( $_POST['scan_dir'] ) && ! empty( $_POST['scan_dir'] ) ? $this->scan_dir( ABSPATH, 3 ) : '';
+		$information['categories']      = $this->stats_get_categories( false ); // to compatible.
+		$information['categories_list'] = $this->stats_get_categories();
 
 		$totalsize = $this->stats_get_total_size();
 		if ( ! empty( $totalsize ) ) {
@@ -704,27 +705,40 @@ class MainWP_Child_Stats {
 	/**
 	 * Ger category stats.
 	 *
+	 * @param bool $full_data to support compatible data.
+	 *
 	 * @return array $categories Available Child Site Categories.
 	 */
-	private function stats_get_categories() {
+	private function stats_get_categories( $full_data = true ) {
 		 // phpcs:disable WordPress.Security.NonceVerification
 		$number = isset( $_POST['categories_number'] ) ? intval( $_POST['categories_number'] ) : 300;
 		 // phpcs:ignore WordPress.Security.NonceVerification
 		if ( 300 >= $number ) {
 			$number = 300;
 		}
-		$cats       = get_categories(
+		$cats = get_categories(
 			array(
 				'hide_empty'   => 0,
 				'hierarchical' => true,
 				'number'       => $number,
 			)
 		);
-		$categories = array();
-		foreach ( $cats as $cat ) {
-			$categories[] = $cat->name;
-		}
 
+		$categories = array();
+
+		foreach ( $cats as $cat ) {
+			if ( $full_data ) {
+				$categories[] = array(
+					'term_id'  => $cat->term_id,
+					'name'     => $cat->name,
+					'slug'     => $cat->slug,
+					'taxonomy' => $cat->taxonomy,
+					'parent'   => $cat->parent,
+				);
+			} else {
+				$categories[] = $cat->name;
+			}
+		}
 		return $categories;
 	}
 

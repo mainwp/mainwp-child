@@ -423,14 +423,18 @@ class MainWP_Child_WP_Rocket {
 	 * @uses \MainWP\Child\MainWP_Helper::write()
 	 */
 	public function action() {
+
+		// Check if the WP Rocket plugin is installed on the child website.
 		if ( ! $this->is_plugin_installed ) {
 			MainWP_Helper::write( array( 'error' => esc_html__( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
 			return;
 		}
 
-		$information = array();
-
+		// Action to be performed.
 		$mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+
+		// Run specific wprocket method based on the passed action.
+		$information = array();
 		if ( ! empty( $mwp_action ) ) {
 			try {
 				switch ( $mwp_action ) {
@@ -527,6 +531,20 @@ class MainWP_Child_WP_Rocket {
 	}
 
 	/**
+	 * Method require_file_path()
+	 *
+	 * Include necessary files.
+	 *
+	 * @param string $functionName function Name.
+	 * @param string $fileName file Name.
+	 */
+	private function require_file_path( $functionName, $fileName ) {
+		if ( ! function_exists( $functionName ) && defined( 'WP_ROCKET_FUNCTIONS_PATH' ) ) {
+			require_once WP_ROCKET_FUNCTIONS_PATH . $fileName;
+		}
+	}
+
+	/**
 	 * Method purge_cache_all()
 	 *
 	 * Purge all cache.
@@ -538,22 +556,35 @@ class MainWP_Child_WP_Rocket {
 	public function purge_cache_all() {
 		if ( function_exists( 'rocket_clean_domain' ) || function_exists( 'rocket_clean_minify' ) || function_exists( 'create_rocket_uniqid' ) ) {
 			set_transient( 'rocket_clear_cache', 'all', HOUR_IN_SECONDS );
+
+			// Require files to make sure the functions are available.
+			$this->require_file_path( 'get_rocket_i18n_uri', 'i18n.php' );
+			$this->require_file_path( 'get_rocket_parse_url', 'formatting.php' );
+			$this->require_file_path( 'create_rocket_uniqid', 'admin.php' );
+
 			rocket_clean_domain();
 			rocket_clean_minify();
+
 			if ( function_exists( 'rocket_clean_cache_busting' ) ) {
 				rocket_clean_cache_busting();
 			}
+
 			if ( ! function_exists( 'rocket_dismiss_boxes' ) && defined( 'WP_ROCKET_ADMIN_PATH' ) ) {
 				require_once WP_ROCKET_ADMIN_PATH . 'admin.php';
 			}
+
 			include_once ABSPATH . '/wp-admin/includes/template.php';
+
 			$options                   = get_option( WP_ROCKET_SLUG );
 			$options['minify_css_key'] = create_rocket_uniqid();
 			$options['minify_js_key']  = create_rocket_uniqid();
+
 			remove_all_filters( 'update_option_' . WP_ROCKET_SLUG );
 			update_option( WP_ROCKET_SLUG, $options );
 			rocket_dismiss_box( 'rocket_warning_plugin_modification' );
+
 			return array( 'result' => 'SUCCESS' );
+
 		} else {
 			return array( 'error' => 'function_not_exist' );
 		}

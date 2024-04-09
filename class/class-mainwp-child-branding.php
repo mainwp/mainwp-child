@@ -1184,7 +1184,8 @@ class MainWP_Child_Branding {
 			$href = admin_url( 'admin.php?page=ContactSupport&from_page=' . ( ! empty( $_GET['from_page'] ) ? rawurlencode( esc_url_raw( wp_unslash( $_GET['from_page'] ) ) ) : '' ) );
 		} else {
 			$protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-			$fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? $protocol . esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+			$fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+			$fullurl  = $protocol . str_replace( array( 'https://', 'http://' ), '', $fullurl );
 			$href     = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( $fullurl ) );
 		}
 		// phpcs:enable

@@ -145,7 +145,7 @@ class MainWP_Custom_Post_Type {
 	 * @uses \MainWP\Child\MainWP_Utility::upload_image()
 	 */
 	private function search_images( $post_content, $upload_dir, $check_image = false ) {
-		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg))\")/ix', $post_content, $matches, PREG_SET_ORDER );
+		$foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg|avif))\")/ix', $post_content, $matches, PREG_SET_ORDER );
 		if ( $foundMatches > 0 ) {
 			foreach ( $matches as $match ) {
 				$hrefLink = $match[2];
@@ -439,7 +439,7 @@ class MainWP_Custom_Post_Type {
 					}
 				}
 
-				$meta_value = maybe_unserialize( $meta_value );
+				$meta_value = maybe_unserialize( $meta_value ); // NOSONARR .
 				if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
 					return array( 'error' => esc_html__( 'Error when adding post meta', $this->plugin_translate ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
 				}

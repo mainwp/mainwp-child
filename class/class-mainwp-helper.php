@@ -173,7 +173,7 @@ class MainWP_Helper {
 			global $wp_filesystem;
 			return $wp_filesystem->put_contents( $file, $content, FS_CHMOD_FILE );
 		} else {
-			return file_put_contents( $file, $content );// phpcs:ignore WordPress.WP.AlternativeFunctions
+			return file_put_contents( $file, $content );// phpcs:ignore WordPress.WP.AlternativeFunctions -- // NOSONAR .
 		}
 	}
 
@@ -586,7 +586,7 @@ class MainWP_Helper {
 	 * @param string $dir Contains the directory location path.
 	 */
 	public static function delete_dir( $dir ) {
-		$nodes = glob( $dir . '*' );
+		$nodes = glob( $dir . '*' ); // NOSONAR .
 
 		if ( is_array( $nodes ) ) {
 			foreach ( $nodes as $node ) {

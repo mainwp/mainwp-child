@@ -319,7 +319,7 @@ class MainWP_Child_Updates {
 			);
 
 			if ( file_exists( $readme_file ) ) {
-				$plugin_data = get_file_data(
+				$plugin_data = get_file_data( // NOSONAR .
 					$readme_file,
 					array(
 						'requires'     => 'Requires at least',

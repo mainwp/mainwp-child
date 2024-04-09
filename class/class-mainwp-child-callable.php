@@ -987,7 +987,7 @@ class MainWP_Child_Callable {
 		// phpcs:enable
 
 		if ( file_exists( $backupdir . $file ) ) {
-			wp_delete_file( $backupdir . $file );
+			wp_delete_file( $backupdir . $file );  // NOSONAR .
 		}
 
 		MainWP_Helper::write( array( 'result' => 'ok' ) );

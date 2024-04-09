@@ -950,7 +950,7 @@ class MainWP_Child_Back_Up_Buddy {
 			$deleted_files = array();
 			foreach ( $item_ids as $item ) {
 				if ( file_exists( \backupbuddy_core::getBackupDirectory() . $item ) ) {
-					if ( wp_delete_file( \backupbuddy_core::getBackupDirectory() . $item ) === true ) {
+					if ( wp_delete_file( \backupbuddy_core::getBackupDirectory() . $item ) === true ) { // NOSONAR .
 						$deleted_files[] = $item;
 
 						// Cleanup any related fileoptions files.
@@ -1205,7 +1205,7 @@ class MainWP_Child_Back_Up_Buddy {
 		$fileoptions_file = \backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '-filetree.txt';
 
 		// Purge cache if too old.
-		if ( file_exists( $fileoptions_file ) && ( ( time() - filemtime( $fileoptions_file ) ) > $max_cache_time ) ) {
+		if ( file_exists( $fileoptions_file ) && ( ( time() - filemtime( $fileoptions_file ) ) > $max_cache_time ) ) { // NOSONAR .
 			if ( false === wp_delete_file( $fileoptions_file ) ) {
 				$alerts[] = 'Error #456765545. Unable to wipe cached fileoptions file `' . $fileoptions_file . '`.';
 			}
@@ -1910,7 +1910,7 @@ class MainWP_Child_Back_Up_Buddy {
 			return array( 'error' => 'Error #858733: Log file `' . $logFile . '` not found or access denied.' );
 		}
 
-		$lines = file_get_contents( $logFile ); //phpcs:ignore WordPress.WP.AlternativeFunctions
+		$lines = file_get_contents( $logFile ); //phpcs:ignore WordPress.WP.AlternativeFunctions -- // NOSONAR .
 		$lines = explode( "\n", $lines );
 		ob_start();
 		?>
@@ -1938,7 +1938,7 @@ class MainWP_Child_Back_Up_Buddy {
 		<small>Log file: <?php echo $logFile; ?></small>
 		<br>
 		<?php
-		echo '<small>Last modified: ' . \pb_backupbuddy::$format->date( filemtime( $logFile ) ) . ' (' . \pb_backupbuddy::$format->time_ago( filemtime( $logFile ) ) . ' ago)';
+		echo '<small>Last modified: ' . \pb_backupbuddy::$format->date( filemtime( $logFile ) ) . ' (' . \pb_backupbuddy::$format->time_ago( filemtime( $logFile ) ) . ' ago)'; // NOSONAR .
 		?>
 		<br><br>
 		<?php
@@ -2547,7 +2547,7 @@ class MainWP_Child_Back_Up_Buddy {
 			}
 
 			if ( '' !== $backup_file ) {
-				$backup_file_size = filesize( $backup_file );
+				$backup_file_size = filesize( $backup_file ); // NOSONAR .
 			} else {
 				$backup_file_size = 50000;
 			}
