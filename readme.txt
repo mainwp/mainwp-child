@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 5.0
+Stable tag: 5.0.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -111,8 +111,12 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
-= 5.0 - 2-27-2024 =
-* Added: Support for the new API Backups providers - cPanel and Plesk
-* Updated: Updated the phpSecLib library to enhance security and performance.
+= 5.0.1 - 4-9-2024 =
+* Fixed: Post subcategories sharing the same name but belonging to different main categories are now correctly displayed.
+* Fixed: Addressed a scenario where the MainWP Child plugin inadvertently triggered Core updates.
+* Fixed: The detection of WP Optimize caching plugin in the Cache Control extension
+* Fixed: Last purged time not being refreshed when clearing the Cache Control cache
+* Fixed: Resolved a problem with invalid URL encountered when navigating back after submitting a White Label Support Form.
+* Added: Introduced support for the AVIF image format in post and page creation processes.
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)
