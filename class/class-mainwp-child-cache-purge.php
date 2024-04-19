@@ -678,7 +678,7 @@ class MainWP_Child_Cache_Purge {
 		$success_message = 'RunCloud Hub => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 		$error_message   = 'RunCloud Hub => There was an issue purging your cache.';
 
-		if ( class_exists( 'RunCloud_Hub' ) && method_exists('RunCloud_Hub', 'purge_cache_all') ) {
+		if ( class_exists( 'RunCloud_Hub' ) && method_exists( 'RunCloud_Hub', 'purge_cache_all' ) ) {
 
 			// Clear RunCloud Hub Cache after update.
 			\RunCloud_Hub::purge_cache_all();
