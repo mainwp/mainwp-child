@@ -161,6 +161,7 @@ class MainWP_Child_Cache_Purge {
 			'seraphinite-accelerator/plugin_root.php'    => 'Seraphinite Accelerator',
 			'swis-performance/swis-performance.php'      => 'Swis Performance',
 			'pressable-cache-management/pressable-cache-management.php' => 'Pressable Cache Management',
+			'runcloud-hub/runcloud-hub.php'              => 'RunCloud Hub',
 		);
 
 		// Check if a supported cache plugin is active.
@@ -276,6 +277,9 @@ class MainWP_Child_Cache_Purge {
 						break;
 					case 'Pressable Cache Management':
 						$information = $this->pressable_cache_management_auto_purge_cache();
+						break;
+					case 'RunCloud Hub':
+						$information = $this->runcloud_hub_auto_purge_cache();
 						break;
 					default:
 						break;
@@ -653,6 +657,31 @@ class MainWP_Child_Cache_Purge {
 
 			// Clear Nitropack Cache after update.
 			nitropack_purge();
+
+			// record results.
+			update_option( 'mainwp_cache_control_last_purged', time() );
+
+			return $this->purge_result( $success_message, 'SUCCESS' );
+
+		} else {
+			return $this->purge_result( $error_message, 'ERROR' );
+		}
+	}
+
+	/**
+	 * Purge RunCloud Hub cache.
+	 *
+	 * @return array Purge results array.
+	 */
+	public function runcloud_hub_auto_purge_cache() {
+
+		$success_message = 'RunCloud Hub => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+		$error_message   = 'RunCloud Hub => There was an issue purging your cache.';
+
+		if ( class_exists( 'RunCloud_Hub' ) && method_exists( 'RunCloud_Hub', 'purge_cache_all' ) ) {
+
+			// Clear RunCloud Hub Cache after update.
+			\RunCloud_Hub::purge_cache_all();
 
 			// record results.
 			update_option( 'mainwp_cache_control_last_purged', time() );
