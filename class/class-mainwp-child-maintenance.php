@@ -224,7 +224,7 @@ class MainWP_Child_Maintenance {
          */
         global $wpdb;
 
-        return $wpdb->get_results( $wpdb->prepare( " SELECT	`post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        return $wpdb->get_results( $wpdb->prepare( " SELECT `post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
     }
 
     /**

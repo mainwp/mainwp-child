@@ -756,7 +756,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array|int[]|string[] On success return success[1] response['DELETED'] & error['message'] on failure.
      */
-    protected function delete_backup() {
+    protected function delete_backup() { //phpcs:ignore -- NOSONAR - multi return.
         if ( ! isset( $_POST['settings']['backupfile'] ) ) {
             return array( 'error' => esc_html__( 'Missing backupfile.', 'mainwp-child' ) );
         }
