@@ -948,7 +948,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
      * @return mixed $input The validated option.
      */
     public function options_validate( $input ) {
-        $ehash = substr( md5( $input['email'] ), 0, 23 );
+        $ehash = substr( md5( $input['email'] ), 0, 23 ); // NOSONAR - 3rd compatible.
         delete_site_transient( 'udaddons_connect_' . $ehash );
 
         return $input;

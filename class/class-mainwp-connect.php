@@ -863,7 +863,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             while ( isset( $auths[ $newI ] ) ) {
                 unset( $auths[ $newI++ ] );
             }
-            $auths[ $this->maxHistory ] = md5( MainWP_Helper::rand_string( 14 ) );
+            $auths[ $this->maxHistory ] = md5( MainWP_Helper::rand_string( 14 ) ); // NOSONAR - safe.
             $auths['last']              = time();
             MainWP_Helper::update_option( 'mainwp_child_auth', $auths, 'yes' );
         }

@@ -526,7 +526,7 @@ class MainWP_Child_Install {
             }
 
             if ( ! empty( $fileName ) ) {
-                do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
+                do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' ); // NOSONAR - no IP.
                 do_action( 'mainwp_child_install_plugin_theme', $args );
 
                 if ( isset( $_POST['activatePlugin'] ) && 'yes' === $_POST['activatePlugin'] ) {
@@ -550,7 +550,7 @@ class MainWP_Child_Install {
                     $args['version'] = $theme->version;
                 }
             }
-            do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' );
+            do_action_deprecated( 'mainwp_child_installPluginTheme', array( $args ), '4.0.7.1', 'mainwp_child_install_plugin_theme' ); // NOSONAR - no IP.
             do_action( 'mainwp_child_install_plugin_theme', $args );
         }
         $output = $args;
