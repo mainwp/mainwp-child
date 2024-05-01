@@ -1145,7 +1145,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
      * @used-by MainWP_Child_Server_Information::render_php_settings_rows() Render PHP settings information rows.
      * @used-by MainWP_Child_Server_Information::render_mysql_infor_rows() Render MySQL settings information rows.
      */
-    protected static function render_row( $config, $compare, $version, $getter, $extra_text = '', $extra_compare = null, $extra_version = null, $size_compare = false ) {
+    protected static function render_row( $config, $compare, $version, $getter, $extra_text = '', $extra_compare = null, $extra_version = null, $size_compare = false ) { //phpcs:ignore -- NOSONAR - multi params.
         $currentVersion = call_user_func( array( static::get_class_name(), $getter ) );
         ?>
         <tr>
