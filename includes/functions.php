@@ -26,7 +26,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
          * @return false|int False if the nonce is invalid, 1 if the nonce is valid and generated between
          *                   0-12 hours ago, 2 if the nonce is valid and generated between 12-24 hours ago.
          */
-        function wp_verify_nonce( $nonce, $action = - 1 ) {
+        function wp_verify_nonce( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return.
             $nonce = (string) $nonce;
             $user  = wp_get_current_user();
             $uid   = (int) $user->ID;

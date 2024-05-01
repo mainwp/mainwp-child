@@ -133,8 +133,7 @@ class MainWP_Child_Keys_Manager {
                 $encryptedValue = $iv . $ciphertext . $tag;
 
                 // Encode the encrypted value using base64 for storage.
-                $encodedValue = base64_encode( $encryptedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe values.
-                return $encodedValue;
+                return base64_encode( $encryptedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe values.
             } catch ( MainWP_Exception $ex ) {
                 // error.
             }
@@ -157,6 +156,8 @@ class MainWP_Child_Keys_Manager {
             return '';
         }
 
+        $result = '';
+
         if ( ! $this->valid_phpseclib3_supported() ) {
             if ( is_callable( 'sodium_crypto_secretbox_open' ) ) {
                 $encodedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
@@ -166,7 +167,7 @@ class MainWP_Child_Keys_Manager {
             } else {
                 $decoded = MainWP_Utility::encrypt_decrypt( $encodedValue, false );
             }
-            return $decoded;
+            $result = $decoded;
         } else {
 
             try {
@@ -192,14 +193,13 @@ class MainWP_Child_Keys_Manager {
                 $aes->setTag( $tag );
 
                 // Decrypt the value.
-                $keypass = $aes->decrypt( $ciphertext );
+                $result = $aes->decrypt( $ciphertext );
 
-                return $keypass;
             } catch ( MainWP_Exception $ex ) {
                 // error.
             }
         }
-        return '';
+        return $result;
     }
 
     /**

@@ -890,12 +890,13 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             if ( 'wp_cli' === $this->get_current_agent() ) {
                 return 'WP-CLI';
             }
-            return esc_html__( 'N/A', 'mainwp-child' );
+            $title = esc_html__( 'N/A', 'mainwp-child' );
         } elseif ( ! empty( $user->display_name ) ) {
-                return $user->display_name;
+            $title = $user->display_name;
         } else {
-            return $user->user_login;
+            $title = $user->user_login;
         }
+        return $title;
     }
 
     /**

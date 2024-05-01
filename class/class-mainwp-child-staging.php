@@ -347,12 +347,11 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
 
         $options = $scan->getOptions();
 
-        $return = array(
+        return array(
             'options'          => wp_json_encode( $options ), // phpcs:ignore -- to compatible http encoding.
             'prefix'           => '2.8' === $this->plugin_version ? \WPStaging\Core\WPStaging::getTablePrefix() : \WPStaging\WPStaging::getTablePrefix(),
             'directoryListing' => $scan->directoryListing(),
         );
-        return $return;
     }
 
 
@@ -552,13 +551,11 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
     public function ajax_delete_confirmation() {
         $delete = new \WPStaging\Backend\Modules\Jobs\Delete();
         $delete->setData();
-        $clone  = $delete->getClone();
-        $result = array(
+        $clone = $delete->getClone();
+        return array(
             'clone'        => $clone,
             'deleteTables' => $delete->getTables(),
         );
-
-        return $result;
     }
 
     /**
@@ -664,17 +661,15 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
         }
         $freeSpace = disk_free_space( ABSPATH );
         if ( false === $freeSpace ) {
-            $data = array(
+            return array(
                 'freespace' => false,
                 'usedspace' => $this->format_size( $this->get_directory_size_incl_subdirs( ABSPATH ) ),
             );
-            return $data;
         }
-        $data = array(
+        return array(
             'freespace' => $this->format_size( $freeSpace ),
             'usedspace' => $this->format_size( $this->get_directory_size_incl_subdirs( ABSPATH ) ),
         );
-        return $data;
     }
 
     /**

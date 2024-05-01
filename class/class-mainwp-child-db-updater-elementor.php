@@ -244,7 +244,7 @@ class MainWP_Child_DB_Updater_Elementor {
      *
      * @return array Action result.
      */
-    protected function do_db_upgrade( $pro = false ) {
+    protected function do_db_upgrade( $pro = false ) { // phpcs:ignore -- NOSONAR - multi return.
         $manager_class = $this->get_update_db_manager_class( $pro );
 
         MainWP_Helper::instance()->check_classes_exists( array( $manager_class, '\Elementor\Plugin' ) );
@@ -253,11 +253,7 @@ class MainWP_Child_DB_Updater_Elementor {
         // var \Elementor\Core\Upgrade\Manager $manager.
         $manager = new $manager_class();
 
-        if ( ! $this->check_parent_method( $manager, 'get_task_runner' ) ) {
-            return false;
-        }
-
-        if ( ! $this->check_parent_method( $manager, 'should_upgrade' ) ) {
+        if ( ! $this->check_parent_method( $manager, 'get_task_runner' ) || ! $this->check_parent_method( $manager, 'should_upgrade' ) ) {
             return false;
         }
 
@@ -267,25 +263,7 @@ class MainWP_Child_DB_Updater_Elementor {
             return true;
         }
 
-        if ( ! $this->check_parent_method( $updater, 'handle_immediately' ) ) {
-            return false;
-        }
-
-        if ( ! $this->check_parent_method( $manager, 'get_upgrade_callbacks' ) ) {
-            return false;
-        }
-
-        if ( ! $this->check_parent_method( $manager, 'get_plugin_label' ) ) {
-            return false;
-        }
-        if ( ! $this->check_parent_method( $manager, 'get_current_version' ) ) {
-            return false;
-        }
-        if ( ! $this->check_parent_method( $manager, 'get_new_version' ) ) {
-            return false;
-        }
-
-        if ( ! $this->check_parent_method( $manager, 'on_runner_complete' ) ) {
+        if ( ! $this->check_parent_method( $updater, 'handle_immediately' ) || ! $this->check_parent_method( $manager, 'get_upgrade_callbacks' ) || ! $this->check_parent_method( $manager, 'get_plugin_label' ) || ! $this->check_parent_method( $manager, 'get_current_version' ) || ! $this->check_parent_method( $manager, 'get_new_version' ) || ! $this->check_parent_method( $manager, 'on_runner_complete' ) ) {
             return false;
         }
 
@@ -323,21 +301,13 @@ class MainWP_Child_DB_Updater_Elementor {
      * @return array Action result.
      */
     public function check_parent_method( $obj, $func ) {
-
         if ( method_exists( $obj, $func ) ) {
             return true;
         }
-
         $parent_cls = get_parent_class( $obj );
-
-        if ( empty( $parent_cls ) ) {
+        if ( empty( $parent_cls ) || ! method_exists( $parent_cls, $func ) ) {
             return false;
         }
-
-        if ( method_exists( $parent_cls, $func ) ) {
-            return true;
-        }
-
-        return false;
+        return true;
     }
 }

@@ -481,8 +481,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
             case 'authfailed':
                 if ( ! empty( $response['authproblem'] ) ) {
                     if ( 'invalidpassword' === $response['authproblem'] ) {
-                        $authfail_error = new \WP_Error( 'authfailed', esc_html__( 'Your email address was valid, but your password was not recognised by UpdraftPlus.Com.', 'updraftplus' ) . ' <a href="https://updraftplus.com/my-account/lost-password/">' . esc_html__( 'If you have forgotten your password, then go here to change your password on updraftplus.com.', 'updraftplus' ) . '</a>' );
-                        return $authfail_error;
+                        return new \WP_Error( 'authfailed', esc_html__( 'Your email address was valid, but your password was not recognised by UpdraftPlus.Com.', 'updraftplus' ) . ' <a href="https://updraftplus.com/my-account/lost-password/">' . esc_html__( 'If you have forgotten your password, then go here to change your password on updraftplus.com.', 'updraftplus' ) . '</a>' );
                     } elseif ( 'invaliduser' === $response['authproblem'] ) {
                         return new \WP_Error( 'authfailed', esc_html__( 'You entered an email address that was not recognised by UpdraftPlus.Com', 'updraftplus' ) );
                     }
@@ -3381,7 +3380,7 @@ ENDHERE;
      * @return string Download button html.
      */
     private function download_button( $type, $key, $findex, $nonce_field, $ide, $pdescrip, $esc_pretty_date, $set_contents ) { // phpcs:ignore -- NOSONAR - compatible.
-        $ret = <<<ENDHERE
+        return <<<ENDHERE
         <div style="float: left; clear: none;">
             <form id="uddownloadform_{$type}_{$key}_{$findex}" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', '$key', '$type', '#mwp_ud_downloadstatus', '$set_contents', '$esc_pretty_date', true, this )" method="post">
                 $nonce_field
@@ -3393,8 +3392,6 @@ ENDHERE;
             </form>
         </div>
 ENDHERE;
-
-        return $ret;
     }
 
     /**
@@ -4020,14 +4017,11 @@ ENDHERE;
         } else {
             $log_content .= esc_html__( 'The log file could not be read.', 'updraftplus' );
         }
-
-        $ret_array = array(
+        return array(
             'html'    => $log_content,
             'nonce'   => $nonce,
             'pointer' => $new_pointer,
         );
-
-        return $ret_array;
     }
 
     /**

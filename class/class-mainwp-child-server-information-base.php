@@ -79,7 +79,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
      * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
      * @uses MainWP_Exception::getMessage()
      */
-    protected static function check_mainwp_directory( &$message = '', &$path = '' ) {
+    protected static function check_mainwp_directory( &$message = '', &$path = '' ) { // phpcs:ignore -- NOSONAR - compatible, multi return.
         $path = '';
         try {
             $dirs = MainWP_Helper::get_mainwp_dir( null, false );
@@ -269,9 +269,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
         if ( defined( 'MAINWP_SAVE_FS_METHOD' ) ) {
             return MAINWP_SAVE_FS_METHOD;
         }
-        $fs = get_filesystem_method();
-
-        return $fs;
+        return get_filesystem_method();
     }
 
     /**
@@ -280,9 +278,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
      * @return string $currentVersion The MainWP Child plugin current version.
      */
     protected static function get_current_version() {
-        $currentVersion = get_option( 'mainwp_child_plugin_version' );
-
-        return $currentVersion;
+        return get_option( 'mainwp_child_plugin_version' );
     }
 
     /**
@@ -366,9 +362,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
      * @return bool If multisite detected, return false, if not, return true.
      */
     protected static function check_if_multisite() {
-        $isMultisite = ! is_multisite() ? true : false;
-
-        return $isMultisite;
+        return ! is_multisite() ? true : false;
     }
 
     /**
@@ -544,8 +538,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
             $wpdb->dbname
         );
 
-        $dbsize_mb = $wpdb->get_var( $sql ); // phpcs:ignore -- unprepared SQL.
-        return $dbsize_mb;
+        return $wpdb->get_var( $sql ); // phpcs:ignore -- unprepared SQL.
     }
 
     /**

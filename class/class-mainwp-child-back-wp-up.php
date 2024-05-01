@@ -345,9 +345,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::instance()->check_methods( '\BackWPup_File', array( 'get_absolute_path' ) );
             MainWP_Helper::instance()->check_methods( '\BackWPup_Job', array( 'read_logheader' ) );
             $lasttime_logged = MainWP_Utility::get_lasttime_backup( 'backwpup' );
-            $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
-            $log_folder = \BackWPup_File::get_absolute_path( $log_folder );
-            $log_folder = untrailingslashit( $log_folder );
+            $log_folder      = get_site_option( 'backwpup_cfg_logfolder' );
+            $log_folder      = \BackWPup_File::get_absolute_path( $log_folder );
+            $log_folder      = untrailingslashit( $log_folder );
 
             $logfiles = array();
             $dir      = opendir( $log_folder );
@@ -432,7 +432,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
      */
-    public function sync_others_data($information, $data = array() ) {
+    public function sync_others_data( $information, $data = array() ) {
         if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
             try {
                 $lastbackup                      = MainWP_Utility::get_lasttime_backup( 'backwpup' );
@@ -550,9 +550,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
     /**
      * Build the MainWP BackWPup Page Settings.
+     *
      * @return array $output Returned information array.
      */
-    protected function information() { // NOSONAR - WP compatible.
+    protected function information() { //phpcs:ignore -- NOSONAR - complex.
+        // NOSONAR - WP compatible.
 
         /** @global $wpdb wpdb */
         global $wpdb;
@@ -602,9 +604,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         echo '<tr><td>' . esc_html__( 'Temp folder:', 'mainwp-child' ) . '</td><td>';
         if ( ! is_dir( \BackWPup::get_plugin_data( 'TEMP' ) ) ) {
-            echo sprintf( esc_html__( 'Temp folder %s doesn\'t exist.', 'mainwp-child' ), esc_html( \BackWPup::get_plugin_data( 'TEMP' ) ) );
+            printf( esc_html__( 'Temp folder %s doesn\'t exist.', 'mainwp-child' ), esc_html( \BackWPup::get_plugin_data( 'TEMP' ) ) );
         } elseif ( ! is_writable( \BackWPup::get_plugin_data( 'TEMP' ) ) ) {
-            echo sprintf( esc_html__( 'Temporary folder %s is not writable.', 'mainwp-child' ), esc_html( \BackWPup::get_plugin_data( 'TEMP' ) ) );
+            printf( esc_html__( 'Temporary folder %s is not writable.', 'mainwp-child' ), esc_html( \BackWPup::get_plugin_data( 'TEMP' ) ) );
         } else {
             echo esc_html( \BackWPup::get_plugin_data( 'TEMP' ) );
         }
@@ -615,9 +617,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $log_folder = \BackWPup_File::get_absolute_path( get_site_option( 'backwpup_cfg_logfolder' ) );
 
         if ( ! is_dir( $log_folder ) ) {
-            echo sprintf( esc_html__( 'Logs folder %s not exist.', 'mainwp-child' ), esc_html( $log_folder ) );
+            printf( esc_html__( 'Logs folder %s not exist.', 'mainwp-child' ), esc_html( $log_folder ) );
         } elseif ( ! is_writable( $log_folder ) ) {
-            echo sprintf( esc_html__( 'Log folder %s is not writable.', 'mainwp-child' ), esc_html( $log_folder ) );
+            printf( esc_html__( 'Log folder %s is not writable.', 'mainwp-child' ), esc_html( $log_folder ) );
         } else {
             echo esc_html( $log_folder );
         }
@@ -697,6 +699,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => esc_html__( 'Missing logfile.', 'mainwp-child' ) );
         }
 
+        $result = array();
+
         $dir = get_site_option( 'backwpup_cfg_logfolder' );
         $dir = \BackWPup_File::get_absolute_path( $dir );
 
@@ -704,10 +708,14 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             $logfile = basename( $logfile );
 
             if ( ! is_writeable( $dir ) ) {
-                return array( 'error' => esc_html__( 'Directory not writable:', 'mainwp-child' ) . $dir );
+                $result = array( 'error' => esc_html__( 'Directory not writable:', 'mainwp-child' ) . $dir );
             }
             if ( ! is_file( $dir . $logfile ) ) {
-                return array( 'error' => esc_html__( 'Not file:', 'mainwp-child' ) . $dir . $logfile );
+                $result = array( 'error' => esc_html__( 'Not file:', 'mainwp-child' ) . $dir . $logfile );
+            }
+
+            if ( $result ) {
+                return $result;
             }
 
             wp_delete_file( $dir . $logfile );
@@ -1070,11 +1078,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * Verify nonce without session.
      *
      * @param string $nonce Nonce to verify.
-     * @param int $action Action to perform.
+     * @param int    $action Action to perform.
      *
      * @return bool|int FALSE on failure. 1 or 2 on success.
      */
-    protected function verify_nonce_without_session($nonce, $action = - 1 ) {
+    protected function verify_nonce_without_session( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
         $nonce = (string) $nonce;
         $user  = wp_get_current_user();
         $uid   = (int) $user->ID;
@@ -1088,17 +1096,19 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $i = wp_nonce_tick();
 
+        $result = false;
+
         $expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
         if ( hash_equals( $expected, $nonce ) ) {
-            return 1;
+            $result = 1;
         }
 
         $expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
         if ( hash_equals( $expected, $nonce ) ) {
-            return 2;
+            $result = 2;
         }
 
-        return false;
+        return $result;
     }
 
     /**
@@ -1169,7 +1179,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array[ success, response, logfile ] or array[ error ]
      */
-    protected function backup_now() {
+    protected function backup_now() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
 
         if ( ! isset( $_POST['settings']['job_id'] ) ) {
             return array( 'error' => esc_html__( 'Missing job_id', 'mainwp-child' ) );
@@ -1322,7 +1332,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 global $phpmailer;
 
                 if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {
-                    if ( file_exists( ABSPATH . WPINC . '/PHPMailer/PHPMailer.php' )) {
+                    if ( file_exists( ABSPATH . WPINC . '/PHPMailer/PHPMailer.php' ) ) {
                         require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/PHPMailer/Exception.php'; // NOSONAR - WP compatible.
@@ -1650,7 +1660,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $to_exclude_parsed = array();
         foreach ( $to_exclude as $key => $value ) {
             $value = trim( $value );
-            if(empty($value)){
+            if ( empty( $value ) ) {
                 continue;
             }
             $normalized = wp_normalize_path( $value );
@@ -1669,7 +1679,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $to_include_parsed = array();
         foreach ( $to_include as $key => $value ) {
             $value = trim( $value );
-            if(empty($value)){
+            if ( empty( $value ) ) {
                 continue;
             }
             $normalized = trailingslashit( wp_normalize_path( $value ) );
@@ -1795,10 +1805,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             }
         } elseif ( 'dest-DROPBOX' === $settings['tab'] ) {
             unset( $settings['value'] );
-            if(isset($_POST['settings']['value']['dropboxdir'])){
+            if ( isset( $_POST['settings']['value']['dropboxdir'] ) ) {
                 $val = wp_unslash( $_POST['settings']['value']['dropboxdir'] );
-                if( '%do-not-update%' === $val || '%do-not-update%/' === $val ){
-                    $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get($job_id, 'dropboxdir');
+                if ( '%do-not-update%' === $val || '%do-not-update%/' === $val ) {
+                    $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get( $job_id, 'dropboxdir' );
                 }
             }
         } else {
@@ -1866,7 +1876,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array success, changes, message[].
      */
-    protected function update_settings() {
+    protected function update_settings() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
@@ -1877,7 +1887,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => esc_html__( 'Install BackWPup on child website', 'mainwp-child' ) );
         }
 
-        if ( isset( $settings['value']['is_premium'] ) && 1 === (int)$settings['value']['is_premium'] && false === $this->is_backwpup_pro ) {
+        if ( isset( $settings['value']['is_premium'] ) && 1 === (int) $settings['value']['is_premium'] && false === $this->is_backwpup_pro ) {
             return array( 'error' => esc_html__( 'You try to use pro version settings in non pro plugin version. Please install pro version on child and try again.', 'mainwp-child' ) );
         }
 

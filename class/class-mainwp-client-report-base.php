@@ -1022,8 +1022,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
         }
-        $tok_value = implode( ', ', $details );
-        return $tok_value;
+        return implode( ', ', $details );
     }
 
 

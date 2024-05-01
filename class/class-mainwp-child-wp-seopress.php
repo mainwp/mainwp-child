@@ -129,7 +129,7 @@ class MainWP_Child_WP_Seopress {
      *
      * @return array
      */
-    public function sync_settings() {
+    public function sync_settings() { // phpcs:ignore -- NOSONAR - multi return.
         if ( ! function_exists( 'seopress_mainwp_save_settings' ) ) {
             $information['error'] = esc_html__( 'Settings could not be saved. Missing function `seopress_mainwp_save_settings`', 'mainwp-child' );
             return $information;
