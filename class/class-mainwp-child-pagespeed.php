@@ -610,7 +610,7 @@ class MainWP_Child_Pagespeed {
         $gpi_options  = get_option( 'gpagespeedi_options' );
         $typestocheck = array();
 
-        if ( $gpi_options['check_pages'] && 'all' === $restrict_type || 'ignored' === $restrict_type || 'pages' === $restrict_type ) {
+        if ( $gpi_options['check_pages'] && ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'pages' === $restrict_type ) ) {
             $typestocheck[] = 'type = %s';
             $types[1][]     = 'page';
         }
