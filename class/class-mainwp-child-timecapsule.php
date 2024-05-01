@@ -1163,7 +1163,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $options = \WPTC_Factory::get( 'config' );
 
         $config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- NOSONAR - compatible, base64_encode function is used for http encode compatible..
         $config->set_option( 'wptc_token', false );
 
         $cust_info = $options->request_service(
@@ -1218,7 +1218,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string Hashed password.
      */
     public function hash_pwd( $str ) {
-        return md5( $str );
+        return md5( $str ); // NOSONAR - 3rd compatible.
     }
 
     /**
@@ -1379,7 +1379,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $config = \WPTC_Factory::get( 'config' );
 
         $email         = trim( $config->get_option( 'main_account_email', true ) );
-        $emailhash     = md5( $email );
+        $emailhash     = md5( $email ); // NOSONAR - 3rd compatible.
         $email_encoded = base64_encode( $email ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 
         $pwd         = trim( $config->get_option( 'main_account_pwd', true ) );

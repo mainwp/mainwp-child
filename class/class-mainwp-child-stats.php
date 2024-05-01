@@ -357,7 +357,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
         // phpcs:enable WordPress.WP.AlternativeFunctions
         try {
-            $information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' );
+            $information = apply_filters_deprecated( 'mainwp-site-sync-others-data', array( $information, $othersData ), '4.0.7.1', 'mainwp_site_sync_others_data' ); // NOSONAR - no IP.
             $information = apply_filters( 'mainwp_site_sync_others_data', $information, $othersData );
         } catch ( MainWP_Exception $e ) {
             MainWP_Helper::log_debug( $e->getMessage() );
@@ -751,7 +751,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     private function stats_get_total_size() {
         $total = null;
 
-        $get_file_size        = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' );
+        $get_file_size        = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' ); // NOSONAR - no IP.
         $get_file_size        = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
         $forced_get_file_size = apply_filters( 'mainwp_child_forced_get_total_size', false );
 

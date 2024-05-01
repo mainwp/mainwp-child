@@ -192,7 +192,7 @@ class MainWP_Pages {
 
         $sub_pages = array();
 
-        $all_subpages = apply_filters_deprecated( 'mainwp-child-init-subpages', array( array() ), '4.0.7.1', 'mainwp_child_init_subpages' );
+        $all_subpages = apply_filters_deprecated( 'mainwp-child-init-subpages', array( array() ), '4.0.7.1', 'mainwp_child_init_subpages' ); // NOSONAR - no IP.
         $all_subpages = apply_filters( 'mainwp_child_init_subpages', $all_subpages );
 
         if ( ! is_array( $all_subpages ) ) {
