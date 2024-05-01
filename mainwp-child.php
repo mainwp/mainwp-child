@@ -17,7 +17,7 @@
  * Requires PHP: 7.4
  */
 
-require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // Version information from WordPress.
+require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // NOSONAR - WP compatible. Version information from WordPress.
 
 /**
  * Define MainWP Child Plugin Debug Mode.
@@ -26,40 +26,40 @@ require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // V
  * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child.html
  */
 if ( ! defined( 'MAINWP_CHILD_DEBUG' ) ) {
-	define( 'MAINWP_CHILD_DEBUG', false );
+    define( 'MAINWP_CHILD_DEBUG', false );
 }
 
 if ( ! defined( 'MAINWP_CHILD_FILE' ) ) {
 
-	/**
-	 * Define MainWP Child Plugin absolute full path and filename of this file.
-	 *
-	 * @const ( string ) Defined MainWP Child file path.
-	 * @source https://github.com/mainwp/mainwp-child/blob/master/mainwp-child.php
-	 */
-	define( 'MAINWP_CHILD_FILE', __FILE__ );
+    /**
+     * Define MainWP Child Plugin absolute full path and filename of this file.
+     *
+     * @const ( string ) Defined MainWP Child file path.
+     * @source https://github.com/mainwp/mainwp-child/blob/master/mainwp-child.php
+     */
+    define( 'MAINWP_CHILD_FILE', __FILE__ );
 }
 
 if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
 
-	/**
-	 * Define MainWP Child Plugin Directory.
-	 *
-	 * @const ( string ) Defined MainWP Child Plugin Directory.
-	 * @source https://github.com/mainwp/mainwp-child/blob/master/mainwp-child.php
-	 */
-	define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
+    /**
+     * Define MainWP Child Plugin Directory.
+     *
+     * @const ( string ) Defined MainWP Child Plugin Directory.
+     * @source https://github.com/mainwp/mainwp-child/blob/master/mainwp-child.php
+     */
+    define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
 }
 
 if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
 
-	/**
-	 * Define MainWP Child Plugin URL.
-	 *
-	 * @const ( string ) Defined MainWP Child Plugin URL.
-	 * @source https://github.com/mainwp/mainwp-child/blob/master/mainwp-child.php
-	 */
-	define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
+    /**
+     * Define MainWP Child Plugin URL.
+     *
+     * @const ( string ) Defined MainWP Child Plugin URL.
+     * @source https://github.com/mainwp/mainwp-child/blob/master/mainwp-child.php
+     */
+    define( 'MAINWP_CHILD_URL', plugin_dir_url( MAINWP_CHILD_FILE ) );
 }
 
 /**
@@ -71,24 +71,24 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
  */
 function mainwp_child_autoload( $class_name ) {
 
-	if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
-		// strip the namespace prefix: MainWP\Child\ .
-		$class_name = substr( $class_name, 13 );
-	}
+    if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
+        // strip the namespace prefix: MainWP\Child\ .
+        $class_name = substr( $class_name, 13 );
+    }
 
-	$autoload_dir  = \trailingslashit( __DIR__ . '/class' );
-	$autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
+    $autoload_dir  = \trailingslashit( __DIR__ . '/class' );
+    $autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
 
-	if ( file_exists( $autoload_path ) ) {
-		require_once $autoload_path;
-	}
+    if ( file_exists( $autoload_path ) ) {
+        require_once $autoload_path; // NOSONAR - WP compatible.
+    }
 }
 
 if ( function_exists( 'spl_autoload_register' ) ) {
-	spl_autoload_register( 'mainwp_child_autoload' );
+    spl_autoload_register( 'mainwp_child_autoload' );
 }
 
-require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'functions.php';
+require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'functions.php'; // NOSONAR - WP compatible.
 
 $mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
 register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );

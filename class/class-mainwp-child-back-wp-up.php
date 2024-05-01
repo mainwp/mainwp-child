@@ -26,7 +26,7 @@ namespace MainWP\Child;
 /**
  * Class MainWP_Child_Back_WP_Up
  */
-class MainWP_Child_Back_WP_Up {
+class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
     /**
      * @var bool Whether or not BackWPup plugin is installed. Default: false.
@@ -91,11 +91,11 @@ class MainWP_Child_Back_WP_Up {
      * @return MainWP_Child_Back_WP_Up|null
      */
     public static function instance() {
-        if ( null === self::$instance ) {
-            self::$instance = new self();
+        if ( null === static::$instance ) {
+            static::$instance = new self();
         }
 
-        return self::$instance;
+        return static::$instance;
     }
 
     /**
@@ -107,11 +107,11 @@ class MainWP_Child_Back_WP_Up {
      * @uses \MainWP\Child\MainWP_Helper::instance()->check_classes_exists()
      * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
      * @uses \BackWPup::get_instance()
-     * @uses \Exception
+     * @uses MainWP_Exception
      */
     public function __construct() {
 
-        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        require_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR - WP compatible.
 
         try {
 
@@ -124,14 +124,14 @@ class MainWP_Child_Back_WP_Up {
                 }
 
                 MainWP_Helper::check_files_exists( array( $file_path1, $file_path2 ) );
-                require_once $file_path1;
-                require_once $file_path2;
+                require_once $file_path1; // NOSONAR - WP compatible.
+                require_once $file_path2; // NOSONAR - WP compatible.
                 $this->is_backwpup_installed = true;
                 $this->is_backwpup_pro       = true;
             } elseif ( is_plugin_active( 'backwpup/backwpup.php' ) && file_exists( plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php' ) ) {
                 $file_path = plugin_dir_path( __FILE__ ) . '../../backwpup/backwpup.php';
                 MainWP_Helper::check_files_exists( array( $file_path ) );
-                require_once $file_path;
+                require_once $file_path; // NOSONAR - WP compatible.
                 $this->is_backwpup_installed = true;
             }
 
@@ -143,7 +143,7 @@ class MainWP_Child_Back_WP_Up {
                 add_action( 'admin_init', array( $this, 'init_download_backup' ) );
                 add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
             }
-        } catch ( \Exception $e ) {
+        } catch ( MainWP_Exception $e ) {
             $this->is_backwpup_installed = false;
         }
     }
@@ -157,12 +157,12 @@ class MainWP_Child_Back_WP_Up {
     public static function mainwp_backwpup_handle_fatal_error() {
 
         $error = error_get_last();
-        $info  = self::$information;
+        $info  = static::$information;
 
         if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
             MainWP_Helper::write( array( 'error' => 'MainWP_Child fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] ) );
         } elseif ( ! empty( $info ) ) {
-            MainWP_Helper::write( self::$information );
+            MainWP_Helper::write( static::$information );
         } else {
             MainWP_Helper::write( array( 'error' => 'Missing information array inside fatal_error' ) );
         }
@@ -283,7 +283,7 @@ class MainWP_Child_Back_WP_Up {
             }
         }
 
-        self::$information = $information;
+        static::$information = $information;
         exit();
     }
 
@@ -329,9 +329,9 @@ class MainWP_Child_Back_WP_Up {
      * @uses \MainWP\Child\MainWP_Utility::update_lasttime_backup()
      * @uses \BackWPup_File::get_absolute_path()
      * @uses \BackWPup_Job::read_logheader()
-     * @uses \Exception
+     * @uses MainWP_Exception
      */
-    public function do_reports_log($ext = '' ) {
+    public function do_reports_log($ext = '' ) { // phpcs:ignore -- NOSONAR - complex.
         if ( 'backwpup' !== $ext ) {
             return;
         }
@@ -417,7 +417,7 @@ class MainWP_Child_Back_WP_Up {
                     MainWP_Utility::update_lasttime_backup( 'backwpup', $new_lasttime_logged ); // to support backup before update feature.
                 }
             }
-        } catch ( \Exception $ex ) {
+        } catch ( MainWP_Exception $ex ) {
             // ok!
         }
     }
@@ -439,7 +439,7 @@ class MainWP_Child_Back_WP_Up {
                 $information['syncBackwpupData'] = array(
                     'lastbackup' => $lastbackup,
                 );
-            } catch ( \Exception $e ) {
+            } catch ( MainWP_Exception $e ) {
                 // ok!
             }
         }
@@ -458,9 +458,9 @@ class MainWP_Child_Back_WP_Up {
      * @uses \BackWPup::get_destination::file_get_list()
      *
      * @return array $jobdest Backup destination list.
-     * @throws Exception Error Message.
+     * @throws MainWP_Exception Error Message.
      */
-    public function get_destinations_list() {
+    public function get_destinations_list() { // phpcs:ignore -- NOSONAR - complex.
         MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
         MainWP_Helper::instance()->check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
         MainWP_Helper::instance()->check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
@@ -552,14 +552,14 @@ class MainWP_Child_Back_WP_Up {
      * Build the MainWP BackWPup Page Settings.
      * @return array $output Returned information array.
      */
-    protected function information() {
+    protected function information() { // NOSONAR - WP compatible.
 
         /** @global $wpdb wpdb */
         global $wpdb;
 
         // Copied from BackWPup_Page_Settings.
         ob_start();
-        echo '<table class="wp-list-table widefat fixed" cellspacing="0" style="width: 85%;margin-left:auto;;margin-right:auto;">';
+        echo '<table class="wp-list-table widefat fixed" style="border-spacing:0;width: 85%;margin-left:auto;;margin-right:auto;">';
         echo '<thead><tr><th width="35%">' . esc_html__( 'Setting', 'mainwp-child' ) . '</th><th>' . esc_html__( 'Value', 'mainwp-child' ) . '</th></tr></thead>';
         echo '<tfoot><tr><th>' . esc_html__( 'Setting', 'mainwp-child' ) . '</th><th>' . esc_html__( 'Value', 'mainwp-child' ) . '</th></tr></tfoot>';
         echo '<tr title="&gt;=3.2"><td>' . esc_html__( 'WordPress version', 'mainwp-child' ) . '</td><td>' . esc_html( \BackWPup::get_plugin_data( 'wp_version' ) ) . '</td></tr>';
@@ -761,6 +761,7 @@ class MainWP_Child_Back_WP_Up {
         $dest       = isset( $_POST['settings']['dest'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['dest'] ) ) : '';
 
         list( $dest_id, $dest_name ) = explode( '_', $dest );
+        unset( $dest_id );
 
         $dest_class = \BackWPup::get_destination( $dest_name );
 
@@ -840,7 +841,7 @@ class MainWP_Child_Back_WP_Up {
      *
      * @return array Return table array or error['message'] on failure.
      */
-    protected function tables() {
+    protected function tables() { // phpcs:ignore -- NOSONAR - complex.
         if ( ! isset( $_POST['settings']['type'] ) ) {
             return array( 'error' => esc_html__( 'Missing type.', 'mainwp-child' ) );
         }
@@ -911,6 +912,8 @@ class MainWP_Child_Back_WP_Up {
                 $output = new \BackWPup_Page_Jobs();
                 $output->prepare_items();
                 break;
+            default:
+                break;
         }
 
         if ( is_array( $output->items ) ) {
@@ -966,10 +969,8 @@ class MainWP_Child_Back_WP_Up {
                     );
 
                     $temp_array['downloadurl_id'] = '/wp-admin/admin.php?page=backwpupbackups';
-                    if ( preg_match( '/.*&jobid=([^&]+)&.*/is', $temp_array['downloadurl'], $matches ) ) {
-                        if ( ! empty( $matches[1] ) && is_numeric( $matches[1] ) ) {
-                            $temp_array['downloadurl_id'] .= '&download_click_id=' . $matches[1];
-                        }
+                    if ( preg_match( '/.*&jobid=([^&]+)&.*/is', $temp_array['downloadurl'], $matches ) && ! empty( $matches[1] ) && is_numeric( $matches[1] ) ) {
+                        $temp_array['downloadurl_id'] .= '&download_click_id=' . $matches[1];
                     }
 
                     $temp_array['website_id'] = $website_id;
@@ -1126,19 +1127,19 @@ class MainWP_Child_Back_WP_Up {
          * @param string $message Error message container.
          * @return string Error message.
          */
-        function mainwp_backwpup_wp_die_ajax_handler( $message ) {
+        function mainwp_backwpup_wp_die_ajax_handler() {
             return 'mainwp_backwpup_wp_die_ajax_handler';
         }
 
         // We do this in order to not die when using wp_die.
         if ( ! defined( 'DOING_AJAX' ) ) {
 
-	        /**
-	         * Checks whether ajax job is in progress.
-	         *
-	         * @const ( bool ) Default: true
-	         * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Back_WP_Up.html
-	         */
+            /**
+             * Checks whether ajax job is in progress.
+             *
+             * @const ( bool ) Default: true
+             * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Back_WP_Up.html
+             */
             define( 'DOING_AJAX', true );
         }
 
@@ -1250,7 +1251,7 @@ class MainWP_Child_Back_WP_Up {
     protected function wp_list_table_dependency() {
         mainwp_child_backwpup_wp_list_table_dependency();
         if ( ! class_exists( '\WP_List_Table' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+            require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php'; // NOSONAR - WP compatible.
         }
     }
 
@@ -1291,11 +1292,11 @@ class MainWP_Child_Back_WP_Up {
      * @uses \Swift_MailTransport::newInstance()
      * @uses \Swift_Mailer::newInstance()
      * @uses \Swift_Message::newInstance()
-     * @uses \Exception
+     * @uses MainWP_Exception
      *
-     * @return array|\Exception Return response array.
+     * @return array|MainWP_Exception Return response array.
      */
-    protected function destination_email_check_email() {
+    protected function destination_email_check_email() { // phpcs:ignore -- NOSONAR - complex.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         $message = '';
@@ -1313,22 +1314,22 @@ class MainWP_Child_Back_WP_Up {
         } else {
             if ( $emailmethod ) {
 
-	            /**
-	             * PHP mailer instance.
+                /**
+                 * PHP mailer instance.
                  *
                  * @global object
-	             */
+                 */
                 global $phpmailer;
 
-                if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {                    
+                if ( ! is_object( $phpmailer ) || ! $phpmailer instanceof PHPMailer ) {
                     if ( file_exists( ABSPATH . WPINC . '/PHPMailer/PHPMailer.php' )) {
-                        require ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';
-                        require ABSPATH . WPINC . '/PHPMailer/SMTP.php';
-                        require ABSPATH . WPINC . '/PHPMailer/Exception.php';
-                        $phpmailer = new \PHPMailer\PHPMailer\PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer                        
+                        require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php'; // NOSONAR - WP compatible.
+                        require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php'; // NOSONAR - WP compatible.
+                        require_once ABSPATH . WPINC . '/PHPMailer/Exception.php'; // NOSONAR - WP compatible.
+                        $phpmailer = new \PHPMailer\PHPMailer\PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
                     } elseif ( file_exists( ABSPATH . WPINC . '/class-phpmailer.php' ) ) {
-                        require_once ABSPATH . WPINC . '/class-phpmailer.php';
-                        require_once ABSPATH . WPINC . '/class-smtp.php';
+                        require_once ABSPATH . WPINC . '/class-phpmailer.php'; // NOSONAR - WP compatible.
+                        require_once ABSPATH . WPINC . '/class-smtp.php'; // NOSONAR - WP compatible.
                         $phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
                     }
                 }
@@ -1345,7 +1346,7 @@ class MainWP_Child_Back_WP_Up {
             }
 
             if ( ! class_exists( '\Swift', false ) ) {
-                require \BackWPup::get_plugin_data( 'plugindir' ) . '/vendor/SwiftMailer/swift_required.php';
+                require_once \BackWPup::get_plugin_data( 'plugindir' ) . '/vendor/SwiftMailer/swift_required.php'; // NOSONAR - WP compatible.
             }
 
             if ( function_exists( 'mb_internal_encoding' ) && ( (int) ini_get( 'mbstring.func_overload' ) ) & 2 ) {
@@ -1378,7 +1379,7 @@ class MainWP_Child_Back_WP_Up {
                 $message->setBody( esc_html__( 'If this message reaches your inbox, sending backup archives via email should work for you.', 'mainwp-child' ) );
 
                 $result = $emailer->send( $message );
-            } catch ( \Exception $e ) {
+            } catch ( MainWP_Exception $e ) {
                 $message = 'Swift Mailer: ' . $e->getMessage();
             }
 
@@ -1406,7 +1407,7 @@ class MainWP_Child_Back_WP_Up {
      * @uses BackWPup_File::get_folder_size()
      * @return array Response array containing folder locations and size.
      */
-    protected function get_job_files() {
+    protected function get_job_files() { // phpcs:ignore -- NOSONAR - complex.
         /**
          * Taken from BackWPup_JobType_File::get_exclude_dirs.
          *
@@ -1491,7 +1492,7 @@ class MainWP_Child_Back_WP_Up {
      *
      * @return array Query response containing the tables.
      */
-    protected function get_child_tables() {
+    protected function get_child_tables() { // phpcs:ignore -- NOSONAR - complex.
 
         /** @global $wpdb wpdb */
         global $wpdb;
@@ -1560,7 +1561,7 @@ class MainWP_Child_Back_WP_Up {
      *
      * @return array Response array containing job_id, changes & message array.
      */
-    protected function insert_or_update_jobs_global() {
+    protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! is_array( $settings ) ) {
@@ -1638,7 +1639,7 @@ class MainWP_Child_Back_WP_Up {
      * @param $post_data Post data to save.
      * @param $id Post ID.
      */
-    public function edit_form_post_save($post_data, $id ) {
+    public function edit_form_post_save($post_data, $id ) { // phpcs:ignore -- NOSONAR - complex.
         // Parse and save files to exclude.
         $exclude_input   = $post_data['fileexclude'];
         $to_exclude_list = $exclude_input ? str_replace( array( "\r\n", "\r" ), ',', $exclude_input ) : array();
@@ -1743,7 +1744,7 @@ class MainWP_Child_Back_WP_Up {
      *
      * @return array Response array containing job_id, changes & message array.
      */
-    protected function insert_or_update_jobs() {
+    protected function insert_or_update_jobs() { // phpcs:ignore -- NOSONAR - complex.
 
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
@@ -1800,7 +1801,6 @@ class MainWP_Child_Back_WP_Up {
                     $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get($job_id, 'dropboxdir');
                 }
             }
-            //\BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
         } else {
             \BackWPup_Page_Editjob::save_post_form( $settings['tab'], $job_id );
         }
