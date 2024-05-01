@@ -46,6 +46,20 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
     public $is_plugin_installed = false;
 
     /**
+     * Public variable to hold the plugin slug.
+     *
+     * @var string slug string.
+     */
+    public $the_plugin_slug = 'wp-staging/wp-staging.php';
+
+    /**
+     * Public variable to hold the plugin slug.
+     *
+     * @var string slug string.
+     */
+    public $the_plugin_slug_pro = 'wp-staging-pro/wp-staging-pro.php';
+
+    /**
      * Public variable to hold the information if the WP Staging plugin is installed on the child site.
      *
      * @var string version string.
@@ -78,7 +92,7 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function __construct() {
         require_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR - WP compatible.
-        if ( ( is_plugin_active( 'wp-staging/wp-staging.php' ) && defined( 'WPSTG_PLUGIN_DIR' ) ) || is_plugin_active( 'wp-staging-pro/wp-staging-pro.php' ) ) {
+        if ( ( is_plugin_active( $this->the_plugin_slug ) && defined( 'WPSTG_PLUGIN_DIR' ) ) || is_plugin_active( $this->the_plugin_slug_pro ) ) {
             $this->is_plugin_installed = true;
         }
 
@@ -736,7 +750,7 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      * @return mixed Returned $slugs.
      */
     public function hide_update_notice( $slugs ) {
-        $slugs[] = 'wp-staging/wp-staging.php';
+        $slugs[] = $this->the_plugin_slug;
 
         return $slugs;
     }
@@ -758,12 +772,12 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
             return $value;
         }
 
-        if ( isset( $value->response['wp-staging/wp-staging.php'] ) ) {
-            unset( $value->response['wp-staging/wp-staging.php'] );
+        if ( isset( $value->response[ $this->the_plugin_slug ] ) ) {
+            unset( $value->response[ $this->the_plugin_slug ] );
         }
 
-        if ( isset( $value->response['wp-staging-pro/wp-staging-pro.php'] ) ) {
-            unset( $value->response['wp-staging-pro/wp-staging-pro.php'] );
+        if ( isset( $value->response[ $this->the_plugin_slug_pro ] ) ) {
+            unset( $value->response[ $this->the_plugin_slug_pro ] );
         }
 
         return $value;

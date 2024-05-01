@@ -43,6 +43,9 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
     /** @var string $path_core_file path core file. */
     public $path_core_file = '/classes/core.php';
 
+      /** @var string $backupbuddy_core_class core class name. */
+      public $backupbuddy_core_class = '\backupbuddy_core';
+
     /**
      * Create a public static instance of MainWP_Child_Back_Up_Buddy.
      *
@@ -199,7 +202,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         try {
 
             MainWP_Helper::instance()->check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
-            if ( ! class_exists( '\backupbuddy_core' ) && file_exists( \pb_backupbuddy::plugin_path() . $this->path_core_file ) ) {
+            if ( ! class_exists( $this->backupbuddy_core_class ) && file_exists( \pb_backupbuddy::plugin_path() . $this->path_core_file ) ) {
                 require_once \pb_backupbuddy::plugin_path() . $this->path_core_file; // NOSONAR - WP compatible.
             }
 
@@ -207,8 +210,8 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                 require_once \pb_backupbuddy::plugin_path() . '/classes/fileoptions.php'; // NOSONAR - WP compatible.
             }
 
-            MainWP_Helper::instance()->check_classes_exists( array( '\backupbuddy_core', '\pb_backupbuddy_fileoptions' ) );
-            MainWP_Helper::instance()->check_methods( '\backupbuddy_core', 'getLogDirectory' );
+            MainWP_Helper::instance()->check_classes_exists( array( $this->backupbuddy_core_class, '\pb_backupbuddy_fileoptions' ) );
+            MainWP_Helper::instance()->check_methods( $this->backupbuddy_core_class, 'getLogDirectory' );
 
             $pretty_type = array(
                 'full'  => 'Full',
@@ -250,7 +253,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                     if ( $chk_pro && true === MainWP_Helper::instance()->check_methods( \pb_backupbuddy::$format, array( 'prettify' ), true ) ) {
                         $backupType = \pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type );
                     }
-                } elseif ( true === MainWP_Helper::instance()->check_methods( '\backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true ) ) {
+                } elseif ( true === MainWP_Helper::instance()->check_methods( $this->backupbuddy_core_class, array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true ) ) {
                     $backupType = \backupbuddy_core::pretty_backup_type( \backupbuddy_core::getBackupTypeFromFile( $backup['archive_file'] ) );
                 }
 
@@ -352,7 +355,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! $this->is_backupbuddy_installed ) {
             MainWP_Helper::write( array( 'error' => esc_html__( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
         }
-        if ( ! class_exists( '\backupbuddy_core' ) ) {
+        if ( ! class_exists( $this->backupbuddy_core_class ) ) {
             require_once \pb_backupbuddy::plugin_path() . $$this->path_core_file; // NOSONAR - WP compatible.
         }
 
@@ -1015,7 +1018,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_sync_data() {
         try {
-            if ( ! class_exists( '\backupbuddy_core' ) ) {
+            if ( ! class_exists( $this->backupbuddy_core_class ) ) {
                 MainWP_Helper::instance()->check_classes_exists( '\pb_backupbuddy' );
                 MainWP_Helper::instance()->check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
                 $plugin_path = \pb_backupbuddy::plugin_path();
@@ -1024,8 +1027,8 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
 
-            MainWP_Helper::instance()->check_classes_exists( array( '\backupbuddy_core', '\backupbuddy_api' ) );
-            MainWP_Helper::instance()->check_methods( '\backupbuddy_core', array( 'get_plugins_root', 'get_themes_root', 'get_media_root' ) );
+            MainWP_Helper::instance()->check_classes_exists( array( $this->backupbuddy_core_class, '\backupbuddy_api' ) );
+            MainWP_Helper::instance()->check_methods( $this->backupbuddy_core_class, array( 'get_plugins_root', 'get_themes_root', 'get_media_root' ) );
             MainWP_Helper::instance()->check_methods( '\backupbuddy_api', array( 'getOverview' ) );
 
             $data                      = array();
