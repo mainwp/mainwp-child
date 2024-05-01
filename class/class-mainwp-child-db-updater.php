@@ -101,8 +101,7 @@ class MainWP_Child_DB_Updater {
      * Get sync data.
      */
     public function get_sync_data() {
-        $sync_plugin_db_upgrades = apply_filters( 'mainwp_child_db_updater_sync_data', array() );
-        return $sync_plugin_db_upgrades;
+        return apply_filters( 'mainwp_child_db_updater_sync_data', array() );
     }
 
     /**

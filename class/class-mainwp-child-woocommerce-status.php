@@ -454,7 +454,7 @@ class MainWP_Child_WooCommerce_Status {
         $report     = new \Automattic\WooCommerce\Admin\API\Reports\Stock\Stats\Query();
         $stock_data = $report->get_data();
 
-        $data = array(
+        return array(
             'sales'          => $total_sales,
             'formated_sales' => wc_price( $total_sales ),
             'top_seller'     => ! empty( $top_seller ) ? (object) $top_seller : false,
@@ -463,8 +463,6 @@ class MainWP_Child_WooCommerce_Status {
             'lowstock'       => is_array( $stock_data ) && isset( $stock_data['lowstock'] ) ? intval( $stock_data['lowstock'] ) : 0,
             'outstock'       => is_array( $stock_data ) && isset( $stock_data['outofstock'] ) ? intval( $stock_data['outofstock'] ) : 0,
         );
-
-        return $data;
     }
 
     /**
@@ -742,7 +740,7 @@ class MainWP_Child_WooCommerce_Status {
         $report     = new \Automattic\WooCommerce\Admin\API\Reports\Stock\Stats\Query();
         $stock_data = $report->get_data();
 
-        $data = array(
+        return array(
             'sales'          => $total_sales,
             'formated_sales' => wc_price( $total_sales ),
             'top_seller'     => ! empty( $top_seller ) ? (object) $top_seller : false,
@@ -751,8 +749,6 @@ class MainWP_Child_WooCommerce_Status {
             'lowstock'       => is_array( $stock_data ) && isset( $stock_data['lowstock'] ) ? intval( $stock_data['lowstock'] ) : 0,
             'outstock'       => is_array( $stock_data ) && isset( $stock_data['outofstock'] ) ? intval( $stock_data['outofstock'] ) : 0,
         );
-
-        return $data;
     }
 
 

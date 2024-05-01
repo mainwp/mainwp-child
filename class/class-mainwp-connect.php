@@ -635,7 +635,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return bool Valid or not valid to download file.
      */
-    public function validate_pre_download_file( $file, $dir ) {
+    public function validate_pre_download_file( $file, $dir ) { // phpcs:ignore -- NOSONAR - multi return.
 
         if ( empty( $dir ) ) {
             $dir = dirname( $file ); // get dir of file to validate.
@@ -763,24 +763,15 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool Return false will log in as default admin user. Return true will try to login as alternative user.
      */
     public function check_login_as( $alter_login ) {
-
         if ( ! empty( $alter_login ) ) {
             // check alternative admin existed.
             $user = get_user_by( 'login', $alter_login );
-
-            if ( ! $user ) {
+            if ( ! $user || ! MainWP_Helper::is_admin( $user ) ) {
                 // That administrator username was not found on this child site.
                 return false;
             }
-
-            if ( ! MainWP_Helper::is_admin( $user ) ) {
-                // That user is not an administrator.
-                return false;
-            }
-
             return true; // ok, will try to login by alternative user.
         }
-
         return false;
     }
 
@@ -796,7 +787,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return bool true|false
      */
-    public function login( $username, $doAction = false ) {
+    public function login( $username, $doAction = false ) { // phpcs:ignore -- NOSONAR - multi return.
 
         /**
          * Current user global.

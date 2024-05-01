@@ -403,7 +403,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 $backups_count = count( $formatted_backups );
             }
 
-            $return = array(
+            return array(
                 'main_account_email' => $main_account_email_var,
                 'signed_in_repos'    => $wptc_settings->get_connected_cloud_info(),
                 'plan_name'          => $options_helper->get_plan_interval_from_subs_info(),
@@ -412,7 +412,6 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 'is_user_logged_in'  => $options_helper->get_is_user_logged_in(),
                 'backups_count'      => $backups_count,
             );
-            return $return;
         } catch ( MainWP_Exception $e ) {
             // do not exit here!
         }
@@ -444,7 +443,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $wpdb;
 
-        $all_backups = $wpdb->get_results( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        return $wpdb->get_results( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $wpdb->prepare(
                 "SELECT backupID
                 FROM {$wpdb->base_prefix}wptc_processed_files
@@ -452,8 +451,6 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 $last_time
             )
         );
-
-        return $all_backups;
     }
 
     /**
@@ -1145,7 +1142,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Action result.
      */
-    private function process_wptc_login() {
+    private function process_wptc_login() { // phpcs:ignore -- NOSONAR - 3rd compatible, multi return.
         $options_helper = new \Wptc_Options_Helper();
 
         if ( $options_helper->get_is_user_logged_in() ) {

@@ -442,10 +442,7 @@ class MainWP_Child_Users {
             }
             return array( 'error' => $error_str );
         }
-
-        $user_id = wp_update_user( $user );
-
-        return $user_id;
+        return wp_update_user( $user );
     }
 
     /**

@@ -1138,7 +1138,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
         $i      = new \wfIssues();
         $iss    = $i->getIssues( $offset, $limit );
         $counts = $i->getIssueCounts();
-        $return = array(
+        return array(
             'issuesLists'        => $iss,
             'issueCounts'        => $counts,
             'lastScanCompleted'  => \wfConfig::get( 'lastScanCompleted' ),
@@ -1150,7 +1150,6 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
             'monthAttBlocked'    => static::instance()->count_attacks_blocked( 30 ),
             'issueCount'         => $i->getIssueCount(),
         );
-        return $return;
     }
 
     /**
@@ -1224,8 +1223,7 @@ SQL
     public function get_lastscan() {
         $wfdb           = new \wfDB();
         $table_wfStatus = \wfDB::networkTable( 'wfStatus' );
-        $ctime          = $wfdb->querySingle( "SELECT MAX(ctime) FROM {$table_wfStatus} WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'" );
-        return $ctime;
+        return $wfdb->querySingle( "SELECT MAX(ctime) FROM {$table_wfStatus} WHERE msg LIKE '%SUM_PREP:Preparing a new scan.%'" );
     }
 
     /**
@@ -1442,7 +1440,7 @@ SQL
      *
      * @return array Action result.
      */
-    public function delete_file() {
+    public function delete_file() { // phpcs:ignore -- NOSONAR - 3rd compatible multi return.
         $issueID  =sanitize_text_field( wp_unslash( $_POST['issueID'] ) );
         $wfIssues = new \wfIssues();
         $issue    = $wfIssues->getIssueByID( $issueID );
@@ -1482,7 +1480,7 @@ SQL
      *
      * @return array Action result.
      */
-    public function restore_file() {
+    public function restore_file() { // phpcs:ignore -- NOSONAR - 3rd compatible multi return.
         $issueID  = isset( $_POST['issueID'] ) ? sanitize_text_field( wp_unslash( $_POST['issueID'] ) ) : '';
         $wfIssues = new \wfIssues();
         $issue    = $wfIssues->getIssueByID( $issueID );
@@ -2036,8 +2034,7 @@ SQL
      * @return array Action result.
      */
     public function whitelist_waf_param_key() {
-        $return = \wordfence::ajax_whitelistWAFParamKey_callback();
-        return $return;
+        return \wordfence::ajax_whitelistWAFParamKey_callback();
     }
 
     /**
@@ -2050,8 +2047,7 @@ SQL
      * @return array Action result.
      */
     public function hide_file_htaccess() {
-        $return = \wordfence::ajax_hideFileHtaccess_callback();
-        return $return;
+        return \wordfence::ajax_hideFileHtaccess_callback();
     }
 
     /**
@@ -2064,8 +2060,7 @@ SQL
      * @return array Action result.
      */
     public static function fix_fpd() {
-        $return = \wordfence::ajax_fixFPD_callback();
-        return $return;
+        return \wordfence::ajax_fixFPD_callback();
     }
 
     /**
@@ -2078,8 +2073,7 @@ SQL
      * @return array Action result.
      */
     public static function disable_directory_listing() {
-        $return = \wordfence::ajax_disableDirectoryListing_callback();
-        return $return;
+        return \wordfence::ajax_disableDirectoryListing_callback();
     }
 
     /**
@@ -2092,8 +2086,7 @@ SQL
      * @return array Action result.
      */
     public static function delete_database_option() {
-        $return = \wordfence::ajax_deleteDatabaseOption_callback();
-        return $return;
+        return \wordfence::ajax_deleteDatabaseOption_callback();
     }
 
     /**
@@ -2106,8 +2099,7 @@ SQL
      * @return array Action result.
      */
     public static function mis_configured_how_get_ips_choice() {
-        $return = \wordfence::ajax_misconfiguredHowGetIPsChoice_callback();
-        return $return;
+        return \wordfence::ajax_misconfiguredHowGetIPsChoice_callback();
     }
 
     /**
@@ -2120,8 +2112,7 @@ SQL
      * @return array Action result.
      */
     public static function delete_admin_user() {
-        $return = \wordfence::ajax_deleteAdminUser_callback();
-        return $return;
+        return \wordfence::ajax_deleteAdminUser_callback();
     }
 
     /**
@@ -2134,8 +2125,7 @@ SQL
      * @return array Action result.
      */
     public static function revoke_admin_user() {
-        $return = \wordfence::ajax_revokeAdminUser_callback();
-        return $return;
+        return \wordfence::ajax_revokeAdminUser_callback();
     }
 
     /**
@@ -2148,8 +2138,7 @@ SQL
      * @return array Action result.
      */
     public static function clear_all_blocked() {
-        $return = \wordfence::ajax_clearAllBlocked_callback();
-        return $return;
+        return \wordfence::ajax_clearAllBlocked_callback();
     }
 
     /**
@@ -2162,8 +2151,7 @@ SQL
      * @return array Action result.
      */
     public static function permanently_block_all_ips() {
-        $return = \wordfence::ajax_permanentlyBlockAllIPs_callback();
-        return $return;
+        return \wordfence::ajax_permanentlyBlockAllIPs_callback();
     }
 
     /**
@@ -2176,8 +2164,7 @@ SQL
      * @return array Action result.
      */
     public static function unlock_out_ip() {
-        $return = \wordfence::ajax_unlockOutIP_callback();
-        return $return;
+        return \wordfence::ajax_unlockOutIP_callback();
     }
 
     /**
@@ -2190,8 +2177,7 @@ SQL
      * @return array Action result.
      */
     public static function unblock_range() {
-        $return = \wordfence::ajax_unblockRange_callback();
-        return $return;
+        return \wordfence::ajax_unblockRange_callback();
     }
 
     /**
@@ -2204,8 +2190,7 @@ SQL
      * @return array Action result.
      */
     public static function block_ip_ua_range() {
-        $return = \wordfence::ajax_blockIPUARange_callback();
-        return $return;
+        return \wordfence::ajax_blockIPUARange_callback();
     }
 
     /**
@@ -2218,8 +2203,7 @@ SQL
      * @return array Action result.
      */
     public static function load_block_ranges() {
-        $return = \wordfence::ajax_loadBlockRanges_callback();
-        return $return;
+        return \wordfence::ajax_loadBlockRanges_callback();
     }
 
     /**
@@ -2249,8 +2233,7 @@ SQL
      * @return array Action result.
      */
     public static function whitelist_bulk_delete() {
-        $return = \wordfence::ajax_whitelistBulkDelete_callback();
-        return $return;
+        return \wordfence::ajax_whitelistBulkDelete_callback();
     }
 
     /**
@@ -2263,8 +2246,7 @@ SQL
      * @return array Action result.
      */
     public static function whitelist_bulk_enable() {
-        $return = \wordfence::ajax_whitelistBulkEnable_callback();
-        return $return;
+        return \wordfence::ajax_whitelistBulkEnable_callback();
     }
 
     /**
@@ -2277,8 +2259,7 @@ SQL
      * @return array Action result.
      */
     public static function whitelist_bulk_disable() {
-        $return = \wordfence::ajax_whitelistBulkDisable_callback();
-        return $return;
+        return \wordfence::ajax_whitelistBulkDisable_callback();
     }
 
     /**
@@ -2291,8 +2272,7 @@ SQL
      * @return array Action result.
      */
     public static function update_config() {
-        $return = \wordfence::ajax_updateConfig_callback();
-        return $return;
+        return \wordfence::ajax_updateConfig_callback();
     }
 
     /**
@@ -2462,8 +2442,7 @@ SQL
      * @return array Action result.
      */
     public function ajax_get_blocks_callback() {
-        $information = \wordfence::ajax_getBlocks_callback();
-        return $information;
+        return \wordfence::ajax_getBlocks_callback();
     }
 
     /**
@@ -2489,8 +2468,7 @@ SQL
      * @return array Action result.
      */
     public static function ajax_delete_blocks_callback() {
-        $information = \wordfence::ajax_deleteBlocks_callback();
-        return $information;
+        return \wordfence::ajax_deleteBlocks_callback();
     }
 
     /**
@@ -2503,8 +2481,7 @@ SQL
      * @return array Action result.
      */
     public static function ajax_make_permanent_blocks_callback() {
-        $information = \wordfence::ajax_makePermanentBlocks_callback();
-        return $information;
+        return \wordfence::ajax_makePermanentBlocks_callback();
     }
 
     /**
@@ -2548,6 +2525,7 @@ SQL
             \wfBlock::unblockIP( $IP );
             return array( 'success' => 1 );
         }
+        return array();
     }
 
     /**
@@ -2761,7 +2739,7 @@ SQL
      * @used-by MainWP_Child_Wordfence::actions() Fire off certain Wordfence plugin actions.
      * @uses \MainWP\Child\MainWP_Utility::create_nonce_without_session()
      */
-    public static function check_falcon_htaccess() {
+    public static function check_falcon_htaccess() { // phpcs:ignore -- NOSONAR - 3rd compatible multi return.
         if ( \wfUtils::isNginx() ) {
             return array( 'nginx' => 1 );
         }
@@ -2800,16 +2778,17 @@ SQL
         if ( \wfUtils::isNginx() ) {
             return array( 'nginx' => 1 );
         }
+        $result = array( 'ok' => 1 );
         $file = \wfCache::getHtaccessPath();
         if ( ! $file ) {
-            return array( 'err' => 'We could not find your .htaccess file to modify it.' );
+            $result = array( 'err' => 'We could not find your .htaccess file to modify it.' );
         }
         $fh = fopen( $file, 'r+' );
         if ( ! $fh ) {
             $err = error_get_last();
-            return array( 'err' => 'We found your .htaccess file but could not open it for writing: ' . $err['message'] );
+            $result = array( 'err' => 'We found your .htaccess file but could not open it for writing: ' . $err['message'] );
         }
-        return array( 'ok' => 1 );
+        return $result;
     }
 
     /**
@@ -3025,7 +3004,7 @@ SQL
      *
      * @return array Action result.
      */
-    public static function remove_cache_exclusion() {
+    public static function remove_cache_exclusion() { // phpcs:ignore -- NOSONAR - 3rd compatible, multi return.
         $id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
         $ex = \wfConfig::get( 'cacheExclusions', false );
         if ( ! $ex ) {
@@ -3226,9 +3205,9 @@ SQL
                     <table class="wf-striped-table"<?php echo ! empty( $inEmail ) ? ' border=1' : ''; ?>>
                         <tbody class="thead">
                             <tr>
-                                <th><?php esc_html_e( 'IPs', 'wordfence' ); ?></th>
-                                <th><?php esc_html_e( 'Value', 'wordfence' ); ?></th>
-                                <th><?php esc_html_e( 'Used', 'wordfence' ); ?></th>
+                                <th scope="row"><?php esc_html_e( 'IPs', 'wordfence' ); ?></th>
+                                <th scope="row"><?php esc_html_e( 'Value', 'wordfence' ); ?></th>
+                                <th scope="row"><?php esc_html_e( 'Used', 'wordfence' ); ?></th>
                             </tr>
                         </tbody>
                         <tbody>

@@ -179,7 +179,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         </style>
 
         <div class="updated mainwp-child_info-box-red-warning" id="mainwp-child_server_warnings">
-            <table id="mainwp-table" class="wp-list-table widefat" style="border-spacing:0;">
+            <table id="mainwp-table" class="wp-list-table widefat" style="border-spacing:0;"> <?php // NOSONAR - table no th. ?>
                 <tbody id="the-sites-list" class="list:sites">
                 <?php
                 $warning = '';

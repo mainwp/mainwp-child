@@ -513,8 +513,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! function_exists( '\wp_generate_password' ) ) {
             include_once ABSPATH . WPINC . '/pluggable.php'; // NOSONAR -- WP compatible.
         }
-        $str = \wp_generate_password( $length, false );
-        return $str;
+        return \wp_generate_password( $length, false );
     }
 
     /**
@@ -732,18 +731,13 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool true|false If in excluded list, return true, if not, return false.
      */
     public static function in_excludes( $excludes, $value ) {
-        if ( empty( $value ) ) {
-            return false;
-        }
-        if ( empty( $excludes ) ) {
+        if ( ! empty( $value ) && ! empty( $excludes ) && is_array( $excludes ) ) {
             foreach ( $excludes as $exclude ) {
                 if ( static::ends_with( $exclude, '*' ) ) {
                     if ( static::starts_with( $value, substr( $exclude, 0, strlen( $exclude ) - 1 ) ) ) {
                         return true;
                     }
-                } elseif ( $value === $exclude ) {
-                    return true;
-                } elseif ( static::starts_with( $value, $exclude . '/' ) ) {
+                } elseif ( $value === $exclude || static::starts_with( $value, $exclude . '/' ) ) {
                     return true;
                 }
             }
@@ -821,7 +815,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return bool true|false If the user is administrator (Level 10), return true, if not, return false.
      */
-    public static function current_user_has_role( $roles, $user = null ) {
+    public static function current_user_has_role( $roles, $user = null ) { //phpcs:ignore -- NOSONAR - multi return.
 
         if ( null === $user ) {
             $user = wp_get_current_user();

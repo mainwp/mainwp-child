@@ -208,22 +208,28 @@ class MainWP_Child_Jetpack_Protect {
      */
     public function set_connect_disconnect() {
         $status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+        $result = array();
+
         if ( 'connect' === $status ) {
             MainWP_Helper::instance()->check_methods( $this->connection, array( 'set_plugin_instance', 'try_registration', 'is_connected' ) );
 
             MainWP_Helper::instance()->check_classes_exists( array( '\Automattic\Jetpack\Connection\Plugin_Storage', '\Automattic\Jetpack\Connection\Plugin' ) );
             MainWP_Helper::instance()->check_methods( '\Automattic\Jetpack\Connection\Plugin_Storage', 'get_one' );
 
-            $result = $this->connection->try_registration();
+            $response = $this->connection->try_registration();
 
-            if ( is_wp_error( $result ) ) {
-                return array( 'error' => $result->get_error_message() );
+            if ( is_wp_error( $response ) ) {
+                $result = array( 'error' => $response->get_error_message() );
+            } else {
+                $result = array(
+                    'code'      => 'success',
+                    'connected' => $this->connection->is_connected(),
+                );
             }
 
-            return array(
-                'code'      => 'success',
-                'connected' => $this->connection->is_connected(),
-            );
+            return $result;
+
         } elseif ( 'disconnect' === $status ) {
             MainWP_Helper::instance()->check_methods( $this->connection, array( 'is_connected', 'disconnect_site' ) );
             if ( $this->connection->is_connected() ) {
@@ -233,12 +239,17 @@ class MainWP_Child_Jetpack_Protect {
                     'connected' => $this->connection->is_connected(),
                 );
             }
-            return array(
+            $result = array(
                 'code'  => 'disconnect_failed',
                 'error' => esc_html__( 'Failed to disconnect the site as it appears already disconnected.', 'mainwp-child' ),
             );
         }
-        return array( 'code' => 'invalid_data' );
+
+        if ( empty( $result ) ) {
+            $result = array( 'code' => 'invalid_data' );
+        }
+
+        return $result;
     }
 
     /**
@@ -249,10 +260,9 @@ class MainWP_Child_Jetpack_Protect {
     public function get_scan_status() {
         MainWP_Helper::instance()->check_classes_exists( '\Automattic\Jetpack\Protect\Status' );
         MainWP_Helper::instance()->check_methods( '\Automattic\Jetpack\Protect\Status', 'get_status' );
-        $return = array(
+        return array(
             'status' => \Automattic\Jetpack\Protect\Status::get_status(),
         );
-        return $return;
     }
 
     /**

@@ -1084,7 +1084,7 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \ITSEC_Core::get_itsec_files()
      * @uses \ITSEC_Core::get_itsec_files::release_file_lock()
      */
-    private function change_admin_user( $username = null, $id = false ) {
+    private function change_admin_user( $username = null, $id = false ) { //phpcs:ignore -- NOSONAR - 3rd compatible multi return.
         //phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
         /**
          * WordPress Database.

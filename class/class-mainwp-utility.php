@@ -239,11 +239,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $fullpath = $dir . $file;
         }
 
-        if ( false !== stripos( $fullpath, 'wp-config.php' ) ) {
-            return false;
-        }
-
-        if ( ! file_exists( $fullpath ) ) {
+        if ( false !== stripos( $fullpath, 'wp-config.php' ) || ! file_exists( $fullpath ) ) {
             return false;
         }
 
@@ -589,8 +585,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         } elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
             $result      = $results[1];
             $result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
-            $information = json_decode( $result_base, true );
-            return $information;
+            return json_decode( $result_base, true );
         } elseif ( '' === $data ) {
             throw new MainWP_Exception( esc_html__( 'Something went wrong while contacting the child site. Please check if there is an error on the child site. This error could also be caused by trying to clone or restore a site to large for your server settings.', 'mainwp-child' ) );
         } else {
@@ -844,7 +839,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return mixed If verified return 1 or 2, if not return false.
      */
-    public static function verify_nonce_without_session( $nonce, $action = - 1 ) {
+    public static function verify_nonce_without_session( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return.
         $nonce = (string) $nonce;
         $user  = wp_get_current_user();
         $uid   = (int) $user->ID;
@@ -941,7 +936,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return mixed If verified return 1 or 2, if not return false.
      */
-    public static function verify_action_nonce( $act_nonce = '' ) {
+    public static function verify_action_nonce( $act_nonce = '' ) { //phpcs:ignore -- NOSONAR - multi return.
 
         if ( empty( $act_nonce ) || ! is_string( $act_nonce ) ) {
             return false;
@@ -975,7 +970,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return mixed If verified return 1 or 2, if not return false.
      */
-    public static function verify_authed_nonce( $nonce, $action = - 1 ) {
+    public static function verify_authed_nonce( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return.
         $nonce = (string) $nonce;
 
         if ( empty( $nonce ) ) {

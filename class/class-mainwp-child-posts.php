@@ -651,7 +651,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 $new_post_custom[ $meta_key ] = $new_meta_values;
             }
 
-            $post_data = array(
+            return array(
                 'new_post'            => base64_encode( wp_json_encode( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
                 'post_custom'         => base64_encode( wp_json_encode( $new_post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
                 'post_category'       => base64_encode( $post_category ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -659,8 +659,6 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 'post_gallery_images' => base64_encode( wp_json_encode( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
                 'child_upload_dir'    => base64_encode( wp_json_encode( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
             );
-            return $post_data;
-
         }
         return false;
     }
@@ -736,14 +734,13 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 $new_post_custom[ $meta_key ] = $new_meta_values;
             }
 
-            $post_data = array(
+            return array(
                 'new_post'            => base64_encode( wp_json_encode( $new_post ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
                 'post_custom'         => base64_encode( wp_json_encode( $new_post_custom ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
                 'post_featured_image' => base64_encode( $post_featured_image ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
                 'post_gallery_images' => base64_encode( wp_json_encode( $post_gallery_images ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
                 'child_upload_dir'    => base64_encode( wp_json_encode( $child_upload_dir ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
             );
-            return $post_data;
         }
         return false;
     }

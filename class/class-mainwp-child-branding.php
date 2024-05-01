@@ -1198,28 +1198,17 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool If branding enabled, return true, if not, return false.
      */
     public function is_branding() {
-        $opts = $this->child_branding_options;
+        $opts               = $this->child_branding_options;
+        $cancelled_branding = isset( $opts['cancelled_branding'] ) && $opts['cancelled_branding'] ? true : false;
 
-        if ( ! isset( $opts['branding_ext_enabled'] ) || 'Y' !== $opts['branding_ext_enabled'] ) {
+        if ( ! isset( $opts['branding_ext_enabled'] ) || 'Y' !== $opts['branding_ext_enabled'] || $cancelled_branding ) {
             return false;
         }
-
-        $is_hide            = isset( $opts['hide'] ) ? $opts['hide'] : '';
-        $cancelled_branding = $opts['cancelled_branding'];
-        $branding_header    = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
-
-        if ( $cancelled_branding ) {
-            return false;
-        }
-
-        if ( 'T' === $is_hide ) {
+        $is_hide         = isset( $opts['hide'] ) ? $opts['hide'] : '';
+        $branding_header = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
+        if ( 'T' === $is_hide || ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) ) {
             return true;
         }
-
-        if ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) {
-            return true;
-        }
-
         return false;
     }
 
