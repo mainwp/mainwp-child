@@ -52,6 +52,13 @@ class MainWP_Child_Jetpack_Scan {
     public $plugin_version = false;
 
     /**
+     * Public variable to hold the  plugin slug.
+     *
+     * @var string slug string.
+     */
+    public $the_plugin_slug = 'jetpack/jetpack.php';
+
+    /**
      * Create a public static instance of MainWP_Child_Jetpack_Scan.
      *
      * @return MainWP_Child_Jetpack_Scan
@@ -75,7 +82,7 @@ class MainWP_Child_Jetpack_Scan {
             $this->is_plugin_installed = true;
         }
 
-        if ( ! $this->is_plugin_installed && is_plugin_active( 'jetpack/jetpack.php' ) && defined( 'JETPACK__PLUGIN_DIR' ) ) {
+        if ( ! $this->is_plugin_installed && is_plugin_active( $this->the_plugin_slug ) && defined( 'JETPACK__PLUGIN_DIR' ) ) {
             $this->is_plugin_installed = true;
         }
 
@@ -187,7 +194,7 @@ class MainWP_Child_Jetpack_Scan {
      * @return mixed Returned $slugs.
      */
     public function hook_hide_update_notice( $slugs ) {
-        $slugs[] = 'jetpack/jetpack.php';
+        $slugs[] = $this->the_plugin_slug;
 
         return $slugs;
     }
@@ -209,8 +216,8 @@ class MainWP_Child_Jetpack_Scan {
             return $value;
         }
 
-        if ( isset( $value->response['jetpack/jetpack.php'] ) ) {
-            unset( $value->response['jetpack/jetpack.php'] );
+        if ( isset( $value->response[ $this->the_plugin_slug ] ) ) {
+            unset( $value->response[ $this->the_plugin_slug ] );
         }
         return $value;
     }

@@ -601,17 +601,9 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                         }
                         if ( is_array( $opts ) && isset( $opts['settings'] ) ) {
                             $settings_key = key( $opts['settings'] );
-                            if ( isset( $settings['is_general'] ) && ! empty( $settings['is_general'] ) ) {
-                                $opts['settings'][ $settings_key ]['folder'] = $this->replace_tokens( $settings[ $key ]['folder'] );
-                            } else {
-                                $opts['settings'][ $settings_key ]['folder'] = $this->replace_tokens( $settings[ $key ]['folder'] );
-                            }
+                            $opts['settings'][ $settings_key ]['folder'] = $this->replace_tokens( $settings[ $key ]['folder'] );
                         } else {
-                            if ( isset( $settings['is_general'] ) && ! empty( $settings['is_general'] ) ) {
-                                $opts['folder'] = $this->replace_tokens( $settings[ $key ]['folder'] );
-                            } else {
-                                $opts['folder'] = $this->replace_tokens( $settings[ $key ]['folder'] );
-                            }
+                            $opts['folder'] = $this->replace_tokens( $settings[ $key ]['folder'] );
                         }
                         \UpdraftPlus_Options::update_updraft_option( $key, $opts );
                     } elseif ( 'updraft_email' === $key ) {
@@ -886,7 +878,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
     public function update_wpmu_options( $value ) {
 
         if ( ! \UpdraftPlus_Options::user_can_manage() ) {
-            return;
+            return false;
         }
         $options = $this->addons2_get_option( UDADDONS2_SLUG . '_options' );
         if ( ! is_array( $options ) ) {
@@ -1028,8 +1020,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
         $wpdb_obj = new \UpdraftPlus_WPDB_OtherDB_Test( $_POST['user_db'], $_POST['pass'], $_POST['name'], $_POST['host'] );
         if ( ! empty( $wpdb_obj->error ) ) {
             $failed = true;
-            $ret   .= '<p>';
-            $dbinfo['user'] . '@' . $dbinfo['host'] . '/' . $dbinfo['name'] . ' : ' . esc_html__( 'database connection attempt failed', 'updraftplus' ) . '</p>';
+            $ret   .= '<p>' . $dbinfo['user'] . '@' . $dbinfo['host'] . '/' . $dbinfo['name'] . ' : ' . esc_html__( 'database connection attempt failed', 'updraftplus' ) . '</p>';
             if ( is_wp_error( $wpdb_obj->error ) || is_string( $wpdb_obj->error ) ) {
                 $ret .= '<ul style="list-style: disc inside;">';
                 if ( is_wp_error( $wpdb_obj->error ) ) {
@@ -1118,8 +1109,10 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
         /** @global object $updraftplus UpdraftPlus object.  */
         global $updraftplus;
 
+        $event_nodb =  ! empty( $_REQUEST['backupnow_nodb'] ) ? 'updraft_backupnow_backup' : 'updraft_backupnow_backup_all';
+
         $backupnow_nocloud = ( empty( $_REQUEST['backupnow_nocloud'] ) ) ? false : true;
-        $event = ( ! empty( $_REQUEST['backupnow_nofiles'] ) ) ? 'updraft_backupnow_backup_database' : ( ( ! empty( $_REQUEST['backupnow_nodb'] ) ) ? 'updraft_backupnow_backup' : 'updraft_backupnow_backup_all' );
+        $event = ( ! empty( $_REQUEST['backupnow_nofiles'] ) ) ? 'updraft_backupnow_backup_database' : $event_nodb;
 
         // The call to backup_time_nonce() allows us to know the nonce in advance, and return it.
         $nonce = $updraftplus->backup_time_nonce();
@@ -1161,7 +1154,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
         if ( ! empty( $_REQUEST['downloaders'] ) ) {
             foreach ( explode( ':', $_REQUEST['downloaders'] ) as $downloader ) {
                 // prefix, timestamp, entity, index.
-                if ( preg_match( '/^([^,]+),(\d+),([-a-z]+|db[0-9]+),(\d+)$/', $downloader, $matches ) ) {
+                if ( preg_match( '/^([^,]+),(\d+),([-a-z]+|db\d+),(\d+)$/', $downloader, $matches ) ) {
                     $updraftplus->nonce = $matches[2];
                     $status             = $this->download_status( $matches[2], $matches[3], $matches[4] );
                     if ( is_array( $status ) ) {
@@ -1613,23 +1606,10 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
      * @uses \UpdraftPlus_Backup_History::get_history()
      */
     public function build_historystatus() {
-
         MainWP_Helper::instance()->check_classes_exists( '\UpdraftPlus_Backup_History' );
         MainWP_Helper::instance()->check_methods( '\UpdraftPlus_Backup_History', 'get_history' );
-
         $backup_history = \UpdraftPlus_Backup_History::get_history();
-
         $output = $this->existing_backup_table( $backup_history );
-
-        if ( ! empty( $messages ) && is_array( $messages ) ) {
-            $noutput = '<div style="margin-left: 100px; margin-top: 10px;"><ul style="list-style: disc inside;">';
-            foreach ( $messages as $msg ) {
-                $noutput .= '<li>' . ( ( $msg['desc'] ) ? $msg['desc'] . ': ' : '' ) . '<em>' . $msg['message'] . '</em></li>';
-            }
-            $noutput .= '</ul></div>';
-            $output   = $noutput . $output;
-        }
-
         return array(
             'h' => $output,
             'c' => count( $backup_history ),
@@ -2043,10 +2023,8 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                         $err[] = sprintf( esc_html__( 'File was found, but is zero-sized (you need to re-upload it): %s', 'updraftplus' ), $file );
                     } else {
                         $itext = ( 0 === $index ) ? '' : $index;
-                        if ( ! empty( $backups[ $timestamp ][ $type . $itext . '-size' ] ) && filesize( $updraft_dir . '/' . $file ) !== $backups[ $timestamp ][ $type . $itext . '-size' ] ) {
-                            if ( empty( $warn['doublecompressfixed'] ) ) {
-                                $warn[] = sprintf( esc_html__( 'File (%1$s) was found, but has a different size (%2$s) from what was expected (%3$s) - it may be corrupt.', 'updraftplus' ), $file, filesize( $updraft_dir . '/' . $file ), $backups[ $timestamp ][ $type . $itext . '-size' ] );
-                            }
+                        if ( ! empty( $backups[ $timestamp ][ $type . $itext . '-size' ] ) && filesize( $updraft_dir . '/' . $file ) !== $backups[ $timestamp ][ $type . $itext . '-size' ] && empty( $warn['doublecompressfixed'] ) ) {
+                            $warn[] = sprintf( esc_html__( 'File (%1$s) was found, but has a different size (%2$s) from what was expected (%3$s) - it may be corrupt.', 'updraftplus' ), $file, filesize( $updraft_dir . '/' . $file ), $backups[ $timestamp ][ $type . $itext . '-size' ] );
                         }
                         do_action_ref_array(
                             "updraftplus_checkzip_$type",
@@ -2402,7 +2380,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                             $warn[] = $powarn;
                         }
                     }
-                } elseif ( '' === $old_wp_version && preg_match( '/^\# WordPress Version: ([0-9]+(\.[0-9]+)+)(-[-a-z0-9]+,)?(.*)$/', $buffer, $matches ) ) {
+                } elseif ( '' === $old_wp_version && preg_match( '/^\# WordPress Version: (\d+(\.\d+)+)(-[-a-z0-9]+,)?(.*)$/', $buffer, $matches ) ) {
                     $old_wp_version = $matches[1];
                     if ( ! empty( $matches[3] ) ) {
                         $old_wp_version .= substr( $matches[3], 0, strlen( $matches[3] ) - 1 );
@@ -2410,7 +2388,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                     if ( version_compare( $old_wp_version, $wp_version, '>' ) ) {
                         $warn[] = sprintf( esc_html__( 'You are importing from a newer version of WordPress (%1$s) into an older one (%2$s). There are no guarantees that WordPress can handle this.', 'updraftplus' ), $old_wp_version, $wp_version );
                     }
-                    if ( preg_match( '/running on PHP ([0-9]+\.[0-9]+)(\s|\.)/', $matches[4], $nmatches ) && preg_match( '/^([0-9]+\.[0-9]+)(\s|\.)/', PHP_VERSION, $cmatches ) ) {
+                    if ( preg_match( '/running on PHP (\d+\.\d+)([\s\.])/', $matches[4], $nmatches ) && preg_match( '/^(\d+\.\d+)([\s\.])/', PHP_VERSION, $cmatches ) ) {
                         $old_php_version     = $nmatches[1];
                         $current_php_version = $cmatches[1];
                         if ( version_compare( $old_php_version, $current_php_version, '>' ) ) {
@@ -2691,7 +2669,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                     }
                 } elseif ( ! isset( $info['created_by_version'] ) && preg_match( '/^\# Created by UpdraftPlus version ([\d\.]+)/', $buffer, $matches ) ) {
                     $info['created_by_version'] = trim( $matches[1] );
-                } elseif ( '' === $old_wp_version && preg_match( '/^\# WordPress Version: ([0-9]+(\.[0-9]+)+)(-[-a-z0-9]+,)?(.*)$/', $buffer, $matches ) ) {
+                } elseif ( '' === $old_wp_version && preg_match( '/^\# WordPress Version: (\d+(\.\d+)+)(-[-a-z0-9]+,)?(.*)$/', $buffer, $matches ) ) {
                     $old_wp_version = $matches[1];
                     if ( ! empty( $matches[3] ) ) {
                         $old_wp_version .= substr( $matches[3], 0, strlen( $matches[3] ) - 1 );
@@ -2699,7 +2677,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                     if ( version_compare( $old_wp_version, $wp_version, '>' ) ) {
                         $warn[] = sprintf( esc_html__( 'You are importing from a newer version of WordPress (%1$s) into an older one (%2$s). There are no guarantees that WordPress can handle this.', 'updraftplus' ), $old_wp_version, $wp_version );
                     }
-                    if ( preg_match( '/running on PHP ([0-9]+\.[0-9]+)(\s|\.)/', $matches[4], $nmatches ) && preg_match( '/^([0-9]+\.[0-9]+)(\s|\.)/', PHP_VERSION, $cmatches ) ) {
+                    if ( preg_match( '/running on PHP (\d+\.\d+)([\s\.])/', $matches[4], $nmatches ) && preg_match( '/^(\d+\.\d+)([\s\.])/', PHP_VERSION, $cmatches ) ) {
                         $old_php_version     = $nmatches[1];
                         $current_php_version = $cmatches[1];
                         if ( version_compare( $old_php_version, $current_php_version, '>' ) ) {
@@ -2760,25 +2738,23 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                             $db_supported_charset_related_to_unsupported_collation = true;
                         }
                     }
-                    if ( preg_match( '/ COLLATE ([a-zA-Z0-9._-]+),/i', $buffer, $collate_match ) ) {
+                    if ( preg_match( '/ COLLATE ([a-z0-9._\\-]+),/i', $buffer, $collate_match ) ) {
                         $db_collates_found[] = $collate_match[1];
                         if ( ! isset( $db_supported_collations[ $collate_match[1] ] ) ) {
                             $db_supported_charset_related_to_unsupported_collation = true;
                         }
                     }
-                    if ( preg_match( '/ COLLATE ([a-zA-Z0-9._-]+) /i', $buffer, $collate_match ) ) {
+                    if ( preg_match( '/ COLLATE ([a-z0-9._\\-]+) /i', $buffer, $collate_match ) ) {
                         $db_collates_found[] = $collate_match[1];
                         if ( ! isset( $db_supported_collations[ $collate_match[1] ] ) ) {
                             $db_supported_charset_related_to_unsupported_collation = true;
                         }
                     }
                 }
-                if ( ! empty( $db_supported_character_sets ) ) {
-                    if ( preg_match( '/ CHARSET=([^\s;]+)/i', $buffer, $charset_match ) ) {
-                        $db_charsets_found[] = $charset_match[1];
-                        if ( $db_supported_charset_related_to_unsupported_collation && ! in_array( $charset_match[1], $db_supported_charsets_related_to_unsupported_collations ) ) {
-                            $db_supported_charsets_related_to_unsupported_collations[] = $charset_match[1];
-                        }
+                if ( ! empty( $db_supported_character_sets ) && preg_match( '/ CHARSET=([^\s;]+)/i', $buffer, $charset_match ) ) {
+                    $db_charsets_found[] = $charset_match[1];
+                    if ( $db_supported_charset_related_to_unsupported_collation && ! in_array( $charset_match[1], $db_supported_charsets_related_to_unsupported_collations ) ) {
+                        $db_supported_charsets_related_to_unsupported_collations[] = $charset_match[1];
                     }
                 }
                 if ( ';' === substr( $buffer, -1, 1 ) ) {
@@ -3131,10 +3107,8 @@ ENDHERE;
                     // Set a flag according to whether or not $backup['db'] ends in .crypt, then pick this up in the display of the decrypt field.
                     $db = is_array( $backup['db'] ) ? $backup['db'][0] : $backup['db'];
                     if ( class_exists( '\UpdraftPlus_Encryption' ) ) {
-                        if ( method_exists( 'UpdraftPlus_Encryption', 'is_file_encrypted' ) ) {
-                            if ( \UpdraftPlus_Encryption::is_file_encrypted( $db ) ) {
-                                $entities .= '/dbcrypted=1/';
-                            }
+                        if ( method_exists( 'UpdraftPlus_Encryption', 'is_file_encrypted' ) && \UpdraftPlus_Encryption::is_file_encrypted( $db ) ) {
+                            $entities .= '/dbcrypted=1/';
                         }
                     } elseif ( method_exists( $updraftplus, 'is_db_encrypted' ) && $updraftplus->is_db_encrypted( $db ) ) {
                         $entities .= '/dbcrypted=1/';
@@ -3211,7 +3185,7 @@ ENDHERE;
      * @return string Delete button html.
      */
     private function delete_button( $key, $nonce, $backup ) {
-        $sval = ( ( isset( $backup['service'] ) && 'email' !== $backup['service'] && 'none' !== $backup['service'] ) ) ? '1' : '0';
+        $sval = ( isset( $backup['service'] ) && 'email' !== $backup['service'] && 'none' !== $backup['service'] ) ? '1' : '0';
 
         return '<a style="float:left;margin-right:6px"  class="ui green basic button" href="#" onclick="event.preventDefault();' . "mainwp_updraft_delete( '$key', '$nonce', $sval, this );" . '" title="' . esc_attr( esc_html__( 'Delete this backup set', 'updraftplus' ) ) . '">' . esc_html__( 'Delete', 'updraftplus' ) . '</a>';
     }
@@ -3406,7 +3380,7 @@ ENDHERE;
      *
      * @return string Download button html.
      */
-    private function download_button( $type, $key, $findex, $nonce_field, $ide, $pdescrip, $esc_pretty_date, $set_contents ) {
+    private function download_button( $type, $key, $findex, $nonce_field, $ide, $pdescrip, $esc_pretty_date, $set_contents ) { // phpcs:ignore -- NOSONAR - compatible.
         $ret = <<<ENDHERE
         <div style="float: left; clear: none;">
             <form id="uddownloadform_{$type}_{$key}_{$findex}" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', '$key', '$type', '#mwp_ud_downloadstatus', '$set_contents', '$esc_pretty_date', true, this )" method="post">
@@ -3476,7 +3450,9 @@ ENDHERE;
          * @global object $updraftplus UpdraftPlus object.
          */
         global $updraftplus_admin, $updraftplus;
-        if (empty($updraftplus_admin)) include_once(UPDRAFTPLUS_DIR.'/admin.php');
+        if (empty($updraftplus_admin)) {
+            include_once UPDRAFTPLUS_DIR.'/admin.php'; // NOSONAR - compatible.
+        }
 
         $messages = null;
 
@@ -3591,7 +3567,8 @@ ENDHERE;
                 if ( is_file( $dir ) ) {
                     $size += filesize( $dir );
                 } else {
-                    $suffix = ( '' !== $basedir ) ? ( ( 0 === strpos( $dir, $basedir . '/' ) ) ? substr( $dir, 1 + strlen( $basedir ) ) : '' ) : '';
+                    $suff = 0 === strpos( $dir, $basedir . '/' ) ? substr( $dir, 1 + strlen( $basedir ) ) : '';
+                    $suffix = '' !== $basedir ? $suff : '';
                     $size  += $this->recursive_directory_size_raw( $basedir, $exclude, $suffix );
                 }
             }
@@ -4129,7 +4106,9 @@ ENDHERE;
         header('Content-Length: '.(empty($txt) ? '0' : 4+strlen($txt)));
         header('Connection: close');
         header('Content-Encoding: none');
-        if (session_id()) session_write_close();
+        if (session_id()) {
+            session_write_close();
+        }
         echo "\r\n\r\n";
         echo $txt;
         // These two added - 19-Feb-15 - started being required on local dev machine, for unknown reason (probably some plugin that started an output buffer).
@@ -4139,7 +4118,9 @@ ENDHERE;
             $ob_level--;
         }
         flush();
-        if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+        if ( function_exists('fastcgi_finish_request') ) {
+            fastcgi_finish_request();
+        }
     }
 
     /**
@@ -4214,11 +4195,8 @@ ENDHERE;
         // Loop on filters registered.
         foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
             // Test if filter is an array ! (always for class/method).
-            if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) ) {
-                // Test if object is a class, class and method is equal to param !
-                if ( is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) === $class_name && $filter_array['function'][1] === $method_name ) {
-                    unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
-                }
+            if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) && is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) === $class_name && $filter_array['function'][1] === $method_name ) {
+                unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
             }
         }
 

@@ -610,54 +610,44 @@ class MainWP_Child_Pagespeed {
         $gpi_options  = get_option( 'gpagespeedi_options' );
         $typestocheck = array();
 
-        if ( $gpi_options['check_pages'] ) {
-            if ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'pages' === $restrict_type ) {
-                $typestocheck[] = 'type = %s';
-                $types[1][]     = 'page';
-            }
+        if ( $gpi_options['check_pages'] && 'all' === $restrict_type || 'ignored' === $restrict_type || 'pages' === $restrict_type ) {
+            $typestocheck[] = 'type = %s';
+            $types[1][]     = 'page';
         }
 
-        if ( $gpi_options['check_posts'] ) {
-            if ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'posts' === $restrict_type ) {
-                $typestocheck[] = 'type = %s';
-                $types[1][]     = 'post';
-            }
+        if ( $gpi_options['check_posts'] && ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'posts' === $restrict_type ) ) {
+            $typestocheck[] = 'type = %s';
+            $types[1][]     = 'post';
         }
 
-        if ( $gpi_options['check_categories'] ) {
-            if ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'categories' === $restrict_type ) {
+        if ( $gpi_options['check_categories'] && ( 'all' === $restrict_type || 'ignored' === $restrict_type || 'categories' === $restrict_type ) ) {
                 $typestocheck[] = 'type = %s';
                 $types[1][]     = 'category';
-            }
         }
-        if ( $gpi_options['cpt_whitelist'] ) {
-            if ( 'all' === $restrict_type || 'ignored' === $restrict_type || stristr( $restrict_type, 'gpi_custom_posts' ) ) {
 
-                $cpt_whitelist_arr = false;
-                if ( ! empty( $gpi_options['cpt_whitelist'] ) ) {
-                    $cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- unserialize usage required to achieve desired results, pull request solutions appreciated.
-                }
-                $args              = array(
-                    'public'   => true,
-                    '_builtin' => false,
-                );
-                $custom_post_types = get_post_types( $args, 'names', 'and' );
-                if ( 'gpi_custom_posts' !== $restrict_type && 'all' !== $restrict_type && 'ignored' !== $restrict_type ) {
-                    $restrict_type = str_replace( 'gpi_custom_posts-', '', $restrict_type );
-                    foreach ( $custom_post_types as $post_type ) {
-                        if ( $cpt_whitelist_arr && in_array( $post_type, $cpt_whitelist_arr ) ) {
-                            if ( $post_type === $restrict_type ) {
-                                $typestocheck[] = 'type = %s';
-                                $types[1][]     = $custom_post_types[ $post_type ];
-                            }
-                        }
+        if ( $gpi_options['cpt_whitelist'] && ( 'all' === $restrict_type || 'ignored' === $restrict_type || stristr( $restrict_type, 'gpi_custom_posts' ) ) ) {
+            $cpt_whitelist_arr = false;
+            if ( ! empty( $gpi_options['cpt_whitelist'] ) ) {
+                $cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- unserialize usage required to achieve desired results, pull request solutions appreciated.
+            }
+            $args              = array(
+                'public'   => true,
+                '_builtin' => false,
+            );
+            $custom_post_types = get_post_types( $args, 'names', 'and' );
+            if ( 'gpi_custom_posts' !== $restrict_type && 'all' !== $restrict_type && 'ignored' !== $restrict_type ) {
+                $restrict_type = str_replace( 'gpi_custom_posts-', '', $restrict_type );
+                foreach ( $custom_post_types as $post_type ) {
+                    if ( $cpt_whitelist_arr && in_array( $post_type, $cpt_whitelist_arr ) && $post_type === $restrict_type ) {
+                        $typestocheck[] = 'type = %s';
+                        $types[1][]     = $custom_post_types[ $post_type ];
                     }
-                } else {
-                    foreach ( $custom_post_types as $post_type ) {
-                        if ( $cpt_whitelist_arr && in_array( $post_type, $cpt_whitelist_arr ) ) {
-                            $typestocheck[] = 'type = %s';
-                            $types[1][]     = $custom_post_types[ $post_type ];
-                        }
+                }
+            } else {
+                foreach ( $custom_post_types as $post_type ) {
+                    if ( $cpt_whitelist_arr && in_array( $post_type, $cpt_whitelist_arr ) ) {
+                        $typestocheck[] = 'type = %s';
+                        $types[1][]     = $custom_post_types[ $post_type ];
                     }
                 }
             }

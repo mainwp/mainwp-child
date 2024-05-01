@@ -376,10 +376,8 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 $connector = $this->get_connector_by_compatible_context( $context );
                 $action    = $this->get_compatible_action( $action, $context );
                 // custom values.
-                if ( 'profiles' === $context ) {
-                    if ( 'created' === $action || 'deleted' === $action ) {
-                        $context = 'users';
-                    }
+                if ( 'profiles' === $context && ( 'created' === $action || 'deleted' === $action ) ) {
+                    $context = 'users';
                 }
                 if ( 'count' === $data ) {
                     if ( 'wordfence_scan' === $context ) { // wordfence.blocked.count.
@@ -469,10 +467,8 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 continue;
             }
             // custom action value.
-            if ( 'widgets' === $connector ) {
-                if ( 'deleted' === $action ) {
-                    $action = 'removed'; // action saved in database.
-                }
+            if ( 'widgets' === $connector && 'deleted' === $action ) {
+                $action = 'removed'; // action saved in database.
             }
 
             // check action.
@@ -628,10 +624,8 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             // custom action value!
-            if ( 'widgets' === $connector ) {
-                if ( 'deleted' === $action ) {
-                    $action = 'removed'; // action saved in database!
-                }
+            if ( 'widgets' === $connector && 'deleted' === $action ) {
+                $action = 'removed'; // action saved in database!
             }
 
             if ( 'backups' === $context ) {
@@ -655,10 +649,8 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 ++$loop_count;
             }
 
-            if ( $max_items_get && ( $loop_count >= $max_items_get ) ) {
-                if ( in_array( $connector, $limit_connectors ) ) {
-                    break;
-                }
+            if ( $max_items_get && ( $loop_count >= $max_items_get ) && in_array( $connector, $limit_connectors ) ) {
+                break;
             }
         }
         return $loops;
@@ -774,10 +766,8 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             case 'new_version':
             case 'display_name':
             case 'roles':
-                if ( 'name' === $data ) {
-                    if ( 'profiles' === $context ) {
-                        $data = 'display_name';
-                    }
+                if ( 'name' === $data && 'profiles' === $context ) {
+                    $data = 'display_name';
                 }
                 $tok_value = $this->get_stream_meta_data( $record, $data );
                 break;
@@ -853,10 +843,8 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                     if ( is_array( $value ) ) {
                         $value = $value['display_name'];
                         // fix empty author value!
-                        if ( empty( $value ) ) {
-                            if ( isset( $value['agent'] ) && ! empty( $value['agent'] ) ) {
-                                $value = $value['agent'];
-                            }
+                        if ( empty( $value ) && isset( $value['agent'] ) && ! empty( $value['agent'] ) ) {
+                            $value = $value['agent'];
                         }
                     }
                     if ( ! is_string( $value ) ) {
@@ -875,11 +863,10 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      * @param object $record    Object containing the record data.
      * @param string $connector Record connector.
      * @param string $context   Record context.
-     * @param string $data      Data to process.
      *
      * @return string Author data token value.
      */
-    private function get_author_data_token_value( $record, $connector, $context, $data ) {
+    private function get_author_data_token_value( $record, $connector, $context ) {
         if ( 'comment' === $connector ) {
             $data = 'user_name';
         } else {
@@ -976,9 +963,11 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
 
                 $status = array();
                 if ( $blacklisted ) {
-                    $status[] = esc_html__( 'Site Blacklisted', 'mainwp-child' ); }
+                    $status[] = esc_html__( 'Site Blacklisted', 'mainwp-child' );
+                }
                 if ( $malware_exists ) {
-                    $status[] = esc_html__( 'Site With Warnings', 'mainwp-child' ); }
+                    $status[] = esc_html__( 'Site With Warnings', 'mainwp-child' );
+                }
 
                 if ( 'status' === $data ) {
                     $tok_value = ! empty( $status ) ? implode( ', ', $status ) : esc_html__( 'Verified Clear', 'mainwp-child' );
@@ -1109,7 +1098,7 @@ SELECT SUM(blockCount) as blockCount
 FROM {$table_wfBlockedIPLog}
 WHERE unixday >= {$interval_fromDays} AND unixday <= {$interval_toDays} {$groupingWHERE}
 SQL;
-        $wpdb->get_var( $count_sql ); // phpcs:ignore -- unprepared SQL.
+        $count = $wpdb->get_var( $count_sql ); // phpcs:ignore -- unprepared SQL.
 
         return intval( $count );
     }

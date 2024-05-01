@@ -628,10 +628,8 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             } catch ( MainWP_Exception $e ) {
                 // ok!
             }
-            if ( ! empty( $wp_filesystem ) ) {
-                if ( $wp_filesystem->is_writable( $dir ) ) {
-                    $done = true;
-                }
+            if ( ! empty( $wp_filesystem ) && $wp_filesystem->is_writable( $dir ) ) {
+                $done = true;
             }
         }
 
@@ -690,7 +688,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
 
         $email = get_option( 'mainwp_maintenance_opt_alert_404_email' );
 
-        if ( empty( $email ) || ! preg_match( '/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/is', $email ) ) {
+        if ( empty( $email ) || ! preg_match( '/^[A-Z0-9_.+-]+@[A-Z0-9-]+\.[A-Z0-9-.]+$/is', $email ) ) {
             return;
         }
 

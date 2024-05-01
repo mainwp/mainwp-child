@@ -342,15 +342,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function is_valid_supported_sign_alg( $alg ) {
         $valid = false;
-        if ( defined( 'OPENSSL_ALGO_SHA1' ) && OPENSSL_ALGO_SHA1 === $alg ) {
-            $valid = true;
-        } elseif ( defined( 'OPENSSL_ALGO_SHA224' ) && OPENSSL_ALGO_SHA224 === $alg ) {
-            $valid = true;
-        } elseif ( defined( 'OPENSSL_ALGO_SHA256' ) && OPENSSL_ALGO_SHA256 === $alg ) {
-            $valid = true;
-        } elseif ( defined( 'OPENSSL_ALGO_SHA384' ) && OPENSSL_ALGO_SHA384 === $alg ) {
-            $valid = true;
-        } elseif ( defined( 'OPENSSL_ALGO_SHA512' ) && OPENSSL_ALGO_SHA512 === $alg ) {
+        if ( ( defined( 'OPENSSL_ALGO_SHA1' ) && OPENSSL_ALGO_SHA1 === $alg ) || ( defined( 'OPENSSL_ALGO_SHA224' ) && OPENSSL_ALGO_SHA224 === $alg ) || ( defined( 'OPENSSL_ALGO_SHA256' ) && OPENSSL_ALGO_SHA256 === $alg ) || ( defined( 'OPENSSL_ALGO_SHA384' ) && OPENSSL_ALGO_SHA384 === $alg ) || ( defined( 'OPENSSL_ALGO_SHA512' ) && OPENSSL_ALGO_SHA512 === $alg ) ) {
             $valid = true;
         }
         return $valid;
@@ -449,7 +441,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $file = $this->get_request_files();
 
-        $function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ) ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $where    = ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( $where ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $nonce    = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
 
         try {
@@ -695,8 +688,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $file = $this->get_request_files();
 
+        $where           = isset( $_REQUEST['where'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['where'] ) ) : $file;
         $mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( ( isset( $_REQUEST['where'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['where'] ) ) : $file ) );
+        $function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( $where );
         $nonce           = MainWP_System::instance()->validate_params( 'nonce' );
 
         try {
@@ -719,11 +713,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             // Check if the user exists & is an administrator.
             if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
                 $user = null;
-                if ( isset( $_POST['alt_user'] ) ) {
-                    if ( ! empty( $_POST['alt_user'] ) && $this->check_login_as( sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) ) ) {
-                        $auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
-                        $user      = get_user_by( 'login', $auth_user );
-                    }
+                if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) && $this->check_login_as( sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) ) ) {
+                    $auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
+                    $user      = get_user_by( 'login', $auth_user );
                 }
                 // if not valid alternative admin.
                 if ( ! $user ) {

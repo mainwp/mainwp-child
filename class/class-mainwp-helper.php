@@ -452,7 +452,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         if ( 0 === $length ) {
             return true;
         }
-        return ( substr( $haystack, - $length ) === $needle );
+        return substr( $haystack, - $length ) === $needle;
     }
 
     /**
@@ -577,7 +577,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! is_readable( $dir ) ) {
             return null;
         }
-        return ( 2 === count( scandir( $dir ) ) );
+        return 2 === count( scandir( $dir ) );
     }
 
     /**
@@ -623,7 +623,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 $suhosin = array_map( 'trim', $suhosin );
                 $suhosin = array_map( 'strtolower', $suhosin );
 
-                return ( function_exists( $func ) && ! array_search( $func, $suhosin ) );
+                return function_exists( $func ) && ! array_search( $func, $suhosin );
             }
         }
         return true;
@@ -644,7 +644,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         }
         $gmtOffset = get_option( 'gmt_offset' );
 
-        return ( $gmtOffset ? ( $gmtOffset * HOUR_IN_SECONDS ) + $timestamp : $timestamp );
+        return $gmtOffset ? ( $gmtOffset * HOUR_IN_SECONDS ) + $timestamp : $timestamp;
     }
 
     /**
@@ -873,10 +873,8 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         }
         if ( function_exists( 'get_current_screen' ) ) {
             $screen = get_current_screen();
-            if ( $screen ) {
-                if ( 'update-core' === $screen->base && 'index.php' === $screen->parent_file ) {
-                    return true;
-                }
+            if ( $screen && 'update-core' === $screen->base && 'index.php' === $screen->parent_file ) {
+                return true;
             }
         }
         return false;
@@ -915,7 +913,8 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string flywheel|pressable If the child site is hosted on FLYWHEEL or Pressable host.
      */
     public static function get_wp_host() {
-        return static::is_flywheel_host() ? 'flywheel' : ( static::is_pressable_host() ? 'pressable' : '' );
+        $pressable = static::is_pressable_host() ? 'pressable' : '';
+        return static::is_flywheel_host() ? 'flywheel' : $pressable;
     }
 
     /**
@@ -948,17 +947,14 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * May be define doing cron.
      */
     public static function maybe_set_doing_cron() {
-        if ( ! static::is_wp_engine_php8() ) {
-            // Prevent disable/re-enable.
-            if ( ! defined( 'DOING_CRON' ) ) {
-                /**
-                 * Checks whether cron is in progress.
-                 *
-                 * @const ( bool ) Default: true
-                 * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Updates.html
-                 */
-                define( 'DOING_CRON', true );
-            }
+        if ( ! static::is_wp_engine_php8() && ! defined( 'DOING_CRON' ) ) {
+            /**
+             * Checks whether cron is in progress.
+             *
+             * @const ( bool ) Default: true
+             * @source https://code-reference.mainwp.com/classes/MainWP.Child.MainWP_Child_Updates.html
+             */
+            define( 'DOING_CRON', true );
         }
     }
 

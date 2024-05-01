@@ -181,7 +181,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ( 'save_settings' === $mwp_action || 'get_staging_details_wptc' === $mwp_action || 'progress_wptc' === $mwp_action ) && ( ! $is_user_logged_in || ! $privileges_wptc ) ) {
                 MainWP_Helper::write( array( 'error' => 'You are not login to your WP Time Capsule account.' ) );
             }
-            switch ( $mwp_action ) {
+            switch ( $mwp_action ) { // NOSONAR - multi case.
                 case 'set_showhide':
                     $information = $this->set_showhide();
                     break;
@@ -249,7 +249,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                     $this->wptc_sync_purchase();
                     break;
                 case 'init_restore':
-                    $information = $this->init_restore();
+                    $this->init_restore();
                     break;
                 case 'save_settings':
                     $information = $this->save_settings_wptc();
@@ -288,10 +288,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                     $information = $this->get_this_backups_html();
                     break;
                 case 'start_restore_tc_wptc':
-                    $information = $this->start_restore_tc_callback_wptc();
+                    $this->start_restore_tc_callback_wptc();
                     break;
                 case 'get_sibling_files':
-                    $information = $this->get_sibling_files_callback_wptc();
+                    $this->get_sibling_files_callback_wptc();
                     break;
                 case 'get_logs_rows':
                     $information = $this->get_logs_rows();
@@ -623,7 +623,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
 
         include_once WPTC_CLASSES_DIR . 'class-prepare-restore-bridge.php'; // NOSONAR -- WP compatible.
 
-        new \WPTC_Prepare_Restore_Bridge( $request );
+        new \WPTC_Prepare_Restore_Bridge( $request ); // NOSONAR - 3rd compatible.
     }
 
     /**

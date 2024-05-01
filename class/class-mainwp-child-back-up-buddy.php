@@ -40,6 +40,9 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
     /** @var bool $is_backupbuddy_installed Whether or not BackupBuddy is installed. Default: False. */
     public $is_backupbuddy_installed = false;
 
+    /** @var string $path_core_file path core file. */
+    public $path_core_file = '/classes/core.php';
+
     /**
      * Create a public static instance of MainWP_Child_Back_Up_Buddy.
      *
@@ -196,9 +199,8 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         try {
 
             MainWP_Helper::instance()->check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
-
-            if ( ! class_exists( '\backupbuddy_core' ) && file_exists( \pb_backupbuddy::plugin_path() . '/classes/core.php' ) ) {
-                require_once \pb_backupbuddy::plugin_path() . '/classes/core.php'; // NOSONAR - WP compatible.
+            if ( ! class_exists( '\backupbuddy_core' ) && file_exists( \pb_backupbuddy::plugin_path() . $this->path_core_file ) ) {
+                require_once \pb_backupbuddy::plugin_path() . $this->path_core_file; // NOSONAR - WP compatible.
             }
 
             if ( file_exists( \pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' ) ) {
@@ -248,7 +250,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                     if ( $chk_pro && true === MainWP_Helper::instance()->check_methods( \pb_backupbuddy::$format, array( 'prettify' ), true ) ) {
                         $backupType = \pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type );
                     }
-                } else if ( true === MainWP_Helper::instance()->check_methods( '\backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true ) ) {
+                } elseif ( true === MainWP_Helper::instance()->check_methods( '\backupbuddy_core', array( 'pretty_backup_type', 'getBackupTypeFromFile' ), true ) ) {
                     $backupType = \backupbuddy_core::pretty_backup_type( \backupbuddy_core::getBackupTypeFromFile( $backup['archive_file'] ) );
                 }
 
@@ -350,9 +352,8 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! $this->is_backupbuddy_installed ) {
             MainWP_Helper::write( array( 'error' => esc_html__( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
         }
-
         if ( ! class_exists( '\backupbuddy_core' ) ) {
-            require_once \pb_backupbuddy::plugin_path() . '/classes/core.php'; // NOSONAR - WP compatible.
+            require_once \pb_backupbuddy::plugin_path() . $$this->path_core_file; // NOSONAR - WP compatible.
         }
 
         if ( ! isset( \pb_backupbuddy::$options ) ) {
@@ -961,7 +962,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                             $this_serial      = \backupbuddy_core::get_serial_from_file( $item );
                             $fileoptions_file = \backupbuddy_core::getLogDirectory() . 'fileoptions/' . $this_serial . '.txt';
                             if ( file_exists( $fileoptions_file ) ) {
-                                wp_delete_file( $fileoptions_file );
+                                wp_delete_file( $fileoptions_file ); // NOSONAR - safe.
                             }
                             if ( file_exists( $fileoptions_file . '.lock' ) ) {
                                 wp_delete_file( $fileoptions_file . '.lock' );
@@ -1017,10 +1018,9 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ! class_exists( '\backupbuddy_core' ) ) {
                 MainWP_Helper::instance()->check_classes_exists( '\pb_backupbuddy' );
                 MainWP_Helper::instance()->check_methods( '\pb_backupbuddy', array( 'plugin_path' ) );
-
                 $plugin_path = \pb_backupbuddy::plugin_path();
-                if ( file_exists( $plugin_path . '/classes/core.php' ) ) {
-                    require_once $plugin_path . '/classes/core.php'; // NOSONAR - WP compatible.
+                if ( file_exists( $plugin_path . $this->path_core_file ) ) {
+                    require_once $plugin_path . $this->path_core_file; // NOSONAR - WP compatible.
                 }
             }
 
@@ -1207,7 +1207,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
             $chk_valid = true;
         }
 
-        if ( $chk_valid && false === wp_delete_file( $fileoptions_file ) ) {
+        if ( $chk_valid && false === wp_delete_file( $fileoptions_file ) ) { // NOSONAR - safe.
             $alerts[] = 'Error #456765545. Unable to wipe cached fileoptions file `' . $fileoptions_file . '`.';
         }
 
@@ -1256,8 +1256,6 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                     $files[ $key ][0] = $subdir;
                 } else {
                     unset( $files[ $key ] );
-                    continue;
-
                 }
             } else {
                 $files[ $key ][0] = $unrooted_file;
@@ -1433,7 +1431,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         // Calculate temp directory & lock it down.
         $temp_dir    = get_temp_dir();
         $destination = $temp_dir . 'backupbuddy-' . $serial;
-        if ( ( ( ! file_exists( $destination ) ) && ( false === MainWP_Helper::mkdir( $destination ) ) ) ) {
+        if ( ( ! file_exists( $destination ) ) && ( false === MainWP_Helper::mkdir( $destination ) ) ) {
             $error = 'Error #458485945b: Unable to create temporary location.';
             \pb_backupbuddy::status( 'error', $error );
             return array( 'error' => $error );
@@ -1937,7 +1935,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return string Return Pass or Fail message.
      */
-    function pb_pretty_results( $value ) {
+    function pb_pretty_results( $value ) { // NOSONAR - 3rd compatible.
         if ( true === $value ) {
             return '<span class="pb_label pb_label-success">Pass</span>';
         } else {
@@ -2382,7 +2380,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( is_array( $data ) && isset( $data['do_not_override'] ) ) {
 
-            if ( !empty( $data['do_not_override'] ) && ( ( 's32' === $data['type'] || 's33' === $data['type'] ) ) ) {
+            if ( !empty( $data['do_not_override'] ) && ( 's32' === $data['type'] || 's33' === $data['type'] ) ) {
                 $not_override = array(
                     'accesskey',
                     'secretkey',
@@ -2895,7 +2893,8 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                                 if ( ! empty( $scan['WEBAPP']['NOTICE'] ) ) {
                                     echo lined_array( $scan['WEBAPP']['NOTICE'] );
                                 } else {
-                                    echo '<i>', esc_html__( 'none', 'mainwp-child' ), '</i><br />'; }
+                                    echo '<i>', esc_html__( 'none', 'mainwp-child' ), '</i><br />';
+                                }
                                 ?>
                                 <br />
                                 <label><?php esc_html_e( 'Errors', 'mainwp-child' ); ?></label>
@@ -2955,7 +2954,8 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                                 if ( ! empty( $scan['LINKS']['JSEXTERNAL'] ) ) {
                                     echo lined_array( $scan['LINKS']['JSEXTERNAL'] );
                                 } else {
-                                    echo '<i>', esc_html__( 'none', 'mainwp-child' ), '</i><br />'; }
+                                    echo '<i>', esc_html__( 'none', 'mainwp-child' ), '</i><br />';
+                                }
                                 ?>
                             </div>
                         </div>

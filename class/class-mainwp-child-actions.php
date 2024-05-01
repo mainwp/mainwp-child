@@ -254,7 +254,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * Method to check actions data.
      * Clear old the action info.
      */
-    public static function check_actions_data() {
+    public static function check_actions_data() { //phpcs:ignore -- NOSONAR - complex.
         // NOSONAR - WP compatible.
         $checked = intval( get_option( 'mainwp_child_actions_data_checked', 0 ) );
         if ( empty( $checked ) ) {
@@ -664,7 +664,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     /**
      * Upgrader pre-instaler callback.
      */
-    public function callback_upgrader_pre_install() {
+    public function callback_upgrader_pre_install() { //phpcs:ignore -- NOSONAR - complex.
         // NOSONAR - WP compatible.
         if ( empty( $this->current_plugins_info ) ) {
             $this->current_plugins_info = $this->get_plugins();

@@ -8,12 +8,9 @@
 namespace MainWP\Child;
 
 // phpcs:disable -- required for debugging.
-if ( isset( $_REQUEST['mainwpsignature'] ) ) {
-    // if not debug.
-    if ( ! defined('MAINWP_CHILD_DEBUG') || false === MAINWP_CHILD_DEBUG ) {
-        ini_set( 'display_errors', false );
-        error_reporting( 0 );
-    }
+if ( isset( $_REQUEST['mainwpsignature'] ) && ( ! defined('MAINWP_CHILD_DEBUG') || false === MAINWP_CHILD_DEBUG ) ) {
+    ini_set( 'display_errors', false );
+    error_reporting( 0 );
 }
 
 // phpcs:enable
@@ -116,10 +113,8 @@ class MainWP_Child {
             MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
         }
 
-        if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
-            if ( isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
-                add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
-            }
+        if ( defined( 'DOING_CRON' ) && DOING_CRON && isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+            add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
         }
 
         /**

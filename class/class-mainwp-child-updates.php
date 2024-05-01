@@ -685,10 +685,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                             $update['callback'][1],
                         )
                     );
-                    $information['upgrades'][ $slug ] = $update_result && true;
+                    $information['upgrades'][ $slug ] = $update_result;
                 } elseif ( is_string( $update['callback'] ) ) {
                     $update_result                    = call_user_func( $update['callback'] );
-                    $information['upgrades'][ $slug ] = $update_result && true;
+                    $information['upgrades'][ $slug ] = $update_result;
                 } else {
                     $information['upgrades'][ $slug ] = false;
                 }

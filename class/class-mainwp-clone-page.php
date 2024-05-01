@@ -341,7 +341,7 @@ class MainWP_Clone_Page {
      * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     private static function render_clone_from_server() {
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         $page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
         $sitesToClone = get_option( 'mainwp_child_clone_sites' );
         $url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
@@ -356,7 +356,7 @@ class MainWP_Clone_Page {
                 $current_dir = get_option( 'mainwp_child_clone_from_server_last_folder' ) . $current_dir;
             }
         }
-		// phpcs:enable
+        // phpcs:enable
         if ( ! is_readable( $current_dir ) ) {
             $current_dir = WP_CONTENT_DIR;
         }

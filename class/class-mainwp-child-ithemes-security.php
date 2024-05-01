@@ -932,20 +932,20 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
         <table class="widefat">
             <thead>
                 <tr>
-                    <th><?php esc_html_e( 'Relative Path', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Suggestion', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Result', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Relative Path', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Suggestion', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Result', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
                 </tr>
             </thead>
             <tfoot>
                 <tr>
-                    <th><?php esc_html_e( 'Relative Path', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Suggestion', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Result', 'mainwp-child' ); ?></th>
-                    <th><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Relative Path', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Suggestion', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Value', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Result', 'mainwp-child' ); ?></th>
+                    <th scope="col"><?php esc_html_e( 'Status', 'mainwp-child' ); ?></th>
                 </tr>
             </tfoot>
             <tbody>

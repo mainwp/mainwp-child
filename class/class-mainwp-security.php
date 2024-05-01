@@ -336,17 +336,13 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
          * @global object $wp_filesystem Filesystem object.
          */
         global $wp_filesystem;
-        if ( $force || static::get_security_option( 'readme' ) ) {
-            if ( $wp_filesystem->connect() ) {
-                $abs_path = $wp_filesystem->abspath();
+        if ( ( $force || static::get_security_option( 'readme' ) ) && $wp_filesystem->connect() ) {
+            $abs_path = $wp_filesystem->abspath();
+            if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) && ! wp_delete_file( ABSPATH . 'readme.html' ) ) {
+                $wp_filesystem->delete( $abs_path . 'readme.html' );
                 if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
-                    if ( ! wp_delete_file( ABSPATH . 'readme.html' ) ) {
-                        $wp_filesystem->delete( $abs_path . 'readme.html' );
-                        if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
-                            // prevent repeat delete.
-                            static::update_security_option( 'readme', false );
-                        }
-                    }
+                    // prevent repeat delete.
+                    static::update_security_option( 'readme', false );
                 }
             }
         }
@@ -406,7 +402,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool true|false If the Really Simple Discovery meta tag has been removed, return true, if not return false.
      */
     public static function remove_rsd_ok() {
-        return ( ! has_action( 'wp_head', 'rsd_link' ) );
+        return ! has_action( 'wp_head', 'rsd_link' );
     }
 
     /**
@@ -419,7 +415,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool true|false If the Windows Live Writer meta tag has been removed, return true, if not return false.
      */
     public static function remove_wlw_ok() {
-        return ( ! has_action( 'wp_head', 'wlwmanifest_link' ) );
+        return ! has_action( 'wp_head', 'wlwmanifest_link' );
     }
 
     /**
@@ -440,7 +436,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $wpdb;
 
-        return ( false === $wpdb->show_errors );
+        return false === $wpdb->show_errors;
     }
 
     /**
@@ -669,7 +665,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
         $ok           = true;
         $core_updates = get_core_updates();
         if ( is_array( $core_updates ) ) {
-            foreach ( $core_updates as $core => $update ) {
+            foreach ( $core_updates as $update ) {
                 if ( 'upgrade' === $update->response ) {
                     $ok = false;
                 }

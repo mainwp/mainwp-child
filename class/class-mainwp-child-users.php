@@ -274,10 +274,8 @@ class MainWP_Child_Users {
             );
             if ( ! empty( $user_query->results ) ) {
                 foreach ( $user_query->results as $new_user ) {
-                    if ( $check_users_role ) {
-                        if ( ! in_array( $new_user->ID, $search_user_role ) ) {
-                            continue;
-                        }
+                    if ( $check_users_role && ! in_array( $new_user->ID, $search_user_role ) ) {
+                        continue;
                     }
                     $exclude[]           = $new_user->ID;
                     $usr                 = array();
@@ -576,13 +574,11 @@ class MainWP_Child_Users {
         // phpcs:disable WordPress.Security.NonceVerification
         $new_user      = isset( $_POST['new_user'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_user'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         $send_password = isset( $_POST['send_password'] ) ? wp_unslash( $_POST['send_password'] ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        if ( isset( $new_user['role'] ) ) {
-            if ( ! get_role( $new_user['role'] ) ) {
-                $new_user['role'] = 'subscriber';
-            }
+        if ( isset( $new_user['role'] ) && ! get_role( $new_user['role'] ) ) {
+            $new_user['role'] = 'subscriber';
         }
-        // phpcs:enable
 
+        // phpcs:enable
         $new_user_id = wp_insert_user( $new_user );
 
         if ( is_wp_error( $new_user_id ) ) {

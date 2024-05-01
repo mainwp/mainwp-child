@@ -35,7 +35,7 @@ class MainWP_Child_DB {
          */
         global $wpdb;
 
-        return ( $wpdb->dbh instanceof \mysqli );
+        return $wpdb->dbh instanceof \mysqli;
     }
 
     /**
@@ -179,7 +179,7 @@ class MainWP_Child_DB {
      */
     public static function is_result( $result ) {
         if ( static::use_mysqli() ) {
-            return ( $result instanceof \mysqli_result );
+            return $result instanceof \mysqli_result;
         } else {
             return is_resource( $result );
         }

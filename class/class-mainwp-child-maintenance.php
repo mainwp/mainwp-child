@@ -252,7 +252,7 @@ class MainWP_Child_Maintenance {
         global $wpdb;
 
         if ( ! is_array( $results ) || empty( $results ) ) {
-            return;
+            return 0;
         }
         $count_deleted  = 0;
         $results_length = count( $results );

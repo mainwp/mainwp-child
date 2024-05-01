@@ -299,8 +299,8 @@ class Tar_Archiver {
      * @param string $file_log         Log file path.
      */
     public function init_log_handle( $file_log ) {
-		//phpcs:ignore -- for debug.
-		// $this->logHandle = fopen( $file_log, 'a+' );
+        //phpcs:ignore -- for debug.
+        // $this->logHandle = fopen( $file_log, 'a+' );
     }
 
     /**
@@ -788,7 +788,7 @@ class Tar_Archiver {
      * @uses    \MainWP\Child\Tar_Archiver::update_pid_file() Update the PID file.
      * @uses    \MainWP\Child\MainWP_Helper::ends_with()
      */
-	private function add_file( $path, $entryName ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    private function add_file( $path, $entryName ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
             return false;
         }
@@ -1206,12 +1206,12 @@ class Tar_Archiver {
                 $rslt['bytesRead']  = $bytesRead;
                 $rslt['readOffset'] = $previousFtell;
 
-				$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
+                $this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
 
                 return $rslt;
             }
         } elseif ( ( 'tar' === $this->type ) && ( ( false === $ftell ) || ( -1 === $ftell ) ) ) {
-			$this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
+            $this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
 
             return $rslt;
         }
@@ -1540,7 +1540,7 @@ class Tar_Archiver {
      *
      * @return null
      */
-	public function extract_to( $to ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    public function extract_to( $to ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
         /**
          * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.

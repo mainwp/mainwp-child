@@ -88,7 +88,7 @@ class MainWP_Child_Install {
         if ( 'activate' === $action ) {
             include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
 
-            foreach ( $plugins as $idx => $plugin ) {
+            foreach ( $plugins as $plugin ) {
                 if ( $plugin !== $mainWPChild->plugin_slug ) {
                     $thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
                     if ( null !== $thePlugin && '' !== $thePlugin ) {
@@ -108,7 +108,7 @@ class MainWP_Child_Install {
         } elseif ( 'deactivate' === $action ) {
             include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
 
-            foreach ( $plugins as $idx => $plugin ) {
+            foreach ( $plugins as $plugin ) {
                 if ( $plugin !== $mainWPChild->plugin_slug ) {
                     $thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
                     if ( null !== $thePlugin && '' !== $thePlugin ) {
@@ -304,7 +304,7 @@ class MainWP_Child_Install {
                 }
             }
 
-            foreach ( $themes as $idx => $themeToDelete ) {
+            foreach ( $themes as $themeToDelete ) {
                 if ( $themeToDelete === $theme_name ) {
                     $information['error']['is_activated_theme'] = $themeToDelete;
                 } elseif ( $themeToDelete === $parent_name ) {
@@ -592,7 +592,7 @@ class MainWP_Child_Install {
                 $error = $result->get_error_data();
                 MainWP_Helper::instance()->error( $error, $err_code );
             } else {
-                MainWP_Helper::instance()->error( implode( ', ', $error ), $err_code );
+                MainWP_Helper::instance()->error( '', $err_code );
             }
         }
         return $result;

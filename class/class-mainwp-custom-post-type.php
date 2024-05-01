@@ -160,15 +160,12 @@ class MainWP_Custom_Post_Type {
         // phpcs:disable WordPress.Security.NonceVerification
         $information = array();
         $mwp_action  = MainWP_System::instance()->validate_params( 'action' );
-        // phpcs:enable
-        switch ( $mwp_action ) {
-            case 'custom_post_type_import':
-                $information = $this->import_custom_post();
-                break;
+        // phpcs:enable WordPress.Security.NonceVerification
 
-            default:
-                $information = array( 'error' => 'Unknown action' );
-
+        if ( 'custom_post_type_import' === $mwp_action ) {
+            $information = $this->import_custom_post();
+        } else {
+            $information = array( 'error' => 'Unknown action' );
         }
 
         static::$information = $information;
@@ -202,12 +199,10 @@ class MainWP_Custom_Post_Type {
         }
         $edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? intval( wp_unslash( $_POST['post_id'] ) ) : 0;
         // phpcs:enable
-        $return = $this->insert_post( $data, $edit_id, $parent_id = 0 );
-        if ( isset( $return['success'] ) && 1 === (int) $return['success'] ) {
-            if ( isset( $data['product_variation'] ) && is_array( $data['product_variation'] ) ) {
-                foreach ( $data['product_variation'] as $product_variation ) {
-                    $return_variantion = $this->insert_post( $product_variation, 0, $return['post_id'] );
-                }
+        $return = $this->insert_post( $data, $edit_id );
+        if ( isset( $return['success'] ) && 1 === (int) $return['success'] && isset( $data['product_variation'] ) && is_array( $data['product_variation'] ) ) {
+            foreach ( $data['product_variation'] as $product_variation ) {
+                $this->insert_post( $product_variation, 0, $return['post_id'] );
             }
         }
         return $return;
@@ -620,10 +615,8 @@ class MainWP_Custom_Post_Type {
             if ( isset( $key['meta_key'] ) && isset( $key['meta_value'] ) ) {
                 $meta_value = $key['meta_value'];
                 if ( $is_woocomerce ) {
-                    if ( '_sku' === $key['meta_key'] ) {
-                        if ( ! wc_product_has_unique_sku( $post_id, $meta_value ) ) {
-                            return array( 'error' => esc_html__( 'Product SKU must be unique', $this->plugin_translate ) );
-                        }
+                    if ( '_sku' === $key['meta_key'] && ! wc_product_has_unique_sku( $post_id, $meta_value ) ) {
+                        return array( 'error' => esc_html__( 'Product SKU must be unique', $this->plugin_translate ) );
                     }
                     if ( '_product_image_gallery' === $key['meta_key'] ) {
                         if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {

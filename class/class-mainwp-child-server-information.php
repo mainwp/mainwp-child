@@ -719,8 +719,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
                 <td></td>
                 <td>OpenSSL Working Status</td>
                 <td>Yes</td>
-                <td><?php echo( $wk ? 'Yes' : 'No' ); ?></td>
-                <td><?php echo( $wk ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text() ); ?></td>
+                <td><?php echo $wk ? 'Yes' : 'No'; ?></td>
+                <td><?php echo $wk ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text(); ?></td>
             </tr>
 
             <?php
@@ -1122,7 +1122,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
             <td><?php echo esc_html( stripslashes( $name ) ); ?><br/><?php echo esc_html( ( MainWP_Child_Branding::instance()->is_branding() ) ? '' : $directory ); ?></td>
             <td><?php echo esc_html( $check ); ?></td>
             <td><?php echo esc_html( $result ); ?></td>
-            <td><?php echo ( $passed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
+            <td><?php echo $passed ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>'; ?></td>
         </tr>
         <?php
     }
@@ -1153,7 +1153,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
             <td><?php echo esc_html( esc_html( $config ) ); ?></td>
             <td><?php echo esc_html( esc_html( $compare ) ); ?><?php echo esc_html( ( true === $version ? 'true' : $version ) . ' ' . $extra_text ); ?></td>
             <td><?php echo esc_html( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
-            <td><?php echo ( static::check( $compare, $version, $getter, $extra_compare, $extra_version, $size_compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>' ); ?></td>
+            <td><?php echo static::check( $compare, $version, $getter, $extra_compare, $extra_version, $size_compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>'; ?></td>
         </tr>
         <?php
     }
@@ -1177,20 +1177,22 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
     protected static function render_row_sec( $config, $compare, $version, $getter, $extra_text = '', $extra_compare = null, $extra_version = null, $toolTip = null, $whatType = null, $errorType = self::WARNING ) { //phpcs:ignore -- NOSONAR - complex.
         $currentVersion = call_user_func( array( static::get_class_name(), $getter ) );
         // phpcs:disable WordPress.Security.EscapeOutput
+
+        $version_val = is_array( $version ) && isset( $version['version'] ) ? $version['version'] : $version;
         ?>
         <tr>
             <td></td>
             <td><?php echo esc_html( $config ); ?></td>
-            <td><?php echo esc_html( $compare ); ?><?php echo esc_html( true === $version ? 'true' : ( is_array( $version ) && isset( $version['version'] ) ? $version['version'] : $version ) . ' ' . $extra_text ); ?></td>
+            <td><?php echo esc_html( $compare ); ?><?php echo esc_html( ( true === $version ? 'true' : $version_val ) . ' ' . $extra_text ); ?></td>
             <td><?php echo esc_html( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
             <?php if ( 'filesize' === $whatType ) { ?>
-                <td><?php echo ( static::filesize_compare( $currentVersion, $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text( $errorType ) ); ?></td>
+                <td><?php echo static::filesize_compare( $currentVersion, $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text( $errorType ); ?></td>
             <?php } elseif ( 'get_curl_ssl_version' === $getter ) { ?>
-                <td><?php echo ( static::curlssl_compare( $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text( $errorType ) ); ?></td>
+                <td><?php echo static::curlssl_compare( $version, $compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text( $errorType ); ?></td>
             <?php } elseif ( ( 'get_max_input_time' === $getter || 'get_max_execution_time' === $getter ) && -1 === (int) $currentVersion ) { ?>
                 <td><?php echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>'; ?></td>
             <?php } else { ?>
-                <td><?php echo ( version_compare( $currentVersion, $version, $compare ) || ( ! empty( $extra_compare ) && version_compare( $currentVersion, $extra_version, $extra_compare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text( $errorType ) ); ?></td>
+                <td><?php echo version_compare( $currentVersion, $version, $compare ) || ( ! empty( $extra_compare ) && version_compare( $currentVersion, $extra_version, $extra_compare ) ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : static::render_warning_text( $errorType ); ?></td>
             <?php } ?>
         </tr>
         <?php

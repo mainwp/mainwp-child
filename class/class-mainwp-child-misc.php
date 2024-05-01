@@ -150,13 +150,13 @@ class MainWP_Child_Misc {
         $request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
         $favi    = '';
         if ( is_array( $request ) && isset( $request['body'] ) ) {
-            $preg_str1 = '/(<link\s+(?:[^\>]*)(?:rel="shortcut\s+icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
-            $preg_str2 = '/(<link\s+(?:[^\>]*)(?:rel="(?:shortcut\s+)?icon"\s*)(?:[^>]*)?href="([^"]+)"(?:[^>]*)?>)/is';
+            $preg_str1 = '/(<link\s+[^\>]*rel="shortcut\s+icon"\s*[^>]*href="([^"]+)"[^>]*>)/is';
+            $preg_str2 = '/(<link\s+[^\>]*rel="(?:shortcut\s+)?icon"\s*[^>]*href="([^"]+)"[^>]*>)/is';
 
             if ( preg_match( $preg_str1, $request['body'], $matches ) ) {
                 $favi = $matches[2];
-            } elseif ( preg_match( $preg_str2, $request['body'], $matches ) ) {
-                $favi = $matches[2];
+            } elseif ( preg_match( $preg_str2, $request['body'], $matches2 ) ) {
+                $favi = $matches2[2];
             }
         }
         $favi_url = '';
@@ -456,25 +456,22 @@ class MainWP_Child_Misc {
         if ( isset( $_POST['action'] ) ) {
             $mwp_action = MainWP_System::instance()->validate_params( 'action' );
             // phpcs:enable
-            switch ( $mwp_action ) {
-                case 'force_destroy_sessions':
-                    if ( 0 === get_current_user_id() ) {
-                        MainWP_Helper::write( array( 'error' => esc_html__( 'Cannot get user_id', 'mainwp-child' ) ) );
-                    }
+            if ( 'force_destroy_sessions' === $mwp_action ) {
+                if ( 0 === get_current_user_id() ) {
+                    MainWP_Helper::write( array( 'error' => esc_html__( 'Cannot get user_id', 'mainwp-child' ) ) );
+                }
 
-                    wp_destroy_all_sessions();
+                wp_destroy_all_sessions();
 
-                    $sessions = wp_get_all_sessions();
+                $sessions = wp_get_all_sessions();
 
-                    if ( empty( $sessions ) ) {
-                        MainWP_Helper::write( array( 'success' => 1 ) );
-                    } else {
-                        MainWP_Helper::write( array( 'error' => esc_html__( 'Cannot destroy sessions', 'mainwp-child' ) ) );
-                    }
-                    break;
-
-                default:
-                    MainWP_Helper::write( array( 'error' => esc_html__( 'Invalid action', 'mainwp-child' ) ) );
+                if ( empty( $sessions ) ) {
+                    MainWP_Helper::write( array( 'success' => 1 ) );
+                } else {
+                    MainWP_Helper::write( array( 'error' => esc_html__( 'Cannot destroy sessions', 'mainwp-child' ) ) );
+                }
+            } else {
+                MainWP_Helper::write( array( 'error' => esc_html__( 'Invalid action', 'mainwp-child' ) ) );
             }
         } else {
             MainWP_Helper::write( array( 'error' => esc_html__( 'Missing action', 'mainwp-child' ) ) );
@@ -650,7 +647,7 @@ class MainWP_Child_Misc {
         }
 
         if ( $utf8_pcre ) {
-            $filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
+            $filename = str_replace( "\x{00a0}", ' ', $filename );
         }
 
         /**

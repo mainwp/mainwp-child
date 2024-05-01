@@ -78,9 +78,7 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function __construct() {
         require_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR - WP compatible.
-        if ( is_plugin_active( 'wp-staging/wp-staging.php' ) && defined( 'WPSTG_PLUGIN_DIR' ) ) {
-            $this->is_plugin_installed = true;
-        } elseif ( is_plugin_active( 'wp-staging-pro/wp-staging-pro.php' ) ) {
+        if ( ( is_plugin_active( 'wp-staging/wp-staging.php' ) && defined( 'WPSTG_PLUGIN_DIR' ) ) || is_plugin_active( 'wp-staging-pro/wp-staging-pro.php' ) ) {
             $this->is_plugin_installed = true;
         }
 
@@ -160,7 +158,6 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Staging::ajax_start_clone()
      * @uses \MainWP\Child\MainWP_Child_Staging::ajax_clone_database()
      * @uses \MainWP\Child\MainWP_Child_Staging::ajax_prepare_directories()
-     * @uses \MainWP\Child\MainWP_Child_Staging::ajax_copy_files()
      * @uses \MainWP\Child\MainWP_Child_Staging::ajax_replace_data()
      * @uses \MainWP\Child\MainWP_Child_Staging::ajax_finish()
      * @uses \MainWP\Child\MainWP_Child_Staging::ajax_delete_confirmation()
@@ -225,13 +222,13 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
                     $information = $this->ajax_clone_database();
                     break;
                 case 'prepare_directories':
-                    $information = $this->ajax_prepare_directories();
+                    $information = $this->ajax_start_files();
                     break;
                 case 'copy_files':
-                    $information = $this->ajax_copy_files();
+                    $information = $this->ajax_start_files();
                     break;
                 case 'replace_data':
-                    $information = $this->ajax_replace_data();
+                    $information = $this->ajax_start_files();
                     break;
                 case 'clone_finish':
                     $information = $this->ajax_finish();
@@ -503,37 +500,13 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Ajax Prepare Directories (get listing of files).
-     *
-     * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
-     *
-     * @return mixed Action result.
-     */
-    public function ajax_prepare_directories() {
-        $cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
-        return $cloning->start();
-    }
-
-    /**
      * Ajax Clone Files.
      *
      * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
      *
      * @return mixed Action result.
      */
-    public function ajax_copy_files() {
-        $cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
-        return $cloning->start();
-    }
-
-    /**
-     * Ajax Replace Data.
-     *
-     * @uses WPStaging\Backend\Modules\Jobs\Cloning::start()
-     *
-     * @return mixed Action result.
-     */
-    public function ajax_replace_data() {
+    public function ajax_start_files() {
         $cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
         return $cloning->start();
     }
@@ -628,7 +601,7 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
         $cloning = new \WPStaging\Backend\Modules\Jobs\Updating();
 
         if ( ! $cloning->save() ) {
-            return;
+            return '';
         }
 
         if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/update.php' ) ) {

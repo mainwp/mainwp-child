@@ -214,10 +214,6 @@ class MainWP_Child_Jetpack_Protect {
             MainWP_Helper::instance()->check_classes_exists( array( '\Automattic\Jetpack\Connection\Plugin_Storage', '\Automattic\Jetpack\Connection\Plugin' ) );
             MainWP_Helper::instance()->check_methods( '\Automattic\Jetpack\Connection\Plugin_Storage', 'get_one' );
 
-            $connected_plugin = \Automattic\Jetpack\Connection\Plugin_Storage::get_one( (string) $request['plugin_slug'] );
-            if ( ! is_wp_error( $connected_plugin ) && ! empty( $connected_plugin ) ) {
-                $this->connection->set_plugin_instance( new \Automattic\Jetpack\Connection\Plugin( (string) $request['plugin_slug'] ) );
-            }
             $result = $this->connection->try_registration();
 
             if ( is_wp_error( $result ) ) {

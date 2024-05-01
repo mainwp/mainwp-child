@@ -251,11 +251,11 @@ class MainWP_Backup {
      * @uses \MainWP\Child\MainWP_Clone::is_archive()
      */
     public function backup_poll() {
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         $fileNameUID = isset( $_POST['fileNameUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileNameUID'] ) ) : '';
         $fileName    = isset( $_POST['fileName'] ) ? sanitize_text_field( wp_unslash( $_POST['fileName'] ) ) : '';
         $type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification
+        // phpcs:enable WordPress.Security.NonceVerification
         if ( 'full' === $type ) {
             if ( '' !== $fileName ) {
                 $backupFile = $fileName;
@@ -320,9 +320,9 @@ class MainWP_Backup {
      * @see https://developer.wordpress.org/reference/classes/wp_filesystem_base/get_contents/
      */
     public function backup_checkpid() {
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         $pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : 0;
-		// phpcs:enable WordPress.Security.NonceVerification
+        // phpcs:enable WordPress.Security.NonceVerification
         $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = $dirs[0];
 
@@ -342,11 +342,11 @@ class MainWP_Backup {
         if ( $wp_filesystem->is_file( $pidFile ) ) {
             $time = $wp_filesystem->mtime( $pidFile );
 
-			$minutes = date( 'i', time() ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-			$seconds = date( 's', time() ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+            $minutes = date( 'i', time() ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+            $seconds = date( 's', time() ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
-			$file_minutes = date( 'i', $time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-			$file_seconds = date( 's', $time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+            $file_minutes = date( 'i', $time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+            $file_seconds = date( 's', $time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
 
             $minuteDiff = $minutes - $file_minutes;
             if ( 59 === $minuteDiff ) {
@@ -424,7 +424,7 @@ class MainWP_Backup {
             }
         }
 
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         $fileName = isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
         $type     = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 
@@ -457,7 +457,7 @@ class MainWP_Backup {
         if ( $write ) {
             MainWP_Helper::write( $information );
         }
-		// phpcs:enable WordPress.Security.NonceVerification
+        // phpcs:enable WordPress.Security.NonceVerification
         return $information;
     }
 
@@ -471,8 +471,8 @@ class MainWP_Backup {
      * @uses \MainWP\Child\MainWP_Backup::create_full_backup() Create full backup.
      * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
      */
-	public function backup_full( $fileName ) { //phpcs:ignore -- complex method.
-		// phpcs:disable WordPress.Security.NonceVerification
+    public function backup_full( $fileName ) { //phpcs:ignore -- complex method.
+        // phpcs:disable WordPress.Security.NonceVerification
         $excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ok.
         $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
         $uploadDir  = MainWP_Helper::get_mainwp_dir();
@@ -555,7 +555,7 @@ class MainWP_Backup {
         $pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : false;
 
         $append = ( isset( $_POST['append'] ) && ( '1' === $_POST['append'] ) );
-		// phpcs:enable WordPress.Security.NonceVerification
+        // phpcs:enable WordPress.Security.NonceVerification
         return $this->create_full_backup( $newExcludes, $fileName, true, true, $file_descriptors, $file, $excludezip, $excludenonwp, $loadFilesBeforeZip, $ext, $pid, $append );
     }
 
@@ -926,7 +926,7 @@ class MainWP_Backup {
             if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
                 if ( is_dir( $node ) ) {
                     if ( ! file_exists( str_replace( ABSPATH, $backupfolder, $node ) ) ) {
-						mkdir( str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+                        mkdir( str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
                     }
 
                     $newnodes = glob( $node . DIRECTORY_SEPARATOR . '*' );
@@ -937,7 +937,7 @@ class MainWP_Backup {
                         continue;
                     }
 
-					copy( $node, str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated - // NOSONAR .
+                    copy( $node, str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated - // NOSONAR .
                 }
             }
         }
@@ -970,7 +970,7 @@ class MainWP_Backup {
         // Create backup folder.
         $backupFolder = dirname( $filepath ) . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
 
-		mkdir( $backupFolder ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+        mkdir( $backupFolder ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 
         // Create DB backup.
         $db_files = $this->create_backup_db( $backupFolder . 'dbBackup' );
@@ -1019,8 +1019,8 @@ class MainWP_Backup {
         $this->copy_dir( $nodes, $excludes, $backupFolder, $excludenonwp, true );
 
         foreach ( $db_files as $db_file ) {
-			copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
-			wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR.
+            copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
+            wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR.
         }
 
         unset( $nodes );
@@ -1149,7 +1149,7 @@ class MainWP_Backup {
      */
     public function add_file_to_zipp( $path, $zipEntryName ) {
         if ( time() - $this->lastRun > 20 ) {
-			set_time_limit( $this->timeout ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+            set_time_limit( $this->timeout ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
             $this->lastRun = time();
         }
 
@@ -1246,9 +1246,9 @@ class MainWP_Backup {
          */
         global $wpdb;
 
-		//phpcs:disable WordPress.WP.AlternativeFunctions
+        //phpcs:disable WordPress.WP.AlternativeFunctions
         $db_files  = array();
-		$tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );  // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+        $tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );  // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
         foreach ( $tables_db as $curr_table ) {
             if ( null !== $archiver ) {
                 $archiver->update_pid_file();
@@ -1267,10 +1267,10 @@ class MainWP_Backup {
 
             fwrite( $fh, $protect_content_string );
             fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-			$table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+            $table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
             fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );
 
-			$rows = MainWP_Child_DB::to_query( 'SELECT * FROM ' . $table, $wpdb->dbh ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+            $rows = MainWP_Child_DB::to_query( 'SELECT * FROM ' . $table, $wpdb->dbh ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 
             if ( $rows ) {
                 $i            = 0;
@@ -1324,7 +1324,7 @@ class MainWP_Backup {
                 }
             }
         }
-		//phpcs:enable WordPress.WP.AlternativeFunctions
+        //phpcs:enable WordPress.WP.AlternativeFunctions
 
         return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );
     }

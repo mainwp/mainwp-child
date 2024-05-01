@@ -139,7 +139,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
         if ( $sizeCompare ) {
             return static::filesize_compare( $currentVersion, $pVersion, $pCompare );
         } else {
-            return ( version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null !== $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) ) );
+            return version_compare( $currentVersion, $pVersion, $pCompare ) || ( ( null !== $pExtraCompare ) && version_compare( $currentVersion, $pExtraVersion, $pExtraCompare ) );
         }
     }
 

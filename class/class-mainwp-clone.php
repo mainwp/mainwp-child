@@ -133,7 +133,7 @@ class MainWP_Clone {
         if ( ! $this->check_security( $action, $query_arg ) ) {
             die( wp_json_encode( array( 'error' => esc_html__( 'Invalid request!', 'mainwp-child' ) ) ) );
         }
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['dts'] ) ) {
             $ajaxPosts = get_option( 'mainwp_ajaxposts' );
             if ( ! is_array( $ajaxPosts ) ) {
@@ -148,7 +148,7 @@ class MainWP_Clone {
             $ajaxPosts[ $action ] = isset( $_POST['dts'] ) ? sanitize_text_field( wp_unslash( $_POST['dts'] ) ) : '';
             MainWP_Helper::update_option( 'mainwp_ajaxposts', $ajaxPosts );
         }
-		// phpcs:enable
+        // phpcs:enable
     }
 
     /**
@@ -216,8 +216,8 @@ class MainWP_Clone {
      * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
-	public function request_clone_funct() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-		// phpcs:disable WordPress.Security.NonceVerification
+    public function request_clone_funct() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        // phpcs:disable WordPress.Security.NonceVerification
         if ( ! isset( $_REQUEST['key'] ) ) {
             return;
         }
@@ -273,7 +273,7 @@ class MainWP_Clone {
         } elseif ( 'createCloneBackup' === $cloneFunc ) {
             $this->create_clone_backup();
         }
-		// phpcs:enable
+        // phpcs:enable
         return true;
     }
 
@@ -287,7 +287,7 @@ class MainWP_Clone {
      * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
-	private function create_clone_backup() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    private function create_clone_backup() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         MainWP_Helper::end_session();
         $files = glob( WP_CONTENT_DIR . '/dbBackup*.sql.php' );
         foreach ( $files as $file ) {
@@ -302,7 +302,7 @@ class MainWP_Clone {
         if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
             MainWP_Helper::rmdir( ABSPATH . 'clone' );
         }
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         $wpversion = isset( $_POST['wpversion'] ) ? sanitize_text_field( wp_unslash( $_POST['wpversion'] ) ) : '';
         global $wp_version;
         $includeCoreFiles = ( $wpversion !== $wp_version );
@@ -332,7 +332,7 @@ class MainWP_Clone {
         } elseif ( isset( $_POST['file'] ) ) {
             $file = ! empty( $_POST['file'] ) ? sanitize_text_field( wp_unslash( $_POST['file'] ) ) : false;
         }
-		// phpcs:enable
+        // phpcs:enable
         $res = MainWP_Backup::get()->create_full_backup( $newExcludes, $file, true, $includeCoreFiles, 0, false, false, false, false, $method );
         if ( ! $res ) {
             $information['backup'] = false;
@@ -385,7 +385,7 @@ class MainWP_Clone {
      * @uses \MainWP\Child\MainWP_Utility::fetch_url()
      */
     public function clone_backup_create() {
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         try {
             $this->secure_request( 'mainwp-child_clone_backupcreate' );
 
@@ -444,7 +444,7 @@ class MainWP_Clone {
         } catch ( \Exception $e ) {
             $output = array( 'error' => $e->getMessage() );
         }
-		// phpcs:enable
+        // phpcs:enable
         die( wp_json_encode( $output ) );
     }
 
@@ -461,7 +461,7 @@ class MainWP_Clone {
     public function clone_backup_create_poll() {
         try {
             $this->secure_request( 'mainwp-child_clone_backupcreatepoll' );
-			// phpcs:disable WordPress.Security.NonceVerification
+            // phpcs:disable WordPress.Security.NonceVerification
             if ( ! isset( $_POST['siteId'] ) ) {
                 throw new \Exception( esc_html__( 'No site given', 'mainwp-child' ) );
             }
@@ -472,7 +472,7 @@ class MainWP_Clone {
             if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
                 throw new \Exception( esc_html__( 'Site not found', 'mainwp-child' ) );
             }
-			// phpcs:enable
+            // phpcs:enable
 
             $siteToClone = $sitesToClone[ $siteId ];
             $url         = $siteToClone['url'];
@@ -513,10 +513,10 @@ class MainWP_Clone {
      * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
      * @uses \MainWP\Child\MainWP_Utility::fetch_url()
      */
-	public function clone_backup_download() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    public function clone_backup_download() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         try {
             $this->secure_request( 'mainwp-child_clone_backupdownload' );
-			// phpcs:disable WordPress.Security.NonceVerification
+            // phpcs:disable WordPress.Security.NonceVerification
             if ( ! isset( $_POST['file'] ) ) {
                 throw new \Exception( esc_html__( 'No download link given', 'mainwp-child' ) );
             }
@@ -608,7 +608,7 @@ class MainWP_Clone {
         } catch ( \Exception $e ) {
             $output = array( 'error' => $e->getMessage() );
         }
-		// phpcs:enable
+        // phpcs:enable
         die( wp_json_encode( $output ) );
     }
 
@@ -664,14 +664,14 @@ class MainWP_Clone {
             $this->secure_request( 'mainwp-child_clone_backupextract' );
 
             MainWP_Helper::end_session();
-			// phpcs:disable WordPress.Security.NonceVerification
+            // phpcs:disable WordPress.Security.NonceVerification
             $file = false;
             if ( isset( $_POST['f'] ) ) {
                 $file = ! empty( $_POST['f'] ) ? sanitize_text_field( wp_unslash( $_POST['f'] ) ) : false;
             } elseif ( isset( $_POST['file'] ) ) {
                 $file = ! empty( $_POST['file'] ) ? sanitize_text_field( wp_unslash( $_POST['file'] ) ) : false;
             }
-			// phpcs:enable
+            // phpcs:enable
             $testFull     = false;
             $file         = $this->clone_backup_get_file( $file, $testFull );
             $cloneInstall = new MainWP_Clone_Install( $file );

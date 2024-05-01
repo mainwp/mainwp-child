@@ -284,11 +284,8 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
             $hide_nag = true;
         }
 
-        if ( ! $hide_nag ) {
-            // check child branding settings!
-            if ( MainWP_Child_Branding::instance()->is_branding() ) {
-                $hide_nag = true;
-            }
+        if ( ! $hide_nag && MainWP_Child_Branding::instance()->is_branding() ) {
+            $hide_nag = true;
         }
 
         if ( $hide_nag ) {

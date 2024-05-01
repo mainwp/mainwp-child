@@ -36,6 +36,13 @@ class MainWP_WordPress_SEO {
     public static $instance = null;
 
     /**
+     * Public variable to hold the import settings error message.
+     *
+     * @var mixed Default null
+     */
+    public $import_error = '';
+
+    /**
      * Method instance()
      *
      * Create a public static instance.
@@ -63,7 +70,7 @@ class MainWP_WordPress_SEO {
          * @global object $wpdb WordPress Database instance.
          */
         global $wpdb;
-
+        $this->import_error = __( 'Settings could not be imported.', 'mainwp-child' );
         add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
     }
 
@@ -121,7 +128,7 @@ class MainWP_WordPress_SEO {
                 } elseif ( $this->import_seo_settings( $temporary_file ) ) {
                         $information['success'] = true;
                 } else {
-                    throw new MainWP_Exception( esc_html__( 'Settings could not be imported.', 'mainwp-child' ) );
+                    throw new MainWP_Exception( esc_html( $this->import_error ) );
                 }
             } catch ( MainWP_Exception $e ) {
                 $information['error'] = $e->getMessage();
@@ -152,7 +159,7 @@ class MainWP_WordPress_SEO {
                     $information['success'] = true;
 
                 } else {
-                    throw new MainWP_Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) );
+                    throw new MainWP_Exception( esc_html( $this->import_error ) );
                 }
             } catch ( MainWP_Exception $e ) {
                 $information['error'] = $e->getMessage();
@@ -224,12 +231,12 @@ class MainWP_WordPress_SEO {
             unset( $unzipped );
 
             if ( $error_import ) {
-                throw new MainWP_Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) );
+                throw new MainWP_Exception( esc_html( $this->import_error ) );
             } else {
                 return true;
             }
         } else {
-            throw new MainWP_Exception( esc_html__( 'Settings could not be imported:', 'mainwp-child' ) . ' ' . esc_html__( 'Upload failed.', 'mainwp-child' ) );
+            throw new MainWP_Exception( esc_html( $this->import_error ) . ' ' . esc_html__( 'Upload failed.', 'mainwp-child' ) );
         }
     }
 

@@ -1,21 +1,21 @@
 <?php
-    /**
-     * MainWP Child Site Cache Purge
-     *
-     * Manages clearing the selected Cache.
-     *
-     * @package MainWP\Child
-     */
+/**
+ * MainWP Child Site Cache Purge
+ *
+ * Manages clearing the selected Cache.
+ *
+ * @package MainWP\Child
+ */
 
-    namespace MainWP\Child;
+namespace MainWP\Child;
 
-    /**
-     * Class MainWP_Child_Cache_Purge
-     *
-     * This class handles purging Child Site cache when requested.
-     *
-     * @package MainWP\Child
-     */
+/**
+ * Class MainWP_Child_Cache_Purge
+ *
+ * This class handles purging Child Site cache when requested.
+ *
+ * @package MainWP\Child
+ */
 class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
     /**
@@ -31,6 +31,13 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      * @var mixed Default null
      */
     protected static $instance = null;
+
+    /**
+     * Public static variable to hold the WP_Optimize class name.
+     *
+     * @var mixed Default null
+     */
+    public $wp_optimize_class = '\WP_Optimize';
 
     /**
      * Method instance()
@@ -140,7 +147,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             $cache_plugin_solution = 'CDN Cache Plugin';
         }
 
-        if ( empty( $cache_plugin_solution ) && is_plugin_active( 'wp-optimize/wp-optimize.php' ) && class_exists( '\WP_Optimize' ) ) {
+        if ( empty( $cache_plugin_solution ) && is_plugin_active( 'wp-optimize/wp-optimize.php' ) && class_exists( $this->wp_optimize_class ) ) {
             $cache = \WP_Optimize()->get_page_cache();
             if ( $cache->is_enabled() === true ) {
                 $cache_plugin_solution = 'WP Optimize';
@@ -549,7 +556,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool True if successful, false if not.
      */
     public function wp_optimize_purge_cache() {
-        if ( class_exists( '\WP_Optimize' ) ) {
+        if ( class_exists( $this->wp_optimize_class ) ) {
             $cache = \WP_Optimize()->get_page_cache();
             $cache->purge();
 
@@ -562,7 +569,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      * Check if WP Optimize is installed and cache is enabled.
      */
     public function wp_optimize_activated_check() {
-        if ( class_exists( '\WP_Optimize' ) ) {
+        if ( class_exists( $this->wp_optimize_class ) ) {
             $cache = \WP_Optimize()->get_page_cache();
             if ( ! $cache->is_enabled() ) {
                 return false;
@@ -926,7 +933,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
         // Check if we have all the required data.
         if ( '' === $cust_email || '' === $cust_xauth ) {
-            return;
+            return array();
         }
 
         // Strip subdomains. Cloudflare doesn't like them.

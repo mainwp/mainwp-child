@@ -762,13 +762,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         $redirect = false;
         if ( isset( $_SERVER['REQUEST_URI'] ) ) {
             $uri = esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
-            if ( false !== stripos( $uri, 'update-core.php' ) ) {
-                $redirect = true;
-            } elseif ( false !== stripos( $uri, 'plugins.php' ) ) {
-                $redirect = true;
-            } elseif ( false !== stripos( $uri, 'plugin-install.php' ) ) {
-                $redirect = true;
-            } elseif ( false !== stripos( $uri, 'plugin-editor.php' ) ) {
+            if ( false !== stripos( $uri, 'update-core.php' ) || false !== stripos( $uri, 'plugins.php' ) || false !== stripos( $uri, 'plugin-install.php' ) || false !== stripos( $uri, 'plugin-editor.php' ) ) {
                 $redirect = true;
             }
         }
@@ -940,7 +934,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         // Remove CSS-Comments.
         $css = preg_replace( '/\/\*.*?\*\//ms', '', $css );
         // Remove HTML-Comments.
-        $css = preg_replace( '/([^\'"]+?)(\<!--|--\>)([^\'"]+?)/ms', '$1$3', $css );
+        $css = preg_replace( '/<!--.*?-->/', '', $css );
         // Extract @media-blocks into $blocks.
         preg_match_all( '/@.+?\}[^\}]*?\}/ms', $css, $blocks );
         // Append the rest to $blocks.
@@ -990,7 +984,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
                         $new[ $selector ] = array();
                     }
 
-                    $rules = explode( ';', $val[ ++$i ] );
+                    $rules = explode( ';', $val[ $i ] );
 
                     // to fix css like this: 'data:image/svg+xml;charset=US-ASCII'.
                     $tmp_rules = array();
@@ -1020,9 +1014,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
                             $property = trim( array_pop( $rule ), " \r\n\t" );
                             $value    = implode( ':', array_reverse( $rule ) );
 
-                            if ( ! isset( $new[ $selector ][ $property ] ) || ! preg_match( '/!important/', $new[ $selector ][ $property ] ) ) {
-                                $new[ $selector ][ $property ] = $value;
-                            } elseif ( preg_match( '/!important/', $new[ $selector ][ $property ] ) && preg_match( '/!important/', $value ) ) {
+                            if ( ( ! isset( $new[ $selector ][ $property ] ) || ! preg_match( '/!important/', $new[ $selector ][ $property ] ) ) || ( preg_match( '/!important/', $new[ $selector ][ $property ] ) && preg_match( '/!important/', $value ) ) ) {
                                 $new[ $selector ][ $property ] = $value;
                             }
                         }

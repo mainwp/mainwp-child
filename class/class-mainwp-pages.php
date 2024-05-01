@@ -267,8 +267,6 @@ class MainWP_Pages {
     /**
      * Render MainWP Child Plugin pages.
      *
-     * @param string $shownPage Page that has been shown.
-     *
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      * @uses \MainWP\Child\MainWP_Child_Server_Information::render_page()
      * @uses \MainWP\Child\MainWP_Child_Server_Information::render_connection_details()
@@ -276,7 +274,7 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Clone_Page::render_normal_restore()
      * @uses \MainWP\Child\MainWP_Clone_Page::render_restore()
      */
-    public function render_pages( $shownPage ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    public function render_pages() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         $shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
         $branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 
@@ -451,15 +449,17 @@ class MainWP_Pages {
                 <a class="nav-tab pos-nav-tab
                 <?php
                 if ( 'settings' === $shownPage ) {
-                    echo 'nav-tab-active'; }
+                    echo 'nav-tab-active';
+                }
                 ?>
-" tab-slug="settings" href="<?php echo ( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#' ); ?>" style="margin-left: 0 !important;"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
+" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
             <?php } ?>
             <?php if ( ! $hide_restore && $show_clone_funcs ) { ?>
                 <a class="nav-tab pos-nav-tab
                 <?php
                 if ( 'restore-clone' === $shownPage ) {
-                    echo 'nav-tab-active'; }
+                    echo 'nav-tab-active';
+                }
                 ?>
 " tab-slug="restore-clone" href="<?php echo esc_url( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#' ); ?>"><?php echo esc_html__( 0 !== (int) $sitesToClone ? 'Restore / Clone' : 'Restore', 'mainwp-child' ); ?></a>
             <?php } ?>
@@ -467,17 +467,19 @@ class MainWP_Pages {
                 <a class="nav-tab pos-nav-tab
                 <?php
                 if ( 'server-info' === $shownPage ) {
-                    echo 'nav-tab-active'; }
+                    echo 'nav-tab-active';
+                }
                 ?>
-" tab-slug="server-info" href="<?php echo ( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#' ); ?>"><?php esc_html_e( 'Server information', 'mainwp-child' ); ?></a>
+" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php esc_html_e( 'Server information', 'mainwp-child' ); ?></a>
             <?php } ?>
                         <?php if ( ! $hide_connection_detail ) { ?>
                 <a class="nav-tab pos-nav-tab
                             <?php
                             if ( 'connection-detail' === $shownPage ) {
-                                echo 'nav-tab-active'; }
+                                echo 'nav-tab-active';
+                            }
                             ?>
-" tab-slug="connection-detail" href="<?php echo ( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#' ); ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
+" tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
             <?php } ?>
             <?php
             if ( isset( static::$subPages ) && is_array( static::$subPages ) ) {
@@ -486,7 +488,8 @@ class MainWP_Pages {
                     <a class="nav-tab pos-nav-tab
                     <?php
                     if ( $shownPage === $subPage['slug'] ) {
-                        echo 'nav-tab-active'; }
+                        echo 'nav-tab-active';
+                    }
                     ?>
 " tab-slug="<?php echo esc_attr( $subPage['slug'] ); ?>" href="options-general.php?page=<?php echo esc_html( rawurlencode( $subPage['page'] ) ); ?>"><?php echo esc_html( $subPage['title'] ); ?></a>
                     <?php
@@ -591,7 +594,8 @@ class MainWP_Pages {
                         <?php
                         $uniqueId = MainWP_Helper::get_site_unique_id();
                         if ( ! empty( $uniqueId ) ) {
-                            echo 'checked'; }
+                            echo 'checked';
+                        }
                         ?>
                         />
                         <label for="requireUniqueSecurityId" style="font-size: 15px;"><?php esc_html_e( 'Require unique security ID', 'mainwp-child' ); ?></label>

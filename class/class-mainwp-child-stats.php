@@ -1041,19 +1041,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             $get_it = false;
 
             if ( ! $filter ) {
-                if ( '' === $keyword ) {
-                    $get_it = true;
-                } elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
-                    $get_it = true;
-                } elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
+                if ( '' === $keyword || ( ! $get_un_criteria && $this->multi_find_keywords( $out['title'], $multi_kws ) ) || ( $get_un_criteria && ! $this->multi_find_keywords( $out['title'], $multi_kws ) ) ) {
                     $get_it = true;
                 }
-            } elseif ( ( ( 'active' === $status ) ? 1 : 0 ) === (int) $out['active'] ) {
-                if ( '' === $keyword ) {
-                    $get_it = true;
-                } elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
-                    $get_it = true;
-                } elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['title'], $multi_kws ) ) {
+            } else {
+                $act_status = 'active' === $status ? 1 : 0;
+                if ( $act_status === (int) $out['active'] && ( '' === $keyword || ( ! $get_un_criteria && $this->multi_find_keywords( $out['title'], $multi_kws ) ) || ( $get_un_criteria && ! $this->multi_find_keywords( $out['title'], $multi_kws ) ) ) ) {
                     $get_it = true;
                 }
             }
@@ -1152,19 +1145,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             $get_it = false;
 
             if ( ! $filter ) {
-                if ( '' === $keyword ) {
-                    $get_it = true;
-                } elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
-                    $get_it = true;
-                } elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
+                if ( '' === $keyword || ( ! $get_un_criteria && $this->multi_find_keywords( $out['name'], $multi_kws ) ) || ( $get_un_criteria && ! $this->multi_find_keywords( $out['name'], $multi_kws ) ) ) {
                     $get_it = true;
                 }
-            } elseif ( ( ( 'active' === $status ) ? 1 : 0 ) === (int) $out['active'] ) {
-                if ( '' === $keyword ) {
-                    $get_it = true;
-                } elseif ( ! $get_un_criteria && $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
-                    $get_it = true;
-                } elseif ( $get_un_criteria && ! $this->multi_find_keywords( $out['name'], $multi_kws ) ) {
+            } else {
+                $act_status = 'active' === $status ? 1 : 0;
+                if ( $act_status === (int) $out['active'] && ( '' === $keyword || ( ! $get_un_criteria && $this->multi_find_keywords( $out['name'], $multi_kws ) ) || ( $get_un_criteria && ! $this->multi_find_keywords( $out['name'], $multi_kws ) ) ) ) {
                     $get_it = true;
                 }
             }
