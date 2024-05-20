@@ -80,7 +80,7 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @throws Exception Catch Error.
      */
-    public function sync_others_data( $information, $data = array() ) {
+    public function sync_others_data( $information, $data = array() ) { //phpcs:ignore -- NOSONAR - complex ok.
         if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
             try {
                 $information['syncIThemeData'] = array(
