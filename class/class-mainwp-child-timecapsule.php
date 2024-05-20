@@ -318,6 +318,15 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Helper::check_files_exists() Check if requested files exist.
      */
     public function require_files() {
+
+        // to fix for some case.
+        if ( function_exists( '\wptc_load_files' ) ) {
+            if ( ! defined( 'WP_ADMIN' ) ) {
+                define( 'WP_ADMIN', true );
+            }
+            \wptc_load_files();
+        }
+
         if ( ! class_exists( '\WPTC_Base_Factory' ) && defined( 'WPTC_PLUGIN_DIR' ) && MainWP_Helper::check_files_exists( WPTC_PLUGIN_DIR . 'Base/Factory.php' ) ) {
             include_once WPTC_PLUGIN_DIR . 'Base/Factory.php'; // NOSONAR -- WP compatible.
         }

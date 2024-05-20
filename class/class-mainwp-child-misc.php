@@ -701,7 +701,7 @@ class MainWP_Child_Misc {
             $snippets = array();
         }
 
-        if ( ( 'run_snippet' === $action || 'save_snippet' === $action ) || ! isset( $_POST['code'] ) ) {
+        if ( ( 'run_snippet' === $action || 'save_snippet' === $action ) && empty( $_POST['code'] ) ) {
             MainWP_Helper::write( array( 'status' => 'FAIL' ) );
         }
 
