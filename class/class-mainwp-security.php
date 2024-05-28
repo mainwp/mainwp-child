@@ -50,7 +50,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
         static::remove_readme();
 
         if ( static::get_security_option( 'db_reporting' ) ) {
-            static::remove_db_reporting();
+            static::remove_database_reporting();
         }
 
         add_filter( 'style_loader_src', array( static::get_class_name(), 'remove_script_versions' ), PHP_INT_MAX );

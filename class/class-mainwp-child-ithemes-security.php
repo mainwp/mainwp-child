@@ -77,8 +77,10 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @param array $information Returned response array for MainWP BackWPup Extension actions.
      * @param array $data Other data to sync to $information array.
      * @return array $information Returned information array with both sets of data.
+     *
+     * @throws Exception Catch Error.
      */
-    public function sync_others_data( $information, $data = array() ) {
+    public function sync_others_data( $information, $data = array() ) { //phpcs:ignore -- NOSONAR - complex ok.
         if ( is_array( $data ) && isset( $data['ithemeExtActivated'] ) && ( 'yes' === $data['ithemeExtActivated'] ) ) {
             try {
                 $information['syncIThemeData'] = array(
@@ -125,8 +127,12 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 if ( class_exists( '\iThemesSecurity\Ban_Users\Database_Repository' ) ) {
-                    $repository = \ITSEC_Modules::get_container()->get( \iThemesSecurity\Ban_Users\Database_Repository::class );
-                    $information['syncIThemeData']['count_bans'] = $repository->count_bans( new \iThemesSecurity\Ban_Hosts\Filters() );
+                    try{
+                        $repository = \ITSEC_Modules::get_container()->get( \iThemesSecurity\Ban_Users\Database_Repository::class );
+                        $information['syncIThemeData']['count_bans'] = $repository->count_bans( new \iThemesSecurity\Ban_Hosts\Filters() );
+                    } catch(\Exception $ex){ // NOSONAR - to catch 3r Exception.
+                        $information['syncIThemeData']['count_bans'] = 0;
+                    }
                 }
 
                 $information['syncIThemeData']['lockouts_host'] = $this->get_lockouts( 'host', true );

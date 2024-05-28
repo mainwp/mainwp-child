@@ -596,6 +596,7 @@ class MainWP_Backup {
             closedir( $dh );
         }
 
+        // $ext !== false, the fuction will return in format: array( 'filepath' => $filepath );.
         $result = $this->create_backup_db( $filepath_prefix, $ext );
 
         MainWP_Helper::update_option( 'mainwp_child_last_db_backup_size', filesize( $result['filepath'] ) ); // NOSONAR .
@@ -655,7 +656,7 @@ class MainWP_Backup {
         $zipRes = $this->zip->open( $archive, \ZipArchive::CREATE );
         if ( $zipRes ) {
             foreach ( $files as $file ) {
-                $this->add_fileToZip( $file, basename( $file ) );
+                $this->add_file_to_zipp( $file, basename( $file ) );
             }
 
             return $this->zip->close();
@@ -1065,7 +1066,12 @@ class MainWP_Backup {
      * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
      */
     public function zip_add_dir( $path, $excludes ) {
-        $this->zip->add_empty_dir( str_replace( ABSPATH, '', $path ) );
+
+        if ( $this->zip instanceof \ZipArchive ) {
+            $this->zip->addEmptyDir( str_replace( ABSPATH, '', $path ) );
+        } else {
+            $this->zip->add_empty_dir( str_replace( ABSPATH, '', $path ) );
+        }
 
         if ( file_exists( rtrim( $path, '/' ) . '/.htaccess' ) ) {
             $this->add_file_to_zipp( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
@@ -1162,7 +1168,11 @@ class MainWP_Backup {
 
         if ( ! $this->loadFilesBeforeZip || ( filesize( $path ) > 5 * 1024 * 1024 ) ) { // NOSONAR .
             ++$this->zipArchiveFileCount;
-            $added = $this->zip->add_file( $path, $zipEntryName );
+            if ( $this->zip instanceof \ZipArchive ) {
+                $added = $this->zip->addFile( $path, $zipEntryName );
+            } else {
+                $added = $this->zip->add_file( $path, $zipEntryName );
+            }
         } else {
             ++$this->zipArchiveFileCount;
 
@@ -1326,6 +1336,6 @@ class MainWP_Backup {
         }
         //phpcs:enable WordPress.WP.AlternativeFunctions
 
-        return ( false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files );
+        return false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files;
     }
 }
