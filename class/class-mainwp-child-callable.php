@@ -573,7 +573,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Method backup_db()
+     * Method backup_db(), NOT used?.
      *
      * Fire off the backup_db() function.
      *

@@ -244,14 +244,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         header( 'Content-Description: File Transfer' );
-
-        header( 'Content-Description: File Transfer' );
-        if ( MainWP_Helper::ends_with( $file, '.tar.gz' ) ) {
-            header( 'Content-Type: application/x-gzip' );
-            header( 'Content-Encoding: gzip' );
-        } else {
-            header( 'Content-Type: application/octet-stream' );
-        }
+        header( 'Content-Type: application/octet-stream' );
         header( 'Content-Disposition: attachment; filename="' . basename( $file ) . '"' );
         header( 'Expires: 0' );
         header( 'Cache-Control: must-revalidate' );

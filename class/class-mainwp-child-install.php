@@ -87,6 +87,7 @@ class MainWP_Child_Install {
 
         if ( 'activate' === $action ) {
             include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
+            include_once ABSPATH . '/wp-admin/includes/misc.php'; // NOSONAR -- WP compatible.
 
             foreach ( $plugins as $plugin ) {
                 if ( $plugin !== $mainWPChild->plugin_slug ) {
