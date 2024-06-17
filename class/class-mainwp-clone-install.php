@@ -440,13 +440,40 @@ class MainWP_Clone_Install {
         } elseif ( $this->check_zip_support() ) {
             $zip    = new \ZipArchive();
             $zipRes = $zip->open( $this->file );
-            if ( $zipRes ) {
+
+            // Check if the ZIP file was successfully opened.
+            if ( $zipRes === true ) {
+                // Try to get the content of 'clone/config.txt' from the ZIP file.
                 $content = $zip->getFromName( 'clone/config.txt' );
-                $zip->close();
-
-                return $content;
+                // Check if the content was successfully retrieved.
+                if ( $content !== false ) {
+                    $zip->close();
+                    return $content;
+                }
+            } else {
+                $err = '';
+                // Handle errors based on the result code.
+                switch ( $zipRes ) {
+                    case \ZipArchive::ER_NOENT:
+                        $err = "ZIP file does not exist.\n";
+                        break;
+                    case \ZipArchive::ER_NOZIP:
+                        $err = "Not a ZIP archive or corrupted.\n";
+                        break;
+                    case \ZipArchive::ER_OPEN:
+                        $err = "Failed to open the ZIP file.\n";
+                        break;
+                    case \ZipArchive::ER_READ:
+                        $err = "Failed to read the ZIP file.\n";
+                        break;
+                    default:
+                        $err = "Failed to open the ZIP file. Error code: $zipRes\n";
+                        break;
+                }
+                if ( $err ) {
+                    error_log( $err ); //phpcs:ignore -- NOSONAR - for dev.
+                }
             }
-
             return false;
         } else {
             $zip     = new \PclZip( $this->file );

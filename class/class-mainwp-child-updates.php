@@ -137,6 +137,8 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         );
         MainWP_Child_Actions::get_instance()->init_custom_hooks( $hooks );
 
+        static::enable_pre_auto_rollback_hooking();
+
         $plugin_update = false;
         // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
@@ -382,8 +384,9 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
             $updated_plugins = array();
             foreach ( $result as $plugin => $info ) {
-                $success = false;
-                $error   = '';
+                $success            = false;
+                $problematic_update = false;
+                $error              = '';
                 if ( empty( $info ) ) {
 
                     $information['upgrades'][ $plugin ] = false;
@@ -408,6 +411,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 } elseif ( is_wp_error( $info ) ) {
                     $error                                    = $info->get_error_message();
                     $information['upgrades_error'][ $plugin ] = $error;
+                    $errors_codes                             = $info->get_error_codes();
+                    if ( is_array( $errors_codes ) && in_array( 'mainwp_update_error_code', $errors_codes ) ) {
+                        $problematic_update = true;
+                    }
                 } else {
                     $information['upgrades'][ $plugin ] = true;
                     $success                            = true;
@@ -425,6 +432,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
                 if ( ! empty( $error ) ) {
                     $info['error'] = $error;
+                }
+
+                if ( $problematic_update ) {
+                    $info['rollback'] = 1;
                 }
 
                 $current_info = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
@@ -582,9 +593,18 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             $themes_info    = MainWP_Child_Actions::get_instance()->get_current_themes_info();
             $updated_themes = array();
             foreach ( $result as $theme => $value ) {
-                $success = false;
+                $success            = false;
+                $error              = '';
+                $problematic_update = false;
                 if ( empty( $value ) ) {
                     $information['upgrades'][ $theme ] = false;
+                } elseif ( is_wp_error( $value ) ) {
+                    $error                             = $value->get_error_message();
+                    $information['upgrades'][ $theme ] = false;
+                    $errors_codes                      = $value->get_error_codes();
+                    if ( is_array( $errors_codes ) && in_array( 'mainwp_update_error_code', $errors_codes ) ) {
+                        $problematic_update = true;
+                    }
                 } else {
                     $information['upgrades'][ $theme ] = true;
                     $success                           = true;
@@ -600,6 +620,14 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                     'slug'        => $theme,
                     'success'     => $success ? 1 : 0,
                 );
+
+                if ( $problematic_update ) {
+                    $info['rollback'] = 1;
+                }
+
+                if ( ! empty( $error ) ) {
+                    $info['error'] = $error;
+                }
 
                 $current_info = wp_get_theme( $theme );
                 if ( ! is_array( $current_info ) ) {
@@ -650,33 +678,206 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
      * @param array $mwp_premium_updates_to_do_slugs An array containing the list of premium themes slugs to update.
      */
     private function update_premiums_to_do( &$information, $premiumUpgrader, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs ) { //phpcs:ignore -- NOSONAR - complex.
+
+        if ( ! isset( $information['other_data']['updated_data'] ) ) {
+            $information['other_data']['updated_data'] = array();
+        }
+
+        $plugins_info    = MainWP_Child_Actions::get_instance()->get_current_plugins_info();
+        $updated_plugins = array();
+
         // Upgrade via WP.
         // @see wp-admin/update.php.
-        $result = $premiumUpgrader->bulk_upgrade( $mwp_premium_updates_to_do_slugs );
-        if ( ! empty( $result ) ) {
-            foreach ( $result as $plugin => $info ) {
-                if ( ! empty( $info ) ) {
-                    $information['upgrades'][ $plugin ] = true;
+        $results = $premiumUpgrader->bulk_upgrade( $mwp_premium_updates_to_do_slugs );
+        if ( ! empty( $results ) ) {
+            foreach ( $results as $plugin => $result ) {
+                if ( ! empty( $result ) ) {
+
+                    if ( is_wp_error( $result ) ) {
+                        $slug = $plugin;
+
+                        $update_info = array();
+                        if ( is_array( $mwp_premium_updates_to_do ) ) {
+                            $update_info = array_filter(
+                                $mwp_premium_updates_to_do,
+                                function ( $e ) use ( $slug ) {
+                                    return isset( $e['slug'] ) && $e['slug'] === $slug;
+                                }
+                            );
+                            if ( $update_info ) {
+                                $update_info = current( $update_info );
+                            }
+                            if ( ! is_array( $update_info ) ) {
+                                $update_info = array();
+                            }
+                        }
+
+                        $problematic_update = false;
+                        $error              = $result->get_error_message();
+                        $errors_codes       = $result->get_error_codes();
+                        if ( is_array( $errors_codes ) && in_array( 'mainwp_update_error_code', $errors_codes ) ) {
+                            $problematic_update = true;
+                        }
+
+                        $old_info = isset( $plugins_info[ $slug ] ) ? $plugins_info[ $slug ] : array();
+
+                        if ( ! is_array( $old_info ) ) {
+                            $old_info = array();
+                        }
+                        $name = isset( $old_info['Name'] ) ? $old_info['Name'] : '';
+
+                        $info = array(
+                            'name'        => $name,
+                            'old_version' => isset( $old_info['Version'] ) ? $old_info['Version'] : '',
+                            'slug'        => $slug,
+                            'success'     => 0,
+                        );
+
+                        if ( empty( $info['old_version'] ) && ! empty( $update_info['Version'] ) ) {
+                            $info['old_version'] = $update_info['Version'];
+                        }
+
+                        if ( $problematic_update ) {
+                            $info['rollback'] = 1;
+                        }
+
+                        if ( ! empty( $error ) ) {
+                            $info['error'] = $error;
+                        }
+
+                        $current_info = get_plugin_data( WP_PLUGIN_DIR . '/' . $slug );
+                        if ( ! is_array( $current_info ) ) {
+                            $current_info = array();
+                        }
+
+                        if ( ! empty( $current_info['Version'] ) ) {
+                            $info['version'] = $current_info['Version'];
+                        }
+
+                        if ( empty( $info['name'] ) && ! empty( $current_info['Name'] ) ) {
+                            $info['name'] = $current_info['Name'];
+                        }
+
+                        if ( empty( $info['name'] ) ) {
+                            $info['name'] = $slug;
+                        }
+
+                        $information['other_data']['updated_data'][ $slug ] = $info;
+
+                    } else {
+                        $information['upgrades'][ $plugin ] = true;
+                    }
+                    $updated_plugins[ $slug ] = 1; // to prevent try next and incorrect.
                 }
             }
         }
 
         // Upgrade via callback.
         foreach ( $mwp_premium_updates_to_do as $update ) {
+
+            if ( isset( $update['slug'] ) && isset( $updated_plugins[ $update['slug'] ] ) ) {
+                continue;
+            }
+
             $slug = ( isset( $update['slug'] ) ? $update['slug'] : $update['Name'] );
 
             if ( isset( $update['url'] ) ) {
-                $installer                        = new \WP_Upgrader();
-                $result                           = $installer->run(
+
+                $installer = new \WP_Upgrader();
+
+                $hook_extra = array();
+
+                if ( 'plugin' === $update['type'] && false !== strpos( $slug, '/' ) ) {
+                    $hook_extra = array(
+                        'plugin'      => $slug,
+                        'temp_backup' => array(
+                            'slug' => dirname( $slug ),
+                            'src'  => WP_PLUGIN_DIR,
+                            'dir'  => 'plugins',
+                        ),
+                    );
+                }
+
+                $result = $installer->run(
                     array(
                         'package'           => $update['url'],
                         'destination'       => ( 'plugin' === $update['type'] ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/themes' ),
                         'clear_destination' => true,
                         'clear_working'     => true,
-                        'hook_extra'        => array(),
+                        'hook_extra'        => $hook_extra,
                     )
                 );
-                $information['upgrades'][ $slug ] = ( ! is_wp_error( $result ) && ! empty( $result ) );
+
+                $success                          = ! is_wp_error( $result ) && ! empty( $result );
+                $information['upgrades'][ $slug ] = $success;
+
+                $problematic_update = false;
+
+                $error = '';
+
+                if ( is_wp_error( $result ) ) {
+                    $error        = $result->get_error_message();
+                    $errors_codes = $result->get_error_codes();
+                    if ( is_array( $errors_codes ) && in_array( 'mainwp_update_error_code', $errors_codes ) ) {
+                        $problematic_update = true;
+                    }
+                }
+
+                $name = ! empty( $update['name'] ) ? $update['name'] : '';
+
+                if ( empty( $name ) ) {
+                    $name = ! empty( $update['Name'] ) ? $update['Name'] : '';
+                }
+
+                $old_info = array();
+
+                if ( 'plugin' === $update['type'] ) {
+                    $old_info = isset( $plugins_info[ $slug ] ) ? $plugins_info[ $slug ] : array();
+                    if ( ! is_array( $old_info ) ) {
+                        $old_info = array();
+                    }
+                }
+
+                $info = array(
+                    'name'        => $name,
+                    'old_version' => isset( $old_info['version'] ) ? $old_info['version'] : '',
+                    'slug'        => $slug,
+                    'success'     => $success ? 1 : 0,
+                );
+
+                if ( $problematic_update ) {
+                    $info['rollback'] = 1;
+                }
+
+                if ( ! empty( $error ) ) {
+                    $info['error'] = $error;
+                }
+
+                if ( 'plugin' === $update['type'] ) {
+                    $current_info = get_plugin_data( WP_PLUGIN_DIR . '/' . $slug );
+                    if ( ! is_array( $current_info ) ) {
+                        $current_info = array();
+                    }
+
+                    if ( ! empty( $current_info['Version'] ) ) {
+                        $info['version'] = $current_info['Version'];
+                    }
+
+                    if ( empty( $info['name'] ) && ! empty( $current_info['Name'] ) ) {
+                        $info['name'] = $current_info['Name'];
+                    }
+                }
+
+                if ( empty( $info['version'] ) && ! empty( $update['version'] ) ) {
+                    $info['version'] = $update['version'];
+                }
+
+                if ( empty( $info['name'] ) ) {
+                    $info['name'] = $slug;
+                }
+
+                $information['other_data']['updated_data'][ $slug ] = $info;
+
             } elseif ( isset( $update['callback'] ) ) {
                 if ( is_array( $update['callback'] ) && isset( $update['callback'][0] ) && isset( $update['callback'][1] ) ) {
                     $update_result                    = call_user_func(
@@ -1190,5 +1391,26 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         $information['other_data']['updated_data'] = $updated_trans;
         $information['sync']                       = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
         MainWP_Helper::write( $information );
+    }
+
+
+    /**
+     * Method enable_pre_auto_rollback_hooking().
+     */
+    public static function enable_pre_auto_rollback_hooking() {
+        add_filter( 'upgrader_install_package_result', array( static::get_class_name(), 'upgrader_auto_rollback_hooking' ), 99, 2 );
+    }
+
+    /**
+     * Method upgrader_auto_rollback_hooking().
+     *
+     * @param array|WP_Error $result     Result from WP_Upgrader::install_package().
+     * @param array          $hook_extra Extra arguments passed to hooked filters.
+     */
+    public static function upgrader_auto_rollback_hooking( $result, $hook_extra = array() ) {
+        if ( is_wp_error( $result ) && is_array( $hook_extra ) && ! empty( $hook_extra['temp_backup'] ) ) {
+            $result->add( 'mainwp_update_error_code', 'Update error.' );
+        }
+        return $result;
     }
 }

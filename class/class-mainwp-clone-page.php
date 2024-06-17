@@ -69,9 +69,9 @@ class MainWP_Clone_Page {
         $ui      = $wp_scripts->query( 'jquery-ui-core' );
         $version = $ui->ver;
         if ( MainWP_Helper::starts_with( $version, '1.10' ) ) {
-            wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.10.4/jquery-ui.min.css', __DIR__ ), array(), '1.10', 'all' );
+            wp_enqueue_style( 'jquery-ui-style', plugins_url( 'css/1.10.4/jquery-ui.min.css', __DIR__ ), array(), '1.10', 'all' );
         } else {
-            wp_enqueue_style( 'jquery-ui-style', plugins_url( '/css/1.11.1/jquery-ui.min.css', __DIR__ ), array(), '1.11', 'all' );
+            wp_enqueue_style( 'jquery-ui-style', plugins_url( 'css/1.11.1/jquery-ui.min.css', __DIR__ ), array(), '1.11', 'all' );
         }
     }
 

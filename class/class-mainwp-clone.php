@@ -411,6 +411,9 @@ class MainWP_Clone {
 
             // Send request to the childsite!
 
+            $timeout = 20 * 60 * 60;
+            MainWP_Helper::set_limit( $timeout );
+
             /**
              * The installed version of WordPress.
              *
@@ -743,7 +746,7 @@ class MainWP_Clone {
      * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
      */
     private function clone_backup_get_file( $file, &$testFull ) {
-        if ( '' === $file ) {
+        if ( empty( $file ) ) {
             $dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
             $backupdir   = $dirs[0];
             $files       = glob( $backupdir . 'download-*' );

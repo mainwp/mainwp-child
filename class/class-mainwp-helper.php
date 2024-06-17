@@ -60,6 +60,27 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.EscapeOutput -- base64_encode function is used for backwards compatibility.
     }
 
+    /**
+     * Method write_feedback()
+     *
+     * Send response feedback data to be sent to the MainWP Dashboard.
+     *
+     * @param mixed $value Contains information to be send.
+     * @param mixed $action action send message.
+     */
+    public static function write_feedback( $value, $action = '' ) {
+        /**
+         * Action: process send feedback message.
+         *
+         * @since 5.1
+         */
+        do_action( 'mainwp_child_before_send_feedback_message', $value, $action );
+
+        $output = wp_json_encode( $value );
+
+        echo '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.EscapeOutput -- base64_encode function is used for backwards compatibility.
+    }
+
 
     /**
      * Method send()
