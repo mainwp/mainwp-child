@@ -442,11 +442,11 @@ class MainWP_Clone_Install {
             $zipRes = $zip->open( $this->file );
 
             // Check if the ZIP file was successfully opened.
-            if ( $zipRes === true ) {
+            if ( true !== $zipRes ) {
                 // Try to get the content of 'clone/config.txt' from the ZIP file.
                 $content = $zip->getFromName( 'clone/config.txt' );
                 // Check if the content was successfully retrieved.
-                if ( $content !== false ) {
+                if ( false !== $content ) {
                     $zip->close();
                     return $content;
                 }
