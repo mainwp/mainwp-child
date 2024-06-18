@@ -111,6 +111,14 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.1 - 6-18-2024 =
+
+* Fixed: An issue with submitting Time Capsule settings.
+* Added: Integrated a Rollback feature to revert plugins to the last stable version in case of update errors.
+* Updated: Addressed coding standard issues found by SonarCloud.
+
+[See Video Changelog](https://youtu.be/OtqrgU8q5RA)
+
 = 5.0.1.1 - 4-23-2024 =
 * Added: Support for the  RunCloud Hub plugin in the Cache Control.
 
