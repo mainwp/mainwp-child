@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.5.3
 Requires PHP: 7.4
-Stable tag: 5.1-RC1
+Stable tag: 5.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,14 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.1 - 6-18-2024 =
+
+* Fixed: An issue with submitting Time Capsule settings.
+* Added: Integrated a Rollback feature to revert plugins to the last stable version in case of update errors.
+* Updated: Addressed coding standard issues found by SonarCloud.
+
+[See Video Changelog](https://youtu.be/OtqrgU8q5RA)
 
 = 5.0.1.1 - 4-23-2024 =
 * Added: Support for the  RunCloud Hub plugin in the Cache Control.
