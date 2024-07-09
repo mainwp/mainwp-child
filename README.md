@@ -7,6 +7,7 @@
  <img alt="WordPress Plugin Active Installs" src="https://img.shields.io/wordpress/plugin/installs/mainwp-child?label=MainWP%20Child%20Active%20Installs">
  <img alt="WordPress Plugin Rating" src="https://img.shields.io/wordpress/plugin/stars/mainwp-child?label=WP.org%20Rating">
  <a href="https://www.codefactor.io/repository/github/mainwp/mainwp-child"><img src="https://www.codefactor.io/repository/github/mainwp/mainwp-child/badge" alt="CodeFactor" /></a>
+ <img src="https://sonarcloud.io/api/project_badges/measure?project=mainwp_mainwp&metric=alert_status" alt="CodeFactor" />
 </p>
 
 Welcome to the [MainWP](https://mainwp.com) Child plugin repository on GitHub. Here you can browse the source, look at open issues and keep track of development.
