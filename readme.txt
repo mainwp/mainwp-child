@@ -111,9 +111,9 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
-= 5.1.1 - 7-09-2024 =
+= 5.1.1 - 7-9-2024 =
 
-* Fixed: An issue with applying custom CSS for White Label extension option
+* Fixed: An issue with applying custom CSS for the White Label extension option
 * Fixed: Synchronization problem caused by older PHP version
 
 = 5.1 - 6-18-2024 =
