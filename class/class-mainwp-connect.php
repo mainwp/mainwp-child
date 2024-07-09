@@ -161,7 +161,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             $callable         = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
             $callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
 
-            if ( $callable && ! $callable_no_auth ) {
+            if ( $callable && ! $callable_no_auth && isset( $_POST['mainwpsignature'] ) ) {
                 MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
             }
         }
@@ -226,7 +226,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 }
                 // try to login.
                 if ( $this->login( $auth_user, true ) ) {
-                    return false;
+                    return false; // authenticate failed.
                 } else {
                     exit();
                 }
@@ -241,7 +241,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         // phpcs:enable
 
-        return true;
+        return true; // not authenticated.
     }
 
     /**
@@ -264,7 +264,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             if ( isset( $_REQUEST['sign_algo'] ) ) {
                 $algo = sanitize_text_field( wp_unslash( $_REQUEST['sign_algo'] ) );
             }
-                $auth = static::connect_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ), $algo ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- trust value.
+            $auth = static::connect_verify( $func . $nonce, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ), $algo ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- trust value.
             if ( 1 !== $auth ) {
                 $auth = false;
             }
