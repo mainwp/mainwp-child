@@ -975,7 +975,8 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         foreach ( $ordered as $key => $val ) {
             $new       = array();
             $count_val = count( $val );
-            for ( $i = 0; $i < $count_val; $i++ ) {
+            $i         = 0;
+            while ( $i < $count_val ) {
                 // Split selectors and rules and split properties and values.
                 $selector = trim( $val[ $i ], " \r\n\t" );
 
@@ -984,7 +985,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
                         $new[ $selector ] = array();
                     }
 
-                    $rules = explode( ';', $val[ $i ] );
+                    $rules = explode( ';', $val[ ++$i ] );
 
                     // to fix css like this: 'data:image/svg+xml;charset=US-ASCII'.
                     $tmp_rules = array();
@@ -1014,18 +1015,19 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
                             $property = trim( array_pop( $rule ), " \r\n\t" );
                             $value    = implode( ':', array_reverse( $rule ) );
 
-                            if ( ( ! isset( $new[ $selector ][ $property ] ) || ! preg_match( '/!important/', $new[ $selector ][ $property ] ) ) || ( preg_match( '/!important/', $new[ $selector ][ $property ] ) && preg_match( '/!important/', $value ) ) ) {
+                            if ( ! isset( $new[ $selector ][ $property ] ) || ! preg_match( '/!important/', $new[ $selector ][ $property ] ) || ( preg_match( '/!important/', $new[ $selector ][ $property ] ) && preg_match( '/!important/', $value ) ) ) {
                                 $new[ $selector ][ $property ] = $value;
                             }
                         }
                     }
                 }
+                ++$i;
             }
             $ordered[ $key ] = $new;
         }
         $parsed = $ordered;
 
-        $output = '';
+        $output = "\n";
         foreach ( $parsed as $media => $content ) {
             if ( '@media' === substr( $media, 0, 6 ) ) {
                 $output .= $media . " {\n";
@@ -1035,6 +1037,9 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             foreach ( $content as $selector => $rules ) {
+                if ( empty( $rules ) ) {
+                    continue;
+                }
                 $output .= $prefix . $selector . " {\n";
                 foreach ( $rules as $property => $value ) {
                     $output .= $prefix . "\t" . $property . ': ' . $value;
@@ -1042,6 +1047,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
                 }
                 $output .= $prefix . "}\n\n";
             }
+
             if ( '@media' === substr( $media, 0, 6 ) ) {
                 $output .= "}\n\n";
             }

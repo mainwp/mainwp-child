@@ -197,6 +197,8 @@ class MainWP_Child_Keys_Manager {
 
             } catch ( MainWP_Exception $ex ) {
                 // error.
+            } catch ( \Exception $e ) { // NOSONAR - ok.
+                // error.
             }
         }
         return $result;

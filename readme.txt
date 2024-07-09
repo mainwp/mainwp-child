@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 6.5.3
+Tested up to: 6.5.4
 Requires PHP: 7.4
-Stable tag: 5.1
+Stable tag: 5.1.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.1.1 - 7-09-2024 =
+
+* Fixed: An issue with applying custom CSS for White Label extension option
+* Fixed: Synchronization problem caused by older PHP version
 
 = 5.1 - 6-18-2024 =
 

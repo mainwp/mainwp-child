@@ -12,7 +12,7 @@
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 5.1
+ * Version: 5.1.1
  * Requires at least: 5.4
  * Requires PHP: 7.4
  */
