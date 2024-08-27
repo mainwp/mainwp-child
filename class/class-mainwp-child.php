@@ -55,7 +55,6 @@ class MainWP_Child {
      *
      * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
      * @uses \MainWP\Child\MainWP_Child_Plugins_Check::instance()
-     * @uses \MainWP\Child\MainWP_Child_Server_Information::init()
      * @uses \MainWP\Child\MainWP_Child_Themes_Check::instance()
      * @uses \MainWP\Child\MainWP_Child_Updates::get_instance()
      * @uses \MainWP\Child\MainWP_Client_Report::init()
@@ -100,7 +99,6 @@ class MainWP_Child {
         MainWP_Connect::instance()->check_other_auth();
 
         MainWP_Clone::instance()->init();
-        MainWP_Child_Server_Information::init();
         MainWP_Client_Report::instance()->init();
         MainWP_Child_Plugins_Check::instance();
         MainWP_Child_Themes_Check::instance();

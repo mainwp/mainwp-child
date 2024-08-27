@@ -327,7 +327,16 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         if ( is_wp_error( $temporary_file ) ) {
             throw new MainWP_Exception( 'Error: ' . esc_html( $temporary_file->get_error_message() ) );
         } else {
-            $filename       = basename( $img_url );
+            $filename = basename( $img_url );
+
+            $file_ext = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
+            if ( empty( $file_ext ) && ! empty( $img_data['image_url'] ) ) { // to fix for gallery issue.
+                $_filename = basename( $img_data['image_url'] );
+                $_file_ext = strtolower( pathinfo( $_filename, PATHINFO_EXTENSION ) );
+                $filename .= '.' . $_file_ext;
+                $img_url   = $img_data['image_url']; // to fix issue create attachment media.
+            }
+
             $local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename;
             $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
 
@@ -374,7 +383,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             return false;
         }
 
-        $allowed_files = array( 'jpg', 'jpeg', 'jpe', 'gif', 'png', 'bmp', 'tif', 'tiff', 'ico', 'avif' );
+        $allowed_files = array( 'jpg', 'jpeg', 'jpe', 'gif', 'png', 'bmp', 'tif', 'tiff', 'ico', 'avif', 'webp', 'heic' );
         $names         = explode( '.', $filename );
         $file_ext      = strtolower( end( $names ) );
         if ( ! in_array( $file_ext, $allowed_files ) ) {

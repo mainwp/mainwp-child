@@ -630,7 +630,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 'post_password'  => $post->post_password,
             );
 
-            if ( empty( $post_featured_image ) ) { // Featured image is set, retrieve URL.
+            if ( ! empty( $post_featured_image ) ) { // Featured image is set, retrieve URL.
                 $img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
                 $post_featured_image = $img[0];
             }
@@ -693,7 +693,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 'post_password'  => $post->post_password,
             );
 
-            if ( empty( $post_featured_image ) ) {
+            if ( ! empty( $post_featured_image ) ) {
                     $img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
                     $post_featured_image = $img[0];
             }
