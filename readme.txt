@@ -119,6 +119,6 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 * Updated: System requirements checks to ensure they are current and relevant.
 * Removed: Irrelevant system requirements checks for a streamlined setup process.
 
-[See Video Changelog](https://www.youtube.com/watch?v=)
+[See Video Changelog](https://www.youtube.com/watch?v=GrA_faZKcfQ)
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)
