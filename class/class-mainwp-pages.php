@@ -96,7 +96,6 @@ class MainWP_Pages {
      *
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
-     * @uses \MainWP\Child\MainWP_Child_Server_Information::render_warnings()
      */
     public function admin_notice() {
         // Admin Notice...
@@ -116,7 +115,6 @@ class MainWP_Pages {
             $msg .= '</div>';
             echo wp_kses_post( $msg );
         }
-        MainWP_Child_Server_Information::render_warnings();
     }
 
     /**

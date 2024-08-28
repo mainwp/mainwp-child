@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 6.5.5
+Tested up to: 6.6.1
 Requires PHP: 7.4
-Stable tag: 5.1.1
+Stable tag: 5.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -111,31 +111,14 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
-= 5.1.1 - 7-9-2024 =
+= 5.2 - 8-28-2024 =
 
-* Fixed: An issue with applying custom CSS for the White Label extension option
-* Fixed: Synchronization problem caused by older PHP version
+* Fixed: Issue with inserting multiple galleries in a post.
+* Fixed: Problem with cloning sites on specific hosting environments.
+* Fixed: Issue causing the post featured image to be removed after editing.
+* Updated: System requirements checks to ensure they are current and relevant.
+* Removed: Irrelevant system requirements checks for a streamlined setup process.
 
-= 5.1 - 6-18-2024 =
-
-* Fixed: An issue with submitting Time Capsule settings.
-* Added: Integrated a Rollback feature to revert plugins to the last stable version in case of update errors.
-* Updated: Addressed coding standard issues found by SonarCloud.
-
-[See Video Changelog](https://youtu.be/OtqrgU8q5RA)
-
-= 5.0.1.1 - 4-23-2024 =
-* Added: Support for the  RunCloud Hub plugin in the Cache Control.
-
-= 5.0.1 - 4-9-2024 =
-* Fixed: Post subcategories sharing the same name but belonging to different main categories are now correctly displayed.
-* Fixed: Addressed a scenario where the MainWP Child plugin inadvertently triggered Core updates.
-* Fixed: The detection of WP Optimize caching plugin in the Cache Control extension
-* Fixed: Last purged time not being refreshed when clearing the Cache Control cache
-* Fixed: Resolved a problem with invalid URL encountered when navigating back after submitting a White Label Support Form.
-* Added: Introduced support for the AVIF image format in post and page creation processes.
-* Added: We’ve expanded support for Cache Control extension to include Pressable Cache Management.
-
-[See Video Changelog](https://www.youtube.com/watch?v=5idFDPrgFf8)
+[See Video Changelog](https://www.youtube.com/watch?v=)
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)

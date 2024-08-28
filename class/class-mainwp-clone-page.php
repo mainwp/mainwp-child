@@ -575,6 +575,11 @@ class MainWP_Clone_Page {
             var pollingDownloading = undefined;
             var backupDownloadFinished = false;
 
+            var pollingBackupInfo = {
+                'poll_check': 0,
+                'size_check': 0,
+            };
+
             handleCloneError = function ( resp ) {
                 updateClonePopup( resp.error, true, 'red' );
             };
@@ -627,48 +632,49 @@ class MainWP_Clone_Page {
 
                 jQuery.post( ajaxurl, data, function ( pSiteId, pSiteName ) {
                     return function ( resp ) {
-                        backupCreationFinished = true;
-                        clearTimeout( pollingCreation );
-
-                        var progressBar = jQuery( '#mainwp-child-clone-create-progress' );
-                        progressBar.progressbar( 'value', parseFloat( progressBar.progressbar( 'option', 'max' ) ) );
-
-                        if ( resp.error ) {
-                            handleCloneError( resp );
-                            return;
-                        }
-                        updateClonePopup( mwp_sprintf( translations['backup_created'], pSiteName, (resp.size / 1024).toFixed( 2 ) ) );
-                        cloneInitiateBackupDownload( pSiteId, resp.url, resp.size );
+                        cloneBackupFinishied(resp, pSiteId, pSiteName );
                     }
                 }( siteId, siteName ), 'json' );
-                pollingCreation = setTimeout( function () {
-                    cloneBackupCreationPolling( siteId, rand );
-                }, 1000 );
+                pollingCreation = setTimeout( function (psiteName) {
+                    cloneBackupCreationPolling( siteId, rand, psiteName );
+                }(siteName), 1000 );
             };
 
-            cloneBackupCreationPolling = function ( siteId, rand ) {
+            cloneBackupCreationPolling = function ( siteId, rand, psiteName ) {
                 if ( backupCreationFinished ) return;
 
                 var data = mainwpchild_secure_data({
                     action: 'mainwp-child_clone_backupcreatepoll',
                     siteId: siteId,
-                    rand: rand
+                    rand: rand,
+                    backupInfo: pollingBackupInfo
                 });
 
-                jQuery.post( ajaxurl, data, function ( pSiteId, pRand ) {
-                    return function ( resp ) {
+                jQuery.post( ajaxurl, data, function ( pSiteId, pRand, psiteName ) {
+                    return function ( resp, psiteName ) {
+                        if(resp.backupFinishedResult){
+                            cloneBackupFinishied(resp.backupFinishedResult, pSiteId, psiteName );
+                        }
                         if ( backupCreationFinished ) return;
                         if ( resp.size ) {
                             var progressBar = jQuery( '#mainwp-child-clone-create-progress' );
                             if ( progressBar.progressbar( 'option', 'value' ) < progressBar.progressbar( 'option', 'max' ) ) {
                                 progressBar.progressbar( 'value', resp.size );
                             }
+                            if ( resp.size_byte ) {
+                                if(resp.size_byte === pollingBackupInfo.size_check ){
+                                    pollingBackupInfo.poll_check++;
+                                } else {
+                                    pollingBackupInfo.poll_check = 0;
+                                }
+                                pollingBackupInfo.size_check = resp.size_byte;
+                            }
                         }
                         pollingCreation = setTimeout( function () {
                             cloneBackupCreationPolling( pSiteId, pRand );
                         }, 1000 );
                     }
-                }( siteId, rand ), 'json' );
+                }( siteId, rand, psiteName ), 'json' );
             };
 
             cloneInitiateBackupDownload = function ( pSiteId, pFile, pSize ) {
@@ -716,7 +722,7 @@ class MainWP_Clone_Page {
                     file: pFile
                 });
 
-                jQuery.post( ajaxurl, data, function ( pSiteId ) {
+                jQuery.post( ajaxurl, data, function ( pSiteId, pFile ) {
                     return function ( resp ) {
                         if ( backupDownloadFinished ) return;
                         if ( resp.size ) {
@@ -727,10 +733,25 @@ class MainWP_Clone_Page {
                         }
 
                         pollingDownloading = setTimeout( function () {
-                            cloneBackupDownloadPolling( pSiteId );
+                            cloneBackupDownloadPolling( pSiteId, pFile );
                         }, 1000 );
                     }
-                }( siteId ), 'json' );
+                }( siteId, pFile ), 'json' );
+            };
+
+            cloneBackupFinishied = function ( resp, pSiteId, pSiteName ) {
+                backupCreationFinished = true;
+                clearTimeout( pollingCreation );
+
+                var progressBar = jQuery( '#mainwp-child-clone-create-progress' );
+                progressBar.progressbar( 'value', parseFloat( progressBar.progressbar( 'option', 'max' ) ) );
+
+                if ( resp.error ) {
+                    handleCloneError( resp );
+                    return;
+                }
+                updateClonePopup( mwp_sprintf( translations['backup_created'], pSiteName, (resp.size / 1024).toFixed( 2 ) ) );
+                cloneInitiateBackupDownload( pSiteId, resp.url, resp.size );
             };
 
             cloneInitiateExtractBackup = function ( file ) {

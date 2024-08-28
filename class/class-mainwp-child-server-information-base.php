@@ -30,44 +30,6 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
     }
 
     /**
-     * Initiate check on important System Variables and compare them to required defaults.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Server_Information_Base::check()
-     * @uses \MainWP\Child\MainWP_Child_Server_Information_Base::check_mainwp_directory()
-     *
-     * @return int $i Number of detected issues.
-     */
-    protected static function get_warnings() {
-        $i = 0;
-        if ( ! static::check( '>=', '3.4', 'get_wordpress_version' ) ) {
-            ++$i;
-        }
-        if ( ! static::check( '>=', '5.2.4', 'get_php_version' ) ) {
-            ++$i;
-        }
-        if ( ! static::check( '>=', '5.0', 'get_my_sql_version' ) ) {
-            ++$i;
-        }
-        if ( ! static::check( '>=', '30', 'get_max_execution_time', '=', '0' ) ) {
-            ++$i;
-        }
-        if ( ! static::check( '>=', '2M', 'get_upload_max_filesize', null, null, true ) ) {
-            ++$i;
-        }
-        if ( ! static::check( '>=', '2M', 'get_post_max_size', null, null, true ) ) {
-            ++$i;
-        }
-        if ( ! static::check( '>=', '10000', 'get_output_buffer_size' ) ) {
-            ++$i;
-        }
-        if ( ! static::check_mainwp_directory() ) {
-            ++$i;
-        }
-
-        return $i;
-    }
-
-    /**
      * Check if MainWP Directory is writeable.
      *
      * @param string $message Return message - Directory not found, Directory not writable, writeable.

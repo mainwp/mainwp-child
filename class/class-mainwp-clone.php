@@ -148,7 +148,7 @@ class MainWP_Clone {
             $ajaxPosts[ $action ] = isset( $_POST['dts'] ) ? sanitize_text_field( wp_unslash( $_POST['dts'] ) ) : '';
             MainWP_Helper::update_option( 'mainwp_ajaxposts', $ajaxPosts );
         }
-        // phpcs:enable
+        // phpcs:enable WordPress.Security.NonceVerification
     }
 
     /**
@@ -217,7 +217,7 @@ class MainWP_Clone {
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public function request_clone_funct() { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-        // phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         if ( ! isset( $_REQUEST['key'] ) ) {
             return;
         }
@@ -257,23 +257,61 @@ class MainWP_Clone {
             $f           = isset( $_POST['f'] ) ? sanitize_text_field( wp_unslash( $_POST['f'] ) ) : '';
             $archiveFile = false;
             if ( ! empty( $f ) ) {
-                $result = glob( $backupdir . 'backup-' . $f . '-*' ); // NOSONAR .
+                $result      = glob( $backupdir . 'backup-' . $f . '-*' ); // NOSONAR .
+                $found_files = array(); // to bad fix multi full backup files created with same rand value.
                 foreach ( $result as $file ) {
                     if ( self::is_archive( $file, 'backup-' . $f . '-' ) ) {
-                        $archiveFile = $file;
-                        break;
+                        $found_files[] = $file;
                     }
+                }
+                if ( $found_files ) {
+                    $the_size = 0;
+                    $the_file = false;
+                    foreach ( $found_files as  $_file ) {
+                        $file_size = filesize( $_file );
+                        if ( $file_size > $the_size ) {
+                            $the_size = $file_size;
+                            $the_file = $_file;
+                        }
+                    }
+                    $archiveFile = $the_file;
                 }
             }
             if ( false === $archiveFile ) {
                 return;
             }
 
-            MainWP_Helper::write( array( 'size' => filesize( $archiveFile ) ) );
+            $fsize = filesize( $archiveFile );
+
+            $check_info = ! empty( $_POST['cloneCheckInfo'] ) ? json_decode( wp_unslash( $_POST['cloneCheckInfo'] ), true ) : array();
+
+            if ( ! is_array( $check_info ) ) {
+                $check_info = array();
+            }
+
+            $poll_check = isset( $check_info['poll_check'] ) ? intval( $check_info['poll_check'] ) : 0;
+            $size_check = isset( $check_info['size_check'] ) ? intval( $check_info['size_check'] ) : 0;
+
+            if ( $poll_check > 5 && $size_check === $fsize ) {
+                // smart check backup done.
+                $backup_result = get_transient( 'clone-full-backup-' . wp_unslash( $_POST['f'] ) );
+                if ( ! empty( $backup_result ) && is_array( $backup_result ) ) {
+                    MainWP_Helper::write(
+                        array(
+                            'size'                 => $fsize,
+                            'backupFinishedResult' => array(
+                                'url'  => $backup_result['backup'],
+                                'size' => round( $backup_result['size'] / 1024, 0 ),
+                            ),
+                        )
+                    );
+                }
+            }
+            MainWP_Helper::write( array( 'size' => $fsize ) );
         } elseif ( 'createCloneBackup' === $cloneFunc ) {
             $this->create_clone_backup();
         }
-        // phpcs:enable
+        // phpcs:enable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         return true;
     }
 
@@ -302,7 +340,7 @@ class MainWP_Clone {
         if ( MainWP_Helper::is_dir_empty( ABSPATH . 'clone' ) ) {
             MainWP_Helper::rmdir( ABSPATH . 'clone' );
         }
-        // phpcs:disable WordPress.Security.NonceVerification
+        //phpcs:disable WordPress.Security.NonceVerification,WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $wpversion = isset( $_POST['wpversion'] ) ? sanitize_text_field( wp_unslash( $_POST['wpversion'] ) ) : '';
         global $wp_version;
         $includeCoreFiles = ( $wpversion !== $wp_version );
@@ -332,7 +370,7 @@ class MainWP_Clone {
         } elseif ( isset( $_POST['file'] ) ) {
             $file = ! empty( $_POST['file'] ) ? sanitize_text_field( wp_unslash( $_POST['file'] ) ) : false;
         }
-        // phpcs:enable
+
         $res = MainWP_Backup::get()->create_full_backup( $newExcludes, $file, true, $includeCoreFiles, 0, false, false, false, false, $method );
         if ( ! $res ) {
             $information['backup'] = false;
@@ -370,7 +408,10 @@ class MainWP_Clone {
         }
         closedir( $fh );
         $information['themes'] = $themes;
+        update_option( '', $information );
+        set_transient( 'clone-full-backup-' . wp_unslash( $_POST['f'] ), $information, HOUR_IN_SECONDS ); // to support to fix issue timeout of create clone backup request.
         MainWP_Helper::write( $information );
+        //phpcs:enable WordPress.Security.NonceVerification,WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
     }
 
     /**
@@ -447,7 +488,7 @@ class MainWP_Clone {
         } catch ( \Exception $e ) {
             $output = array( 'error' => $e->getMessage() );
         }
-        // phpcs:enable
+        // phpcs:enable WordPress.Security.NonceVerification
         die( wp_json_encode( $output ) );
     }
 
@@ -464,7 +505,7 @@ class MainWP_Clone {
     public function clone_backup_create_poll() {
         try {
             $this->secure_request( 'mainwp-child_clone_backupcreatepoll' );
-            // phpcs:disable WordPress.Security.NonceVerification
+            // phpcs:disable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
             if ( ! isset( $_POST['siteId'] ) ) {
                 throw new \Exception( esc_html__( 'No site given', 'mainwp-child' ) );
             }
@@ -475,7 +516,6 @@ class MainWP_Clone {
             if ( ! is_array( $sitesToClone ) || ! isset( $sitesToClone[ $siteId ] ) ) {
                 throw new \Exception( esc_html__( 'Site not found', 'mainwp-child' ) );
             }
-            // phpcs:enable
 
             $siteToClone = $sitesToClone[ $siteId ];
             $url         = $siteToClone['url'];
@@ -487,9 +527,10 @@ class MainWP_Clone {
             $result = MainWP_Utility::fetch_url(
                 $url,
                 array(
-                    'cloneFunc' => 'createCloneBackupPoll',
-                    'key'       => $key,
-                    'f'         => $rand,
+                    'cloneFunc'      => 'createCloneBackupPoll',
+                    'key'            => $key,
+                    'f'              => $rand,
+                    'cloneCheckInfo' => isset( $_POST['backupInfo'] ) && is_array( $_POST['backupInfo'] ) ? wp_json_encode( wp_unslash( $_POST['backupInfo'] ) ) : '',
                 )
             );
 
@@ -497,7 +538,15 @@ class MainWP_Clone {
                 throw new \Exception( esc_html__( 'Invalid response', 'mainwp-child' ) );
             }
 
-            $output = array( 'size' => round( $result['size'] / 1024, 0 ) );
+            $output = array(
+                'size'      => round( $result['size'] / 1024, 0 ),
+                'size_byte' => $result['size'],
+            );
+
+            if ( isset( $result['backupFinishedResult'] ) ) {
+                $output['backupFinishedResult'] = $result['backupFinishedResult'];
+            }
+            // phpcs:enable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         } catch ( \Exception $e ) {
             $output = array( 'error' => $e->getMessage() );
         }
@@ -611,7 +660,7 @@ class MainWP_Clone {
         } catch ( \Exception $e ) {
             $output = array( 'error' => $e->getMessage() );
         }
-        // phpcs:enable
+        // phpcs:enable WordPress.Security.NonceVerification
         die( wp_json_encode( $output ) );
     }
 
@@ -674,7 +723,7 @@ class MainWP_Clone {
             } elseif ( isset( $_POST['file'] ) ) {
                 $file = ! empty( $_POST['file'] ) ? sanitize_text_field( wp_unslash( $_POST['file'] ) ) : false;
             }
-            // phpcs:enable
+            // phpcs:enable WordPress.Security.NonceVerification
             $testFull     = false;
             $file         = $this->clone_backup_get_file( $file, $testFull );
             $cloneInstall = new MainWP_Clone_Install( $file );
