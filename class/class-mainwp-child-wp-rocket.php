@@ -1,5 +1,4 @@
 <?php
-
 /**
  * MainWP Rocket
  *
@@ -41,6 +40,13 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 	 * @var bool If WP Rocket intalled, return true, if not, return false.
 	 */
 	public $is_plugin_installed = false;
+
+	/**
+	 * Public variable to hold the information about the language domain.
+	 *
+	 * @var string 'mainwp-child' languge domain.
+	 */
+	public $plugin_translate = 'mainwp-child';
 
 	/**
 	 * Method instance()
