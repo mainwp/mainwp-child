@@ -191,7 +191,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                         $information = $this->addons_connect();
                         break;
                     case 'backup_now':
-                        $this->backup_now();
+                       $this->backup_now();
                         break;
                     case 'activejobs_list':
                         $information = $this->activejobs_list();
@@ -412,7 +412,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
      * Connect to UpdraftPlus Vault.
      *
      * @param string $email    Vault account user name.
-     * @param strign $password Vault account password.
+     * @param string $password Vault account password.
      *
      * @return bool|WP_Error $return Returns either true (in which case the Vault token will be stored), or false|\WP_Error.
      *
@@ -1145,7 +1145,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
      * @return array Return the active jobs list.
      */
     public function activejobs_list() { //phpcs:ignore -- NOSONAR - complex.
-
+      
         /** @global object $updraftplus UpdraftPlus object.  */
         global $updraftplus;
 
@@ -1154,7 +1154,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
             foreach ( explode( ':', $_REQUEST['downloaders'] ) as $downloader ) {
                 // prefix, timestamp, entity, index.
                 if ( preg_match( '/^([^,]+),(\d+),([-a-z]+|db\d+),(\d+)$/', $downloader, $matches ) ) {
-                    $updraftplus->nonce = $matches[2];
+                    $updraftplus->nonce = dechex($matches[2]).$matches[4].substr(md5($matches[3]), 0, 3);
                     $status             = $this->download_status( $matches[2], $matches[3], $matches[4] );
                     if ( is_array( $status ) ) {
                         $status['base']      = $matches[1];
@@ -1723,8 +1723,8 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
         $updraftplus->jobdata_set( 'job_time_ms', $updraftplus->job_time_ms );
 
         // Retrieve the information from our backup history.
-        if ( method_exists( $updraftplus, 'get_backup_history' ) ) {
-            $backup_history = $updraftplus->get_backup_history();
+        if ( method_exists( $updraftplus, 'get_backup_history_option' ) ) {
+            $backup_history = $updraftplus->get_backup_history_option();
         } elseif ( class_exists( '\UpdraftPlus_Backup_History' ) ) {
             $backup_history = \UpdraftPlus_Backup_History::get_history();
         }
@@ -4038,11 +4038,18 @@ ENDHERE;
     private function download_status( $timestamp, $type, $findex ) { //phpcs:ignore -- NOSONAR - complex.
 
         /** @global object $updraftplus UpdraftPlus object. */
-        global $updraftplus;
-
+        global $updraftplus, $updraftplus_admin;
+        if (empty($updraftplus_admin)) {
+          include_once UPDRAFTPLUS_DIR.'/admin.php'; // NOSONAR - compatible.
+      }
         $response = array( 'm' => $updraftplus->jobdata_get( 'dlmessage_' . $timestamp . '_' . $type . '_' . $findex ) . '<br>' );
         $file     = $updraftplus->jobdata_get( 'dlfile_' . $timestamp . '_' . $type . '_' . $findex );
+        if(empty($file)){
+          $updraftplus_admin->do_updraft_download_backup($findex, $type, $timestamp, '', false, '');
+          $file     = $updraftplus->jobdata_get( 'dlfile_' . $timestamp . '_' . $type . '_' . $findex );
+        }
         if ( $file ) {
+          
             if ( 'failed' === $file ) {
                 $response['e'] = esc_html__( 'Download failed', 'updraftplus' ) . '<br>';
                 $errs          = $updraftplus->jobdata_get( 'dlerrors_' . $timestamp . '_' . $type . '_' . $findex );
