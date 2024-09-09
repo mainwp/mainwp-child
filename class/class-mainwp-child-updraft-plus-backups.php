@@ -288,6 +288,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
             'updraft_include_plugins',
             'updraft_include_themes',
             'updraft_include_uploads',
+            'updraft_include_mu-plugins',
             'updraft_include_others',
             'updraft_include_wpcore',
             'updraft_include_wpcore_exclude',
@@ -329,6 +330,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
             'updraft_googlecloud',
             'updraft_retain_extrarules',
             'updraft_backblaze',
+            'updraft_pcloud',
         );
     }
 
