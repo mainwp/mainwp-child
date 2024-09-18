@@ -1,4 +1,5 @@
 <?php
+
 /**
  * MainWP UpdraftPlus
  *
@@ -36,7 +37,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
   public static $instance = null;
 
   /** @var bool Whether or not UpdraftPlus WordPress plugin is installed. Default: false.*/
-  public $is_plugin_installed = false;
+  public $is_plugin_installed=false;
 
   /**
    *Public static variable updraftplus file path
@@ -168,8 +169,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses UpdraftPlus()
    * @uses MainWP_Exception()
    */
-  public function action()
-  {
+  public function action() {
     $information = array();
     if (! $this->is_plugin_installed) {
       $information['error'] = 'NO_UPDRAFTPLUS';
@@ -439,8 +439,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses UpdraftPlus_Options::update_updraft_option()
    * @uses \WP_Error()
    */
-  private function vault_connect($email, $password)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function vault_connect($email, $password) { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus instance. */
     global $updraftplus;
@@ -599,8 +598,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses $updraftplus::schedule_backup()
    * @uses $updraftplus::schedule_backup_database()
    */
-  public function save_settings()
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function save_settings() { //phpcs:ignore -- NOSONAR - complex.
     $settings = isset($_POST['settings']) ? json_decode(base64_decode(wp_unslash($_POST['settings'])), true) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
     $keys_filter = $this->get_settings_keys();
@@ -1065,8 +1063,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * Domain Path: /languages
    * Author URI: http://updraftplus.com
    */
-  public function extradb_testconnection()
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function extradb_testconnection() { //phpcs:ignore -- NOSONAR - complex.
 
     if (! class_exists('\UpdraftPlus_WPDB_OtherDB_Test') && file_exists(UPDRAFTPLUS_DIR . '/addons/moredatabase.php')) {
       require_once UPDRAFTPLUS_DIR . '/addons/moredatabase.php'; // NOSONAR - WP compatible.
@@ -1196,8 +1193,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    *
    * @uses MainWP_Child_Updraft_Plus_Backups::close_browser_connection()
    */
-  public function backup_now()
-  {
+  public function backup_now() {
 
     /** @global object $updraftplus UpdraftPlus object.  */
     global $updraftplus;
@@ -1238,8 +1234,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    *
    * @return array Return the active jobs list.
    */
-  public function activejobs_list()
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function activejobs_list() { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object.  */
     global $updraftplus;
@@ -1249,7 +1244,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
       foreach (explode(':', $_REQUEST['downloaders']) as $downloader) {
         // prefix, timestamp, entity, index.
         if (preg_match('/^([^,]+),(\d+),([-a-z]+|db\d+),(\d+)$/', $downloader, $matches)) {
-          $updraftplus->nonce = dechex($matches[2]) . $matches[4] . substr(md5($matches[3]), 0, 3);
+          $updraftplus->nonce = dechex($matches[2]) . $matches[4] . substr(md5($matches[3]), 0, 3); //phpcs:ignore -- NOSONAR - mmy encryption.
           $status             = $this->download_status($matches[2], $matches[3], $matches[4]);
           if (is_array($status)) {
             $status['base']      = $matches[1];
@@ -1295,8 +1290,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses UpdraftPlus_Options::get_updraft_option()
    * @uses $updraftplus::backups_dir_location()
    */
-  private function last_backup_html()
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function last_backup_html() { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object.  */
     global $updraftplus;
@@ -1367,8 +1361,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses MainWP_Child_Updraft_Plus_Backups::build_historystatus()
    * @uses MainWP_Child_Updraft_Plus_Backups::last_backup_html()
    */
-  private function get_updraft_data($with_hist = true)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function get_updraft_data($with_hist = true) { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object.  */
     global $updraftplus;
@@ -1563,8 +1556,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses UpdraftPlus_Backup_History::get_history()
    * @uses MainWP_Child_Updraft_Plus_Backups::build_historystatus()
    */
-  private function deleteset()
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function deleteset() { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object.  */
     global $updraftplus;
@@ -1782,8 +1774,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses MainWP_Child_Updraft_Plus_Backups::close_browser_connection()
    * @uses MainWP_Child_Updraft_Plus_Backups::download_file()
    */
-  public function updraft_download_backup()
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function updraft_download_backup() { //phpcs:ignore -- NOSONAR - complex.
 
     set_time_limit(900);
 
@@ -2010,8 +2001,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses $updraftplus::get_backupable_file_entities(
    * @uses MainWP_Child_Updraft_Plus_Backups::analyse_db_file_old()
    */
-  public function restore_alldownloaded()
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function restore_alldownloaded() { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object. */
     global $updraftplus;
@@ -2260,8 +2250,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @param bool $wpfs Whether or not to use Wordpress filesystem to list directories, Default: true.
    * @return bool|string $ret Return FALSE & echo 'Failed' on failure or echo 'OK' on success.
    */
-  private function delete_old_dirs_dir($dir, $wpfs = true)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function delete_old_dirs_dir($dir, $wpfs = true) { //phpcs:ignore -- NOSONAR - complex.
 
     $dir = trailingslashit($dir);
 
@@ -2339,8 +2328,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses UpdraftPlus_Backup_History::get_history()
    * @uses MainWP_Child_Updraft_Plus_Backups::gzopen_for_read()
    */
-  private function analyse_db_file_old($timestamp, $res, $db_file = false, $header_only = false)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function analyse_db_file_old($timestamp, $res, $db_file = false, $header_only = false) { //phpcs:ignore -- NOSONAR - complex.
 
     $mess = array();
     $warn = array();
@@ -2603,8 +2591,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses UpdraftPlus_Manipulation_Functions::str_replace_once()
    * @uses UpdraftPlus_Manipulation_Functions::get_matching_str_from_array_elems()
    */
-  public function analyse_db_file($timestamp, $res, $db_file = false, $header_only = false)
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function analyse_db_file($timestamp, $res, $db_file = false, $header_only = false) { //phpcs:ignore -- NOSONAR - complex.
     global $updraftplus;
 
     $mess       = array();
@@ -3022,8 +3009,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    *
    * @return bool|false|resource Return FALSE on failure or $what_to_return the unziped file.
    */
-  private function gzopen_for_read($file, &$warn, &$err)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function gzopen_for_read($file, &$warn, &$err) { //phpcs:ignore -- NOSONAR - complex.
     if (! function_exists('gzopen') || ! function_exists('gzread')) {
       $missing = '';
       if (! function_exists('gzopen')) {
@@ -3134,8 +3120,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
    * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::log_button()
    * @uses \MainWP\Child\MainWP_Helper::instance()->check_methods()
    */
-  private function existing_backup_table($backup_history = false)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function existing_backup_table($backup_history = false) { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object. */
     global $updraftplus;
@@ -3145,7 +3130,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
     }
 
     if (empty($backup_history)) {
-      return '<div class="ui yellow message">' . esc_html__('You have not yet made any backups.', 'updraftplus') . '</div>';
+      return '<div class="ui yellow message">' . esc_html__('You have not yet made any backups.', 'updraftplus') . '</div>'; //phpcs:ignore -- NOSONAR - complex.
     }
 
     MainWP_Helper::instance()->check_methods($updraftplus, array('backups_dir_location', 'get_backupable_file_entities'));
@@ -3381,8 +3366,7 @@ ENDHERE;
    * @uses $updraftplus::get_backupable_file_entities()
    * @uses MainWP_Child_Updraft_Plus_Backups::download_button()
    */
-  private function download_buttons($backup, $key, $accept, &$entities, $esc_pretty_date, $nonce_field)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function download_buttons($backup, $key, $accept, &$entities, $esc_pretty_date, $nonce_field) { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object. */
     global $updraftplus;
@@ -3494,8 +3478,7 @@ ENDHERE;
    *
    * @return string Download button html.
    */
-  private function download_button($type, $key, $findex, $nonce_field, $ide, $pdescrip, $esc_pretty_date, $set_contents)
-  { // phpcs:ignore -- NOSONAR - compatible.
+  private function download_button($type, $key, $findex, $nonce_field, $ide, $pdescrip, $esc_pretty_date, $set_contents){ // phpcs:ignore -- NOSONAR - compatible.
     return <<<ENDHERE
         <div style="float: left; clear: none;">
             <form id="uddownloadform_{$type}_{$key}_{$findex}" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', '$key', '$type', '#mwp_ud_downloadstatus', '$set_contents', '$esc_pretty_date', true, this )" method="post">
@@ -3660,8 +3643,7 @@ ENDHERE;
    *
    * @uses MainWP_Child_Updraft_Plus_Backups::recursive_directory_size_raw()
    */
-  private function recursive_directory_size($directorieses, $exclude = array(), $basedirs = '')
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function recursive_directory_size($directorieses, $exclude = array(), $basedirs = '') { //phpcs:ignore -- NOSONAR - complex.
 
     $size = 0;
 
@@ -3714,8 +3696,7 @@ ENDHERE;
    *
    * @uses MainWP_Child_Updraft_Plus_Backups::recursive_directory_size_raw()
    */
-  private function recursive_directory_size_raw($prefix_directory, &$exclude = array(), $suffix_directory = '')
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function recursive_directory_size_raw($prefix_directory, &$exclude = array(), $suffix_directory = '') { //phpcs:ignore -- NOSONAR - complex.
 
     $directory = $prefix_directory . ('' === $suffix_directory ? '' : '/' . $suffix_directory);
     $size      = 0;
@@ -3766,8 +3747,7 @@ ENDHERE;
    *
    * @uses $updraftplus::jobdata_getarray()
    */
-  private function get_cron($job_id = false)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function get_cron($job_id = false) { //phpcs:ignore -- NOSONAR - complex.
 
     $cron = get_option('cron');
     if (! is_array($cron)) {
@@ -3806,8 +3786,7 @@ ENDHERE;
    * @uses MainWP_Child_Updraft_Plus_Backups::get_cron()
    * @uses MainWP_Child_Updraft_Plus_Backups::print_active_job()
    */
-  private function print_active_jobs($this_job_only = false)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function print_active_jobs($this_job_only = false) { //phpcs:ignore -- NOSONAR - complex.
     $cron = $this->get_cron();
     $ret  = '';
 
@@ -3849,8 +3828,7 @@ ENDHERE;
    * @uses $updraftplus::jobdata_getarray()
    * @uses $updraftplus::get_backupable_file_entities()
    */
-  private function print_active_job($job_id, $is_oneshot = false, $time = false, $next_resumption = false)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function print_active_job($job_id, $is_oneshot = false, $time = false, $next_resumption = false) { //phpcs:ignore -- NOSONAR - complex.
 
     $ret = '';
 
@@ -4046,8 +4024,7 @@ ENDHERE;
    *
    * @return array|string[] Return Y Job has been deleted or N Job not found.
    */
-  private function activejobs_delete()
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function activejobs_delete() { //phpcs:ignore -- NOSONAR - complex.
     $jobid = isset($_POST['jobid']) ? sanitize_text_field(wp_unslash($_POST['jobid'])) : '';
     if (empty($jobid)) {
       return array('error' => 'Error: empty job id.');
@@ -4094,8 +4071,7 @@ ENDHERE;
    * @uses $updraftplus::last_modified_log()
    * @uses $updraftplus::backups_dir_location()
    */
-  public function fetch_log($backup_nonce, $log_pointer = 0)
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function fetch_log($backup_nonce, $log_pointer = 0) { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object. */
     global $updraftplus;
@@ -4161,8 +4137,7 @@ ENDHERE;
    *
    * @uses $updraftplus::jobdata_get()
    */
-  private function download_status($timestamp, $type, $findex)
-  { //phpcs:ignore -- NOSONAR - complex.
+  private function download_status($timestamp, $type, $findex) { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $updraftplus UpdraftPlus object. */
     global $updraftplus, $updraftplus_admin;
@@ -4341,8 +4316,7 @@ ENDHERE;
    * @uses $wp_admin_bar::get_nodes()
    * @uses $wp_admin_bar::remove_node()
    */
-  public function wp_before_admin_bar_render()
-  { //phpcs:ignore -- NOSONAR - complex.
+  public function wp_before_admin_bar_render() { //phpcs:ignore -- NOSONAR - complex.
 
     /** @global object $wp_admin_bar WordPress Admin Bar object. */
     global $wp_admin_bar;
