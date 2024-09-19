@@ -3186,13 +3186,13 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
       }
 
       $ret .= <<<ENDHERE
-                <tr id="updraft_existing_backups_row_$key">
+                <tr id="updraft_existing_backups_row_$key" class="updraft_existing_backups_row">
                 <td class="updraft_existingbackup_date" data-rawbackup="$rawbackup">
                     $date_label . $service_title
                 </td>
 ENDHERE;
 
-      $ret .= '<td>';
+      $ret .= '<td class="updraft_existingbackup_download">';
       if (empty($backup['meta_foreign']) || ! empty($accept[$backup['meta_foreign']]['separatedb'])) {
 
         if (isset($backup['db'])) {
@@ -3231,7 +3231,7 @@ ENDHERE;
 
       $ret .= $download_buttons;
       $ret .= '</td>';
-      $ret .= '<td>';
+      $ret .= '<td class="updraft_existingbackup_action>';
       $ret .= $this->restore_button($key, $entities);
       $ret .= $delete_button;
       if (empty($backup['meta_foreign'])) {
@@ -3337,7 +3337,7 @@ ENDHERE;
     }
 
     $ret .= <<<ENDHERE
-                            <div style="float:left; clear: none;">
+                            <div style="float:left; clear: none;" class="mwp-updraft-download-button">
                                 <form id="uddownloadform_{$bkey}_{$key}_0" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', $key, '$bkey', '#mwp_ud_downloadstatus', '0', '$esc_pretty_date', true, this )" method="post">
                                     $nonce_field
                                     <input type="hidden" name="action" value="mainwp_updraft_download_backup" />
@@ -3431,7 +3431,7 @@ ENDHERE;
           $ide     .= esc_html__('Press here to download', 'updraftplus') . ' ' . strtolower($info['description']);
           $pdescrip = ($findex > 0) ? $sdescrip . ' (' . ($findex + 1) . ')' : $sdescrip;
           if (! $first_printed) {
-            $ret .= '<div style="display:none;">';
+            $ret .= '<div style="display:none;" class="mwp-updraft-download-buttons">';
           }
           if (count($backup[$type]) > 0) {
             $ide .= ' ' . sprintf(esc_html__('(%d archive(s) in set).', 'updraftplus'), $howmanyinset);
@@ -3480,7 +3480,7 @@ ENDHERE;
    */
   private function download_button($type, $key, $findex, $nonce_field, $ide, $pdescrip, $esc_pretty_date, $set_contents){ // phpcs:ignore -- NOSONAR - compatible.
     return <<<ENDHERE
-        <div style="float: left; clear: none;">
+        <div style="float: left; clear: none;" class="mwp-updraft-download-button">
             <form id="uddownloadform_{$type}_{$key}_{$findex}" action="admin-ajax.php" onsubmit="return mainwp_updraft_downloader( 'uddlstatus_', '$key', '$type', '#mwp_ud_downloadstatus', '$set_contents', '$esc_pretty_date', true, this )" method="post">
                 $nonce_field
                 <input type="hidden" name="action" value="mainwp_updraft_download_backup" />
@@ -3850,6 +3850,7 @@ ENDHERE;
 
     $jobstatus = empty($jobdata['jobstatus']) ? 'unknown' : $jobdata['jobstatus'];
     $stage     = 0;
+    $progress_class = '';
     switch ($jobstatus) {
       case 'begun':
         $curstage = esc_html__('Backup begun', 'updraftplus');
@@ -3889,10 +3890,12 @@ ENDHERE;
         $curstage = esc_html__('Pruning old backup sets', 'updraftplus');
         break;
       case 'resumingforerrors':
+        $progress_class = 'error';
         $stage    = -1;
         $curstage = esc_html__('Waiting until scheduled time to retry because of errors', 'updraftplus');
         break;
       case 'finished':
+        $progress_class = 'success';
         $stage    = 6;
         $curstage = esc_html__('Backup finished', 'updraftplus');
         break;
@@ -3976,32 +3979,37 @@ ENDHERE;
       $show_inline_info = $next_res_txt;
       $title_info       = $last_activity_txt;
     }
+    $progress = ( $stage > 0 ) ? ( ceil( ( 100 / 6 ) * $stage ) ) : '0' ;
 
     // Existence of the 'updraft-jobid-(id)' id is checked for in other places, so do not modify this.
-    $ret .= '<div style="min-width: 480px; margin-top: 4px; clear:left; float:left; padding: 8px; border: 1px solid;" id="updraft-jobid-' . $job_id . '"><span class="updraft_jobtimings" data-jobid="' . $job_id . '" data-lastactivity="' . (int) $last_checkin_ago . '" data-nextresumption="' . $next_resumption . '" data-nextresumptionafter="' . $next_res_after . '" style="font-weight:bold;" title="' . esc_attr(sprintf(esc_html__('Job ID: %s', 'updraftplus'), $job_id)) . $title_info . '">' . $began_at . '</span> ';
+    $ret .= '<div id="updraft-jobid-' . $job_id . '" class="updraft_activejobsrow"><div class="updraft_activejobsrow_header"><span class="updraft_jobtimings" data-jobid="' . $job_id . '" data-lastactivity="' . (int) $last_checkin_ago . '" data-nextresumption="' . $next_resumption . '" data-nextresumptionafter="' . $next_res_after . '" style="font-weight:bold;" title="' . esc_attr(sprintf(esc_html__('Job ID: %s', 'updraftplus'), $job_id)) . $title_info . '">' . $began_at . '</span> ';
 
     $ret .= $show_inline_info;
     $ret .= '- <a href="#" class="updraft-log-link" onclick="event.preventDefault(); mainwp_updraft_popuplog(\'' . $job_id . '\', this);">' . esc_html__('show log', 'updraftplus') . '</a>';
 
     if (! $is_oneshot) {
-      $ret .= ' - <a title="' . esc_attr(esc_html__('Note: the progress bar below is based on stages, NOT time. Do not stop the backup simply because it seems to have remained in the same place for a while - that is normal.', 'updraftplus')) . '" href="javascript:mainwp_updraft_activejobs_delete(\'' . $job_id . '\')">' . esc_html__('delete schedule', 'updraftplus') . '</a>';
+      $ret .= ' - <a title="' . esc_attr(esc_html__('Note: the progress bar below is based on stages, NOT time. Do not stop the backup simply because it seems to have remained in the same place for a while - that is normal.', 'updraftplus')) . '" href="#" onclick="event.preventDefault(); mainwp_updraft_activejobs_delete(\'' . $job_id . '\')">' . esc_html__('delete schedule', 'updraftplus') . '</a></div>';
     }
+    $ret .= '<div class="updraft_activejobsrow_content">';
 
     if (! empty($jobdata['warnings']) && is_array($jobdata['warnings'])) {
-      $ret .= '<ul style="list-style: disc inside;">';
+      $ret .= '<ul style="list-style: disc inside;" class="mainwp_updraft_activejobs-list-disc">';
       foreach ($jobdata['warnings'] as $warning) {
         $ret .= '<li>' . sprintf(esc_html__('Warning: %s', 'updraftplus'), make_clickable(htmlspecialchars($warning))) . '</li>';
       }
       $ret .= '</ul>';
     }
 
-    $ret .= '<div style="border-radius: 4px; margin-top: 8px; z-index:0; padding-top: 4px;border: 1px solid #aaa; width: 100%; height: 22px; position: relative; text-align: center; font-style: italic;">';
-    $ret .= htmlspecialchars($curstage);
-    $ret .= '<div style="z-index:-1; position: absolute; left: 0px; top: 0px; text-align: center; background-color: #f6a828; height: 100%; width:' . (($stage > 0) ? (ceil((100 / 6) * $stage)) : '0') . '%"></div>';
+    $ret .=  '<div class="mainwp_updraft_activejobs-curstage">
+                <div class="ui progress '. esc_attr( $progress_class ).'" data-percent="'. esc_attr( $progress ) .'">
+                  <div class="bar" style="background-color: #f6a828; transition-duration: 300ms; display: block; width: '. esc_attr( $progress ) .'%;">
+                    <div class="progress">'. esc_attr( $progress)  .'%</div>
+                  </div>
+                  <div class="label">'. htmlspecialchars( $curstage ) .'</div>
+                </div>
+              </div>';
+
     $ret .= '</div></div>';
-
-    $ret .= '</div>';
-
     return $ret;
   }
 
