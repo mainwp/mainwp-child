@@ -491,6 +491,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
             $vault_settings['quota'] = $response['quota'];
           }
           \UpdraftPlus_Options::update_updraft_option('updraft_updraftvault', $vault_settings);
+          $return = true;
         } elseif (isset($response['quota']) && ! $response['quota']) {
           return new \WP_Error('no_quota', esc_html__('You do not currently have any UpdraftPlus Vault quota', 'updraftplus'));
         } else {
