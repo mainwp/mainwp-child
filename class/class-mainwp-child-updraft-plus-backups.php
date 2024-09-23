@@ -856,10 +856,12 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
           $updated = true;
         }
       }
-
       if (! isset($settings['do_not_save_remote_settings']) || empty($settings['do_not_save_remote_settings'])) {
         \UpdraftPlus_Options::update_updraft_option('updraft_service', $settings['updraft_service']);
-      }
+      } elseif (! empty( $settings['do_not_save_remote_settings'] ) && 1 === $settings['do_not_save_remote_settings'] ){
+				// Save empty updraft service with remote setting do not save equal to 1.
+        \UpdraftPlus_Options::update_updraft_option('updraft_service', '');
+			}
 
       if (isset($settings['updraft_interval'])) {
         // fix for premium version.
@@ -868,6 +870,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
         $_POST['updraft_starttime_files'] = $settings['updraft_starttime_files'];
         $updraftplus->schedule_backup($settings['updraft_interval']);
       }
+
       if (isset($settings['updraft_interval_database'])) {
         // fix for premium version.
         $_POST['updraft_interval_database'] = $settings['updraft_interval_database'];
