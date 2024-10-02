@@ -859,9 +859,9 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
       if (! isset($settings['do_not_save_remote_settings']) || empty($settings['do_not_save_remote_settings'])) {
         \UpdraftPlus_Options::update_updraft_option('updraft_service', $settings['updraft_service']);
       } elseif (! empty( $settings['do_not_save_remote_settings'] ) && 1 === $settings['do_not_save_remote_settings'] ){
-				// Save empty updraft service with remote setting do not save equal to 1.
+                // Save empty updraft service with remote setting do not save equal to 1.
         \UpdraftPlus_Options::update_updraft_option('updraft_service', '');
-			}
+            }
 
       if (isset($settings['updraft_interval'])) {
         // fix for premium version.
@@ -4441,7 +4441,7 @@ ENDHERE;
       exit();
     }
 
-	remove_menu_page( 'options-general.php?page=updraftplus' );
+    remove_menu_page( 'options-general.php?page=updraftplus' );
   }
 
   /**
