@@ -4421,8 +4421,7 @@ ENDHERE;
   /**
    * Remove UpdraftPlus from WP Admin menu.
    */
-  public function remove_menu()
-  {
+  public function remove_menu() {
 
     /** @global object $submenu WordPress submenu object. */
     global $submenu;
@@ -4441,6 +4440,8 @@ ENDHERE;
       wp_safe_redirect(get_option('siteurl') . '/wp-admin/index.php');
       exit();
     }
+
+	remove_menu_page( 'options-general.php?page=updraftplus' );
   }
 
   /**
