@@ -110,9 +110,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::instance()->error( esc_html__( 'cURL Extension not enabled on the child site server. Please contact your host support and have them enabled it for you.', 'mainwp-child' ) );
         }
 
-        // Check if the user exists and if yes, check if it's Administartor user.
+        // Check if the user exists and if yes, check if it's administrator user.
         if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
-            MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Administrator user does not exist. Please verify that the user is an existing administrator.', 'mainwp-child' ) );
         }
         if ( ! MainWP_Helper::is_admin() ) {
             MainWP_Helper::instance()->error( esc_html__( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
