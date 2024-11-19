@@ -1111,6 +1111,16 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         return $result;
     }
 
+     /**
+     * MainWP BackWPup WP Die ajax handler.
+     *
+     * @param string $message Error message container.
+     * @return string Error message.
+     */
+    public static function mainwp_backwpup_wp_die_ajax_handler() {
+        return '__return_true';
+    }
+
     /**
      * BackWPup Ajax Working.
      *
@@ -1131,16 +1141,6 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $this->wp_list_table_dependency();
 
-        /**
-         * MainWP BackWPup WP Die ajax handler.
-         *
-         * @param string $message Error message container.
-         * @return string Error message.
-         */
-        function mainwp_backwpup_wp_die_ajax_handler() {
-            return 'mainwp_backwpup_wp_die_ajax_handler';
-        }
-
         // We do this in order to not die when using wp_die.
         if ( ! defined( 'DOING_AJAX' ) ) {
 
@@ -1153,7 +1153,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             define( 'DOING_AJAX', true );
         }
 
-        add_filter( 'wp_die_ajax_handler', 'mainwp_backwpup_wp_die_ajax_handler' );
+        add_filter( 'wp_die_ajax_handler', array( __CLASS__ , 'mainwp_backwpup_wp_die_ajax_handler' ) );
         remove_filter( 'wp_die_ajax_handler', '_ajax_wp_die_handler' );
 
         ob_start();
@@ -1792,6 +1792,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
+        // this assign not work with filter_input - INPUT_POST.
         foreach ( $settings['value'] as $key => $val ) {
             $_POST[ $key ] = $val;
         }

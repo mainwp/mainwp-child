@@ -1059,7 +1059,8 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $mainWPChild;
 
-        $mainWPChild->deactivation( false );
+        $mainWPChild->delete_connection_data();
+
         MainWP_Helper::write( array( 'result' => 'success' ) );
     }
 
@@ -1087,6 +1088,15 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         if ( is_plugin_active( $mainWPChild->plugin_slug ) ) {
             MainWP_Helper::instance()->error( 'Plugin still active' );
         }
+
+        /**
+         * MainWP Child instance.
+         *
+         * @global object
+         */
+        global $mainWPChild;
+
+        $mainWPChild->delete_connection_data();
         $information['deactivated'] = true;
         MainWP_Helper::write( $information );
     }
