@@ -1081,7 +1081,6 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method get_connected_user()
      */
-
     public function get_connected_user() {
         return $this->connect_user;
     }

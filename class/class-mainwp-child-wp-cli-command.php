@@ -63,7 +63,7 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
         if ( isset( $assoc_args['disable-pwd-auth'] ) ) {
             if ( empty( $args ) || empty( $args[0] ) ) {
                 \WP_CLI::error( 'Please enter the username to apply this setting. A valid username is required to proceed.' );
-                 return true;
+                return true;
             } else {
                 $user_name = $args[0];
                 $user      = get_user_by( 'login', $user_name );
@@ -77,7 +77,7 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
 
                 update_user_option( $user->ID, 'mainwp_child_user_enable_passwd_auth_connect', $disabled ? 0 : 1 );
                 \WP_CLI::success( 'Your changes have been saved successfully!' );
-            	return true;
+                return true;
             }
         }
 
