@@ -115,7 +115,7 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 = 5.2.1 - 11-20-2024 =
 
 * Added: After activating the MainWP plugin, users are now redirected to the MainWP Settings page for a smoother onboarding experience.
-Updated: The Unique Security ID option is now enabled by default to enhance security for all MainWP installations.
+* Updated: The Unique Security ID option is now enabled by default to enhance security for all MainWP installations.
 
 = 5.2 - 8-28-2024 =
 
