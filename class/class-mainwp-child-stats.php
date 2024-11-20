@@ -320,7 +320,6 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-
         // still generate if regverify the connect user disabled pw auth.
         if ( ! empty( $_POST['sync_regverify'] ) ) {
             $information['regverify_info'] = MainWP_Connect::instance()->validate_register( false, 'generate' );
