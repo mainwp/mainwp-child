@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.2'; // NOSONAR - not IP.
+    public static $version = '5.2.1'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -72,6 +72,7 @@ class MainWP_Child {
         $this->plugin_slug = plugin_basename( $plugin_file );
 
         add_action( 'template_redirect', array( $this, 'template_redirect' ) );
+        add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
         add_action( 'init', array( &$this, 'init_check_login' ), 1 );
         add_action( 'init', array( &$this, 'parse_init' ), 9999 );
         add_action( 'init', array( &$this, 'localization' ), 33 );
@@ -255,6 +256,33 @@ class MainWP_Child {
         MainWP_Utility::instance()->send_maintenance_alert();
     }
 
+
+    /**
+     * Method hook_activated_plugin()
+     *
+     * @param  mixed $plugin plugin.
+     * @return void
+     */
+    public function hook_activated_plugin( $plugin ) {
+        if ( plugin_basename( MAINWP_CHILD_FILE ) === $plugin ) {
+            $just_activated = false;
+            if ( empty( get_option( 'mainwp_child_pubkey' ) ) ) {
+                MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 12 ) );
+                $just_activated = true;
+            }
+            if ( ! headers_sent() ) {
+                $branding = MainWP_Child_Branding::instance()->is_branding();
+                if ( ! $branding ) {
+                    wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );
+                    exit();
+                }
+            } elseif ( $just_activated ) {
+                MainWP_Helper::update_option( 'mainwp_child_just_activated', 1 );
+            }
+        }
+    }
+
+
     /**
      * Method parse_init()
      *
@@ -352,6 +380,12 @@ class MainWP_Child {
             MainWP_Clone::instance()->init_ajax();
         }
         MainWP_Child_Actions::get_instance()->init_hooks();
+
+        if ( ! empty( get_option( 'mainwp_child_just_activated' ) ) ) {
+            delete_option( 'mainwp_child_just_activated' );
+            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );
+            exit();
+        }
     }
 
     /**
