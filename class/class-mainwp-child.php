@@ -263,7 +263,7 @@ class MainWP_Child {
     /**
      * Method hook_activated_plugin()
      *
-     * @param  mixed $plugin
+     * @param  mixed $plugin plugin.
      * @return void
      */
     public function hook_activated_plugin( $plugin ) {
