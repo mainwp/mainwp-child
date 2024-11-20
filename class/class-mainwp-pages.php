@@ -97,7 +97,7 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
      */
-    public function admin_notice() {
+    public function admin_notice() { //phpcs:ignore -- NOSONAR -complexity.
         // Admin Notice...
         if ( ! get_option( 'mainwp_child_pubkey' ) && MainWP_Helper::is_admin() && is_admin() ) {
             $branding_opts  = MainWP_Child_Branding::instance()->get_branding_options();
@@ -121,13 +121,13 @@ class MainWP_Pages {
             echo $msg; //phpcs:ignore -- NOSONAR - ok
         }
 
-        if ( isset( $_GET['page'] ) && 'mainwp_child_tab' === $_GET['page'] && isset( $_GET['message'] ) ) {
+        if ( isset( $_GET['page'] ) && 'mainwp_child_tab' === $_GET['page'] && isset( $_GET['message'] ) ) { //phpcs:ignore -- ok.
 
             $message = '';
 
-            if ( '1' === wp_unslash( $_GET['message'] ) ) {
+            if ( '1' === wp_unslash( $_GET['message'] ) ) { //phpcs:ignore -- ok.
                 $message = __( 'Disconnected the Site from Dashboard.', 'mainwp-child' );
-            } elseif ( '2' === wp_unslash( $_GET['message'] ) ) {
+            } elseif ( '2' === wp_unslash( $_GET['message'] ) ) { //phpcs:ignore -- ok.
                 $message = __( 'Settings have been saved successfully.', 'mainwp-child' );
             }
 
@@ -683,7 +683,7 @@ class MainWP_Pages {
             if ( MainWP_Child_Branding::instance()->is_branding() ) {
                 esc_html_e( 'If you have additional questions, please refer to this Knowledge Base article or contact ' . $branding_title . ' Support.', 'mainwp-child' );
             } else {
-                printf(  esc_html__( 'If you have additional questions, please %srefer to this Knowledge Base article%s or %scontact MainWP Support%s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/mainwp-connection-security/#password-authentication" target="_blank">', '</a>', '<a href="https://mainwp.com/mainwp-support/" target="_blank">', '</a>' );
+                printf( esc_html__( 'If you have additional questions, please %srefer to this Knowledge Base article%s or %scontact MainWP Support%s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/mainwp-connection-security/#password-authentication" target="_blank">', '</a>', '<a href="https://mainwp.com/mainwp-support/" target="_blank">', '</a>' );
             }
             ?>
             </p>
@@ -706,7 +706,7 @@ class MainWP_Pages {
                 <hr/>
             </header>
             <p><?php printf( esc_html__( 'Add an extra layer of security for connecting this site to your %s Dashboard.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?></p>
-            
+
             <table class="form-table">
                 <tbody>
                     <tr>
@@ -720,7 +720,7 @@ class MainWP_Pages {
                     <tr>
                 </tbody>
             </table>
-            
+
             <div>
             <?php if ( ! empty( $uniqueId ) ) : ?>
                 <table class="form-table">
@@ -749,9 +749,9 @@ class MainWP_Pages {
                     <tr>
                 </tbody>
             </table>
-            
+
             <div>
-                
+
             </div>
             <p class="submit">
                 <input type="submit" name="submit" id="submit" class="mainwp-button" value="<?php esc_attr_e( 'Save Settings', 'mainwp-child' ); ?>">

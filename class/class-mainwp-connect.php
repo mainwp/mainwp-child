@@ -23,6 +23,11 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static $instance = null;
 
+    /**
+     * Private variable to hold the connect user.
+     *
+     * @var mixed Default null
+     */
     private $connect_user = null;
 
     /**
@@ -120,9 +125,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-        // Check if the user exists and if yes, check if it's Administartor user.
+        // Check if the user exists and if yes, check if it's administartor user.
         if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
-            MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Administrator user does not exist. Please verify that the user is an existing administrator.', 'mainwp-child' ) );
         }
         if ( ! MainWP_Helper::is_admin() ) {
             MainWP_Helper::instance()->error( esc_html__( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
@@ -159,7 +164,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @param  string $key_value Key & value.
      * @param  string $act Action.
-     * @param  string $user_name.
+     * @param  string $user_name user name.
      *
      * @return mixed
      */
@@ -246,6 +251,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             return true; // not enable passwd auth, then return true.
         }
 
+        //phpcs:disable WordPress.Security.NonceVerification
         $user_pwd = isset( $_POST['userpwd'] ) ? trim( rawurldecode( $_POST['userpwd'] ) ) : ''; //phpcs:ignore -- NOSONAR - ok.
         $reg_verify = isset( $_POST['regverify'] ) ? sanitize_text_field(wp_unslash( $_POST['regverify'] )) : ''; //phpcs:ignore -- NOSONAR - ok.
 
@@ -262,6 +268,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             // set it is valid one time.
             return true;
         }
+        //phpcs:enable WordPress.Security.NonceVerification
 
         $is_valid_regis = $this->validate_register( $reg_verify, 'verify', $user_name );
 
@@ -294,7 +301,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string
      */
     private function may_be_generate_register_verify() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-
+        //phpcs:disable WordPress.Security.NonceVerification
         $is_dash_version_older_than_ver53 = empty( $_POST['mainwpver'] ) || version_compare( $_POST['mainwpver'], '5.3', '<' ) ? true : false;
 
         if ( $is_dash_version_older_than_ver53 ) {
@@ -302,6 +309,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $reg_verify = isset( $_POST['regverify'] ) ? sanitize_text_field(wp_unslash( $_POST['regverify'] )) : ''; //phpcs:ignore -- NOSONAR - ok.
+        //phpcs:enable WordPress.Security.NonceVerification
 
         if ( empty( $reg_verify ) ) {
             return $this->validate_register( false, 'generate' );
@@ -355,7 +363,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method is_never_verify_register()
      *
-     * @param  string $username Admin login name.
+     * @param  string $user_name Admin login name.
      *
      * @return bool ture|false.
      */

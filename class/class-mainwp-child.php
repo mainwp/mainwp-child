@@ -267,7 +267,7 @@ class MainWP_Child {
      * @return void
      */
     public function hook_activated_plugin( $plugin ) {
-        if ( $plugin === plugin_basename( MAINWP_CHILD_FILE ) && ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) ) {
+        if ( plugin_basename( MAINWP_CHILD_FILE ) === $plugin && ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) ) {
             $branding = MainWP_Child_Branding::instance()->is_branding();
             if ( ! $branding ) {
                 wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );

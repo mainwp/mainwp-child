@@ -12,7 +12,7 @@ namespace MainWP\Child;
 
 // Exit if access directly.
 if ( ! defined( 'WP_CLI' ) ) {
-    return; // Nconstant_name: OSONAR - jump to avoid CLI.
+    return; // NOSONAR - jump to avoid CLI.
 }
 
 /**
@@ -58,7 +58,7 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
      * @param array $args Function arguments.
      * @param array $assoc_args Function associate arguments.
      */
-    public function settings( $args, $assoc_args ) {
+    public function settings( $args, $assoc_args ) { //phpcs:ignore -- NOSONAR - complexity.
 
         if ( isset( $assoc_args['disable-pwd-auth'] ) ) {
             if ( empty( $args ) || empty( $args[0] ) ) {
