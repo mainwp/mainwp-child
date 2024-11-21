@@ -1278,28 +1278,24 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         );
         // phpcs:disable WordPress.Security.EscapeOutput
         ?>
-        <div class="postbox" id="connection_detail">
-            <h3 class="mainwp_box_title"><span><?php esc_html_e( 'Connection details', 'mainwp-child' ); ?></span></h3>
-            <div class="inside">
-                <div class="mainwp-postbox-actions-top mainwp-padding-5">
-                    <?php printf( esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?>
-                </div>
-                <table id="mainwp-table" class="wp-list-table widefat" style="border: 0;border-spacing:0;">
-                    <tbody>
-                        <?php
-                        foreach ( $details as $row ) {
-                            ?>
-                            <tr>
-                                <th style="width: 20%"><strong><?php echo esc_html( $row['title'] ); ?></strong></th>
-                                <td style="width: 20%"><strong><?php echo esc_html( $row['value'] ); ?></strong></td>
-                                <td><?php echo esc_html( $row['desc'] ); ?></td>
-                            </tr>
-                            <?php
-                        }
+        <div class="connection-detail-info" id="connection_detail">
+            <h3><?php esc_html_e( 'Connection details', 'mainwp-child' ); ?></h3>
+            <p><?php printf( esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?></p>
+            <table class="wp-list-table widefat" style="border: 0;border-spacing:0;">
+                <tbody>
+                    <?php
+                    foreach ( $details as $row ) {
                         ?>
-                    </tbody>
-                </table>
-            </div>
+                        <tr>
+                            <th style="width: 20%"><strong><?php echo esc_html( $row['title'] ); ?></strong></th>
+                            <td style="width: 20%"><strong><?php echo esc_html( $row['value'] ); ?></strong></td>
+                            <td><?php echo esc_html( $row['desc'] ); ?></td>
+                        </tr>
+                        <?php
+                    }
+                    ?>
+                </tbody>
+            </table>
         </div>
         <?php
         // phpcs:enable

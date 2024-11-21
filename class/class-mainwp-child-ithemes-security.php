@@ -117,14 +117,18 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                 $response = rest_do_request( $request );
                 $scans = rest_get_server()->response_to_data( $response, true );
 
+
                 if ( is_array( $scans ) && count( $scans ) > 0 ) {
                     $scan = current( $scans );
-                    $information['syncIThemeData']['scan_info'] = array(
-                        'time' => $scan['time'],
-                        'description' => $scan['description'],
-                        'status' => $scan['status'],
-                    );
+                    if( is_array($scan ) && isset( $scan['time'] ) ){ // to fix error: "you cannot view site scans".
+                        $information['syncIThemeData']['scan_info'] = array(
+                            'time' => $scan['time'],
+                            'description' => $scan['description'],
+                            'status' => $scan['status'],
+                        );
+                    }
                 }
+
 
                 if ( class_exists( '\iThemesSecurity\Ban_Users\Database_Repository' ) ) {
                     try{

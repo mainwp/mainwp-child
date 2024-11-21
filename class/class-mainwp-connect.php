@@ -24,6 +24,13 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     public static $instance = null;
 
     /**
+     * Private variable to hold the connect user.
+     *
+     * @var mixed Default null
+     */
+    private $connect_user = null;
+
+    /**
      * Private variable to hold the max history value.
      *
      * @var int $maxHistory Max history.
@@ -110,9 +117,17 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::instance()->error( esc_html__( 'cURL Extension not enabled on the child site server. Please contact your host support and have them enabled it for you.', 'mainwp-child' ) );
         }
 
-        // Check if the user exists and if yes, check if it's Administartor user.
+        if ( ! empty( $_POST['user'] ) && ! $this->is_verified_register( wp_unslash( $_POST['user'] ) ) ) {
+            if ( isset( $_POST['regverify'] ) ) {
+                MainWP_Helper::instance()->error( esc_html__( 'Failed to reconnect to the site. Please remove the site and add it again.', 'mainwp-child' ), 'reconnect_failed' );
+            } else {
+                MainWP_Helper::instance()->error( esc_html__( 'Unable to connect to the site. Please verify that your Admin Username and Password are correct and try again.', 'mainwp-child' ) );
+            }
+        }
+
+        // Check if the user exists and if yes, check if it's administartor user.
         if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
-            MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Administrator user does not exist. Please verify that the user is an existing administrator.', 'mainwp-child' ) );
         }
         if ( ! MainWP_Helper::is_admin() ) {
             MainWP_Helper::instance()->error( esc_html__( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
@@ -129,13 +144,241 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         MainWP_Helper::update_option( 'mainwp_child_connected_admin', $current_user->user_login, 'yes' );
 
+        // register success.
+        $new_verify = $this->may_be_generate_register_verify();
+        if ( ! empty( $new_verify ) ) {
+            $information['regverify'] = $new_verify; // get reg verify value.
+        }
+
         $information['register'] = 'OK';
         $information['uniqueId'] = MainWP_Helper::get_site_unique_id();
         $information['user']     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
-        // phpcs:enable
+
+         // phpcs:enable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.
     }
 
+
+    /**
+     * Method validate_register().
+     *
+     * @param  string $key_value Key & value.
+     * @param  string $act Action.
+     * @param  string $user_name user name.
+     *
+     * @return mixed
+     */
+    public function validate_register( $key_value, $act = 'verify', $user_name = false  ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+
+        $user_id = 0;
+
+        if ( ! empty( $user_name ) ) {
+            $user    = get_user_by( 'login', $user_name );
+            $user_id = $user ? $user->ID : false;
+        } else {
+            $user    = $this->get_connected_user();
+            $user_id = $user ? $user->ID : false;
+        }
+
+        if ( empty( $user_id ) ) {
+            return false;
+        }
+
+        $_values = get_user_option( 'mainwp_child_user_verified_registers', $user_id );
+
+        $saved_values = ! empty( $_values ) ? json_decode( $_values, true ) : array();
+
+        if ( ! is_array( $saved_values ) ) {
+            $saved_values = array();
+        }
+
+        $verify_key     = '';
+        $verify_secrect = '';
+
+        if ( ! empty( $key_value ) && false !== strpos( $key_value, '-' ) ) {
+            list( $verify_key, $verify_secrect ) = explode( '-', $key_value );
+        }
+
+        $gen_verify = '';
+
+        if ( 'verify' === $act ) {
+            $found_secure = '';
+            $hash_key     = hash_hmac( 'sha256', $verify_key, 'register-verify' );
+            foreach ( $saved_values as $info ) {
+                if ( is_array( $info ) && ! empty( $info['hash_key'] ) && $hash_key === $info['hash_key'] ) {
+                    $found_secure = $info['secure'];
+                    break;
+                }
+            }
+            return ! empty( $found_secure ) && hash_equals( $found_secure, $verify_secrect );
+        } elseif ( 'generate' === $act ) {
+            $gen_values     = $this->generate_verify_hash();
+            $saved_values[] = array(
+                'hash_key' => $gen_values['hash_key'],
+                'secure'   => $gen_values['secure'],
+                'date'     => gmdate( 'Y-m-d H:i:s' ),
+            );
+            $gen_verify     = $gen_values['key'] . '-' . $gen_values['secure'];
+        } elseif ( 'remove' === $act ) {
+            if ( ! empty( $saved_values ) ) {
+                array_pop( $saved_values );
+            }
+        } else {
+            return false;
+        }
+
+        if ( 5 < count( $saved_values ) ) {
+            array_shift( $saved_values );
+        }
+
+        update_user_option( $user_id, 'mainwp_child_user_verified_registers', wp_json_encode( $saved_values ) );
+
+        if ( ! empty( $gen_verify ) ) {
+            return $gen_verify;
+        }
+    }
+
+    /**
+     * Method is_verified_register().
+     *
+     * @param  string $user_name User name.
+     *
+     * @return bool
+     */
+    public function is_verified_register( $user_name ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+
+        if ( ! $this->is_enabled_user_passwd_auth( $user_name ) ) {
+            return true; // not enable passwd auth, then return true.
+        }
+
+        //phpcs:disable WordPress.Security.NonceVerification
+        $user_pwd = isset( $_POST['userpwd'] ) ? trim( rawurldecode( $_POST['userpwd'] ) ) : ''; //phpcs:ignore -- NOSONAR - ok.
+        $reg_verify = isset( $_POST['regverify'] ) ? sanitize_text_field(wp_unslash( $_POST['regverify'] )) : ''; //phpcs:ignore -- NOSONAR - ok.
+
+        $is_valid_pwd = -1;
+
+        if ( ! empty( $user_pwd ) ) {
+            $is_valid_pwd = $this->is_valid_user_pwd( $user_name, $user_pwd );
+            return $is_valid_pwd ? true : false;
+        }
+
+        $is_dash_version_older_than_ver53 = empty( $_POST['mainwpver'] ) || version_compare( $_POST['mainwpver'], '5.3', '<' ) ? true : false;
+
+        if ( empty( $reg_verify ) && $this->is_never_verify_register( $user_name ) && $is_dash_version_older_than_ver53 ) {
+            // set it is valid one time.
+            return true;
+        }
+        //phpcs:enable WordPress.Security.NonceVerification
+
+        $is_valid_regis = $this->validate_register( $reg_verify, 'verify', $user_name );
+
+        return $is_valid_regis ? true : false;
+    }
+
+
+    /**
+     * Method is_enabled_user_passwd_auth().
+     *
+     * @param  string $user_name User name.
+     *
+     * @return bool
+     */
+    public function is_enabled_user_passwd_auth( $user_name ) {
+        $user = get_user_by( 'login', $user_name );
+        if ( ! $user ) {
+            return true;
+        }
+        $enable_pwd_auth_connect = get_user_option( 'mainwp_child_user_enable_passwd_auth_connect', $user->ID );
+        if ( false === $enable_pwd_auth_connect || '1' === $enable_pwd_auth_connect ) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Method may_be_generate_register_verify().
+     *
+     * @return string
+     */
+    private function may_be_generate_register_verify() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        //phpcs:disable WordPress.Security.NonceVerification
+        $is_dash_version_older_than_ver53 = empty( $_POST['mainwpver'] ) || version_compare( $_POST['mainwpver'], '5.3', '<' ) ? true : false;
+
+        if ( $is_dash_version_older_than_ver53 ) {
+            return false; // not genereate verify registers for dashboard version before 5.2.
+        }
+
+        $reg_verify = isset( $_POST['regverify'] ) ? sanitize_text_field(wp_unslash( $_POST['regverify'] )) : ''; //phpcs:ignore -- NOSONAR - ok.
+        //phpcs:enable WordPress.Security.NonceVerification
+
+        if ( empty( $reg_verify ) ) {
+            return $this->validate_register( false, 'generate' );
+        }
+
+        $is_valid_regis = $this->validate_register( $reg_verify );
+
+        if ( $is_valid_regis ) { // do not need to generate.
+            return false;
+        }
+
+        // generate a new one, in case connection was validated.
+        return $this->validate_register( $reg_verify, 'generate' );
+    }
+
+    /**
+     * Method is_valid_user_pwd()
+     *
+     * Parse inistial authentication.
+     *
+     * @param  string $username Admin login name.
+     * @param  string $pwd Admin password.
+     *
+     * @return bool ture|false.
+     */
+    public function is_valid_user_pwd( $username, $pwd ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        $user = get_user_by( 'login', $username );
+        if ( $user && ! empty( $user->user_pass ) ) {
+            return wp_check_password( $pwd, $user->user_pass, $user->ID );
+        }
+        return false;
+    }
+
+
+    /**
+     * Method generate_verify_hash()
+     *
+     * Generates a random hash to be used when generating the key and secret.
+     *
+     * @return array Returns.
+     */
+    private function generate_verify_hash() {
+        $key = MainWP_Helper::rand_str_key();
+        return array(
+            'key'      => $key,
+            'secure'   => MainWP_Helper::rand_str_key(),
+            'hash_key' => hash_hmac( 'sha256', $key, 'register-verify' ),
+        );
+    }
+
+    /**
+     * Method is_never_verify_register()
+     *
+     * @param  string $user_name Admin login name.
+     *
+     * @return bool ture|false.
+     */
+    public function is_never_verify_register( $user_name ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        $user = get_user_by( 'login', $user_name );
+        if ( $user && ! empty( $user->ID ) ) {
+            $_values      = get_user_option( 'mainwp_child_user_verified_registers', $user->ID );
+            $saved_values = ! empty( $_values ) ? json_decode( $_values, true ) : array();
+            if ( ! is_array( $saved_values ) ) {
+                $saved_values = array();
+            }
+            return empty( $saved_values ) ? true : false;
+        }
+        return false;
+    }
 
     /**
      * Method parse_init_auth()
@@ -827,10 +1070,19 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 $this->check_compatible_connect_info();
             }
 
+            $this->connect_user = $user;
+
             return $logged_in;
         }
 
         return false;
+    }
+
+    /**
+     * Method get_connected_user()
+     */
+    public function get_connected_user() {
+        return $this->connect_user;
     }
 
     /**
@@ -906,12 +1158,12 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function check_compatible_connect_info() {
         global $current_user;
-        $connect_user = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput,InputNotSanitized,WordPress.Security.NonceVerification
-        if ( ! empty( $connect_user ) && $current_user->user_login === $connect_user ) {
+        $con_username = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput,InputNotSanitized,WordPress.Security.NonceVerification
+        if ( ! empty( $con_username ) && $current_user->user_login === $con_username ) {
             $connected_admin = get_option( 'mainwp_child_connected_admin', '' );
             if ( empty( $connected_admin ) ) {
                 // to comparable.
-                MainWP_Helper::update_option( 'mainwp_child_connected_admin', $connect_user, 'yes' );
+                MainWP_Helper::update_option( 'mainwp_child_connected_admin', $con_username, 'yes' );
             }
         }
     }
