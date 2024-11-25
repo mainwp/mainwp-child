@@ -258,11 +258,25 @@ class MainWP_Child_Jetpack_Protect {
      * @return array $return scan result.
      */
     public function get_scan_status() {
-        MainWP_Helper::instance()->check_classes_exists( '\Automattic\Jetpack\Protect\Status' );
-        MainWP_Helper::instance()->check_methods( '\Automattic\Jetpack\Protect\Status', 'get_status' );
-        return array(
-            'status' => \Automattic\Jetpack\Protect\Status::get_status(),
-        );
+        $version_error = false;
+        try {
+            MainWP_Helper::instance()->check_classes_exists( '\Automattic\Jetpack\Protect\Status' );
+            MainWP_Helper::instance()->check_methods( '\Automattic\Jetpack\Protect\Status', 'get_status' );
+            return array(
+                'status' => \Automattic\Jetpack\Protect\Status::get_status(),
+            );
+        } catch ( MainWP_Exception $e ) {
+            $version_error = true;
+        }
+
+        if ( $version_error ) {
+            MainWP_Helper::instance()->check_classes_exists( '\Automattic\Jetpack\Protect_Status\Status' );
+            MainWP_Helper::instance()->check_methods( '\Automattic\Jetpack\Protect_Status\Status', 'get_status' );
+            return array(
+                'status' => \Automattic\Jetpack\Protect_Status\Status::get_status(),
+            );
+        }
+        return array();
     }
 
     /**

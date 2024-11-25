@@ -85,10 +85,11 @@ class MainWP_Child_Install {
 
         $action_items = array();
 
-        if ( 'activate' === $action ) {
-            include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
-            include_once ABSPATH . '/wp-admin/includes/misc.php'; // NOSONAR -- WP compatible.
+        include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
+        include_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -- WP compatible get_home_path().
+        include_once ABSPATH . 'wp-admin/includes/misc.php'; // NOSONAR -- WP compatible extract_from_markers().
 
+        if ( 'activate' === $action ) {
             foreach ( $plugins as $plugin ) {
                 if ( $plugin !== $mainWPChild->plugin_slug ) {
                     $thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
