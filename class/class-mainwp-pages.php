@@ -82,8 +82,8 @@ class MainWP_Pages {
      * Initiate actions and filters.
      */
     public function init() {
+        add_action( 'admin_init', array( &$this, 'admin_init' ) );
         add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
-        add_action( 'admin_head', array( &$this, 'admin_head' ) );
         add_action( 'admin_notices', array( &$this, 'admin_notice' ) );
         add_filter( 'plugin_row_meta', array( &$this, 'plugin_row_meta' ), 10, 2 );
     }
@@ -97,25 +97,78 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      * @uses \MainWP\Child\MainWP_Child_Branding::is_branding()
      */
-    public function admin_notice() {
+    public function admin_notice() { //phpcs:ignore -- NOSONAR -complexity.
         // Admin Notice...
         if ( ! get_option( 'mainwp_child_pubkey' ) && MainWP_Helper::is_admin() && is_admin() ) {
             $branding_opts  = MainWP_Child_Branding::instance()->get_branding_options();
             $child_name     = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Child' : $branding_opts['branding_preserve_title'];
             $dashboard_name = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Dashboard' : $branding_opts['branding_preserve_title'] . ' Dashboard';
 
-            $msg  = '<div style="margin:50px 20px 20px 0;background:#fff;border:1px solid #c3c4c7;border-top-color:#d63638;border-top-width:5px;padding:20px;">';
-            $msg .= '<h3 style="margin-top:0;color:#d63638;font-weight:900;">' . esc_html__( 'Attention! ', 'mainwp-child' ) . $child_name . esc_html__( ' plugin is activated but not connected.', 'mainwp-child' ) . '</h3>';
-            $msg .= '<p style="font-size:15px">' . esc_html__( 'Please add this site to your ', 'mainwp-child' ) . $dashboard_name . ' ' . esc_html__( 'NOW or deactivate the ', 'mainwp-child' ) . $child_name . esc_html__( ' plugin until you are ready to connect this site to your Dashboard in order to avoid unexpected security issues. ', 'mainwp-child' );
-            $msg .= sprintf( esc_html__( 'If you are not sure how to do it, please review this %1$shelp document%2$s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/add-site-to-your-dashboard/" target="_blank">', '</a>' ) . '</p>';
+            $msg = '<div style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
             if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
-                $msg .= '<p style="font-size:15px">' . esc_html__( 'You can also turn on the unique security ID option in ', 'mainwp-child' ) . $child_name . sprintf( esc_html__( ' %1$ssettings%2$s if you would like extra security and additional time to add this site to your Dashboard. ', 'maiwnip-child' ), '<a href="admin.php?page=mainwp_child_tab">', '</a>' );
-                $msg .= sprintf( esc_html__( 'Find out more in this %1$shelp document%2$s how to do it.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/set-unique-security-id/" target="_blank">', '</a>' ) . '</p>';
+                $msg .= '<div style="width:105px;float:left;margin-right:20px">';
+                $msg .= '<img alt="MainWP Icon" style="max-width:105px" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyNi4zLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAxNzAgMTcwIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAxNzAgMTcwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDojN0ZCMTAwO30NCgkuc3Qxe2ZpbGw6I0ZGRkZGRjt9DQo8L3N0eWxlPg0KPGc+DQoJPGNpcmNsZSBjbGFzcz0ic3QwIiBjeD0iODUiIGN5PSI4NSIgcj0iNzguNjciLz4NCgk8Zz4NCgkJPGNpcmNsZSBjbGFzcz0ic3QxIiBjeD0iODUiIGN5PSIzNy44IiByPSIxNS43MyIvPg0KCQk8cG9seWdvbiBjbGFzcz0ic3QxIiBwb2ludHM9IjExMS43NSwxMzIuMiA4NSwxNDcuOTQgNTguMjUsMTMyLjIgODUsMjIuMDYgCQkiLz4NCgk8L2c+DQo8L2c+DQo8L3N2Zz4NCg==" />';
+                $msg .= '</div>';
+            }
+            $msg .= '<div style="font-size:1.5em;font-weight:bolder;margin-bottom:16px;">' . esc_html( $child_name ) . esc_html__( ' Plugin is Activated', 'mainwp-child' ) . '</div>';
+            $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html__( 'This site is now ready for connection. Please proceed with the connection process from your ', 'mainwp-child' ) . esc_html( $dashboard_name ) . ' ' . esc_html__( 'to start managing the site. ', 'mainwp-child' ) . '</div>';
+            $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . sprintf( esc_html__( 'If you need assistance, refer to our %1$sdocumentation%2$s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/add-site-to-your-dashboard/" target="_blank">', '</a>' ) . '</div>';
+            if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
+                $msg .= '<div style="font-size:1.2em;">' . esc_html__( 'For additional security options, visit the ', 'mainwp-child' ) . esc_html( $child_name ) . sprintf( esc_html__( ' %1$splugin settings%2$s. ', 'maiwnip-child' ), '<a href="admin.php?page=mainwp_child_tab">', '</a>' ) . '</div>';
+                $msg .= '<div style="clear:both"></div>';
             }
             $msg .= '</div>';
-            echo wp_kses_post( $msg );
+            echo $msg; //phpcs:ignore -- NOSONAR - ok
+        }
+
+        if ( isset( $_GET['page'] ) && 'mainwp_child_tab' === $_GET['page'] && isset( $_GET['message'] ) ) { //phpcs:ignore -- ok.
+
+            $message = '';
+
+            if ( '1' === wp_unslash( $_GET['message'] ) ) { //phpcs:ignore -- ok.
+                $message = __( 'Disconnected the Site from Dashboard.', 'mainwp-child' );
+            } elseif ( '2' === wp_unslash( $_GET['message'] ) ) { //phpcs:ignore -- ok.
+                $message = __( 'Settings have been saved successfully.', 'mainwp-child' );
+            }
+
+            if ( ! empty( $message ) ) {
+                ?>
+                <div>
+                <div class="notice notice-success settings-error is-dismissible">
+                    <p><?php echo esc_html( $message ); ?></p><button type="button" class="notice-dismiss">
+                    <span class="screen-reader-text"><?php esc_html_e( 'Dismiss this notice.', 'mainwp-child' ); ?></span></button>
+                </div>
+                <?php
+            }
         }
     }
+
+    /**
+     * Method admin_init().
+     */
+    public function admin_init() { //phpcs:ignore -- NOSONAR - complex method.
+
+        if ( isset( $_POST['nonce-disconnect'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce-disconnect'] ) ), 'child-settings-disconnect' ) ) {
+            global $mainWPChild;
+            $mainWPChild->delete_connection_data( false );
+            delete_option( 'mainwp_child_lasttime_not_connected' ); // reset.
+            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=1' );
+        }
+
+        // phpcs:disable WordPress.Security.NonceVerification
+        if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-settings' ) ) {
+            if ( isset( $_POST['requireUniqueSecurityId'] ) ) {
+                MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 12 ) );
+            } else {
+                MainWP_Helper::update_option( 'mainwp_child_uniqueId', '' );
+            }
+            MainWP_Helper::update_option( 'mainwp_child_ttl_active_unconnected_site', ! empty( $_POST['mainwp_child_active_time_for_unconnected_site'] ) ? intval( $_POST['mainwp_child_active_time_for_unconnected_site'] ) : 0 );
+            update_user_option( get_current_user_id(), 'mainwp_child_user_enable_passwd_auth_connect', ! empty( $_POST['mainwp_child_user_enable_pwd_auth_connect'] ) ? 1 : 0 );
+            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' );
+        }
+        // phpcs:enable
+    }
+
 
     /**
      * Add and remove Admin Menu Items dependant upon Branding settings.
@@ -256,7 +309,7 @@ class MainWP_Pages {
          */
         global $mainWPChild;
 
-        if ( $mainWPChild->plugin_slug !== $plugin_file ) {
+        if ( ! $mainWPChild || $mainWPChild->plugin_slug !== $plugin_file ) {
             return $plugin_meta;
         }
         return apply_filters( 'mainwp_child_plugin_row_meta', $plugin_meta, $plugin_file, $mainWPChild->plugin_slug );
@@ -385,118 +438,172 @@ class MainWP_Pages {
 
         ?>
         <style type="text/css">
-            .mainwp-tabs
-            {
-                margin-top: 2em;
-                border-bottom: 1px solid #e5e5e5;
+            .settings_page_mainwp_child_tab #wpwrap,
+            .settings_page_mainwp-reports-settings #wpwrap {
+
             }
 
-            #mainwp-tabs {
-                clear: both ;
-            }
-            #mainwp-tabs .nav-tab-active {
-                background: #fafafa ;
-                border-top: 1px solid #7fb100 !important;
-                border-left: 1px solid #e5e5e5;
-                border-right: 1px solid #e5e5e5;
-                border-bottom: 1px solid #fafafa !important ;
-                color: #7fb100;
+            #mainwp-child-settings-page-content {
+                margin: 20px 20px 0 0;
+                background: #FFFFFF;
+                border: 1px solid #E7EEF6;
             }
 
-            #mainwp-tabs .nav-tab {
-                border-top: 1px solid #e5e5e5;
-                border-left: 1px solid #e5e5e5;
-                border-right: 1px solid #e5e5e5;
-                border-bottom: 1px solid #e5e5e5;
-                padding: 10px 16px;
-                font-size: 14px;
-                text-transform: uppercase;
+            #mainwp-child-settings-page-content p {
+                font-size: 15px;
+            }
+            #mainwp-child-settings-page-content h4 {
+                font-size: 1.2em;
             }
 
-            #mainwp_wrap-inside {
-                min-height: 80vh;
-                height: 100% ;
-                margin-top: 0em ;
-                padding: 10px ;
-                background: #fafafa ;
-                border-top: none ;
-                border-bottom: 1px solid #e5e5e5;
-                border-left: 1px solid #e5e5e5;
-                border-right: 1px solid #e5e5e5;
-                box-shadow: 0 1px 1px rgba(0,0,0,.04);
-                position: relative;
+            #mainwp-child-settings-page-navigation {
+                background: #2D3B44;
             }
 
-            #mainwp_wrap-inside h2.hndle {
-                font-size: 14px;
-                padding: 8px 12px;
+            #mainwp-child-settings-page-tabs {
+                padding: 20px;
+            }
+
+            #mainwp-child-settings-page-navigation .nav-tab {
+                background: #2D3B44;
+                color: #FFFFFF;
+                border: none;
                 margin: 0;
-                line-height: 1.4;
+                padding: 1em;
+            }
+
+            #mainwp-child-settings-page-navigation .nav-tab:hover {
+                background: #3a4c58;
+            }
+
+            #mainwp-child-settings-page-navigation .nav-tab-active {
+                background: #4682b4;
             }
 
             .mainwp-hidden {
                 display: none;
             }
+
+            /* The switch - the box around the slider */
+            .mainwp-toggle {
+                position: relative;
+                display: inline-block;
+                width: 49px;
+                height: 21px;
+                margin-right: 1em;
+            }
+
+            /* Hide default HTML checkbox */
+            .mainwp-toggle input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            /* The slider */
+            .mainwp-slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.05);
+                -webkit-transition: .4s;
+                transition: .4s;
+                border-radius: 11px;
+            }
+
+            .mainwp-slider:before {
+                position: absolute;
+                content: "";
+                height: 21px;
+                width: 21px;
+                background: #fff linear-gradient(transparent, rgba(0, 0, 0, 0.05));
+                box-shadow: 0 1px 2px 0 rgba(34, 36, 38, 0.15), 0 0 0 1px rgba(34, 36, 38, 0.15) inset;
+                -webkit-transition: .4s;
+                transition: .4s;
+                border-radius: 11px;
+            }
+
+            .mainwp-toggle input:checked + .mainwp-slider {
+                background: #7fb100;
+            }
+
+            .mainwp-toggle input:checked + .mainwp-slider:before {
+                -webkit-transform: translateX(28px);
+                -ms-transform: translateX(28px);
+                transform: translateX(28px);
+            }
+
+            .mainwp-button {
+                background-color: #7fb100;
+                border: none;
+                color: #ffffff !important;
+                border-radius: 15px;
+                padding: 0.78571429em 1.5em 0.78571429em;
+                cursor: pointer;
+                font-weight: bolder;
+                font-size:1em;
+            }
+
+            .mainwp-basic-button {
+                background-color: #4682b4;
+                border: none;
+                color: #ffffff !important;
+                border-radius: 15px;
+                padding: 0.78571429em 1.5em 0.78571429em;
+                cursor: pointer;
+                font-weight: bolder;
+                font-size:1em;
+            }
+            .mainwp-basic-button:disabled {
+                background-color: #4682b4;
+                opacity: 0.45;
+            }
+
+            .mainwp-number-field {
+                margin: 0;
+                outline: none;
+                -webkit-appearance: none;
+                -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+                line-height: 1.21428571em !important;
+                padding: 0.67857143em 1em !important;
+                font-size: 1em !important;
+                background: #fff;
+                border: 1px solid rgba(34, 36, 38, 0.15) !important;
+                color: rgba(0, 0, 0, 0.87);
+                border-radius: 0.28571429rem !important;
+            }
+
         </style>
 
-        <div class="wrap">
-        <h2><i class="fa fa-file"></i> <?php echo esc_html( null === static::$brandingTitle ? 'MainWP Child' : static::$brandingTitle ); ?></h2>
-        <div style="clear: both;"></div><br/>
-        <div class="mainwp-tabs" id="mainwp-tabs">
-            <?php if ( ! $hide_settings ) { ?>
-                <a class="nav-tab pos-nav-tab
-                <?php
-                if ( 'settings' === $shownPage ) {
-                    echo 'nav-tab-active';
-                }
-                ?>
-" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>" style="margin-left: 0 !important;"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
-            <?php } ?>
-            <?php if ( ! $hide_restore && $show_clone_funcs ) { ?>
-                <a class="nav-tab pos-nav-tab
-                <?php
-                if ( 'restore-clone' === $shownPage ) {
-                    echo 'nav-tab-active';
-                }
-                ?>
-" tab-slug="restore-clone" href="<?php echo esc_url( $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#' ); ?>"><?php echo esc_html__( 0 !== (int) $sitesToClone ? 'Restore / Clone' : 'Restore', 'mainwp-child' ); ?></a>
-            <?php } ?>
-            <?php if ( ! $hide_server_info ) { ?>
-                <a class="nav-tab pos-nav-tab
-                <?php
-                if ( 'server-info' === $shownPage ) {
-                    echo 'nav-tab-active';
-                }
-                ?>
-" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php esc_html_e( 'Server information', 'mainwp-child' ); ?></a>
-            <?php } ?>
-                        <?php if ( ! $hide_connection_detail ) { ?>
-                <a class="nav-tab pos-nav-tab
-                            <?php
-                            if ( 'connection-detail' === $shownPage ) {
-                                echo 'nav-tab-active';
-                            }
-                            ?>
-" tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
-            <?php } ?>
-            <?php
-            if ( isset( static::$subPages ) && is_array( static::$subPages ) ) {
-                foreach ( static::$subPages as $subPage ) {
-                    ?>
-                    <a class="nav-tab pos-nav-tab
-                    <?php
-                    if ( $shownPage === $subPage['slug'] ) {
-                        echo 'nav-tab-active';
-                    }
-                    ?>
-" tab-slug="<?php echo esc_attr( $subPage['slug'] ); ?>" href="options-general.php?page=<?php echo esc_html( rawurlencode( $subPage['page'] ) ); ?>"><?php echo esc_html( $subPage['title'] ); ?></a>
-                    <?php
-                }
-            }
-            ?>
-            <div style="clear:both;"></div>
-        </div>
-        <div style="clear:both;"></div>
+        <div class="" id="mainwp-child-settings-page">
+            <h1><?php echo esc_html( null === static::$brandingTitle ? 'MainWP Child' : static::$brandingTitle ); ?></h1>
+            <div class="" id="mainwp-child-settings-page-content">
+                <div class="" id="mainwp-child-settings-page-navigation">
+                    <?php if ( ! $hide_settings ) : ?>
+                        <a class="nav-tab pos-nav-tab <?php echo ( 'settings' === $shownPage ) ? 'nav-tab-active' : ''; ?>" tab-slug="settings" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=settings' : '#'; ?>"><?php esc_html_e( 'Settings', 'mainwp-child' ); ?></a>
+                    <?php endif; ?>
+                    <?php if ( ! $hide_restore && $show_clone_funcs ) : ?>
+                        <a class="nav-tab pos-nav-tab <?php echo ( 'restore-clone' === $shownPage ) ? 'nav-tab-active' : ''; ?>" tab-slug="restore-clone" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=restore-clone' : '#'; ?>"><?php echo esc_html__( 0 !== (int) $sitesToClone ? 'Restore / Clone' : 'Restore', 'mainwp-child' ); ?></a>
+                    <?php endif; ?>
+                    <?php if ( ! $hide_server_info ) : ?>
+                        <a class="nav-tab pos-nav-tab <?php echo ( 'server-info' === $shownPage ) ? 'nav-tab-active' : ''; ?>" tab-slug="server-info" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=server-info' : '#'; ?>"><?php esc_html_e( 'Server Information', 'mainwp-child' ); ?></a>
+                    <?php endif; ?>
+                    <?php if ( ! $hide_connection_detail ) : ?>
+                        <a class="nav-tab pos-nav-tab <?php echo ( 'connection-detail' === $shownPage ) ? 'nav-tab-active' : ''; ?>" tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
+                    <?php endif; ?>
+                    <?php if ( isset( static::$subPages ) && is_array( static::$subPages ) ) : ?>
+                        <?php foreach ( static::$subPages as $subPage ) : ?>
+                            <a class="nav-tab pos-nav-tab <?php echo ( $shownPage === $subPage['slug'] ) ? 'nav-tab-active' : ''; ?>" tab-slug="<?php echo esc_attr( $subPage['slug'] ); ?>" href="options-general.php?page=<?php echo esc_html( rawurlencode( $subPage['page'] ) ); ?>"><?php echo esc_html( $subPage['title'] ); ?></a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <div style="clear:both"></div>
+                </div>
+                <div style="clear:both"></div>
+                <div class="" id="mainwp-child-settings-page-tabs">
+
         <script type="text/javascript">
             jQuery( document ).ready( function () {
                 $hideMenu = jQuery( '#menu-settings li a .mainwp-hidden' );
@@ -504,13 +611,13 @@ class MainWP_Pages {
                     jQuery( this ).closest( 'li' ).hide();
                 } );
 
-                var $tabs = jQuery( '.mainwp-tabs' );
+                var $tabs = jQuery( '#mainwp-child-settings-page-navigation' );
 
                 $tabs.on( 'click', 'a', function () {
                     if ( jQuery( this ).attr( 'href' ) !=='#' )
                         return true;
 
-                    jQuery( '.mainwp-tabs > a' ).removeClass( 'nav-tab-active' );
+                    jQuery( '#mainwp-child-settings-page-navigation > a' ).removeClass( 'nav-tab-active' );
                     jQuery( this ).addClass( 'nav-tab-active' );
                     jQuery( '.mainwp-child-setting-tab' ).hide();
                     var _tab = jQuery( this ).attr( 'tab-slug' );
@@ -520,8 +627,6 @@ class MainWP_Pages {
             } );
         </script>
 
-        <div id="mainwp_wrap-inside">
-
         <?php
     }
 
@@ -530,40 +635,10 @@ class MainWP_Pages {
      */
     public static function render_footer() {
         ?>
-        </div>
+                </div>
+            </div>
         </div>
         <?php
-    }
-
-    /**
-     * Render admin header.
-     */
-    public function admin_head() {
-        if ( isset( $_GET['page'] ) && 'mainwp_child_tab' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
-            ?>
-            <style type="text/css">
-                .mainwp-postbox-actions-top {
-                    padding: 10px;
-                    clear: both;
-                    border-bottom: 1px solid #ddd;
-                    background: #f5f5f5;
-                }
-                h3.mainwp_box_title {
-                    font-family: "Open Sans",sans-serif;
-                    font-size: 14px;
-                    font-weight: 600;
-                    line-height: 1.4;
-                    margin: 0;
-                    padding: 8px 12px;
-                    border-bottom: 1px solid #eee;
-                }
-                .mainwp-child-setting-tab.connection-detail .postbox .inside{
-                    margin: 0;
-                    padding: 0;
-                }
-            </style>
-            <?php
-        }
     }
 
     /**
@@ -572,47 +647,129 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     public function render_settings() {
-        // phpcs:disable WordPress.Security.NonceVerification
-        if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-settings' ) ) {
-            if ( isset( $_POST['requireUniqueSecurityId'] ) ) {
-                MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 12 ) );
-            } else {
-                MainWP_Helper::update_option( 'mainwp_child_uniqueId', '' );
-            }
+        $branding_title = MainWP_Child_Branding::instance()->get_branding_title();
+        if ( '' === $branding_title ) {
+            $branding_title = 'MainWP';
+        } else {
+            $branding_title = stripslashes( $branding_title );
         }
-        // phpcs:enable
-        ?>
-        <div class="postbox">
-            <h2 class="hndle"><span><?php esc_html_e( 'Connection settings', 'mainwp-child' ); ?></span></h2>
-            <div class="inside">
-                <form method="post" action="options-general.php?page=mainwp_child_tab">
-                    <div class="howto"><?php esc_html_e( 'The unique security ID adds additional protection between the child plugin and your Dashboard. The unique security ID will need to match when being added to the Dashboard. This is additional security and should not be needed in most situations.', 'mainwp-child' ); ?></div>
-                    <div style="margin: 1em 0 4em 0;">
-                        <input name="requireUniqueSecurityId" type="checkbox" id="requireUniqueSecurityId"
-                        <?php
-                        $uniqueId = MainWP_Helper::get_site_unique_id();
-                        if ( ! empty( $uniqueId ) ) {
-                            echo 'checked';
-                        }
-                        ?>
-                        />
-                        <label for="requireUniqueSecurityId" style="font-size: 15px;"><?php esc_html_e( 'Require unique security ID', 'mainwp-child' ); ?></label>
-                    </div>
-                    <div>
-                        <?php
-                        if ( ! empty( $uniqueId ) ) {
-                            echo '<span style="border: 1px dashed #e5e5e5; background: #fafafa; font-size: 24px; padding: 1em 2em;">' . esc_html__( 'Your unique security ID is:', 'mainwp-child' ) . ' <span style="font-weight: bold; color: #7fb100;">' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</span></span>';
-                        }
-                        ?>
-                    </div>
-                    <p class="submit" style="margin-top: 4em;">
-                        <input type="submit" name="submit" id="submit" class="button button-primary button-hero" value="<?php esc_attr_e( 'Save changes', 'mainwp-child' ); ?>">
-                    </p>
-                    <input type="hidden" name="nonce" value="<?php echo esc_attr( wp_create_nonce( 'child-settings' ) ); ?>">
-                </form>
-            </div>
-        </div>
 
+        $uniqueId   = MainWP_Helper::get_site_unique_id();
+        $time_limit = get_option( 'mainwp_child_ttl_active_unconnected_site', 20 );
+
+        $enable_pwd_auth_connect = get_user_option( 'mainwp_child_user_enable_passwd_auth_connect' );
+
+        if ( false === $enable_pwd_auth_connect ) {
+            $enable_pwd_auth_connect = 1;
+            update_user_option( get_current_user_id(), 'mainwp_child_user_enable_passwd_auth_connect', 1 );
+        }
+
+        ?>
+        <h2 style="font-size:1.5em"><?php esc_html_e( 'Connection Security Settings', 'mainwp-child' ); ?></h2>
+        <p><?php esc_html_e( 'Configure the plugin to best suit your security and connection needs.', 'mainwp-child' ); ?></p>
+        <br/>
+        <form method="post" action="options-general.php?page=mainwp_child_tab">
+            <header class="section-header">
+                <h3><?php esc_html_e( 'Password Authentication - Initial Connection Security', 'mainwp-child' ); ?></h3>
+                <hr/>
+            </header>
+            <p><?php esc_html_e( $branding_title . ' requests that you connect using an admin account and password for the initial setup. Rest assured, your password is never stored by your Dashboard and never sent to ' . $branding_title . '.com. Once this initial connection is complete, your ' . $branding_title . ' Dashboard generates a secure Public and Private key pair (2048 bits) using OpenSSL, allowing future connections without needing your password again. For added security, you can even change this admin password once connected just be sure not to delete the admin account, as this would disrupt the connection.', 'mainwp-child' ); ?></p>
+            <h4><strong><?php esc_html_e( 'Dedicated ' . $branding_title . ' Admin Account', 'mainwp-child' ); ?></strong></h4>
+            <p><?php esc_html_e( 'For further security, we recommend creating a dedicated admin account specifically for ' . $branding_title . '. This \'' . $branding_title . ' Admin\' account can be used exclusively by ' . $branding_title . ', allowing you to easily track any actions performed by the plugin. To set this up, go to Users to create the account, then return to your Dashboard to connect it.', 'mainwp-child' ); ?></p>
+            <h4><strong><?php esc_html_e( 'Disabling Password Security', 'mainwp-child' ); ?></strong></h4>
+            <p><?php esc_html_e( 'If you prefer not to use password security, you can disable it by unchecking the box below. Make sure this child site is ready to connect before turning off this feature.', 'mainwp-child' ); ?></p>
+            <p>
+            <?php
+            if ( MainWP_Child_Branding::instance()->is_branding() ) {
+                esc_html_e( 'If you have additional questions, please refer to this Knowledge Base article or contact ' . $branding_title . ' Support.', 'mainwp-child' );
+            } else {
+                printf( esc_html__( 'If you have additional questions, please %srefer to this Knowledge Base article%s or %scontact MainWP Support%s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/mainwp-connection-security/#password-authentication" target="_blank">', '</a>', '<a href="https://mainwp.com/mainwp-support/" target="_blank">', '</a>' );
+            }
+            ?>
+            </p>
+            <table class="form-table">
+                <tbody>
+                    <tr>
+                        <th scope="row" style="width:300px"><?php esc_html_e( 'Require Password Authentication', 'mainwp-child' ); ?></th>
+                        <td>
+                        <label for="mainwp_child_user_enable_pwd_auth_connect" class="mainwp-toggle">
+                            <input type="checkbox" name="mainwp_child_user_enable_pwd_auth_connect" id="mainwp_child_user_enable_pwd_auth_connect" value="1" <?php echo $enable_pwd_auth_connect ? 'checked' : ''; ?> />
+                            <span class="mainwp-slider"></span>
+                        </label><?php esc_html_e( 'Enable this option to require password authentication on initial site connection.', 'mainwp-child' ); ?>
+                        </td>
+                    <tr>
+                </tbody>
+            </table>
+
+            <header class="section-header">
+                <h3><?php esc_html_e( 'Unique Security ID', 'mainwp-child' ); ?></h3>
+                <hr/>
+            </header>
+            <p><?php printf( esc_html__( 'Add an extra layer of security for connecting this site to your %s Dashboard.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?></p>
+
+            <table class="form-table">
+                <tbody>
+                    <tr>
+                        <th scope="row" style="width:300px"><?php esc_html_e( 'Require Unique Secuirty ID', 'mainwp-child' ); ?></th>
+                        <td>
+                            <label for="requireUniqueSecurityId" class="mainwp-toggle">
+                                <input name="requireUniqueSecurityId" type="checkbox" id="requireUniqueSecurityId" <?php echo ( ! empty( $uniqueId ) ) ? 'checked' : ''; ?> />
+                                <span class="mainwp-slider"></span>
+                            </label><?php esc_html_e( 'Enable this option for an added layer of protection when connecting this site.', 'mainwp-child' ); ?>
+                        </td>
+                    <tr>
+                </tbody>
+            </table>
+
+            <div>
+            <?php if ( ! empty( $uniqueId ) ) : ?>
+                <table class="form-table">
+                    <tbody>
+                        <tr>
+                            <th scope="row" style="width:300px"><?php esc_html_e( 'Your unique security ID is:', 'mainwp-child' ); ?></th>
+                            <td><?php echo '<code>' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</code>'; ?></td>
+                        <tr>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+            </div>
+            <header class="section-header">
+                <h3><?php esc_html_e( 'Connection Timeout', 'mainwp-child' ); ?></h3>
+                <hr/>
+            </header>
+            <p><?php esc_html_e( 'Define how long the plugin will remain active if no connection is established. After this period, the plugin will automatically deactivate for security.', 'mainwp-child' ); ?></p>
+            <table class="form-table">
+                <tbody>
+                    <tr>
+                        <th scope="row" style="width:300px"><?php esc_html_e( 'Set Connection Timeout', 'mainwp-child' ); ?></th>
+                        <td>
+                            <input type="number" name="mainwp_child_active_time_for_unconnected_site" id="mainwp_child_active_time_for_unconnected_site" class="mainwp-number-field" placeholder="" min="0" max="999" step="1" value="<?php echo intval( $time_limit ); ?>">
+                            <label for="mainwp_child_active_time_for_unconnected_site"><?php esc_html_e( 'Specify how long the plugin should stay active if a connection isn\'t established. Enter a value in minutes.', 'mainwp-child' ); ?></label>
+                        </td>
+                    <tr>
+                </tbody>
+            </table>
+
+            <div>
+
+            </div>
+            <p class="submit">
+                <input type="submit" name="submit" id="submit" class="mainwp-button" value="<?php esc_attr_e( 'Save Settings', 'mainwp-child' ); ?>">
+            </p>
+            <input type="hidden" name="nonce" value="<?php echo esc_attr( wp_create_nonce( 'child-settings' ) ); ?>">
+        </form>
+        <br/>
+        <header class="section-header">
+            <h3><?php esc_html_e( 'Site Connection Management', 'mainwp-child' ); ?></h3>
+            <hr/>
+        </header>
+        <form method="post" onsubmit="return confirm('<?php echo esc_js( __( 'Are you sure you want to Disconnect Site from your ' . $branding_title . ' Dashboard?', 'mainwp-child' ) ); ?>');"  action="options-general.php?page=mainwp_child_tab">
+            <p><?php printf( esc_html__( 'Click this button to disconnect this site from your %s Dashboard.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?></p>
+            <p class="submit">
+                <input <?php echo empty( get_option( 'mainwp_child_pubkey' ) ) ? ' disabled="disabled" ' : ''; ?> type="submit" name="submit" id="submit" class="mainwp-basic-button" value="<?php esc_attr_e( 'Clear Connection Data', 'mainwp-child' ); ?>">
+            </p>
+            <input type="hidden" name="nonce-disconnect" value="<?php echo esc_attr( wp_create_nonce( 'child-settings-disconnect' ) ); ?>">
+        </form>
         <?php
     }
 }

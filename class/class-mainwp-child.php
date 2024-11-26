@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.2.1'; // NOSONAR - not IP.
+    public static $version = '5.3'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -104,6 +104,10 @@ class MainWP_Child {
         MainWP_Child_Plugins_Check::instance();
         MainWP_Child_Themes_Check::instance();
         MainWP_Utility::instance()->run_saved_snippets();
+
+        if ( defined( 'WP_CLI' ) && WP_CLI ) {
+            MainWP_Child_WP_CLI_Command::init();
+        }
 
         /**
          * Initiate Branding Options.
@@ -256,7 +260,6 @@ class MainWP_Child {
         MainWP_Utility::instance()->send_maintenance_alert();
     }
 
-
     /**
      * Method hook_activated_plugin()
      *
@@ -264,24 +267,14 @@ class MainWP_Child {
      * @return void
      */
     public function hook_activated_plugin( $plugin ) {
-        if ( plugin_basename( MAINWP_CHILD_FILE ) === $plugin ) {
-            $just_activated = false;
-            if ( empty( get_option( 'mainwp_child_pubkey' ) ) ) {
-                MainWP_Helper::update_option( 'mainwp_child_uniqueId', MainWP_Helper::rand_string( 12 ) );
-                $just_activated = true;
-            }
-            if ( ! headers_sent() ) {
-                $branding = MainWP_Child_Branding::instance()->is_branding();
-                if ( ! $branding ) {
-                    wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );
-                    exit();
-                }
-            } elseif ( $just_activated ) {
-                MainWP_Helper::update_option( 'mainwp_child_just_activated', 1 );
+        if ( plugin_basename( MAINWP_CHILD_FILE ) === $plugin && ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) ) {
+            $branding = MainWP_Child_Branding::instance()->is_branding();
+            if ( ! $branding ) {
+                wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );
+                exit();
             }
         }
     }
-
 
     /**
      * Method parse_init()
@@ -381,10 +374,18 @@ class MainWP_Child {
         }
         MainWP_Child_Actions::get_instance()->init_hooks();
 
-        if ( ! empty( get_option( 'mainwp_child_just_activated' ) ) ) {
-            delete_option( 'mainwp_child_just_activated' );
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );
-            exit();
+        if ( empty( get_option( 'mainwp_child_pubkey' ) ) ) {
+            $ttl_pubkey = (int) get_option( 'mainwp_child_ttl_active_unconnected_site', 20 );
+            if ( ! empty( $ttl_pubkey ) ) {
+                $lasttime_active = get_option( 'mainwp_child_lasttime_not_connected' );
+                if ( empty( $lasttime_active ) ) {
+                    MainWP_Helper::update_option( 'mainwp_child_lasttime_not_connected', time() );
+                } elseif ( $lasttime_active < time() - $ttl_pubkey * MINUTE_IN_SECONDS ) {
+                    include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
+                    delete_option( 'mainwp_child_lasttime_not_connected' );
+                    deactivate_plugins( $this->plugin_slug, true );
+                }
+            }
         }
     }
 
@@ -429,18 +430,53 @@ class MainWP_Child {
         MainWP_Custom_Post_Type::instance();
     }
 
+
+    /**
+     * Method activation()
+     *
+     * Activate the MainWP Child plugin and delete unwanted data.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::update_option()
+     */
+    public function activation() {
+        delete_option( 'mainwp_child_lasttime_not_connected' ); // delete if existed.
+    }
+
     /**
      * Method deactivation()
      *
-     * Deactivate the MainWP Child plugin and delete unwanted data.
+     * Deactivate the MainWP Child plugin.
      *
      * @param bool $deact Whether or not to deactivate pugin. Default: true.
      */
     public function deactivation( $deact = true ) {
 
+        delete_option( 'mainwp_child_lasttime_not_connected' ); // delete if existed.
+
         $mu_plugin_enabled = apply_filters( 'mainwp_child_mu_plugin_enabled', false );
         if ( $mu_plugin_enabled ) {
             return;
+        }
+
+        if ( $deact ) {
+            do_action( 'mainwp_child_deactivation' );
+        }
+    }
+
+    /**
+     * Method delete_connection_data()
+     *
+     * Delete connection data.
+     *
+     * @param bool $check_must_use Check must use before delete data.
+     */
+    public function delete_connection_data( $check_must_use = true ) {
+
+        if ( $check_must_use ) {
+            $mu_plugin_enabled = apply_filters( 'mainwp_child_mu_plugin_enabled', false );
+            if ( $mu_plugin_enabled ) {
+                return;
+            }
         }
 
         $to_delete   = array(
@@ -459,43 +495,6 @@ class MainWP_Child {
                 delete_option( $delete );
                 wp_cache_delete( $delete, 'options' );
             }
-        }
-
-        if ( $deact ) {
-            do_action( 'mainwp_child_deactivation' );
-        }
-    }
-
-    /**
-     * Method activation()
-     *
-     * Activate the MainWP Child plugin and delete unwanted data.
-     *
-     * @uses \MainWP\Child\MainWP_Helper::update_option()
-     */
-    public function activation() {
-        $mu_plugin_enabled = apply_filters( 'mainwp_child_mu_plugin_enabled', false );
-        if ( $mu_plugin_enabled ) {
-            return;
-        }
-
-        $to_delete = array(
-            'mainwp_child_pubkey',
-            'mainwp_child_nonce',
-            'mainwp_child_connected_admin',
-            'mainwp_child_openssl_sign_algo',
-        );
-        foreach ( $to_delete as $delete ) {
-            if ( get_option( $delete ) ) {
-                delete_option( $delete );
-            }
-        }
-
-        MainWP_Helper::update_option( 'mainwp_child_activated_once', true );
-
-        $to_delete = array( 'mainwp_ext_snippets_enabled', 'mainwp_ext_code_snippets' );
-        foreach ( $to_delete as $delete ) {
-            delete_option( $delete );
         }
     }
 

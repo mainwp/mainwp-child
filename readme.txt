@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.2.1
+Stable tag: 5.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -111,20 +111,17 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.3 - 11-26-2024 =
 
-= 5.2.1 - 11-20-2024 =
+* Security Enhancement: Enhanced the pre-connection process with additional security features to address recommendations from a security company. [Read more](https://mainwp.com/addressing-misguided-security-reports-why-mainwp-is-updating-its-connection-process/)
+* Added: Password authorization requirement when connecting a site to enhance security.
+* Added: "Clear Connection Data" button to unlock a site for a new connection.
+* Added: Automatic deactivation of the MainWP Child plugin after a preset period if the site is not connected to a dashboard.
+* Added: Translations for French (fr_FR), Spanish (es_ES), German (de_DE), and Portuguese (pt_BR).
+* Updated: Plugin settings page design for improved consistency with the MainWP Dashboard plugin.
+* Updated: Resetting of the `pubkey` value to ensure it remains intact when the plugin is deactivated.
+* Updated: Compatibility with the latest WP Rocket plugin settings.
 
-* Added: After activating the MainWP plugin, users are now redirected to the MainWP Settings page for a smoother onboarding experience.
-* Updated: The Unique Security ID option is now enabled by default to enhance security for all MainWP installations.
-
-= 5.2 - 8-28-2024 =
-
-* Fixed: Issue with inserting multiple galleries in a post.
-* Fixed: Problem with cloning sites on specific hosting environments.
-* Fixed: Issue causing the post featured image to be removed after editing.
-* Updated: System requirements checks to ensure they are current and relevant.
-* Removed: Irrelevant system requirements checks for a streamlined setup process.
-
-[See Video Changelog](https://www.youtube.com/watch?v=GrA_faZKcfQ)
+[See Video Changelog](https://youtu.be/DF0vC1RiCVI)
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)

@@ -71,17 +71,6 @@ class MainWP_WordPress_SEO {
          */
         global $wpdb;
         $this->import_error = __( 'Settings could not be imported.', 'mainwp-child' );
-        add_action( 'mainwp_child_deactivation', array( $this, 'child_deactivation' ) );
-    }
-
-    /**
-     * Empty options upon MainWP Child plugin deactivation.
-     */
-    public function child_deactivation() {
-        $dell_all = array();
-        foreach ( $dell_all as $opt ) {
-            delete_option( $opt );
-        }
     }
 
     /**
