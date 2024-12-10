@@ -879,7 +879,11 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             if ( class_exists( '\RecursiveIteratorIterator' ) ) {
                 $size = 0;
                 foreach ( new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $directory ) ) as $file ) {
-                    $size += $file->getSize();
+                    try {
+                        $size += $file->getSize();
+                    } catch ( \Exception $e ) {
+                        // prevent error some hosts.
+                    }
                 }
                 if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
                     return $size / 1024 / 1024;
