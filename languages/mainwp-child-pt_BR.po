@@ -3736,7 +3736,7 @@ msgstr ""
 "Dashboard."
 
 #: class/class-mainwp-pages.php:713
-msgid "Require Unique Secuirty ID"
+msgid "Require Unique Security ID"
 msgstr "Exigir uma ID de segurança exclusiva"
 
 #: class/class-mainwp-pages.php:718

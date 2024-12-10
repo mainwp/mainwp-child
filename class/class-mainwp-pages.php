@@ -710,7 +710,7 @@ class MainWP_Pages {
             <table class="form-table">
                 <tbody>
                     <tr>
-                        <th scope="row" style="width:300px"><?php esc_html_e( 'Require Unique Secuirty ID', 'mainwp-child' ); ?></th>
+                        <th scope="row" style="width:300px"><?php esc_html_e( 'Require Unique Security ID', 'mainwp-child' ); ?></th>
                         <td>
                             <label for="requireUniqueSecurityId" class="mainwp-toggle">
                                 <input name="requireUniqueSecurityId" type="checkbox" id="requireUniqueSecurityId" <?php echo ( ! empty( $uniqueId ) ) ? 'checked' : ''; ?> />
