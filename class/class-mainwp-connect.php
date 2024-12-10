@@ -90,13 +90,11 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         // Already added - can't readd. Deactivate plugin.
-        if ( get_option( 'mainwp_child_pubkey' ) ) {
-            // if register verified, then go to next step.
-            if ( ! $this->is_verified_register( wp_unslash( $_POST['user'] ) ) ) {
-                // Set disconnect status to yes here, it will empty after reconnected.
-                MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
-                MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ), 'REG_ERROR2' );
-            }
+        // if register verified, then go to next step.
+        if ( get_option( 'mainwp_child_pubkey' ) && ! $this->is_verified_register( wp_unslash( $_POST['user'] ) ) ) {
+            // Set disconnect status to yes here, it will empty after reconnected.
+            MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
+            MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ), 'REG_ERROR2' );
         }
 
         $uniqueId = MainWP_Helper::get_site_unique_id();
