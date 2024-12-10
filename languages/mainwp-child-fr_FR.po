@@ -4108,7 +4108,7 @@ msgstr ""
 
 # @ mainwp-child
 #: class/class-mainwp-pages.php:713
-msgid "Require Unique Secuirty ID"
+msgid "Require Unique Security ID"
 msgstr "Exiger une ID Unique de sécurité"
 
 #: class/class-mainwp-pages.php:718
