@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.3'; // NOSONAR - not IP.
+    public static $version = '5.3.1'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -267,11 +267,15 @@ class MainWP_Child {
      * @return void
      */
     public function hook_activated_plugin( $plugin ) {
-        if ( plugin_basename( MAINWP_CHILD_FILE ) === $plugin && ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) ) {
+        if ( plugin_basename( MAINWP_CHILD_FILE ) === $plugin && ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) && ( ! empty( $_GET['action'] ) && 'activate' === wp_unslash( $_GET['action'] ) ) ) { //phpcs:ignore -- NOSONAR -ok.
             $branding = MainWP_Child_Branding::instance()->is_branding();
-            if ( ! $branding ) {
-                wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );
-                exit();
+            if ( ! $branding && function_exists( '\get_current_screen' ) ) {
+                $screen = get_current_screen();
+                // Check if the current screen is the Plugins page.
+                if ( $screen && 'plugins' === $screen->id ) {
+                    wp_safe_redirect( 'options-general.php?page=mainwp_child_tab' );
+                    exit();
+                }
             }
         }
     }

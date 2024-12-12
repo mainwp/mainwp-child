@@ -86,51 +86,54 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         // phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // Check if the user is valid & login.
         if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
-            MainWP_Helper::instance()->error( sprintf( esc_html__( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://kb.mainwp.com/docs/cant-connect-website-getting-the-invalid-request-error-message/" target="_blank">', '</a></strong>' ) );
+            MainWP_Helper::instance()->error( sprintf( esc_html__( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://kb.mainwp.com/docs/cant-connect-website-getting-the-invalid-request-error-message/" target="_blank">', '</a></strong>' ), 'REG_ERROR1' );
         }
 
         // Already added - can't readd. Deactivate plugin.
-        if ( get_option( 'mainwp_child_pubkey' ) ) {
-
+        // if register verified, then go to next step.
+        if ( get_option( 'mainwp_child_pubkey' ) && ! $this->verify_reconnect_for_current_connect( wp_unslash( $_POST['user'] ) ) ) {
+            if ( ! $this->is_enabled_user_passwd_auth( wp_unslash( $_POST['user'] ) ) ) {
+                MainWP_Helper::instance()->error( esc_html__( 'Forced Reconnect requires Administrator Password authentication. Please enable Password Authentication in the MainWP Child Settings on the child site, or remove and re-add the site to resolve the issue.', 'mainwp-child' ), 'REG_ERROR10' );
+            }
             // Set disconnect status to yes here, it will empty after reconnected.
             MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
-            MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ), 'REG_ERROR2' );
         }
 
         $uniqueId = MainWP_Helper::get_site_unique_id();
         // Check the Unique Security ID.
         if ( '' !== $uniqueId ) {
             if ( ! isset( $_POST['uniqueId'] ) || ( '' === $_POST['uniqueId'] ) ) {
-                MainWP_Helper::instance()->error( esc_html__( 'This child site is set to require a unique security ID. Please enter it before the connection can be established.', 'mainwp-child' ) );
+                MainWP_Helper::instance()->error( esc_html__( 'This child site is set to require a unique security ID. Please enter it before the connection can be established.', 'mainwp-child' ), 'REG_ERROR3' );
             } elseif ( $uniqueId !== $_POST['uniqueId'] ) {
-                MainWP_Helper::instance()->error( esc_html__( 'The unique security ID mismatch! Please correct it before the connection can be established.', 'mainwp-child' ) );
+                MainWP_Helper::instance()->error( esc_html__( 'The unique security ID mismatch! Please correct it before the connection can be established.', 'mainwp-child' ), 'REG_ERROR4' );
             }
         }
 
         // Check SSL Requirement.
         if ( ! MainWP_Helper::is_ssl_enabled() && ( ! defined( 'MAINWP_ALLOW_NOSSL_CONNECT' ) || ! MAINWP_ALLOW_NOSSL_CONNECT ) ) {
-            MainWP_Helper::instance()->error( esc_html__( 'OpenSSL library is required on the child site to set up a secure connection.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'OpenSSL library is required on the child site to set up a secure connection.', 'mainwp-child' ), 'REG_ERROR5' );
         }
 
         // Check Curl SSL Requirement.
         if ( ! MainWP_Child_Server_Information_Base::get_curl_support() ) {
-            MainWP_Helper::instance()->error( esc_html__( 'cURL Extension not enabled on the child site server. Please contact your host support and have them enabled it for you.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'cURL Extension not enabled on the child site server. Please contact your host support and have them enabled it for you.', 'mainwp-child' ), 'REG_ERROR6' );
         }
 
         if ( ! empty( $_POST['user'] ) && ! $this->is_verified_register( wp_unslash( $_POST['user'] ) ) ) {
-            if ( isset( $_POST['regverify'] ) ) {
+            if ( isset( $_POST['regverify'] ) && empty( $_POST['userpwd'] ) ) { // without passwd, it is not force reconnect.
                 MainWP_Helper::instance()->error( esc_html__( 'Failed to reconnect to the site. Please remove the site and add it again.', 'mainwp-child' ), 'reconnect_failed' );
             } else {
-                MainWP_Helper::instance()->error( esc_html__( 'Unable to connect to the site. Please verify that your Admin Username and Password are correct and try again.', 'mainwp-child' ) );
+                MainWP_Helper::instance()->error( esc_html__( 'Unable to connect to the site. Please verify that your Admin Username and Password are correct and try again.', 'mainwp-child' ), 'REG_ERROR7' );
             }
         }
 
         // Check if the user exists and if yes, check if it's administartor user.
         if ( empty( $_POST['user'] ) || ! $this->login( wp_unslash( $_POST['user'] ) ) ) {
-            MainWP_Helper::instance()->error( esc_html__( 'Administrator user does not exist. Please verify that the user is an existing administrator.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Administrator user does not exist. Please verify that the user is an existing administrator.', 'mainwp-child' ), 'REG_ERROR8' );
         }
         if ( ! MainWP_Helper::is_admin() ) {
-            MainWP_Helper::instance()->error( esc_html__( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'User is not an administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ), 'REG_ERROR9' );
         }
 
         // Update the mainwp_child_pubkey option.
@@ -275,6 +278,24 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         return $is_valid_regis ? true : false;
     }
 
+    /**
+     * Method verify_reconnect_for_current_connect().
+     *
+     * @param  string $user_name User name.
+     *
+     * @return bool
+     */
+    public function verify_reconnect_for_current_connect( $user_name ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        $connected_user = get_option( 'mainwp_child_connected_admin', '' );
+        $dashboard_url  = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+        $server         = ! empty( $_POST['server'] ) ? sanitize_text_field( wp_unslash( $_POST['server'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification -- NOSONAR - ok.
+
+        if ( $user_name !== $connected_user || empty( $server ) || $server !== $dashboard_url ) {
+            return false;
+        }
+        return true; // allow starting reconnnect.
+    }
+
 
     /**
      * Method is_enabled_user_passwd_auth().
@@ -396,7 +417,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     public function parse_init_auth( $auth = false ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         // phpcs:disable WordPress.Security.NonceVerification
         if ( ! $auth && isset( $_POST['mainwpsignature'] ) ) { // with 'mainwpsignature' then need to callable functions.
-            MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this child site and try again.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this child site and try again.', 'mainwp-child' ), 'PARSE_ERROR1' );
         }
 
         if ( ! $auth && isset( $_POST['function'] ) ) {
@@ -405,7 +426,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             $callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
 
             if ( $callable && ! $callable_no_auth && isset( $_POST['mainwpsignature'] ) ) {
-                MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ) );
+                MainWP_Helper::instance()->error( esc_html__( 'Authentication failed! Please deactivate & re-activate the MainWP Child plugin on this site and try again.', 'mainwp-child' ), 'PARSE_ERROR2' );
             }
         }
 
@@ -433,11 +454,11 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 if ( ! $user ) {
-                    MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ) );
+                    MainWP_Helper::instance()->error( esc_html__( 'Unexisting administrator user. Please verify that it is an existing administrator.', 'mainwp-child' ), 'PARSE_ERROR3' );
                 }
 
                 if ( ! MainWP_Helper::is_admin( $user ) ) {
-                    MainWP_Helper::instance()->error( esc_html__( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ) );
+                    MainWP_Helper::instance()->error( esc_html__( 'User not administrator. Please use an administrator user to establish the connection.', 'mainwp-child' ), 'PARSE_ERROR4' );
                 }
 
                 // try to login.
