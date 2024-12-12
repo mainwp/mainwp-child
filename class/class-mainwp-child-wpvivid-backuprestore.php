@@ -31,6 +31,13 @@ class MainWP_Child_WPvivid_BackupRestore { //phpcs:ignore -- NOSONAR - multi met
     public $is_plugin_installed = false;
 
     /**
+     * Whether WPvivid Pro is installed or not.
+     *
+     * @var bool default false.
+     */
+    public $is_pro_plugin_installed = false;
+
+    /**
      * Interface variable.
      *
      * @var object WPvivid_Public_Interface
@@ -61,12 +68,18 @@ class MainWP_Child_WPvivid_BackupRestore { //phpcs:ignore -- NOSONAR - multi met
             $this->is_plugin_installed = true;
         }
 
-        if ( ! $this->is_plugin_installed ) {
+        if ( is_plugin_active( 'wpvivid-backup-pro/wpvivid-backup-pro.php' ) && defined( 'WPVIVID_BACKUP_PRO_PLUGIN_DIR' ) ) {
+            $this->is_pro_plugin_installed = true;
+        }
+
+        if ( ! $this->is_plugin_installed && ! $this->is_pro_plugin_installed ) {
             return;
         }
 
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
-        $this->public_intetface = new \WPvivid_Public_Interface();
+        if ( $this->is_plugin_installed ) {
+            $this->public_intetface = new \WPvivid_Public_Interface();
+        }
     }
 
     /**
@@ -90,15 +103,11 @@ class MainWP_Child_WPvivid_BackupRestore { //phpcs:ignore -- NOSONAR - multi met
         try {
 
             if ( isset( $data['syncWPvividData'] ) ) {
-                $information['syncWPvividData']         = 1;
-                $data                                   = \WPvivid_Setting::get_sync_data();
-                $information['syncWPvividSettingData']  = $data['setting'];
-                $information['syncWPvividRemoteData']   = $data['remote'];
-                $information['syncWPvividScheduleData'] = $data['schedule'];
-                $information['syncWPvividSetting']      = $data;
+                $information['syncWPvividData'] = 1;
+                $information                    = apply_filters( 'wpvivid_get_mainwp_sync_data', $information );
             }
         } catch ( MainWP_Exception $e ) {
-            // catch errors.
+            // ok.
         }
 
         return $information;
@@ -132,7 +141,7 @@ class MainWP_Child_WPvivid_BackupRestore { //phpcs:ignore -- NOSONAR - multi met
      */
     public function action() {
         $information = array();
-        if ( ! $this->is_plugin_installed ) {
+        if ( ! $this->is_plugin_installed && ! $this->is_pro_plugin_installed ) {
             $information['error'] = 'NO_WPVIVIDBACKUP';
             MainWP_Helper::write( $information );
         }
@@ -221,8 +230,18 @@ class MainWP_Child_WPvivid_BackupRestore { //phpcs:ignore -- NOSONAR - multi met
      * @return mixed $ret Returned response.
      */
     public function post_mainwp_data( $data ) {
-        global $wpvivid_plugin;
-        return $wpvivid_plugin->wpvivid_handle_mainwp_action( $data );
+        if ( $this->is_plugin_installed ) {
+            global $wpvivid_plugin;
+            return $wpvivid_plugin->wpvivid_handle_mainwp_action( $data );
+        } elseif ( $this->is_pro_plugin_installed ) {
+            $ret['result'] = 'failed';
+            $ret['error']  = 'Unknown function';
+            return apply_filters( 'wpvivid_handle_mainwp_action', $ret, $data );
+        } else {
+            $ret['result'] = 'failed';
+            $ret['error']  = 'WPvivid Plugin not installed';
+            return $ret;
+        }
     }
 
     /**

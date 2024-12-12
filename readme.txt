@@ -125,3 +125,8 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 [See Video Changelog](https://youtu.be/DF0vC1RiCVI)
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)
+
+= 5.2.1 - 11-20-2024 =
+
+* Added: After activating the MainWP plugin, users are now redirected to the MainWP Settings page for a smoother onboarding experience.
+* Updated: The Unique Security ID option is now enabled by default to enhance security for all MainWP installations.

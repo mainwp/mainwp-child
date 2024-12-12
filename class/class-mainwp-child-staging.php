@@ -440,6 +440,8 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
+        $result = array();
+
         if ( file_exists( WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php' ) ) {
             ob_start();
             require_once WPSTG_PLUGIN_DIR . 'app/Backend/views/clone/ajax/start.php'; // NOSONAR - WP compatible.
@@ -467,6 +469,22 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
                 $this->assets = new \WPStaging\Framework\Assets\Assets( new \WPStaging\Framework\Security\AccessToken(), new \WPStaging\Core\DTO\Settings() ); // to fix error.
                 require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/start.php'; // NOSONAR - WP compatible.
                 $result = ob_get_clean();
+            }
+        } elseif ( defined( 'WPSTG_VIEWS_DIR' ) && file_exists( WPSTG_VIEWS_DIR . 'clone/ajax/scan.php' ) ) { // new version >= 3.8.4.
+            if ( file_exists( WPSTG_PLUGIN_DIR . 'Core/WPStaging.php' ) ) {
+                include_once WPSTG_PLUGIN_DIR . 'Core/WPStaging.php'; // NOSONAR -- WP compatible.
+                $this->assets = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Assets\Assets::class ); // to fix error since ver 3.1.3.
+
+                $subDirectory = str_replace( get_home_path(), '', ABSPATH );
+                $urlsHelper   = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Utils\Urls::class );
+                $url          = $urlsHelper->getHomeUrl() . str_replace( '/', '', $subDirectory );
+                $result       = array(
+                    'url'       => $url,
+                    'blog_name' => get_bloginfo( 'name' ),
+                    'clone'     => $cloning->getOptions()->clone,
+                    'img_src'   => $this->assets->getAssetsUrl( 'img/admin_dashboard.png' ),
+                    'version3'  => 1,
+                );
             }
         }
         return $result;
@@ -631,6 +649,12 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
                 require_once WPSTG_PLUGIN_DIR . 'Backend/views/clone/ajax/update.php'; // NOSONAR - WP compatible.
                 $result = ob_get_clean();
             }
+        } elseif ( defined( 'WPSTG_VIEWS_DIR' ) && file_exists( WPSTG_VIEWS_DIR . 'clone/ajax/scan.php' ) ) { // new version >= 3.8.4.
+            $result = array(
+                'clone'    => $cloning->getOptions()->clone,
+                'mainJob'  => $cloning->getOptions()->mainJob,
+                'version3' => 1,
+            );
         }
 
         return $result;
