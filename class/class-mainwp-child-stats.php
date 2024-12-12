@@ -191,7 +191,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         if ( isset( $_POST['server'] ) ) {
             $current_url = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
             if ( $current_url !== $_POST['server'] ) {
-                MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? sanitize_text_field( wp_unslash( $_POST['server'] ) ) : '' );
+                MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', ! empty( $_POST['server'] ) ? sanitize_text_field( wp_unslash( $_POST['server'] ) ) : '' ); //phpcs:ignore WordPress.Security.NonceVerification -- NOSONAR - ok.
             }
         }
 

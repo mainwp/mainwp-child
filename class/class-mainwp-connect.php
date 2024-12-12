@@ -288,7 +288,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     public function verify_reconnect_for_current_connect( $user_name ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         $connected_user = get_option( 'mainwp_child_connected_admin', '' );
         $dashboard_url  = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
-        $server         = ! empty( $_POST['server'] ) ? sanitize_text_field( wp_unslash( $_POST['server'] ) ) : '';
+        $server         = ! empty( $_POST['server'] ) ? sanitize_text_field( wp_unslash( $_POST['server'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification -- NOSONAR - ok.
 
         if ( $user_name !== $connected_user || empty( $server ) || $server !== $dashboard_url ) {
             return false;
