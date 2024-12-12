@@ -92,6 +92,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         // Already added - can't readd. Deactivate plugin.
         // if register verified, then go to next step.
         if ( get_option( 'mainwp_child_pubkey' ) && ! $this->verify_reconnect_for_current_connect( wp_unslash( $_POST['user'] ) ) ) {
+            if ( ! $this->is_enabled_user_passwd_auth( wp_unslash( $_POST['user'] ) ) ) {
+                MainWP_Helper::instance()->error( esc_html__( 'Forced Reconnect requires Administrator Password authentication. Please enable Password Authentication in the MainWP Child Settings on the child site, or remove and re-add the site to resolve the issue.', 'mainwp-child' ), 'REG_ERROR10' );
+            }
             // Set disconnect status to yes here, it will empty after reconnected.
             MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
             MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ), 'REG_ERROR2' );
@@ -118,7 +121,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( ! empty( $_POST['user'] ) && ! $this->is_verified_register( wp_unslash( $_POST['user'] ) ) ) {
-            if ( isset( $_POST['regverify'] ) ) {
+            if ( isset( $_POST['regverify'] ) && empty( $_POST['userpwd'] ) ) { // without passwd, it is not force reconnect.
                 MainWP_Helper::instance()->error( esc_html__( 'Failed to reconnect to the site. Please remove the site and add it again.', 'mainwp-child' ), 'reconnect_failed' );
             } else {
                 MainWP_Helper::instance()->error( esc_html__( 'Unable to connect to the site. Please verify that your Admin Username and Password are correct and try again.', 'mainwp-child' ), 'REG_ERROR7' );
