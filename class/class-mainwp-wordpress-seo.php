@@ -85,13 +85,67 @@ class MainWP_WordPress_SEO {
             MainWP_Helper::write( $information );
         }
         $information = array();
-        $mwp_action  = MainWP_System::instance()->validate_params( 'action' );
-        if ( 'import_settings' === $mwp_action ) {
-            $this->import_settings();
+        $mwp_action  = MainWP_System::instance()->validate_params( 'mwp_action' );
+        if ( ! empty( $mwp_action ) ) {
+            try {
+                switch ( $mwp_action ) {
+                    case 'import_settings':
+                        $information = $this->import_settings();
+                        break;
+                    case 'save_settings':
+                        $information = $this->save_settings();
+                        break;
+                    default:
+                        break;
+                }
+            } catch ( MainWP_Exception $e ) {
+                $information = array( 'error' => $e->getMessage() );
+            }
         }
         MainWP_Helper::write( $information );
     }
 
+    /**
+     * Method save_settings()
+     *
+     * Save the plugin settings.
+     *
+     * @uses WPSEO_Options::set()
+     *
+     * @return array Action result.
+     */
+    public function save_settings() {
+        // phpcs:disable WordPress.Security.NonceVerification.Missing
+        $options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        if ( ! is_array( $options ) || empty( $options ) ) {
+            return array( 'error' => 'INVALID_OPTIONS' );
+        }
+        // Save blogdescriptionb.
+        if ( isset( $options['wpseo_titles']['blogdescription'] ) ) {
+            if ( ! empty( $options['wpseo_titles']['blogdescription'] ) ) {
+                update_option( 'blogdescription', $options['wpseo_titles']['blogdescription'] );
+            }
+            unset( $options['wpseo_titles']['blogdescription'] );
+        }
+        // Save wpSeo config value.
+        foreach ( $options as $k_option => $option ) {
+            $option_values = \WPSEO_Options::get_options( array( $k_option ) );
+            if ( ! empty( $option_values ) ) {
+                foreach ( $option as $k_item => $item ) {
+                    if ( isset( $option_values[ $k_item ] ) ) {
+                        $value = $item;
+                        if ( 'other_social_urls' === $k_item ) {
+                            $value = array_values( array_unique( array_filter( $item ) ) );
+                        }
+
+                        \WPSEO_Options::set( $k_item, $value, $k_option ); // Save option.
+                    }
+                }
+            }
+        }
+        return array( 'result' => 'SUCCESS' );
+         // phpcs:disable WordPress.Security.NonceVerification.Missing 
+    }
     /**
      * Import the Yoast SEO plugin settings.
      *
