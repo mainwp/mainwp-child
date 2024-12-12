@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.3
+Stable tag: 5.3.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,13 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.3.1 - 12-12-2024 =
+
+* Fixed: Typo in the MainWP Child plugin settings page ((#426)[https://github.com/mainwp/mainwp-child/pull/426]) - thanks to (Isaac Russell)[https://github.com/sisaacrussell]
+* Added: Support for the new Vulnerability Checker service ((#419)[https://github.com/mainwp/mainwp-child/pull/419]) - thanks to (Asif Zaman)[https://github.com/bytepattern]
+* Updated: WPvivid Backups extension support with new feature improvements ((#422)[https://github.com/mainwp/mainwp-child/pull/422]) - thanks to (LiuGeng399)[https://github.com/LiuGeng399]
+* Updated: Redirection to the MainWP Child settings page now occurs only when the plugin is activated manually from the Plugins page.
 
 = 5.3 - 11-26-2024 =
 
