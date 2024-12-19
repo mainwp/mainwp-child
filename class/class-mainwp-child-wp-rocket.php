@@ -732,7 +732,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
      * @return array Action result.
      */
     public function save_settings() {
-		// phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         $options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         if ( ! is_array( $options ) || empty( $options ) ) {
             return array( 'error' => 'INVALID_OPTIONS' );
@@ -752,7 +752,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         if ( isset( $_POST['do_database_optimization'] ) && ! empty( $_POST['do_database_optimization'] ) ) {
             $this->optimize_database();
         }
-		// phpcs:enable
+        // phpcs:enable
         return array( 'result' => 'SUCCESS' );
     }
 
