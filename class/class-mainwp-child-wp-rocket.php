@@ -87,7 +87,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         }
 
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
-        add_filter( 'cron_schedules', array( $this, 'add_five_seconds_cron_interval' ) );
+        add_filter( 'cron_schedules', array( $this, 'add_five_seconds_cron_interval' ) ); //phpcs:ignore -- NOSONAR -ok.
         if ( 'hide' === get_option( 'mainwp_wprocket_hide_plugin' ) ) {
             add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
             add_action( 'admin_menu', array( $this, 'remove_menu' ) );
