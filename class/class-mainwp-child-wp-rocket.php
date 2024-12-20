@@ -493,6 +493,9 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
                     case 'update_exclusion_list':
                         $information = $this->update_exclusion_list();
                         break;
+                    case 'clear_priority_elements':
+                        $information = $this->clear_priority_elements();
+                        break;
                     default:
                         break;
                 }
@@ -864,5 +867,33 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
             'result'  => 'SUCCESS',
             'options' => $options,
         );
+    }
+
+    /**
+     * Method clear_priority_elements()
+     *
+     * Clear all priority elements.
+     *
+     * @return array Status of the action.
+     */
+    public function clear_priority_elements() {
+        try {
+            // Check if the function exists.
+            if ( ! function_exists( 'wpm_apply_filters_typed' ) || ! function_exists( 'rocket_clean_domain' ) || ! function_exists( 'rocket_dismiss_box' ) ) {
+                return array( 'error' => 'function_not_exist' );
+            }
+            // Clear all priority elements.
+            $clean_filter = wpm_apply_filters_typed( 'array', 'rocket_performance_hints_clean_all', array() );
+            rocket_clean_domain();
+            rocket_dismiss_box( 'rocket_warning_plugin_modification' );
+            set_transient(
+                'rocket_performance_hints_clear_message',
+                $clean_filter
+            );
+
+            return array( 'result' => 'SUCCESS' );
+        } catch ( MainWP_Exception $e ) {
+            return array( 'error' => $e->getMessage() );
+        }
     }
 }
