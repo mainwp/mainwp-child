@@ -110,8 +110,10 @@ class MainWP_WordPress_SEO {
 	 *
 	 * Save the plugin settings.
 	 *
-	 * @uses WPSEO_Options::set()
-	 * @uses WPSEO_Utils::clear_cache()
+	 * @uses \WPSEO_Options::get()
+	 * @uses \WPSEO_Options::set()
+	 * @uses \WPSEO_Options::get_options()
+	 * @uses \WPSEO_Utils::clear_cache()
 	 *
 	 * @return array Action result.
 	 */
@@ -164,7 +166,17 @@ class MainWP_WordPress_SEO {
 				if ( in_array( $k_item, $special_keys, true ) ) {
 					$value = ! empty( $item ) ? array_values( array_unique( array_filter( $item ) ) ) : array();
 				}
-				\WPSEO_Options::set( $k_item, $value, $k_option ); // Save option.
+				if ( 'og_default_image' === $k_item ) {
+					$image = $this->wpseo_upload_image( $value );
+					if ( ! empty( $image ) ) {
+						$value = $image['id'];
+						// Save option.
+						\WPSEO_Options::set( 'og_default_image', $image['url'], $k_option );
+						\WPSEO_Options::set( 'og_default_image_id', $image['id'], $k_option );
+					}
+				} else {
+					\WPSEO_Options::set( $k_item, $value, $k_option ); // Save option.
+				}
 			}
 		}
 		// Clear cache so the changes are obvious.
@@ -362,5 +374,108 @@ class MainWP_WordPress_SEO {
 		}
 
 		return '<div aria-hidden="true" title="' . esc_attr( $title ) . '" class="wpseo-score-icon ' . esc_attr( $rank->get_css_class() ) . '"></div><span class="screen-reader-text">' . $title . '</span>';
+	}
+
+	/**
+	 * Method wpseo_upload_image()
+	 *
+	 * Upload custom image from MainWP Dashboard.
+	 *
+	 * @param string $img_url Contains image URL.
+	 *
+	 * @uses \MainWP\Child\MainWP_Helper::get_class_name()
+	 * @uses \MainWP_Utility::instance()->check_image_file_name()
+	 * @uses \MainWP_Helper::move()
+	 *
+	 * @return array An array containing the image information such as path and URL.
+	 * @throws MainWP_Exception Error message.
+	 */
+	public function wpseo_upload_image( $img_url ) {
+		include_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -- WP compatible.
+		include_once ABSPATH . 'wp-admin/includes/image.php'; // NOSONAR -- To process metadata for images.
+
+		// Check if the image from the URL has been downloaded.
+		$attachment_id = $this->get_attachment_id_by_source_url( $img_url );
+		if ( $attachment_id ) {
+			// If exists, returns file information.
+			return array(
+				'id'       => $attachment_id,
+				'path'     => get_attached_file( $attachment_id ),
+				'url'      => wp_get_attachment_url( $attachment_id ),
+				'metadata' => wp_get_attachment_metadata( $attachment_id ),
+			);
+		}
+
+		add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
+		$temporary_file = download_url( $img_url );
+		remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
+
+		if ( is_wp_error( $temporary_file ) ) {
+			throw new MainWP_Exception( esc_html( $temporary_file->get_error_message() ) );
+		} else {
+			$upload_dir     = wp_upload_dir();
+			$local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url );
+			$local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
+			$local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+
+			if ( MainWP_Utility::instance()->check_image_file_name( $local_img_path ) ) {
+				$moved = MainWP_Helper::move( $temporary_file, $local_img_path );
+				if ( $moved ) {
+					// Create attachment posts in the database.
+					$attachment = array(
+						'guid'           => $local_img_url,
+						'post_mime_type' => mime_content_type( $local_img_path ),
+						'post_title'     => preg_replace( '/\.[^.]+$/', '', basename( $local_img_path ) ),
+						'post_content'   => '',
+						'post_status'    => 'inherit',
+						'meta_input'     => array(
+							'_source_url' => $img_url, // Save the original URL as metadata.
+						),
+					);
+
+					// Attach attachment to the database.
+					$attachment_id = wp_insert_attachment( $attachment, $local_img_path );
+
+					// Create metadata for attachments.
+					if ( ! is_wp_error( $attachment_id ) ) {
+						$attachment_metadata = wp_generate_attachment_metadata( $attachment_id, $local_img_path );
+						wp_update_attachment_metadata( $attachment_id, $attachment_metadata );
+
+						return array(
+							'id'       => $attachment_id,
+							'path'     => $local_img_path,
+							'url'      => $local_img_url,
+							'metadata' => $attachment_metadata,
+						);
+					}
+				}
+			}
+		}
+		if ( file_exists( $temporary_file ) ) {
+			wp_delete_file( $temporary_file );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Method get_attachment_id_by_source_url()
+	 * Get attachment ID from source URL.
+	 *
+	 * @param string $source_url Original URL of the image.
+	 * @return int|null ID of the attachment or null if it does not exist.
+	 */
+	private function get_attachment_id_by_source_url( $source_url ) {
+		global $wpdb;
+
+		// Query attachment posts based on '_source_url' metadata.
+		$attachment_id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_source_url' AND meta_value = %s",
+				$source_url
+			)
+		);
+
+		return $attachment_id ? (int) $attachment_id : null;
 	}
 }
