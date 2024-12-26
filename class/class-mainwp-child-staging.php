@@ -365,7 +365,7 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array|string[] Action result array[status, message] or return 'success'.
      */
     public function ajax_check_clone_name() {
-        $cloneID       = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $cloneID = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
         if ( defined( '\WPStaging\Staging\Sites::STAGING_SITES_OPTION' ) ) { // new update.
             $clones = get_option( \WPStaging\Staging\Sites::STAGING_SITES_OPTION, array() ); // old option.
