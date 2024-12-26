@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.3
+Stable tag: 5.3.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -111,6 +111,17 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.3.2 - 12-26-2024 =
+
+* Updated: Compatibility with the latest WP Rocket plugin settings.
+
+= 5.3.1 - 12-12-2024 =
+
+* Fixed: Typo in the MainWP Child plugin settings page ([#426](https://github.com/mainwp/mainwp-child/pull/426)) - thanks to [Isaac Russell](https://github.com/sisaacrussell)
+* Added: Support for the new Vulnerability Checker service ([#419](https://github.com/mainwp/mainwp-child/pull/419)) - thanks to [Asif Zaman](https://github.com/bytepattern)
+* Updated: WPvivid Backups extension support with new feature improvements ([#422](https://github.com/mainwp/mainwp-child/pull/422)) - thanks to [LiuGeng399](https://github.com/LiuGeng399)
+* Updated: Redirection to the MainWP Child settings page now occurs only when the plugin is activated manually from the Plugins page.
+
 = 5.3 - 11-26-2024 =
 
 * Security Enhancement: Enhanced the pre-connection process with additional security features to address recommendations from a security company. [Read more](https://mainwp.com/addressing-misguided-security-reports-why-mainwp-is-updating-its-connection-process/)
@@ -125,3 +136,8 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 [See Video Changelog](https://youtu.be/DF0vC1RiCVI)
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)
+
+= 5.2.1 - 11-20-2024 =
+
+* Added: After activating the MainWP plugin, users are now redirected to the MainWP Settings page for a smoother onboarding experience.
+* Updated: The Unique Security ID option is now enabled by default to enhance security for all MainWP installations.

@@ -3769,7 +3769,7 @@ msgstr ""
 "Añade una capa extra de seguridad para conectar este sitio a tu %s Dashboard."
 
 #: class/class-mainwp-pages.php:713
-msgid "Require Unique Secuirty ID"
+msgid "Require Unique Security ID"
 msgstr "Exigir un identificador de seguridad único"
 
 #: class/class-mainwp-pages.php:718
