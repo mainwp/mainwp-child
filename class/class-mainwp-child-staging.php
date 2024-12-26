@@ -321,7 +321,11 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $return Action result.
      */
     public function get_overview() {
-        if ( defined( '\WPStaging\Framework\Staging\Sites::STAGING_SITES_OPTION' ) ) {
+        if ( defined( '\WPStaging\Staging\Sites::STAGING_SITES_OPTION' ) ) { // new update.
+            $return = array(
+                'availableClones' => get_option( \WPStaging\Staging\Sites::STAGING_SITES_OPTION, array() ),
+            );
+        } elseif ( defined( '\WPStaging\Framework\Staging\Sites::STAGING_SITES_OPTION' ) ) {
             $return = array(
                 'availableClones' => get_option( \WPStaging\Framework\Staging\Sites::STAGING_SITES_OPTION, array() ),
             );
@@ -361,16 +365,17 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array|string[] Action result array[status, message] or return 'success'.
      */
     public function ajax_check_clone_name() {
-        $cloneName       = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
-        $cloneNameLength = strlen( $cloneName );
-        $clones          = get_option( 'wpstg_existing_clones_beta', array() );
+        $cloneID = isset( $_POST['cloneID'] ) ? sanitize_key( wp_unslash( $_POST['cloneID'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
-        if ( $cloneNameLength < 1 || $cloneNameLength > 16 ) {
-            echo array(
-                'status'  => 'failed',
-                'message' => 'Clone name must be between 1 - 16 characters',
-            );
-        } elseif ( array_key_exists( $cloneName, $clones ) ) {
+        if ( defined( '\WPStaging\Staging\Sites::STAGING_SITES_OPTION' ) ) { // new update.
+            $clones = get_option( \WPStaging\Staging\Sites::STAGING_SITES_OPTION, array() ); // old option.
+        } elseif ( defined( '\WPStaging\Framework\Staging\Sites::STAGING_SITES_OPTION' ) ) {
+            $clones = get_option( \WPStaging\Framework\Staging\Sites::STAGING_SITES_OPTION, array() ); // old option.
+        } else {
+            $clones = get_option( 'wpstg_existing_clones_beta', array() ); // old option.
+        }
+
+        if ( array_key_exists( $cloneID, $clones ) ) {
             return array(
                 'status'  => 'failed',
                 'message' => 'Clone name is already in use, please choose an another clone name',

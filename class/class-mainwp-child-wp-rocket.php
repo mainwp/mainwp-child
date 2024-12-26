@@ -25,7 +25,7 @@ namespace MainWP\Child;
  *
  * MainWP Rocket extension handler.
  */
-class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
+class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
     /**
      * Public static variable to hold the single instance of the class.
@@ -40,6 +40,13 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
      * @var bool If WP Rocket intalled, return true, if not, return false.
      */
     public $is_plugin_installed = false;
+
+    /**
+     * Public variable to hold the information about the language domain.
+     *
+     * @var string 'mainwp-child' languge domain.
+     */
+    public $plugin_translate = 'mainwp-child';
 
     /**
      * Method instance()
@@ -80,7 +87,7 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
-
+        add_filter( 'cron_schedules', array( $this, 'add_five_seconds_cron_interval' ) ); //phpcs:ignore -- NOSONAR -ok.
         if ( 'hide' === get_option( 'mainwp_wprocket_hide_plugin' ) ) {
             add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
             add_action( 'admin_menu', array( $this, 'remove_menu' ) );
@@ -100,79 +107,82 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_rocket_default_options() {
         return array(
-            'cache_mobile'                => 1,
-            'do_caching_mobile_files'     => 0,
-            'cache_logged_user'           => 0,
-            'emoji'                       => 0,
-            'embeds'                      => 1,
-            'control_heartbeat'           => 0,
-            'heartbeat_site_behavior'     => 'reduce_periodicity',
-            'heartbeat_admin_behavior'    => 'reduce_periodicity',
-            'heartbeat_editor_behavior'   => 'reduce_periodicity',
-            'varnish_auto_purge'          => 0,
-            'manual_preload'              => 0,
-            'automatic_preload'           => 0,
-            'sitemap_preload'             => 0,
-            'preload_links'               => 0,
-            'sitemaps'                    => array(),
-            'database_revisions'          => 0,
-            'database_auto_drafts'        => 0,
-            'database_trashed_posts'      => 0,
-            'database_spam_comments'      => 0,
-            'database_trashed_comments'   => 0,
-            'database_expired_transients' => 0,
-            'database_all_transients'     => 0,
-            'database_optimize_tables'    => 0,
-            'schedule_automatic_cleanup'  => 0,
-            'automatic_cleanup_frequency' => '',
-            'cache_reject_uri'            => array(),
-            'cache_reject_cookies'        => array(),
-            'cache_reject_ua'             => array(),
-            'cache_query_strings'         => array(),
-            'cache_purge_pages'           => array(),
-            'purge_cron_interval'         => 10,
-            'purge_cron_unit'             => 'HOUR_IN_SECONDS',
-            'exclude_css'                 => array(),
-            'exclude_js'                  => array(),
-            'exclude_inline_js'           => array(),
-            'async_css'                   => 0,
-            'defer_all_js'                => 0,
-            'critical_css'                => '',
-            'exclude_defer_js'            => array(),
-            'delay_js'                    => 0,
-            'delay_js_scripts'            => array(),
-            'lazyload'                    => 0,
-            'lazyload_iframes'            => 0,
-            'exclude_lazyload'            => array(),
-            'lazyload_youtube'            => 0,
-            'minify_css'                  => 0,
-            'image_dimensions'            => 0,
-            'cache_webp'                  => 0,
-            'minify_concatenate_css'      => 0,
-            'minify_css_legacy'           => 0,
-            'minify_js'                   => 0,
-            'minify_concatenate_js'       => 0,
-            'minify_js_combine_all'       => 0,
-            'preload_fonts'               => array(),
-            'dns_prefetch'                => 0,
-            'cdn'                         => 0,
-            'cdn_cnames'                  => array(),
-            'cdn_zone'                    => array(),
-            'cdn_reject_files'            => array(),
-            'do_cloudflare'               => 0,
-            'cloudflare_email'            => '',
-            'cloudflare_api_key'          => '',
-            'cloudflare_domain'           => '',
-            'cloudflare_devmode'          => 0,
-            'cloudflare_protocol_rewrite' => 0,
-            'cloudflare_auto_settings'    => 0,
-            'cloudflare_old_settings'     => 0,
-            'analytics_enabled'           => 0,
-            'google_analytics_cache'      => 0,
-            'facebook_pixel_cache'        => 0,
-            'sucury_waf_cache_sync'       => 0,
-            'cloudflare_zone_id'          => '',
-            'sucury_waf_api_key'          => '',
+            'emoji'                        => 0,
+            'embeds'                       => 1,
+            'control_heartbeat'            => 0,
+            'heartbeat_site_behavior'      => 'reduce_periodicity',
+            'heartbeat_admin_behavior'     => 'reduce_periodicity',
+            'heartbeat_editor_behavior'    => 'reduce_periodicity',
+            'manual_preload'               => 0,
+            'preload_excluded_uri'         => array(),
+            'automatic_preload'            => 0,
+            'sitemap_preload'              => 0,
+            'preload_links'                => 0,
+            'sitemaps'                     => array(),
+            'database_revisions'           => 0,
+            'database_auto_drafts'         => 0,
+            'database_trashed_posts'       => 0,
+            'database_spam_comments'       => 0,
+            'database_trashed_comments'    => 0,
+            'database_expired_transients'  => 0,
+            'database_all_transients'      => 0,
+            'database_optimize_tables'     => 0,
+            'schedule_automatic_cleanup'   => 0,
+            'automatic_cleanup_frequency'  => '',
+            'cache_reject_uri'             => array(),
+            'cache_reject_cookies'         => array(),
+            'cache_reject_ua'              => array(),
+            'cache_query_strings'          => array(),
+            'cache_purge_pages'            => array(),
+            'purge_cron_interval'          => 10,
+            'purge_cron_unit'              => 'HOUR_IN_SECONDS',
+            'exclude_css'                  => array(),
+            'exclude_js'                   => array(),
+            'exclude_inline_js'            => array(),
+            'async_css'                    => 0,
+            'defer_all_js'                 => 0,
+            'critical_css'                 => '',
+            'remove_unused_css_safelist'   => '',
+            'exclude_defer_js'             => array(),
+            'delay_js'                     => 0,
+            'delay_js_exclusions_selected' => array(),
+            'delay_js_exclusions'          => array(),
+            'delay_js_scripts'             => array(),
+            'lazyload'                     => 0,
+            'lazyload_css_bg_img'          => 0,
+            'lazyload_iframes'             => 0,
+            'exclude_lazyload'             => array(),
+            'lazyload_youtube'             => 0,
+            'minify_css'                   => 0,
+            'image_dimensions'             => 0,
+            'minify_concatenate_css'       => 0,
+            'minify_css_legacy'            => 0,
+            'minify_js'                    => 0,
+            'minify_concatenate_js'        => 0,
+            'minify_js_combine_all'        => 0,
+            'preload_fonts'                => array(),
+            'dns_prefetch'                 => 0,
+            'cdn'                          => 0,
+            'cdn_cnames'                   => array(),
+            'cdn_zone'                     => array(),
+            'cdn_reject_files'             => array(),
+            'do_cloudflare'                => 0,
+            'cloudflare_email'             => '',
+            'cloudflare_api_key'           => '',
+            'cloudflare_domain'            => '',
+            'cloudflare_devmode'           => 0,
+            'cloudflare_protocol_rewrite'  => 0,
+            'cloudflare_auto_settings'     => 0,
+            'cloudflare_old_settings'      => 0,
+            'analytics_enabled'            => 0,
+            'google_analytics_cache'       => 0,
+            'facebook_pixel_cache'         => 0,
+            'sucury_waf_cache_sync'        => 0,
+            'cache_logged_user'            => 0,
+            'varnish_auto_purge'           => 0,
+            'cache_webp'                   => 0,
+            'cloudflare_zone_id'           => '',
+            'sucury_waf_api_key'           => '',
         );
     }
 
@@ -187,15 +197,33 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $information Array containing the sync information.
      */
     public function sync_others_data( $information, $data = array() ) {
+
         if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
             try {
-                $data                            = array( 'rocket_boxes' => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ) );
+                $data                            = array(
+                    'rocket_boxes'  => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ),
+                    'lists_delayjs' => get_option( '_transient_wpr_dynamic_lists_delayjs', array() ),
+                );
                 $information['syncWPRocketData'] = $data;
             } catch ( MainWP_Exception $e ) {
                 // ok!
             }
         }
         return $information;
+    }
+
+
+    /**
+     * [Hook add filter for add_five_seconds_cron_interval]
+     *
+     * @return array
+     */
+    public function add_five_seconds_cron_interval() {
+        $schedules['five_seconds'] = array(
+            'interval' => 5,
+            'display'  => esc_html__( 'Every Five Seconds' ),
+        );
+        return $schedules;
     }
 
     /**
@@ -409,14 +437,14 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::set_showhide() Hide or unhide the WP Rocket plugin.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::purge_cloudflare() Purge the Cloudflare cache.
-     * @uses \MainWP\Child\MainWP_Child_WP_Rocket::purge_cache_all() Purge all cache.
-     * @uses \MainWP\Child\MainWP_Child_WP_Rocket::preload_cache() Preload cache.
+     * @uses \MainWP\Child\MainWP_Child_WP_Rocket::preload_purge_cache_all() Purge all cache.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::generate_critical_css() Generate critical CSS.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::save_settings() Save the plugin settings.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::load_existing_settings() Load existing settings.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::optimize_database() Optimize database tables.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::get_optimize_info() Get the optimization information.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::do_admin_post_rocket_purge_opcache() Do admin post to purge opcache.
+     * @uses \MainWP\Child\MainWP_Child_WP_Rocket::update_exclusion_list() Update inclusion and exclusion lists.
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public function action() {
@@ -441,11 +469,8 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
                     case 'purge_cloudflare':
                         $information = $this->purge_cloudflare();
                         break;
-                    case 'purge_all':
-                        $information = $this->purge_cache_all();
-                        break;
-                    case 'preload_cache':
-                        $information = $this->preload_cache();
+                    case 'preload_purge_all':
+                        $information = $this->preload_purge_cache_all();
                         break;
                     case 'generate_critical_css':
                         $information = $this->generate_critical_css();
@@ -464,6 +489,12 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
                         break;
                     case 'purge_opcache':
                         $information = $this->do_admin_post_rocket_purge_opcache();
+                        break;
+                    case 'update_exclusion_list':
+                        $information = $this->update_exclusion_list();
+                        break;
+                    case 'clear_priority_elements':
+                        $information = $this->clear_priority_elements();
                         break;
                     default:
                         break;
@@ -534,17 +565,17 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Include necessary files.
      *
-     * @param string $functionName function Name.
-     * @param string $fileName file Name.
+     * @param string $function_name function Name.
+     * @param string $file_name file Name.
      */
-    private function require_file_path( $functionName, $fileName ) {
-        if ( ! function_exists( $functionName ) && defined( 'WP_ROCKET_FUNCTIONS_PATH' ) ) {
-            require_once WP_ROCKET_FUNCTIONS_PATH . $fileName; // NOSONAR - WP compatible.
+    private function require_file_path( $function_name, $file_name ) {
+        if ( ! function_exists( $function_name ) && defined( 'WP_ROCKET_FUNCTIONS_PATH' ) ) {
+            require_once WP_ROCKET_FUNCTIONS_PATH . $file_name; // NOSONAR - WP compatible.
         }
     }
 
     /**
-     * Method purge_cache_all()
+     * Method preload_purge_cache_all()
      *
      * Purge all cache.
      *
@@ -552,7 +583,7 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Action result.
      */
-    public function purge_cache_all() {
+    public function preload_purge_cache_all() {
         if ( function_exists( 'rocket_clean_domain' ) || function_exists( 'rocket_clean_minify' ) || function_exists( 'create_rocket_uniqid' ) ) {
             set_transient( 'rocket_clear_cache', 'all', HOUR_IN_SECONDS );
 
@@ -582,8 +613,10 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
             update_option( WP_ROCKET_SLUG, $options );
             rocket_dismiss_box( 'rocket_warning_plugin_modification' );
 
-            return array( 'result' => 'SUCCESS' );
+            // call preload cache.
+            $this->preload_cache();
 
+            return array( 'result' => 'SUCCESS' );
         } else {
             return array( 'error' => 'function_not_exist' );
         }
@@ -616,11 +649,13 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
             delete_transient( 'rocket_preload_errors' );
             run_rocket_bot( 'cache-preload', '' );
             run_rocket_sitemap_preload();
+
             return array( 'result' => 'SUCCESS' );
         } else {
             // Preload cache.
             run_rocket_bot();
             run_rocket_sitemap_preload();
+
             return array( 'result' => 'SUCCESS' );
         }
     }
@@ -677,7 +712,6 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
 
             $sitemap_preload->critical_css->process_handler();
         } else {
-
             $filesystem        = \rocket_direct_filesystem();
             $options           = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
             $options_data      = new \WP_Rocket\Admin\Options_Data( $options->get( 'settings', array() ) );
@@ -722,6 +756,19 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
             $this->optimize_database();
         }
         // phpcs:enable
+        return array( 'result' => 'SUCCESS' );
+    }
+
+
+    /**
+     * [Description for update_exclusion_list]
+     *
+     * @return array
+     */
+    public function update_exclusion_list() {
+        // Call cron by rocket update dynamic lists.
+        wp_schedule_event( time(), 'five_seconds', 'rocket_update_dynamic_lists' );
+
         return array( 'result' => 'SUCCESS' );
     }
 
@@ -820,5 +867,33 @@ class MainWP_Child_WP_Rocket { //phpcs:ignore -- NOSONAR - multi methods.
             'result'  => 'SUCCESS',
             'options' => $options,
         );
+    }
+
+    /**
+     * Method clear_priority_elements()
+     *
+     * Clear all priority elements.
+     *
+     * @return array Status of the action.
+     */
+    public function clear_priority_elements() {
+        try {
+            // Check if the function exists.
+            if ( ! function_exists( 'wpm_apply_filters_typed' ) || ! function_exists( 'rocket_clean_domain' ) || ! function_exists( 'rocket_dismiss_box' ) ) {
+                return array( 'error' => 'function_not_exist' );
+            }
+            // Clear all priority elements.
+            $clean_filter = wpm_apply_filters_typed( 'array', 'rocket_performance_hints_clean_all', array() );
+            rocket_clean_domain();
+            rocket_dismiss_box( 'rocket_warning_plugin_modification' );
+            set_transient(
+                'rocket_performance_hints_clear_message',
+                $clean_filter
+            );
+
+            return array( 'result' => 'SUCCESS' );
+        } catch ( MainWP_Exception $e ) {
+            return array( 'error' => $e->getMessage() );
+        }
     }
 }
