@@ -1491,24 +1491,30 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private function update_seo_meta( $new_post_id, $post_custom ) {
 
-        $_seo_opengraph_image = isset( $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
-        $_seo_opengraph_image = current( $_seo_opengraph_image );
-        $_server_domain       = '';
-        $_server              = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
-        if ( preg_match( '/(https?:\/\/[^\/]+\/).+/', $_server, $matchs ) ) {
-            $_server_domain = isset( $matchs[1] ) ? $matchs[1] : '';
-        }
+        $_server_domain = '';
+        $_server        = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
 
-        // upload image if it on the server.
-        if ( ! empty( $_seo_opengraph_image ) && false !== strpos( $_seo_opengraph_image, $_server_domain ) ) {
-            try {
-                $upload = MainWP_Utility::upload_image( $_seo_opengraph_image ); // Upload image to WP.
-                if ( null !== $upload ) {
-                    update_post_meta( $new_post_id, \WPSEO_Meta::$meta_prefix . 'opengraph-image', $upload['url'] ); // Add the image to the post!
-                    update_post_meta( $new_post_id, \WPSEO_Meta::$meta_prefix . 'opengraph-image-id', $upload['id'] ); // Add the id image to the post!
+        $yseo_meta_images = array( '_yoast_wpseo_opengraph-image', '_yoast_wpseo_twitter-image' );
+
+        foreach ( $yseo_meta_images as $meta_images ) {
+            $_seo_image = isset( $post_custom[ $meta_images ] ) ? $post_custom[ $meta_images ] : array();
+            $_seo_image = current( $_seo_image );
+
+            if ( preg_match( '/(https?:\/\/[^\/]+\/).+/', $_server, $matchs ) ) {
+                $_server_domain = isset( $matchs[1] ) ? $matchs[1] : '';
+            }
+
+            // upload image if it on the server.
+            if ( ! empty( $_seo_image ) && false !== strpos( $_seo_image, $_server_domain ) ) {
+                try {
+                    $upload = MainWP_Utility::upload_image( $_seo_image ); // Upload image to WP.
+                    if ( null !== $upload ) {
+                        update_post_meta( $new_post_id, $meta_images, $upload['url'] ); // Add the image to the post!
+                        update_post_meta( $new_post_id, $meta_images . '-id', $upload['id'] ); // Add the id image to the post!
+                    }
+                } catch ( MainWP_Exception $e ) {
+                    // ok!
                 }
-            } catch ( MainWP_Exception $e ) {
-                // ok!
             }
         }
     }
