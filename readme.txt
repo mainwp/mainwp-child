@@ -111,6 +111,10 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.3.2 - 12-26-2024 =
+
+* Updated: Compatibility with the latest WP Rocket plugin settings.
+
 = 5.3.1 - 12-12-2024 =
 
 * Fixed: Typo in the MainWP Child plugin settings page ([#426](https://github.com/mainwp/mainwp-child/pull/426)) - thanks to [Isaac Russell](https://github.com/sisaacrussell)
