@@ -87,7 +87,6 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         }
 
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
-        add_filter( 'cron_schedules', array( $this, 'add_five_seconds_cron_interval' ) ); //phpcs:ignore -- NOSONAR -ok.
         if ( 'hide' === get_option( 'mainwp_wprocket_hide_plugin' ) ) {
             add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
             add_action( 'admin_menu', array( $this, 'remove_menu' ) );
@@ -212,19 +211,6 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         return $information;
     }
 
-
-    /**
-     * [Hook add filter for add_five_seconds_cron_interval]
-     *
-     * @return array
-     */
-    public function add_five_seconds_cron_interval() {
-        $schedules['five_seconds'] = array(
-            'interval' => 5,
-            'display'  => esc_html__( 'Every Five Seconds' ),
-        );
-        return $schedules;
-    }
 
     /**
      * Method remove_notices()
@@ -767,7 +753,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
      */
     public function update_exclusion_list() {
         // Call cron by rocket update dynamic lists.
-        wp_schedule_event( time(), 'five_seconds', 'rocket_update_dynamic_lists' );
+        wp_schedule_single_event( time() + 10, 'rocket_update_dynamic_lists' );
 
         return array( 'result' => 'SUCCESS' );
     }
