@@ -115,7 +115,6 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 * Fixed: Incorrect feedback message displayed when running updates.
 * Fixed: Issue causing WP Cron scheduled events to fail.
-* Added: Support for one-click plugin and theme exclusions for the WP Rocket JS delay option.
 
 = 5.3.2 - 12-26-2024 =
 
