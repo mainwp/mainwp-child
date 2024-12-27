@@ -1070,7 +1070,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         $purge_result = array();
 
         if ( 1 === (int) $do_purge ) {
-            $purge_result = MainWP_Child_WP_Rocket::instance()->purge_cache_all();
+            $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
         }
 
         // Record results & return response.
