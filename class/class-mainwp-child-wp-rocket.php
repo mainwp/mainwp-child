@@ -869,11 +869,8 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         $old_values = get_option( WP_ROCKET_SLUG );
 
         $defaults_fields = $this->get_rocket_default_options();
-        foreach ( $old_values as $field => $value ) {
-            if ( 'delay_js_exclusions_selected' === $field && ! empty( $value ) ) {
-                $value = array_merge( ...array_values( $value ) ); // Map value.
-            }
 
+        foreach ( $old_values as $field => $value ) {
             if ( ! isset( $defaults_fields[ $field ] ) ) {
                 $options[ $field ] = $value;
             }
