@@ -192,6 +192,24 @@ class MainWP_WordPress_SEO {
             'new_taxonomies',
         );
 
+        // List of keys that bBoolean fields.
+        $custom_value_lists = array(
+            'noindex-post',
+            'noindex-page',
+            'noindex-tax-category',
+            'stripcategorybase',
+            'noindex-tax-post_tag',
+            'noindex-author-noposts-wpseo',
+            'noindex-author-wpseo',
+            'disable-author',
+            'disable-date',
+            'noindex-archive-wpseo',
+            'noindex-tax-post_format',
+            'disable-post_format',
+            'disable-attachment',
+            'noindex-attachment',
+        );
+
         // Save wpSeo config value.
         foreach ( $options as $k_option => $option ) {
             $option_values = \WPSEO_Options::get_options( array( $k_option ) );
@@ -200,19 +218,24 @@ class MainWP_WordPress_SEO {
             }
 
             foreach ( $option as $k_item => $item ) {
+                // Add new value true or false for list of index.
+                if ( in_array( $k_item, $custom_value_lists, true ) ) {
+                    $item = '' === $item ? true : false;
+                }
+
                 if ( ! isset( $option_values[ $k_item ] ) || empty( $item ) ) {
                     continue; // Ignore if this key is not present in the option value.
                 }
-                $value = $item;
+
                 if ( in_array( $k_item, $special_keys, true ) ) {
-                    $value = ! empty( $item ) ? array_values( array_unique( array_filter( $item ) ) ) : array();
+                    $item = ! empty( $item ) ? array_values( array_unique( array_filter( $item ) ) ) : array();
                 }
                 switch ( $k_item ) {
                     case 'og_default_image':
                     case 'company_logo':
                     case 'person_logo':
                     case 'open_graph_frontpage_image':
-                        $image = $this->wpseo_upload_image( $value );
+                        $image = $this->wpseo_upload_image( $item );
                         if ( ! empty( $image ) ) {
                             \WPSEO_Options::set( $k_item, $image['url'], $k_option );
                             \WPSEO_Options::set( $k_item . '_id', $image['id'], $k_option );
@@ -224,10 +247,10 @@ class MainWP_WordPress_SEO {
                     case 'breadcrumbs-prefix':
                     case 'breadcrumbs-searchprefix':
                     case 'breadcrumbs-sep':
-                        \WPSEO_Options::set( $k_item, html_entity_decode( $value ), $k_option );
+                        \WPSEO_Options::set( $k_item, html_entity_decode( $item ), $k_option );
                         break;
                     default:
-                        \WPSEO_Options::set( $k_item, $value, $k_option );
+                        \WPSEO_Options::set( $k_item, $item, $k_option );
                         break;
                 }
             }
