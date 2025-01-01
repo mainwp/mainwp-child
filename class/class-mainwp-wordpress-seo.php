@@ -223,7 +223,7 @@ class MainWP_WordPress_SEO {
                     $item = '' === $item ? true : false;
                 }
 
-                if ( ! isset( $option_values[ $k_item ] ) || empty( $item ) ) {
+                if ( ! isset( $option_values[ $k_item ] ) || '' === $item ) {
                     continue; // Ignore if this key is not present in the option value.
                 }
 
