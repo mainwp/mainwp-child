@@ -155,20 +155,21 @@ class MainWP_WordPress_SEO {
      * @uses \WPSEO_Options::set()
      * @uses \WPSEO_Options::get_options()
      * @uses \WPSEO_Utils::clear_cache()
+     * @uses \WPSEO_Sitemaps_Cache::clear()
+     * @uses \WPSEO_Options::ensure_options_exist()
      *
      * @return array Action result.
      */
     public function save_settings() {  // phpcs:ignore -- NOSONAR 
         // phpcs:disable WordPress.Security.NonceVerification.Missing
-        $options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
         if ( ! is_array( $options ) || empty( $options ) ) {
             return array( 'error' => 'INVALID_OPTIONS' );
         }
-        // Save blogdescriptionb.
+
+        // Save blogdescription.
         if ( isset( $options['wpseo_titles']['blogdescription'] ) ) {
-            if ( ! empty( $options['wpseo_titles']['blogdescription'] ) ) {
-                update_option( 'blogdescription', $options['wpseo_titles']['blogdescription'] );
-            }
+            update_option( 'blogdescription', $options['wpseo_titles']['blogdescription'] );
             unset( $options['wpseo_titles']['blogdescription'] );
         }
 
@@ -223,23 +224,24 @@ class MainWP_WordPress_SEO {
                     $item = '' === $item ? true : false;
                 }
 
-                if ( ! isset( $option_values[ $k_item ] ) || '' === $item ) {
+                if ( ! isset( $option_values[ $k_item ] ) ) {
                     continue; // Ignore if this key is not present in the option value.
                 }
 
                 if ( in_array( $k_item, $special_keys, true ) ) {
                     $item = ! empty( $item ) ? array_values( array_unique( array_filter( $item ) ) ) : array();
                 }
+
                 switch ( $k_item ) {
                     case 'og_default_image':
                     case 'company_logo':
                     case 'person_logo':
                     case 'open_graph_frontpage_image':
-                        $image = $this->wpseo_upload_image( $item );
-                        if ( ! empty( $image ) ) {
-                            \WPSEO_Options::set( $k_item, $image['url'], $k_option );
-                            \WPSEO_Options::set( $k_item . '_id', $image['id'], $k_option );
-                        }
+                        $image     = $this->wpseo_upload_image( $item );
+                        $image_url = ! empty( $image ) ? $image['url'] : '';
+                        $image_id  = ! empty( $image ) ? $image['id'] : '';
+                        \WPSEO_Options::set( $k_item, $image_url, $k_option );
+                        \WPSEO_Options::set( $k_item . '_id', $image_id, $k_option );
                         break;
                     case 'breadcrumbs-404crumb':
                     case 'breadcrumbs-archiveprefix':
@@ -255,10 +257,13 @@ class MainWP_WordPress_SEO {
                 }
             }
         }
-        // Clear cache so the changes are obvious.
-        \WPSEO_Utils::clear_cache();
+
+        \WPSEO_Utils::clear_cache(); // Clear cache so the changes are obvious.
+        \WPSEO_Sitemaps_Cache::clear(); // Flush the sitemap cache.
+        \WPSEO_Options::ensure_options_exist(); // Make sure all our options always exist - issue #1245.
+
         return array( 'result' => 'SUCCESS' );
-        // phpcs:disable WordPress.Security.NonceVerification.Missing
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
     }
     /**
      * Import the Yoast SEO plugin settings.
@@ -270,7 +275,7 @@ class MainWP_WordPress_SEO {
      * @throws MainWP_Exception Error message.
      */
     public function import_settings() { //phpcs:ignore -- NOSONAR - complex.
-        // phpcs:disable WordPress.Security.NonceVerification
+    // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['file_url'] ) ) {
             $file_url       = ! empty( $_POST['file_url'] ) ? sanitize_text_field( base64_decode( wp_unslash( $_POST['file_url'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
             $temporary_file = '';
@@ -322,7 +327,7 @@ class MainWP_WordPress_SEO {
                 $information['error'] = $e->getMessage();
             }
         }
-        // phpcs:enable
+    // phpcs:enable
         MainWP_Helper::write( $information );
     }
 
@@ -468,6 +473,9 @@ class MainWP_WordPress_SEO {
      * @throws MainWP_Exception Error message.
      */
     public function wpseo_upload_image( $img_url ) {
+        if ( empty( $img_url ) ) {
+            return null;
+        }
         include_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -- WP compatible.
         include_once ABSPATH . 'wp-admin/includes/image.php'; // NOSONAR -- To process metadata for images.
 
