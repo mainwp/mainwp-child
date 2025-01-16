@@ -43,11 +43,11 @@ class MainWP_WordPress_SEO {
      */
     public $import_error = '';
 
-        /**
-         * Public variable to hold the information if the WP Seo plugin is installed on the child site.
-         *
-         * @var bool If WP Seo installed, return true, if not, return false.
-         */
+    /**
+     * Public variable to hold the information if the WP Seo plugin is installed on the child site.
+     *
+     * @var bool If WP Seo installed, return true, if not, return false.
+     */
     public $is_plugin_installed = false;
 
     /**
@@ -237,6 +237,7 @@ class MainWP_WordPress_SEO {
                     case 'company_logo':
                     case 'person_logo':
                     case 'open_graph_frontpage_image':
+                    case 'og_frontpage_image':
                         $image     = $this->wpseo_upload_image( $item );
                         $image_url = ! empty( $image ) ? $image['url'] : '';
                         $image_id  = ! empty( $image ) ? $image['id'] : '';
@@ -275,7 +276,7 @@ class MainWP_WordPress_SEO {
      * @throws MainWP_Exception Error message.
      */
     public function import_settings() { //phpcs:ignore -- NOSONAR - complex.
-    // phpcs:disable WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['file_url'] ) ) {
             $file_url       = ! empty( $_POST['file_url'] ) ? sanitize_text_field( base64_decode( wp_unslash( $_POST['file_url'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
             $temporary_file = '';
@@ -327,7 +328,7 @@ class MainWP_WordPress_SEO {
                 $information['error'] = $e->getMessage();
             }
         }
-    // phpcs:enable
+        // phpcs:enable
         MainWP_Helper::write( $information );
     }
 
