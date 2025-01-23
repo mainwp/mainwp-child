@@ -240,9 +240,17 @@ class MainWP_WordPress_SEO {
                     case 'og_frontpage_image':
                         $image     = $this->wpseo_upload_image( $item );
                         $image_url = ! empty( $image ) ? $image['url'] : '';
-                        $image_id  = ! empty( $image ) ? $image['id'] : '';
+                        $image_id  = ! empty( $image ) ? $image['id'] : 0;
                         \WPSEO_Options::set( $k_item, $image_url, $k_option );
-                        \WPSEO_Options::set( $k_item . '_id', $image_id, $k_option );
+                        \WPSEO_Options::set( $k_item . '_id', (int) $image_id, $k_option );
+
+                        if ( in_array( $k_item, array( 'company_logo', 'person_logo' ), true ) ) {
+                            \WPSEO_Options::set( $k_item . '_meta', false, $k_option );
+                            $meta = $this->get_attachment_meta_from_settings( $k_item );
+                            if ( $meta ) {
+                                \WPSEO_Options::set( $k_item . '_meta', $meta, $k_option );
+                            }
+                        }
                         break;
                     case 'breadcrumbs-404crumb':
                     case 'breadcrumbs-archiveprefix':
@@ -801,5 +809,56 @@ class MainWP_WordPress_SEO {
             }
         }
         return false;
+    }
+    /**
+     * Based on and image ID return array with the best variation of that image. If it's not saved to the DB,  save it
+     * to an option.
+     *
+     * @param string $setting The setting name. Should be company or person.
+     *
+     * @uses WPSEO_Options::set()
+     *
+     * @return array|bool Array with image details when the image is found, boolean when it's not found.
+     */
+    public function get_attachment_meta_from_settings( $setting ) {
+        $image_meta = \WPSEO_Options::get( $setting . '_meta', false );
+        if ( ! $image_meta ) {
+            $image_id = \WPSEO_Options::get( $setting . '_id', false );
+            if ( $image_id ) {
+                // There is not an option to put a URL in an image field in the settings anymore, only to upload it through the media manager.
+                // This means an attachment always exists, so doing this is only needed once.
+                $image_meta = $this->get_best_attachment_variation( $image_id );
+                if ( $image_meta ) {
+                    \WPSEO_Options::set( $setting . '_meta', $image_meta );
+                }
+            }
+        }
+
+        return $image_meta;
+    }
+
+    /**
+     * Retrieves the best attachment variation for the given attachment.
+     *
+     * @codeCoverageIgnore - We have to write test when this method contains own code.
+     *
+     * @param int $attachment_id The attachment id.
+     *
+     * @uses WPSEO_Image_Utils::get_variations()
+     * @uses WPSEO_Image_Utils::filter_usable_file_size()
+     *
+     * @return bool|string The attachment url or false when no variations found.
+     */
+    public function get_best_attachment_variation( $attachment_id ) {
+        $variations = \WPSEO_Image_Utils::get_variations( $attachment_id );
+        $variations = \WPSEO_Image_Utils::filter_usable_file_size( $variations );
+
+        // If we are left without variations, there is no valid variation for this attachment.
+        if ( empty( $variations ) ) {
+            return false;
+        }
+
+        // The variations are ordered so the first variations is by definition the best one.
+        return \reset( $variations );
     }
 }
