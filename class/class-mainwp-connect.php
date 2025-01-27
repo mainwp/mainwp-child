@@ -267,10 +267,11 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $is_dash_version_older_than_ver53 = empty( $_POST['mainwpver'] ) || version_compare( $_POST['mainwpver'], '5.3', '<' ) ? true : false;
 
-        if ( empty( $reg_verify ) && $this->is_never_verify_register( $user_name ) && $is_dash_version_older_than_ver53 ) {
-            // set it is valid one time.
-            return true;
+        if ( empty( $reg_verify ) && $is_dash_version_older_than_ver53 ) {
+            MainWP_Helper::instance()->error( esc_html__( 'Your current MainWP Dashboard version is not compatible with the new connection protocol. To add a site using Password Authentication, please update the MainWP Dashboard to the latest version.', 'mainwp-child' ), 'REG_ERROR10' );
+            return false;
         }
+
         //phpcs:enable WordPress.Security.NonceVerification
 
         $is_valid_regis = $this->validate_register( $reg_verify, 'verify', $user_name );
@@ -379,26 +380,6 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             'secure'   => MainWP_Helper::rand_str_key(),
             'hash_key' => hash_hmac( 'sha256', $key, 'register-verify' ),
         );
-    }
-
-    /**
-     * Method is_never_verify_register()
-     *
-     * @param  string $user_name Admin login name.
-     *
-     * @return bool ture|false.
-     */
-    public function is_never_verify_register( $user_name ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-        $user = get_user_by( 'login', $user_name );
-        if ( $user && ! empty( $user->ID ) ) {
-            $_values      = get_user_option( 'mainwp_child_user_verified_registers', $user->ID );
-            $saved_values = ! empty( $_values ) ? json_decode( $_values, true ) : array();
-            if ( ! is_array( $saved_values ) ) {
-                $saved_values = array();
-            }
-            return empty( $saved_values ) ? true : false;
-        }
-        return false;
     }
 
     /**

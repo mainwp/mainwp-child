@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 5.3.3
+Stable tag: 5.3.4
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,9 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.3.4 - 1-27-2025 =
+* Security Fix: Improved authentication security to ensure password verification cannot be bypassed on sites where the MainWP Child plugin is active but not connected to a Dashboard and not set to require Unique Security ID verification.
 
 = 5.3.3 - 12-27-2024 =
 
