@@ -869,6 +869,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         $old_values = get_option( WP_ROCKET_SLUG );
 
         $defaults_fields = $this->get_rocket_default_options();
+
         foreach ( $old_values as $field => $value ) {
             if ( ! isset( $defaults_fields[ $field ] ) ) {
                 $options[ $field ] = $value;
