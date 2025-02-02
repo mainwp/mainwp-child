@@ -66,6 +66,16 @@ class MainWP_Child_Aam {
     }
 
     /**
+     * Initialize hooks
+     *
+     * @return void
+     * @access public
+     */
+    public function init() {
+        add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
+    }
+
+    /**
      * MainWP_Child_Aam constructor.
      *
      * Run any time class is called.
@@ -80,8 +90,6 @@ class MainWP_Child_Aam {
         if ( ! $this->is_plugin_installed ) {
             return;
         }
-
-        add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
     }
 
     /**
@@ -101,7 +109,7 @@ class MainWP_Child_Aam {
 
                 // Get list of data point we would like to fetch.
                 foreach ( $data['aam'] as $data_point ) {
-                    $method = 'get_' . $data_point;
+                    $method = 'fetch_' . $data_point;
 
                     if ( method_exists( $this, $method ) ) {
                         $aam_info[ $data_point ] = $this->{$method}();
@@ -121,9 +129,9 @@ class MainWP_Child_Aam {
      * Get security audit score
      *
      * @return int|null
-     * @access private
+     * @access protected
      */
-    private function get_security_score() {
+    protected function fetch_security_score() {
         return get_option( AAM_Service_SecurityAudit::DB_SCOPE_OPTION, null );
     }
 
@@ -131,9 +139,9 @@ class MainWP_Child_Aam {
      * Get report summary
      *
      * @return array
-     * @access private
+     * @access protected
      */
-    private function get_issues_summary() {
+    protected function fetch_issues_summary() {
         $result = array();
         $report = get_option( AAM_Service_SecurityAudit::DB_OPTION, array() );
 
