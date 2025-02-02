@@ -99,9 +99,9 @@ class MainWP_Child_Aam {
             try {
                 $aam_info = [];
 
-                // Get list of data point we would like to fetch
+                // Get list of data point we would like to fetch.
                 foreach($data['aam'] as $data_point) {
-                    $method = '_get_' . $data_point;
+                    $method = 'get_' . $data_point;
 
                     if (method_exists( $this, $method )) {
                         $aam_info[$data_point] = $this->{$method}();
@@ -123,7 +123,7 @@ class MainWP_Child_Aam {
      * @return int|null
      * @access private
      */
-    private function _get_security_score() {
+    private function get_security_score() {
         return get_option( AAM_Service_SecurityAudit::DB_SCOPE_OPTION, null );
     }
 
@@ -133,7 +133,7 @@ class MainWP_Child_Aam {
      * @return array
      * @access private
      */
-    private function _get_issues_summary() {
+    private function get_issues_summary() {
         $result = [];
         $report = get_option( AAM_Service_SecurityAudit::DB_OPTION, [] );
 
