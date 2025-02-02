@@ -95,16 +95,16 @@ class MainWP_Child_Aam {
      * @return array $information An array of available clones.
      */
     public function sync_others_data( $information, $data = array() ) {
-        if ( !empty( $data['aam'] ) ) {
+        if ( ! empty( $data['aam'] ) ) {
             try {
-                $aam_info = [];
+                $aam_info = array();
 
                 // Get list of data point we would like to fetch.
-                foreach($data['aam'] as $data_point) {
+                foreach( $data['aam'] as $data_point ) {
                     $method = 'get_' . $data_point;
 
-                    if (method_exists( $this, $method )) {
-                        $aam_info[$data_point] = $this->{$method}();
+                    if ( method_exists( $this, $method ) ) {
+                        $aam_info[ $data_point ] = $this->{$method}();
                     }
                 }
 
@@ -134,25 +134,24 @@ class MainWP_Child_Aam {
      * @access private
      */
     private function get_issues_summary() {
-        $result = [];
-        $report = get_option( AAM_Service_SecurityAudit::DB_OPTION, [] );
+        $result = array();
+        $report = get_option( AAM_Service_SecurityAudit::DB_OPTION, array() );
 
-        if (is_array( $report )) {
-            $result = [
+        if ( is_array( $report ) ) {
+            $result = array(
                 'error'    => 0,
                 'notice'   => 0,
                 'warning'  => 0,
-                'critical' => 0
-            ];
+                'critical' => 0,
+            );
 
-            foreach($report as $group) {
-                foreach($group['issues'] as $issue) {
-                    $result[$issue['type']]++;
+            foreach( $report as $group ) {
+                foreach( $group['issues'] as $issue ) {
+                    ++$result[ $issue['type'] ];
                 }
             }
         }
 
         return $result;
     }
-
 }
