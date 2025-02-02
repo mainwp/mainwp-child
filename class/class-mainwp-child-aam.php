@@ -100,7 +100,7 @@ class MainWP_Child_Aam {
                 $aam_info = array();
 
                 // Get list of data point we would like to fetch.
-                foreach( $data['aam'] as $data_point ) {
+                foreach ( $data['aam'] as $data_point ) {
                     $method = 'get_' . $data_point;
 
                     if ( method_exists( $this, $method ) ) {
@@ -145,8 +145,8 @@ class MainWP_Child_Aam {
                 'critical' => 0,
             );
 
-            foreach( $report as $group ) {
-                foreach( $group['issues'] as $issue ) {
+            foreach ( $report as $group ) {
+                foreach ( $group['issues'] as $issue ) {
                     ++$result[ $issue['type'] ];
                 }
             }
