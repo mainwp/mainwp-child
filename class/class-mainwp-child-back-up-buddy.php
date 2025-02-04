@@ -2294,7 +2294,7 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         $profile_array   = \pb_backupbuddy::$options['profiles'][ $requested_profile ];
         $serial_override = \pb_backupbuddy::random_string( 10 );
 
-        if ( true !== $newBackup->start_backup_process( $profile_array, 'manual', array(), isset( $_POST['post_backup_steps'] ) && is_array( $_POST['post_backup_steps'] ) ? wp_unslash( $_POST['post_backup_steps'] ) : array(), '', $serial_override, '', '', '' ) ) {
+        if ( true !== $newBackup->start_backup_process( $profile_array, 'manual', array(), isset( $_POST['post_backup_steps'] ) && is_array( $_POST['post_backup_steps'] ) ? wp_unslash( $_POST['post_backup_steps'] ) : array(), '', $serial_override, array(), '', '' ) ) {
             return array( 'error' => esc_html__( 'Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'mainwp-child' ) );
         }
         return array( 'result' => 'SUCCESS' );
