@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 5.3.4
+Stable tag: 5.3.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -111,7 +111,14 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.3.5 - 2-6-2025 =
+
+* Added: [Pull Request #441](https://github.com/mainwp/mainwp-child/pull/441) by [aamplugin](https://github.com/aamplugin) for future AAM integration.
+* Added: Support of the "Delay JavaScript Execution" WP Rocket option.
+* Updated: Improved the Security Hardening check to better detect if WP_DEBUG is enabled.
+
 = 5.3.4 - 1-27-2025 =
+
 * Security Fix: Improved authentication security to ensure password verification cannot be bypassed on sites where the MainWP Child plugin is active but not connected to a Dashboard and not set to require Unique Security ID verification.
 
 = 5.3.3 - 12-27-2024 =

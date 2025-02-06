@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.3.4'; // NOSONAR - not IP.
+    public static $version = '5.3.5'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -412,6 +412,7 @@ class MainWP_Child {
      * @uses \MainWP\Child\MainWP_Child_Pagespeed::init()
      * @uses \MainWP\Child\MainWP_Child_Links_Checker::init()
      * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::init()
+     * @uses \MainWP\Child\MainWP_Child_Aam::instance()
      */
     private function parse_init_extensions() {
         MainWP_Child_Branding::instance()->branding_init();
@@ -431,6 +432,7 @@ class MainWP_Child {
         MainWP_Child_DB_Updater::instance();
         MainWP_Child_Jetpack_Protect::instance();
         MainWP_Child_Jetpack_Scan::instance();
+        MainWP_Child_Aam::instance()->init();
         MainWP_Custom_Post_Type::instance();
     }
 

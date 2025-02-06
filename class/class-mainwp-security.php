@@ -702,8 +702,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * Check WP Config and check if debugging is disabled.
      */
     public static function debug_disabled_ok() {
-        $ok = ! defined( 'WP_DEBUG' ) || ! WP_DEBUG;
-        $ok = $ok && ( ! defined( 'WP_DEBUG_LOG' ) || ! WP_DEBUG_LOG );
-        return $ok;
+        return ! defined( 'WP_DEBUG' ) || ! WP_DEBUG;
     }
 }
