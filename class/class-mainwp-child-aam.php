@@ -86,10 +86,6 @@ class MainWP_Child_Aam {
         if ( is_plugin_active( 'advanced-access-manager/aam.php' ) && defined( 'AAM_KEY' ) ) {
             $this->is_plugin_installed = true;
         }
-
-        if ( ! $this->is_plugin_installed ) {
-            return;
-        }
     }
 
     /**
@@ -103,7 +99,7 @@ class MainWP_Child_Aam {
      * @return array $information An array of available clones.
      */
     public function sync_others_data( $information, $data = array() ) {
-        if ( ! empty( $data['aam'] ) ) {
+        if ( ! empty( $data['aam'] ) && class_exists( '\AAM_Service_SecurityAudit' ) ) {
             try {
                 $aam_info = array();
 
