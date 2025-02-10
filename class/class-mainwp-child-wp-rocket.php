@@ -294,7 +294,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         $active_theme = $this->get_active_theme();
 
-        $themes_list = empty( $list->themes ) ? (array) $list->themes : array();
+        $themes_list = ! empty( $list->themes ) ? (array) $list->themes : array();
 
         foreach ( $themes_list as $theme_key => $theme ) {
             if ( $theme->condition !== $active_theme ) {
