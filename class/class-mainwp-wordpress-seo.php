@@ -44,6 +44,13 @@ class MainWP_WordPress_SEO {
     public $import_error = '';
 
     /**
+     * Public variable to hold the information if the WP Seo plugin is installed on the child site.
+     *
+     * @var bool If WP Seo installed, return true, if not, return false.
+     */
+    public $is_plugin_installed = false;
+
+    /**
      * Method instance()
      *
      * Create a public static instance.
@@ -65,6 +72,10 @@ class MainWP_WordPress_SEO {
      */
     public function __construct() {
 
+        if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) ) {
+            $this->is_plugin_installed = true;
+        }
+
         /**
          * Object, providing access to the WordPress database.
          *
@@ -72,7 +83,33 @@ class MainWP_WordPress_SEO {
          */
         global $wpdb;
         $this->import_error = __( 'Settings could not be imported.', 'mainwp-child' );
+        $this->init();
     }
+
+    /**
+     * Method init()
+     *
+     * Initiate action hooks.
+     *
+     * @return void
+     */
+    public function init() {
+        if ( ! $this->is_plugin_installed ) {
+            return;
+        }
+
+        if ( 'hide' === get_option( 'mainwp_wpseo_hide_plugin' ) ) {
+            add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
+            add_action( 'admin_menu', array( $this, 'remove_menu' ) );
+            add_action( 'wp_before_admin_bar_render', array( $this, 'wp_before_admin_bar_render' ), 99 );
+            add_action( 'add_meta_boxes', array( $this, 'remove_metaboxes' ), 20 );
+            add_action( 'wp_dashboard_setup', array( $this, 'remove_dashboard_widgets' ), 20 );
+            add_filter( 'site_transient_update_plugins', array( &$this, 'remove_update_nag' ) );
+            add_filter( 'mainwp_child_hide_update_notice', array( &$this, 'hide_update_notice' ) );
+            add_action( 'admin_init', array( $this, 'remove_notices' ) );
+        }
+    }
+
 
     /**
      * Fire off certain Yoast SEP plugin actions.
@@ -96,6 +133,9 @@ class MainWP_WordPress_SEO {
                     case 'save_settings':
                         $information = $this->save_settings();
                         break;
+                    case 'set_showhide':
+                        $information = $this->set_showhide();
+                        break;
                     default:
                         break;
                 }
@@ -115,20 +155,21 @@ class MainWP_WordPress_SEO {
      * @uses \WPSEO_Options::set()
      * @uses \WPSEO_Options::get_options()
      * @uses \WPSEO_Utils::clear_cache()
+     * @uses \WPSEO_Sitemaps_Cache::clear()
+     * @uses \WPSEO_Options::ensure_options_exist()
      *
      * @return array Action result.
      */
     public function save_settings() {  // phpcs:ignore -- NOSONAR 
         // phpcs:disable WordPress.Security.NonceVerification.Missing
-        $options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible.
         if ( ! is_array( $options ) || empty( $options ) ) {
             return array( 'error' => 'INVALID_OPTIONS' );
         }
-        // Save blogdescriptionb.
+
+        // Save blogdescription.
         if ( isset( $options['wpseo_titles']['blogdescription'] ) ) {
-            if ( ! empty( $options['wpseo_titles']['blogdescription'] ) ) {
-                update_option( 'blogdescription', $options['wpseo_titles']['blogdescription'] );
-            }
+            update_option( 'blogdescription', $options['wpseo_titles']['blogdescription'] );
             unset( $options['wpseo_titles']['blogdescription'] );
         }
 
@@ -152,6 +193,24 @@ class MainWP_WordPress_SEO {
             'new_taxonomies',
         );
 
+        // List of keys that bBoolean fields.
+        $custom_value_lists = array(
+            'noindex-post',
+            'noindex-page',
+            'noindex-tax-category',
+            'stripcategorybase',
+            'noindex-tax-post_tag',
+            'noindex-author-noposts-wpseo',
+            'noindex-author-wpseo',
+            'disable-author',
+            'disable-date',
+            'noindex-archive-wpseo',
+            'noindex-tax-post_format',
+            'disable-post_format',
+            'disable-attachment',
+            'noindex-attachment',
+        );
+
         // Save wpSeo config value.
         foreach ( $options as $k_option => $option ) {
             $option_values = \WPSEO_Options::get_options( array( $k_option ) );
@@ -160,22 +219,37 @@ class MainWP_WordPress_SEO {
             }
 
             foreach ( $option as $k_item => $item ) {
-                if ( ! isset( $option_values[ $k_item ] ) || empty( $item ) ) {
+                // Add new value true or false for list of index.
+                if ( in_array( $k_item, $custom_value_lists, true ) ) {
+                    $item = '' === $item ? true : false;
+                }
+
+                if ( ! isset( $option_values[ $k_item ] ) ) {
                     continue; // Ignore if this key is not present in the option value.
                 }
-                $value = $item;
+
                 if ( in_array( $k_item, $special_keys, true ) ) {
-                    $value = ! empty( $item ) ? array_values( array_unique( array_filter( $item ) ) ) : array();
+                    $item = ! empty( $item ) ? array_values( array_unique( array_filter( $item ) ) ) : array();
                 }
+
                 switch ( $k_item ) {
                     case 'og_default_image':
                     case 'company_logo':
                     case 'person_logo':
                     case 'open_graph_frontpage_image':
-                        $image = $this->wpseo_upload_image( $value );
-                        if ( ! empty( $image ) ) {
-                            \WPSEO_Options::set( $k_item, $image['url'], $k_option );
-                            \WPSEO_Options::set( $k_item . '_id', $image['id'], $k_option );
+                    case 'og_frontpage_image':
+                        $image     = $this->wpseo_upload_image( $item );
+                        $image_url = ! empty( $image ) ? $image['url'] : '';
+                        $image_id  = ! empty( $image ) ? $image['id'] : 0;
+                        \WPSEO_Options::set( $k_item, $image_url, $k_option );
+                        \WPSEO_Options::set( $k_item . '_id', (int) $image_id, $k_option );
+
+                        if ( in_array( $k_item, array( 'company_logo', 'person_logo' ), true ) ) {
+                            \WPSEO_Options::set( $k_item . '_meta', false, $k_option );
+                            $meta = $this->get_attachment_meta_from_settings( $k_item );
+                            if ( $meta ) {
+                                \WPSEO_Options::set( $k_item . '_meta', $meta, $k_option );
+                            }
                         }
                         break;
                     case 'breadcrumbs-404crumb':
@@ -184,18 +258,21 @@ class MainWP_WordPress_SEO {
                     case 'breadcrumbs-prefix':
                     case 'breadcrumbs-searchprefix':
                     case 'breadcrumbs-sep':
-                        \WPSEO_Options::set( $k_item, html_entity_decode( $value ), $k_option );
+                        \WPSEO_Options::set( $k_item, html_entity_decode( $item ), $k_option );
                         break;
                     default:
-                        \WPSEO_Options::set( $k_item, $value, $k_option );
+                        \WPSEO_Options::set( $k_item, $item, $k_option );
                         break;
                 }
             }
         }
-        // Clear cache so the changes are obvious.
-        \WPSEO_Utils::clear_cache();
+
+        \WPSEO_Utils::clear_cache(); // Clear cache so the changes are obvious.
+        \WPSEO_Sitemaps_Cache::clear(); // Flush the sitemap cache.
+        \WPSEO_Options::ensure_options_exist(); // Make sure all our options always exist - issue #1245.
+
         return array( 'result' => 'SUCCESS' );
-        // phpcs:disable WordPress.Security.NonceVerification.Missing
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
     }
     /**
      * Import the Yoast SEO plugin settings.
@@ -399,10 +476,15 @@ class MainWP_WordPress_SEO {
      * @uses \MainWP_Utility::instance()->check_image_file_name()
      * @uses \MainWP_Helper::move()
      *
+     * @users-by MainWP_WordPress_SEO::save_settings() - download file and save to option.
+     *
      * @return array An array containing the image information such as path and URL.
      * @throws MainWP_Exception Error message.
      */
     public function wpseo_upload_image( $img_url ) {
+        if ( empty( $img_url ) ) {
+            return null;
+        }
         include_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -- WP compatible.
         include_once ABSPATH . 'wp-admin/includes/image.php'; // NOSONAR -- To process metadata for images.
 
@@ -489,5 +571,294 @@ class MainWP_WordPress_SEO {
         );
 
         return $attachment_id ? (int) $attachment_id : null;
+    }
+
+    /**
+     * Method set_showhide()
+     *
+     * Hide or unhide the WP Seo plugin.
+     *
+     * @return array Action result.
+     *
+     * @used-by \MainWP\Child\MainWP_WordPress_SEO::actions() Fire off certain WP Seo plugin actions.
+     * @uses    \MainWP\Child\MainWP_Helper::update_option()
+     */
+    public function set_showhide() {
+        $hide = MainWP_System::instance()->validate_params( 'show_hide' );
+        MainWP_Helper::update_option( 'mainwp_wpseo_hide_plugin', $hide );
+        $information['result'] = 'SUCCESS';
+
+        return $information;
+    }
+
+    /**
+     * Method all_plugins()
+     *
+     * Remove the WP SEO plugin from the list of all plugins when the plugin is hidden.
+     *
+     * @param array $plugins Array containing all installed plugins.
+     *
+     * @return array $plugins Array containing all installed plugins without the WP SEO.
+     */
+    public function all_plugins( $plugins ) {
+        foreach ( $plugins as $key => $value ) {
+            $plugin_slug = basename( $key, '.php' );
+            if ( 'wp-seo' === $plugin_slug ) {
+                unset( $plugins[ $key ] );
+            }
+        }
+
+        return $plugins;
+    }
+
+    /**
+     * Method remove_menu()
+     *
+     * Remove the WP Seo menu item when the plugin is hidden.
+     */
+    public function remove_menu() {
+        // Hide "Yoast SEO".
+        remove_menu_page( 'wpseo_dashboard' );
+        // Hide "Yoast SEO → General".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_dashboard' );
+        // Hide "Yoast SEO → Settings".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_page_settings' );
+        // Hide "Yoast SEO → Integrations".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_integrations' );
+        // Hide "Yoast SEO → Tools".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_tools' );
+        // Hide "Yoast SEO → Academy".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_page_academy' );
+        // Hide "Yoast SEO → Upgrades".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_licenses' );
+        // Hide "Yoast SEO → Workouts".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_workouts' );
+        // Hide "Yoast SEO → Redirects".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_redirects' );
+        // Hide "Yoast SEO → Support".
+        remove_submenu_page( 'wpseo_dashboard', 'wpseo_page_support' );
+
+        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=wpseo_dashboard' ) : false;
+        if ( false !== $pos ) {
+            wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+            exit();
+        }
+    }
+
+    /**
+     * Method wp_before_admin_bar_render()
+     *
+     * Remove the WP Seo admin bar node when the plugin is hidden.
+     */
+    public function wp_before_admin_bar_render() {
+
+        /**
+         * WordPress admin bar array.
+         *
+         * @global array $wp_admin_bar WordPress admin bar array.
+         */
+        global $wp_admin_bar;
+
+        $nodes = $wp_admin_bar->get_nodes();
+        if ( is_array( $nodes ) ) {
+            foreach ( $nodes as $id => $node ) {
+                if ( strpos( $id, 'wpseo' ) === 0 ) {
+                    $wp_admin_bar->remove_node( $id );
+                }
+            }
+        }
+    }
+
+    /**
+     * Method remove_metaboxes()
+     *
+     * Remove the WP Seo metabox when the plugin is hidden.
+     */
+    public function remove_metaboxes() {
+        $screen = get_current_screen();
+        if ( ! $screen ) {
+            return;
+        }
+
+        // Hide the "Yoast SEO" meta box.
+        remove_meta_box( 'wpseo_meta', $screen->id, 'normal' );
+    }
+
+    /**
+     * Method remove_dashboard_widgets()
+     *
+     * Remove the WP Seo dashboard widgets when the plugin is hidden.
+     */
+    public function remove_dashboard_widgets() {
+        $screen = get_current_screen();
+        if ( ! $screen ) {
+            return;
+        }
+
+        // Remove the "Yoast SEO Posts Overview" widget.
+        remove_meta_box( 'wpseo-dashboard-overview', 'dashboard', 'normal' );
+        // Remove the "Yoast SEO / Wincher: Top Keyphrases" widget.
+        remove_meta_box( 'wpseo-wincher-dashboard-overview', 'dashboard', 'normal' );
+    }
+
+    /**
+     * Method remove_update_nag()
+     *
+     * Remove the WP Seo plugin update notice when the plugin is hidden.
+     *
+     * @param object $value Object containing update information.
+     *
+     * @return object $value Object containing update information.
+     *
+     * @uses \MainWP\Child\MainWP_Helper::is_updates_screen()
+     */
+    public function remove_update_nag( $value ) {
+        if ( MainWP_Helper::is_dashboard_request() ) {
+            return $value;
+        }
+
+        if ( ! MainWP_Helper::is_updates_screen() ) {
+            return $value;
+        }
+
+        if ( isset( $value->response['wordpress-seo/wp-seo.php'] ) ) {
+            unset( $value->response['wordpress-seo/wp-seo.php'] );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Method hide_update_notice()
+     *
+     * Remove the WP Seo plugin update notice when the plugin is hidden.
+     *
+     * @param array $slugs Array containing installed plugins slugs.
+     *
+     * @return array $slugs Array containing installed plugins slugs.
+     */
+    public function hide_update_notice( $slugs ) {
+        $slugs[] = 'wordpress-seo/wp-seo.php';
+        return $slugs;
+    }
+
+    /**
+     * Method remove_notices()
+     *
+     * Remove admin notices thrown by the WP Seo plugin when the plugin is hidden.
+     *
+     * @uses MainWP_Child_WP_SEO::remove_filters_with_method_name() Remove filters with method name.
+     */
+    public function remove_notices() {
+        $remove_hooks['admin_notices'] = array(
+            'yoast_wpseo_missing_spl_notice'               => 10,
+            'yoast_wpseo_missing_autoload_notice'          => 10,
+            'permalink_settings_notice'                    => 10,
+            'premium_deactivated_notice'                   => 10,
+            'display_notifications'                        => 10,
+            'first_time_configuration_notice'              => 10,
+            'throw_no_owned_addons_warning'                => 10,
+            'notify_not_installed'                         => 10,
+            'maybe_show_search_engines_discouraged_notice' => 10,
+            'renderMessage'                                => 10,
+            'render_migration_error'                       => 10,
+        );
+        foreach ( $remove_hooks as $hook_name => $hooks ) {
+            foreach ( $hooks as $method => $priority ) {
+                static::remove_filters_with_method_name( $hook_name, $method, $priority );
+            }
+        }
+    }
+
+    /**
+     * Method remove_filters_with_method_name()
+     *
+     * Remove filters with method name.
+     *
+     * @param string $hook_name   Contains the hook name.
+     * @param string $method_name Contains the method name.
+     * @param int    $priority    Contains the priority value.
+     *
+     * @used-by MainWP_Child_WP_SEO::remove_notices() Remove admin notices thrown by the WP SEO plugin when the plugin is hidden.
+     *
+     * @return bool Return false if filtr is not set.
+     */
+    public static function remove_filters_with_method_name( $hook_name = '', $method_name = '', $priority = 0 ) {
+
+        /**
+         * WordPress filter array.
+         *
+         * @global array $wp_filter WordPress filter array.
+         */
+        global $wp_filter;
+
+        // Take only filters on right hook name and priority.
+        if ( ! isset( $wp_filter[ $hook_name ][ $priority ] ) || ! is_array( $wp_filter[ $hook_name ][ $priority ] ) ) {
+            return false;
+        }
+        // Loop on filters registered.
+        foreach ( (array) $wp_filter[ $hook_name ][ $priority ] as $unique_id => $filter_array ) {
+            // Test if filter is an array ! (always for class/method).
+            if ( isset( $filter_array['function'] ) && is_array( $filter_array['function'] ) && is_object( $filter_array['function'][0] ) && get_class( $filter_array['function'][0] ) && $filter_array['function'][1] === $method_name ) {
+                // Test for WordPress >= 4.7 WP_Hook class.
+                if ( is_a( $wp_filter[ $hook_name ], 'WP_Hook' ) ) {
+                    unset( $wp_filter[ $hook_name ]->callbacks[ $priority ][ $unique_id ] );
+                } else {
+                    unset( $wp_filter[ $hook_name ][ $priority ][ $unique_id ] );
+                }
+            }
+        }
+        return false;
+    }
+    /**
+     * Based on and image ID return array with the best variation of that image. If it's not saved to the DB,  save it
+     * to an option.
+     *
+     * @param string $setting The setting name. Should be company or person.
+     *
+     * @uses WPSEO_Options::set()
+     *
+     * @return array|bool Array with image details when the image is found, boolean when it's not found.
+     */
+    public function get_attachment_meta_from_settings( $setting ) {
+        $image_meta = \WPSEO_Options::get( $setting . '_meta', false );
+        if ( ! $image_meta ) {
+            $image_id = \WPSEO_Options::get( $setting . '_id', false );
+            if ( $image_id ) {
+                // There is not an option to put a URL in an image field in the settings anymore, only to upload it through the media manager.
+                // This means an attachment always exists, so doing this is only needed once.
+                $image_meta = $this->get_best_attachment_variation( $image_id );
+                if ( $image_meta ) {
+                    \WPSEO_Options::set( $setting . '_meta', $image_meta );
+                }
+            }
+        }
+
+        return $image_meta;
+    }
+
+    /**
+     * Retrieves the best attachment variation for the given attachment.
+     *
+     * @codeCoverageIgnore - We have to write test when this method contains own code.
+     *
+     * @param int $attachment_id The attachment id.
+     *
+     * @uses WPSEO_Image_Utils::get_variations()
+     * @uses WPSEO_Image_Utils::filter_usable_file_size()
+     *
+     * @return bool|string The attachment url or false when no variations found.
+     */
+    public function get_best_attachment_variation( $attachment_id ) {
+        $variations = \WPSEO_Image_Utils::get_variations( $attachment_id );
+        $variations = \WPSEO_Image_Utils::filter_usable_file_size( $variations );
+
+        // If we are left without variations, there is no valid variation for this attachment.
+        if ( empty( $variations ) ) {
+            return false;
+        }
+
+        // The variations are ordered so the first variations is by definition the best one.
+        return \reset( $variations );
     }
 }
