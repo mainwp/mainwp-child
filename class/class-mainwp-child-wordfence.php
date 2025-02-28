@@ -872,6 +872,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
             'loginSec_maskLoginErrors',
             'loginSec_blockAdminReg',
             'loginSec_disableAuthorScan',
+            'loginSec_disableApplicationPasswords',
             'other_blockBadPOST',
             'blockCustomText',
             'other_pwStrengthOnUpdate',
