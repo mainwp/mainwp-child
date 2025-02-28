@@ -188,34 +188,23 @@ class MainWP_Child_Misc {
      * @return array
      *
      * @uses \MainWP\Child\MainWP_Helper::write()
-     * @uses \MainWP\Child\MainWP_Security::prevent_listing_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_wp_version_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_rsd_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_wlw_ok()
      * @uses \MainWP\Child\MainWP_Security::remove_database_reporting_ok()
      * @uses \MainWP\Child\MainWP_Security::remove_php_reporting_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_scripts_version_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_registered_versions_ok()
-     * @uses \MainWP\Child\MainWP_Security::admin_user_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
      */
     public function get_security_stats( $return_results = false ) { // phpcs:ignore -- NOSONAR - required to achieve desired results, pull request solutions appreciated.
         $information = array();
 
-        $information['listing']             = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
-        $information['wp_version']          = ( ! MainWP_Security::remove_wp_version_ok() ? 'N' : 'Y' );
-        $information['rsd']                 = ( ! MainWP_Security::remove_rsd_ok() ? 'N' : 'Y' );
-        $information['wlw']                 = ( ! MainWP_Security::remove_wlw_ok() ? 'N' : 'Y' );
-        $information['db_reporting']        = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
-        $information['php_reporting']       = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
-        $information['versions']            = ( ! MainWP_Security::remove_scripts_version_ok() || ! MainWP_Security::remove_styles_version_ok() || ! MainWP_Security::remove_generator_version_ok() ? 'N' : 'Y' );
-        $information['registered_versions'] = ( MainWP_Security::remove_registered_versions_ok() ? 'Y' : 'N' );
-        $information['admin']               = ( MainWP_Security::admin_user_ok() ? 'Y' : 'N' );
-        $information['readme']              = ( MainWP_Security::remove_readme_ok() ? 'Y' : 'N' );
-        $information['wp_uptodate']         = ( MainWP_Security::wpcore_updated_ok() ? 'Y' : 'N' );
-        $information['phpversion_matched']  = ( MainWP_Security::phpversion_ok() ? 'Y' : 'N' );
-        $information['sslprotocol']         = ( MainWP_Security::sslprotocol_ok() ? 'Y' : 'N' );
-        $information['debug_disabled']      = ( MainWP_Security::debug_disabled_ok() ? 'Y' : 'N' );
+        $information['db_reporting']       = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
+        $information['php_reporting']      = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
+        $information['wp_uptodate']        = ( MainWP_Security::wpcore_updated_ok() ? 'Y' : 'N' );
+        $information['phpversion_matched'] = ( MainWP_Security::phpversion_ok() ? 'Y' : 'N' );
+        $information['sslprotocol']        = ( MainWP_Security::sslprotocol_ok() ? 'Y' : 'N' );
+        $information['debug_disabled']     = ( MainWP_Security::debug_disabled_ok() ? 'Y' : 'N' );
+
+        $information['sec_outdated_plugins'] = ( MainWP_Security::outdated_plugins_ok() ? 'Y' : 'N' );
+        $information['sec_inactive_plugins'] = ( MainWP_Security::inactive_plugins_ok() ? 'Y' : 'N' );
+        $information['sec_outdated_themes']  = ( MainWP_Security::outdated_themes_ok() ? 'Y' : 'N' );
+        $information['sec_inactive_themes']  = ( MainWP_Security::inactive_themes_ok() ? 'Y' : 'N' );
 
         if ( 'N' === $information['db_reporting'] && MainWP_Security::get_security_option( 'db_reporting' ) ) {
             $information['db_reporting'] = 'N_UNABLE';
@@ -244,21 +233,10 @@ class MainWP_Child_Misc {
      * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by name.
      * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
      * @uses \MainWP\Child\MainWP_Security::prevent_listing()
-     * @uses \MainWP\Child\MainWP_Security::prevent_listing_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_wp_version()
-     * @uses \MainWP\Child\MainWP_Security::remove_wp_version_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_rsd()
-     * @uses \MainWP\Child\MainWP_Security::remove_rsd_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_wlw()
-     * @uses \MainWP\Child\MainWP_Security::remove_wlw_ok()
      * @uses \MainWP\Child\MainWP_Security::remove_database_reporting()
      * @uses \MainWP\Child\MainWP_Security::remove_database_reporting_ok()
      * @uses \MainWP\Child\MainWP_Security::remove_php_reporting()
      * @uses \MainWP\Child\MainWP_Security::remove_php_reporting_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_generator_version()
-     * @uses \MainWP\Child\MainWP_Security::admin_user_ok()
-     * @uses \MainWP\Child\MainWP_Security::remove_readme()
-     * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
      * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
      */
     public function do_security_fix() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
@@ -285,37 +263,6 @@ class MainWP_Child_Misc {
             $security = array();
         }
 
-        if ( 'all' === $feature || 'listing' === $feature ) {
-            if ( ! in_array( 'listing', $skips ) ) {
-                MainWP_Security::prevent_listing();
-            }
-            $information['listing'] = ( ! MainWP_Security::prevent_listing_ok() ? 'N' : 'Y' );
-        }
-
-        if ( 'all' === $feature || 'wp_version' === $feature ) {
-            if ( ! in_array( 'wp_version', $skips ) ) {
-                $security['wp_version'] = true;
-                MainWP_Security::remove_wp_version( true );
-            }
-            $information['wp_version'] = ( ! MainWP_Security::remove_wp_version_ok() ? 'N' : 'Y' );
-        }
-
-        if ( 'all' === $feature || 'rsd' === $feature ) {
-            if ( ! in_array( 'rsd', $skips ) ) {
-                $security['rsd'] = true;
-                MainWP_Security::remove_rsd( true );
-            }
-            $information['rsd'] = ( ! MainWP_Security::remove_rsd_ok() ? 'N' : 'Y' );
-        }
-
-        if ( 'all' === $feature || 'wlw' === $feature ) {
-            if ( ! in_array( 'wlw', $skips ) ) {
-                $security['wlw'] = true;
-                MainWP_Security::remove_wlw( true );
-            }
-            $information['wlw'] = ( ! MainWP_Security::remove_wlw_ok() ? 'N' : 'Y' );
-        }
-
         if ( 'all' === $feature || 'db_reporting' === $feature ) {
             if ( ! in_array( 'db_reporting', $skips ) ) {
                 $security['db_reporting'] = true;
@@ -336,25 +283,7 @@ class MainWP_Child_Misc {
             $security['scripts_version']   = true;
             $security['styles_version']    = true;
             $security['generator_version'] = true;
-            MainWP_Security::remove_generator_version( true );
-            $information['versions'] = 'Y';
-        }
-
-        if ( ( 'all' === $feature || 'registered_versions' === $feature ) && ! in_array( 'registered_versions', $skips ) ) {
-            $security['registered_versions']    = true;
-            $information['registered_versions'] = 'Y';
-        }
-
-        if ( 'all' === $feature || 'admin' === $feature ) {
-            $information['admin'] = ( ! MainWP_Security::admin_user_ok() ? 'N' : 'Y' );
-        }
-
-        if ( 'all' === $feature || 'readme' === $feature ) {
-            if ( ! in_array( 'readme', $skips ) ) {
-                $security['readme'] = true;
-                MainWP_Security::remove_readme( true );
-            }
-            $information['readme'] = ( MainWP_Security::remove_readme_ok() ? 'Y' : 'N' );
+            $information['versions']       = 'Y';
         }
 
         MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
@@ -372,7 +301,6 @@ class MainWP_Child_Misc {
      *
      * @uses \MainWP\Child\MainWP_Helper::update_option() Update option by name.
      * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
-     * @uses \MainWP\Child\MainWP_Security::remove_readme_ok()
      * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
      */
     public function do_security_un_fix() { //phpcs:ignore -- NOSONAR - complex.
@@ -389,21 +317,6 @@ class MainWP_Child_Misc {
 
         $security = get_option( 'mainwp_security' );
 
-        if ( 'all' === $feature || 'wp_version' === $feature ) {
-            $security['wp_version']    = false;
-            $information['wp_version'] = 'N';
-        }
-
-        if ( 'all' === $feature || 'rsd' === $feature ) {
-            $security['rsd']    = false;
-            $information['rsd'] = 'N';
-        }
-
-        if ( 'all' === $feature || 'wlw' === $feature ) {
-            $security['wlw']    = false;
-            $information['wlw'] = 'N';
-        }
-
         if ( 'all' === $feature || 'php_reporting' === $feature ) {
             $security['php_reporting']    = false;
             $information['php_reporting'] = 'N';
@@ -419,15 +332,6 @@ class MainWP_Child_Misc {
             $security['styles_version']    = false;
             $security['generator_version'] = false;
             $information['versions']       = 'N';
-        }
-
-        if ( 'all' === $feature || 'registered_versions' === $feature ) {
-            $security['registered_versions']    = false;
-            $information['registered_versions'] = 'N';
-        }
-        if ( 'all' === $feature || 'readme' === $feature ) {
-            $security['readme']    = false;
-            $information['readme'] = MainWP_Security::remove_readme_ok();
         }
 
         MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );

@@ -626,6 +626,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             'ip'                    => isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : '',
             'child_curl_version'    => MainWP_Child_Server_Information_Base::get_curl_version(),
             'child_openssl_version' => MainWP_Child_Server_Information_Base::get_curl_ssl_version(),
+            'site_lang'             => get_locale(),
+            'site_public'           => (int) get_option( 'blog_public', 0 ),
         );
     }
 
@@ -635,7 +637,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string|bool|null Return TRUE if the relationship is the one specified by the operator <=,
      *  FALSE otherwise, null by default.
      */
-    private function stats_wp_update() {
+    public function stats_wp_update() {
 
         /**
          * The installed version of WordPress.
@@ -821,6 +823,47 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         return $results;
+    }
+
+    /**
+     * Check if found plugins updates.
+     *
+     * @return bool found plugins updates or not.
+     */
+    public function found_plugins_updates() {
+        $premiums = array();
+        $updates  = $this->stats_plugin_update( $premiums );
+        return ! empty( $premiums ) || ! empty( $updates ) ? true : false;
+    }
+
+
+    /**
+     * Check if found themes updates.
+     *
+     * @return bool found themes updates or not.
+     */
+    public function found_themes_updates() {
+        $premiums = array();
+        $updates  = $this->stats_theme_update( $premiums );
+        return ! empty( $premiums ) || ! empty( $updates ) ? true : false;
+    }
+
+    /**
+     * Check if found inactive plugins.
+     *
+     * @return bool found inactive plugins or not.
+     */
+    public function found_inactive_plugins() {
+        return $this->get_all_plugins_int( false, '', '', false, true ) ? true : false;
+    }
+
+    /**
+     * Check if found inactive themes.
+     *
+     * @return bool found inactive themes or not.
+     */
+    public function found_inactive_themes() {
+        return $this->get_all_themes_int( false, '', '', false, true ) ? true : false;
     }
 
     /**
@@ -1117,12 +1160,15 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string  $keyword Keyword Search field.
      * @param string  $status Active or Inactive filed.
      * @param boolean $get_un_criteria Get criteria or un-criteria items.
+     * @param boolean $check_inactive_only To check inactive themes only.
      *
-     * @return array $rslt Returned themes results.
+     * @return array|bool $rslt Returned themes results.
      */
-    public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) { //phpcs:ignore -- NOSONAR - complex.
+    public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false, $check_inactive_only = false ) { //phpcs:ignore -- NOSONAR - complex.
         $rslt   = array();
         $themes = wp_get_themes();
+
+        $found_inactive = false;
 
         if ( is_array( $themes ) ) {
             $theme_name  = wp_get_theme()->get( 'Name' );
@@ -1154,7 +1200,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
                 $rslt[] = $out;
 
+                if ( 0 === $out['parent_active'] ) {
+                    $found_inactive = true;
+                }
             }
+        }
+
+        if ( $check_inactive_only ) {
+            return $found_inactive;
         }
 
         $multi_kws = explode( ',', $keyword );
@@ -1216,10 +1269,11 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string  $keyword Keyword Search field.
      * @param string  $status Active or Inactive filed.
      * @param boolean $get_un_criteria Get criteria or un-criteria items.
+     * @param boolean $check_inactive_only To check inactive plugins only.
      *
-     * @return array $rslt Returned themes results.
+     * @return array|bool $rslt Returned results.
      */
-    public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) { //phpcs:ignore -- NOSONAR - complex.
+    public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false, $check_inactive_only = false ) { //phpcs:ignore -- NOSONAR - complex.
         if ( ! function_exists( 'get_plugins' ) ) {
             include_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
         }
@@ -1231,8 +1285,9 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $mainWPChild;
 
-        $rslt    = array();
-        $plugins = get_plugins();
+        $rslt           = array();
+        $plugins        = get_plugins();
+        $found_inactive = false;
         if ( is_array( $plugins ) ) {
             foreach ( $plugins as $pluginslug => $plugin ) {
                 $out                = array();
@@ -1243,7 +1298,15 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                 $out['version']     = $plugin['Version'];
                 $out['active']      = is_plugin_active( $pluginslug ) ? 1 : 0;
                 $rslt[]             = $out;
+
+                if ( 0 === $out['active'] ) {
+                    $found_inactive = true;
+                }
             }
+        }
+
+        if ( $check_inactive_only ) {
+            return $found_inactive;
         }
 
         $muplugins = get_mu_plugins();
