@@ -413,6 +413,7 @@ class MainWP_Child {
      * @uses \MainWP\Child\MainWP_Child_Links_Checker::init()
      * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::init()
      * @uses \MainWP\Child\MainWP_Child_Aam::instance()
+     * @uses \MainWP\Child\MainWP_Child_HTML_Regression::instance()->init()
      */
     private function parse_init_extensions() {
         MainWP_Child_Branding::instance()->branding_init();
@@ -434,6 +435,7 @@ class MainWP_Child {
         MainWP_Child_Jetpack_Scan::instance();
         MainWP_Child_Aam::instance()->init();
         MainWP_Custom_Post_Type::instance();
+		    MainWP_Child_HTML_Regression::instance()->init();
     }
 
 
