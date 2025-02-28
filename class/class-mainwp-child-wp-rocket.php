@@ -182,6 +182,8 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
             'cache_webp'                   => 0,
             'cloudflare_zone_id'           => '',
             'sucury_waf_api_key'           => '',
+            'host_fonts_locally'           => 0, // Host Google Fonts Locally.
+            'delay_js_execution_safe_mode' => 0, // Safe Mode for Delay JavaScript Execution.
         );
     }
 
@@ -294,7 +296,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         $active_theme = $this->get_active_theme();
 
-        $themes_list = empty( $list->themes ) ? (array) $list->themes : array();
+        $themes_list = ! empty( $list->themes ) ? (array) $list->themes : array();
 
         foreach ( $themes_list as $theme_key => $theme ) {
             if ( $theme->condition !== $active_theme ) {
