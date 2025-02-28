@@ -200,8 +200,9 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
             try {
                 $data                            = array(
-                    'rocket_boxes'  => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ),
-                    'lists_delayjs' => get_option( '_transient_wpr_dynamic_lists_delayjs', array() ),
+                    'rocket_boxes'            => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ),
+                    'lists_delayjs'           => get_option( '_transient_wpr_dynamic_lists_delayjs', array() ),
+                    'lists_delayjs_full_list' => $this->prepare_delayjs_ui_list(),
                 );
                 $information['syncWPRocketData'] = $data;
             } catch ( MainWP_Exception $e ) {
@@ -211,6 +212,154 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         return $information;
     }
 
+
+    /**
+     * Prepare the list of scripts, plugins and theme for the view.
+     *
+     * @return array|array[]
+     */
+    public function prepare_delayjs_ui_list() {
+
+        $list = get_transient( 'wpr_dynamic_lists_delayjs' );
+
+        if ( empty( $list ) ) {
+            return array();
+        }
+
+        $full_list = array(
+            'scripts' => array(
+                'items' => array(),
+            ),
+            'plugins' => array(
+                'items' => array(),
+            ),
+            'themes'  => array(
+                'items' => array(),
+            ),
+        );
+
+        // Scripts.
+        $scripts     = isset( $list->scripts ) ? (array) $list->scripts : array();
+        $all_scripts = call_user_func_array(
+            'array_merge',
+            array_map(
+                function ( $script ) {
+                    return (array) $script; // Convert each category into sequential array.
+                },
+                array_values( $scripts )
+            )
+        );
+
+        foreach ( $all_scripts as $script_key => $script ) {
+            if ( empty( $script_key ) ) {
+                continue;
+            }
+            $full_list['scripts']['items'][] = array(
+                'id'    => $script_key,
+                'title' => $script->title,
+                'icon'  => $this->get_icon( $script ),
+            );
+        }
+
+        $active_plugins = $this->get_active_plugins();
+        $plugins_list   = ! empty( $list->plugins ) ? (array) $list->plugins : array();
+
+        foreach ( $plugins_list as $plugin_key => $plugin ) {
+
+            if ( ! in_array( $plugin->condition, $active_plugins, true ) ) {
+                continue;
+            }
+
+            $full_list['plugins']['items'][] = array(
+                'id'    => $plugin_key,
+                'title' => $plugin->title,
+                'icon'  => $this->get_icon( $plugin ),
+            );
+        }
+
+        $active_theme = $this->get_active_theme();
+
+        $themes_list = empty( $list->themes ) ? (array) $list->themes : array();
+
+        foreach ( $themes_list as $theme_key => $theme ) {
+            if ( $theme->condition !== $active_theme ) {
+                continue;
+            }
+
+            $full_list['themes']['items'][] = array(
+                'id'    => $theme_key,
+                'title' => $theme->title,
+                'icon'  => $this->get_icon( $theme ),
+            );
+        }
+
+        return $full_list;
+    }
+
+    /**
+     * Fetch the icon.
+     *
+     * @param object $item item from the list.
+     * @return string
+     */
+    private function get_icon( $item ) {
+        if ( empty( $item->icon_url ) ) {
+            return '';
+        }
+
+        return $item->icon_url;
+    }
+
+
+    /**
+     * Get active plugins (list of IDs).
+     *
+     * @return array
+     */
+    public function get_active_plugins() {
+        $plugins = (array) get_option( 'active_plugins', array() );
+
+        if ( ! is_multisite() ) {
+            return $plugins;
+        }
+
+        return array_merge(
+            $plugins,
+            array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) )
+        );
+    }
+
+
+    /**
+     * Get active theme ID.
+     *
+     * @return string
+     */
+    public function get_active_theme() {
+        return $this->get_theme_name( wp_get_theme() );
+    }
+
+
+    /**
+     * Get theme name from theme object.
+     *
+     * @param WP_Theme $theme Theme to get its name.
+     *
+     * @return string
+     */
+    private function get_theme_name( $theme ) {
+
+        if ( ! $theme instanceof \WP_Theme ) {
+            return 'Undefined';
+        }
+
+        $parent = $theme->get_template();
+        if ( ! empty( $parent ) ) {
+            return $parent;
+        }
+
+        return $theme->get( 'Name' );
+    }
 
     /**
      * Method remove_notices()
@@ -730,6 +879,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         $old_values = get_option( WP_ROCKET_SLUG );
 
         $defaults_fields = $this->get_rocket_default_options();
+
         foreach ( $old_values as $field => $value ) {
             if ( ! isset( $defaults_fields[ $field ] ) ) {
                 $options[ $field ] = $value;
