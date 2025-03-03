@@ -843,8 +843,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             static::$exec_start = microtime( true );
         }
 
-        $sec = microtime( true ) - static::$exec_start; // seconds.
-        return $sec;
+        return microtime( true ) - static::$exec_start; // seconds.
     }
 
 
