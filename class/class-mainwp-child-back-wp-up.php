@@ -1010,10 +1010,26 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
         ?>
         <script type="text/javascript">
+            var dlClicked = false;
             document.addEventListener("DOMContentLoaded", function(event) {
-                var downloadLink = document.querySelector( 'a.backup-download-link[data-jobid="<?php echo intval( $_GET['download_click_id'] ); ?>"' );
-                if (typeof(downloadLink) !== 'undefined' && downloadLink !== null) {
-                    downloadLink.click();
+                if( dlClicked === false ){
+                    var downloadLink = document.querySelector( 'a.backup-download-link[data-jobid="<?php echo intval( $_GET['download_click_id'] ); ?>"' );
+                    if (typeof(downloadLink) !== 'undefined' && downloadLink !== null ) {
+                        downloadLink.click();
+                        dlClicked = true;
+                    }
+                    if( dlClicked === false ) { // for new version.
+                        setTimeout(
+                            function () {
+                                downloadLink = document.querySelector( 'button.js-backwpup-download-backup[data-jobid="<?php echo intval( $_GET['download_click_id'] ); ?>"' );
+                                if (typeof(downloadLink) !== 'undefined' && downloadLink !== null ) {
+                                    downloadLink.click();
+                                }
+                            },
+                            2000
+                        );
+                        dlClicked = true;
+                    }
                 }
             });
         </script>

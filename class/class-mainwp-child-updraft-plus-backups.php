@@ -4293,7 +4293,8 @@ ENDHERE;
      * Remove UpdraftPlus from WP Admin menu.
      */
     public function remove_menu() {
-
+        // Remove UpdraftPlus from the admin menu.
+        remove_menu_page( 'options-general.php?page=updraftplus' );
         /** @global object $submenu WordPress submenu object. */
         global $submenu;
 

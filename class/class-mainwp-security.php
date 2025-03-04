@@ -30,24 +30,12 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Fire off functions to fix detected security issues.
      *
-     * @uses MainWP_Security::remove_wp_version() Remove the WordPress version.
-     * @uses MainWP_Security::remove_rsd() Remove the Really Simple Discovery meta tag.
-     * @uses MainWP_Security::remove_wlw() Remove the Windows Live Writer meta tag.
      * @uses MainWP_Security::remove_php_reporting() Disable the PHP error reporting.
-     * @uses MainWP_Security::remove_registered_versions() Remove the registered scripts versions.
-     * @uses MainWP_Security::remove_generator_version() Remove the WordPress Generator meta tag.
-     * @uses MainWP_Security::remove_readme() Remove the readme.html file.
      * @uses MainWP_Security::remove_script_versions() Remove scripts and stylesheets versions.
      * @uses MainWP_Security::remove_theme_versions() Remove themes scripts and stylesheets version.
      */
     public static function fix_all() {
-        static::remove_wp_version();
-        static::remove_rsd();
-        static::remove_wlw();
         static::remove_php_reporting();
-        static::remove_registered_versions();
-        static::remove_generator_version();
-        static::remove_readme();
 
         if ( static::get_security_option( 'db_reporting' ) ) {
             static::remove_database_reporting();
@@ -115,52 +103,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Method remove_wp_version()
-     *
-     * Remove the WordPress version (WordPress Generator).
-     *
-     * @param bool $force Force action if true, don't force if false.
-     *
-     * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     */
-    public static function remove_wp_version( $force = false ) {
-        if ( $force || static::get_security_option( 'wp_version' ) ) {
-            remove_action( 'wp_head', 'wp_generator' );
-            remove_filter( 'wp_head', 'wp_generator' );
-        }
-    }
-
-    /**
-     * Method remove_rsd()
-     *
-     * Remove the Really Simple Discovery meta tag.
-     *
-     * @param bool $force Force action if true, don't force if false.
-     *
-     * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     */
-    public static function remove_rsd( $force = false ) {
-        if ( $force || static::get_security_option( 'rsd' ) ) {
-            remove_action( 'wp_head', 'rsd_link' );
-        }
-    }
-
-    /**
-     * Method remove_wlw()
-     *
-     * Remove the Windows Live Writer meta tag.
-     *
-     * @param bool $force Force action if true, don't force if false.
-     *
-     * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     */
-    public static function remove_wlw( $force = false ) {
-        if ( $force || static::get_security_option( 'wlw' ) ) {
-            remove_action( 'wp_head', 'wlwmanifest_link' );
-        }
-    }
-
-    /**
      * Method remove_php_reporting()
      *
      * Disable the PHP error reporting.
@@ -198,44 +140,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Method remove_registered_versions()
-     *
-     * Remove the scripts and stylesheets registered versions.
-     *
-     * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     */
-    public static function remove_registered_versions() {
-        if ( static::get_security_option( 'registered_versions' ) ) {
-
-            /**
-             * Global object used to register styles.
-             *
-             * @var object $wp_styles Global object used to register styles.
-             */
-            global $wp_styles;
-
-            if ( $wp_styles instanceof WP_Styles ) {
-                foreach ( $wp_styles->registered as $handle => $style ) {
-                    $wp_styles->registered[ $handle ]->ver = null;
-                }
-            }
-
-            /**
-             * Global object used to register scripts.
-             *
-             * @var object $wp_scripts Global object used to register scripts.
-             */
-            global $wp_scripts;
-
-            if ( $wp_scripts instanceof WP_Scripts ) {
-                foreach ( $wp_scripts->registered as $handle => $script ) {
-                    $wp_scripts->registered[ $handle ]->ver = null;
-                }
-            }
-        }
-    }
-
-    /**
      * Method remove_script_versions()
      *
      * Remove scripts versions.
@@ -256,38 +160,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
         return $src;
     }
 
-    /**
-     * Method remove_generator_version()
-     *
-     * Remove the WordPress Generator version.
-     *
-     * @param bool $force Force action if true, don't force if false.
-     *
-     * @uses MainWP_Security::custom_the_generator() Set custom generator.
-     *
-     * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     */
-    public static function remove_generator_version( $force = false ) {
-        if ( $force || static::get_security_option( 'generator_version' ) ) {
-            $types = array( 'html', 'xhtml', 'atom', 'rss2', 'rdf', 'comment', 'export' );
-            foreach ( $types as $type ) {
-                add_filter( 'get_the_generator_' . $type, array( static::get_class_name(), 'custom_the_generator' ), 10, 2 );
-            }
-        }
-    }
-
-    /**
-     * Method custom_the_generator()
-     *
-     * Set custom generator.
-     *
-     * @used-by MainWP_Security::remove_generator_version() Remove the WordPress Generator version.
-     *
-     * @return string Return empty string.
-     */
-    public static function custom_the_generator() {
-        return '';
-    }
 
     /**
      * Method remove_theme_versions()
@@ -310,113 +182,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
         return $src;
     }
 
-    /**
-     * Method remove_readme()
-     *
-     * Remove the readme.html file.
-     *
-     * @param bool $force Force action if true, don't force if false.
-     *
-     * @return bool true Return true to skip the process if child site is on WP Engine host.
-     *
-     * @used-by \MainWP\Child\MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     * @uses \MainWP\Child\MainWP_Helper::is_wp_engine()
-     * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
-     */
-    public static function remove_readme( $force = false ) { //phpcs:ignore -- NOSONAR - complex.
-        // to prevent remove readme.html file on WP Engine hosting.
-        if ( MainWP_Helper::is_wp_engine() ) {
-            return true;
-        }
-        MainWP_Helper::get_wp_filesystem();
-
-        /**
-         * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
-         *
-         * @global object $wp_filesystem Filesystem object.
-         */
-        global $wp_filesystem;
-        if ( ( $force || static::get_security_option( 'readme' ) ) && $wp_filesystem->connect() ) {
-            $abs_path = $wp_filesystem->abspath();
-            if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) && ! wp_delete_file( ABSPATH . 'readme.html' ) ) {
-                $wp_filesystem->delete( $abs_path . 'readme.html' );
-                if ( $wp_filesystem->exists( $abs_path . 'readme.html' ) ) {
-                    // prevent repeat delete.
-                    static::update_security_option( 'readme', false );
-                }
-            }
-        }
-    }
-
-    /**
-     * Method prevent_listing_ok()
-     *
-     * Check if the directory listing is prevented.
-     *
-     * @return bool true|false If directory listing prevented, return true, if not, return false.
-     *
-     * @used-by \MainWP\Child\MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
-     */
-    public static function prevent_listing_ok() {
-
-        /**
-         * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
-         *
-         * @global object $wp_filesystem Filesystem object.
-         */
-        global $wp_filesystem;
-
-        MainWP_Helper::get_wp_filesystem();
-
-        static::init_listing_directories();
-        foreach ( static::$listingDirectories as $directory ) {
-            $file = $directory . DIRECTORY_SEPARATOR . 'index.php';
-            if ( ! $wp_filesystem->exists( $file ) ) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Method remove_wp_version_ok()
-     *
-     * Check if the WordPress version has been removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false If WordPress version removed, return true, if not return false.
-     */
-    public static function remove_wp_version_ok() {
-        return ! ( has_action( 'wp_head', 'wp_generator' ) || has_filter( 'wp_head', 'wp_generator' ) );
-    }
-
-    /**
-     * Method remove_rsd_ok()
-     *
-     * Check if the Really Simple Discovery meta tag has been removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false If the Really Simple Discovery meta tag has been removed, return true, if not return false.
-     */
-    public static function remove_rsd_ok() {
-        return ! has_action( 'wp_head', 'rsd_link' );
-    }
-
-    /**
-     * Method remove_wlw_ok()
-     *
-     * Check if the Windows Live Writer meta tag has been removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false If the Windows Live Writer meta tag has been removed, return true, if not return false.
-     */
-    public static function remove_wlw_ok() {
-        return ! has_action( 'wp_head', 'wlwmanifest_link' );
-    }
 
     /**
      * Method remove_database_reporting_ok()
@@ -464,144 +229,23 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Method remove_scripts_version_ok()
-     *
-     * Check if scripts versions are removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false Return true if versions have been removed, false if not.
-     */
-    public static function remove_scripts_version_ok() {
-        return static::get_security_option( 'scripts_version' );
-    }
-
-    /**
-     * Method remove_styles_version_ok()
-     *
-     * Check if stylesheets versions are removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false Return true if versions have been removed, false if not.
-     */
-    public static function remove_styles_version_ok() {
-        return static::get_security_option( 'styles_version' );
-    }
-
-    /**
-     * Method remove_generator_version_ok()
-     *
-     * Check if the WordPress Generator version has been removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false Return true if registered versions have been removed, false if not.
-     */
-    public static function remove_generator_version_ok() {
-        return static::get_security_option( 'generator_version' );
-    }
-
-    /**
-     * Method remove_registered_versions_ok()
-     *
-     * Check if the scripts and stylesheets registered versions are removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false Return true if registered versions have been removed, false if not.
-     */
-    public static function remove_registered_versions_ok() {
-        return static::get_security_option( 'registered_versions' );
-    }
-
-    /**
-     * Method admin_user_ok()
-     *
-     * Check if any of administrator accounts has 'admin' as username.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true Return true no 'admin' username detected, fale if not.
-     */
-    public static function admin_user_ok() {
-        $user = get_user_by( 'login', 'admin' );
-        if ( ! $user ) {
-            return true;
-        }
-
-        if ( ! MainWP_Helper::is_admin( $user ) ) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Method remove_readme_ok()
-     *
-     * Check if the readme.html file has been removed.
-     *
-     * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
-     *
-     * @return bool true|false Return true if the readme.html file has been removed, false if not.
-     */
-    public static function remove_readme_ok() {
-        return ! file_exists( ABSPATH . 'readme.html' );
-    }
-
-    /**
      * Method get_stats_security()
      *
      * Calculate total number of detected secutiry issues.
      *
-     * @uses MainWP_Security::prevent_listing_ok() Check if the directory listing is prevented.
-     * @uses MainWP_Security::remove_wp_version_ok() Check if the WordPress version has been removed.
-     * @uses MainWP_Security::remove_rsd_ok() Check if the Really Simple Discovery meta tag has been removed.
-     * @uses MainWP_Security::remove_wlw_ok() Check if the Windows Live Writer meta tag has been removed.
      * @uses MainWP_Security::remove_database_reporting_ok() Check if the database error reporting has been disabled.
      * @uses MainWP_Security::remove_php_reporting_ok() Check if the PHP error reporting has been disabled.
-     * @uses MainWP_Security::remove_scripts_version_ok() Check if scripts versions are removed.
-     * @uses MainWP_Security::remove_styles_version_ok() Check if stylesheets versions are removed.
-     * @uses MainWP_Security::remove_generator_version_ok() Check if the WordPress Generator version has been removed.
-     * @uses MainWP_Security::remove_registered_versions_ok() Check if the scripts and stylesheets registered versions are removed.
-     * @uses MainWP_Security::admin_user_ok() Check if any of administrator accounts has 'admin' as username.
-     * @uses MainWP_Security::remove_readme_ok() Check if the readme.html file has been removed.
      *
      * @return int $total_issues Total number of detected security issues.
      */
     public static function get_stats_security() {
         $total_issues = 0;
-        if ( ! static::prevent_listing_ok() ) {
-            ++$total_issues;
-        }
-        if ( ! static::remove_wp_version_ok() ) {
-            ++$total_issues;
-        }
-        if ( ! static::remove_rsd_ok() ) {
-            ++$total_issues;
-        }
-        if ( ! static::remove_wlw_ok() ) {
-            ++$total_issues;
-        }
         if ( ! static::remove_database_reporting_ok() ) {
             ++$total_issues;
         }
         if ( ! static::remove_php_reporting_ok() ) {
             ++$total_issues;
         }
-        if ( ! static::remove_scripts_version_ok() || ! static::remove_styles_version_ok() || ! static::remove_generator_version_ok() ) {
-            ++$total_issues;
-        }
-        if ( ! static::remove_registered_versions_ok() ) {
-            ++$total_issues;
-        }
-        if ( ! static::admin_user_ok() ) {
-            ++$total_issues;
-        }
-        if ( ! static::remove_readme_ok() ) {
-            ++$total_issues;
-        }
-
         if ( ! static::wpcore_updated_ok() ) {
             ++$total_issues;
         }
@@ -615,6 +259,21 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( ! static::debug_disabled_ok() ) {
+            ++$total_issues;
+        }
+
+        if ( ! static::outdated_plugins_ok() ) {
+            ++$total_issues;
+        }
+
+        if ( ! static::inactive_plugins_ok() ) {
+            ++$total_issues;
+        }
+
+        if ( ! static::outdated_themes_ok() ) {
+            ++$total_issues;
+        }
+        if ( ! static::inactive_themes_ok() ) {
             ++$total_issues;
         }
 
@@ -682,7 +341,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function phpversion_ok() {
         require_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
-        global $required_php_version;
+        $required_php_version = '8.0';
         return version_compare( phpversion(), $required_php_version, '>=' );
     }
 
@@ -703,5 +362,43 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function debug_disabled_ok() {
         return ! defined( 'WP_DEBUG' ) || ! WP_DEBUG;
+    }
+
+
+    /**
+     * Method outdated_plugins_ok()
+     *
+     * Check WP Config and check if debugging is disabled.
+     */
+    public static function outdated_plugins_ok() {
+        return MainWP_Child_Stats::get_instance()->found_plugins_updates() ? false : true;
+    }
+
+    /**
+     * Method inactive_plugins_ok()
+     *
+     * Check WP Config and check if debugging is disabled.
+     */
+    public static function inactive_plugins_ok() {
+        return MainWP_Child_Stats::get_instance()->found_inactive_plugins() ? false : true;
+    }
+
+
+    /**
+     * Method outdated_themes_ok()
+     *
+     * Check WP Config and check if debugging is disabled.
+     */
+    public static function outdated_themes_ok() {
+        return MainWP_Child_Stats::get_instance()->found_themes_updates() ? false : true;
+    }
+
+    /**
+     * Method inactive_themes_ok()
+     *
+     * Check WP Config and check if debugging is disabled.
+     */
+    public static function inactive_themes_ok() {
+        return MainWP_Child_Stats::get_instance()->found_inactive_themes() ? false : true;
     }
 }

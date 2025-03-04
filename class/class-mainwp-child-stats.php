@@ -33,6 +33,13 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     private $filterFunction = null;
 
     /**
+     * Class used to represent anonymous functions.
+     *
+     * @var array
+     */
+    private $sync_data_list = null;
+
+    /**
      * Method get_class_name()
      *
      * Get class name.
@@ -204,7 +211,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         $others_sync = null;
 
-        if ( isset( $_POST['othersData'] ) ) {
+        if ( $this->is_sync_data( 'othersData' ) && isset( $_POST['othersData'] ) ) {
             $others_sync = isset( $_POST['othersData'] ) ? json_decode( stripslashes( wp_unslash( $_POST['othersData'] ) ), true ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
             if ( ! is_array( $others_sync ) ) {
                 $others_sync = array();
@@ -219,8 +226,10 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $timeout = 3 * 60 * 60;
         MainWP_Helper::set_limit( $timeout );
 
-        // Check for new versions.
-        $information['wp_updates'] = $this->stats_wp_update();
+        if ( $this->is_sync_data( 'wp_updates' ) ) {
+            // Check for new versions.
+            $information['wp_updates'] = $this->stats_wp_update();
+        }
 
         add_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
         add_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
@@ -234,45 +243,74 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         remove_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
         remove_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
-        $information['plugin_updates'] = $this->stats_plugin_update( $premiumPlugins );
-
-        $information['theme_updates'] = $this->stats_theme_update( $premiumThemes );
-
-        $information['translation_updates'] = $this->stats_translation_updates();
-
-        $information['recent_comments'] = MainWP_Child_Comments::get_instance()->get_recent_comments( array( 'approve', 'hold' ), 5 );
-
-        $recent_number = $this->get_recent_number();
-
-        $information['recent_posts']   = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
-        $information['recent_pages']   = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
-        $information['securityIssues'] = MainWP_Security::get_stats_security();
-        $information['securityStats']  = MainWP_Child_Misc::get_instance()->get_security_stats( true );
-
-        // Directory listings!
-        $information['directories']     = isset( $_POST['scan_dir'] ) && ! empty( $_POST['scan_dir'] ) ? $this->scan_dir( ABSPATH, 3 ) : '';
-        $information['categories']      = $this->stats_get_categories( false ); // to compatible.
-        $information['categories_list'] = $this->stats_get_categories();
-
-        $totalsize = $this->stats_get_total_size();
-        if ( ! empty( $totalsize ) ) {
-            $information['totalsize'] = $totalsize;
+        if ( $this->is_sync_data( 'plugin_updates' ) ) {
+            $information['plugin_updates'] = $this->stats_plugin_update( $premiumPlugins );
         }
 
-        $information['dbsize'] = MainWP_Child_DB::get_size();
+        if ( $this->is_sync_data( 'theme_updates' ) ) {
+            $information['theme_updates'] = $this->stats_theme_update( $premiumThemes );
+        }
+
+        if ( $this->is_sync_data( 'translation_updates' ) ) {
+            $information['translation_updates'] = $this->stats_translation_updates();
+        }
+
+        if ( $this->is_sync_data( 'recent_comments' ) ) {
+            $information['recent_comments'] = MainWP_Child_Comments::get_instance()->get_recent_comments( array( 'approve', 'hold' ), 5 );
+        }
+
+        if ( $this->is_sync_data( 'recent_posts' ) || $this->is_sync_data( 'recent_pages' ) ) {
+            $recent_number               = $this->get_recent_number();
+            $information['recent_posts'] = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
+            $information['recent_pages'] = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
+        }
+
+        if ( $this->is_sync_data( 'securityStats' ) ) {
+            $information['securityIssues'] = MainWP_Security::get_stats_security();
+        }
+
+        if ( $this->is_sync_data( 'securityStats' ) ) {
+            $information['securityStats'] = MainWP_Child_Misc::get_instance()->get_security_stats( true );
+        }
+
+        if ( $this->is_sync_data( 'directories' ) ) {
+                // Directory listings!
+            $information['directories'] = isset( $_POST['scan_dir'] ) && ! empty( $_POST['scan_dir'] ) ? $this->scan_dir( ABSPATH, 3 ) : '';
+        }
+
+        if ( $this->is_sync_data( 'categories' ) ) {
+            $information['categories']      = $this->stats_get_categories( false ); // to compatible.
+            $information['categories_list'] = $this->stats_get_categories();
+        }
+
+        if ( $this->is_sync_data( 'totalsize' ) ) {
+            $totalsize = $this->stats_get_total_size();
+            if ( ! empty( $totalsize ) ) {
+                $information['totalsize'] = $totalsize;
+            }
+        }
+
+        if ( $this->is_sync_data( 'dbsize' ) ) {
+            $information['dbsize'] = MainWP_Child_DB::get_size();
+        }
 
         $max_his                = MainWP_Connect::instance()->get_max_history();
         $auths                  = get_option( 'mainwp_child_auth' );
         $information['extauth'] = ( is_array( $auths ) && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
 
-        $information['plugins'] = $this->get_all_plugins_int( false );
-        $information['themes']  = $this->get_all_themes_int( false );
+        if ( $this->is_sync_data( 'plugins' ) ) {
+            $information['plugins'] = $this->get_all_plugins_int( false );
+        }
 
-        if ( isset( $_POST['optimize'] ) && ( 1 === (int) $_POST['optimize'] ) ) {
+        if ( $this->is_sync_data( 'themes' ) ) {
+            $information['themes'] = $this->get_all_themes_int( false );
+        }
+
+        if ( isset( $_POST['optimize'] ) && ( 1 === (int) $_POST['optimize'] ) && $this->is_sync_data( 'users' ) ) {
             $information['users'] = MainWP_Child_Users::get_instance()->get_all_users_int( 500 );
         }
 
-        if ( ! empty( $_POST['primaryBackup'] ) ) {
+        if ( $this->is_sync_data( 'primaryLasttimeBackup' ) && ! empty( $_POST['primaryBackup'] ) ) {
             $primary_bk = ! empty( $_POST['primaryBackup'] ) ? sanitize_text_field( wp_unslash( $_POST['primaryBackup'] ) ) : '';
             $last_time  = MainWP_Utility::get_lasttime_backup( $primary_bk );
             if ( false !== $last_time ) {
@@ -280,19 +318,33 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-        $last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );
-        if ( isset( $last_post[0] ) ) {
-            $last_post = $last_post[0];
+        if ( $this->is_sync_data( 'last_post_gmt' ) ) {
+            $last_post = wp_get_recent_posts( array( 'numberposts' => absint( '1' ) ) );
+            if ( isset( $last_post[0] ) ) {
+                $last_post = $last_post[0];
+            }
+            if ( isset( $last_post ) && isset( $last_post['post_modified_gmt'] ) ) {
+                $information['last_post_gmt'] = strtotime( $last_post['post_modified_gmt'] );
+            }
         }
-        if ( isset( $last_post ) && isset( $last_post['post_modified_gmt'] ) ) {
-            $information['last_post_gmt'] = strtotime( $last_post['post_modified_gmt'] );
+        $information['mainwpdir'] = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
+        $information['uniqueId']  = MainWP_Helper::get_site_unique_id();
+
+        if ( $this->is_sync_data( 'plugins_outdate_info' ) ) {
+            $information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
         }
-        $information['mainwpdir']               = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
-        $information['uniqueId']                = MainWP_Helper::get_site_unique_id();
-        $information['plugins_outdate_info']    = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
-        $information['themes_outdate_info']     = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
-        $information['health_site_status']      = $this->get_health_check_site_status();
-        $information['child_site_actions_data'] = MainWP_Child_Actions::get_actions_data();
+
+        if ( $this->is_sync_data( 'themes_outdate_info' ) ) {
+            $information['themes_outdate_info'] = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
+        }
+
+        if ( $this->is_sync_data( 'health_site_status' ) ) {
+            $information['health_site_status'] = $this->get_health_check_site_status();
+        }
+
+        if ( $this->is_sync_data( 'child_site_actions_data' ) ) {
+            $information['child_site_actions_data'] = MainWP_Child_Actions::get_actions_data();
+        }
 
         if ( isset( $_POST['user'] ) ) {
             $user = get_user_by( 'login', sanitize_text_field( wp_unslash( $_POST['user'] ) ) );
@@ -308,7 +360,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::log_debug( $e->getMessage() );
         }
 
-        if ( isset( $_POST['othersData'] ) ) {
+        if ( $this->is_sync_data( 'othersData' ) && isset( $_POST['othersData'] ) ) {
             $this->stats_others_data( $information );
         }
 
@@ -330,6 +382,71 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
         // phpcs:enable WordPress.WP.AlternativeFunctions
         return $information;
+    }
+
+
+    /**
+     * Method is_sync_data().
+     *
+     * @param string $item Sync item.
+     *
+     * @return bool Sync or not.
+     */
+    public function is_sync_data( $item ) {
+
+        if ( null !== $this->sync_data_list ) {
+            $this->sync_data_list = $this->get_data_list_to_sync();
+        }
+
+        if ( ! is_array( $this->sync_data_list ) ) {
+            $this->sync_data_list = array();
+        }
+
+        return ! isset( $this->sync_data_list[ $item ] ) || ( isset( $this->sync_data_list[ $item ] ) && 1 === (int) $this->sync_data_list[ $item ] );
+    }
+
+    /**
+     * Method get_data_list_to_sync().
+     *
+     * @return array Data list to sync.
+     */
+    public function get_data_list_to_sync() {
+
+        $sync_data_settings = get_option( 'mainwp_child_settings_sync_data' );
+
+        if ( isset( $_POST['syncdata'] ) ) {
+
+            $update_list = wp_unslash( $_POST['syncdata'] );
+            $update      = false;
+
+            if ( $update_list !== $sync_data_settings ) {
+                $sync_data_settings = $update_list;
+                $update             = true;
+            }
+
+            $sync_list = ! empty( $sync_data_settings ) ? json_decode( $sync_data_settings, true ) : array();
+
+            if ( ! is_array( $sync_list ) ) {
+                $sync_list = array();
+            }
+
+            if ( $update ) {
+                MainWP_Helper::update_option( 'mainwp_child_settings_sync_data', wp_json_encode( $sync_list ) );
+            }
+
+            return $sync_list;
+        }
+
+        if ( false === $sync_data_settings ) {
+            return array();
+        }
+
+        $sync_list = ! empty( $sync_data_settings ) ? json_decode( $sync_data_settings, true ) : array();
+
+        if ( ! is_array( $sync_list ) ) {
+            $sync_list = array();
+        }
+        return $sync_list;
     }
 
     /**
@@ -509,6 +626,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             'ip'                    => isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : '',
             'child_curl_version'    => MainWP_Child_Server_Information_Base::get_curl_version(),
             'child_openssl_version' => MainWP_Child_Server_Information_Base::get_curl_ssl_version(),
+            'site_lang'             => get_locale(),
+            'site_public'           => (int) get_option( 'blog_public', 0 ),
         );
     }
 
@@ -518,7 +637,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string|bool|null Return TRUE if the relationship is the one specified by the operator <=,
      *  FALSE otherwise, null by default.
      */
-    private function stats_wp_update() {
+    public function stats_wp_update() {
 
         /**
          * The installed version of WordPress.
@@ -704,6 +823,47 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         return $results;
+    }
+
+    /**
+     * Check if found plugins updates.
+     *
+     * @return bool found plugins updates or not.
+     */
+    public function found_plugins_updates() {
+        $premiums = array();
+        $updates  = $this->stats_plugin_update( $premiums );
+        return ! empty( $premiums ) || ! empty( $updates ) ? true : false;
+    }
+
+
+    /**
+     * Check if found themes updates.
+     *
+     * @return bool found themes updates or not.
+     */
+    public function found_themes_updates() {
+        $premiums = array();
+        $updates  = $this->stats_theme_update( $premiums );
+        return ! empty( $premiums ) || ! empty( $updates ) ? true : false;
+    }
+
+    /**
+     * Check if found inactive plugins.
+     *
+     * @return bool found inactive plugins or not.
+     */
+    public function found_inactive_plugins() {
+        return $this->get_all_plugins_int( false, '', '', false, true ) ? true : false;
+    }
+
+    /**
+     * Check if found inactive themes.
+     *
+     * @return bool found inactive themes or not.
+     */
+    public function found_inactive_themes() {
+        return $this->get_all_themes_int( false, '', '', false, true ) ? true : false;
     }
 
     /**
@@ -1000,12 +1160,15 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string  $keyword Keyword Search field.
      * @param string  $status Active or Inactive filed.
      * @param boolean $get_un_criteria Get criteria or un-criteria items.
+     * @param boolean $check_inactive_only To check inactive themes only.
      *
-     * @return array $rslt Returned themes results.
+     * @return array|bool $rslt Returned themes results.
      */
-    public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) { //phpcs:ignore -- NOSONAR - complex.
+    public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false, $check_inactive_only = false ) { //phpcs:ignore -- NOSONAR - complex.
         $rslt   = array();
         $themes = wp_get_themes();
+
+        $found_inactive = false;
 
         if ( is_array( $themes ) ) {
             $theme_name  = wp_get_theme()->get( 'Name' );
@@ -1037,7 +1200,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
                 $rslt[] = $out;
 
+                if ( 0 === $out['parent_active'] ) {
+                    $found_inactive = true;
+                }
             }
+        }
+
+        if ( $check_inactive_only ) {
+            return $found_inactive;
         }
 
         $multi_kws = explode( ',', $keyword );
@@ -1099,10 +1269,11 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string  $keyword Keyword Search field.
      * @param string  $status Active or Inactive filed.
      * @param boolean $get_un_criteria Get criteria or un-criteria items.
+     * @param boolean $check_inactive_only To check inactive plugins only.
      *
-     * @return array $rslt Returned themes results.
+     * @return array|bool $rslt Returned results.
      */
-    public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false ) { //phpcs:ignore -- NOSONAR - complex.
+    public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false, $check_inactive_only = false ) { //phpcs:ignore -- NOSONAR - complex.
         if ( ! function_exists( 'get_plugins' ) ) {
             include_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
         }
@@ -1114,8 +1285,9 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $mainWPChild;
 
-        $rslt    = array();
-        $plugins = get_plugins();
+        $rslt           = array();
+        $plugins        = get_plugins();
+        $found_inactive = false;
         if ( is_array( $plugins ) ) {
             foreach ( $plugins as $pluginslug => $plugin ) {
                 $out                = array();
@@ -1126,7 +1298,15 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                 $out['version']     = $plugin['Version'];
                 $out['active']      = is_plugin_active( $pluginslug ) ? 1 : 0;
                 $rslt[]             = $out;
+
+                if ( 0 === $out['active'] ) {
+                    $found_inactive = true;
+                }
             }
+        }
+
+        if ( $check_inactive_only ) {
+            return $found_inactive;
         }
 
         $muplugins = get_mu_plugins();

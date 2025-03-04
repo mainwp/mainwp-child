@@ -182,6 +182,8 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
             'cache_webp'                   => 0,
             'cloudflare_zone_id'           => '',
             'sucury_waf_api_key'           => '',
+            'host_fonts_locally'           => 0, // Host Google Fonts Locally.
+            'delay_js_execution_safe_mode' => 0, // Safe Mode for Delay JavaScript Execution.
         );
     }
 
@@ -219,7 +221,6 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
      * @return array|array[]
      */
     public function prepare_delayjs_ui_list() {
-
         $list = get_transient( 'wpr_dynamic_lists_delayjs' );
 
         if ( empty( $list ) ) {
@@ -228,7 +229,28 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         $full_list = array(
             'scripts' => array(
-                'items' => array(),
+                'items' => array(
+                    'analytics'          => array(
+                        'title'    => __( 'Analytics & Trackers', 'mainwp-child' ),
+                        'items'    => array(),
+                        'svg-icon' => 'analytics',
+                    ),
+                    'ad_networks'        => array(
+                        'title'    => __( 'Ad Networks', 'mainwp-child' ),
+                        'items'    => array(),
+                        'svg-icon' => 'ad_network',
+                    ),
+                    'payment_processors' => array(
+                        'title'    => __( 'Payment Processors', 'mainwp-child' ),
+                        'items'    => array(),
+                        'svg-icon' => 'payment',
+                    ),
+                    'other_services'     => array(
+                        'title'    => __( 'Other Services', 'mainwp-child' ),
+                        'items'    => array(),
+                        'svg-icon' => 'others',
+                    ),
+                ),
             ),
             'plugins' => array(
                 'items' => array(),
@@ -238,27 +260,22 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
             ),
         );
 
-        // Scripts.
-        $scripts     = isset( $list->scripts ) ? (array) $list->scripts : array();
-        $all_scripts = call_user_func_array(
-            'array_merge',
-            array_map(
-                function ( $script ) {
-                    return (array) $script; // Convert each category into sequential array.
-                },
-                array_values( $scripts )
-            )
+        $script_types = array(
+            'analytics'          => 'get_analytics_from_list',
+            'ad_networks'        => 'get_ad_networks_from_list',
+            'payment_processors' => 'get_payment_processors_from_list',
+            'other_services'     => 'get_other_services_from_list',
         );
 
-        foreach ( $all_scripts as $script_key => $script ) {
-            if ( empty( $script_key ) ) {
-                continue;
+        foreach ( $script_types as $type => $method ) {
+            $scripts = $this->$method( $list );
+            foreach ( $scripts as $script_key => $script ) {
+                $full_list['scripts']['items'][ $type ]['items'][] = array(
+                    'id'    => $script_key,
+                    'title' => $script->title,
+                    'icon'  => $this->get_icon( $script ),
+                );
             }
-            $full_list['scripts']['items'][] = array(
-                'id'    => $script_key,
-                'title' => $script->title,
-                'icon'  => $this->get_icon( $script ),
-            );
         }
 
         $active_plugins = $this->get_active_plugins();
@@ -279,7 +296,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         $active_theme = $this->get_active_theme();
 
-        $themes_list = empty( $list->themes ) ? (array) $list->themes : array();
+        $themes_list = ! empty( $list->themes ) ? (array) $list->themes : array();
 
         foreach ( $themes_list as $theme_key => $theme ) {
             if ( $theme->condition !== $active_theme ) {
@@ -295,6 +312,47 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         return $full_list;
     }
+
+    /**
+     * Get Analytics scripts from the list.
+     *
+     * @param object $lists List of scripts.
+     * @return array
+     */
+    private function get_analytics_from_list( $lists ) {
+        return ! empty( $lists->scripts->analytics ) ? (array) $lists->scripts->analytics : array();
+    }
+
+    /**
+     * Get Ad Networks from the list.
+     *
+     * @param object $list List of scripts.
+     * @return array
+     */
+    private function get_ad_networks_from_list( $lists ) {
+        return ! empty( $lists->scripts->ad_networks ) ? (array) $lists->scripts->ad_networks : array();
+    }
+
+    /**
+     * Get Payment Processors from the list.
+     *
+     * @param object $lists List of scripts.
+     * @return array
+     */
+    private function get_payment_processors_from_list( $lists ) {
+        return ! empty( $lists->scripts->payment_processors ) ? (array) $lists->scripts->payment_processors : array();
+    }
+
+    /**
+     * Get Other Services from the list.
+     *
+     * @param object $lists List of scripts.
+     * @return array
+     */
+    private function get_other_services_from_list( $lists ) {
+        return ! empty( $lists->scripts->other_services ) ? (array) $lists->scripts->other_services : array();
+    }
+
 
     /**
      * Fetch the icon.
@@ -582,7 +640,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::update_exclusion_list() Update inclusion and exclusion lists.
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
-    public function action() {
+    public function action() { //phpcs:ignore -- NOSONAR -complex.
 
         // Check if the WP Rocket plugin is installed on the child website.
         if ( ! $this->is_plugin_installed ) {
