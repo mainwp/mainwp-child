@@ -111,6 +111,15 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.4 - 3-4-2025 =
+
+* Added: Support for the new column displaying the child site language as a matching flag.
+* Added: Support for the new column warning if a child site is not indexable by search engines.
+* Added: Support for the option to select which data to include in the sync process.
+* Added: Improved WP Debug Mode status check logic.
+* Added: Support for the new Regression Testing extension
+* Updated: Site Hardening checks, removing outdated ones and introducing new ones.
+
 = 5.3.5 - 2-6-2025 =
 
 * Added: [Pull Request #441](https://github.com/mainwp/mainwp-child/pull/441) by [aamplugin](https://github.com/aamplugin) for future AAM integration.
