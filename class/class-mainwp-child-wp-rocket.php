@@ -640,7 +640,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_WP_Rocket::update_exclusion_list() Update inclusion and exclusion lists.
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
-    public function action() {
+    public function action() { //phpcs:ignore -- NOSONAR -complex.
 
         // Check if the WP Rocket plugin is installed on the child website.
         if ( ! $this->is_plugin_installed ) {
