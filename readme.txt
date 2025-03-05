@@ -111,7 +111,7 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
-= 5.4 - 3-4-2025 =
+= 5.4 - 3-5-2025 =
 
 * Added: Support for the new column displaying the child site language as a matching flag.
 * Added: Support for the new column warning if a child site is not indexable by search engines.
