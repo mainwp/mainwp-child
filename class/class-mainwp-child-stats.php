@@ -1200,7 +1200,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
                 $rslt[] = $out;
 
-                if ( 0 === $out['parent_active'] ) {
+                if ( 0 === $out['parent_active'] && empty( $out['active'] ) ) {
                     $found_inactive = true;
                 }
             }

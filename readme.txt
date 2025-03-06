@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 5.4
+Stable tag: 5.4.0.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -21,25 +21,25 @@ The MainWP Child plugin creates a secure connection between your WordPress sites
 
 With MainWP Child and the MainWP Dashboard, you can update themes, plugins, and WordPress core across all connected sites, perform backups and security scans, manage posts, pages, users, and comments in bulk, and integrate with popular plugins like WooCommerce, Yoast SEO, and Wordfence.
 
-The [MainWP Dashboard](https://wordpress.org/plugins/mainwp/) also offers features for cost tracking and client management, making it an all-in-one solution for agencies and freelancers looking to manage WP sites efficiently. The functionality can be further extended with a growing library of [MainWP extensions](https://mainwp.com/mainwp-extensions/).
+The [MainWP Dashboard](https://wordpress.org/plugins/mainwp/) also offers features for cost tracking and client management, making it an all-in-one solution for agencies and freelancers looking to manage WP sites efficiently. The functionality can be further extended with a growing library of [MainWP Add-ons](https://mainwp.com/mainwp-add-ons/).
 
 [MainWP](https://mainwp.com/) is the ideal solution for freelancers and agencies managing client sites, developers and designers working on multiple projects, marketers and content managers overseeing various websites, and anyone responsible for maintaining multiple WordPress sites.
 
 = Why Choose MainWP for WordPress Management? =
 MainWP is 100% free and open-source, with no monthly fees, even for unlimited sites.
 
-As a self-hosted solution, it offers maximum control and privacy. MainWP provides comprehensive site management features and is highly customizable with extensions and developer hooks.  The MainWP Child plugin even comes with its own privacy policy to guarantee your [privacy while using MainWP](https://mainwp.com/mainwp-plugin-privacy-policy/).
+As a self-hosted solution, it offers maximum control and privacy. MainWP provides comprehensive site management features and is highly customizable with add-ons and developer hooks.  The MainWP Child plugin even comes with its own privacy policy to guarantee your [privacy while using MainWP](https://mainwp.com/mainwp-plugin-privacy-policy/).
 
 All of this makes MainWP the best non-SaaS alternative to ManageWP, InfiniteWP, WPRemote, and WP Umbrella.
 
 = Key Features =
-MainWP Child, combined with the MainWP Dashboard, offers secure management of unlimited WordPress sites, one-click updates for plugins, themes, and WordPress core, automated backups and security monitoring, bulk management of posts, pages, users, and comments, white-labeling and custom branding options, and [powerful extensions](https://mainwp.com/mainwp-extensions/) for WooCommerce, Yoast SEO, Wordfence, and more.
+MainWP Child, combined with the MainWP Dashboard, offers secure management of unlimited WordPress sites, one-click updates for plugins, themes, and WordPress core, automated backups and security monitoring, bulk management of posts, pages, users, and comments, white-labeling and custom branding options, and [powerful add-ons](https://mainwp.com/mainwp-add-ons/) for WooCommerce, Yoast SEO, Wordfence, and more.
 
-= Expand Your MainWP Dashboard with Extensions =
-MainWP offers a growing library of extensions that add advanced functionality to your Dashboard. From client reporting to SEO management, MainWP extensions provide the tools you need to deliver top-notch service to your clients.
+= Expand Your MainWP Dashboard with Add-ons =
+MainWP offers a growing library of add-ons that add advanced functionality to your Dashboard. From client reporting to SEO management, MainWP add-ons provide the tools you need to deliver top-notch service to your clients.
 
 = Join the MainWP Community =
-MainWP is more than just a plugin; it's a thriving community of WordPress professionals. Join our [MainWP Users Facebook Group](https://www.facebook.com/groups/MainWPUsers/) to connect with other users, share advice, and stay updated on the latest features and extensions.
+MainWP is more than just a plugin; it's a thriving community of WordPress professionals. Join our [MainWP Users Facebook Group](https://www.facebook.com/groups/MainWPUsers/) to connect with other users, share advice, and stay updated on the latest features and add-ons.
 
 = Developer-Friendly =
 MainWP is built with developers in mind. We provide extensive documentation, hooks, and an API to help you create custom extensions and integrations for the MainWP platform.  We have a site at [MainWP.dev](https://mainwp.dev) dedicated to MainWP developers.
@@ -110,6 +110,10 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.1 - 3-6-2025 =
+
+* Fixed: Detection of inactive themes in the Site Hardening process
 
 = 5.4 - 3-5-2025 =
 
