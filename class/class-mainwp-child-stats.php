@@ -862,9 +862,45 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return bool found inactive themes or not.
      */
-    public function found_inactive_themes() {
-        return $this->get_all_themes_int( false, '', '', false, true ) ? true : false;
+    public function is_good_themes() {
+        $founds = $this->get_all_themes_int( false, '', '', false, true );
+
+        $wp_themes = array(
+            'twentytwelve',
+            'twentythirteen',
+            'twentyfourteen',
+            'twentyfifteen',
+            'twentysixteen',
+            'twentyseventeen',
+            'twentynineteen',
+            'twentytwenty',
+            'twentytwentyone',
+            'twentytwentytwo',
+            'twentytwentythree',
+            'twentytwentyfour',
+            'twentytwentyfive',
+        );
+
+        $is_bad = true;
+
+        if ( ! empty( $founds ) ) {
+            if ( 1 === count( $founds ) ) {
+                if ( $founds[0]['parent'] || in_array( $founds[0]['slug'], $wp_themes ) ) {
+                    $is_bad = false;
+                }
+            } elseif ( 2 === count( $founds ) ) {
+                $total_parent = $founds[0]['parent'] + $founds[1]['parent'];
+                if ( 1 === $total_parent && ( in_array( $founds[0]['slug'], $wp_themes ) || in_array( $founds[1]['slug'], $wp_themes ) ) ) {
+                    $is_bad = false;
+                }
+            }
+        } else {
+            $is_bad = false;
+        }
+
+        return $is_bad ? 0 : 1; // bad is not good else good.
     }
+
 
     /**
      * Ger category stats.
@@ -1168,7 +1204,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $rslt   = array();
         $themes = wp_get_themes();
 
-        $found_inactive = false;
+        $found_inactive = array();
 
         if ( is_array( $themes ) ) {
             $theme_name  = wp_get_theme()->get( 'Name' );
@@ -1200,8 +1236,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
                 $rslt[] = $out;
 
-                if ( 0 === $out['parent_active'] && empty( $out['active'] ) ) {
-                    $found_inactive = true;
+                if ( empty( $out['active'] ) ) {
+                    $found_inactive[] = array(
+                        'name'   => $out['name'],
+                        'slug'   => $out['slug'],
+                        'parent' => $out['parent_active'],
+                    );
                 }
             }
         }

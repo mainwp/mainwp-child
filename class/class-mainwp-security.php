@@ -399,6 +399,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * Check WP Config and check if debugging is disabled.
      */
     public static function inactive_themes_ok() {
-        return MainWP_Child_Stats::get_instance()->found_inactive_themes() ? false : true;
+        return MainWP_Child_Stats::get_instance()->is_good_themes() ? true : false;
     }
 }
