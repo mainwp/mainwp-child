@@ -559,7 +559,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $_plugins                     = $this->get_plugins();
         $plugins_to_delete            = array();
         $plugins_to_delete[ $plugin ] = isset( $_plugins[ $plugin ] ) ? $_plugins[ $plugin ] : array();
-        update_option( 'wp_mainwp_stream_plugins_to_delete', $plugins_to_delete );
+        update_option( 'wp_mainwp_child_actions_plugins_to_delete', $plugins_to_delete );
         return false;
     }
 
@@ -575,7 +575,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             if ( ! isset( $_POST['action'] ) || 'delete-plugin' !== $_POST['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification
                 return;
             }
-            $plugins_to_delete = get_option( 'wp_mainwp_stream_plugins_to_delete' );
+            $plugins_to_delete = get_option( 'wp_mainwp_child_actions_plugins_to_delete' );
             if ( ! $plugins_to_delete ) {
                 return;
             }
@@ -592,7 +592,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                     );
                 }
             }
-            delete_option( 'wp_mainwp_stream_plugins_to_delete' );
+            delete_option( 'wp_mainwp_child_actions_plugins_to_delete' );
         }
     }
 

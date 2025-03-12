@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.4.0.1'; // NOSONAR - not IP.
+    public static $version = '5.4.0.2'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -76,6 +76,7 @@ class MainWP_Child {
         add_action( 'init', array( &$this, 'init_check_login' ), 1 );
         add_action( 'init', array( &$this, 'parse_init' ), 9999 );
         add_action( 'init', array( &$this, 'localization' ), 33 );
+        add_action( 'init', array( &$this, 'init_hooks' ), 9 );
         add_action( 'admin_init', array( &$this, 'admin_init' ) );
         add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
 
@@ -366,6 +367,13 @@ class MainWP_Child {
     }
 
     /**
+     * Method init_hooks()
+     */
+    public function init_hooks() {
+        MainWP_Child_Actions::get_instance()->init_hooks();
+    }
+
+    /**
      * Method admin_init()
      *
      * If the current user is administrator initiate the admin ajax.
@@ -376,7 +384,6 @@ class MainWP_Child {
         if ( MainWP_Helper::is_admin() && is_admin() ) {
             MainWP_Clone::instance()->init_ajax();
         }
-        MainWP_Child_Actions::get_instance()->init_hooks();
 
         if ( empty( get_option( 'mainwp_child_pubkey' ) ) ) {
             $ttl_pubkey = (int) get_option( 'mainwp_child_ttl_active_unconnected_site', 20 );
