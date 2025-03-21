@@ -794,7 +794,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         }
 
         // Prevent any meta with null values from being logged.
-        $other_meta = array_filter(
+        $extra_info = array_filter(
             $args,
             function ( $val ) {
                 return ! is_null( $val );
@@ -802,7 +802,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         );
 
         // Add user meta to Stream meta.
-        $other_meta['user_meta'] = $meta_data;
+        $other_meta = array(
+            'user_meta'  => $meta_data,
+            'extra_info' => $extra_info,
+        );
 
         $created = MainWP_Helper::get_timestamp();
 
