@@ -388,6 +388,11 @@ class MainWP_Child_Install {
             $urls = $urlgot;
         }
 
+        // To fix conflict.
+        if ( is_plugin_active( 'git-updater/git-updater.php' ) ) {
+            remove_all_filters( 'upgrader_source_selection' );
+        }
+
         $install_results = array();
         $result          = array();
         $install_items   = array();
