@@ -111,7 +111,7 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
-= 5.4.0.3 - 3-12-2025 =
+= 5.4.0.3 - 3-24-2025 =
 
 * Fixed: Conflict with the Git Updater plugin
 * Fixed: Issue with querying extra data in Non-MainWP Changes logs
