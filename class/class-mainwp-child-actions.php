@@ -785,7 +785,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             'agent'           => (string) $agent,
         );
 
-        if ( 'wp_cli' === $agent && function_exists( 'posix_getuid' ) ) {
+        if ( 'wp_cli' === $agent && is_callable( 'posix_getuid' ) && is_callable( 'posix_getpwuid' ) ) {
             $uid       = posix_getuid();
             $user_info = posix_getpwuid( $uid );
 
