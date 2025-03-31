@@ -827,6 +827,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
             $replace_token = preg_replace( '/^https?:\/\//i', '', $replace_token );
             $replace_token = sanitize_file_name( $replace_token );
             $str           = str_ireplace( '%siteurl%', $replace_token, $str );
+            $str           = str_ireplace( '_.', '.', $str ); // to fix strange chars issue.
         }
         return $str;
     }
