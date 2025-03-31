@@ -111,6 +111,12 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.4.0.4 - 3-31-2025 =
+
+* Fixed: PHP error caused by the disabled posix_getpwuid() function.
+* Fixed: Issue with the %site% token not working correctly in UpdraftPlus extension settings.
+* Updated: Enhanced WP Core vulnerability checks for better compatibility with the NIST NVD API.
+
 = 5.4.0.3 - 3-24-2025 =
 
 * Fixed: Conflict with the Git Updater plugin
