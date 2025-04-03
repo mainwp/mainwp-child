@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 5.4.0.3
+Stable tag: 5.4.0.4
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,12 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.4 - Maintenance Release - 4-3-2025 =
+
+* Fixed: PHP error caused by the disabled posix_getpwuid() function.
+* Fixed: Issue with the %site% token not working correctly in UpdraftPlus extension settings.
+* Updated: Enhanced WP Core vulnerability checks for better compatibility with the NIST NVD API.
 
 = 5.4.0.3 - 3-24-2025 =
 
