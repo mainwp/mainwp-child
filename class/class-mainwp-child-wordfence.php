@@ -1838,7 +1838,7 @@ SQL
      *
      * @return array Action result.
      */
-    public function export_settings() {
+    public function export_settings() {//phpcs:ignore -- NOSONAR -complex.
 
         $export = array();
 
