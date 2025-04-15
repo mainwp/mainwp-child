@@ -50,7 +50,7 @@ Take control of your WordPress site management with MainWP and the MainWP Child 
 = Learn More About MainWP =
 - [MainWP Website](https://mainwp.com)
 - [MainWP Documentation](https://mainwp.com/kb/)
-- [MainWP Support](https://managers.mainwp.com/c/support/mainwp-support/)
+- [MainWP Support](https://community.mainwp.com/c/support/mainwp-support/)
 - [MainWP Blog](https://mainwp.com/blog/)
 - [MainWP on GitHub](https://github.com/mainwp/)
 
