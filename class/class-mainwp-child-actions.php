@@ -764,6 +764,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return false;
         }
 
+        $userlogin = (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
+
         $user_role_label = '';
         $role            = '';
         $roles           = MainWP_Utility::instance()->get_roles();
@@ -773,25 +775,36 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             $user_role_label = isset( $roles[ $role ] ) ? $roles[ $role ] : $role;
         }
 
-        $userlogin = (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
-
         $agent     = $this->get_current_agent();
         $meta_data = array(
             'wp_user_id'      => (int) $user_id,
             'display_name'    => (string) $this->get_display_name( $user ),
-            'action_user'     => (string) $userlogin,
             'role'            => (string) $role,
             'user_role_label' => (string) $user_role_label,
             'agent'           => (string) $agent,
         );
 
-        if ( 'wp_cli' === $agent && is_callable( 'posix_getuid' ) && is_callable( 'posix_getpwuid' ) ) {
-            $uid       = posix_getuid();
-            $user_info = posix_getpwuid( $uid );
-
-            $meta_data['system_user_id']   = (int) $uid;
-            $meta_data['system_user_name'] = (string) $user_info['name'];
+        $system_user = '';
+        if ( 'wp_cli' === $agent ) {
+            $system_user = 'wp_cli';
+            if ( is_callable( 'posix_getuid' ) && is_callable( 'posix_getpwuid' ) ) {
+                $uid                           = posix_getuid();
+                $user_info                     = posix_getpwuid( $uid );
+                $meta_data['system_user_id']   = (int) $uid;
+                $meta_data['system_user_name'] = (string) $user_info['name'];
+                if ( ! empty( $meta_data['system_user_name'] ) ) {
+                    $system_user = $meta_data['system_user_name'];
+                }
+            }
+        } elseif ( 'wp_cron' === $agent ) {
+            $system_user = 'wp_cron';
         }
+
+        if ( empty( $userlogin ) && ! empty( $system_user ) ) {
+            $userlogin = $system_user;
+        }
+
+        $meta_data['action_user'] = (string) $userlogin;
 
         // Prevent any meta with null values from being logged.
         $extra_info = array_filter(

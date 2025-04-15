@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 6.7.1
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 5.4.0.4
+Stable tag: 5.4.0.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -49,7 +49,7 @@ Take control of your WordPress site management with MainWP and the MainWP Child 
 
 = Learn More About MainWP =
 - [MainWP Website](https://mainwp.com)
-- [MainWP Documentation](https://kb.mainwp.com)
+- [MainWP Documentation](https://mainwp.com/kb/)
 - [MainWP Support](https://managers.mainwp.com/c/support/mainwp-support/)
 - [MainWP Blog](https://mainwp.com/blog/)
 - [MainWP on GitHub](https://github.com/mainwp/)
@@ -110,6 +110,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.5 - Maintenance Release - 4-15-2025 =
+
+* Fixed: Site Changes filter "Users" filter showing only some users.
+* Fixed: When adding a child site that has never had Wordfence plugin installed, applying settings causes an error [(#755)](https://github.com/mainwp/mainwp/issues/755).
 
 = 5.4.0.4 - Maintenance Release - 4-3-2025 =
 
