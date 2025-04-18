@@ -819,7 +819,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             'extra_info' => $extra_info,
         );
 
-        $created = MainWP_Helper::get_timestamp();
+        $created = time();
 
         $action = (string) $action;
 
