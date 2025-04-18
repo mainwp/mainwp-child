@@ -297,7 +297,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
      *
      * @return string $wp_version Current WordPress version.
      */
-    protected static function get_wordpress_version() {
+    public static function get_wordpress_version() {
 
         /**
          * The installed version of WordPress.
@@ -305,6 +305,10 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
          * @global string $wp_version The installed version of WordPress.
          */
         global $wp_version;
+
+        if ( function_exists( '\wp_get_wp_version' ) ) {
+            return \wp_get_wp_version();
+        }
 
         return $wp_version;
     }

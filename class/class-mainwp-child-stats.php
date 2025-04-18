@@ -104,18 +104,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::instance()->error( esc_html__( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
         }
 
-        /**
-         * The installed version of WordPress.
-         *
-         * @global string $wp_version The installed version of WordPress.
-         *
-         * @uses \MainWP\Child\MainWP_Child::$version
-         * @uses \MainWP\Child\MainWP_Helper::write()
-         */
-        global $wp_version;
-
         $information['version']   = MainWP_Child::$version;
-        $information['wpversion'] = $wp_version;
+        $information['wpversion'] = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
         $information['wphost']    = MainWP_Helper::get_wp_host();
         MainWP_Helper::write( $information );
@@ -595,27 +585,15 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private function stats_get_info( &$information ) {
 
-        /**
-         * The installed version of WordPress.
-         *
-         * @global string $wp_version The installed version of WordPress.
-         *
-         * @uses \MainWP\Child\MainWP_Child::$version
-         * @uses \MainWP\Child\MainWP_Helper::is_wp_engine()
-         * @uses \MainWP\Child\MainWP_Helper::is_ssl_enabled()
-         * @uses \MainWP\Child\MainWP_Helper::update_option()
-         */
-        global $wp_version;
-
         $information['version']   = MainWP_Child::$version;
-        $information['wpversion'] = $wp_version;
+        $information['wpversion'] = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $information['siteurl']   = get_option( 'siteurl' );
         $information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
         $information['wphost']    = MainWP_Helper::get_wp_host();
 
         $theme_name               = wp_get_theme()->get( 'Name' );
         $information['site_info'] = array(
-            'wpversion'             => $wp_version,
+            'wpversion'             => MainWP_Child_Server_Information_Base::get_wordpress_version(),
             'debug_mode'            => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
             'phpversion'            => phpversion(),
             'child_version'         => MainWP_Child::$version,
@@ -639,13 +617,6 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function stats_wp_update() {
 
-        /**
-         * The installed version of WordPress.
-         *
-         * @global string $wp_version The installed version of WordPress.
-         */
-        global $wp_version;
-
         $result = null;
 
         // Check for new versions.
@@ -660,12 +631,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         $core_updates = get_core_updates();
 
+        $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
+
         if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
             foreach ( $core_updates as $core_update ) {
                 if ( 'latest' === $core_update->response ) {
                     break;
                 }
-                if ( 'upgrade' === $core_update->response && version_compare( $wp_version, $core_update->current, '<=' ) ) {
+                if ( 'upgrade' === $core_update->response && version_compare( $wp_ver, $core_update->current, '<=' ) ) {
                     $result = $core_update->current;
                 }
             }
