@@ -74,21 +74,21 @@ class MainWP_Child {
         // Register essential hooks that are needed on every page
         add_action( 'template_redirect', array( $this, 'template_redirect' ) );
         add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
-        add_action( 'init', array( &$this, 'init_check_login' ), 1 );
-        add_action( 'init', array( &$this, 'parse_init' ), 9999 );
-        add_action( 'init', array( &$this, 'localization' ), 33 );
-        add_action( 'init', array( &$this, 'init_hooks' ), 9 );
-        add_action( 'admin_init', array( &$this, 'admin_init' ) );
-        add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
+        add_action( 'init', array( $this, 'init_check_login' ), 1 );
+        add_action( 'init', array( $this, 'parse_init' ), 9999 );
+        add_action( 'init', array( $this, 'localization' ), 33 );
+        add_action( 'init', array( $this, 'init_hooks' ), 9 );
+        add_action( 'admin_init', array( $this, 'admin_init' ) );
+        add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( $this, 'plugin_settings_link' ) );
 
         // Only add these hooks when on the plugins page or updates page
-        if (is_admin() && function_exists('get_current_screen')) {
+        if ( is_admin() && function_exists( 'get_current_screen' ) ) {
             $screen = get_current_screen();
-            if ($screen && ($screen->id === 'plugins' || $screen->id === 'update-core')) {
+            if ( $screen && ( $screen->id === 'plugins' || $screen->id === 'update-core' ) ) {
                 // Support for better detection for premium plugins
-                add_action('pre_current_active_plugins', array(MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates'));
+                add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
                 // Support for better detection for premium themes
-                add_action('core_upgrade_preamble', array(MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates'));
+                add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
             }
         }
 
@@ -96,9 +96,9 @@ class MainWP_Child {
         MainWP_Pages::get_instance()->init();
 
         // Only initialize these components when in admin area
-        if (is_admin()) {
+        if ( is_admin() ) {
             // Update plugin version in database
-            MainWP_Helper::update_option('mainwp_child_plugin_version', static::$version, 'yes');
+            MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
 
             // Initialize connection-related components
             MainWP_Connect::instance()->check_other_auth();
@@ -108,7 +108,7 @@ class MainWP_Child {
             MainWP_Client_Report::instance()->init();
 
             // These are only needed in admin area and are performance-intensive
-            if ($this->is_mainwp_pages()) {
+            if ( $this->is_mainwp_pages() ) {
                 // Lazy load these only when on MainWP pages
                 MainWP_Child_Plugins_Check::instance();
                 MainWP_Child_Themes_Check::instance();
@@ -125,28 +125,28 @@ class MainWP_Child {
         MainWP_Utility::instance()->run_saved_snippets();
 
         // WP CLI support
-        if (defined('WP_CLI') && WP_CLI) {
+        if ( defined( 'WP_CLI' ) && WP_CLI ) {
             MainWP_Child_WP_CLI_Command::init();
         }
 
         // Initiate Branding Options - essential for disconnected sites
-        if (!get_option('mainwp_child_pubkey')) {
-            MainWP_Child_Branding::instance()->save_branding_options('branding_disconnected', 'yes');
+        if ( ! get_option( 'mainwp_child_pubkey' ) ) {
+            MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
         }
 
         // Support for cron jobs
-        if (defined('DOING_CRON') && DOING_CRON && isset($_GET['mainwp_child_run']) && !empty($_GET['mainwp_child_run'])) { // phpcs:ignore WordPress.Security.NonceVerification
-            add_action('init', array(MainWP_Utility::get_class_name(), 'cron_active'), PHP_INT_MAX);
+        if ( defined( 'DOING_CRON' ) && DOING_CRON && isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+            add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
         }
 
         // Essential action to response data result
-        add_action('mainwp_child_write', array(MainWP_Helper::class, 'write'));
+        add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
 
         // Essential filters for security
-        add_filter('mainwp_child_create_action_nonce', array(MainWP_Utility::class, 'hook_create_nonce_action'), 10, 2);
-        add_filter('mainwp_child_verify_authed_acion_nonce', array(MainWP_Utility::class, 'hook_verify_authed_action_nonce'), 10, 2);
-        add_filter('mainwp_child_get_ping_nonce', array(MainWP_Utility::class, 'hook_get_ping_nonce'), 10, 2);
-        add_filter('mainwp_child_get_encrypted_option', array(MainWP_Child_Keys_Manager::class, 'hook_get_encrypted_option'), 10, 3);
+        add_filter( 'mainwp_child_create_action_nonce', array( MainWP_Utility::class, 'hook_create_nonce_action' ), 10, 2 );
+        add_filter( 'mainwp_child_verify_authed_acion_nonce', array( MainWP_Utility::class, 'hook_verify_authed_action_nonce' ), 10, 2 );
+        add_filter( 'mainwp_child_get_ping_nonce', array( MainWP_Utility::class, 'hook_get_ping_nonce' ), 10, 2 );
+        add_filter( 'mainwp_child_get_encrypted_option', array( MainWP_Child_Keys_Manager::class, 'hook_get_encrypted_option' ), 10, 3 );
     }
 
     /**
