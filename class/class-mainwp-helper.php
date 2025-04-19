@@ -734,20 +734,20 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool $success true|false Option updated.
      */
     public static function update_option( $option_name, $option_value, $autoload = 'no' ) {
-        // Try to add the option first
+        // Try to add the option first.
         $success = add_option( $option_name, $option_value, '', $autoload );
 
-        // If option already exists, update it
+        // If option already exists, update it.
         if ( ! $success ) {
             $success = update_option( $option_name, $option_value );
         }
 
-        // If update was successful, update our cache
+        // If update was successful, update our cache.
         if ( $success ) {
-            // Cache the option in our custom cache group for faster access
-            wp_cache_set( $option_name, $option_value, 'mainwp', 3600 ); // Cache for 1 hour
+            // Cache the option in our custom cache group for faster access.
+            wp_cache_set( $option_name, $option_value, 'mainwp', 3600 ); // Cache for 1 hour.
 
-            // Also update the alloptions cache if this is an autoloaded option
+            // Also update the alloptions cache if this is an autoloaded option.
             if ( 'yes' === $autoload ) {
                 $alloptions = wp_cache_get( 'alloptions', 'options' );
                 if ( is_array( $alloptions ) ) {
