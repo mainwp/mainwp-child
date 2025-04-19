@@ -90,6 +90,18 @@ if ( function_exists( 'spl_autoload_register' ) ) {
 
 require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'functions.php'; // NOSONAR - WP compatible.
 
+// Always register activation and deactivation hooks.
 $mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
 register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );
 register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );
+
+// Create a lightweight frontend class for non-admin requests.
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+if ( ! is_admin() && ! defined( 'DOING_CRON' ) && ! defined( 'WP_CLI' ) && ! isset( $_REQUEST['mainwpsignature'] ) ) {
+    // Only initialize minimal frontend functionality.
+    // This prevents loading unnecessary code on frontend requests.
+    add_action( 'plugins_loaded', array( $mainWPChild, 'init_frontend_only' ) );
+} else {
+    // Initialize full functionality for admin area, cron jobs, WP CLI, or API requests.
+    add_action( 'plugins_loaded', array( $mainWPChild, 'init_full' ) );
+}
