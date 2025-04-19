@@ -613,7 +613,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         $info = $update_results['core'][0];
 
-        // Get WordPress version using global variable instead of static method call
+        // Get WordPress version using global variable instead of static method call.
         global $wp_version;
         $old_version  = $wp_version;
         $new_version  = $info->item->version;
@@ -641,7 +641,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
          */
         global $pagenow;
 
-        // Get WordPress version using global variable instead of static method call
+        // Get WordPress version using global variable instead of static method call.
         global $wp_version;
         $old_version  = $wp_version;
         $auto_updated = ( 'update-core.php' !== $pagenow );

@@ -346,7 +346,7 @@ class MainWP_Child_Plugins_Check {
         // Get the WordPress current version to be polite in the API call.
         include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
 
-        // Get WordPress version using global variable instead of static method call
+        // Get WordPress version using global variable instead of static method call.
         global $wp_version;
         $wp_ver = $wp_version;
 

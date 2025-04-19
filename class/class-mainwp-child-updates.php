@@ -1215,7 +1215,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         // Check for new versions.
         MainWP_System::wp_mainwp_version_check();
 
-        // Get WordPress version using global variable instead of static method call
+        // Get WordPress version using global variable instead of static method call.
         global $wp_version;
         $wp_ver       = $wp_version;
         $core_updates = get_core_updates();
