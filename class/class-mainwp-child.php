@@ -71,6 +71,7 @@ class MainWP_Child {
 
         $this->plugin_slug = plugin_basename( $plugin_file );
 
+        // Register essential hooks that are needed on every page
         add_action( 'template_redirect', array( $this, 'template_redirect' ) );
         add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
         add_action( 'init', array( &$this, 'init_check_login' ), 1 );
@@ -80,59 +81,73 @@ class MainWP_Child {
         add_action( 'admin_init', array( &$this, 'admin_init' ) );
         add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
 
-        // support for better detection for premium plugins.
-        add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-
-        // support for better detection for premium themes.
-        add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-
-        MainWP_Pages::get_instance()->init();
-
-        // Initiate MainWP Cache Control class.
-        MainWP_Child_Cache_Purge::instance();
-
-        // Initiate MainWP Child API Backups class.
-        MainWP_Child_Api_Backups::instance();
-
-        if ( is_admin() ) {
-            MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
+        // Only add these hooks when on the plugins page or updates page
+        if (is_admin() && function_exists('get_current_screen')) {
+            $screen = get_current_screen();
+            if ($screen && ($screen->id === 'plugins' || $screen->id === 'update-core')) {
+                // Support for better detection for premium plugins
+                add_action('pre_current_active_plugins', array(MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates'));
+                // Support for better detection for premium themes
+                add_action('core_upgrade_preamble', array(MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates'));
+            }
         }
 
-        MainWP_Connect::instance()->check_other_auth();
+        // Initialize essential components
+        MainWP_Pages::get_instance()->init();
 
-        MainWP_Clone::instance()->init();
-        MainWP_Client_Report::instance()->init();
-        MainWP_Child_Plugins_Check::instance();
-        MainWP_Child_Themes_Check::instance();
+        // Only initialize these components when in admin area
+        if (is_admin()) {
+            // Update plugin version in database
+            MainWP_Helper::update_option('mainwp_child_plugin_version', static::$version, 'yes');
+
+            // Initialize connection-related components
+            MainWP_Connect::instance()->check_other_auth();
+
+            // Initialize core features
+            MainWP_Clone::instance()->init();
+            MainWP_Client_Report::instance()->init();
+
+            // These are only needed in admin area and are performance-intensive
+            if ($this->is_mainwp_pages()) {
+                // Lazy load these only when on MainWP pages
+                MainWP_Child_Plugins_Check::instance();
+                MainWP_Child_Themes_Check::instance();
+
+                // Initiate MainWP Cache Control class
+                MainWP_Child_Cache_Purge::instance();
+
+                // Initiate MainWP Child API Backups class
+                MainWP_Child_Api_Backups::instance();
+            }
+        }
+
+        // Run saved snippets - this is essential functionality
         MainWP_Utility::instance()->run_saved_snippets();
         MainWP_Child_Vulnerability_Checker::instance();
 
-        if ( defined( 'WP_CLI' ) && WP_CLI ) {
+        // WP CLI support
+        if (defined('WP_CLI') && WP_CLI) {
             MainWP_Child_WP_CLI_Command::init();
         }
 
-        /**
-         * Initiate Branding Options.
-         */
-        if ( ! get_option( 'mainwp_child_pubkey' ) ) {
-            MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
+        // Initiate Branding Options - essential for disconnected sites
+        if (!get_option('mainwp_child_pubkey')) {
+            MainWP_Child_Branding::instance()->save_branding_options('branding_disconnected', 'yes');
         }
 
-        if ( defined( 'DOING_CRON' ) && DOING_CRON && isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
-            add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
+        // Support for cron jobs
+        if (defined('DOING_CRON') && DOING_CRON && isset($_GET['mainwp_child_run']) && !empty($_GET['mainwp_child_run'])) { // phpcs:ignore WordPress.Security.NonceVerification
+            add_action('init', array(MainWP_Utility::get_class_name(), 'cron_active'), PHP_INT_MAX);
         }
 
-        /**
-         * Action to response data result.
-         *
-         * @since 4.3
-         */
-        add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
+        // Essential action to response data result
+        add_action('mainwp_child_write', array(MainWP_Helper::class, 'write'));
 
-        add_filter( 'mainwp_child_create_action_nonce', array( MainWP_Utility::class, 'hook_create_nonce_action' ), 10, 2 );
-        add_filter( 'mainwp_child_verify_authed_acion_nonce', array( MainWP_Utility::class, 'hook_verify_authed_action_nonce' ), 10, 2 );
-        add_filter( 'mainwp_child_get_ping_nonce', array( MainWP_Utility::class, 'hook_get_ping_nonce' ), 10, 2 );
-        add_filter( 'mainwp_child_get_encrypted_option', array( MainWP_Child_Keys_Manager::class, 'hook_get_encrypted_option' ), 10, 3 );
+        // Essential filters for security
+        add_filter('mainwp_child_create_action_nonce', array(MainWP_Utility::class, 'hook_create_nonce_action'), 10, 2);
+        add_filter('mainwp_child_verify_authed_acion_nonce', array(MainWP_Utility::class, 'hook_verify_authed_action_nonce'), 10, 2);
+        add_filter('mainwp_child_get_ping_nonce', array(MainWP_Utility::class, 'hook_get_ping_nonce'), 10, 2);
+        add_filter('mainwp_child_get_encrypted_option', array(MainWP_Child_Keys_Manager::class, 'hook_get_encrypted_option'), 10, 3);
     }
 
     /**
@@ -405,6 +420,7 @@ class MainWP_Child {
      * Method parse_init_extensions()
      *
      * Parse MainWP Extension initiations.
+     * Only loads extensions for plugins that are actually installed and active.
      *
      * @uses \MainWP\Child\MainWP_Child_Branding::branding_init()
      * @uses \MainWP\Child\MainWP_Client_Report::creport_init()
@@ -424,26 +440,116 @@ class MainWP_Child {
      * @uses \MainWP\Child\MainWP_Child_HTML_Regression::instance()->init()
      */
     private function parse_init_extensions() {
+        // Always load branding - it's a core feature
         MainWP_Child_Branding::instance()->branding_init();
+
+        // Load Client Report - it's a core feature
         MainWP_Client_Report::instance()->creport_init();
-        MainWP_Child_IThemes_Security::instance()->ithemes_init();
-        MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
-        MainWP_Child_Back_Up_WordPress::instance()->init();
-        MainWP_Child_WP_Rocket::instance()->init();
-        MainWP_Child_Back_WP_Up::instance()->init();
-        MainWP_Child_Back_Up_Buddy::instance();
-        MainWP_Child_Wordfence::instance()->wordfence_init();
-        MainWP_Child_Timecapsule::instance()->init();
-        MainWP_Child_Staging::instance()->init();
-        MainWP_Child_Pagespeed::instance()->init();
-        MainWP_Child_Links_Checker::instance()->init();
-        MainWP_Child_WPvivid_BackupRestore::instance()->init();
+
+        // Only load extensions for plugins that are actually installed
+        if ($this->is_plugin_active('better-wp-security/better-wp-security.php') || $this->is_plugin_active('ithemes-security-pro/ithemes-security-pro.php')) {
+            MainWP_Child_IThemes_Security::instance()->ithemes_init();
+        }
+
+        if ($this->is_plugin_active('updraftplus/updraftplus.php')) {
+            MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
+        }
+
+        if ($this->is_plugin_active('backupwordpress/backupwordpress.php')) {
+            MainWP_Child_Back_Up_WordPress::instance()->init();
+        }
+
+        if ($this->is_plugin_active('wp-rocket/wp-rocket.php')) {
+            MainWP_Child_WP_Rocket::instance()->init();
+        }
+
+        if ($this->is_plugin_active('backwpup/backwpup.php') || $this->is_plugin_active('backwpup-pro/backwpup.php')) {
+            MainWP_Child_Back_WP_Up::instance()->init();
+        }
+
+        if ($this->is_plugin_active('backupbuddy/backupbuddy.php')) {
+            MainWP_Child_Back_Up_Buddy::instance();
+        }
+
+        if ($this->is_plugin_active('wordfence/wordfence.php')) {
+            MainWP_Child_Wordfence::instance()->wordfence_init();
+        }
+
+        if ($this->is_plugin_active('wp-time-capsule/wp-time-capsule.php')) {
+            MainWP_Child_Timecapsule::instance()->init();
+        }
+
+        if ($this->is_plugin_active('wp-staging/wp-staging.php') || $this->is_plugin_active('wp-staging-pro/wp-staging-pro.php')) {
+            MainWP_Child_Staging::instance()->init();
+        }
+
+        if ($this->is_plugin_active('google-pagespeed-insights/google-pagespeed-insights.php')) {
+            MainWP_Child_Pagespeed::instance()->init();
+        }
+
+        if ($this->is_plugin_active('broken-link-checker/broken-link-checker.php')) {
+            MainWP_Child_Links_Checker::instance()->init();
+        }
+
+        if ($this->is_plugin_active('wpvivid-backuprestore/wpvivid-backuprestore.php')) {
+            MainWP_Child_WPvivid_BackupRestore::instance()->init();
+        }
+
+        // DB Updater is a utility class that should always be loaded
         MainWP_Child_DB_Updater::instance();
-        MainWP_Child_Jetpack_Protect::instance();
-        MainWP_Child_Jetpack_Scan::instance();
-        MainWP_Child_Aam::instance()->init();
+
+        if ($this->is_plugin_active('jetpack/jetpack.php')) {
+            MainWP_Child_Jetpack_Protect::instance();
+            MainWP_Child_Jetpack_Scan::instance();
+        }
+
+        if ($this->is_plugin_active('advanced-access-manager/aam.php')) {
+            MainWP_Child_Aam::instance()->init();
+        }
+
+        // Custom Post Type is a core feature
         MainWP_Custom_Post_Type::instance();
-            MainWP_Child_HTML_Regression::instance()->init();
+
+        // HTML Regression is a core feature
+        MainWP_Child_HTML_Regression::instance()->init();
+    }
+
+    /**
+     * Helper method to check if a plugin is active
+     *
+     * @param string $plugin Plugin path relative to plugins directory
+     * @return bool True if plugin is active, false otherwise
+     */
+    private function is_plugin_active($plugin) {
+        return is_plugin_active($plugin);
+    }
+
+    /**
+     * Helper method to check if we're on a MainWP admin page
+     *
+     * @return bool True if on a MainWP admin page, false otherwise
+     */
+    private function is_mainwp_pages() {
+        if (!is_admin() || !function_exists('get_current_screen')) {
+            return false;
+        }
+
+        $screen = get_current_screen();
+        if (!$screen) {
+            return false;
+        }
+
+        // List of screens where MainWP Child functionality is needed
+        $mainwp_screens = array(
+            'settings_page_mainwp_child_tab',
+            'dashboard',  // Include dashboard for widgets
+            'update-core', // Include updates page
+        );
+
+        // Also check if we're on a page with mainwp in the query string
+        $is_mainwp_page = (isset($_GET['page']) && strpos($_GET['page'], 'mainwp') !== false);
+
+        return in_array($screen->id, $mainwp_screens) || $is_mainwp_page;
     }
 
 
