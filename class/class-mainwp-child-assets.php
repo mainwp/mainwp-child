@@ -17,11 +17,15 @@ namespace MainWP\Child;
 class MainWP_Child_Assets {
 
     /**
+     * Public static instance variable.
+     *
      * @var null Holds the Public static instance of MainWP_Child_Assets.
      */
     protected static $instance = null;
 
     /**
+     * MainWP admin pages list.
+     *
      * @var array Holds the list of pages where MainWP Child assets should be loaded.
      */
     private $mainwp_pages = array(
@@ -91,27 +95,33 @@ class MainWP_Child_Assets {
 
         // Register jQuery UI styles only if needed.
         global $wp_scripts;
-        $ui = $wp_scripts->query( 'jquery-ui-core' );
-        if ( $ui ) {
-            $version = $ui->ver;
-            if ( MainWP_Helper::starts_with( $version, '1.10' ) ) {
-                wp_register_style(
-                    'jquery-ui-style',
-                    plugins_url( 'css/1.10.4/jquery-ui.min.css', dirname( __FILE__ ) ),
-                    array(),
-                    '1.10',
-                    'all'
-                );
-            } else {
-                wp_register_style(
-                    'jquery-ui-style',
-                    plugins_url( 'css/1.11.1/jquery-ui.min.css', dirname( __FILE__ ) ),
-                    array(),
-                    '1.11',
-                    'all'
-                );
-            }
+        $jquery_ui_core = $wp_scripts->query( 'jquery-ui-core' );
+        if ( ! $jquery_ui_core ) {
+            return;
         }
+
+        $version = $jquery_ui_core->ver;
+
+        // Use version 1.10 stylesheet if detected.
+        if ( $this->is_jquery_ui_version_110( $version ) ) {
+            wp_register_style(
+                'jquery-ui-style',
+                plugins_url( 'css/1.10.4/jquery-ui.min.css', __DIR__ ),
+                array(),
+                '1.10',
+                'all'
+            );
+            return;
+        }
+
+        // Default to version 1.11 stylesheet.
+        wp_register_style(
+            'jquery-ui-style',
+            plugins_url( 'css/1.11.1/jquery-ui.min.css', __DIR__ ),
+            array(),
+            '1.11',
+            'all'
+        );
     }
 
     /**
@@ -128,8 +138,10 @@ class MainWP_Child_Assets {
             wp_enqueue_script( 'mainwp-child-script' );
 
             // Enqueue jQuery UI scripts and styles for clone page.
+            // This is a read-only check for admin page detection, not processing user input for database operations.
             // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-            if ( isset( $_GET['page'] ) && 'mainwp-clone' === $_GET['page'] ) {
+            $page_param = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+            if ( 'mainwp-clone' === $page_param ) {
                 wp_enqueue_script( 'jquery-ui-tooltip' );
                 wp_enqueue_script( 'jquery-ui-autocomplete' );
                 wp_enqueue_script( 'jquery-ui-progressbar' );
@@ -137,6 +149,18 @@ class MainWP_Child_Assets {
                 wp_enqueue_style( 'jquery-ui-style' );
             }
         }
+    }
+
+    /**
+     * Method is_jquery_ui_version_110()
+     *
+     * Check if jQuery UI version starts with 1.10.
+     *
+     * @param string $version jQuery UI version string.
+     * @return bool True if version starts with 1.10, false otherwise.
+     */
+    private function is_jquery_ui_version_110( $version ) {
+        return 0 === strpos( $version, '1.10' );
     }
 
     /**
