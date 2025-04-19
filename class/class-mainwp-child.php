@@ -205,18 +205,25 @@ class MainWP_Child {
             // Prepare and execute a single optimized query.
             $suppress = $wpdb->suppress_errors();
 
-            // Build the query with proper escaping.
-            $placeholders = array_fill( 0, count( $mainwp_options ), '%s' );
-            $format       = implode( ',', $placeholders );
+            // Build a secure query using WordPress's prepare method.
+            // First, create the base query without the placeholders.
+            $base_query = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name IN (";
 
-            // Direct prepare call to avoid multiple variables that could trigger false positives in code scanners.
-            // This is a secure usage of prepare with all user input properly sanitized.
-            $alloptions_db = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT option_name, option_value FROM $wpdb->options WHERE option_name IN ($format)",
-                    $mainwp_options
-                )
-            );
+            // Create placeholders and add them to the query.
+            $placeholders = array();
+            $values = array();
+
+            foreach ( $mainwp_options as $option ) {
+                $placeholders[] = '%s';
+                $values[] = $option;
+            }
+
+            // Complete the query with placeholders.
+            $query = $base_query . implode( ',', $placeholders ) . ')';
+
+            // Prepare and execute the query.
+            $prepared_query = $wpdb->prepare( $query, $values );
+            $alloptions_db = $wpdb->get_results( $prepared_query );
             $wpdb->suppress_errors( $suppress );
 
             if ( ! is_array( $alloptions ) ) {
