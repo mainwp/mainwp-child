@@ -615,9 +615,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version using global variable instead of static method call.
         global $wp_version;
-        $old_version   = $wp_version;
-        $new_version   = $info->item->version;
-        $auto_updated  = true;
+        $old_version  = $wp_version;
+        $new_version  = $info->item->version;
+        $auto_updated = true;
 
         $message = esc_html__( 'WordPress auto-updated to %s', 'stream' );
 
@@ -643,8 +643,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version using global variable instead of static method call.
         global $wp_version;
-        $old_version   = $wp_version;
-        $auto_updated  = ( 'update-core.php' !== $pagenow );
+        $old_version  = $wp_version;
+        $auto_updated = ( 'update-core.php' !== $pagenow );
 
         if ( $auto_updated ) {
             // translators: Placeholder refers to a version number (e.g. "4.2").
