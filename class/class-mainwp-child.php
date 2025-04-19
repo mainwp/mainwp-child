@@ -137,11 +137,16 @@ class MainWP_Child {
     /**
      * Method load_all_options()
      *
-     * Load all MainWP Child plugin options.
+     * Load all MainWP Child plugin options with optimized caching.
      *
      * @return array|bool Return array of options or false on failure.
      */
-    public function load_all_options() { //phpcs:ignore -- NOSONAR - complex.
+    public function load_all_options() {
+        // Check if options are already cached in our custom cache group
+        $cached_options = wp_cache_get('mainwp_child_all_options', 'mainwp');
+        if (false !== $cached_options) {
+            return $cached_options;
+        }
 
         /**
          * WP Database object.
@@ -150,72 +155,96 @@ class MainWP_Child {
          */
         global $wpdb;
 
-        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
-            $alloptions = wp_cache_get( 'alloptions', 'options' );
+        // First try to get from WordPress core cache
+        if (!defined('WP_INSTALLING') || !is_multisite()) {
+            $alloptions = wp_cache_get('alloptions', 'options');
         } else {
             $alloptions = false;
         }
 
-        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
-            $notoptions = wp_cache_get( 'notoptions', 'options' );
+        if (!defined('WP_INSTALLING') || !is_multisite()) {
+            $notoptions = wp_cache_get('notoptions', 'options');
         } else {
             $notoptions = false;
         }
 
-        if ( ! isset( $alloptions['mainwp_child_pubkey'] ) ) {
-            $suppress = $wpdb->suppress_errors();
-            $options  = array(
-                'mainwp_child_auth',
-                'mainwp_child_reports_db',
-                'mainwp_child_pluginDir',
-                'mainwp_updraftplus_hide_plugin',
-                'mainwp_backwpup_ext_enabled',
-                'mainwp_child_server',
-                'mainwp_pagespeed_hide_plugin',
-                'mainwp_child_clone_permalink',
-                'mainwp_child_restore_permalink',
-                'mainwp_ext_snippets_enabled',
-                'mainwp_child_pubkey',
-                'mainwp_security',
-                'mainwp_backupwordpress_ext_enabled',
-                'mainwp_pagespeed_ext_enabled',
-                'mainwp_linkschecker_ext_enabled',
-                'mainwp_child_branding_settings',
-                'mainwp_child_plugintheme_days_outdate',
-                'mainwp_wp_staging_ext_enabled',
-                'mainwp_child_connected_admin',
-                'mainwp_child_actions_saved_number_of_days',
-                'mainwp_child_pingnonce',
-            );
-            $query    = "SELECT option_name, option_value FROM $wpdb->options WHERE option_name in (";
-            foreach ( $options as $option ) {
-                $query .= "'" . $option . "', ";
-            }
-            $query  = substr( $query, 0, strlen( $query ) - 2 );
-            $query .= ")"; // phpcs:ignore -- simple style problem.
+        // Define the options we need
+        $mainwp_options = array(
+            'mainwp_child_auth',
+            'mainwp_child_reports_db',
+            'mainwp_child_pluginDir',
+            'mainwp_updraftplus_hide_plugin',
+            'mainwp_backwpup_ext_enabled',
+            'mainwp_child_server',
+            'mainwp_pagespeed_hide_plugin',
+            'mainwp_child_clone_permalink',
+            'mainwp_child_restore_permalink',
+            'mainwp_ext_snippets_enabled',
+            'mainwp_child_pubkey',
+            'mainwp_security',
+            'mainwp_backupwordpress_ext_enabled',
+            'mainwp_pagespeed_ext_enabled',
+            'mainwp_linkschecker_ext_enabled',
+            'mainwp_child_branding_settings',
+            'mainwp_child_plugintheme_days_outdate',
+            'mainwp_wp_staging_ext_enabled',
+            'mainwp_child_connected_admin',
+            'mainwp_child_actions_saved_number_of_days',
+            'mainwp_child_pingnonce',
+        );
 
-            $alloptions_db = $wpdb->get_results( $query ); // phpcs:ignore -- safe query, required to achieve desired results, pull request solutions appreciated.
-            $wpdb->suppress_errors( $suppress );
-            if ( ! is_array( $alloptions ) ) {
+        // Check if we need to query the database
+        $need_db_query = false;
+
+        // If alloptions is not an array or doesn't contain our key options, we need to query
+        if (!is_array($alloptions) || !isset($alloptions['mainwp_child_pubkey'])) {
+            $need_db_query = true;
+        }
+
+        if ($need_db_query) {
+            // Prepare and execute a single optimized query
+            $suppress = $wpdb->suppress_errors();
+
+            // Build the query with proper escaping
+            $placeholders = array_fill(0, count($mainwp_options), '%s');
+            $query = $wpdb->prepare(
+                "SELECT option_name, option_value FROM $wpdb->options WHERE option_name IN (" . implode(',', $placeholders) . ")",
+                $mainwp_options
+            );
+
+            $alloptions_db = $wpdb->get_results($query);
+            $wpdb->suppress_errors($suppress);
+
+            if (!is_array($alloptions)) {
                 $alloptions = array();
             }
-            if ( is_array( $alloptions_db ) ) {
-                foreach ( (array) $alloptions_db as $o ) {
-                    $alloptions[ $o->option_name ] = $o->option_value;
-                    unset( $options[ array_search( $o->option_name, $options ) ] );
+
+            if (is_array($alloptions_db)) {
+                foreach ((array)$alloptions_db as $o) {
+                    $alloptions[$o->option_name] = $o->option_value;
+                    $key = array_search($o->option_name, $mainwp_options);
+                    if (false !== $key) {
+                        unset($mainwp_options[$key]);
+                    }
                 }
-                if ( ! is_array( $notoptions ) ) {
+
+                if (!is_array($notoptions)) {
                     $notoptions = array();
                 }
-                foreach ( $options as $option ) {
-                    $notoptions[ $option ] = true;
+
+                foreach ($mainwp_options as $option) {
+                    $notoptions[$option] = true;
                 }
-                if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
-                    wp_cache_set( 'alloptions', $alloptions, 'options' );
-                    wp_cache_set( 'notoptions', $notoptions, 'options' );
+
+                if (!defined('WP_INSTALLING') || !is_multisite()) {
+                    wp_cache_set('alloptions', $alloptions, 'options');
+                    wp_cache_set('notoptions', $notoptions, 'options');
                 }
             }
         }
+
+        // Cache the results in our custom cache group for faster future access
+        wp_cache_set('mainwp_child_all_options', $alloptions, 'mainwp', 60); // Cache for 60 seconds
 
         return $alloptions;
     }
@@ -224,23 +253,38 @@ class MainWP_Child {
      * Method update()
      *
      * Update the MainWP Child plugin version (mainwp_child_update_version) option.
+     * Optimized with caching to avoid unnecessary database queries.
      *
      * @return void
      *
      * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     public function update() {
-        $update_version = get_option( 'mainwp_child_update_version' );
+        // Try to get from cache first
+        $cache_key = 'mainwp_child_update_version';
+        $update_version = wp_cache_get($cache_key, 'mainwp');
 
-        if ( $update_version === $this->update_version ) {
+        // If not in cache, get from database
+        if (false === $update_version) {
+            $update_version = get_option($cache_key);
+            // Cache the result for future checks
+            wp_cache_set($cache_key, $update_version, 'mainwp', 3600); // Cache for 1 hour
+        }
+
+        // If version is current, return early
+        if ($update_version === $this->update_version) {
             return;
         }
 
-        if ( version_compare( $update_version, '1.6', '<' ) ) {
-            delete_option( 'mainwp_child_subpages ' );
+        // Handle legacy version upgrades
+        if (version_compare($update_version, '1.6', '<')) {
+            delete_option('mainwp_child_subpages');
+            wp_cache_delete('mainwp_child_subpages', 'options');
         }
 
-        MainWP_Helper::update_option( 'mainwp_child_update_version', $this->update_version, 'yes' );
+        // Update the version in database and cache
+        MainWP_Helper::update_option($cache_key, $this->update_version, 'yes');
+        wp_cache_set($cache_key, $this->update_version, 'mainwp', 3600); // Cache for 1 hour
     }
 
     /**
