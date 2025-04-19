@@ -143,8 +143,8 @@ class MainWP_Child {
      */
     public function load_all_options() {
         // Check if options are already cached in our custom cache group
-        $cached_options = wp_cache_get('mainwp_child_all_options', 'mainwp');
-        if (false !== $cached_options) {
+        $cached_options = wp_cache_get( 'mainwp_child_all_options', 'mainwp' );
+        if ( false !== $cached_options ) {
             return $cached_options;
         }
 
@@ -156,14 +156,14 @@ class MainWP_Child {
         global $wpdb;
 
         // First try to get from WordPress core cache
-        if (!defined('WP_INSTALLING') || !is_multisite()) {
-            $alloptions = wp_cache_get('alloptions', 'options');
+        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
+            $alloptions = wp_cache_get( 'alloptions', 'options' );
         } else {
             $alloptions = false;
         }
 
-        if (!defined('WP_INSTALLING') || !is_multisite()) {
-            $notoptions = wp_cache_get('notoptions', 'options');
+        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
+            $notoptions = wp_cache_get( 'notoptions', 'options' );
         } else {
             $notoptions = false;
         }
@@ -197,54 +197,54 @@ class MainWP_Child {
         $need_db_query = false;
 
         // If alloptions is not an array or doesn't contain our key options, we need to query
-        if (!is_array($alloptions) || !isset($alloptions['mainwp_child_pubkey'])) {
+        if ( ! is_array( $alloptions ) || ! isset( $alloptions['mainwp_child_pubkey'] ) ) {
             $need_db_query = true;
         }
 
-        if ($need_db_query) {
+        if ( $need_db_query ) {
             // Prepare and execute a single optimized query
             $suppress = $wpdb->suppress_errors();
 
             // Build the query with proper escaping
-            $placeholders = array_fill(0, count($mainwp_options), '%s');
+            $placeholders = array_fill( 0, count( $mainwp_options ), '%s' );
             $query = $wpdb->prepare(
-                "SELECT option_name, option_value FROM $wpdb->options WHERE option_name IN (" . implode(',', $placeholders) . ")",
+                "SELECT option_name, option_value FROM $wpdb->options WHERE option_name IN (" . implode( ',', $placeholders ) . ")",
                 $mainwp_options
             );
 
-            $alloptions_db = $wpdb->get_results($query);
-            $wpdb->suppress_errors($suppress);
+            $alloptions_db = $wpdb->get_results( $query );
+            $wpdb->suppress_errors( $suppress );
 
-            if (!is_array($alloptions)) {
+            if ( ! is_array( $alloptions ) ) {
                 $alloptions = array();
             }
 
-            if (is_array($alloptions_db)) {
-                foreach ((array)$alloptions_db as $o) {
+            if ( is_array( $alloptions_db ) ) {
+                foreach ( (array) $alloptions_db as $o ) {
                     $alloptions[$o->option_name] = $o->option_value;
-                    $key = array_search($o->option_name, $mainwp_options);
-                    if (false !== $key) {
-                        unset($mainwp_options[$key]);
+                    $key = array_search( $o->option_name, $mainwp_options, true );
+                    if ( false !== $key ) {
+                        unset( $mainwp_options[$key] );
                     }
                 }
 
-                if (!is_array($notoptions)) {
+                if ( ! is_array( $notoptions ) ) {
                     $notoptions = array();
                 }
 
-                foreach ($mainwp_options as $option) {
+                foreach ( $mainwp_options as $option ) {
                     $notoptions[$option] = true;
                 }
 
-                if (!defined('WP_INSTALLING') || !is_multisite()) {
-                    wp_cache_set('alloptions', $alloptions, 'options');
-                    wp_cache_set('notoptions', $notoptions, 'options');
+                if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
+                    wp_cache_set( 'alloptions', $alloptions, 'options' );
+                    wp_cache_set( 'notoptions', $notoptions, 'options' );
                 }
             }
         }
 
         // Cache the results in our custom cache group for faster future access
-        wp_cache_set('mainwp_child_all_options', $alloptions, 'mainwp', 60); // Cache for 60 seconds
+        wp_cache_set( 'mainwp_child_all_options', $alloptions, 'mainwp', 60 ); // Cache for 60 seconds
 
         return $alloptions;
     }
@@ -262,29 +262,29 @@ class MainWP_Child {
     public function update() {
         // Try to get from cache first
         $cache_key = 'mainwp_child_update_version';
-        $update_version = wp_cache_get($cache_key, 'mainwp');
+        $update_version = wp_cache_get( $cache_key, 'mainwp' );
 
         // If not in cache, get from database
-        if (false === $update_version) {
-            $update_version = get_option($cache_key);
+        if ( false === $update_version ) {
+            $update_version = get_option( $cache_key );
             // Cache the result for future checks
-            wp_cache_set($cache_key, $update_version, 'mainwp', 3600); // Cache for 1 hour
+            wp_cache_set( $cache_key, $update_version, 'mainwp', 3600 ); // Cache for 1 hour
         }
 
         // If version is current, return early
-        if ($update_version === $this->update_version) {
+        if ( $update_version === $this->update_version ) {
             return;
         }
 
         // Handle legacy version upgrades
-        if (version_compare($update_version, '1.6', '<')) {
-            delete_option('mainwp_child_subpages');
-            wp_cache_delete('mainwp_child_subpages', 'options');
+        if ( version_compare( $update_version, '1.6', '<' ) ) {
+            delete_option( 'mainwp_child_subpages' );
+            wp_cache_delete( 'mainwp_child_subpages', 'options' );
         }
 
         // Update the version in database and cache
-        MainWP_Helper::update_option($cache_key, $this->update_version, 'yes');
-        wp_cache_set($cache_key, $this->update_version, 'mainwp', 3600); // Cache for 1 hour
+        MainWP_Helper::update_option( $cache_key, $this->update_version, 'yes' );
+        wp_cache_set( $cache_key, $this->update_version, 'mainwp', 3600 ); // Cache for 1 hour
     }
 
     /**
