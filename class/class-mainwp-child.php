@@ -543,13 +543,13 @@ class MainWP_Child {
             return null;
         }
 
-        // First check if we're on an admin page with a 'page' parameter
+        // First check if we're on an admin page with a 'page' parameter.
         $page = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
         if ( ! empty( $page ) ) {
             return $page;
         }
 
-        // If no page parameter, return the current pagenow value
+        // If no page parameter, return the current pagenow value.
         return $pagenow;
     }
 
