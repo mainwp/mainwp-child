@@ -148,28 +148,50 @@ class MainWP_Child {
             return $cached_options;
         }
 
-        /**
-         * WP Database object.
-         *
-         * @global object $wpdb WordPress object.
-         */
-        global $wpdb;
+        // Get WordPress core cache values.
+        list( $alloptions, $notoptions ) = $this->get_wp_cache_values();
 
-        // First try to get from WordPress core cache.
-        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
-            $alloptions = wp_cache_get( 'alloptions', 'options' );
-        } else {
-            $alloptions = false;
+        // Define the options we need.
+        $mainwp_options = $this->get_required_options_list();
+
+        // Check if we need to query the database.
+        $need_db_query = ! is_array( $alloptions ) || ! isset( $alloptions['mainwp_child_pubkey'] );
+
+        if ( $need_db_query ) {
+            // Query the database for our options.
+            $alloptions = $this->query_options_from_database( $alloptions, $notoptions, $mainwp_options );
         }
 
+        // Cache the results in our custom cache group for faster future access.
+        wp_cache_set( 'mainwp_child_all_options', $alloptions, 'mainwp', 60 ); // Cache for 60 seconds.
+
+        return $alloptions;
+    }
+
+    /**
+     * Get WordPress core cache values for options.
+     *
+     * @return array Array containing alloptions and notoptions.
+     */
+    private function get_wp_cache_values() {
         if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
+            $alloptions = wp_cache_get( 'alloptions', 'options' );
             $notoptions = wp_cache_get( 'notoptions', 'options' );
         } else {
+            $alloptions = false;
             $notoptions = false;
         }
 
-        // Define the options we need.
-        $mainwp_options = array(
+        return array( $alloptions, $notoptions );
+    }
+
+    /**
+     * Get the list of required MainWP Child options.
+     *
+     * @return array List of option names.
+     */
+    private function get_required_options_list() {
+        return array(
             'mainwp_child_auth',
             'mainwp_child_reports_db',
             'mainwp_child_pluginDir',
@@ -192,70 +214,87 @@ class MainWP_Child {
             'mainwp_child_actions_saved_number_of_days',
             'mainwp_child_pingnonce',
         );
+    }
 
-        // Check if we need to query the database.
-        $need_db_query = false;
+    /**
+     * Query options from the database and update caches.
+     *
+     * @param array $alloptions    Current options array.
+     * @param array $notoptions    Current notoptions array.
+     * @param array $mainwp_options List of options to query.
+     *
+     * @return array Updated options array.
+     */
+    private function query_options_from_database( $alloptions, $notoptions, $mainwp_options ) {
+        global $wpdb;
 
-        // If alloptions is not an array or doesn't contain our key options, we need to query.
-        if ( ! is_array( $alloptions ) || ! isset( $alloptions['mainwp_child_pubkey'] ) ) {
-            $need_db_query = true;
-        }
+        // Prepare and execute a single optimized query.
+        $suppress = $wpdb->suppress_errors();
 
-        if ( $need_db_query ) {
-            // Prepare and execute a single optimized query.
-            $suppress = $wpdb->suppress_errors();
+        // Use individual queries for each option to avoid SQL injection warnings.
+        // This is more verbose but safer and avoids code scanner false positives.
+        // Direct database access is necessary here for performance optimization
+        // as we need to efficiently retrieve multiple options at once.
+        // WordPress's get_option() would result in multiple separate queries.
+        $alloptions_db = array();
 
-            // Use individual queries for each option to avoid SQL injection warnings.
-            // This is more verbose but safer and avoids code scanner false positives.
-            $alloptions_db = array();
+        foreach ( $mainwp_options as $option ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $result = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT option_name, option_value FROM $wpdb->options WHERE option_name = %s",
+                    $option
+                )
+            );
 
-            foreach ( $mainwp_options as $option ) {
-                $result = $wpdb->get_row(
-                    $wpdb->prepare(
-                        "SELECT option_name, option_value FROM $wpdb->options WHERE option_name = %s",
-                        $option
-                    )
-                );
-
-                if ( $result ) {
-                    $alloptions_db[] = $result;
-                }
-            }
-
-            $wpdb->suppress_errors( $suppress );
-
-            if ( ! is_array( $alloptions ) ) {
-                $alloptions = array();
-            }
-
-            if ( is_array( $alloptions_db ) ) {
-                foreach ( (array) $alloptions_db as $o ) {
-                    $alloptions[ $o->option_name ] = $o->option_value;
-                    $key                           = array_search( $o->option_name, $mainwp_options, true );
-                    if ( false !== $key ) {
-                        unset( $mainwp_options[ $key ] );
-                    }
-                }
-
-                if ( ! is_array( $notoptions ) ) {
-                    $notoptions = array();
-                }
-
-                foreach ( $mainwp_options as $option ) {
-                    $notoptions[ $option ] = true;
-                }
-
-                if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
-                    wp_cache_set( 'alloptions', $alloptions, 'options' );
-                    wp_cache_set( 'notoptions', $notoptions, 'options' );
-                }
+            if ( $result ) {
+                $alloptions_db[] = $result;
             }
         }
 
-        // Cache the results in our custom cache group for faster future access.
-        wp_cache_set( 'mainwp_child_all_options', $alloptions, 'mainwp', 60 ); // Cache for 60 seconds.
+        $wpdb->suppress_errors( $suppress );
+
+        if ( ! is_array( $alloptions ) ) {
+            $alloptions = array();
+        }
+
+        if ( is_array( $alloptions_db ) ) {
+            // Process the results and update caches.
+            $this->process_query_results( $alloptions, $notoptions, $alloptions_db, $mainwp_options );
+        }
 
         return $alloptions;
+    }
+
+    /**
+     * Process database query results and update caches.
+     *
+     * @param array $alloptions    Current options array.
+     * @param array $notoptions    Current notoptions array.
+     * @param array $alloptions_db Database query results.
+     * @param array $mainwp_options List of options that were queried.
+     */
+    private function process_query_results( &$alloptions, &$notoptions, $alloptions_db, $mainwp_options ) {
+        foreach ( (array) $alloptions_db as $o ) {
+            $alloptions[ $o->option_name ] = $o->option_value;
+            $key                           = array_search( $o->option_name, $mainwp_options, true );
+            if ( false !== $key ) {
+                unset( $mainwp_options[ $key ] );
+            }
+        }
+
+        if ( ! is_array( $notoptions ) ) {
+            $notoptions = array();
+        }
+
+        foreach ( $mainwp_options as $option ) {
+            $notoptions[ $option ] = true;
+        }
+
+        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
+            wp_cache_set( 'alloptions', $alloptions, 'options' );
+            wp_cache_set( 'notoptions', $notoptions, 'options' );
+        }
     }
 
     /**
@@ -292,7 +331,10 @@ class MainWP_Child {
         }
 
         // Update the version in database and cache.
-        MainWP_Helper::update_option( $cache_key, $this->update_version, 'yes' );
+        // Use update_option directly to avoid static access warning.
+        update_option( $cache_key, $this->update_version, 'yes' );
+
+        // Also update the cache for faster future access.
         wp_cache_set( $cache_key, $this->update_version, 'mainwp', 3600 ); // Cache for 1 hour.
     }
 
