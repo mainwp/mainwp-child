@@ -446,63 +446,63 @@ class MainWP_Child {
         MainWP_Client_Report::instance()->creport_init();
 
         // Only load extensions for plugins that are actually installed
-        if ($this->is_plugin_active('better-wp-security/better-wp-security.php') || $this->is_plugin_active('ithemes-security-pro/ithemes-security-pro.php')) {
+        if ( $this->is_plugin_active( 'better-wp-security/better-wp-security.php' ) || $this->is_plugin_active( 'ithemes-security-pro/ithemes-security-pro.php' ) ) {
             MainWP_Child_IThemes_Security::instance()->ithemes_init();
         }
 
-        if ($this->is_plugin_active('updraftplus/updraftplus.php')) {
+        if ( $this->is_plugin_active( 'updraftplus/updraftplus.php' ) ) {
             MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
         }
 
-        if ($this->is_plugin_active('backupwordpress/backupwordpress.php')) {
+        if ( $this->is_plugin_active( 'backupwordpress/backupwordpress.php' ) ) {
             MainWP_Child_Back_Up_WordPress::instance()->init();
         }
 
-        if ($this->is_plugin_active('wp-rocket/wp-rocket.php')) {
+        if ( $this->is_plugin_active( 'wp-rocket/wp-rocket.php' ) ) {
             MainWP_Child_WP_Rocket::instance()->init();
         }
 
-        if ($this->is_plugin_active('backwpup/backwpup.php') || $this->is_plugin_active('backwpup-pro/backwpup.php')) {
+        if ( $this->is_plugin_active( 'backwpup/backwpup.php' ) || $this->is_plugin_active( 'backwpup-pro/backwpup.php' ) ) {
             MainWP_Child_Back_WP_Up::instance()->init();
         }
 
-        if ($this->is_plugin_active('backupbuddy/backupbuddy.php')) {
+        if ( $this->is_plugin_active( 'backupbuddy/backupbuddy.php' ) ) {
             MainWP_Child_Back_Up_Buddy::instance();
         }
 
-        if ($this->is_plugin_active('wordfence/wordfence.php')) {
+        if ( $this->is_plugin_active( 'wordfence/wordfence.php' ) ) {
             MainWP_Child_Wordfence::instance()->wordfence_init();
         }
 
-        if ($this->is_plugin_active('wp-time-capsule/wp-time-capsule.php')) {
+        if ( $this->is_plugin_active( 'wp-time-capsule/wp-time-capsule.php' ) ) {
             MainWP_Child_Timecapsule::instance()->init();
         }
 
-        if ($this->is_plugin_active('wp-staging/wp-staging.php') || $this->is_plugin_active('wp-staging-pro/wp-staging-pro.php')) {
+        if ( $this->is_plugin_active( 'wp-staging/wp-staging.php' ) || $this->is_plugin_active( 'wp-staging-pro/wp-staging-pro.php' ) ) {
             MainWP_Child_Staging::instance()->init();
         }
 
-        if ($this->is_plugin_active('google-pagespeed-insights/google-pagespeed-insights.php')) {
+        if ( $this->is_plugin_active( 'google-pagespeed-insights/google-pagespeed-insights.php' ) ) {
             MainWP_Child_Pagespeed::instance()->init();
         }
 
-        if ($this->is_plugin_active('broken-link-checker/broken-link-checker.php')) {
+        if ( $this->is_plugin_active( 'broken-link-checker/broken-link-checker.php' ) ) {
             MainWP_Child_Links_Checker::instance()->init();
         }
 
-        if ($this->is_plugin_active('wpvivid-backuprestore/wpvivid-backuprestore.php')) {
+        if ( $this->is_plugin_active( 'wpvivid-backuprestore/wpvivid-backuprestore.php' ) ) {
             MainWP_Child_WPvivid_BackupRestore::instance()->init();
         }
 
         // DB Updater is a utility class that should always be loaded
         MainWP_Child_DB_Updater::instance();
 
-        if ($this->is_plugin_active('jetpack/jetpack.php')) {
+        if ( $this->is_plugin_active( 'jetpack/jetpack.php' ) ) {
             MainWP_Child_Jetpack_Protect::instance();
             MainWP_Child_Jetpack_Scan::instance();
         }
 
-        if ($this->is_plugin_active('advanced-access-manager/aam.php')) {
+        if ( $this->is_plugin_active( 'advanced-access-manager/aam.php' ) ) {
             MainWP_Child_Aam::instance()->init();
         }
 
@@ -519,8 +519,11 @@ class MainWP_Child {
      * @param string $plugin Plugin path relative to plugins directory
      * @return bool True if plugin is active, false otherwise
      */
-    private function is_plugin_active($plugin) {
-        return is_plugin_active($plugin);
+    private function is_plugin_active( $plugin ) {
+        if ( ! function_exists( 'is_plugin_active' ) ) {
+            include_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        return is_plugin_active( $plugin );
     }
 
     /**
@@ -529,12 +532,12 @@ class MainWP_Child {
      * @return bool True if on a MainWP admin page, false otherwise
      */
     private function is_mainwp_pages() {
-        if (!is_admin() || !function_exists('get_current_screen')) {
+        if ( ! is_admin() || ! function_exists( 'get_current_screen' ) ) {
             return false;
         }
 
         $screen = get_current_screen();
-        if (!$screen) {
+        if ( ! $screen ) {
             return false;
         }
 
@@ -546,9 +549,13 @@ class MainWP_Child {
         );
 
         // Also check if we're on a page with mainwp in the query string
-        $is_mainwp_page = (isset($_GET['page']) && strpos($_GET['page'], 'mainwp') !== false);
+        $is_mainwp_page = false;
+        if ( isset( $_GET['page'] ) ) {
+            $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+            $is_mainwp_page = ( false !== strpos( $page, 'mainwp' ) );
+        }
 
-        return in_array($screen->id, $mainwp_screens) || $is_mainwp_page;
+        return in_array( $screen->id, $mainwp_screens, true ) || $is_mainwp_page;
     }
 
 
