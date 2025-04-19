@@ -55,8 +55,8 @@ class MainWP_Clone_Page {
      * for better performance and conditional loading.
      */
     public static function print_scripts() {
-        // Scripts are now loaded by MainWP_Child_Assets class
-        // This method is kept for backward compatibility
+        // Scripts are now loaded by MainWP_Child_Assets class.
+        // This method is kept for backward compatibility.
     }
 
 
