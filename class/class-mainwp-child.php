@@ -550,11 +550,13 @@ class MainWP_Child {
         );
 
         // Also check if we're on a page with mainwp in the query string.
+        // This is a read-only check for admin page detection, not processing user input for database operations.
+        // Therefore, nonce verification is not required here.
         $is_mainwp_page = false;
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         if ( isset( $_GET['page'] ) ) {
             // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-            $page           = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+            $page           = sanitize_key( $_GET['page'] );
             $is_mainwp_page = ( false !== strpos( $page, 'mainwp' ) );
         }
 
