@@ -99,6 +99,7 @@ class MainWP_Child {
 
         // Initialize essential components.
         MainWP_Pages::get_instance()->init();
+        MainWP_Child_Assets::instance()->init();
 
         // Initialize admin-specific components.
         $this->init_admin_components();

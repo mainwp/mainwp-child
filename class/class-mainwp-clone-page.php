@@ -51,28 +51,12 @@ class MainWP_Clone_Page {
     /**
      * Method print_scripts()
      *
-     * @uses \MainWP\Child\MainWP_Helper::starts_with()
+     * This method is now handled by the MainWP_Child_Assets class
+     * for better performance and conditional loading.
      */
     public static function print_scripts() {
-        wp_enqueue_script( 'jquery-ui-tooltip' );
-        wp_enqueue_script( 'jquery-ui-autocomplete' );
-        wp_enqueue_script( 'jquery-ui-progressbar' );
-        wp_enqueue_script( 'jquery-ui-dialog' );
-
-        /**
-         * WordPress Core class used to register scripts.
-         *
-         * @global object $wp_scripts WordPress Core class used to register scripts.
-         */
-        global $wp_scripts;
-
-        $ui = $wp_scripts->query( 'jquery-ui-core' );
-        $version = $ui->ver;
-        if ( MainWP_Helper::starts_with( $version, '1.10' ) ) {
-            wp_enqueue_style( 'jquery-ui-style', plugins_url( 'css/1.10.4/jquery-ui.min.css', __DIR__ ), array(), '1.10', 'all' );
-        } else {
-            wp_enqueue_style( 'jquery-ui-style', plugins_url( 'css/1.11.1/jquery-ui.min.css', __DIR__ ), array(), '1.11', 'all' );
-        }
+        // Scripts are now loaded by MainWP_Child_Assets class
+        // This method is kept for backward compatibility
     }
 
 
