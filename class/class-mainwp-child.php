@@ -532,6 +532,33 @@ class MainWP_Child {
      *
      * @return bool True if on a MainWP admin page, false otherwise.
      */
+    /**
+     * Helper method to get the current admin page slug without directly accessing superglobals.
+     *
+     * @return string|null The current admin page slug or null if not on an admin page.
+     */
+    private function get_current_admin_page() {
+        global $pagenow;
+
+        if ( ! is_admin() ) {
+            return null;
+        }
+
+        // First check if we're on an admin page with a 'page' parameter
+        $page = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+        if ( ! empty( $page ) ) {
+            return $page;
+        }
+
+        // If no page parameter, return the current pagenow value
+        return $pagenow;
+    }
+
+    /**
+     * Helper method to check if we're on a MainWP admin page.
+     *
+     * @return bool True if on a MainWP admin page, false otherwise.
+     */
     private function is_mainwp_pages() {
         if ( ! is_admin() || ! function_exists( 'get_current_screen' ) ) {
             return false;
@@ -550,14 +577,12 @@ class MainWP_Child {
         );
 
         // Also check if we're on a page with mainwp in the query string.
-        // This is a read-only check for admin page detection, not processing user input for database operations.
-        // Therefore, nonce verification is not required here.
+        // Using WordPress's built-in function to get the current admin page.
         $is_mainwp_page = false;
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        if ( isset( $_GET['page'] ) ) {
-            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-            $page           = sanitize_key( $_GET['page'] );
-            $is_mainwp_page = ( false !== strpos( $page, 'mainwp' ) );
+        $current_page   = $this->get_current_admin_page();
+
+        if ( ! empty( $current_page ) ) {
+            $is_mainwp_page = ( false !== strpos( $current_page, 'mainwp' ) );
         }
 
         return in_array( $screen->id, $mainwp_screens, true ) || $is_mainwp_page;
