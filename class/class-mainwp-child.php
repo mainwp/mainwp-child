@@ -86,7 +86,35 @@ class MainWP_Child {
      * This method is called via the plugins_loaded hook when in admin area or during API requests.
      */
     public function init_full() {
-        // Register essential hooks
+        // Register essential hooks.
+        $this->register_essential_hooks();
+
+        // Initialize premium plugin detection.
+        $this->init_premium_plugin_detection();
+
+        // Initialize essential components.
+        MainWP_Pages::get_instance()->init();
+
+        // Initialize admin-specific components.
+        $this->init_admin_components();
+
+        // Initialize connection and core features.
+        $this->init_core_features();
+
+        // Run saved snippets - this is essential functionality.
+        MainWP_Utility::instance()->run_saved_snippets();
+
+        // Initialize special environments (WP CLI, disconnected sites, cron).
+        $this->init_special_environments();
+
+        // Register essential actions and filters.
+        $this->register_essential_actions_filters();
+    }
+
+    /**
+     * Register essential hooks for the plugin.
+     */
+    private function register_essential_hooks() {
         add_action( 'template_redirect', array( $this, 'template_redirect' ) );
         add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
         add_action( 'init', array( &$this, 'init_check_login' ), 1 );
@@ -95,20 +123,25 @@ class MainWP_Child {
         add_action( 'init', array( &$this, 'init_hooks' ), 9 );
         add_action( 'admin_init', array( &$this, 'admin_init' ) );
         add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
+    }
 
-        // Support for better detection for premium plugins and themes.
+    /**
+     * Initialize premium plugin detection hooks.
+     */
+    private function init_premium_plugin_detection() {
         if ( is_admin() && function_exists( 'get_current_screen' ) ) {
             $screen = get_current_screen();
-            if ( $screen && ( $screen->id === 'plugins' || $screen->id === 'update-core' ) ) {
+            if ( $screen && ( 'plugins' === $screen->id || 'update-core' === $screen->id ) ) {
                 add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
                 add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
             }
         }
+    }
 
-        // Initialize essential components.
-        MainWP_Pages::get_instance()->init();
-
-        // Only initialize these components when in admin area.
+    /**
+     * Initialize admin-specific components.
+     */
+    private function init_admin_components() {
         if ( is_admin() ) {
             // Update plugin version in database.
             MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
@@ -122,7 +155,12 @@ class MainWP_Child {
                 MainWP_Child_Api_Backups::instance();
             }
         }
+    }
 
+    /**
+     * Initialize connection and core features.
+     */
+    private function init_core_features() {
         // Initialize connection-related components.
         MainWP_Connect::instance()->check_other_auth();
 
@@ -135,10 +173,12 @@ class MainWP_Child {
             MainWP_Child_Plugins_Check::instance();
             MainWP_Child_Themes_Check::instance();
         }
+    }
 
-        // Run saved snippets - this is essential functionality.
-        MainWP_Utility::instance()->run_saved_snippets();
-
+    /**
+     * Initialize special environments (WP CLI, disconnected sites, cron).
+     */
+    private function init_special_environments() {
         // WP CLI support.
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             MainWP_Child_WP_CLI_Command::init();
@@ -150,11 +190,13 @@ class MainWP_Child {
         }
 
         // Support for cron jobs.
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        if ( defined( 'DOING_CRON' ) && DOING_CRON && isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) {
-            add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
-        }
+        $this->setup_cron_jobs();
+    }
 
+    /**
+     * Register essential actions and filters for security and data handling.
+     */
+    private function register_essential_actions_filters() {
         // Essential action to response data result.
         add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
 
@@ -577,6 +619,21 @@ class MainWP_Child {
         array_unshift( $actions, $settings_link );
 
         return $actions;
+    }
+
+    /**
+     * Setup cron jobs for MainWP Child.
+     *
+     * This method checks if we're in a cron context and sets up necessary hooks.
+     */
+    private function setup_cron_jobs() {
+        // Check if we're in a cron context with the mainwp_child_run parameter.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $cron_run = filter_input( INPUT_GET, 'mainwp_child_run', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+
+        if ( defined( 'DOING_CRON' ) && DOING_CRON && ! empty( $cron_run ) ) {
+            add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
+        }
     }
 
     /**
