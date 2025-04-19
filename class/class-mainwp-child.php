@@ -211,19 +211,21 @@ class MainWP_Child {
 
             // Create placeholders and add them to the query.
             $placeholders = array();
-            $values = array();
+            $values       = array();
 
             foreach ( $mainwp_options as $option ) {
                 $placeholders[] = '%s';
-                $values[] = $option;
+                $values[]       = $option;
             }
 
             // Complete the query with placeholders.
-            $query = $base_query . implode( ',', $placeholders ) . ')';
-
-            // Prepare and execute the query.
-            $prepared_query = $wpdb->prepare( $query, $values );
-            $alloptions_db = $wpdb->get_results( $prepared_query );
+            // Using direct prepare and get_results to avoid intermediate variables.
+            $alloptions_db  = $wpdb->get_results(
+                $wpdb->prepare(
+                    $base_query . implode( ',', $placeholders ) . ')',
+                    $values
+                )
+            );
             $wpdb->suppress_errors( $suppress );
 
             if ( ! is_array( $alloptions ) ) {
