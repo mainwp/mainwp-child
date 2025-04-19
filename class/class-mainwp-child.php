@@ -86,13 +86,17 @@ class MainWP_Child {
         // support for better detection for premium themes.
         add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
 
+        // Initialize pages and asset loading
         MainWP_Pages::get_instance()->init();
+        MainWP_Child_Assets::instance()->init();
 
-        // Initiate MainWP Cache Control class.
-        MainWP_Child_Cache_Purge::instance();
+        // Initiate MainWP Cache Control class only when needed
+        if (is_admin() && $this->is_mainwp_pages()) {
+            MainWP_Child_Cache_Purge::instance();
 
-        // Initiate MainWP Child API Backups class.
-        MainWP_Child_Api_Backups::instance();
+            // Initiate MainWP Child API Backups class
+            MainWP_Child_Api_Backups::instance();
+        }
 
         if ( is_admin() ) {
             MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
