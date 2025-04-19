@@ -71,7 +71,7 @@ class MainWP_Child {
 
         $this->plugin_slug = plugin_basename( $plugin_file );
 
-        // Register essential hooks that are needed on every page
+        // Register essential hooks that are needed on every page.
         add_action( 'template_redirect', array( $this, 'template_redirect' ) );
         add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
         add_action( 'init', array( $this, 'init_check_login' ), 1 );
@@ -550,8 +550,10 @@ class MainWP_Child {
 
         // Also check if we're on a page with mainwp in the query string.
         $is_mainwp_page = false;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         if ( isset( $_GET['page'] ) ) {
-            $page          = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            $page           = sanitize_text_field( wp_unslash( $_GET['page'] ) );
             $is_mainwp_page = ( false !== strpos( $page, 'mainwp' ) );
         }
 
