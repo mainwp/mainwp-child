@@ -274,7 +274,7 @@ class MainWP_Child {
         }
 
         if ( ! isset( $alloptions['mainwp_child_pubkey'] ) ) {
-            $suppress = $wpdb->suppress_errors();
+            $suppress       = $wpdb->suppress_errors();
             $mainwp_options = array(
                 'mainwp_child_auth',
                 'mainwp_child_reports_db',
@@ -299,27 +299,30 @@ class MainWP_Child {
                 'mainwp_child_pingnonce',
             );
 
-            // Create placeholders for prepared statement
-            $placeholders = implode( ',', array_fill( 0, count( $mainwp_options ), '%s' ) );
+            // Create placeholders for prepared statement.
+            $placeholders = array();
+            foreach ( $mainwp_options as $option ) {
+                $placeholders[] = '%s';
+            }
 
-            // Prepare and execute the optimized query
-            $query = $wpdb->prepare(
-                "SELECT option_name, option_value FROM $wpdb->options WHERE option_name IN ($placeholders)",
-                $mainwp_options
+            // Prepare and execute the optimized query.
+            $alloptions_db = $wpdb->get_results(
+                $wpdb->prepare(
+                    'SELECT option_name, option_value FROM ' . $wpdb->options . ' WHERE option_name IN (' . implode( ',', $placeholders ) . ')',
+                    $mainwp_options
+                )
             );
-
-            $alloptions_db = $wpdb->get_results( $query ); // This is now a properly prepared statement
             $wpdb->suppress_errors( $suppress );
             if ( ! is_array( $alloptions ) ) {
                 $alloptions = array();
             }
             if ( is_array( $alloptions_db ) ) {
-                // Create a copy of mainwp_options to track which ones were not found
+                // Create a copy of mainwp_options to track which ones were not found.
                 $not_found_options = array_flip( $mainwp_options );
 
                 foreach ( (array) $alloptions_db as $o ) {
                     $alloptions[ $o->option_name ] = $o->option_value;
-                    // Remove from not_found_options as we've found this option
+                    // Remove from not_found_options as we've found this option.
                     if ( isset( $not_found_options[ $o->option_name ] ) ) {
                         unset( $not_found_options[ $o->option_name ] );
                     }
@@ -329,7 +332,7 @@ class MainWP_Child {
                     $notoptions = array();
                 }
 
-                // Add remaining options to notoptions
+                // Add remaining options to notoptions.
                 foreach ( array_keys( $not_found_options ) as $option ) {
                     $notoptions[ $option ] = true;
                 }
