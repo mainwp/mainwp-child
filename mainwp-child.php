@@ -101,29 +101,42 @@ $get_child             = static function () use ( &$mainwp_child_instance ) {
     return $mainwp_child_instance;
 };
 
-register_activation_hook( __FILE__, static function () use ( $get_child ) {
-    $get_child()->activation();
-} );
-register_deactivation_hook( __FILE__, static function () use ( $get_child ) {
-    $get_child()->deactivation();
-} );
+register_activation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->activation();
+    }
+);
+register_deactivation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->deactivation();
+    }
+);
 
 // Determine which initialization path to use based on the request type.
 if (
     ! is_admin()
     && ! wp_doing_ajax()
-    && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST )
-    && ! defined( 'DOING_CRON' )
+    && ! wp_doing_rest()
+    && ! wp_doing_cron()
     && ! defined( 'WP_CLI' )
     && ! isset( $_REQUEST['mainwpsignature'] ) // phpcs:ignore WordPress.Security.NonceVerification
+
 ) {
     // For frontend requests, use lightweight initialization.
-    add_action( 'plugins_loaded', function () use ( $get_child ) {
-        $get_child()->init_frontend_only();
-    } );
+    add_action(
+        'plugins_loaded',
+        function () use ( $get_child ) {
+            $get_child()->init_frontend_only();
+        }
+    );
 } else {
     // For admin, AJAX, REST, cron, CLI, or API requests, use full initialization.
-    add_action( 'plugins_loaded', function () use ( $get_child ) {
-        $get_child()->init_full();
-    } );
+    add_action(
+        'plugins_loaded',
+        function () use ( $get_child ) {
+            $get_child()->init_full();
+        }
+    );
 }
