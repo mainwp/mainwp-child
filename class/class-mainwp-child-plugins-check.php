@@ -345,7 +345,7 @@ class MainWP_Child_Plugins_Check {
 
         // Get the WordPress current version to be polite in the API call.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $wp_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $wp_version   = MainWP_Child_Server_Information_Base::get_wordpress_version();
 
         // General options to be passed to wp_remote_get.
         $options = array(
