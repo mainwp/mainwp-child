@@ -615,8 +615,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version via the shared helper method for consistency.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $old_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
-        $new_version = $info->item->version;
+        $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $new_version  = $info->item->version;
         $auto_updated = true;
 
         $message = esc_html__( 'WordPress auto-updated to %s', 'mainwp-child' );
@@ -643,8 +643,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version using the centralized method.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $new_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
-        $old_version = $new_version; // Current version is now the old version after update.
+        $new_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $old_version  = $new_version; // Current version is now the old version after update.
         $auto_updated = ( 'update-core.php' !== $pagenow );
 
         if ( $auto_updated ) {
