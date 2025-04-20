@@ -107,72 +107,120 @@ class MainWP_Child {
         // Initialize essential components.
         MainWP_Pages::get_instance()->init();
 
-        // Only initialize these components when in admin area.
-        if ( is_admin() ) {
-            // Update plugin version in database.
-            MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
-
-            // Initialize connection-related components.
-            MainWP_Connect::instance()->check_other_auth();
-
-            // Initialize core features.
-            MainWP_Clone::instance()->init();
-            MainWP_Client_Report::instance()->init();
-
-            // Defer screen checks until WordPress knows the current screen.
-            add_action(
-                'current_screen',
-                static function ( $screen ) {
-                    if ( in_array( $screen->id, array( 'plugins', 'update-core' ), true ) ) {
-                        // Support for better detection for premium plugins.
-                        add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-                        // Support for better detection for premium themes.
-                        add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-                    }
-                }
-            );
-
-            // These are only needed in admin area and are performance-intensive.
-            // Defer loading until WordPress knows the current screen.
-            add_action(
-                'current_screen',
-                function () {
-                    if ( $this->is_mainwp_pages() ) {
-                        // Lazy load these only when on MainWP pages.
-                        MainWP_Child_Plugins_Check::instance();
-                        MainWP_Child_Themes_Check::instance();
-
-                        // Initiate MainWP Cache Control class.
-                        MainWP_Child_Cache_Purge::instance();
-
-                        // Initiate MainWP Child API Backups class.
-                        MainWP_Child_Api_Backups::instance();
-                    }
-                }
-            );
-        }
+        // Initialize admin-specific components.
+        $this->init_admin_components();
 
         // Run saved snippets - this is essential functionality.
         MainWP_Utility::instance()->run_saved_snippets();
         MainWP_Child_Vulnerability_Checker::instance();
 
+        // Initialize CLI support if needed.
+        $this->init_cli_support();
+
+        // Initialize branding for disconnected sites.
+        $this->init_branding_for_disconnected();
+
+        // Initialize cron support if needed.
+        $this->init_cron_support();
+
+        // Essential action to response data result.
+        add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
+    }
+
+    /**
+     * Initialize admin-specific components.
+     *
+     * This method handles all the admin-area specific initializations.
+     */
+    private function init_admin_components() {
+        if ( ! is_admin() ) {
+            return;
+        }
+
+        // Update plugin version in database.
+        MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
+
+        // Initialize connection-related components.
+        MainWP_Connect::instance()->check_other_auth();
+
+        // Initialize core features.
+        MainWP_Clone::instance()->init();
+        MainWP_Client_Report::instance()->init();
+
+        // Register screen-specific hooks.
+        $this->register_screen_hooks();
+    }
+
+    /**
+     * Register hooks that depend on the current screen.
+     *
+     * These hooks are deferred until WordPress knows which screen is being displayed.
+     */
+    private function register_screen_hooks() {
+        // Defer screen checks until WordPress knows the current screen.
+        add_action(
+            'current_screen',
+            static function ( $screen ) {
+                if ( in_array( $screen->id, array( 'plugins', 'update-core' ), true ) ) {
+                    // Support for better detection for premium plugins.
+                    add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
+                    // Support for better detection for premium themes.
+                    add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
+                }
+            }
+        );
+
+        // These are only needed in admin area and are performance-intensive.
+        // Defer loading until WordPress knows the current screen.
+        add_action(
+            'current_screen',
+            function () {
+                if ( $this->is_mainwp_pages() ) {
+                    // Lazy load these only when on MainWP pages.
+                    MainWP_Child_Plugins_Check::instance();
+                    MainWP_Child_Themes_Check::instance();
+
+                    // Initiate MainWP Cache Control class.
+                    MainWP_Child_Cache_Purge::instance();
+
+                    // Initiate MainWP Child API Backups class.
+                    MainWP_Child_Api_Backups::instance();
+                }
+            }
+        );
+    }
+
+    /**
+     * Initialize CLI support if WP-CLI is active.
+     */
+    private function init_cli_support() {
         // WP CLI support.
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             MainWP_Child_WP_CLI_Command::init();
         }
+    }
 
+    /**
+     * Initialize branding for disconnected sites.
+     */
+    private function init_branding_for_disconnected() {
         // Initiate Branding Options - essential for disconnected sites.
         if ( ! get_option( 'mainwp_child_pubkey' ) ) {
             MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
         }
+    }
 
+    /**
+     * Initialize cron support if needed.
+     */
+    private function init_cron_support() {
         // Support for cron jobs.
-        if ( defined( 'DOING_CRON' ) && DOING_CRON && isset( $_GET['mainwp_child_run'] ) && ! empty( $_GET['mainwp_child_run'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
-            add_action( 'init', array( MainWP_Utility::class, 'cron_active' ), PHP_INT_MAX );
+        if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+            $mainwp_child_run = filter_input( INPUT_GET, 'mainwp_child_run', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+            if ( ! empty( $mainwp_child_run ) ) {
+                add_action( 'init', array( MainWP_Utility::class, 'cron_active' ), PHP_INT_MAX );
+            }
         }
-
-        // Essential action to response data result.
-        add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
     }
 
     /**
