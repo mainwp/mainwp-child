@@ -119,32 +119,37 @@ class MainWP_Child {
             MainWP_Clone::instance()->init();
             MainWP_Client_Report::instance()->init();
 
-            // Cache the screen object to avoid multiple calls to get_current_screen().
-            $screen = null;
-            if ( function_exists( 'get_current_screen' ) ) {
-                $screen = get_current_screen();
-            }
-
-            // Only add these hooks when on the plugins page or updates page.
-            if ( $screen && ( 'plugins' === $screen->id || 'update-core' === $screen->id ) ) {
-                // Support for better detection for premium plugins.
-                add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-                // Support for better detection for premium themes.
-                add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-            }
+            // Defer screen checks until WordPress knows the current screen.
+            add_action(
+                'current_screen',
+                static function ( $screen ) {
+                    if ( in_array( $screen->id, array( 'plugins', 'update-core' ), true ) ) {
+                        // Support for better detection for premium plugins.
+                        add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
+                        // Support for better detection for premium themes.
+                        add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
+                    }
+                }
+            );
 
             // These are only needed in admin area and are performance-intensive.
-            if ( $this->is_mainwp_pages() ) {
-                // Lazy load these only when on MainWP pages.
-                MainWP_Child_Plugins_Check::instance();
-                MainWP_Child_Themes_Check::instance();
+            // Defer loading until WordPress knows the current screen.
+            add_action(
+                'current_screen',
+                function () {
+                    if ( $this->is_mainwp_pages() ) {
+                        // Lazy load these only when on MainWP pages.
+                        MainWP_Child_Plugins_Check::instance();
+                        MainWP_Child_Themes_Check::instance();
 
-                // Initiate MainWP Cache Control class.
-                MainWP_Child_Cache_Purge::instance();
+                        // Initiate MainWP Cache Control class.
+                        MainWP_Child_Cache_Purge::instance();
 
-                // Initiate MainWP Child API Backups class.
-                MainWP_Child_Api_Backups::instance();
-            }
+                        // Initiate MainWP Child API Backups class.
+                        MainWP_Child_Api_Backups::instance();
+                    }
+                }
+            );
         }
 
         // Run saved snippets - this is essential functionality.
@@ -541,11 +546,12 @@ class MainWP_Child {
 
     /**
      * Helper method to check if we're on a MainWP admin page.
+     * This method should only be called after the 'current_screen' action has fired.
      *
      * @return bool True if on a MainWP admin page, false otherwise.
      */
     private function is_mainwp_pages() {
-        if ( ! is_admin() || ! function_exists( 'get_current_screen' ) ) {
+        if ( ! is_admin() ) {
             return false;
         }
 
