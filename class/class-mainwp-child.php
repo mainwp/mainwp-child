@@ -300,8 +300,12 @@ class MainWP_Child {
             );
 
             // Execute individual queries for each option for maximum security.
+            // Note: Direct database calls are necessary here for performance optimization
+            // as we're loading multiple options at once and need to bypass the regular
+            // WordPress option API to avoid multiple get_option() calls.
             $alloptions_db = array();
             foreach ( $mainwp_options as $option ) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Necessary for bulk option loading
                 $result = $wpdb->get_row(
                     $wpdb->prepare(
                         "SELECT option_name, option_value FROM $wpdb->options WHERE option_name = %s",
