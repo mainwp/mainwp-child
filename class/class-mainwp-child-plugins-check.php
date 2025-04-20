@@ -344,7 +344,7 @@ class MainWP_Child_Plugins_Check {
     private function try_get_response_body( $plugin, $second_pass ) { //phpcs:ignore -- NOSONAR - complex.
 
         // Get the WordPress current version to be polite in the API call.
-        include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
+        $wp_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
 
         $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
 

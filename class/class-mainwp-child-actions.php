@@ -613,6 +613,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         $info = $update_results['core'][0];
 
+        // Get WordPress version via the shared helper method for consistency.
         $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $new_version  = $info->item->version;
         $auto_updated = true;
@@ -639,7 +640,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
          */
         global $pagenow;
 
-        $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        // Get WordPress version using the centralized method.
+        $new_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $old_version  = $new_version; // Current version is now the old version after update.
         $auto_updated = ( 'update-core.php' !== $pagenow );
 
         if ( $auto_updated ) {
