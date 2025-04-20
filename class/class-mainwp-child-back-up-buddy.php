@@ -3045,12 +3045,12 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
             require_once \pb_backupbuddy::plugin_path() . '/destinations/stash2/init.php'; // NOSONAR - WP compatible.
             require_once \pb_backupbuddy::plugin_path() . '/destinations/live/init.php'; // NOSONAR - WP compatible.
 
-            /** @global string $wp_version WordPress version. */
-            global $wp_version;
+            // Use MainWP_Child_Server_Information_Base to get WordPress version.
+            $wp_ver = \MainWP\Child\MainWP_Child_Server_Information_Base::get_wordpress_version();
 
             $itxapi_username = strtolower( $_POST['live_username'] );
             $password_hash   = \iThemes_Credentials::get_password_hash( $itxapi_username, $_POST['live_password'] );
-            $access_token    = \ITXAPI_Helper2::get_access_token( $itxapi_username, $password_hash, site_url(), $wp_version );
+            $access_token    = \ITXAPI_Helper2::get_access_token( $itxapi_username, $password_hash, site_url(), $wp_ver );
 
             $settings = array(
                 'itxapi_username' => $itxapi_username,
