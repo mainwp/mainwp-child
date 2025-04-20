@@ -605,7 +605,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * @return mixed bool|null.
      */
     public function callback_automatic_updates_complete( $update_results ) {
-        global $pagenow, $wp_version;
+        global $pagenow;
 
         if ( ! is_array( $update_results ) || ! isset( $update_results['core'] ) ) {
             return false;
@@ -613,7 +613,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         $info = $update_results['core'][0];
 
-        $old_version  = $wp_version;
+        // Get WordPress version via the shared helper method for consistency.
+        $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $new_version  = $info->item->version;
         $auto_updated = true;
 
@@ -636,11 +637,12 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
          * Global variables.
          *
          * @global string $pagenow Current page.
-         * @global string $wp_version WordPress version.
          */
-        global $pagenow, $wp_version;
+        global $pagenow;
 
-        $old_version  = $wp_version;
+        // Get WordPress version using the centralized method.
+        $new_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $old_version  = $new_version; // Current version is now the old version after update.
         $auto_updated = ( 'update-core.php' !== $pagenow );
 
         if ( $auto_updated ) {

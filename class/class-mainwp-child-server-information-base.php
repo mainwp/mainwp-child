@@ -297,7 +297,17 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
      *
      * @return string $wp_version Current WordPress version.
      */
-    protected static function get_wordpress_version() {
+    /**
+     * Get WordPress version.
+     *
+     * This method is made public to provide a centralized, consistent way to retrieve
+     * the WordPress version across the entire codebase. It first checks for the newer
+     * wp_get_wp_version() function (available in WP 5.8+) before falling back to the
+     * global $wp_version variable.
+     *
+     * @return string The installed version of WordPress.
+     */
+    public static function get_wordpress_version() {
 
         /**
          * The installed version of WordPress.
@@ -305,6 +315,11 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
          * @global string $wp_version The installed version of WordPress.
          */
         global $wp_version;
+
+        // Use the newer WordPress core function if available, falling back to global variable.
+        if ( function_exists( '\wp_get_wp_version' ) ) {
+            return \wp_get_wp_version();
+        }
 
         return $wp_version;
     }
