@@ -298,19 +298,19 @@ class MainWP_Child {
                 'mainwp_child_pingnonce',
             );
 
-            // Create placeholders for prepared statement.
-            $placeholders = array();
+            // Execute individual queries for each option for maximum security.
+            $alloptions_db = array();
             foreach ( $mainwp_options as $option ) {
-                $placeholders[] = '%s';
+                $result = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT option_name, option_value FROM $wpdb->options WHERE option_name = %s",
+                        $option
+                    )
+                );
+                if ( $result ) {
+                    $alloptions_db[] = $result;
+                }
             }
-
-            // Prepare and execute the optimized query.
-            $alloptions_db = $wpdb->get_results(
-                $wpdb->prepare(
-                    'SELECT option_name, option_value FROM ' . $wpdb->options . ' WHERE option_name IN (' . implode( ',', $placeholders ) . ')',
-                    $mainwp_options
-                )
-            );
             $wpdb->suppress_errors( $suppress );
             if ( ! is_array( $alloptions ) ) {
                 $alloptions = array();
