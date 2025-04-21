@@ -76,7 +76,7 @@ function mainwp_child_autoload( $class_name ) {
         $class_name = substr( $class_name, 13 );
     }
 
-    $autoload_dir  = \trailingslashit( __DIR__ . '/class' );
+    $autoload_dir = \trailingslashit( __DIR__ . '/class' );
     $autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
 
     if ( file_exists( $autoload_path ) ) {
@@ -92,7 +92,7 @@ require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'funct
 
 // Delay the heavy constructor until we really need it.
 $mainwp_child_instance = null;
-$get_child             = static function () use ( &$mainwp_child_instance ) {
+$get_child = static function () use ( &$mainwp_child_instance ) {
     if ( null === $mainwp_child_instance ) {
         $mainwp_child_instance = new MainWP\Child\MainWP_Child(
             WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ )
