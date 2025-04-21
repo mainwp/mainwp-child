@@ -49,7 +49,7 @@ class MainWP_Exception extends \Exception { // phpcs:ignore Generic.Classes.Open
     public function __construct( $message, $extra = null, $errCode = '' ) {
         parent::__construct( $message );
         $this->messageExtra = esc_html( $extra ); // add more secure.
-        $this->errorCode    = esc_html( $errCode );
+        $this->errorCode = esc_html( $errCode );
     }
 
     /**

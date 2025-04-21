@@ -64,11 +64,11 @@ class MainWP_Child_Users {
      */
     public function user_action() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         // phpcs:disable WordPress.Security.NonceVerification
-        $action    = MainWP_System::instance()->validate_params( 'action' );
-        $extra     = isset( $_POST['extra'] ) ? wp_unslash( $_POST['extra'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $userId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+        $action = MainWP_System::instance()->validate_params( 'action' );
+        $extra = isset( $_POST['extra'] ) ? wp_unslash( $_POST['extra'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $userId = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
         $user_pass = isset( $_POST['user_pass'] ) ? wp_unslash( $_POST['user_pass'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $failed    = false;
+        $failed = false;
 
         /**
          * Current user global.
@@ -85,7 +85,7 @@ class MainWP_Child_Users {
         $theUser = $userId ? get_user_by( 'id', $userId ) : false;
 
         if ( $theUser ) {
-            $roles  = array_values( $theUser->roles );
+            $roles = array_values( $theUser->roles );
             $act_dt = array(
                 'user_id'      => $userId,
                 'display_name' => $theUser->display_name,
@@ -96,15 +96,15 @@ class MainWP_Child_Users {
         if ( 'delete' === $action ) {
             wp_delete_user( $userId, $reassign );
         } elseif ( 'changeRole' === $action ) {
-            $my_user         = array();
-            $my_user['ID']   = $userId;
+            $my_user = array();
+            $my_user['ID'] = $userId;
             $my_user['role'] = $extra;
             wp_update_user( $my_user );
             $act_dt['old_roles'] = $act_dt[ $userId ]['roles'];
-            $act_dt['roles']     = $extra;
+            $act_dt['roles'] = $extra;
         } elseif ( 'update_password' === $action ) {
-            $my_user              = array();
-            $my_user['ID']        = $userId;
+            $my_user = array();
+            $my_user['ID'] = $userId;
             $my_user['user_pass'] = $user_pass;
             wp_update_user( $my_user );
         } elseif ( 'edit' === $action ) {
@@ -175,20 +175,20 @@ class MainWP_Child_Users {
         $new_users = get_users( $params );
         if ( is_array( $new_users ) ) {
             foreach ( $new_users as $new_user ) {
-                $usr                 = array();
-                $usr['id']           = $new_user->ID;
-                $usr['login']        = $new_user->user_login;
-                $usr['nicename']     = $new_user->user_nicename;
-                $usr['email']        = $new_user->user_email;
-                $usr['registered']   = $new_user->user_registered;
-                $usr['status']       = $new_user->user_status;
+                $usr = array();
+                $usr['id'] = $new_user->ID;
+                $usr['login'] = $new_user->user_login;
+                $usr['nicename'] = $new_user->user_nicename;
+                $usr['email'] = $new_user->user_email;
+                $usr['registered'] = $new_user->user_registered;
+                $usr['status'] = $new_user->user_status;
                 $usr['display_name'] = $new_user->display_name;
-                $userdata            = get_userdata( $new_user->ID );
-                $user_roles          = $userdata->roles;
-                $user_role           = array_shift( $user_roles );
-                $usr['role']         = $user_role;
-                $usr['post_count']   = count_user_posts( $new_user->ID );
-                $allusers[]          = $usr;
+                $userdata = get_userdata( $new_user->ID );
+                $user_roles = $userdata->roles;
+                $user_role = array_shift( $user_roles );
+                $usr['role'] = $user_role;
+                $usr['post_count'] = count_user_posts( $new_user->ID );
+                $allusers[] = $usr;
             }
         }
 
@@ -213,18 +213,18 @@ class MainWP_Child_Users {
             foreach ( $roles as $role ) {
                 $new_users = get_users( 'role=' . $role );
                 foreach ( $new_users as $new_user ) {
-                    $usr                 = array();
-                    $usr['id']           = $new_user->ID;
-                    $usr['login']        = $new_user->user_login;
-                    $usr['nicename']     = $new_user->user_nicename;
-                    $usr['email']        = $new_user->user_email;
-                    $usr['registered']   = $new_user->user_registered;
-                    $usr['status']       = $new_user->user_status;
+                    $usr = array();
+                    $usr['id'] = $new_user->ID;
+                    $usr['login'] = $new_user->user_login;
+                    $usr['nicename'] = $new_user->user_nicename;
+                    $usr['email'] = $new_user->user_email;
+                    $usr['registered'] = $new_user->user_registered;
+                    $usr['status'] = $new_user->user_status;
                     $usr['display_name'] = $new_user->display_name;
-                    $usr['role']         = $role;
-                    $usr['post_count']   = count_user_posts( $new_user->ID );
-                    $usr['avatar']       = get_avatar( $new_user->ID, 32 );
-                    $allusers[]          = $usr;
+                    $usr['role'] = $role;
+                    $usr['post_count'] = count_user_posts( $new_user->ID );
+                    $usr['avatar'] = get_avatar( $new_user->ID, 32 );
+                    $allusers[] = $usr;
                 }
             }
         }
@@ -247,16 +247,16 @@ class MainWP_Child_Users {
         // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['role'] ) && ! empty( $_POST['role'] ) ) {
             $check_users_role = true;
-            $all_users_role   = $this->get_all_users( true );
+            $all_users_role = $this->get_all_users( true );
             foreach ( $all_users_role as $user ) {
                 $search_user_role[] = $user['id'];
             }
             unset( $all_users_role );
         }
 
-        $columns  = isset( $_POST['search_columns'] ) ? explode( ',', wp_unslash( $_POST['search_columns'] ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $columns = isset( $_POST['search_columns'] ) ? explode( ',', wp_unslash( $_POST['search_columns'] ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $allusers = array();
-        $exclude  = array();
+        $exclude = array();
 
         foreach ( $columns as $col ) {
             if ( empty( $col ) ) {
@@ -277,22 +277,22 @@ class MainWP_Child_Users {
                     if ( $check_users_role && ! in_array( $new_user->ID, $search_user_role ) ) {
                         continue;
                     }
-                    $exclude[]           = $new_user->ID;
-                    $usr                 = array();
-                    $usr['id']           = $new_user->ID;
-                    $usr['login']        = $new_user->user_login;
-                    $usr['nicename']     = $new_user->user_nicename;
-                    $usr['email']        = $new_user->user_email;
-                    $usr['registered']   = $new_user->user_registered;
-                    $usr['status']       = $new_user->user_status;
+                    $exclude[] = $new_user->ID;
+                    $usr = array();
+                    $usr['id'] = $new_user->ID;
+                    $usr['login'] = $new_user->user_login;
+                    $usr['nicename'] = $new_user->user_nicename;
+                    $usr['email'] = $new_user->user_email;
+                    $usr['registered'] = $new_user->user_registered;
+                    $usr['status'] = $new_user->user_status;
                     $usr['display_name'] = $new_user->display_name;
-                    $userdata            = get_userdata( $new_user->ID );
-                    $user_roles          = $userdata->roles;
-                    $user_role           = array_shift( $user_roles );
-                    $usr['role']         = $user_role;
-                    $usr['post_count']   = count_user_posts( $new_user->ID );
-                    $usr['avatar']       = get_avatar( $new_user->ID, 32 );
-                    $allusers[]          = $usr;
+                    $userdata = get_userdata( $new_user->ID );
+                    $user_roles = $userdata->roles;
+                    $user_role = array_shift( $user_roles );
+                    $usr['role'] = $user_role;
+                    $usr['post_count'] = count_user_posts( $new_user->ID );
+                    $usr['avatar'] = get_avatar( $new_user->ID, 32 );
+                    $allusers[] = $usr;
                 }
             }
         }
@@ -310,13 +310,13 @@ class MainWP_Child_Users {
      */
     public function edit_user( $user_id, $data ) { // phpcs:ignore -- NOSONAR - ignore complex method notice, see detail at: function edit_user() in the wp/wp-admin/includes/user.php.
         $wp_roles = wp_roles();
-        $user     = new \stdClass();
+        $user = new \stdClass();
 
         $update = true;
 
         if ( $user_id ) {
-            $user->ID         = (int) $user_id;
-            $userdata         = get_userdata( $user_id );
+            $user->ID = (int) $user_id;
+            $userdata = get_userdata( $user_id );
             $user->user_login = wp_slash( $userdata->user_login );
         } else {
             return array( 'error' => 'ERROR: Empty user id.' );
@@ -334,7 +334,7 @@ class MainWP_Child_Users {
         }
 
         if ( isset( $data['role'] ) && current_user_can( 'edit_users' ) ) {
-            $new_role       = sanitize_text_field( $data['role'] );
+            $new_role = sanitize_text_field( $data['role'] );
             $potential_role = isset( $wp_roles->role_objects[ $new_role ] ) ? $wp_roles->role_objects[ $new_role ] : false;
             // Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
             // Multisite super admins can freely edit their blog roles -- they possess all caps.
@@ -364,7 +364,7 @@ class MainWP_Child_Users {
                 $user->user_url = '';
             } else {
                 $user->user_url = esc_url_raw( $data['url'] );
-                $protocols      = implode( '|', array_map( 'preg_quote', wp_allowed_protocols() ) );
+                $protocols = implode( '|', array_map( 'preg_quote', wp_allowed_protocols() ) );
                 $user->user_url = preg_match( '/^(' . $protocols . '):/is', $user->user_url ) ? $user->user_url : 'http://' . $user->user_url;
             }
         }
@@ -458,14 +458,14 @@ class MainWP_Child_Users {
 
         $edit_data = array();
         if ( is_object( $profileuser ) ) {
-            $user_roles              = array_intersect( array_values( $profileuser->roles ), array_keys( get_editable_roles() ) );
-            $user_role               = reset( $user_roles );
-            $edit_data['role']       = $user_role;
+            $user_roles = array_intersect( array_values( $profileuser->roles ), array_keys( get_editable_roles() ) );
+            $user_role = reset( $user_roles );
+            $edit_data['role'] = $user_role;
             $edit_data['first_name'] = $profileuser->first_name;
-            $edit_data['last_name']  = $profileuser->last_name;
-            $edit_data['nickname']   = $profileuser->nickname;
+            $edit_data['last_name'] = $profileuser->last_name;
+            $edit_data['nickname'] = $profileuser->nickname;
 
-            $public_display                     = array();
+            $public_display = array();
             $public_display['display_nickname'] = $profileuser->nickname;
             $public_display['display_username'] = $profileuser->user_login;
 
@@ -490,9 +490,9 @@ class MainWP_Child_Users {
             $public_display = array_unique( $public_display );
 
             $edit_data['public_display'] = $public_display;
-            $edit_data['display_name']   = $profileuser->display_name;
-            $edit_data['user_email']     = $profileuser->user_email;
-            $edit_data['user_url']       = $profileuser->user_url;
+            $edit_data['display_name'] = $profileuser->display_name;
+            $edit_data['user_email'] = $profileuser->user_email;
+            $edit_data['user_url'] = $profileuser->user_url;
             foreach ( wp_get_user_contact_methods( $profileuser ) as $name => $desc ) {
                 $edit_data['contact_methods'][ $name ] = $profileuser->$name;
             }
@@ -511,7 +511,7 @@ class MainWP_Child_Users {
         // phpcs:disable WordPress.Security.NonceVerification
         $new_password = isset( $_POST['new_password'] ) ? base64_decode( wp_unslash( $_POST['new_password'] ) ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
-        $user  = null;
+        $user = null;
         $uname = isset( $_POST['user'] ) ? wp_unslash( $_POST['user'] ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         if ( ! empty( $uname ) ) {
             $user = get_user_by( 'login', $uname );
@@ -523,7 +523,7 @@ class MainWP_Child_Users {
 
         require_once ABSPATH . WPINC . '/registration.php'; // NOSONAR - WP compatible.
 
-        $id     = wp_update_user(
+        $id = wp_update_user(
             array(
                 'ID'        => $user->ID,
                 'user_pass' => $new_password,
@@ -540,7 +540,7 @@ class MainWP_Child_Users {
 
         $information = array();
 
-        $roles  = array_values( $user->roles );
+        $roles = array_values( $user->roles );
         $act_dt = array(
             'display_name' => $user->display_name,
             'user_id'      => $user->ID,
@@ -549,7 +549,7 @@ class MainWP_Child_Users {
 
         if ( ! empty( $_error ) ) {
             $information['error'] = $_error;
-            $act_dt['error']      = $_error;
+            $act_dt['error'] = $_error;
         } else {
             $information['added'] = true;
         }
@@ -569,7 +569,7 @@ class MainWP_Child_Users {
      */
     public function new_user() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $new_user      = isset( $_POST['new_user'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_user'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $new_user = isset( $_POST['new_user'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_user'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         $send_password = isset( $_POST['send_password'] ) ? wp_unslash( $_POST['send_password'] ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         if ( isset( $new_user['role'] ) && ! get_role( $new_user['role'] ) ) {
             $new_user['role'] = 'subscriber';
@@ -595,7 +595,7 @@ class MainWP_Child_Users {
             // we want to reverse this for the plain text arena of emails.
             $blogname = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
 
-            $message  = sprintf( esc_html__( 'Username: %s' ), $user_login ) . "\r\n";
+            $message = sprintf( esc_html__( 'Username: %s' ), $user_login ) . "\r\n";
             $message .= sprintf( esc_html__( 'Password: %s' ), $new_user['user_pass'] ) . "\r\n";
             $message .= wp_login_url() . "\r\n";
 
@@ -608,7 +608,7 @@ class MainWP_Child_Users {
             $user = new \WP_User( $new_user_id );
         }
         if ( $user->exists() ) {
-            $act_dt                    = array(
+            $act_dt = array(
                 'user_id'      => $new_user_id,
                 'display_name' => $user->display_name,
                 'roles'        => ! empty( $user->roles ) ? implode( ',', $user->roles ) : '',

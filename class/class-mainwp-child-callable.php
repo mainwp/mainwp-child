@@ -155,14 +155,14 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Utility::fix_for_custom_themes()
      */
     public function init_call_functions( $auth = false ) {
-        $callable         = false;
+        $callable = false;
         $callable_no_auth = false;
-        $call_func        = false;
+        $call_func = false;
         // phpcs:disable WordPress.Security.NonceVerification
         // check if function is callable.
         if ( isset( $_POST['function'] ) ) {
-            $call_func        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
-            $callable         = $this->is_callable_function( $call_func ); // check callable func.
+            $call_func = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
+            $callable = $this->is_callable_function( $call_func ); // check callable func.
             $callable_no_auth = $this->is_callable_function_no_auth( $call_func ); // check callable no auth func.
         }
 
@@ -511,11 +511,11 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $table_prefix;
 
-        $information['dbCharset']    = DB_CHARSET;
-        $information['dbCollate']    = DB_COLLATE;
+        $information['dbCharset'] = DB_CHARSET;
+        $information['dbCollate'] = DB_COLLATE;
         $information['table_prefix'] = $table_prefix;
-        $information['site_url']     = get_option( 'site_url' );
-        $information['home']         = get_option( 'home' );
+        $information['site_url'] = get_option( 'site_url' );
+        $information['home'] = get_option( 'home' );
 
         MainWP_Helper::write( $information );
     }
@@ -980,7 +980,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public function delete_backup() {
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = $dirs[0];
         // phpcs:disable WordPress.Security.NonceVerification
         $file = isset( $_REQUEST['del'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['del'] ) ) : '';

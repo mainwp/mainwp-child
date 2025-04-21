@@ -161,10 +161,10 @@ class MainWP_Backup {
         $append = false
     ) {
 
-        $this->file_descriptors   = $file_descriptors;
+        $this->file_descriptors = $file_descriptors;
         $this->loadFilesBeforeZip = $loadFilesBeforeZip;
 
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = $dirs[0];
         if ( ! defined( 'PCLZIP_TEMPORARY_DIR' ) ) {
 
@@ -200,10 +200,10 @@ class MainWP_Backup {
 
         if ( 'zip' === $ext ) {
             $this->archiver = null;
-            $ext            = '.zip';
+            $ext = '.zip';
         } else {
             $this->archiver = new Tar_Archiver( $this, $ext, $pid );
-            $ext            = $this->archiver->get_extension();
+            $ext = $this->archiver->get_extension();
         }
 
         if ( ( false !== $fileSuffix ) && ! empty( $fileSuffix ) ) {
@@ -213,17 +213,17 @@ class MainWP_Backup {
             $file = 'backup-' . $filePrefix . $timestamp . $ext;
         }
         $filepath = $backupdir . $file;
-        $fileurl  = $file;
+        $fileurl = $file;
 
         if ( ! $addConfig ) {
             if ( ! in_array( str_replace( ABSPATH, '', WP_CONTENT_DIR ), $excludes, true ) && ! in_array( 'wp-admin', $excludes, true ) && ! in_array( WPINC, $excludes, true ) ) {
-                $addConfig        = true;
+                $addConfig = true;
                 $includeCoreFiles = true;
             }
         }
 
         $this->timeout = 20 * 60 * 60;
-        $mem           = '512M';
+        $mem = '512M';
         MainWP_Helper::set_limit( $this->timeout, $mem );
 
         if ( null !== $this->archiver ) {
@@ -253,8 +253,8 @@ class MainWP_Backup {
     public function backup_poll() {
         // phpcs:disable WordPress.Security.NonceVerification
         $fileNameUID = isset( $_POST['fileNameUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileNameUID'] ) ) : '';
-        $fileName    = isset( $_POST['fileName'] ) ? sanitize_text_field( wp_unslash( $_POST['fileName'] ) ) : '';
-        $type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $fileName = isset( $_POST['fileName'] ) ? sanitize_text_field( wp_unslash( $_POST['fileName'] ) ) : '';
+        $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
         // phpcs:enable WordPress.Security.NonceVerification
         if ( 'full' === $type ) {
             if ( '' !== $fileName ) {
@@ -263,9 +263,9 @@ class MainWP_Backup {
                 $backupFile = 'backup-' . $fileNameUID . '-';
             }
 
-            $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+            $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
             $backupdir = $dirs[0];
-            $result    = glob( $backupdir . $backupFile . '*' ); // NOSONAR .
+            $result = glob( $backupdir . $backupFile . '*' ); // NOSONAR .
 
             // Check if archive, set $archiveFile = $file & break.
             $archiveFile = false;
@@ -286,9 +286,9 @@ class MainWP_Backup {
         } else {
             // When not an archive.
             $backupFile = 'dbBackup-' . $fileNameUID . '-*.sql.php';
-            $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
-            $backupdir  = $dirs[0];
-            $result     = glob( $backupdir . $backupFile . '*' ); // NOSONAR .
+            $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+            $backupdir = $dirs[0];
+            $result = glob( $backupdir . $backupFile . '*' ); // NOSONAR .
 
             if ( 0 === count( $result ) ) {
                 MainWP_Helper::write( array() );
@@ -323,7 +323,7 @@ class MainWP_Backup {
         // phpcs:disable WordPress.Security.NonceVerification
         $pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : 0;
         // phpcs:enable WordPress.Security.NonceVerification
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = $dirs[0];
 
         $information = array();
@@ -337,7 +337,7 @@ class MainWP_Backup {
 
         MainWP_Helper::get_wp_filesystem();
 
-        $pidFile  = trailingslashit( $backupdir ) . 'backup-' . $pid . '.pid';
+        $pidFile = trailingslashit( $backupdir ) . 'backup-' . $pid . '.pid';
         $doneFile = trailingslashit( $backupdir ) . 'backup-' . $pid . '.done';
         if ( $wp_filesystem->is_file( $pidFile ) ) {
             $time = $wp_filesystem->mtime( $pidFile );
@@ -354,7 +354,7 @@ class MainWP_Backup {
             }
             $secondsdiff = ( $minuteDiff * 60 ) + $seconds - $file_seconds;
 
-            $file                = $wp_filesystem->get_contents( $pidFile );
+            $file = $wp_filesystem->get_contents( $pidFile );
             $information['file'] = basename( $file );
             if ( $secondsdiff < 80 ) {
                 $information['status'] = 'busy';
@@ -362,10 +362,10 @@ class MainWP_Backup {
                 $information['status'] = 'stalled';
             }
         } elseif ( $wp_filesystem->is_file( $doneFile ) ) {
-            $file                  = $wp_filesystem->get_contents( $doneFile );
+            $file = $wp_filesystem->get_contents( $doneFile );
             $information['status'] = 'done';
-            $information['file']   = basename( $file );
-            $information['size']   = filesize( $file );
+            $information['file'] = basename( $file );
+            $information['size'] = filesize( $file );
         } else {
             $information['status'] = 'invalid';
         }
@@ -401,7 +401,7 @@ class MainWP_Backup {
         MainWP_Helper::end_session();
 
         // Cleanup pid files!
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = trailingslashit( $dirs[0] );
 
         /**
@@ -426,7 +426,7 @@ class MainWP_Backup {
 
         // phpcs:disable WordPress.Security.NonceVerification
         $fileName = isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
-        $type     = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 
         if ( 'full' === $type ) {
 
@@ -445,13 +445,13 @@ class MainWP_Backup {
             if ( ! $res ) {
                 $information['db'] = false;
             } else {
-                $information['db']   = $res['file'];
+                $information['db'] = $res['file'];
                 $information['size'] = $res['filesize'];
             }
             $information['full'] = false;
         } else {
             $information['full'] = false;
-            $information['db']   = false;
+            $information['db'] = false;
         }
 
         if ( $write ) {
@@ -473,10 +473,10 @@ class MainWP_Backup {
      */
     public function backup_full( $fileName ) { //phpcs:ignore -- complex method.
         // phpcs:disable WordPress.Security.NonceVerification
-        $excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ok.
+        $excludes = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ok.
         $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
-        $uploadDir  = MainWP_Helper::get_mainwp_dir();
-        $uploadDir  = $uploadDir[0];
+        $uploadDir = MainWP_Helper::get_mainwp_dir();
+        $uploadDir = $uploadDir[0];
         $excludes[] = str_replace( ABSPATH, '', $uploadDir );
         $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
 
@@ -488,12 +488,12 @@ class MainWP_Backup {
                         $_POST['file_descriptors'] = 1000;
                     }
                     $_POST['file_descriptors_auto'] = 0;
-                    $_POST['loadFilesBeforeZip']    = false;
+                    $_POST['loadFilesBeforeZip'] = false;
                 }
             }
         }
 
-        $file_descriptors      = ( isset( $_POST['file_descriptors'] ) ? intval( wp_unslash( $_POST['file_descriptors'] ) ) : 0 );
+        $file_descriptors = ( isset( $_POST['file_descriptors'] ) ? intval( wp_unslash( $_POST['file_descriptors'] ) ) : 0 );
         $file_descriptors_auto = ( isset( $_POST['file_descriptors_auto'] ) ? intval( wp_unslash( $_POST['file_descriptors_auto'] ) ) : 0 );
         if ( 1 === (int) $file_descriptors_auto ) {
             if ( function_exists( 'posix_getrlimit' ) ) {
@@ -512,9 +512,9 @@ class MainWP_Backup {
         }
 
         $excludebackup = ( isset( $_POST['excludebackup'] ) && '1' === $_POST['excludebackup'] );
-        $excludecache  = ( isset( $_POST['excludecache'] ) && '1' === $_POST['excludecache'] );
-        $excludezip    = ( isset( $_POST['excludezip'] ) && '1' === $_POST['excludezip'] );
-        $excludenonwp  = ( isset( $_POST['excludenonwp'] ) && '1' === $_POST['excludenonwp'] );
+        $excludecache = ( isset( $_POST['excludecache'] ) && '1' === $_POST['excludecache'] );
+        $excludezip = ( isset( $_POST['excludezip'] ) && '1' === $_POST['excludezip'] );
+        $excludenonwp = ( isset( $_POST['excludenonwp'] ) && '1' === $_POST['excludenonwp'] );
 
         if ( $excludebackup ) {
             $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_backups';
@@ -572,8 +572,8 @@ class MainWP_Backup {
      * @return array|bool $success Returns an array containing the Backup location & file size. Return FALSE on failure.
      */
     public function backup_db( $fileName = '', $ext = 'zip' ) {
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $dir       = $dirs[0];
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $dir = $dirs[0];
         $timestamp = time();
 
         if ( '' !== $fileName ) {
@@ -620,7 +620,7 @@ class MainWP_Backup {
      */
     public function zip_file( $files, $archive ) {
         $this->timeout = 20 * 60 * 60;
-        $mem           = '512M';
+        $mem = '512M';
         MainWP_Helper::set_limit( $this->timeout, $mem );
 
         if ( ! is_array( $files ) ) {
@@ -649,7 +649,7 @@ class MainWP_Backup {
      * @return bool Return false on failure.
      */
     public function m_zip_file( $files, $archive ) {
-        $this->zip                 = new \ZipArchive();
+        $this->zip = new \ZipArchive();
         $this->zipArchiveFileCount = 0;
         $this->zipArchiveSizeCount = 0;
 
@@ -742,12 +742,12 @@ class MainWP_Backup {
         $excludenonwp
     ) {
 
-        $this->excludeZip          = $excludezip;
-        $this->zip                 = new \ZipArchive();
+        $this->excludeZip = $excludezip;
+        $this->zip = new \ZipArchive();
         $this->zipArchiveFileCount = 0;
         $this->zipArchiveSizeCount = 0;
-        $this->zipArchiveFileName  = $filepath;
-        $zipRes                    = $this->zip->open( $filepath, \ZipArchive::CREATE );
+        $this->zipArchiveFileName = $filepath;
+        $zipRes = $this->zip->open( $filepath, \ZipArchive::CREATE );
         if ( $zipRes ) {
             $nodes = glob( ABSPATH . '*' );
             if ( ! $includeCoreFiles ) {
@@ -860,8 +860,8 @@ class MainWP_Backup {
         global $wpdb;
 
         $plugins = array();
-        $dir     = WP_CONTENT_DIR . '/plugins/';
-        $fh      = opendir( $dir );
+        $dir = WP_CONTENT_DIR . '/plugins/';
+        $fh = opendir( $dir );
         while ( $entry = readdir( $fh ) ) {
             if ( ! is_dir( $dir . $entry ) ) {
                 continue;
@@ -874,8 +874,8 @@ class MainWP_Backup {
         closedir( $fh );
 
         $themes = array();
-        $dir    = WP_CONTENT_DIR . '/themes/';
-        $fh     = opendir( $dir );
+        $dir = WP_CONTENT_DIR . '/themes/';
+        $fh = opendir( $dir );
         while ( $entry = readdir( $fh ) ) {
             if ( ! is_dir( $dir . $entry ) ) {
                 continue;
@@ -1122,8 +1122,8 @@ class MainWP_Backup {
      * @return bool true|false.
      */
     public function add_file_from_string_to_pcl_zip( $file, $str, $filepath ) {
-        $file        = preg_replace( '/(?:\.|\/)*(.*)/', '$1', $file );
-        $localpath   = dirname( $file );
+        $file = preg_replace( '/(?:\.|\/)*(.*)/', '$1', $file );
+        $localpath = dirname( $file );
         $tmpfilename = dirname( $filepath ) . '/' . basename( $file );
         if ( false !== MainWP_Helper::file_put_contents( $tmpfilename, $str ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
             $this->zip->delete( PCLZIP_OPT_BY_NAME, $file );
@@ -1246,7 +1246,7 @@ class MainWP_Backup {
     public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
 
         $timeout = 20 * 60 * 60;
-        $mem     = '512M';
+        $mem = '512M';
         MainWP_Helper::set_limit( $timeout, $mem );
 
         /**
@@ -1257,7 +1257,7 @@ class MainWP_Backup {
         global $wpdb;
 
         //phpcs:disable WordPress.WP.AlternativeFunctions
-        $db_files  = array();
+        $db_files = array();
         $tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );  // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
         foreach ( $tables_db as $curr_table ) {
             if ( null !== $archiver ) {
@@ -1267,7 +1267,7 @@ class MainWP_Backup {
             $table = $curr_table[0];
 
             $currentfile = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
-            $db_files[]  = $currentfile;
+            $db_files[] = $currentfile;
             if ( file_exists( $currentfile ) ) {
                 continue;
             }
@@ -1283,7 +1283,7 @@ class MainWP_Backup {
             $rows = MainWP_Child_DB::to_query( 'SELECT * FROM ' . $table, $wpdb->dbh ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 
             if ( $rows ) {
-                $i            = 0;
+                $i = 0;
                 $table_insert = 'INSERT INTO `' . $table . '` VALUES (';
 
                 while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
@@ -1306,7 +1306,7 @@ class MainWP_Backup {
                     }
 
                     $query = null;
-                    $row   = null;
+                    $row = null;
                 }
             }
             $rows = null;
