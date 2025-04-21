@@ -19,7 +19,7 @@
  * @package MainWP\Child
  */
 
-// phpcsa:disable -- third party credit.
+// phpcs:disable -- third party credit.
 
 namespace MainWP\Child;
 
@@ -215,10 +215,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 case 'insert_or_update_jobs_global':
                     $information = $this->insert_or_update_jobs_global();
                     break;
-                case 'backwpup_get_child_tables':
+                case 'get_child_tables':
                     $information = $this->get_child_tables();
                     break;
-                case 'backwpup_get_job_files':
+                case 'get_job_files':
                     $information = $this->get_job_files();
                     break;
                 case 'backwpup_destination_email_check_email':
@@ -1534,8 +1534,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Query response containing the tables.
      */
     protected function get_child_tables() { // phpcs:ignore -- NOSONAR - complex.
-
-        /** @global $wpdb wpdb */
+        /**
+         *  @global $wpdb wpdb
+         */
         global $wpdb;
 
         $return = array();
