@@ -308,7 +308,7 @@ class MainWP_Child {
                 if ( $result ) {
                     // Mirror WordPress core: unserialize complex values.
                     $result->option_value = maybe_unserialize( $result->option_value );
-                    $alloptions_db[]      = $result;
+                    $alloptions_db[] = $result;
                 }
             }
             $wpdb->suppress_errors( $suppress );
