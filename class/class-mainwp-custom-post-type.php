@@ -93,8 +93,8 @@ class MainWP_Custom_Post_Type {
             '_builtin' => false,
         );
 
-        $output     = 'objects';
-        $operator   = 'and';
+        $output = 'objects';
+        $operator = 'and';
         $taxonomies = get_taxonomies( $args, $output, $operator );
 
         $custom = array();
@@ -159,7 +159,7 @@ class MainWP_Custom_Post_Type {
         register_shutdown_function( '\MainWP\Child\MainWP_Custom_Post_Type::mainwp_custom_post_type_handle_fatal_error' );
         // phpcs:disable WordPress.Security.NonceVerification
         $information = array();
-        $mwp_action  = MainWP_System::instance()->validate_params( 'action' );
+        $mwp_action = MainWP_System::instance()->validate_params( 'action' );
         // phpcs:enable WordPress.Security.NonceVerification
 
         if ( 'custom_post_type_import' === $mwp_action ) {
@@ -224,31 +224,31 @@ class MainWP_Custom_Post_Type {
         if ( $foundMatches > 0 ) {
             foreach ( $matches as $match ) {
                 $hrefLink = $match[2];
-                $imgUrl   = $match[4];
+                $imgUrl = $match[4];
 
                 if ( ! isset( $upload_dir['baseurl'] ) || ( false === strripos( $imgUrl, $upload_dir['baseurl'] ) ) ) {
                     continue;
                 }
 
                 if ( preg_match( '/-\d{3}x\d{3}\.[a-zA-Z0-9]{3,4}$/', $imgUrl, $imgMatches ) ) {
-                    $search         = $imgMatches[0];
-                    $replace        = '.' . $match[6];
+                    $search = $imgMatches[0];
+                    $replace = '.' . $match[6];
                     $originalImgUrl = str_replace( $search, $replace, $imgUrl );
                 } else {
                     $originalImgUrl = $imgUrl;
                 }
 
                 try {
-                    $downloadfile      = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image );
-                    $localUrl          = $downloadfile['url'];
+                    $downloadfile = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image );
+                    $localUrl = $downloadfile['url'];
                     $linkToReplaceWith = dirname( $localUrl );
                     if ( '' !== $hrefLink ) {
-                        $server     = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+                        $server = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
                         $serverHost = wp_parse_url( $server, PHP_URL_HOST );
                         if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
-                            $serverHref        = 'href="' . $serverHost;
+                            $serverHref = 'href="' . $serverHost;
                             $replaceServerHref = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
-                            $post_content      = str_replace( $serverHref, $replaceServerHref, $post_content );
+                            $post_content = str_replace( $serverHref, $replaceServerHref, $post_content );
                         } elseif ( strpos( $hrefLink, 'http' ) !== false ) {
                             $lnkToReplace = dirname( $hrefLink );
                             if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
@@ -282,8 +282,8 @@ class MainWP_Custom_Post_Type {
      * @return array|bool|string[] Response array, true|false, Error message.
      */
     private function insert_post( $data, $edit_id, $parent_id = 0 ) { // phpcs:ignore -- NOSONAR -required to achieve desired results, pull request solutions appreciated.
-        $data_insert                = array();
-        $data_post                  = $data['post'];
+        $data_insert = array();
+        $data_post = $data['post'];
         $data_insert['post_author'] = get_current_user_id();
 
         $data_keys = array(
@@ -333,7 +333,7 @@ class MainWP_Custom_Post_Type {
 
         if ( ! empty( $edit_id ) ) {
             $old_post_id = (int) $edit_id;
-            $old_post    = get_post( $old_post_id, ARRAY_A );
+            $old_post = get_post( $old_post_id, ARRAY_A );
             if ( is_null( $old_post ) ) {
                 return array(
                     'delete_connection' => 1,
@@ -345,7 +345,7 @@ class MainWP_Custom_Post_Type {
                 return array( 'error' => esc_html__( 'This post is inside trash on child website. Please try publish it manually and try again.', $this->plugin_translate ) );
             }
             $check_image_existed = true;
-            $data_insert['ID']   = $old_post_id;
+            $data_insert['ID'] = $old_post_id;
 
             // Remove all previous post meta.
             // Get all unique meta_key.
@@ -412,7 +412,7 @@ class MainWP_Custom_Post_Type {
             $categories = $data['categories'];
 
             $post_cust_cats = array();
-            $new_cust_cats  = array();
+            $new_cust_cats = array();
 
             foreach ( $categories as $cat ) {
                 if ( is_string( $cat ) ) {
@@ -422,7 +422,7 @@ class MainWP_Custom_Post_Type {
                 }
             }
 
-            $post_type  = isset( $data['post']['post_type'] ) ? $data['post']['post_type'] : '';
+            $post_type = isset( $data['post']['post_type'] ) ? $data['post']['post_type'] : '';
             $cust_terms = $this->get_custom_taxonomies();
 
             if ( ! empty( $post_type ) ) {
@@ -431,7 +431,7 @@ class MainWP_Custom_Post_Type {
                         $found = false;
                         foreach ( $post_cust_cats as $term ) {
                             $post_term = false;
-                            $found     = $this->find_existed_term( $cust_terms, $term, $post_type );
+                            $found = $this->find_existed_term( $cust_terms, $term, $post_type );
 
                             if ( ! $found ) {
                                 $new_term = wp_insert_term(
@@ -473,7 +473,7 @@ class MainWP_Custom_Post_Type {
                         $found = false;
                         foreach ( $new_cust_cats as $name ) {
                             $post_term = false;
-                            $found     = $this->find_existed_term( $cust_terms, array( 'name' => $name ), $post_type );
+                            $found = $this->find_existed_term( $cust_terms, array( 'name' => $name ), $post_type );
 
                             if ( ! $found ) {
                                 $found_taxo = $this->find_existed_taxonomy( $cust_terms, $post_type );

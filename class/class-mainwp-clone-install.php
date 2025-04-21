@@ -126,7 +126,7 @@ class MainWP_Clone_Install {
         } elseif ( $this->check_zip_console() ) {
             return false;
         } elseif ( $this->check_zip_support() ) {
-            $zip    = new \ZipArchive();
+            $zip = new \ZipArchive();
             $zipRes = $zip->open( $this->file );
             if ( $zipRes ) {
                 $zip->deleteName( 'wp-config.php' );
@@ -138,8 +138,8 @@ class MainWP_Clone_Install {
 
             return false;
         } else {
-            $zip   = new \PclZip( $this->file );
-            $list  = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
+            $zip = new \PclZip( $this->file );
+            $list = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
             $list2 = $zip->delete( PCLZIP_OPT_BY_NAME, 'clone' );
             if ( 0 === $list ) {
                 return false;
@@ -193,7 +193,7 @@ class MainWP_Clone_Install {
         } elseif ( $this->check_zip_console() ) {
             return false;
         } elseif ( $this->check_zip_support() ) {
-            $zip    = new \ZipArchive();
+            $zip = new \ZipArchive();
             $zipRes = $zip->open( $this->file );
             if ( $zipRes ) {
                 $content = $zip->locateName( $file );
@@ -254,7 +254,7 @@ class MainWP_Clone_Install {
         }
 
         try {
-            $dirs      = MainWP_Helper::get_mainwp_dir( 'backup', false );
+            $dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
             $backupdir = $dirs[0];
 
             $files = glob( $backupdir . '*' );
@@ -321,8 +321,8 @@ class MainWP_Clone_Install {
         global $wpdb;
 
         $table_prefix = $this->config['prefix'];
-        $home         = get_option( 'home' );
-        $site_url     = get_option( 'siteurl' );
+        $home = get_option( 'home' );
+        $site_url = get_option( 'siteurl' );
 
         // Install database!
         /**
@@ -341,7 +341,7 @@ class MainWP_Clone_Install {
          */
         define( 'WP_DEBUG', false );
 
-        $query     = '';
+        $query = '';
         $tableName = '';
         $wpdb->query( 'SET foreign_key_checks = 0' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 
@@ -353,7 +353,7 @@ class MainWP_Clone_Install {
 
             $lastRun = 0;
             if ( $handle ) {
-                $readline       = '';
+                $readline = '';
                 $remove_protect = true;
                 while ( ( $line = fgets( $handle, 81920 ) ) !== false ) {
                     if ( time() - $lastRun > 20 ) {
@@ -363,7 +363,7 @@ class MainWP_Clone_Install {
 
                     if ( $remove_protect ) {
                         if ( false !== stristr( $line, $protect_content_string ) ) {
-                            $line           = str_replace( $protect_content_string, '', $line );
+                            $line = str_replace( $protect_content_string, '', $line );
                             $remove_protect = false;
                         }
                     }
@@ -373,7 +373,7 @@ class MainWP_Clone_Install {
                         continue;
                     }
 
-                    $splitLine       = explode( ";\n", $readline );
+                    $splitLine = explode( ";\n", $readline );
                     $splitLineLength = count( $splitLine );
                     for ( $i = 0; $i < $splitLineLength - 1; $i++ ) {
                         $wpdb->query( $splitLine[ $i ] ); // phpcs:ignore -- safe query.
@@ -393,7 +393,7 @@ class MainWP_Clone_Install {
             }
         }
 
-        $tables    = array();
+        $tables = array();
         $tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
 
         foreach ( $tables_db as $curr_table ) {
@@ -438,7 +438,7 @@ class MainWP_Clone_Install {
 
                 return false;
         } elseif ( $this->check_zip_support() ) {
-            $zip    = new \ZipArchive();
+            $zip = new \ZipArchive();
             $zipRes = $zip->open( $this->file );
 
             // Check if the ZIP file was successfully opened.
@@ -476,7 +476,7 @@ class MainWP_Clone_Install {
             }
             return false;
         } else {
-            $zip     = new \PclZip( $this->file );
+            $zip = new \PclZip( $this->file );
             $content = $zip->extract( PCLZIP_OPT_BY_NAME, 'clone/config.txt', PCLZIP_OPT_EXTRACT_AS_STRING );
             if ( ! is_array( $content ) || ! isset( $content[0]['content'] ) ) {
                 return false;
@@ -523,7 +523,7 @@ class MainWP_Clone_Install {
      * @return bool true|false.
      */
     public function extract_zip_backup() {
-        $zip    = new \ZipArchive();
+        $zip = new \ZipArchive();
         $zipRes = $zip->open( $this->file );
         if ( $zipRes ) {
             $zip->extract_to( ABSPATH );
@@ -556,7 +556,7 @@ class MainWP_Clone_Install {
         if ( ( 'ftpext' === $wp_filesystem->method ) && defined( 'FTP_BASE' ) ) {
             $ftpBase = FTP_BASE;
             $ftpBase = trailingslashit( $ftpBase );
-            $tmpdir  = str_replace( ABSPATH, $ftpBase, $tmpdir );
+            $tmpdir = str_replace( ABSPATH, $ftpBase, $tmpdir );
         }
 
         \unzip_file( $this->file, $tmpdir ); // NOSONAR.
@@ -693,19 +693,19 @@ class MainWP_Clone_Install {
                 }
 
                 // Count the number of rows we have in the table if large we'll split into blocks, This is a mod from Simon Wheatley.
-                $row_count   = MainWP_Child_DB::to_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection );
+                $row_count = MainWP_Child_DB::to_query( 'SELECT COUNT(*) as count FROM ' . $table, $connection );
                 $rows_result = MainWP_Child_DB::fetch_array( $row_count );
-                $row_count   = $rows_result['count'];
+                $row_count = $rows_result['count'];
                 if ( empty( $row_count ) ) {
                     continue;
                 }
 
                 $page_size = 50000;
-                $pages     = ceil( $row_count / $page_size );
+                $pages = ceil( $row_count / $page_size );
                 for ( $page = 0; $page < $pages; $page++ ) {
                     $current_row = 0;
-                    $start       = $page * $page_size;
-                    $end         = $start + $page_size;
+                    $start = $page * $page_size;
+                    $end = $start + $page_size;
                     // Grab the content of the table.
                     $data = MainWP_Child_DB::to_query( sprintf( 'SELECT * FROM %s LIMIT %d, %d', $table, $start, $end ), $connection );
                     if ( ! $data ) {
@@ -718,8 +718,8 @@ class MainWP_Clone_Install {
                         ++$current_row;
 
                         $update_sql = array();
-                        $where_sql  = array();
-                        $upd        = false;
+                        $where_sql = array();
+                        $upd = false;
 
                         foreach ( $columns as $column => $primary_key ) {
                             if ( 1 === $guid && in_array( $column, $exclude_cols ) ) {
@@ -734,7 +734,7 @@ class MainWP_Clone_Install {
                             if ( $edited_data !== $data_to_fix ) {
                                 ++$report['change'];
                                 $update_sql[] = $column . ' = "' . MainWP_Child_DB::real_escape_string( $edited_data ) . '"';
-                                $upd          = true;
+                                $upd = true;
                             }
 
                             if ( $primary_key ) {
@@ -743,7 +743,7 @@ class MainWP_Clone_Install {
                         }
 
                         if ( $upd && ! empty( $where_sql ) ) {
-                            $sql    = 'UPDATE ' . $table . ' SET ' . implode( ', ', $update_sql ) . ' WHERE ' . implode( ' AND ', array_filter( $where_sql ) );
+                            $sql = 'UPDATE ' . $table . ' SET ' . implode( ', ', $update_sql ) . ' WHERE ' . implode( ' AND ', array_filter( $where_sql ) );
                             $result = MainWP_Child_DB::to_query( $sql, $connection );
                             if ( ! $result ) {
                                 $report['errors'][] = MainWP_Child_DB::error();
@@ -788,7 +788,7 @@ class MainWP_Clone_Install {
                 $data = $_tmp;
                 unset( $_tmp );
             } elseif ( is_object( $data ) ) {
-                $_tmp     = $data;
+                $_tmp = $data;
                 $cls_name = get_class( $data );
                 // to fix: The script tried to modify a property on an incomplete object.
                 if ( '__PHP_Incomplete_Class' !== $cls_name ) {

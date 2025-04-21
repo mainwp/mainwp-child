@@ -68,7 +68,7 @@ class MainWP_Child_Misc {
      */
     public function get_site_icon() {
         $information = array();
-        $url         = $this->get_favicon( true );
+        $url = $this->get_favicon( true );
         if ( ! empty( $url ) ) {
             $information['faviIconUrl'] = $url;
         }
@@ -93,14 +93,14 @@ class MainWP_Child_Misc {
     public function get_favicon( $parse_page = false ) { //phpcs:ignore -- NOSONAR - complex.
 
         $favi_url = '';
-        $favi     = '';
+        $favi = '';
         $site_url = get_option( 'siteurl' );
         if ( substr( $site_url, - 1 ) !== '/' ) {
             $site_url .= '/';
         }
 
         if ( function_exists( '\get_site_icon_url' ) && \has_site_icon() ) {
-            $favi     = \get_site_icon_url();
+            $favi = \get_site_icon_url();
             $favi_url = $favi;
         }
 
@@ -148,7 +148,7 @@ class MainWP_Child_Misc {
      */
     private function try_to_parse_favicon( $site_url ) { //phpcs:ignore -- NOSONAR - complex.
         $request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
-        $favi    = '';
+        $favi = '';
         if ( is_array( $request ) && isset( $request['body'] ) ) {
             $preg_str1 = '/(<link\s+[^\>]*rel="shortcut\s+icon"\s*[^>]*href="([^"]+)"[^>]*>)/is';
             $preg_str2 = '/(<link\s+[^\>]*rel="(?:shortcut\s+)?icon"\s*[^>]*href="([^"]+)"[^>]*>)/is';
@@ -194,17 +194,17 @@ class MainWP_Child_Misc {
     public function get_security_stats( $return_results = false ) { // phpcs:ignore -- NOSONAR - required to achieve desired results, pull request solutions appreciated.
         $information = array();
 
-        $information['db_reporting']       = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
-        $information['php_reporting']      = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
-        $information['wp_uptodate']        = ( MainWP_Security::wpcore_updated_ok() ? 'Y' : 'N' );
+        $information['db_reporting'] = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
+        $information['php_reporting'] = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
+        $information['wp_uptodate'] = ( MainWP_Security::wpcore_updated_ok() ? 'Y' : 'N' );
         $information['phpversion_matched'] = ( MainWP_Security::phpversion_ok() ? 'Y' : 'N' );
-        $information['sslprotocol']        = ( MainWP_Security::sslprotocol_ok() ? 'Y' : 'N' );
-        $information['debug_disabled']     = ( MainWP_Security::debug_disabled_ok() ? 'Y' : 'N' );
+        $information['sslprotocol'] = ( MainWP_Security::sslprotocol_ok() ? 'Y' : 'N' );
+        $information['debug_disabled'] = ( MainWP_Security::debug_disabled_ok() ? 'Y' : 'N' );
 
         $information['sec_outdated_plugins'] = ( MainWP_Security::outdated_plugins_ok() ? 'Y' : 'N' );
         $information['sec_inactive_plugins'] = ( MainWP_Security::inactive_plugins_ok() ? 'Y' : 'N' );
-        $information['sec_outdated_themes']  = ( MainWP_Security::outdated_themes_ok() ? 'Y' : 'N' );
-        $information['sec_inactive_themes']  = ( MainWP_Security::inactive_themes_ok() ? 'Y' : 'N' );
+        $information['sec_outdated_themes'] = ( MainWP_Security::outdated_themes_ok() ? 'Y' : 'N' );
+        $information['sec_inactive_themes'] = ( MainWP_Security::inactive_themes_ok() ? 'Y' : 'N' );
 
         if ( 'N' === $information['db_reporting'] && MainWP_Security::get_security_option( 'db_reporting' ) ) {
             $information['db_reporting'] = 'N_UNABLE';
@@ -254,7 +254,7 @@ class MainWP_Child_Misc {
         }
         // phpcs:enable
         $information = array();
-        $security    = get_option( 'mainwp_security' );
+        $security = get_option( 'mainwp_security' );
         if ( ! is_array( $security ) ) {
             $security = array();
         }
@@ -280,10 +280,10 @@ class MainWP_Child_Misc {
         }
 
         if ( ( 'all' === $feature || 'versions' === $feature ) && ! in_array( 'versions', $skips ) ) {
-            $security['scripts_version']   = true;
-            $security['styles_version']    = true;
+            $security['scripts_version'] = true;
+            $security['styles_version'] = true;
             $security['generator_version'] = true;
-            $information['versions']       = 'Y';
+            $information['versions'] = 'Y';
         }
 
         MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
@@ -318,20 +318,20 @@ class MainWP_Child_Misc {
         $security = get_option( 'mainwp_security' );
 
         if ( 'all' === $feature || 'php_reporting' === $feature ) {
-            $security['php_reporting']    = false;
+            $security['php_reporting'] = false;
             $information['php_reporting'] = 'N';
         }
 
         if ( 'all' === $feature || 'db_reporting' === $feature ) {
-            $security['db_reporting']    = false;
+            $security['db_reporting'] = false;
             $information['db_reporting'] = 'N';
         }
 
         if ( 'all' === $feature || 'versions' === $feature ) {
-            $security['scripts_version']   = false;
-            $security['styles_version']    = false;
+            $security['scripts_version'] = false;
+            $security['styles_version'] = false;
             $security['generator_version'] = false;
-            $information['versions']       = 'N';
+            $information['versions'] = 'N';
         }
 
         MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
@@ -394,9 +394,9 @@ class MainWP_Child_Misc {
      */
     public function uploader_action() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $file_url    = isset( $_POST['url'] ) ? MainWP_Utility::instance()->maybe_base64_decode( wp_unslash( $_POST['url'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $path        = isset( $_POST['path'] ) ? sanitize_text_field( wp_unslash( $_POST['path'] ) ) : '';
-        $filename    = isset( $_POST['filename'] ) ? sanitize_text_field( wp_unslash( $_POST['filename'] ) ) : '';
+        $file_url = isset( $_POST['url'] ) ? MainWP_Utility::instance()->maybe_base64_decode( wp_unslash( $_POST['url'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $path = isset( $_POST['path'] ) ? sanitize_text_field( wp_unslash( $_POST['path'] ) ) : '';
+        $filename = isset( $_POST['filename'] ) ? sanitize_text_field( wp_unslash( $_POST['filename'] ) ) : '';
         $information = array();
         // phpcs:enable
         if ( empty( $file_url ) || empty( $path ) ) {
@@ -417,7 +417,7 @@ class MainWP_Child_Misc {
             // fix invalid name.
             $path = str_replace( '../', '--/', $path );
             $path = str_replace( './', '-/', $path );
-            $dir  = ABSPATH . $path;
+            $dir = ABSPATH . $path;
         }
 
         if ( ! file_exists( $dir ) && false === mkdir( $dir, 0777, true ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
@@ -533,7 +533,7 @@ class MainWP_Child_Misc {
      */
     private function sanitize_file_name( $filename ) {
         $filename_raw = $filename;
-        $filename     = remove_accents( $filename );
+        $filename = remove_accents( $filename );
 
         $special_chars = array( '?', '[', ']', '/', '\\', '=', '<', '>', ':', ';', ',', "'", '"', '&', '$', '#', '*', '(', ')', '|', '~', '`', '!', '{', '}', '%', '+', '’', '«', '»', '”', '“', chr( 0 ) );
 
@@ -545,8 +545,8 @@ class MainWP_Child_Misc {
         }
 
         if ( ! seems_utf8( $filename ) ) {
-            $_ext     = pathinfo( $filename, PATHINFO_EXTENSION );
-            $_name    = pathinfo( $filename, PATHINFO_FILENAME );
+            $_ext = pathinfo( $filename, PATHINFO_EXTENSION );
+            $_name = pathinfo( $filename, PATHINFO_FILENAME );
             $filename = sanitize_title_with_dashes( $_name ) . '.' . $_ext;
         }
 
@@ -596,8 +596,8 @@ class MainWP_Child_Misc {
     public function code_snippet() {
         // phpcs:disable WordPress.Security.NonceVerification
         $action = MainWP_System::instance()->validate_params( 'action' );
-        $type   = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-        $slug   = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+        $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
 
         $snippets = get_option( 'mainwp_ext_code_snippets' );
 
@@ -689,7 +689,7 @@ class MainWP_Child_Misc {
                 $return['status'] = 'SUCCESS';
             }
         } else {
-            $return['status']   = 'SUCCESS';
+            $return['status'] = 'SUCCESS';
             $return['notfound'] = 1;
         }
         return $return;

@@ -114,26 +114,26 @@ class MainWP_Child_Bulk_Settings_Manager {
         $url = isset( $_POST['url'] ) ? '/' . sanitize_text_field( wp_unslash( $_POST['url'] ) ) : '';
 
         $expiration = time() + 600;
-        $manager    = \WP_Session_Tokens::get_instance( $current_user->ID );
-        $token      = $manager->create( $expiration );
+        $manager = \WP_Session_Tokens::get_instance( $current_user->ID );
+        $token = $manager->create( $expiration );
 
         $secure = is_ssl();
         if ( $secure ) {
             $auth_cookie_name = SECURE_AUTH_COOKIE;
-            $scheme           = 'secure_auth';
+            $scheme = 'secure_auth';
         } else {
             $auth_cookie_name = AUTH_COOKIE;
-            $scheme           = 'auth';
+            $scheme = 'auth';
         }
-        $auth_cookie                  = wp_generate_auth_cookie( $current_user->ID, $expiration, $scheme, $token );
-        $logged_in_cookie             = wp_generate_auth_cookie( $current_user->ID, $expiration, 'logged_in', $token );
+        $auth_cookie = wp_generate_auth_cookie( $current_user->ID, $expiration, $scheme, $token );
+        $logged_in_cookie = wp_generate_auth_cookie( $current_user->ID, $expiration, 'logged_in', $token );
         $_COOKIE[ $auth_cookie_name ] = $auth_cookie;
-        $_COOKIE[ LOGGED_IN_COOKIE ]  = $logged_in_cookie;
-        $post_args                    = array();
-        $post_args['body']            = array();
-        $post_args['redirection']     = 5;
-        $post_args['decompress']      = false;
-        $post_args['cookies']         = array(
+        $_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in_cookie;
+        $post_args = array();
+        $post_args['body'] = array();
+        $post_args['redirection'] = 5;
+        $post_args['decompress'] = false;
+        $post_args['cookies'] = array(
             new \WP_Http_Cookie(
                 array(
                     'name'  => $auth_cookie_name,
@@ -164,7 +164,7 @@ class MainWP_Child_Bulk_Settings_Manager {
             $get_args = array();
         }
 
-        $get_args['bulk_settings_manageruse_nonce_key']  = intval( time() );
+        $get_args['bulk_settings_manageruse_nonce_key'] = intval( time() );
         $get_args['bulk_settings_manageruse_nonce_hmac'] = hash_hmac( 'sha256', $get_args['bulk_settings_manageruse_nonce_key'], NONCE_KEY );
 
         if ( true === $skip_invalid_nonce ) {
@@ -175,7 +175,7 @@ class MainWP_Child_Bulk_Settings_Manager {
         if ( isset( $args['nonce'] ) && ! empty( $args['nonce'] ) ) {
             parse_str( $args['nonce'], $temp_nonce );
             $good_nonce = $this->wp_create_nonce_recursive( $temp_nonce );
-            $get_args   = array_merge( $get_args, $good_nonce );
+            $get_args = array_merge( $get_args, $good_nonce );
         }
 
         if ( isset( $args['post'] ) ) {
@@ -216,7 +216,7 @@ class MainWP_Child_Bulk_Settings_Manager {
             }
         }
 
-        $search_ok_counter   = 0;
+        $search_ok_counter = 0;
         $search_fail_counter = 0;
 
         if ( isset( $args['search']['ok'] ) ) {

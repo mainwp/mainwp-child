@@ -191,10 +191,10 @@ class MainWP_Child_Maintenance {
         }
 
         if ( ! empty( $performed_what ) && has_action( 'mainwp_reports_maintenance' ) ) {
-            $details  = implode( ',', $performed_what );
+            $details = implode( ',', $performed_what );
             $log_time = time();
-            $message  = 'Maintenance Performed';
-            $result   = 'Maintenance Performed';
+            $message = 'Maintenance Performed';
+            $result = 'Maintenance Performed';
             do_action( 'mainwp_reports_maintenance', $message, $log_time, $details, $result, $max_revisions );
         }
 
@@ -254,13 +254,13 @@ class MainWP_Child_Maintenance {
         if ( ! is_array( $results ) || empty( $results ) ) {
             return 0;
         }
-        $count_deleted  = 0;
+        $count_deleted = 0;
         $results_length = count( $results );
         for ( $i = 0; $i < $results_length; $i++ ) {
             $number_to_delete = $results[ $i ]->cnt - $max_revisions;
-            $count_deleted   += $number_to_delete;
-            $results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $delete_ids       = array();
+            $count_deleted += $number_to_delete;
+            $results_posts = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $delete_ids = array();
             if ( is_array( $results_posts ) && ! empty( $results_posts ) ) {
                 for ( $j = 0; $j < $number_to_delete; $j++ ) {
                     $delete_ids[] = $results_posts[ $j ]->ID;
@@ -307,7 +307,7 @@ class MainWP_Child_Maintenance {
          */
         global $table_prefix;
 
-        $sql    = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
+        $sql = 'SHOW TABLE STATUS FROM `' . DB_NAME . '`';
         $result = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
         if ( MainWP_Child_DB::num_rows( $result ) && MainWP_Child_DB::is_result( $result ) ) {
             while ( $row = MainWP_Child_DB::fetch_array( $result ) ) {
