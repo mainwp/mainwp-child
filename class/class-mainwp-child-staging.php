@@ -290,7 +290,7 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function save_settings() {
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $filters  = array(
+        $filters = array(
             'queryLimit',
             'fileLimit',
             'batchSize',
@@ -458,9 +458,9 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
                     $this->assets = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Assets\Assets::class ); // to fix error since ver 3.1.3.
 
                     $subDirectory = str_replace( get_home_path(), '', ABSPATH );
-                    $urlsHelper   = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Utils\Urls::class );
-                    $url          = $urlsHelper->getHomeUrl() . str_replace( '/', '', $subDirectory );
-                    $result       = array(
+                    $urlsHelper = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Utils\Urls::class );
+                    $url = $urlsHelper->getHomeUrl() . str_replace( '/', '', $subDirectory );
+                    $result = array(
                         'url'       => $url,
                         'blog_name' => get_bloginfo( 'name' ),
                         'clone'     => $cloning->getOptions()->clone,
@@ -481,9 +481,9 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
                 $this->assets = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Assets\Assets::class ); // to fix error since ver 3.1.3.
 
                 $subDirectory = str_replace( get_home_path(), '', ABSPATH );
-                $urlsHelper   = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Utils\Urls::class );
-                $url          = $urlsHelper->getHomeUrl() . str_replace( '/', '', $subDirectory );
-                $result       = array(
+                $urlsHelper = \WPStaging\Core\WPStaging::make( \WPStaging\Framework\Utils\Urls::class );
+                $url = $urlsHelper->getHomeUrl() . str_replace( '/', '', $subDirectory );
+                $result = array(
                     'url'       => $url,
                     'blog_name' => get_bloginfo( 'name' ),
                     'clone'     => $cloning->getOptions()->clone,
@@ -509,7 +509,7 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         try {
-            $now       = new \DateTime();
+            $now = new \DateTime();
             $expiresAt = new \DateTime( $processlock->options->expiresAt );
             return ( true === $processlock->options->isRunning ) && ( $now < $expiresAt );
         } catch ( MainWP_Exception $e ) {
@@ -555,9 +555,9 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
      * @return mixed $return Action result.
      */
     public function ajax_finish() {
-        $cloning              = new \WPStaging\Backend\Modules\Jobs\Cloning();
-        $this->url            = '';
-        $return               = $cloning->start();
+        $cloning = new \WPStaging\Backend\Modules\Jobs\Cloning();
+        $this->url = '';
+        $return = $cloning->start();
         $return->blogInfoName = get_bloginfo( 'name' );
 
         return $return;
@@ -731,8 +731,8 @@ class MainWP_Child_Staging { //phpcs:ignore -- NOSONAR - multi methods.
         $units = array( 'B', 'KB', 'MB', 'GB', 'TB' );
 
         $bytes = (float) $bytes;
-        $base  = log( $bytes ) / log( 1000 );
-        $pow   = pow( 1000, $base - floor( $base ) );
+        $base = log( $bytes ) / log( 1000 );
+        $pow = pow( 1000, $base - floor( $base ) );
 
         return round( $pow, $precision ) . ' ' . $units[ (int) floor( $base ) ];
     }

@@ -97,7 +97,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         $output = ob_get_contents();
         ob_end_clean();
         $return = array();
-        $error  = error_get_last();
+        $error = error_get_last();
         if ( ( false === $result ) && $error ) {
             $return['status'] = 'FAIL';
             $return['result'] = $error['message'];
@@ -210,7 +210,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         if ( empty( $file ) || stristr( $file, '..' ) ) {
             return false;
         }
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = $dirs[0];
         $this->upload_file( $file, $backupdir, $offset );
     }
@@ -270,7 +270,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
     public function readfile_chunked( $filename, $offset ) {
         //phpcs:disable WordPress.WP.AlternativeFunctions
         $chunksize = 1024;
-        $handle    = fopen( $filename, 'rb' );
+        $handle = fopen( $filename, 'rb' );
         if ( false === $handle ) {
             return false;
         }
@@ -334,11 +334,11 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
                 $_filename = basename( $img_data['image_url'] );
                 $_file_ext = strtolower( pathinfo( $_filename, PATHINFO_EXTENSION ) );
                 $filename .= '.' . $_file_ext;
-                $img_url   = $img_data['image_url']; // to fix issue create attachment media.
+                $img_url = $img_data['image_url']; // to fix issue create attachment media.
             }
 
             $local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . $filename;
-            $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+            $local_img_url = $upload_dir['url'] . '/' . basename( $local_img_path );
 
             // to fix issue with recreating new attachment.
             if ( $check_file_existed ) {
@@ -352,7 +352,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             // this may causing of issue incorrect source of image in post content.
             if ( $wp_filesystem->exists( $local_img_path ) ) {
                 $local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
-                $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+                $local_img_url = $upload_dir['url'] . '/' . basename( $local_img_path );
             }
 
             if ( static::instance()->check_image_file_name( $local_img_path ) ) {
@@ -384,8 +384,8 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $allowed_files = array( 'jpg', 'jpeg', 'jpe', 'gif', 'png', 'bmp', 'tif', 'tiff', 'ico', 'avif', 'webp', 'heic' );
-        $names         = explode( '.', $filename );
-        $file_ext      = strtolower( end( $names ) );
+        $names = explode( '.', $filename );
+        $file_ext = strtolower( end( $names ) );
         if ( ! in_array( $file_ext, $allowed_files ) ) {
             return false;
         }
@@ -436,8 +436,8 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             if ( is_array( $result ) ) {
                 $attach = current( $result );
                 if ( is_object( $attach ) ) {
-                    $basedir        = $upload_dir['basedir'];
-                    $baseurl        = $upload_dir['baseurl'];
+                    $basedir = $upload_dir['basedir'];
+                    $baseurl = $upload_dir['baseurl'];
                     $local_img_path = str_replace( $baseurl, $basedir, $attach->guid );
                     if ( $wp_filesystem->exists( $local_img_path ) && ( $wp_filesystem->size( $local_img_path ) === $wp_filesystem->size( $temporary_file ) ) ) {
                         if ( $wp_filesystem->exists( $temporary_file ) ) {
@@ -469,7 +469,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
     private static function insert_attachment_media( $img_data, $img_url, $parent_id, $local_img_path, $local_img_url ) {
 
         $wp_filetype = wp_check_filetype( basename( $img_url ), null ); // Get the filetype to set the mimetype.
-        $attachment  = array(
+        $attachment = array(
             'post_mime_type' => $wp_filetype['type'],
             'post_title'     => isset( $img_data['title'] ) && ! empty( $img_data['title'] ) ? htmlspecialchars( $img_data['title'] ) : preg_replace( '/\.[^.]+$/', '', basename( $img_url ) ),
             'post_content'   => isset( $img_data['description'] ) && ! empty( $img_data['description'] ) ? $img_data['description'] : '',
@@ -575,9 +575,9 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         curl_setopt( $ch, CURLOPT_POSTFIELDS, $postdata );
         curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, 10 );
         curl_setopt( $ch, CURLOPT_USERAGENT, $agent );
-        $data        = curl_exec( $ch );
+        $data = curl_exec( $ch );
         $http_status = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-        $err         = curl_error( $ch );
+        $err = curl_error( $ch );
         if ( 'resource' === gettype( $ch ) ) {
             curl_close( $ch );
         }
@@ -585,7 +585,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ( false === $data ) && ( 0 === (int) $http_status ) ) {
             throw new MainWP_Exception( 'Http Error: ' . esc_html( $err ) );
         } elseif ( preg_match( '/<mainwp>(.*)<\/mainwp>/', $data, $results ) > 0 ) {
-            $result      = $results[1];
+            $result = $results[1];
             $result_base = base64_decode( $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
             return json_decode( $result_base, true );
         } elseif ( '' === $data ) {
@@ -750,13 +750,13 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function send_support_mail() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $opts    = MainWP_Child_Branding::instance()->get_branding_options();
-        $email   = $opts['support_email'];
-        $sub     = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $from    = isset( $_POST['mainwp_branding_contact_send_from'] ) ? trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $opts = MainWP_Child_Branding::instance()->get_branding_options();
+        $email = $opts['support_email'];
+        $sub = isset( $_POST['mainwp_branding_contact_message_subject'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_subject'] ) ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $from = isset( $_POST['mainwp_branding_contact_send_from'] ) ? trim( wp_unslash( $_POST['mainwp_branding_contact_send_from'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $subject = ! empty( $sub ) ? $sub : 'MainWP - Support Contact';
         $content = isset( $_POST['mainwp_branding_contact_message_content'] ) ? wp_kses_post( nl2br( stripslashes( wp_unslash( $_POST['mainwp_branding_contact_message_content'] ) ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $mail    = '';
+        $mail = '';
         $headers = '';
 
         $from_page = isset( $_POST['mainwp_branding_send_from_page'] ) ? wp_unslash( $_POST['mainwp_branding_send_from_page'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -824,7 +824,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function create_nonce_without_session( $action = - 1 ) {
         $user = wp_get_current_user();
-        $uid  = (int) $user->ID;
+        $uid = (int) $user->ID;
         if ( ! $uid ) {
             $uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
         }
@@ -847,8 +847,8 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function verify_nonce_without_session( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return.
         $nonce = (string) $nonce;
-        $user  = wp_get_current_user();
-        $uid   = (int) $user->ID;
+        $user = wp_get_current_user();
+        $uid = (int) $user->ID;
         if ( ! $uid ) {
             $uid = apply_filters( 'nonce_user_logged_out', $uid, $action );
         }
@@ -984,7 +984,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $user = wp_get_current_user();
-        $uid  = (int) $user->ID;
+        $uid = (int) $user->ID;
         if ( ! $uid ) {
             return false;
         }
@@ -1130,7 +1130,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_roles() {
         $wp_roles = new \WP_Roles();
-        $roles    = array();
+        $roles = array();
 
         foreach ( $wp_roles->get_names() as $role => $label ) {
             if ( is_string( $label ) ) {
@@ -1152,7 +1152,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function maybe_base64_decode( $str ) {
         $decoded = base64_decode( $str ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
-        $Str1    = preg_replace( '/[\x00-\x1F\x7F-\xFF]/', '', $decoded );
+        $Str1 = preg_replace( '/[\x00-\x1F\x7F-\xFF]/', '', $decoded );
         if ( $Str1 !== $decoded || '' === $Str1 ) {
             return $str;
         }
@@ -1323,16 +1323,16 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $pass = str_split( str_pad( '', strlen( $str ), $pass, STR_PAD_RIGHT ) );
             $stra = str_split( $str );
             foreach ( $stra as $k => $v ) {
-                $tmp        = ord( $v ) + ord( $pass[ $k ] );
+                $tmp = ord( $v ) + ord( $pass[ $k ] );
                 $stra[ $k ] = chr( 255 < $tmp ? ( $tmp - 256 ) : $tmp );
             }
             return base64_encode( join( '', $stra ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode used for http encoding compatible.
         } else {
-            $str  = base64_decode( $str ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode used for http encoding compatible.
+            $str = base64_decode( $str ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode used for http encoding compatible.
             $pass = str_split( str_pad( '', strlen( $str ), $pass, STR_PAD_RIGHT ) );
             $stra = str_split( $str );
             foreach ( $stra as $k => $v ) {
-                $tmp        = ord( $v ) - ord( $pass[ $k ] );
+                $tmp = ord( $v ) - ord( $pass[ $k ] );
                 $stra[ $k ] = chr( 0 > $tmp ? ( $tmp + 256 ) : $tmp );
             }
             return join( '', $stra );

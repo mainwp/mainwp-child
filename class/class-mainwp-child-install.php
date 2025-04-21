@@ -80,7 +80,7 @@ class MainWP_Child_Install {
          */
         global $mainWPChild;
         // phpcs:disable WordPress.Security.NonceVerification
-        $action  = MainWP_System::instance()->validate_params( 'action' );
+        $action = MainWP_System::instance()->validate_params( 'action' );
         $plugins = isset( $_POST['plugin'] ) ? explode( '||', sanitize_text_field( wp_unslash( $_POST['plugin'] ) ) ) : '';
 
         $action_items = array();
@@ -130,8 +130,8 @@ class MainWP_Child_Install {
             }
         } elseif ( 'changelog_info' === $action ) {
             include_once ABSPATH . '/wp-admin/includes/plugin-install.php'; // NOSONAR -- WP compatible.
-            $_slug                 = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
-            $api                   = plugins_api(
+            $_slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+            $api = plugins_api(
                 'plugin_information',
                 array(
                     'slug' => $_slug,
@@ -244,9 +244,9 @@ class MainWP_Child_Install {
      */
     public function theme_action() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         // phpcs:disable WordPress.Security.NonceVerification
-        $action           = MainWP_System::instance()->validate_params( 'action' );
-        $theme            = isset( $_POST['theme'] ) ? sanitize_text_field( wp_unslash( $_POST['theme'] ) ) : '';
-        $action_items     = array();
+        $action = MainWP_System::instance()->validate_params( 'action' );
+        $theme = isset( $_POST['theme'] ) ? sanitize_text_field( wp_unslash( $_POST['theme'] ) ) : '';
+        $action_items = array();
         $deactivate_theme = array();
         // phpcs:enable
         if ( 'activate' === $action ) {
@@ -285,8 +285,8 @@ class MainWP_Child_Install {
 
             $themeUpgrader = new \Theme_Upgrader();
 
-            $theme_name  = wp_get_theme()->get_stylesheet();
-            $parent      = wp_get_theme()->parent();
+            $theme_name = wp_get_theme()->get_stylesheet();
+            $parent = wp_get_theme()->parent();
             $parent_name = $parent ? $parent->get_stylesheet() : '';
 
             $themes = explode( '||', $theme );
@@ -394,10 +394,10 @@ class MainWP_Child_Install {
         }
 
         $install_results = array();
-        $result          = array();
-        $install_items   = array();
+        $result = array();
+        $install_items = array();
         foreach ( $urls as $url ) {
-            $installer  = new \WP_Upgrader();
+            $installer = new \WP_Upgrader();
             $ssl_verify = true;
             // @see wp-admin/includes/class-wp-upgrader.php
             if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
@@ -418,7 +418,7 @@ class MainWP_Child_Install {
 
             if ( is_wp_error( $result ) && true === $ssl_verify && strpos( $url, 'https://' ) === 0 ) {
                 $ssl_verify = false;
-                $result     = $this->try_second_install( $url, $installer );
+                $result = $this->try_second_install( $url, $installer );
             }
 
             remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
@@ -426,7 +426,7 @@ class MainWP_Child_Install {
                 remove_filter( 'http_request_args', array( static::get_class_name(), 'no_ssl_filter_function' ), 99 );
             }
             $this->after_installed( $result, $output );
-            $basename                     = basename( rawurldecode( $url ) );
+            $basename = basename( rawurldecode( $url ) );
             $install_results[ $basename ] = is_array( $result ) && isset( $result['destination_name'] ) ? true : false;
 
             if ( is_array( $output ) ) {
@@ -447,9 +447,9 @@ class MainWP_Child_Install {
         }
         // phpcs:enable
 
-        $information['installation']                = 'SUCCESS';
-        $information['destination_name']            = $result['destination_name'];
-        $information['install_results']             = $install_results;
+        $information['installation'] = 'SUCCESS';
+        $information['destination_name'] = $result['destination_name'];
+        $information['install_results'] = $install_results;
         $information['other_data']['install_items'] = $install_items;
 
         MainWP_Helper::write( $information );
@@ -514,7 +514,7 @@ class MainWP_Child_Install {
         );
         // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
-            $path     = $result['destination'];
+            $path = $result['destination'];
             $fileName = '';
             wp_cache_set( 'plugins', array(), 'plugins' );
             foreach ( $result['source_files'] as $srcFile ) {
@@ -523,11 +523,11 @@ class MainWP_Child_Install {
                 }
                 $thePlugin = get_plugin_data( $path . $srcFile );
                 if ( null !== $thePlugin && '' !== $thePlugin && '' !== $thePlugin['Name'] && 'readme.txt' !== $srcFile && 'README.md' !== $srcFile ) { // to fix: skip readme.txt.
-                    $args['type']    = 'plugin';
-                    $args['Name']    = $thePlugin['Name'];
+                    $args['type'] = 'plugin';
+                    $args['Name'] = $thePlugin['Name'];
                     $args['Version'] = $thePlugin['Version'];
-                    $args['slug']    = $result['destination_name'] . '/' . $srcFile;
-                    $fileName        = $srcFile;
+                    $args['slug'] = $result['destination_name'] . '/' . $srcFile;
+                    $fileName = $srcFile;
                     break;
                 }
             }
@@ -547,13 +547,13 @@ class MainWP_Child_Install {
             }
         } else {
             $args['type'] = 'theme';
-            $slug         = $result['destination_name'];
+            $slug = $result['destination_name'];
             $args['slug'] = $slug;
             if ( ! empty( $slug ) ) {
                 wp_clean_themes_cache();
                 $theme = wp_get_theme( $slug );
                 if ( $theme ) {
-                    $args['name']    = $theme->name;
+                    $args['name'] = $theme->name;
                     $args['version'] = $theme->version;
                 }
             }

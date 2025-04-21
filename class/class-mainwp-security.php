@@ -61,7 +61,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private static function init_listing_directories() {
         if ( null === static::$listingDirectories ) {
-            $wp_upload_dir              = wp_upload_dir();
+            $wp_upload_dir = wp_upload_dir();
             static::$listingDirectories = array(
                 WP_CONTENT_DIR,
                 WP_PLUGIN_DIR,
@@ -94,7 +94,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
         foreach ( static::$listingDirectories as $directory ) {
             $file = $directory . DIRECTORY_SEPARATOR . 'index.php';
             if ( ! $wp_filesystem->exists( $file ) ) {
-                $content  = "<?php \n";
+                $content = "<?php \n";
                 $content .= "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n";
                 $content .= "die( '403 Forbidden' );\n";
                 $wp_filesystem->put_contents( $file, $content );
@@ -214,16 +214,16 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool true|false If the PHP error reporting has been disabled, return true, if not, return false.
      */
     public static function remove_php_reporting_ok() {
-        $is_ok       = true;
+        $is_ok = true;
         $display_off = ini_get( 'display_errors' );
         if ( ! empty( $display_off ) ) {
             $display_off = strtolower( $display_off );
-            $is_ok       = ( $is_ok || 'off' === $display_off );
+            $is_ok = ( $is_ok || 'off' === $display_off );
         }
         $display_startup_off = ini_get( 'display_startup_errors' );
         if ( ! empty( $display_startup_off ) ) {
             $display_startup_off = strtolower( $display_startup_off );
-            $is_ok               = ( $is_ok || 'off' === $display_startup_off );
+            $is_ok = ( $is_ok || 'off' === $display_startup_off );
         }
         return $is_ok;
     }
@@ -324,7 +324,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function wpcore_updated_ok() {
         include_once ABSPATH . '/wp-admin/includes/update.php'; // NOSONAR -- WP compatible.
-        $ok           = true;
+        $ok = true;
         $core_updates = get_core_updates();
         if ( is_array( $core_updates ) ) {
             foreach ( $core_updates as $update ) {

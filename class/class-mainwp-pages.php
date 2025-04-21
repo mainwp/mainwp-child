@@ -100,8 +100,8 @@ class MainWP_Pages {
     public function admin_notice() { //phpcs:ignore -- NOSONAR -complexity.
         // Admin Notice...
         if ( ! get_option( 'mainwp_child_pubkey' ) && MainWP_Helper::is_admin() && is_admin() ) {
-            $branding_opts  = MainWP_Child_Branding::instance()->get_branding_options();
-            $child_name     = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Child' : $branding_opts['branding_preserve_title'];
+            $branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
+            $child_name = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Child' : $branding_opts['branding_preserve_title'];
             $dashboard_name = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Dashboard' : $branding_opts['branding_preserve_title'] . ' Dashboard';
 
             $msg = '<div style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
@@ -176,10 +176,10 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      */
     public function admin_menu() { //phpcs:ignore -- NOSONAR - complex method.
-        $branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
-        $is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
+        $branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
+        $is_hide = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
         $cancelled_branding = $branding_opts['cancelled_branding'];
-        $uri                = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+        $uri = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
         if ( isset( $branding_opts['remove_wp_tools'] ) && $branding_opts['remove_wp_tools'] && ! $cancelled_branding ) {
             remove_menu_page( 'tools.php' );
             $pos = $uri ? stripos( $uri, 'tools.php' ) || stripos( $uri, 'import.php' ) || stripos( $uri, 'export.php' ) : false;
@@ -217,8 +217,8 @@ class MainWP_Pages {
             $branding_header = isset( $branding_opts['branding_header'] ) ? $branding_opts['branding_header'] : array();
             if ( ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) && ! $cancelled_branding ) {
                 static::$brandingTitle = stripslashes( $branding_header['name'] );
-                $child_menu_title      = stripslashes( $branding_header['name'] );
-                $child_page_title      = $child_menu_title . ' Settings';
+                $child_menu_title = stripslashes( $branding_header['name'] );
+                $child_page_title = $child_menu_title . ' Settings';
             } else {
                 $child_menu_title = 'MainWP Child';
                 $child_page_title = 'MainWP Child Settings';
@@ -256,13 +256,13 @@ class MainWP_Pages {
                 if ( empty( $slug ) ) {
                     continue;
                 }
-                $subpage          = array();
-                $subpage['slug']  = $slug;
+                $subpage = array();
+                $subpage['slug'] = $slug;
                 $subpage['title'] = $page['title'];
-                $subpage['page']  = 'mainwp-' . str_replace( ' ', '-', strtolower( str_replace( '-', ' ', $slug ) ) );
+                $subpage['page'] = 'mainwp-' . str_replace( ' ', '-', strtolower( str_replace( '-', ' ', $slug ) ) );
                 if ( isset( $page['callback'] ) ) {
                     $subpage['callback'] = $page['callback'];
-                    $created_page        = add_submenu_page( 'options-general.php', $subpage['title'], '<div class="mainwp-hidden">' . $subpage['title'] . '</div>', 'manage_options', $subpage['page'], $subpage['callback'] );
+                    $created_page = add_submenu_page( 'options-general.php', $subpage['title'], '<div class="mainwp-hidden">' . $subpage['title'] . '</div>', 'manage_options', $subpage['page'], $subpage['callback'] );
                     if ( isset( $page['load_callback'] ) ) {
                         $subpage['load_callback'] = $page['load_callback'];
                         add_action( 'load-' . $created_page, $subpage['load_callback'] );
@@ -270,7 +270,7 @@ class MainWP_Pages {
                 }
                 $sub_pages[] = $subpage;
             }
-            static::$subPages       = $sub_pages;
+            static::$subPages = $sub_pages;
             static::$subPagesLoaded = true;
         }
         add_action( 'mainwp-child-pageheader', array( __CLASS__, 'render_header' ) );
@@ -326,12 +326,12 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Clone_Page::render_restore()
      */
     public function render_pages() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
-        $shownPage     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $shownPage = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
         $branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 
-        $hide_settings          = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
-        $hide_restore           = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
-        $hide_server_info       = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
+        $hide_settings = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
+        $hide_restore = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
+        $hide_server_info = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
         $hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
 
         if ( '' === $shownPage ) {
@@ -418,16 +418,16 @@ class MainWP_Pages {
 
         $branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
 
-        $hide_settings          = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
-        $hide_restore           = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
-        $hide_server_info       = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
+        $hide_settings = isset( $branding_opts['remove_setting'] ) && $branding_opts['remove_setting'] ? true : false;
+        $hide_restore = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
+        $hide_server_info = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
         $hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
 
         $sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
         // put here to support hooks to show header.
         $is_connected_admin = false;
-        $connected          = ! empty( get_option( 'mainwp_child_pubkey' ) ) ? true : false;
+        $connected = ! empty( get_option( 'mainwp_child_pubkey' ) ) ? true : false;
         if ( $connected ) {
             $current_user = wp_get_current_user();
             if ( $current_user ) {
@@ -654,7 +654,7 @@ class MainWP_Pages {
             $branding_title = stripslashes( $branding_title );
         }
 
-        $uniqueId   = MainWP_Helper::get_site_unique_id();
+        $uniqueId = MainWP_Helper::get_site_unique_id();
         $time_limit = get_option( 'mainwp_child_ttl_active_unconnected_site', 20 );
 
         $enable_pwd_auth_connect = get_user_option( 'mainwp_child_user_enable_passwd_auth_connect' );

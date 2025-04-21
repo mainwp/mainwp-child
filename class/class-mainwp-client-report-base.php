@@ -219,7 +219,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         static::$date_from = isset( $args['date_from'] ) ? $args['date_from'] : 0;
-        static::$date_to   = isset( $args['date_to'] ) ? $args['date_to'] : 0;
+        static::$date_to = isset( $args['date_to'] ) ? $args['date_to'] : 0;
 
         $exclude_connector_posts = $this->get_stream_get_not_in_params( $sections, $other_tokens );
         if ( $exclude_connector_posts ) {
@@ -303,7 +303,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_stream_others_tokens( $records, $other_tokens, $skip_records ) {
         $other_tokens_data = array();
-        $parts             = array( 'header', 'body', 'footer' );
+        $parts = array( 'header', 'body', 'footer' );
         foreach ( $parts as $part ) {
             if ( isset( $other_tokens[ $part ] ) && is_array( $other_tokens[ $part ] ) ) {
                 $other_tokens_data[ $part ] = $this->get_other_tokens_data( $records, $other_tokens[ $part ], $skip_records );
@@ -323,11 +323,11 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_stream_sections_data( $records, $sections, $skip_records ) {
         $sections_data = array();
-        $parts         = array( 'header', 'body', 'footer' );
+        $parts = array( 'header', 'body', 'footer' );
         foreach ( $parts as $part ) {
             if ( isset( $sections[ $part ] ) && is_array( $sections[ $part ] ) && ! empty( $sections[ $part ] ) ) {
                 foreach ( $sections[ $part ]['section_token'] as $index => $sec ) {
-                    $tokens                           = $sections[ $part ]['section_content_tokens'][ $index ];
+                    $tokens = $sections[ $part ]['section_content_tokens'][ $index ];
                     $sections_data[ $part ][ $index ] = $this->get_section_loop_data( $records, $tokens, $sec, $skip_records );
                 }
             }
@@ -358,12 +358,12 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             if ( isset( $token_values[ $token ] ) ) {
                 continue;
             }
-            $str_tmp   = str_replace( array( '[', ']' ), '', $token );
+            $str_tmp = str_replace( array( '[', ']' ), '', $token );
             $array_tmp = explode( '.', $str_tmp );
             if ( is_array( $array_tmp ) ) {
                 $context = '';
-                $action  = '';
-                $data    = '';
+                $action = '';
+                $data = '';
                 if ( 2 === count( $array_tmp ) ) {
                     list( $context, $data ) = $array_tmp;
                 } elseif ( 3 === count( $array_tmp ) ) {
@@ -374,7 +374,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 // to compatible with new version of child report.
                 // to check condition for grabbing report data.
                 $connector = $this->get_connector_by_compatible_context( $context );
-                $action    = $this->get_compatible_action( $action, $context );
+                $action = $this->get_compatible_action( $action, $context );
                 // custom values.
                 if ( 'profiles' === $context && ( 'created' === $action || 'deleted' === $action ) ) {
                     $context = 'users';
@@ -391,7 +391,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                             if ( 'blocked' === $action ) { // ithemes.blocked.count.
                                 $token_values[ $token ] = $this->ithemes_query_events_count( 'blocked' );
                             } elseif ( 'lockout' === $action ) { // ithemes.lockout.count.
-                                $count                  = $this->ithemes_get_lockouts(
+                                $count = $this->ithemes_get_lockouts(
                                     'all',
                                     array(
                                         'return' => 'count',
@@ -504,7 +504,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                         continue;
                     } else {
                         $old_version = $this->get_stream_meta_data( $record, 'old_version' );
-                        $version     = $this->get_stream_meta_data( $record, 'version' );
+                        $version = $this->get_stream_meta_data( $record, 'version' );
                         if ( version_compare( $version, $old_version, '<=' ) ) {
                             if ( ! in_array( $record->ID, $skip_records ) ) {
                                 $skip_records[] = $record->ID;
@@ -532,9 +532,9 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
     public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
         $context = '';
-        $action  = '';
+        $action = '';
 
-        $str_tmp   = str_replace( array( '[', ']' ), '', $section );
+        $str_tmp = str_replace( array( '[', ']' ), '', $section );
         $array_tmp = explode( '.', $str_tmp );
         if ( is_array( $array_tmp ) ) {
             if ( 2 === count( $array_tmp ) ) {
@@ -575,10 +575,10 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {  // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         // phpcs:disable WordPress.Security.NonceVerification
-        $loops      = array();
+        $loops = array();
         $loop_count = 0;
 
-        $max_items_get    = ( isset( $_POST['max_items_get'] ) && ! empty( $_POST['max_items_get'] ) ) ? intval( $_POST['max_items_get'] ) : 0;
+        $max_items_get = ( isset( $_POST['max_items_get'] ) && ! empty( $_POST['max_items_get'] ) ) ? intval( $_POST['max_items_get'] ) : 0;
         $limit_connectors = ( isset( $_POST['limit_reports'] ) && ! empty( $_POST['limit_reports'] ) ) ? intval( $_POST['limit_reports'] ) : array();
         // phpcs:enable
         if ( ! is_array( $limit_connectors ) || empty( $limit_connectors ) ) {
@@ -685,9 +685,9 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
 
         $token_values = array();
         foreach ( $tokens as $token ) {
-            $data       = '';
+            $data = '';
             $token_name = str_replace( array( '[', ']' ), '', $token );
-            $array_tmp  = explode( '.', $token_name );
+            $array_tmp = explode( '.', $token_name );
 
             if ( 'user.name' === $token_name ) {
                 $data = 'display_name';
@@ -757,7 +757,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 $tok_value = $this->get_stream_meta_data( $record, $data );
                 break;
             case 'area':
-                $data      = 'sidebar_name';
+                $data = 'sidebar_name';
                 $tok_value = $this->get_stream_meta_data( $record, $data );
                 break;
             case 'name':
@@ -902,9 +902,9 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             $meta_value = $this->get_stream_meta_data( $record, $data );
             if ( 'wordfence_scan' === $context ) {
                 if ( 'result' === $data ) {
-                    $completed_log  = esc_html__( 'Scan complete. Congratulations, no new problems found.', 'wordfence' );
-                    $str_loc1       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 2 ); // loc string.
-                    $str_loc2       = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 3 ); // loc string.
+                    $completed_log = esc_html__( 'Scan complete. Congratulations, no new problems found.', 'wordfence' );
+                    $str_loc1 = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 2 ); // loc string.
+                    $str_loc2 = MainWP_Child_Wordfence::instance()->get_substr( $completed_log, 3 ); // loc string.
                     $congra_str_loc = str_replace( $str_loc1, '', $str_loc2 );
                     $congra_str_loc = trim( $congra_str_loc, ' ,' );
 
@@ -958,7 +958,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             $scan_data = json_decode( base64_decode( $scan_data ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for backwards compatibility.
             if ( is_array( $scan_data ) ) {
 
-                $blacklisted    = $scan_data['blacklisted'];
+                $blacklisted = $scan_data['blacklisted'];
                 $malware_exists = $scan_data['malware_exists'];
 
                 $status = array();
@@ -1014,7 +1014,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 if ( isset( $maintenance_details[ $mt ] ) ) {
                     if ( 'revisions_max' === $mt ) {
                         $max_revisions = $this->get_stream_meta_data( $record, 'revisions' );
-                        $dtl           = $maintenance_details['revisions_max'] . ' ' . $max_revisions;
+                        $dtl = $maintenance_details['revisions_max'] . ' ' . $max_revisions;
                     } else {
                         $dtl = $maintenance_details[ $mt ];
                     }
@@ -1046,7 +1046,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $fromDays = (int) static::$date_from;
-        $toDays   = (int) static::$date_to;
+        $toDays = (int) static::$date_to;
 
         if ( $fromDays <= 0 ) {
             $interval_fromDays = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval 7 day)) / 86400)';
@@ -1166,7 +1166,7 @@ SQL;
                 ),
                 $period
             );
-            $count   = is_wp_error( $blocked ) ? 0 : array_sum( $blocked );
+            $count = is_wp_error( $blocked ) ? 0 : array_sum( $blocked );
 
         }
 
@@ -1195,9 +1195,9 @@ SQL;
 
         global $wpdb;
 
-        $where  = '';
-        $limit  = '';
-        $order  = '';
+        $where = '';
+        $limit = '';
+        $order = '';
         $wheres = array();
 
         switch ( $type ) {
@@ -1233,7 +1233,7 @@ SQL;
         }
 
         if ( ! empty( $args['orderby'] ) ) {
-            $columns   = array( 'lockout_id', 'lockout_start', 'lockout_expire' );
+            $columns = array( 'lockout_id', 'lockout_start', 'lockout_expire' );
             $direction = isset( $args['order'] ) ? $args['order'] : 'DESC';
 
             if ( ! in_array( $args['orderby'], $columns, true ) ) {
@@ -1248,10 +1248,10 @@ SQL;
         }
 
         if ( isset( $args['return'] ) && 'count' === $args['return'] ) {
-            $select   = 'SELECT COUNT(1) as COUNT';
+            $select = 'SELECT COUNT(1) as COUNT';
             $is_count = true;
         } else {
-            $select   = "SELECT `{$wpdb->base_prefix}itsec_lockouts`.*";
+            $select = "SELECT `{$wpdb->base_prefix}itsec_lockouts`.*";
             $is_count = false;
         }
 

@@ -358,7 +358,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
      */
     protected static function get_ssl_warning() {
 
-        $conf   = array( 'private_key_bits' => 2048 );
+        $conf = array( 'private_key_bits' => 2048 );
         $errors = array();
         if ( function_exists( 'openssl_pkey_new' ) ) {
             $res = openssl_pkey_new( $conf );
@@ -709,15 +709,15 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
      * Server self-connection test.
      */
     protected static function server_self_connect() {
-        $url         = site_url( 'wp-cron.php' );
-        $query_args  = array( 'mainwp_child_run' => 'test' );
-        $url         = add_query_arg( $query_args, $url );
-        $args        = array(
+        $url = site_url( 'wp-cron.php' );
+        $query_args = array( 'mainwp_child_run' => 'test' );
+        $url = add_query_arg( $query_args, $url );
+        $args = array(
             'blocking'  => true,
             'sslverify' => apply_filters( 'https_local_ssl_verify', true ),
             'timeout'   => 15,
         );
-        $response    = wp_remote_post( $url, $args );
+        $response = wp_remote_post( $url, $args );
         $test_result = '';
         if ( is_wp_error( $response ) ) {
             $test_result .= sprintf( esc_html__( 'The HTTP response test get an error "%s"', 'mainwp-child' ), $response->get_error_message() );
