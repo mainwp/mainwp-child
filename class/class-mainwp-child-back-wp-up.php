@@ -19,7 +19,7 @@
  * @package MainWP\Child
  */
 
-// phpcs:disable -- third party credit.
+// phpcsa:disable -- third party credit.
 
 namespace MainWP\Child;
 
@@ -209,7 +209,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 case 'backwpup_update_settings':
                     $information = $this->update_settings();
                     break;
-                case 'insert_or_update_jobs': 
+                case 'insert_or_update_jobs':
                     $information = $this->insert_or_update_jobs();
                     break;
                 case 'insert_or_update_jobs_global':
@@ -419,31 +419,30 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Utility::get_lasttime_backup()
      * @uses \BackWPup_Option::get_job_ids()
      * @uses \BackWPup_Option::get_job()
-     * 
-     * @return array $information Returned information array with both sets of data.
      *
+     * @return array $information Returned information array with both sets of data.
      */
     public function sync_others_data( $information, $data = array() ) {
         if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
             try {
-                $global_jobs_ids = [
-                    get_site_option('backwpup_backup_files_job_id'),
-                    get_site_option('backwpup_backup_database_job_id'),
-                ];
-                $jobs_ids = \BackWPup_Option::get_job_ids();
-                $jobs = [];
-                if( !empty( $jobs_ids ) && is_array($jobs_ids ) ){
-                    foreach ($jobs_ids as $key => $job_id) {
-                        $jobs[$key]['settings'] = \BackWPup_Option::get_job($job_id, false);
-                        $jobs[$key]['job_id'] = $job_id;
-                        $jobs[$key]['is_global'] = in_array($job_id, $global_jobs_ids) ? 1 : 0;
+                $global_jobs_ids = array(
+                    get_site_option( 'backwpup_backup_files_job_id' ),
+                    get_site_option( 'backwpup_backup_database_job_id' ),
+                );
+                $jobs_ids        = \BackWPup_Option::get_job_ids();
+                $jobs            = array();
+                if ( ! empty( $jobs_ids ) && is_array( $jobs_ids ) ) {
+                    foreach ( $jobs_ids as $key => $job_id ) {
+                        $jobs[ $key ]['settings']  = \BackWPup_Option::get_job( $job_id, false );
+                        $jobs[ $key ]['job_id']    = $job_id;
+                        $jobs[ $key ]['is_global'] = in_array( $job_id, $global_jobs_ids ) ? 1 : 0;
                     }
                 }
-                
+
                 $lastbackup                      = MainWP_Utility::get_lasttime_backup( 'backwpup' );
                 $information['syncBackwpupData'] = array(
                     'lastbackup' => $lastbackup,
-                    'jobs' => $jobs,
+                    'jobs'       => $jobs,
                 );
             } catch ( MainWP_Exception $e ) {
                 // ok!
@@ -531,10 +530,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         remove_menu_page( 'backwpup' );
 
         // Delete submenu.
-        remove_submenu_page('backwpup', 'docs');
-        remove_submenu_page('backwpup', 'buypro');
-        remove_submenu_page('backwpup', 'backwpupsupport');
-        
+        remove_submenu_page( 'backwpup', 'docs' );
+        remove_submenu_page( 'backwpup', 'buypro' );
+        remove_submenu_page( 'backwpup', 'backwpupsupport' );
+
         // Create a WP Safe Redirect for the page URL.
         $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), 'admin.php?page=backwpup' ) : false;
         if ( false !== $pos ) {
@@ -552,7 +551,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $hide = isset( $_POST['show_hide'] ) && ( 'hide' === $_POST['show_hide'] ) ? 'hide' : '';
 
-        update_site_option('mainwp_backwpup_hide_plugin', $hide);
+        update_site_option( 'mainwp_backwpup_hide_plugin', $hide );
 
         return array( 'success' => 1 );
     }
@@ -896,11 +895,14 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $output        = new \BackWPup_Page_Backups();
                 $output->items = array();
 
-                $job_ids = isset( $_POST['settings']['job_ids'] ) ? array_map('intval',  wp_unslash( $_POST['settings']['job_ids'] ) ) : '';
-                $jobids = \BackWPup_Option::get_job_ids();
-                $jobids = array_filter($jobids, function($job_id) use($job_ids){
-                    return in_array($job_id,$job_ids , true);
-                } );
+                $job_ids = isset( $_POST['settings']['job_ids'] ) ? array_map( 'intval', wp_unslash( $_POST['settings']['job_ids'] ) ) : '';
+                $jobids  = \BackWPup_Option::get_job_ids();
+                $jobids  = array_filter(
+                    $jobids,
+                    function ( $job_id ) use ( $job_ids ) {
+                        return in_array( $job_id, $job_ids, true );
+                    }
+                );
 
                 if ( ! empty( $jobids ) ) {
                     foreach ( $jobids as $jobid ) {
@@ -1140,7 +1142,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         return $result;
     }
 
-     /**
+    /**
      * MainWP BackWPup WP Die ajax handler.
      *
      * @param string $message Error message container.
@@ -1182,7 +1184,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             define( 'DOING_AJAX', true );
         }
 
-        add_filter( 'wp_die_ajax_handler', array( __CLASS__ , 'mainwp_backwpup_wp_die_ajax_handler' ) );
+        add_filter( 'wp_die_ajax_handler', array( __CLASS__, 'mainwp_backwpup_wp_die_ajax_handler' ) );
         remove_filter( 'wp_die_ajax_handler', '_ajax_wp_die_handler' );
 
         ob_start();
@@ -1276,7 +1278,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => 'Cannot abort: ' . $output['error'] );
         } else {
             return array(
-                'success'  => 1,
+                'success' => 1,
                 'message' => $output['message'],
             );
         }
@@ -1601,65 +1603,65 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Response array containing job_id, changes & message array.
      */
     protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
-        $post_settings = isset($_POST['settings']) ? wp_unslash($_POST['settings']) : '';
-        $settings = !empty($post_settings) ? json_decode($post_settings) : null;
+        $post_settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';
+        $settings      = ! empty( $post_settings ) ? json_decode( $post_settings ) : null;
 
-        if (!is_object($settings)) {
-            return ['error' => esc_html__('Missing array settings', 'mainwp-child')];
+        if ( ! is_object( $settings ) ) {
+            return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );
         }
 
-        if (!isset($settings->job_id)) {
-            return ['error' => esc_html__('Missing job_id', 'mainwp-child')];
+        if ( ! isset( $settings->job_id ) ) {
+            return array( 'error' => esc_html__( 'Missing job_id', 'mainwp-child' ) );
         }
 
-        $new_job_id = $settings->job_id > 0 ? intval($settings->job_id) : null;
+        $new_job_id = $settings->job_id > 0 ? intval( $settings->job_id ) : null;
 
-        $changes_array = [];
-        $message_array = [];
-        $tabs_mapping = [
-            'cron' => ['activetype', 'cronselect', 'cronminutes', 'cronhours', 'cronmday', 'cronmon', 'cronwday', 'cronbtype'],
-            'job' => ['backuptype', 'type', 'destinations', 'name', 'mailaddresslog', 'mailaddresssenderlog', 'mailerroronly', 'archiveformat', 'archiveencryption', 'archivename'],
-            'jobtype-FILE' => ['dirinclude', 'backupexcludethumbs', 'backupspecialfiles', 'backuproot', 'backuprootexcludedirs', 'backupcontent', 'backupcontentexcludedirs', 'backupplugins', 'backupthemes', 'backupthemesexcludedirs', 'backuppluginsexcludedirs', 'backupuploads', 'backupuploadsexcludedirs']
-        ];
+        $changes_array = array();
+        $message_array = array();
+        $tabs_mapping  = $this->get_tabs_mapping();
 
-        foreach ($settings->value as $key => $val) {
-            $temp_array = ['tab' => '', 'value' => [$key => $val], 'job_id' => $new_job_id ?? $settings->job_id];
+        foreach ( $settings->value as $key => $val ) {
+            $temp_array = array(
+                'tab'    => '',
+                'value'  => array( $key => $val ),
+                'job_id' => $new_job_id ?? $settings->job_id,
+            );
 
-            foreach ($tabs_mapping as $tab => $keys) {
-                if (in_array($key, $keys, true) || strstr((string)$key, 'dest-') || strstr((string)$key, 'jobtype-')) {
+            foreach ( $tabs_mapping as $tab => $keys ) {
+                if ( in_array( $key, $keys, true ) || strstr( (string) $key, 'dest-' ) || strstr( (string) $key, 'jobtype-' ) ) {
                     $temp_array['tab'] = $tab;
                     break;
                 }
             }
 
-            $_POST['settings'] = wp_json_encode($temp_array);
-            $return = $this->insert_or_update_jobs();
+            $_POST['settings'] = wp_json_encode( $temp_array );
+            $return            = $this->insert_or_update_jobs();
 
-            if (is_null($new_job_id) && isset($return['job_id'])) {
+            if ( is_null( $new_job_id ) && isset( $return['job_id'] ) ) {
                 $new_job_id = $return['job_id'];
             }
 
-            if (isset($return['error_message'])) {
-                $message_array[$return['error_message']] = 1;
+            if ( isset( $return['error_message'] ) ) {
+                $message_array[ $return['error_message'] ] = 1;
             }
 
-            if (isset($return['changes'])) {
-                $changes_array = array_merge($changes_array, $return['changes']);
+            if ( isset( $return['changes'] ) ) {
+                $changes_array = array_merge( $changes_array, $return['changes'] );
             }
 
-            if (isset($return['message'])) {
-                foreach ($return['message'] as $message) {
-                    $message_array[$message] = 1;
+            if ( isset( $return['message'] ) ) {
+                foreach ( $return['message'] as $message ) {
+                    $message_array[ $message ] = 1;
                 }
             }
         }
 
-        return [
+        return array(
             'success' => 1,
-            'job_id' => $new_job_id,
+            'job_id'  => $new_job_id,
             'changes' => $changes_array,
-            'message' => array_keys($message_array),
-        ];
+            'message' => array_keys( $message_array ),
+        );
     }
 
     /**
@@ -1676,35 +1678,35 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     public function edit_form_post_save( $post_data, $id ) { // phpcs:ignore -- NOSONAR - complex.
         // Parse and save files to exclude.
         if ( isset( $post_data->fileexclude ) ) {
-            $exclude_input   = str_replace( [ "\r\n", "\r" ], ',', $post_data->fileexclude );
+            $exclude_input   = str_replace( array( "\r\n", "\r" ), ',', $post_data->fileexclude );
             $exclude_input   = sanitize_text_field( stripslashes( $exclude_input ) );
             $to_exclude      = array_filter( array_map( 'trim', explode( ',', $exclude_input ) ) );
             $to_exclude_path = array_map( 'wp_normalize_path', $to_exclude );
             sort( $to_exclude_path );
             \BackWPup_Option::update( $id, 'fileexclude', implode( ',', $to_exclude_path ) );
         }
-    
+
         // Parse and save folders to include.
         if ( isset( $post_data->dirinclude ) ) {
-            $include_input   = str_replace( [ "\r\n", "\r" ], ',', $post_data->dirinclude );
+            $include_input   = str_replace( array( "\r\n", "\r" ), ',', $post_data->dirinclude );
             $to_include      = array_filter( array_map( 'trim', explode( ',', $include_input ) ) );
-            $to_include_path = [];
-    
+            $to_include_path = array();
+
             foreach ( $to_include as $value ) {
                 $normalized = trailingslashit( wp_normalize_path( $value ) );
                 $realpath   = ( $normalized && '/' !== $normalized ) ? realpath( $normalized ) : false;
-    
+
                 if ( $realpath ) {
                     $to_include_path[] = filter_var( $realpath, FILTER_SANITIZE_URL );
                 }
             }
-    
+
             sort( $to_include_path );
             \BackWPup_Option::update( $id, 'dirinclude', implode( ',', $to_include_path ) );
         }
-    
+
         // Parse and save boolean fields only if they're present in $post_data.
-        $boolean_fields = [
+        $boolean_fields = array(
             'backupexcludethumbs',
             'backupspecialfiles',
             'backuproot',
@@ -1713,23 +1715,23 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             'backupplugins',
             'backupthemes',
             'backupuploads',
-        ];
-    
+        );
+
         foreach ( $boolean_fields as $key ) {
             if ( property_exists( $post_data, $key ) ) {
                 \BackWPup_Option::update( $id, $key, (bool) $post_data->$key );
             }
         }
-    
+
         // Parse and save directory exclusions if present.
-        $exclude_dir_fields = [
+        $exclude_dir_fields = array(
             'backuprootexcludedirs',
             'backuppluginsexcludedirs',
             'backupcontentexcludedirs',
             'backupthemesexcludedirs',
             'backupuploadsexcludedirs',
-        ];
-    
+        );
+
         foreach ( $exclude_dir_fields as $key ) {
             if ( property_exists( $post_data, $key ) && is_array( $post_data->$key ) ) {
                 $sanitized = array_map( fn( $v ) => filter_var( $v, FILTER_SANITIZE_URL ), $post_data->$key );
@@ -1750,12 +1752,13 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses BackWPup_Page_Editjob::save_post_form()
      * @uses MainWP_Child_Back_WP_Up::edit_form_post_save()
      * @uses MainWP_Child_Back_WP_Up::check_backwpup_messages()
+     * @uses BackWPup_Destination_Ftp::edit_form_post_save()
      *
      * @return array Response array containing job_id, changes & message array.
      */
     protected function insert_or_update_jobs() { // phpcs:ignore -- NOSONAR - complex.
 
-        $settings = isset( $_POST['settings'] ) ? json_decode($_POST['settings']) : '';
+        $settings = isset( $_POST['settings'] ) ? json_decode( $_POST['settings'] ) : '';
 
         if ( ! is_object( $settings ) || ! isset( $settings->value ) ) {
             return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );
@@ -1770,7 +1773,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( $settings->job_id > 0 ) {
-            $job_id = intval( $settings->job_id);
+            $job_id = intval( $settings->job_id );
         } else {
             // generate jobid if not exists.
             $newjobid = \BackWPup_Option::get_job_ids();
@@ -1793,29 +1796,70 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             $_POST[ $key ] = $val;
         }
 
-        if ( 'jobtype-FILE' === $settings->tab ) {
-            $this->edit_form_post_save( $setting_value, $job_id );
-            $messages = \BackWPup_Admin::get_messages();
-            if ( empty( $messages['error'] ) ) {
-                $url = \BackWPup_Job::get_jobrun_url( 'runnowlink', $job_id );
-                \BackWPup_Admin::message( sprintf( esc_html__( 'Changes for job <i>%s</i> saved.', 'mainwp-child' ), \BackWPup_Option::get( $job_id, 'name' ) ) . ' <a href="' . network_admin_url( 'admin.php' ) . '?page=backwpupjobs">' . esc_html__( 'Jobs overview', 'mainwp-child' ) . '</a> | <a href="' . $url['url'] . '">' . esc_html__( 'Run now', 'mainwp-child' ) . '</a>' );
+        // Map of tab to handler.
+        $jobtype_handlers = array(
+            'jobtype-FILE'     => array( $this, 'edit_form_post_save' ),
+            'jobtype-DBDUMP'   => new \BackWPup_JobType_DBDump(),
+            'jobtype-WPEXP'    => new \BackWPup_JobType_WPEXP(),
+            'jobtype-WPPLUGIN' => new \BackWPup_JobType_WPPlugin(),
+            'dest-FOLDER'      => new \BackWPup_Destination_Folder(),
+            'dest-EMAIL'       => new \BackWPup_Destination_Email(),
+            'dest-FTP'         => new \BackWPup_Destination_Ftp(),
+            'dest-DROPBOX'     => new \BackWPup_Destination_Dropbox(),
+            'dest-S3'          => new \BackWPup_Destination_S3(),
+            'dest-SUGARSYNC'   => new \BackWPup_Destination_SugarSync(),
+            'dest-RSC'         => new \BackWPup_Destination_RSC(),
+        );
+
+        if ( class_exists( '\BackWPup_Pro' ) ) {
+            $jobtype_handlers = array_merge(
+                $jobtype_handlers,
+                array(
+                    'dest-GLACIER'  => new \BackWPup_Pro_Destination_Glacier(),
+                    'dest-GDRIVE'   => new \BackWPup_Pro_Destination_GDrive(),
+                    'dest-HIDRIVE'  => new \BackWPup_Pro_Destination_HiDrive(),
+                    'dest-ONEDRIVE' => new \BackWPup_Pro_Destination_OneDrive(),
+                )
+            );
+        }
+
+        // Special handling for Dropbox.
+        if ( 'dest-DROPBOX' === $settings->tab && isset( $_POST['settings']['value']['dropboxdir'] ) ) {
+            $val = wp_unslash( $_POST['settings']['value']['dropboxdir'] );
+            if ( '%do-not-update%' === $val || '%do-not-update%/' === $val ) {
+                $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get( $job_id, 'dropboxdir' );
             }
-        } elseif ( 'dest-DROPBOX' === $settings->tab ) {
-            if ( isset( $_POST['settings']['value']['dropboxdir'] ) ) {
-                $val = wp_unslash( $_POST['settings']['value']['dropboxdir'] );
-                if ( '%do-not-update%' === $val || '%do-not-update%/' === $val ) {
-                    $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get( $job_id, 'dropboxdir' );
+        }
+
+        if ( isset( $jobtype_handlers[ $settings->tab ] ) ) {
+            $handler = $jobtype_handlers[ $settings->tab ];
+            if ( is_array( $handler ) && is_callable( $handler ) ) {
+                call_user_func( $handler, $setting_value, $job_id );
+            } else {
+                // If you have initialized.
+                $instance = is_object( $handler ) ? $handler : new $handler();
+                // Merge setting_value with option_defaults if existed.
+                if ( method_exists( $instance, 'option_defaults' ) ) {
+                    $defaults      = $instance->option_defaults();
+                    $setting_value = is_array( $setting_value )
+                        ? array_merge( $defaults, $setting_value )
+                        : array_merge( $defaults, (array) $setting_value );
+
+                    // Update $ _Post to make sure the processing form continues to use the correct data.
+                    foreach ( $setting_value as $key => $val ) {
+                        $_POST[ $key ] = $val;
+                    }
+                }
+
+                if ( method_exists( $instance, 'edit_form_post_save' ) ) {
+                    $instance->edit_form_post_save( $job_id );
                 }
             }
-        } else if(in_array($settings->tab, ['job', 'tab'])){
+        } elseif ( in_array( $settings->tab, array( 'job', 'tab' ) ) ) {
             \BackWPup_Page_Editjob::save_post_form( $settings->tab, $job_id );
         } else {
             foreach ( $setting_value as $key => $val ) {
-                if('dbdumpfile' === $key){
-                    \BackWPup_Option::update( $job_id, $key, \BackWPup_Job::sanitize_file_name( $val) );
-                }else{
-                    \BackWPup_Option::update( $job_id, $key, $val );
-                }
+                \BackWPup_Option::update( $job_id, $key, $val );
             }
         }
 
@@ -1827,23 +1871,6 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 'error_message' => esc_html__( 'Cannot save jobs: ' . $return['error'], 'mainwp-child' ),
             );
         }
-
-        // if ( isset( $setting_value->sugarrefreshtoken ) ) {
-        //     \BackWPup_Option::update( $job_id, 'sugarrefreshtoken', $setting_value->sugarrefreshtoken );
-        // }
-
-        // if ( isset( $setting_value->gdriverefreshtoken ) ) {
-        //     \BackWPup_Option::update( $job_id, 'gdriverefreshtoken', $setting_value->gdriverefreshtoken );
-        // }
-
-        // if ( isset( $setting_value->dbdumpspecialsetalltables ) && $setting_value->dbdumpspecialsetalltables ) {
-        //     \BackWPup_Option::update( $job_id, 'dbdumpexclude', array() );
-        // }
-
-        // if ( isset( $setting_value->dropboxtoken ) && isset( $setting_value->dropboxroot ) ) {
-        //     \BackWPup_Option::update( $job_id, 'dropboxtoken', $setting_value->dropboxtoken );
-        //     \BackWPup_Option::update( $job_id, 'dropboxroot', $setting_value->dropboxroot );
-        // }
 
         $changes_array = array();
 
@@ -1961,7 +1988,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => 'Generic error' );
         }
     }
-    
+
     /**
      * Save settings.
      *
@@ -1977,8 +2004,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! is_array( $options ) || empty( $options ) ) {
             return array( 'error' => 'INVALID_OPTIONS' );
         }
+
         foreach ( $options as $key_option => $val_option ) {
-            $option_name = 'backwpup_cfg_' . $key_option;
+            $_POST[ $key_option ] = $val_option;
+            $option_name          = 'backwpup_cfg_' . $key_option;
             switch ( $key_option ) {
                 case 'mailaddresssenderlog':
                     $option = sanitize_email( wp_unslash( $val_option ) );
@@ -2002,7 +2031,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 case 'authentication_basic_password':
                 case 'authentication_query_arg':
                 case 'authentication_user_id':
-                    $option = get_site_option( 'backwpup_cfg_authentication', [] );
+                    $option = get_site_option( 'backwpup_cfg_authentication', array() );
                     switch ( $key_option ) { // NOSONAR.
                         case 'authentication_method':
                             $option['method'] = $val_option;
@@ -2036,13 +2065,24 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     break;
                 case 'archiveformat':
                     $jobid = get_site_option( 'backwpup_backup_files_job_id', false );
-                    \BackWPup_Option::update($jobid, 'archiveformat', $val_option);
+                    \BackWPup_Option::update( $jobid, 'archiveformat', $val_option );
+                    break;
+                case 'license_instance_key':
+                case 'license_product_id':
+                    if ( class_exists( '\BackWPup_Pro' ) ) {
+                        update_site_option( $key_option, $val_option );
+                    }
                     break;
                 default:
                     $option = sanitize_text_field( wp_unslash( $val_option ) );
-                break;
+                    break;
             }
             update_site_option( $option_name, $option );
+        }
+
+        if ( class_exists( '\BackWPup_Pro' ) ) {
+            $pro_settings = \BackWPup_Pro_Settings_APIKeys::get_instance();
+            $pro_settings->save_form();
         }
         delete_site_transient( 'backwpup_cookies' );
 
@@ -2071,11 +2111,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $type       = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : '';
         $website_id = isset( $_POST['settings']['website_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['website_id'] ) ) : '';
-        $id = isset( $_POST['settings']['id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['id'] ) ) : '';
-        $results = [];
-        switch($type){
+        $id         = isset( $_POST['settings']['id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['id'] ) ) : '';
+        $results    = array();
+        switch ( $type ) {
             case 'jobs':
-                $results = \BackWPup_Option::get_job($id);
+                $results = \BackWPup_Option::get_job( $id );
                 if ( \BackWPup_Option::get( $id, 'activetype' ) === 'wpcron' ) {
                     $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'id' => $id ) );
                     if ( $nextrun + ( get_option( 'gmt_offset' ) * 3600 ) ) {
@@ -2087,7 +2127,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $results['nextrun'] = esc_html__( 'Inactive', 'mainwp-child' );
                 }
                 if ( \BackWPup_Option::get( $id, 'lastrun' ) ) {
-                    $lastrun               = \BackWPup_Option::get( $id, 'lastrun' );
+                    $lastrun            = \BackWPup_Option::get( $id, 'lastrun' );
                     $results['lastrun'] = sprintf( esc_html__( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $lastrun, true ), date_i18n( get_option( 'time_format' ), $lastrun, true ) );
                     if ( \BackWPup_Option::get( $id, 'lastruntime' ) ) {
                         $results['lastrun'] .= ' ' . sprintf( esc_html__( 'Runtime: %d seconds', 'mainwp-child' ), \BackWPup_Option::get( $id, 'lastruntime' ) );
@@ -2096,17 +2136,55 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $results['lastrun'] = esc_html__( 'not yet', 'mainwp-child' );
                 }
             default:
-            break;
+                break;
         }
 
         return array(
             'success' => 1,
-            'ressult'  => $results,
+            'ressult' => $results,
+        );
+    }
+
+    /**
+     * Method get_tabs_mapping()
+     * Tab Field key
+     *
+     * @return array
+     */
+    protected function get_tabs_mapping() {
+        $tabs = array(
+            'cron'             => array( 'activetype', 'cronselect', 'cronminutes', 'cronhours', 'cronmday', 'cronmon', 'cronwday', 'cronbtype' ),
+            'job'              => array( 'backuptype', 'type', 'destinations', 'name', 'mailaddresslog', 'mailaddresssenderlog', 'mailerroronly', 'archiveformat', 'archiveencryption', 'archivename' ),
+            'jobtype-FILE'     => array( 'dirinclude', 'backupexcludethumbs', 'backupspecialfiles', 'backuproot', 'backuprootexcludedirs', 'backupcontent', 'backupcontentexcludedirs', 'backupplugins', 'backupthemes', 'backupthemesexcludedirs', 'backuppluginsexcludedirs', 'backupuploads', 'backupuploadsexcludedirs' ),
+            'jobtype-DBDUMP'   => array( 'dbdumpexclude', 'dbdumpfile', 'dbdumptype', 'dbdumpfilecompression' ),
+            'jobtype-WPEXP'    => array( 'wpexportcontent', 'wpexportfilecompression', 'wpexportfile' ),
+            'jobtype-WPPLUGIN' => array( 'pluginlistfilecompression', 'pluginlistfile' ),
+            'dest-FOLDER'      => array( 'maxbackups', 'backupdir', 'backupsyncnodelete' ),
+            'dest-FTP'         => array( 'ftphost', 'ftphostport', 'ftptimeout', 'ftpuser', 'ftppass', 'ftpdir', 'ftpmaxbackups', 'ftppasv', 'ftpssl' ),
+            'dest-EMAIL'       => array( 'emailaddress', 'emailefilesize', 'emailsndemail', 'emailsndemailname', 'emailmethod', 'emailsendmail', 'emailhost', 'emailhostport', 'emailsecure', 'emailuser', 'emailpass' ),
+            'dest-DROPBOX'     => array( 'sandbox_code', 'dropbbox_code', 'dropboxdir', 'delete_auth', 'dropboxsyncnodelete', 'dropboxmaxbackups' ),
+            'dest-S3'          => array( 's3base_url', 's3base_multipart', 's3base_pathstylebucket', 's3base_version', 's3base_signature', 's3accesskey', 's3secretkey', 's3bucket', 's3region', 's3ssencrypt', 's3storageclass', 's3dir', 's3maxbackups', 's3syncnodelete' ),
+            'dest-MSAZURE'     => array( 'msazureaccname', 'msazurecontainer', 'msazuredir', 'msazuredir', 'msazuresyncnodelete', 'newmsazurecontainer' ),
+            'dest-SUGARSYNC'   => array( 'sugarrefreshtoken', 'sugarroot', 'sugardir', 'sugarmaxbackups' ),
+            'dest-RSC'         => array( 'rscusername', 'rscapikey', 'rsccontainer', 'rscregion', 'rscdir', 'rscmaxbackups', 'rscsyncnodelete' ),
+
         );
 
+        if ( class_exists( '\BackWPup_Pro' ) ) {
+            $tabs = array_merge(
+                $tabs,
+                array(
+                    'dest-GLACIER'  => array( 'glacieraccesskey', 'glaciersecretkey', 'glaciervault', 'glacierregion', 'glaciermaxbackups' ),
+                    'dest-GDRIVE'   => array( 'gdriverefreshtoken', 'gdrivemaxbackups', 'gdrivesyncnodelete', 'gdriveusetrash', 'gdrivedir' ),
+                    'dest-HIDRIVE'  => array( 'hidrive_max_backups', 'hidrive_sync_no_delete', 'hidrive_destination_folder' ),
+                    'dest-ONEDRIVE' => array( 'onedriverefreshtoken', 'onedrivemaxbackups', 'onedrivesyncnodelete', 'onedriveusetrash', 'onedrivedir' ),
+                )
+            );
+        }
+
+        return $tabs;
     }
 }
-
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
 if ( ! class_exists( '\MainWP\Child\MainWP_Fake_Wp_Screen' ) ) {
     /**
