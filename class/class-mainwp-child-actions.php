@@ -92,7 +92,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     public function __construct() {
         static::$connected_admin = get_option( 'mainwp_child_connected_admin', '' );
-        $this->init_actions      = array(
+        $this->init_actions = array(
             'upgrader_pre_install',
             'upgrader_process_complete',
             'activate_plugin',
@@ -200,7 +200,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * Looks for a class method with the convention: "callback_{action name}"
      */
     public function callback() {
-        $current  = current_filter();
+        $current = current_filter();
         $callback = array( $this, 'callback_' . preg_replace( '/[^A-Za-z0-9_\-]/', '_', $current ) ); // to fix A-Z charater in callback name.
 
         // Call the real function.
@@ -241,7 +241,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     private function update_actions_data( $index, $data ) {
         static::get_actions_data();
-        $index                          = strval( $index );
+        $index = strval( $index );
         static::$actions_data[ $index ] = $data;
         update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
         return true;
@@ -263,7 +263,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 $days_number = intval( get_option( 'mainwp_child_actions_saved_number_of_days', 30 ) );
                 $days_number = apply_filters( 'mainwp_child_actions_saved_number_of_days', $days_number );
                 $days_number = ( 3 > $days_number || 6 * 30 < $days_number ) ? 30 : $days_number;
-                $check_time  = $days_number * \DAY_IN_SECONDS;
+                $check_time = $days_number * \DAY_IN_SECONDS;
 
                 $updated = false;
                 foreach ( static::$actions_data as $index => $data ) {
@@ -297,9 +297,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * @return bool Return TRUE|FALSE.
      */
     public function callback_upgrader_process_complete( $upgrader, $extra ) { // phpcs:ignore -- NOSONAR - required to achieve desired results, pull request solutions appreciated.
-        $logs    = array();
+        $logs = array();
         $success = ! is_wp_error( $upgrader->skin->result );
-        $error   = null;
+        $error = null;
 
         if ( ! $success ) {
             $errors = $upgrader->skin->result->errors;
@@ -312,7 +312,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return false;
         }
 
-        $type   = $extra['type'];
+        $type = $extra['type'];
         $action = $extra['action'];
 
         if ( ! in_array( $type, array( 'plugin', 'theme' ), true ) ) {
@@ -327,9 +327,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                     return false;
                 }
 
-                $data    = get_plugin_data( $upgrader->skin->result['local_destination'] . '/' . $path );
-                $slug    = $upgrader->result['destination_name'];
-                $name    = $data['Name'];
+                $data = get_plugin_data( $upgrader->skin->result['local_destination'] . '/' . $path );
+                $slug = $upgrader->result['destination_name'];
+                $name = $data['Name'];
                 $version = $data['Version'];
             } else { // theme.
                 $slug = $upgrader->theme_info();
@@ -340,8 +340,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
                 wp_clean_themes_cache();
 
-                $theme   = wp_get_theme( $slug );
-                $name    = $theme->name;
+                $theme = wp_get_theme( $slug );
+                $name = $theme->name;
                 $version = $theme->version;
             }
 
@@ -377,8 +377,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
                 foreach ( $slugs as $slug ) {
                     $plugin_data = get_plugin_data( WP_PLUGIN_DIR . '/' . $slug );
-                    $name        = $plugin_data['Name'];
-                    $version     = $plugin_data['Version'];
+                    $name = $plugin_data['Name'];
+                    $version = $plugin_data['Version'];
                     // ( Net-Concept - Xavier NUEL ) : get old versions.
                     if ( isset( $this->current_plugins_info[ $slug ] ) ) {
                         $old_version = $this->current_plugins_info[ $slug ]['Version'];
@@ -398,7 +398,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 }
 
                 foreach ( $slugs as $slug ) {
-                    $theme      = wp_get_theme( $slug );
+                    $theme = wp_get_theme( $slug );
                     $stylesheet = $theme['Stylesheet Dir'] . '/style.css';
                     $theme_data = get_file_data(
                         $stylesheet,
@@ -406,8 +406,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                             'Version' => 'Version',
                         )
                     );
-                    $name       = $theme['Name'];
-                    $version    = $theme_data['Version'];
+                    $name = $theme['Name'];
+                    $version = $theme_data['Version'];
 
                     $old_version = '';
 
@@ -431,12 +431,12 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $context = $type . 's';
 
         foreach ( $logs as $log ) {
-            $name        = isset( $log['name'] ) ? $log['name'] : null;
-            $version     = isset( $log['version'] ) ? $log['version'] : null;
-            $slug        = isset( $log['slug'] ) ? $log['slug'] : null;
+            $name = isset( $log['name'] ) ? $log['name'] : null;
+            $version = isset( $log['version'] ) ? $log['version'] : null;
+            $slug = isset( $log['slug'] ) ? $log['slug'] : null;
             $old_version = isset( $log['old_version'] ) ? $log['old_version'] : null;
-            $message     = isset( $log['message'] ) ? $log['message'] : null;
-            $action      = isset( $log['action'] ) ? $log['action'] : null;
+            $message = isset( $log['message'] ) ? $log['message'] : null;
+            $action = isset( $log['action'] ) ? $log['action'] : null;
 
             $this->save_actions(
                 $message,
@@ -456,8 +456,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * @param bool   $network_wide Check if network wide.
      */
     public function callback_activate_plugin( $slug, $network_wide = false ) {
-        $_plugins     = $this->get_plugins();
-        $name         = $_plugins[ $slug ]['Name'];
+        $_plugins = $this->get_plugins();
+        $name = $_plugins[ $slug ]['Name'];
         $network_wide = $network_wide ? esc_html__( 'network wide', 'mainwp-child' ) : null;
 
         if ( empty( $name ) ) {
@@ -483,8 +483,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * @param bool   $network_wide Check if network wide.
      */
     public function callback_deactivate_plugin( $slug, $network_wide = false ) {
-        $_plugins     = $this->get_plugins();
-        $name         = $_plugins[ $slug ]['Name'];
+        $_plugins = $this->get_plugins();
+        $name = $_plugins[ $slug ]['Name'];
         $network_wide = $network_wide ? esc_html__( 'network wide', 'mainwp-child' ) : null;
 
         $this->save_actions(
@@ -556,8 +556,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         }
         $plugin = isset( $_POST['plugin'] ) ? sanitize_text_field( wp_unslash( $_POST['plugin'] ) ) : '';
         // phpcs:enable
-        $_plugins                     = $this->get_plugins();
-        $plugins_to_delete            = array();
+        $_plugins = $this->get_plugins();
+        $plugins_to_delete = array();
         $plugins_to_delete[ $plugin ] = isset( $_plugins[ $plugin ] ) ? $_plugins[ $plugin ] : array();
         update_option( 'wp_mainwp_child_actions_plugins_to_delete', $plugins_to_delete );
         return false;
@@ -581,7 +581,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             }
             foreach ( $plugins_to_delete as $plugin => $data ) {
                 if ( $plugin_file === $plugin ) {
-                    $name         = $data['Name'];
+                    $name = $data['Name'];
                     $network_wide = $data['Network'] ? esc_html__( 'network wide', 'mainwp-child' ) : '';
 
                     $this->save_actions(
@@ -615,8 +615,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version via the shared helper method for consistency.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
-        $new_version  = $info->item->version;
+        $old_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $new_version = $info->item->version;
         $auto_updated = true;
 
         $message = esc_html__( 'WordPress auto-updated to %s', 'mainwp-child' );
@@ -643,8 +643,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version using the centralized method.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $new_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
-        $old_version  = $new_version; // Current version is now the old version after update.
+        $new_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $old_version = $new_version; // Current version is now the old version after update.
         $auto_updated = ( 'update-core.php' !== $pagenow );
 
         if ( $auto_updated ) {
@@ -682,9 +682,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             $themes = wp_get_themes();
 
             if ( is_array( $themes ) ) {
-                $theme_name  = wp_get_theme()->get( 'Name' );
+                $theme_name = wp_get_theme()->get( 'Name' );
                 $parent_name = '';
-                $parent      = wp_get_theme()->parent();
+                $parent = wp_get_theme()->parent();
                 if ( $parent ) {
                     $parent_name = $parent->get( 'Name' );
                 }
@@ -695,12 +695,12 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                         continue;
                     }
 
-                    $out                  = array();
-                    $out['name']          = $theme->get( 'Name' );
-                    $out['title']         = $theme->display( 'Name', true, false );
-                    $out['version']       = $theme->display( 'Version', true, false );
-                    $out['active']        = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
-                    $out['slug']          = $_slug;
+                    $out = array();
+                    $out['name'] = $theme->get( 'Name' );
+                    $out['title'] = $theme->display( 'Name', true, false );
+                    $out['version'] = $theme->display( 'Version', true, false );
+                    $out['active'] = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
+                    $out['slug'] = $_slug;
                     $out['parent_active'] = ( $parent_name === $out['name'] ) ? 1 : 0;
 
                     $this->current_themes_info[ $_slug ] = $out;
@@ -754,7 +754,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         }
 
         $user_id = get_current_user_id();
-        $user    = get_user_by( 'id', $user_id );
+        $user = get_user_by( 'id', $user_id );
 
         $connected_user = get_option( 'mainwp_child_connected_admin', '' );
 
@@ -771,15 +771,15 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $userlogin = (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
 
         $user_role_label = '';
-        $role            = '';
-        $roles           = MainWP_Utility::instance()->get_roles();
+        $role = '';
+        $roles = MainWP_Utility::instance()->get_roles();
         if ( ! empty( $user->roles ) ) {
-            $user_roles      = array_values( $user->roles );
-            $role            = $user_roles[0];
+            $user_roles = array_values( $user->roles );
+            $role = $user_roles[0];
             $user_role_label = isset( $roles[ $role ] ) ? $roles[ $role ] : $role;
         }
 
-        $agent     = $this->get_current_agent();
+        $agent = $this->get_current_agent();
         $meta_data = array(
             'wp_user_id'      => (int) $user_id,
             'display_name'    => (string) $this->get_display_name( $user ),
@@ -792,9 +792,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         if ( 'wp_cli' === $agent ) {
             $system_user = 'wp_cli';
             if ( is_callable( 'posix_getuid' ) && is_callable( 'posix_getpwuid' ) ) {
-                $uid                           = posix_getuid();
-                $user_info                     = posix_getpwuid( $uid );
-                $meta_data['system_user_id']   = (int) $uid;
+                $uid = posix_getuid();
+                $user_info = posix_getpwuid( $uid );
+                $meta_data['system_user_id'] = (int) $uid;
                 $meta_data['system_user_name'] = (string) $user_info['name'];
                 if ( ! empty( $meta_data['system_user_name'] ) ) {
                     $system_user = $meta_data['system_user_name'];
@@ -884,7 +884,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     public function get_valid_context( $context ) {
         $context = (string) $context;
-        $valid   = array(
+        $valid = array(
             'plugins'   => 'Plugins',
             'themes'    => 'Themes',
             'wordpress' => 'WordPress'  // phpcs:ignore -- fix format text.
@@ -901,7 +901,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     public function get_valid_action( $action ) {
         $action = (string) $action;
-        $valid  = array(
+        $valid = array(
             'updated'     => 'updated',
             'deleted'     => 'deleted',
             'activated'   => 'activated',
