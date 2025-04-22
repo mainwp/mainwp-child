@@ -1877,7 +1877,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         foreach ( $setting_value as $key => $val ) {
             $temp_value = \BackWPup_Option::get( $job_id, $key );
-            if ( is_string( $temp_value ) ) {
+
+            // Compare if both are string.
+            if ( is_string( $temp_value ) && is_string( $val ) ) {
                 if ( isset( $this->exclusions[ $settings->tab ] ) ) {
                     if ( ! in_array( $key, $this->exclusions[ $settings->tab ] ) && strcmp( $temp_value, $val ) !== 0 ) {
                         $changes_array[ $key ] = $temp_value;
@@ -1885,6 +1887,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 } elseif ( strcmp( $temp_value, $val ) !== 0 ) {
                     $changes_array[ $key ] = $temp_value;
                 }
+            } elseif ( $temp_value !== $val ) {
+                $changes_array[ $key ] = $temp_value;
             }
         }
 
@@ -2053,7 +2057,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $option_name = 'backwpup_cfg_authentication';
                     break;
                 case 'mailaddresslog':
-                    $emails = array_filter(
+                    $option = array_filter(
                         array_map(
                             function ( $email ) {
                                 $sanitized_email = sanitize_email( trim( $email ) );
@@ -2062,7 +2066,6 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                             $val_option
                         )
                     );
-                    $option = implode( ', ', $emails );
                     break;
                 case 'archiveformat':
                     $jobid = get_site_option( 'backwpup_backup_files_job_id', false );
