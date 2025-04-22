@@ -3337,10 +3337,12 @@ SQL
                             }
                         }
 
+                        $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
+
                         $wordPressValues = array(
                             'WordPress Version'            => array(
                                 'description' => '',
-                                'value'       => $wp_version,
+                                'value'       => $wp_ver,
                             ),
                             'WP_DEBUG'                     => array(
                                 'description' => 'WordPress debug mode',

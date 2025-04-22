@@ -346,17 +346,12 @@ class MainWP_Child_Plugins_Check {
         // Get the WordPress current version to be polite in the API call.
         include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
 
-        /**
-         * The installed version of WordPress.
-         *
-         * @global string $wp_version The installed version of WordPress.
-         */
-        global $wp_version;
+        $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
 
         // General options to be passed to wp_remote_get.
         $options = array(
             'timeout'    => 60 * 60,
-            'user-agent' => 'WordPress/' . $wp_version . '; ' . get_bloginfo( 'url' ),
+            'user-agent' => 'WordPress/' . $wp_ver . '; ' . get_bloginfo( 'url' ),
         );
 
         // The URL for the endpoint.

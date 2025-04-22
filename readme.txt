@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 5.4.0.5
+Stable tag: 5.4.0.6
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.6 - Maintenance Release - 4-22-2025 =
+
+* Updated: Implemented the `time()` function to capture Sites Changes event timestamps instead of a custom method, resolving display issues caused by timezone differences.
+* Updated: Implemented `wp_get_wp_version()` method to retrieve WordPress version instead of using the global `$wp_version` variable for improved code reliability. (#762)[https://github.com/mainwp/mainwp/issues/762]
 
 = 5.4.0.5 - Maintenance Release - 4-15-2025 =
 
