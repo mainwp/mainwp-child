@@ -146,13 +146,20 @@ class MainWP_Child {
             // Update plugin version in database.
             MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
 
-            // Initialize cache control and API backups only when needed.
-            if ( $this->is_mainwp_pages() ) {
-                // Initiate MainWP Cache Control class.
+            // Initialize pages and asset loading.
+            MainWP_Pages::get_instance()->init();
+            MainWP_Child_Assets::instance()->init();
+
+            // Initiate MainWP Cache Control class only when needed.
+            if ( is_admin() && $this->is_mainwp_pages() ) {
                 MainWP_Child_Cache_Purge::instance();
 
                 // Initiate MainWP Child API Backups class.
                 MainWP_Child_Api_Backups::instance();
+            }
+
+            if ( is_admin() ) {
+                MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
             }
         }
     }
