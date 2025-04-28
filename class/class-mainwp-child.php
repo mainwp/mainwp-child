@@ -151,12 +151,10 @@ class MainWP_Child {
             MainWP_Child_Assets::instance()->init();
 
             // Initiate MainWP Cache Control class only when needed.
-            if ( is_admin() && $this->is_mainwp_pages() ) {
-                MainWP_Child_Cache_Purge::instance();
+            MainWP_Child_Cache_Purge::instance();
 
-                // Initiate MainWP Child API Backups class.
-                MainWP_Child_Api_Backups::instance();
-            }
+            // Initiate MainWP Child API Backups class.
+            MainWP_Child_Api_Backups::instance();
 
             if ( is_admin() ) {
                 MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
@@ -176,7 +174,7 @@ class MainWP_Child {
         MainWP_Client_Report::instance()->init();
 
         // These are only needed in admin area and are performance-intensive.
-        if ( is_admin() && $this->is_mainwp_pages() ) {
+        if ( is_admin() ) {
             MainWP_Child_Plugins_Check::instance();
             MainWP_Child_Themes_Check::instance();
         }
@@ -736,40 +734,5 @@ class MainWP_Child {
         if ( defined( 'DOING_CRON' ) && DOING_CRON && ! empty( $cron_run ) ) {
             add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
         }
-    }
-
-    /**
-     * Helper method to check if we're on a MainWP admin page.
-     *
-     * @return bool True if on a MainWP admin page, false otherwise.
-     */
-    private function is_mainwp_pages() {
-        if ( ! is_admin() || ! function_exists( 'get_current_screen' ) ) {
-            return false;
-        }
-
-        $screen = get_current_screen();
-        if ( ! $screen ) {
-            return false;
-        }
-
-        // List of screens where MainWP Child functionality is needed.
-        $mainwp_screens = array(
-            'settings_page_mainwp_child_tab',
-            'dashboard',  // Include dashboard for widgets.
-            'update-core', // Include updates page.
-        );
-
-        // Also check if we're on a page with mainwp in the query string.
-        // This is a read-only check for admin page detection, not processing user input for database operations.
-        // Therefore, nonce verification is not required here.
-        $is_mainwp_page = false;
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $page = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
-        if ( ! empty( $page ) ) {
-            $is_mainwp_page = ( false !== strpos( $page, 'mainwp' ) );
-        }
-
-        return in_array( $screen->id, $mainwp_screens, true ) || $is_mainwp_page;
     }
 }
