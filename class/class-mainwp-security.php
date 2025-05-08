@@ -293,7 +293,10 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function get_security_option( $option ) {
         $security = get_option( 'mainwp_security' );
-
+        if ( false === $security ) {
+            // to fix issue of cached loading variable.
+            MainWP_Helper::update_option( 'mainwp_security', '', 'yes' );
+        }
         return is_array( $security ) && isset( $security[ $option ] ) && ( true === $security[ $option ] );
     }
 
