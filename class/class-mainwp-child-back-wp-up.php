@@ -1600,7 +1600,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * Insert or update global jobs.
      *
      * @uses MainWP_Child_Back_WP_Up::insert_or_update_jobs()
-     *
+     * @uses BackWPup_Job::enable_job()
      * @return array Response array containing job_id, changes & message array.
      */
     protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
@@ -1656,6 +1656,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
         }
+
+        // Auto Enable the job.
+        \BackWPup_Job::enable_job( $new_job_id );
 
         return array(
             'success' => 1,
