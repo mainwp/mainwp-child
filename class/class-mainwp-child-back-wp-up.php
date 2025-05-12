@@ -19,7 +19,7 @@
  * @package MainWP\Child
  */
 
-// phpcs:disable -- third party credit.
+//  phpcs:disable -- third party credit.
 
 namespace MainWP\Child;
 
@@ -1622,6 +1622,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $tabs_mapping  = $this->get_tabs_mapping();
 
         foreach ( $settings->value as $key => $val ) {
+            if ( null === $val || '' === $val || ( is_array( $val ) && count( $val ) === 0 ) ) {
+                continue;
+            }
             $temp_array = array(
                 'tab'    => '',
                 'value'  => array( $key => $val ),
@@ -1832,6 +1835,19 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             $val = wp_unslash( $_POST['settings']['value']['dropboxdir'] );
             if ( '%do-not-update%' === $val || '%do-not-update%/' === $val ) {
                 $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get( $job_id, 'dropboxdir' );
+            }
+        }
+
+        if ( 'jobtype-DBDUMP' === $settings->tab ) {
+            if ( ! isset( $_POST['settings']['value']['tabledb'] ) ) {
+                global $wpdb;
+                $tables_temp = array();
+                $tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
+                foreach ( $tables as $table ) {
+                    $tables_temp[] = $table[0];
+                }
+
+                $_POST['tabledb'] = $tables_temp;
             }
         }
 
@@ -2163,7 +2179,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             'cron'             => array( 'activetype', 'cronselect', 'cronminutes', 'cronhours', 'cronmday', 'cronmon', 'cronwday', 'cronbtype' ),
             'job'              => array( 'backuptype', 'type', 'destinations', 'name', 'mailaddresslog', 'mailaddresssenderlog', 'mailerroronly', 'archiveformat', 'archiveencryption', 'archivename' ),
             'jobtype-FILE'     => array( 'dirinclude', 'backupexcludethumbs', 'backupspecialfiles', 'backuproot', 'backuprootexcludedirs', 'backupcontent', 'backupcontentexcludedirs', 'backupplugins', 'backupthemes', 'backupthemesexcludedirs', 'backuppluginsexcludedirs', 'backupuploads', 'backupuploadsexcludedirs' ),
-            'jobtype-DBDUMP'   => array( 'dbdumpexclude', 'dbdumpfile', 'dbdumptype', 'dbdumpfilecompression' ),
+            'jobtype-DBDUMP'   => array( 'tabledb', 'dbdumpexclude', 'dbdumpfile', 'dbdumptype', 'dbdumpfilecompression' ),
             'jobtype-WPEXP'    => array( 'wpexportcontent', 'wpexportfilecompression', 'wpexportfile' ),
             'jobtype-WPPLUGIN' => array( 'pluginlistfilecompression', 'pluginlistfile' ),
             'dest-FOLDER'      => array( 'maxbackups', 'backupdir', 'backupsyncnodelete' ),
