@@ -371,42 +371,55 @@ class MainWP_Child_WooCommerce_Status {
     public function get_top_seller( $start_date, $end_date ) { //phpcs:ignore -- NOSONAR - ignore complex.
 
         $top_seller = false;
-        if ( class_exists( '\Automattic\WooCommerce\Admin\API\Reports\Products\Query' ) ) {
-            $page       = 0;
-            $total_page = 1;
-            $top_count  = 0;
-            while ( $page < $total_page ) {
-                ++$page;
-                $args = array(
-                    'before'   => $end_date,
-                    'after'    => $start_date,
-                    'page'     => $page,
-                    'per_page' => 1000,
-                );
 
-                $report = new \Automattic\WooCommerce\Admin\API\Reports\Products\Query( $args );
+        $page       = 0;
+        $total_page = 1;
+        $top_count  = 0;
 
-                $product_data = $report->get_data();
+        while ( $page < $total_page ) {
+            ++$page;
+            $args = array(
+                'before'   => $end_date,
+                'after'    => $start_date,
+                'page'     => $page,
+                'per_page' => 1000,
+            );
 
-                $products = array();
+            $product_data = false;
 
-                if ( is_object( $product_data ) ) {
-                    $products = ! empty( $product_data->data ) ? $product_data->data : array();
-                    if ( ! is_array( $products ) ) {
-                        $products = array();
-                    }
-                    foreach ( $products as $prod_sel ) {
-                        if ( is_array( $prod_sel ) && isset( $prod_sel['items_sold'] ) && $prod_sel['items_sold'] > $top_count ) {
-                            $top_seller = $prod_sel;
-                            $top_count  = $prod_sel['items_sold'];
-                        }
-                    }
-                    if ( ! empty( $product_data->pages ) && $product_data->pages > $total_page ) {
-                        $total_page = $product_data->pages;
-                    }
-                } else {
-                    break;
+            $compat_ver_after_93 = false;
+            if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '9.3.0', '>=' ) ) {
+                $compat_ver_after_93 = true;
+            }
+
+            if ( $compat_ver_after_93 ) {
+                if ( class_exists( '\Automattic\WooCommerce\Admin\API\Reports\Products\DataStore' ) ) {
+                    $data_store   = new \Automattic\WooCommerce\Admin\API\Reports\Products\DataStore();
+                    $product_data = $data_store->get_data( $args );
                 }
+            } elseif ( class_exists( '\Automattic\WooCommerce\Admin\API\Reports\Products\Query' ) ) {
+                    $report       = new \Automattic\WooCommerce\Admin\API\Reports\Products\Query( $args );
+                    $product_data = $report->get_data();
+            }
+
+            $products = array();
+
+            if ( is_object( $product_data ) ) {
+                $products = ! empty( $product_data->data ) ? $product_data->data : array();
+                if ( ! is_array( $products ) ) {
+                    $products = array();
+                }
+                foreach ( $products as $prod_sel ) {
+                    if ( is_array( $prod_sel ) && isset( $prod_sel['items_sold'] ) && $prod_sel['items_sold'] > $top_count ) {
+                        $top_seller = $prod_sel;
+                        $top_count  = $prod_sel['items_sold'];
+                    }
+                }
+                if ( ! empty( $product_data->pages ) && $product_data->pages > $total_page ) {
+                    $total_page = $product_data->pages;
+                }
+            } else {
+                break;
             }
         }
 

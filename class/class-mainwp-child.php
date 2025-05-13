@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.4.0.6'; // NOSONAR - not IP.
+    public static $version = '5.4.0.7'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -172,6 +172,7 @@ class MainWP_Child {
         // Initialize core features.
         MainWP_Clone::instance()->init();
         MainWP_Client_Report::instance()->init();
+        MainWP_Child_Vulnerability_Checker::instance();
 
         // These are only needed in admin area and are performance-intensive.
         if ( is_admin() ) {
