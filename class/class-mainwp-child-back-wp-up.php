@@ -19,7 +19,7 @@
  * @package MainWP\Child
  */
 
-//  phpcs:disable -- third party credit.
+// phpcs:disable -- third party credit.
 
 namespace MainWP\Child;
 
@@ -1232,6 +1232,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $output = $this->check_backwpup_messages();
 
+        // Disable onboarding.
+        $this->disable_onboarding();
+
         if ( isset( $output['error'] ) ) {
             return array( 'error' => '\BackWPup_Page_Jobs::load fail: ' . $output['error'] );
         } else {
@@ -1663,6 +1666,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         // Auto Enable the job.
         \BackWPup_Job::enable_job( $new_job_id );
 
+        // Disable onboarding.
+        $this->disable_onboarding();
+
         return array(
             'success' => 1,
             'job_id'  => $new_job_id,
@@ -1911,6 +1917,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
+        // Disable onboarding.
+        $this->disable_onboarding();
+        // Auto Enable the job.
+        \BackWPup_Job::enable_job( $job_id );
         return array(
             'success' => 1,
             'job_id'  => $job_id,
@@ -1988,6 +1998,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
+        // Disable onboarding.
+        $this->disable_onboarding();
+
         return array(
             'success' => 1,
             'changes' => $changes_array,
@@ -2020,6 +2033,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses BackWPup_File::normalize_path()
      * @uses BackWPup_Path_Fixer::slashify()
      * @uses BackWPup_Option::update()
+     * @uses BackWPup_Pro_Settings_APIKeys::save_form()
      *
      * @return array Response array success, error[].
      */
@@ -2109,6 +2123,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
         delete_site_transient( 'backwpup_cookies' );
 
+        // Disable onboarding.
+        $this->disable_onboarding();
+
         return array(
             'success' => 1,
             'message' => 'SUCCESS',
@@ -2118,6 +2135,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method job_info
      * Get Job Info.
+     *
+     * @uses BackWPup_Option::get_job()
+     * @uses BackWPup_Option::get()
      */
     public function job_info() {
         if ( ! isset( $_POST['settings']['type'] ) ) {
@@ -2206,6 +2226,18 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         return $tabs;
+    }
+
+    /**
+     * Method disable_onboarding()
+     *
+     * Disable BackWPup onboarding.
+     */
+    public function disable_onboarding() {
+        $is_onboarding = get_site_option( 'backwpup_onboarding', false );
+        if ( $is_onboarding ) {
+            update_site_option( 'backwpup_onboarding', false );
+        }
     }
 }
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
