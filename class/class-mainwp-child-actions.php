@@ -617,7 +617,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $new_version  = $info->item->version;
         $auto_updated = true;
 
-        $message = esc_html__( 'WordPress auto-updated to %s', 'stream' );
+        $message = esc_html__( 'WordPress auto-updated to %s', 'mainwp-child' );
 
         $this->save_actions(
             $message,

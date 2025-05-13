@@ -244,9 +244,15 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
         $other_tokens_data = $this->get_stream_others_tokens( $records, $other_tokens, $skip_records );
         $sections_data     = $this->get_stream_sections_data( $records, $sections, $skip_records );
-        return array(
-            'other_tokens_data' => $other_tokens_data,
-            'sections_data'     => $sections_data,
+        return apply_filters(
+            'mainwp_child_prepared_reports_data',
+            array(
+                'other_tokens_data' => $other_tokens_data,
+                'sections_data'     => $sections_data,
+            ),
+            $sections,
+            $other_tokens,
+            $args
         );
     }
 

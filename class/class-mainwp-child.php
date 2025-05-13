@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.4.0.6'; // NOSONAR - not IP.
+    public static $version = '5.4.0.7'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -105,6 +105,7 @@ class MainWP_Child {
         MainWP_Child_Plugins_Check::instance();
         MainWP_Child_Themes_Check::instance();
         MainWP_Utility::instance()->run_saved_snippets();
+        MainWP_Child_Vulnerability_Checker::instance();
 
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             MainWP_Child_WP_CLI_Command::init();
