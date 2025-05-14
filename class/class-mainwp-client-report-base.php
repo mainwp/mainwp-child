@@ -335,6 +335,61 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
         return $sections_data;
     }
 
+
+    /**
+     * Method parse_token_content().
+     *
+     * @param  string $token The token
+     * @param  string $type Token type
+     *
+     * @return mixed Parsed result.
+     */
+    private function parse_token_content( $token, $type ) {
+
+        $content = str_replace( array( '[', ']' ), '', $token );
+
+        $parts = explode( '.', $content );
+
+        $results = array();
+
+        if ( 'section' === $type ) {
+            // pro reports section token formats: xxx.context or xxx.context.action.
+            if ( 2 === count( $parts ) ) {
+                $results = array(
+                    'context' => $parts[1],
+                );
+            } elseif ( 3 === count( $parts ) ) {
+                $results = array(
+                    'context' => $parts[1],
+                    'action'  => $parts[2],
+                );
+            }
+        } elseif ( 'other_token' === $type ) {
+            // pro reports section other token formats: context.data or context.action.data.
+            if ( 2 === count( $parts ) ) {
+                $results = array(
+                    'context' => $parts[0],
+                    'data'    => $parts[1],
+                );
+            } elseif ( 3 === count( $parts ) ) {
+                $results = array(
+                    'context' => $parts[0],
+                    'action'  => $parts[1],
+                    'data'    => $parts[2],
+                );
+            }
+        }
+
+        /**
+         *
+         * @since 5.4.0.8.
+         *
+         * To support custom token
+         */
+        return apply_filters( 'mainwp_child_parse_reports_token_content', $results, $parts, $token, $type );
+    }
+
+
     /**
      * Get the other tokens data.
      *
@@ -358,23 +413,23 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             if ( isset( $token_values[ $token ] ) ) {
                 continue;
             }
-            $str_tmp   = str_replace( array( '[', ']' ), '', $token );
-            $array_tmp = explode( '.', $str_tmp );
-            if ( is_array( $array_tmp ) ) {
-                $context = '';
-                $action  = '';
-                $data    = '';
-                if ( 2 === count( $array_tmp ) ) {
-                    list( $context, $data ) = $array_tmp;
-                } elseif ( 3 === count( $array_tmp ) ) {
-                    list( $context, $action, $data ) = $array_tmp;
-                }
+            $token_parts = $this->parse_token_content( $token, 'other_token' );
+            if ( is_array( $token_parts ) ) {
+
+                $context = isset( $token_parts['context'] ) ? $token_parts['context'] : '';
+                $action  = isset( $token_parts['action'] ) ? $token_parts['action'] : '';
+                $data    = isset( $token_parts['data'] ) ? $token_parts['data'] : '';
+
+                $connector = isset( $token_parts['connector'] ) ? $token_parts['connector'] : ''; // to support hooked connector.
 
                 $context = $this->get_compatible_context( $context );
                 // to compatible with new version of child report.
                 // to check condition for grabbing report data.
-                $connector = $this->get_connector_by_compatible_context( $context );
-                $action    = $this->get_compatible_action( $action, $context );
+                if ( empty( $connector ) ) {
+                    $connector = $this->get_connector_by_compatible_context( $context );
+                }
+
+                $action = $this->get_compatible_action( $action, $context );
                 // custom values.
                 if ( 'profiles' === $context && ( 'created' === $action || 'deleted' === $action ) ) {
                     $context = 'users';
@@ -422,7 +477,6 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
 
         return $token_values;
     }
-
     /**
      * Get the other tokens count.
      *
@@ -540,35 +594,33 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
-        $context = '';
-        $action  = '';
+        $context   = '';
+        $action    = '';
+        $connector = '';
 
-        $str_tmp   = str_replace( array( '[', ']' ), '', $section );
-        $array_tmp = explode( '.', $str_tmp );
-        if ( is_array( $array_tmp ) ) {
-            if ( 2 === count( $array_tmp ) ) {
-                list( $str1, $context ) = $array_tmp;
-                unset( $str1 );
-            } elseif ( 3 === count( $array_tmp ) ) {
-                list( $str1, $context, $action ) = $array_tmp;
-                unset( $str1 );
-            }
+        $token_parts = $this->parse_token_content( $section, 'section' );
+        if ( is_array( $token_parts ) ) {
+            $context   = isset( $token_parts['context'] ) ? $token_parts['context'] : '';
+            $action    = isset( $token_parts['action'] ) ? $token_parts['action'] : '';
+            $connector = isset( $token_parts['connector'] ) ? $token_parts['connector'] : ''; // to support hooked connector.
         }
 
         // get db $context value by mapping.
         $context = $this->get_compatible_context( $context );
         // to compatible with new version of child report.
         // to check condition for grabbing report data.
-        $connector = $this->get_connector_by_compatible_context( $context );
-
+        if ( empty( $connector ) ) {
+            $connector = $this->get_connector_by_compatible_context( $context );
+        }
         $action = $this->get_compatible_action( $action, $context );
 
         if ( 'profiles' === $context && ( 'created' === $action || 'deleted' === $action ) ) {
             $context = 'users';
         }
 
-        return $this->get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records );
+        return $this->get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records, $section );
     }
+
 
     /**
      * Get the section loop records.
@@ -579,10 +631,11 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string $context      Record context.
      * @param string $action       Record action.
      * @param array  $skip_records Records to skip.
+     * @param string $section      Section tokens.
      *
      * @return array Loops.
      */
-    public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records ) {  // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    public function get_section_loop_records( $records, $tokens, $connector, $context, $action, $skip_records, $section = '' ) {  // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         // phpcs:disable WordPress.Security.NonceVerification
         $loops      = array();
         $loop_count = 0;
@@ -652,7 +705,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
 
-            $token_values = $this->get_section_loop_token_values( $record, $context, $tokens );
+            $token_values = $this->get_section_loop_token_values( $record, $context, $tokens, $section );
             if ( ! empty( $token_values ) ) {
                 $loops[ $loop_count ] = $token_values;
                 ++$loop_count;
@@ -685,12 +738,13 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      * @param object $record  Object containing the record data.
      * @param string $context Record context.
      * @param array  $tokens  An array containg the report tokens.
+     * @param string $section Section tokens.
      *
      * @return array Token values.
      *
      * @uses \MainWP\Child\MainWP_Helper::log_debug()
      */
-    private function get_section_loop_token_values( $record, $context, $tokens ) { //phpcs:ignore -- NOSONAR - ignore complex.
+    private function get_section_loop_token_values( $record, $context, $tokens, $section = '' ) { //phpcs:ignore -- NOSONAR - ignore complex.
 
         $token_values = array();
         foreach ( $tokens as $token ) {
@@ -722,12 +776,12 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 $data = 'roles';
             }
 
-            $tok_value = $this->get_section_token_value( $record, $data, $context, $token );
+            $tok_value = $this->get_section_token_value( $record, $data, $context, $token, $section );
 
             $token_values[ $token ] = $tok_value;
 
             if ( empty( $tok_value ) ) {
-                $msg = 'MainWP Child Report:: skip empty value :: token :: ' . $token . ' :: record :: ' . print_r( $record, true );  // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+                $msg = 'MainWP Child Report:: empty token value :: [token=' . $token . '] :: [record=' . print_r( $record, true ) . ']';  // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
                 MainWP_Helper::log_debug( $msg );
             }
         }
@@ -741,13 +795,14 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string $data    Data to process.
      * @param string $context Record context.
      * @param string $token   Requested token.
+     * @param string $section Section tokens.
      *
      * @return array Token value.
      *
      * @uses \MainWP\Child\MainWP_Helper::format_date()
      * @uses \MainWP\Child\MainWP_Helper::format_time()
      */
-    public function get_section_token_value( $record, $data, $context, $token ) {  // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    public function get_section_token_value( $record, $data, $context, $token, $section = '' ) {  // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         $tok_value = '';
         switch ( $data ) {
             case 'ID':
@@ -819,7 +874,11 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 $tok_value = 'N/A';
                 break;
         }
-        return $tok_value;
+
+        /**
+         * @since 5.4.0.8 .
+         */
+        return apply_filters( 'mainwp_child_get_reports_section_token_value', $tok_value, $record, $data, $context, $token, $section );
     }
 
     /**
