@@ -468,7 +468,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                  * @since 5.4.0.8.
                  *
                  */
-                $value = apply_filters( 'mainwp_child_get_other_tokens_data', null, $token, $data, $records, $context, $action, $skip_records ); // do not pass default conector value here.
+                $value = apply_filters( 'mainwp_child_get_other_tokens_data', null, $token, $data, $records, $context, $action, $skip_records, $connector );
 
                 if ( null !== $value ) {
                     $token_values[ $token ] = $value;
