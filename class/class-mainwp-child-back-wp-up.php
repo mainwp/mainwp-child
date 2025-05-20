@@ -137,14 +137,36 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
             if ( $this->is_backwpup_installed ) {
                 MainWP_Helper::instance()->check_classes_exists( '\BackWPup' );
-                MainWP_Helper::instance()->check_methods( 'get_instance' );
-                \BackWPup::get_instance();
+
+                // Check the backwpup version and use the appropriate method
+                $this->init_backwpup_instance();
 
                 add_action( 'admin_init', array( $this, 'init_download_backup' ) );
                 add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
             }
         } catch ( MainWP_Exception $e ) {
             $this->is_backwpup_installed = false;
+        }
+    }
+
+    /**
+     * Starting an instance backwpup based on the version
+     */
+    private function init_backwpup_instance() {
+        // Check to see if the backwpup version has a get_instance method.
+        if ( method_exists( '\BackWPup', 'get_instance' ) ) {
+            try {
+                // The old version uses get_instance
+                \BackWPup::get_instance();
+            } catch ( \Exception $e ) {
+                // Processing exceptions if any
+            }
+        } else {
+            // The new version does not use get_instance
+            // Check if the backwpup has been initialized
+            if ( class_exists( '\BackWPup' ) && ! defined( 'BACKWPUP_INITIALIZED' ) ) {
+                define( 'BACKWPUP_INITIALIZED', true );
+            }
         }
     }
 
@@ -1127,7 +1149,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         return $result;
     }
 
-     /**
+    /**
      * MainWP BackWPup WP Die ajax handler.
      *
      * @param string $message Error message container.
@@ -1169,7 +1191,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             define( 'DOING_AJAX', true );
         }
 
-        add_filter( 'wp_die_ajax_handler', array( __CLASS__ , 'mainwp_backwpup_wp_die_ajax_handler' ) );
+        add_filter( 'wp_die_ajax_handler', array( __CLASS__, 'mainwp_backwpup_wp_die_ajax_handler' ) );
         remove_filter( 'wp_die_ajax_handler', '_ajax_wp_die_handler' );
 
         ob_start();
