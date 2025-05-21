@@ -1139,13 +1139,6 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function upgrade_wp() {
 
-        /**
-         * The installed version of WordPress.
-         *
-         * @global string $wp_version The installed version of WordPress.
-         */
-        global $wp_version;
-
         MainWP_Helper::get_wp_filesystem();
 
         $information = array();
@@ -1222,15 +1215,14 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         // Check for new versions.
         MainWP_System::wp_mainwp_version_check();
 
-        global $wp_version;
-
+        $wp_ver       = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $core_updates = get_core_updates();
         if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
             foreach ( $core_updates as $core_update ) {
                 if ( 'latest' === $core_update->response ) {
                     $information['upgrade'] = 'SUCCESS';
-                } elseif ( 'upgrade' === $core_update->response && get_locale() === $core_update->locale && version_compare( $wp_version, $core_update->current, '<=' ) ) {
-                    $old_ver     = $wp_version;
+                } elseif ( 'upgrade' === $core_update->response && get_locale() === $core_update->locale && version_compare( $wp_ver, $core_update->current, '<=' ) ) {
+                    $old_ver     = $wp_ver;
                     $current_ver = $core_update->current;
 
                     // Upgrade!
@@ -1256,8 +1248,8 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
             if ( ! isset( $information['upgrade'] ) ) {
                 foreach ( $core_updates as $core_update ) {
-                    if ( 'upgrade' === $core_update->response && version_compare( $wp_version, $core_update->current, '<=' ) ) {
-                        $old_ver     = $wp_version;
+                    if ( 'upgrade' === $core_update->response && version_compare( $wp_ver, $core_update->current, '<=' ) ) {
+                        $old_ver     = $wp_ver;
                         $current_ver = $core_update->current;
                         // Upgrade!
                         $upgrade = false;

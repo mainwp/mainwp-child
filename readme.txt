@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 6.8
+Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 5.4.0.5
+Stable tag: 5.4.0.8
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,24 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.8 - Maintenance Release - 5-20-2025 =
+
+* Fixed: Resolved a critical error occurring when updating or installing BackWPup plugin version 5.2.2. The issue was caused by undocumented changes in the plugin. [(#789)](https://github.com/mainwp/mainwp/issues/789)
+
+= 5.4.0.7 - Maintenance Release - 5-13-2025 =
+
+* Fixed: Resolved caching issue in the `mainwp_security` option to ensure reliable option retrieval. [(#785)](https://github.com/mainwp/mainwp/issues/785)
+* Added: Introduced batching for plugin vulnerability checks to improve efficiency.
+* Added: Implemented scheduled background tasks to continue vulnerability scanning in batches.
+* Added: Enabled external customization of client report data via new filter hooks.
+* Updated: Enhanced WooCommerce Status data retrieval with compatibility for newer versions. [(#780)](https://github.com/mainwp/mainwp/issues/780)
+* Updated: Improved plugin vulnerability checks by updating the NVD NIST API query to better match plugins, increasing the accuracy of vulnerability detection.
+
+= 5.4.0.6 - Maintenance Release - 4-22-2025 =
+
+* Updated: Implemented the `time()` function to capture Sites Changes event timestamps instead of a custom method, resolving display issues caused by timezone differences.
+* Updated: Implemented `wp_get_wp_version()` method to retrieve WordPress version instead of using the global `$wp_version` variable for improved code reliability. (#762)[https://github.com/mainwp/mainwp/issues/762]
 
 = 5.4.0.5 - Maintenance Release - 4-15-2025 =
 

@@ -326,7 +326,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Get Ad Networks from the list.
      *
-     * @param object $list List of scripts.
+     * @param object $lists List of scripts.
      * @return array
      */
     private function get_ad_networks_from_list( $lists ) {
