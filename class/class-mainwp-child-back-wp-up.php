@@ -1858,14 +1858,19 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             );
         }
 
-        // Special handling for Dropbox.
-        if ( 'dest-DROPBOX' === $settings->tab && isset( $_POST['settings']['value']['dropboxdir'] ) ) {
-            $val = wp_unslash( $_POST['settings']['value']['dropboxdir'] );
-            if ( '%do-not-update%' === $val || '%do-not-update%/' === $val ) {
-                $_POST['settings']['value']['dropboxdir'] = \BackWPup_Option::get( $job_id, 'dropboxdir' );
-            }
-        }
+        $job_type_dirs = array(
+            'dest-DROPBOX'   => 'dropboxdir',
+            'dest-FTP'       => 'ftpdir',
+            'dest-S3'        => 's3dir',
+            'dest-MSAZURE'   => 'msazuredir',
+            'dest-SUGARSYNC' => 'sugardir',
+            'dest-RSC'       => 'rscdir',
+            'dest-GDRIVE'    => 'gdrivedir',
+            'dest-HIDRIVE'   => 'hidrive_destination_folder',
+            'dest-ONEDRIVE'  => 'onedrivedir',
+        );
 
+        // Special handling for jobtype-DBDUMP.
         if ( 'jobtype-DBDUMP' === $settings->tab ) {
             if ( ! isset( $_POST['settings']['value']['tabledb'] ) ) {
                 global $wpdb;
@@ -1897,6 +1902,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     foreach ( $setting_value as $key => $val ) {
                         $_POST[ $key ] = $val;
                     }
+                }
+
+                // Special handling for Dir.
+                if ( isset( $job_type_dirs[ $settings->tab ] ) && isset( $settings->value->{$job_type_dirs[ $settings->tab ]} ) ) {
+                    $dir_val = $job_type_dirs[ $settings->tab ];
+                    $this->change_value_do_not_update( $settings->value->$dir_val, $job_id, $dir_val );
                 }
 
                 if ( method_exists( $instance, 'edit_form_post_save' ) ) {
@@ -2259,6 +2270,20 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $is_onboarding = get_site_option( 'backwpup_onboarding', false );
         if ( $is_onboarding ) {
             update_site_option( 'backwpup_onboarding', false );
+        }
+    }
+
+    /**
+     * Method change_value_do_not_update()
+     *
+     * @param string $filed_value Field value.
+     * @param int    $job_id Job ID.
+     * @param string $column_name Column name.
+     */
+    protected function change_value_do_not_update( $filed_value, $job_id, $column_name ) {
+        $val = wp_unslash( $filed_value );
+        if ( '%do-not-update%' === $val || '%do-not-update%/' === $val ) {
+            $_POST[ $column_name ] = \BackWPup_Option::get( $job_id, $column_name );
         }
     }
 }
