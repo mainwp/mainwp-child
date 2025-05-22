@@ -571,7 +571,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      */
     protected function show_hide() {
 
-        $hide = isset( $_POST['show_hide'] ) && ( 'hide' === $_POST['show_hide'] ) ? 'hide' : '';
+        $raw  = isset( $_POST['show_hide'] ) ? wp_unslash( $_POST['show_hide'] ) : '';
+        $hide = ( 'hide' === sanitize_text_field( $raw ) ) ? 'hide' : '';
 
         update_site_option( 'mainwp_backwpup_hide_plugin', $hide );
 
@@ -2071,9 +2072,14 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Response array success, error[].
      */
     protected function save_settings() {
-        $options = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        if ( ! is_array( $options ) || empty( $options ) ) {
-            return array( 'error' => 'INVALID_OPTIONS' );
+        $raw     = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';
+        $decoded = base64_decode( $raw, true );          // strict mode
+        if ( $decoded === false ) {
+            return array( 'error' => 'MALFORMED_BASE64' );
+        }
+        $options = json_decode( $decoded, true );
+        if ( ! is_array( $options ) ) {
+            return array( 'error' => 'INVALID_JSON' );
         }
 
         foreach ( $options as $key_option => $val_option ) {
@@ -2144,7 +2150,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                     break;
                 default:
-                    $option = sanitize_text_field( wp_unslash( $val_option ) );
+                    if ( is_scalar( $val_option ) ) {
+                        $option = sanitize_text_field( wp_unslash( $val_option ) );
+                    } else {
+                        // Preserve complex structures untouched
+                        $option = $val_option;
+                    }
                     break;
             }
             update_site_option( $option_name, $option );
@@ -2211,6 +2222,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 } else {
                     $results['lastrun'] = esc_html__( 'not yet', 'mainwp-child' );
                 }
+                break; // <-- prevents accidental fall-through
             default:
                 break;
         }
