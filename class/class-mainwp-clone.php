@@ -724,48 +724,15 @@ class MainWP_Clone {
             $cloneInstall = new MainWP_Clone_Install( $file );
             $cloneInstall->read_configuration_file();
 
-            $plugins     = get_option( 'mainwp_temp_clone_plugins' );
-            $themes      = get_option( 'mainwp_temp_clone_themes' );
-            $clone_admin = get_option( 'mainwp_temp_clone_admin' );
+            $plugins = get_option( 'mainwp_temp_clone_plugins' );
+            $themes  = get_option( 'mainwp_temp_clone_themes' );
 
             if ( $testFull ) {
                 $cloneInstall->test_download();
             }
             $cloneInstall->remove_config_file();
             $cloneInstall->extract_backup();
-
-            $pubkey       = get_option( 'mainwp_child_pubkey' );
-            $uniqueId     = MainWP_Helper::get_site_unique_id();
-            $uniqueId     = get_option( 'mainwp_child_uniqueId' );
-            $server       = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
-            $nonce        = get_option( 'mainwp_child_nonce' );
-            $sitesToClone = get_option( 'mainwp_child_clone_sites' );
-            $username     = get_option( 'mainwp_child_connected_admin' );
-
-            $cloneInstall->install();
-
-            delete_option( 'mainwp_child_pubkey' );
-            delete_option( 'mainwp_child_uniqueId' );
-            delete_option( 'mainwp_child_server' );
-            delete_option( 'mainwp_child_nonce' );
-            delete_option( 'mainwp_child_clone_sites' );
-            delete_option( 'mainwp_temp_clone_admin' );
-            delete_option( 'mainwp_child_connected_admin' );
-
-            MainWP_Helper::update_option( 'mainwp_child_pubkey', $pubkey, 'yes' );
-            MainWP_Helper::update_option( 'mainwp_child_uniqueId', $uniqueId );
-            MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', $server );
-            MainWP_Helper::update_option( 'mainwp_child_nonce', $nonce );
-            MainWP_Helper::update_option( 'mainwp_child_clone_sites', $sitesToClone );
-            MainWP_Helper::update_option( 'mainwp_child_just_clone_admin', $clone_admin );
-            MainWP_Helper::update_option( 'mainwp_child_connected_admin', $username, 'yes' );
-
-            if ( ! MainWP_Helper::starts_with( basename( $file ), 'download-backup-' ) ) {
-                MainWP_Helper::update_option( 'mainwp_child_restore_permalink', true, 'yes' );
-            } else {
-                MainWP_Helper::update_option( 'mainwp_child_clone_permalink', true, 'yes' );
-            }
-
+            $cloneInstall->install( $file );
             $cloneInstall->update_wp_config();
             $cloneInstall->clean();
             $output = $this->clone_backup_delete_files( $plugins, $themes );
