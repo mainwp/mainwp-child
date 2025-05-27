@@ -308,10 +308,11 @@ class MainWP_Clone_Install {
     /**
      * Database Installation.
      *
+     * @param  mixed $download_file File name download.
      * @return bool true|false.
      * @throws \Exception Error message on failure.
      */
-    public function install() {
+    public function install( $download_file = false ) {
 
         /**
          * Object, providing access to the WordPress database.
@@ -420,7 +421,7 @@ class MainWP_Clone_Install {
         $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_connected_admin"', $username ) ); //phpcs:ignore -- safe query.
         $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_just_clone_admin"', $clone_admin ) ); //phpcs:ignore -- safe query.
 
-        if ( ! MainWP_Helper::starts_with( basename( $file ), 'download-backup-' ) ) {
+        if ( ! empty( $download_file ) && ! MainWP_Helper::starts_with( basename( $download_file ), 'download-backup-' ) ) {
             $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_restore_permalink"', 1 ) ); //phpcs:ignore -- safe query.
         } else {
             $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_clone_permalink"', 1 ) ); //phpcs:ignore -- safe query.
