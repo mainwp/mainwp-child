@@ -732,7 +732,7 @@ class MainWP_Clone {
             }
             $cloneInstall->remove_config_file();
             $cloneInstall->extract_backup();
-            $cloneInstall->install();
+            $cloneInstall->install( $file );
             $cloneInstall->update_wp_config();
             $cloneInstall->clean();
             $output = $this->clone_backup_delete_files( $plugins, $themes );
