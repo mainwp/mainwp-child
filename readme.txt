@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 5.4.0.9
+Stable tag: 5.4.0.10
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,10 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.10 - Maintenance Release - 6-3-2025 =
+
+* Fixed: Restored cache and minified file clearing in Cache Control add-on when using WP Fastest Cache plugin.
 
 = 5.4.0.9 - Maintenance Release - 5-27-2025 =
 
