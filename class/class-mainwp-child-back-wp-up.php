@@ -455,6 +455,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $jobs            = array();
                 if ( ! empty( $jobs_ids ) && is_array( $jobs_ids ) ) {
                     foreach ( $jobs_ids as $key => $job_id ) {
+                        // skip temp job
+                        $temp_job = \BackWPup_Option::get( $job_id, 'tempjob', false );
+                        if ( true === $temp_job ) {
+                            continue;
+                        }
+
                         $jobs[ $key ]['settings']  = \BackWPup_Option::get_job( $job_id, false );
                         $jobs[ $key ]['job_id']    = $job_id;
                         $jobs[ $key ]['is_global'] = in_array( $job_id, $global_jobs_ids ) ? 1 : 0;
@@ -464,7 +470,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $lastbackup                      = MainWP_Utility::get_lasttime_backup( 'backwpup' );
                 $information['syncBackwpupData'] = array(
                     'lastbackup' => $lastbackup,
-                    'jobs'       => $jobs,
+                    'jobs'       => ! empty( $jobs ) ? array_values( $jobs ) : array(),
                 );
             } catch ( MainWP_Exception $e ) {
                 // ok!
@@ -1820,7 +1826,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         update_site_option( 'backwpup_messages', array() );
         $setting_value = $settings->value;
 
-        if ( isset( $setting_value->backupdir ) && empty( $setting_value->backupdir ) ) {
+        if ( isset( $setting_value->backupdir ) ) {
             $backupdir = \BackWPup_Option::get( (int) $job_id, 'backupdir' );
             if ( ! empty( $backupdir ) ) {
                 $setting_value->backupdir = $backupdir;
@@ -2138,6 +2144,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                             $val_option
                         )
                     );
+                    $option = is_array( $option ) ? implode( ',', $option ) : '';
                     break;
                 case 'archiveformat':
                     $jobid = get_site_option( 'backwpup_backup_files_job_id', false );
