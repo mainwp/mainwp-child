@@ -308,10 +308,11 @@ class MainWP_Clone_Install {
     /**
      * Database Installation.
      *
+     * @param  mixed $download_file File name download.
      * @return bool true|false.
      * @throws \Exception Error message on failure.
      */
-    public function install() {
+    public function install( $download_file = false ) {
 
         /**
          * Object, providing access to the WordPress database.
@@ -341,8 +342,6 @@ class MainWP_Clone_Install {
          */
         define( 'WP_DEBUG', false );
 
-        $query     = '';
-        $tableName = '';
         $wpdb->query( 'SET foreign_key_checks = 0' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 
         $protect_content_string = '<?php exit(); ?>';
@@ -407,6 +406,26 @@ class MainWP_Clone_Install {
         $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "home"', $home ) ); //phpcs:ignore -- safe query.
         $this->icit_srdb_replacer( $wpdb->dbh, $this->config['home'], $home, $tables );
         $this->icit_srdb_replacer( $wpdb->dbh, $this->config['siteurl'], $site_url, $tables );
+
+        $pubkey       = get_option( 'mainwp_child_pubkey' );
+        $uniqueId     = MainWP_Helper::get_site_unique_id();
+        $nonce        = get_option( 'mainwp_child_nonce' );
+        $sitesToClone = get_option( 'mainwp_child_clone_sites' );
+        $username     = get_option( 'mainwp_child_connected_admin' );
+        $clone_admin  = get_option( 'mainwp_temp_clone_admin' );
+
+        $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_pubkey"', $pubkey ) ); //phpcs:ignore -- safe query.
+        $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_uniqueId"', $uniqueId ) ); //phpcs:ignore -- safe query.
+        $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_nonce"', $nonce ) ); //phpcs:ignore -- safe query.
+        $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_clone_sites"', $sitesToClone ) ); //phpcs:ignore -- safe query.
+        $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_connected_admin"', $username ) ); //phpcs:ignore -- safe query.
+        $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_just_clone_admin"', $clone_admin ) ); //phpcs:ignore -- safe query.
+
+        if ( ! empty( $download_file ) && ! MainWP_Helper::starts_with( basename( $download_file ), 'download-backup-' ) ) {
+            $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_restore_permalink"', 1 ) ); //phpcs:ignore -- safe query.
+        } else {
+            $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_clone_permalink"', 1 ) ); //phpcs:ignore -- safe query.
+        }
 
         $wpdb->query( 'SET foreign_key_checks = 1' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 
