@@ -51,6 +51,16 @@ if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
     define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
 }
 
+if ( ! defined( 'MAINWP_CHILD_MODULES_DIR' ) ) {
+
+    /**
+     * Define MainWP Child Modules Directory.
+     *
+     * @since 5.4.1
+     */
+    define( 'MAINWP_CHILD_MODULES_DIR', MAINWP_CHILD_PLUGIN_DIR . 'modules/' );
+}
+
 if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
 
     /**
@@ -71,16 +81,19 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
  */
 function mainwp_child_autoload( $class_name ) {
 
-    if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
-        // strip the namespace prefix: MainWP\Child\ .
-        $class_name = substr( $class_name, 13 );
+    if ( \mainwp_child_modules_loader( $class_name ) ) {
+        return;
     }
 
-    $autoload_dir  = \trailingslashit( __DIR__ . '/class' );
-    $autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
+    $autoload_dir = \trailingslashit( __DIR__ . '/class' );
 
-    if ( file_exists( $autoload_path ) ) {
-        require_once $autoload_path; // NOSONAR - WP compatible.
+    if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
+        // strip the namespace prefix: MainWP\Child\ .
+        $class_name    = substr( $class_name, 13 );
+        $autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
+        if ( file_exists( $autoload_path ) ) {
+            require_once $autoload_path; // NOSONAR - WP compatible.
+        }
     }
 }
 
@@ -93,3 +106,8 @@ require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'funct
 $mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
 register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );
 register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );
+
+$changes_logs_mod_file = MAINWP_CHILD_PLUGIN_DIR . 'modules' . DIRECTORY_SEPARATOR . 'changes-logs' . DIRECTORY_SEPARATOR . 'changes-logs.php';
+if ( file_exists( $changes_logs_mod_file ) ) {
+    include_once $changes_logs_mod_file; // NOSONAR - ok.
+}
