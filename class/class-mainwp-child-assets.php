@@ -76,23 +76,6 @@ class MainWP_Child_Assets {
      * This allows us to only enqueue them when needed.
      */
     public function register_assets() {
-        // Register main CSS file.
-        wp_register_style(
-            'mainwp-child-style',
-            MAINWP_CHILD_URL . 'assets/css/mainwp-child.css',
-            array(),
-            MainWP_Child::$version
-        );
-
-        // Register main JavaScript file.
-        wp_register_script(
-            'mainwp-child-script',
-            MAINWP_CHILD_URL . 'assets/js/mainwp-child.js',
-            array( 'jquery' ),
-            MainWP_Child::$version,
-            true
-        );
-
         // Register jQuery UI styles only if needed.
         global $wp_scripts;
         $jquery_ui_core = $wp_scripts->query( 'jquery-ui-core' );
@@ -134,20 +117,11 @@ class MainWP_Child_Assets {
     public function enqueue_assets( $hook ) {
         // Only load assets on MainWP Child pages.
         if ( $this->is_mainwp_page( $hook ) ) {
-            wp_enqueue_style( 'mainwp-child-style' );
-            wp_enqueue_script( 'mainwp-child-script' );
-
-            // Enqueue jQuery UI scripts and styles for clone page.
-            // This is a read-only check for admin page detection, not processing user input for database operations.
-            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-            $page_param = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
-            if ( 'mainwp-clone' === $page_param ) {
-                wp_enqueue_script( 'jquery-ui-tooltip' );
-                wp_enqueue_script( 'jquery-ui-autocomplete' );
-                wp_enqueue_script( 'jquery-ui-progressbar' );
-                wp_enqueue_script( 'jquery-ui-dialog' );
-                wp_enqueue_style( 'jquery-ui-style' );
-            }
+            wp_enqueue_script( 'jquery-ui-tooltip' );
+            wp_enqueue_script( 'jquery-ui-autocomplete' );
+            wp_enqueue_script( 'jquery-ui-progressbar' );
+            wp_enqueue_script( 'jquery-ui-dialog' );
+            wp_enqueue_style( 'jquery-ui-style' );
         }
     }
 
