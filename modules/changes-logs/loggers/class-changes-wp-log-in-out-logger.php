@@ -243,26 +243,6 @@ class Changes_WP_Log_In_Out_Logger {
     }
 
     /**
-     * Login failure limit count.
-     *
-     * @return int
-     *
-     */
-    // protected static function get_login_failure_log_limit() {
-    // return Changes_Settings_Helper::get_option_value( 'log-failed-login-limit', 10 );
-    // }
-
-    /**
-     * Non-existing Login failure limit count.
-     *
-     * @return int
-     *
-     */
-    protected static function get_visitor_login_failure_log_limit() {
-        return intval( Changes_Settings_Helper::get_option_value( 'log-visitor-failed-login-limit', 10 ) );
-    }
-
-    /**
      * Expiration of the transient saved in the WP database.
      *
      * @return integer Time until expiration in seconds from now
@@ -271,32 +251,6 @@ class Changes_WP_Log_In_Out_Logger {
     protected static function get_login_failure_expiration() {
         return 12 * 60 * 60;
     }
-
-    /**
-     * Check failure limit.
-     *
-     * @param string  $ip      - IP address.
-     * @param integer $site_id - Blog ID.
-     * @param WP_User $user    - User object.
-     *
-     * @return boolean - Passed limit true|false.
-     *
-     */
-    // protected static function is_past_login_failure_limit( $ip, $site_id, $user ) {
-    // if ( $user ) {
-    // if ( -1 === (int) self::get_login_failure_log_limit() ) {
-    // return false;
-    // } else {
-    // $data_known = Changes_WP_Helper::get_transient( self::TRANSIENT_FAILEDLOGINS );
-    // return ( false !== $data_known ) && isset( $data_known[ $site_id . ':' . $user->ID . ':' . $ip ] ) && ( $data_known[ $site_id . ':' . $user->ID . ':' . $ip ] >= self::get_login_failure_log_limit() );
-    // }
-    // } elseif ( -1 === (int) self::get_visitor_login_failure_log_limit() ) {
-    // return false;
-    // } else {
-    // $data_unknown = Changes_WP_Helper::get_transient( self::TRANSIENT_FAILEDLOGINS_UNKNOWN );
-    // return ( false !== $data_unknown ) && isset( $data_unknown[ $site_id . ':' . $ip ] ) && ( $data_unknown[ $site_id . ':' . $ip ] >= self::get_visitor_login_failure_log_limit() );
-    // }
-    // }
 
     /**
      * Increment failure limit.

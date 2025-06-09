@@ -43,9 +43,9 @@ class MainWP_Child_Changes_Logs {
      * @since 5.4.1
      */
     public static function get_changes_data() {
-        $params = ! empty( $_POST['params_logs'] ) && is_string( $_POST['params_logs'] ) ? json_decode( wp_unslash( $_POST['params_logs'] ), true ) : false; //phpcs:ignore -- ok.
+        $params = ! empty( $_POST['params_logs'] ) && is_array( $_POST['params_logs'] ) ?  $_POST['params_logs'] : array(); //phpcs:ignore -- ok.
 
-        if ( ! is_array( $params ) ) {
+        if ( empty( $params ) ) {
             return '';
         }
 
