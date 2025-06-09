@@ -1191,16 +1191,23 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      */
     protected function ajax_working() {
 
-        if ( ! isset( $_POST['settings'] ) || ! is_array( $_POST['settings'] ) || ! isset( $_POST['settings']['logfile'] ) || ! isset( $_POST['settings']['logpos'] ) ) {
+        if ( ! isset( $_POST['settings'] ) || ! is_array( $_POST['settings'] )
+        || ! isset( $_POST['settings']['logfile'] ) || ! isset( $_POST['settings']['logpos'] )
+        || ! isset( $_POST['settings']['job_id'] )
+        ) {
             return array( 'error' => esc_html__( 'Missing logfile or logpos.', 'mainwp-child' ) );
         }
 
-        $_GET['logfile']      = isset( $_POST['settings']['logfile'] ) ? wp_unslash( $_POST['settings']['logfile'] ) : '';
-        $_GET['logpos']       = isset( $_POST['settings']['logpos'] ) ? wp_unslash( $_POST['settings']['logpos'] ) : '';
+        // Get job log file.
+        $job_id      = $_POST['settings']['job_id'] ?? 0;
+        $job_logfile = \BackWPup_Option::get( $job_id, 'logfile' );
+        $logfile     = basename( $job_logfile );
+
+        $_GET['logfile']      = ! empty( $_POST['settings']['logfile'] ) ? wp_unslash( $_POST['settings']['logfile'] ) : $logfile;
+        $_GET['logpos']       = ! empty( $_POST['settings']['logpos'] ) && 0 !== intval( $_POST['settings']['logpos'] ) ? wp_unslash( $_POST['settings']['logpos'] ) : '';
         $_REQUEST['_wpnonce'] = wp_create_nonce( 'backwpupworking_ajax_nonce' );
 
         $this->wp_list_table_dependency();
-
         // We do this in order to not die when using wp_die.
         if ( ! defined( 'DOING_AJAX' ) ) {
 
@@ -1218,14 +1225,14 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         ob_start();
         \BackWPup_Page_Jobs::ajax_working();
-
         $output = ob_get_contents();
-
         ob_end_clean();
-
+        // Get last backup time.
+        $lastbackup = MainWP_Utility::get_lasttime_backup( 'backwpup' );
         return array(
-            'success'  => 1,
-            'response' => $output,
+            'success'    => 1,
+            'response'   => $output,
+            'lastbackup' => $lastbackup,
         );
     }
 
@@ -1268,16 +1275,19 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => '\BackWPup_Page_Jobs::load fail: ' . $output['error'] );
         } else {
             $job_object = \BackWPup_Job::get_working_data();
+            $lastbackup = MainWP_Utility::get_lasttime_backup( 'backwpup' );
             if ( is_object( $job_object ) ) {
                 return array(
-                    'success'  => 1,
-                    'response' => $output['message'],
-                    'logfile'  => basename( $job_object->logfile ),
+                    'success'    => 1,
+                    'response'   => $output['message'],
+                    'logfile'    => basename( $job_object->logfile ),
+                    'lastbackup' => $lastbackup,
                 );
             } else {
                 return array(
-                    'success'  => 1,
-                    'response' => $output['message'],
+                    'success'    => 1,
+                    'response'   => $output['message'],
+                    'lastbackup' => $lastbackup,
                 );
             }
         }
@@ -2211,7 +2221,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             case 'jobs':
                 $results = \BackWPup_Option::get_job( $id );
                 if ( \BackWPup_Option::get( $id, 'activetype' ) === 'wpcron' ) {
-                    $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'id' => $id ) );
+                    $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'arg' => $id ) );
                     if ( $nextrun + ( get_option( 'gmt_offset' ) * 3600 ) ) {
                         $results['nextrun'] = sprintf( esc_html__( '%1$s at %2$s by WP-Cron', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $nextrun, true ), date_i18n( get_option( 'time_format' ), $nextrun, true ) );
                     } else {
@@ -2298,6 +2308,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string $filed_value Field value.
      * @param int    $job_id Job ID.
      * @param string $column_name Column name.
+     *
+     * @uses  \BackWPup_Option::get()
      */
     protected function change_value_do_not_update( $filed_value, $job_id, $column_name ) {
         $val = wp_unslash( $filed_value );
