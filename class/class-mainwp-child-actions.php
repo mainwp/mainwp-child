@@ -775,7 +775,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         }
 
         $agent     = $this->get_current_agent();
-        $meta_data = array(
+
+        $user_meta = array(
             'wp_user_id'      => (int) $user_id,
             'display_name'    => (string) $this->get_display_name( $user ),
             'role'            => (string) $role,
@@ -789,10 +790,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             if ( is_callable( 'posix_getuid' ) && is_callable( 'posix_getpwuid' ) ) {
                 $uid                           = posix_getuid();
                 $user_info                     = posix_getpwuid( $uid );
-                $meta_data['system_user_id']   = (int) $uid;
-                $meta_data['system_user_name'] = (string) $user_info['name'];
-                if ( ! empty( $meta_data['system_user_name'] ) ) {
-                    $system_user = $meta_data['system_user_name'];
+                $user_meta['system_user_id']   = (int) $uid;
+                $user_meta['system_user_name'] = (string) $user_info['name'];
+                if ( ! empty( $user_meta['system_user_name'] ) ) {
+                    $system_user = $user_meta['system_user_name'];
                 }
             }
         } elseif ( 'wp_cron' === $agent ) {
@@ -803,7 +804,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             $userlogin = $system_user;
         }
 
-        $meta_data['action_user'] = (string) $userlogin;
+        $user_meta['action_user'] = (string) $userlogin;
 
         // Prevent any meta with null values from being logged.
         $extra_info = array_filter(
@@ -815,11 +816,11 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Add user meta to Stream meta.
         $other_meta = array(
-            'user_meta'  => $meta_data,
+            'user_meta'  => $user_meta,
             'extra_info' => $extra_info,
         );
 
-        $created = time();
+        $created = microtime( true );
 
         $action = (string) $action;
 

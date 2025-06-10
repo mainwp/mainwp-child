@@ -334,6 +334,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( $this->is_sync_data( 'child_site_actions_data' ) ) {
             $information['child_site_actions_data'] = MainWP_Child_Actions::get_actions_data();
+            $information['changes_logs_data']       = MainWP_Child_Changes_Logs::get_changes_data();
         }
 
         if ( isset( $_POST['user'] ) ) {
