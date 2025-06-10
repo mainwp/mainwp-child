@@ -212,7 +212,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
         $do_purge = get_option( 'mainwp_child_auto_purge_cache' );
         // If Cache Control is enabled, run the cache purge.
-        if ( 1 === $do_purge || '1' === $do_purge ) {
+        if ( 1 === $do_purge || '1' === $do_purge || 'true' === $bulk ) {
 
             // Set information array.
             $information = array();
@@ -828,7 +828,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         if ( class_exists( 'WpFastestCache' ) ) {
 
             // Clear the Cache after update.
-            do_action( 'wpfc_clear_all_cache' );
+            do_action( 'wpfc_clear_all_cache', true );
 
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
