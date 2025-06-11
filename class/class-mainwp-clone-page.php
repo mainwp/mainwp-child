@@ -738,7 +738,7 @@ class MainWP_Clone_Page {
                 cloneInitiateBackupDownload( pSiteId, resp.url, resp.size );
             };
 
-            cloneInitiateExtractBackup = function ( file ) {
+            cloneInitiateExtractBackup = function ( file, retryNum ) {
                 if ( file == undefined ) file = '';
 
                 updateClonePopup( translations['extracting_backup'] );
@@ -753,7 +753,17 @@ class MainWP_Clone_Page {
                     data: data,
                     success: function ( resp ) {
                         if ( resp.error ) {
-                            handleCloneError( resp );
+                            if( retryNum == undefined ){
+                                retryNum = 0;
+                            }
+                            retryNum++;
+                            if( retryNum < 3 ){
+                                setTimeout( function () {
+                                    cloneInitiateExtractBackup(file, retryNum);
+                                }, 1000 );
+                            } else {
+                                handleCloneError( resp );
+                            }
                             return;
                         }
 
