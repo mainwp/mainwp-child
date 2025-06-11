@@ -156,14 +156,14 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         // Check to see if the backwpup version has a get_instance method.
         if ( method_exists( '\BackWPup', 'get_instance' ) ) {
             try {
-                // The old version uses get_instance
+                // The old version uses get_instance.
                 \BackWPup::get_instance();
             } catch ( \Exception $e ) {
-                // Processing exceptions if any
+                // Processing exceptions if any.
             }
         } else {
-            // The new version does not use get_instance
-            // Check if the backwpup has been initialized
+            // The new version does not use get_instance.
+            // Check if the backwpup has been initialized.
             if ( class_exists( '\BackWPup' ) && ! defined( 'BACKWPUP_INITIALIZED' ) ) {
                 define( 'BACKWPUP_INITIALIZED', true );
             }
@@ -447,15 +447,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     public function sync_others_data( $information, $data = array() ) {
         if ( isset( $data['syncBackwpupData'] ) && $data['syncBackwpupData'] ) {
             try {
-                $global_jobs_ids = array(
-                    get_site_option( 'backwpup_backup_files_job_id' ),
-                    get_site_option( 'backwpup_backup_database_job_id' ),
-                );
+                $global_jobs_ids = $this->get_all_global_backwpup_job_ids();
                 $jobs_ids        = \BackWPup_Option::get_job_ids();
                 $jobs            = array();
                 if ( ! empty( $jobs_ids ) && is_array( $jobs_ids ) ) {
                     foreach ( $jobs_ids as $key => $job_id ) {
-                        // skip temp job
+                        // Skip temp job.
                         $temp_job = \BackWPup_Option::get( $job_id, 'tempjob', false );
                         if ( true === $temp_job ) {
                             continue;
@@ -924,9 +921,13 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $output        = new \BackWPup_Page_Backups();
                 $output->items = array();
 
-                $job_ids = isset( $_POST['settings']['job_ids'] ) ? array_map( 'intval', wp_unslash( $_POST['settings']['job_ids'] ) ) : '';
-                $jobids  = \BackWPup_Option::get_job_ids();
-                $jobids  = array_filter(
+                $is_global = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;
+                $job_ids   = isset( $_POST['settings']['job_ids'] ) ? array_map( 'intval', wp_unslash( $_POST['settings']['job_ids'] ) ) : '';
+                if ( 0 === $is_global ) {
+                    $job_ids = $this->get_all_global_backwpup_job_ids();
+                }
+                $jobids = \BackWPup_Option::get_job_ids();
+                $jobids = array_filter(
                     $jobids,
                     function ( $job_id ) use ( $job_ids ) {
                         return in_array( $job_id, $job_ids, true );
@@ -938,7 +939,6 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                         if ( \BackWPup_Option::get( $jobid, 'backuptype' ) === 'sync' ) {
                             continue;
                         }
-
                         $dests = \BackWPup_Option::get( $jobid, 'destinations' );
                         foreach ( $dests as $dest ) {
                             $dest_class = \BackWPup::get_destination( $dest );
@@ -1708,6 +1708,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         // Disable onboarding.
         $this->disable_onboarding();
 
+        // Save Gloal Job ID.
+        $this->save_global_job_id( $new_job_id );
+
         return array(
             'success' => 1,
             'job_id'  => $new_job_id,
@@ -1724,8 +1727,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @uses BackWPup_Option::update()
      *
-     * @param $post_data Post data to save.
-     * @param $id Post ID.
+     * @param mixed $post_data Post data to save.
+     * @param mixed $id Post ID.
      */
     public function edit_form_post_save( $post_data, $id ) { // phpcs:ignore -- NOSONAR - complex.
         // Parse and save files to exclude.
@@ -2316,6 +2319,44 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         if ( '%do-not-update%' === $val || '%do-not-update%/' === $val ) {
             $_POST[ $column_name ] = \BackWPup_Option::get( $job_id, $column_name );
         }
+    }
+
+    /**
+     * Method save_global_job_id()
+     *
+     * @param mixed $job_id Job ID.
+     * @return void
+     */
+    protected function save_global_job_id( $job_id ): void {
+        $global_job = get_site_option( 'backwpup_global_job_id', array() );
+        if ( ! isset( $global_job[ $job_id ] ) ) {
+            $global_job[ $job_id ] = intval( $job_id );
+            update_site_option( 'backwpup_global_job_id', $global_job );
+        }
+    }
+
+    /**
+     * Method get_all_global_backwpup_job_ids()
+     * Take the list of all global jobs.
+     *
+     * @return array List of all global jobs.
+     */
+    protected function get_all_global_backwpup_job_ids() {
+        $backup_files_id    = (int) get_site_option( 'backwpup_backup_files_job_id' );
+        $backup_database_id = (int) get_site_option( 'backwpup_backup_database_job_id' );
+
+        $global_job     = get_site_option( 'backwpup_global_job_id', array() );
+        $global_job_ids = is_array( $global_job ) ? array_values( $global_job ) : array();
+
+        // Returns the only ID array, eliminates Null.
+        return array_unique(
+            array_filter(
+                array_merge(
+                    array( $backup_files_id, $backup_database_id ),
+                    $global_job_ids
+                )
+            )
+        );
     }
 }
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
