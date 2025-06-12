@@ -904,6 +904,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
                 $log_folder = \BackWPup_File::get_absolute_path( $log_folder );
                 $log_folder = untrailingslashit( $log_folder );
+                $is_global  = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;
 
                 if ( ! is_dir( $log_folder ) ) {
                     return array(
@@ -912,8 +913,21 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     );
                 }
                 update_user_option( get_current_user_id(), 'backwpuplogs_per_page', 99999999 );
+                $global_ids = $this->get_all_global_backwpup_job_ids();
+
                 $output = new \BackWPup_Page_Logs();
                 $output->prepare_items();
+                $logs          = array_filter(
+                    $output->items,
+                    function ( $log ) use ( $global_ids, $is_global ) {
+                        if ( 0 === $is_global ) {
+                            return in_array( intval( $log['jobid'] ), $global_ids, true );
+                        } else {
+                            return ! in_array( intval( $log['jobid'] ), $global_ids, true );
+                        }
+                    }
+                );
+                $output->items = $logs ?? array();
                 break;
 
             case 'backups':
