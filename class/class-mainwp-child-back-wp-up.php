@@ -921,18 +921,19 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $output        = new \BackWPup_Page_Backups();
                 $output->items = array();
 
-                $is_global = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;
-                $job_ids   = isset( $_POST['settings']['job_ids'] ) ? array_map( 'intval', wp_unslash( $_POST['settings']['job_ids'] ) ) : '';
+                $is_global  = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;
+                $global_ids = $this->get_all_global_backwpup_job_ids();
                 if ( 0 === $is_global ) {
-                    $job_ids = $this->get_all_global_backwpup_job_ids();
+                    $jobids = $global_ids;
+                } else {
+                    $jobids = \BackWPup_Option::get_job_ids();
+                    $jobids = array_filter(
+                        $jobids,
+                        function ( $job_id ) use ( $global_ids ) {
+                            return ! in_array( $job_id, $global_ids, true );
+                        }
+                    );
                 }
-                $jobids = \BackWPup_Option::get_job_ids();
-                $jobids = array_filter(
-                    $jobids,
-                    function ( $job_id ) use ( $job_ids ) {
-                        return in_array( $job_id, $job_ids, true );
-                    }
-                );
 
                 if ( ! empty( $jobids ) ) {
                     foreach ( $jobids as $jobid ) {
@@ -1974,6 +1975,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $this->disable_onboarding();
         // Auto Enable the job.
         \BackWPup_Job::enable_job( $job_id );
+
         return array(
             'success' => 1,
             'job_id'  => $job_id,
