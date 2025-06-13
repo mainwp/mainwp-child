@@ -920,10 +920,13 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $logs          = array_filter(
                     $output->items,
                     function ( $log ) use ( $global_ids, $is_global ) {
-                        if ( 0 === $is_global ) {
-                            return in_array( intval( $log['jobid'] ), $global_ids, true );
-                        } else {
-                            return ! in_array( intval( $log['jobid'] ), $global_ids, true );
+                        $temp_job = (bool) \BackWPup_Option::get( $log['jobid'], 'tempjob', false );
+                        if ( ! $temp_job ) {
+                            if ( 0 === $is_global ) {
+                                return in_array( intval( $log['jobid'] ), $global_ids, true );
+                            } else {
+                                return ! in_array( intval( $log['jobid'] ), $global_ids, true );
+                            }
                         }
                     }
                 );
@@ -941,11 +944,16 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $jobids = $global_ids;
                 } else {
                     $jobids = \BackWPup_Option::get_job_ids();
-                    $jobids = array_filter(
-                        $jobids,
-                        function ( $job_id ) use ( $global_ids ) {
-                            return ! in_array( $job_id, $global_ids, true );
-                        }
+                    $jobids = array_values(
+                        array_filter(
+                            $jobids,
+                            function ( $job_id ) use ( $global_ids ) {
+                                $temp_job = \BackWPup_Option::get( $job_id, 'tempjob', false );
+                                if ( ! $temp_job ) {
+                                    return ! in_array( $job_id, $global_ids, true );
+                                }
+                            }
+                        )
                     );
                 }
 
