@@ -1672,6 +1672,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
         $post_settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';
         $settings      = ! empty( $post_settings ) ? json_decode( $post_settings ) : null;
+        $is_global     = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;
 
         if ( ! is_object( $settings ) ) {
             return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );
@@ -1733,7 +1734,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $this->disable_onboarding();
 
         // Save Gloal Job ID.
-        $this->save_global_job_id( $new_job_id );
+        if ( 0 === $is_global ) {
+            $this->save_global_job_id( $new_job_id );
+        }
 
         return array(
             'success' => 1,
