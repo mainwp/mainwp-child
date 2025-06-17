@@ -54,12 +54,4 @@
 	</rule>
 
 	<rule ref="Generic.WhiteSpace.DisallowTabIndent" />
-
-	<rule ref="Generic.Formatting.MultipleStatementAlignment">
-		<properties>
-			<property name="maxPadding" value="1" />
-			<property name="error" value="false" />
-		</properties>
-	</rule>
-
 </ruleset>
