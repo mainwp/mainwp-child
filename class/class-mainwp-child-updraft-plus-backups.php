@@ -2246,10 +2246,8 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
          */
         global $updraftplus;
 
-        $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
-
-
-        include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
+        // Get WordPress version using MainWP_Child_Server_Information_Base.
+        $wp_version = \MainWP\Child\MainWP_Child_Server_Information_Base::get_wordpress_version();
 
         $updraft_dir = $updraftplus->backups_dir_location();
 

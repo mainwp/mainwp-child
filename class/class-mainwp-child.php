@@ -189,14 +189,17 @@ class MainWP_Child {
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             MainWP_Child_WP_CLI_Command::init();
         }
+    }
 
         // Initiate Branding Options - essential for disconnected sites.
         if ( ! get_option( 'mainwp_child_pubkey' ) ) {
             MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
         }
+    }
 
         // Support for cron jobs.
         $this->setup_cron_jobs();
+    }
     }
 
     /**
@@ -208,6 +211,7 @@ class MainWP_Child {
 
         // Essential filters for security.
         add_filter( 'mainwp_child_create_action_nonce', array( MainWP_Utility::class, 'hook_create_nonce_action' ), 10, 2 );
+        // Note: Filter name has a typo ('acion' instead of 'action') but kept for backward compatibility.
         add_filter( 'mainwp_child_verify_authed_acion_nonce', array( MainWP_Utility::class, 'hook_verify_authed_action_nonce' ), 10, 2 );
         add_filter( 'mainwp_child_get_ping_nonce', array( MainWP_Utility::class, 'hook_get_ping_nonce' ), 10, 2 );
         add_filter( 'mainwp_child_get_encrypted_option', array( MainWP_Child_Keys_Manager::class, 'hook_get_encrypted_option' ), 10, 3 );
@@ -517,8 +521,8 @@ class MainWP_Child {
         }
 
         $mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $function        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : null;
-        $nonce           = MainWP_System::instance()->validate_params( 'nonce' );
+        $function = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : null;
+        $nonce = MainWP_System::instance()->validate_params( 'nonce' );
 
         // phpcs:enable
 
@@ -529,8 +533,6 @@ class MainWP_Child {
         if ( ! MainWP_Connect::instance()->parse_init_auth( $auth ) ) {
             return;
         }
-
-        $this->parse_init_extensions();
 
         /**
          * WordPress submenu no privilege.
@@ -686,7 +688,7 @@ class MainWP_Child {
             }
         }
 
-        $to_delete   = array(
+        $to_delete = array(
             'mainwp_child_pubkey',
             'mainwp_child_nonce',
             'mainwp_security',
@@ -715,7 +717,7 @@ class MainWP_Child {
      * @return array
      */
     public function plugin_settings_link( $actions ) {
-        $href          = admin_url( 'options-general.php?page=mainwp_child_tab' );
+        $href = admin_url( 'options-general.php?page=mainwp_child_tab' );
         $settings_link = '<a href="' . $href . '">' . __( 'Settings' ) . '</a>'; // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
         array_unshift( $actions, $settings_link );
 

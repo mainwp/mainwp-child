@@ -179,10 +179,10 @@ class MainWP_Child_Links_Checker {
      * @return array Return $information response array.
      */
     public function save_settings() {
-        $information     = array();
+        $information = array();
         $check_threshold = isset( $_POST['check_threshold'] ) ? intval( wp_unslash( $_POST['check_threshold'] ) ) : 0; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
         if ( $check_threshold > 0 ) {
-            $conf                             = blc_get_configuration();
+            $conf = blc_get_configuration();
             $conf->options['check_threshold'] = $check_threshold;
             $conf->save_options();
         }
@@ -197,7 +197,7 @@ class MainWP_Child_Links_Checker {
      */
     public function force_recheck() {
         $this->initiate_recheck();
-        $information           = array();
+        $information = array();
         $information['result'] = 'SUCCESS';
 
         return $information;
@@ -329,7 +329,7 @@ class MainWP_Child_Links_Checker {
      */
     public function get_sync_data() {
         $information = array();
-        $data        = $this->get_count_links();
+        $data = $this->get_count_links();
         if ( is_array( $data ) ) {
             $information['data'] = $data;
         }
@@ -369,7 +369,7 @@ class MainWP_Child_Links_Checker {
         $total = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
 
         $max_results = isset( $_POST['max_results'] ) ? intval( wp_unslash( $_POST['max_results'] ) ) : 50; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
-        $offset      = isset( $_POST['offset'] ) ? intval( wp_unslash( $_POST['offset'] ) ) : 0; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
+        $offset = isset( $_POST['offset'] ) ? intval( wp_unslash( $_POST['offset'] ) ) : 0; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
         $params = array(
             array( 'load_instances' => true ),
@@ -399,9 +399,9 @@ class MainWP_Child_Links_Checker {
         if ( $total > $offset + $max_results ) {
             $information['sync_offset'] = $offset + $max_results;
         } else {
-            $information['last_sync']  = 1;
+            $information['last_sync'] = 1;
             $information['total_sync'] = $total_sync;
-            $information['data']       = $this->get_count_links();
+            $information['data'] = $this->get_count_links();
         }
 
         $information['result'] = 'success';
@@ -434,16 +434,16 @@ class MainWP_Child_Links_Checker {
         MainWP_Helper::instance()->check_classes_exists( '\blcLinkQuery' );
         MainWP_Helper::instance()->check_methods( '\blcLinkQuery', 'getInstance' );
 
-        $data           = array();
+        $data = array();
         $blc_link_query = \blcLinkQuery::getInstance();
 
         MainWP_Helper::instance()->check_methods( $blc_link_query, 'get_filter_links' );
 
-        $data['broken']    = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
+        $data['broken'] = $blc_link_query->get_filter_links( 'broken', array( 'count_only' => true ) );
         $data['redirects'] = $blc_link_query->get_filter_links( 'redirects', array( 'count_only' => true ) );
         $data['dismissed'] = $blc_link_query->get_filter_links( 'dismissed', array( 'count_only' => true ) );
-        $data['warning']   = $blc_link_query->get_filter_links( 'warning', array( 'count_only' => true ) );
-        $data['all']       = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
+        $data['warning'] = $blc_link_query->get_filter_links( 'warning', array( 'count_only' => true ) );
+        $data['all'] = $blc_link_query->get_filter_links( 'all', array( 'count_only' => true ) );
         return $data;
     }
 
@@ -524,7 +524,7 @@ class MainWP_Child_Links_Checker {
                     }
                 }
                 $extra_info['days_broken'] = $days_broken;
-                $instances                 = false;
+                $instances = false;
 
                 $get_link = new \blcLink( intval( $link->link_id ) );
                 if ( $get_link->valid() ) {
@@ -537,28 +537,28 @@ class MainWP_Child_Links_Checker {
 
                     MainWP_Helper::instance()->check_methods( $first_instance, array( 'ui_get_link_text', 'get_container', 'is_link_text_editable', 'is_url_editable' ) );
 
-                    $new_link->link_text          = $first_instance->ui_get_link_text();
+                    $new_link->link_text = $first_instance->ui_get_link_text();
                     $extra_info['count_instance'] = count( $instances );
-                    $container                    = $first_instance->get_container();
+                    $container = $first_instance->get_container();
 
                     if ( ! empty( $container ) ) {
                         if ( true === MainWP_Helper::instance()->check_properties( $first_instance, array( 'container_field' ), true ) ) {
                             if ( true === MainWP_Helper::instance()->check_properties( $container, array( 'container_type', 'container_id' ), true ) ) {
                                 $extra_info['container_type'] = $container->container_type;
-                                $extra_info['container_id']   = $container->container_id;
-                                $extra_info['source_data']    = $this->ui_get_source( $container, $first_instance->container_field );
+                                $extra_info['container_id'] = $container->container_id;
+                                $extra_info['source_data'] = $this->ui_get_source( $container, $first_instance->container_field );
                             }
                         }
                     }
 
-                    $can_edit_text           = false;
-                    $can_edit_url            = false;
-                    $editable_link_texts     = array();
+                    $can_edit_text = false;
+                    $can_edit_url = false;
+                    $editable_link_texts = array();
                     $non_editable_link_texts = array();
 
                     foreach ( $instances as $instance ) {
                         if ( $instance->is_link_text_editable() ) {
-                            $can_edit_text                               = true;
+                            $can_edit_text = true;
                             $editable_link_texts[ $instance->link_text ] = true;
                         } else {
                             $non_editable_link_texts[ $instance->link_text ] = true;
@@ -569,23 +569,23 @@ class MainWP_Child_Links_Checker {
                         }
                     }
 
-                    $link_texts     = $can_edit_text ? $editable_link_texts : $non_editable_link_texts;
+                    $link_texts = $can_edit_text ? $editable_link_texts : $non_editable_link_texts;
                     $data_link_text = '';
                     if ( count( $link_texts ) === 1 ) {
                         // All instances have the same text - use it.
-                        $link_text      = key( $link_texts );
+                        $link_text = key( $link_texts );
                         $data_link_text = esc_attr( $link_text );
                     }
                     $extra_info['data_link_text'] = $data_link_text;
-                    $extra_info['can_edit_url']   = $can_edit_url;
-                    $extra_info['can_edit_text']  = $can_edit_text;
+                    $extra_info['can_edit_url'] = $can_edit_url;
+                    $extra_info['can_edit_text'] = $can_edit_text;
                 } else {
-                    $new_link->link_text          = '';
+                    $new_link->link_text = '';
                     $extra_info['count_instance'] = 0;
                 }
                 $new_link->extra_info = base64_encode( serialize( $extra_info ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-                $new_link->synced     = 1;
-                $return[]             = $new_link;
+                $new_link->synced = 1;
+                $return[] = $new_link;
             }
         } else {
             return array();
@@ -618,7 +618,7 @@ class MainWP_Child_Links_Checker {
 
         // Validate the new URL.
         $new_url = isset( $_POST['new_url'] ) ? stripslashes( sanitize_text_field( wp_unslash( $_POST['new_url'] ) ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
-        $parsed  = parse_url( $new_url );
+        $parsed = parse_url( $new_url );
         if ( ! $parsed ) {
             $information['error'] = 'URLINVALID'; // Oops, the new URL is invalid!
             return $information;
@@ -636,14 +636,14 @@ class MainWP_Child_Links_Checker {
 
             return $information;
         } else {
-            $new_link     = $rez['new_link'];
-            $new_status   = $new_link->analyse_status();
+            $new_link = $rez['new_link'];
+            $new_status = $new_link->analyse_status();
             $ui_link_text = null;
             if ( isset( $new_text ) ) {
                 $instances = $new_link->get_instances();
                 if ( ! empty( $instances ) ) {
                     $first_instance = reset( $instances );
-                    $ui_link_text   = $first_instance->ui_get_link_text();
+                    $ui_link_text = $first_instance->ui_get_link_text();
                 }
             }
 
@@ -725,7 +725,7 @@ class MainWP_Child_Links_Checker {
      */
     private function set_link_dismissed() {
         $information = array();
-        $dismiss     = isset( $_POST['dismiss'] ) ? sanitize_text_field( wp_unslash( $_POST['dismiss'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
+        $dismiss = isset( $_POST['dismiss'] ) ? sanitize_text_field( wp_unslash( $_POST['dismiss'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification.Missing --- verified.
 
         if ( ! current_user_can( 'edit_others_posts' ) ) {
             $information['error'] = 'NOTALLOW';
@@ -785,14 +785,14 @@ class MainWP_Child_Links_Checker {
             }
 
             // Make it appear "not broken".
-            $link->broken             = false;
-            $link->false_positive     = true;
+            $link->broken = false;
+            $link->false_positive = true;
             $link->last_check_attempt = time();
-            $link->log                = esc_html__( 'This link was manually marked as working by the user.', 'mainwp-child' );
+            $link->log = esc_html__( 'This link was manually marked as working by the user.', 'mainwp-child' );
 
             // Save the changes.
             if ( $link->save() ) {
-                $information['status']             = 'OK';
+                $information['status'] = 'OK';
                 $information['last_check_attempt'] = $link->last_check_attempt;
             } else {
                 $information['error'] = 'COULDNOTMODIFY'; // Oops, couldn't modify the link.

@@ -89,11 +89,11 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
             $opts['contact_label'] = esc_html__( 'Contact Support', 'mainwp-child' );
         }
 
-        $disconnected       = isset( $opts['branding_disconnected'] ) ? $opts['branding_disconnected'] : '';
-        $preserve_branding  = isset( $opts['preserve_branding'] ) ? $opts['preserve_branding'] : '';
+        $disconnected = isset( $opts['branding_disconnected'] ) ? $opts['branding_disconnected'] : '';
+        $preserve_branding = isset( $opts['preserve_branding'] ) ? $opts['preserve_branding'] : '';
         $cancelled_branding = ( 'yes' === $disconnected ) && ! $preserve_branding;
 
-        $opts['cancelled_branding']      = $cancelled_branding;
+        $opts['cancelled_branding'] = $cancelled_branding;
         $opts['branding_preserve_title'] = '';
 
         if ( ! $cancelled_branding && isset( $opts['branding_header'] ) ) {
@@ -212,7 +212,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function action() {
         $information = array();
-        $mwp_action  = MainWP_System::instance()->validate_params( 'action' );
+        $mwp_action = MainWP_System::instance()->validate_params( 'action' );
         if ( 'update_branding' === $mwp_action ) {
             $information = $this->update_branding();
         }
@@ -232,17 +232,17 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function update_branding() {
         $information = array();
-        $settings    = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Required for bacwards compatibility.
+        $settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Required for bacwards compatibility.
         if ( ! is_array( $settings ) ) {
             return $information;
         }
 
-        $current_settings      = $this->child_branding_options;
+        $current_settings = $this->child_branding_options;
         $current_extra_setting = $this->child_branding_options['extra_settings'];
 
         $current_settings['branding_ext_enabled'] = 'Y';
 
-        $header                              = array(
+        $header = array(
             'name'        => $settings['child_plugin_name'],
             'description' => $settings['child_plugin_desc'],
             'author'      => $settings['child_plugin_author'],
@@ -251,24 +251,24 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         );
         $current_settings['branding_header'] = $header;
 
-        $current_settings['preserve_branding']        = $settings['child_preserve_branding'];
-        $current_settings['support_email']            = $settings['child_support_email'];
-        $current_settings['support_message']          = $settings['child_support_message'];
-        $current_settings['remove_restore']           = $settings['child_remove_restore'];
-        $current_settings['remove_setting']           = $settings['child_remove_setting'];
-        $current_settings['remove_server_info']       = $settings['child_remove_server_info'];
+        $current_settings['preserve_branding'] = $settings['child_preserve_branding'];
+        $current_settings['support_email'] = $settings['child_support_email'];
+        $current_settings['support_message'] = $settings['child_support_message'];
+        $current_settings['remove_restore'] = $settings['child_remove_restore'];
+        $current_settings['remove_setting'] = $settings['child_remove_setting'];
+        $current_settings['remove_server_info'] = $settings['child_remove_server_info'];
         $current_settings['remove_connection_detail'] = isset( $settings['child_remove_connection_detail'] ) ? $settings['child_remove_connection_detail'] : 0;
-        $current_settings['remove_wp_tools']          = $settings['child_remove_wp_tools'];
-        $current_settings['remove_wp_setting']        = $settings['child_remove_wp_setting'];
-        $current_settings['remove_permalink']         = $settings['child_remove_permalink'];
-        $current_settings['contact_label']            = $settings['child_button_contact_label'];
-        $current_settings['email_message']            = $settings['child_send_email_message'];
-        $current_settings['message_return_sender']    = $settings['child_message_return_sender'];
-        $current_settings['submit_button_title']      = $settings['child_submit_button_title'];
-        $current_settings['hide']                     = $settings['child_plugin_hide'] ? 'T' : '';
-        $current_settings['show_support']             = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';
-        $current_settings['disable_change']           = $settings['child_disable_change'] ? 'T' : '';
-        $current_settings['disable_switching_theme']  = $settings['child_disable_switching_theme'] ? 'T' : '';
+        $current_settings['remove_wp_tools'] = $settings['child_remove_wp_tools'];
+        $current_settings['remove_wp_setting'] = $settings['child_remove_wp_setting'];
+        $current_settings['remove_permalink'] = $settings['child_remove_permalink'];
+        $current_settings['contact_label'] = $settings['child_button_contact_label'];
+        $current_settings['email_message'] = $settings['child_send_email_message'];
+        $current_settings['message_return_sender'] = $settings['child_message_return_sender'];
+        $current_settings['submit_button_title'] = $settings['child_submit_button_title'];
+        $current_settings['hide'] = $settings['child_plugin_hide'] ? 'T' : '';
+        $current_settings['show_support'] = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';
+        $current_settings['disable_change'] = $settings['child_disable_change'] ? 'T' : '';
+        $current_settings['disable_switching_theme'] = $settings['child_disable_switching_theme'] ? 'T' : '';
         if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
             $current_settings['disable_wp_branding'] = $settings['child_disable_wp_branding'];
         }
@@ -408,10 +408,10 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         if ( is_wp_error( $temporary_file ) ) {
             throw new MainWP_Exception( esc_html( $temporary_file->get_error_message() ) );
         } else {
-            $upload_dir     = wp_upload_dir();
+            $upload_dir = wp_upload_dir();
             $local_img_path = $upload_dir['path'] . DIRECTORY_SEPARATOR . basename( $img_url );
             $local_img_path = dirname( $local_img_path ) . '/' . wp_unique_filename( dirname( $local_img_path ), basename( $local_img_path ) );
-            $local_img_url  = $upload_dir['url'] . '/' . basename( $local_img_path );
+            $local_img_url = $upload_dir['url'] . '/' . basename( $local_img_path );
 
             if ( MainWP_Utility::instance()->check_image_file_name( $local_img_path ) ) {
                 $moved = MainWP_Helper::move( $temporary_file, $local_img_path );
@@ -885,7 +885,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
      * Set custom WP Admin area CSS.
      */
     public function custom_admin_css() {
-        $header_css    = '';
+        $header_css = '';
         $extra_setting = $this->get_extra_options();
 
         if ( isset( $extra_setting['admin_css'] ) && ! empty( $extra_setting['admin_css'] ) ) {
@@ -939,18 +939,18 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         preg_match_all( '/@.+?\}[^\}]*?\}/ms', $css, $blocks );
         // Append the rest to $blocks.
         array_push( $blocks[0], preg_replace( '/@.+?\}[^\}]*?\}/ms', '', $css ) );
-        $ordered      = array();
+        $ordered = array();
         $count_blocks = count( $blocks[0] );
         for ( $i = 0; $i < $count_blocks; $i++ ) {
             // If @media-block, strip declaration and parenthesis.
             if ( '@media' === substr( $blocks[0][ $i ], 0, 6 ) ) {
-                $ordered_key   = preg_replace( '/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ] );
+                $ordered_key = preg_replace( '/^(@media[^\{]+)\{.*\}$/ms', '$1', $blocks[0][ $i ] );
                 $ordered_value = preg_replace( '/^@media[^\{]+\{(.*)\}$/ms', '$1', $blocks[0][ $i ] );
             } elseif ( '@' === substr( $blocks[0][ $i ], 0, 1 ) ) {
-                $ordered_key   = $blocks[0][ $i ];
+                $ordered_key = $blocks[0][ $i ];
                 $ordered_value = $blocks[0][ $i ];
             } else {
-                $ordered_key   = 'main';
+                $ordered_key = 'main';
                 $ordered_value = $blocks[0][ $i ];
             }
             // Split by parenthesis, ignoring those inside content-quotes.
@@ -973,9 +973,9 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
     public static function parse_css_rebuild( $ordered ) { // phpcs:ignore -- NOSONAR - complex.
         // Beginning to rebuild new slim CSS-Array.
         foreach ( $ordered as $key => $val ) {
-            $new       = array();
+            $new = array();
             $count_val = count( $val );
-            $i         = 0;
+            $i = 0;
             while ( $i < $count_val ) {
                 // Split selectors and rules and split properties and values.
                 $selector = trim( $val[ $i ], " \r\n\t" );
@@ -989,13 +989,13 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
 
                     // to fix css like this: 'data:image/svg+xml;charset=US-ASCII'.
                     $tmp_rules = array();
-                    $j         = 0;
-                    $cou       = count( $rules );
+                    $j = 0;
+                    $cou = count( $rules );
                     while ( $j < $cou ) {
                         $rule = $rules[ $j ];
-                        $pos  = strpos( $rule, 'data:image/svg+xml' );
+                        $pos = strpos( $rule, 'data:image/svg+xml' );
                         if ( 0 < $pos ) {
-                            $len  = strlen( $rule );
+                            $len = strlen( $rule );
                             $len1 = strlen( 'data:image/svg+xml' );
                             $len2 = $pos + $len1;
                             if ( $len === $len2 ) {
@@ -1011,9 +1011,9 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
                     foreach ( $rules as $rule ) {
                         $rule = trim( $rule, " \r\n\t" );
                         if ( ! empty( $rule ) ) {
-                            $rule     = array_reverse( explode( ':', $rule ) );
+                            $rule = array_reverse( explode( ':', $rule ) );
                             $property = trim( array_pop( $rule ), " \r\n\t" );
-                            $value    = implode( ':', array_reverse( $rule ) );
+                            $value = implode( ':', array_reverse( $rule ) );
 
                             if ( ! isset( $new[ $selector ][ $property ] ) || ! preg_match( '/!important/', $new[ $selector ][ $property ] ) || ( preg_match( '/!important/', $new[ $selector ][ $property ] ) && preg_match( '/!important/', $value ) ) ) {
                                 $new[ $selector ][ $property ] = $value;
@@ -1031,7 +1031,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         foreach ( $parsed as $media => $content ) {
             if ( '@media' === substr( $media, 0, 6 ) ) {
                 $output .= $media . " {\n";
-                $prefix  = "\t";
+                $prefix = "\t";
             } else {
                 $prefix = '';
             }
@@ -1177,9 +1177,9 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
             $href = admin_url( 'admin.php?page=ContactSupport&from_page=' . ( ! empty( $_GET['from_page'] ) ? rawurlencode( esc_url_raw( wp_unslash( $_GET['from_page'] ) ) ) : '' ) );
         } else {
             $protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-            $fullurl  = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-            $fullurl  = $protocol . str_replace( array( 'https://', 'http://' ), '', $fullurl );
-            $href     = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( $fullurl ) );
+            $fullurl = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+            $fullurl = $protocol . str_replace( array( 'https://', 'http://' ), '', $fullurl );
+            $href = admin_url( 'admin.php?page=ContactSupport&from_page=' . rawurlencode( $fullurl ) );
         }
         // phpcs:enable
         $args = array(
@@ -1204,13 +1204,13 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool If branding enabled, return true, if not, return false.
      */
     public function is_branding() {
-        $opts               = $this->child_branding_options;
+        $opts = $this->child_branding_options;
         $cancelled_branding = isset( $opts['cancelled_branding'] ) && $opts['cancelled_branding'] ? true : false;
 
         if ( ! isset( $opts['branding_ext_enabled'] ) || 'Y' !== $opts['branding_ext_enabled'] || $cancelled_branding ) {
             return false;
         }
-        $is_hide         = isset( $opts['hide'] ) ? $opts['hide'] : '';
+        $is_hide = isset( $opts['hide'] ) ? $opts['hide'] : '';
         $branding_header = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
         if ( 'T' === $is_hide || ( is_array( $branding_header ) && ! empty( $branding_header['name'] ) ) ) {
             return true;
@@ -1288,9 +1288,9 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
     public function modify_plugin_header( $plugins ) { // phpcs:ignore -- NOSONAR - complex.
         $opts = $this->child_branding_options;
         if ( is_array( $opts ) ) {
-            $is_hide            = isset( $opts['hide'] ) ? $opts['hide'] : '';
+            $is_hide = isset( $opts['hide'] ) ? $opts['hide'] : '';
             $cancelled_branding = $opts['cancelled_branding'];
-            $branding_header    = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
+            $branding_header = isset( $opts['branding_header'] ) ? $opts['branding_header'] : '';
 
             if ( $cancelled_branding ) {
                 return $plugins;
@@ -1372,16 +1372,16 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         foreach ( $plugins as $key => $value ) {
             $plugin_slug = basename( $key, '.php' );
             if ( 'mainwp-child' === $plugin_slug ) {
-                $plugin_key  = $key;
+                $plugin_key = $key;
                 $plugin_data = $value;
             }
         }
 
         if ( ! empty( $plugin_key ) ) {
-            $plugin_data['Name']        = stripslashes( $header['name'] );
+            $plugin_data['Name'] = stripslashes( $header['name'] );
             $plugin_data['Description'] = stripslashes( $header['description'] );
-            $plugin_data['Author']      = stripslashes( $header['author'] );
-            $plugin_data['AuthorURI']   = stripslashes( $header['authoruri'] );
+            $plugin_data['Author'] = stripslashes( $header['author'] );
+            $plugin_data['AuthorURI'] = stripslashes( $header['authoruri'] );
             if ( ! empty( $header['pluginuri'] ) ) {
                 $plugin_data['PluginURI'] = stripslashes( $header['pluginuri'] );
             }
