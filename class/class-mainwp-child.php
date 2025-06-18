@@ -143,6 +143,9 @@ class MainWP_Child {
 
         // Register screen-specific hooks.
         $this->register_screen_hooks();
+
+        // Initiate MainWP Cache Control class.
+        MainWP_Child_Cache_Purge::instance();
     }
 
     /**
@@ -173,12 +176,6 @@ class MainWP_Child {
                     // Lazy load these only when on MainWP pages.
                     MainWP_Child_Plugins_Check::instance();
                     MainWP_Child_Themes_Check::instance();
-
-                    // Initiate MainWP Cache Control class.
-                    MainWP_Child_Cache_Purge::instance();
-
-                    // Initiate MainWP Child API Backups class.
-                    MainWP_Child_Api_Backups::instance();
                 }
             }
         );
