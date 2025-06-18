@@ -65,32 +65,37 @@ class MainWP_Child {
      * @uses \MainWP\Child\MainWP_Utility::run_saved_snippets()
      * @uses \MainWP\Child\MainWP_Utility::get_class_name()
      */
-    /**
-     * MainWP_Child constructor.
-     *
-     * Minimal constructor that only sets up the plugin slug and loads options.
-     * The actual initialization is done in init_full() or init_frontend_only().
-     *
-     * @param resource $plugin_file MainWP Child plugin file.
-     */
     public function __construct( $plugin_file ) {
         $this->update();
-        $this->load_all_options();
         $this->plugin_slug = plugin_basename( $plugin_file );
+    }
+
+    /**
+     * Method init_frontend_only()
+     *
+     * Lightweight initialization for frontend requests.
+     * Only registers the absolute minimum hooks needed for frontend functionality.
+     */
+    public function init_frontend_only() {
+        // Register only essential hooks for frontend.
+        $this->register_essential_hooks();
+
+        // Run saved snippets - this is essential functionality.
+        MainWP_Utility::instance()->run_saved_snippets();
     }
 
     /**
      * Method init_full()
      *
-     * Initialize full functionality for admin, cron, WP CLI, or API requests.
-     * This method is called via the plugins_loaded hook when in admin area or during API requests.
+     * Full initialization for admin, AJAX, REST, cron, CLI, or API requests.
+     * Loads all required functionality for the MainWP Child plugin.
      */
     public function init_full() {
+        // Load options early so they're available to all components.
+        $this->load_all_options();
+
         // Register essential hooks.
         $this->register_essential_hooks();
-
-        // Initialize premium plugin detection.
-        $this->init_premium_plugin_detection();
 
         // Initialize essential components.
         MainWP_Pages::get_instance()->init();
@@ -98,113 +103,134 @@ class MainWP_Child {
         // Initialize admin-specific components.
         $this->init_admin_components();
 
-        // Initialize connection and core features.
-        $this->init_core_features();
-
         // Run saved snippets - this is essential functionality.
         MainWP_Utility::instance()->run_saved_snippets();
 
-        // Initialize special environments (WP CLI, disconnected sites, cron).
-        $this->init_special_environments();
+        MainWP_Child_Vulnerability_Checker::instance();
 
-        // Register essential actions and filters.
-        $this->register_essential_actions_filters();
-    }
+        // Initialize CLI support if needed.
+        $this->init_cli_support();
 
-    /**
-     * Register essential hooks for the plugin.
-     */
-    private function register_essential_hooks() {
-        add_action( 'template_redirect', array( $this, 'template_redirect' ) );
-        add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
-        add_action( 'init', array( &$this, 'init_check_login' ), 1 );
-        add_action( 'init', array( &$this, 'parse_init' ), 9999 );
-        add_action( 'init', array( &$this, 'localization' ), 33 );
-        add_action( 'init', array( &$this, 'init_hooks' ), 9 );
-        add_action( 'admin_init', array( &$this, 'admin_init' ) );
-        add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
-    }
+        // Initialize branding for disconnected sites.
+        $this->init_branding_for_disconnected();
 
-    /**
-     * Initialize premium plugin detection hooks.
-     */
-    private function init_premium_plugin_detection() {
-        if ( is_admin() && function_exists( 'get_current_screen' ) ) {
-            $screen = get_current_screen();
-            if ( $screen && ( 'plugins' === $screen->id || 'update-core' === $screen->id ) ) {
-                add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-                add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
-            }
-        }
+        // Initialize cron support if needed.
+        $this->init_cron_support();
+
+        // Essential action to response data result.
+        add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
     }
 
     /**
      * Initialize admin-specific components.
+     *
+     * This method handles all the admin-area specific initializations.
      */
     private function init_admin_components() {
-        if ( is_admin() ) {
-            // Update plugin version in database.
-            MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
-
-            // Initialize pages and asset loading.
-            MainWP_Pages::get_instance()->init();
-            MainWP_Child_Assets::instance()->init();
-
-            // Initiate MainWP Cache Control class only when needed.
-            MainWP_Child_Cache_Purge::instance();
-
-            // Initiate MainWP Child API Backups class.
-            MainWP_Child_Api_Backups::instance();
-
-            if ( is_admin() ) {
-                MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
-            }
+        if ( ! is_admin() ) {
+            return;
         }
-    }
 
-    /**
-     * Initialize connection and core features.
-     */
-    private function init_core_features() {
+        // Update plugin version in database.
+        MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
+
         // Initialize connection-related components.
         MainWP_Connect::instance()->check_other_auth();
 
         // Initialize core features.
         MainWP_Clone::instance()->init();
         MainWP_Client_Report::instance()->init();
-        MainWP_Child_Vulnerability_Checker::instance();
 
-        // These are only needed in admin area and are performance-intensive.
-        if ( is_admin() ) {
-            MainWP_Child_Plugins_Check::instance();
-            MainWP_Child_Themes_Check::instance();
-        }
+        // Register screen-specific hooks.
+        $this->register_screen_hooks();
     }
 
     /**
-     * Initialize special environments (WP CLI, disconnected sites, cron).
+     * Register hooks that depend on the current screen.
+     *
+     * These hooks are deferred until WordPress knows which screen is being displayed.
      */
-    private function init_special_environments() {
+    private function register_screen_hooks() {
+        // Defer screen checks until WordPress knows the current screen.
+        add_action(
+            'current_screen',
+            static function ( $screen ) {
+                if ( in_array( $screen->id, array( 'plugins', 'update-core' ), true ) ) {
+                    // Support for better detection for premium plugins.
+                    add_action( 'pre_current_active_plugins', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
+                    // Support for better detection for premium themes.
+                    add_action( 'core_upgrade_preamble', array( MainWP_Child_Updates::get_instance(), 'detect_premium_themesplugins_updates' ) );
+                }
+            }
+        );
+
+        // These are only needed in admin area and are performance-intensive.
+        // Defer loading until WordPress knows the current screen.
+        add_action(
+            'current_screen',
+            function () {
+                if ( $this->is_mainwp_pages() ) {
+                    // Lazy load these only when on MainWP pages.
+                    MainWP_Child_Plugins_Check::instance();
+                    MainWP_Child_Themes_Check::instance();
+
+                    // Initiate MainWP Cache Control class.
+                    MainWP_Child_Cache_Purge::instance();
+
+                    // Initiate MainWP Child API Backups class.
+                    MainWP_Child_Api_Backups::instance();
+                }
+            }
+        );
+    }
+
+    /**
+     * Initialize CLI support if WP-CLI is active.
+     */
+    private function init_cli_support() {
         // WP CLI support.
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             MainWP_Child_WP_CLI_Command::init();
         }
+    }
 
+    /**
+     * Initialize branding for disconnected sites.
+     */
+    private function init_branding_for_disconnected() {
         // Initiate Branding Options - essential for disconnected sites.
         if ( ! get_option( 'mainwp_child_pubkey' ) ) {
             MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
         }
-
-        // Support for cron jobs.
-        $this->setup_cron_jobs();
     }
 
     /**
-     * Register essential actions and filters for security and data handling.
+     * Initialize cron support if needed.
      */
-    private function register_essential_actions_filters() {
-        // Essential action to response data result.
-        add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
+    private function init_cron_support() {
+        // Support for cron jobs.
+        if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+            $mainwp_child_run = filter_input( INPUT_GET, 'mainwp_child_run', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+            if ( ! empty( $mainwp_child_run ) ) {
+                add_action( 'init', array( MainWP_Utility::class, 'cron_active' ), PHP_INT_MAX );
+            }
+        }
+    }
+
+    /**
+     * Method register_essential_hooks()
+     *
+     * Register essential hooks that are needed for core functionality.
+     */
+    private function register_essential_hooks() {
+        add_action( 'template_redirect', array( $this, 'template_redirect' ) );
+        add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
+        add_action( 'init', array( $this, 'init_check_login' ), 1 );
+        add_action( 'init', array( $this, 'parse_init' ), 9999 );
+        add_action( 'init', array( $this, 'localization' ), 33 );
+        add_action( 'init', array( $this, 'init_hooks' ), 9 );
+        add_action( 'admin_init', array( $this, 'admin_init' ) );
+        add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( $this, 'plugin_settings_link' ) );
 
         // Essential filters for security.
         add_filter( 'mainwp_child_create_action_nonce', array( MainWP_Utility::class, 'hook_create_nonce_action' ), 10, 2 );
@@ -215,225 +241,134 @@ class MainWP_Child {
     }
 
     /**
-     * Method init_frontend_only()
-     *
-     * Initialize minimal functionality for frontend requests.
-     * This method is called via the plugins_loaded hook when on frontend pages.
-     */
-    public function init_frontend_only() {
-        // Only register the absolute minimum hooks needed for frontend.
-        add_action( 'template_redirect', array( $this, 'template_redirect' ) );
-        add_action( 'init', array( &$this, 'localization' ), 33 );
-
-        // Run saved snippets - this is essential functionality that might be needed on frontend.
-        MainWP_Utility::instance()->run_saved_snippets();
-
-        // Essential action to response data result.
-        add_action( 'mainwp_child_write', array( MainWP_Helper::class, 'write' ) );
-    }
-
-    /**
      * Method load_all_options()
      *
-     * Load all MainWP Child plugin options with optimized caching.
+     * Load all MainWP Child plugin options.
      *
      * @return array|bool Return array of options or false on failure.
      */
-    public function load_all_options() {
-        // Check if options are already cached in our custom cache group.
-        $cached_options = wp_cache_get( 'mainwp_child_all_options', 'mainwp' );
-        if ( false !== $cached_options ) {
-            return $cached_options;
-        }
+    public function load_all_options() { //phpcs:ignore -- NOSONAR - complex.
 
-        // Get WordPress core cache values.
-        list( $alloptions, $notoptions ) = $this->get_wp_cache_values();
+        /**
+         * WP Database object.
+         *
+         * @global object $wpdb WordPress object.
+         */
+        global $wpdb;
 
-        // Define the options we need.
-        $mainwp_options = $this->get_required_options_list();
-
-        // Check if we need to query the database.
-        $need_db_query = ! is_array( $alloptions ) || ! isset( $alloptions['mainwp_child_pubkey'] );
-
-        if ( $need_db_query ) {
-            // Query the database for our options.
-            $alloptions = $this->query_options_from_database( $alloptions, $notoptions, $mainwp_options );
-        }
-
-        // Cache the results in our custom cache group for faster future access.
-        wp_cache_set( 'mainwp_child_all_options', $alloptions, 'mainwp', 60 ); // Cache for 60 seconds.
-
-        return $alloptions;
-    }
-
-    /**
-     * Get WordPress core cache values for options.
-     *
-     * @return array Array containing alloptions and notoptions.
-     */
-    private function get_wp_cache_values() {
         if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
             $alloptions = wp_cache_get( 'alloptions', 'options' );
-            $notoptions = wp_cache_get( 'notoptions', 'options' );
         } else {
             $alloptions = false;
+        }
+
+        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
+            $notoptions = wp_cache_get( 'notoptions', 'options' );
+        } else {
             $notoptions = false;
         }
 
-        return array( $alloptions, $notoptions );
-    }
-
-    /**
-     * Get the list of required MainWP Child options.
-     *
-     * @return array List of option names.
-     */
-    private function get_required_options_list() {
-        return array(
-            'mainwp_child_auth',
-            'mainwp_child_reports_db',
-            'mainwp_child_pluginDir',
-            'mainwp_updraftplus_hide_plugin',
-            'mainwp_backwpup_ext_enabled',
-            'mainwp_child_server',
-            'mainwp_pagespeed_hide_plugin',
-            'mainwp_child_clone_permalink',
-            'mainwp_child_restore_permalink',
-            'mainwp_ext_snippets_enabled',
-            'mainwp_child_pubkey',
-            'mainwp_security',
-            'mainwp_backupwordpress_ext_enabled',
-            'mainwp_pagespeed_ext_enabled',
-            'mainwp_linkschecker_ext_enabled',
-            'mainwp_child_branding_settings',
-            'mainwp_child_plugintheme_days_outdate',
-            'mainwp_wp_staging_ext_enabled',
-            'mainwp_child_connected_admin',
-            'mainwp_child_actions_saved_number_of_days',
-            'mainwp_child_pingnonce',
-        );
-    }
-
-    /**
-     * Query options from the database and update caches.
-     *
-     * @param array $alloptions    Current options array.
-     * @param array $notoptions    Current notoptions array.
-     * @param array $mainwp_options List of options to query.
-     *
-     * @return array Updated options array.
-     */
-    private function query_options_from_database( $alloptions, $notoptions, $mainwp_options ) {
-        global $wpdb;
-
-        // Prepare and execute a single optimized query.
-        $suppress = $wpdb->suppress_errors();
-
-        // Use individual queries for each option to avoid SQL injection warnings.
-        // This is more verbose but safer and avoids code scanner false positives.
-        // Direct database access is necessary here for performance optimization
-        // as we need to efficiently retrieve multiple options at once.
-        // WordPress's get_option() would result in multiple separate queries.
-        $alloptions_db = array();
-
-        foreach ( $mainwp_options as $option ) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $result = $wpdb->get_row(
-                $wpdb->prepare(
-                    "SELECT option_name, option_value FROM $wpdb->options WHERE option_name = %s",
-                    $option
-                )
+        if ( ! isset( $alloptions['mainwp_child_pubkey'] ) ) {
+            $suppress = $wpdb->suppress_errors();
+            $mainwp_options = array(
+                'mainwp_child_auth',
+                'mainwp_child_reports_db',
+                'mainwp_child_pluginDir',
+                'mainwp_updraftplus_hide_plugin',
+                'mainwp_backwpup_ext_enabled',
+                'mainwp_child_server',
+                'mainwp_pagespeed_hide_plugin',
+                'mainwp_child_clone_permalink',
+                'mainwp_child_restore_permalink',
+                'mainwp_ext_snippets_enabled',
+                'mainwp_child_pubkey',
+                'mainwp_security',
+                'mainwp_backupwordpress_ext_enabled',
+                'mainwp_pagespeed_ext_enabled',
+                'mainwp_linkschecker_ext_enabled',
+                'mainwp_child_branding_settings',
+                'mainwp_child_plugintheme_days_outdate',
+                'mainwp_wp_staging_ext_enabled',
+                'mainwp_child_connected_admin',
+                'mainwp_child_actions_saved_number_of_days',
+                'mainwp_child_pingnonce',
             );
 
-            if ( $result ) {
-                $alloptions_db[] = $result;
+            // Execute individual queries for each option for maximum security.
+            // Note: Direct database calls are necessary here for performance optimization
+            // as we're loading multiple options at once and need to bypass the regular
+            // WordPress option API to avoid multiple get_option() calls.
+            $alloptions_db = array();
+            foreach ( $mainwp_options as $option ) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Necessary for bulk option loading
+                $result = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT option_name, option_value FROM $wpdb->options WHERE option_name = %s",
+                        $option
+                    )
+                );
+                if ( $result ) {
+                    // Mirror WordPress core: unserialize complex values.
+                    $result->option_value = maybe_unserialize( $result->option_value );
+                    $alloptions_db[] = $result;
+                }
             }
-        }
+            $wpdb->suppress_errors( $suppress );
+            if ( ! is_array( $alloptions ) ) {
+                $alloptions = array();
+            }
+            if ( is_array( $alloptions_db ) ) {
+                // Create a copy of mainwp_options to track which ones were not found.
+                $not_found_options = array_flip( $mainwp_options );
 
-        $wpdb->suppress_errors( $suppress );
+                foreach ( (array) $alloptions_db as $o ) {
+                    $alloptions[ $o->option_name ] = $o->option_value;
+                    // Remove from not_found_options as we've found this option.
+                    if ( isset( $not_found_options[ $o->option_name ] ) ) {
+                        unset( $not_found_options[ $o->option_name ] );
+                    }
+                }
 
-        if ( ! is_array( $alloptions ) ) {
-            $alloptions = array();
-        }
+                if ( ! is_array( $notoptions ) ) {
+                    $notoptions = array();
+                }
 
-        if ( is_array( $alloptions_db ) ) {
-            // Process the results and update caches.
-            $this->process_query_results( $alloptions, $notoptions, $alloptions_db, $mainwp_options );
+                // Add remaining options to notoptions.
+                foreach ( array_keys( $not_found_options ) as $option ) {
+                    $notoptions[ $option ] = true;
+                }
+
+                if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
+                    wp_cache_set( 'alloptions', $alloptions, 'options' );
+                    wp_cache_set( 'notoptions', $notoptions, 'options' );
+                }
+            }
         }
 
         return $alloptions;
-    }
-
-    /**
-     * Process database query results and update caches.
-     *
-     * @param array $alloptions    Current options array.
-     * @param array $notoptions    Current notoptions array.
-     * @param array $alloptions_db Database query results.
-     * @param array $mainwp_options List of options that were queried.
-     */
-    private function process_query_results( &$alloptions, &$notoptions, $alloptions_db, $mainwp_options ) {
-        foreach ( (array) $alloptions_db as $o ) {
-            $alloptions[ $o->option_name ] = $o->option_value;
-            $key                           = array_search( $o->option_name, $mainwp_options, true );
-            if ( false !== $key ) {
-                unset( $mainwp_options[ $key ] );
-            }
-        }
-
-        if ( ! is_array( $notoptions ) ) {
-            $notoptions = array();
-        }
-
-        foreach ( $mainwp_options as $option ) {
-            $notoptions[ $option ] = true;
-        }
-
-        if ( ! defined( 'WP_INSTALLING' ) || ! is_multisite() ) {
-            wp_cache_set( 'alloptions', $alloptions, 'options' );
-            wp_cache_set( 'notoptions', $notoptions, 'options' );
-        }
     }
 
     /**
      * Method update()
      *
      * Update the MainWP Child plugin version (mainwp_child_update_version) option.
-     * Optimized with caching to avoid unnecessary database queries.
      *
      * @return void
      *
      * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     public function update() {
-        // Try to get from cache first.
-        $cache_key      = 'mainwp_child_update_version';
-        $update_version = wp_cache_get( $cache_key, 'mainwp' );
+        $update_version = get_option( 'mainwp_child_update_version' );
 
-        // If not in cache, get from database.
-        if ( false === $update_version ) {
-            $update_version = get_option( $cache_key );
-            // Cache the result for future checks.
-            wp_cache_set( $cache_key, $update_version, 'mainwp', 3600 ); // Cache for 1 hour.
-        }
-
-        // If version is current, return early.
         if ( $update_version === $this->update_version ) {
             return;
         }
 
-        // Handle legacy version upgrades.
         if ( version_compare( $update_version, '1.6', '<' ) ) {
-            delete_option( 'mainwp_child_subpages' );
-            wp_cache_delete( 'mainwp_child_subpages', 'options' );
+            delete_option( 'mainwp_child_subpages ' );
         }
 
-        // Update the version in database and cache.
-        // Use update_option directly to avoid static access warning.
-        update_option( $cache_key, $this->update_version, 'yes' );
-
-        // Also update the cache for faster future access.
-        wp_cache_set( $cache_key, $this->update_version, 'mainwp', 3600 ); // Cache for 1 hour.
+        MainWP_Helper::update_option( 'mainwp_child_update_version', $this->update_version, 'yes' );
     }
 
     /**
@@ -518,8 +453,8 @@ class MainWP_Child {
         }
 
         $mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $function        = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : null;
-        $nonce           = MainWP_System::instance()->validate_params( 'nonce' );
+        $function = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : null;
+        $nonce = MainWP_System::instance()->validate_params( 'nonce' );
 
         // phpcs:enable
 
@@ -592,52 +527,6 @@ class MainWP_Child {
     }
 
     /**
-     * Method parse_init_extensions()
-     *
-     * Parse MainWP Extension initiations.
-     *
-     * @uses \MainWP\Child\MainWP_Child_Branding::branding_init()
-     * @uses \MainWP\Child\MainWP_Client_Report::creport_init()
-     * @uses \MainWP\Child\MainWP_Child_IThemes_Security::ithemes_init()
-     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::updraftplus_init()
-     * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::init()
-     * @uses \MainWP\Child\MainWP_Child_WP_Rocket::init()
-     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::init()
-     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::instance()
-     * @uses \MainWP\Child\MainWP_Child_Wordfence::wordfence_init()
-     * @uses \MainWP\Child\MainWP_Child_Timecapsule::init()
-     * @uses \MainWP\Child\MainWP_Child_Staging::init()
-     * @uses \MainWP\Child\MainWP_Child_Pagespeed::init()
-     * @uses \MainWP\Child\MainWP_Child_Links_Checker::init()
-     * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::init()
-     * @uses \MainWP\Child\MainWP_Child_Aam::instance()
-     * @uses \MainWP\Child\MainWP_Child_HTML_Regression::instance()->init()
-     */
-    private function parse_init_extensions() {
-        MainWP_Child_Branding::instance()->branding_init();
-        MainWP_Client_Report::instance()->creport_init();
-        MainWP_Child_IThemes_Security::instance()->ithemes_init();
-        MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
-        MainWP_Child_Back_Up_WordPress::instance()->init();
-        MainWP_Child_WP_Rocket::instance()->init();
-        MainWP_Child_Back_WP_Up::instance()->init();
-        MainWP_Child_Back_Up_Buddy::instance();
-        MainWP_Child_Wordfence::instance()->wordfence_init();
-        MainWP_Child_Timecapsule::instance()->init();
-        MainWP_Child_Staging::instance()->init();
-        MainWP_Child_Pagespeed::instance()->init();
-        MainWP_Child_Links_Checker::instance()->init();
-        MainWP_Child_WPvivid_BackupRestore::instance()->init();
-        MainWP_Child_DB_Updater::instance();
-        MainWP_Child_Jetpack_Protect::instance();
-        MainWP_Child_Jetpack_Scan::instance();
-        MainWP_Child_Aam::instance()->init();
-        MainWP_Custom_Post_Type::instance();
-        MainWP_Child_HTML_Regression::instance()->init();
-    }
-
-
-    /**
      * Method activation()
      *
      * Activate the MainWP Child plugin and delete unwanted data.
@@ -685,7 +574,7 @@ class MainWP_Child {
             }
         }
 
-        $to_delete   = array(
+        $to_delete = array(
             'mainwp_child_pubkey',
             'mainwp_child_nonce',
             'mainwp_security',
@@ -714,7 +603,7 @@ class MainWP_Child {
      * @return array
      */
     public function plugin_settings_link( $actions ) {
-        $href          = admin_url( 'options-general.php?page=mainwp_child_tab' );
+        $href = admin_url( 'options-general.php?page=mainwp_child_tab' );
         $settings_link = '<a href="' . $href . '">' . __( 'Settings' ) . '</a>'; // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
         array_unshift( $actions, $settings_link );
 
@@ -722,17 +611,37 @@ class MainWP_Child {
     }
 
     /**
-     * Setup cron jobs for MainWP Child.
+     * Helper method to check if we're on a MainWP admin page.
+     * This method should only be called after the 'current_screen' action has fired.
      *
-     * This method checks if we're in a cron context and sets up necessary hooks.
+     * @return bool True if on a MainWP admin page, false otherwise.
      */
-    private function setup_cron_jobs() {
-        // Check if we're in a cron context with the mainwp_child_run parameter.
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $cron_run = filter_input( INPUT_GET, 'mainwp_child_run', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
-
-        if ( defined( 'DOING_CRON' ) && DOING_CRON && ! empty( $cron_run ) ) {
-            add_action( 'init', array( MainWP_Utility::get_class_name(), 'cron_active' ), PHP_INT_MAX );
+    private function is_mainwp_pages() {
+        if ( ! is_admin() ) {
+            return false;
         }
+
+        // First check if we're on a page with mainwp in the query string.
+        // This is a quick check that avoids the more expensive get_current_screen() call.
+        $page = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+        if ( empty( $page ) || false === stripos( $page, 'mainwp' ) ) {
+            // Now we need to check if we're on a specific screen that doesn't have 'mainwp' in the URL.
+            $screen = get_current_screen();
+            if ( ! $screen ) {
+                return false;
+            }
+
+            // List of screens where MainWP Child functionality is needed.
+            $mainwp_screens = array(
+                'settings_page_mainwp_child_tab',
+                'dashboard',  // Include dashboard for widgets.
+                'update-core', // Include updates page.
+            );
+
+            return in_array( $screen->id, $mainwp_screens, true );
+        }
+
+        // If we have 'mainwp' in the page parameter, it's a MainWP page.
+        return true;
     }
 }

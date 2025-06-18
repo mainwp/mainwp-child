@@ -103,23 +103,53 @@ if ( function_exists( 'spl_autoload_register' ) ) {
 
 require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'functions.php'; // NOSONAR - WP compatible.
 
-// Always register activation and deactivation hooks.
-$mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
-register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );
-register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );
+// Delay the heavy constructor until we really need it.
+$mainwp_child_instance = null;
+$get_child             = static function () use ( &$mainwp_child_instance ) {
+    if ( null === $mainwp_child_instance ) {
+        $mainwp_child_instance = new MainWP\Child\MainWP_Child(
+            WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ )
+        );
+    }
+    return $mainwp_child_instance;
+};
 
-// Create a lightweight frontend class for non-admin requests.
-// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-if ( ! is_admin() && ! defined( 'DOING_CRON' ) && ! defined( 'WP_CLI' ) && ! isset( $_REQUEST['mainwpsignature'] ) ) {
-    // Only initialize minimal frontend functionality.
-    // This prevents loading unnecessary code on frontend requests.
-    add_action( 'plugins_loaded', array( $mainWPChild, 'init_frontend_only' ) );
+register_activation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->activation();
+    }
+);
+register_deactivation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->deactivation();
+    }
+);
+
+// Determine which initialization path to use based on the request type.
+if (
+    ! is_admin()
+    && ! wp_doing_ajax()
+    && ! wp_doing_rest()
+    && ! wp_doing_cron()
+    && ! defined( 'WP_CLI' )
+    && ! isset( $_REQUEST['mainwpsignature'] ) // phpcs:ignore WordPress.Security.NonceVerification
+
+) {
+    // For frontend requests, use lightweight initialization.
+    add_action(
+        'plugins_loaded',
+        function () use ( $get_child ) {
+            $get_child()->init_frontend_only();
+        }
+    );
 } else {
-    // Initialize full functionality for admin area, cron jobs, WP CLI, or API requests.
-    add_action( 'plugins_loaded', array( $mainWPChild, 'init_full' ) );
-}
-
-$changes_logs_mod_file = MAINWP_CHILD_PLUGIN_DIR . 'modules' . DIRECTORY_SEPARATOR . 'changes-logs' . DIRECTORY_SEPARATOR . 'changes-logs.php';
-if ( file_exists( $changes_logs_mod_file ) ) {
-    include_once $changes_logs_mod_file; // NOSONAR - ok.
+    // For admin, AJAX, REST, cron, CLI, or API requests, use full initialization.
+    add_action(
+        'plugins_loaded',
+        function () use ( $get_child ) {
+            $get_child()->init_full();
+        }
+    );
 }
