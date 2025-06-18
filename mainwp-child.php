@@ -147,3 +147,8 @@ add_action(
         }
     }
 );
+
+$changes_logs_mod_file = MAINWP_CHILD_PLUGIN_DIR . 'modules' . DIRECTORY_SEPARATOR . 'changes-logs' . DIRECTORY_SEPARATOR . 'changes-logs.php';
+if ( file_exists( $changes_logs_mod_file ) ) {
+    include_once $changes_logs_mod_file; // NOSONAR - ok.
+}
