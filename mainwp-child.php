@@ -91,14 +91,14 @@ if ( function_exists( 'spl_autoload_register' ) ) {
 require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'functions.php'; // NOSONAR - WP compatible.
 
 // Delay the heavy constructor until we really need it.
-$mainwp_child_instance = null;
-$get_child = static function () use ( &$mainwp_child_instance ) {
-    if ( null === $mainwp_child_instance ) {
-        $mainwp_child_instance = new MainWP\Child\MainWP_Child(
+$mainWPChild = null;
+$get_child   = static function () use ( &$mainWPChild ) {
+    if ( null === $mainWPChild ) {
+        $mainWPChild = new MainWP\Child\MainWP_Child(
             WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ )
         );
     }
-    return $mainwp_child_instance;
+    return $mainWPChild;
 };
 
 register_activation_hook(
