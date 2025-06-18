@@ -114,29 +114,23 @@ register_deactivation_hook(
     }
 );
 
-// Determine which initialization path to use based on the request type.
-if (
-    ! is_admin()
-    && ! wp_doing_ajax()
-    && ! wp_doing_rest()
-    && ! wp_doing_cron()
-    && ! defined( 'WP_CLI' )
-    && ! isset( $_REQUEST['mainwpsignature'] ) // phpcs:ignore WordPress.Security.NonceVerification
+add_action(
+    'plugins_loaded',
+    function () use ( $get_child ) {
+        if (
+            ! is_admin()
+            && ! wp_doing_ajax()
+            && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+            && ! wp_doing_cron()
+            && ! defined( 'WP_CLI' )
+            && ! isset( $_REQUEST['mainwpsignature'] ) // phpcs:ignore WordPress.Security.NonceVerification
 
-) {
-    // For frontend requests, use lightweight initialization.
-    add_action(
-        'plugins_loaded',
-        function () use ( $get_child ) {
+        ) {
+            // For frontend requests, use lightweight initialization.
             $get_child()->init_frontend_only();
-        }
-    );
-} else {
-    // For admin, AJAX, REST, cron, CLI, or API requests, use full initialization.
-    add_action(
-        'plugins_loaded',
-        function () use ( $get_child ) {
+        } else {
+            // For admin, AJAX, REST, cron, CLI, or API requests, use full initialization.
             $get_child()->init_full();
         }
-    );
-}
+    }
+);
