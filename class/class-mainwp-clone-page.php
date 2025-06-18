@@ -51,28 +51,12 @@ class MainWP_Clone_Page {
     /**
      * Method print_scripts()
      *
-     * @uses \MainWP\Child\MainWP_Helper::starts_with()
+     * This method is now handled by the MainWP_Child_Assets class
+     * for better performance and conditional loading.
      */
     public static function print_scripts() {
-        wp_enqueue_script( 'jquery-ui-tooltip' );
-        wp_enqueue_script( 'jquery-ui-autocomplete' );
-        wp_enqueue_script( 'jquery-ui-progressbar' );
-        wp_enqueue_script( 'jquery-ui-dialog' );
-
-        /**
-         * WordPress Core class used to register scripts.
-         *
-         * @global object $wp_scripts WordPress Core class used to register scripts.
-         */
-        global $wp_scripts;
-
-        $ui      = $wp_scripts->query( 'jquery-ui-core' );
-        $version = $ui->ver;
-        if ( MainWP_Helper::starts_with( $version, '1.10' ) ) {
-            wp_enqueue_style( 'jquery-ui-style', plugins_url( 'css/1.10.4/jquery-ui.min.css', __DIR__ ), array(), '1.10', 'all' );
-        } else {
-            wp_enqueue_style( 'jquery-ui-style', plugins_url( 'css/1.11.1/jquery-ui.min.css', __DIR__ ), array(), '1.11', 'all' );
-        }
+        // Scripts are now loaded by MainWP_Child_Assets class.
+        // This method is kept for backward compatibility.
     }
 
 
@@ -86,13 +70,13 @@ class MainWP_Clone_Page {
      */
     public static function render() {
         $uploadError = false;
-        $uploadFile  = false;
+        $uploadFile = false;
         if ( isset( $_REQUEST['_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['_nonce'] ) ), 'cloneRestore' ) ) {
             if ( isset( $_FILES['file'] ) ) {
                 if ( ! function_exists( 'wp_handle_upload' ) ) {
                     require_once ABSPATH . 'wp-admin/includes/file.php';
                 }
-                $uploadedfile     = isset( $_FILES['file'] ) ? sanitize_text_field( wp_unslash( $_FILES['file'] ) ) : '';
+                $uploadedfile = isset( $_FILES['file'] ) ? sanitize_text_field( wp_unslash( $_FILES['file'] ) ) : '';
                 $upload_overrides = array( 'test_form' => false );
                 add_filter( 'upload_mimes', array( MainWP_Clone::get_class_name(), 'upload_mimes' ) );
                 $movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
@@ -106,9 +90,9 @@ class MainWP_Clone_Page {
             }
         }
 
-        $sitesToClone      = get_option( 'mainwp_child_clone_sites' );
+        $sitesToClone = get_option( 'mainwp_child_clone_sites' );
         $uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );
-        $uploadSize        = MainWP_Helper::human_filesize( $uploadSizeInBytes );
+        $uploadSize = MainWP_Helper::human_filesize( $uploadSizeInBytes );
 
         self::render_style();
 
@@ -237,16 +221,16 @@ class MainWP_Clone_Page {
      */
     public static function render_normal_restore() {
         $uploadError = false;
-        $uploadFile  = false;
+        $uploadFile = false;
 
         if ( isset( $_REQUEST['_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['_nonce'] ) ), 'cloneRestore' ) ) {
             if ( isset( $_FILES['file'] ) ) {
                 if ( ! function_exists( 'wp_handle_upload' ) ) {
                     require_once ABSPATH . 'wp-admin/includes/file.php';
                 }
-                $uploadedfile     = isset( $_FILES['file'] ) ? sanitize_text_field( wp_unslash( $_FILES['file'] ) ) : '';
+                $uploadedfile = isset( $_FILES['file'] ) ? sanitize_text_field( wp_unslash( $_FILES['file'] ) ) : '';
                 $upload_overrides = array( 'test_form' => false );
-                $movefile         = wp_handle_upload( $uploadedfile, $upload_overrides );
+                $movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
                 if ( $movefile ) {
                     $uploadFile = str_replace( ABSPATH, '', $movefile['file'] );
                 } else {
@@ -258,7 +242,7 @@ class MainWP_Clone_Page {
         }
 
         $uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );
-        $uploadSize        = MainWP_Helper::human_filesize( $uploadSizeInBytes );
+        $uploadSize = MainWP_Helper::human_filesize( $uploadSizeInBytes );
 
         self::render_style();
         ?>
@@ -342,12 +326,12 @@ class MainWP_Clone_Page {
      */
     private static function render_clone_from_server() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
+        $page = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
         $sitesToClone = get_option( 'mainwp_child_clone_sites' );
-        $url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
-        $dirs         = MainWP_Helper::get_mainwp_dir( 'backup', false );
-        $current_dir  = $dirs[0];
-        $backup_dir   = $current_dir;
+        $url = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
+        $current_dir = $dirs[0];
+        $backup_dir = $current_dir;
 
         if ( isset( $_REQUEST['dir'] ) ) {
             $current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( wp_unslash( $_REQUEST['dir'] ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -379,8 +363,8 @@ class MainWP_Clone_Page {
         }
         MainWP_Helper::update_option( 'mainwp_child_clone_from_server_last_folder', rtrim( $current_dir, '/' ) );
 
-        $parts       = explode( '/', ltrim( $current_dir, '/' ) );
-        $dirparts    = '';
+        $parts = explode( '/', ltrim( $current_dir, '/' ) );
+        $dirparts = '';
         $count_parts = count( $parts );
         for ( $i = $count_parts - 1; $i >= 0; $i-- ) {
             $part = $parts[ $i ];
@@ -388,15 +372,15 @@ class MainWP_Clone_Page {
             if ( strlen( $adir ) > 1 ) {
                 $adir = ltrim( $adir, '/' );
             }
-            $durl     = add_query_arg( array( 'dir' => rawurlencode( $adir ) ), $url );
+            $durl = add_query_arg( array( 'dir' => rawurlencode( $adir ) ), $url );
             $dirparts = '<a href="' . esc_url( $durl ) . '">' . $part . DIRECTORY_SEPARATOR . '</a>' . $dirparts;
         }
 
         echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . sprintf( esc_html__( '%1$sCurrent Directory:%2$s %3$s', 'mainwp-child' ), '<strong>', '</strong>', '<span>' . $dirparts . '</span>' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
-        $quick_dirs   = array();
+        $quick_dirs = array();
         $quick_dirs[] = array( esc_html__( 'Site Root', 'mainwp-child' ), ABSPATH );
         $quick_dirs[] = array( esc_html__( 'Backup', 'mainwp-child' ), $backup_dir );
-        $uploads      = wp_upload_dir();
+        $uploads = wp_upload_dir();
         if ( $uploads && false === $uploads['error'] ) {
             $quick_dirs[] = array( esc_html__( 'Uploads Folder', 'mainwp-child' ), $uploads['path'] );
         }
@@ -405,11 +389,11 @@ class MainWP_Clone_Page {
         $quick_links = array();
         foreach ( $quick_dirs as $dir ) {
             list( $text, $adir ) = $dir;
-            $adir                = str_replace( '\\', '/', strtolower( $adir ) );
+            $adir = str_replace( '\\', '/', strtolower( $adir ) );
             if ( strlen( $adir ) > 1 ) {
                 $adir = ltrim( $adir, '/' );
             }
-            $durl          = add_query_arg( array( 'dir' => rawurlencode( $adir ) ), $url );
+            $durl = add_query_arg( array( 'dir' => rawurlencode( $adir ) ), $url );
             $quick_links[] = "<a href='" . esc_url( $durl ) . "'>" . esc_html( $text ) . '</a>';
         }
 
@@ -430,9 +414,9 @@ class MainWP_Clone_Page {
      */
     private static function render_clone_from_server_form( $current_dir, $url ) {
 
-        $dir_files      = scandir( $current_dir );
-        $directories    = array();
-        $files          = array();
+        $dir_files = scandir( $current_dir );
+        $directories = array();
+        $files = array();
         $rejected_files = array();
         foreach ( (array) $dir_files as $file ) {
             if ( in_array( $file, array( '.', '..' ) ) ) {
@@ -464,7 +448,7 @@ class MainWP_Clone_Page {
                             </div>
                             <?php
                             foreach ( (array) $directories as $file ) {
-                                $filename   = ltrim( $file, '/' );
+                                $filename = ltrim( $file, '/' );
                                 $folder_url = esc_url( add_query_arg( array( 'dir' => rawurlencode( $filename ) ), $url ) );
                                 ?>
                                 <div class="clonesite_select_site_item">
@@ -517,7 +501,7 @@ class MainWP_Clone_Page {
      */
     public static function render_java_script() {
         $uploadSizeInBytes = min( MainWP_Helper::return_bytes( ini_get( 'upload_max_filesize' ) ), MainWP_Helper::return_bytes( ini_get( 'post_max_size' ) ) );
-        $uploadSize        = MainWP_Helper::human_filesize( $uploadSizeInBytes );
+        $uploadSize = MainWP_Helper::human_filesize( $uploadSizeInBytes );
         ?>
         <div id="mainwp-child_clone_status" title="Restore process"></div>
         <script language="javascript">
@@ -754,7 +738,7 @@ class MainWP_Clone_Page {
                 cloneInitiateBackupDownload( pSiteId, resp.url, resp.size );
             };
 
-            cloneInitiateExtractBackup = function ( file ) {
+            cloneInitiateExtractBackup = function ( file, retryNum ) {
                 if ( file == undefined ) file = '';
 
                 updateClonePopup( translations['extracting_backup'] );
@@ -769,7 +753,17 @@ class MainWP_Clone_Page {
                     data: data,
                     success: function ( resp ) {
                         if ( resp.error ) {
-                            handleCloneError( resp );
+                            if( retryNum == undefined ){
+                                retryNum = 0;
+                            }
+                            retryNum++;
+                            if( retryNum < 3 ){
+                                setTimeout( function () {
+                                    cloneInitiateExtractBackup(file, retryNum);
+                                }, 1000 );
+                            } else {
+                                handleCloneError( resp );
+                            }
                             return;
                         }
 

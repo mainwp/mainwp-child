@@ -142,7 +142,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         global $wp_filesystem;
 
         $upload_dir = wp_upload_dir();
-        $dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
+        $dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
         static::check_dir( $dir, $die_on_error );
         if ( ! $wp_filesystem->exists( $dir . 'index.php' ) ) {
             touch( $dir . 'index.php' );
@@ -284,7 +284,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 if ( ( 'ftpext' === $wp_filesystem->method ) && defined( 'FTP_BASE' ) ) {
                     $ftpBase = FTP_BASE;
                     $ftpBase = trailingslashit( $ftpBase );
-                    $tmpdir  = str_replace( ABSPATH, $ftpBase, $dir );
+                    $tmpdir = str_replace( ABSPATH, $ftpBase, $dir );
                 } else {
                     $tmpdir = $dir;
                 }
@@ -429,11 +429,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
     public static function reject_unsafe_urls( $r ) {
         $r['reject_unsafe_urls'] = false;
         // phpcs:disable WordPress.Security.NonceVerification
-        $wpadmin_user   = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $wpadmin_user = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $wpadmin_passwd = isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ? wp_unslash( $_POST['wpadmin_passwd'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
         if ( ! empty( $wpadmin_user ) && ! empty( $wpadmin_passwd ) ) {
-            $auth                          = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+            $auth = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
             $r['headers']['Authorization'] = "Basic $auth";
         }
 
@@ -563,9 +563,9 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string $val Value converted to bytes.
      */
     public static function return_bytes( $val ) {
-        $val  = trim( $val );
+        $val = trim( $val );
         $last = $val[ strlen( $val ) - 1 ];
-        $val  = rtrim( $val, $last );
+        $val = rtrim( $val, $last );
         $last = strtolower( $last );
         switch ( $last ) {
             case 'g':
@@ -594,7 +594,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string Value converted to more user-friendly format.
      */
     public static function human_filesize( $bytes, $decimals = 2 ) {
-        $size   = array( 'B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB' );
+        $size = array( 'B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB' );
         $factor = floor( ( strlen( $bytes ) - 1 ) / 3 );
 
         return sprintf( "%.{$decimals}f", $bytes / pow( 1024, $factor ) ) . $size[ $factor ];
@@ -725,7 +725,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method update_option()
      *
-     * Update option.
+     * Update option with caching for better performance.
      *
      * @param string $option_name Contains the option name.
      * @param string $option_value Contains the option value.
@@ -734,10 +734,29 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool $success true|false Option updated.
      */
     public static function update_option( $option_name, $option_value, $autoload = 'no' ) {
+        // Try to add the option first.
         $success = add_option( $option_name, $option_value, '', $autoload );
+
+        // If option already exists, update it.
         if ( ! $success ) {
             $success = update_option( $option_name, $option_value );
         }
+
+        // If update was successful, update our cache.
+        if ( $success ) {
+            // Cache the option in our custom cache group for faster access.
+            wp_cache_set( $option_name, $option_value, 'mainwp', 3600 ); // Cache for 1 hour.
+
+            // Also update the alloptions cache if this is an autoloaded option.
+            if ( 'yes' === $autoload ) {
+                $alloptions = wp_cache_get( 'alloptions', 'options' );
+                if ( is_array( $alloptions ) ) {
+                    $alloptions[ $option_name ] = $option_value;
+                    wp_cache_set( 'alloptions', $alloptions, 'options' );
+                }
+            }
+        }
+
         return $success;
     }
 

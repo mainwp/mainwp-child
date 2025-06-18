@@ -207,7 +207,7 @@ class MainWP_Child_Plugins_Check {
             require_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR - WP compatible.
         }
         $plugins = get_plugins();
-        $update  = false;
+        $update = false;
         foreach ( $plugins_outdate as $slug => $v ) {
             if ( ! isset( $plugins[ $slug ] ) ) {
                 unset( $plugins_outdate[ $slug ] );
@@ -264,7 +264,7 @@ class MainWP_Child_Plugins_Check {
         // If there wasn't a previous cache.
         if ( false === $all_plugins || ! is_array( $all_plugins ) ) {
             $all_plugins = array();
-            $plugins     = get_plugins();
+            $plugins = get_plugins();
             if ( is_array( $plugins ) ) {
                 foreach ( $plugins as $slug => $plugin ) {
                     if ( isset( $plugin['Name'] ) && ! empty( $plugin['Name'] ) ) {
@@ -283,7 +283,7 @@ class MainWP_Child_Plugins_Check {
         $avoid_plugins = array( 'sitepress-multilingual-cms/sitepress.php' );
 
         // Grab a small number of plugins to scan.
-        $plugins_to_scan   = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
+        $plugins_to_scan = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
         $tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
         // Loop through each known plugin.
@@ -309,7 +309,7 @@ class MainWP_Child_Plugins_Check {
                 if ( version_compare( $v['Version'], $obj->version, '>' ) ) {
                     continue;
                 }
-                $last_updated             = strtotime( $obj->last_updated );
+                $last_updated = strtotime( $obj->last_updated );
                 $plugin_last_updated_date = new \DateTime( '@' . $last_updated );
 
                 $diff_in_days = $now->diff( $plugin_last_updated_date )->format( '%a' );
@@ -317,7 +317,7 @@ class MainWP_Child_Plugins_Check {
                 if ( $diff_in_days < $tolerance_in_days ) {
                     continue;
                 }
-                $v['last_updated']  = $last_updated;
+                $v['last_updated'] = $last_updated;
                 $responses[ $slug ] = $v;
             }
         }
@@ -344,7 +344,8 @@ class MainWP_Child_Plugins_Check {
     private function try_get_response_body( $plugin, $second_pass ) { //phpcs:ignore -- NOSONAR - complex.
 
         // Get the WordPress current version to be polite in the API call.
-        include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
+        // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
+        $wp_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
 
         $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
 
@@ -355,7 +356,7 @@ class MainWP_Child_Plugins_Check {
         );
 
         // The URL for the endpoint.
-        $url      = 'http://api.wordpress.org/plugins/info/1.0/';
+        $url = 'http://api.wordpress.org/plugins/info/1.0/';
         $http_url = 'http://api.wordpress.org/plugins/info/1.0/';
 
         $ssl = wp_http_supports( array( 'ssl' ) );

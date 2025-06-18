@@ -190,8 +190,8 @@ class MainWP_Child_Comments {
         if ( 0 === $maxComments ) {
             $maxComments = 99999;
         }
-        $status                     = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-        $rslt                       = $this->get_recent_comments( explode( ',', $status ), $maxComments );
+        $status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+        $rslt = $this->get_recent_comments( explode( ',', $status ), $maxComments );
         $this->comments_and_clauses = '';
         // phpcs:enable
         MainWP_Helper::write( $rslt );
@@ -219,20 +219,20 @@ class MainWP_Child_Comments {
             $comments = get_comments( $params );
             if ( is_array( $comments ) ) {
                 foreach ( $comments as $comment ) {
-                    $post                        = get_post( $comment->comment_post_ID );
-                    $outComment                  = array();
-                    $outComment['id']            = $comment->comment_ID;
-                    $outComment['status']        = wp_get_comment_status( $comment->comment_ID );
-                    $outComment['author']        = $comment->comment_author;
-                    $outComment['author_url']    = get_comment_author_url( $comment->comment_ID );
-                    $outComment['author_ip']     = get_comment_author_IP( $comment->comment_ID );
-                    $outComment['author_email']  = apply_filters( 'comment_email', $comment->comment_author_email );
-                    $outComment['postId']        = $comment->comment_post_ID;
-                    $outComment['postName']      = $post->post_title;
+                    $post = get_post( $comment->comment_post_ID );
+                    $outComment = array();
+                    $outComment['id'] = $comment->comment_ID;
+                    $outComment['status'] = wp_get_comment_status( $comment->comment_ID );
+                    $outComment['author'] = $comment->comment_author;
+                    $outComment['author_url'] = get_comment_author_url( $comment->comment_ID );
+                    $outComment['author_ip'] = get_comment_author_IP( $comment->comment_ID );
+                    $outComment['author_email'] = apply_filters( 'comment_email', $comment->comment_author_email );
+                    $outComment['postId'] = $comment->comment_post_ID;
+                    $outComment['postName'] = $post->post_title;
                     $outComment['comment_count'] = $post->comment_count;
-                    $outComment['content']       = $comment->comment_content;
-                    $outComment['dts']           = strtotime( $comment->comment_date_gmt );
-                    $allComments[]               = $outComment;
+                    $outComment['content'] = $comment->comment_content;
+                    $outComment['dts'] = strtotime( $comment->comment_date_gmt );
+                    $allComments[] = $outComment;
                 }
             }
         }

@@ -336,7 +336,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Purge results array.
      */
     public function purge_result( $message, $action ) {
-        $result           = array(
+        $result = array(
             'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
             'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
             'Cache Control Enabled' => get_option( 'mainwp_child_auto_purge_cache' ),
@@ -374,8 +374,8 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function swis_performance_auto_purge_cache() {
 
         $success_message = 'Swis Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Swis Performance => There was an issue purging your cache.';
-        $bypass_message  = 'Swis Performance => Purge was bypassed due to Swis Auto Purge Settings.';
+        $error_message = 'Swis Performance => There was an issue purging your cache.';
+        $bypass_message = 'Swis Performance => Purge was bypassed due to Swis Auto Purge Settings.';
 
         if ( is_callable( 'swis' ) ) {
 
@@ -412,7 +412,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function seraphinite_auto_purge_cache() {
 
         $success_message = 'Seraphinite Accelerator => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Seraphinite Accelerator => There was an issue purging your cache.';
+        $error_message = 'Seraphinite Accelerator => There was an issue purging your cache.';
 
         if ( class_exists( '\seraph_accel\API' ) ) {
 
@@ -436,7 +436,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function cdn_cache_plugin_auto_purge_cache() {
 
         $success_message = 'CDN Cache Plugin => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'CDN Cache Plugin => There was an issue purging your cache.';
+        $error_message = 'CDN Cache Plugin => There was an issue purging your cache.';
 
         if ( class_exists( 'CDN_Clear_Cache_Api' ) ) {
 
@@ -460,7 +460,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function comet_cache_auto_purge_cache() {
 
         $success_message = 'Comet Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Comet Cache => There was an issue purging your cache.';
+        $error_message = 'Comet Cache => There was an issue purging your cache.';
 
         if ( class_exists( '\comet_cache' ) ) {
 
@@ -485,7 +485,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function wp_optimize_auto_purge_cache() {
 
         $success_message = 'WP Optimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'WP Optimize => There was an issue purging your cache.';
+        $error_message = 'WP Optimize => There was an issue purging your cache.';
 
         // Clear Cache.
         $purge = static::wp_optimize_purge_cache();
@@ -541,7 +541,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             }
             if ( class_exists( '\WP_Optimize_Minify_Commands' ) ) {
                 $minify_commands = new \WP_Optimize_Minify_Commands();
-                $results         = $minify_commands->purge_minify_cache();
+                $results = $minify_commands->purge_minify_cache();
                 if ( 'caches cleared' === $results['result'] ) {
                     return true;
                 }
@@ -585,7 +585,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function wp_super_cache_auto_purge_cache() {
 
         $success_message = 'WP Super Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'WP Super Cache => There was an issue purging your cache.';
+        $error_message = 'WP Super Cache => There was an issue purging your cache.';
 
         if ( function_exists( '\wp_cache_clean_cache' ) ) {
 
@@ -611,7 +611,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function flyingpress_auto_purge_cache() {
 
         $success_message = 'FlyingPress Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'FlyingPress Cache => There was an issue purging your cache.';
+        $error_message = 'FlyingPress Cache => There was an issue purging your cache.';
 
         if ( class_exists( '\FlyingPress\Purge' ) && class_exists( '\FlyingPress\Preload' ) ) {
 
@@ -640,7 +640,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function autoptimize_auto_purge_cache() {
 
         $success_message = 'Autoptimize => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Autoptimize => There was an issue purging your cache.';
+        $error_message = 'Autoptimize => There was an issue purging your cache.';
 
         if ( class_exists( 'autoptimizeCache' ) ) {
 
@@ -671,7 +671,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function nitropack_auto_purge_cache() {
 
         $success_message = 'Nitropack => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Nitropack => There was an issue purging your cache.';
+        $error_message = 'Nitropack => There was an issue purging your cache.';
 
         if ( function_exists( 'nitropack_purge' ) ) {
 
@@ -696,7 +696,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function runcloud_hub_auto_purge_cache() {
 
         $success_message = 'RunCloud Hub => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'RunCloud Hub => There was an issue purging your cache.';
+        $error_message = 'RunCloud Hub => There was an issue purging your cache.';
 
         if ( class_exists( 'RunCloud_Hub' ) && method_exists( 'RunCloud_Hub', 'purge_cache_all' ) ) {
 
@@ -721,7 +721,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function nginx_helper_auto_purge_cache() {
 
         $success_message = 'Nginx Helper => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Nginx Helper => There was an issue purging your cache.';
+        $error_message = 'Nginx Helper => There was an issue purging your cache.';
 
         if ( class_exists( 'Nginx_Helper' ) ) {
 
@@ -748,7 +748,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function wp_hummingbird_auto_purge_cache() {
 
         $success_message = 'Hummingbird => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Hummingbird => There was an issue purging your cache.';
+        $error_message = 'Hummingbird => There was an issue purging your cache.';
 
         if ( class_exists( 'Hummingbird\Core\Modules\\Page_Cache' ) ) {
 
@@ -773,7 +773,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function cache_enabler_auto_purge_cache() {
 
         $success_message = 'Cache Enabler => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Cache Enabler => There was an issue purging your cache.';
+        $error_message = 'Cache Enabler => There was an issue purging your cache.';
 
         if ( class_exists( 'Cache_Enabler' ) ) {
 
@@ -798,7 +798,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function w3_total_cache_auto_purge_cache() {
 
         $success_message = 'W3 Total Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'W3 Total Cache => There was an issue purging your cache.';
+        $error_message = 'W3 Total Cache => There was an issue purging your cache.';
 
         if ( function_exists( 'w3tc_flush_all' ) ) {
 
@@ -823,7 +823,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function wp_fastest_cache_auto_purge_cache() {
 
         $success_message = 'WP Fastest Cache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'WP Fastest Cache => There was an issue purging your cache.';
+        $error_message = 'WP Fastest Cache => There was an issue purging your cache.';
 
         if ( class_exists( 'WpFastestCache' ) ) {
 
@@ -848,7 +848,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function swift_performance_lite_auto_purge_cache() {
 
         $success_message = 'Swift Performance Lite => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Swift Performance Lite => There was an issue purging your cache.';
+        $error_message = 'Swift Performance Lite => There was an issue purging your cache.';
 
         if ( class_exists( 'Swift_Performance_Cache' ) ) {
 
@@ -873,7 +873,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function swift_performance_auto_purge_cache() {
 
         $success_message = 'Swift Performance => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Swift Performance => There was an issue purging your cache.';
+        $error_message = 'Swift Performance => There was an issue purging your cache.';
 
         if ( class_exists( 'Swift_Performance_Cache' ) ) {
 
@@ -898,7 +898,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function sitegrounds_optimizer_auto_purge_cache() {
 
         $success_message = 'SiteGround Optimizer => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'SiteGround Optimizer => There was an issue purging your cache.';
+        $error_message = 'SiteGround Optimizer => There was an issue purging your cache.';
 
         if ( function_exists( 'sg_cachepress_purge_everything' ) ) {
 
@@ -1000,7 +1000,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function litespeed_auto_purge_cache() {
 
         $success_message = 'LiteSpeed => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'LiteSpeed => There was an issue purging your cache.';
+        $error_message = 'LiteSpeed => There was an issue purging your cache.';
 
         if ( class_exists( '\LiteSpeed\Purge' ) ) {
 
@@ -1027,7 +1027,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function breeze_auto_purge_cache() {
 
         $success_message = 'Breeze => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Breeze => There was an issue purging your cache.';
+        $error_message = 'Breeze => There was an issue purging your cache.';
 
         if ( class_exists( 'Breeze_Admin' ) ) {
 
@@ -1066,7 +1066,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public function wprocket_auto_cache_purge() {
 
         // Purge Cache if action is set to "1".
-        $do_purge     = get_option( 'mainwp_child_auto_purge_cache', false );
+        $do_purge = get_option( 'mainwp_child_auto_purge_cache', false );
         $purge_result = array();
 
         if ( 1 === (int) $do_purge ) {
@@ -1119,10 +1119,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string The url without subdomains (if any).
      */
     public function strip_subdomains( $url ) {
-        $parts     = explode( '/', $url );
+        $parts = explode( '/', $url );
         $url_first = $parts[0]; // get first part.
-        $count     = count( explode( '.', $url_first ) );
-        $domain    = '';
+        $count = count( explode( '.', $url_first ) );
+        $domain = '';
         if ( 4 <= $count ) {
             $domain = implode( '.', array_slice( explode( '.', $url_first ), -3 ) );
         } else {

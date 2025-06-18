@@ -47,19 +47,19 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public $plugin_translate = 'mainwp-child';
 
-    const OPTIONS_TYPE_GLOBAL       = 'global';
-    const OPTIONS_TYPE_FIREWALL     = 'firewall';
-    const OPTIONS_TYPE_BLOCKING     = 'blocking';
-    const OPTIONS_TYPE_SCANNER      = 'scanner';
-    const OPTIONS_TYPE_TWO_FACTOR   = 'twofactor';
+    const OPTIONS_TYPE_GLOBAL = 'global';
+    const OPTIONS_TYPE_FIREWALL = 'firewall';
+    const OPTIONS_TYPE_BLOCKING = 'blocking';
+    const OPTIONS_TYPE_SCANNER = 'scanner';
+    const OPTIONS_TYPE_TWO_FACTOR = 'twofactor';
     const OPTIONS_TYPE_LIVE_TRAFFIC = 'livetraffic';
     const OPTIONS_TYPE_COMMENT_SPAM = 'commentspam';
-    const OPTIONS_TYPE_DIAGNOSTICS  = 'diagnostics';
-    const OPTIONS_TYPE_ALL          = 'alloptions';
+    const OPTIONS_TYPE_DIAGNOSTICS = 'diagnostics';
+    const OPTIONS_TYPE_ALL = 'alloptions';
 
-    const BLOCK_TYPE_COMPLEX     = 'complex';
+    const BLOCK_TYPE_COMPLEX = 'complex';
     const BLOCK_TYPE_BRUTE_FORCE = 'bruteforce';
-    const BLOCK_TYPE_BLACKLIST   = 'blacklist';
+    const BLOCK_TYPE_BLACKLIST = 'blacklist';
 
     /**
      * Public variable to hold the KEY_TYPE_FREE value.
@@ -262,7 +262,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
         if ( $this->is_wordfence_installed ) {
             add_action( 'wp_ajax_mainwp_wordfence_download_htaccess', array( $this, 'download_htaccess' ) );
             if ( null === $this->keyType ) {
-                $type_free     = defined( '\wfAPI::KEY_TYPE_FREE' ) ? \wfAPI::KEY_TYPE_FREE : 'free';
+                $type_free = defined( '\wfAPI::KEY_TYPE_FREE' ) ? \wfAPI::KEY_TYPE_FREE : 'free';
                 $this->keyType = defined( '\wfLicense::KEY_TYPE_FREE' ) ? \wfLicense::KEY_TYPE_FREE : $type_free;
             }
         }
@@ -343,7 +343,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
         $table_wfStatus = \wfDB::networkTable( 'wfStatus' );
 
         // fix prepare sql empty.
-        $sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 10 AND type = 'info' ", $lastcheck );
+        $sql = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime >= %d AND level = 10 AND type = 'info' ", $lastcheck );
         $sql .= " AND msg LIKE 'SUM_FINAL%' ";
         $rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
 
@@ -357,11 +357,11 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
         if ( $scan_time ) {
             $message = 'Wordfence scan completed';
             foreach ( $scan_time as $ctime => $details ) {
-                $sql  = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg.
+                $sql = sprintf( "SELECT * FROM {$table_wfStatus} WHERE ctime > %d AND ctime < %d AND level = 10 AND type = 'info' ", $ctime, $ctime + 100 ); // to get nearest SUM_FINAL msg.
                 $sql .= "  AND msg LIKE 'SUM_FINAL%' ";
 
                 $sum_rows = MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
-                $result   = '';
+                $result = '';
                 if ( $sum_rows ) {
                     $sum_row = MainWP_Child_DB::fetch_array( $sum_rows );
                     if ( is_array( $sum_row ) && isset( $sum_row['msg'] ) ) {
@@ -398,7 +398,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function init_cron() {
         $sched = wp_next_scheduled( 'mainwp_child_wordfence_cron_scan' );
-        $sch   = get_option( 'mainwp_child_wordfence_cron_time' );
+        $sch = get_option( 'mainwp_child_wordfence_cron_time' );
         if ( 'twicedaily' === $sch || 'daily' === $sch || 'weekly' === $sch || 'monthly' === $sch ) {
             add_action( 'mainwp_child_wordfence_cron_scan', array( $this, 'wfc_cron_scan' ) );
             if ( false === $sched ) {
@@ -884,7 +884,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
             'learningModeGracePeriod',
         );
 
-        $scan_opts        = array(
+        $scan_opts = array(
             'scansEnabled_checkGSB',
             'spamvertizeCheck',
             'checkSpamIP',
@@ -1060,7 +1060,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_log() {
         $information = array();
-        $wfLog       = \wordfence::getLog();
+        $wfLog = \wordfence::getLog();
         if ( $wfLog ) {
             $information['events'] = $wfLog->getStatusEvents( 0 );
 
@@ -1070,7 +1070,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
                 $information['summary'] = '';
             }
         }
-        $information['debugOn']    = \wfConfig::get( 'debugOn', false );
+        $information['debugOn'] = \wfConfig::get( 'debugOn', false );
         $information['timeOffset'] = 3600 * get_option( 'gmt_offset' );
 
         return $information;
@@ -1101,11 +1101,11 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
     public function load_issues() {
         // phpcs:disable WordPress.Security.NonceVerification
         $offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
-        $limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
+        $limit = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
         // phpcs:enable
 
-        $i      = new \wfIssues();
-        $iss    = $i->getIssues( $offset, $limit );
+        $i = new \wfIssues();
+        $iss = $i->getIssues( $offset, $limit );
         $counts = $i->getIssueCounts();
 
         return array(
@@ -1135,11 +1135,11 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
     public static function ajax_load_issues_callback() {
         // phpcs:disable WordPress.Security.NonceVerification
         $offset = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
-        $limit  = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
+        $limit = isset( $_POST['limit'] ) ? intval( $_POST['limit'] ) : WORDFENCE_SCAN_ISSUES_PER_PAGE;
         // phpcs:enable
 
-        $i      = new \wfIssues();
-        $iss    = $i->getIssues( $offset, $limit );
+        $i = new \wfIssues();
+        $iss = $i->getIssues( $offset, $limit );
         $counts = $i->getIssueCounts();
         return array(
             'issuesLists'        => $iss,
@@ -1175,7 +1175,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
         );
 
         if ( class_exists( '\wfFirewall' ) ) {
-            $firewall                             = new \wfFirewall();
+            $firewall = new \wfFirewall();
             $return['isSubDirectoryInstallation'] = $firewall->isSubDirectoryInstallation();
         }
         return $return;
@@ -1205,7 +1205,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
         global $wpdb;
 
         $table_wfBlockedIPLog = \wfDB::networkTable( 'wfBlockedIPLog' );
-        $interval             = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
+        $interval = 'FLOOR(UNIX_TIMESTAMP(DATE_SUB(NOW(), interval ' . $maxAgeDays . ' day)) / 86400)';
         // phpcs:disable -- third party code, safe.
         return $wpdb->get_var(
             <<<SQL

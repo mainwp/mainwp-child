@@ -96,7 +96,7 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( isset( $data['sync_html_regression_data'] ) && ( 'yes' === $data['sync_html_regression_data'] ) ) {
             try {
-                $data                                     = array(
+                $data = array(
                     'files'   => $this->get_active_assets(),
                     'plugins' => $this->get_frontend_assets_only(),
                     'themes'  => $this->get_theme_css_js_files(),
@@ -127,10 +127,10 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
 
         // Get a list of active plugins.
         $active_plugins = get_option( 'active_plugins', array() );
-        $plugin_dir     = WP_PLUGIN_DIR;
+        $plugin_dir = WP_PLUGIN_DIR;
 
         foreach ( $active_plugins as $plugin ) {
-            $plugin_path                             = $plugin_dir . '/' . dirname( $plugin );
+            $plugin_path = $plugin_dir . '/' . dirname( $plugin );
             $result['plugins'][ dirname( $plugin ) ] = $this->get_css_js_files( $plugin_path );
         }
 
@@ -199,7 +199,7 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
                     if ( empty( $plugin_info ) ) {
                         continue;
                     }
-                    $plugin_assets[ $plugin_info['path'] ]['name']          = $plugin_info['name'];
+                    $plugin_assets[ $plugin_info['path'] ]['name'] = $plugin_info['name'];
                     $plugin_assets[ $plugin_info['path'] ][ $type . 's' ][] = array(
                         'handle' => $handle,
                         'src'    => $asset->src,
@@ -232,7 +232,7 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function is_asset_in_admin( $handle, $type ) {
         // Variable that checks whether the asset appears in admin or not.
-        $is_in_admin  = false;
+        $is_in_admin = false;
         $admin_assets = get_option( 'html-regression-track-admin-assets', array() );
         if ( empty( $admin_assets ) ) {
             do_action( 'admin_enqueue_scripts' );
@@ -296,7 +296,7 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
         if ( false !== $plugin_path ) {
             // Trim the string to get the plugin name.
             $relative_path = substr( $path, $plugin_path + strlen( 'wp-content/plugins/' ) );
-            $parts         = explode( '/', $relative_path );
+            $parts = explode( '/', $relative_path );
             if ( ! empty( $parts[0] ) ) {
                 // Get a list of all installed plugins.
                 if ( ! function_exists( 'get_plugins' ) ) {
@@ -328,7 +328,7 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array theme css and js files.
      */
     public function get_theme_css_js_files() {
-        $theme     = wp_get_theme();
+        $theme = wp_get_theme();
         $theme_dir = get_template_directory();
         return array( $theme->get( 'Name' ) => $this->get_css_js_files( $theme_dir ) );
     }

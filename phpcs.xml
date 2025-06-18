@@ -54,5 +54,4 @@
 	</rule>
 
 	<rule ref="Generic.WhiteSpace.DisallowTabIndent" />
-
 </ruleset>

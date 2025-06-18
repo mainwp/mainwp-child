@@ -101,8 +101,8 @@ class MainWP_Child_Keys_Manager {
         MainWP_Connect_Lib::autoload_files(); // to fix.
         if ( ! $this->valid_phpseclib3_supported() ) {
             if ( is_callable( 'sodium_crypto_secretbox' ) ) {
-                $nonce        = $this->get_key_val( 'nonce', 24 ); // $nonce A Number to be used Once; must be 24 bytes.
-                $key          = $this->get_sodium_key();
+                $nonce = $this->get_key_val( 'nonce', 24 ); // $nonce A Number to be used Once; must be 24 bytes.
+                $key = $this->get_sodium_key();
                 $encodedValue = sodium_crypto_secretbox( $keypass, $nonce, $key ); //phpcs:ignore -- ok.
                 $encodedValue = base64_encode( $encodedValue ); //phpcs:ignore -- safe.
             } else {
@@ -161,8 +161,8 @@ class MainWP_Child_Keys_Manager {
         if ( ! $this->valid_phpseclib3_supported() ) {
             if ( is_callable( 'sodium_crypto_secretbox_open' ) ) {
                 $encodedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
-                $nonce        = $this->get_key_val( 'nonce', 24 ); // $nonce A Number to be used Once; must be 24 bytes.
-                $key          = $this->get_sodium_key();
+                $nonce = $this->get_key_val( 'nonce', 24 ); // $nonce A Number to be used Once; must be 24 bytes.
+                $key = $this->get_sodium_key();
                 $decoded      = sodium_crypto_secretbox_open( $encodedValue, $nonce, $key ); //phpcs:ignore -- ok.
             } else {
                 $decoded = MainWP_Utility::encrypt_decrypt( $encodedValue, false );
@@ -177,9 +177,9 @@ class MainWP_Child_Keys_Manager {
                 $encryptedValue = base64_decode( $encodedValue ); //phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- safe.
 
                 // Extract the IV, ciphertext, and tag.
-                $iv         = substr( $encryptedValue, 0, 16 );
+                $iv = substr( $encryptedValue, 0, 16 );
                 $ciphertext = substr( $encryptedValue, 16, -16 );
-                $tag        = substr( $encryptedValue, -16 );
+                $tag = substr( $encryptedValue, -16 );
 
                 // Create AES instance.
                 $aes = new AES( 'gcm' ); // MODE_GCM.

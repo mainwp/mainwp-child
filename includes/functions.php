@@ -7,9 +7,9 @@
 
  // phpcs:disable WordPress.Security.NonceVerification
 if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ) {
-    $bulk_settings_manageruse_nonce_key  = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
+    $bulk_settings_manageruse_nonce_key = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
     $bulk_settings_manageruse_nonce_hmac = ! empty( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ? wp_unslash( $_GET['bulk_settings_manageruse_nonce_hmac'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-    $bulk_settings_managercurrent_time   = intval( time() );
+    $bulk_settings_managercurrent_time = intval( time() );
 
     if ( $bulk_settings_managercurrent_time >= $bulk_settings_manageruse_nonce_key && $bulk_settings_managercurrent_time <= ( $bulk_settings_manageruse_nonce_key + 30 ) && strcmp( $bulk_settings_manageruse_nonce_hmac, hash_hmac( 'sha256', $bulk_settings_manageruse_nonce_key, NONCE_KEY ) ) === 0 && ! function_exists( 'wp_verify_nonce' ) ) :
         /**
@@ -28,8 +28,8 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
          */
         function wp_verify_nonce( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return.
             $nonce = (string) $nonce;
-            $user  = wp_get_current_user();
-            $uid   = (int) $user->ID;
+            $user = wp_get_current_user();
+            $uid = (int) $user->ID;
             if ( ! $uid ) {
                 /**
                  * Filter whether the user who generated the nonce is logged out.
@@ -75,7 +75,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
             }
 
             $token = wp_get_session_token();
-            $i     = wp_nonce_tick();
+            $i = wp_nonce_tick();
 
             // Nonce generated 0-12 hours ago.
             $expected = substr( wp_hash( $i . '|' . $action . '|' . $uid . '|' . $token, 'nonce' ), - 12, 10 );
@@ -187,5 +187,81 @@ if ( ! function_exists( 'apply_filters_deprecated' ) ) {
         }
         do_action( 'deprecated_hook_run', $hook_name, $replacement, $version, $message );
         return apply_filters_ref_array( $hook_name, $args );
+    }
+}
+
+
+if ( ! function_exists( '\mainwp_child_debug_log' ) ) {
+
+    /**
+     * Method mainwp_child_debug_log.
+     *
+     * @param  string $msg Message to log.
+     * @return void
+     *
+     * @since 5.4.1
+     */
+    function mainwp_child_debug_log( $msg = '' ) {
+        MainWP\Child\MainWP_Helper::log_debug( $msg );
+    }
+}
+
+
+if ( ! function_exists( '\mainwp_child_modules_loader' ) ) {
+
+    /**
+     * Method mainwp_child_modules_loader.
+     *
+     * @param  mixed $class_name
+     * @return bool Matched class name.
+     *
+     * @since 5.4.1
+     */
+    function mainwp_child_modules_loader( $class_name ) {
+
+        $namespaces_modules = array(
+            'MainWP\Child\Changes' => 'changes-logs',
+        );
+        $autoload_dir = rtrim( MAINWP_CHILD_PLUGIN_DIR, DIRECTORY_SEPARATOR );
+        foreach ( $namespaces_modules as $base_ns => $mod_dir ) {
+            if ( 0 === strpos( $class_name, $base_ns ) ) {
+
+                $sub_ns = str_replace( $base_ns, '', $class_name );
+
+                $esc_position = strrchr( $sub_ns, '\\' );
+
+                if ( false !== $esc_position ) {
+                    $class_name_no_ns = substr( $esc_position, 1 );
+                    $sub_dir          = str_replace( $class_name_no_ns, '', $sub_ns );
+                    $sub_dir          = str_replace( '\\', '/', $sub_dir );
+
+                    if ( '/' !== $sub_dir ) {
+                        $sub_dir       = trim( $sub_dir, '/' );
+                        $autoload_path = sprintf( '%s/modules/%s/%s/class-%s.php', $autoload_dir, $mod_dir, strtolower( $sub_dir ), strtolower( str_replace( '_', '-', $class_name_no_ns ) ) );
+                    } else {
+                        $autoload_path = sprintf( '%s/modules/%s/classes/class-%s.php', $autoload_dir, $mod_dir, strtolower( str_replace( '_', '-', $class_name_no_ns ) ) );
+                    }
+                    if ( file_exists( $autoload_path ) ) {
+                        require_once $autoload_path; // NOSONAR - WP compatible.
+                    }
+                }
+                return true; // class name matched.
+            }
+        }
+        return false;
+    }
+}
+
+
+if ( ! function_exists( '\mainwp_child_is_dashboard_request' ) ) {
+    /**
+     * True if it is mainwp dashboard request
+     *
+     * @since 5.4.1
+     *
+     * @return bool
+     */
+    function mainwp_child_is_dashboard_request() {
+        return ( isset( $_POST['mainwpsignature'] ) && isset( $_POST['function'] ) ) ? true : false;
     }
 }

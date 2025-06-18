@@ -106,7 +106,7 @@ class MainWP_Child_DB_Updater_Elementor {
      */
     public function get_needs_db_update( $pro = false ) {
         if ( $pro ) {
-            $db_versions    = array(
+            $db_versions = array(
                 'new_db_version' => '',
                 'slug'           => 'elementor-pro/elementor-pro.php',
             );
@@ -115,7 +115,7 @@ class MainWP_Child_DB_Updater_Elementor {
                 $db_versions['new_db_version'] = $new_db_version;
             }
         } else {
-            $db_versions    = array(
+            $db_versions = array(
                 'new_db_version' => '',
                 'slug'           => 'elementor/elementor.php',
             );

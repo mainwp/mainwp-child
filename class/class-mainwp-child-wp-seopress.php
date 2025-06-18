@@ -95,7 +95,7 @@ class MainWP_Child_WP_Seopress {
         $settings = seopress_return_settings();
 
         $information['settings'] = $settings;
-        $information['message']  = esc_html__( 'Export completed', 'mainwp-child' );
+        $information['message'] = esc_html__( 'Export completed', 'mainwp-child' );
 
         return $information;
     }
@@ -137,7 +137,7 @@ class MainWP_Child_WP_Seopress {
         // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['settings'] ) ) {
             $settings = wp_unslash( $_POST['settings'] ) ?? array();  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-            $option   = isset( $_POST['option'] ) ? sanitize_text_field( wp_unslash( $_POST['option'] ) ) : '';
+            $option = isset( $_POST['option'] ) ? sanitize_text_field( wp_unslash( $_POST['option'] ) ) : '';
             // phpcs:enable
             if ( empty( $option ) ) {
                 $information['error'] = esc_html__( 'Settings could not be saved. Missing option name.', 'mainwp-child' );

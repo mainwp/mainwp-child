@@ -117,15 +117,15 @@ class MainWP_Child_Branding_Render {
         if ( isset( $_GET['from_page'] ) ) {
             $from_page = isset( $_GET['from_page'] ) ? rawurldecode( wp_unslash( $_GET['from_page'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         } else {
-            $protocol  = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
-            $fullurl   = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-            $fullurl   = $protocol . str_replace( array( 'https://', 'http://' ), '', $fullurl );
+            $protocol = isset( $_SERVER['HTTPS'] ) && strcasecmp( sanitize_text_field( wp_unslash( $_SERVER['HTTPS'] ) ), 'off' ) ? 'https://' : 'http://';
+            $fullurl = isset( $_SERVER['HTTP_HOST'] ) && isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+            $fullurl = $protocol . str_replace( array( 'https://', 'http://' ), '', $fullurl );
             $from_page = rawurldecode( $fullurl );
         }
 
         $support_message = $opts['support_message'];
         $support_message = nl2br( stripslashes( $support_message ) );
-        $from_email      = $current_user ? $current_user->user_email : '';
+        $from_email = $current_user ? $current_user->user_email : '';
         ?>
         <form action="" method="post">
             <div style="width: 99%;" class="whlb-support-form">
