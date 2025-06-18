@@ -104,10 +104,10 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::instance()->error( esc_html__( 'This site already contains a link. Please deactivate and reactivate the MainWP plugin.', 'mainwp-child' ) . $hint );
         }
 
-        $information['version'] = MainWP_Child::$version;
+        $information['version']   = MainWP_Child::$version;
         $information['wpversion'] = MainWP_Child_Server_Information_Base::get_wordpress_version();
-        $information['wpe'] = MainWP_Helper::is_wp_engine() ? 1 : 0;
-        $information['wphost'] = MainWP_Helper::get_wp_host();
+        $information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
+        $information['wphost']    = MainWP_Helper::get_wp_host();
         MainWP_Helper::write( $information );
     }
 
@@ -225,7 +225,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         add_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
         $premiumPlugins = array();
-        $premiumThemes = array();
+        $premiumThemes  = array();
 
         // First check for new premium updates.
         $this->check_premium_updates( $information, $premiumPlugins, $premiumThemes );
@@ -250,7 +250,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( $this->is_sync_data( 'recent_posts' ) || $this->is_sync_data( 'recent_pages' ) ) {
-            $recent_number = $this->get_recent_number();
+            $recent_number               = $this->get_recent_number();
             $information['recent_posts'] = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number );
             $information['recent_pages'] = MainWP_Child_Posts::get_instance()->get_recent_posts( array( 'publish', 'draft', 'pending', 'trash', 'future' ), $recent_number, 'page' );
         }
@@ -269,7 +269,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( $this->is_sync_data( 'categories' ) ) {
-            $information['categories'] = $this->stats_get_categories( false ); // to compatible.
+            $information['categories']      = $this->stats_get_categories( false ); // to compatible.
             $information['categories_list'] = $this->stats_get_categories();
         }
 
@@ -284,8 +284,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             $information['dbsize'] = MainWP_Child_DB::get_size();
         }
 
-        $max_his = MainWP_Connect::instance()->get_max_history();
-        $auths = get_option( 'mainwp_child_auth' );
+        $max_his                = MainWP_Connect::instance()->get_max_history();
+        $auths                  = get_option( 'mainwp_child_auth' );
         $information['extauth'] = ( is_array( $auths ) && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
 
         if ( $this->is_sync_data( 'plugins' ) ) {
@@ -302,7 +302,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( $this->is_sync_data( 'primaryLasttimeBackup' ) && ! empty( $_POST['primaryBackup'] ) ) {
             $primary_bk = ! empty( $_POST['primaryBackup'] ) ? sanitize_text_field( wp_unslash( $_POST['primaryBackup'] ) ) : '';
-            $last_time = MainWP_Utility::get_lasttime_backup( $primary_bk );
+            $last_time  = MainWP_Utility::get_lasttime_backup( $primary_bk );
             if ( false !== $last_time ) {
                 $information['primaryLasttimeBackup'] = $last_time; // to fix overwrite other last time primary backup.
             }
@@ -318,7 +318,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         $information['mainwpdir'] = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
-        $information['uniqueId'] = MainWP_Helper::get_site_unique_id();
+        $information['uniqueId']  = MainWP_Helper::get_site_unique_id();
 
         if ( $this->is_sync_data( 'plugins_outdate_info' ) ) {
             $information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
@@ -340,7 +340,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         if ( isset( $_POST['user'] ) ) {
             $user = get_user_by( 'login', sanitize_text_field( wp_unslash( $_POST['user'] ) ) );
             if ( $user && property_exists( $user, 'ID' ) && $user->ID ) {
-                $information['admin_nicename'] = $user->data->user_nicename;
+                $information['admin_nicename']  = $user->data->user_nicename;
                 $information['admin_useremail'] = $user->data->user_email;
             }
         }
@@ -356,7 +356,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( isset( $_POST['pingnonce'] ) ) {
-            $nonce = sanitize_text_field( wp_unslash( $_POST['pingnonce'] ) );
+            $nonce   = sanitize_text_field( wp_unslash( $_POST['pingnonce'] ) );
             $current = get_option( 'mainwp_child_pingnonce' );
             if ( 0 !== strcmp( $nonce, $current ) ) {
                 MainWP_Helper::update_option( 'mainwp_child_pingnonce', $nonce );
@@ -408,11 +408,11 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         if ( isset( $_POST['syncdata'] ) ) {
 
             $update_list = wp_unslash( $_POST['syncdata'] );
-            $update = false;
+            $update      = false;
 
             if ( $update_list !== $sync_data_settings ) {
                 $sync_data_settings = $update_list;
-                $update = true;
+                $update             = true;
             }
 
             $sync_list = ! empty( $sync_data_settings ) ? json_decode( $sync_data_settings, true ) : array();
@@ -504,7 +504,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                         }
                     }
                 } elseif ( 'theme' === $translation_update->type ) {
-                    $theme = wp_get_theme( $translation_update->slug );
+                    $theme                          = wp_get_theme( $translation_update->slug );
                     $new_translation_update['name'] = $theme->name;
                 } elseif ( ( 'core' === $translation_update->type ) && ( 'default' === $translation_update->slug ) ) {
                     $new_translation_update['name'] = 'WordPress core';
@@ -586,13 +586,13 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private function stats_get_info( &$information ) {
 
-        $information['version'] = MainWP_Child::$version;
+        $information['version']   = MainWP_Child::$version;
         $information['wpversion'] = MainWP_Child_Server_Information_Base::get_wordpress_version();
-        $information['siteurl'] = get_option( 'siteurl' );
-        $information['wpe'] = MainWP_Helper::is_wp_engine() ? 1 : 0;
-        $information['wphost'] = MainWP_Helper::get_wp_host();
+        $information['siteurl']   = get_option( 'siteurl' );
+        $information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
+        $information['wphost']    = MainWP_Helper::get_wp_host();
 
-        $theme_name = wp_get_theme()->get( 'Name' );
+        $theme_name               = wp_get_theme()->get( 'Name' );
         $information['site_info'] = array(
             'wpversion'             => MainWP_Child_Server_Information_Base::get_wordpress_version(),
             'debug_mode'            => ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ? true : false,
@@ -686,11 +686,11 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $informationPremiumUpdates = apply_filters( 'mwp_premium_update_notification', array() );
-        $premiumPlugins = array();
-        $premiumThemes = array();
+        $premiumPlugins            = array();
+        $premiumThemes             = array();
 
         if ( is_array( $informationPremiumUpdates ) ) {
-            $premiumUpdates = array();
+            $premiumUpdates                  = array();
             $informationPremiumUpdatesLength = count( $informationPremiumUpdates );
             for ( $i = 0; $i < $informationPremiumUpdatesLength; $i++ ) {
                 if ( ! isset( $informationPremiumUpdates[ $i ]['new_version'] ) ) {
@@ -713,7 +713,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                     $information['premium_updates'] = array();
                 }
 
-                $information['premium_updates'][ $slug ] = $informationPremiumUpdates[ $i ];
+                $information['premium_updates'][ $slug ]           = $informationPremiumUpdates[ $i ];
                 $information['premium_updates'][ $slug ]['update'] = (object) array(
                     'new_version' => $new_version,
                     'premium'     => true,
@@ -770,7 +770,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                     continue;
                 }
                 $plugin_update->active = is_plugin_active( $slug ) ? 1 : 0;
-                $results[ $slug ] = $plugin_update;
+                $results[ $slug ]      = $plugin_update;
             }
         }
 
@@ -797,7 +797,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
                 if ( ! isset( $results[ $slug ] ) ) {
                     $plugin_update->active = is_plugin_active( $slug ) ? 1 : 0;
-                    $results[ $slug ] = $plugin_update;
+                    $results[ $slug ]      = $plugin_update;
                 }
             }
         }
@@ -812,7 +812,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function found_plugins_updates() {
         $premiums = array();
-        $updates = $this->stats_plugin_update( $premiums );
+        $updates  = $this->stats_plugin_update( $premiums );
         return ! empty( $premiums ) || ! empty( $updates ) ? true : false;
     }
 
@@ -824,7 +824,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function found_themes_updates() {
         $premiums = array();
-        $updates = $this->stats_theme_update( $premiums );
+        $updates  = $this->stats_theme_update( $premiums );
         return ! empty( $premiums ) || ! empty( $updates ) ? true : false;
     }
 
@@ -932,8 +932,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     private function stats_get_total_size() {
         $total = null;
 
-        $get_file_size = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' ); // NOSONAR - no IP.
-        $get_file_size = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
+        $get_file_size        = apply_filters_deprecated( 'mainwp-child-get-total-size', array( true ), '4.0.7.1', 'mainwp_child_get_total_size' ); // NOSONAR - no IP.
+        $get_file_size        = apply_filters( 'mainwp_child_get_total_size', $get_file_size );
         $forced_get_file_size = apply_filters( 'mainwp_child_forced_get_total_size', false );
 
         if ( $forced_get_file_size || ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification
@@ -1013,8 +1013,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     public function get_total_file_size( $directory = WP_CONTENT_DIR ) { //phpcs:ignore -- NOSONAR - complex.
         try {
             if ( MainWP_Helper::funct_exists( 'popen' ) ) {
-                $uploadDir = MainWP_Helper::get_mainwp_dir();
-                $uploadDir = $uploadDir[0];
+                $uploadDir   = MainWP_Helper::get_mainwp_dir();
+                $uploadDir   = $uploadDir[0];
                 $popenHandle = popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' ); // phpcs:ignore -- run if enabled.
                 if ( 'resource' === gettype( $popenHandle ) ) {
                     $size = fread( $popenHandle, 1024 ); //phpcs:ignore -- custom read file.
@@ -1121,8 +1121,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     public function int_scan_dir( $dir ) {
         $dh = opendir( $dir );
         if ( is_dir( $dir ) && $dh ) {
-            $cnt = 0;
-            $out = array();
+            $cnt  = 0;
+            $out  = array();
             $file = readdir( $dh );
             while ( false !== $file ) {
                 $newDir = $dir . $file . DIRECTORY_SEPARATOR;
@@ -1132,7 +1132,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 $out[] = $file;
-                $file = readdir( $dh );
+                $file  = readdir( $dh );
 
                 if ( $cnt++ > 10 ) {
                     break;
@@ -1154,14 +1154,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_all_themes() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
-        $status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-        $filter = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
+        $keyword     = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+        $status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+        $filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
         $un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
-        $not_int = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
+        $not_int     = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
         // phpcs:enable WordPress.WP.AlternativeFunctions
 
-        $rslt = array();
+        $rslt         = array();
         $rslt['data'] = $this->get_all_themes_int( $filter, $keyword, $status, $un_criteria );
         if ( $not_int && empty( $rslt['data'] ) ) {
             $rslt['installed_themes'] = $this->get_all_themes_int( false ); // to list installed themes.
@@ -1181,31 +1181,31 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array|bool $rslt Returned themes results.
      */
     public function get_all_themes_int( $filter, $keyword = '', $status = '', $get_un_criteria = false, $check_inactive_only = false ) { //phpcs:ignore -- NOSONAR - complex.
-        $rslt = array();
+        $rslt   = array();
         $themes = wp_get_themes();
 
         $found_inactive = array();
 
         if ( is_array( $themes ) ) {
-            $theme_name = wp_get_theme()->get( 'Name' );
+            $theme_name  = wp_get_theme()->get( 'Name' );
             $parent_name = '';
-            $parent = wp_get_theme()->parent();
+            $parent      = wp_get_theme()->parent();
             if ( $parent ) {
                 $parent_name = $parent->get( 'Name' );
             }
             foreach ( $themes as $theme ) {
-                $out = array();
-                $out['name'] = $theme->get( 'Name' );
-                $out['title'] = $theme->display( 'Name', true, false );
-                $out['description'] = $theme->display( 'Description', true, false );
-                $out['version'] = $theme->display( 'Version', true, false );
-                $out['active'] = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
-                $out['slug'] = $theme->get_stylesheet();
+                $out                  = array();
+                $out['name']          = $theme->get( 'Name' );
+                $out['title']         = $theme->display( 'Name', true, false );
+                $out['description']   = $theme->display( 'Description', true, false );
+                $out['version']       = $theme->display( 'Version', true, false );
+                $out['active']        = ( $theme->get( 'Name' ) === $theme_name ) ? 1 : 0;
+                $out['slug']          = $theme->get_stylesheet();
                 $out['parent_active'] = ( $parent_name === $out['name'] ) ? 1 : 0;
 
                 if ( $parent_name === $out['name'] ) {
                     $out['parent_active'] = 1;
-                    $out['child_theme'] = $theme_name;
+                    $out['child_theme']   = $theme_name;
                 } else {
                     $out['parent_active'] = 0;
                 }
@@ -1267,14 +1267,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_all_plugins() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
-        $status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-        $filter = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
+        $keyword     = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+        $status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+        $filter      = isset( $_POST['filter'] ) ? sanitize_text_field( wp_unslash( $_POST['filter'] ) ) : true;
         $un_criteria = isset( $_POST['not_criteria'] ) && ! empty( $_POST['not_criteria'] ) ? true : false;
-        $not_int = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
+        $not_int     = isset( $_POST['not_installed'] ) && ! empty( $_POST['not_installed'] ) ? true : false;
         // phpcs:enable WordPress.WP.AlternativeFunctions
 
-        $rslt = array();
+        $rslt         = array();
         $rslt['data'] = $this->get_all_plugins_int( $filter, $keyword, $status, $un_criteria );
         if ( $not_int && empty( $rslt['data'] ) ) {
             $rslt['installed_plugins'] = $this->get_all_plugins_int( false ); // to list installed plugins.
@@ -1305,19 +1305,19 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $mainWPChild;
 
-        $rslt = array();
-        $plugins = get_plugins();
+        $rslt           = array();
+        $plugins        = get_plugins();
         $found_inactive = false;
         if ( is_array( $plugins ) ) {
             foreach ( $plugins as $pluginslug => $plugin ) {
-                $out = array();
-                $out['mainwp'] = ( $pluginslug === $mainWPChild->plugin_slug ? 'T' : 'F' );
-                $out['name'] = $plugin['Name'];
-                $out['slug'] = $pluginslug;
+                $out                = array();
+                $out['mainwp']      = ( $pluginslug === $mainWPChild->plugin_slug ? 'T' : 'F' );
+                $out['name']        = $plugin['Name'];
+                $out['slug']        = $pluginslug;
                 $out['description'] = $plugin['Description'];
-                $out['version'] = $plugin['Version'];
-                $out['active'] = is_plugin_active( $pluginslug ) ? 1 : 0;
-                $rslt[] = $out;
+                $out['version']     = $plugin['Version'];
+                $out['active']      = is_plugin_active( $pluginslug ) ? 1 : 0;
+                $rslt[]             = $out;
 
                 if ( 0 === $out['active'] ) {
                     $found_inactive = true;
@@ -1332,15 +1332,15 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $muplugins = get_mu_plugins();
         if ( is_array( $muplugins ) ) {
             foreach ( $muplugins as $pluginslug => $plugin ) {
-                $out = array();
-                $out['mainwp'] = ( $pluginslug === $mainWPChild->plugin_slug ? 'T' : 'F' );
-                $out['name'] = $plugin['Name'];
-                $out['slug'] = $pluginslug;
+                $out                = array();
+                $out['mainwp']      = ( $pluginslug === $mainWPChild->plugin_slug ? 'T' : 'F' );
+                $out['name']        = $plugin['Name'];
+                $out['slug']        = $pluginslug;
                 $out['description'] = $plugin['Description'];
-                $out['version'] = $plugin['Version'];
-                $out['active'] = 1;
-                $out['mu'] = 1;
-                $rslt[] = $out;
+                $out['version']     = $plugin['Version'];
+                $out['active']      = 1;
+                $out['mu']          = 1;
+                $rslt[]             = $out;
             }
         }
 
@@ -1401,7 +1401,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $issue_counts Returned issues.
      */
     public function get_health_check_site_status() {
-        $get_issues = get_transient( 'health-check-site-status-result' );
+        $get_issues   = get_transient( 'health-check-site-status-result' );
         $issue_counts = array();
         if ( false !== $get_issues ) {
             $issue_counts = json_decode( $get_issues, true );
