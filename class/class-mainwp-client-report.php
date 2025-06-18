@@ -91,7 +91,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
     public function sync_others_data( $information, $data = array() ) {
         if ( isset( $data['syncClientReportData'] ) && $data['syncClientReportData'] ) {
             $creport_sync_data = array();
-            $firsttime = get_option( 'mainwp_creport_first_time_activated' );
+            $firsttime         = get_option( 'mainwp_creport_first_time_activated' );
             if ( false !== $firsttime ) {
                 $creport_sync_data['firsttime_activated'] = $firsttime;
             }
@@ -183,10 +183,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
      */
     public function save_sucuri_stream() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $scan_data = isset( $_POST['scan_data'] ) ? wp_unslash( $_POST['scan_data'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $scan_time = isset( $_POST['scan_time'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_time'] ) ) : 0;
+        $scan_data   = isset( $_POST['scan_data'] ) ? wp_unslash( $_POST['scan_data'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $scan_time   = isset( $_POST['scan_time'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_time'] ) ) : 0;
         $scan_status = isset( $_POST['scan_status'] ) ? sanitize_text_field( wp_unslash( $_POST['scan_status'] ) ) : '';
-        $result = isset( $_POST['result'] ) ? wp_unslash( $_POST['result'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $result      = isset( $_POST['result'] ) ? wp_unslash( $_POST['result'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable
         do_action( 'mainwp_reports_sucuri_scan', $result, $scan_status, $scan_data, $scan_time );
         return true;
@@ -200,10 +200,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
     public function save_backup_stream() {
         // phpcs:disable WordPress.Security.NonceVerification
         $destination = isset( $_POST['destination'] ) ? wp_unslash( $_POST['destination'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $message = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $size = isset( $_POST['size'] ) ? wp_unslash( $_POST['size'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-        $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $message     = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $size        = isset( $_POST['size'] ) ? wp_unslash( $_POST['size'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $status      = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+        $type        = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
         // phpcs:enable
         do_action( 'mainwp_backup', $destination, $message, $size, $status, $type );
         return true;
@@ -232,7 +232,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
         // phpcs:enable
 
-        $args = $this->get_stream_get_params( $other_tokens, $sections );
+        $args    = $this->get_stream_get_params( $other_tokens, $sections );
         $records = \wp_mainwp_stream_get_instance()->db->query( $args );
 
         if ( ! is_array( $records ) ) {
@@ -243,7 +243,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
         $skip_records = array();
 
         $other_tokens_data = $this->get_stream_others_tokens( $records, $other_tokens, $skip_records );
-        $sections_data = $this->get_stream_sections_data( $records, $sections, $skip_records );
+        $sections_data     = $this->get_stream_sections_data( $records, $sections, $skip_records );
         return apply_filters(
             'mainwp_child_prepared_reports_data',
             array(
@@ -280,7 +280,7 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
     public function creport_init() {
 
         $branding_opts = MainWP_Child_Branding::instance()->get_branding_options();
-        $hide_nag = false;
+        $hide_nag      = false;
 
         if ( isset( $branding_opts['hide_child_reports'] ) && 'hide' === $branding_opts['hide_child_reports'] ) {
             add_filter( 'all_plugins', array( $this, 'creport_branding_plugin' ) );
