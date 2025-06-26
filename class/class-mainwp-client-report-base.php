@@ -358,12 +358,12 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             if ( isset( $token_values[ $token ] ) ) {
                 continue;
             }
-            $str_tmp = str_replace( array( '[', ']' ), '', $token );
+            $str_tmp   = str_replace( array( '[', ']' ), '', $token );
             $array_tmp = explode( '.', $str_tmp );
             if ( is_array( $array_tmp ) ) {
                 $context = '';
-                $action = '';
-                $data = '';
+                $action  = '';
+                $data    = '';
                 if ( 2 === count( $array_tmp ) ) {
                     list( $context, $data ) = $array_tmp;
                 } elseif ( 3 === count( $array_tmp ) ) {
@@ -374,7 +374,7 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 // to compatible with new version of child report.
                 // to check condition for grabbing report data.
                 $connector = $this->get_connector_by_compatible_context( $context );
-                $action = $this->get_compatible_action( $action, $context );
+                $action    = $this->get_compatible_action( $action, $context );
                 // custom values.
                 if ( 'profiles' === $context && ( 'created' === $action || 'deleted' === $action ) ) {
                     $context = 'users';
@@ -541,9 +541,9 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
     public function get_section_loop_data( $records, $tokens, $section, $skip_records = array() ) {
 
         $context = '';
-        $action = '';
+        $action  = '';
 
-        $str_tmp = str_replace( array( '[', ']' ), '', $section );
+        $str_tmp   = str_replace( array( '[', ']' ), '', $section );
         $array_tmp = explode( '.', $str_tmp );
         if ( is_array( $array_tmp ) ) {
             if ( 2 === count( $array_tmp ) ) {
