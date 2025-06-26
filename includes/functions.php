@@ -7,9 +7,9 @@
 
  // phpcs:disable WordPress.Security.NonceVerification
 if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ) {
-    $bulk_settings_manageruse_nonce_key = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
+    $bulk_settings_manageruse_nonce_key  = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
     $bulk_settings_manageruse_nonce_hmac = ! empty( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ? wp_unslash( $_GET['bulk_settings_manageruse_nonce_hmac'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-    $bulk_settings_managercurrent_time = intval( time() );
+    $bulk_settings_managercurrent_time   = intval( time() );
 
     if ( $bulk_settings_managercurrent_time >= $bulk_settings_manageruse_nonce_key && $bulk_settings_managercurrent_time <= ( $bulk_settings_manageruse_nonce_key + 30 ) && strcmp( $bulk_settings_manageruse_nonce_hmac, hash_hmac( 'sha256', $bulk_settings_manageruse_nonce_key, NONCE_KEY ) ) === 0 && ! function_exists( 'wp_verify_nonce' ) ) :
         /**
@@ -28,8 +28,8 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
          */
         function wp_verify_nonce( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return.
             $nonce = (string) $nonce;
-            $user = wp_get_current_user();
-            $uid = (int) $user->ID;
+            $user  = wp_get_current_user();
+            $uid   = (int) $user->ID;
             if ( ! $uid ) {
                 /**
                  * Filter whether the user who generated the nonce is logged out.
@@ -75,7 +75,7 @@ if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_
             }
 
             $token = wp_get_session_token();
-            $i = wp_nonce_tick();
+            $i     = wp_nonce_tick();
 
             // Nonce generated 0-12 hours ago.
             $expected = substr( wp_hash( $i . '|' . $action . '|' . $uid . '|' . $token, 'nonce' ), - 12, 10 );

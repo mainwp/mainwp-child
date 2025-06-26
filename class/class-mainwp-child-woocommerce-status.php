@@ -371,18 +371,6 @@ class MainWP_Child_WooCommerce_Status {
     public function get_top_seller( $start_date, $end_date ) { //phpcs:ignore -- NOSONAR - ignore complex.
 
         $top_seller = false;
-        if ( class_exists( '\Automattic\WooCommerce\Admin\API\Reports\Products\Query' ) ) {
-            $page = 0;
-            $total_page = 1;
-            $top_count = 0;
-            while ( $page < $total_page ) {
-                ++$page;
-                $args = array(
-                    'before'   => $end_date,
-                    'after'    => $start_date,
-                    'page'     => $page,
-                    'per_page' => 1000,
-                );
 
         $page       = 0;
         $total_page = 1;
@@ -426,17 +414,6 @@ class MainWP_Child_WooCommerce_Status {
                         $top_seller = $prod_sel;
                         $top_count  = $prod_sel['items_sold'];
                     }
-                    foreach ( $products as $prod_sel ) {
-                        if ( is_array( $prod_sel ) && isset( $prod_sel['items_sold'] ) && $prod_sel['items_sold'] > $top_count ) {
-                            $top_seller = $prod_sel;
-                            $top_count = $prod_sel['items_sold'];
-                        }
-                    }
-                    if ( ! empty( $product_data->pages ) && $product_data->pages > $total_page ) {
-                        $total_page = $product_data->pages;
-                    }
-                } else {
-                    break;
                 }
                 if ( ! empty( $product_data->pages ) && $product_data->pages > $total_page ) {
                     $total_page = $product_data->pages;
