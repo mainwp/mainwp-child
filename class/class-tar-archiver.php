@@ -17,7 +17,7 @@ namespace MainWP\Child;
  * Handle the Tar archiver actions.
  */
 class Tar_Archiver {
-    const IDLE = 0;
+    const IDLE   = 0;
     const APPEND = 1;
     const CREATE = 2;
 
@@ -139,7 +139,7 @@ class Tar_Archiver {
         $this->debug = false;
 
         $this->pidFile = $pidFile;
-        $this->backup = $backup;
+        $this->backup  = $backup;
 
         $this->type = $type;
         if ( 'tar.bz2' === $this->type ) {
@@ -475,8 +475,8 @@ class Tar_Archiver {
         global $wpdb;
 
         $plugins = array();
-        $dir = WP_CONTENT_DIR . '/plugins/';
-        $fh = opendir( $dir );
+        $dir     = WP_CONTENT_DIR . '/plugins/';
+        $fh      = opendir( $dir );
         while ( $entry = readdir( $fh ) ) {
             if ( ! is_dir( $dir . $entry ) ) {
                 continue;
@@ -489,8 +489,8 @@ class Tar_Archiver {
         closedir( $fh );
 
         $themes = array();
-        $dir = WP_CONTENT_DIR . '/themes/';
-        $fh = opendir( $dir );
+        $dir    = WP_CONTENT_DIR . '/themes/';
+        $fh     = opendir( $dir );
         while ( $entry = readdir( $fh ) ) {
             if ( ! is_dir( $dir . $entry ) ) {
                 continue;
@@ -673,11 +673,11 @@ class Tar_Archiver {
 
         $prefix = '';
         if ( strlen( $entryName ) > 99 ) {
-            $prefix = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
+            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
             $entryName = substr( $entryName, strlen( $prefix ) );
             if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
                 $entryName = $prefix . $entryName;
-                $prefix = '';
+                $prefix    = '';
 
                 $block = pack(
                     'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
@@ -705,7 +705,7 @@ class Tar_Archiver {
                     $checksum += ord( substr( $block, $i, 1 ) );
                 }
                 $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block = substr_replace( $block, $checksum, 148, 8 );
+                $block    = substr_replace( $block, $checksum, 148, 8 );
 
                 $this->add_data( $block );
                 $this->add_data( pack( 'a512', $entryName ) );
@@ -739,7 +739,7 @@ class Tar_Archiver {
             $checksum += ord( substr( $block, $i, 1 ) );
         }
         $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-        $block = substr_replace( $block, $checksum, 148, 8 );
+        $block    = substr_replace( $block, $checksum, 148, 8 );
 
         $this->add_data( $block );
 
@@ -828,18 +828,18 @@ class Tar_Archiver {
         }
 
         $stat = stat( $path ); // NOSONAR .
-        $fp = fopen( $path, 'rb' ); // NOSONAR .
+        $fp   = fopen( $path, 'rb' ); // NOSONAR .
         if ( ! $fp ) {
             return;
         }
 
         $prefix = '';
         if ( strlen( $entryName ) > 99 ) {
-            $prefix = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
+            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
             $entryName = substr( $entryName, strlen( $prefix ) );
             if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
                 $entryName = $prefix . $entryName;
-                $prefix = '';
+                $prefix    = '';
 
                 $block = pack(
                     'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
@@ -867,7 +867,7 @@ class Tar_Archiver {
                     $checksum += ord( substr( $block, $i, 1 ) );
                 }
                 $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block = substr_replace( $block, $checksum, 148, 8 );
+                $block    = substr_replace( $block, $checksum, 148, 8 );
 
                 if ( ! isset( $rslt['bytesRead'] ) ) {
                     $this->add_data( $block );
@@ -904,7 +904,7 @@ class Tar_Archiver {
         for ( $i = 0; $i < 512; $i++ ) {
             $checksum += ord( substr( $this->block, $i, 1 ) );
         }
-        $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
+        $checksum    = pack( 'a8', sprintf( '%07o', $checksum ) );
         $this->block = substr_replace( $this->block, $checksum, 148, 8 );
 
         if ( ! isset( $rslt['bytesRead'] ) ) {
@@ -915,7 +915,7 @@ class Tar_Archiver {
             fseek( $fp, $rslt['bytesRead'] );
 
             $alreadyRead = ( $rslt['bytesRead'] % 512 );
-            $toRead = 512 - $alreadyRead;
+            $toRead      = 512 - $alreadyRead;
             if ( $toRead > 0 ) {
                 $this->tempContent = fread( $fp, $toRead );
 
@@ -932,7 +932,7 @@ class Tar_Archiver {
         while ( ! feof( $fp ) ) {
             $this->tempContent = fread( $fp, 1024000 * 5 );
 
-            $read = strlen( $this->tempContent );
+            $read   = strlen( $this->tempContent );
             $divide = $read % 512;
 
             $this->add_data( substr( $this->tempContent, 0, $read - $divide ) );
@@ -970,11 +970,11 @@ class Tar_Archiver {
 
         $prefix = '';
         if ( strlen( $entryName ) > 99 ) {
-            $prefix = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
+            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
             $entryName = substr( $entryName, strlen( $prefix ) );
             if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
                 $entryName = $prefix . $entryName;
-                $prefix = '';
+                $prefix    = '';
 
                 $block = pack(
                     'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
@@ -1002,7 +1002,7 @@ class Tar_Archiver {
                     $checksum += ord( substr( $block, $i, 1 ) );
                 }
                 $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block = substr_replace( $block, $checksum, 148, 8 );
+                $block    = substr_replace( $block, $checksum, 148, 8 );
 
                 $this->add_data( $block );
                 $this->add_data( pack( 'a512', $entryName ) );
@@ -1036,7 +1036,7 @@ class Tar_Archiver {
             $checksum += ord( substr( $block, $i, 1 ) );
         }
         $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-        $block = substr_replace( $block, $checksum, 148, 8 );
+        $block    = substr_replace( $block, $checksum, 148, 8 );
 
         $this->add_data( $block );
         $i = 0;
@@ -1077,7 +1077,7 @@ class Tar_Archiver {
                 ftruncate( $this->archive, $startOffset );
             } elseif ( 'tar.gz' === $this->type ) {
                 $readOffset = $rslt['readOffset'];
-                $bytesRead = $rslt['bytesRead'];
+                $bytesRead  = $rslt['bytesRead'];
 
                 $out = array( 'bytesRead' => $bytesRead );
             }
@@ -1105,7 +1105,7 @@ class Tar_Archiver {
      */
     private function is_next_file( $entryName ) {
         $currentOffset = ftell( $this->archive );
-        $rslt = array( 'startOffset' => $currentOffset );
+        $rslt          = array( 'startOffset' => $currentOffset );
         try {
             $block = fread( $this->archive, 512 );
 
@@ -1119,11 +1119,11 @@ class Tar_Archiver {
 
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname = trim( fread( $this->archive, 512 ) );
-                $block = fread( $this->archive, 512 );
-                $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                $fname          = trim( fread( $this->archive, 512 ) );
+                $block          = fread( $this->archive, 512 );
+                $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name'] = $fname;
+                $temp['name']   = $fname;
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
@@ -1173,37 +1173,37 @@ class Tar_Archiver {
      */
     private function read_next_bytes( $file ) {
         $previousFtell = ftell( $this->archive );
-        $bytes = $file['stat'][7] + ( 512 === ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+        $bytes         = $file['stat'][7] + ( 512 === ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
         fseek( $this->archive, ftell( $this->archive ) + $bytes );
         $ftell = ftell( $this->archive );
         if ( 'tar.gz' === $this->type ) {
             if ( ( false === $ftell ) || ( -1 === $ftell ) ) {
                 fseek( $this->archive, $previousFtell );
 
-                $bytesRead = 0;
+                $bytesRead   = 0;
                 $bytesToRead = $file['stat'][7];
 
                 while ( $bytesToRead > 0 ) {
-                    $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+                    $readNow            = $bytesToRead > 1024 ? 1024 : $bytesToRead;
                     $bytesCurrentlyRead = strlen( fread( $this->archive, $readNow ) );
 
                     if ( 0 === $bytesCurrentlyRead ) {
                         break;
                     }
 
-                    $bytesRead += $bytesCurrentlyRead;
+                    $bytesRead   += $bytesCurrentlyRead;
                     $bytesToRead -= $bytesCurrentlyRead;
                 }
 
                 if ( 0 === $bytesToRead ) {
                     $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
                     if ( $toRead > 0 ) {
-                        $read = strlen( fread( $this->archive, $toRead ) );
+                        $read       = strlen( fread( $this->archive, $toRead ) );
                         $bytesRead += $read;
                     }
                 }
 
-                $rslt['bytesRead'] = $bytesRead;
+                $rslt['bytesRead']  = $bytesRead;
                 $rslt['readOffset'] = $previousFtell;
 
                 $this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
@@ -1301,9 +1301,9 @@ class Tar_Archiver {
     public function prepare_append( $filepath ) {
         if ( $this->debug ) {
             if ( 'tar.gz' === substr( $filepath, - 6 ) ) {
-                $text = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 );
-                $fh = fopen( $filepath, 'rb' ); // NOSONAR .
-                $read = '';
+                $text        = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 );
+                $fh          = fopen( $filepath, 'rb' ); // NOSONAR .
+                $read        = '';
                 $lastCorrect = 0;
                 try {
                     while ( ! feof( $fh ) ) {
@@ -1318,7 +1318,7 @@ class Tar_Archiver {
                             }
 
                             $lastCorrect += $pos;
-                            $read = substr( $read, $pos );
+                            $read         = substr( $read, $pos );
                         }
                     }
 
@@ -1350,10 +1350,10 @@ class Tar_Archiver {
         $this->archiveSize = false;
 
         if ( 'tar.gz' === substr( $filepath, - 6 ) ) {
-            $this->type = 'tar.gz';
+            $this->type    = 'tar.gz';
             $this->archive = gzopen( $filepath, 'r' );
         } elseif ( 'tar.bz2' === substr( $filepath, - 7 ) ) {
-            $this->type = 'tar.bz2';
+            $this->type    = 'tar.bz2';
             $this->archive = bzopen( $filepath, 'r' );
         } else {
             $currentPos = ftell( $this->archive );
@@ -1363,7 +1363,7 @@ class Tar_Archiver {
 
             $this->archiveSize = $lastPos;
 
-            $this->type = 'tar';
+            $this->type    = 'tar';
             $this->archive = fopen( $filepath, 'rb' ); // NOSONAR .
         }
     }
@@ -1411,11 +1411,11 @@ class Tar_Archiver {
         while ( $block = fread( $this->archive, 512 ) ) {
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname = trim( fread( $this->archive, 512 ) );
-                $block = fread( $this->archive, 512 );
-                $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                $fname          = trim( fread( $this->archive, 512 ) );
+                $block          = fread( $this->archive, 512 );
+                $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name'] = $fname;
+                $temp['name']   = $fname;
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
@@ -1437,7 +1437,7 @@ class Tar_Archiver {
                 break;
             }
 
-            $block = substr_replace( $block, '        ', 148, 8 );
+            $block    = substr_replace( $block, '        ', 148, 8 );
             $checksum = 0;
             for ( $i = 0; $i < 512; $i++ ) {
                 $checksum += ord( substr( $block, $i, 1 ) );
@@ -1482,11 +1482,11 @@ class Tar_Archiver {
         while ( $block = fread( $this->archive, 512 ) ) {
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname = trim( fread( $this->archive, 512 ) );
-                $block = fread( $this->archive, 512 );
-                $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                $fname          = trim( fread( $this->archive, 512 ) );
+                $block          = fread( $this->archive, 512 );
+                $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name'] = $fname;
+                $temp['name']   = $fname;
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
@@ -1508,7 +1508,7 @@ class Tar_Archiver {
                 break;
             }
 
-            $block = substr_replace( $block, '        ', 148, 8 );
+            $block    = substr_replace( $block, '        ', 148, 8 );
             $checksum = 0;
             for ( $i = 0; $i < 512; $i++ ) {
                 $checksum += ord( substr( $block, $i, 1 ) );
@@ -1554,11 +1554,11 @@ class Tar_Archiver {
         while ( $block = fread( $this->archive, 512 ) ) {
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname = trim( fread( $this->archive, 512 ) );
-                $block = fread( $this->archive, 512 );
-                $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                $fname          = trim( fread( $this->archive, 512 ) );
+                $block          = fread( $this->archive, 512 );
+                $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name'] = $fname;
+                $temp['name']   = $fname;
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
@@ -1579,7 +1579,7 @@ class Tar_Archiver {
             } elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
                 break;
             }
-            $block = substr_replace( $block, '        ', 148, 8 );
+            $block    = substr_replace( $block, '        ', 148, 8 );
             $checksum = 0;
             for ( $i = 0; $i < 512; $i++ ) {
                 $checksum += ord( substr( $block, $i, 1 ) );
@@ -1602,11 +1602,11 @@ class Tar_Archiver {
                 }
 
                 if ( ! empty( $wp_filesystem ) && ( $file['stat'][7] < 2000000 ) ) {
-                    $contents = '';
+                    $contents    = '';
                     $bytesToRead = $file['stat'][7];
                     while ( $bytesToRead > 0 ) {
-                        $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                        $contents .= fread( $this->archive, $readNow );
+                        $readNow      = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+                        $contents    .= fread( $this->archive, $readNow );
                         $bytesToRead -= $readNow;
                     }
 
@@ -1662,7 +1662,7 @@ class Tar_Archiver {
         if ( false === $test ) {
             return false;
         }
-        $crc = crc32( $test );
+        $crc      = crc32( $test );
         $crcFound = substr( $block, strlen( $block ) - 8, 4 );
         $crcFound = ( ord( $crcFound[3] ) << 24 ) + ( ord( $crcFound[2] ) << 16 ) + ( ord( $crcFound[1] ) << 8 ) + ( ord( $crcFound[0] ) );
 

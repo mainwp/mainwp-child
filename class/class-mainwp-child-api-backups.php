@@ -65,8 +65,8 @@ class MainWP_Child_Api_Backups {
 
         // WordPress DB credentials.
         $database_name = DB_NAME;
-        $user = DB_USER;
-        $pass = DB_PASSWORD;
+        $user          = DB_USER;
+        $pass          = DB_PASSWORD;
 
         // Remove ":" & all numbers from "Localhost:3306".
         $host = str_replace( ':', '', preg_replace( '/\d/', '', DB_HOST ) );
@@ -80,7 +80,7 @@ class MainWP_Child_Api_Backups {
 
         // Build the uploads directory.
         $wp_get_upload_dir = wp_get_upload_dir();
-        $wp_upload_dir = $wp_get_upload_dir['basedir'] . '/mainwp/api_db_backups/';
+        $wp_upload_dir     = $wp_get_upload_dir['basedir'] . '/mainwp/api_db_backups/';
 
         // Build the full path to the backup file.
         $gzip_full_path = $wp_upload_dir . $database_name . '_' . $site_url . '_' . $current_date_time . '.sql.gz';

@@ -201,7 +201,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         if ( isset( $data['syncWPRocketData'] ) && ( 'yes' === $data['syncWPRocketData'] ) ) {
             try {
-                $data = array(
+                $data                            = array(
                     'rocket_boxes'            => get_user_meta( $GLOBALS['current_user']->ID, 'rocket_boxes', true ),
                     'lists_delayjs'           => get_option( '_transient_wpr_dynamic_lists_delayjs', array() ),
                     'lists_delayjs_full_list' => $this->prepare_delayjs_ui_list(),
@@ -279,7 +279,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $active_plugins = $this->get_active_plugins();
-        $plugins_list = ! empty( $list->plugins ) ? (array) $list->plugins : array();
+        $plugins_list   = ! empty( $list->plugins ) ? (array) $list->plugins : array();
 
         foreach ( $plugins_list as $plugin_key => $plugin ) {
 
@@ -798,9 +798,9 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
             include_once ABSPATH . '/wp-admin/includes/template.php'; // NOSONAR -- WP compatible.
 
-            $options = get_option( WP_ROCKET_SLUG );
+            $options                   = get_option( WP_ROCKET_SLUG );
             $options['minify_css_key'] = create_rocket_uniqid();
-            $options['minify_js_key'] = create_rocket_uniqid();
+            $options['minify_js_key']  = create_rocket_uniqid();
 
             remove_all_filters( 'update_option_' . WP_ROCKET_SLUG );
             update_option( WP_ROCKET_SLUG, $options );
@@ -895,8 +895,8 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         if ( $old_version ) {
             $critical_css = new \WP_Rocket\Optimization\CSS\Critical_CSS( new \WP_Rocket\Optimization\CSS\Critical_CSS_Generation() );
-            $options_api = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
-            $options = new \WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
+            $options_api  = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
+            $options      = new \WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
 
             $sitemap_preload = new \WP_Rocket\Subscriber\Optimization\Critical_CSS_Subscriber( $critical_css, $options );
 
@@ -905,9 +905,9 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
             $sitemap_preload->critical_css->process_handler();
         } else {
-            $filesystem = \rocket_direct_filesystem();
-            $options = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
-            $options_data = new \WP_Rocket\Admin\Options_Data( $options->get( 'settings', array() ) );
+            $filesystem        = \rocket_direct_filesystem();
+            $options           = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
+            $options_data      = new \WP_Rocket\Admin\Options_Data( $options->get( 'settings', array() ) );
             $critical_css_path = \rocket_get_constant( 'WP_ROCKET_CRITICAL_CSS_PATH' ) . get_current_blog_id() . '/';
 
             $cpcss_service = new \WP_Rocket\Engine\CriticalPath\ProcessorService( new \WP_Rocket\Engine\CriticalPath\DataManager( $critical_css_path, $filesystem ), new \WP_Rocket\Engine\CriticalPath\APIClient() );
@@ -988,13 +988,13 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
             )
         );
 
-        $process = new \WP_Rocket\Admin\Database\Optimization_Process();
+        $process      = new \WP_Rocket\Admin\Database\Optimization_Process();
         $optimization = new \WP_Rocket\Admin\Database\Optimization( $process );
 
         MainWP_Helper::instance()->check_methods( $optimization, array( 'process_handler', 'get_options' ) );
 
         $options_api = new \WP_Rocket\Admin\Options( 'wp_rocket_' );
-        $options = new \WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
+        $options     = new \WP_Rocket\Admin\Options_Data( $options_api->get( 'settings', array() ) );
 
         $items = array_filter( array_keys( $optimization->get_options() ), array( $options, 'get' ) );
 
@@ -1026,7 +1026,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
             )
         );
 
-        $process = new \WP_Rocket\Admin\Database\Optimization_Process();
+        $process      = new \WP_Rocket\Admin\Database\Optimization_Process();
         $optimization = new \WP_Rocket\Admin\Database\Optimization( $process );
 
         MainWP_Helper::instance()->check_methods( $optimization, 'count_cleanup_items' );

@@ -140,7 +140,7 @@ class MainWP_Child_DB_Updater_WC {
             'slug'           => 'woocommerce/woocommerce.php',
         );
 
-        $updates = \WC_Install::get_db_update_callbacks();
+        $updates         = \WC_Install::get_db_update_callbacks();
         $update_versions = array_keys( $updates );
         usort( $update_versions, 'version_compare' );
 
@@ -187,7 +187,7 @@ class MainWP_Child_DB_Updater_WC {
     private static function update_wc_db() {
         MainWP_Helper::instance()->check_methods( '\WC_Install', array( 'get_db_update_callbacks' ) );
         $current_db_version = get_option( 'woocommerce_db_version' );
-        $loop = 0;
+        $loop               = 0;
         foreach ( \WC_Install::get_db_update_callbacks() as $version => $update_callbacks ) {
             if ( version_compare( $current_db_version, $version, '<' ) ) {
                 foreach ( $update_callbacks as $update_callback ) {

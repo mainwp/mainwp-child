@@ -276,7 +276,7 @@ class MainWP_Child_Back_Up_WordPress {
         MainWP_Helper::instance()->check_methods( '\HM\BackUpWordPress\Schedules', array( 'get_instance', 'refresh_schedules', 'get_schedules' ) );
 
         \HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
-        $schedules = \HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
+        $schedules    = \HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
         $backups_time = array();
 
         if ( is_array( $schedules ) && count( $schedules ) ) {
@@ -350,7 +350,7 @@ class MainWP_Child_Back_Up_WordPress {
                 foreach ( $schedules as $schedule ) {
                     foreach ( $schedule->get_backups() as $file ) {
                         $backup_type = $schedule->get_type();
-                        $message = 'BackupWordpres backup ' . $backup_type . ' finished';
+                        $message     = 'BackupWordpres backup ' . $backup_type . ' finished';
                         $destination = 'N/A';
                         if ( file_exists( $file ) ) {
                             $date = filemtime( $file );
@@ -393,7 +393,7 @@ class MainWP_Child_Back_Up_WordPress {
      */
     public function delete_schedule() {
         $schedule_id = $this->check_schedule();
-        $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
+        $schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
         if ( $schedule ) {
             $schedule->cancel( true );
@@ -414,7 +414,7 @@ class MainWP_Child_Back_Up_WordPress {
      */
     public function hmbkp_request_cancel_backup() {
         $schedule_id = $this->check_schedule();
-        $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
+        $schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
         // Delete the running backup.
         if ( method_exists( $schedule, 'get_running_backup_filename' ) ) {
@@ -457,12 +457,12 @@ class MainWP_Child_Back_Up_WordPress {
      */
     public function get_backup_status() {
         $schedule_id = $this->check_schedule();
-        $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
+        $schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
         if ( method_exists( $schedule, 'get_running_backup_filename' ) ) {
             $information['scheduleStatus'] = $schedule->get_status();
         } else {
-            $status = $schedule->get_status();
+            $status                        = $schedule->get_status();
             $information['scheduleStatus'] = $status->get_status();
         }
 
@@ -507,7 +507,7 @@ class MainWP_Child_Back_Up_WordPress {
         \HM\BackUpWordPress\Schedules::get_instance()->refresh_schedules();
 
         $all_schedules_ids = array();
-        $schedules = \HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
+        $schedules         = \HM\BackUpWordPress\Schedules::get_instance()->get_schedules();
         foreach ( $schedules as $sch ) {
             $all_schedules_ids[] = $sch->get_id();
         }
@@ -521,9 +521,9 @@ class MainWP_Child_Back_Up_WordPress {
                 continue;
             }
 
-            $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
+            $schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
             $started_ago = method_exists( $schedule, 'get_schedule_running_start_time' ) ? $schedule->get_schedule_running_start_time() : $schedule->get_schedule_start_time();
-            $out = array(
+            $out         = array(
                 'b'              => $this->get_backupslist_html( $schedule ),
                 'count'          => count( $schedule->get_backups() ),
                 'file_size_text' => $this->hmbkp_get_site_size_text( $schedule ),
@@ -533,7 +533,7 @@ class MainWP_Child_Back_Up_WordPress {
             if ( method_exists( $schedule, 'get_running_backup_filename' ) ) {
                 $out['scheduleStatus'] = $schedule->get_status();
             } else {
-                $status = $schedule->get_status();
+                $status                = $schedule->get_status();
                 $out['scheduleStatus'] = $status->get_status();
             }
 
@@ -549,7 +549,7 @@ class MainWP_Child_Back_Up_WordPress {
                 $current_option = get_option( 'hmbkp_schedule_' . $sch_id );
                 if ( is_array( $current_option ) ) {
                     unset( $current_option['excludes'] );
-                    $started_ago = method_exists( $schedule, 'get_schedule_running_start_time' ) ? $schedule->get_schedule_running_start_time() : $schedule->get_schedule_start_time();
+                    $started_ago                    = method_exists( $schedule, 'get_schedule_running_start_time' ) ? $schedule->get_schedule_running_start_time() : $schedule->get_schedule_start_time();
                     $send_back_schedules[ $sch_id ] = array(
                         'options'        => $current_option,
                         'b'              => $this->get_backupslist_html( $schedule ),
@@ -561,7 +561,7 @@ class MainWP_Child_Back_Up_WordPress {
                     if ( method_exists( $schedule, 'get_running_backup_filename' ) ) {
                         $send_back_schedules['scheduleStatus'] = $schedule->get_status();
                     } else {
-                        $status = $schedule->get_status();
+                        $status                                = $schedule->get_status();
                         $send_back_schedules['scheduleStatus'] = $status->get_status();
                     }
                 }
@@ -574,9 +574,9 @@ class MainWP_Child_Back_Up_WordPress {
             $backups_path = str_replace( \HM\BackUpWordPress\Path::get_home_path(), '', \HM\BackUpWordPress\Path::get_path() );
         }
 
-        $information['backups_path'] = $backups_path;
+        $information['backups_path']        = $backups_path;
         $information['send_back_schedules'] = $send_back_schedules;
-        $information['result'] = 'SUCCESS';
+        $information['result']              = 'SUCCESS';
 
         return $information;
     }
@@ -614,7 +614,7 @@ class MainWP_Child_Back_Up_WordPress {
         if ( method_exists( $schedule, 'get_running_backup_filename' ) ) {
             $ret['scheduleStatus'] = $schedule->get_status();
         } else {
-            $status = $schedule->get_status();
+            $status                = $schedule->get_status();
             $ret['scheduleStatus'] = $status->get_status();
         }
         return $ret;
@@ -695,7 +695,7 @@ class MainWP_Child_Back_Up_WordPress {
      */
     public function hmbkp_get_backup_row( $file, \HM\BackUpWordPress\Scheduled_Backup $schedule ) {
         $encoded_file = rawurlencode( base64_encode( $file ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $offset = get_option( 'gmt_offset' ) * 3600;
+        $offset       = get_option( 'gmt_offset' ) * 3600;
         ?>
         <tr class="hmbkp_manage_backups_row">
             <th scope="row">
@@ -739,18 +739,18 @@ class MainWP_Child_Back_Up_WordPress {
     public function get_excluded( $browse_dir = null ) {
 
         $schedule_id = $this->check_schedule();
-        $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
+        $schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( rawurldecode( $schedule_id ) ) );
 
         $new_version = true;
         if ( method_exists( $schedule, 'get_running_backup_filename' ) ) {
-            $new_version = false;
-            $user_excludes = array_diff( $schedule->get_excludes(), $schedule->backup->default_excludes() );
-            $root_dir = $schedule->backup->get_root();
+            $new_version        = false;
+            $user_excludes      = array_diff( $schedule->get_excludes(), $schedule->backup->default_excludes() );
+            $root_dir           = $schedule->backup->get_root();
             $is_size_calculated = $schedule->is_site_size_being_calculated();
         } else {
-            $excludes = $schedule->get_excludes();
-            $user_excludes = $excludes->get_user_excludes();
-            $root_dir = \HM\BackUpWordPress\Path::get_root();
+            $excludes           = $schedule->get_excludes();
+            $user_excludes      = $excludes->get_user_excludes();
+            $root_dir           = \HM\BackUpWordPress\Path::get_root();
             $is_size_calculated = \HM\BackUpWordPress\Site_Size::is_site_size_being_calculated();
         }
 
@@ -780,13 +780,13 @@ class MainWP_Child_Back_Up_WordPress {
 
             // Kick off a recursive filesize scan.
             if ( $new_version ) {
-                $site_size = new \HM\BackUpWordPress\Site_Size();
+                $site_size      = new \HM\BackUpWordPress\Site_Size();
                 $exclude_string = implode( '|', $excludes->get_excludes_for_regex() );
                 if ( function_exists( '\HM\BackUpWordPress\list_directory_by_total_filesize' ) ) {
                     $files = \HM\BackUpWordPress\list_directory_by_total_filesize( $directory, $excludes );
                 }
             } else {
-                $files = $schedule->list_directory_by_total_filesize( $directory );
+                $files          = $schedule->list_directory_by_total_filesize( $directory );
                 $exclude_string = $schedule->backup->exclude_string( 'regex' );
             }
             if ( $files ) {
@@ -798,7 +798,7 @@ class MainWP_Child_Back_Up_WordPress {
             </p>
         </div>
         <?php
-        $output = ob_get_clean();
+        $output           = ob_get_clean();
         $information['e'] = $output;
 
         return $information;
@@ -977,7 +977,7 @@ class MainWP_Child_Back_Up_WordPress {
     private function render_table_body_files( $files, $schedule, $root_dir, $new_version, $site_size, $is_size_calculated ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
         foreach ( $files as $size => $file ) {
-            $is_excluded = false;
+            $is_excluded   = false;
             $is_unreadable = false;
             // Check if the file is excluded.
             if ( $new_version ) {
@@ -1104,9 +1104,9 @@ class MainWP_Child_Back_Up_WordPress {
          // phpcs:disable WordPress.Security.NonceVerification
         $browse_dir = isset( $_POST['browse_dir'] ) ? sanitize_text_field( wp_unslash( $_POST['browse_dir'] ) ) : '';
          // phpcs:enable
-        $out = array();
-        $return = $this->get_excluded( $browse_dir );
-        $out['e'] = $return['e'];
+        $out                       = array();
+        $return                    = $this->get_excluded( $browse_dir );
+        $out['e']                  = $return['e'];
         $out['current_browse_dir'] = $browse_dir;
 
         return $out;
@@ -1126,7 +1126,7 @@ class MainWP_Child_Back_Up_WordPress {
         }
 
         $schedule_id = $this->check_schedule();
-        $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $schedule_id ) );
+        $schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $schedule_id ) );
 
         $exclude_rule = isset( $_POST['exclude_pathname'] ) ? rawurldecode( wp_unslash( $_POST['exclude_pathname'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
@@ -1140,8 +1140,8 @@ class MainWP_Child_Back_Up_WordPress {
             $current_path = null;
         }
 
-        $return = $this->get_excluded( $current_path );
-        $out['e'] = $return['e'];
+        $return                    = $this->get_excluded( $current_path );
+        $out['e']                  = $return['e'];
         $out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? sanitize_text_field( wp_unslash( $_POST['browse_dir'] ) ) : '';
         // phpcs:enable
         return $out;
@@ -1161,9 +1161,9 @@ class MainWP_Child_Back_Up_WordPress {
         }
 
         $schedule_id = $this->check_schedule();
-        $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $schedule_id ) );
+        $schedule    = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $schedule_id ) );
 
-        $excludes = $schedule->get_excludes();
+        $excludes               = $schedule->get_excludes();
         $exclude_rule_to_remove = stripslashes( sanitize_text_field( wp_unslash( $_POST['remove_rule'] ) ) );
 
         if ( method_exists( $excludes, 'get_user_excludes' ) ) {
@@ -1182,7 +1182,7 @@ class MainWP_Child_Back_Up_WordPress {
 
         $return = $this->get_excluded( $current_path );
 
-        $out['e'] = $return['e'];
+        $out['e']                  = $return['e'];
         $out['current_browse_dir'] = isset( $_POST['browse_dir'] ) ? sanitize_text_field( wp_unslash( $_POST['browse_dir'] ) ) : '';
         // phpcs:enable
         return $out;
@@ -1197,7 +1197,7 @@ class MainWP_Child_Back_Up_WordPress {
      */
     public function general_exclude_add_rule() {
 
-        $sch_id = $this->check_schedule();
+        $sch_id   = $this->check_schedule();
         $schedule = new \HM\BackUpWordPress\Scheduled_Backup( sanitize_text_field( $sch_id ) );
         // phpcs:disable WordPress.Security.NonceVerification
         $exclude_paths = isset( $_POST['exclude_paths'] ) ? rawurldecode( wp_unslash( $_POST['exclude_paths'] ) ) : '';  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -1212,7 +1212,7 @@ class MainWP_Child_Back_Up_WordPress {
                 }
 
                 $exclude_rule = ABSPATH . $excl_rule;
-                $path = realpath( $exclude_rule );
+                $path         = realpath( $exclude_rule );
                 if ( false !== $path ) {
                     $schedule->set_excludes( $exclude_rule, true );
                     $schedule->save();
@@ -1254,7 +1254,7 @@ class MainWP_Child_Back_Up_WordPress {
      */
     public function update_schedule() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $sch_id = isset( $_POST['schedule_id'] ) ? sanitize_text_field( rawurldecode( wp_unslash( $_POST['schedule_id'] ) ) ) : 0; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $sch_id  = isset( $_POST['schedule_id'] ) ? sanitize_text_field( rawurldecode( wp_unslash( $_POST['schedule_id'] ) ) ) : 0; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $options = isset( $_POST['options'] ) ? json_decode( base64_decode( wp_unslash( $_POST['options'] ) ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode function is used for http encode compatible.
         // phpcs:enable
         if ( ! is_array( $options ) || empty( $options ) || empty( $sch_id ) ) {
@@ -1325,7 +1325,7 @@ class MainWP_Child_Back_Up_WordPress {
             if ( empty( $sch_id ) || ! isset( $sch['options'] ) || ! is_array( $sch['options'] ) ) {
                 continue;
             }
-            $options = $sch['options'];
+            $options     = $sch['options'];
             $filter_opts = array(
                 'type',
                 'email',

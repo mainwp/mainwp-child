@@ -126,7 +126,7 @@ class MainWP_Child_Jetpack_Protect {
             try {
                 $this->load_connection_manager();
                 MainWP_Helper::instance()->check_methods( $this->connection, 'is_connected' );
-                $status = $this->get_sync_data();
+                $status                                  = $this->get_sync_data();
                 $information['sync_JetpackProtect_Data'] = array(
                     'status'    => $status['status'],
                     'connected' => $this->connection->is_connected(),

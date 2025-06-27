@@ -171,10 +171,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         }
         $information = array();
 
-        $options_helper = new \Wptc_Options_Helper();
-        $options = \WPTC_Factory::get( 'config' );
+        $options_helper    = new \Wptc_Options_Helper();
+        $options           = \WPTC_Factory::get( 'config' );
         $is_user_logged_in = $options->get_option( 'is_user_logged_in' );
-        $privileges_wptc = $options_helper->get_unserialized_privileges();
+        $privileges_wptc   = $options_helper->get_unserialized_privileges();
 
         $mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
         if ( ! empty( $mwp_action ) ) {
@@ -393,20 +393,20 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::instance()->check_methods( $config, 'get_option' );
 
             $main_account_email_var = $config->get_option( 'main_account_email' );
-            $last_backup_time = $config->get_option( 'last_backup_time' );
-            $wptc_settings = \WPTC_Base_Factory::get( 'Wptc_Settings' );
+            $last_backup_time       = $config->get_option( 'last_backup_time' );
+            $wptc_settings          = \WPTC_Base_Factory::get( 'Wptc_Settings' );
 
             $options_helper = new \Wptc_Options_Helper();
 
             MainWP_Helper::instance()->check_methods( $options_helper, array( 'get_plan_interval_from_subs_info', 'get_is_user_logged_in' ) );
             MainWP_Helper::instance()->check_methods( $wptc_settings, array( 'get_connected_cloud_info' ) );
 
-            $all_backups = $this->get_backups();
+            $all_backups   = $this->get_backups();
             $backups_count = 0;
             if ( is_array( $all_backups ) ) {
                 $formatted_backups = array();
                 foreach ( $all_backups as $value ) {
-                    $value_array = (array) $value;
+                    $value_array                                     = (array) $value;
                     $formatted_backups[ $value_array['backupID'] ][] = $value_array;
                 }
                 $backups_count = count( $formatted_backups );
@@ -486,9 +486,9 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! isset( $_POST['data'] ) ) {
             wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
         }
-        $category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $exclude_class_obj = new \Wptc_ExcludeOption( $category );
-        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable WordPress.Security.NonceVerification
         $exclude_class_obj->exclude_file_list( $data );
         die();
@@ -521,14 +521,14 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
 
         $processed_files = \WPTC_Factory::get( 'processed-files' );
 
-        $return_array = array();
-        $return_array['stored_backups'] = $processed_files->get_stored_backups();
-        $return_array['backup_progress'] = array();
-        $return_array['starting_first_backup'] = $config->get_option( 'starting_first_backup' );
-        $return_array['meta_data_backup_process'] = $config->get_option( 'meta_data_backup_process' );
+        $return_array                                  = array();
+        $return_array['stored_backups']                = $processed_files->get_stored_backups();
+        $return_array['backup_progress']               = array();
+        $return_array['starting_first_backup']         = $config->get_option( 'starting_first_backup' );
+        $return_array['meta_data_backup_process']      = $config->get_option( 'meta_data_backup_process' );
         $return_array['backup_before_update_progress'] = $config->get_option( 'backup_before_update_progress' );
-        $return_array['is_staging_running'] = apply_filters( 'is_any_staging_process_going_on', '' );
-        $cron_status = $config->get_option( 'wptc_own_cron_status' );
+        $return_array['is_staging_running']            = apply_filters( 'is_any_staging_process_going_on', '' );
+        $cron_status                                   = $config->get_option( 'wptc_own_cron_status' );
 
         if ( ! empty( $cron_status ) ) {
             $return_array['wptc_own_cron_status']          = unserialize( $cron_status ); // phpcs:ignore -- safe internal value, third party.
@@ -544,12 +544,12 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $processed_files->get_current_backup_progress( $return_array );
 
         $return_array['user_came_from_existing_ver'] = (int) $config->get_option( 'user_came_from_existing_ver' );
-        $return_array['show_user_php_error'] = $config->get_option( 'show_user_php_error' );
-        $return_array['bbu_setting_status'] = apply_filters( 'get_backup_before_update_setting_wptc', '' );
-        $return_array['bbu_note_view'] = apply_filters( 'get_bbu_note_view', '' );
-        $return_array['staging_status'] = apply_filters( 'staging_status_wptc', '' );
+        $return_array['show_user_php_error']         = $config->get_option( 'show_user_php_error' );
+        $return_array['bbu_setting_status']          = apply_filters( 'get_backup_before_update_setting_wptc', '' );
+        $return_array['bbu_note_view']               = apply_filters( 'get_bbu_note_view', '' );
+        $return_array['staging_status']              = apply_filters( 'staging_status_wptc', '' );
 
-        $processed_files = \WPTC_Factory::get( 'processed-files' );
+        $processed_files  = \WPTC_Factory::get( 'processed-files' );
         $last_backup_time = $config->get_option( 'last_backup_time' );
 
         if ( ! empty( $last_backup_time ) ) {
@@ -574,7 +574,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
     public function wptc_cron_status() {
         $config = \WPTC_Factory::get( 'config' );
         wptc_own_cron_status();
-        $status = array();
+        $status      = array();
         $cron_status = $config->get_option( 'wptc_own_cron_status' );
         if ( ! empty( $cron_status ) ) {
             $cron_status = unserialize( $cron_status ); // phpcs:ignore -- safe internal value, third party.
@@ -582,11 +582,11 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
             if ( 'success' === $cron_status['status'] ) {
                 $status['status'] = 'success';
             } else {
-                $status['status'] = 'failed';
+                $status['status']      = 'failed';
                 $status['status_code'] = $cron_status['statusCode'];
-                $status['err_msg'] = $cron_status['body'];
-                $status['cron_url'] = $cron_status['cron_url'];
-                $status['ips'] = $cron_status['ips'];
+                $status['err_msg']     = $cron_status['body'];
+                $status['cron_url']    = $cron_status['cron_url'];
+                $status['ips']         = $cron_status['ips'];
             }
             return array( 'result' => $status );
         }
@@ -602,11 +602,11 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_this_backups_html() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $this_backup_ids = isset( $_POST['this_backup_ids'] ) ? wp_unslash( $_POST['this_backup_ids'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $specific_dir = isset( $_POST['specific_dir'] ) ? wp_unslash( $_POST['specific_dir'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $this_backup_ids    = isset( $_POST['this_backup_ids'] ) ? wp_unslash( $_POST['this_backup_ids'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $specific_dir       = isset( $_POST['specific_dir'] ) ? wp_unslash( $_POST['specific_dir'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $type               = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
         $treeRecursiveCount = isset( $_POST['treeRecursiveCount'] ) ? sanitize_text_field( wp_unslash( $_POST['treeRecursiveCount'] ) ) : '';
-        $processed_files = \WPTC_Factory::get( 'processed-files' );
+        $processed_files    = \WPTC_Factory::get( 'processed-files' );
         // phpcs:enable WordPress.Security.NonceVerification
         $result = $processed_files->get_this_backups_html( $this_backup_ids, $specific_dir, $type, $treeRecursiveCount );
         return array( 'result' => $result );
@@ -647,7 +647,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! empty( $file_name ) ) {
             $file_name = wp_normalize_path( $file_name );
         }
-        $backup_id = isset( $_POST['data']['backup_id'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['backup_id'] ) ) : '';
+        $backup_id       = isset( $_POST['data']['backup_id'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['backup_id'] ) ) : '';
         $recursive_count = isset( $_POST['data']['recursive_count'] ) ? sanitize_text_field( wp_unslash( $_POST['data']['recursive_count'] ) ) : '';
         // phpcs:enable WordPress.Security.NonceVerification
         $processed_files = \WPTC_Factory::get( 'processed-files' );
@@ -673,7 +673,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Action result.
      */
     public function get_logs_rows() {
-        $result = $this->prepare_items();
+        $result                 = $this->prepare_items();
         $result['display_rows'] = base64_encode( wp_json_encode( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
         return $result;
     }
@@ -726,14 +726,14 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $orderby = ! empty( $_POST['orderby'] ) ? sanitize_sql_orderby( wp_unslash( $_POST['orderby'] ) ) : 'id';
-        $order = ! empty( $_POST['order'] ) ? sanitize_sql_orderby( wp_unslash( $_POST['order'] ) ) : 'DESC';
+        $order   = ! empty( $_POST['order'] ) ? sanitize_sql_orderby( wp_unslash( $_POST['order'] ) ) : 'DESC';
         if ( ! empty( $orderby ) & ! empty( $order ) ) {
             $query .= ' ORDER BY ' . $orderby . ' ' . $order;
         }
 
         $totalitems = $wpdb->query( $query ); // phpcs:ignore -- safe query.
-        $perpage = 20;
-        $paged = ! empty( $_POST['paged'] ) ? intval( $_POST['paged'] ) : '';
+        $perpage    = 20;
+        $paged      = ! empty( $_POST['paged'] ) ? intval( $_POST['paged'] ) : '';
         if ( empty( $paged ) || ! is_numeric( $paged ) || $paged <= 0 ) {
             $paged = 1;
         }
@@ -783,12 +783,12 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $wpdb;
 
-        $action_id = $data['action_id'];
-        $from_limit = $data['limit'];
-        $detailed = '';
-        $load_more = false;
+        $action_id     = $data['action_id'];
+        $from_limit    = $data['limit'];
+        $detailed      = '';
+        $load_more     = false;
         $current_limit = \WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
-        $to_limit = $from_limit + $current_limit;
+        $to_limit      = $from_limit + $current_limit;
 
         $sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id = %s AND show_user = 1 ORDER BY id DESC LIMIT %d, %d', $action_id, $from_limit, $current_limit ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 
@@ -841,14 +841,14 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 $load_more = false;
                 if ( ! empty( $rec->action_id ) ) {
                     $sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id= %s AND show_user = 1 ORDER BY id DESC LIMIT 0, %d', $rec->action_id, $limit ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                    $row_count = count( $sub_records );
+                    $row_count   = count( $sub_records );
                     if ( $row_count === (int) $limit ) {
                         $load_more = true;
                     }
 
                     if ( $row_count > 0 ) {
                         $more_logs = true;
-                        $detailed = '<table>';
+                        $detailed  = '<table>';
                         $detailed .= $this->get_activity_log( $sub_records );
                         if ( isset( $load_more ) && $load_more ) {
                             $detailed .= '<tr><td></td><td><a style="cursor:pointer; position:relative" class="mainwp_wptc_activity_log_load_more" action_id="' . $rec->action_id . '" limit="' . $limit . '">Load more</a></td><td></td></tr>';
@@ -857,12 +857,12 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
 
                     }
                 }
-                $html .= '<tr class="act-tr">';
+                $html     .= '<tr class="act-tr">';
                 $Ldata     = unserialize( $rec->log_data ); // phpcs:ignore -- safe internal value, third party.
                 $user_time = \WPTC_Factory::get( 'config' )->cnvt_UTC_to_usrTime( $Ldata['log_time'] );
                 \WPTC_Factory::get( 'processed-files' )->modify_schedule_backup_time( $user_time );
                 $user_tz_now = date( 'M d, Y @ g:i:s a', $user_time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-                $msg = '';
+                $msg         = '';
                 if ( false !== strpos( $rec->type, 'backup' ) ) {
                     // Backup process.
                     $msg = 'Backup Process';
@@ -920,7 +920,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
             $user_tmz = new \DateTime( '@' . $Moredata['log_time'], new \DateTimeZone( date_default_timezone_get() ) );
             $user_tmz->setTimeZone( new \DateTimeZone( $timezone ) );
             $user_tmz_now = $user_tmz->format( 'M d @ g:i:s a' );
-            $detailed .= '<tr><td>' . $user_tmz_now . '</td><td>' . $Moredata['msg'] . '</td><td></td></tr>';
+            $detailed    .= '<tr><td>' . $user_tmz_now . '</td><td>' . $Moredata['msg'] . '</td><td></td></tr>';
         }
         return $detailed;
     }
@@ -958,7 +958,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function stop_fresh_backup_tc_callback_wptc() {
         $deactivated_plugin = null;
-        $backup = new \WPTC_BackupController();
+        $backup             = new \WPTC_BackupController();
         $backup->stop( $deactivated_plugin );
         return array( 'result' => 'ok' );
     }
@@ -987,9 +987,9 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! isset( $_POST['data'] ) ) {
             wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
         }
-        $category = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $exclude_class_obj = new \Wptc_ExcludeOption( $category );
-        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $exclude_class_obj->exclude_table_list( $data );
         // phpcs:enable WordPress.Security.NonceVerification
         die();
@@ -1046,7 +1046,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 MainWP_Utility::update_lasttime_backup( 'wptimecapsule', $backup_time );
             }
 
-            $last_time = time() - 24 * 7 * 2 * 60 * 60;
+            $last_time       = time() - 24 * 7 * 2 * 60 * 60;
             $lasttime_logged = MainWP_Utility::get_lasttime_backup( 'wptimecapsule' );
             if ( empty( $lasttime_logged ) ) {
                 $last_time = time() - 24 * 7 * 8 * 60 * 60;
@@ -1057,10 +1057,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
             if ( is_array( $all_last_backups ) ) {
                 $formatted_backups = array();
                 foreach ( $all_last_backups as $key => $value ) {
-                    $value_array = (array) $value;
+                    $value_array                                     = (array) $value;
                     $formatted_backups[ $value_array['backupID'] ][] = $value_array;
                 }
-                $message = 'WP Time Capsule backup finished';
+                $message     = 'WP Time Capsule backup finished';
                 $backup_type = 'WP Time Capsule backup';
                 if ( ! empty( $formatted_backups ) ) {
                     foreach ( $formatted_backups as $key => $value ) {
@@ -1084,9 +1084,9 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! isset( $_POST['data'] ) ) {
             wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
         }
-        $category = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $exclude_class_obj = new \Wptc_ExcludeOption( $category );
-        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable WordPress.Security.NonceVerification
         $exclude_class_obj->include_table_list( $data );
         die();
@@ -1103,9 +1103,9 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
             wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
         }
 
-        $category = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $category          = isset( $_POST['data']['category'] ) ? wp_unslash( $_POST['data']['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $exclude_class_obj = new \Wptc_ExcludeOption( $category );
-        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable WordPress.Security.NonceVerification
         $exclude_class_obj->include_table_structure_only( $data );
         die();
@@ -1121,9 +1121,9 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! isset( $_POST['data'] ) ) {
             wptc_die_with_json_encode( array( 'status' => 'no data found' ) );
         }
-        $category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $category          = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $exclude_class_obj = new \Wptc_ExcludeOption( $category );
-        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $data              = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable WordPress.Security.NonceVerification
         $exclude_class_obj->include_file_list( wp_unslash( $data ) );
         die();
@@ -1136,7 +1136,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_files_by_key() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $key = isset( $_POST['key'] ) ? wp_unslash( $_POST['key'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $key      = isset( $_POST['key'] ) ? wp_unslash( $_POST['key'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $category = isset( $_POST['category'] ) ? wp_unslash( $_POST['category'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable WordPress.Security.NonceVerification
         $exclude_class_obj = new \Wptc_ExcludeOption( $category );
@@ -1162,13 +1162,13 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         }
         // phpcs:disable WordPress.Security.NonceVerification
         $email = isset( $_POST['acc_email'] ) ? sanitize_text_field( wp_unslash( $_POST['acc_email'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $pwd = isset( $_POST['acc_pwd'] ) ? wp_unslash( $_POST['acc_pwd'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $pwd   = isset( $_POST['acc_pwd'] ) ? wp_unslash( $_POST['acc_pwd'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable WordPress.Security.NonceVerification
         if ( empty( $email ) || empty( $pwd ) ) {
             return array( 'error' => 'Username and password cannot be empty' );
         }
 
-        $config = \WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
+        $config  = \WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
         $options = \WPTC_Factory::get( 'config' );
 
         $config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
@@ -1197,7 +1197,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $options->reset_plans();
 
         $main_account_email = $email;
-        $main_account_pwd = $pwd;
+        $main_account_pwd   = $pwd;
 
         $options->set_option( 'main_account_email', strtolower( $main_account_email ) );
         $options->set_option( 'main_account_pwd', $this->hash_pwd( $main_account_pwd ) );
@@ -1247,8 +1247,8 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             $cust_req_info = $cust_info->success[0];
-            $this_d_name = $cust_req_info->cust_display_name;
-            $this_token = $cust_req_info->wptc_token;
+            $this_d_name   = $cust_req_info->cust_display_name;
+            $this_token    = $cust_req_info->wptc_token;
 
             $options->set_option( 'uuid', $cust_req_info->uuid );
             $options->set_option( 'wptc_token', $this_token );
@@ -1319,11 +1319,11 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $sub_features = (array) $cust_req_info->subscription_features;
 
         $privileged_feature = array();
-        $privileges_args = array();
+        $privileges_args    = array();
 
         foreach ( $sub_features as $single_sub ) {
             foreach ( $single_sub as $v ) {
-                $privileged_feature[ $v->type ][] = 'Wptc_' . ucfirst( $v->feature );
+                $privileged_feature[ $v->type ][]                    = 'Wptc_' . ucfirst( $v->feature );
                 $privileges_args[ 'Wptc_' . ucfirst( $v->feature ) ] = ( ! empty( $v->args ) ) ? $v->args : array();
             }
         }
@@ -1387,11 +1387,11 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
 
         $config = \WPTC_Factory::get( 'config' );
 
-        $email = trim( $config->get_option( 'main_account_email', true ) );
-        $emailhash = md5( $email ); // NOSONAR - 3rd compatible.
+        $email         = trim( $config->get_option( 'main_account_email', true ) );
+        $emailhash     = md5( $email ); // NOSONAR - 3rd compatible.
         $email_encoded = base64_encode( $email ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 
-        $pwd = trim( $config->get_option( 'main_account_pwd', true ) );
+        $pwd         = trim( $config->get_option( 'main_account_pwd', true ) );
         $pwd_encoded = base64_encode( $pwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
 
         if ( empty( $email ) || empty( $pwd ) ) {
@@ -1454,7 +1454,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
     public function get_installed_plugins() {
 
         $backup_before_auto_update_settings = \WPTC_Pro_Factory::get( 'Wptc_Backup_Before_Auto_Update_Settings' );
-        $plugins = $backup_before_auto_update_settings->get_installed_plugins();
+        $plugins                            = $backup_before_auto_update_settings->get_installed_plugins();
 
         if ( $plugins ) {
             return array( 'results' => $plugins );
@@ -1497,8 +1497,8 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @used-by MainWP_Child_Timecapsule::action() Fire off certain WP Time Capsule plugin actions.
      */
     public function get_staging_details_wptc() {
-        $staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
-        $details = $staging->get_staging_details();
+        $staging               = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
+        $details               = $staging->get_staging_details();
         $details['is_running'] = $staging->is_any_staging_process_going_on();
         wptc_die_with_json_encode( $details, 1 );
     }
@@ -1646,11 +1646,11 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         // phpcs:disable WordPress.Security.NonceVerification
         $data = isset( $_POST['data'] ) ? json_decode( base64_decode( wp_unslash( $_POST['data'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
 
-        $tabName = isset( $_POST['tabname'] ) ? sanitize_text_field( wp_unslash( $_POST['tabname'] ) ) : '';
+        $tabName    = isset( $_POST['tabname'] ) ? sanitize_text_field( wp_unslash( $_POST['tabname'] ) ) : '';
         $is_general = isset( $_POST['is_general'] ) ? sanitize_text_field( wp_unslash( $_POST['is_general'] ) ) : '';
         // phpcs:enable WordPress.Security.NonceVerification
 
-        $saved = false;
+        $saved  = false;
         $config = \WPTC_Factory::get( 'config' );
         if ( 'backup' === $tabName ) {
             $this->save_settings_backup_tab( $config, $data );
@@ -1712,16 +1712,16 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private function save_settings_backup_auto_tab( $config, $data, $is_general ) {
         $config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
-        $current = $config->get_option( 'wptc_auto_update_settings' );
+        $current                              = $config->get_option( 'wptc_auto_update_settings' );
         $current = unserialize( $current ); // phpcs:ignore -- safe internal value, third party.
         $new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- compatible third party // NOSONARR .
         $current['update_settings']['status'] = $new['update_settings']['status'];
-        $current['update_settings']['schedule']['enabled'] = $new['update_settings']['schedule']['enabled'];
-        $current['update_settings']['schedule']['time'] = $new['update_settings']['schedule']['time'];
+        $current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
+        $current['update_settings']['schedule']['time']        = $new['update_settings']['schedule']['time'];
         $current['update_settings']['core']['major']['status'] = $new['update_settings']['core']['major']['status'];
         $current['update_settings']['core']['minor']['status'] = $new['update_settings']['core']['minor']['status'];
-        $current['update_settings']['themes']['status'] = $new['update_settings']['themes']['status'];
-        $current['update_settings']['plugins']['status'] = $new['update_settings']['plugins']['status'];
+        $current['update_settings']['themes']['status']        = $new['update_settings']['themes']['status'];
+        $current['update_settings']['plugins']['status']       = $new['update_settings']['plugins']['status'];
 
         if ( ! $is_general ) {
             if ( isset( $new['update_settings']['plugins']['included'] ) ) {
@@ -1751,9 +1751,9 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $current = unserialize( $current ); // phpcs:ignore -- safe internal value, third party.
         $new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party compatible // NOSONARR .
 
-        $current['status'] = $new['status'];
-        $current['core']['status'] = $new['core']['status'];
-        $current['themes']['status'] = $new['themes']['status'];
+        $current['status']            = $new['status'];
+        $current['core']['status']    = $new['core']['status'];
+        $current['themes']['status']  = $new['themes']['status'];
         $current['plugins']['status'] = $new['plugins']['status'];
 
         if ( ! $is_general ) {
@@ -1782,7 +1782,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 $themes_include_array = explode( ',', $vulns_themes_included );
             }
 
-            $included_themes = $this->filter_themes( $themes_include_array );
+            $included_themes               = $this->filter_themes( $themes_include_array );
             $current['themes']['excluded'] = serialize( $included_themes ); // phpcs:ignore -- safe internal value, third party.
         }
         $config->set_option( 'vulns_settings', serialize( $current ) ); // phpcs:ignore -- safe internal value, third party.
@@ -1817,10 +1817,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Filtered list of plugins.
      */
     private function filter_plugins( $included_plugins ) {
-        $app_functions = \WPTC_Base_Factory::get( 'Wptc_App_Functions' );
-        $specific = true;
-        $attr = 'slug';
-        $plugins_data = $app_functions->get_all_plugins_data( $specific, $attr );
+        $app_functions       = \WPTC_Base_Factory::get( 'Wptc_App_Functions' );
+        $specific            = true;
+        $attr                = 'slug';
+        $plugins_data        = $app_functions->get_all_plugins_data( $specific, $attr );
         $not_included_plugin = array_diff( $plugins_data, $included_plugins );
         wptc_log( $plugins_data, '--------$plugins_data--------' );
         wptc_log( $not_included_plugin, '--------$not_included_plugin--------' );
@@ -1837,10 +1837,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Filtered list of themes.
      */
     private function filter_themes( $included_themes ) {
-        $app_functions = \WPTC_Base_Factory::get( 'Wptc_App_Functions' );
-        $specific = true;
-        $attr = 'slug';
-        $themes_data = $app_functions->get_all_themes_data( $specific, $attr );
+        $app_functions      = \WPTC_Base_Factory::get( 'Wptc_App_Functions' );
+        $specific           = true;
+        $attr               = 'slug';
+        $themes_data        = $app_functions->get_all_themes_data( $specific, $attr );
         $not_included_theme = array_diff( $themes_data, $included_themes );
         wptc_log( $themes_data, '--------$themes_data--------' );
         wptc_log( $not_included_theme, '--------$not_included_theme--------' );
@@ -1883,8 +1883,8 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_enabled_themes() {
         $vulns_obj = \WPTC_Base_Factory::get( 'Wptc_Vulns' );
-        $themes = $vulns_obj->get_enabled_themes();
-        $themes = \WPTC_Base_Factory::get( 'Wptc_App_Functions' )->fancytree_format( $themes, 'themes' );
+        $themes    = $vulns_obj->get_enabled_themes();
+        $themes    = \WPTC_Base_Factory::get( 'Wptc_App_Functions' )->fancytree_format( $themes, 'themes' );
         return array( 'results' => $themes );
     }
 
@@ -2011,10 +2011,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Action result.
      */
     public function start_fresh_backup_tc_callback_wptc() {
-        $type = '';
-        $args = null;
+        $type            = '';
+        $args            = null;
         $test_connection = true;
-        $ajax_check = false;
+        $ajax_check      = false;
         start_fresh_backup_tc_callback_wptc( $type, $args, $test_connection, $ajax_check );
         return array( 'result' => 'success' );
     }

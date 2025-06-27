@@ -247,7 +247,6 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
         /**
          * @since 5.4.0.7.
-         *
          */
         return apply_filters(
             'mainwp_child_prepared_reports_data',

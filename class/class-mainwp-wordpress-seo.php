@@ -85,7 +85,7 @@ class MainWP_WordPress_SEO {
             MainWP_Helper::write( $information );
         }
         $information = array();
-        $mwp_action = MainWP_System::instance()->validate_params( 'action' );
+        $mwp_action  = MainWP_System::instance()->validate_params( 'action' );
         if ( 'import_settings' === $mwp_action ) {
             $this->import_settings();
         }
@@ -104,7 +104,7 @@ class MainWP_WordPress_SEO {
     public function import_settings() { //phpcs:ignore -- NOSONAR - complex.
         // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['file_url'] ) ) {
-            $file_url = ! empty( $_POST['file_url'] ) ? sanitize_text_field( base64_decode( wp_unslash( $_POST['file_url'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
+            $file_url       = ! empty( $_POST['file_url'] ) ? sanitize_text_field( base64_decode( wp_unslash( $_POST['file_url'] ) ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
             $temporary_file = '';
 
             try {
@@ -129,7 +129,7 @@ class MainWP_WordPress_SEO {
         } elseif ( isset( $_POST['settings'] ) ) {
             try {
                 $settings = ! empty( $_POST['settings'] ) ? base64_decode( wp_unslash( $_POST['settings'] ) ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode required for backwards compatibility.
-                $options = parse_ini_string( $settings, true, INI_SCANNER_RAW );
+                $options  = parse_ini_string( $settings, true, INI_SCANNER_RAW );
                 if ( is_array( $options ) && array() !== $options ) {
 
                     $old_wpseo_version = null;
@@ -238,15 +238,15 @@ class MainWP_WordPress_SEO {
      */
     public function parse_column_score( $post_id ) {
         if ( '1' === \WPSEO_Meta::get_value( 'meta-robots-noindex', $post_id ) ) {
-            $rank = new \WPSEO_Rank( \WPSEO_Rank::NO_INDEX );
+            $rank  = new \WPSEO_Rank( \WPSEO_Rank::NO_INDEX );
             $title = esc_html__( 'Post is set to noindex.', 'mainwp-child' );
             \WPSEO_Meta::set_value( 'linkdex', 0, $post_id );
         } elseif ( '' === \WPSEO_Meta::get_value( 'focuskw', $post_id ) ) {
-            $rank = new \WPSEO_Rank( \WPSEO_Rank::NO_FOCUS );
+            $rank  = new \WPSEO_Rank( \WPSEO_Rank::NO_FOCUS );
             $title = esc_html__( 'Focus keyword not set.', 'mainwp-child' );
         } else {
             $score = (int) \WPSEO_Meta::get_value( 'linkdex', $post_id );
-            $rank = \WPSEO_Rank::from_numeric_score( $score );
+            $rank  = \WPSEO_Rank::from_numeric_score( $score );
             $title = $rank->get_label();
         }
 
@@ -262,7 +262,7 @@ class MainWP_WordPress_SEO {
      */
     public function parse_column_score_readability( $post_id ) {
         $score = (int) \WPSEO_Meta::get_value( 'content_score', $post_id );
-        $rank = \WPSEO_Rank::from_numeric_score( $score );
+        $rank  = \WPSEO_Rank::from_numeric_score( $score );
 
         return $this->render_score_indicator( $rank );
     }
