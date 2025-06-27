@@ -155,7 +155,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $information['register'] = 'OK';
         $information['uniqueId'] = MainWP_Helper::get_site_unique_id();
-        $information['user'] = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
+        $information['user']     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
 
          // phpcs:enable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         MainWP_Child_Stats::get_instance()->get_site_stats( $information ); // get stats and exit.
@@ -176,10 +176,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         $user_id = 0;
 
         if ( ! empty( $user_name ) ) {
-            $user = get_user_by( 'login', $user_name );
+            $user    = get_user_by( 'login', $user_name );
             $user_id = $user ? $user->ID : false;
         } else {
-            $user = $this->get_connected_user();
+            $user    = $this->get_connected_user();
             $user_id = $user ? $user->ID : false;
         }
 
@@ -195,7 +195,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             $saved_values = array();
         }
 
-        $verify_key = '';
+        $verify_key     = '';
         $verify_secrect = '';
 
         if ( ! empty( $key_value ) && false !== strpos( $key_value, '-' ) ) {
@@ -206,7 +206,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( 'verify' === $act ) {
             $found_secure = '';
-            $hash_key = hash_hmac( 'sha256', $verify_key, 'register-verify' );
+            $hash_key     = hash_hmac( 'sha256', $verify_key, 'register-verify' );
             foreach ( $saved_values as $info ) {
                 if ( is_array( $info ) && ! empty( $info['hash_key'] ) && $hash_key === $info['hash_key'] ) {
                     $found_secure = $info['secure'];
@@ -215,13 +215,13 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             }
             return ! empty( $found_secure ) && hash_equals( $found_secure, $verify_secrect );
         } elseif ( 'generate' === $act ) {
-            $gen_values = $this->generate_verify_hash();
+            $gen_values     = $this->generate_verify_hash();
             $saved_values[] = array(
                 'hash_key' => $gen_values['hash_key'],
                 'secure'   => $gen_values['secure'],
                 'date'     => gmdate( 'Y-m-d H:i:s' ),
             );
-            $gen_verify = $gen_values['key'] . '-' . $gen_values['secure'];
+            $gen_verify     = $gen_values['key'] . '-' . $gen_values['secure'];
         } elseif ( 'remove' === $act ) {
             if ( ! empty( $saved_values ) ) {
                 array_pop( $saved_values );
@@ -288,8 +288,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function verify_reconnect_for_current_connect( $user_name ) { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         $connected_user = get_option( 'mainwp_child_connected_admin', '' );
-        $dashboard_url = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
-        $server = ! empty( $_POST['server'] ) ? sanitize_text_field( wp_unslash( $_POST['server'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification -- NOSONAR - ok.
+        $dashboard_url  = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+        $server         = ! empty( $_POST['server'] ) ? sanitize_text_field( wp_unslash( $_POST['server'] ) ) : ''; //phpcs:ignore WordPress.Security.NonceVerification -- NOSONAR - ok.
 
         if ( $user_name !== $connected_user || empty( $server ) || $server !== $dashboard_url ) {
             return false;
@@ -402,8 +402,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( ! $auth && isset( $_POST['function'] ) ) {
-            $func = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
-            $callable = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
+            $func             = isset( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : '';
+            $callable         = MainWP_Child_Callable::get_instance()->is_callable_function( $func );
             $callable_no_auth = MainWP_Child_Callable::get_instance()->is_callable_function_no_auth( $func );
 
             if ( $callable && ! $callable_no_auth && isset( $_POST['mainwpsignature'] ) ) {
@@ -416,7 +416,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             // Check if the user exists & is an administrator.
             if ( isset( $_POST['function'] ) && isset( $_POST['user'] ) ) {
                 $uname = '';
-                $user = null;
+                $user  = null;
                 if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) ) {
                     $uname = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
                     if ( $this->check_login_as( $uname ) ) {
@@ -429,8 +429,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 // if alternative admin not existed.
                 if ( ! $user ) {
                     // check connected admin existed.
-                    $uname = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
-                    $user = get_user_by( 'login', $uname );
+                    $uname     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
+                    $user      = get_user_by( 'login', $uname );
                     $auth_user = $uname;
                 }
 
@@ -447,7 +447,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
                 // check just clone admin here.
                 $just_clone_admin = get_option( 'mainwp_child_just_clone_admin' );
-                $clone_sync = false;
+                $clone_sync       = false;
                 if ( ! empty( $just_clone_admin ) ) {
                     delete_option( 'mainwp_child_just_clone_admin' );
                     if ( $uname !== $just_clone_admin ) {
@@ -457,8 +457,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
                 // authed.
                 if ( $clone_sync && $logged_in ) {
-                    $information = array();
-                    $information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+                    $information                            = array();
+                    $information['sync']                    = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
                     $information['sync']['clone_adminname'] = $just_clone_admin;
                     MainWP_Helper::write( $information ); // forced exit to sync clone admin.
                 }
@@ -667,7 +667,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         global $current_user;
         // phpcs:disable WordPress.Security.NonceVerification
         $alter_login_required = false;
-        $username = isset( $_REQUEST['user'] ) ? rawurldecode( wp_unslash( $_REQUEST['user'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $username             = isset( $_REQUEST['user'] ) ? rawurldecode( wp_unslash( $_REQUEST['user'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
         if ( isset( $_REQUEST['alt_user'] ) ) {
             $alter_login_required = ! empty( $_REQUEST['alt_user'] ) ? $this->check_login_as( wp_unslash( $_REQUEST['alt_user'] ) ) : false; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -684,9 +684,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $file = $this->get_request_files();
 
-        $where = ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $where    = ( isset( $_REQUEST['where'] ) ? wp_unslash( $_REQUEST['where'] ) : $file ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( $where ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+        $nonce    = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
 
         try {
             $auth = $this->auth( $signature, $function, $nonce );
@@ -786,7 +786,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             foreach ( $_vars as $key => $value ) {
                 $open_url .= $key . '=' . $value . '&';
             }
-            $open_url = rtrim( $open_url, '&' );
+            $open_url      = rtrim( $open_url, '&' );
             $open_location = '/wp-admin/' . $_path . '?' . $open_url;
         } elseif ( strpos( $open_location, 'nonce=child_temp_nonce' ) !== false ) {
                 $open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . wp_create_nonce( 'wp-ajax' ), $open_location );
@@ -810,7 +810,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         $val = explode( '&', $val );
         $arr = array();
         foreach ( $val as $v ) {
-            $x = explode( '=', $v );
+            $x            = explode( '=', $v );
             $arr[ $x[0] ] = $x[1];
         }
         unset( $v, $x, $val );
@@ -931,10 +931,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $file = $this->get_request_files();
 
-        $where = isset( $_REQUEST['where'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['where'] ) ) : $file;
+        $where           = isset( $_REQUEST['where'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['where'] ) ) : $file;
         $mainwpsignature = isset( $_POST['mainwpsignature'] ) ? rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $function = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( $where );
-        $nonce = MainWP_System::instance()->validate_params( 'nonce' );
+        $function        = ! empty( $_POST['function'] ) ? sanitize_text_field( wp_unslash( $_POST['function'] ) ) : rawurldecode( $where );
+        $nonce           = MainWP_System::instance()->validate_params( 'nonce' );
 
         try {
             $auth = $this->auth( $mainwpsignature, $function, $nonce );
@@ -958,13 +958,13 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 $user = null;
                 if ( isset( $_POST['alt_user'] ) && ! empty( $_POST['alt_user'] ) && $this->check_login_as( sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) ) ) {
                     $auth_user = isset( $_POST['alt_user'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_user'] ) ) : '';
-                    $user = get_user_by( 'login', $auth_user );
+                    $user      = get_user_by( 'login', $auth_user );
                 }
                 // if not valid alternative admin.
                 if ( ! $user ) {
                     // check connected admin existed.
-                    $uname = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
-                    $user = get_user_by( 'login', $uname );
+                    $uname     = isset( $_POST['user'] ) ? sanitize_text_field( wp_unslash( $_POST['user'] ) ) : '';
+                    $user      = get_user_by( 'login', $uname );
                     $auth_user = $uname;
                 }
                 if ( ! $user ) {
@@ -1116,7 +1116,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 unset( $auths[ $newI++ ] );
             }
             $auths[ $this->maxHistory ] = md5( MainWP_Helper::rand_string( 14 ) ); // NOSONAR - safe.
-            $auths['last'] = time();
+            $auths['last']              = time();
             MainWP_Helper::update_option( 'mainwp_child_auth', $auths, 'yes' );
         }
     }
