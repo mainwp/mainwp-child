@@ -136,7 +136,7 @@ class MainWP_Child_DB_Updater {
                 $upgrades[ $slug ] = 1;
             }
         }
-        $information['upgrades'] = $upgrades;
+        $information['upgrades']           = $upgrades;
         $information['plugin_db_upgrades'] = $this->get_sync_data();
         return $information;
     }

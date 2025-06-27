@@ -142,7 +142,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         global $wp_filesystem;
 
         $upload_dir = wp_upload_dir();
-        $dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
+        $dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
         static::check_dir( $dir, $die_on_error );
         if ( ! $wp_filesystem->exists( $dir . 'index.php' ) ) {
             touch( $dir . 'index.php' );
@@ -284,7 +284,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 if ( ( 'ftpext' === $wp_filesystem->method ) && defined( 'FTP_BASE' ) ) {
                     $ftpBase = FTP_BASE;
                     $ftpBase = trailingslashit( $ftpBase );
-                    $tmpdir = str_replace( ABSPATH, $ftpBase, $dir );
+                    $tmpdir  = str_replace( ABSPATH, $ftpBase, $dir );
                 } else {
                     $tmpdir = $dir;
                 }
@@ -429,11 +429,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
     public static function reject_unsafe_urls( $r ) {
         $r['reject_unsafe_urls'] = false;
         // phpcs:disable WordPress.Security.NonceVerification
-        $wpadmin_user = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $wpadmin_user   = isset( $_POST['wpadmin_user'] ) && ! empty( $_POST['wpadmin_user'] ) ? wp_unslash( $_POST['wpadmin_user'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $wpadmin_passwd = isset( $_POST['wpadmin_passwd'] ) && ! empty( $_POST['wpadmin_passwd'] ) ? wp_unslash( $_POST['wpadmin_passwd'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
         if ( ! empty( $wpadmin_user ) && ! empty( $wpadmin_passwd ) ) {
-            $auth = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+            $auth                          = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
             $r['headers']['Authorization'] = "Basic $auth";
         }
 
@@ -563,16 +563,16 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string $val Value converted to bytes.
      */
     public static function return_bytes( $val ) {
-        $val = trim( $val );
+        $val  = trim( $val );
         $last = $val[ strlen( $val ) - 1 ];
-        $val = rtrim( $val, $last );
+        $val  = rtrim( $val, $last );
         $last = strtolower( $last );
         switch ( $last ) {
             case 'g':
                 $val *= 1024 * 1024 * 1024;
                 break;
             case 'm':
-                $val *= 1024 * 1024 ;
+                $val *= 1024 * 1024;
                 break;
             case 'k':
                 $val *= 1024;
@@ -594,7 +594,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string Value converted to more user-friendly format.
      */
     public static function human_filesize( $bytes, $decimals = 2 ) {
-        $size = array( 'B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB' );
+        $size   = array( 'B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB' );
         $factor = floor( ( strlen( $bytes ) - 1 ) / 3 );
 
         return sprintf( "%.{$decimals}f", $bytes / pow( 1024, $factor ) ) . $size[ $factor ];

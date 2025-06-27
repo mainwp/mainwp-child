@@ -18,7 +18,7 @@ namespace MainWP\Child;
  */
 class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi methods.
     const WARNING = 1;
-    const ERROR = 2;
+    const ERROR   = 2;
 
     /**
      * Method get_class_name()
@@ -860,7 +860,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
      */
     protected static function render_mainwp_version_check() {
         $current = get_option( 'mainwp_child_plugin_version' );
-        $latest = static::get_mainwp_version();
+        $latest  = static::get_mainwp_version();
         if ( $current === $latest ) {
             echo '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>';
         } else {
@@ -883,7 +883,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
      */
     private static function render_cron() {
         $cron_array = _get_cron_array();
-        $schedules = wp_get_schedules();
+        $schedules  = wp_get_schedules();
         ?>
         <table id="mainwp-table" class="wp-list-table widefat" style="border-spacing:0;">
             <thead>
@@ -931,7 +931,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         }
         $branding_title .= ' Upload Directory';
 
-        $path = '';
+        $path    = '';
         $message = 'Writable';
 
         static::check_mainwp_directory( $message, $path );
@@ -1104,9 +1104,9 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         }
 
         $error_log = ini_get( 'error_log' );
-        $logs = apply_filters( 'error_log_mainwp_logs', array( $error_log ) );
-        $count = apply_filters( 'error_log_mainwp_lines', 10 );
-        $lines = array();
+        $logs      = apply_filters( 'error_log_mainwp_logs', array( $error_log ) );
+        $count     = apply_filters( 'error_log_mainwp_lines', 10 );
+        $lines     = array();
 
         foreach ( $logs as $log ) {
             if ( is_readable( $log ) ) {
@@ -1137,8 +1137,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
                 list( $time, $error ) = array( '', $line );
             }
 
-            $time = trim( $time, '[]' );
-            $error = trim( $error );
+            $time          = trim( $time, '[]' );
+            $error         = trim( $error );
             $lines[ $key ] = compact( 'time', 'error' );
         }
 
@@ -1151,7 +1151,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         foreach ( $lines as $line ) {
 
             $error = esc_html( $line['error'] );
-            $time = esc_html( $line['time'] );
+            $time  = esc_html( $line['time'] );
 
             if ( ! empty( $error ) ) {
                 echo wp_kses_post( "<tr><td>{$time}</td><td>{$error}</td></tr>" );
@@ -1200,15 +1200,15 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
             // read them to $data and then move the file pointer.
             // back to where we were.
             fseek( $fh, - $can_read, SEEK_CUR );
-            $data = fread( $fh, $can_read );
+            $data  = fread( $fh, $can_read );
             $data .= $leftover;
             fseek( $fh, - $can_read, SEEK_CUR );
 
             // split lines by \n. Then reverse them, now the last line is most likely not a complete line which is why we do not directly add it, but append it to the data read the next time.
-            $split_data = array_reverse( explode( "\n", $data ) );
-            $new_lines = array_slice( $split_data, 0, - 1 );
-            $lines = array_merge( $lines, $new_lines );
-            $leftover = $split_data[ count( $split_data ) - 1 ];
+            $split_data  = array_reverse( explode( "\n", $data ) );
+            $new_lines   = array_slice( $split_data, 0, - 1 );
+            $lines       = array_merge( $lines, $new_lines );
+            $leftover    = $split_data[ count( $split_data ) - 1 ];
             $count_lines = count( $lines );
         } while ( $count_lines < $line_count && 0 !== ftell( $fh ) );
 
@@ -1243,7 +1243,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         global $current_user;
 
         $uniqueId = MainWP_Helper::get_site_unique_id();
-        $details = array(
+        $details  = array(
             'siteurl'       => array(
                 'title' => esc_html__( 'Site URL', 'mainwp-child' ),
                 'value' => get_bloginfo( 'url' ),

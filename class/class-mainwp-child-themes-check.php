@@ -235,10 +235,10 @@ class MainWP_Child_Themes_Check {
         // If there wasn't a previous cache.
         if ( false === $all_themes || ! is_array( $all_themes ) ) {
             $all_themes = array();
-            $themes = \wp_get_themes();
+            $themes     = \wp_get_themes();
             if ( is_array( $themes ) ) {
                 foreach ( $themes as $theme ) {
-                    $slug = $theme->get_stylesheet();
+                    $slug                = $theme->get_stylesheet();
                     $all_themes[ $slug ] = array(
                         'Name'    => $theme->get( 'Name' ),
                         'Version' => $theme->display( 'Version', true, false ),
@@ -249,8 +249,8 @@ class MainWP_Child_Themes_Check {
             $responses = array();
         }
 
-        $avoid_themes = array( 'superstore' );
-        $themes_to_scan = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
+        $avoid_themes      = array( 'superstore' );
+        $themes_to_scan    = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
         $tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
         foreach ( $themes_to_scan as $slug => $v ) {
@@ -271,7 +271,7 @@ class MainWP_Child_Themes_Check {
 
             // Sanity check that deserialization worked and that our property exists.
             if ( false !== $obj && is_object( $obj ) && property_exists( $obj, 'last_updated' ) ) {
-                $last_updated = strtotime( $obj->last_updated );
+                $last_updated            = strtotime( $obj->last_updated );
                 $theme_last_updated_date = new \DateTime( '@' . $last_updated );
 
                 $diff_in_days = $now->diff( $theme_last_updated_date )->format( '%a' );
@@ -310,9 +310,9 @@ class MainWP_Child_Themes_Check {
         // Get the WordPress current version to be polite in the API call.
         include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
 
-        $url = 'http://api.wordpress.org/themes/info/1.0/';
+        $url      = 'http://api.wordpress.org/themes/info/1.0/';
         $http_url = 'http://api.wordpress.org/themes/info/1.0/';
-        $ssl = wp_http_supports( array( 'ssl' ) );
+        $ssl      = wp_http_supports( array( 'ssl' ) );
 
         if ( $ssl ) {
             $url = set_url_scheme( $url, 'https' );

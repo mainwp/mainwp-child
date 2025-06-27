@@ -66,7 +66,7 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
                 return true;
             } else {
                 $user_name = $args[0];
-                $user = get_user_by( 'login', $user_name );
+                $user      = get_user_by( 'login', $user_name );
 
                 if ( ! $user || empty( $user->ID ) ) {
                     \WP_CLI::error( 'The username you entered does not match any account. Please verify the username and try again.' );

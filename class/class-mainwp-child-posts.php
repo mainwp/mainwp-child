@@ -58,7 +58,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function __construct() {
         $this->comments_and_clauses = '';
-        $this->posts_where_suffix = '';
+        $this->posts_where_suffix   = '';
     }
 
     /**
@@ -193,11 +193,11 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $outPost Return completed post.
      */
     private function get_out_post( $post, $extra, $tokens ) { //phpcs:ignore -- NOSONAR - complex.
-        $outPost = array();
-        $outPost['id'] = $post->ID;
-        $outPost['post_type'] = $post->post_type;
-        $outPost['status'] = $post->post_status;
-        $outPost['title'] = $post->post_title;
+        $outPost                  = array();
+        $outPost['id']            = $post->ID;
+        $outPost['post_type']     = $post->post_type;
+        $outPost['status']        = $post->post_status;
+        $outPost['title']         = $post->post_title;
         $outPost['comment_count'] = $post->comment_count;
         if ( isset( $extra['where_post_date'] ) && ! empty( $extra['where_post_date'] ) ) {
             $outPost['dts'] = strtotime( $post->post_date_gmt );
@@ -213,11 +213,11 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             $outPost['dts'] = strtotime( $post->post_date_gmt );
         }
 
-        $usr = get_user_by( 'id', $post->post_author );
-        $outPost['author'] = ! empty( $usr ) ? $usr->user_nicename : 'removed';
+        $usr                    = get_user_by( 'id', $post->post_author );
+        $outPost['author']      = ! empty( $usr ) ? $usr->user_nicename : 'removed';
         $outPost['authorEmail'] = ! empty( $usr ) ? $usr->user_email : 'removed';
-        $categoryObjects = get_the_category( $post->ID );
-        $categories = '';
+        $categoryObjects        = get_the_category( $post->ID );
+        $categories             = '';
         foreach ( $categoryObjects as $cat ) {
             if ( '' !== $categories ) {
                 $categories .= ', ';
@@ -227,7 +227,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         $outPost['categories'] = $categories;
 
         $tagObjects = get_the_tags( $post->ID );
-        $tags = '';
+        $tags       = '';
         if ( is_array( $tagObjects ) ) {
             foreach ( $tagObjects as $tag ) {
                 if ( '' !== $tags ) {
@@ -358,12 +358,12 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
 
         $extra = array();
         if ( isset( $_POST['extract_tokens'] ) ) {
-            $extra['tokens'] = isset( $_POST['extract_tokens'] ) ? json_decode( base64_decode( wp_unslash( $_POST['extract_tokens'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode function is used for http encode compatible..
+            $extra['tokens']            = isset( $_POST['extract_tokens'] ) ? json_decode( base64_decode( wp_unslash( $_POST['extract_tokens'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- base64_encode function is used for http encode compatible..
             $extra['extract_post_type'] = isset( $_POST['extract_post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['extract_post_type'] ) ) : '';
         }
 
         $extra['where_post_date'] = $where_post_date;
-        $rslt = isset( $_POST['status'] ) ? $this->get_recent_posts( explode( ',', sanitize_text_field( wp_unslash( $_POST['status'] ) ) ), $maxPages, $type, $extra ) : '';
+        $rslt                     = isset( $_POST['status'] ) ? $this->get_recent_posts( explode( ',', sanitize_text_field( wp_unslash( $_POST['status'] ) ) ), $maxPages, $type, $extra ) : '';
         $this->posts_where_suffix = '';
         // phpcs:enable WordPress.Security.NonceVerification
 
@@ -379,12 +379,12 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function new_post() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $new_post = isset( $_POST['new_post'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_post'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $post_custom = isset( $_POST['post_custom'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_custom'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $post_category = isset( $_POST['post_category'] ) ? rawurldecode( base64_decode( wp_unslash( $_POST['post_category'] ) ) ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $post_tags = isset( $new_post['post_tags'] ) ? rawurldecode( $new_post['post_tags'] ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $new_post            = isset( $_POST['new_post'] ) ? json_decode( base64_decode( wp_unslash( $_POST['new_post'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $post_custom         = isset( $_POST['post_custom'] ) ? json_decode( base64_decode( wp_unslash( $_POST['post_custom'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $post_category       = isset( $_POST['post_category'] ) ? rawurldecode( base64_decode( wp_unslash( $_POST['post_category'] ) ) ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $post_tags           = isset( $new_post['post_tags'] ) ? rawurldecode( $new_post['post_tags'] ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $post_featured_image = isset( $_POST['post_featured_image'] ) && ! empty( $_POST['post_featured_image'] ) ? base64_decode( wp_unslash( $_POST['post_featured_image'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $upload_dir = isset( $_POST['mainwp_upload_dir'] ) ? json_decode( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+        $upload_dir          = isset( $_POST['mainwp_upload_dir'] ) ? json_decode( base64_decode( wp_unslash( $_POST['mainwp_upload_dir'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
 
         $others = array();
         if ( isset( $_POST['featured_image_data'] ) ) {
@@ -404,9 +404,9 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
 
         do_action( 'mainwp_child_after_newpost', $result );
 
-        $information['added'] = true;
-        $information['added_id'] = $result['added_id'];
-        $information['link'] = $result['link'];
+        $information['added']      = true;
+        $information['added_id']   = $result['added_id'];
+        $information['link']       = $result['link'];
         $information['other_data'] = array(
             'new_post_data' => is_array( $result ) && isset( $result['new_post_data'] ) ? $result['new_post_data'] : array(),
         );
@@ -424,12 +424,12 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function post_action() { //phpcs:ignore -- NOSONAR - complex.
         // phpcs:disable WordPress.Security.NonceVerification
-        $action = MainWP_System::instance()->validate_params( 'action' );
-        $postId = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+        $action  = MainWP_System::instance()->validate_params( 'action' );
+        $postId  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
         $my_post = array();
 
         $old_post_type_name = '';
-        $post_current = false;
+        $post_current       = false;
         if ( $postId ) {
             $post_current = get_post( $postId );
             if ( $post_current ) {
@@ -459,10 +459,10 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             }
         } elseif ( 'update' === $action ) {
             $postData = isset( $_POST['post_data'] ) ? wp_unslash( $_POST['post_data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-            $my_post = is_array( $postData ) ? $postData : array();
+            $my_post  = is_array( $postData ) ? $postData : array();
             wp_update_post( $my_post );
         } elseif ( 'unpublish' === $action ) {
-            $my_post['ID'] = $postId;
+            $my_post['ID']          = $postId;
             $my_post['post_status'] = 'draft';
             wp_update_post( $my_post );
         } elseif ( 'trash' === $action ) {
@@ -475,8 +475,8 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         } elseif ( 'restore' === $action ) {
             wp_untrash_post( $postId );
         } elseif ( 'update_meta' === $action ) {
-            $values = isset( $_POST['values'] ) ? json_decode( base64_decode( wp_unslash( $_POST['values'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-            $meta_key = $values['meta_key'];
+            $values     = isset( $_POST['values'] ) ? json_decode( base64_decode( wp_unslash( $_POST['values'] ) ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
+            $meta_key   = $values['meta_key'];
             $meta_value = $values['meta_value'];
             $check_prev = $values['check_prev'];
 
@@ -488,7 +488,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
         } elseif ( 'get_edit' === $action ) {
-            $postId = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+            $postId    = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
             $post_type = isset( $_POST['post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['post_type'] ) ) : '';
             if ( 'post' === $post_type ) {
                 $my_post = $this->get_post_edit( $postId );
@@ -518,7 +518,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             $post_updated = get_post( $postId );
             if ( $post_updated ) {
                 $post_type_name = strtolower( $this->get_post_type_name( $post_updated->post_type ) );
-                $post_dt = array(
+                $post_dt        = array(
                     'post_id'       => $postId,
                     'post_type'     => $post_updated->post_type,
                     'post_title'    => $post_updated->post_title,
@@ -534,7 +534,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         $information['other_data'] = array(
             'post_action_data' => $post_dt,
         );
-        $information['my_post'] = $my_post;
+        $information['my_post']    = $my_post;
         MainWP_Helper::write( $information );
     }
 
@@ -550,7 +550,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( post_type_exists( $post_type_slug ) ) {
             $post_type = get_post_type_object( $post_type_slug );
-            $name = $post_type->labels->singular_name;
+            $name      = $post_type->labels->singular_name;
         }
 
         return $name;
@@ -567,7 +567,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         $post = get_post( $id );
         if ( $post ) {
             $categoryObjects = get_the_category( $post->ID );
-            $categories = '';
+            $categories      = '';
             foreach ( $categoryObjects as $cat ) {
                 if ( '' !== $categories ) {
                     $categories .= ',';
@@ -577,7 +577,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             $post_category = $categories;
 
             $tagObjects = get_the_tags( $post->ID );
-            $tags = '';
+            $tags       = '';
             if ( is_array( $tagObjects ) ) {
                 foreach ( $tagObjects as $tag ) {
                     if ( '' !== $tags ) {
@@ -590,7 +590,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
 
             $post_custom = get_post_custom( $id );
 
-            $galleries = get_post_gallery( $id, false );
+            $galleries           = get_post_gallery( $id, false );
             $post_gallery_images = array();
 
             if ( is_array( $galleries ) && isset( $galleries['ids'] ) ) {
@@ -612,8 +612,8 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
 
             include_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'post-thumbnail-template.php'; // NOSONAR -- WP compatible.
             $post_featured_image = get_post_thumbnail_id( $id );
-            $child_upload_dir = wp_upload_dir();
-            $new_post = array(
+            $child_upload_dir    = wp_upload_dir();
+            $new_post            = array(
                 'edit_id'        => $id,
                 'is_sticky'      => is_sticky( $id ) ? 1 : 0,
                 'post_title'     => $post->post_title,
@@ -631,7 +631,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             );
 
             if ( ! empty( $post_featured_image ) ) { // Featured image is set, retrieve URL.
-                $img = wp_get_attachment_image_src( $post_featured_image, 'full' );
+                $img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
                 $post_featured_image = $img[0];
             }
 
@@ -676,7 +676,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             $post_custom = get_post_custom( $id );
             include_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'post-thumbnail-template.php'; // NOSONAR -- WP compatible.
             $post_featured_image = get_post_thumbnail_id( $id );
-            $child_upload_dir = wp_upload_dir();
+            $child_upload_dir    = wp_upload_dir();
 
             $new_post = array(
                 'edit_id'        => $id,
@@ -694,11 +694,11 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             );
 
             if ( ! empty( $post_featured_image ) ) {
-                    $img = wp_get_attachment_image_src( $post_featured_image, 'full' );
+                    $img                 = wp_get_attachment_image_src( $post_featured_image, 'full' );
                     $post_featured_image = $img[0];
             }
 
-            $galleries = get_post_gallery( $id, false );
+            $galleries           = get_post_gallery( $id, false );
             $post_gallery_images = array();
 
             if ( is_array( $galleries ) && isset( $galleries['ids'] ) ) {
@@ -796,7 +796,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         if ( $edit_post_id ) {
             $user_id = wp_check_post_lock( $edit_post_id );
             if ( $user_id ) {
-                $user = get_userdata( $user_id );
+                $user  = get_userdata( $user_id );
                 $error = sprintf( esc_html__( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
                 return array( 'error' => $error );
             }
@@ -820,7 +820,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
 
         // Save the post to the WP.
         remove_filter( 'content_save_pre', 'wp_filter_post_kses' );  // to fix brake scripts or html.
-        $post_status = $new_post['post_status']; // save post_status.
+        $post_status             = $new_post['post_status']; // save post_status.
         $new_post['post_status'] = 'auto-draft'; // to fix reports, to log as created post.
 
         $current_post = false;
@@ -878,10 +878,10 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $post_added = get_post( $new_post_id );
-        $post_dt = array();
+        $post_dt    = array();
         if ( $post_added ) {
             $post_type_name = strtolower( $this->get_post_type_name( $post_added->post_type ) );
-            $post_dt = array(
+            $post_dt        = array(
                 'post_id'       => $new_post_id,
                 'post_type'     => $post_added->post_type,
                 'post_title'    => $post_added->post_title,
@@ -894,10 +894,10 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             );
         }
 
-        $result = array();
-        $result['success'] = true;
-        $result['link'] = get_permalink( $new_post_id );
-        $result['added_id'] = $new_post_id;
+        $result                  = array();
+        $result['success']       = true;
+        $result['link']          = get_permalink( $new_post_id );
+        $result['added_id']      = $new_post_id;
         $result['new_post_data'] = $post_dt;
         return $result;
     }
@@ -950,7 +950,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         $is_post_plus = isset( $post_custom['_mainwp_post_plus'] ) ? true : false;
 
         if ( $is_post_plus && isset( $new_post['post_date_gmt'] ) && ! empty( $new_post['post_date_gmt'] ) && '0000-00-00 00:00:00' !== $new_post['post_date_gmt'] ) {
-            $post_date_timestamp = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
+            $post_date_timestamp   = strtotime( $new_post['post_date_gmt'] ) + get_option( 'gmt_offset' ) * 60 * 60;
             $new_post['post_date'] = date( 'Y-m-d H:i:s', $post_date_timestamp ); // phpcs:ignore -- local time.
         }
 
@@ -1081,30 +1081,30 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             // We found images, now to download them so we can start balbal.
             foreach ( $matches as $match ) {
                 $hrefLink = $match[2];
-                $imgUrl = $match[4];
+                $imgUrl   = $match[4];
 
                 if ( ! isset( $upload_dir['baseurl'] ) || ( false === strripos( $imgUrl, $upload_dir['baseurl'] ) ) ) { // url of image is not in dashboard site.
                     continue;
                 }
 
                 if ( preg_match( '/-\d{3}x\d{3}\.[a-zA-Z0-9]{3,4}$/', $imgUrl, $imgMatches ) ) {
-                    $search = $imgMatches[0];
-                    $replace = '.' . $match[6];
+                    $search         = $imgMatches[0];
+                    $replace        = '.' . $match[6];
                     $originalImgUrl = str_replace( $search, $replace, $imgUrl );
                 } else {
                     $originalImgUrl = $imgUrl;
                 }
 
                 try {
-                    $downloadfile = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image_existed );
-                    $localUrl = $downloadfile['url'];
+                    $downloadfile      = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image_existed );
+                    $localUrl          = $downloadfile['url'];
                     $linkToReplaceWith = dirname( $localUrl );
                     if ( '' !== $hrefLink ) {
-                        $server = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+                        $server     = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
                         $serverHost = wp_parse_url( $server, PHP_URL_HOST );
                         if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
-                            $serverHref = 'href="' . $serverHost;
-                            $replaceServerHref = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
+                            $serverHref               = 'href="' . $serverHost;
+                            $replaceServerHref        = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
                             $new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
                         }
                     }
@@ -1144,7 +1144,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         // to fix url with slashes.
         if ( $withslashes ) {
             $site_url_destination = str_replace( '/', '\/', $site_url_destination );
-            $dashboard_url = str_replace( '/', '\/', $dashboard_url );
+            $dashboard_url        = str_replace( '/', '\/', $dashboard_url );
         }
 
         $foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination, null ) . ')[^\.]*(\.(png|gif|jpg|jpeg|avif))#ix', $content, $matches, PREG_SET_ORDER );
@@ -1152,11 +1152,11 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         if ( 0 < $foundMatches ) {
 
             $matches_checked = array();
-            $check_double = array();
+            $check_double    = array();
             foreach ( $matches as $match ) {
                 // to avoid double images.
                 if ( ! in_array( $match[0], $check_double ) ) {
-                    $check_double[] = $match[0];
+                    $check_double[]    = $match[0];
                     $matches_checked[] = $match;
                 }
             }
@@ -1168,18 +1168,18 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 if ( preg_match( '/-\d{3}x\d{3}\.[a-zA-Z0-9]{3,4}$/', $imgUrl, $imgMatches ) ) {
-                    $search = $imgMatches[0];
-                    $replace = '.' . $match[3];
+                    $search         = $imgMatches[0];
+                    $replace        = '.' . $match[3];
                     $originalImgUrl = str_replace( $search, $replace, $imgUrl );
                 } else {
                     $originalImgUrl = $imgUrl;
                 }
 
                 try {
-                    $downloadfile = MainWP_Utility::upload_image( wp_unslash( $originalImgUrl ), array(), true );
-                    $localUrl = $downloadfile['url'];
+                    $downloadfile      = MainWP_Utility::upload_image( wp_unslash( $originalImgUrl ), array(), true );
+                    $localUrl          = $downloadfile['url'];
                     $linkToReplaceWith = dirname( $localUrl );
-                    $lnkToReplace = dirname( $imgUrl );
+                    $lnkToReplace      = dirname( $imgUrl );
                     if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
                         $content = str_replace( $imgUrl, $localUrl, $content ); // replace src image.
                         $content = str_replace( $lnkToReplace, $linkToReplaceWith, $content );
@@ -1229,9 +1229,9 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             // phpcs:enable WordPress.Security.NonceVerification
             if ( ! empty( $replaceAttachedIds ) ) {
                 foreach ( $matches as $match ) {
-                    $idsToReplace = $match[1];
+                    $idsToReplace     = $match[1];
                     $idsToReplaceWith = '';
-                    $originalIds = explode( ',', $idsToReplace );
+                    $originalIds      = explode( ',', $idsToReplace );
                     foreach ( $originalIds as $attached_id ) {
                         if ( ! empty( $originalIds ) && isset( $replaceAttachedIds[ $attached_id ] ) ) {
                             $idsToReplaceWith .= $replaceAttachedIds[ $attached_id ] . ',';
@@ -1278,12 +1278,12 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             if ( $random_date_from > $random_date_to ) {
-                $tmp = $random_date_from;
+                $tmp              = $random_date_from;
                 $random_date_from = $random_date_to;
-                $random_date_to = $tmp;
+                $random_date_to   = $tmp;
             }
 
-            $random_timestamp = wp_rand( $random_date_from, $random_date_to );
+            $random_timestamp      = wp_rand( $random_date_from, $random_date_to );
             $new_post['post_date'] = date( 'Y-m-d H:i:s', $random_timestamp ); // phpcs:ignore -- local time.
         }
     }
@@ -1295,10 +1295,10 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      * @param array  $post_custom Post custom meta data.
      */
     private function post_plus_update_author( $new_post_id, $post_custom ) {
-        $random_privelege = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
-        $random_privelege = is_array( $random_privelege ) ? current( $random_privelege ) : null;
+        $random_privelege      = isset( $post_custom['_saved_draft_random_privelege'] ) ? $post_custom['_saved_draft_random_privelege'] : null;
+        $random_privelege      = is_array( $random_privelege ) ? current( $random_privelege ) : null;
         $random_privelege_base = base64_decode( $random_privelege ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $random_privelege = json_decode( $random_privelege_base, true );
+        $random_privelege      = json_decode( $random_privelege_base, true );
 
         if ( is_array( $random_privelege ) && count( $random_privelege ) > 0 ) {
             $random_post_authors = array();
@@ -1331,7 +1331,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         $random_category = isset( $post_custom['_saved_draft_random_category'] ) ? $post_custom['_saved_draft_random_category'] : false;
         $random_category = is_array( $random_category ) ? current( $random_category ) : null;
         if ( ! empty( $random_category ) ) {
-            $cats = get_categories(
+            $cats        = get_categories(
                 array(
                     'type'       => 'post',
                     'hide_empty' => 0,
@@ -1493,8 +1493,8 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
 
         $_seo_opengraph_image = isset( $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] ) ? $post_custom[ \WPSEO_Meta::$meta_prefix . 'opengraph-image' ] : array();
         $_seo_opengraph_image = current( $_seo_opengraph_image );
-        $_server_domain = '';
-        $_server = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+        $_server_domain       = '';
+        $_server              = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
         if ( preg_match( '/(https?:\/\/[^\/]+\/).+/', $_server, $matchs ) ) {
             $_server_domain = isset( $matchs[1] ) ? $matchs[1] : '';
         }
