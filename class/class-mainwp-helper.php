@@ -569,10 +569,10 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         $last = strtolower( $last );
         switch ( $last ) {
             case 'g':
-                $val *= 1024;
+                $val *= 1024 * 1024 * 1024;
                 break;
             case 'm':
-                $val *= 1024;
+                $val *= 1024 * 1024;
                 break;
             case 'k':
                 $val *= 1024;
