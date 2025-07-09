@@ -55,7 +55,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     /** @var array Returned response array for MainWP BackWPup Extension actions. */
     public static $information = array();
 
-    /** @var string[][] backwpup_cfg variables. */
+    /** 
+     * @var string[][] backwpup_cfg variables. 
+     */
     protected $exclusions = array(
         'cron'           => array(
             'cronminutes',
@@ -84,6 +86,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         'dest-RSC'       => array( 'rscapikey' ),
         'dest-GLACIER'   => array( 'glaciersecretkey' ),
     );
+
+    /** 
+     * @var array Setting data. 
+     */
+    protected $setting_data = array();
 
     /**
      * Create a public static instance of MainWP_Child_Back_WP_Up.
@@ -1867,9 +1874,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $setting_value = $settings->value;
 
         if ( isset( $setting_value->backupdir ) ) {
-            $backupdir = \BackWPup_Option::get( (int) $job_id, 'backupdir' );
-            if ( ! empty( $backupdir ) ) {
-                $setting_value->backupdir = $backupdir;
+            $raw_dir = trim( sanitize_text_field( $setting_value->backupdir ) );
+
+            if ( strpos( $raw_dir, '/' ) === false && strpos( $raw_dir, '\\' ) === false ) {
+                $setting_value->backupdir = 'wp-content/uploads/' . $raw_dir;
+            } else {
+                $setting_value->backupdir = $raw_dir;
             }
         }
 
@@ -1940,13 +1950,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $instance = is_object( $handler ) ? $handler : new $handler();
                 // Merge setting_value with option_defaults if existed.
                 if ( method_exists( $instance, 'option_defaults' ) ) {
-                    $defaults      = $instance->option_defaults();
-                    $setting_value = is_array( $setting_value )
-                        ? array_merge( $defaults, $setting_value )
-                        : array_merge( $defaults, (array) $setting_value );
-
-                    // Update $ _Post to make sure the processing form continues to use the correct data.
-                    foreach ( $setting_value as $key => $val ) {
+                    $defaults = $instance->option_defaults();
+                    $this->merge_setting_data( $job_id, $defaults, $setting_value );
+                    // Update $_POST to make sure the processing form continues to use the correct data.
+                    foreach ( $this->setting_data[ $job_id ] as $key => $val ) {
                         $_POST[ $key ] = $val;
                     }
                 }
@@ -2385,6 +2392,37 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 )
             )
         );
+    }
+
+    /**
+     * Method merge_setting_data()
+     *
+     * @param int   $job_id Job ID.
+     * @param array $defaults Default values.
+     * @param array $setting_value Setting values.
+     *
+     * @return array Merged setting data.
+     */
+    protected function merge_setting_data( $job_id, array $defaults, $setting_value ) {
+        if ( ! isset( $this->setting_data[ $job_id ] ) ) {
+            $this->setting_data[ $job_id ] = array();
+        }
+
+        $incoming = is_array( $setting_value )
+            ? $setting_value
+            : get_object_vars( $setting_value );
+
+        foreach ( $defaults as $key => $default_val ) {
+            if ( ! array_key_exists( $key, $this->setting_data[ $job_id ] ) ) {
+                $this->setting_data[ $job_id ][ $key ] = $default_val;
+            }
+        }
+
+        foreach ( $incoming as $key => $val ) {
+            $this->setting_data[ $job_id ][ $key ] = $val;
+        }
+
+        return $this->setting_data[ $job_id ];
     }
 }
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
