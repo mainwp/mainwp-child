@@ -111,6 +111,12 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+
+= 5.4.0.11 - Maintenance Release - 7-8-2025 =
+
+* Fixed: Corrected the upload filesize limit display message on the "Upload/Clone" page to show the accurate maximum file size.
+
+
 = 5.4.0.10 - Maintenance Release - 6-3-2025 =
 
 * Fixed: Restored cache and minified file clearing in Cache Control add-on when using WP Fastest Cache plugin.
