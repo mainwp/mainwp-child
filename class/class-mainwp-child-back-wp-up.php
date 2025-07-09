@@ -1882,9 +1882,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $setting_value->backupdir = $raw_dir;
             }
         }
+        $setting_data = $this->setting_data[ $job_id ] ?? [];
+        $this->merge_setting_data( $job_id, $setting_data, $setting_value );
 
         // this assign not work with filter_input - INPUT_POST.
-        foreach ( $setting_value as $key => $val ) {
+        foreach ( $this->setting_data[ $job_id ] as $key => $val ) {
             $_POST[ $key ] = $val;
         }
 
