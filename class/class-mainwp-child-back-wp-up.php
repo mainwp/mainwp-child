@@ -55,8 +55,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     /** @var array Returned response array for MainWP BackWPup Extension actions. */
     public static $information = array();
 
-    /** 
-     * @var string[][] backwpup_cfg variables. 
+    /**
+     * @var string[][] backwpup_cfg variables.
      */
     protected $exclusions = array(
         'cron'           => array(
@@ -87,8 +87,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         'dest-GLACIER'   => array( 'glaciersecretkey' ),
     );
 
-    /** 
-     * @var array Setting data. 
+    /**
+     * @var array Setting data.
      */
     protected $setting_data = array();
 
@@ -1689,7 +1689,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => esc_html__( 'Missing job_id', 'mainwp-child' ) );
         }
 
-        $new_job_id = $settings->job_id > 0 ? intval( $settings->job_id ) : null;
+        $jobids     = \BackWPup_Option::get_job_ids();
+        $new_job_id = intval( $settings->job_id );
+        if ( ! in_array( $new_job_id, $jobids, true ) ) {
+            $new_job_id = \BackWPup_Option::next_job_id();
+        }
 
         $changes_array = array();
         $message_array = array();
@@ -1861,13 +1865,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => esc_html__( 'Install BackWPup on child website', 'mainwp-child' ) );
         }
 
-        if ( $settings->job_id > 0 ) {
-            $job_id = intval( $settings->job_id );
-        } else {
-            // generate jobid if not exists.
-            $newjobid = \BackWPup_Option::get_job_ids();
-            sort( $newjobid );
-            $job_id = end( $newjobid ) + 1;
+        $jobids = \BackWPup_Option::get_job_ids();
+        $job_id = intval( $settings->job_id );
+        if ( ! in_array( $job_id, $jobids, true ) ) {
+            $job_id = \BackWPup_Option::next_job_id();
         }
 
         update_site_option( 'backwpup_messages', array() );
@@ -1882,11 +1883,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $setting_value->backupdir = $raw_dir;
             }
         }
-        $setting_data = $this->setting_data[ $job_id ] ?? [];
-        $this->merge_setting_data( $job_id, $setting_data, $setting_value );
 
         // this assign not work with filter_input - INPUT_POST.
-        foreach ( $this->setting_data[ $job_id ] as $key => $val ) {
+        foreach ( $setting_value as $key => $val ) {
             $_POST[ $key ] = $val;
         }
 
@@ -2280,6 +2279,13 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $results['lastrun'] = esc_html__( 'not yet', 'mainwp-child' );
                 }
                 break; // <-- prevents accidental fall-through
+            case 'check_jobs':
+                $ids = \BackWPup_Option::get_job_ids();
+                if ( in_array( intval( $id ), $ids, true ) ) {
+                    $results = \BackWPup_Option::get_job( $id );
+
+                }
+                break;
             default:
                 break;
         }
