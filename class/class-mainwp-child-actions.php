@@ -762,6 +762,16 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return false;  // not save action.
         }
 
+        $disable_cron_log = false;
+
+        if ( $this->is_doing_wp_cron() ) {
+            $disable_cron_log = true; // disable log cron tasks.
+        }
+        $disable_cron_log = apply_filters( 'mainwp_child_actions_disable_cron_log', $disable_cron_log, $context, $action, $args, $message, $user_id );
+        if ( $disable_cron_log ) {
+                return false;
+        }
+
         $actions_save = apply_filters( 'mainwp_child_actions_save_data', true, $context, $action, $args, $message, $user_id );
 
         if ( ! $actions_save ) {
