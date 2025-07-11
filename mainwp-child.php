@@ -12,7 +12,7 @@
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 5.4.0.11
+ * Version: 5.5-beta1
  * Requires at least: 5.4
  * Requires PHP: 7.4
  */
@@ -90,6 +90,47 @@ if ( function_exists( 'spl_autoload_register' ) ) {
 
 require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'functions.php'; // NOSONAR - WP compatible.
 
-$mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
-register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );
-register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );
+// Delay the heavy constructor until we really need it.
+$mainWPChild = null;
+$get_child   = static function () use ( &$mainWPChild ) {
+    if ( null === $mainWPChild ) {
+        $mainWPChild = new MainWP\Child\MainWP_Child(
+            WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ )
+        );
+    }
+    return $mainWPChild;
+};
+
+register_activation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->activation();
+    }
+);
+register_deactivation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->deactivation();
+    }
+);
+
+add_action(
+    'plugins_loaded',
+    function () use ( $get_child ) {
+        if (
+            ! is_admin()
+            && ! wp_doing_ajax()
+            && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+            && ! wp_doing_cron()
+            && ! defined( 'WP_CLI' )
+            && ! isset( $_REQUEST['mainwpsignature'] ) // phpcs:ignore WordPress.Security.NonceVerification
+
+        ) {
+            // For frontend requests, use lightweight initialization.
+            $get_child()->init_frontend_only();
+        } else {
+            // For admin, AJAX, REST, cron, CLI, or API requests, use full initialization.
+            $get_child()->init_full();
+        }
+    }
+);
