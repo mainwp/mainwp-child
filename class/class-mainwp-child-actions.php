@@ -67,12 +67,21 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     public $current_themes_info = array();
 
 
-        /**
-         * Private variable to hold time start.
-         *
-         * @var int
-         */
+    /**
+     * Private variable to hold time start.
+     *
+     * @var int
+     */
     private static $exec_start = null;
+
+
+    /**
+     * The main IP of the client.
+     *
+     * @var string
+     */
+    private static $client_ip = '';
+
 
     /**
      * Method get_class_name()
@@ -785,7 +794,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return false;
         }
 
-        $userlogin = (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
+        $userlogin = $user && (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
 
         $user_role_label = '';
         $role            = '';
@@ -796,14 +805,29 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             $user_role_label = isset( $roles[ $role ] ) ? $roles[ $role ] : $role;
         }
 
-        $agent = $this->get_current_agent();
+        $fullname = '';
 
-        $user_meta = array(
+        if ( ! empty( $user->ID ) ) {
+            $first_name = get_user_meta( $user->ID, 'first_name', true );
+            $last_name  = get_user_meta( $user->ID, 'last_name', true );
+            if ( ! empty( $first_name ) ) {
+                $fullname = $first_name;
+            }
+            if ( ! empty( $last_name ) ) {
+                $fullname .= ' ' . $last_name;
+            }
+        }
+
+        $agent     = $this->get_current_agent();
+        $meta_data = array(
             'wp_user_id'      => (int) $user_id,
             'display_name'    => (string) $this->get_display_name( $user ),
             'role'            => (string) $role,
             'user_role_label' => (string) $user_role_label,
             'agent'           => (string) $agent,
+            'full_name'       => $fullname,
+            'username'        => ! empty( $userlogin ) ? $userlogin : '',
+            'ip'              => static::get_client_ip(),
         );
 
         $system_user = '';
@@ -981,5 +1005,60 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     public function is_cron_enabled() {
         return ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ? false : true;
+    }
+
+    /**
+     * Get client IP.
+     *
+     * @return string|null
+     */
+    public static function get_client_ip() {
+        if ( '' === static::$client_ip && isset( $_SERVER['REMOTE_ADDR'] ) ) {
+            $ip                = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+            static::$client_ip = static::normalize_ip( $ip );
+            if ( ! static::validate_ip( static::$client_ip ) ) {
+                static::$client_ip = '';
+            }
+        }
+        return static::$client_ip;
+    }
+
+    /**
+     * Normalize IP address.
+     *
+     * @param string $ip - IP address.
+     *
+     * @return string
+     */
+    public static function normalize_ip( $ip ) {
+        $ip = trim( $ip );
+        if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6 ) ) {
+            return $ip;
+        }
+        $ip = parse_url( 'http://' . $ip, PHP_URL_HOST );
+        $ip = str_replace( array( '[', ']' ), '', $ip );
+        return $ip;
+    }
+
+    /**
+     * Validate IP address.
+     *
+     * @param string $ip - IP address.
+     *
+     * @return string|bool
+     */
+    public static function validate_ip( $ip ) {
+        $opts     = FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
+        $valid_ip = filter_var( $ip, FILTER_VALIDATE_IP, $opts );
+
+        if ( ! $valid_ip || empty( $valid_ip ) ) {
+            // Regex IPV4.
+            if ( preg_match( '/^(([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip ) ) {
+                return $ip;
+            }
+            return false;
+        } else {
+            return $valid_ip;
+        }
     }
 }
