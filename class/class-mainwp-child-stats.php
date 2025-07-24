@@ -606,6 +606,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             'child_openssl_version' => MainWP_Child_Server_Information_Base::get_curl_ssl_version(),
             'site_lang'             => get_locale(),
             'site_public'           => (int) get_option( 'blog_public', 0 ),
+            'format_datetime'       => array(
+                'timezone_string' => get_option( 'timezone_string' ),
+                'gmt_offset'      => get_option( 'gmt_offset' ),
+                'date_format'     => get_option( 'date_format' ),
+                'time_format'     => get_option( 'time_format' ),
+            ),
         );
     }
 
