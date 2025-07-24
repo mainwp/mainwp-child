@@ -34,6 +34,13 @@ class Changes_Logs_DB_Log {
     private static $instance = null;
 
     /**
+     * DB helper variable.
+     *
+     * @var object DB helper variable.
+     */
+    protected $db = null;
+
+    /**
      * Private variable to hold the database version info.
      *
      * @var string DB version info.
