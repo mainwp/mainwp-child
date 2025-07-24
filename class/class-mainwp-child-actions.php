@@ -819,7 +819,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         }
 
         $agent     = $this->get_current_agent();
-        $meta_data = array(
+        $user_meta = array(
             'wp_user_id'      => (int) $user_id,
             'display_name'    => (string) $this->get_display_name( $user ),
             'role'            => (string) $role,
