@@ -95,7 +95,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $this->init_actions      = array(
             'upgrader_pre_install',
             'upgrader_process_complete',
-            //'activate_plugin', // moved to changes logs.
+            // 'activate_plugin', // moved to changes logs.
             'deactivate_plugin',
             'switch_theme',
             'delete_site_transient_update_themes',
@@ -285,6 +285,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 update_option( 'mainwp_child_actions_data_checked', time() );
                 /**
                  * To support clean changes logs records.
+                 *
                  * @since 5.5
                  */
                 do_action( 'mainwp_child_actions_data_clean', $days_number . ' days', $days_number );
