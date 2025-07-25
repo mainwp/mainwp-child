@@ -65,7 +65,7 @@ class Changes_Logs_Helper {
                 'type_id'     => 1205,
                 'desc'        => esc_html__( 'Published a post', 'mainwp-child' ),
                 'context'     => 'post',
-                'action_name' => 'published',
+                'action_name' => 'modified',
             ),
             1210 => array(
                 'type_id'     => 1210,
@@ -201,9 +201,15 @@ class Changes_Logs_Helper {
             ),
             1320 => array(
                 'type_id'     => 1320,
-                'desc'        => esc_html__( 'Enabled / disabled comments in a post', 'mainwp-child' ),
+                'desc'        => esc_html__( 'Enabled comments in a post', 'mainwp-child' ),
                 'context'     => 'post',
                 'action_name' => 'enabled',
+            ),
+            1321 => array(
+                'type_id'     => 1321,
+                'desc'        => esc_html__( 'Disabled comments in a post', 'mainwp-child' ),
+                'context'     => 'post',
+                'action_name' => 'disabled',
             ),
             1325 => array(
                 'type_id'     => 1325,

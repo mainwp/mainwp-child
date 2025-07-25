@@ -261,9 +261,14 @@ class Changes_Handle_WP_Content {
      * @param integer $post_id - Post ID.
      */
     public static function callback_change_post_deleted( $post_id ) {
-        $post           = get_post( $post_id );
-        $type_id        = 1215;
-        $log_data       = self::change_post_changes_data( $post );
+        $post    = get_post( $post_id );
+        $type_id = 1215;
+
+        if ( 'auto-draft' === $post->post_title || 'Auto Draft' === $post->post_title ) {
+            return;
+        }
+
+        $log_data       = static::change_post_changes_data( $post );
         $request_params = Changes_Helper::get_filtered_request_data();
         if ( empty( $request_params['action'] ) && isset( $request_params['page'] ) ) {
             $type_id  = 1220;
@@ -275,7 +280,6 @@ class Changes_Handle_WP_Content {
                 'username'   => 'Plugins',
             );
         }
-
         Changes_Logs_Logger::log_change( $type_id, $log_data );
     }
 

@@ -86,6 +86,10 @@ class Changes_Logs_Logger {
             return;
         }
 
+        if ( isset( $data['posttype'] ) && ! empty( $data['posttype'] ) && static::is_disabled_post_type( $data['posttype'] ) ) {
+            return;
+        }
+
         $data = static::prepare_log_data( $data );
 
         static::log_item( $type_id, $data, false );
