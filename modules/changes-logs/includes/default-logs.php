@@ -349,7 +349,7 @@ return array(
     1460 => array(
         'type_id'     => 1460,
         'desc'        => esc_html__( 'The automatic updates setting for a plugin was changed.', $tran_loc ),
-        'msg'         => esc_html__( '%action% automatic update', $tran_loc ),
+        'msg'         => esc_html__( '%action% automatic update the plugin %name%', $tran_loc ),
         'context'     => 'plugin',
         'action_name' => 'enabled',
     ),
@@ -363,6 +363,7 @@ return array(
     1465 => array(
         'type_id'     => 1465,
         'desc'        => esc_html__( 'Modified a file with the theme editor', $tran_loc ),
+        'msg'         => esc_html__( 'Modified the file %file% with the theme editor', $tran_loc ),
         'context'     => 'file',
         'action_name' => 'modified',
     ),
