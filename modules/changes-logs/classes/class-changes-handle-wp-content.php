@@ -707,7 +707,7 @@ class Changes_Handle_WP_Content {
             return;
         }
 
-        $action_name = 'modified';
+        $action_name = 'updated ';
 
         if ( empty( $previous_featured_image['file'] ) && ! empty( $new_featured_image['file'] ) ) {
             $action_name = 'added';
@@ -1082,6 +1082,10 @@ class Changes_Handle_WP_Content {
         $result = 0;
         // Comments.
         if ( $oldpost->comment_status !== $newpost->comment_status ) {
+            $type_id = 1320;
+            if ( 'open' !== $newpost->comment_status ) {
+                $type_id = 1321;
+            }
             $log_data = array(
                 'postid'     => $newpost->ID,
                 'posttype'   => $newpost->post_type,
@@ -1089,14 +1093,17 @@ class Changes_Handle_WP_Content {
                 'postdate'   => $newpost->post_date,
                 'posttitle'  => $newpost->post_title,
                 'posturl'    => get_permalink( $newpost->ID ),
-                'actionname' => 'open' === $newpost->comment_status ? 'enabled' : 'disabled',
             );
-            Changes_Logs_Logger::log_change( 1320, $log_data );
+            Changes_Logs_Logger::log_change( $type_id, $log_data );
             $result = 1;
         }
 
         // Trackbacks and Pingbacks.
         if ( $oldpost->ping_status !== $newpost->ping_status ) {
+            $type_id = 1325;
+            if ( 'open' !== $newpost->ping_status ) {
+                $type_id = 1326;
+            }
             $log_data = array(
                 'postid'     => $newpost->ID,
                 'posttype'   => $newpost->post_type,
@@ -1104,9 +1111,8 @@ class Changes_Handle_WP_Content {
                 'poststatus' => $newpost->post_status,
                 'postdate'   => $newpost->post_date,
                 'posturl'    => get_permalink( $newpost->ID ),
-                'actionname' => 'open' === $newpost->ping_status ? 'enabled' : 'disabled',
             );
-            Changes_Logs_Logger::log_change( 1325, $log_data );
+            Changes_Logs_Logger::log_change( $type_id, $log_data );
             $result = 1;
         }
         return $result;
@@ -1224,7 +1230,7 @@ class Changes_Handle_WP_Content {
                 } elseif ( ! empty( $old_post_excerpt ) && empty( $post_excerpt ) ) {
                     $log_data['actionname'] = 'removed';
                 } elseif ( $old_post_excerpt !== $post_excerpt ) {
-                    $log_data['actionname'] = 'modified';
+                    $log_data['actionname'] = 'updated';
                 }
 
                 if ( $old_post_excerpt !== $post_excerpt ) {

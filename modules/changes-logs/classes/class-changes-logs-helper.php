@@ -27,7 +27,7 @@ class Changes_Logs_Helper {
     public static function get_post_change_logs_events() {
 
         $cats_change_logs = array(
-            'Content'       => array( 1200, 1205, 1210, 1215, 1420, 1425, 1225, 1230, 1240, 1245, 1250, 1290, 1295, 1255, 1260, 1265, 1270, 1300, 1280, 1285, 1305, 1310, 1315, 1320, 1325, 1330, 1335, 1340 ),
+            'Content'       => array( 1200, 1205, 1210, 1215, 1420, 1425, 1225, 1230, 1240, 1245, 1250, 1290, 1295, 1255, 1260, 1265, 1270, 1300, 1280, 1285, 1305, 1310, 1315, 1320, 1321, 1325, 1326, 1330, 1335, 1340 ),
             'Tags'          => array( 1395, 1400, 1405, 1410, 1415 ),
             'Categories'    => array( 1235, 1370, 1375, 1380, 1385, 1390 ),
             'Custom Fields' => array( 1275, 1355, 1360, 1365 ),
@@ -171,7 +171,7 @@ class Changes_Logs_Helper {
             ),
             1295 => array(
                 'type_id'     => 1295,
-                'disc'        => esc_html__( 'Changed the date of a post', 'mainwp-child' ),
+                'desc'        => esc_html__( 'Changed the date of a post', 'mainwp-child' ),
                 'context'     => 'post',
                 'action_name' => 'modified',
             ),
@@ -203,30 +203,35 @@ class Changes_Logs_Helper {
                 'type_id'     => 1320,
                 'desc'        => esc_html__( 'Enabled comments in a post', 'mainwp-child' ),
                 'context'     => 'post',
-                'action_name' => 'enabled',
+                'action_name' => 'modified',
             ),
             1321 => array(
                 'type_id'     => 1321,
                 'desc'        => esc_html__( 'Disabled comments in a post', 'mainwp-child' ),
                 'context'     => 'post',
-                'action_name' => 'disabled',
+                'action_name' => 'modified',
             ),
             1325 => array(
                 'type_id'     => 1325,
-                'desc'        => esc_html__( 'Enabled / disabled trackbacks in a post', 'mainwp-child' ),
-                'context'     => 'post',
-                'action_name' => 'enabled',
-            ),
-            1330 => array(
-                'type_id'     => 1330,
-                'desc'        => esc_html__( 'Updated the excerpt of a post', 'mainwp-child' ),
+                'desc'        => esc_html__( 'Enabled trackbacks in a post', 'mainwp-child' ),
                 'context'     => 'post',
                 'action_name' => 'modified',
             ),
-            // xxxx, // Added / changed / removed a post’s excerpt ???.
+            1326 => array(
+                'type_id'     => 1326,
+                'desc'        => esc_html__( 'Disabled trackbacks in a post', 'mainwp-child' ),
+                'context'     => 'post',
+                'action_name' => 'modified',
+            ),
+            1330 => array(
+                'type_id'     => 1330,
+                'desc'        => esc_html__( 'Modified the excerpt of a post', 'mainwp-child' ),
+                'context'     => 'post',
+                'action_name' => 'modified',
+            ),
             1335 => array(
                 'type_id'     => 1335,
-                'desc'        => esc_html__( 'Updated the feature image of a post', 'mainwp-child' ),
+                'desc'        => esc_html__( 'Modified the feature image of a post', 'mainwp-child' ),
                 'context'     => 'post',
                 'action_name' => 'modified',
             ),
@@ -290,7 +295,7 @@ class Changes_Logs_Helper {
                 'type_id'     => 1385,
                 'desc'        => esc_html__( 'Renamed a category', 'mainwp-child' ),
                 'context'     => 'category',
-                'action_name' => 'renamed',
+                'action_name' => 'modified',
             ),
             1390 => array(
                 'type_id'     => 1390,
@@ -313,9 +318,9 @@ class Changes_Logs_Helper {
             ),
             1405 => array(
                 'type_id'     => 1405,
-                'desc'        => esc_html__( 'Renamed tag', 'mainwp-child' ),
+                'desc'        => esc_html__( 'Renamed a tag', 'mainwp-child' ),
                 'context'     => 'tag',
-                'action_name' => 'renamed',
+                'action_name' => 'modified',
             ),
             1410 => array(
                 'type_id'     => 1410,
