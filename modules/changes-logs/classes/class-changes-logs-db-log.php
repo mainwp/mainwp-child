@@ -476,11 +476,14 @@ class Changes_Logs_DB_Log {
 
         $log['meta_values'] = array();
 
-        $map_fields = static::$mapping_db_fields['mapping_fields'];
+        $map_fields     = static::$mapping_db_fields['mapping_fields'];
+        $logs_db_fields = static::$mapping_db_fields['logs_db_fields'];
 
         foreach ( $logs as &$log ) {
             foreach ( $map_fields as $meta_key => $column_name ) {
-                $log['meta_values'][ $meta_key ] = $log[ $column_name ];
+                if ( ! isset( $logs_db_fields[ $column_name ] ) ) {
+                    $log['meta_values'][ $meta_key ] = $log[ $column_name ];
+                }
             }
         }
         unset( $log );
@@ -492,7 +495,7 @@ class Changes_Logs_DB_Log {
     /**
      * Loads all the meta records for the given log ids
      *
-     * @param array $log_ids - Array with Occurrences IDs to search for.
+     * @param array $log_ids - Array with logs IDs to search for.
      *
      * @return array
      */
