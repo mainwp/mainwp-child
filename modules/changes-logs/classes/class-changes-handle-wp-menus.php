@@ -567,9 +567,8 @@ class Changes_Handle_WP_Menus {
      * @param int    $menu_id      - Menu ID.
      */
     private static function callback_change_menu_setting( $menu_name, $status, $menu_setting, $menu_id ) {
-        $status   = 'Enabled' === $status ? 'enabled' : 'disabled';
         $log_data = array(
-            'actionname'  => $status,
+            'actionname'  => 'Enabled' === $status ? 'enabled' : 'disabled',
             'MenuSetting' => $menu_setting,
             'menuname'    => $menu_name,
             'menuid'      => $menu_id,
