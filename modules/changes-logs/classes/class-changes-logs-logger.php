@@ -176,7 +176,6 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
     /**
      * Prepare log data.
      *
-     * @param int   $type_id    - Log type.
      * @param array $data    - Log data.
      *
      * @return array - Log data.

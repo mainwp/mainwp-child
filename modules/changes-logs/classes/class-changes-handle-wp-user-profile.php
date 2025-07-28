@@ -80,9 +80,8 @@ class Changes_Handle_WP_User_Profile {
             $current_userdata   = get_userdata( $user_id );
             $current_roles_list = Changes_Helper::get_role_names( $current_userdata->roles );
 
-            $type_id = ( 'user-edit' === $referer_check ) ? 1725 : 1720;
-
             if ( isset( $_POST['name'] ) ) {
+                $type_id  = ( 'user-edit' === $referer_check ) ? 1725 : 1720;
                 $log_data = array(
                     'roles'         => $current_roles_list,
                     'login'         => $current_user->user_login,
@@ -108,7 +107,8 @@ class Changes_Handle_WP_User_Profile {
                 $revoked_pw      = array_diff( array_map( 'serialize', $old_value ), array_map( 'serialize', $_meta_value ) );
                 $revoked_pw      = array_values( array_map( 'unserialize', $revoked_pw ) );
                 $revoked_pw_name = $revoked_pw[0]['name'];
-                $type_id         = ( 'user-edit' === $referer_check ) ? 1725 : 1720;
+
+                $type_id = ( 'user-edit' === $referer_check ) ? 1726 : 1721;
 
                 $log_data = array(
                     'roles'         => $current_roles_list,
