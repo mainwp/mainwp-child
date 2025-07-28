@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Class Changes_Logs_Logger
  */
-class Changes_Logs_Logger {
+class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
 
 
     /**
@@ -27,7 +27,7 @@ class Changes_Logs_Logger {
      *
      * @var array
      */
-    private static $cached_delay_logs = array();
+    private static $delay_logs_items = array();
 
     /**
      * The array with the excluded post types.
@@ -72,7 +72,7 @@ class Changes_Logs_Logger {
      * @return void
      */
     public static function init_hooks() {
-        \add_action( 'shutdown', array( __CLASS__, 'change_process_cached_delay_logs' ), 6 );
+        \add_action( 'shutdown', array( __CLASS__, 'change_process_delay_logs_items' ), 8 );
     }
 
     /**
@@ -90,7 +90,7 @@ class Changes_Logs_Logger {
             return;
         }
 
-        $data = static::prepare_log_data( $data );
+        $data = static::prepare_log_data( $type_id, $data );
 
         static::log_item( $type_id, $data, false );
     }
@@ -108,7 +108,7 @@ class Changes_Logs_Logger {
 
         $data = static::prepare_log_data( $data );
 
-        self::$cached_delay_logs[] = array(
+        self::$delay_logs_items[] = array(
             'type_id' => $type_id,
             'data'    => $data,
         );
@@ -133,14 +133,14 @@ class Changes_Logs_Logger {
             case 1615 === $type_id:
                 $check_logs = array( 1670, 1665, 1660, 1605, 1610 );
                 foreach ( $check_logs as $check_id ) {
-                    if ( static::is_log_type_in_queue( $check_id ) ) {
+                    if ( static::is_delayed_log_type_exist( $check_id ) ) {
                         $enable_to_log = false;
                         break;
                     }
                 }
                 break;
             case in_array( $type_id, array( 1645, 1670, 1665 ), true ):
-                $enable_to_log = ! static::is_log_type_in_queue( 1660 );
+                $enable_to_log = ! static::is_delayed_log_type_exist( 1660 );
                 break;
             case 1210 === $type_id:
                 $check_logs = Changes_Logs_Helper::get_post_change_logs_events();
@@ -152,19 +152,19 @@ class Changes_Logs_Logger {
                 }
                 break;
             case 1570 === $type_id:
-                $enable_to_log = ! static::is_log_type_in_queue( 1625 ) && ! static::is_log_type_in_queue( 1570 ) && ! static::is_log_type_in_queue( 1580 );
+                $enable_to_log = ! static::is_delayed_log_type_exist( 1625 ) && ! static::is_delayed_log_type_exist( 1570 ) && ! static::is_delayed_log_type_exist( 1580 );
                 break;
             case 1355 === $type_id:
-                $enable_to_log = ! static::is_log_type_in_queue( 1345 ) && ! static::is_log_type_in_queue( 1350 );
+                $enable_to_log = ! static::is_delayed_log_type_exist( 1345 ) && ! static::is_delayed_log_type_exist( 1350 );
                 break;
             case 1690 === $type_id:
-                $enable_to_log = ! static::is_log_type_in_queue( 1610 ) && ! static::is_log_type_in_queue( 1615 );
+                $enable_to_log = ! static::is_delayed_log_type_exist( 1610 ) && ! static::is_delayed_log_type_exist( 1615 );
                 break;
             case 1685 === $type_id:
-                $enable_to_log = ! static::is_log_type_in_queue( 1615 );
+                $enable_to_log = ! static::is_delayed_log_type_exist( 1615 );
                 break;
             case 1605 === $type_id:
-                $enable_to_log = ! Changes_Helper::is_multisite() || ! static::is_log_type_in_queue( 1675 );
+                $enable_to_log = ! Changes_Helper::is_multisite() || ! static::is_delayed_log_type_exist( 1675 );
                 break;
             default:
                 break;
@@ -174,8 +174,9 @@ class Changes_Logs_Logger {
     }
 
     /**
-     * Log event.
+     * Prepare log data.
      *
+     * @param int   $type_id    - Log type.
      * @param array $data    - Log data.
      *
      * @return array - Log data.
@@ -415,14 +416,14 @@ class Changes_Logs_Logger {
     /**
      * Method: Process delayed logs.
      */
-    public static function change_process_cached_delay_logs() {
+    public static function change_process_delay_logs_items() {
         if ( \mainwp_child_is_dashboard_request() ) {
             return;
         }
-        foreach ( self::$cached_delay_logs as $key => $item ) {
-            unset( self::$cached_delay_logs[ $key ] );
+        foreach ( self::$delay_logs_items as $key => $item ) {
+            unset( self::$delay_logs_items[ $key ] );
             static::log_item( $item['type_id'], $item['data'], true );
-            self::$cached_delay_logs[ $key ] = $item;
+            self::$delay_logs_items[ $key ] = $item;
         }
     }
 
@@ -431,8 +432,8 @@ class Changes_Logs_Logger {
      *
      * @param int $type_id  - Log type ID.
      */
-    public static function is_log_type_in_queue( $type_id ) {
-        foreach ( self::$cached_delay_logs as $item ) {
+    public static function is_delayed_log_type_exist( $type_id ) {
+        foreach ( self::$delay_logs_items as $item ) {
             if ( $item['type_id'] === $type_id ) {
                 return true;
             }
@@ -448,7 +449,7 @@ class Changes_Logs_Logger {
      * @return bool
      */
     public static function in_queue_or_handled_logs( $type_id ) {
-        return in_array( $type_id, self::$logs_type_queue, true ) || self::is_log_type_in_queue( $type_id );
+        return in_array( $type_id, self::$logs_type_queue, true ) || self::is_delayed_log_type_exist( $type_id );
     }
 
     /**

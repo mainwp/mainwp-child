@@ -51,7 +51,7 @@ class Changes_Handle_WP_Log_In_Out {
         \add_action( 'lostpassword_post', array( __CLASS__, 'callback_change_user_requested_pw_reset' ), 10, 2 );
         \add_action( 'password_reset', array( __CLASS__, 'callback_change_password_reset' ), 10, 2 );
         \add_action( 'set_auth_cookie', array( __CLASS__, 'callback_change_login' ), 10, 6 );
-        \add_action( 'shutdown', array( __CLASS__, 'change_shutdown_empty_queue' ), 7 );
+        \add_action( 'shutdown', array( __CLASS__, 'callback_change_shutdown_empty_queue' ), 7 );
         \add_action( 'wp_logout', array( __CLASS__, 'callback_change_logout' ), 5 );
         if ( Changes_Helper::is_plugin_active( 'user-switching/user-switching.php' ) ) {
             \add_action( 'switch_to_user', array( __CLASS__, 'callback_change_user_switched_event' ), 10, 2 );
@@ -228,7 +228,7 @@ class Changes_Handle_WP_Log_In_Out {
      *
      * @return void
      */
-    public static function change_shutdown_empty_queue() {
+    public static function callback_change_shutdown_empty_queue() {
         if ( ! empty( self::$login_queue ) && isset( self::$login_queue['login'] ) && ! isset( self::$login_queue['logout'] ) ) {
             Changes_Logs_Logger::log_change_save_delay( 1570, self::$login_queue['login'] );
         }
