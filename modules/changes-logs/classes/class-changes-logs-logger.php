@@ -90,7 +90,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             return;
         }
 
-        $data = static::prepare_log_data( $type_id, $data );
+        $data = static::prepare_log_data( $data );
 
         static::log_item( $type_id, $data, false );
     }
