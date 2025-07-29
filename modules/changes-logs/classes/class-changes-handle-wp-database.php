@@ -132,7 +132,7 @@ class Changes_Handle_WP_Database {
      */
     private static function change_check_db_log( $query_type, $table_names ) {
         if ( ! empty( $table_names ) ) {
-            $runner = self::change_get_client_runer( $table_names );
+            $runner = self::change_get_client_runner( $table_names );
             foreach ( $table_names as $table_name ) {
                 $log_data  = self::change_get_log_data( $runner );
                 $log_code  = self::change_get_log_code_id_by_runner( $runner, $query_type );
@@ -155,7 +155,7 @@ class Changes_Handle_WP_Database {
      *
      * @return bool|string Theme, plugin or false.
      */
-    private static function change_get_client_runer( $table_names ) {
+    private static function change_get_client_runner( $table_names ) {
         $result = false;
 
         if ( is_null( self::$script_basename ) ) {
@@ -477,7 +477,7 @@ class Changes_Handle_WP_Database {
      * @return bool
      */
     private static function if_table_change_log_enabled( $table_name, $query_type ) {
-        $runner = self::change_get_client_runer( array( $table_name ) );
+        $runner = self::change_get_client_runner( array( $table_name ) );
         $code   = self::change_get_log_code_id_by_runner( $runner, $query_type );
 
         return Changes_Logs_Logger::is_enabled( $code );
