@@ -348,7 +348,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \BackWPup_Job::read_logheader()
      * @uses MainWP_Exception
      */
-    public function do_reports_log($ext = '' ) { // phpcs:ignore -- NOSONAR - complex.
+	public function do_reports_log( $ext = '' ) { // phpcs:ignore -- NOSONAR - complex.
         if ( 'backwpup' !== $ext ) {
             return;
         }
@@ -497,7 +497,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $jobdest Backup destination list.
      * @throws MainWP_Exception Error Message.
      */
-    public function get_destinations_list() { // phpcs:ignore -- NOSONAR - complex.
+	public function get_destinations_list() { // phpcs:ignore -- NOSONAR - complex.
         MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
         MainWP_Helper::instance()->check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
         MainWP_Helper::instance()->check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
@@ -594,7 +594,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array $output Returned information array.
      */
-    protected function information() { //phpcs:ignore -- NOSONAR - complex.
+	protected function information() { //phpcs:ignore -- NOSONAR - complex.
         // NOSONAR - WP compatible.
 
         /** @global $wpdb wpdb */
@@ -797,7 +797,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array|int[]|string[] On success return success[1] response['DELETED'] & error['message'] on failure.
      */
-    protected function delete_backup() { //phpcs:ignore -- NOSONAR - multi return.
+	protected function delete_backup() { //phpcs:ignore -- NOSONAR - multi return.
         if ( ! isset( $_POST['settings']['backupfile'] ) ) {
             return array( 'error' => esc_html__( 'Missing backupfile.', 'mainwp-child' ) );
         }
@@ -862,7 +862,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $log_file = $log_file . '.bz2';
             }
 
-            if ( '.gz' === substr( $log_file, - 3 ) ) {
+            if ( '.gz' === substr( $log_file, -3 ) ) {
                 $output = file_get_contents( 'compress.zlib://' . $log_file, false ); //phpcs:ignore WordPress.WP.AlternativeFunctions
             } else {
                 $output = file_get_contents( $log_file, false ); //phpcs:ignore WordPress.WP.AlternativeFunctions
@@ -890,7 +890,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Return table array or error['message'] on failure.
      */
-    protected function tables() { // phpcs:ignore -- NOSONAR - complex.
+	protected function tables() { // phpcs:ignore -- NOSONAR - complex.
         if ( ! isset( $_POST['settings']['type'] ) ) {
             return array( 'error' => esc_html__( 'Missing type.', 'mainwp-child' ) );
         }
@@ -932,7 +932,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                             if ( 0 === $is_global ) {
                                 return in_array( intval( $log['jobid'] ), $global_ids, true );
                             } else {
-                                return ! in_array( intval( $log['jobid'] ), $global_ids, true );
+                                return $log['jobid'];
                             }
                         }
                     }
@@ -1086,18 +1086,18 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         ?>
         <script type="text/javascript">
             var dlClicked = false;
-            document.addEventListener("DOMContentLoaded", function(event) {
-                if( dlClicked === false ){
-                    var downloadLink = document.querySelector( 'a.backup-download-link[data-jobid="<?php echo intval( $_GET['download_click_id'] ); ?>"' );
-                    if (typeof(downloadLink) !== 'undefined' && downloadLink !== null ) {
+            document.addEventListener("DOMContentLoaded", function (event) {
+                if (dlClicked === false) {
+                    var downloadLink = document.querySelector('a.backup-download-link[data-jobid="<?php echo intval( $_GET['download_click_id'] ); ?>"');
+                    if (typeof (downloadLink) !== 'undefined' && downloadLink !== null) {
                         downloadLink.click();
                         dlClicked = true;
                     }
-                    if( dlClicked === false ) { // for new version.
+                    if (dlClicked === false) { // for new version.
                         setTimeout(
                             function () {
-                                downloadLink = document.querySelector( 'button.js-backwpup-download-backup[data-jobid="<?php echo intval( $_GET['download_click_id'] ); ?>"' );
-                                if (typeof(downloadLink) !== 'undefined' && downloadLink !== null ) {
+                                downloadLink = document.querySelector('button.js-backwpup-download-backup[data-jobid="<?php echo intval( $_GET['download_click_id'] ); ?>"');
+                                if (typeof (downloadLink) !== 'undefined' && downloadLink !== null) {
                                     downloadLink.click();
                                 }
                             },
@@ -1153,7 +1153,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return string|false Return nonce or FALSE on failure.
      */
-    protected function create_nonce_without_session( $action = - 1 ) {
+    protected function create_nonce_without_session( $action = -1 ) {
         $user = wp_get_current_user();
         $uid  = (int) $user->ID;
         if ( ! $uid ) {
@@ -1162,7 +1162,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $i = wp_nonce_tick();
 
-        return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+        return substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), -12, 10 );
     }
 
     /**
@@ -1173,7 +1173,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return bool|int FALSE on failure. 1 or 2 on success.
      */
-    protected function verify_nonce_without_session( $nonce, $action = - 1 ) { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
+	protected function verify_nonce_without_session( $nonce, $action = -1 ) { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
         $nonce = (string) $nonce;
         $user  = wp_get_current_user();
         $uid   = (int) $user->ID;
@@ -1189,12 +1189,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $result = false;
 
-        $expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+        $expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce' ), -12, 10 );
         if ( hash_equals( $expected, $nonce ) ) {
             $result = 1;
         }
 
-        $expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), - 12, 10 );
+        $expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), -12, 10 );
         if ( hash_equals( $expected, $nonce ) ) {
             $result = 2;
         }
@@ -1223,8 +1223,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     protected function ajax_working() {
 
         if ( ! isset( $_POST['settings'] ) || ! is_array( $_POST['settings'] )
-        || ! isset( $_POST['settings']['logfile'] ) || ! isset( $_POST['settings']['logpos'] )
-        || ! isset( $_POST['settings']['job_id'] )
+            || ! isset( $_POST['settings']['logfile'] ) || ! isset( $_POST['settings']['logpos'] )
+            || ! isset( $_POST['settings']['job_id'] )
         ) {
             return array( 'error' => esc_html__( 'Missing logfile or logpos.', 'mainwp-child' ) );
         }
@@ -1277,7 +1277,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array[ success, response, logfile ] or array[ error ]
      */
-    protected function backup_now() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
+	protected function backup_now() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
 
         if ( ! isset( $_POST['settings']['job_id'] ) ) {
             return array( 'error' => esc_html__( 'Missing job_id', 'mainwp-child' ) );
@@ -1410,7 +1410,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array|MainWP_Exception Return response array.
      */
-    protected function destination_email_check_email() { // phpcs:ignore -- NOSONAR - complex.
+	protected function destination_email_check_email() { // phpcs:ignore -- NOSONAR - complex.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         $message = '';
@@ -1440,11 +1440,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                         require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/PHPMailer/Exception.php'; // NOSONAR - WP compatible.
-                        $phpmailer = new \PHPMailer\PHPMailer\PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
+						$phpmailer = new \PHPMailer\PHPMailer\PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
                     } elseif ( file_exists( ABSPATH . WPINC . '/class-phpmailer.php' ) ) {
                         require_once ABSPATH . WPINC . '/class-phpmailer.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/class-smtp.php'; // NOSONAR - WP compatible.
-                        $phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
+						$phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
                     }
                 }
                 if ( is_object( $phpmailer ) ) {
@@ -1521,7 +1521,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses BackWPup_File::get_folder_size()
      * @return array Response array containing folder locations and size.
      */
-    protected function get_job_files() { // phpcs:ignore -- NOSONAR - complex.
+	protected function get_job_files() { // phpcs:ignore -- NOSONAR - complex.
         /**
          * Taken from BackWPup_JobType_File::get_exclude_dirs.
          *
@@ -1606,7 +1606,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Query response containing the tables.
      */
-    protected function get_child_tables() { // phpcs:ignore -- NOSONAR - complex.
+	protected function get_child_tables() { // phpcs:ignore -- NOSONAR - complex.
         /**
          *  @global $wpdb wpdb
          */
@@ -1617,7 +1617,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
-            $mysqli = new \mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
+			$mysqli = new \mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
 
             if ( $mysqli->connect_error ) {
                 $return['message'] = $mysqli->connect_error;
@@ -1626,7 +1626,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $res = $mysqli->query( 'SHOW FULL TABLES FROM `' . $mysqli->real_escape_string( $settings['dbname'] ) . '`' );
                     if ( $res ) {
                         $tables_temp = array();
-                        while ( $table = $res->fetch_array( MYSQLI_NUM ) ) { // phpcs:ignore -- third party code.
+						while ( $table = $res->fetch_array( MYSQLI_NUM ) ) { // phpcs:ignore -- third party code.
                             $tables_temp[] = $table[0];
                         }
 
@@ -1652,7 +1652,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         } else {
             $tables_temp = array();
 
-            $tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
+			$tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
             foreach ( $tables as $table ) {
                 $tables_temp[] = $table[0];
             }
@@ -1676,7 +1676,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses BackWPup_Job::enable_job()
      * @return array Response array containing job_id, changes & message array.
      */
-    protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
+	protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
         $post_settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';
         $settings      = ! empty( $post_settings ) ? json_decode( $post_settings ) : null;
         $is_global     = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;
@@ -1768,7 +1768,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @param mixed $post_data Post data to save.
      * @param mixed $id Post ID.
      */
-    public function edit_form_post_save( $post_data, $id ) { // phpcs:ignore -- NOSONAR - complex.
+	public function edit_form_post_save( $post_data, $id ) { // phpcs:ignore -- NOSONAR - complex.
         // Parse and save files to exclude.
         if ( isset( $post_data->fileexclude ) ) {
             $exclude_input   = str_replace( array( "\r\n", "\r" ), ',', $post_data->fileexclude );
@@ -1849,7 +1849,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array containing job_id, changes & message array.
      */
-    protected function insert_or_update_jobs() { // phpcs:ignore -- NOSONAR - complex.
+	protected function insert_or_update_jobs() { // phpcs:ignore -- NOSONAR - complex.
 
         $settings = isset( $_POST['settings'] ) ? json_decode( $_POST['settings'] ) : '';
 
@@ -1933,7 +1933,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ! isset( $_POST['settings']['value']['tabledb'] ) ) {
                 global $wpdb;
                 $tables_temp = array();
-                $tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
+				$tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
                 foreach ( $tables as $table ) {
                     $tables_temp[] = $table[0];
                 }
@@ -2029,7 +2029,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array success, changes, message[].
      */
-    protected function update_settings() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
+	protected function update_settings() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
