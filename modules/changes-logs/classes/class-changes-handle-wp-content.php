@@ -106,6 +106,8 @@ class Changes_Handle_WP_Content {
         \add_action( 'updated_post_meta', array( __CLASS__, 'callback_change_check_changed_meta' ), 10, 4 );
         \add_action( 'wp_head', array( __CLASS__, 'callback_change_viewing_post' ), 10 );
         \add_action( 'wp_trash_post', array( __CLASS__, 'callback_change_post_trashed' ), 10, 1 );
+        \add_action( 'create_post_tag', array( __CLASS__, 'callback_change_tag_creation' ), 10, 1 );
+        \add_action( 'pre_delete_term', array( __CLASS__, 'callback_change_taxonomy_term_deletion' ), 10, 2 );
     }
 
     /**
@@ -1350,6 +1352,52 @@ class Changes_Handle_WP_Content {
         && preg_match( '/^[0\-\ \:]+$/', $oldpost->post_date_gmt ) ) {
             // Don't track this as a date change.
             return true;
+        }
+    }
+
+    /**
+     * Tag created callback.
+     *
+     * @param int $tag_id - Tag ID.
+     */
+    public static function callback_change_tag_creation( $tag_id ) {
+        $tag = get_tag( $tag_id );
+        Changes_Logs_Logger::log_change(
+            1406,
+            array(
+                'tagname' => $tag->name,
+                'slug'    => $tag->slug,
+            )
+        );
+    }
+
+    /**
+     * Taxonomy Terms Deleted callback.
+     *
+     * @param integer $term_id  - Term ID.
+     * @param string  $taxonomy - Taxonomy Name.
+     */
+    public static function callback_change_taxonomy_term_deletion( $term_id, $taxonomy ) {
+        if ( 'post_tag' === $taxonomy ) {
+            $tag = get_tag( $term_id );
+            Changes_Logs_Logger::log_change(
+                1407,
+                array(
+                    'tagid'   => $term_id,
+                    'tagname' => $tag->name,
+                    'slug'    => $tag->slug,
+                )
+            );
+        } elseif ( 'category' === $taxonomy ) {
+            $category = get_category( $term_id );
+            Changes_Logs_Logger::log_change(
+                1375,
+                array(
+                    'categoryid'   => $term_id,
+                    'categoryname' => $category->cat_name,
+                    'slug'         => $category->slug,
+                )
+            );
         }
     }
 }

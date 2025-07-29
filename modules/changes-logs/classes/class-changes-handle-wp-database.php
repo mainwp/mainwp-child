@@ -132,10 +132,10 @@ class Changes_Handle_WP_Database {
      */
     private static function change_check_db_log( $query_type, $table_names ) {
         if ( ! empty( $table_names ) ) {
-            $actor = self::change_get_client_actor( $table_names );
+            $runner = self::change_get_client_runer( $table_names );
             foreach ( $table_names as $table_name ) {
-                $log_data  = self::change_get_log_data( $actor );
-                $log_code  = self::change_get_log_code_id( $actor, $query_type );
+                $log_data  = self::change_get_log_data( $runner );
+                $log_code  = self::change_get_log_code_id_by_runner( $runner, $query_type );
                 $db_op_key = $query_type . '_' . $table_name;
                 if ( in_array( $db_op_key, self::$already_logged, true ) ) {
                     continue;
@@ -155,7 +155,7 @@ class Changes_Handle_WP_Database {
      *
      * @return bool|string Theme, plugin or false.
      */
-    private static function change_get_client_actor( $table_names ) {
+    private static function change_get_client_runer( $table_names ) {
         $result = false;
 
         if ( is_null( self::$script_basename ) ) {
@@ -239,17 +239,17 @@ class Changes_Handle_WP_Database {
     /**
      * Get event options by actor.
      *
-     * @param string $actor - Plugins, themes, WordPress or unknown.
+     * @param string $runner - Plugins, themes, WordPress or unknown.
      *
      * @return array
      *
      * phpcs:disable WordPress.Security.NonceVerification.Recommended
      * phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotValidated
      */
-    private static function change_get_log_data( $actor ) {
+    private static function change_get_log_data( $runner ) {
         // Check the actor.
         $log_data = array();
-        switch ( $actor ) {
+        switch ( $runner ) {
             case 'plugins':
                 // Action Plugin Component.
                 $plugin_file = '';
@@ -329,13 +329,13 @@ class Changes_Handle_WP_Database {
     /**
      * Get alert code by actor and query type.
      *
-     * @param string $actor - Plugins, themes, WordPress or unknown.
+     * @param string $runner - Plugins, themes, WordPress or unknown.
      * @param string $query_type - Create, update or delete.
      *
      * @return int Event code.
      */
-    protected static function change_get_log_code_id( $actor, $query_type ) {
-        switch ( $actor ) {
+    protected static function change_get_log_code_id_by_runner( $runner, $query_type ) {
+        switch ( $runner ) {
             case 'plugins':
                 if ( 'create' === $query_type ) {
                     return 1740;
@@ -477,8 +477,8 @@ class Changes_Handle_WP_Database {
      * @return bool
      */
     private static function if_table_change_log_enabled( $table_name, $query_type ) {
-        $actor = self::change_get_client_actor( array( $table_name ) );
-        $code  = self::change_get_log_code_id( $actor, $query_type );
+        $runner = self::change_get_client_runer( array( $table_name ) );
+        $code   = self::change_get_log_code_id_by_runner( $runner, $query_type );
 
         return Changes_Logs_Logger::is_enabled( $code );
     }
