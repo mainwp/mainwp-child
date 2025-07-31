@@ -904,14 +904,15 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $this->wp_list_table_dependency();
 
-        $array = array();
+        $array      = array();
+        $is_global  = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;
+        $global_ids = $this->get_all_global_backwpup_job_ids();
 
         switch ( $type ) {
             case 'logs':
                 $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
                 $log_folder = \BackWPup_File::get_absolute_path( $log_folder );
                 $log_folder = untrailingslashit( $log_folder );
-                $is_global  = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;
 
                 if ( ! is_dir( $log_folder ) ) {
                     return array(
@@ -920,7 +921,6 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     );
                 }
                 update_user_option( get_current_user_id(), 'backwpuplogs_per_page', 99999999 );
-                $global_ids = $this->get_all_global_backwpup_job_ids();
 
                 $output = new \BackWPup_Page_Logs();
                 $output->prepare_items();
@@ -945,25 +945,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $output        = new \BackWPup_Page_Backups();
                 $output->items = array();
 
-                $is_global  = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;
-                $global_ids = $this->get_all_global_backwpup_job_ids();
-                if ( 0 === $is_global ) {
-                    $jobids = $global_ids;
-                } else {
-                    $jobids = \BackWPup_Option::get_job_ids();
-                    $jobids = array_values(
-                        array_filter(
-                            $jobids,
-                            function ( $job_id ) use ( $global_ids ) {
-                                $temp_job = \BackWPup_Option::get( $job_id, 'tempjob', false );
-                                if ( ! $temp_job ) {
-                                    return ! in_array( $job_id, $global_ids, true );
-                                }
-                            }
-                        )
-                    );
-                }
-
+                $jobids = \BackWPup_Option::get_job_ids();
                 if ( ! empty( $jobids ) ) {
                     foreach ( $jobids as $jobid ) {
                         if ( \BackWPup_Option::get( $jobid, 'backuptype' ) === 'sync' ) {
@@ -988,9 +970,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                         }
                     }
                 }
-
                 break;
-
             case 'jobs':
                 $output = new \BackWPup_Page_Jobs();
                 $output->prepare_items();
