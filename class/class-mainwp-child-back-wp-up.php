@@ -2176,8 +2176,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $option = is_array( $option ) ? implode( ',', $option ) : '';
                     break;
                 case 'archiveformat':
-                    $jobid = get_site_option( 'backwpup_backup_files_job_id', false );
-                    \BackWPup_Option::update( $jobid, 'archiveformat', $val_option );
+                    update_site_option( 'backwpup_archiveformat', $val_option );
                     break;
                 case 'license_instance_key':
                 case 'license_api_key':
