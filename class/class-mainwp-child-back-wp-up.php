@@ -19,7 +19,7 @@
  * @package MainWP\Child
  */
 
-// phpcs:disable -- third party credit.
+// phpcsa:disable -- third party credit.
 
 namespace MainWP\Child;
 
@@ -348,7 +348,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \BackWPup_Job::read_logheader()
      * @uses MainWP_Exception
      */
-	public function do_reports_log( $ext = '' ) { // phpcs:ignore -- NOSONAR - complex.
+    public function do_reports_log( $ext = '' ) { // phpcs:ignore -- NOSONAR - complex.
         if ( 'backwpup' !== $ext ) {
             return;
         }
@@ -497,7 +497,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $jobdest Backup destination list.
      * @throws MainWP_Exception Error Message.
      */
-	public function get_destinations_list() { // phpcs:ignore -- NOSONAR - complex.
+    public function get_destinations_list() { // phpcs:ignore -- NOSONAR - complex.
         MainWP_Helper::instance()->check_classes_exists( array( '\BackWPup', '\BackWPup_Option' ) );
         MainWP_Helper::instance()->check_methods( '\BackWPup', array( 'get_registered_destinations', 'get_destination' ) );
         MainWP_Helper::instance()->check_methods( '\BackWPup_Option', array( 'get_job_ids', 'get' ) );
@@ -594,7 +594,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array $output Returned information array.
      */
-	protected function information() { //phpcs:ignore -- NOSONAR - complex.
+    protected function information() { //phpcs:ignore -- NOSONAR - complex.
         // NOSONAR - WP compatible.
 
         /** @global $wpdb wpdb */
@@ -797,7 +797,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array|int[]|string[] On success return success[1] response['DELETED'] & error['message'] on failure.
      */
-	protected function delete_backup() { //phpcs:ignore -- NOSONAR - multi return.
+    protected function delete_backup() { //phpcs:ignore -- NOSONAR - multi return.
         if ( ! isset( $_POST['settings']['backupfile'] ) ) {
             return array( 'error' => esc_html__( 'Missing backupfile.', 'mainwp-child' ) );
         }
@@ -890,7 +890,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Return table array or error['message'] on failure.
      */
-	protected function tables() { // phpcs:ignore -- NOSONAR - complex.
+    protected function tables() { // phpcs:ignore -- NOSONAR - complex.
         if ( ! isset( $_POST['settings']['type'] ) ) {
             return array( 'error' => esc_html__( 'Missing type.', 'mainwp-child' ) );
         }
@@ -1153,7 +1153,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return bool|int FALSE on failure. 1 or 2 on success.
      */
-	protected function verify_nonce_without_session( $nonce, $action = -1 ) { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
+    protected function verify_nonce_without_session( $nonce, $action = -1 ) { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
         $nonce = (string) $nonce;
         $user  = wp_get_current_user();
         $uid   = (int) $user->ID;
@@ -1257,7 +1257,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array[ success, response, logfile ] or array[ error ]
      */
-	protected function backup_now() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
+    protected function backup_now() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
 
         if ( ! isset( $_POST['settings']['job_id'] ) ) {
             return array( 'error' => esc_html__( 'Missing job_id', 'mainwp-child' ) );
@@ -1390,7 +1390,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array|MainWP_Exception Return response array.
      */
-	protected function destination_email_check_email() { // phpcs:ignore -- NOSONAR - complex.
+    protected function destination_email_check_email() { // phpcs:ignore -- NOSONAR - complex.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         $message = '';
@@ -1420,11 +1420,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                         require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/PHPMailer/Exception.php'; // NOSONAR - WP compatible.
-						$phpmailer = new \PHPMailer\PHPMailer\PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
+                        $phpmailer = new \PHPMailer\PHPMailer\PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
                     } elseif ( file_exists( ABSPATH . WPINC . '/class-phpmailer.php' ) ) {
                         require_once ABSPATH . WPINC . '/class-phpmailer.php'; // NOSONAR - WP compatible.
                         require_once ABSPATH . WPINC . '/class-smtp.php'; // NOSONAR - WP compatible.
-						$phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
+                        $phpmailer = new \PHPMailer( true ); // phpcs:ignore -- to custom init PHP mailer
                     }
                 }
                 if ( is_object( $phpmailer ) ) {
@@ -1501,7 +1501,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses BackWPup_File::get_folder_size()
      * @return array Response array containing folder locations and size.
      */
-	protected function get_job_files() { // phpcs:ignore -- NOSONAR - complex.
+    protected function get_job_files() { // phpcs:ignore -- NOSONAR - complex.
         /**
          * Taken from BackWPup_JobType_File::get_exclude_dirs.
          *
@@ -1586,7 +1586,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Query response containing the tables.
      */
-	protected function get_child_tables() { // phpcs:ignore -- NOSONAR - complex.
+    protected function get_child_tables() { // phpcs:ignore -- NOSONAR - complex.
         /**
          *  @global $wpdb wpdb
          */
@@ -1597,7 +1597,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
-			$mysqli = new \mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
+            $mysqli = new \mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
 
             if ( $mysqli->connect_error ) {
                 $return['message'] = $mysqli->connect_error;
@@ -1606,7 +1606,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $res = $mysqli->query( 'SHOW FULL TABLES FROM `' . $mysqli->real_escape_string( $settings['dbname'] ) . '`' );
                     if ( $res ) {
                         $tables_temp = array();
-						while ( $table = $res->fetch_array( MYSQLI_NUM ) ) { // phpcs:ignore -- third party code.
+                        while ( $table = $res->fetch_array( MYSQLI_NUM ) ) { // phpcs:ignore -- third party code.
                             $tables_temp[] = $table[0];
                         }
 
@@ -1632,7 +1632,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         } else {
             $tables_temp = array();
 
-			$tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
+            $tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
             foreach ( $tables as $table ) {
                 $tables_temp[] = $table[0];
             }
@@ -1656,7 +1656,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses BackWPup_Job::enable_job()
      * @return array Response array containing job_id, changes & message array.
      */
-	protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
+    protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
         $post_settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';
         $settings      = ! empty( $post_settings ) ? json_decode( $post_settings ) : null;
         $is_global     = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;
@@ -1748,7 +1748,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @param mixed $post_data Post data to save.
      * @param mixed $id Post ID.
      */
-	public function edit_form_post_save( $post_data, $id ) { // phpcs:ignore -- NOSONAR - complex.
+    public function edit_form_post_save( $post_data, $id ) { // phpcs:ignore -- NOSONAR - complex.
         // Parse and save files to exclude.
         if ( isset( $post_data->fileexclude ) ) {
             $exclude_input   = str_replace( array( "\r\n", "\r" ), ',', $post_data->fileexclude );
@@ -1829,7 +1829,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array containing job_id, changes & message array.
      */
-	protected function insert_or_update_jobs() { // phpcs:ignore -- NOSONAR - complex.
+    protected function insert_or_update_jobs() { // phpcs:ignore -- NOSONAR - complex.
 
         $settings = isset( $_POST['settings'] ) ? json_decode( $_POST['settings'] ) : '';
 
@@ -1913,7 +1913,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ! isset( $_POST['settings']['value']['tabledb'] ) ) {
                 global $wpdb;
                 $tables_temp = array();
-				$tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
+                $tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
                 foreach ( $tables as $table ) {
                     $tables_temp[] = $table[0];
                 }
@@ -2009,7 +2009,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array success, changes, message[].
      */
-	protected function update_settings() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
+    protected function update_settings() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
         if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
@@ -2107,9 +2107,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Response array success, error[].
      */
     protected function save_settings() {
-        $raw     = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';
-        $decoded = base64_decode( $raw, true );          // strict mode
-        if ( $decoded === false ) {
+        $raw     = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR 
+        $decoded = base64_decode( $raw, true );          // strict mode.
+        if ( false === $decoded ) {
             return array( 'error' => 'MALFORMED_BASE64' );
         }
         $options = json_decode( $decoded, true );
@@ -2117,18 +2117,88 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => 'INVALID_JSON' );
         }
 
+        // Helper: Only update when changing the value.
+        $update_site_option_if_changed = static function (string $name, $new_value) {  // phpcs:ignore -- NOSONAR 
+            $current = get_site_option( $name, null );
+            if ( is_array( $current ) || is_array( $new_value ) ) {
+                if ( $current !== $new_value ) {
+                    update_site_option( $name, $new_value );
+                    return true;
+                }
+                return false;
+            }
+            if ( $current !== $new_value ) {
+                update_site_option( $name, $new_value );
+                return true;
+            }
+            return false;
+        };
+
+        // Helper: Filter the email list and return the comma string.
+        $sanitize_email_list = static function ( $value ) {
+            $list = is_array( $value ) ? $value : explode( ',', (string) $value );
+            $list = array_filter(
+                array_map(
+                    function ( $email ) {
+                        $sanitized = sanitize_email( trim( (string) $email ) );
+                        return is_email( $sanitized ) ? $sanitized : null;
+                    },
+                    $list
+                )
+            );
+            return $list ? implode( ',', $list ) : '';
+        };
+
+        $auth_option_name = 'backwpup_cfg_authentication';
+        $auth             = get_site_option( $auth_option_name, array() );
+
+        $has_auth_key = false;
+        foreach ( array( 'authentication_method', 'authentication_basic_user', 'authentication_basic_password', 'authentication_query_arg', 'authentication_user_id' ) as $k ) {
+            if ( array_key_exists( $k, $options ) ) {
+                $has_auth_key = true;
+                break;
+            }
+        }
+
+        if ( $has_auth_key ) {
+            if ( array_key_exists( 'authentication_method', $options ) ) {
+                $auth['method'] = $options['authentication_method'];
+            }
+            if ( array_key_exists( 'authentication_basic_user', $options ) ) {
+                $auth['basic_user'] = (string) $options['authentication_basic_user'];
+            }
+            if ( array_key_exists( 'authentication_basic_password', $options ) ) {
+                $auth['basic_password'] = \BackWPup_Encryption::encrypt( (string) $options['authentication_basic_password'] );
+            }
+            if ( array_key_exists( 'authentication_query_arg', $options ) ) {
+                $auth['query_arg'] = (string) $options['authentication_query_arg'];
+            }
+            if ( array_key_exists( 'authentication_user_id', $options ) ) {
+                $auth['user_id'] = absint( $options['authentication_user_id'] );
+            }
+
+            $update_site_option_if_changed( $auth_option_name, $auth );
+            unset(
+                $options['authentication_method'],
+                $options['authentication_basic_user'],
+                $options['authentication_basic_password'],
+                $options['authentication_query_arg'],
+                $options['authentication_user_id']
+            );
+        }
+
+        $int_keys                = array( 'jobstepretry', 'jobmaxexecutiontime', 'jobwaittimems', 'maxlogs' );
+        $license_api_changed     = false;
+        $license_product_changed = false;
+
         foreach ( $options as $key_option => $val_option ) {
-            $_POST[ $key_option ] = $val_option;
-            $option_name          = 'backwpup_cfg_' . $key_option;
+            $option_name   = 'backwpup_cfg_' . $key_option;
+            $should_update = true;
+            $option        = null;
+
             switch ( $key_option ) {
                 case 'mailaddresssenderlog':
-                    $option = sanitize_email( wp_unslash( $val_option ) );
-                    break;
-                case 'jobstepretry':
-                case 'jobmaxexecutiontime':
-                case 'jobwaittimems':
-                case 'maxlogs':
-                    $option = absint( $val_option );
+                    $option = sanitize_email( (string) $val_option );
                     break;
                 case 'jobrunauthkey':
                     $option = preg_replace( '/[^a-zA-Z0-9]/', '', trim( (string) $val_option ) );
@@ -2138,78 +2208,122 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                         \BackWPup_File::normalize_path( \BackWPup_Path_Fixer::slashify( sanitize_text_field( $val_option ) ) )
                     );
                     break;
-                case 'authentication_method':
-                case 'authentication_basic_user':
-                case 'authentication_basic_password':
-                case 'authentication_query_arg':
-                case 'authentication_user_id':
-                    $option = get_site_option( 'backwpup_cfg_authentication', array() );
-                    switch ( $key_option ) { // NOSONAR.
-                        case 'authentication_method':
-                            $option['method'] = $val_option;
-                            break;
-                        case 'authentication_basic_user':
-                            $option['basic_user'] = $val_option;
-                            break;
-                        case 'authentication_basic_password':
-                            $option['basic_password'] = \BackWPup_Encryption::encrypt( (string) $val_option );
-                            break;
-                        case 'authentication_query_arg':
-                            $option['query_arg'] = $val_option;
-                            break;
-                        case 'authentication_user_id':
-                            $option['user_id'] = absint( $val_option );
-                            break;
-                    }
-                    $option_name = 'backwpup_cfg_authentication';
-                    break;
                 case 'mailaddresslog':
-                    $option = array_filter(
-                        array_map(
-                            function ( $email ) {
-                                $sanitized_email = sanitize_email( trim( $email ) );
-                                return is_email( $sanitized_email ) ? $sanitized_email : null;
-                            },
-                            $val_option
-                        )
-                    );
-                    $option = is_array( $option ) ? implode( ',', $option ) : '';
+                    $option = $sanitize_email_list( $val_option );
                     break;
                 case 'archiveformat':
-                    update_site_option( 'backwpup_archiveformat', $val_option );
+                    $update_site_option_if_changed( 'backwpup_archiveformat', $val_option );
+                    $should_update = false;
                     break;
                 case 'license_instance_key':
                 case 'license_api_key':
                 case 'license_product_id':
                     if ( class_exists( '\BackWPup_Pro' ) ) {
-                        update_site_option( $key_option, $val_option );
+                        $current = get_site_option( $key_option, '' );
+
+                        if ( 'license_api_key' === $key_option ) {
+                            $license_api_changed = trim( (string) $current ) !== trim( (string) $val_option );
+                        } elseif ( 'license_product_id' === $key_option ) {
+                            $license_product_changed = trim( (string) $current ) !== trim( (string) $val_option );
+                        }
+
+                        $update_site_option_if_changed( $key_option, $val_option );
                     }
+                    $should_update = false;
+                    break;
+                case 'archiveencryption':
+                    if ( class_exists( '\BackWPup_Pro' ) ) {
+                        $jobs           = \BackWPup_Option::get_job_ids();
+                        $use_encryption = (bool) $val_option;
+                        foreach ( $jobs as $job_id ) {
+                            \BackWPup_Option::update( $job_id, 'archiveencryption', $use_encryption );
+                        }
+                    }
+                    $should_update = false;
                     break;
                 default:
-                    if ( is_scalar( $val_option ) ) {
-                        $option = sanitize_text_field( wp_unslash( $val_option ) );
+                    if ( in_array( $key_option, $int_keys, true ) ) {
+                        $option = absint( $val_option );
+                    } elseif ( is_scalar( $val_option ) ) {
+                        $option = sanitize_text_field( (string) $val_option );
                     } else {
-                        // Preserve complex structures untouched
+                        // Preserve complex structures untouched.
                         $option = $val_option;
                     }
                     break;
             }
-            update_site_option( $option_name, $option );
+
+            if ( $should_update ) {
+                $update_site_option_if_changed( $option_name, $option );
+            }
         }
+
+        $message = array(
+            'success' => 1,
+            'message' => 'SUCCESS',
+        );
 
         if ( class_exists( '\BackWPup_Pro' ) ) {
             $pro_settings = \BackWPup_Pro_Settings_APIKeys::get_instance();
             $pro_settings->save_form();
+            // Only activate if license_api_key or license_product_id.
+            $should_activate = ( $license_api_changed || $license_product_changed );
+            $license_status  = get_site_option( 'license_status', 'inactive' );
+
+            if ( $should_activate || 'inactive' === $license_status ) {
+                $instance_key = get_site_option( 'license_instance_key', '' );
+                $api_key      = get_site_option( 'license_api_key', '' );
+                $product_id   = get_site_option( 'license_product_id', '' );
+
+                if ( ! empty( $instance_key ) && ! empty( $api_key ) && ! empty( $product_id ) ) {
+                    $response           = $this->license_activate( $instance_key, $api_key, $product_id );
+                    $message['license'] = $response;
+                }
+            }
         }
-        delete_site_transient( 'backwpup_cookies' );
 
         // Disable onboarding.
+        delete_site_transient( 'backwpup_cookies' );
         $this->disable_onboarding();
 
-        return array(
-            'success' => 1,
-            'message' => 'SUCCESS',
+        return $message;
+    }
+
+    /**
+     * License Activate.
+     *
+     * @param string $instance_key Instance Key.
+     * @param string $api_key API Key.
+     * @param string $product_id Product ID.
+     *
+     * @return array Response array.
+     */
+    protected function license_activate( $instance_key, $api_key, $product_id ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+        $plugin_data    = array(
+            'version'    => \BackWPup::get_plugin_data( 'version' ),
+            'pluginName' => 'backwpup-pro/backwpup.php',
+            'slug'       => 'backwpup',
         );
+        $activate       = new \Inpsyde\BackWPup\Pro\License\Api\LicenseActivation( $plugin_data );
+        $license_status = get_site_option( 'license_status', 'inactive' );
+        $license        = new \Inpsyde\BackWPup\Pro\License\License( $product_id, $api_key, $instance_key, $license_status );
+
+        $response = $activate->activate( $license );
+
+        if ( isset( $response['activated'] ) ) {
+            $message  = true === $response['activated'] ? _x(
+                'Activated',
+                'License',
+                'backwpup'
+            ) . ' | ' : '';
+            $message .= $response['message'] ?? '';
+            \BackWPup_Admin::message( $message );
+        }
+
+        if ( isset( $response['error'] ) ) {
+            \BackWPup_Admin::message( $response['error'], true );
+        }
+        return $response;
     }
 
     /**
