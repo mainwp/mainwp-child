@@ -19,7 +19,7 @@
  * @package MainWP\Child
  */
 
-// phpcsa:disable -- third party credit.
+// phpcs:disable -- third party credit.
 
 namespace MainWP\Child;
 
