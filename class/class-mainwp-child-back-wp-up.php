@@ -185,7 +185,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             } catch ( \Exception $e ) {
                 // Processing exceptions if any.
             }
-        } else { //phpcs:ignore
+        } else {  // phpcs:ignore -- NOSONAR 
             // The new version does not use get_instance.
             // Check if the backwpup has been initialized.
             if ( class_exists( '\BackWPup' ) && ! defined( 'BACKWPUP_INITIALIZED' ) ) {
@@ -246,7 +246,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         register_shutdown_function( '\MainWP\Child\MainWP_Child_Back_WP_Up::mainwp_backwpup_handle_fatal_error' );
 
         $information = array();
-        $action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $action      = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR 
 
         if ( empty( $action ) ) {
             $information = array( 'error' => esc_html__( 'Missing action.', 'mainwp-child' ) );
@@ -367,10 +367,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses MainWP_Exception
      */
     public function do_reports_log( $ext = '' ) { // phpcs:ignore -- NOSONAR - complex.
-        if ( 'backwpup' !== $ext ) {
-            return;
-        }
-        if ( ! $this->is_backwpup_installed ) {
+        if ( 'backwpup' !== $ext || ! $this->is_backwpup_installed ) {
             return;
         }
 
@@ -912,9 +909,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $type = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : ''; // phpcs:ignore -- NOSONAR
-        $website_id = isset( $_POST['settings']['website_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['website_id'] ) ) :  // phpcs:ignore -- NOSONAR'';
-
-            $this->wp_list_table_dependency();  // phpcs:ignore -- NOSONAR 
+        $website_id = isset( $_POST['settings']['website_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['website_id'] ) ) : ''; // phpcs:ignore -- NOSONAR
+        $this->wp_list_table_dependency();  // phpcs:ignore -- NOSONAR 
 
         $array      = array();
         $is_global = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR 
@@ -1406,9 +1402,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      */
     protected function destination_email_check_email() { // phpcs:ignore -- NOSONAR - complex.
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR 
-
-        $message = '';
-
+        $message       = '';
         $emailmethod   = ( isset( $settings['emailmethod'] ) ? $settings['emailmethod'] : '' );
         $emailsendmail = ( isset( $settings['emailsendmail'] ) ? $settings['emailsendmail'] : '' );
         $emailhost     = ( isset( $settings['emailhost'] ) ? $settings['emailhost'] : '' );
@@ -1603,8 +1597,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     protected function get_child_tables() { // phpcs:ignore -- NOSONAR - complex.
         global $wpdb;
 
-        $return = array();
-
+        $return   = array();
         $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR 
 
         if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
@@ -1976,7 +1969,6 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $changes_array = array();
-
         foreach ( $setting_value as $key => $val ) {
             $temp_value = \BackWPup_Option::get( $job_id, $key );
 
@@ -2067,9 +2059,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         );
 
         $changes_array = array();
-
         foreach ( $settings['value'] as $key => $val ) {
-
             $temp_value = get_site_option( 'backwpup_cfg_' . $key, '' );
             if ( ! in_array( $key, $exclusions ) && strcmp( $temp_value, $val ) !== 0 ) {
                 $changes_array[ $key ] = $temp_value;
