@@ -133,6 +133,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @param array $information Holder for return array.
      * @param bool  $exit_done Whether or not to exit the method. Default: true.
+     * @param array $params Other params.
      *
      * @return array $information Child Site Stats.
      *
@@ -178,7 +179,11 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Users::get_all_users_int()
      * @uses \MainWP\Child\MainWP_Connect::get_max_history()
      */
-    public function get_site_stats( $information = array(), $exit_done = true ) { //phpcs:ignore -- NOSONAR - complex.
+    public function get_site_stats( $information = array(), $exit_done = true, $params = array() ) { //phpcs:ignore -- NOSONAR - complex.
+
+        if ( ! is_array( $params ) ) {
+            $params = array();
+        }
 
         if ( $exit_done ) {
             $this->update_external_settings();
@@ -289,7 +294,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $information['extauth'] = ( is_array( $auths ) && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
 
         if ( $this->is_sync_data( 'plugins' ) ) {
-            $information['plugins'] = $this->get_all_plugins_int( false );
+            $information['plugins'] = $this->get_all_plugins_int( false, '', '', false, false, array( 'site_stats' => ! empty( $params['site_stats'] ) ? true : false ) );
         }
 
         if ( $this->is_sync_data( 'themes' ) ) {
@@ -1283,13 +1288,20 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string  $status Active or Inactive filed.
      * @param boolean $get_un_criteria Get criteria or un-criteria items.
      * @param boolean $check_inactive_only To check inactive plugins only.
+     * @param array   $params Other params.
      *
      * @return array|bool $rslt Returned results.
      */
-    public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false, $check_inactive_only = false ) { //phpcs:ignore -- NOSONAR - complex.
+    public function get_all_plugins_int( $filter, $keyword = '', $status = '', $get_un_criteria = false, $check_inactive_only = false, $params = array() ) { //phpcs:ignore -- NOSONAR - complex.
         if ( ! function_exists( 'get_plugins' ) ) {
             include_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
         }
+
+        if ( ! is_array( $params ) ) {
+            $params = array();
+        }
+
+        $is_site_stats = ! empty( $params['site_stats'] );
 
         /**
          * MainWP Child instance.
@@ -1310,7 +1322,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                 $out['description'] = $plugin['Description'];
                 $out['version']     = $plugin['Version'];
                 $out['active']      = is_plugin_active( $pluginslug ) ? 1 : 0;
-                $rslt[]             = $out;
+
+                if ( $is_site_stats ) {
+                    $out = apply_filters( 'mainwp_child_stats_get_plugin_info', $out, $pluginslug );
+                }
+
+                $rslt[] = $out;
 
                 if ( 0 === $out['active'] ) {
                     $found_inactive = true;
