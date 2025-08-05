@@ -162,7 +162,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             if ( $this->is_backwpup_installed ) {
                 MainWP_Helper::instance()->check_classes_exists( '\BackWPup' );
 
-                // Check the backwpup version and use the appropriate method
+                // Check the backwpup version and use the appropriate method.
                 $this->init_backwpup_instance();
 
                 add_action( 'admin_init', array( $this, 'init_download_backup' ) );
@@ -246,9 +246,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         register_shutdown_function( '\MainWP\Child\MainWP_Child_Back_WP_Up::mainwp_backwpup_handle_fatal_error' );
 
         $information = array();
-        $action      = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $action = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR 
 
-        if ( ! empty( $action ) ) {
+        if ( empty( $action ) ) {
             $information = array( 'error' => esc_html__( 'Missing action.', 'mainwp-child' ) );
         } else {
             $mwp_action = MainWP_System::instance()->validate_params( 'action' );
@@ -597,7 +597,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      */
     protected function show_hide() {
 
-        $raw  = isset( $_POST['show_hide'] ) ? sanitize_text_field( wp_unslash( $_POST['show_hide'] ) ): '';  // phpcs:ignore -- NOSONAR 
+        $raw = isset( $_POST['show_hide'] ) ? sanitize_text_field( wp_unslash( $_POST['show_hide'] ) ) : '';  // phpcs:ignore -- NOSONAR 
         $hide = ( 'hide' === sanitize_text_field( $raw ) ) ? 'hide' : '';
 
         update_site_option( 'mainwp_backwpup_hide_plugin', $hide );
@@ -760,8 +760,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         foreach ( $_POST['settings']['logfile'] as $logfile ) {  // phpcs:ignore -- NOSONAR 
             $logfile = basename( $logfile );
-
-            if ( ! is_writeable( $dir ) ) {  // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable -- NOSONAR 
+            // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable -- NOSONAR 
+            if ( ! is_writeable( $dir ) ) {
                 $result = array( 'error' => esc_html__( 'Directory not writable:', 'mainwp-child' ) . $dir );
             }
             if ( ! is_file( $dir . $logfile ) ) {
@@ -771,7 +771,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             if ( $result ) {
                 return $result;
             }
-
+            // phpcs:enable WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable -- NOSONAR 
             wp_delete_file( $dir . $logfile );
 
         }
@@ -819,7 +819,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $backupfile = isset( $_POST['settings']['backupfile'] ) ? wp_unslash( $_POST['settings']['backupfile'] ) : ''; // phpcs:ignore -- NOSONAR
-        $dest       = isset( $_POST['settings']['dest'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['dest'] ) ) : ''; // phpcs:ignore -- NOSONAR
+        $dest = isset( $_POST['settings']['dest'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['dest'] ) ) : ''; // phpcs:ignore -- NOSONAR
 
         list( $dest_id, $dest_name ) = explode( '_', $dest );
         unset( $dest_id );
@@ -861,7 +861,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
         $log_folder = \BackWPup_File::get_absolute_path( $log_folder );
-        $log_file   = $log_folder . basename( wp_unslash( $_POST['settings']['logfile'] ) );  // phpcs:ignore -- NOSONAR 
+        $log_file = $log_folder . basename( wp_unslash( $_POST['settings']['logfile'] ) );  // phpcs:ignore -- NOSONAR 
 
         if ( ! is_readable( $log_file ) && ! is_readable( $log_file . '.gz' ) && ! is_readable( $log_file . '.bz2' ) ) {
             $output = esc_html__( 'Log file doesn\'t exists', 'mainwp-child' );
@@ -911,13 +911,13 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => esc_html__( 'Missing website id.', 'mainwp-child' ) );
         }
 
-        $type       = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : ''; // phpcs:ignore -- NOSONAR
+        $type = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : ''; // phpcs:ignore -- NOSONAR
         $website_id = isset( $_POST['settings']['website_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['website_id'] ) ) :  // phpcs:ignore -- NOSONAR'';
 
-        $this->wp_list_table_dependency();  // phpcs:ignore -- NOSONAR 
+            $this->wp_list_table_dependency();  // phpcs:ignore -- NOSONAR 
 
         $array      = array();
-        $is_global  = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR 
+        $is_global = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR 
         $global_ids = $this->get_all_global_backwpup_job_ids();
 
         switch ( $type ) {
@@ -1670,7 +1670,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
     protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
         $post_settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR 
         $settings      = ! empty( $post_settings ) ? json_decode( $post_settings ) : null;
-        $is_global     = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR 
+        $is_global = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR 
 
         if ( ! is_object( $settings ) ) {
             return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );  // NOSONAR.
@@ -2116,7 +2116,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Response array success, error[].
      */
     protected function save_settings() {  // phpcs:ignore -- NOSONAR 
-        $raw     = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR 
+        $raw = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR 
         $decoded = base64_decode( $raw, true ); //phpcs:ignore -- NOSONAR
         if ( false === $decoded ) {
             return array( 'error' => 'MALFORMED_BASE64' );
@@ -2355,8 +2355,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => esc_html__( 'Missing job id.', 'mainwp-child' ) );
         }
 
-        $type    = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : '';  // phpcs:ignore -- NOSONAR 
-        $id      = isset( $_POST['settings']['id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['id'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $type = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $id = isset( $_POST['settings']['id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['id'] ) ) : '';  // phpcs:ignore -- NOSONAR 
         $results = array();
         switch ( $type ) {
             case 'jobs':
@@ -2535,7 +2535,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         return $this->setting_data[ $job_id ];
     }
 }
-// phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
+
 if ( ! class_exists( '\MainWP\Child\MainWP_Fake_Wp_Screen' ) ) {
     /**
      * Class MainWP_Fake_Wp_Screen
@@ -2563,3 +2563,5 @@ if ( ! class_exists( '\MainWP\Child\MainWP_Fake_Wp_Screen' ) ) {
         public $id;
     }
 }
+
+// phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
