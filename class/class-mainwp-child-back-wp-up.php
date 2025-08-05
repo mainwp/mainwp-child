@@ -2542,7 +2542,7 @@ if ( ! class_exists( '\MainWP\Child\MainWP_Fake_Wp_Screen' ) ) {
      *
      * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
      */
-    class MainWP_Fake_Wp_Screen {
+    class MainWP_Fake_Wp_Screen {  // phpcs:ignore -- NOSONAR 
         /**
          * Summary of action
          *
