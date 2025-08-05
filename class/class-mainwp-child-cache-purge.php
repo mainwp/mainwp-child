@@ -178,6 +178,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             'swis-performance/swis-performance.php'      => 'Swis Performance',
             'pressable-cache-management/pressable-cache-management.php' => 'Pressable Cache Management',
             'runcloud-hub/runcloud-hub.php'              => 'RunCloud Hub',
+            'clsop/clsop.php'                            => 'AccelerateWP',
         );
 
         if ( empty( $cache_plugin_solution ) ) {
@@ -288,6 +289,9 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                         break;
                     case 'RunCloud Hub':
                         $information = $this->runcloud_hub_auto_purge_cache();
+                        break;
+                    case 'AccelerateWP':
+                        $information = $this->acceleratewp_auto_purge_cache();
                         break;
                     default:
                         break;
@@ -704,6 +708,36 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             \RunCloud_Hub::purge_cache_all();
 
             // record results.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+
+            return $this->purge_result( $success_message, 'SUCCESS' );
+
+        } else {
+            return $this->purge_result( $error_message, 'ERROR' );
+        }
+    }
+
+    /**
+     * Purge AccelerateWP cache.
+     *
+     * @return array Purge results array.
+     */
+    public function acceleratewp_auto_purge_cache() {
+
+        $success_message = 'AccelerateWP => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+        $error_message   = 'AccelerateWP => There was an issue purging your cache.';
+
+        // Clear Cache.
+        $purge = false;
+
+        // Purge Minified files.
+        $minify = false;
+
+        // Preload cache.
+        $preload = false;
+
+        // Check response & return results.
+        if ( ( true === $purge && true === $preload ) || ( true === $minify && true === $purge && true === $preload ) ) {
             update_option( 'mainwp_cache_control_last_purged', time() );
 
             return $this->purge_result( $success_message, 'SUCCESS' );
