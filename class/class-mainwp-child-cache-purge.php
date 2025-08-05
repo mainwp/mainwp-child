@@ -147,7 +147,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             $cache_plugin_solution = 'CDN Cache Plugin';
         }
 
-        if ( empty( $cache_plugin_solution ) && is_plugin_active( 'wp-optimize/wp-optimize.php' ) && class_exists( $this->wp_optimize_class ) ) {
+        if ( empty( $cache_plugin_solution ) && ( is_plugin_active( 'wp-optimize/wp-optimize.php' ) || is_plugin_active( 'wp-optimize-premium/wp-optimize.php' ) ) && class_exists( $this->wp_optimize_class ) ) {
             $cache = \WP_Optimize()->get_page_cache();
             if ( $cache->is_enabled() === true ) {
                 $cache_plugin_solution = 'WP Optimize';
