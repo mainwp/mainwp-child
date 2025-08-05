@@ -227,6 +227,9 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                     case 'WP Rocket':
                         $information = $this->wprocket_auto_cache_purge();
                         break;
+                    case 'AccelerateWP':
+                        $information = $this->acceleratewp_auto_purge_cache(); // The plugin is a clone of WP-Rocket, with identical functionality—only the name has been changed.
+                        break;
                     case 'Breeze':
                         $information = $this->breeze_auto_purge_cache();
                         break;
@@ -289,9 +292,6 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                         break;
                     case 'RunCloud Hub':
                         $information = $this->runcloud_hub_auto_purge_cache();
-                        break;
-                    case 'AccelerateWP':
-                        $information = $this->acceleratewp_auto_purge_cache();
                         break;
                     default:
                         break;
@@ -717,35 +717,6 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         }
     }
 
-    /**
-     * Purge AccelerateWP cache.
-     *
-     * @return array Purge results array.
-     */
-    public function acceleratewp_auto_purge_cache() {
-
-        $success_message = 'AccelerateWP => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'AccelerateWP => There was an issue purging your cache.';
-
-        // Clear Cache.
-        $purge = false;
-
-        // Purge Minified files.
-        $minify = false;
-
-        // Preload cache.
-        $preload = false;
-
-        // Check response & return results.
-        if ( ( true === $purge && true === $preload ) || ( true === $minify && true === $purge && true === $preload ) ) {
-            update_option( 'mainwp_cache_control_last_purged', time() );
-
-            return $this->purge_result( $success_message, 'SUCCESS' );
-
-        } else {
-            return $this->purge_result( $error_message, 'ERROR' );
-        }
-    }
 
     /**
      * Purge Nginx Helper cache.
@@ -1121,6 +1092,40 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
             // Return error message.
             $error_message = 'WP Rocket => There was an issue purging your cache.';
+            return $this->purge_result( $error_message, 'ERROR' );
+
+        }
+    }
+
+    /**
+     * Purge WP-Rocket cache.
+     *
+     * @return array Purge results array.
+     */
+    public function acceleratewp_auto_purge_cache() {
+
+        // Purge Cache if action is set to "1".
+        $do_purge     = get_option( 'mainwp_child_auto_purge_cache', false );
+        $purge_result = array();
+
+        if ( 1 === (int) $do_purge ) {
+            $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
+        }
+
+        // Record results & return response.
+        if ( 'SUCCESS' === $purge_result['result'] ) {
+
+            // Save last purge time to database on success.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+
+            // Return success message.
+            $success_message = 'AccelerateWP => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+            return $this->purge_result( $success_message, 'SUCCESS' );
+
+        } else {
+
+            // Return error message.
+            $error_message = 'AccelerateWP => There was an issue purging your cache.';
             return $this->purge_result( $error_message, 'ERROR' );
 
         }
