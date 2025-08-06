@@ -1070,13 +1070,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function wprocket_auto_cache_purge() {
 
-        // Purge Cache if action is set to "1".
-        $do_purge     = get_option( 'mainwp_child_auto_purge_cache', false );
-        $purge_result = array();
-
-        if ( 1 === (int) $do_purge ) {
-            $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
-        }
+        $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
 
         // Record results & return response.
         if ( 'SUCCESS' === $purge_result['result'] ) {
@@ -1104,13 +1098,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function acceleratewp_auto_purge_cache() {
 
-        // Purge Cache if action is set to "1".
-        $do_purge     = get_option( 'mainwp_child_auto_purge_cache', false );
-        $purge_result = array();
-
-        if ( 1 === (int) $do_purge ) {
-            $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
-        }
+        $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
 
         // Record results & return response.
         if ( 'SUCCESS' === $purge_result['result'] ) {
