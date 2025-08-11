@@ -161,7 +161,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
          *
          * @params $information.
          */
-        MainWP_Child_Cache_Purge::instance()->auto_purge_cache( $information );
+        MainWP_Child_Cache_Purge::instance()->auto_purge_cache();
 
         if ( ! $plugin_update ) {
             // Save Status results.
@@ -1190,7 +1190,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
          *
          * @params $information.
          */
-        MainWP_Child_Cache_Purge::instance()->auto_purge_cache( $information );
+        MainWP_Child_Cache_Purge::instance()->auto_purge_cache();
 
         // Send last purged time stamp to MainWP Dashboard.
         $information['mainwp_cache_control_last_purged'] = get_option( 'mainwp_cache_control_last_purged', 0 );
