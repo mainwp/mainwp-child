@@ -1895,7 +1895,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     'dest-GLACIER'  => new \BackWPup_Pro_Destination_Glacier(),
                     'dest-GDRIVE'   => new \BackWPup_Pro_Destination_GDrive(),
                     'dest-HIDRIVE'  => new \BackWPup_Pro_Destination_HiDrive(),
-                    'dest-ONEDRIVE' => new \BackWPup_Pro_Destination_OneDrive(),
+                    'dest-ONEDRIVE' => new \MainWP\Child\MainWP_Fake_OneDrive(),
                 )
             );
         }
@@ -2554,4 +2554,58 @@ if ( ! class_exists( '\MainWP\Child\MainWP_Fake_Wp_Screen' ) ) {
     }
 }
 
+if ( ! class_exists( '\MainWP\Child\MainWP_Fake_OneDrive' ) ) {
+    /**
+     * Class MainWP_Fake_OneDrive
+     *
+     * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     */
+    class MainWP_Fake_OneDrive { // phpcs:ignore -- NOSONAR 
+        /**
+         * Medthod edit_form_post_save()
+         *
+         * @param mixed $jobid Job ID.
+         * @uses \BackWPup_Option::update()
+         *
+         * @return void
+         */
+        public function edit_form_post_save( $jobid ): void {
+            $data   = filter_var_array(
+                $_POST, // phpcs:ignore -- NOSONAR
+                array(
+                    'onedrivesyncnodelete' => FILTER_VALIDATE_BOOLEAN,
+                    'onedriveusetrash'     => FILTER_VALIDATE_BOOLEAN,
+                    'onedrivemaxbackups'   => FILTER_SANITIZE_NUMBER_INT,
+                    'onedrivedir'          => FILTER_SANITIZE_URL,
+                )
+            );
+            $jobids = (array) $jobid;
+            foreach ( $jobids as $jobid ) {
+                \BackWPup_Option::update(
+                    $jobid,
+                    'onedrivesyncnodelete',
+                    (bool) $data['onedrivesyncnodelete']
+                );
+                    \BackWPup_Option::update( $jobid, 'onedriveusetrash', (bool) $data['onedriveusetrash'] );
+                    \BackWPup_Option::update(
+                        $jobid,
+                        'onedrivemaxbackups',
+                        abs( (int) $data['onedrivemaxbackups'] )
+                    );
+
+                if ( ! $data['onedrivedir'] ) {
+                    return;
+                }
+
+                $gdrivedir = wp_normalize_path( $data['onedrivedir'] );
+
+                if ( substr( $gdrivedir, 0, 1 ) !== '/' ) {
+                    $gdrivedir = '/' . $data['onedrivedir'];
+                }
+
+                \BackWPup_Option::update( $jobid, 'onedrivedir', $gdrivedir );
+            }
+        }
+    }
+}
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
