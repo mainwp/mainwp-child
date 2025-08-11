@@ -1665,7 +1665,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $settings      = ! empty( $post_settings ) ? json_decode( $post_settings ) : null;
         $is_global = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR
 
-        if ( ! is_object( value: $settings ) ) {
+        if ( ! is_object( $settings ) ) {
             return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );  // NOSONAR.
         }
 
@@ -1907,7 +1907,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $jobtype_handlers,
                 array(
                     'dest-GLACIER'  => new \BackWPup_Pro_Destination_Glacier(),
-                    'dest-GDRIVE'   => new \BackWPup_Pro_Destination_GDrive(),
+                    'dest-GDRIVE'   => new \MainWP\Child\MainWP_Fake_GDrive(),
                     'dest-HIDRIVE'  => new \MainWP\Child\MainWP_Fake_HiDrive(),
                     'dest-ONEDRIVE' => new \MainWP\Child\MainWP_Fake_OneDrive(),
                 )
@@ -2671,6 +2671,55 @@ if ( ! class_exists( '\MainWP\Child\MainWP_Fake_HiDrive' ) ) {
                 }
 
                 \BackWPup_Option::update( $jobid, 'hidrive_destination_folder', $hi_drive_dir );
+            }
+        }
+    }
+}
+
+if ( ! class_exists( '\MainWP\Child\MainWP_Fake_GDrive' ) ) {
+    /**
+     * Class MainWP_Fake_GDrive
+     *
+     * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     */
+    class MainWP_Fake_GDrive { // phpcs:ignore -- NOSONAR
+        /**
+         * Medthod edit_form_post_save()
+         *
+         * @param mixed $jobid Job ID.
+         * @uses \BackWPup_Option::update()
+         *
+         * @return void
+         */
+        public function edit_form_post_save( $jobid ): void {
+            $data   = filter_var_array(
+                $_POST, // phpcs:ignore -- NOSONAR
+                array(
+                    'gdrivesyncnodelete' => FILTER_VALIDATE_BOOLEAN,
+                    'gdriveusetrash'     => FILTER_VALIDATE_BOOLEAN,
+                    'gdrivemaxbackups'   => FILTER_SANITIZE_NUMBER_INT,
+                    'gdrivedir'          => FILTER_SANITIZE_URL,
+                )
+            );
+            $jobids = (array) $jobid;
+            foreach ( $jobids as $jobid ) {
+                \BackWPup_Option::update( $jobid, 'gdrivesyncnodelete', (bool) $data['gdrivesyncnodelete'] );
+                \BackWPup_Option::update( $jobid, 'gdriveusetrash', (bool) $data['gdriveusetrash'] );
+                \BackWPup_Option::update( $jobid, 'gdrivemaxbackups', abs( (int) $data['gdrivemaxbackups'] ) );
+            }
+
+            if ( ! $data['gdrivedir'] ) {
+                return;
+            }
+
+            $gdrivedir = wp_normalize_path( $data['gdrivedir'] );
+
+            if ( substr( $gdrivedir, 0, 1 ) !== '/' ) {
+                $gdrivedir = '/' . $gdrivedir;
+            }
+
+            foreach ( $jobids as $jobid ) {
+                \BackWPup_Option::update( $jobid, 'gdrivedir', $gdrivedir );
             }
         }
     }
