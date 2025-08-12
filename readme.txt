@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 5.4.0.11
+Stable tag: 5.4.0.12
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -111,6 +111,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 5.4.0.12 - Maintenance Release - 8-12-2025 =
+
+* Fixed: Restored compatibility with BackWPup version 5 and later.
+* Added: Support for the AccelerateWP plugin in the Cache Control system.
+* Updated: Support for the WP-Optimize Premium plugin in the Cache Control system.
 
 = 5.4.0.11 - Maintenance Release - 7-8-2025 =
 

@@ -147,7 +147,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             $cache_plugin_solution = 'CDN Cache Plugin';
         }
 
-        if ( empty( $cache_plugin_solution ) && is_plugin_active( 'wp-optimize/wp-optimize.php' ) && class_exists( $this->wp_optimize_class ) ) {
+        if ( empty( $cache_plugin_solution ) && ( is_plugin_active( 'wp-optimize/wp-optimize.php' ) || is_plugin_active( 'wp-optimize-premium/wp-optimize.php' ) ) && class_exists( $this->wp_optimize_class ) ) {
             $cache = \WP_Optimize()->get_page_cache();
             if ( $cache->is_enabled() === true ) {
                 $cache_plugin_solution = 'WP Optimize';
@@ -178,6 +178,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             'swis-performance/swis-performance.php'      => 'Swis Performance',
             'pressable-cache-management/pressable-cache-management.php' => 'Pressable Cache Management',
             'runcloud-hub/runcloud-hub.php'              => 'RunCloud Hub',
+            'clsop/clsop.php'                            => 'AccelerateWP',
         );
 
         if ( empty( $cache_plugin_solution ) ) {
@@ -225,6 +226,9 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                 switch ( $cache_plugin_solution ) {
                     case 'WP Rocket':
                         $information = $this->wprocket_auto_cache_purge();
+                        break;
+                    case 'AccelerateWP':
+                        $information = $this->acceleratewp_auto_purge_cache(); // The plugin is a clone of WP-Rocket, with identical functionality—only the name has been changed.
                         break;
                     case 'Breeze':
                         $information = $this->breeze_auto_purge_cache();
@@ -713,6 +717,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         }
     }
 
+
     /**
      * Purge Nginx Helper cache.
      *
@@ -1065,13 +1070,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function wprocket_auto_cache_purge() {
 
-        // Purge Cache if action is set to "1".
-        $do_purge     = get_option( 'mainwp_child_auto_purge_cache', false );
-        $purge_result = array();
-
-        if ( 1 === (int) $do_purge ) {
-            $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
-        }
+        $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
 
         // Record results & return response.
         if ( 'SUCCESS' === $purge_result['result'] ) {
@@ -1087,6 +1086,34 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
             // Return error message.
             $error_message = 'WP Rocket => There was an issue purging your cache.';
+            return $this->purge_result( $error_message, 'ERROR' );
+
+        }
+    }
+
+    /**
+     * Purge WP-Rocket cache.
+     *
+     * @return array Purge results array.
+     */
+    public function acceleratewp_auto_purge_cache() {
+
+        $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
+
+        // Record results & return response.
+        if ( 'SUCCESS' === $purge_result['result'] ) {
+
+            // Save last purge time to database on success.
+            update_option( 'mainwp_cache_control_last_purged', time() );
+
+            // Return success message.
+            $success_message = 'AccelerateWP => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+            return $this->purge_result( $success_message, 'SUCCESS' );
+
+        } else {
+
+            // Return error message.
+            $error_message = 'AccelerateWP => There was an issue purging your cache.';
             return $this->purge_result( $error_message, 'ERROR' );
 
         }

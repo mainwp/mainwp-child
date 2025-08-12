@@ -250,7 +250,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
      */
     public function get_site_stats() {
-        MainWP_Child_Stats::get_instance()->get_site_stats();
+        MainWP_Child_Stats::get_instance()->get_site_stats( array(), true, array( 'site_stats' => true ) );
     }
 
     /**
