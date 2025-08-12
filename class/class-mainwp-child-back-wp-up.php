@@ -185,7 +185,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             } catch ( \Exception $e ) {
                 // Processing exceptions if any.
             }
-        } else {  // phpcs:ignore -- NOSONAR 
+        } else {  // phpcs:ignore -- NOSONAR
             // The new version does not use get_instance.
             // Check if the backwpup has been initialized.
             if ( class_exists( '\BackWPup' ) && ! defined( 'BACKWPUP_INITIALIZED' ) ) {
@@ -246,7 +246,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         register_shutdown_function( '\MainWP\Child\MainWP_Child_Back_WP_Up::mainwp_backwpup_handle_fatal_error' );
 
         $information = array();
-        $action      = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $action      = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR
 
         if ( empty( $action ) ) {
             $information = array( 'error' => esc_html__( 'Missing action.', 'mainwp-child' ) );
@@ -594,7 +594,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      */
     protected function show_hide() {
 
-        $raw = isset( $_POST['show_hide'] ) ? sanitize_text_field( wp_unslash( $_POST['show_hide'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $raw = isset( $_POST['show_hide'] ) ? sanitize_text_field( wp_unslash( $_POST['show_hide'] ) ) : '';  // phpcs:ignore -- NOSONAR
         $hide = ( 'hide' === sanitize_text_field( $raw ) ) ? 'hide' : '';
 
         update_site_option( 'mainwp_backwpup_hide_plugin', $hide );
@@ -746,7 +746,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return int[]|string[] On success return success[1] & error[] message on failure.
      */
     protected function delete_log() {
-        if ( ! isset( $_POST['settings']['logfile'] ) || ! is_array( $_POST['settings']['logfile'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! isset( $_POST['settings']['logfile'] ) || ! is_array( $_POST['settings']['logfile'] ) ) {  // phpcs:ignore -- NOSONAR
             return array( 'error' => esc_html__( 'Missing logfile.', 'mainwp-child' ) );
         }
 
@@ -755,9 +755,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         $dir = get_site_option( 'backwpup_cfg_logfolder' );
         $dir = \BackWPup_File::get_absolute_path( $dir );
 
-        foreach ( $_POST['settings']['logfile'] as $logfile ) {  // phpcs:ignore -- NOSONAR 
+        foreach ( $_POST['settings']['logfile'] as $logfile ) {  // phpcs:ignore -- NOSONAR
             $logfile = basename( $logfile );
-            // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable -- NOSONAR 
+            // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable -- NOSONAR
             if ( ! is_writeable( $dir ) ) {
                 $result = array( 'error' => esc_html__( 'Directory not writable:', 'mainwp-child' ) . $dir );
             }
@@ -768,7 +768,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             if ( $result ) {
                 return $result;
             }
-            // phpcs:enable WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable -- NOSONAR 
+            // phpcs:enable WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable -- NOSONAR
             wp_delete_file( $dir . $logfile );
 
         }
@@ -852,13 +852,13 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array|int[]|string[] On success return $output[] & error['message'] on failure.
      */
     protected function view_log() {
-        if ( ! isset( $_POST['settings']['logfile'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! isset( $_POST['settings']['logfile'] ) ) {  // phpcs:ignore -- NOSONAR
             return array( 'error' => esc_html__( 'Missing logfile.', 'mainwp-child' ) );
         }
 
         $log_folder = get_site_option( 'backwpup_cfg_logfolder' );
         $log_folder = \BackWPup_File::get_absolute_path( $log_folder );
-        $log_file = $log_folder . basename( wp_unslash( $_POST['settings']['logfile'] ) );  // phpcs:ignore -- NOSONAR 
+        $log_file = $log_folder . basename( wp_unslash( $_POST['settings']['logfile'] ) );  // phpcs:ignore -- NOSONAR
 
         if ( ! is_readable( $log_file ) && ! is_readable( $log_file . '.gz' ) && ! is_readable( $log_file . '.bz2' ) ) {
             $output = esc_html__( 'Log file doesn\'t exists', 'mainwp-child' );
@@ -910,10 +910,10 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $type = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : ''; // phpcs:ignore -- NOSONAR
         $website_id = isset( $_POST['settings']['website_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['website_id'] ) ) : ''; // phpcs:ignore -- NOSONAR
-        $this->wp_list_table_dependency();  // phpcs:ignore -- NOSONAR 
+        $this->wp_list_table_dependency();  // phpcs:ignore -- NOSONAR
 
         $array      = array();
-        $is_global = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR 
+        $is_global = isset( $_POST['settings']['is_global'] ) ? intval( wp_unslash( $_POST['settings']['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR
         $global_ids = $this->get_all_global_backwpup_job_ids();
 
         switch ( $type ) {
@@ -1068,7 +1068,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * Initiate download link.
      */
     public function init_download_backup() {
-        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';  // phpcs:ignore -- NOSONAR
         if ( ! empty( $page ) || 'backwpupbackups' !== $page || ! isset( $page ) || empty( $page ) ) {
             return;
         }
@@ -1109,7 +1109,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \BackWPup::get_destination::file_download()
      */
     public function download_backup() {
-        if ( ! isset( $_GET['type'] ) || empty( $_GET['type'] ) || ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! isset( $_GET['type'] ) || empty( $_GET['type'] ) || ! isset( $_GET['_wpnonce'] ) || empty( $_GET['_wpnonce'] ) ) {  // phpcs:ignore -- NOSONAR
             die( '-1' );
         }
 
@@ -1117,18 +1117,18 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             die( '-2' );
         }
 
-        if ( ! $this->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! $this->verify_nonce_without_session( $_GET['_wpnonce'], 'mainwp_download_backup' ) ) {  // phpcs:ignore -- NOSONAR
             die( '-3' );
         }
 
-        $dest = strtoupper( str_replace( 'download', '', $_GET['type'] ) );  // phpcs:ignore -- NOSONAR 
-        if ( ! empty( $dest ) && strstr( $_GET['type'], 'download' ) ) {  // phpcs:ignore -- NOSONAR 
+        $dest = strtoupper( str_replace( 'download', '', $_GET['type'] ) );  // phpcs:ignore -- NOSONAR
+        if ( ! empty( $dest ) && strstr( $_GET['type'], 'download' ) ) {  // phpcs:ignore -- NOSONAR
             $dest_class = (object) \BackWPup::get_destination( $dest );
             if ( is_null( $dest_class ) ) {
                 die( '-4' );
             }
 
-            $dest_class->file_download( (int) $_GET['jobid'], $_GET['file'] );  // phpcs:ignore -- NOSONAR 
+            $dest_class->file_download( (int) $_GET['jobid'], $_GET['file'] );  // phpcs:ignore -- NOSONAR
         } else {
             die( '-5' );
         }
@@ -1269,12 +1269,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      */
     protected function backup_now() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
 
-        if ( ! isset( $_POST['settings']['job_id'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! isset( $_POST['settings']['job_id'] ) ) {  // phpcs:ignore -- NOSONAR
             return array( 'error' => esc_html__( 'Missing job_id', 'mainwp-child' ) );  // NOSONAR.
         }
 
         // Simulate http://wp/wp-admin/admin.php?jobid=1&page=backwpupjobs&action=runnow.
-        $_GET['jobid'] = isset( $_POST['settings']['job_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['job_id'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $_GET['jobid'] = isset( $_POST['settings']['job_id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['job_id'] ) ) : '';  // phpcs:ignore -- NOSONAR
 
         $_REQUEST['action']   = 'runnow';
         $_REQUEST['_wpnonce'] = wp_create_nonce( 'backwpup_job_run-runnowlink' );
@@ -1401,7 +1401,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array|MainWP_Exception Return response array.
      */
     protected function destination_email_check_email() { // phpcs:ignore -- NOSONAR - complex.
-        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR 
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR
         $message       = '';
         $emailmethod   = ( isset( $settings['emailmethod'] ) ? $settings['emailmethod'] : '' );
         $emailsendmail = ( isset( $settings['emailsendmail'] ) ? $settings['emailsendmail'] : '' );
@@ -1598,7 +1598,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         global $wpdb;
 
         $return   = array();
-        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR 
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR
 
         if ( ! empty( $settings['dbhost'] ) && ! empty( $settings['dbuser'] ) ) {
             $mysqli = new \mysqli( $settings['dbhost'], $settings['dbuser'], ( isset( $settings['dbpassword'] ) ? $settings['dbpassword'] : '' ) ); // phpcs:ignore -- third party code.
@@ -1661,9 +1661,9 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Response array containing job_id, changes & message array.
      */
     protected function insert_or_update_jobs_global() { // phpcs:ignore -- NOSONAR - complex.
-        $post_settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR 
+        $post_settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR
         $settings      = ! empty( $post_settings ) ? json_decode( $post_settings ) : null;
-        $is_global = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR 
+        $is_global = isset( $_POST['is_global'] ) ? intval( wp_unslash( $_POST['is_global'] ) ) : 0;  // phpcs:ignore -- NOSONAR
 
         if ( ! is_object( $settings ) ) {
             return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );  // NOSONAR.
@@ -1687,6 +1687,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             if ( null === $val || '' === $val || ( is_array( $val ) && count( $val ) === 0 ) ) {
                 continue;
             }
+
             $temp_array = array(
                 'tab'    => '',
                 'value'  => array( $key => $val ),
@@ -1718,6 +1719,19 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             if ( isset( $return['message'] ) ) {
                 foreach ( $return['message'] as $message ) {
                     $message_array[ $message ] = 1;
+                }
+            }
+        }
+
+        // Set empty fields to empty string.
+        $empty_fields = array( 's3base_multipart', 's3base_pathstylebucket' );
+        if ( isset( $settings->value ) && is_object( $settings->value ) ) {
+            $props      = get_object_vars( $settings->value );
+            $candidates = array_intersect_key( $props, array_flip( $empty_fields ) );
+
+            foreach ( $candidates as $key => $val ) {
+                if ( '0' === $val ) {
+                    \BackWPup_Option::update( (int) $new_job_id, $key, '' );
                 }
             }
         }
@@ -1835,7 +1849,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      */
     protected function insert_or_update_jobs() { // phpcs:ignore -- NOSONAR - complex.
 
-        $settings = isset( $_POST['settings'] ) ? json_decode( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR 
+        $settings = isset( $_POST['settings'] ) ? json_decode( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR
 
         if ( ! is_object( $settings ) || ! isset( $settings->value ) ) {
             return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );
@@ -1893,8 +1907,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                 $jobtype_handlers,
                 array(
                     'dest-GLACIER'  => new \BackWPup_Pro_Destination_Glacier(),
-                    'dest-GDRIVE'   => new \BackWPup_Pro_Destination_GDrive(),
-                    'dest-HIDRIVE'  => new \BackWPup_Pro_Destination_HiDrive(),
+                    'dest-GDRIVE'   => new \MainWP\Child\MainWP_Fake_GDrive(),
+                    'dest-HIDRIVE'  => new \MainWP\Child\MainWP_Fake_HiDrive(),
                     'dest-ONEDRIVE' => new \MainWP\Child\MainWP_Fake_OneDrive(),
                 )
             );
@@ -1913,7 +1927,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         );
 
         // Special handling for jobtype-DBDUMP.
-        if ( 'jobtype-DBDUMP' === $settings->tab && ! isset( $_POST['settings']['value']['tabledb'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( 'jobtype-DBDUMP' === $settings->tab && ! isset( $_POST['settings']['value']['tabledb'] ) ) {  // phpcs:ignore -- NOSONAR
             global $wpdb;
             $tables_temp = array();
             $tables = $wpdb->get_results( 'SHOW FULL TABLES FROM `' . DB_NAME . '`', ARRAY_N ); // phpcs:ignore -- safe query.
@@ -2011,7 +2025,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Response array success, changes, message[].
      */
     protected function update_settings() { //phpcs:ignore -- NOSONAR - multi return 3rd compatible.
-        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR 
+        $settings = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();  // phpcs:ignore -- NOSONAR
 
         if ( ! is_array( $settings ) || ! isset( $settings['value'] ) ) {
             return array( 'error' => esc_html__( 'Missing array settings', 'mainwp-child' ) );
@@ -2105,8 +2119,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Response array success, error[].
      */
-    protected function save_settings() {  // phpcs:ignore -- NOSONAR 
-        $raw = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR 
+    protected function save_settings() {  // phpcs:ignore -- NOSONAR
+        $raw = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : '';  // phpcs:ignore -- NOSONAR
         $decoded = base64_decode( $raw, true ); //phpcs:ignore -- NOSONAR
         if ( false === $decoded ) {
             return array( 'error' => 'MALFORMED_BASE64' );
@@ -2117,7 +2131,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         // Helper: Only update when changing the value.
-        $update_site_option_if_changed = static function (string $name, $new_value) {  // phpcs:ignore -- NOSONAR 
+        $update_site_option_if_changed = static function (string $name, $new_value) {  // phpcs:ignore -- NOSONAR
             $current = get_site_option( $name, null );
             if ( is_array( $current ) || is_array( $new_value ) ) {
                 if ( $current !== $new_value ) {
@@ -2333,20 +2347,20 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses BackWPup_Option::get()
      */
     public function job_info() {  // phpcs:ignore -- NOSONAR - complex.
-        if ( ! isset( $_POST['settings']['type'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! isset( $_POST['settings']['type'] ) ) {  // phpcs:ignore -- NOSONAR
             return array( 'error' => esc_html__( 'Missing type.', 'mainwp-child' ) );
         }
 
-        if ( ! isset( $_POST['settings']['website_id'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! isset( $_POST['settings']['website_id'] ) ) {  // phpcs:ignore -- NOSONAR
             return array( 'error' => esc_html__( 'Missing website id.', 'mainwp-child' ) );
         }
 
-        if ( ! isset( $_POST['settings']['id'] ) ) {  // phpcs:ignore -- NOSONAR 
+        if ( ! isset( $_POST['settings']['id'] ) ) {  // phpcs:ignore -- NOSONAR
             return array( 'error' => esc_html__( 'Missing job id.', 'mainwp-child' ) );
         }
 
-        $type = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : '';  // phpcs:ignore -- NOSONAR 
-        $id = isset( $_POST['settings']['id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['id'] ) ) : '';  // phpcs:ignore -- NOSONAR 
+        $type = isset( $_POST['settings']['type'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['type'] ) ) : '';  // phpcs:ignore -- NOSONAR
+        $id = isset( $_POST['settings']['id'] ) ? sanitize_text_field( wp_unslash( $_POST['settings']['id'] ) ) : '';  // phpcs:ignore -- NOSONAR
         $results = array();
         switch ( $type ) {
             case 'jobs':
@@ -2532,7 +2546,7 @@ if ( ! class_exists( '\MainWP\Child\MainWP_Fake_Wp_Screen' ) ) {
      *
      * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
      */
-    class MainWP_Fake_Wp_Screen {  // phpcs:ignore -- NOSONAR 
+    class MainWP_Fake_Wp_Screen {  // phpcs:ignore -- NOSONAR
         /**
          * Summary of action
          *
@@ -2560,7 +2574,7 @@ if ( ! class_exists( '\MainWP\Child\MainWP_Fake_OneDrive' ) ) {
      *
      * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
      */
-    class MainWP_Fake_OneDrive { // phpcs:ignore -- NOSONAR 
+    class MainWP_Fake_OneDrive { // phpcs:ignore -- NOSONAR
         /**
          * Medthod edit_form_post_save()
          *
@@ -2608,4 +2622,107 @@ if ( ! class_exists( '\MainWP\Child\MainWP_Fake_OneDrive' ) ) {
         }
     }
 }
+
+if ( ! class_exists( '\MainWP\Child\MainWP_Fake_HiDrive' ) ) {
+    /**
+     * Class MainWP_Fake_HiDrive
+     *
+     * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     */
+    class MainWP_Fake_HiDrive { // phpcs:ignore -- NOSONAR
+        /**
+         * Medthod edit_form_post_save()
+         *
+         * @param mixed $jobid Job ID.
+         * @uses \BackWPup_Option::update()
+         *
+         * @return void
+         */
+        public function edit_form_post_save( $jobid ): void {
+            $data   = filter_var_array(
+                $_POST, // phpcs:ignore -- NOSONAR
+                array(
+                    'hidrive_sync_no_delete'     => FILTER_VALIDATE_BOOLEAN,
+                    'hidrive_max_backups'        => FILTER_SANITIZE_NUMBER_INT,
+                    'hidrive_destination_folder' => FILTER_SANITIZE_URL,
+                )
+            );
+            $jobids = (array) $jobid;
+            foreach ( $jobids as $jobid ) {
+                \BackWPup_Option::update(
+                    $jobid,
+                    'hidrive_sync_no_delete',
+                    (bool) $data['hidrive_sync_no_delete']
+                );
+                \BackWPup_Option::update(
+                    $jobid,
+                    'hidrive_max_backups',
+                    abs( (int) $data['hidrive_max_backups'] )
+                );
+
+                if ( ! $data['hidrive_destination_folder'] ) {
+                    return;
+                }
+
+                $hi_drive_dir = wp_normalize_path( $data['hidrive_destination_folder'] );
+
+                if ( substr( $hi_drive_dir, 0, 1 ) !== '/' ) {
+                    $hi_drive_dir = '/' . $data['hidrive_destination_folder'];
+                }
+
+                \BackWPup_Option::update( $jobid, 'hidrive_destination_folder', $hi_drive_dir );
+            }
+        }
+    }
+}
+
+if ( ! class_exists( '\MainWP\Child\MainWP_Fake_GDrive' ) ) {
+    /**
+     * Class MainWP_Fake_GDrive
+     *
+     * @used-by MainWP_Child_Back_WP_Up::wp_list_table_dependency()
+     */
+    class MainWP_Fake_GDrive { // phpcs:ignore -- NOSONAR
+        /**
+         * Medthod edit_form_post_save()
+         *
+         * @param mixed $jobid Job ID.
+         * @uses \BackWPup_Option::update()
+         *
+         * @return void
+         */
+        public function edit_form_post_save( $jobid ): void {
+            $data   = filter_var_array(
+                $_POST, // phpcs:ignore -- NOSONAR
+                array(
+                    'gdrivesyncnodelete' => FILTER_VALIDATE_BOOLEAN,
+                    'gdriveusetrash'     => FILTER_VALIDATE_BOOLEAN,
+                    'gdrivemaxbackups'   => FILTER_SANITIZE_NUMBER_INT,
+                    'gdrivedir'          => FILTER_SANITIZE_URL,
+                )
+            );
+            $jobids = (array) $jobid;
+            foreach ( $jobids as $jobid ) {
+                \BackWPup_Option::update( $jobid, 'gdrivesyncnodelete', (bool) $data['gdrivesyncnodelete'] );
+                \BackWPup_Option::update( $jobid, 'gdriveusetrash', (bool) $data['gdriveusetrash'] );
+                \BackWPup_Option::update( $jobid, 'gdrivemaxbackups', abs( (int) $data['gdrivemaxbackups'] ) );
+            }
+
+            if ( ! $data['gdrivedir'] ) {
+                return;
+            }
+
+            $gdrivedir = wp_normalize_path( $data['gdrivedir'] );
+
+            if ( substr( $gdrivedir, 0, 1 ) !== '/' ) {
+                $gdrivedir = '/' . $gdrivedir;
+            }
+
+            foreach ( $jobids as $jobid ) {
+                \BackWPup_Option::update( $jobid, 'gdrivedir', $gdrivedir );
+            }
+        }
+    }
+}
+
 // phpcs:disable Generic.Files.OneObjectStructurePerFile -- fake class
