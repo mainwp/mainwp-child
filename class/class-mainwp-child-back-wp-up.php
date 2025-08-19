@@ -656,7 +656,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         echo '<tr><td>' . esc_html__( 'Temp folder:', 'mainwp-child' ) . '</td><td>';
         if ( ! is_dir( \BackWPup::get_plugin_data( 'TEMP' ) ) ) {
             printf( esc_html__( 'Temp folder %s doesn\'t exist.', 'mainwp-child' ), esc_html( \BackWPup::get_plugin_data( 'TEMP' ) ) );
-        } elseif ( ! is_writable( \BackWPup::get_plugin_data( 'TEMP' ) ) ) {
+        } elseif ( ! is_writable( \BackWPup::get_plugin_data( 'TEMP' ) ) ) { //phpcs:ignore -- NOSONAR - ok.
             printf( esc_html__( 'Temporary folder %s is not writable.', 'mainwp-child' ), esc_html( \BackWPup::get_plugin_data( 'TEMP' ) ) );
         } else {
             echo esc_html( \BackWPup::get_plugin_data( 'TEMP' ) );
@@ -669,7 +669,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( ! is_dir( $log_folder ) ) {
             printf( esc_html__( 'Logs folder %s not exist.', 'mainwp-child' ), esc_html( $log_folder ) );
-        } elseif ( ! is_writable( $log_folder ) ) {
+        } elseif ( ! is_writable( $log_folder ) ) { //phpcs:ignore -- NOSONAR - ok.
             printf( esc_html__( 'Log folder %s is not writable.', 'mainwp-child' ), esc_html( $log_folder ) );
         } else {
             echo esc_html( $log_folder );
@@ -680,8 +680,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         echo '<tr title=""><td>' . esc_html__( 'PHP SAPI', 'mainwp-child' ) . '</td><td>' . esc_html( PHP_SAPI ) . '</td></tr>';
         echo '<tr title=""><td>' . esc_html__( 'Current PHP user', 'mainwp-child' ) . '</td><td>' . esc_html( get_current_user() ) . '</td></tr>';
         $text = version_compare( phpversion(), '5.3.0' ) < 0 && (bool) ini_get( 'safe_mode' ) ? esc_html__( 'On', 'mainwp-child' ) : esc_html__( 'Off', 'mainwp-child' );
-        echo '<tr title=""><td>' . esc_html__( 'Safe Mode', 'mainwp-child' ) . '</td><td>' . $text . '</td></tr>';
-        echo '<tr title="&gt;=30"><td>' . esc_html__( 'Maximum execution time', 'mainwp-child' ) . '</td><td>' . ini_get( 'max_execution_time' ) . ' ' . esc_html__( 'seconds', 'mainwp-child' ) . '</td></tr>';
+        echo '<tr title=""><td>' . esc_html__( 'Safe Mode', 'mainwp-child' ) . '</td><td>' . $text . '</td></tr>'; //phpcs:ignore -- NOSONAR - escaped.
+        echo '<tr title="&gt;=30"><td>' . esc_html__( 'Maximum execution time', 'mainwp-child' ) . '</td><td>' . esc_html( ini_get( 'max_execution_time' ) ) . ' ' . esc_html__( 'seconds', 'mainwp-child' ) . '</td></tr>';
         if ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) {
             echo '<tr title="ALTERNATE_WP_CRON"><td>' . esc_html__( 'Alternative WP Cron', 'mainwp-child' ) . '</td><td>' . esc_html__( 'On', 'mainwp-child' ) . '</td></tr>';
         } else {
@@ -693,7 +693,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             echo '<tr title="DISABLE_WP_CRON"><td>' . esc_html__( 'Disabled WP Cron', 'mainwp-child' ) . '</td><td>' . esc_html__( 'Off', 'mainwp-child' ) . '</td></tr>';
         }
         if ( defined( 'FS_CHMOD_DIR' ) ) {
-            echo '<tr title="FS_CHMOD_DIR"><td>' . esc_html__( 'CHMOD Dir', 'mainwp-child' ) . '</td><td>' . FS_CHMOD_DIR . '</td></tr>';
+            echo '<tr title="FS_CHMOD_DIR"><td>' . esc_html__( 'CHMOD Dir', 'mainwp-child' ) . '</td><td>' . esc_html( FS_CHMOD_DIR ) . '</td></tr>';
         } else {
             echo '<tr title="FS_CHMOD_DIR"><td>' . esc_html__( 'CHMOD Dir', 'mainwp-child' ) . '</td><td>0755</td></tr>';
         }
@@ -1113,7 +1113,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             die( '-1' );
         }
 
-        if ( ! current_user_can( 'backwpup_backups_download' ) ) {
+        if ( ! current_user_can( 'backwpup_backups_download' ) ) { //phpcs:ignore - ok.
             die( '-2' );
         }
 
