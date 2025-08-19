@@ -30,7 +30,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '5.4.0.12'; // NOSONAR - not IP.
+    public static $version = '5.4.0.13'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.

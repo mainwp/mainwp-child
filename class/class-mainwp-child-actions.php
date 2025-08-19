@@ -629,8 +629,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
     /**
      * Core updated successfully callback.
+     *
+     * @param mixed $new_version New WordPress verison.
      */
-    public function callback__core_updated_successfully() {
+    public function callback__core_updated_successfully( $new_version = '' ) {
 
         /**
          * Global variables.
