@@ -111,7 +111,7 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
-= 5.4.0.13 - Maintenance Release - 8-12-2025 =
+= 5.4.0.13 - Maintenance Release - 8-19-2025 =
 
 * Fixed: PHP warning for undefined variable `$new_version` that occurred during WordPress core updates. [(#822)](https://github.com/mainwp/mainwp/issues/822)
 
