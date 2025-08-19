@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 5.4.0.12
+Stable tag: 5.4.0.13
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,10 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.13 - Maintenance Release - 8-12-2025 =
+
+* Fixed: PHP warning for undefined variable `$new_version` that occurred during WordPress core updates. [(#822)](https://github.com/mainwp/mainwp/issues/822)
 
 = 5.4.0.12 - Maintenance Release - 8-12-2025 =
 
