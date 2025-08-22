@@ -31,7 +31,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @var bool If Patchstack plugin installed, return true, if not, return false.
      */
-    protected $is_plugin_installed = true;
+    protected $is_plugin_installed = false;
 
     /**
      * The plugin slug.
@@ -83,9 +83,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      * Run any time class is called.
      */
     public function __construct() {
-        if ( is_plugin_active( $this->the_plugin_slug ) ) {
-            $this->is_plugin_installed = true;
-        }
+        $this->is_plugin_installed = is_plugin_active( $this->the_plugin_slug );
     }
 
     /**
@@ -174,6 +172,42 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         }
         if ( ! function_exists( '\request_filesystem_credentials' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php'; // phpcs:ignore -- NOSONAR
+        }
+
+        // Deactivate and delete existing plugin.
+        $plugin_dir         = WP_PLUGIN_DIR . '/' . dirname( $this->the_plugin_slug );
+        $was_active         = function_exists( 'is_plugin_active' ) ? is_plugin_active( $this->the_plugin_slug ) : false;
+        $was_network_active = function_exists( 'is_plugin_active_for_network' ) && is_multisite()
+        ? is_plugin_active_for_network( $this->the_plugin_slug )
+        : false;
+
+        if ( $was_active || $was_network_active ) {
+            deactivate_plugins( $this->the_plugin_slug, /* $silent */ true, /* $network_wide */ $was_network_active );
+            if ( is_plugin_active( $this->the_plugin_slug ) || ( $was_network_active && is_plugin_active_for_network( $this->the_plugin_slug ) ) ) {
+                return new \WP_Error( 'deactivate_failed', 'Failed to deactivate existing plugin.' );
+            }
+        }
+
+        if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) || is_dir( $plugin_dir ) ) {
+            if ( ! function_exists( 'delete_plugins' ) ) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php'; // phpcs:ignore -- NOSONAR
+            }
+            $deleted = delete_plugins( array( $this->the_plugin_slug ) );
+            if ( is_wp_error( $deleted ) ) {
+                return new \WP_Error( 'delete_failed', 'Failed to delete existing plugin folder.', array( 'error' => $deleted->get_error_message() ) );
+            }
+            if ( is_dir( $plugin_dir ) ) {
+                global $wp_filesystem;
+                if ( ! $wp_filesystem ) {
+                    WP_Filesystem();
+                }
+                if ( $wp_filesystem && $wp_filesystem->is_dir( $plugin_dir ) ) {
+                    $wp_filesystem->delete( $plugin_dir, /* recursive */ true );
+                }
+                if ( is_dir( $plugin_dir ) ) {
+                    return new \WP_Error( 'delete_residual_failed', 'Plugin directory still exists after deletion.' );
+                }
+            }
         }
 
         // Download ZIP.
