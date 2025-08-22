@@ -83,7 +83,6 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      * Run any time class is called.
      */
     public function __construct() {
-        require_once ABSPATH . 'wp-admin/includes/plugin.php';
         if ( is_plugin_active( $this->the_plugin_slug ) ) {
             $this->is_plugin_installed = true;
         }
@@ -154,18 +153,11 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Method install_plugin()
-     *
-     * Get the Patchstack Insights plugin data and store it in the sync request.
-     *
-     * @return array $information Array containing the sync information.
-     */
-    /**
-     * Install (overwrite if exists) and activate the Patchstack plugin.
+     * Download, install, and activate the Patchstack plugin; then resync.
      *
      * @return array|\WP_Error
      */
-    private function install_plugin() {  // phpcs:ignore -- NOSONAR -- complexity
+	private function install_plugin() { // phpcs:ignore -- NOSONAR -- complexity
         $raw_settings = $this->sanitized_post( 'settings' );
         $settings     = json_decode( $raw_settings, true );
 
@@ -173,42 +165,43 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'bad_params', 'Missing ps_id or token.' );
         }
 
-        // Call endpoint returns FILE (ZIP), not JSON.
-        $url    = '/download/wordpress/' . intval( $settings['ps_id'] );
-        $binary = $this->send_request( $url, $settings['token'], 'GET', array(), false );
-
-        if ( is_wp_error( $binary ) ) {
-            return $binary;
-        }
-        if ( is_array( $binary ) ) {
-            // API should return file; if it returns JSON then it is a business error.
-            return new \WP_Error( 'api_error', 'Unexpected JSON for download endpoint.', $binary );
-        }
-        if ( ! is_string( $binary ) || '' === $binary ) {
-            return new \WP_Error( 'empty_file', 'Empty plugin file.' );
-        }
-
+        // Ensure core functions/classes are available.
         if ( ! function_exists( '\get_plugins' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';  // phpcs:ignore -- NOSONAR
+			require_once ABSPATH . 'wp-admin/includes/plugin.php'; // phpcs:ignore -- NOSONAR
         }
         if ( ! class_exists( '\Plugin_Upgrader', false ) || ! class_exists( '\Automatic_Upgrader_Skin', false ) ) {
-            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';  // phpcs:ignore -- NOSONAR
+			require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php'; // phpcs:ignore -- NOSONAR
         }
         if ( ! function_exists( '\request_filesystem_credentials' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';  // phpcs:ignore -- NOSONAR
+			require_once ABSPATH . 'wp-admin/includes/file.php'; // phpcs:ignore -- NOSONAR
         }
 
-        // Write ZIP to temporary file.
+        // Download ZIP.
         $tmp = wp_tempnam( 'patchstack.zip' );
         if ( ! $tmp ) {
             return new \WP_Error( 'tmp_fail', 'Failed to create temp file.' );
         }
-        if ( false === file_put_contents( $tmp, $binary ) ) {
-            @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-            return new \WP_Error( 'write_fail', 'Failed to write plugin ZIP to temp file.' );
+
+        $downloaded = $this->send_request(
+            '/download/wordpress/' . (int) $settings['ps_id'],
+            $settings['token'],
+            'GET',
+            array(),
+            /* expect_json */ false,
+            array(
+                'timeout'   => 90,
+                'stream'    => true,
+                'stream_to' => $tmp,
+                'headers'   => array( 'Accept' => 'application/zip' ),
+            )
+        );
+
+        if ( is_wp_error( $downloaded ) ) {
+            @unlink( $tmp );  // phpcs:ignore -- NOSONAR.
+            return $downloaded;
         }
 
-        // Install/overwrite with Plugin_Upgrader (WordPress core standard).
+        // Install/overwrite via Plugin_Upgrader.
         $skin     = new \Automatic_Upgrader_Skin();
         $upgrader = new \Plugin_Upgrader( $skin );
 
@@ -223,7 +216,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             $installed = $upgrader->install( $tmp );
         } finally {
             remove_filter( 'upgrader_package_options', $options_filter );
-            @unlink( $tmp );  // phpcs:ignore -- NOSONAR
+			@unlink( $tmp ); // phpcs:ignore -- NOSONAR
         }
 
         if ( is_wp_error( $installed ) ) {
@@ -233,31 +226,49 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'install_failed', 'Plugin installation failed.' );
         }
 
-        if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) ) {
-            $was_active     = is_plugin_active( $this->the_plugin_slug );
+        // Activate if present.
+        $plugin_file = $this->the_plugin_slug;
+        if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
+            $was_active     = is_plugin_active( $plugin_file );
             $just_activated = 0;
+
             if ( ! $was_active ) {
-                $activate = activate_plugin( $this->the_plugin_slug );
+                $activate = activate_plugin( $plugin_file );
                 if ( is_wp_error( $activate ) ) {
                     return $activate;
                 }
                 $just_activated = 1;
             }
 
-            $is_active = is_plugin_active( $this->the_plugin_slug );
+            $is_active = is_plugin_active( $plugin_file );
 
             // Trigger resync.
-            $re_sync = $this->send_request( '/site/plugin/resync/' . $settings['ps_id'], $settings['token'], 'POST' );
+            $re_sync = $this->send_request(
+                '/site/plugin/resync/' . (int) $settings['ps_id'],
+                $settings['token'],
+                'POST',
+                array(),
+                true,
+                array( 'timeout' => 30 )
+            );
+
+            $message = 'Resync triggered.';
+            if ( is_wp_error( $re_sync ) ) {
+                $message = 'Resync failed: ' . $re_sync->get_error_message();
+            } elseif ( is_array( $re_sync ) && isset( $re_sync['success'] ) ) {
+                $message = $re_sync['success'] ? ( $re_sync['message'] ?? 'Resync triggered.' ) : ( $re_sync['message'] ?? 'Resync failed.' );
+            }
+
             return array(
                 'success'     => 1,
                 'activated'   => (int) $just_activated,
                 'is_active'   => (int) $is_active,
-                'plugin_file' => $this->the_plugin_slug,
-                'message'     => $re_sync['success'] ?? 'Resync triggered.',
+                'plugin_file' => $plugin_file,
+                'message'     => $message,
             );
         }
 
-        return new \WP_Error( 'main_file_missing', 'Installed but patchstack/patchstack.php not found.' );
+        return new \WP_Error( 'main_file_missing', 'Installed but main plugin file not found.' );
     }
 
     /**
@@ -289,34 +300,71 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Send an HTTP request to the API and return JSON (array) or raw string (binary).
+     * Send an HTTP request to the API and return JSON (array) or raw/binary.
      *
-     * @param string            $url         API endpoint (e.g. '/site/plugin/resync/123').
+     * @param string            $url         Relative or absolute URL (e.g. '/site/plugin/resync/123').
      * @param string            $token       API token.
      * @param string            $method      HTTP method. Default 'GET'.
-     * @param array|string|null $data        Data for non-GET methods (auto JSON-encoded if array).
-     * @param bool              $expect_json Expect JSON response (true) or raw/binary (false).
+     * @param array|string|null $data        For non-GET: request body (array => JSON). For GET: appended as query if array.
+     * @param bool              $expect_json Expect JSON (true) or raw/binary (false).
+     * @param array             $extra       Options:
+     *   - timeout (int, default 60)
+     *   - redirection (int, default 5)
+     *   - sslverify (bool, default true)
+     *   - headers (array)             Merge extra headers.
+     *   - auth_header (string)        Header name for token. Default 'UserToken'. Use 'Authorization' for Bearer.
+     *   - allow_get_query (bool)      Append array $data to query for GET. Default true.
+     *   - stream (bool)               Stream to file (requires 'stream_to'). Default false.
+     *   - stream_to (string)          Absolute path of target file when streaming.
+     *   - max_tries (int)             Retry attempts for transient errors. Default 3.
+     *   - backoff_base_ms (int)       First backoff (ms). Default 400.
      *
-     * @return array|string|\WP_Error JSON array, raw string, or WP_Error on failure.
+     * @return array|string|\WP_Error
      */
-    private function send_request( $url, $token, $method = 'GET', $data = array(), $expect_json = true ) {  // phpcs:ignore -- NOSONAR
+	private function send_request( $url, $token, $method = 'GET', $data = array(), $expect_json = true, $extra = array() ) { // phpcs:ignore -- NOSONAR
         if ( empty( $token ) ) {
             return new \WP_Error( 'no_token', 'Missing API token.' );
         }
 
         $method = strtoupper( $method );
-        $args   = array(
+
+        // Absolute URL.
+        $base = rtrim( (string) $this->api_url, '/' );
+        $abs  = ( 0 === strpos( $url, 'http://' ) || 0 === strpos( $url, 'https://' ) )
+            ? $url
+            : $base . '/' . ltrim( $url, '/' );
+
+        $timeout         = isset( $extra['timeout'] ) ? (int) $extra['timeout'] : 60;
+        $redirection     = isset( $extra['redirection'] ) ? (int) $extra['redirection'] : 5;
+        $sslverify       = array_key_exists( 'sslverify', $extra ) ? (bool) $extra['sslverify'] : true;
+        $auth_header     = ! empty( $extra['auth_header'] ) ? (string) $extra['auth_header'] : 'UserToken';
+        $allow_get_query = array_key_exists( 'allow_get_query', $extra ) ? (bool) $extra['allow_get_query'] : true;
+
+        $default_headers = array(
+            $auth_header => 'Authorization' === $auth_header ? 'Bearer ' . $token : $token,
+            'Accept'     => $expect_json ? 'application/json' : '*/*', // NOSONAR.
+        );
+        $headers         = isset( $extra['headers'] ) && is_array( $extra['headers'] )
+            ? array_merge( $default_headers, $extra['headers'] )
+            : $default_headers;
+
+        // GET query support.
+        if ( 'GET' === $method && $allow_get_query && is_array( $data ) && ! empty( $data ) ) {
+            $abs  = add_query_arg( $data, $abs );
+            $data = null;
+        }
+
+        $args = array(
             'method'      => $method,
-            'timeout'     => 60,
-            'redirection' => 5,
+            'timeout'     => $timeout,
+            'redirection' => $redirection,
             'blocking'    => true,
-            'headers'     => array(
-                'UserToken' => $token,
-                'Accept'    => $expect_json ? 'application/json' : '*/*', // NOSONAR.
-            ),
+            'headers'     => $headers,
+            'sslverify'   => $sslverify,
+            'decompress'  => true,
         );
 
-        // Only send body when not GET/HEAD.
+        // Body for non-GET/HEAD.
         if ( ! empty( $data ) && ! in_array( $method, array( 'GET', 'HEAD' ), true ) ) {
             if ( is_array( $data ) ) {
                 $args['headers']['Content-Type'] = 'application/json';
@@ -326,36 +374,97 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-        $response = wp_remote_request( trailingslashit( $this->api_url ) . ltrim( $url, '/' ), $args );
+        // Stream options (large/binary).
+        $stream   = ! empty( $extra['stream'] ) && ! empty( $extra['stream_to'] );
+        $filename = $stream ? (string) $extra['stream_to'] : null;
+        if ( $stream ) {
+            $args['stream']   = true;
+            $args['filename'] = $filename;
+        }
+
+        // Retry policy.
+        $max_tries       = isset( $extra['max_tries'] ) ? max( 1, (int) $extra['max_tries'] ) : 3;
+        $backoff_base_ms = isset( $extra['backoff_base_ms'] ) ? max( 100, (int) $extra['backoff_base_ms'] ) : 400;
+
+        $attempt  = 0;
+        $response = null;
+
+        while ( $attempt < $max_tries ) {
+            ++$attempt;
+            $response = wp_remote_request( $abs, $args );
+
+            if ( is_wp_error( $response ) ) {  // phpcs:ignore -- NOSONAR
+                // transport error -> retry.
+            } else {
+                $code = (int) wp_remote_retrieve_response_code( $response );
+                // success.
+                if ( $code >= 200 && $code < 300 ) {
+                    break;
+                }
+                // transient: 408, 429, 5xx (except 501/505).
+                if ( ! in_array( $code, array( 408, 429 ), true ) && ! ( $code >= 500 && $code < 600 && ! in_array( $code, array( 501, 505 ), true ) ) ) {
+                    break; // non-retryable.
+                }
+            }
+
+            if ( $attempt < $max_tries ) {
+                $sleep_ms = $backoff_base_ms * $attempt;
+                usleep( $sleep_ms * 1000 );
+            }
+        }
+
         if ( is_wp_error( $response ) ) {
             return $response;
         }
 
-        $code  = (int) wp_remote_retrieve_response_code( $response );
-        $body  = wp_remote_retrieve_body( $response );
-        $ctype = (string) wp_remote_retrieve_header( $response, 'content-type' );
+        $code        = (int) wp_remote_retrieve_response_code( $response );
+        $headers_out = wp_remote_retrieve_headers( $response );
+        $ctype       = (string) wp_remote_retrieve_header( $response, 'content-type' );
+        $ctype_main  = strtolower( trim( explode( ';', $ctype )[0] ) );
 
-        if ( 200 !== $code ) {
-            // If the server returns an error JSON → try to parse it to get specific information.
-            $message = "HTTP $code";
-            if ( stripos( $ctype, 'application/json' ) !== false ) {
+        if ( $code < 200 || $code >= 300 ) {
+            $body = $stream ? '' : (string) wp_remote_retrieve_body( $response );
+            $msg  = "HTTP $code";
+            if ( 'application/json' === $ctype_main && '' !== $body ) {
                 $json = json_decode( $body, true );
                 if ( is_array( $json ) ) {
-                    $message = $json['error'] ?? $json['message'] ?? $message;
+                    $msg = $json['error'] ?? $json['message'] ?? $msg;
                 }
             }
             return new \WP_Error(
                 'http_error',
-                $message,
+                $msg,
                 array(
-                    'status' => $code,
-                    'body'   => $body,
-                    'ctype'  => $ctype,
+                    'status'  => $code,
+                    'headers' => $headers_out,
+                    'body'    => $stream ? '(streamed)' : substr( $body, 0, 1000 ),
+                    'ctype'   => $ctype,
+                    'url'     => $abs,
                 )
             );
         }
 
-        if ( $expect_json || stripos( $ctype, 'application/json' ) !== false ) {
+        if ( 204 === $code ) {
+            return $expect_json ? array() : '';
+        }
+
+        if ( $stream ) {
+            if ( ! file_exists( $filename ) || filesize( $filename ) === 0 ) {
+                return new \WP_Error(
+                    'empty_file',
+                    'Streamed file is empty.',
+                    array(
+                        'url'      => $abs,
+                        'filename' => $filename,
+                    )
+                );
+            }
+            return $filename; // path to downloaded file.
+        }
+
+        $body = (string) wp_remote_retrieve_body( $response );
+
+        if ( $expect_json || 'application/json' === $ctype_main ) {
             if ( '' === $body ) {
                 return array();
             }
@@ -365,7 +474,8 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
                     'json_decode',
                     'Invalid JSON: ' . json_last_error_msg(),
                     array(
-                        'body' => $body,
+                        'body' => substr( $body, 0, 1000 ),
+                        'url'  => $abs,
                     )
                 );
             }
