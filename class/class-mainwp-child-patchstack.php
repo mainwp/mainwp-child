@@ -174,25 +174,26 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
 			require_once ABSPATH . 'wp-admin/includes/file.php'; // phpcs:ignore -- NOSONAR
         }
 
-        // Deactivate and delete existing plugin.
-        $plugin_dir         = WP_PLUGIN_DIR . '/' . dirname( $this->the_plugin_slug );
-        $was_active         = function_exists( 'is_plugin_active' ) ? is_plugin_active( $this->the_plugin_slug ) : false;
+        // Deactivate.
+        $plugin_file        = $this->the_plugin_slug;
+        $plugin_dir         = WP_PLUGIN_DIR . '/' . dirname( $plugin_file );
+        $was_active         = function_exists( 'is_plugin_active' ) ? is_plugin_active( $plugin_file ) : false;
         $was_network_active = function_exists( 'is_plugin_active_for_network' ) && is_multisite()
-        ? is_plugin_active_for_network( $this->the_plugin_slug )
-        : false;
+            ? is_plugin_active_for_network( $plugin_file )
+            : false;
 
         if ( $was_active || $was_network_active ) {
-            deactivate_plugins( $this->the_plugin_slug, /* $silent */ true, /* $network_wide */ $was_network_active );
-            if ( is_plugin_active( $this->the_plugin_slug ) || ( $was_network_active && is_plugin_active_for_network( $this->the_plugin_slug ) ) ) {
+            deactivate_plugins( $plugin_file, true, $was_network_active );
+            if ( is_plugin_active( $plugin_file ) || ( $was_network_active && is_plugin_active_for_network( $plugin_file ) ) ) {
                 return new \WP_Error( 'deactivate_failed', 'Failed to deactivate existing plugin.' );
             }
         }
 
-        if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) || is_dir( $plugin_dir ) ) {
+        if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) || is_dir( $plugin_dir ) ) {
             if ( ! function_exists( 'delete_plugins' ) ) {
-                require_once ABSPATH . 'wp-admin/includes/plugin.php'; // phpcs:ignore -- NOSONAR
+				require_once ABSPATH . 'wp-admin/includes/plugin.php'; // phpcs:ignore -- NOSONAR
             }
-            $deleted = delete_plugins( array( $this->the_plugin_slug ) );
+            $deleted = delete_plugins( array( $plugin_file ) );
             if ( is_wp_error( $deleted ) ) {
                 return new \WP_Error( 'delete_failed', 'Failed to delete existing plugin folder.', array( 'error' => $deleted->get_error_message() ) );
             }
@@ -202,7 +203,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
                     WP_Filesystem();
                 }
                 if ( $wp_filesystem && $wp_filesystem->is_dir( $plugin_dir ) ) {
-                    $wp_filesystem->delete( $plugin_dir, /* recursive */ true );
+                    $wp_filesystem->delete( $plugin_dir, true );
                 }
                 if ( is_dir( $plugin_dir ) ) {
                     return new \WP_Error( 'delete_residual_failed', 'Plugin directory still exists after deletion.' );
@@ -210,7 +211,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-        // Download ZIP.
+        // Download ZIP (stream).
         $tmp = wp_tempnam( 'patchstack.zip' );
         if ( ! $tmp ) {
             return new \WP_Error( 'tmp_fail', 'Failed to create temp file.' );
@@ -221,7 +222,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             $settings['token'],
             'GET',
             array(),
-            /* expect_json */ false,
+            false,
             array(
                 'timeout'   => 90,
                 'stream'    => true,
@@ -231,13 +232,25 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         );
 
         if ( is_wp_error( $downloaded ) ) {
-            @unlink( $tmp );  // phpcs:ignore -- NOSONAR.
+            @unlink( $tmp );  // phpcs:ignore -- NOSONAR
             return $downloaded;
         }
 
-        // Install/overwrite via Plugin_Upgrader.
-        $skin     = new \Automatic_Upgrader_Skin();
-        $upgrader = new \Plugin_Upgrader( $skin );
+        $ob_started = false;
+        if ( ! ob_get_length() ) {
+            ob_start();
+            $ob_started = true;
+        } else {
+            ob_start();
+            $ob_started = true;
+        }
+
+        $prev_display_errors = ini_get( 'display_errors' );
+        @ini_set( 'display_errors', '0' ); // phpcs:ignore -- NOSONAR
+
+        $skin_class = class_exists( '\WP_Ajax_Upgrader_Skin', false ) ? '\WP_Ajax_Upgrader_Skin' : '\Automatic_Upgrader_Skin';
+        $skin       = new $skin_class();
+        $upgrader   = new \Plugin_Upgrader( $skin );
 
         $options_filter = static function ( $options ) {
             $options['clear_destination']           = true;
@@ -246,11 +259,29 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         };
         add_filter( 'upgrader_package_options', $options_filter );
 
+        $backup_upgrader_hook = $GLOBALS['wp_filter']['upgrader_process_complete'] ?? null;
+        remove_all_actions( 'upgrader_process_complete' );
+
         try {
             $installed = $upgrader->install( $tmp );
         } finally {
+            if ( $backup_upgrader_hook instanceof \WP_Hook ) {
+                $GLOBALS['wp_filter']['upgrader_process_complete'] = $backup_upgrader_hook;  // phpcs:ignore -- NOSONAR
+            } else {
+                unset( $GLOBALS['wp_filter']['upgrader_process_complete'] );
+            }
+
             remove_filter( 'upgrader_package_options', $options_filter );
-			@unlink( $tmp ); // phpcs:ignore -- NOSONAR
+            @unlink( $tmp ); // phpcs:ignore -- NOSONAR
+
+            if ( $ob_started ) {
+                while ( ob_get_level() > 0 ) {
+                    @ob_end_clean(); // phpcs:ignore -- NOSONAR
+                }
+            }
+            if ( null !== $prev_display_errors ) {
+                @ini_set( 'display_errors', $prev_display_errors ); // phpcs:ignore -- NOSONAR
+            }
         }
 
         if ( is_wp_error( $installed ) ) {
@@ -260,49 +291,40 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'install_failed', 'Plugin installation failed.' );
         }
 
-        // Activate if present.
-        $plugin_file = $this->the_plugin_slug;
-        if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
-            $was_active     = is_plugin_active( $plugin_file );
-            $just_activated = 0;
-
-            if ( ! $was_active ) {
-                $activate = activate_plugin( $plugin_file );
-                if ( is_wp_error( $activate ) ) {
-                    return $activate;
-                }
-                $just_activated = 1;
-            }
-
-            $is_active = is_plugin_active( $plugin_file );
-
-            // Trigger resync.
-            $re_sync = $this->send_request(
-                '/site/plugin/resync/' . (int) $settings['ps_id'],
-                $settings['token'],
-                'POST',
-                array(),
-                true,
-                array( 'timeout' => 30 )
-            );
-
-            $message = 'Resync triggered.';
-            if ( is_wp_error( $re_sync ) ) {
-                $message = 'Resync failed: ' . $re_sync->get_error_message();
-            } elseif ( is_array( $re_sync ) && isset( $re_sync['success'] ) ) {
-                $message = $re_sync['success'] ? ( $re_sync['message'] ?? 'Resync triggered.' ) : ( $re_sync['message'] ?? 'Resync failed.' );
-            }
-
-            return array(
-                'success'     => 1,
-                'activated'   => (int) $just_activated,
-                'is_active'   => (int) $is_active,
-                'plugin_file' => $plugin_file,
-                'message'     => $message,
-            );
+        // Activate.
+        $activate = activate_plugin( $plugin_file, '', $was_network_active );
+        if ( is_wp_error( $activate ) ) {
+            return $activate;
         }
 
-        return new \WP_Error( 'main_file_missing', 'Installed but main plugin file not found.' );
+        $is_active      = is_plugin_active( $plugin_file );
+        $is_network_now = is_multisite() && is_plugin_active_for_network( $plugin_file );
+
+        // Resync.
+        $re_sync = $this->send_request(
+            '/site/plugin/resync/' . (int) $settings['ps_id'],
+            $settings['token'],
+            'POST',
+            array(),
+            true,
+            array( 'timeout' => 30 )
+        );
+
+        $message = 'Resync triggered.';
+        if ( is_wp_error( $re_sync ) ) {
+            $message = 'Resync failed: ' . $re_sync->get_error_message();
+        } elseif ( is_array( $re_sync ) && isset( $re_sync['success'] ) ) {
+            $message = $re_sync['success'] ? ( $re_sync['message'] ?? 'Resync triggered.' ) : ( $re_sync['message'] ?? 'Resync failed.' );
+        }
+
+        return array(
+            'success'     => 1,
+            'activated'   => 1,
+            'is_active'   => (int) $is_active,
+            'is_network'  => (int) $is_network_now,
+            'plugin_file' => $plugin_file,
+            'message'     => $message,
+        );
     }
 
     /**
@@ -427,7 +449,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             ++$attempt;
             $response = wp_remote_request( $abs, $args );
 
-            if ( is_wp_error( $response ) ) {  // phpcs:ignore -- NOSONAR
+			if ( is_wp_error( $response ) ) {  // phpcs:ignore -- NOSONAR
                 // transport error -> retry.
             } else {
                 $code = (int) wp_remote_retrieve_response_code( $response );
