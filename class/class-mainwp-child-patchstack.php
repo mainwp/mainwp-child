@@ -145,7 +145,6 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( isset( $data['sync_patchstack_data'] ) && ( 'yes' === $data['sync_patchstack_data'] ) ) {
             try {
-                $data                                = array();
                 $information['sync_patchstack_data'] = $data;
             } catch ( MainWP_Exception $e ) {
                 // ok!
@@ -235,7 +234,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) ) {
-            $was_active     = is_plugin_active( $plugin_file );
+            $was_active     = is_plugin_active( $this->the_plugin_slug );
             $just_activated = 0;
             if ( ! $was_active ) {
                 $activate = activate_plugin( $this->the_plugin_slug );
@@ -245,7 +244,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
                 $just_activated = 1;
             }
 
-            $is_active = is_plugin_active( $plugin_file );
+            $is_active = is_plugin_active( $this->the_plugin_slug );
 
             // Trigger resync.
             $re_sync = $this->send_request( '/site/plugin/resync/' . $settings['ps_id'], $settings['token'], 'POST' );
