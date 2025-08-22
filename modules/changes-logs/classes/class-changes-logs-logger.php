@@ -500,7 +500,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      * @return bool
      */
     public static function was_handled_recently( $type_id ) {
-        if ( isset( self::$cached_log_checks ) && array_key_exists( $type_id, self::$cached_log_checks ) && self::$cached_log_checks[ $type_id ] ) {
+        if ( isset( self::$cached_log_checks ) && ( is_int( $type_id ) || is_string( $type_id ) ) && array_key_exists( $type_id, self::$cached_log_checks ) && self::$cached_log_checks[ $type_id ] ) {
             return true;
         }
 
