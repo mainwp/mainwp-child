@@ -31,19 +31,31 @@ class Changes_Sync_Data_Helper {
             return $logs_data;
         }
 
+        global $wpdb;
+
         $extra = '';
 
         $records = $limit;
 
         if ( isset( $query_args['newer_than'] ) ) {
-            $extra = ' AND created_on > ' . $query_args['newer_than'] . $extra;
+            $extra .= $wpdb->prepare( ' AND created_on > %f ', $query_args['newer_than'] );
         }
 
         if ( isset( $query_args['older_than'] ) ) {
-            $extra = ' AND created_on < ' . $query_args['older_than'] . $extra;
+            $extra .= $wpdb->prepare( ' AND created_on < %f ', $query_args['older_than'] );
         }
 
-        $logs_data = Changes_Logs_DB_Log::instance()->load_logs_array( '%d', array( 1 ), $extra . ' ORDER BY blog_id, created_on DESC LIMIT ' . $records );
+        if ( ! empty( $query_args['ignore_sync_logs'] ) && is_array( $query_args['ignore_sync_logs'] ) ) {
+            $ignore_sync_logs = array_filter( array_map( 'absint', wp_unslash( $query_args['ignore_sync_logs'] ) ) );
+            if ( ! empty( $ignore_sync_logs ) ) {
+                // Make placeholders: "%d,%d,%d".
+                $placeholders = implode( ',', array_fill( 0, count( $ignore_sync_logs ), '%d' ) );
+                // Build query safely.
+                $extra .= $wpdb->prepare( " AND log_type_id NOT IN( $placeholders) ", ...$ignore_sync_logs ); //phpcs:ignore --ok.
+            }
+        }
+
+        $logs_data = Changes_Logs_DB_Log::instance()->load_logs_array( '%d', array( 1 ), $extra . ' ORDER BY blog_id, created_on ASC LIMIT ' . $records );
         $logs_data = Changes_Logs_DB_Log::instance()->get_log_meta_data( $logs_data );
 
         if ( ! empty( $logs_data ) && is_array( $logs_data ) ) {
