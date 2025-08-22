@@ -235,22 +235,26 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) ) {
-            $activate = activate_plugin( $this->the_plugin_slug );
-            if ( is_wp_error( $activate ) ) {
-                return $activate;
+            $was_active     = is_plugin_active( $plugin_file );
+            $just_activated = 0;
+            if ( ! $was_active ) {
+                $activate = activate_plugin( $this->the_plugin_slug );
+                if ( is_wp_error( $activate ) ) {
+                    return $activate;
+                }
+                $just_activated = 1;
             }
+
+            $is_active = is_plugin_active( $plugin_file );
 
             // Trigger resync.
             $re_sync = $this->send_request( '/site/plugin/resync/' . $settings['ps_id'], $settings['token'], 'POST' );
-            if ( is_wp_error( $re_sync ) ) {
-                return $re_sync;
-            }
-
             return array(
                 'success'     => 1,
-                'activated'   => 1,
+                'activated'   => (int) $just_activated,
+                'is_active'   => (int) $is_active,
                 'plugin_file' => $this->the_plugin_slug,
-                'message'     => $resync['success'] ?? 'Resync triggered.',
+                'message'     => $re_sync['success'] ?? 'Resync triggered.',
             );
         }
 
