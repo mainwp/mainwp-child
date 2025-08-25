@@ -219,6 +219,14 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'bad_slug', 'Invalid plugin slug (expected "patchstack/patchstack.php").' );
         }
 
+        $was_active = function_exists( 'is_plugin_active' ) ? is_plugin_active( $this->the_plugin_slug ) : false;
+        if ( $was_active ) {
+            deactivate_plugins( $this->the_plugin_slug, true );
+            if ( function_exists( 'is_plugin_active' ) && is_plugin_active( $this->the_plugin_slug ) ) {
+                return new \WP_Error( 'deactivate_failed', 'Failed to deactivate existing plugin.' );
+            }
+        }
+
         // Install/overwrite with Plugin_Upgrader (WordPress core standard).
         $skin     = new \Automatic_Upgrader_Skin();
         $upgrader = new \Plugin_Upgrader( $skin );
