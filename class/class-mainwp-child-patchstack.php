@@ -315,12 +315,25 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
 
         // Initialize P_Api correctly with Patchstack instance.
         if ( class_exists( 'Patchstack' ) && class_exists( 'P_Api' ) ) {
-            $patchstack_instance = patchstack();
-            $p_api               = new \P_Api( $patchstack_instance );
+            try {
+                // Get Patchstack instance using the static method.
+                if ( method_exists( 'Patchstack', 'get_instance' ) ) {
+                    $patchstack_instance = \Patchstack::get_instance();
+                } else {
+                    error_log( 'Patchstack: Cannot get instance' );
+                    $patchstack_instance = null;
+                }
 
-            // Update license status.
-            $license_status = $p_api->update_license_status();
-            error_log( print_r( $license_status, true ) );
+                if ( $patchstack_instance ) {
+                    $p_api = new \P_Api( $patchstack_instance );
+
+                    // Update license status.
+                    $license_status = $p_api->update_license_status();
+                    error_log( 'Patchstack license status updated: ' . print_r( $license_status, true ) );
+                }
+            } catch ( \Exception $e ) {
+                error_log( 'Patchstack P_Api error: ' . $e->getMessage() );
+            }
         }
 
         // Trigger resync.
