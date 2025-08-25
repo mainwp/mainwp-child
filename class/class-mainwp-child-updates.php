@@ -1215,7 +1215,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         // Check for new versions.
         MainWP_System::wp_mainwp_version_check();
 
-        $wp_ver       = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        // Get WordPress version via the shared helper method for consistency.
+        // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
+        $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
+
         $core_updates = get_core_updates();
         if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
             foreach ( $core_updates as $core_update ) {
