@@ -106,6 +106,22 @@ class Changes_Handle_WP_Files {
                     'file'   => $file,
                     'plugin' => $plugin,
                 );
+
+                $plugin_file = '';
+
+                if ( file_exists( $file ) ) { //phpcs:ignore -- ok.
+                    $plugin_file = $file;
+                } elseif( file_exists( WP_PLUGIN_DIR . '/' . $plugin ) ){ //phpcs:ignore -- ok.
+                    $plugin_file = WP_PLUGIN_DIR . '/' . $plugin;
+                }
+
+                if ( ! empty( $plugin_file ) ) {
+                    $plugin_data = get_plugin_data( $plugin_file );
+                    if ( is_array( $plugin_data ) && ! empty( $plugin_data['Name'] ) ) {
+                        $log_data['name'] = $plugin_data['Name'];
+                    }
+                }
+
                 Changes_Logs_Logger::log_change( 1455, $log_data );
             } elseif ( 'theme-editor' === $referer ) {
                 $stylesheet = isset( $_POST['theme'] ) ? sanitize_text_field( wp_unslash( $_POST['theme'] ) ) : false;
