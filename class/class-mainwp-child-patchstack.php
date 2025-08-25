@@ -48,6 +48,13 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
     protected $api_url = 'https://api.patchstack.com/monitor';
 
     /**
+     * Option name to hide the Patchstack Insights plugin.
+     *
+     * @var string Option name.
+     */
+    protected $option_hide_name = 'mainwp_patchstack_hide_plugin';
+
+    /**
      * Whitelist of allowed sanitization functions.
      *
      * @var array $allowed_callbacks allowed sanitization functions.
@@ -139,9 +146,9 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $information Array containing the sync information.
      */
     public function sync_others_data( $information, $data = array() ) {
-
         if ( isset( $data['sync_patchstack_data'] ) && ( 'yes' === $data['sync_patchstack_data'] ) ) {
             try {
+                $data['plugin_hide_status']          = get_site_option( $this->option_hide_name, false );
                 $information['sync_patchstack_data'] = $data;
             } catch ( MainWP_Exception $e ) {
                 // ok!
@@ -294,10 +301,11 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $information Array containing the sync information.
      */
     private function set_showhide() {
-        return array(
-            'success'  => 1,
-            'response' => array(),
-        );
+        $raw = isset( $_POST['show_hide'] ) ? sanitize_text_field( wp_unslash( $_POST['show_hide'] ) ) : '';  // phpcs:ignore -- NOSONAR
+        $hide = ( 'hide' === sanitize_text_field( $raw ) ) ? 'hide' : '';
+        update_site_option( $this->option_hide_name, $hide );
+
+        return array( 'success' => 1 );
     }
 
     /**
@@ -308,10 +316,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $information Array containing the sync information.
      */
     private function save_settings() {
-        return array(
-            'success'  => 1,
-            'response' => array(),
-        );
+        return array( 'success' => 1 );
     }
 
     /**
