@@ -171,7 +171,7 @@ class Changes_Logs_DB_Log {
         ),
         'logs_db_fields' => array(
             'id'          => 'bigint',
-            'bog_id'      => 'bigint',
+            'blog_id'      => 'bigint',
             'log_type_id' => 'bigint',
             'created_on'  => 'double',
             'client_ip'   => 'varchar(255)',
@@ -194,7 +194,7 @@ class Changes_Logs_DB_Log {
         ),
         'logs_db_values' => array(
             'id'          => 0,
-            'bog_id'      => 0,
+            'blog_id'      => 0,
             'log_type_id' => 0,
             'created_on'  => 0.0,
             'client_ip'   => '',

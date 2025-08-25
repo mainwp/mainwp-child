@@ -144,7 +144,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
                 break;
             case 1210 === $type_id:
                 $check_logs = Changes_Logs_Helper::get_post_change_logs_events();
-                foreach ( $check_logs as $check_id ) {
+                foreach ( $check_logs as $check_id => $data ) {
                     if ( static::in_queue_or_handled_logs( $check_id ) || static::was_handled_recently( $check_id ) ) {
                         $enable_to_log = false;
                         break;
@@ -345,8 +345,8 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
         }
 
         if ( Changes_Helper::is_multisite() ) {
-            $log_data['bog_id']  = Changes_Helper::get_blog_id();
-            $log_data['siteurl'] = get_site_url( $log_data['bog_id'] );
+            $log_data['blog_id'] = Changes_Helper::get_blog_id();
+            $log_data['siteurl'] = get_site_url( $log_data['blog_id'] );
         }
 
         /**
@@ -499,7 +499,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      *
      * @return bool
      */
-    public static function was_handled_recently( $type_id ) {
+    public static function was_handled_recently( $type_id ) { //phpcs:ignore -- NOSONAR - complex.
         if ( isset( self::$cached_log_checks ) && ( is_int( $type_id ) || is_string( $type_id ) ) && array_key_exists( $type_id, self::$cached_log_checks ) && self::$cached_log_checks[ $type_id ] ) {
             return true;
         }

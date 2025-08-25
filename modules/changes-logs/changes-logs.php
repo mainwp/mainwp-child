@@ -40,6 +40,7 @@ if ( ! function_exists( 'mainwp_child_changes_logs_get_handler' ) ) {
             'wp-database'       => 'MainWP\Child\Changes\Changes_Handle_WP_Database',
             'wp-plugins-themes' => 'MainWP\Child\Changes\Changes_Handle_WP_Plugins_Themes',
             'wp-mainwp'         => 'MainWP\Child\Changes\Changes_Handle_WP_MainWP',
+            'acf-helper'        => 'MainWP\Child\Changes\Changes_Handle_ACF_Helper',
         );
 
         if ( 'class' === $type ) {
