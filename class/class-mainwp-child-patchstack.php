@@ -314,7 +314,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         $is_active = is_plugin_active( $this->the_plugin_slug );
 
         // Initialize P_Api correctly with Patchstack instance.
-        if ( function_exists( 'patchstack' ) ) {
+        if ( class_exists( 'Patchstack' ) && class_exists( 'P_Api' ) ) {
             $patchstack_instance = patchstack();
             $p_api               = new \P_Api( $patchstack_instance );
 
