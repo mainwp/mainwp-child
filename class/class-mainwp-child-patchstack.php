@@ -228,9 +228,10 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         // Delete plugin if exists (file or folder).
-        if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) || is_dir( $plugin_dir ) ) {
+        $plugin_dir = WP_PLUGIN_DIR . '/' . dirname( $this->the_plugin_slug );
+        if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) || is_dir( $plugin_dir ) ) {
             // delete_plugins() will try to deactivate if needed and remove files.
-            $deleted = delete_plugins( array( $plugin_file ) );
+            $deleted = delete_plugins( array( $this->the_plugin_slug ) );
             if ( is_wp_error( $deleted ) ) {
                 return new \WP_Error(
                     'delete_failed',
@@ -310,7 +311,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-        $is_active = is_plugin_active( $plugin_file );
+        $is_active = is_plugin_active( $this->the_plugin_slug );
         // Trigger resync.
         $re_sync = $this->send_request( '/site/plugin/resync/' . $settings['ps_id'], $settings['token'], 'POST' );
         if ( is_wp_error( $re_sync ) ) {
