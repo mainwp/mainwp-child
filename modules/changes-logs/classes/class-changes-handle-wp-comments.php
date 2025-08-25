@@ -168,6 +168,9 @@ class Changes_Handle_WP_Comments {
 
                 $fields['username']         = $user_data->user_login;
                 $fields['currentuserroles'] = $user_roles;
+                if ( ! empty( $user_data->ID ) ) {
+                    $fields['currentuserid'] = $user_data->ID;
+                }
                 Changes_Logs_Logger::log_change( 1565, $fields );
             }
         }
