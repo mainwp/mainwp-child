@@ -93,7 +93,7 @@ class Changes_Handle_WP_User_Profile {
                 );
                 Changes_Logs_Logger::log_change( $type_id, $log_data );
             } elseif ( ! empty( $old_value ) && count( $old_value ) > 1 && empty( $_meta_value ) ) {
-                $type_id  = ( 'user-edit' === $referer_check ) ? 1730 : 1735;
+                $type_id  = ( 'user-edit' === $referer_check ) ? 1735 : 1730;
                 $log_data = array(
                     'roles'         => $current_roles_list,
                     'login'         => $current_user->user_login,
