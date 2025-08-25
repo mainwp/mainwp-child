@@ -312,6 +312,17 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $is_active = is_plugin_active( $this->the_plugin_slug );
+
+        // Initialize P_Api correctly with Patchstack instance.
+        if ( function_exists( 'patchstack' ) ) {
+            $patchstack_instance = patchstack();
+            $p_api               = new \P_Api( $patchstack_instance );
+
+            // Update license status.
+            $license_status = $p_api->update_license_status();
+            error_log( print_r( $license_status, true ) );
+        }
+
         // Trigger resync.
         $re_sync = $this->send_request( '/site/plugin/resync/' . $settings['ps_id'], $settings['token'], 'POST' );
         if ( is_wp_error( $re_sync ) ) {
