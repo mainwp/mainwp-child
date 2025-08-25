@@ -272,7 +272,11 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         $is_active = is_plugin_active( $plugin_file );
         // Trigger resync.
         $re_sync = $this->send_request( '/site/plugin/resync/' . $settings['ps_id'], $settings['token'], 'POST' );
-        $message = ( is_array( $re_sync ) && isset( $re_sync['success'] ) ) ? $re_sync['success'] : 'Resync triggered.';
+        if ( is_wp_error( $re_sync ) ) {
+            $message = 'Plugin installed but resync failed: ' . $re_sync->get_error_message();
+        } else {
+            $message = ( is_array( $re_sync ) && isset( $re_sync['success'] ) ) ? $re_sync['success'] : 'Resync triggered.';
+        }
 
         return array(
             'success'     => 1,
@@ -409,10 +413,10 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      * @return mixed data value.
      */
     private static function sanitized_post( $key, $callback = 'sanitize_text_field', $default_value = '' ) {
-        if ( ! in_array( $callback, self::$allowed_callbacks, true ) && ! is_callable( $callback ) ) {
+        if ( ! in_array( $callback, self::$allowed_callbacks, true ) ) {
             $callback = 'sanitize_text_field';
         }
 
-        return isset( $_POST[ $key ] ) ? $callback( wp_unslash( $_POST[ $key ] ) ) : $default_value; //phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        return isset( $_POST[ $key ] ) ? $callback( wp_unslash( $_POST[ $key ] ) ) : $default_value; // phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
     }
 }
