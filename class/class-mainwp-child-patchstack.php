@@ -227,6 +227,32 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
+        // Delete plugin if exists (file or folder).
+        if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) || is_dir( $plugin_dir ) ) {
+            // delete_plugins() will try to deactivate if needed and remove files.
+            $deleted = delete_plugins( array( $plugin_file ) );
+            if ( is_wp_error( $deleted ) ) {
+                return new \WP_Error(
+                    'delete_failed',
+                    'Failed to delete existing plugin folder.',
+                    array( 'error' => $deleted->get_error_message() )
+                );
+            }
+            // In some envs a residual folder may remain; hard-delete with WP_Filesystem.
+            if ( is_dir( $plugin_dir ) ) {
+                global $wp_filesystem;
+                if ( ! $wp_filesystem ) {
+                    WP_Filesystem();
+                }
+                if ( $wp_filesystem && $wp_filesystem->is_dir( $plugin_dir ) ) {
+                    $wp_filesystem->delete( $plugin_dir, true );
+                }
+                if ( is_dir( $plugin_dir ) ) {
+                    return new \WP_Error( 'delete_residual_failed', 'Plugin directory still exists after deletion.' );
+                }
+            }
+        }
+
         // Install/overwrite with Plugin_Upgrader (WordPress core standard).
         $skin     = new \Automatic_Upgrader_Skin();
         $upgrader = new \Plugin_Upgrader( $skin );
