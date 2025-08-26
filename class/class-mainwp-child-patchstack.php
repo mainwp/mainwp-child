@@ -219,41 +219,6 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'bad_slug', 'Invalid plugin slug (expected "patchstack/patchstack.php").' );
         }
 
-        $was_active = function_exists( 'is_plugin_active' ) ? is_plugin_active( $this->the_plugin_slug ) : false;
-        if ( $was_active ) {
-            deactivate_plugins( $this->the_plugin_slug, true );
-            if ( function_exists( 'is_plugin_active' ) && is_plugin_active( $this->the_plugin_slug ) ) {
-                return new \WP_Error( 'deactivate_failed', 'Failed to deactivate existing plugin.' );
-            }
-        }
-
-        // Delete plugin if exists (file or folder).
-        $plugin_dir = WP_PLUGIN_DIR . '/' . dirname( $this->the_plugin_slug );
-        if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) || is_dir( $plugin_dir ) ) {
-            // delete_plugins() will try to deactivate if needed and remove files.
-            $deleted = delete_plugins( array( $this->the_plugin_slug ) );
-            if ( is_wp_error( $deleted ) ) {
-                return new \WP_Error(
-                    'delete_failed',
-                    'Failed to delete existing plugin folder.',
-                    array( 'error' => $deleted->get_error_message() )
-                );
-            }
-            // In some envs a residual folder may remain; hard-delete with WP_Filesystem.
-            if ( is_dir( $plugin_dir ) ) {
-                global $wp_filesystem;
-                if ( ! $wp_filesystem ) {
-                    WP_Filesystem();
-                }
-                if ( $wp_filesystem && $wp_filesystem->is_dir( $plugin_dir ) ) {
-                    $wp_filesystem->delete( $plugin_dir, true );
-                }
-                if ( is_dir( $plugin_dir ) ) {
-                    return new \WP_Error( 'delete_residual_failed', 'Plugin directory still exists after deletion.' );
-                }
-            }
-        }
-
         // Install/overwrite with Plugin_Upgrader (WordPress core standard).
         $skin     = new \Automatic_Upgrader_Skin();
         $upgrader = new \Plugin_Upgrader( $skin );
@@ -304,49 +269,9 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'main_file_missing', 'Installed but plugin main file not found.' );
         }
 
-        if ( ! is_plugin_active( $plugin_file ) ) {
-            $activate = activate_plugin( $plugin_file, '', false, true );
-            if ( is_wp_error( $activate ) ) {
-                return new \WP_Error( 'activate_failed', 'Activation failed: ' . $activate->get_error_message(), $activate->get_error_data() );
-            }
-        }
-
-        $is_active = is_plugin_active( $this->the_plugin_slug );
-
-        // Initialize P_Api correctly with Patchstack instance.
-        if ( class_exists( 'Patchstack' ) && class_exists( 'P_Api' ) ) {
-            try {
-                // Get Patchstack instance using the static method.
-                if ( method_exists( 'Patchstack', 'get_instance' ) ) {
-                    $patchstack_instance = \Patchstack::get_instance();
-                } else {
-                    error_log( 'Patchstack: Cannot get instance' );
-                    $patchstack_instance = null;
-                }
-
-                if ( $patchstack_instance ) {
-                    $p_api = new \P_Api( $patchstack_instance );
-
-                    // Update license status.
-                    $license_status = $p_api->update_license_status();
-                    error_log( 'Patchstack license status updated: ' . print_r( $license_status, true ) );
-                }
-            } catch ( \Exception $e ) {
-                error_log( 'Patchstack P_Api error: ' . $e->getMessage() );
-            }
-        }
-
-        // Trigger resync.
-        $re_sync = $this->send_request( '/site/plugin/resync/' . $settings['ps_id'], $settings['token'], 'POST' );
-        if ( is_wp_error( $re_sync ) ) {
-            $message = 'Plugin installed but resync failed: ' . $re_sync->get_error_message();
-        } else {
-            $message = ( is_array( $re_sync ) && isset( $re_sync['success'] ) ) ? $re_sync['success'] : 'Resync triggered.';
-        }
-
         return array(
             'success'     => 1,
-            'is_active'   => (int) $is_active,
+            'is_active'   => is_plugin_active( $this->the_plugin_slug ),
             'plugin_file' => $this->the_plugin_slug,
             'message'     => $message,
         );
