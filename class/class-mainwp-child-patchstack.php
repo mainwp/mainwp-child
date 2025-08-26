@@ -222,6 +222,42 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'bad_slug', 'Invalid plugin slug (expected "patchstack/patchstack.php").' );
         }
 
+        // Deactivate if active
+        $was_active = function_exists( 'is_plugin_active' ) ? is_plugin_active( $this->the_plugin_slug ) : false;
+        if ( $was_active ) {
+            deactivate_plugins( $this->the_plugin_slug, true );
+            if ( function_exists( 'is_plugin_active' ) && is_plugin_active( $this->the_plugin_slug ) ) {
+                return new \WP_Error( 'deactivate_failed', 'Failed to deactivate existing plugin.' );
+            }
+        }
+
+        // Delete plugin if exists (file or folder).
+        $plugin_dir = WP_PLUGIN_DIR . '/' . dirname( $this->the_plugin_slug );
+        if ( file_exists( WP_PLUGIN_DIR . '/' . $this->the_plugin_slug ) || is_dir( $plugin_dir ) ) {
+            // delete_plugins() will try to deactivate if needed and remove files.
+            $deleted = delete_plugins( array( $this->the_plugin_slug ) );
+            if ( is_wp_error( $deleted ) ) {
+                return new \WP_Error(
+                    'delete_failed',
+                    'Failed to delete existing plugin folder.',
+                    array( 'error' => $deleted->get_error_message() )
+                );
+            }
+            // In some envs a residual folder may remain; hard-delete with WP_Filesystem.
+            if ( is_dir( $plugin_dir ) ) {
+                global $wp_filesystem;
+                if ( ! $wp_filesystem ) {
+                    WP_Filesystem();
+                }
+                if ( $wp_filesystem && $wp_filesystem->is_dir( $plugin_dir ) ) {
+                    $wp_filesystem->delete( $plugin_dir, true );
+                }
+                if ( is_dir( $plugin_dir ) ) {
+                    return new \WP_Error( 'delete_residual_failed', 'Plugin directory still exists after deletion.' );
+                }
+            }
+        }
+
         // Install/overwrite with Plugin_Upgrader (WordPress core standard).
         $skin     = new \Automatic_Upgrader_Skin();
         $upgrader = new \Plugin_Upgrader( $skin );
