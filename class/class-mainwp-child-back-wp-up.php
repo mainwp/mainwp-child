@@ -1825,7 +1825,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         foreach ( $exclude_dir_fields as $key ) {
             if ( property_exists( $post_data, $key ) && is_array( $post_data->$key ) ) {
-                $sanitized = array_map( fn( $v ) => filter_var( $v, FILTER_SANITIZE_URL ), $post_data->$key );
+                $sanitized = array_map( 'esc_url_raw', $post_data->$key );
                 \BackWPup_Option::update( $id, $key, $sanitized );
             }
         }
