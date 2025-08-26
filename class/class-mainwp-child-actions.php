@@ -67,12 +67,21 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     public $current_themes_info = array();
 
 
-        /**
-         * Private variable to hold time start.
-         *
-         * @var int
-         */
+    /**
+     * Private variable to hold time start.
+     *
+     * @var int
+     */
     private static $exec_start = null;
+
+
+    /**
+     * The main IP of the client.
+     *
+     * @var string
+     */
+    private static $client_ip = '';
+
 
     /**
      * Method get_class_name()
@@ -95,7 +104,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $this->init_actions      = array(
             'upgrader_pre_install',
             'upgrader_process_complete',
-            'activate_plugin',
+            // 'activate_plugin', // moved to changes logs.
             'deactivate_plugin',
             'switch_theme',
             'delete_site_transient_update_themes',
@@ -130,6 +139,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return;
         }
 
+        // to support get duration time for non-mainwp changes logs.
+        $this->init_exec_time();
+
         // not connected, avoid actions.
         if ( empty( static::$connected_admin ) ) {
             return;
@@ -144,8 +156,6 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         foreach ( $this->init_actions as $action ) {
             add_action( $action, array( $this, 'callback' ), 10, 99 );
         }
-
-        $this->init_exec_time();
     }
 
     /**
@@ -282,6 +292,12 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                     update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
                 }
                 update_option( 'mainwp_child_actions_data_checked', time() );
+                /**
+                 * To support clean changes logs records.
+                 *
+                 * @since 5.5
+                 */
+                do_action( 'mainwp_child_actions_data_clean', $days_number . ' days', $days_number );
             }
         }
     }
@@ -613,6 +629,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         $info = $update_results['core'][0];
 
+        // Get WordPress version via the shared helper method for consistency.
+        // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
         $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $new_version  = $info->item->version;
         $auto_updated = true;
@@ -641,7 +659,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
          */
         global $pagenow;
 
-        $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        // Get WordPress version using the centralized method.
+        // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
+        $new_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $old_version  = $new_version; // Current version is now the old version after update.
         $auto_updated = ( 'update-core.php' !== $pagenow );
 
         if ( $auto_updated ) {
@@ -759,13 +780,23 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return false;  // not save action.
         }
 
+        $disable_cron_log = false;
+
+        if ( $this->is_doing_wp_cron() ) {
+            $disable_cron_log = true; // disable log cron tasks.
+        }
+        $disable_cron_log = apply_filters( 'mainwp_child_actions_disable_cron_log', $disable_cron_log, $context, $action, $args, $message, $user_id );
+        if ( $disable_cron_log ) {
+                return false;
+        }
+
         $actions_save = apply_filters( 'mainwp_child_actions_save_data', true, $context, $action, $args, $message, $user_id );
 
         if ( ! $actions_save ) {
             return false;
         }
 
-        $userlogin = (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
+        $userlogin = $user && (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
 
         $user_role_label = '';
         $role            = '';
@@ -776,13 +807,29 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             $user_role_label = isset( $roles[ $role ] ) ? $roles[ $role ] : $role;
         }
 
+        $fullname = '';
+
+        if ( ! empty( $user->ID ) ) {
+            $first_name = get_user_meta( $user->ID, 'first_name', true );
+            $last_name  = get_user_meta( $user->ID, 'last_name', true );
+            if ( ! empty( $first_name ) ) {
+                $fullname = $first_name;
+            }
+            if ( ! empty( $last_name ) ) {
+                $fullname .= ' ' . $last_name;
+            }
+        }
+
         $agent     = $this->get_current_agent();
-        $meta_data = array(
+        $user_meta = array(
             'wp_user_id'      => (int) $user_id,
             'display_name'    => (string) $this->get_display_name( $user ),
             'role'            => (string) $role,
             'user_role_label' => (string) $user_role_label,
             'agent'           => (string) $agent,
+            'full_name'       => $fullname,
+            'username'        => ! empty( $userlogin ) ? $userlogin : '',
+            'ip'              => static::get_client_ip(),
         );
 
         $system_user = '';
@@ -791,10 +838,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             if ( is_callable( 'posix_getuid' ) && is_callable( 'posix_getpwuid' ) ) {
                 $uid                           = posix_getuid();
                 $user_info                     = posix_getpwuid( $uid );
-                $meta_data['system_user_id']   = (int) $uid;
-                $meta_data['system_user_name'] = (string) $user_info['name'];
-                if ( ! empty( $meta_data['system_user_name'] ) ) {
-                    $system_user = $meta_data['system_user_name'];
+                $user_meta['system_user_id']   = (int) $uid;
+                $user_meta['system_user_name'] = (string) $user_info['name'];
+                if ( ! empty( $user_meta['system_user_name'] ) ) {
+                    $system_user = $user_meta['system_user_name'];
                 }
             }
         } elseif ( 'wp_cron' === $agent ) {
@@ -805,7 +852,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             $userlogin = $system_user;
         }
 
-        $meta_data['action_user'] = (string) $userlogin;
+        $user_meta['action_user'] = (string) $userlogin;
 
         // Prevent any meta with null values from being logged.
         $extra_info = array_filter(
@@ -817,11 +864,11 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Add user meta to Stream meta.
         $other_meta = array(
-            'user_meta'  => $meta_data,
+            'user_meta'  => $user_meta,
             'extra_info' => $extra_info,
         );
 
-        $created = time();
+        $created = microtime( true );
 
         $action = (string) $action;
 
@@ -960,5 +1007,60 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     public function is_cron_enabled() {
         return ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ? false : true;
+    }
+
+    /**
+     * Get client IP.
+     *
+     * @return string|null
+     */
+    public static function get_client_ip() {
+        if ( '' === static::$client_ip && isset( $_SERVER['REMOTE_ADDR'] ) ) {
+            $ip                = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+            static::$client_ip = static::normalize_ip( $ip );
+            if ( ! static::validate_ip( static::$client_ip ) ) {
+                static::$client_ip = '';
+            }
+        }
+        return static::$client_ip;
+    }
+
+    /**
+     * Normalize IP address.
+     *
+     * @param string $ip - IP address.
+     *
+     * @return string
+     */
+    public static function normalize_ip( $ip ) {
+        $ip = trim( $ip );
+        if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6 ) ) {
+            return $ip;
+        }
+        $ip = parse_url( 'http://' . $ip, PHP_URL_HOST );
+        $ip = str_replace( array( '[', ']' ), '', $ip );
+        return $ip;
+    }
+
+    /**
+     * Validate IP address.
+     *
+     * @param string $ip - IP address.
+     *
+     * @return string|bool
+     */
+    public static function validate_ip( $ip ) {
+        $opts     = FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
+        $valid_ip = filter_var( $ip, FILTER_VALIDATE_IP, $opts );
+
+        if ( ! $valid_ip || empty( $valid_ip ) ) {
+            // Regex IPV4.
+            if ( preg_match( '/^(([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip ) ) {
+                return $ip;
+            }
+            return false;
+        } else {
+            return $valid_ip;
+        }
     }
 }
