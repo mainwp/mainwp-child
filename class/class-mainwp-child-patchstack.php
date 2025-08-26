@@ -122,6 +122,9 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
                 case 'install_plugin':
                     $information = $this->install_plugin();
                     break;
+                case 'sync_data':
+                    $information = $this->sync_data();
+                    break;
                 case 'set_showhide':
                     $information = $this->set_showhide();
                     break;
@@ -290,6 +293,36 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         update_site_option( $this->option_hide_name, $hide );
 
         return array( 'success' => 1 );
+    }
+
+    /**
+     * Summary of sync_data
+     *
+     * @return array{data: mixed, success: int|array{error: string}}`
+     */
+    private function sync_data() {
+        $oauth = $this->sanitized_post( 'oauth' );
+        if ( empty( $oauth ) ) {
+            return array( 'error' => 'Missing oauth data.' );
+        }
+        $response = wp_remote_post(
+            admin_url( 'admin-ajax.php' ),
+            array(
+                'timeout'   => 30,
+                'sslverify' => false,
+                'body'      => array(
+                    'action' => 'patchstack_activate_license',
+                    'key'    => $oauth,
+                ),
+            )
+        );
+
+        $body = wp_remote_retrieve_body( $response );
+        $data = json_decode( $body, true );
+        return array(
+            'success' => 1,
+            'data'    => $data,
+        );
     }
 
     /**
