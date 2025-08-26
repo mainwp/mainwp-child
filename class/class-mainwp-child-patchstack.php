@@ -102,6 +102,10 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function init() {
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
+        if ( get_option( $this->option_hide_name ) === 'hide' ) {
+            add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
+            add_action( 'admin_menu', array( $this, 'remove_menu' ) );
+        }
     }
 
     /**
@@ -125,7 +129,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
                 case 'sync_data':
                     $information = $this->sync_data();
                     break;
-                case 'set_showhide':
+                case 'show_hide':
                     $information = $this->set_showhide();
                     break;
                 case 'save_settings':
@@ -136,6 +140,51 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Hide BackWPup Plugin from the WordPress Installed plugin list.
+     *
+     * @param array $plugins Installed plugins.
+     * @return array $plugins Installed plugins without BackWPup Plugin on the list.
+     */
+    public function all_plugins( $plugins ) {
+        foreach ( $plugins as $key => $value ) {
+            $plugin_slug = basename( $key, '.php' );
+            if ( 'patchstack' === $plugin_slug ) {
+                unset( $plugins[ $key ] );
+            }
+        }
+
+        return $plugins;
+    }
+    /**
+     * Remove Patchstack Plugin from the WordPress Admin.
+     */
+    public function remove_menu() {
+        // Remove patchstack from the admin menu.
+        remove_menu_page( 'options-general.php?page=patchstack' );
+        global $submenu;
+
+        // Remove the WordPress Admin SubMenu.
+        if ( isset( $submenu['patchstack'] ) ) {
+            unset( $submenu['patchstack'] );
+        }
+
+        if ( isset( $submenu['options-general.php'] ) ) {
+            foreach ( $submenu['options-general.php'] as $index => $item ) {
+                if ( 'patchstack' === $item[2] ) {
+                    unset( $submenu['options-general.php'][ $index ] );
+                    break;
+                }
+            }
+        }
+
+        $pos = isset( $_SERVER['REQUEST_URI'] ) ? stripos( wp_unslash( $_SERVER['REQUEST_URI'] ), 'options-general.php?page=patchstack' ) : false;
+        if ( false !== $pos ) {
+            wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+            exit();
+        }
     }
 
     /**
@@ -222,7 +271,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
             return new \WP_Error( 'bad_slug', 'Invalid plugin slug (expected "patchstack/patchstack.php").' );
         }
 
-        // Deactivate if active
+        // Deactivate if active.
         $was_active = function_exists( 'is_plugin_active' ) ? is_plugin_active( $this->the_plugin_slug ) : false;
         if ( $was_active ) {
             deactivate_plugins( $this->the_plugin_slug, true );
@@ -324,7 +373,7 @@ class MainWP_Child_Patchstack { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array $information Array containing the sync information.
      */
     private function set_showhide() {
-        $raw = isset( $_POST['show_hide'] ) ? sanitize_text_field( wp_unslash( $_POST['show_hide'] ) ) : '';  // phpcs:ignore -- NOSONAR
+        $raw  = $this->sanitized_post( 'show_hide' );
         $hide = ( 'hide' === sanitize_text_field( $raw ) ) ? 'hide' : '';
         update_site_option( $this->option_hide_name, $hide );
 
