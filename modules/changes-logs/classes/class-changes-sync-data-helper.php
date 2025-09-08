@@ -45,13 +45,16 @@ class Changes_Sync_Data_Helper {
             $extra .= $wpdb->prepare( ' AND created_on < %f ', $query_args['older_than'] );
         }
 
-        if ( ! empty( $query_args['ignore_sync_logs'] ) && is_array( $query_args['ignore_sync_logs'] ) ) {
-            $ignore_sync_logs = array_filter( array_map( 'absint', wp_unslash( $query_args['ignore_sync_logs'] ) ) );
-            if ( ! empty( $ignore_sync_logs ) ) {
+        $ignore_sync_logs = get_option( 'mainwp_child_ignored_changes_logs' );
+        if ( false !== $ignore_sync_logs ) {
+            $ignore_sync_logs = json_decode( $ignore_sync_logs );
+            if ( ! empty( $ignore_sync_logs ) && is_array( $ignore_sync_logs ) ) {
                 // Make placeholders: "%d,%d,%d".
                 $placeholders = implode( ',', array_fill( 0, count( $ignore_sync_logs ), '%d' ) );
-                // Build query safely.
-                $extra .= $wpdb->prepare( " AND log_type_id NOT IN( $placeholders) ", ...$ignore_sync_logs ); //phpcs:ignore --ok.
+                if ( ! empty( $placeholders ) ) {
+                    // Build query safely.
+                    $extra .= $wpdb->prepare( " AND log_type_id NOT IN( $placeholders) ", ...$ignore_sync_logs ); //phpcs:ignore --ok.
+                }
             }
         }
 

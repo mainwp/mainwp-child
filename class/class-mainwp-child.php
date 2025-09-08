@@ -289,6 +289,9 @@ class MainWP_Child {
                 'mainwp_child_connected_admin',
                 'mainwp_child_actions_saved_number_of_days',
                 'mainwp_child_pingnonce',
+                'mainwp_child_ignored_changes_logs',
+                'mainwp_child_ignored_nonmainwp_actions',
+
             );
 
             // Execute individual queries for each option for maximum security.

@@ -104,7 +104,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $this->init_actions      = array(
             'upgrader_pre_install',
             'upgrader_process_complete',
-            // 'activate_plugin', // moved to changes logs.
+            // 'activate_plugin', // moved to changes logs, log id ##1461.
             'deactivate_plugin',
             'switch_theme',
             'delete_site_transient_update_themes',
@@ -771,6 +771,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return false;
         }
 
+        if ( $this->is_ignored_nonmainwp_actions( $context, $action ) ) {
+            return false;
+        }
+
         $user_id = get_current_user_id();
         $user    = get_user_by( 'id', $user_id );
 
@@ -883,6 +887,52 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         );
         $index     = time() . rand( 1000, 9999 ); // phpcs:ignore -- ok for index.
         $this->update_actions_data( $index, $recordarr );
+    }
+
+
+    /**
+     * Method is_ignored_nonmainwp_actions().
+     *
+     * @param string $context Non-mainwp context.
+     * @param string $action  Non-mainwp action.
+     *
+     * @return bool Ignored or not.
+     */
+    public function is_ignored_nonmainwp_actions( $context, $action ) {
+        $ignored_actions = get_option( 'mainwp_child_ignored_nonmainwp_actions' );
+        if ( false !== $ignored_actions && ! empty( $ignored_actions ) ) {
+            $ignored_decode = json_decode( $ignored_actions, true );
+
+            if ( ! is_array( $ignored_decode ) ) {
+                return false;
+            }
+
+
+
+            $actions_mapping = array(
+                'installed'   => 'install',
+                'deleted'     => 'delete',
+                'activated'   => 'activate',
+                'deactivated' => 'deactivate',
+            );
+
+            $contexts_mapping = array(
+                'plugins'   => 'plugin',
+                'themes'    => 'theme',
+                'wordpress' => 'core',
+            );
+
+            $dash_action  = isset( $actions_mapping[ $action ] ) ? $actions_mapping[ $action ] : $action;
+            $dash_context = isset( $contexts_mapping[ $context ] ) ? $contexts_mapping[ $context ] : $context;
+
+            $setting_name = $dash_context . '_' . $dash_action;
+
+            if ( in_array( $setting_name, $ignored_decode ) ) {
+                return true;
+            }
+
+        }
+        return false;
     }
 
     /**

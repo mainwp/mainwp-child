@@ -338,6 +338,29 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( $this->is_sync_data( 'child_site_actions_data' ) ) {
+
+             $logs_params = ! empty( $_POST['params_logs'] ) && is_array( $_POST['params_logs'] ) ?  $_POST['params_logs'] : array(); //phpcs:ignore -- ok.
+
+            if ( ! empty( $logs_params ) ) {
+
+                if ( isset( $logs_params['ignore_sync_changes_logs'] ) && is_array( $logs_params['ignore_sync_changes_logs'] ) ) {
+                    $ignore_sync_logs = array_filter( array_map( 'absint', wp_unslash( $logs_params['ignore_sync_changes_logs'] ) ) );
+                    $ignore_sync_logs = wp_json_encode( $ignore_sync_logs );
+                    if ( get_option( 'mainwp_child_ignored_changes_logs' ) !== $ignore_sync_logs ) {
+                            MainWP_Helper::update_option( 'mainwp_child_ignored_changes_logs', $ignore_sync_logs );
+                    }
+                }
+
+                if ( isset( $logs_params['ignore_sync_nonmainwp_actions'] ) && is_array( $logs_params['ignore_sync_nonmainwp_actions'] ) ) {
+                    $ignore_sync_actions = array_filter( array_map( 'sanitize_text_field', wp_unslash( $logs_params['ignore_sync_nonmainwp_actions'] ) ) );
+
+                    $ignore_sync_actions = wp_json_encode( $ignore_sync_actions );
+                    if ( get_option( 'mainwp_child_ignored_nonmainwp_actions' ) !== $ignore_sync_actions ) {
+                        MainWP_Helper::update_option( 'mainwp_child_ignored_nonmainwp_actions', $ignore_sync_actions );
+                    }
+                }
+            }
+
             $information['child_site_actions_data'] = MainWP_Child_Actions::get_actions_data();
             $information['changes_logs_data']       = MainWP_Child_Changes_Logs::get_changes_data();
         }
