@@ -414,6 +414,11 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
         // phpcs:disable WordPress.Security.NonceVerification
         $update_settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions  -- base64_encode function is used for http encode compatible..
 
+        $exclude = [
+            'use_individual_location',
+            'use_individual_exclude',
+        ];
+
         foreach ( $update_settings as $module => $settings ) {
             $do_not_save = false;
             $current_settings = \ITSEC_Modules::get_settings( $module );
@@ -447,8 +452,8 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                     if ( ! isset( $settings['exclude'] ) ) {
                         $settings['exclude'] = \ITSEC_Modules::get_setting( $module, 'exclude' );
-
                     }
+
                 } elseif ( 'hide-backend' === $module ) {
                     if ( isset( $settings['enabled'] ) && ! empty( $settings['enabled'] ) ) {
                         $permalink_structure = get_option( 'permalink_structure', false );
@@ -497,6 +502,15 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                         \ITSEC_Modules::set_settings( $module, $current_settings );
                     }
                     continue;
+				} elseif ( 'file-change' === $module  && isset( $settings["show_warning"] ) ) {
+					unset( $settings["show_warning"] );
+				}
+
+                // Unset use_individual_location.
+                foreach ( $exclude as $key ) {
+                    if ( isset( $settings[ $key ] ) ) {
+                        unset( $settings[ $key ] );
+                    }
                 }
 
                 if ( ! $do_not_save ) {
