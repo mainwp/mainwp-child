@@ -404,6 +404,7 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
             'multisite-tweaks',
             'notification-center',
             'two-factor',
+            'firewall'
         );
 
         $require_permalinks = false;
@@ -485,9 +486,8 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                     $settings = $nbf_settings;
                 } elseif ( 'notification-center' === $module ) {
-                    $current_settings = \ITSEC_Modules::get_settings( $module );
                     if ( isset( $settings['notifications'] ) ) {
-                        $update_fields = array( 'schedule', 'enabled', 'subject' );
+                        $update_fields = array( 'schedule', 'enabled', 'subject', 'message' );
                         if ( isset( $_POST['is_individual'] ) && $_POST['is_individual'] ) {
                             $update_fields = array_merge( $update_fields, array( 'user_list', 'email_list' ) );
                         }
