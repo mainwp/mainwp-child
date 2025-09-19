@@ -533,6 +533,9 @@ class Changes_Logs_DB_Log {
 
         if ( is_array( reset( $results[0] ) ) || ( is_array( $results[0] ) && ! empty( $results[0] ) && ! isset( $results[0][0] ) ) ) {
             foreach ( $results as $row ) {
+                if ( ! isset( $row[ $log_table_name . 'id' ] ) ) {
+                    continue;
+                }
                 $log_id = $row[ $log_table_name . 'id' ];
                 if ( ! isset( $prepared_array[ $log_id ] ) ) {
                     foreach ( array_keys( $log_fields ) as $field ) {
@@ -540,6 +543,11 @@ class Changes_Logs_DB_Log {
                         $prepared_array[ $log_id ][ $field ] = $this->convert_fields_value( $field, $row_value, $logs_values );
                     }
                     foreach ( $map_fields as $name => $field ) {
+
+                        if ( ! isset( $row[ $log_table_name . $field ] ) ) {
+                            continue;
+                        }
+
                         $prepared_array[ $log_id ]['meta_values'][ $name ] = maybe_unserialize( $row[ $log_table_name . $field ] );
                     }
                 }
