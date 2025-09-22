@@ -42,6 +42,14 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      *
      * @var mixed Default null
      */
+    protected static $sync_actions_data = null;
+
+
+    /**
+     * Public static variable.
+     *
+     * @var mixed Default null
+     */
     protected static $sending = null;
 
     /**
@@ -236,8 +244,35 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
             }
             static::check_actions_data();
+
         }
         return static::$actions_data;
+    }
+
+    /**
+     * Method to get actions info to sync.
+     */
+    public static function get_sync_actions_data() {
+        if ( null === static::$sync_actions_data ) {
+            static::get_actions_data();
+            $last_sync_created = isset( $_POST['child_actions_last_created'] ) ? (float) $_POST['child_actions_last_created'] : 0; //phpcs:ignore WordPress.Security.NonceVerification.Missing --ok.
+            if ( is_array( static::$actions_data ) ) {
+                foreach ( static::$actions_data as $index => $data ) {
+                    if ( 'connected_admin' === strval( $index ) ) {
+                        continue;
+                    }
+                    $item_created = round( (float) $data['created'], 4 ); // to fix float comparing issue.
+                    if ( $last_sync_created < $item_created ) {
+                        static::$sync_actions_data[ $index ] = $data;
+                    }
+                }
+            }
+        }
+
+        if ( ! is_array( static::$sync_actions_data ) ) {
+            static::$sync_actions_data = array();
+        }
+        return static::$sync_actions_data;
     }
 
 
@@ -640,7 +675,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $this->save_actions(
             $message,
             compact( 'new_version', 'old_version', 'auto_updated' ),
-            'wordpress', // phpcs:ignore -- fix format text.
+        'wordpress', // phpcs:ignore -- fix format text.
             'updated'
         );
     }
@@ -676,7 +711,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $this->save_actions(
             $message,
             compact( 'new_version', 'old_version', 'auto_updated' ),
-            'wordpress', // phpcs:ignore -- fix format text.
+        'wordpress', // phpcs:ignore -- fix format text.
             'updated'
         );
     }
@@ -791,7 +826,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         }
         $disable_cron_log = apply_filters( 'mainwp_child_actions_disable_cron_log', $disable_cron_log, $context, $action, $args, $message, $user_id );
         if ( $disable_cron_log ) {
-                return false;
+            return false;
         }
 
         $actions_save = apply_filters( 'mainwp_child_actions_save_data', true, $context, $action, $args, $message, $user_id );
@@ -800,7 +835,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return false;
         }
 
-        $userlogin = $user && (string) ( ! empty( $user->user_login ) ? $user->user_login : '' );
+        $userlogin = $user && ! empty( $user->user_login ) ? (string) $user->user_login : '';
 
         $user_role_label = '';
         $role            = '';
@@ -885,7 +920,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             'meta_data'   => $other_meta,
             'duration'    => $this->get_exec_time(),
         );
-        $index     = time() . rand( 1000, 9999 ); // phpcs:ignore -- ok for index.
+    $index     = time() . rand( 1000, 9999 ); // phpcs:ignore -- ok for index.
         $this->update_actions_data( $index, $recordarr );
     }
 
@@ -899,40 +934,37 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * @return bool Ignored or not.
      */
     public function is_ignored_nonmainwp_actions( $context, $action ) {
-        $ignored_actions = get_option( 'mainwp_child_ignored_nonmainwp_actions' );
-        if ( false !== $ignored_actions && ! empty( $ignored_actions ) ) {
-            $ignored_decode = json_decode( $ignored_actions, true );
+        static $ignored_actions;
 
-            if ( ! is_array( $ignored_decode ) ) {
-                return false;
+        if ( null === $ignored_actions ) {
+            $ignored_acts_saved = get_option( 'mainwp_child_ignored_nonmainwp_actions' );
+            if ( false !== $ignored_acts_saved && ! empty( $ignored_acts_saved ) ) {
+                $ignored_actions = json_decode( $ignored_acts_saved, true );
+                if ( is_array( $ignored_actions ) ) {
+                    $ignored_actions = array();
+                }
             }
-
-
-
-            $actions_mapping = array(
-                'installed'   => 'install',
-                'deleted'     => 'delete',
-                'activated'   => 'activate',
-                'deactivated' => 'deactivate',
-            );
-
-            $contexts_mapping = array(
-                'plugins'   => 'plugin',
-                'themes'    => 'theme',
-                'wordpress' => 'core',
-            );
-
-            $dash_action  = isset( $actions_mapping[ $action ] ) ? $actions_mapping[ $action ] : $action;
-            $dash_context = isset( $contexts_mapping[ $context ] ) ? $contexts_mapping[ $context ] : $context;
-
-            $setting_name = $dash_context . '_' . $dash_action;
-
-            if ( in_array( $setting_name, $ignored_decode ) ) {
-                return true;
-            }
-
         }
-        return false;
+
+        $actions_mapping = array(
+            'installed'   => 'install',
+            'deleted'     => 'delete',
+            'activated'   => 'activate',
+            'deactivated' => 'deactivate',
+        );
+
+        $contexts_mapping = array(
+            'plugins'   => 'plugin',
+            'themes'    => 'theme',
+            'wordpress' => 'core',
+        );
+
+        $dash_action  = isset( $actions_mapping[ $action ] ) ? $actions_mapping[ $action ] : $action;
+        $dash_context = isset( $contexts_mapping[ $context ] ) ? $contexts_mapping[ $context ] : $context;
+
+        $setting_name = $dash_context . '_' . $dash_action;
+
+        return in_array( $setting_name, $ignored_actions ) ? true : false;
     }
 
     /**
@@ -979,9 +1011,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     public function get_valid_context( $context ) {
         $context = (string) $context;
         $valid   = array(
-            'plugins'   => 'Plugins',
-            'themes'    => 'Themes',
-            'wordpress' => 'WordPress'  // phpcs:ignore -- fix format text.
+            'plugins' => 'Plugins',
+            'themes'  => 'Themes',
+        'wordpress' => 'WordPress'  // phpcs:ignore -- fix format text.
         );
         return isset( $valid[ $context ] ) ? $valid[ $context ] : '';
     }

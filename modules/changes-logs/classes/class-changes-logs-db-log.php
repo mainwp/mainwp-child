@@ -324,12 +324,12 @@ class Changes_Logs_DB_Log {
 
                     $sql = "($formats),";
 
-                    $sqls .= $this->db->wpdb->prepare( $sql, $data_prepared[0] );
+                    $sqls .= $this->db->wpdb->prepare( $sql, $data_prepared[0] ); //phpcs:ignore --ok.
                 }
 
                 if ( ! empty( $sqls ) ) {
                     $sqls = 'INSERT INTO `' . static::table_name( 'changes_meta' ) . "` ($fields) VALUES " . rtrim( $sqls, ',' );
-                    $this->db->wpdb->query( $sqls );
+                    $this->db->wpdb->query( $sqls ); //phpcs:ignore --ok.
                 }
             }
         }

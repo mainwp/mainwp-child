@@ -280,6 +280,10 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             return;
         }
 
+        if ( static::is_ignored_changes_log( $type_id ) ) {
+            return;
+        }
+
         if ( ! isset( $log_data['clientip'] ) ) {
             $client_ip = Changes_Helper::change_get_client_ip();
             if ( ! empty( $client_ip ) ) {
@@ -291,12 +295,16 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             $log_data['useragent'] = \sanitize_text_field( \wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
         }
 
+        $wp_user_info = array();
+
         if ( ! isset( $log_data['username'] ) && ! isset( $log_data['currentuserid'] ) && function_exists( 'get_current_user_id' ) ) {
             $log_data['currentuserid'] = \get_current_user_id();
             if ( 0 !== $log_data['currentuserid'] ) {
                 $user = \get_user_by( 'ID', $log_data['currentuserid'] );
                 if ( \is_a( $user, '\WP_User' ) ) {
-                    $log_data['username'] = $user->user_login;
+                    $log_data['username']       = $user->user_login;
+                    $wp_user_info['first_name'] = get_user_meta( $user->ID, 'first_name', true );
+                    $wp_user_info['last_name']  = get_user_meta( $user->ID, 'last_name', true );
                 } else {
                     $log_data['username'] = 'Unknown User';
                 }
@@ -323,7 +331,9 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             } else {
                 $user = \get_user_by( 'ID', $log_data['currentuserid'] );
                 if ( $user ) {
-                    $log_data['username'] = $user->user_login;
+                    $log_data['username']       = $user->user_login;
+                    $wp_user_info['first_name'] = get_user_meta( $user->ID, 'first_name', true );
+                    $wp_user_info['last_name']  = get_user_meta( $user->ID, 'last_name', true );
                 } else {
                     $log_data['username'] = 'Deleted';
                 }
@@ -334,6 +344,10 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             if ( ! empty( $current_user_roles ) ) {
                 $log_data['currentuserroles'] = $current_user_roles;
             }
+        }
+
+        if ( ! empty( $wp_user_info ) ) {
+            $log_data['user_data'] = $wp_user_info;
         }
 
         if ( $log_obj && ! isset( $log_data['context'] ) ) {
@@ -370,6 +384,29 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
         $log_data = \apply_filters( 'mainwp_child_changes_logs_event_data_before_log', $log_data, $type_id );
 
         static::insert_log( $type_id, $log_data );
+    }
+
+
+    /**
+     * Method is_ignored_changes_log().
+     *
+     * @param int $type_id Log type.
+     *
+     * @return bool Ignored or not.
+     */
+    private static function is_ignored_changes_log( $type_id ) {
+
+        static $ignored_type_ids;
+        if ( null === $ignored_type_ids ) {
+            $ignored_types_saved = get_option( 'mainwp_child_ignored_changes_logs' );
+            if ( false !== $ignored_types_saved && ! empty( $ignored_types_saved ) ) {
+                $ignored_type_ids = json_decode( $ignored_types_saved, true );
+                if ( ! is_array( $ignored_type_ids ) ) {
+                    $ignored_type_ids = array();
+                }
+            }
+        }
+        return in_array( $type_id, $ignored_type_ids ) ? true : false;
     }
 
     /**
@@ -594,7 +631,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
                 }
             }
 
-            if ( ! empty( $user ) ) {
+            if ( empty( $user ) ) {
                 $user_data['username'] = 'System';
             }
         }

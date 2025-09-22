@@ -47,7 +47,7 @@ class Changes_Sync_Data_Helper {
 
         $ignore_sync_logs = get_option( 'mainwp_child_ignored_changes_logs' );
         if ( false !== $ignore_sync_logs ) {
-            $ignore_sync_logs = json_decode( $ignore_sync_logs );
+            $ignore_sync_logs = json_decode( $ignore_sync_logs, true );
             if ( ! empty( $ignore_sync_logs ) && is_array( $ignore_sync_logs ) ) {
                 // Make placeholders: "%d,%d,%d".
                 $placeholders = implode( ',', array_fill( 0, count( $ignore_sync_logs ), '%d' ) );
@@ -63,8 +63,7 @@ class Changes_Sync_Data_Helper {
 
         if ( ! empty( $logs_data ) && is_array( $logs_data ) ) {
             foreach ( $logs_data as &$log ) {
-                $log['meta_values']['userdata'] = Changes_Logs_Logger::get_log_user_data( static::get_username( $log['meta_values'] ) );
-                $log['meta_data']               = $log['meta_values'];
+                $log['meta_data'] = $log['meta_values'];
                 unset( $log['meta_values'] );
 
                 // Compatible data.
@@ -81,7 +80,6 @@ class Changes_Sync_Data_Helper {
                 $user_meta                     = array(
                     'wp_user_id'   => $log['user_id'] ? (int) $log['user_id'] : 0,
                     'display_name' => (string) $log['username'],
-                    'user_roles'   => (string) $log['user_roles'],
                     'agent'        => (string) $agent,
                 );
                 $user_meta['action_user']      = $log['user_id'] ? (string) $log['username'] : $system_user;
