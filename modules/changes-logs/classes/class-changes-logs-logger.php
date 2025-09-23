@@ -245,7 +245,12 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      * @internal
      */
     protected static function log_item( $type_id, $data, $is_delayed, $_retry = true ) {
-        if ( ( ! $is_delayed || static::check_conditions_delayed_logs( $type_id ) ) && static::is_enabled( $type_id ) ) {
+
+        if ( ! static::is_enabled( $type_id ) || ! Changes_Logs_DB_Log::instance()->is_installed_db() ) {
+            return;
+        }
+
+        if ( ( ! $is_delayed || static::check_conditions_delayed_logs( $type_id ) ) ) {
             if ( isset( self::get_logs()[ $type_id ] ) ) {
                 self::$logs_type_queue[] = $type_id;
                 self::log( $type_id, $data );
@@ -254,6 +259,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             }
         }
     }
+
 
     /**
      * Returns whether log is enabled or not.

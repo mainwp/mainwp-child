@@ -81,7 +81,7 @@ class Changes_Logs_DB_Log {
      */
     public function install() { // phpcs:ignore -- NOSONAR - complex function. Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
-        $currentVersion = get_option( Changes_Helper::CHANGES_LOGS_DB_OPTION_NAME );
+        $currentVersion = $this->get_db_version();
 
         if ( $currentVersion === $this->db_version ) {
             return;
@@ -150,6 +150,28 @@ class Changes_Logs_DB_Log {
         MainWP_Helper::update_option( Changes_Helper::CHANGES_LOGS_DB_OPTION_NAME, $this->db_version );
     }
 
+    /**
+     * Method get_db_version()
+     *
+     * @return string DB version string.
+     */
+    public function get_db_version() { // phpcs:ignore -- NOSONAR - complex function. Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        static $current_dbversion;
+        if ( null === $current_dbversion ) {
+            $current_dbversion = get_option( Changes_Helper::CHANGES_LOGS_DB_OPTION_NAME );
+        }
+        return $current_dbversion;
+    }
+
+
+    /**
+     * Method is_installed_db().
+     *
+     * @return bool Is logs db version installed.
+     */
+    public function is_installed_db() {
+        return ! empty( $this->get_db_version() );
+    }
 
     /**
      * List of meta fields.

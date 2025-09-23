@@ -132,6 +132,9 @@ class Changes_Handle_WP_Database {
      */
     private static function change_check_db_log( $query_type, $table_names ) {
         if ( ! empty( $table_names ) ) {
+            if ( ! Changes_Logs_DB_Log::instance()->is_installed_db() ) {
+                return;
+            }
             $runner = self::change_get_client_runner( $table_names );
             foreach ( $table_names as $table_name ) {
                 $log_data  = self::change_get_log_data( $runner );
@@ -378,6 +381,10 @@ class Changes_Handle_WP_Database {
      * @return array
      */
     public static function callback_change_db_delta_query( $queries ) {
+
+        if ( ! Changes_Logs_DB_Log::instance()->is_installed_db() ) {
+            return $queries;
+        }
 
         $query_types = array(
             'create' => array(),
