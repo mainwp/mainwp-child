@@ -314,22 +314,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         $tmpPlugins = array();
         foreach ( $plugins as $plugin ) {
 
-            $readme_file = WP_PLUGIN_DIR . '/' . dirname( $plugin ) . '/readme.txt';
             $plugin_data = array(
                 'requires'     => '',
                 'requires_php' => '',
             );
-
-            if ( file_exists( $readme_file ) ) {
-                $plugin_data = get_file_data( // NOSONAR .
-                    $readme_file,
-                    array(
-                        'requires'     => 'Requires at least',
-                        'requires_php' => 'Requires PHP',
-                    ),
-                    'plugin'
-                );
-            }
 
             $plugin_data = array_merge( $plugin_data, get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ) );
 

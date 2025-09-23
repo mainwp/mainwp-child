@@ -544,8 +544,13 @@ class MainWP_Child_Install {
                 if ( is_dir( $path . $srcFile ) ) {
                     continue;
                 }
+
+                if ( 'readme.txt' === $srcFile || 'README.md' === $srcFile ) {
+                    continue;
+                }
+
                 $thePlugin = get_plugin_data( $path . $srcFile );
-                if ( null !== $thePlugin && '' !== $thePlugin && '' !== $thePlugin['Name'] && 'readme.txt' !== $srcFile && 'README.md' !== $srcFile ) { // to fix: skip readme.txt.
+                if ( null !== $thePlugin && '' !== $thePlugin && '' !== $thePlugin['Name'] ) {
                     $args['type']    = 'plugin';
                     $args['Name']    = $thePlugin['Name'];
                     $args['Version'] = $thePlugin['Version'];
