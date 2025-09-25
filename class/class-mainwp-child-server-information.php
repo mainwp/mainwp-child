@@ -987,8 +987,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         ?>
         <tr>
             <td></td>
-            <td><?php echo esc_html( esc_html( $config ) ); ?></td>
-            <td><?php echo esc_html( esc_html( $compare ) ); ?><?php echo esc_html( ( true === $version ? 'true' : $version ) . ' ' . $extra_text ); ?></td>
+            <td><?php echo esc_html( $config ); ?></td>
+            <td><?php echo esc_html( $compare ); ?><?php echo esc_html( ( true === $version ? 'true' : $version ) . ' ' . $extra_text ); ?></td>
             <td><?php echo esc_html( true === $currentVersion ? 'true' : $currentVersion ); ?></td>
             <td><?php echo static::check( $compare, $version, $getter, $extra_compare, $extra_version, $size_compare ) ? '<span class="mainwp-pass"><i class="fa fa-check-circle"></i> Pass</span>' : '<span class="mainwp-warning"><i class="fa fa-exclamation-circle"></i> Warning</span>'; ?></td>
         </tr>
