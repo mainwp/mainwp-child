@@ -54,10 +54,14 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * Write response data to be sent to the MainWP Dashboard.
      *
      * @param mixed $value Contains information to be written.
+     * @param bool $is_die Exit.
      */
-    public static function write( $value ) {
+    public static function write( $value, $is_die = true ) {
         $output = wp_json_encode( $value );
-        die( '<mainwp>' . base64_encode( $output ) . '</mainwp>' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.EscapeOutput -- base64_encode function is used for backwards compatibility.
+        echo '<mainwp>' . base64_encode( $output ) . '</mainwp>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.EscapeOutput -- base64_encode function is used for backwards compatibility.
+        if ( $is_die ) {
+            die();
+        }
     }
 
     /**

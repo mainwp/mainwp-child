@@ -250,6 +250,15 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Stats::get_site_stats()
      */
     public function get_site_stats() {
+        if ( ! empty( $_POST['fetch_stats'] ) ) { //phpcs:ignore -- ok.
+            $fetch = sanitize_text_field( wp_unslash( $_POST['fetch_stats'] ) ); //phpcs:ignore -- ok.
+            if ( 'prefetch_stats' === $fetch ) {
+                MainWP_Child_Stats::get_instance()->prefetch_stats_data();
+            } elseif ( 'get_fetched_stats' === $fetch ) {
+                MainWP_Child_Stats::get_instance()->get_fetched_stats();
+            }
+        }
+        // fallback stats.
         MainWP_Child_Stats::get_instance()->get_site_stats( array(), true, array( 'site_stats' => true ) );
     }
 

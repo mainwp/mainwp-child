@@ -129,6 +129,73 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
+     * Method prefetch_stats_data()
+     */
+    public function prefetch_stats_data() {
+
+        if ( ! headers_sent() ) {
+            status_header( 200 );
+            header( 'Content-Type: application/json; charset=' . get_option( 'blog_charset' ) );
+            header( 'Cache-Control: no-cache, must-revalidate, max-age=0' );
+        }
+
+        MainWP_Helper::write(
+            array(
+                'fetching_stats' => 1,
+            ),
+            false
+        );
+
+        if ( session_id() ) {
+            session_write_close();
+        }
+
+        if ( function_exists( 'fastcgi_finish_request' ) ) {
+            fastcgi_finish_request();
+        } else {
+            ob_end_flush();
+            flush();
+        }
+
+        $lock_key = '_mainwp_child_prefetch_stats_data_locked';
+        update_option( $lock_key, 1 );
+        $information = $this->get_site_stats( array(), false, array( 'site_stats' => true ) );
+        set_transient( '_mainwp_child_prefetch_stats_data', $information, 10 * MINUTE_IN_SECONDS );
+        delete_option( $lock_key );
+        exit();
+    }
+
+    /**
+     * Method get_fetched_stats()
+     */
+    public function get_fetched_stats() {
+
+        $lock_ttl = 120; // seconds.
+        $max_wait = 20; // seconds.
+        $interval = 1;  // check every second.
+
+        $lock_key = '_mainwp_child_prefetch_stats_data_locked';
+
+        $locked = get_option( $lock_key );
+
+        $waited = 0;
+        while ( $locked && time() < (int) $locked + $lock_ttl && $waited < $max_wait ) {
+            sleep( $interval );
+            $waited += $interval;
+            $locked  = get_option( $lock_key ); // re-check.
+        }
+
+        $information = array();
+        if ( ! $locked ) {
+            $information = get_transient( '_mainwp_child_prefetch_stats_data' );
+        }
+
+        MainWP_Helper::write( $information );
+    }
+
+
+
+    /**
      * Get Child Site Stats.
      *
      * @param array $information Holder for return array.
@@ -185,7 +252,9 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             $params = array();
         }
 
-        if ( $exit_done ) {
+        $is_call_stats = ! empty( $params['site_stats'] ) ? true : false;
+
+        if ( $exit_done || $is_call_stats ) {
             $this->update_external_settings();
         }
         // phpcs:disable WordPress.Security.NonceVerification
@@ -294,7 +363,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $information['extauth'] = ( is_array( $auths ) && isset( $auths[ $max_his ] ) ? $auths[ $max_his ] : null );
 
         if ( $this->is_sync_data( 'plugins' ) ) {
-            $information['plugins'] = $this->get_all_plugins_int( false, '', '', false, false, array( 'site_stats' => ! empty( $params['site_stats'] ) ? true : false ) );
+            $information['plugins'] = $this->get_all_plugins_int( false, '', '', false, false, array( 'site_stats' => $is_call_stats ) );
         }
 
         if ( $this->is_sync_data( 'themes' ) ) {
