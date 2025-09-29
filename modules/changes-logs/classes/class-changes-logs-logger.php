@@ -344,7 +344,14 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
                     $log_data['username'] = 'Deleted';
                 }
             }
+        } elseif ( isset( $log_data['currentuserid'] ) ) { // to fix.
+            $user = \get_user_by( 'ID', $log_data['currentuserid'] );
+            if ( $user ) {
+                $wp_user_info['first_name'] = get_user_meta( $user->ID, 'first_name', true );
+                $wp_user_info['last_name']  = get_user_meta( $user->ID, 'last_name', true );
+            }
         }
+
         if ( ! isset( $log_data['currentuserroles'] ) && function_exists( 'is_user_logged_in' ) && \is_user_logged_in() ) {
             $current_user_roles = Changes_Helper::get_user_roles();
             if ( ! empty( $current_user_roles ) ) {
