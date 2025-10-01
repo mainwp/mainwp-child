@@ -418,6 +418,9 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
                     $ignored_type_ids = array();
                 }
             }
+            if ( ! is_array( $ignored_type_ids ) ) {
+                $ignored_type_ids = array();
+            }
         }
         return in_array( $type_id, $ignored_type_ids ) ? true : false;
     }
