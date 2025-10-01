@@ -196,9 +196,7 @@ class MainWP_Child_Install {
         include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php'; // NOSONAR -- WP compatible.
         include_once ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php'; // NOSONAR -- WP compatible.
 
-        MainWP_Helper::check_wp_filesystem();
-
-        $pluginUpgrader = new \Plugin_Upgrader();
+        MainWP_Helper::check_wp_filesystem(); // to ensure the function delete_plugins() works properly.
 
         $all_plugins = get_plugins();
         foreach ( $plugins as $plugin ) {
@@ -210,18 +208,22 @@ class MainWP_Child_Install {
                             deactivate_plugins( $plugin );
                     }
                 }
-                $tmp['plugin'] = $plugin;
-                if ( true === $pluginUpgrader->delete_old_plugin( null, null, null, $tmp ) ) {
-                    $args = array(
-                        'action' => 'delete',
-                        'Name'   => $old_plugin['Name'],
-                    );
-                    do_action( 'mainwp_child_plugin_action', $args );
-                    $output[ $plugin ] = array(
-                        'name'    => $old_plugin['Name'],
-                        'version' => $old_plugin['Version'],
-                        'slug'    => $plugin,
-                    );
+
+                try {
+                    if ( true === delete_plugins( array( $plugin ) ) ) {
+                        $args = array(
+                            'action' => 'delete',
+                            'Name'   => $old_plugin['Name'],
+                        );
+                        do_action( 'mainwp_child_plugin_action', $args );
+                        $output[ $plugin ] = array(
+                            'name'    => $old_plugin['Name'],
+                            'version' => $old_plugin['Version'],
+                            'slug'    => $plugin,
+                        );
+                    }
+                } catch ( \Exception $e ) {
+                    // ignore.
                 }
             }
         }
