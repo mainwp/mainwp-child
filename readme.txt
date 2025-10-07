@@ -5,7 +5,7 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 6.8.2
+Tested up to: 6.8.3
 Requires PHP: 7.4
 Stable tag: 5.5-er3
 License: GPLv3 or later
@@ -110,6 +110,12 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 10. Dashboard Insights
 
 == Changelog ==
+
+= 5.4.0.15 - Maintenance Release - 10-7-2025 =
+
+* Fixed: Resolved an issue where certain Comments activity was not being captured in reports on specific server configurations.
+* Updated: Improved output handling in the server information display by removing redundant HTML escaping to enhance performance and code clarity. ([PR481](https://github.com/mainwp/mainwp-child/pull/481)) - thanks [DAnn2012](https://github.com/DAnn2012)
+* Updated: Changed the Delete Plugin function to use `delete_plugins()` instead of `delete_old_plugin()` to ensure all WordPress core actions and hooks are properly triggered during plugin deletion.
 
 = 5.4.0.14 - Maintenance Release - 8-26-2025 =
 

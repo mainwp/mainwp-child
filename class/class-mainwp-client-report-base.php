@@ -505,8 +505,11 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             $valid_context = false;
             // check context.
             if ( 'comments' === $context ) { // multi values.
-                $comment_contexts = array( 'post', 'page' );
-                if ( ! in_array( $record->context, $comment_contexts ) ) {
+                if ( 'comments' !== $record->connector ) {
+                    continue;
+                }
+                $excluded_comment_contexts = array( 'product' );
+                if ( in_array( $record->context, $excluded_comment_contexts ) ) {
                     continue;
                 }
                 $valid_context = true;
@@ -664,8 +667,11 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             $valid_context = false;
 
             if ( 'comments' === $context ) {
-                $comment_contexts = array( 'post', 'page' );
-                if ( ! in_array( $record->context, $comment_contexts ) ) {
+                if ( 'comments' !== $record->connector ) {
+                    continue;
+                }
+                $excluded_comment_contexts = array( 'product' );
+                if ( in_array( $record->context, $excluded_comment_contexts ) ) {
                     continue;
                 }
                 $valid_context = true;
