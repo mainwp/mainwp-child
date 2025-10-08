@@ -940,10 +940,11 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             $ignored_acts_saved = get_option( 'mainwp_child_ignored_nonmainwp_actions' );
             if ( false !== $ignored_acts_saved && ! empty( $ignored_acts_saved ) ) {
                 $ignored_actions = json_decode( $ignored_acts_saved, true );
-                if ( is_array( $ignored_actions ) ) {
-                    $ignored_actions = array();
-                }
             }
+        }
+
+        if ( ! is_array( $ignored_actions ) ) {
+            $ignored_actions = array();
         }
 
         $actions_mapping = array(
