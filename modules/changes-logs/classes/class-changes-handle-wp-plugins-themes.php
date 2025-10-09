@@ -75,12 +75,13 @@ class Changes_Handle_WP_Plugins_Themes {
             }
 
             if ( isset( $get_vars['checked'] ) && ! empty( $get_vars['checked'] ) ) {
-                foreach ( $get_vars['checked'] as $plugin_file ) {
-                    if ( ! is_wp_error( validate_plugin( $plugin_file ) ) ) {
-                        $plugin_file = WP_PLUGIN_DIR . '/' . $plugin_file;
+                foreach ( $get_vars['checked'] as $plugin ) {
+                    if ( ! is_wp_error( validate_plugin( $plugin ) ) ) {
+                        $plugin_file = WP_PLUGIN_DIR . '/' . $plugin;
                         $plugin_data = \get_plugin_data( $plugin_file, false, true );
                         $log_data    = array(
                             'pluginfile' => $plugin_file,
+                            'slug'       => $plugin,
                             'plugindata' => (object) array(
                                 'name'      => $plugin_data['Name'],
                                 'pluginuri' => $plugin_data['PluginURI'],
@@ -92,12 +93,13 @@ class Changes_Handle_WP_Plugins_Themes {
                     }
                 }
             } elseif ( isset( $post_vars['checked'] ) && ! empty( $post_vars['checked'] ) ) {
-                foreach ( $post_vars['checked'] as $plugin_file ) {
-                    if ( ! is_wp_error( validate_plugin( $plugin_file ) ) ) {
-                        $plugin_file = WP_PLUGIN_DIR . '/' . $plugin_file;
+                foreach ( $post_vars['checked'] as $plugin ) {
+                    if ( ! is_wp_error( validate_plugin( $plugin ) ) ) {
+                        $plugin_file = WP_PLUGIN_DIR . '/' . $plugin;
                         $plugin_data = get_plugin_data( $plugin_file, false, true );
                         $log_data    = array(
                             'pluginfile' => $plugin_file,
+                            'slug'       => $plugin,
                             'plugindata' => (object) array(
                                 'name'      => $plugin_data['Name'],
                                 'pluginuri' => $plugin_data['PluginURI'],

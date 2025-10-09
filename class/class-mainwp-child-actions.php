@@ -634,10 +634,11 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 if ( $plugin_file === $plugin ) {
                     $name         = $data['Name'];
                     $network_wide = $data['Network'] ? esc_html__( 'network wide', 'mainwp-child' ) : '';
+                    $slug         = $plugin;
 
                     $this->save_actions(
                         esc_html__( '"%s" plugin deleted', 'mainwp-child' ),
-                        compact( 'name', 'plugin', 'network_wide' ),
+                        compact( 'name', 'plugin', 'network_wide', 'slug' ),
                         'plugins',
                         'deleted'
                     );
@@ -906,6 +907,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             'user_meta'  => $user_meta,
             'extra_info' => $extra_info,
         );
+
+        if ( is_array( $extra_info ) && ! empty( $extra_info['slug'] ) ) {
+            $other_meta['slug'] = $extra_info['slug'];
+        }
 
         $created = microtime( true );
 
