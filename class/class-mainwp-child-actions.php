@@ -423,7 +423,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 if ( isset( $extra['bulk'] ) && true === $extra['bulk'] ) {
                     $slugs = $extra['plugins'];
                 } else {
-                    $slugs = array( $upgrader->skin->plugin );
+                    $slugs = isset( $upgrader ) && isset( $upgrader->skin ) && isset( $upgrader->skin->plugin ) ? array( $upgrader->skin->plugin ) : array();
                 }
 
                 foreach ( $slugs as $slug ) {
