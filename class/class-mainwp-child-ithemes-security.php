@@ -420,6 +420,14 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
             'use_individual_exclude',
         ];
 
+        if ( ! is_array( $update_settings ) ) {
+            $update_settings = array();
+        }
+
+        if ( $this->apply_default_solid_security_configuration( $_itsec_modules ) ) {
+            $updated = true;
+        }
+
         foreach ( $update_settings as $module => $settings ) {
             $do_not_save = false;
             $current_settings = \ITSEC_Modules::get_settings( $module );
@@ -575,7 +583,75 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
             $return['error'] = esc_html__( 'Not Updated', 'mainwp-child' );
         }
 
+        if ( class_exists( '\ITSEC_Modules' ) && ! \ITSEC_Modules::get_setting( 'global', 'onboard_complete' ) ) {
+            \ITSEC_Modules::set_setting( 'global', 'onboard_complete', true );
+            $return['result'] = 'success';
+            unset( $return['error'] );
+        }
+
         return $return;
+    }
+
+    /**
+     * Seed Solid Security defaults and mark onboarding as complete.
+     *
+     * @param string[] $modules Modules to initialize.
+     *
+     * @return bool True when changes were applied.
+     */
+    private function apply_default_solid_security_configuration( $modules ) {  // phpcs:ignore -- NOSONAR
+        if ( ! class_exists( '\ITSEC_Modules' ) ) {
+            return false;
+        }
+
+        $did_update      = false;
+        $defaults_applied = (bool) get_site_option( 'mainwp_child_itsec_defaults_applied', false );
+
+        if ( ! $defaults_applied ) {
+            foreach ( (array) $modules as $module ) {
+                $defaults = \ITSEC_Modules::get_defaults( $module );
+                if ( empty( $defaults ) ) {
+                    continue;
+                }
+
+                $result = \ITSEC_Modules::set_settings( $module, $defaults );
+                if ( is_wp_error( $result ) ) {
+                    continue;
+                }
+
+                $did_update = true;
+            }
+
+            $active_modules = \ITSEC_Modules::get_active_modules();
+            if ( ! empty( $active_modules ) ) {
+                $stored_active = get_site_option( 'itsec_active_modules', array() );
+                if ( ! is_array( $stored_active ) ) {
+                    $stored_active = array();
+                }
+
+                $changed = false;
+                foreach ( $active_modules as $module ) {
+                    if ( empty( $stored_active[ $module ] ) ) {
+                        $stored_active[ $module ] = true;
+                        $changed                  = true;
+                    }
+                }
+
+                if ( $changed ) {
+                    update_site_option( 'itsec_active_modules', $stored_active );
+                    $did_update = true;
+                }
+            }
+
+            update_site_option( 'mainwp_child_itsec_defaults_applied', time() );
+        }
+
+        if ( ! \ITSEC_Modules::get_setting( 'global', 'onboard_complete' ) ) {
+            \ITSEC_Modules::set_setting( 'global', 'onboard_complete', true );
+            $did_update = true;
+        }
+
+        return $did_update;
     }
 
     /**
