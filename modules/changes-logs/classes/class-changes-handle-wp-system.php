@@ -361,12 +361,14 @@ class Changes_Handle_WP_System {
             $cron = \wp_get_scheduled_event( $hook, $args, $timestamp );
 
             if ( false !== $cron && \is_object( $cron ) && $cron->schedule ) {
-                $type_id              = 1955;
-                $data['schedule']     = $cron->schedule;
-                $schedule_info        = \wp_get_schedules()[ $cron->schedule ];
-                $data['interval']     = $schedule_info['interval'];
-                $data['display_name'] = $schedule_info['display'];
-                Changes_Logs_Logger::log_change( $type_id, $data );
+                $type_id          = 1955;
+                $data['schedule'] = $cron->schedule;
+                if ( ! empty( \wp_get_schedules() ) && isset( \wp_get_schedules()[ $cron->schedule ] ) ) {
+                    $schedule_info        = \wp_get_schedules()[ $cron->schedule ];
+                    $data['interval']     = $schedule_info['interval'];
+                    $data['display_name'] = $schedule_info['display'];
+                    Changes_Logs_Logger::log_change( $type_id, $data );
+                }
             }
         }
 
