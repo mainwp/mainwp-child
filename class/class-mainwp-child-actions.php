@@ -214,19 +214,30 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
     /**
      * Method to get actions info.
+     * Merges data from main and archive options.
      */
     public static function get_actions_data() {
         if ( null === static::$actions_data ) {
-            static::$actions_data = get_option( 'mainwp_child_actions_saved_data', array() );
-            if ( ! is_array( static::$actions_data ) ) {
-                static::$actions_data = array();
+            $main_data    = get_option( 'mainwp_child_actions_saved_data', array() );
+            $archive_data = get_option( 'mainwp_child_actions_saved_data_archive', array() );
+
+            if ( ! is_array( $main_data ) ) {
+                $main_data = array();
             }
+            if ( ! is_array( $archive_data ) ) {
+                $archive_data = array();
+            }
+
+            // Merge main and archive data.
+            static::$actions_data = $main_data + $archive_data;
+
             $username = get_option( 'mainwp_child_connected_admin', '' );
             if ( ! isset( static::$actions_data['connected_admin'] ) ) {
                 static::$actions_data['connected_admin'] = $username;
             } elseif ( '' !== $username && $username !== static::$actions_data['connected_admin'] ) {
-                static::$actions_data = array( 'connected_admin' => $username ); // if it is not same the connected user then clear the actions data.
+                static::$actions_data = array( 'connected_admin' => $username );
                 update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
+                delete_option( 'mainwp_child_actions_saved_data_archive' );
             }
             static::check_actions_data();
         }
@@ -285,6 +296,40 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                     update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
                 }
                 update_option( 'mainwp_child_actions_data_checked', time() );
+
+                // Cleanup archive data.
+                static::cleanup_archive_data( $check_time );
+            }
+        }
+    }
+
+    /**
+     * Cleanup archive data by removing old entries.
+     * Prevents archive option from growing too large.
+     *
+     * @param int $check_time Check time.
+     *
+     * @return void
+     */
+    private static function cleanup_archive_data( $check_time ) {
+        $archive_data = get_option( 'mainwp_child_actions_saved_data_archive', array() );
+        if ( ! is_array( $archive_data ) ) {
+            return;
+        }
+
+        $updated = false;
+        foreach ( $archive_data as $index => $data ) {
+            if ( is_array( $data ) && isset( $data['created'] ) && $check_time < time() - intval( $data['created'] ) ) {
+                unset( $archive_data[ $index ] );
+                $updated = true;
+            }
+        }
+
+        if ( $updated ) {
+            if ( empty( $archive_data ) ) {
+                delete_option( 'mainwp_child_actions_saved_data_archive' );
+            } else {
+                update_option( 'mainwp_child_actions_saved_data_archive', $archive_data, false );
             }
         }
     }
@@ -995,9 +1040,23 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             }
         }
 
-        // Get the last ($limit - count($pinned)) records.
-        $max_tail = $limit - count( $pinned );
-        $tail     = array_slice( $new_value, -$max_tail, null, true );
+        // Move only the overflow records to archive.
+        $available_slots = max( 0, $limit - count( $pinned ) );
+        $overflow_count  = max( 0, count( $new_value ) - $available_slots );
+
+        if ( $overflow_count ) {
+            $archived = array_slice( $new_value, 0, $overflow_count, true );
+
+            $existing_archive = get_option( 'mainwp_child_actions_saved_data_archive', array() );
+            if ( ! is_array( $existing_archive ) ) {
+                $existing_archive = array();
+            }
+            $existing_archive = $archived + $existing_archive;
+            update_option( 'mainwp_child_actions_saved_data_archive', $existing_archive, false );
+        }
+
+        // Keep only the most recent records within the limit.
+        $tail = $overflow_count ? array_slice( $new_value, $overflow_count, null, true ) : true;
         return $pinned + $tail;
     }
 }
