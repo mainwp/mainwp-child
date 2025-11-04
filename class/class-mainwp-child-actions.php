@@ -145,6 +145,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             add_action( $action, array( $this, 'callback' ), 10, 99 );
         }
 
+        // Hook into pre-update option mainwp_child_actions_saved_data.
+        add_filter( 'pre_update_option_mainwp_child_actions_saved_data', array( $this, 'pre_update_mainwp_child_actions_saved_data' ), 10, 1 );
+
         $this->init_exec_time();
     }
 
@@ -960,5 +963,41 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     public function is_cron_enabled() {
         return ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ? false : true;
+    }
+
+    /**
+     * Filter the value of the mainwp_child_actions_saved_data option before it is updated.
+     *
+     * @param mixed $new_value The new value of the option.
+     *
+     * @return mixed The filtered value of the option.
+     */
+    public function pre_update_mainwp_child_actions_saved_data( $new_value ) {
+        // Check if new data is an array.
+        if ( ! is_array( $new_value ) ) {
+            return $new_value;
+        }
+
+        // Limit the number of records to 500.
+        $limit = 500;
+        if ( count( $new_value ) <= $limit ) {
+            return $new_value;
+        }
+
+        $pinned   = array();
+        $pin_keys = array( 'connected_admin' );
+
+        // Keep the pinned keys at top of list.
+        foreach ( $pin_keys as $k ) {
+            if ( array_key_exists( $k, $new_value ) ) {
+                $pinned[ $k ] = $new_value[ $k ];
+                unset( $new_value[ $k ] );
+            }
+        }
+
+        // Get the last ($limit - count($pinned)) records.
+        $max_tail = $limit - count( $pinned );
+        $tail     = array_slice( $new_value, -$max_tail, null, true );
+        return $pinned + $tail;
     }
 }
