@@ -69,8 +69,52 @@ class MainWP_Child_Custom_Reinstaller { // phpcs:ignore Generic.Classes.OpeningB
             ),
             'reinstall_stable'
         );
-        $links['reinstall'] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Reinstall', 'mainwp-child' ) . '</a>';
+        $links['reinstall'] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Roll Back to the Last Stable Release', 'mainwp-child' ) . '</a>';
         return $links;
+    }
+
+
+    /**
+     * Method plugin_information_link.
+     *
+     * @param  mixed $res Information response.
+     * @param  mixed $action Action type.
+     * @param  mixed $args  Arguments.
+     * @return void
+     */
+    public function plugin_information_link( $res, $action, $args ) {
+
+        // Only handle plugin information requests.
+        if ( 'plugin_information' !== $action ) {
+            return $res;
+        }
+
+        // The plugin slug to match — change this to your plugin folder slug.
+        $expected_slug = 'mainwp-child';
+
+        if ( empty( $args->slug ) || $args->slug !== $expected_slug ) {
+            return $res;
+        }
+
+        // Build the response object.
+        $response = new \stdClass();
+
+        // Basic metadata.
+        $response->name     = 'MainWP Child';                // plugin display name.
+        $response->slug     = $expected_slug;             // plugin folder slug.
+        $response->author   = '<a href="https://mainwp.com">MainWP Child</a>';
+        $response->requires = '6.2';
+        $response->tested   = '6.8.3';
+        $response->homepage = 'https://mainwp.com';
+
+        // Long HTML sections shown in the modal. Use HTML safely (WP outputs this directly).
+        $response->sections = array(
+            'Changelog' => '
+                <a href="https://mainwp.com/mainwp-early-release/" target="_blank">https://mainwp.com/mainwp-early-release/</a>
+            ',
+        );
+
+        return $response;
     }
 
     /**

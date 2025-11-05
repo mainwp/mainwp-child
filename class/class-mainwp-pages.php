@@ -164,7 +164,7 @@ class MainWP_Pages {
             }
             MainWP_Helper::update_option( 'mainwp_child_ttl_active_unconnected_site', ! empty( $_POST['mainwp_child_active_time_for_unconnected_site'] ) ? intval( $_POST['mainwp_child_active_time_for_unconnected_site'] ) : 0 );
             update_user_option( get_current_user_id(), 'mainwp_child_user_enable_passwd_auth_connect', ! empty( $_POST['mainwp_child_user_enable_pwd_auth_connect'] ) ? 1 : 0 );
-            MainWP_Helper::update_option( 'mainwp_child_enable_custom_updater', ! empty( $_POST['mainwp_child_enable_custom_updater'] ) ? 1 : 0 );
+            MainWP_Helper::update_option( 'mainwp_child_settings_enable_early_access_updates', ! empty( $_POST['mainwp_child_settings_enable_early_access_updates'] ) ? 1 : 0 );
 
             wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' );
         }
@@ -751,7 +751,7 @@ class MainWP_Pages {
                     <tr>
                 </tbody>
             </table>
-            <?php $enable_custom_updater = get_option( 'mainwp_child_enable_custom_updater' ); ?>
+            <?php $enable_custom_updater = get_option( 'mainwp_child_settings_enable_early_access_updates' ); ?>
             <header class="section-header">
                 <h3><?php esc_html_e( 'Custom Updater', 'mainwp-child' ); ?></h3>
                 <hr/>
@@ -761,8 +761,8 @@ class MainWP_Pages {
                     <tr>
                         <th scope="row" style="width:300px"><?php esc_html_e( 'Enable Custom Updater', 'mainwp-child' ); ?></th>
                         <td>
-                        <label for="mainwp_child_enable_custom_updater" class="mainwp-toggle">
-                            <input type="checkbox" name="mainwp_child_enable_custom_updater" id="mainwp_child_enable_custom_updater" value="1" <?php echo $enable_custom_updater ? 'checked' : ''; ?> />
+                        <label for="mainwp_child_settings_enable_early_access_updates" class="mainwp-toggle">
+                            <input type="checkbox" name="mainwp_child_settings_enable_early_access_updates" id="mainwp_child_settings_enable_early_access_updates" value="1" <?php echo $enable_custom_updater ? 'checked' : ''; ?> />
                             <span class="mainwp-slider"></span>
                         </label><?php esc_html_e( 'Enable this option to enable install pre-release versions of the plugin.', 'mainwp-child' ); ?>
                         </td>
