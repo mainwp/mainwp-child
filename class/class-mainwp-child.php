@@ -78,7 +78,7 @@ class MainWP_Child {
         add_action( 'init', array( &$this, 'localization' ), 33 );
         add_action( 'init', array( &$this, 'init_hooks' ), 9 );
         add_action( 'admin_init', array( &$this, 'admin_init' ) );
-        add_action( 'plugins_loaded', array( &$this, 'hook_plugins_loaded' ), 1 );
+        add_action( 'plugins_loaded', array( MainWP_Child_Custom_Updater::instance(), 'hook_plugins_loaded' ), 1 );
         add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( &$this, 'plugin_settings_link' ) );
 
         // support for better detection for premium plugins.
@@ -402,57 +402,7 @@ class MainWP_Child {
         }
     }
 
-    /**
-     * Method hook_plugins_loaded().
-     */
-    public function hook_plugins_loaded() {
-        if ( 1 === (int) get_option( 'mainwp_child_settings_enable_early_access_updates' ) || 1 === (int) get_option( 'mainwp_child_allow_early_access_updates' ) ) {
-            $this->init_custom_updater();
 
-            // Add "Reinstall" action link.
-            add_filter( 'plugin_action_links_' . plugin_basename( MAINWP_CHILD_FILE ), array( MainWP_Child_Custom_Reinstaller::instance(), 'reinstall_actions_link' ) );
-            // Handle reinstall.
-            add_action( 'admin_init', array( MainWP_Child_Custom_Reinstaller::instance(), 'handle_reinstall_request' ) );
-            add_action( 'admin_notices', array( MainWP_Child_Custom_Reinstaller::instance(), 'reinstall_admin_notices' ) );
-            /**
-             * Provide custom content for the plugin details modal.
-             */
-            add_filter( 'plugins_api', array( MainWP_Child_Custom_Reinstaller::instance(), 'plugin_information_link' ), 10, 3 );
-        }
-    }
-
-    /**
-     * Method init_custom_updater().
-     */
-    public function init_custom_updater() {
-        if ( file_exists( MAINWP_CHILD_PLUGIN_DIR . 'includes/updater.php' ) ) {
-            require_once MAINWP_CHILD_PLUGIN_DIR . 'includes/updater.php'; //phpcs:ignore -- NOSONAR - compatible.
-        }
-
-        if ( class_exists( '\MainWP\Child\UUPD\V1\UUPD_Updater_V1' ) ) {
-
-            /**
-             * Filter: mainwp_custom_updater_register_info
-             *
-             * @since 6.0
-             */
-            $updater_config = apply_filters(
-                'mainwp_child_custom_updater_register_info',
-                array(
-                    'plugin_file'      => plugin_basename( MAINWP_CHILD_FILE ),
-                    'slug'             => 'mainwp-child',
-                    'name'             => 'MainWP Child',
-                    'version'          => static::$version,
-                    // Optional: provide a secret 'key' value when using a private update server or GitHub releases that require it.
-                    'server'           => 'https://github.com/github-username/mainwp-child',  // GitHub or private server.
-                    // 'github_token'     => 'github_pat_xxxxx', // optional.
-                    'allow_prerelease' => true, // Optional - default is false. Set to true to allow beta/RC updates.
-                )
-            );
-
-            \MainWP\Child\UUPD\V1\UUPD_Updater_V1::register( $updater_config );
-        }
-    }
 
     /**
      * Method parse_init_extensions()

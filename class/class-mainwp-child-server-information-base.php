@@ -386,7 +386,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
             $res = openssl_pkey_new( $conf );
 
             @openssl_pkey_export( $res, $privkey, null, $conf ); // phpcs:ignore -- prevent warning.
-            $details = openssl_pkey_get_details( $res );
+            $details = $res ? openssl_pkey_get_details( $res ) : false;
 
             if ( is_array( $details ) && isset( $details['key'] ) ) {
                 $publicKey = $details['key'];

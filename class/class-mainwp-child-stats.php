@@ -204,8 +204,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::update_option( 'mainwp_child_actions_saved_number_of_days', $days_number );
         }
 
-        if ( isset( $_POST['early_access_updates_enabled'] ) ) {
-            MainWP_Helper::update_option( 'mainwp_child_allow_early_access_updates', ! empty( $_POST['early_access_updates_enabled'] ) ? 1 : 0 );
+        if ( isset( $_POST['early_access_updates_disabled'] ) ) {
+            MainWP_Helper::update_option( 'mainwp_child_settings_enable_early_access_updates', ! empty( $_POST['early_access_updates_disabled'] ) ? 0 : 1 );
         }
 
         $others_sync = null;
