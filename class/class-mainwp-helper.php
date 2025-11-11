@@ -122,13 +122,13 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Get the MainWP directory.
      *
-     * @param string $what Contains directory name.
+     * @param string $newdir Contains directory name.
      * @param bool   $die_on_error If true, process will die on error, if false, process will continue.
      *
      * @return array Return directory and directory URL.
      * @throws MainWP_Exception Error Message.
      */
-    public static function get_mainwp_dir( $what = null, $die_on_error = true ) {
+    public static function get_mainwp_dir( $subdir = null, $die_on_error = true, $direct_access = true ) {
 
         if ( ! static::fs_is_connected() ) {
             throw new MainWP_Exception( esc_html__( 'Unable to connect to the filesystem.', 'mainwp-child' ) );
@@ -149,23 +149,37 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         }
         $url = $upload_dir['baseurl'] . '/mainwp/';
 
-        if ( 'backup' === $what ) {
-            $dir .= 'backup' . DIRECTORY_SEPARATOR;
-            static::check_dir( $dir, $die_on_error );
-            if ( ! $wp_filesystem->exists( $dir . 'index.php' ) ) {
-                touch( $dir . 'index.php' );
+        if ( 'backup' === $subdir ) {
+            $newdir = $dir . 'backup' . DIRECTORY_SEPARATOR;
+            static::check_dir( $newdir, $die_on_error );
+            if ( ! $wp_filesystem->exists( $newdir . 'index.php' ) ) {
+                touch( $newdir . 'index.php' );
             }
 
             $another_name = '.htaccess';
-            if ( ! $wp_filesystem->exists( $dir . $another_name ) ) {
-                $file = fopen( $dir . $another_name, 'w+' );
+            if ( ! $wp_filesystem->exists( $newdir . $another_name ) ) {
+                $file = fopen( $newdir . $another_name, 'w+' );
                 fwrite( $file, 'deny from all' );
                 fclose( $file );
             }
             $url .= 'backup/';
+        } else {
+            $newdir = $dir . $subdir . DIRECTORY_SEPARATOR;
+            $url   .= $subdir . '/';
+            static::check_dir( $newdir, $die_on_error );
+            if ( $direct_access ) {
+                if ( ! $wp_filesystem->exists( trailingslashit( $newdir ) . 'index.php' ) ) {
+                    $wp_filesystem->touch( trailingslashit( $newdir ) . 'index.php' );
+                }
+                if ( $wp_filesystem->exists( trailingslashit( $newdir ) . '.htaccess' ) ) {
+                    $wp_filesystem->delete( trailingslashit( $newdir ) . '.htaccess' );
+                }
+            } elseif ( ! $wp_filesystem->exists( trailingslashit( $newdir ) . '.htaccess' ) ) {
+                    $wp_filesystem->put_contents( trailingslashit( $newdir ) . '.htaccess', 'deny from all' );
+            }
         }
 
-        return array( $dir, $url );
+        return array( $newdir, $url );
     }
 
 
