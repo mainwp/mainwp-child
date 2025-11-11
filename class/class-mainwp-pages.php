@@ -168,6 +168,7 @@ class MainWP_Pages {
         }
 
         if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-early-access-settings' ) ) {
+            MainWP_Child_Custom_Updater::if_changed_enable_early_access_updates( $_POST['mainwp_child_settings_enable_early_access_updates'] ); //phpcs:ignore -- NOSONAR - ok.
             MainWP_Helper::update_option( 'mainwp_child_settings_enable_early_access_updates', ! empty( $_POST['mainwp_child_settings_enable_early_access_updates'] ) ? 1 : 0 );
             wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&tab=early-updates&message=2' );
         }

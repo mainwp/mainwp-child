@@ -205,6 +205,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( isset( $_POST['early_access_updates_disabled'] ) ) {
+            MainWP_Child_Custom_Updater::if_changed_enable_early_access_updates( $_POST['early_access_updates_disabled'] ); //phpcs:ignore -- NOSONAR - ok.
             MainWP_Helper::update_option( 'mainwp_child_settings_enable_early_access_updates', ! empty( $_POST['early_access_updates_disabled'] ) ? 0 : 1 );
         }
 
