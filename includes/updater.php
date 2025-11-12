@@ -409,7 +409,7 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
                             do_action( "uupd_metadata_fetch_failed/{$slug}", [ 'slug' => $slug, 'server' => $repo_url, 'message' => $msg ] );
                             return $trans; // or continue depending on surrounding code
                         } else {
-                            $ttl = self::apply_filters_per_slug( 'uupd_success_cache_ttl', 6 * HOUR_IN_SECONDS, $slug );
+                            $ttl = self::apply_filters_per_slug( 'uupd_success_cache_ttl', HOUR_IN_SECONDS, $slug );
                             set_transient( $cache_key, $release, $ttl );
                             $this->fetch_success = true;
                         }
