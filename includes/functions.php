@@ -189,3 +189,80 @@ if ( ! function_exists( 'apply_filters_deprecated' ) ) {
         return apply_filters_ref_array( $hook_name, $args );
     }
 }
+
+
+
+/**
+ * Get main domain using PSL trie
+ *
+ * @param string $url URL to inspect and extract the registrable domain from.
+ *
+ * @return string|null Registrable domain (e.g. example.com) or null on failure.
+ */
+function mainwp_get_main_domain( $url ) { //phpcs:ignore --NOSONAR -ok.
+
+    $url  = trim( $url );
+    $url  = preg_replace( '#^https?://#i', '', $url );
+    $host = explode( '/', $url, 2 )[0];
+    $host = strtolower( rtrim( $host, '.' ) );
+
+    if ( ! $host ) {
+        return null;
+    }
+
+    $mainwpDir = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'misc', false, false );
+    $cacheDir  = $mainwpDir[0];
+
+    $pslFile = $cacheDir . 'public_suffix_list.dat';
+    $pslUrl  = 'https://publicsuffix.org/list/public_suffix_list.dat';
+
+    if ( ! file_exists( $pslFile ) || ( time() - filemtime( $pslFile ) ) > 7 * 24 * 3600 ) {
+        // Use WP HTTP API instead of file_get_contents for remote requests.
+        $response = wp_remote_get( $pslUrl, array( 'timeout' => 15 ) );
+        if ( ! is_wp_error( $response ) ) {
+            $code = intval( wp_remote_retrieve_response_code( $response ) );
+            $body = wp_remote_retrieve_body( $response );
+            if ( $code >= 200 && $code < 300 && ! empty( $body ) ) {
+                if ( ! function_exists( 'WP_Filesystem' ) ) {
+                    require_once ABSPATH . 'wp-admin/includes/file.php'; //phpcs:ignore --NOSONAR -ok.
+                }
+                global $wp_filesystem;
+                if ( empty( $wp_filesystem ) ) {
+                    WP_Filesystem();
+                }
+                if ( ! empty( $wp_filesystem ) ) {
+                    $wp_filesystem->put_contents( $pslFile, $body, FS_CHMOD_FILE );
+                }
+            }
+        }
+    }
+
+    if ( ! file_exists( $pslFile ) ) {
+        return null;
+    }
+
+    static $trie = null;
+    if ( null === $trie ) {
+        require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'class-psl-trie.php'; //phpcs:ignore --NOSONAR -ok.
+        $trie  = new PslTrie();
+        $lines = file( $pslFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+        foreach ( $lines as $line ) {
+            $line = trim( $line );
+            if ( '' === $line || 0 === strpos( $line, '//' ) ) {
+                continue;
+            }
+            $trie->insert( $line );
+        }
+    }
+
+    $publicSuffix = $trie->find_longest_match( $host );
+    $hostParts    = explode( '.', $host );
+    $suffixParts  = explode( '.', $publicSuffix );
+
+    if ( count( $hostParts ) <= count( $suffixParts ) ) {
+        return $host;
+    }
+
+    $registrableParts = array_slice( $hostParts, -count( $suffixParts ) - 1 );
+    return implode( '.', $registrableParts );
+}

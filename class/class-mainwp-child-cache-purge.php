@@ -977,7 +977,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         curl_setopt( $ch_purge, CURLOPT_HTTPHEADER, $headers ); // phpcs:ignore -- use core function.
 
         $result = json_decode( curl_exec( $ch_purge ), true ); // phpcs:ignore -- use core function.
-        if ( 'resource' === gettype( $ch_query ) ) {
+        if ( 'resource' === gettype( $ch_purge ) ) {
             curl_close( $ch_purge ); // phpcs:ignore -- use core function.
         }
         $success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
@@ -1146,15 +1146,6 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string The url without subdomains (if any).
      */
     public function strip_subdomains( $url ) {
-        $parts     = explode( '/', $url );
-        $url_first = $parts[0]; // get first part.
-        $count     = count( explode( '.', $url_first ) );
-        $domain    = '';
-        if ( 4 <= $count ) {
-            $domain = implode( '.', array_slice( explode( '.', $url_first ), -3 ) );
-        } else {
-            $domain = implode( '.', array_slice( explode( '.', $url_first ), -2 ) );
-        }
-        return $domain;
+        return mainwp_get_main_domain( $url );
     }
 }
