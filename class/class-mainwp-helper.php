@@ -142,7 +142,20 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         global $wp_filesystem;
 
         $upload_dir = wp_upload_dir();
-        $dir        = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
+
+        /**
+         * Allow filtering the upload directory array.
+         *
+         * @since 5.4.1.
+         *
+         * @param array  $upload_dir Array of upload directory info (from wp_upload_dir()).
+         * @param string $subdir      Optional. Sub Directory requested.
+         * @param bool $die_on_error  Optional. Die on error.
+         * @param bool $direct_access Optional. Direct access.
+         */
+        $upload_dir = apply_filters( 'mainwp_child_get_wp_upload_dir', $upload_dir, $subdir, $die_on_error, $direct_access );
+
+        $dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR;
         static::check_dir( $dir, $die_on_error );
         if ( ! $wp_filesystem->exists( $dir . 'index.php' ) ) {
             touch( $dir . 'index.php' );
