@@ -64,6 +64,8 @@ class MainWP_Child {
      * @uses \MainWP\Child\MainWP_Helper::update_option()
      * @uses \MainWP\Child\MainWP_Utility::run_saved_snippets()
      * @uses \MainWP\Child\MainWP_Utility::get_class_name()
+     * @uses \MainWP\Child\MainWP_Child_Branding::instance();
+     *
      */
     public function __construct( $plugin_file ) {
         $this->update();
@@ -106,6 +108,7 @@ class MainWP_Child {
         MainWP_Child_Themes_Check::instance();
         MainWP_Utility::instance()->run_saved_snippets();
         MainWP_Child_Vulnerability_Checker::instance();
+        MainWP_Child_Branding::instance();
 
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             MainWP_Child_WP_CLI_Command::init();
