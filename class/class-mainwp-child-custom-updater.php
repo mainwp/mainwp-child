@@ -84,7 +84,7 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
             /**
              * Filter: mainwp_custom_updater_register_info
              *
-             * @since 6.0
+             * @since 5.4.1
              */
             $updater_config = apply_filters(
                 'mainwp_child_custom_updater_register_info',
@@ -97,6 +97,7 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
                     'server'           => 'https://github.com/github-username/mainwp-child',  // GitHub or private server.
                     'github_token'     => ! empty( $git_pat ) ? $git_pat : '', // optional.
                     'allow_prerelease' => true, // Optional - default is false. Set to true to allow beta/RC updates.
+                    'user_agent'       => 'MainWP Child/' . MainWP_Child::$version,
                 )
             );
 
