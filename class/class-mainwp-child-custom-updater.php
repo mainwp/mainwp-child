@@ -757,12 +757,12 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
             <table class="form-table">
                 <tbody>
                     <tr>
-                        <th scope="row" style="width:300px"><?php esc_html_e( 'Enable Early Access for Child Site', 'mainwp-child' ); ?></th>
+                        <th scope="row" style="width:300px"><?php esc_html_e( 'Enable Early Access for the MainWP Child Plugin', 'mainwp-child' ); ?></th>
                         <td>
                         <label for="mainwp_child_settings_enable_early_access_updates" class="mainwp-toggle">
                             <input type="checkbox" name="mainwp_child_settings_enable_early_access_updates" id="mainwp_child_settings_enable_early_access_updates" value="1" <?php echo $enable_early_access ? 'checked' : ''; ?> />
                             <span class="mainwp-slider"></span>
-                        </label><?php esc_html_e( 'Allow your child site to check for pre-release versions (beta, RC, etc.) directly from the official GitHub repository.', 'mainwp-child' ); ?>
+                        </label><?php esc_html_e( 'Allow your child site to check for pre-release versions (beta, RC, etc.) directly from the official MainWP GitHub repository.', 'mainwp-child' ); ?>
                         </td>
                     <tr>
                 </tbody>
@@ -785,7 +785,7 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
                     <tr>
                         <th scope="row" style="width:300px"><?php esc_html_e( 'Roll Back to Latest Stable Release', 'mainwp-child' ); ?></th>
                         <td>
-                            <a href="<?php echo esc_url( $url_reinstall ); ?>" onclick="return confirm('Are you sure you want to roll back to the latest stable release from WordPress.org? This will overwrite your current version and reinstall the stable build');" class="button-secondary button"><?php esc_html_e( 'Roll Back to Stable Version', 'mainwp-child' ); ?></a>
+                            <a href="<?php echo esc_url( $url_reinstall ); ?>" onclick="return confirm('Are you sure you want to roll back to the latest stable release from WordPress.org? This will overwrite your current version and reinstall the stable build');" class="mainwp-basic-button"><?php esc_html_e( 'Roll Back to Stable Version', 'mainwp-child' ); ?></a>
                             <?php printf( esc_html__( 'Revert your MainWP Child to the latest stable version from %sWordPress.org%s.', 'mainwp-child' ), '<a href="https://wordpress.org/" target="_blank">', '</a>' ); ?>
                         </td>
                     <tr>

@@ -579,6 +579,16 @@ class MainWP_Pages {
                 opacity: 0.45;
             }
 
+            a.mainwp-basic-button {
+                text-decoration: none;
+                display: inline-block;
+                background-color:#fff !important;
+                border: 1px solid #e6e8ea;
+                color: #333333 !important;
+                font-size: 13px;
+                font-weight: normal;
+            }
+
             .mainwp-number-field {
                 margin: 0;
                 outline: none;
