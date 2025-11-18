@@ -450,7 +450,7 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
      */
     public function locate_installed_plugin_basename( $slug ) {
         if ( ! function_exists( 'get_plugins' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            require_once ABSPATH . 'wp-admin/includes/plugin.php'; // phpcs:ignore -- NOSONAR - ok.
         }
 
         $plugins = get_plugins();
@@ -477,8 +477,7 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
      * @param int    $max_depth recursion depth when scanning directories
      * @return string|false
      */
-    public static function locate_installed_plugin_basename_recursive( $expected_basename, $new_install_window_secs = 600, $max_depth = 6 ) {
-        $expected_basename = trim( (string) $expected_basename );
+    public static function locate_installed_plugin_basename_recursive( $expected_basename, $new_install_window_secs = 600, $max_depth = 6 ) { //phpcs:ignore --NOSONAR - complexity acceptable for this function.
         if ( empty( $expected_basename ) ) {
             return false;
         }
@@ -503,7 +502,7 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
         };
 
         // helper: recursively scan a directory up to $depth for any php file with plugin header.
-        $recursive_scan_dir = function ( $dir, $depth ) use ( &$recursive_scan_dir, $has_plugin_header ) {
+        $recursive_scan_dir = function ( $dir, $depth ) use ( &$recursive_scan_dir, $has_plugin_header ) { //phpcs:ignore --NOSONAR - multi return acceptable for this function.
             if ( $depth < 0 ) {
                 return false;
             }

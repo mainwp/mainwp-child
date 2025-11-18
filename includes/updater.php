@@ -212,7 +212,7 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
         }
 
         /** Fetch metadata JSON from remote server and cache it. */
-        private function fetch_remote() {
+        private function fetch_remote() { // phpcs:ignore -- NOSONAR - multi return acceptable for this function.
             $c          = $this->config;
             $slug_plain = $c['slug'] ?? '';
 
@@ -314,7 +314,8 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
             // Insert a hyphen before pre-release if someone wrote 1.3.0alpha2 / 1.3.0rc
             // Also capture shorthands and synonyms: a,b,pre,preview
             // Capture optional numeric like alpha2 / alpha-2 / alpha.2
-            if (preg_match('/^(\d+\.\d+\.\d+)[\.\-]?((?:alpha|a|beta|b|rc|dev|pre|preview))(?:(?:[\.\-]?)(\d+))?$/i', $v, $m)) {
+              if ( preg_match( '/^(\d+\.\d+\.\d+)[.-]?((?:alpha|a|beta|b|rc|dev|pre|preview))[.-]?(\d+)?$/i', $v, $m ) ) {
+
                 $core = $m[1];
                 $tag  = strtolower($m[2]);
                 $num  = isset($m[3]) && $m[3] !== '' ? $m[3] : '0';
@@ -328,6 +329,9 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
                     case 'rc':      $tag = 'rc';    break; // PHP is case-insensitive
                     case 'dev':     $tag = 'dev';   break;
                     case 'er':      $tag = 'er';    break;
+                    default:
+                        //nothing to.
+                        break;
                     // alpha/beta already work correctly
                 }
 
@@ -340,10 +344,9 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
             return $v;
         }
 
-
-
         /** Handle plugin update injection. */
-        public function plugin_update( $trans ) {
+        public function plugin_update( $trans ) { // phpcs:ignore -- NOSONAR - complexity acceptable for this function.
+
             if ( ! is_object( $trans ) || ! isset( $trans->checked ) || ! is_array( $trans->checked ) ) {
                 return $trans;
             }
@@ -386,17 +389,6 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
                         if ( null !== $this->fetch_state ) {
                             return $trans;
                         }
-
-                        // $api_url = str_replace( 'github.com', 'api.github.com/repos', $repo_url ) . '/releases/latest';
-                        // $token   = self::apply_filters_per_slug( 'uupd/github_token_override', $c['github_token'] ?? '', $slug );
-
-                        // $headers = [ 'Accept' => 'application/vnd.github.v3+json' ];
-                        // if ( $token ) {
-                        //     $headers['Authorization'] = 'token ' . $token;
-                        // }
-
-                        // $this->log( " GitHub fetch: $api_url" );
-                        // $response = wp_remote_get( $api_url, [ 'headers' => $headers ] );
 
                         $release = $this->fetch_github_release( $repo_url, $slug );
 
@@ -553,13 +545,14 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
      *
      * Returns release object on success, or false on failure.
      */
-    private function fetch_github_release( $repo_url, $slug ) {
+    private function fetch_github_release( $repo_url, $slug ) { //phpcs:ignore --NOSONAR - complexity acceptable for this function.
+        // 1) Try /releases/latest first
         $repo_url = rtrim( $repo_url, '/' );
         $api_base = str_replace( 'github.com', 'api.github.com/repos', $repo_url );
         $token    = self::apply_filters_per_slug( 'uupd/github_token_override', $this->config['github_token'] ?? '', $slug );
         $headers  = [ 'Accept' => 'application/vnd.github.v3+json' ];
 
-        if( !empty( $this->config['user_agent'] ) ) {
+        if ( ! empty( $this->config['user_agent'] ) ) {
             $headers['User-Agent'] = $this->config['user_agent'];
         }
 
@@ -646,7 +639,7 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
     }
 
 
-    public function theme_update( $trans ) {
+    public function theme_update( $trans ) { // phpcs:ignore -- NOSONAR - complexity acceptable for this function.
         if ( ! is_object( $trans ) || ! isset( $trans->checked ) || ! is_array( $trans->checked ) ) {
             return $trans;
         }
@@ -878,20 +871,24 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
         /** Optional debug logger. */
         private function log( $msg ) {
             if ( apply_filters( 'updater_enable_debug', false ) ) {
-                error_log( "[Updater] {$msg}" );
+                error_log( "[Updater] {$msg}" ); //phpcs:ignore -- NOSONAR - debug only disabled by default.
                 do_action( 'uupd/log', $msg, $this->config['slug'] ?? '' );
             }
         }
 
 
-        private static function ends_with( $haystack, $needle ) {
+        private static function ends_with( $haystack, $needle ) { //phpcs:ignore -- NOSONAR - polyfill acceptable.
             if ( function_exists( 'str_ends_with' ) ) {
                 return \str_ends_with( (string) $haystack, (string) $needle );
             }
             $haystack = (string) $haystack;
             $needle   = (string) $needle;
-            if ( $needle === '' ) return true;
-            if ( strlen( $needle ) > strlen( $haystack ) ) return false;
+            if ( $needle === '' ) {
+                return true;
+            }
+            if ( strlen( $needle ) > strlen( $haystack ) ) {
+                return false;
+            }
             return substr( $haystack, -strlen( $needle ) ) === $needle;
         }
 
@@ -903,9 +900,9 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
          *
          * @param array $config  Same structure you passed to the old uupd_register_updater_and_manual_check().
          */
-        public static function register( array $config ) {
+        public static function register( array $config ) { //phpcs:ignore -- NOSONAR - complexity acceptable for this function.
             // 1) Instantiate the updater class:
-            new self( $config );
+            new self( $config ); //phpcs:ignore -- NOSONAR - correct - instance needed for hooks.
 
             // 2) Add the “Check for updates” link under the plugin row:
             $our_file   = $config['plugin_file'] ?? null;
@@ -915,7 +912,7 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
             if ( $our_file ) {
                 add_filter(
                     'plugin_row_meta',
-                    function( array $links, string $file, array $plugin_data ) use ( $our_file, $slug, $textdomain ) {
+                    function( $links, $file ) use ( $our_file, $slug, $textdomain ) {
                         if ( $file === $our_file ) {
                             $nonce     = wp_create_nonce( 'uupd_manual_check_' . $slug );
                             $check_url = admin_url( sprintf(

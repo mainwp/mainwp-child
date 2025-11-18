@@ -128,7 +128,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Return directory and directory URL.
      * @throws MainWP_Exception Error Message.
      */
-    public static function get_mainwp_dir( $subdir = null, $die_on_error = true, $direct_access = true ) {
+    public static function get_mainwp_dir( $subdir = null, $die_on_error = true, $direct_access = true ) { //phpcs:ignore -- NOSONAR - complexity acceptable for this function.
 
         if ( ! static::fs_is_connected() ) {
             throw new MainWP_Exception( esc_html__( 'Unable to connect to the filesystem.', 'mainwp-child' ) );
