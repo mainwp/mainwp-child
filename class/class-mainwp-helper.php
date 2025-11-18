@@ -177,7 +177,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             }
             $url .= 'backup/';
         } else {
-            $newdir = $dir . $subdir . DIRECTORY_SEPARATOR;
+            $newdir = ! empty( $subdir ) ? $dir . $subdir . DIRECTORY_SEPARATOR : $dir;
             $url   .= $subdir . '/';
             static::check_dir( $newdir, $die_on_error );
             if ( $direct_access ) {
