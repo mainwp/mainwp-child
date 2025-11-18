@@ -528,7 +528,7 @@ class MainWP_Child_Pagespeed {
         }
 
         $data_typestocheck = self::get_filter_options( 'all' ); // @wordpress-security:ignore UnescapedDBParameter -- SQL fragment built from hardcoded type = %s patterns with validated post type values.
-        $cache_key         = 'pagespeed_data_' . md5( $strategy . serialize( $data_typestocheck ) );
+        $cache_key         = 'pagespeed_data_' . md5( $strategy . serialize( $data_typestocheck ) ); // NOSONAR - MD5 used for cache key generation only, not cryptographic (security) purposes.
         $cached_result     = wp_cache_get( $cache_key, 'mainwp_pagespeed' );
         if ( false !== $cached_result ) {
             return $cached_result;
