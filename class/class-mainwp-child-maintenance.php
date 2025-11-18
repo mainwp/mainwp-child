@@ -224,7 +224,8 @@ class MainWP_Child_Maintenance {
          */
         global $wpdb;
 
-        return $wpdb->get_results( $wpdb->prepare( " SELECT `post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches transient revision data for immediate cleanup; not reused or cacheable.
+        return $wpdb->get_results( $wpdb->prepare( " SELECT `post_parent`, COUNT(*) cnt FROM $wpdb->posts WHERE `post_type` = 'revision' GROUP BY `post_parent` HAVING COUNT(*) > %d ", $max_revisions ) );
     }
 
     /**
@@ -259,7 +260,8 @@ class MainWP_Child_Maintenance {
         for ( $i = 0; $i < $results_length; $i++ ) {
             $number_to_delete = $results[ $i ]->cnt - $max_revisions;
             $count_deleted   += $number_to_delete;
-            $results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches specific revision IDs for immediate deletion; not reused or cacheable.
+            $results_posts    = $wpdb->get_results( $wpdb->prepare( "SELECT `ID`, `post_modified` FROM  $wpdb->posts WHERE `post_parent`= %d AND `post_type`='revision' ORDER BY `post_modified` ASC", $results[ $i ]->post_parent ) );
             $delete_ids       = array();
             if ( is_array( $results_posts ) && ! empty( $results_posts ) ) {
                 for ( $j = 0; $j < $number_to_delete; $j++ ) {

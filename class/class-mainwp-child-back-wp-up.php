@@ -623,7 +623,12 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         echo '<tr title="&gt;=5.3.3"><td>' . esc_html__( 'PHP version', 'mainwp-child' ) . '</td><td>' . esc_html( PHP_VERSION ) . '</td></tr>';
-        echo '<tr title="&gt;=5.0.7"><td>' . esc_html__( 'MySQL version', 'mainwp-child' ) . '</td><td>' . esc_html( $wpdb->get_var( 'SELECT VERSION() AS version' ) ) . '</td></tr>';
+        $mysql_version = wp_cache_get( 'mainwp_backwpup_mysql_version', 'mainwp_backwpup' );
+        if ( false === $mysql_version ) {
+            $mysql_version = $wpdb->get_var( 'SELECT VERSION() AS version' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Required for BackWPup integration; no core API for MySQL version. Query is static with no dynamic parameters and results are cached.
+            wp_cache_set( 'mainwp_backwpup_mysql_version', $mysql_version, 'mainwp_backwpup', 3600 );
+        }
+        echo '<tr title="&gt;=5.0.7"><td>' . esc_html__( 'MySQL version', 'mainwp-child' ) . '</td><td>' . esc_html( $mysql_version ) . '</td></tr>';
         if ( function_exists( 'curl_version' ) ) {
             $curlversion = curl_version();
             echo '<tr title=""><td>' . esc_html__( 'cURL version', 'mainwp-child' ) . '</td><td>' . esc_html( $curlversion['version'] ) . '</td></tr>';
