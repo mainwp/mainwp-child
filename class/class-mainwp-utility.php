@@ -32,6 +32,13 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
     public $mail_from = '';
 
     /**
+     * Private static variable to hold attachment lookup cache for the current request.
+     *
+     * @var array Default empty array.
+     */
+    private static $attachment_lookup_cache = array();
+
+    /**
      * Method get_class_name()
      *
      * Get class name.
@@ -193,7 +200,6 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         }
         die( 'MainWP Test' );
     }
-
 
     /**
      * Method upload_file()
@@ -504,7 +510,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string $filename Contains the media file name.
      * @param bool   $full_guid Full global unique identifier.
      *
-     * @return int Attachment ID.
+     * @return array Array of attachment post objects.
      */
     public static function get_maybe_existed_attached_id( $filename, $full_guid = true ) {
 
@@ -515,23 +521,21 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $wpdb;
 
-        // Generate a unique cache key from parameters.
-        $cache_key = 'attachment_' . md5( $filename . '|' . (int) $full_guid ); // NOSONAR - MD5 used for cache key generation only, not cryptographic (security) purposes.
+        // Generate request-scoped cache key.
+        $cache_key = sprintf( '%s:%s', $full_guid ? 'full' : 'suffix', md5( $filename ) ); // NOSONAR - MD5 used for cache key generation only, not cryptographic (security) purposes.
 
-        // Check cache first.
-        $cached = wp_cache_get( $cache_key, 'mainwp_utility_attachments' );
-        if ( false !== $cached ) {
-            return $cached;
+        // Check request-scoped cache first.
+        if ( isset( self::$attachment_lookup_cache[ $cache_key ] ) ) {
+            return self::$attachment_lookup_cache[ $cache_key ];
         }
 
         if ( $full_guid ) {
-            $result = $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for attachment lookup; results cached for 1 hour to improve performance.
+            $result = $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for attachment lookup; results cached for the current request to improve performance.
         } else {
-            $result = $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for attachment lookup; results cached for 1 hour to improve performance.
+            $result = $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for attachment lookup; results cached for the current request to improve performance.
         }
 
-        // Cache the result for 1 hour.
-        wp_cache_set( $cache_key, $result, 'mainwp_utility_attachments', 3600 );
+        self::$attachment_lookup_cache[ $cache_key ] = $result;
 
         return $result;
     }

@@ -594,9 +594,11 @@ class MainWP_Child_Pagespeed {
                 break;
         }
 
+        $data = array();
+
         if ( ! is_null( $reports_typestocheck ) ) {
             $gpi_page_stats = $wpdb->prefix . 'gpi_page_stats'; // @wordpress-security:ignore UnescapedDBParameter -- Table name is safe: wpdb->prefix + constant.
-				$data           = $wpdb->get_results( $wpdb->prepare( "SELECT $_select FROM $gpi_page_stats WHERE ( $reports_typestocheck[0] ) AND $nullcheck", $reports_typestocheck[1] ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $_select is hardcoded from switch statement (lines 589, 593), $gpi_page_stats is safe constant (line 598), $reports_typestocheck[0] is validated SQL fragment (line 557), $nullcheck is hardcoded (lines 588, 592).
+            $data           = $wpdb->get_results( $wpdb->prepare( "SELECT $_select FROM $gpi_page_stats WHERE ( $reports_typestocheck[0] ) AND $nullcheck", $reports_typestocheck[1] ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $_select is hardcoded from switch statement (lines 589, 593), $gpi_page_stats is safe constant (line 598), $reports_typestocheck[0] is validated SQL fragment (line 557), $nullcheck is hardcoded (lines 588, 592).
         }
 
         $result = array(
