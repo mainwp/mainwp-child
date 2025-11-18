@@ -380,7 +380,7 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
             if ( $testing_fetch || false === $meta ) {
                 if ( isset( $c['server'] ) && strpos( $c['server'], 'github.com' ) !== false ) {
                     $repo_url  = rtrim( $c['server'], '/' );
-                    $cache_key = 'uupd_github_release_' . md5( $repo_url );
+                    $cache_key = 'uupd_github_release_' . md5( $repo_url ); //phpcs:ignore -- NOSONAR - acceptable for field name.
                     $release   = get_transient( $cache_key );
 
                     if ( $testing_fetch || false === $release ) {
@@ -420,23 +420,6 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
                             delete_transient( $unauth_key );
                         }
 
-
-                        // if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) === 200 ) {
-                        //     $release = json_decode( wp_remote_retrieve_body( $response ) );
-                        //     $ttl = self::apply_filters_per_slug( 'uupd_success_cache_ttl', 6 * HOUR_IN_SECONDS, $slug );
-                        //     set_transient( $cache_key, $release, $ttl );
-                        // } else {
-                        //     $msg = is_wp_error( $response ) ? $response->get_error_message() : 'Invalid HTTP response';
-                        //     $this->log( "✗ GitHub API failed — $msg — caching error state" );
-                        //     set_transient(
-                        //         $error_key,
-                        //         time(),
-                        //         self::apply_filters_per_slug( 'uupd_fetch_remote_error_ttl', 6 * HOUR_IN_SECONDS, $slug )
-                        //     );
-                        //     do_action( 'uupd_metadata_fetch_failed', [ 'slug' => $slug, 'server' => $repo_url, 'message' => $msg ] );
-                        //     do_action( "uupd_metadata_fetch_failed/{$slug}", [ 'slug' => $slug, 'server' => $repo_url, 'message' => $msg ] );
-                        //     return $trans;
-                        // }
                     }
 
                     if ( isset( $release->tag_name ) ) {
@@ -664,7 +647,7 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
         if ( false === $meta ) {
             if ( isset( $c['server'] ) && strpos( $c['server'], 'github.com' ) !== false ) {
                 $repo_url  = rtrim( $c['server'], '/' );
-                $cache_key = 'uupd_github_release_' . md5( $repo_url );
+                $cache_key = 'uupd_github_release_' . md5( $repo_url ); //phpcs:ignore -- NOSONAR - acceptable for field name.
                 $release   = get_transient( $cache_key );
 
                 if ( false === $release ) {
@@ -967,7 +950,7 @@ if ( ! class_exists( __NAMESPACE__ . '\UUPD_Updater_V1' ) ) {
             //ALSO clear GitHub release cache if using GitHub
             if ( isset( $config['server'] ) && strpos( $config['server'], 'github.com' ) !== false ) {
                 $repo_url  = rtrim( $config['server'], '/' );
-                $gh_key    = 'uupd_github_release_' . md5( $repo_url );
+                $gh_key    = 'uupd_github_release_' . md5( $repo_url ); //phpcs:ignore -- NOSONAR - acceptable for field name.
                 delete_transient( $gh_key );
 
                 $unauth_key = 'uupd_' . $slug . '_unauth_error';
