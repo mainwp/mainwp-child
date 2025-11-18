@@ -62,6 +62,7 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
              * Provide custom content for the plugin details modal.
              */
             add_filter( 'plugins_api', array( &$this, 'plugin_information_link' ), 10, 3 );
+            add_action( 'after_plugin_row_' . plugin_basename( MAINWP_CHILD_FILE ), array( &$this, 'plugin_show_error_row' ), 10, 3 );
         }
         // Handle reinstall.
         add_action( 'admin_init', array( &$this, 'handle_reinstall_request' ) );
@@ -146,6 +147,33 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
         );
 
         return $response;
+    }
+
+
+    /**
+     * Method plugin_show_error_row.
+     *
+     * @param  mixed $plugin_file Plugin file.
+     * @return void
+     */
+    public function plugin_show_error_row( $plugin_file ) {
+
+        $slug = dirname( $plugin_file );
+
+        $unauth_key = 'uupd_' . $slug . '_unauth_error';
+
+        if ( ! get_transient( $unauth_key ) ) {
+            return;
+        }
+
+        $unauth_error = sprintf( esc_html__( 'Unable to check for updates with your GitHub token. Make sure your PAT is valid and has the right permissions. See %shere%s for more info.', 'mainwp-child' ), '<a href="https://mainwp.com/docs/github-personal-access-token/" target="_blank">', '</a>' );
+        echo '<tr class="plugin-update-tr">
+            <td colspan="3" class="plugin-update colspanchange">
+                <div class="notice notice-error inline">
+                    <p>' . $unauth_error . '</p>' . //phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+                '</div>
+            </td>
+          </tr>';
     }
 
     /**
@@ -445,8 +473,8 @@ class MainWP_Child_Custom_Updater { // phpcs:ignore Generic.Classes.OpeningBrace
     /**
      * Locate installed plugin basename by slug.
      *
-     * @param string $slug The plugin slug (e.g., 'mainwp').
-     * @return string|false Plugin basename (e.g., 'mainwp/mainwp.php') or false if not found.
+     * @param string $slug The plugin slug.
+     * @return string|false Plugin basename or false if not found.
      */
     public function locate_installed_plugin_basename( $slug ) {
         if ( ! function_exists( 'get_plugins' ) ) {
