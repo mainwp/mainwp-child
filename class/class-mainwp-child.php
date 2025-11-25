@@ -227,6 +227,7 @@ class MainWP_Child {
         add_action( 'init', array( $this, 'localization' ), 33 );
         add_action( 'init', array( $this, 'init_hooks' ), 9 );
         add_action( 'admin_init', array( $this, 'admin_init' ) );
+        add_action( 'plugins_loaded', array( MainWP_Child_Custom_Updater::instance(), 'hook_plugins_loaded' ), 1 );
         add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( $this, 'plugin_settings_link' ) );
 
         // Essential filters for security.
@@ -525,6 +526,8 @@ class MainWP_Child {
             }
         }
     }
+
+
 
     /**
      * Method activation()

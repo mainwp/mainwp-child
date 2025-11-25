@@ -342,7 +342,8 @@ class MainWP_Clone_Install {
          */
         define( 'WP_DEBUG', false );
 
-        $wpdb->query( 'SET foreign_key_checks = 0' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // Disable foreign key checks for clone installation. This is a MySQL session setting, not a data query - caching is not applicable.
+        $wpdb->query( 'SET foreign_key_checks = 0' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MySQL session configuration command.
 
         $protect_content_string = '<?php exit(); ?>';
 
@@ -427,7 +428,8 @@ class MainWP_Clone_Install {
             $wpdb->query( $wpdb->prepare( 'UPDATE ' . $table_prefix . 'options SET option_value = %s WHERE option_name = "mainwp_child_clone_permalink"', 1 ) ); //phpcs:ignore -- safe query.
         }
 
-        $wpdb->query( 'SET foreign_key_checks = 1' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // Re-enable foreign key checks after clone installation. This is a MySQL session setting, not a data query - caching is not applicable.
+        $wpdb->query( 'SET foreign_key_checks = 1' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MySQL session configuration command.
 
         return true;
     }
