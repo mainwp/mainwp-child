@@ -204,17 +204,6 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::update_option( 'mainwp_child_actions_saved_number_of_days', $days_number );
         }
 
-        if ( isset( $_POST['early_access_updates_disabled'] ) ) {
-            MainWP_Child_Custom_Updater::if_changed_enable_early_access_updates( $_POST['early_access_updates_disabled'] ); //phpcs:ignore -- NOSONAR - ok.
-            MainWP_Helper::update_option( 'mainwp_child_settings_enable_early_access_updates', ! empty( $_POST['early_access_updates_disabled'] ) ? 0 : 1 );
-
-            $git_pat = ! empty( $_POST['git_pat'] ) ? sanitize_text_field( wp_unslash( $_POST['git_pat'] ) ): '';
-            if ( ! empty( $git_pat ) ) {
-                $git_pat = MainWP_Child_Keys_Manager::instance()->encrypt_string( $git_pat );
-            }
-            update_option( 'mainwp_child_settings_custom_updater_git_pat', $git_pat );
-        }
-
         $others_sync = null;
 
         if ( $this->is_sync_data( 'othersData' ) && isset( $_POST['othersData'] ) ) {
