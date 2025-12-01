@@ -87,10 +87,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             try {
 
                 // Update mainwp_child_auto_purge_cache option value with either yes|no.
-                update_option( 'mainwp_child_auto_purge_cache', ( $data['auto_purge_cache'] ? 1 : 0 ) );
+                update_option( 'mainwp_child_auto_purge_cache', ( ! empty( $data['auto_purge_cache'] ) ? 1 : 0 ) );
 
                 // Update mainwp_child_cloud_flair_enabled options value.
-                update_option( 'mainwp_child_cloud_flair_enabled', ( $data['cloud_flair_enabled'] ? 1 : 0 ) );
+                update_option( 'mainwp_child_cloud_flair_enabled', ( ! empty( $data['cloud_flair_enabled'] ) ? 1 : 0 ) );
 
                 // Update Cloudflare API Credentials option values.
                 if ( isset( $data['mainwp_cloudflair_email'] ) ) {
