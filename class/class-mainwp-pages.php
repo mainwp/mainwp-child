@@ -166,12 +166,6 @@ class MainWP_Pages {
             update_user_option( get_current_user_id(), 'mainwp_child_user_enable_passwd_auth_connect', ! empty( $_POST['mainwp_child_user_enable_pwd_auth_connect'] ) ? 1 : 0 );
             wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' );
         }
-
-        if ( isset( $_POST['submit'] ) && isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'child-early-access-settings' ) ) {
-            MainWP_Child_Custom_Updater::if_changed_enable_early_access_updates( $_POST['mainwp_child_settings_enable_early_access_updates'] ); //phpcs:ignore -- NOSONAR - ok.
-            MainWP_Helper::update_option( 'mainwp_child_settings_enable_early_access_updates', ! empty( $_POST['mainwp_child_settings_enable_early_access_updates'] ) ? 1 : 0 );
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&tab=early-updates&message=2' );
-        }
         // phpcs:enable
     }
 
@@ -339,7 +333,6 @@ class MainWP_Pages {
         $hide_restore           = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
         $hide_server_info       = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
         $hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
-        $hide_early_updates     = isset( $branding_opts['remove_early_updates_tab'] ) && $branding_opts['remove_early_updates_tab'] ? true : false;
 
         if ( '' === $shownPage ) {
             if ( ! $hide_settings ) {
@@ -350,8 +343,6 @@ class MainWP_Pages {
                 $shownPage = 'server-info';
             } elseif ( ! $hide_connection_detail ) {
                 $shownPage = 'connection-detail';
-            } elseif ( ! $hide_early_updates ) {
-                $shownPage = 'early-updates';
             }
         }
 
@@ -401,13 +392,6 @@ class MainWP_Pages {
                     <?php MainWP_Child_Server_Information::render_connection_details(); ?>
             </div>
         <?php } ?>
-
-        <?php if ( ! $hide_early_updates ) { ?>
-            <div class="mainwp-child-setting-tab early-updates" <?php echo 'early-updates' !== $shownPage ? 'style="display:none"' : ''; ?>>
-                    <?php MainWP_Child_Custom_Updater::render_early_access_updates(); ?>
-            </div>
-        <?php } ?>
-
         <?php
         static::render_footer();
     }
@@ -438,7 +422,6 @@ class MainWP_Pages {
         $hide_restore           = isset( $branding_opts['remove_restore'] ) && $branding_opts['remove_restore'] ? true : false;
         $hide_server_info       = isset( $branding_opts['remove_server_info'] ) && $branding_opts['remove_server_info'] ? true : false;
         $hide_connection_detail = isset( $branding_opts['remove_connection_detail'] ) && $branding_opts['remove_connection_detail'] ? true : false;
-        $hide_early_updates_tab = isset( $branding_opts[''] ) && $branding_opts['remove_early_updates_tab'] ? true : false;
 
         $sitesToClone = get_option( 'mainwp_child_clone_sites' );
 
@@ -620,9 +603,6 @@ class MainWP_Pages {
                     <?php endif; ?>
                     <?php if ( ! $hide_connection_detail ) : ?>
                         <a class="nav-tab pos-nav-tab <?php echo ( 'connection-detail' === $shownPage ) ? 'nav-tab-active' : ''; ?>" tab-slug="connection-detail" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=connection-detail' : '#'; ?>"><?php esc_html_e( 'Connection Details', 'mainwp-child' ); ?></a>
-                    <?php endif; ?>
-                    <?php if ( ! $hide_early_updates_tab ) : ?>
-                        <a class="nav-tab pos-nav-tab <?php echo ( 'early-updates' === $shownPage ) ? 'nav-tab-active' : ''; ?>" tab-slug="early-updates" href="<?php echo $subpage ? 'options-general.php?page=mainwp_child_tab&tab=early-updates' : '#'; ?>"><?php esc_html_e( 'Early Access Updates', 'mainwp-child' ); ?></a>
                     <?php endif; ?>
                     <?php if ( isset( static::$subPages ) && is_array( static::$subPages ) ) : ?>
                         <?php foreach ( static::$subPages as $subPage ) : ?>
