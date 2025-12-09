@@ -515,10 +515,25 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $wpdb;
 
-        if ( $full_guid ) {
-            return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // Generate a unique cache key from parameters.
+        $cache_key = 'attachment_' . md5( $filename . '|' . (int) $full_guid ); //phpcs:ignore --NOSONAR --safe for key.
+
+        // Check cache first.
+        $cached = wp_cache_get( $cache_key, 'mainwp_utility_attachments' );
+        if ( false !== $cached ) {
+            return $cached;
         }
-        return $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        if ( $full_guid ) {
+            $result = $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid = %s", $filename ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for attachment lookup; results cached for 1 hour to improve performance.
+        } else {
+            $result = $wpdb->get_results( $wpdb->prepare( "SELECT ID,guid FROM $wpdb->posts WHERE post_type = 'attachment' AND guid LIKE %s", '%/' . $wpdb->esc_like( $filename ) ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for attachment lookup; results cached for 1 hour to improve performance.
+        }
+
+        // Cache the result for 1 hour.
+        wp_cache_set( $cache_key, $result, 'mainwp_utility_attachments', 3600 );
+
+        return $result;
     }
 
     /**

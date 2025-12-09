@@ -131,52 +131,89 @@ class MainWP_Child_WooCommerce_Status {
             return false;
         }
 
-        // Get sales.
-        $sales = $wpdb->get_var( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->prepare(
-                "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
-                LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
-                LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
-                LEFT JOIN {$wpdb->terms} AS term USING( term_id )
-                LEFT JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id
-                WHERE posts.post_type = 'shop_order'
-                AND posts.post_status = 'publish'
-                AND tax.taxonomy = 'shop_order_status'
-                AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
-                " AND postmeta.meta_key = '_order_total'
-                AND posts.post_date >= %s
-                AND posts.post_date <= %s",
-                date( 'Y-m-01' ), // phpcs:ignore -- local time.
-                date( 'Y-m-d H:i:s' ) // phpcs:ignore -- local time.
-            )
-        );
+        // Define allowed WooCommerce order statuses.
+        $allowed_statuses = array( 'completed', 'processing', 'on-hold', 'refunded', 'cancelled', 'failed', 'pending' );
 
-        // Get top seller.
-        $top_seller = $wpdb->get_row( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->prepare( // phpcs:ignore -- safe query.
-                "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
-                FROM {$wpdb->posts} as posts
-                LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
-                LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
-                LEFT JOIN {$wpdb->terms} AS term USING( term_id )
-                LEFT JOIN {$wpdb->prefix}woocommerce_order_items AS order_items ON posts.ID = order_id
-                LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id
-                LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_2 ON order_items.order_item_id = order_item_meta_2.order_item_id
-                WHERE posts.post_type = 'shop_order'
-                AND posts.post_status = 'publish'
-                AND tax.taxonomy = 'shop_order_status'
-                AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
-                " AND order_item_meta.meta_key = '_qty'
-                AND order_item_meta_2.meta_key = '_product_id'
-                AND posts.post_date >= %s
-                AND posts.post_date <= %s
-                GROUP BY product_id
-                ORDER BY qty DESC
-                LIMIT 1",
-                date( 'Y-m-01' ), // phpcs:ignore -- local time.
-                date( 'Y-m-d H:i:s' ) // phpcs:ignore -- local time.
-            )
-        );
+        // Apply the filter and validate against whitelist.
+        $filtered_statuses = apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) );
+        $safe_statuses     = array_intersect( $filtered_statuses, $allowed_statuses );
+
+        // Ensure at least one status exists, otherwise use default.
+        if ( empty( $safe_statuses ) ) {
+            $safe_statuses = array( 'completed' );
+        }
+
+        // Build dynamic placeholders for IN clause.
+        $placeholders = implode( ',', array_fill( 0, count( $safe_statuses ), '%s' ) );
+
+        // Prepare dates.
+        $month_start = date( 'Y-m-01' ); // phpcs:ignore -- local time.
+        $month_end   = date( 'Y-m-d H:i:s' ); // phpcs:ignore -- local time.
+
+        // Generate cache key.
+        $cache_key = 'wc_sales_' . md5( implode( '_', $safe_statuses ) . '_' . $month_start . '_' . $month_end ); //phpcs:ignore --NOSONAR --safe for key.
+
+        // Try to get cached value.
+        $sales = wp_cache_get( $cache_key, 'mainwp_woocommerce' );
+
+        // If cache miss, execute the query and cache result.
+        if ( false === $sales ) {
+            $sales = $wpdb->get_var( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $wpdb->prepare(
+                    "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
+                    LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
+                    LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
+                    LEFT JOIN {$wpdb->terms} AS term USING( term_id )
+                    LEFT JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id
+                    WHERE posts.post_type = 'shop_order'
+                    AND posts.post_status = 'publish'
+                    AND tax.taxonomy = 'shop_order_status'
+                    AND term.slug IN ( {$placeholders} )
+                    AND postmeta.meta_key = '_order_total'
+                    AND posts.post_date >= %s
+                    AND posts.post_date <= %s",
+                    array_merge( $safe_statuses, array( $month_start, $month_end ) )
+                )
+            );
+
+            wp_cache_set( $cache_key, $sales, 'mainwp_woocommerce', HOUR_IN_SECONDS );
+        }
+
+        // Generate cache key for top seller.
+        $cache_key_top = 'wc_top_seller_' . md5( implode( '_', $safe_statuses ) . '_' . $month_start . '_' . $month_end ); //phpcs:ignore --NOSONAR --safe for key.
+
+        // Try to get cached value.
+        $top_seller = wp_cache_get( $cache_key_top, 'mainwp_woocommerce' );
+
+        // If cache miss, execute the query and cache result.
+        if ( false === $top_seller ) {
+            $top_seller = $wpdb->get_row( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $wpdb->prepare(
+                    "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
+                    FROM {$wpdb->posts} as posts
+                    LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
+                    LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
+                    LEFT JOIN {$wpdb->terms} AS term USING( term_id )
+                    LEFT JOIN {$wpdb->prefix}woocommerce_order_items AS order_items ON posts.ID = order_id
+                    LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id
+                    LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_2 ON order_items.order_item_id = order_item_meta_2.order_item_id
+                    WHERE posts.post_type = 'shop_order'
+                    AND posts.post_status = 'publish'
+                    AND tax.taxonomy = 'shop_order_status'
+                    AND term.slug IN ( {$placeholders} )
+                    AND order_item_meta.meta_key = '_qty'
+                    AND order_item_meta_2.meta_key = '_product_id'
+                    AND posts.post_date >= %s
+                    AND posts.post_date <= %s
+                    GROUP BY product_id
+                    ORDER BY qty DESC
+                    LIMIT 1",
+                    array_merge( $safe_statuses, array( $month_start, $month_end ) )
+                )
+            );
+
+            wp_cache_set( $cache_key_top, $top_seller, 'mainwp_woocommerce', HOUR_IN_SECONDS );
+        }
 
         if ( ! empty( $top_seller ) ) {
             $top_seller->name = get_the_title( $top_seller->product_id );
@@ -245,44 +282,85 @@ class MainWP_Child_WooCommerce_Status {
         $end_date   = date( 'Y-m-d H:i:s', $end_date ); // phpcs:ignore -- local time.
         // phpcs:enable
 
-        // Get sales.
-        $sales = $wpdb->get_var( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
-            LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
-            LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
-            LEFT JOIN {$wpdb->terms} AS term USING( term_id )
-            LEFT JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id
-            WHERE posts.post_type = 'shop_order'
-            AND posts.post_status = 'publish'
-            AND tax.taxonomy = 'shop_order_status'
-            AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
-            " AND postmeta.meta_key = '_order_total'
-            AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare( '%s', $start_date ) . ", '%Y-%m-%d %H:%i:%s')
-            AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare( '%s', $end_date ) . ", '%Y-%m-%d %H:%i:%s')"
-        );
+        // Define allowed WooCommerce order statuses.
+        $allowed_statuses = array( 'completed', 'processing', 'on-hold', 'refunded', 'cancelled', 'failed', 'pending' );
 
-        // Get top seller.
-        $top_seller = $wpdb->get_row( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
-            FROM {$wpdb->posts} as posts
-            LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
-            LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
-            LEFT JOIN {$wpdb->terms} AS term USING( term_id )
-            LEFT JOIN {$wpdb->prefix}woocommerce_order_items AS order_items ON posts.ID = order_id
-            LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id
-            LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_2 ON order_items.order_item_id = order_item_meta_2.order_item_id
-            WHERE posts.post_type = 'shop_order'
-            AND posts.post_status = 'publish'
-            AND tax.taxonomy = 'shop_order_status'
-            AND term.slug IN ( '" . implode( "','", apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) ) ) . "' ) " . // phpcs:ignore -- safe query.
-            " AND order_item_meta.meta_key = '_qty'
-            AND order_item_meta_2.meta_key = '_product_id'
-            AND posts.post_date >= STR_TO_DATE(" . $wpdb->prepare( '%s', $start_date ) . ", '%Y-%m-%d %H:%i:%s' )
-            AND posts.post_date <= STR_TO_DATE(" . $wpdb->prepare( '%s', $end_date ) . ", '%Y-%m-%d %H:%i:%s' )
-            GROUP BY product_id
-            ORDER BY qty DESC
-            LIMIT 1"
-        );
+        // Apply the filter and validate against whitelist.
+        $filtered_statuses = apply_filters( 'woocommerce_reports_order_statuses', array( 'completed', 'processing', 'on-hold' ) );
+        $safe_statuses     = array_intersect( $filtered_statuses, $allowed_statuses );
+
+        // Ensure at least one status exists, otherwise use default.
+        if ( empty( $safe_statuses ) ) {
+            $safe_statuses = array( 'completed' );
+        }
+
+        // Build dynamic placeholders for IN clause.
+        $placeholders = implode( ',', array_fill( 0, count( $safe_statuses ), '%s' ) );
+
+        // Generate cache key.
+        $cache_key = 'wc_sales_' . md5( implode( '_', $safe_statuses ) . '_' . $start_date . '_' . $end_date ); //phpcs:ignore --NOSONAR --safe for key.
+
+        // Try to get cached value.
+        $sales = wp_cache_get( $cache_key, 'mainwp_woocommerce' );
+
+        // If cache miss, execute the query and cache result.
+        if ( false === $sales ) {
+            $sales = $wpdb->get_var( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $wpdb->prepare(
+                    "SELECT SUM( postmeta.meta_value ) FROM {$wpdb->posts} as posts
+                    LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
+                    LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
+                    LEFT JOIN {$wpdb->terms} AS term USING( term_id )
+                    LEFT JOIN {$wpdb->postmeta} AS postmeta ON posts.ID = postmeta.post_id
+                    WHERE posts.post_type = 'shop_order'
+                    AND posts.post_status = 'publish'
+                    AND tax.taxonomy = 'shop_order_status'
+                    AND term.slug IN ( {$placeholders} )
+                    AND postmeta.meta_key = '_order_total'
+                    AND posts.post_date >= %s
+                    AND posts.post_date <= %s",
+                    array_merge( $safe_statuses, array( $start_date, $end_date ) )
+                )
+            );
+
+            wp_cache_set( $cache_key, $sales, 'mainwp_woocommerce', HOUR_IN_SECONDS );
+        }
+
+        // Generate cache key for top seller.
+        $cache_key_top = 'wc_top_seller_' . md5( implode( '_', $safe_statuses ) . '_' . $start_date . '_' . $end_date ); //phpcs:ignore --NOSONAR --safe for key.
+
+        // Try to get cached value.
+        $top_seller = wp_cache_get( $cache_key_top, 'mainwp_woocommerce' );
+
+        // If cache miss, execute the query and cache result.
+        if ( false === $top_seller ) {
+            $top_seller = $wpdb->get_row( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $wpdb->prepare(
+                    "SELECT SUM( order_item_meta.meta_value ) as qty, order_item_meta_2.meta_value as product_id
+                    FROM {$wpdb->posts} as posts
+                    LEFT JOIN {$wpdb->term_relationships} AS rel ON posts.ID=rel.object_ID
+                    LEFT JOIN {$wpdb->term_taxonomy} AS tax USING( term_taxonomy_id )
+                    LEFT JOIN {$wpdb->terms} AS term USING( term_id )
+                    LEFT JOIN {$wpdb->prefix}woocommerce_order_items AS order_items ON posts.ID = order_id
+                    LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id
+                    LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_2 ON order_items.order_item_id = order_item_meta_2.order_item_id
+                    WHERE posts.post_type = 'shop_order'
+                    AND posts.post_status = 'publish'
+                    AND tax.taxonomy = 'shop_order_status'
+                    AND term.slug IN ( {$placeholders} )
+                    AND order_item_meta.meta_key = '_qty'
+                    AND order_item_meta_2.meta_key = '_product_id'
+                    AND posts.post_date >= %s
+                    AND posts.post_date <= %s
+                    GROUP BY product_id
+                    ORDER BY qty DESC
+                    LIMIT 1",
+                    array_merge( $safe_statuses, array( $start_date, $end_date ) )
+                )
+            );
+
+            wp_cache_set( $cache_key_top, $top_seller, 'mainwp_woocommerce', HOUR_IN_SECONDS );
+        }
 
         if ( ! empty( $top_seller ) ) {
             $top_seller->name = get_the_title( $top_seller->product_id );

@@ -452,7 +452,8 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $wpdb;
 
-        return $wpdb->get_results( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // Direct query for dynamic backup data; caching would return stale backup progress.
+        return $wpdb->get_results( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
                 "SELECT backupID
                 FROM {$wpdb->base_prefix}wptc_processed_files
@@ -790,7 +791,8 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $current_limit = \WPTC_Factory::get( 'config' )->get_option( 'activity_log_lazy_load_limit' );
         $to_limit      = $from_limit + $current_limit;
 
-        $sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id = %s AND show_user = 1 ORDER BY id DESC LIMIT %d, %d', $action_id, $from_limit, $current_limit ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // Direct query for transient activity log data with dynamic pagination; caching not appropriate.
+        $sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id = %s AND show_user = 1 ORDER BY id DESC LIMIT %d, %d', $action_id, $from_limit, $current_limit ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
         $row_count = count( $sub_records );
 
@@ -840,7 +842,8 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 $more_logs = false;
                 $load_more = false;
                 if ( ! empty( $rec->action_id ) ) {
-                    $sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id= %s AND show_user = 1 ORDER BY id DESC LIMIT 0, %d', $rec->action_id, $limit ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                    // Direct query for real-time activity logs; caching would prevent display of current backup progress.
+                    $sub_records = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $wpdb->base_prefix . 'wptc_activity_log WHERE action_id= %s AND show_user = 1 ORDER BY id DESC LIMIT 0, %d', $rec->action_id, $limit ) ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                     $row_count   = count( $sub_records );
                     if ( $row_count === (int) $limit ) {
                         $load_more = true;
@@ -1922,7 +1925,14 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         echo '<tr title="&gt;=5.3.1"><td>' . esc_html__( 'PHP version', 'wp-time-capsule' ) . '</td><td>' . esc_html( PHP_VERSION . ' ' . $bit ) . '</td></tr>';
-        echo '<tr title="&gt;=5.0.15"><td>' . esc_html__( 'MySQL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $wpdb->get_var( 'SELECT VERSION() AS version' ) ) . '</td></tr>'; //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        // Retrieve MySQL version with caching (static server metadata).
+        $mysql_version = wp_cache_get( 'mainwp_timecapsule_mysql_version', 'mainwp_timecapsule' );
+        if ( false === $mysql_version ) {
+            $mysql_version = $wpdb->get_var( 'SELECT VERSION() AS version' ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Static server metadata, cached for 1 hour.
+            wp_cache_set( 'mainwp_timecapsule_mysql_version', $mysql_version, 'mainwp_timecapsule', 3600 );
+        }
+        echo '<tr title="&gt;=5.0.15"><td>' . esc_html__( 'MySQL version', 'wp-time-capsule' ) . '</td><td>' . esc_html( $mysql_version ) . '</td></tr>';
 
         if ( function_exists( 'curl_version' ) ) {
             $curlversion = curl_version();

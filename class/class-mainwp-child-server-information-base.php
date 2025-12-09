@@ -386,7 +386,7 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
             $res = openssl_pkey_new( $conf );
 
             @openssl_pkey_export( $res, $privkey, null, $conf ); // phpcs:ignore -- prevent warning.
-            $details = openssl_pkey_get_details( $res );
+            $details = $res ? openssl_pkey_get_details( $res ) : false;
 
             if ( is_array( $details ) && isset( $details['key'] ) ) {
                 $publicKey = $details['key'];
@@ -453,7 +453,16 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
          */
         global $wpdb;
 
-        return $wpdb->get_var( "SHOW VARIABLES LIKE 'version'", 1 ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $cached_version = wp_cache_get( 'mainwp_mysql_version', 'mainwp_server_info' );
+        if ( false !== $cached_version ) {
+            return $cached_version;
+        }
+
+        $version = $wpdb->get_var( "SHOW VARIABLES LIKE 'version'", 1 ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MySQL version is static server metadata, cached for 1 hour.
+
+        wp_cache_set( 'mainwp_mysql_version', $version, 'mainwp_server_info', 3600 );
+
+        return $version;
     }
 
     /**
@@ -552,13 +561,23 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
          */
         global $wpdb;
 
-        $mysqlinfo = $wpdb->get_results( "SHOW VARIABLES LIKE 'sql_mode'" ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $cached_sql_mode = wp_cache_get( 'mainwp_sql_mode', 'mainwp_server_info' );
+        if ( false !== $cached_sql_mode ) {
+            echo esc_html( $cached_sql_mode );
+            return;
+        }
+
+        $mysqlinfo = $wpdb->get_results( "SHOW VARIABLES LIKE 'sql_mode'" ); //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- SQL mode is static server metadata, cached for 1 hour.
+        $sql_mode = '';
         if ( is_array( $mysqlinfo ) ) {
             $sql_mode = $mysqlinfo[0]->Value;
         }
         if ( empty( $sql_mode ) ) {
             $sql_mode = esc_html__( 'NOT SET', 'mainwp-child' );
         }
+
+        wp_cache_set( 'mainwp_sql_mode', $sql_mode, 'mainwp_server_info', 3600 );
+
         echo esc_html( $sql_mode );
     }
 
