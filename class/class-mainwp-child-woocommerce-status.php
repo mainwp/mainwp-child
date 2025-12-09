@@ -298,7 +298,7 @@ class MainWP_Child_WooCommerce_Status {
         $placeholders = implode( ',', array_fill( 0, count( $safe_statuses ), '%s' ) );
 
         // Generate cache key.
-        $cache_key = 'wc_sales_' . md5( implode( '_', $safe_statuses ) . '_' . $start_date . '_' . $end_date );
+        $cache_key = 'wc_sales_' . md5( implode( '_', $safe_statuses ) . '_' . $start_date . '_' . $end_date ); //phpcs:ignore --NOSONAR --safe for key.
 
         // Try to get cached value.
         $sales = wp_cache_get( $cache_key, 'mainwp_woocommerce' );
@@ -327,7 +327,7 @@ class MainWP_Child_WooCommerce_Status {
         }
 
         // Generate cache key for top seller.
-        $cache_key_top = 'wc_top_seller_' . md5( implode( '_', $safe_statuses ) . '_' . $start_date . '_' . $end_date );
+        $cache_key_top = 'wc_top_seller_' . md5( implode( '_', $safe_statuses ) . '_' . $start_date . '_' . $end_date ); //phpcs:ignore --NOSONAR --safe for key.
 
         // Try to get cached value.
         $top_seller = wp_cache_get( $cache_key_top, 'mainwp_woocommerce' );
