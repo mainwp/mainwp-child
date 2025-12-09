@@ -516,7 +516,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         global $wpdb;
 
         // Generate a unique cache key from parameters.
-        $cache_key = 'attachment_' . md5( $filename . '|' . (int) $full_guid );
+        $cache_key = 'attachment_' . md5( $filename . '|' . (int) $full_guid ); //phpcs:ignore --NOSONAR --safe for key.
 
         // Check cache first.
         $cached = wp_cache_get( $cache_key, 'mainwp_utility_attachments' );
