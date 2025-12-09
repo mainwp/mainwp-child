@@ -388,6 +388,13 @@ class MainWP_Child_Install {
             $urls = $urlgot;
         }
 
+        // ensure admin upgrade classes are available.
+        if ( ! class_exists( '\Automatic_Upgrader_Skin' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php'; // NOSONAR -ok.
+            require_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -ok.
+            require_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR -ok.
+        }
+
         // To fix conflict.
         if ( is_plugin_active( 'git-updater/git-updater.php' ) ) {
             remove_all_filters( 'upgrader_source_selection' );
@@ -397,7 +404,8 @@ class MainWP_Child_Install {
         $result          = array();
         $install_items   = array();
         foreach ( $urls as $url ) {
-            $installer  = new \WP_Upgrader();
+            $skin       = new \Automatic_Upgrader_Skin();
+            $installer  = new \WP_Upgrader( $skin );
             $ssl_verify = true;
             // @see wp-admin/includes/class-wp-upgrader.php
             if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
