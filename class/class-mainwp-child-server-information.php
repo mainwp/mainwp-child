@@ -418,7 +418,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
             $branding_title = 'MainWP Child';
         }
         ?>
-        <table id="mainwp-table" class="wp-list-table widefat" style="border-spacing:0;">
+        <table id="mainwp-table-server" class="wp-list-table widefat" style="border-spacing:0;">
             <thead>
                 <tr>
                     <th scope="col" class="manage-column column-posts mwp-not-generate-row" style="width: 1px;"></th>
@@ -885,7 +885,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         $cron_array = _get_cron_array();
         $schedules  = wp_get_schedules();
         ?>
-        <table id="mainwp-table" class="wp-list-table widefat" style="border-spacing:0;">
+        <table id="mainwp-table-cron" class="wp-list-table widefat" style="border-spacing:0;">
             <thead>
                 <tr>
                     <th scope="col" class="manage-column column-posts"><span><?php esc_html_e( 'Next due', 'mainwp-child' ); ?></span></th>
