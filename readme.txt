@@ -115,7 +115,6 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 * Fixed: Resolved issues with purging Cloudflare cache on specific setups when using the Cache Control add-on.
 * Fixed: Corrected a problem that prevented installing plugins or themes from the MainWP Favorites add-on on certain server configurations.
-* Added: Introduced support for automatic Early Access updates to simplify testing of upcoming features.
 * Updated: Improved output-escaping compliance throughout the plugin to meet WordPress coding standards.
 * Dev: Added the `mainwp_child_get_wp_upload_dir` filter to enable developers to define a custom upload directory.
 
