@@ -179,7 +179,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Utility::fix_for_custom_themes();
             $this->call_function_no_auth( $call_func );
         } elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
-            MainWP_Helper::instance()->error( esc_html__( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ), 'child_plugin_incompatible' );
         }
         // phpcs:enable
     }
