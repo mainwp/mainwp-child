@@ -1008,9 +1008,6 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         // Check for errors.
         if ( is_wp_error( $response ) ) {
             return $this->purge_result( 'Cloudflare => Purge Cache failed.', 'ERROR' );
-        $result = json_decode( curl_exec( $ch_purge ), true ); // phpcs:ignore -- use core function.
-        if ( 'resource' === gettype( $ch_purge ) ) {
-            curl_close( $ch_purge ); // phpcs:ignore -- use core function.
         }
 
         $body   = wp_remote_retrieve_body( $response );
