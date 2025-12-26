@@ -466,6 +466,8 @@ class MainWP_Child {
             return;
         }
 
+        $this->parse_init_extensions();
+
         /**
          * WordPress submenu no privilege.
          *
@@ -526,6 +528,52 @@ class MainWP_Child {
         }
     }
 
+    /**
+     * Method parse_init_extensions()
+     *
+     * Parse MainWP Extension initiations.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Branding::branding_init()
+     * @uses \MainWP\Child\MainWP_Client_Report::creport_init()
+     * @uses \MainWP\Child\MainWP_Child_IThemes_Security::ithemes_init()
+     * @uses \MainWP\Child\MainWP_Child_Updraft_Plus_Backups::updraftplus_init()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_WordPress::init()
+     * @uses \MainWP\Child\MainWP_Child_WP_Rocket::init()
+     * @uses \MainWP\Child\MainWP_Child_Back_WP_Up::init()
+     * @uses \MainWP\Child\MainWP_Child_Back_Up_Buddy::instance()
+     * @uses \MainWP\Child\MainWP_Child_Wordfence::wordfence_init()
+     * @uses \MainWP\Child\MainWP_Child_Timecapsule::init()
+     * @uses \MainWP\Child\MainWP_Child_Staging::init()
+     * @uses \MainWP\Child\MainWP_Child_Pagespeed::init()
+     * @uses \MainWP\Child\MainWP_Child_Links_Checker::init()
+     * @uses \MainWP\Child\MainWP_Child_WPvivid_BackupRestore::init()
+     * @uses \MainWP\Child\MainWP_Child_Aam::instance()
+     * @uses \MainWP\Child\MainWP_Child_HTML_Regression::instance()->init()
+     * @uses \MainWP\Child\MainWP_Child_Patchstack::instance()->init()
+     */
+    private function parse_init_extensions() {
+        MainWP_Child_Branding::instance()->branding_init();
+        MainWP_Client_Report::instance()->creport_init();
+        MainWP_Child_IThemes_Security::instance()->ithemes_init();
+        MainWP_Child_Updraft_Plus_Backups::instance()->updraftplus_init();
+        MainWP_Child_Back_Up_WordPress::instance()->init();
+        MainWP_Child_WP_Rocket::instance()->init();
+        MainWP_Child_Back_WP_Up::instance()->init();
+        MainWP_Child_Back_Up_Buddy::instance();
+        MainWP_Child_Wordfence::instance()->wordfence_init();
+        MainWP_Child_Timecapsule::instance()->init();
+        MainWP_Child_Staging::instance()->init();
+        MainWP_Child_Pagespeed::instance()->init();
+        MainWP_Child_Links_Checker::instance()->init();
+        MainWP_Child_WPvivid_BackupRestore::instance()->init();
+        MainWP_Child_DB_Updater::instance();
+        MainWP_Child_Jetpack_Protect::instance();
+        MainWP_Child_Jetpack_Scan::instance();
+        MainWP_Child_Aam::instance()->init();
+        MainWP_Custom_Post_Type::instance();
+        MainWP_Child_HTML_Regression::instance()->init();
+        MainWP_Child_Patchstack::instance()->init();
+    }
 
 
     /**

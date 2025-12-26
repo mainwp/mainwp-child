@@ -99,6 +99,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'delete_actions'        => 'delete_actions',
         'verify_action'         => 'verify_action',
         'api_backups_mysqldump' => 'api_backups_mysqldump',
+        'patchstack'            => 'patchstack',
     );
 
     /**
@@ -1111,5 +1112,14 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function api_backups_mysqldump() {
         MainWP_Child_Api_Backups::instance()->api_backups_mysqldump();
+    }
+
+    /**
+     * Method patchstack()
+     *
+     * Fire off the action() function.
+     */
+    public function patchstack() {
+        MainWP_Child_Patchstack::instance()->action();
     }
 }
