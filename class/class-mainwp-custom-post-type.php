@@ -100,7 +100,7 @@ class MainWP_Custom_Post_Type {
         $custom = array();
 
         if ( $taxonomies ) {
-            foreach ( $taxonomies  as $tax_name => $taxonomy ) {
+            foreach ( $taxonomies as $tax_name => $taxonomy ) {
 
                 $terms = get_terms(
                     array(
@@ -128,7 +128,6 @@ class MainWP_Custom_Post_Type {
 
         return $custom;
     }
-
 
 
     /**
@@ -427,7 +426,7 @@ class MainWP_Custom_Post_Type {
 
             if ( ! empty( $post_type ) ) {
                 if ( $post_cust_cats ) {
-                    if ( '0' === $data['post_only_existing'] ) {
+                    if ( 0 === (int) $data['post_only_existing'] ) {
                         $found = false;
                         foreach ( $post_cust_cats as $term ) {
                             $post_term = false;
@@ -515,18 +514,43 @@ class MainWP_Custom_Post_Type {
 
         // Insert post terms except categories.
         if ( ! empty( $data['terms'] ) && is_array( $data['terms'] ) ) {
+            // Separate parent and child terms.
+            $parent_terms = array();
+            $child_terms  = array();
+
             foreach ( $data['terms'] as $key ) {
+                if ( empty( $key['parent_slug'] ) ) {
+                    $parent_terms[] = $key;
+                } else {
+                    $child_terms[] = $key;
+                }
+            }
+
+            // Process parent terms first, then child terms.
+            $terms_to_process = array_merge( $parent_terms, $child_terms );
+
+            foreach ( $terms_to_process as $key ) {
                 if ( ! taxonomy_exists( $key['taxonomy'] ) ) {
                     return array( 'error' => esc_html__( 'Missing taxonomy', $this->plugin_translate ) . ' `' . esc_html( $key['taxonomy'] ) . '`' );
+                }
+
+                $term_args = array(
+                    'description' => $key['description'],
+                    'slug'        => $key['slug'],
+                );
+
+                // Find parent term by slug if this is a child term.
+                if ( ! empty( $key['parent_slug'] ) ) {
+                    $parent_term = get_term_by( 'slug', $key['parent_slug'], $key['taxonomy'] );
+                    if ( $parent_term && ! empty( $parent_term->term_id ) ) {
+                        $term_args['parent'] = (int) $parent_term->term_id;
+                    }
                 }
 
                 $term = wp_insert_term(
                     $key['name'],
                     $key['taxonomy'],
-                    array(
-                        'description' => $key['description'],
-                        'slug'        => $key['slug'],
-                    )
+                    $term_args
                 );
 
                 $term_taxonomy_id = 0;
@@ -536,7 +560,7 @@ class MainWP_Custom_Post_Type {
                         $term_taxonomy_id = (int) $term->error_data['term_exists'];
                     }
                 } elseif ( isset( $term['term_taxonomy_id'] ) ) {
-                        $term_taxonomy_id = (int) $term['term_taxonomy_id'];
+                    $term_taxonomy_id = (int) $term['term_taxonomy_id'];
                 }
 
                 if ( $term_taxonomy_id > 0 ) {
