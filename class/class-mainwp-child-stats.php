@@ -793,6 +793,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         wp_update_plugins();
         include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
 
+        $get_compatible_info = function_exists( 'is_php_version_compatible' ) ? true : false;
+
         $plugin_updates = get_plugin_updates();
         if ( is_array( $plugin_updates ) ) {
 
@@ -806,7 +808,22 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                     continue;
                 }
                 $plugin_update->active = is_plugin_active( $slug ) ? 1 : 0;
-                $results[ $slug ]      = $plugin_update;
+
+                if ( $get_compatible_info && file_exists( WP_PLUGIN_DIR . '/' . $slug ) ) {
+                    $plugin_data = array(
+                        'requires'     => '',
+                        'requires_php' => '',
+                    );
+
+                    $plugin_data = array_merge( $plugin_data, get_plugin_data( WP_PLUGIN_DIR . '/' . $slug ) );
+
+                    $plugin_data['requires']       = ! empty( $plugin_data['RequiresWP'] ) ? $plugin_data['RequiresWP'] : $plugin_data['requires'];
+                    $plugin_data['requires_php']   = ! empty( $plugin_data['RequiresPHP'] ) ? $plugin_data['RequiresPHP'] : $plugin_data['requires_php'];
+                    $plugin_update->wp_compatible  = is_wp_version_compatible( $plugin_data['requires'] );
+                    $plugin_update->php_compatible = is_php_version_compatible( $plugin_data['requires_php'] );
+                }
+
+                $results[ $slug ] = $plugin_update;
             }
         }
 
