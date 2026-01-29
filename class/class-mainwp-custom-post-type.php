@@ -775,14 +775,19 @@ class MainWP_Custom_Post_Type {
 
         return get_posts(
             array(
-                'post_type'           => $post_types,
-                'post_status'         => 'any', // 👈 all statuses user can see.
-                'post_status__not_in' => array( 'auto-draft' ),
-                'posts_per_page'      => $limit,
-                'fields'              => 'ids',
-                'orderby'             => 'date',
-                'order'               => 'DESC',
-                'no_found_rows'       => true,
+                'post_type'      => $post_types,
+                'post_status'    => array(
+                    'publish',
+                    'draft',
+                    'pending',
+                    'trash',
+                    'future',
+                ),
+                'posts_per_page' => $limit,
+                'fields'         => 'ids',
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+                'no_found_rows'  => true,
             )
         );
     }
