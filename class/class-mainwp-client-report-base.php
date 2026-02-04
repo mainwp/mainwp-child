@@ -1076,6 +1076,8 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
             'tags'          => esc_html__( 'Delete tags with 0 posts associated', 'mainwp-child' ),
             'categories'    => esc_html__( 'Delete categories with 0 posts associated', 'mainwp-child' ),
             'optimize'      => esc_html__( 'Optimize database tables', 'mainwp-child' ),
+            'transients_expired' => esc_html__( 'Delete expired transients', 'mainwp-child' ),
+            'transients_all'     => esc_html__( 'Delete all transients', 'mainwp-child' ),
         );
 
         $meta_value = $this->get_stream_meta_data( $record, $data );

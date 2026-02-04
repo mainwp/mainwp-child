@@ -190,6 +190,14 @@ class MainWP_Child_Maintenance {
             $performed_what[] = 'optimize'; // 'Database optimized'.
         }
 
+        if ( in_array( 'transients_all', $maint_options ) ) {
+            $this->maintenance_delete_all_transients();
+            $performed_what[] = 'transients_all';
+        } elseif ( in_array( 'transients_expired', $maint_options ) ) {
+            $this->maintenance_delete_expired_transients();
+            $performed_what[] = 'transients_expired';
+        }
+
         if ( ! empty( $performed_what ) && has_action( 'mainwp_reports_maintenance' ) ) {
             $details  = implode( ',', $performed_what );
             $log_time = time();
