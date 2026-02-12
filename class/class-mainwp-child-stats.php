@@ -154,6 +154,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Stats::check_premium_updates()
      * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
      * @uses \MainWP\Child\MainWP_Child_Plugins_Check::may_outdate_number_change()
+     * @uses \MainWP\Child\MainWP_Child_Password_Policy::sync_password_policy_settings()
      * @uses \MainWP\Child\MainWP_Child_Comments::get_recent_comments()
      * @uses \MainWP\Child\MainWP_Child_Posts::get_recent_posts()
      * @uses \MainWP\Child\MainWP_Child_DB::get_size()
@@ -198,6 +199,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Child_Plugins_Check::may_outdate_number_change();
+
+        MainWP_Child_Password_Policy::instance()->sync_password_policy_settings();
 
         if ( isset( $_POST['child_actions_saved_days_number'] ) ) {
             $days_number = intval( $_POST['child_actions_saved_days_number'] );
@@ -402,6 +405,10 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         // still generate if regverify the connect user disabled pw auth.
         if ( ! empty( $_POST['sync_regverify'] ) ) {
             $information['regverify_info'] = MainWP_Connect::instance()->validate_register( false, 'generate' );
+        }
+
+        if ( $this->is_sync_data( 'password_policy_options' ) ) {
+            $information['password_policy_options'] = MainWP_Child_Password_Policy::instance()->get_policy_options();
         }
 
         if ( $exit_done ) {
