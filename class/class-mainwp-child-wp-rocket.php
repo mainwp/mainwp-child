@@ -139,6 +139,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
             'exclude_js'                   => array(),
             'exclude_inline_js'            => array(),
             'async_css'                    => 0,
+            'remove_unused_css'            => 0,
             'defer_all_js'                 => 0,
             'critical_css'                 => '',
             'remove_unused_css_safelist'   => '',
