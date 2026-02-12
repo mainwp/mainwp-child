@@ -82,6 +82,11 @@ class MainWP_Child {
 
         // Run saved snippets - this is essential functionality.
         MainWP_Utility::instance()->run_saved_snippets();
+
+        // Initialize lightweight password change tracking for frontend (e.g., WooCommerce My Account).
+        MainWP_Child_Password_Tracker::get_instance();
+
+        add_filter( 'wp_footer', array( MainWP_Child_Password_Policy::instance(), 'render_frontend_notice' ), 15 );
     }
 
     /**
@@ -96,6 +101,9 @@ class MainWP_Child {
 
         // Register essential hooks.
         $this->register_essential_hooks();
+
+        // Initialize lightweight password change tracking for all contexts (admin, AJAX, REST, cron).
+        MainWP_Child_Password_Tracker::get_instance();
 
         // Initialize essential components.
         MainWP_Pages::get_instance()->init();
@@ -146,6 +154,12 @@ class MainWP_Child {
 
         // Initiate MainWP Cache Control class.
         MainWP_Child_Cache_Purge::instance();
+
+        // Initiate MainWP Users class to register password change tracking hooks.
+        MainWP_Child_Users::get_instance();
+
+        // Initiate MainWP Password Policy class.
+        MainWP_Child_Password_Policy::instance();
     }
 
     /**

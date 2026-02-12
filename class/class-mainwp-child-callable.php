@@ -98,8 +98,9 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'jetpack_scan'          => 'jetpack_scan',
         'delete_actions'        => 'delete_actions',
         'verify_action'         => 'verify_action',
-        'api_backups_mysqldump' => 'api_backups_mysqldump',
-        'patchstack'            => 'patchstack',
+        'api_backups_mysqldump'  => 'api_backups_mysqldump',
+        'patchstack'             => 'patchstack',
+        'password_policy_settings' => 'password_policy_settings',
     );
 
     /**
@@ -1121,5 +1122,19 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function patchstack() {
         MainWP_Child_Patchstack::instance()->action();
+    }
+
+    /**
+     * Method password_policy_settings()
+     *
+     * Fire off the action() function.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Password_Policy::action()
+     * @uses \MainWP\Child\MainWP_Helper::write()
+     */
+    public function password_policy_settings() {
+        $information = MainWP_Child_Password_Policy::instance()->action();
+        MainWP_Helper::write( $information );
+        exit();
     }
 }
