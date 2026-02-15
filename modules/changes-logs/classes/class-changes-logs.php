@@ -91,7 +91,7 @@ class Changes_Logs {
             if ( ! class_exists( $class_name ) ) {
                 continue;
             }
-            new $class_name();
+            new $class_name(); //NOSONAR --instance class.
         }
 
         do_action( 'mainwp_child_changes_logs_after_load_loggers', $this );

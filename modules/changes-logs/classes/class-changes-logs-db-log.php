@@ -633,7 +633,7 @@ class Changes_Logs_DB_Log {
      *
      * @return array
      */
-    public function get_logs_data( $params ) {
+    public function get_logs_data( $params ) { //phpcs:ignore --NOSONAR -complex.
 
         $select_fields = isset( $params['fields'] ) && is_array( $params['fields'] ) ? $params['fields'] : array();
         $logs_fields   = isset( $select_fields['tbllogs'] ) && is_array( $select_fields['tbllogs'] ) ? $select_fields['tbllogs'] : array();
