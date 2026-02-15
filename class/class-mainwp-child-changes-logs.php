@@ -42,7 +42,7 @@ class MainWP_Child_Changes_Logs {
      *
      * @since 5.4.1
      */
-    public static function get_changes_data() {
+    public static function get_changes_data() { // phpcs:ignore -- NOSONAR - multi return.
         $params = ! empty( $_POST['params_logs'] ) && is_array( $_POST['params_logs'] ) ?  $_POST['params_logs'] : array(); //phpcs:ignore -- ok.
 
         if ( empty( $params ) ) {

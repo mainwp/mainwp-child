@@ -358,7 +358,7 @@ class MainWP_Child_DB_Base { // phpcs:ignore Generic.Classes.OpeningBraceSameLin
      *
      * @return boolean|mixed false|\mysqli_data_seek
      */
-    public static function data_seek( $result, $offset ) {
+    public static function data_seek( $result, $offset ) { //phpcs:ignore -- NOSONAR -multi return.
         if ( is_bool( $result ) ) {
             return $result;
         }

@@ -398,7 +398,7 @@ class MainWP_Child_Maintenance {
      *
      * @used-by MainWP_Child_Maintenance::maintenance_db()
      */
-    private function maintenance_delete_all_transients() {
+    private function maintenance_delete_all_transients() { //phpcs:ignore --NOSONAR -complex.
 
         /**
          * WordPress Database instance.
