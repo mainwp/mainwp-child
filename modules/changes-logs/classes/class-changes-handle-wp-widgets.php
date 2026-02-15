@@ -44,7 +44,7 @@ class Changes_Handle_WP_Widgets {
      * When a user accesses the admin area.
      * Moved widget.
      */
-    public static function callback_change_widget_move() {
+    public static function callback_change_widget_move() { //phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         if ( ! isset( $post_vars['savewidgets'] ) || false === \check_ajax_referer( 'save-sidebar-widgets', 'savewidgets', false ) ) {
@@ -112,7 +112,7 @@ class Changes_Handle_WP_Widgets {
     /**
      * When a user accesses the admin area.
      */
-    public static function callback_change_widget_post_move() {
+    public static function callback_change_widget_post_move() { //phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         // Generates the event 2071.

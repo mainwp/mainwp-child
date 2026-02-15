@@ -327,7 +327,7 @@ class Changes_Handle_WP_MetaData {
      * @param string $meta_key - Meta key.
      * @param mixed  $meta_value - Meta value.
      */
-    public static function callback_change_user_meta_updated( $meta_id, $object_id, $meta_key, $meta_value ) {
+    public static function callback_change_user_meta_updated( $meta_id, $object_id, $meta_key, $meta_value ) { //phpcs:ignore --NOSONAR -complex.
         if ( ! self::change_check_can_log_meta_key( 'user', $object_id, $meta_key ) || is_array( $meta_value ) ) {
             return;
         }

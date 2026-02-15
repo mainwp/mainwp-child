@@ -55,7 +55,7 @@ class Changes_Handle_WP_User_Profile {
      * @param string $meta_key Metadata key.
      * @param mixed  $_meta_value Metadata value. Serialized if non-scalar.
      */
-    public static function callback_change_application_password_added( $meta_id, $user_id, $meta_key, $_meta_value ) {
+    public static function callback_change_application_password_added( $meta_id, $user_id, $meta_key, $_meta_value ) { //phpcs:ignore --NOSONAR -complex.
 
         $server_vars = filter_input_array( INPUT_SERVER );
         if ( ! isset( $server_vars['HTTP_REFERER'] ) || ! isset( $server_vars['REQUEST_URI'] ) ) {
@@ -132,7 +132,7 @@ class Changes_Handle_WP_User_Profile {
      * @param int     $user_id - User ID.
      * @param WP_User $old_userdata - Old WP_User object.
      */
-    public static function callback_change_user_updated( $user_id, $old_userdata ) {
+    public static function callback_change_user_updated( $user_id, $old_userdata ) { //phpcs:ignore --NOSONAR -complex.
         $new_userdata = get_userdata( $user_id );
 
         if ( $old_userdata->user_pass !== $new_userdata->user_pass ) {

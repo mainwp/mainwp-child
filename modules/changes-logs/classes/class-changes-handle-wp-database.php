@@ -181,7 +181,7 @@ class Changes_Handle_WP_Database {
      *
      * @return bool True if the list contains a WP table.
      */
-    private static function change_contains_wp_table( $tables ) {
+    private static function change_contains_wp_table( $tables ) { //phpcs:ignore --NOSONAR -complex.
         if ( ! empty( $tables ) ) {
 
             $wp_tables_array = array(

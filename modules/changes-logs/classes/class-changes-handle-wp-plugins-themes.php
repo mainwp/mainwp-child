@@ -34,7 +34,7 @@ class Changes_Handle_WP_Plugins_Themes {
     /**
      * Hook WP shutdown.
      */
-    public static function callback_change_wp_shutdown() {
+    public static function callback_change_wp_shutdown() { //phpcs:ignore --NOSONAR -complex.
 
         $post_vars   = filter_input_array( INPUT_POST );
         $get_vars    = filter_input_array( INPUT_GET );

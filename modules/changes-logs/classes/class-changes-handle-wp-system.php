@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * System Activity.
  */
-class Changes_Handle_WP_System {
+class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
 
     /**
      * Keeps the value of the old option.
@@ -157,13 +157,13 @@ class Changes_Handle_WP_System {
      *
      * @return void
      */
-    public static function change_attach_cron_actions() {
+    public static function change_attach_cron_actions() { //phpcs:ignore -- NOSONAR -complex.
         if ( defined( 'DOING_CRON' ) ) {
             \add_action( 'pre_unschedule_event', array( __CLASS__, 'change_attach_cron_pre_unschedule_event' ), PHP_INT_MAX, 4 );
             $crons = \wp_get_ready_cron_jobs();
-            foreach ( $crons  as $timestamp => $cronhooks ) {
+            foreach ( $crons  as $cronhooks ) {
                 foreach ( $cronhooks as $hook => $keys ) {
-                    foreach ( $keys as $k => $v ) {
+                    foreach ( $keys as $v ) {
                         \add_action(
                             $hook,
                             function () use ( $hook ) {
@@ -338,10 +338,10 @@ class Changes_Handle_WP_System {
      *
      * @return null|bool|WP_Error
      */
-    public static function callback_change_unschedule_cron_job( $pre, $timestamp, $hook, $args, $wp_error = false ) {
+    public static function callback_change_unschedule_cron_job( $pre, $timestamp, $hook, $args, $wp_error = false ) { //phpcs:ignore -- NOSONAR -require params.
 
         if ( ! $pre && ! defined( 'DOING_CRON' ) ) {
-            $type_id = 1950;
+            $type_id = 1950; //NOSONAR -used for feature.
 
             $data = array(
                 'task_name'     => $hook,
@@ -401,7 +401,7 @@ class Changes_Handle_WP_System {
      *
      * @return void
      */
-    public static function callback_change_deleted_option( $option ) {
+    public static function callback_change_deleted_option( $option ) { //phpcs:ignore --NOSONAR -complex.
 
         // Site icon is changed.
         if ( 'site_icon' === $option ) {
@@ -471,7 +471,7 @@ class Changes_Handle_WP_System {
      *
      * @return void
      */
-    public static function callback_change_updated_option( $option, $old_value, $new_value ) {
+    public static function callback_change_updated_option( $option, $old_value, $new_value ) { //phpcs:ignore --NOSONAR -complex.
 
         // Site icon is changed.
         if ( 'site_icon' === $option ) {
@@ -799,7 +799,7 @@ class Changes_Handle_WP_System {
         if ( $is_option_page && isset( $post_vars['_wpnonce'] )
         && wp_verify_nonce( $post_vars['_wpnonce'], 'general-options' )
         && isset( $post_vars['WPLANG'] ) ) {
-            require_once ABSPATH . 'wp-admin/includes/translation-install.php';
+            require_once ABSPATH . 'wp-admin/includes/translation-install.php'; // NOSONAR - WP compatible.
             $available_translations = wp_get_available_translations();
 
             // When English (United States) is selected, the WPLANG post entry is empty so lets account for this.
@@ -843,7 +843,7 @@ class Changes_Handle_WP_System {
      *
      * @return array|null
      */
-    public static function callback_change_options( $whitelist = null ) {
+    public static function callback_change_options( $whitelist = null ) { //phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         if ( isset( $post_vars['option_page'] ) && 'reading' === $post_vars['option_page'] ) {
