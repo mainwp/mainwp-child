@@ -562,7 +562,7 @@ class Changes_Handle_WP_System {
     /**
      * When a user accesses the admin area.
      */
-    public static function callback_change_admin_init() {
+    public static function callback_change_admin_init() {  //phpcs:ignore --NOSONAR -complex.
 
         if ( ! current_user_can( 'manage_options' ) ) {
             return;

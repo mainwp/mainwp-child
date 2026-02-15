@@ -384,7 +384,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                     if ( is_wp_error( $api ) ) {
                         $error                                    = $api->get_error_message();
                         $information['upgrades_error'][ $plugin ] = $error;
-                        $errors_codes                             = $api->get_error_codes();
+                        $up_errors_codes                          = $api->get_error_codes();
                     }
                     if ( ! is_wp_error( $api ) && ! empty( $api ) && isset( $api->download_link ) ) {
                         $res = $upgrader->install( $api->download_link );

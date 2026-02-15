@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * WordPress contents (posts, pages and custom posts).
  */
-class Changes_Handle_WP_Content {
+class Changes_Handle_WP_Content { //phpcs:ignore --NOSONAR -complex class.
 
     /**
      * The name of the meta used to setting the lock status of the post
@@ -138,12 +138,8 @@ class Changes_Handle_WP_Content {
      * @param WP_Post $post    - WP Post object.
      * @param boolean $update  - True if post update, false if post is new.
      */
-    public static function callback_change_post_changed( $post_id, $post, $update ) {
-        if ( empty( $post->post_type ) || 'revision' === $post->post_type || 'trash' === $post->post_status ) {
-            return;
-        }
-
-        if ( null === self::$old_post ) {
+    public static function callback_change_post_changed( $post_id, $post, $update ) { //phpcs:ignore --NOSONAR -complex.
+        if ( empty( $post->post_type ) || 'revision' === $post->post_type || 'trash' === $post->post_status || null === self::$old_post ) {
             return;
         }
 
@@ -168,11 +164,7 @@ class Changes_Handle_WP_Content {
             $editor_replace = get_option( 'classic-editor-replace', 'classic' );
             $allow_users    = get_option( 'classic-editor-allow-users', 'disallow' );
 
-            if ( 'block' === $editor_replace && 'disallow' === $allow_users ) {
-                return;
-            }
-
-            if ( 'allow' === $allow_users ) {
+            if ( ( 'block' === $editor_replace && 'disallow' === $allow_users ) || 'allow' === $allow_users ) {
                 return;
             }
         }
@@ -208,7 +200,7 @@ class Changes_Handle_WP_Content {
      * @param array  $tt_ids   - Array of taxonomy term ids.
      * @param string $taxonomy - Taxonomy slug.
      */
-    public static function callback_change_post_terms_changed( $post_id, $terms, $tt_ids, $taxonomy ) {
+    public static function callback_change_post_terms_changed( $post_id, $terms, $tt_ids, $taxonomy ) {  //phpcs:ignore --NOSONAR -requires params.
         $post = get_post( $post_id );
 
         if ( is_wp_error( $post ) ) {
@@ -383,7 +375,7 @@ class Changes_Handle_WP_Content {
      *
      * Logs for Viewing of Posts and Custom Post Types.
      */
-    public static function callback_change_viewing_post() {
+    public static function callback_change_viewing_post() { //phpcs:ignore --NOSONAR -complex.
         $post = get_queried_object();
 
         if ( is_user_logged_in() && ! is_admin() ) {
@@ -461,7 +453,7 @@ class Changes_Handle_WP_Content {
      * @param string $taxonomy Taxonomy slug.
      * @param array  $args     Arguments passed to wp_update_term().
      */
-    public static function callback_change_update_term_data( $data, $term_id, $taxonomy, $args ) {
+    public static function callback_change_update_term_data( $data, $term_id, $taxonomy, $args ) { //phpcs:ignore --NOSONAR -complex.
         $new_name   = isset( $data['name'] ) ? $data['name'] : false;
         $new_slug   = isset( $data['slug'] ) ? $data['slug'] : false;
         $new_desc   = isset( $args['description'] ) ? $args['description'] : false;
@@ -595,13 +587,10 @@ class Changes_Handle_WP_Content {
      * @param int       $object_id  ID of the object metadata is for.
      * @param string    $meta_key   Metadata key.
      * @param mixed     $meta_value Metadata value. Must be serializable if non-scalar.
-     * @param bool      $delete_all Whether to delete the matching metadata entries
-     *                              for all objects, ignoring the specified $object_id.
-     *                              Default false.
      *
      * @return bool|null Whether to allow metadata deletion.
      */
-    public static function callback_change_check_deleted_meta( $delete, $object_id, $meta_key, $meta_value, $delete_all ) {
+    public static function callback_change_check_deleted_meta( $delete, $object_id, $meta_key, $meta_value ) {
         return self::check_selected_meta_change( $object_id, $meta_key, $meta_value, $delete );
     }
 
@@ -612,11 +601,10 @@ class Changes_Handle_WP_Content {
      * @param int       $object_id  ID of the object metadata.
      * @param string    $meta_key   Metadata key.
      * @param mixed     $meta_value Metadata value..
-     * @param bool      $unique     Meta key should be unique for the object.
      *
      * @return bool|null    Whether to allow metadata addition.
      */
-    public static function callback_change_check_added_meta( $check, $object_id, $meta_key, $meta_value, $unique ) {
+    public static function callback_change_check_added_meta( $check, $object_id, $meta_key, $meta_value ) {
         return self::check_selected_meta_change( $object_id, $meta_key, $meta_value, $check );
     }
 
@@ -652,7 +640,7 @@ class Changes_Handle_WP_Content {
      * @param string $meta_key   Metadata key.
      * @param mixed  $meta_value Metadata value.
      */
-    public static function callback_change_before_changing_meta( $meta_id, $object_id, $meta_key, $meta_value ) {
+    public static function callback_change_before_changing_meta( $meta_id, $object_id, $meta_key, $meta_value ) { //phpcs:ignore --NOSONAR -requires params.
         if ( self::LOCK_META_NAME === $meta_key ) {
             self::fire_lock_change( (int) $object_id, (string) $meta_value );
         }
@@ -670,7 +658,7 @@ class Changes_Handle_WP_Content {
 
         if ( $meta_value ) {
             if ( ! function_exists( 'wp_check_post_lock' ) ) {
-                require_once ABSPATH . 'wp-admin/includes/post.php';
+                require_once ABSPATH . 'wp-admin/includes/post.php'; // NOSONAR - WP compatible.
             }
             $user_id = \wp_check_post_lock( $post_id );
 
@@ -678,18 +666,16 @@ class Changes_Handle_WP_Content {
                 $lock        = explode( ':', $meta_value );
                 $new_user_id = $lock[1];
 
-                if ( $new_user_id ) {
-                    if ( get_userdata( $new_user_id ) ) { //phpcs:ignore
-                        $post     = get_post( $post_id );
-                        $log_data = array(
-                            'postid'     => $post->ID,
-                            'posttype'   => $post->post_type,
-                            'posttitle'  => $post->post_title,
-                            'poststatus' => $post->post_status,
-                            'user'       => get_userdata( $user_id )->display_name,
-                        );
-                        Changes_Logs_Logger::log_change( 1340, $log_data );
-                    }
+                if ( $new_user_id && get_userdata( $new_user_id ) ) { //phpcs:ignore
+                    $post     = get_post( $post_id );
+                    $log_data = array(
+                        'postid'     => $post->ID,
+                        'posttype'   => $post->post_type,
+                        'posttitle'  => $post->post_title,
+                        'poststatus' => $post->post_status,
+                        'user'       => get_userdata( $user_id )->display_name,
+                    );
+                    Changes_Logs_Logger::log_change( 1340, $log_data );
                 }
             }
         }
@@ -792,7 +778,7 @@ class Changes_Handle_WP_Content {
      * @param WP_Post $old_post - Old post.
      * @param WP_Post $new_post - New post.
      */
-    private static function change_post_creation( $old_post, $new_post ) {
+    private static function change_post_creation( $old_post, $new_post ) { //phpcs:ignore --NOSONAR -complex.
         if ( ! empty( $new_post ) && $new_post instanceof \WP_Post && 'shop_coupon' !== $new_post->post_type ) {
             $event        = 0;
             $is_scheduled = false;
@@ -851,7 +837,7 @@ class Changes_Handle_WP_Content {
      */
     public static function change_post_changes_data( $post ) {
         if ( ! empty( $post ) && $post instanceof \WP_Post ) {
-            $log_data = array(
+            return array(
                 'postid'     => $post->ID,
                 'posttype'   => $post->post_type,
                 'posttitle'  => $post->post_title,
@@ -859,7 +845,6 @@ class Changes_Handle_WP_Content {
                 'postdate'   => $post->post_date,
                 'posturl'    => get_permalink( $post->ID ),
             );
-            return $log_data;
         }
         return array();
     }
@@ -899,7 +884,7 @@ class Changes_Handle_WP_Content {
      *
      * @return integer
      */
-    private static function change_post_status( $oldpost, $newpost ) {
+    private static function change_post_status( $oldpost, $newpost ) { //phpcs:ignore --NOSONAR -complex.
         if ( $oldpost->post_status !== $newpost->post_status && 'shop_coupon' !== $newpost->post_type ) {
             $event        = 0;
             $is_scheduled = false;
@@ -997,7 +982,7 @@ class Changes_Handle_WP_Content {
      * @param string  $old_status - Old status.
      * @param string  $new_status - New status.
      */
-    private static function change_post_visibility( $oldpost, $newpost, $old_status, $new_status ) {
+    private static function change_post_visibility( $oldpost, $newpost, $old_status, $new_status ) { //phpcs:ignore --NOSONAR -requires params.
         $old_visibility = '';
         $new_visibility = '';
 
@@ -1203,7 +1188,7 @@ class Changes_Handle_WP_Content {
      *
      * @return int|void
      */
-    public static function change_post_modification( $post_id, $oldpost, $newpost, $modified ) {
+    public static function change_post_modification( $post_id, $oldpost, $newpost, $modified ) { //phpcs:ignore --NOSONAR -complex.
         self::change_post_title( $oldpost, $newpost );
 
         $content_changed = $oldpost->post_content !== $newpost->post_content;
@@ -1298,7 +1283,7 @@ class Changes_Handle_WP_Content {
      *
      * @param WP_Post $post – Post object.
      */
-    public static function change_opened_post_editor( $post ) {
+    public static function change_opened_post_editor( $post ) { //phpcs:ignore --NOSONAR --compatible return values.
         if ( empty( $post ) || ! $post instanceof \WP_Post ) {
             return;
         }

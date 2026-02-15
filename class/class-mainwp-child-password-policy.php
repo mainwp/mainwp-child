@@ -110,7 +110,7 @@ class MainWP_Child_Password_Policy {
             $show_notices_to = 'edit_posts';
         }
 
-        $current_max_age  = get_option( 'mainwp_pw_max_age_days', 0 );
+        $current_max_age = get_option( 'mainwp_pw_max_age_days', 0 );
 
         if ( intval( $current_max_age ) !== $max_age_days ) {
             MainWP_Helper::update_option( 'mainwp_pw_max_age_days', $max_age_days );
@@ -302,7 +302,7 @@ class MainWP_Child_Password_Policy {
         }
 
         $status_data  = $this->get_user_password_status( $user_id );
-        $message      = $this->get_notice_message( $status_data, 'admin' );
+        $message      = $this->get_notice_message( $status_data );
         $notice_class = 'OVERDUE' === $status_data['status'] ? 'notice-error' : 'notice-warning';
 
         ?>
@@ -315,7 +315,7 @@ class MainWP_Child_Password_Policy {
     /**
      * Render frontend notice for password policy.
      */
-    public function render_frontend_notice() {
+    public function render_frontend_notice() { //phpcs:ignore --NOSONAR -ok.
         if ( ! is_user_logged_in() ) {
             return;
         }
@@ -345,9 +345,16 @@ class MainWP_Child_Password_Policy {
         $due_soon_days     = get_option( 'mainwp_pw_due_soon_days', 7 );
         $last_change       = get_user_meta( $user_id, 'mainwp_last_password_change', true );
 
-        $basis_time = ! empty( $last_change ) ? intval( $last_change ) : ( ! empty( $policy_enabled_at ) ? intval( $policy_enabled_at ) : time() );
-        $due_time   = $basis_time + ( $max_age_days * DAY_IN_SECONDS );
-        $now        = time();
+        if ( empty( $last_change ) ) {
+            $basis_time = intval( $last_change );
+        } elseif ( ! empty( $policy_enabled_at ) ) {
+            $basis_time = intval( $policy_enabled_at );
+        } else {
+            $basis_time = time();
+        }
+
+        $due_time = $basis_time + ( $max_age_days * DAY_IN_SECONDS );
+        $now      = time();
 
         if ( $now >= $due_time ) {
             $status = 'OVERDUE';
@@ -392,21 +399,15 @@ class MainWP_Child_Password_Policy {
      * Get notice message based on status data.
      *
      * @param array  $status_data Status data array.
-     * @param string $context Context: 'admin' or 'frontend'.
      * @return string Notice message.
      */
-    public function get_notice_message( $status_data, $context = 'admin' ) {
+    public function get_notice_message( $status_data ) {
         $status                  = $status_data['status'];
         $custom_due_soon_message = get_option( 'mainwp_pw_due_soon_message', '' );
         $custom_overdue_message  = get_option( 'mainwp_pw_overdue_message', '' );
 
-        if ( 'admin' === $context ) {
-            $profile_url = admin_url( 'profile.php' );
-            $link_text   = '<a href="' . esc_url( $profile_url ) . '">Update your password</a>';
-        } else {
-            $profile_url = admin_url( 'profile.php' );
-            $link_text   = '<a href="' . esc_url( $profile_url ) . '">Update your password</a>';
-        }
+        $profile_url = admin_url( 'profile.php' );
+        $link_text   = '<a href="' . esc_url( $profile_url ) . '">Update your password</a>';
 
         if ( 'DUE' === $status ) {
             if ( ! empty( $custom_due_soon_message ) ) {

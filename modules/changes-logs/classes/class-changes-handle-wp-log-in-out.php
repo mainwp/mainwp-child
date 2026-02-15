@@ -107,7 +107,7 @@ class Changes_Handle_WP_Log_In_Out {
      * @param string $scheme      Authentication scheme.
      * @param string $token       User's session token to use for this cookie.
      */
-    public static function callback_change_login( $auth_cookie, $expire, $expiration, $user_id, $scheme, $token ) {
+    public static function callback_change_login( $auth_cookie, $expire, $expiration, $user_id, $scheme, $token ) { //phpcs:ignore --NOSONAR -requires params.
         $post_vars = filter_input_array( INPUT_POST );
 
         if ( isset( $post_vars['_um_account'] ) && isset( $post_vars['_um_account_tab'] ) && 'password' === $post_vars['_um_account_tab'] ) {
@@ -164,9 +164,8 @@ class Changes_Handle_WP_Log_In_Out {
      * Changed password.
      *
      * @param WP_User $user - User object.
-     * @param string  $new_pass - New Password.
      */
-    public static function callback_change_password_reset( $user, $new_pass ) {
+    public static function callback_change_password_reset( $user ) {
         if ( ! empty( $user ) ) {
             $user_roles = Changes_Helper::get_user_roles( $user );
             $log_data   = array(
@@ -208,7 +207,7 @@ class Changes_Handle_WP_Log_In_Out {
      * @param object $errors Current WP_errors object.
      * @param object $user   User making the request.
      */
-    public static function callback_change_user_requested_pw_reset( $errors, $user = null ) {
+    public static function callback_change_user_requested_pw_reset( $errors, $user = null ) { //phpcs:ignore --NOSONAR - requires params.
 
         if ( is_null( $user ) || ! isset( $user->roles ) ) {
             return;
