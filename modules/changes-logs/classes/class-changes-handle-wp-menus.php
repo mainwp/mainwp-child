@@ -490,13 +490,25 @@ class Changes_Handle_WP_Menus {
                         if ( false !== strpos( $key, 'nav_menu_locations[' ) ) {
                             $loc = substr( trim( $key, ']' ), 19 );
                             if ( ! empty( $value ) ) {
-                                $menu      = wp_get_nav_menu_object( $value );
-                                $menu_name = ! empty( $customized['new_menu_name'] ) ? $customized['new_menu_name'] : ( ! empty( $menu ) ? $menu->name : '' );
+                                $menu = wp_get_nav_menu_object( $value );
+                                if ( ! empty( $customized['new_menu_name'] ) ) {
+                                    $menu_name = $customized['new_menu_name'];
+                                } elseif ( ! empty( $menu ) ) {
+                                    $menu_name = $menu->name;
+                                } else {
+                                    $menu_name = '';
+                                }
                                 self::callback_change_menu_setting( $menu_name, 'Enabled', 'Location: ' . $loc . ' menu', $menu->term_id );
                             } elseif ( ! empty( self::$old_menu_locations[ $loc ] ) ) {
-                                    $menu      = wp_get_nav_menu_object( self::$old_menu_locations[ $loc ] );
-                                    $menu_name = ! empty( $customized['new_menu_name'] ) ? $customized['new_menu_name'] : ( ! empty( $menu ) ? $menu->name : '' );
-                                    self::callback_change_menu_setting( $menu_name, 'Disabled', 'Location: ' . $loc . ' menu', $menu->term_id );
+                                $menu = wp_get_nav_menu_object( self::$old_menu_locations[ $loc ] );
+                                if ( ! empty( $customized['new_menu_name'] ) ) {
+                                    $menu_name = $customized['new_menu_name'];
+                                } elseif ( ! empty( $menu ) ) {
+                                    $menu_name = $menu->name;
+                                } else {
+                                    $menu_name = '';
+                                }
+                                self::callback_change_menu_setting( $menu_name, 'Disabled', 'Location: ' . $loc . ' menu', $menu->term_id );
                             }
                         }
                         // Remove items from the menu.

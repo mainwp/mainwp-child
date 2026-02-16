@@ -464,7 +464,7 @@ class Changes_Handle_WP_MetaData {
      *
      * @return boolean Can log true|false
      */
-    public static function change_check_can_log_meta_key( $object_type, $object_id, $meta_key ) {
+    public static function change_check_can_log_meta_key( $object_type, $object_id, $meta_key ) { //phpcs:ignore --NOSONAR -complex.
         if ( '_' === substr( (string) $meta_key, 0, 1 ) ) {
             $log_hidden_keys = apply_filters( 'mainwp_child_changes_logs_log_hidden_meta_keys', array() );
 

@@ -114,12 +114,8 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
 
         $user = \get_userdata( (int) $_POST['user_id'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-        if ( $user ) {
-            if ( ! current_user_can( 'edit_user', $user->ID ) ) {
-                $user = false;
-            } elseif ( isset( $_POST['nonce'] ) && ! \wp_verify_nonce( $_POST['nonce'], 'update-user_' . $user->ID ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-                $user = false;
-            }
+        if ( $user && ( ! current_user_can( 'edit_user', $user->ID ) || ( isset( $_POST['nonce'] ) && ! \wp_verify_nonce( $_POST['nonce'], 'update-user_' . $user->ID ) ) ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            $user = false;
         }
 
         if ( $user ) {
@@ -238,14 +234,12 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
             $disabled_system_logs = array();
         }
 
-        if ( 1940 === $type_id && isset( $disabled_system_logs[ $type_id ] ) ) {
-            if ( ! empty( $log_data['task_name'] ) && isset( $disabled_system_logs[ $type_id ]['task_name'] ) && is_array( $disabled_system_logs[ $type_id ]['task_name'] ) ) {
-                $disabled_task_names = $disabled_system_logs[ $type_id ]['task_name'];
-                if ( is_string( $log_data['task_name'] ) ) {
-                    return ! in_array( $log_data['task_name'], $disabled_task_names );
-                }
-                return false;
+        if ( 1940 === $type_id && isset( $disabled_system_logs[ $type_id ] ) && ! empty( $log_data['task_name'] ) && isset( $disabled_system_logs[ $type_id ]['task_name'] ) && is_array( $disabled_system_logs[ $type_id ]['task_name'] ) ) {
+            $disabled_task_names = $disabled_system_logs[ $type_id ]['task_name'];
+            if ( is_string( $log_data['task_name'] ) ) {
+                return ! in_array( $log_data['task_name'], $disabled_task_names );
             }
+            return false;
         }
 
         return true;
@@ -474,41 +468,38 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
     public static function callback_change_updated_option( $option, $old_value, $new_value ) { //phpcs:ignore --NOSONAR -complex.
 
         // Site icon is changed.
-        if ( 'site_icon' === $option ) {
-            if ( (int) $old_value !== (int) $new_value ) {
+        if ( 'site_icon' === $option && (int) $old_value !== (int) $new_value ) {
+            $old_info = self::change_get_file_info_from_id( (int) $old_value );
+            $new_info = self::change_get_file_info_from_id( (int) $new_value );
 
-                $old_info = self::change_get_file_info_from_id( (int) $old_value );
-                $new_info = self::change_get_file_info_from_id( (int) $new_value );
+            // New icon.
+            if ( 0 === (int) $old_value ) {
+                $log_data = array(
+                    'new_attachment_id ' => (int) $new_value,
+                    'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
+                    'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
+                    'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
+                    'currentuserid'      => Changes_Helper::get_user()->ID,
+                    'username'           => Changes_Helper::get_user()->user_login,
+                );
+                Changes_Logs_Logger::log_change( 1915, $log_data );
+            }
 
-                // New icon.
-                if ( 0 === (int) $old_value ) {
-                    $log_data = array(
-                        'new_attachment_id ' => (int) $new_value,
-                        'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
-                        'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
-                        'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
-                        'currentuserid'      => Changes_Helper::get_user()->ID,
-                        'username'           => Changes_Helper::get_user()->user_login,
-                    );
-                    Changes_Logs_Logger::log_change( 1915, $log_data );
-                }
-
-                // Icon is changed.
-                if ( $new_value && $old_value ) {
-                    $log_data = array(
-                        'old_attachment_id ' => (int) $old_value,
-                        'new_attachment_id ' => (int) $new_value,
-                        'old_path'           => ( ( ! empty( $old_info ) && isset( $old_info['file_path'] ) ) ? $old_info['file_path'] : '' ),
-                        'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
-                        'old_filename'       => ( ( ! empty( $old_info ) && isset( $old_info['file_name'] ) ) ? $old_info['file_name'] : '' ),
-                        'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
-                        'old_attachment_url' => ( ( ! empty( $old_info ) && isset( $old_info['attachment_url'] ) ) ? $old_info['attachment_url'] : '' ),
-                        'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
-                        'currentuserid'      => Changes_Helper::get_user()->ID,
-                        'username'           => Changes_Helper::get_user()->user_login,
-                    );
-                    Changes_Logs_Logger::log_change( 1920, $log_data );
-                }
+            // Icon is changed.
+            if ( $new_value && $old_value ) {
+                $log_data = array(
+                    'old_attachment_id ' => (int) $old_value,
+                    'new_attachment_id ' => (int) $new_value,
+                    'old_path'           => ( ( ! empty( $old_info ) && isset( $old_info['file_path'] ) ) ? $old_info['file_path'] : '' ),
+                    'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
+                    'old_filename'       => ( ( ! empty( $old_info ) && isset( $old_info['file_name'] ) ) ? $old_info['file_name'] : '' ),
+                    'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
+                    'old_attachment_url' => ( ( ! empty( $old_info ) && isset( $old_info['attachment_url'] ) ) ? $old_info['attachment_url'] : '' ),
+                    'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
+                    'currentuserid'      => Changes_Helper::get_user()->ID,
+                    'username'           => Changes_Helper::get_user()->user_login,
+                );
+                Changes_Logs_Logger::log_change( 1920, $log_data );
             }
         }
     }

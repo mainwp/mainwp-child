@@ -54,7 +54,7 @@ class Changes_Loggers_Loader {
      *
      * @return void
      */
-    public static function load_change_loggers_init() {
+    public static function load_change_loggers_init() { //phpcs:ignore --NOSONAR -complex.
 
         if ( is_admin() ) {
             global $pagenow;

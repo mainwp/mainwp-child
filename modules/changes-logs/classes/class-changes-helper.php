@@ -177,7 +177,7 @@ class Changes_Helper {
                 return;
             }
             if ( ! function_exists( 'get_user_by' ) ) {
-                require ABSPATH . WPINC . '/pluggable.php';
+                require_once ABSPATH . WPINC . '/pluggable.php'; //phpcs:ignore --NOSONAR -ok.
             }
             self::$user = \get_user_by( 'id', $user );
             if ( \is_bool( self::$user ) ) {
@@ -188,12 +188,12 @@ class Changes_Helper {
                 return;
             }
             if ( ! function_exists( 'get_user_by' ) ) {
-                require ABSPATH . WPINC . '/pluggable.php';
+                require_once ABSPATH . WPINC . '/pluggable.php'; //phpcs:ignore --NOSONAR -ok.
             }
             self::$user = \get_user_by( 'login', $user );
         } else {
             if ( ! function_exists( 'wp_get_current_user' ) ) {
-                require ABSPATH . WPINC . '/pluggable.php';
+                require_once ABSPATH . WPINC . '/pluggable.php'; //phpcs:ignore --NOSONAR -ok.
                 wp_cookie_constants();
             }
             self::$user = \wp_get_current_user();
@@ -373,8 +373,7 @@ class Changes_Helper {
         }
 
         $tz_adj_timestamp = $timestamp + self::$gmt_offset_sec;
-        $result           = date_i18n( $format, $tz_adj_timestamp ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
-        return $result;
+        return date_i18n( $format, $tz_adj_timestamp ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
     }
 
     /**
