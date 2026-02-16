@@ -166,7 +166,7 @@ class Changes_Helper {
      *
      * @return void
      */
-    public static function set_user( $user = null ) {
+    public static function set_user( $user = null ) { //phpcs:ignore --NOSONAR --ok.
         if ( $user instanceof \WP_User ) {
             if ( isset( self::$user ) && $user === self::$user ) {
                 return;
@@ -385,7 +385,7 @@ class Changes_Helper {
      */
     public static function is_plugin_active( $plugin ) {
         if ( ! function_exists( 'is_plugin_active' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            require_once ABSPATH . 'wp-admin/includes/plugin.php'; // NOSONAR - WP compatible.
         }
 
         $is_active = \is_plugin_active( $plugin );

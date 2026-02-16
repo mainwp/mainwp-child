@@ -159,7 +159,7 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
             $crons = \wp_get_ready_cron_jobs();
             foreach ( $crons  as $cronhooks ) {
                 foreach ( $cronhooks as $hook => $keys ) {
-                    foreach ( $keys as $v ) {
+                    foreach ( $keys as $v ) { //NOSONAR --unused var.
                         \add_action(
                             $hook,
                             function () use ( $hook ) {
