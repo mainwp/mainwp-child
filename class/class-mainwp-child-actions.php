@@ -1125,7 +1125,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6 ) ) {
             return $ip;
         }
-        $ip = parse_url( 'http://' . $ip, PHP_URL_HOST );
+        $ip = wp_parse_url( 'http://' . $ip, PHP_URL_HOST );
         $ip = str_replace( array( '[', ']' ), '', $ip );
         return $ip;
     }

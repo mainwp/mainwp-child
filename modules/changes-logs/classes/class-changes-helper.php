@@ -483,7 +483,7 @@ class Changes_Helper {
             return $ip;
         }
 
-        $ip = parse_url( 'http://' . $ip, PHP_URL_HOST );
+        $ip = wp_parse_url( 'http://' . $ip, PHP_URL_HOST ); // NOSONAR -ok.
 
         $ip = str_replace( array( '[', ']' ), '', $ip );
 
