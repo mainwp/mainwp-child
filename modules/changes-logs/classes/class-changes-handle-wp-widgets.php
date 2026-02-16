@@ -123,7 +123,7 @@ class Changes_Handle_WP_Widgets {
                     if ( ! empty( $value ) ) {
                         $value = explode( ',', $value );
                         // Cleanup widgets' name.
-                        foreach ( $value as $k => &$widget_name ) {
+                        foreach ( $value as $k => &$widget_name ) { //NOSONAR --unused var.
                             $widget_name = preg_replace( '/^(?:[a-z]+-\d+)+_/i', '', $widget_name );
                         }
                         unset( $widget_name );
