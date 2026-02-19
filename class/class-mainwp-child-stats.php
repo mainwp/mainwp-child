@@ -999,7 +999,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         if ( $forced_get_file_size || ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification
             $max_exe = ini_get( 'max_execution_time' );
             if ( $forced_get_file_size || $max_exe > 20 ) {
-                $total = $this->get_total_file_size();
+                $total = get_transient( 'mainwp_child_total_size' );
+                if ( false === $total ) {
+                    $total = $this->get_total_file_size();
+                    set_transient( 'mainwp_child_total_size', $total, 1 * HOUR_IN_SECONDS );
+                }
+                return $total;
             }
         }
 
@@ -1111,25 +1116,69 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                 }
             }
-            // to fix for window host, performance not good?
-            if ( class_exists( '\RecursiveIteratorIterator' ) ) {
-                $size = 0;
-                foreach ( new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $directory ) ) as $file ) {
-                    try {
-                        $size += $file->getSize();
-                    } catch ( \Exception $e ) {
-                        // prevent error some hosts.
-                    }
-                }
-                if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
-                    return $size / 1024 / 1024;
-                }
-            }
-            return 0;
+            return $this->get_total_file_size_recursive( $directory );
         } catch ( MainWP_Exception $e ) {
             return 0;
         }
     }
+
+    /**
+     * Get total directory size safely.
+     *
+     * @param string $directory
+     * @return float Size in MB
+     */
+    public function get_total_file_size_recursive( $directory ) {
+
+        if ( ! is_dir( $directory ) || ! is_readable( $directory ) ) {
+            return 0;
+        }
+
+        if ( ! class_exists( '\RecursiveIteratorIterator' ) ) {
+            return 0;
+        }
+
+        $size = 0;
+
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(
+                    $directory,
+                    \FilesystemIterator::SKIP_DOTS // ✅ skip . and ..
+                ),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ( $iterator as $file ) {
+
+                try {
+                    // 🚫 skip symlinks (VERY IMPORTANT)
+                    if ( $file->isLink() ) {
+                        continue;
+                    }
+
+                    // 🚫 skip unreadable files
+                    if ( ! $file->isReadable() ) {
+                        continue;
+                    }
+
+                    // ✅ only count regular files
+                    if ( $file->isFile() ) {
+                        $size += $file->getSize();
+                    }
+                } catch ( \Throwable $e ) {
+                    // Prevent crashes on permission issues (Windows / shared hosts)
+                    continue;
+                }
+            }
+        } catch ( \Throwable $e ) {
+            return 0;
+        }
+
+        // Convert bytes → MB
+        return $size > 0 ? round( $size / 1024 / 1024, 2 ) : 0;
+    }
+
 
     /**
      * Scan directory.
