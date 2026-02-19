@@ -113,7 +113,7 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 = 6.0 =
 
-* Comming soon
+* Coming soon
 
 [See Video Changelog](https://youtu.be/DF0vC1RiCVI)
 
