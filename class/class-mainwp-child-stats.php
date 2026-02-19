@@ -1139,7 +1139,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                     $directory,
                     \FilesystemIterator::SKIP_DOTS // ✅ skip . and ..
                 ),
-                \RecursiveIteratorIterator::SELF_FIRST | \RecursiveIteratorIterator::CATCH_GET_CHILD
+                \RecursiveIteratorIterator::SELF_FIRST
             );
 
             foreach ( $iterator as $file ) {
