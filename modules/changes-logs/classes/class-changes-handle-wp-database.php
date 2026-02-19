@@ -85,7 +85,7 @@ class Changes_Handle_WP_Database {
      *
      * @return string
      */
-    public static function callback_change_drop_query( $query ) {
+    public static function callback_change_drop_query( $query ) { //phpcs:ignore --NOSONAR -complex.
 
         $query_begins = \substr( trim( $query ), 0, 8 );
 
@@ -181,7 +181,7 @@ class Changes_Handle_WP_Database {
      *
      * @return bool True if the list contains a WP table.
      */
-    private static function change_contains_wp_table( $tables ) {
+    private static function change_contains_wp_table( $tables ) { //phpcs:ignore --NOSONAR -complex.
         if ( ! empty( $tables ) ) {
 
             $wp_tables_array = array(
@@ -249,7 +249,7 @@ class Changes_Handle_WP_Database {
      * phpcs:disable WordPress.Security.NonceVerification.Recommended
      * phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotValidated
      */
-    private static function change_get_log_data( $runner ) {
+    private static function change_get_log_data( $runner ) { //phpcs:ignore --NOSONAR -complex.
         // Check the actor.
         $log_data = array();
         switch ( $runner ) {
@@ -265,7 +265,7 @@ class Changes_Handle_WP_Database {
 
                     global $wp_current_filter;
                     if ( isset( $wp_current_filter ) && ! empty( $wp_current_filter ) ) {
-                        foreach ( $wp_current_filter as $key => $value ) {
+                        foreach ( $wp_current_filter as $value ) {
                             if ( 0 === strpos( $value, 'activate_' ) && 'activate_plugin' !== $value ) {
 
                                 $pos = strpos( $value, 'activate_' );
@@ -337,7 +337,7 @@ class Changes_Handle_WP_Database {
      *
      * @return int Event code.
      */
-    protected static function change_get_log_code_id_by_runner( $runner, $query_type ) {
+    protected static function change_get_log_code_id_by_runner( $runner, $query_type ) { //phpcs:ignore --NOSONAR -multi return.
         switch ( $runner ) {
             case 'plugins':
                 if ( 'create' === $query_type ) {
@@ -380,7 +380,7 @@ class Changes_Handle_WP_Database {
      *
      * @return array
      */
-    public static function callback_change_db_delta_query( $queries ) {
+    public static function callback_change_db_delta_query( $queries ) { //phpcs:ignore --NOSONAR -complex.
 
         if ( ! Changes_Logs_DB_Log::instance()->is_installed_db() ) {
             return $queries;
@@ -468,7 +468,7 @@ class Changes_Handle_WP_Database {
 
             $wpdb->suppress_errors( false );
 
-            return ( 1 === $db_result );
+            return 1 === $db_result;
         } catch ( \Exception $e ) {
             $wpdb->suppress_errors( false );
             return false;

@@ -80,7 +80,7 @@ class Changes_Handle_WP_Menus {
      *
      * @return boolean
      */
-    public static function callback_change_update_menu_item( $menu_id, $menu_item_db_id, $args ) {
+    public static function callback_change_update_menu_item( $menu_id, $menu_item_db_id, $args ) { // phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         $old_menu_items = array();
@@ -117,18 +117,14 @@ class Changes_Handle_WP_Menus {
             }
 
             $added_items = array_diff( $new_menu_items, array_keys( $old_menu_items ) );
-            if ( count( $added_items ) > 0 && wp_verify_nonce( $post_vars['update-nav-menu-nonce'], 'update-nav_menu' ) ) {
-                if ( in_array( $menu_item_db_id, $added_items, true ) ) {
-                    self::callback_change_add_items( $post_vars['menu-item-object'][ $menu_item_db_id ], $post_vars['menu-item-title'][ $menu_item_db_id ], $post_vars['menu-name'], $menu_id );
-                }
+            if ( count( $added_items ) > 0 && wp_verify_nonce( $post_vars['update-nav-menu-nonce'], 'update-nav_menu' ) && in_array( $menu_item_db_id, $added_items, true ) ) {
+                self::callback_change_add_items( $post_vars['menu-item-object'][ $menu_item_db_id ], $post_vars['menu-item-title'][ $menu_item_db_id ], $post_vars['menu-name'], $menu_id );
             }
 
             $removed_items = array_diff( array_keys( $old_menu_items ), $new_menu_items );
-            if ( count( $removed_items ) > 0 && wp_verify_nonce( $post_vars['update-nav-menu-nonce'], 'update-nav_menu' ) ) {
-                if ( array_search( $menu_item_db_id, $new_menu_items, true ) === ( count( $new_menu_items ) - 1 ) ) {
-                    foreach ( $removed_items as $removed_item_id ) {
-                        self::callback_change_remove_items( $old_menu_items[ $removed_item_id ]['type'], $old_menu_items[ $removed_item_id ]['title'], $post_vars['menu-name'], $menu_id );
-                    }
+            if ( count( $removed_items ) > 0 && wp_verify_nonce( $post_vars['update-nav-menu-nonce'], 'update-nav_menu' ) && array_search( $menu_item_db_id, $new_menu_items, true ) === ( count( $new_menu_items ) - 1 ) ) {
+                foreach ( $removed_items as $removed_item_id ) {
+                    self::callback_change_remove_items( $old_menu_items[ $removed_item_id ]['type'], $old_menu_items[ $removed_item_id ]['title'], $post_vars['menu-name'], $menu_id );
                 }
             }
 
@@ -235,7 +231,7 @@ class Changes_Handle_WP_Menus {
      * @param int   $menu_id - Menu ID.
      * @param array $menu_data (Optional) Menu data.
      */
-    public static function callback_change_update_menu( $menu_id, $menu_data = null ) {
+    public static function callback_change_update_menu( $menu_id, $menu_data = null ) { //phpcs:ignore --NOSONAR -complex.
         if ( ! empty( $menu_data ) ) {
             $content_names_old = array();
             $content_types_old = array();
@@ -402,7 +398,7 @@ class Changes_Handle_WP_Menus {
     /**
      * Customize Events Function.
      */
-    public static function change_customize_save() {
+    public static function change_customize_save() { //phpcs:ignore --NOSONAR -complex.
         $update_menus = array();
         $menus        = wp_get_nav_menus();
         if ( ! empty( $menus ) ) {
@@ -435,83 +431,93 @@ class Changes_Handle_WP_Menus {
         // Filter $_POST array.
         $post_vars = filter_input_array( INPUT_POST );
 
-        if ( isset( $post_vars['action'] ) && 'customize_save' === $post_vars['action'] ) {
-            if ( isset( $post_vars['wp_customize'], $post_vars['customized'] ) ) {
-                $customized = json_decode( wp_unslash( $post_vars['customized'] ), true );
-                if ( is_array( $customized ) ) {
-                    foreach ( $customized as $key => $value ) {
-                        if ( ! empty( $value['nav_menu_term_id'] ) ) {
-                            $is_occurred_event = false;
-                            $menu              = wp_get_nav_menu_object( $value['nav_menu_term_id'] );
-                            $content_name      = ! empty( $value['title'] ) ? $value['title'] : 'no title';
+        if ( isset( $post_vars['action'] ) && 'customize_save' === $post_vars['action'] && isset( $post_vars['wp_customize'], $post_vars['customized'] ) ) {
+            $customized = json_decode( wp_unslash( $post_vars['customized'] ), true );
+            if ( is_array( $customized ) ) {
+                foreach ( $customized as $key => $value ) {
+                    if ( ! empty( $value['nav_menu_term_id'] ) ) {
+                        $is_occurred_event = false;
+                        $menu              = wp_get_nav_menu_object( $value['nav_menu_term_id'] );
+                        $content_name      = ! empty( $value['title'] ) ? $value['title'] : 'no title';
+                        if ( ! empty( self::$old_menu_items ) ) {
+                            foreach ( self::$old_menu_items as $old_item ) {
+                                $item_id = substr( trim( $key, ']' ), 14 );
+                                if ( $old_item['item_id'] === $item_id ) {
+                                    // Modified Items in the menu.
+                                    if ( $old_item['title'] !== $content_name ) {
+                                        $is_occurred_event = true;
+                                        self::callback_change_modified_items( $value['type_label'], $content_name, $menu->name, $menu->term_id );
+                                    }
+                                    // Moved as a sub-item.
+                                    if ( $old_item['menu_item_parent'] !== $value['menu_item_parent'] && 0 !== $value['menu_item_parent'] ) {
+                                        $is_occurred_event = true;
+                                        $parent_name       = self::change_get_menu_item_name( $value['nav_menu_term_id'], $value['menu_item_parent'] );
+                                        self::callback_change_change_sub_item( $content_name, $parent_name, $menu->name, $menu->term_id );
+                                    }
+                                    // Changed order of the objects in a menu.
+                                    if ( $old_item['menu_order'] !== $value['position'] ) {
+                                        $is_occurred_event = true;
+                                        self::change_menu_order( $content_name, $menu->name, $menu->term_id );
+                                    }
+                                }
+                            }
+                        }
+                        // Add Items to the menu.
+                        if ( ! $is_occurred_event ) {
+                            $menu_name = ! empty( $customized['new_menu_name'] ) ? $customized['new_menu_name'] : $menu->name;
+                            self::callback_change_add_items( $value['type_label'], $content_name, $menu_name, $menu->term_id );
+                        }
+                    } else {
+                        // Menu changed name.
+                        if ( isset( $update_menus ) && isset( self::$old_menu_terms ) ) {
+                            foreach ( self::$old_menu_terms as $old_menu ) {
+                                foreach ( $update_menus as $update_menu ) {
+                                    if ( $old_menu['term_id'] === $update_menu['term_id'] && $old_menu['name'] !== $update_menu['name'] ) {
+                                        self::callback_change_change_name( $old_menu['name'], $update_menu['name'], $menu->term_id );
+                                    }
+                                }
+                            }
+                        }
+                        // Setting Auto add pages.
+                        if ( ! empty( $value ) && isset( $value['auto_add'] ) ) {
+                            if ( $value['auto_add'] ) {
+                                self::callback_change_menu_setting( $value['name'], 'Enabled', 'Auto add pages', $menu->term_id );
+                            } else {
+                                self::callback_change_menu_setting( $value['name'], 'Disabled', 'Auto add pages', $menu->term_id );
+                            }
+                        }
+                        // Setting Location.
+                        if ( false !== strpos( $key, 'nav_menu_locations[' ) ) {
+                            $loc = substr( trim( $key, ']' ), 19 );
+                            if ( ! empty( $value ) ) {
+                                $menu = wp_get_nav_menu_object( $value );
+                                if ( ! empty( $customized['new_menu_name'] ) ) {
+                                    $menu_name = $customized['new_menu_name'];
+                                } elseif ( ! empty( $menu ) ) {
+                                    $menu_name = $menu->name;
+                                } else {
+                                    $menu_name = '';
+                                }
+                                self::callback_change_menu_setting( $menu_name, 'Enabled', 'Location: ' . $loc . ' menu', $menu->term_id );
+                            } elseif ( ! empty( self::$old_menu_locations[ $loc ] ) ) {
+                                $menu = wp_get_nav_menu_object( self::$old_menu_locations[ $loc ] );
+                                if ( ! empty( $customized['new_menu_name'] ) ) {
+                                    $menu_name = $customized['new_menu_name'];
+                                } elseif ( ! empty( $menu ) ) {
+                                    $menu_name = $menu->name;
+                                } else {
+                                    $menu_name = '';
+                                }
+                                self::callback_change_menu_setting( $menu_name, 'Disabled', 'Location: ' . $loc . ' menu', $menu->term_id );
+                            }
+                        }
+                        // Remove items from the menu.
+                        if ( false !== strpos( $key, 'nav_menu_item[' ) ) {
+                            $item_id = substr( trim( $key, ']' ), 14 );
                             if ( ! empty( self::$old_menu_items ) ) {
                                 foreach ( self::$old_menu_items as $old_item ) {
-                                    $item_id = substr( trim( $key, ']' ), 14 );
                                     if ( $old_item['item_id'] === $item_id ) {
-                                        // Modified Items in the menu.
-                                        if ( $old_item['title'] !== $content_name ) {
-                                            $is_occurred_event = true;
-                                            self::callback_change_modified_items( $value['type_label'], $content_name, $menu->name, $menu->term_id );
-                                        }
-                                        // Moved as a sub-item.
-                                        if ( $old_item['menu_item_parent'] !== $value['menu_item_parent'] && 0 !== $value['menu_item_parent'] ) {
-                                            $is_occurred_event = true;
-                                            $parent_name       = self::change_get_menu_item_name( $value['nav_menu_term_id'], $value['menu_item_parent'] );
-                                            self::callback_change_change_sub_item( $content_name, $parent_name, $menu->name, $menu->term_id );
-                                        }
-                                        // Changed order of the objects in a menu.
-                                        if ( $old_item['menu_order'] !== $value['position'] ) {
-                                            $is_occurred_event = true;
-                                            self::change_menu_order( $content_name, $menu->name, $menu->term_id );
-                                        }
-                                    }
-                                }
-                            }
-                            // Add Items to the menu.
-                            if ( ! $is_occurred_event ) {
-                                $menu_name = ! empty( $customized['new_menu_name'] ) ? $customized['new_menu_name'] : $menu->name;
-                                self::callback_change_add_items( $value['type_label'], $content_name, $menu_name, $menu->term_id );
-                            }
-                        } else {
-                            // Menu changed name.
-                            if ( isset( $update_menus ) && isset( self::$old_menu_terms ) ) {
-                                foreach ( self::$old_menu_terms as $old_menu ) {
-                                    foreach ( $update_menus as $update_menu ) {
-                                        if ( $old_menu['term_id'] === $update_menu['term_id'] && $old_menu['name'] !== $update_menu['name'] ) {
-                                            self::callback_change_change_name( $old_menu['name'], $update_menu['name'], $menu->term_id );
-                                        }
-                                    }
-                                }
-                            }
-                            // Setting Auto add pages.
-                            if ( ! empty( $value ) && isset( $value['auto_add'] ) ) {
-                                if ( $value['auto_add'] ) {
-                                    self::callback_change_menu_setting( $value['name'], 'Enabled', 'Auto add pages', $menu->term_id );
-                                } else {
-                                    self::callback_change_menu_setting( $value['name'], 'Disabled', 'Auto add pages', $menu->term_id );
-                                }
-                            }
-                            // Setting Location.
-                            if ( false !== strpos( $key, 'nav_menu_locations[' ) ) {
-                                $loc = substr( trim( $key, ']' ), 19 );
-                                if ( ! empty( $value ) ) {
-                                    $menu      = wp_get_nav_menu_object( $value );
-                                    $menu_name = ! empty( $customized['new_menu_name'] ) ? $customized['new_menu_name'] : ( ! empty( $menu ) ? $menu->name : '' );
-                                    self::callback_change_menu_setting( $menu_name, 'Enabled', 'Location: ' . $loc . ' menu', $menu->term_id );
-                                } elseif ( ! empty( self::$old_menu_locations[ $loc ] ) ) {
-                                        $menu      = wp_get_nav_menu_object( self::$old_menu_locations[ $loc ] );
-                                        $menu_name = ! empty( $customized['new_menu_name'] ) ? $customized['new_menu_name'] : ( ! empty( $menu ) ? $menu->name : '' );
-                                        self::callback_change_menu_setting( $menu_name, 'Disabled', 'Location: ' . $loc . ' menu', $menu->term_id );
-                                }
-                            }
-                            // Remove items from the menu.
-                            if ( false !== strpos( $key, 'nav_menu_item[' ) ) {
-                                $item_id = substr( trim( $key, ']' ), 14 );
-                                if ( ! empty( self::$old_menu_items ) ) {
-                                    foreach ( self::$old_menu_items as $old_item ) {
-                                        if ( $old_item['item_id'] === $item_id ) {
-                                            self::callback_change_remove_items( $old_item['object'], $old_item['title'], $old_item['menu_name'], $menu->term_id );
-                                        }
+                                        self::callback_change_remove_items( $old_item['object'], $old_item['title'], $old_item['menu_name'], $menu->term_id );
                                     }
                                 }
                             }

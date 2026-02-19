@@ -24,7 +24,7 @@ class Changes_Sync_Data_Helper {
      *
      * @return mixed
      */
-    public static function get_events_data( $limit = 100, $query_args = array() ) {
+    public static function get_events_data( $limit = 100, $query_args = array() ) { //phpcs:ignore --NOSONAR -complex.
         $logs_data = array();
 
         if ( empty( $limit ) ) {

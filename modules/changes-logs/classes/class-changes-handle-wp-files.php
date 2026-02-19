@@ -91,7 +91,7 @@ class Changes_Handle_WP_Files {
      *
      * Detect file changes in plugins/themes using plugin/theme editor.
      */
-    public static function callback_change_admin_init() {
+    public static function callback_change_admin_init() { //phpcs:ignore --NOSONAR -complex.
         $nonce   = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : false;
         $file    = isset( $_POST['file'] ) ? sanitize_text_field( wp_unslash( $_POST['file'] ) ) : false;
         $action  = isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : false;

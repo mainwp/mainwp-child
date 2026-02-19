@@ -277,7 +277,7 @@ class Changes_Logs_DB_Log {
      *
      * @return void
      */
-    public function save_record( $data, $type_id, $date, $blog_id ) {
+    public function save_record( $data, $type_id, $date, $blog_id ) { //phpcs:ignore --NOSONAR -complex.
         $record     = array();
         $map_fields = static::$mapping_db_fields['mapping_fields'];
         foreach ( (array) $data as $name => $value ) {
@@ -527,10 +527,8 @@ class Changes_Logs_DB_Log {
             return array();
         }
 
-        $results = array();
-        $sql     = 'SELECT * FROM ' . self::table_name( 'changes_meta' ) . ' WHERE log_id in (' . implode( ',', $log_ids ) . ')';
-        $results = $this->db->wpdb->get_results( $sql, \ARRAY_A ); //phpcs:ignore -- ok.
-        return $results;
+        $sql = 'SELECT * FROM ' . self::table_name( 'changes_meta' ) . ' WHERE log_id in (' . implode( ',', $log_ids ) . ')';
+        return $this->db->wpdb->get_results( $sql, \ARRAY_A ); //phpcs:ignore -- ok.
     }
 
     /**
@@ -540,7 +538,7 @@ class Changes_Logs_DB_Log {
      *
      * @return array
      */
-    public function prepare_log_with_meta_data( &$results ) {
+    public function prepare_log_with_meta_data( &$results ) { //phpcs:ignore --NOSONAR -complex.
 
         $prepared_array = array();
 
@@ -589,7 +587,7 @@ class Changes_Logs_DB_Log {
      *
      * @return mixed
      */
-    public function convert_fields_value( $key, $val, $fields_values ) {
+    public function convert_fields_value( $key, $val, $fields_values ) { //phpcs:ignore --NOSONAR -complex.
         if ( ! is_null( $val ) && in_array( $key, array( 'user_id', 'username' ), true ) ) {
             if ( 'user_id' === $key ) {
                 return intval( $val );
@@ -633,7 +631,7 @@ class Changes_Logs_DB_Log {
      *
      * @return array
      */
-    public function get_logs_data( $params ) {
+    public function get_logs_data( $params ) { //phpcs:ignore --NOSONAR -complex.
 
         $select_fields = isset( $params['fields'] ) && is_array( $params['fields'] ) ? $params['fields'] : array();
         $logs_fields   = isset( $select_fields['tbllogs'] ) && is_array( $select_fields['tbllogs'] ) ? $select_fields['tbllogs'] : array();

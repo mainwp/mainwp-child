@@ -89,7 +89,7 @@ class Changes_Handle_BBPress_User {
      * @param string $new_role  - New role.
      * @param array  $old_roles - Array of old roles.
      */
-    public static function callback_change_user_role_changed( $user_id, $new_role, $old_roles ) {
+    public static function callback_change_user_role_changed( $user_id, $new_role, $old_roles ) { //phpcs:ignore --NOSONAR -requires param.
         $user = get_userdata( $user_id );
 
         if ( ! $user ) {

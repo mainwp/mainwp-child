@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * System Activity.
  */
-class Changes_Handle_WP_System {
+class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
 
     /**
      * Keeps the value of the old option.
@@ -114,12 +114,8 @@ class Changes_Handle_WP_System {
 
         $user = \get_userdata( (int) $_POST['user_id'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-        if ( $user ) {
-            if ( ! current_user_can( 'edit_user', $user->ID ) ) {
-                $user = false;
-            } elseif ( isset( $_POST['nonce'] ) && ! \wp_verify_nonce( $_POST['nonce'], 'update-user_' . $user->ID ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-                $user = false;
-            }
+        if ( $user && ( ! current_user_can( 'edit_user', $user->ID ) || ( isset( $_POST['nonce'] ) && ! \wp_verify_nonce( $_POST['nonce'], 'update-user_' . $user->ID ) ) ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            $user = false;
         }
 
         if ( $user ) {
@@ -157,13 +153,13 @@ class Changes_Handle_WP_System {
      *
      * @return void
      */
-    public static function change_attach_cron_actions() {
+    public static function change_attach_cron_actions() { //phpcs:ignore -- NOSONAR -complex.
         if ( defined( 'DOING_CRON' ) ) {
             \add_action( 'pre_unschedule_event', array( __CLASS__, 'change_attach_cron_pre_unschedule_event' ), PHP_INT_MAX, 4 );
             $crons = \wp_get_ready_cron_jobs();
-            foreach ( $crons  as $timestamp => $cronhooks ) {
+            foreach ( $crons  as $cronhooks ) {
                 foreach ( $cronhooks as $hook => $keys ) {
-                    foreach ( $keys as $k => $v ) {
+                    foreach ( $keys as $v ) { //NOSONAR --unused var.
                         \add_action(
                             $hook,
                             function () use ( $hook ) {
@@ -238,14 +234,12 @@ class Changes_Handle_WP_System {
             $disabled_system_logs = array();
         }
 
-        if ( 1940 === $type_id && isset( $disabled_system_logs[ $type_id ] ) ) {
-            if ( ! empty( $log_data['task_name'] ) && isset( $disabled_system_logs[ $type_id ]['task_name'] ) && is_array( $disabled_system_logs[ $type_id ]['task_name'] ) ) {
-                $disabled_task_names = $disabled_system_logs[ $type_id ]['task_name'];
-                if ( is_string( $log_data['task_name'] ) ) {
-                    return ! in_array( $log_data['task_name'], $disabled_task_names );
-                }
-                return false;
+        if ( 1940 === $type_id && isset( $disabled_system_logs[ $type_id ] ) && ! empty( $log_data['task_name'] ) && isset( $disabled_system_logs[ $type_id ]['task_name'] ) && is_array( $disabled_system_logs[ $type_id ]['task_name'] ) ) {
+            $disabled_task_names = $disabled_system_logs[ $type_id ]['task_name'];
+            if ( is_string( $log_data['task_name'] ) ) {
+                return ! in_array( $log_data['task_name'], $disabled_task_names );
             }
+            return false;
         }
 
         return true;
@@ -338,10 +332,10 @@ class Changes_Handle_WP_System {
      *
      * @return null|bool|WP_Error
      */
-    public static function callback_change_unschedule_cron_job( $pre, $timestamp, $hook, $args, $wp_error = false ) {
+    public static function callback_change_unschedule_cron_job( $pre, $timestamp, $hook, $args, $wp_error = false ) { //phpcs:ignore -- NOSONAR -require params.
 
         if ( ! $pre && ! defined( 'DOING_CRON' ) ) {
-            $type_id = 1950;
+            $type_id = 1950; //NOSONAR -used for feature.
 
             $data = array(
                 'task_name'     => $hook,
@@ -401,7 +395,7 @@ class Changes_Handle_WP_System {
      *
      * @return void
      */
-    public static function callback_change_deleted_option( $option ) {
+    public static function callback_change_deleted_option( $option ) { //phpcs:ignore --NOSONAR -complex.
 
         // Site icon is changed.
         if ( 'site_icon' === $option ) {
@@ -471,44 +465,41 @@ class Changes_Handle_WP_System {
      *
      * @return void
      */
-    public static function callback_change_updated_option( $option, $old_value, $new_value ) {
+    public static function callback_change_updated_option( $option, $old_value, $new_value ) { //phpcs:ignore --NOSONAR -complex.
 
         // Site icon is changed.
-        if ( 'site_icon' === $option ) {
-            if ( (int) $old_value !== (int) $new_value ) {
+        if ( 'site_icon' === $option && (int) $old_value !== (int) $new_value ) {
+            $old_info = self::change_get_file_info_from_id( (int) $old_value );
+            $new_info = self::change_get_file_info_from_id( (int) $new_value );
 
-                $old_info = self::change_get_file_info_from_id( (int) $old_value );
-                $new_info = self::change_get_file_info_from_id( (int) $new_value );
+            // New icon.
+            if ( 0 === (int) $old_value ) {
+                $log_data = array(
+                    'new_attachment_id ' => (int) $new_value,
+                    'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
+                    'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
+                    'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
+                    'currentuserid'      => Changes_Helper::get_user()->ID,
+                    'username'           => Changes_Helper::get_user()->user_login,
+                );
+                Changes_Logs_Logger::log_change( 1915, $log_data );
+            }
 
-                // New icon.
-                if ( 0 === (int) $old_value ) {
-                    $log_data = array(
-                        'new_attachment_id ' => (int) $new_value,
-                        'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
-                        'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
-                        'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
-                        'currentuserid'      => Changes_Helper::get_user()->ID,
-                        'username'           => Changes_Helper::get_user()->user_login,
-                    );
-                    Changes_Logs_Logger::log_change( 1915, $log_data );
-                }
-
-                // Icon is changed.
-                if ( $new_value && $old_value ) {
-                    $log_data = array(
-                        'old_attachment_id ' => (int) $old_value,
-                        'new_attachment_id ' => (int) $new_value,
-                        'old_path'           => ( ( ! empty( $old_info ) && isset( $old_info['file_path'] ) ) ? $old_info['file_path'] : '' ),
-                        'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
-                        'old_filename'       => ( ( ! empty( $old_info ) && isset( $old_info['file_name'] ) ) ? $old_info['file_name'] : '' ),
-                        'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
-                        'old_attachment_url' => ( ( ! empty( $old_info ) && isset( $old_info['attachment_url'] ) ) ? $old_info['attachment_url'] : '' ),
-                        'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
-                        'currentuserid'      => Changes_Helper::get_user()->ID,
-                        'username'           => Changes_Helper::get_user()->user_login,
-                    );
-                    Changes_Logs_Logger::log_change( 1920, $log_data );
-                }
+            // Icon is changed.
+            if ( $new_value && $old_value ) {
+                $log_data = array(
+                    'old_attachment_id ' => (int) $old_value,
+                    'new_attachment_id ' => (int) $new_value,
+                    'old_path'           => ( ( ! empty( $old_info ) && isset( $old_info['file_path'] ) ) ? $old_info['file_path'] : '' ),
+                    'new_path'           => ( ( ! empty( $new_info ) && isset( $new_info['file_path'] ) ) ? $new_info['file_path'] : '' ),
+                    'old_filename'       => ( ( ! empty( $old_info ) && isset( $old_info['file_name'] ) ) ? $old_info['file_name'] : '' ),
+                    'filename'           => ( ( ! empty( $new_info ) && isset( $new_info['file_name'] ) ) ? $new_info['file_name'] : '' ),
+                    'old_attachment_url' => ( ( ! empty( $old_info ) && isset( $old_info['attachment_url'] ) ) ? $old_info['attachment_url'] : '' ),
+                    'attachment_url'     => ( ( ! empty( $new_info ) && isset( $new_info['attachment_url'] ) ) ? $new_info['attachment_url'] : '' ),
+                    'currentuserid'      => Changes_Helper::get_user()->ID,
+                    'username'           => Changes_Helper::get_user()->user_login,
+                );
+                Changes_Logs_Logger::log_change( 1920, $log_data );
             }
         }
     }
@@ -562,7 +553,7 @@ class Changes_Handle_WP_System {
     /**
      * When a user accesses the admin area.
      */
-    public static function callback_change_admin_init() {
+    public static function callback_change_admin_init() {  //phpcs:ignore --NOSONAR -complex.
 
         if ( ! current_user_can( 'manage_options' ) ) {
             return;
@@ -799,7 +790,7 @@ class Changes_Handle_WP_System {
         if ( $is_option_page && isset( $post_vars['_wpnonce'] )
         && wp_verify_nonce( $post_vars['_wpnonce'], 'general-options' )
         && isset( $post_vars['WPLANG'] ) ) {
-            require_once ABSPATH . 'wp-admin/includes/translation-install.php';
+            require_once ABSPATH . 'wp-admin/includes/translation-install.php'; // NOSONAR - WP compatible.
             $available_translations = wp_get_available_translations();
 
             // When English (United States) is selected, the WPLANG post entry is empty so lets account for this.
@@ -843,7 +834,7 @@ class Changes_Handle_WP_System {
      *
      * @return array|null
      */
-    public static function callback_change_options( $whitelist = null ) {
+    public static function callback_change_options( $whitelist = null ) { //phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         if ( isset( $post_vars['option_page'] ) && 'reading' === $post_vars['option_page'] ) {

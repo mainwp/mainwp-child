@@ -44,7 +44,7 @@ class Changes_Handle_WP_Widgets {
      * When a user accesses the admin area.
      * Moved widget.
      */
-    public static function callback_change_widget_move() {
+    public static function callback_change_widget_move() { //phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         if ( ! isset( $post_vars['savewidgets'] ) || false === \check_ajax_referer( 'save-sidebar-widgets', 'savewidgets', false ) ) {
@@ -112,50 +112,48 @@ class Changes_Handle_WP_Widgets {
     /**
      * When a user accesses the admin area.
      */
-    public static function callback_change_widget_post_move() {
+    public static function callback_change_widget_post_move() { //phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         // Generates the event 2071.
-        if ( isset( $post_vars['action'] ) && ( 'widgets-order' === $post_vars['action'] ) ) {
-            if ( isset( $post_vars['sidebars'] ) ) {
-                $request_sidebars = array();
-                if ( $post_vars['sidebars'] ) {
-                    foreach ( (array) $post_vars['sidebars'] as $key => &$value ) {
-                        if ( ! empty( $value ) ) {
-                            $value = explode( ',', $value );
-                            // Cleanup widgets' name.
-                            foreach ( $value as $k => &$widget_name ) {
-                                $widget_name = preg_replace( '/^([a-z]+-[0-9]+)+?_/i', '', $widget_name );
-                            }
-                            unset( $widget_name );
-                            $request_sidebars[ $key ] = $value;
+        if ( isset( $post_vars['action'] ) && ( 'widgets-order' === $post_vars['action'] ) && isset( $post_vars['sidebars'] ) ) {
+            $request_sidebars = array();
+            if ( $post_vars['sidebars'] ) {
+                foreach ( (array) $post_vars['sidebars'] as $key => &$value ) {
+                    if ( ! empty( $value ) ) {
+                        $value = explode( ',', $value );
+                        // Cleanup widgets' name.
+                        foreach ( $value as $k => &$widget_name ) { //NOSONAR --unused var.
+                            $widget_name = preg_replace( '/^(?:[a-z]+-\d+)+_/i', '', $widget_name );
                         }
+                        unset( $widget_name );
+                        $request_sidebars[ $key ] = $value;
                     }
-                    unset( $value );
                 }
+                unset( $value );
+            }
 
-                if ( $request_sidebars ) {
-                    $sidebar_widgets = \wp_get_sidebars_widgets();
-                    global $wp_registered_sidebars;
+            if ( $request_sidebars ) {
+                $sidebar_widgets = \wp_get_sidebars_widgets();
+                global $wp_registered_sidebars;
 
-                    foreach ( $request_sidebars as $sidebar_name => $widgets ) {
-                        if ( isset( $sidebar_widgets[ $sidebar_name ] ) ) {
-                            foreach ( $sidebar_widgets[ $sidebar_name ] as $i => $widget_name ) {
-                                $index = array_search( $widget_name, $widgets, true );
-                                if ( $i != $index ) { // phpcs:ignore
-                                    $sn = $sidebar_name;
-                                    if ( $wp_registered_sidebars && isset( $wp_registered_sidebars[ $sidebar_name ] ) ) {
-                                        $sn = $wp_registered_sidebars[ $sidebar_name ]['name'];
-                                    }
-
-                                    $log_data = array(
-                                        'widgetname'  => \sanitize_text_field( \wp_unslash( $widget_name ) ),
-                                        'oldposition' => $i + 1,
-                                        'newposition' => $index + 1,
-                                        'sidebar'     => \sanitize_text_field( \wp_unslash( $sn ) ),
-                                    );
-                                    Changes_Logs_Logger::log_change( 1450, $log_data );
+                foreach ( $request_sidebars as $sidebar_name => $widgets ) {
+                    if ( isset( $sidebar_widgets[ $sidebar_name ] ) ) {
+                        foreach ( $sidebar_widgets[ $sidebar_name ] as $i => $widget_name ) {
+                            $index = array_search( $widget_name, $widgets, true );
+                            if ( $i != $index ) { // phpcs:ignore
+                                $sn = $sidebar_name;
+                                if ( $wp_registered_sidebars && isset( $wp_registered_sidebars[ $sidebar_name ] ) ) {
+                                    $sn = $wp_registered_sidebars[ $sidebar_name ]['name'];
                                 }
+
+                                $log_data = array(
+                                    'widgetname'  => \sanitize_text_field( \wp_unslash( $widget_name ) ),
+                                    'oldposition' => $i + 1,
+                                    'newposition' => $index + 1,
+                                    'sidebar'     => \sanitize_text_field( \wp_unslash( $sn ) ),
+                                );
+                                Changes_Logs_Logger::log_change( 1450, $log_data );
                             }
                         }
                     }
@@ -193,7 +191,7 @@ class Changes_Handle_WP_Widgets {
     /**
      * Widgets Activity (added, modified, deleted).
      */
-    public static function callback_change_widget_activity() {
+    public static function callback_change_widget_activity() { //phpcs:ignore --NOSONAR -complex.
         $post_vars = filter_input_array( INPUT_POST );
 
         if ( ! isset( $post_vars ) || ! isset( $post_vars['widget-id'] ) || empty( $post_vars['widget-id'] ) ) {

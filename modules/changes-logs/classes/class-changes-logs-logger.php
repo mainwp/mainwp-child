@@ -121,7 +121,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      *
      * @return bool Avoid or do the log.
      */
-    public static function check_conditions_delayed_logs( $type_id ) {
+    public static function check_conditions_delayed_logs( $type_id ) { //phpcs:ignore --NOSONAR -complex.
 
         if ( ! is_scalar( $type_id ) ) {
             return false;
@@ -247,10 +247,10 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
     protected static function log_item( $type_id, $data, $is_delayed, $_retry = true ) {
 
         if ( ! static::is_enabled( $type_id ) || ! Changes_Logs_DB_Log::instance()->is_installed_db() ) {
-            return;
+            return false;
         }
 
-        if ( ( ! $is_delayed || static::check_conditions_delayed_logs( $type_id ) ) ) {
+        if ( ! $is_delayed || static::check_conditions_delayed_logs( $type_id ) ) {
             if ( isset( self::get_logs()[ $type_id ] ) ) {
                 self::$logs_type_queue[] = $type_id;
                 self::log( $type_id, $data );
@@ -279,7 +279,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      * @param int   $type_id   - Log type number.
      * @param array $log_data - Misc log data.
      */
-    public static function log( $type_id, $log_data = array() ) {
+    public static function log( $type_id, $log_data = array() ) { //phpcs:ignore --NOSONAR -complex.
 
         $log_obj = isset( self::get_logs()[ $type_id ] ) ? self::get_logs()[ $type_id ] : false;
         if ( empty( $log_obj ) ) {
@@ -532,12 +532,8 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             )
         );
 
-        if ( ! empty( $last_changes_logs ) && isset( $last_changes_logs[0]['log_type_id'] ) ) {
-            if ( ! is_array( $log_type_id ) && (int) $last_changes_logs[0]['log_type_id'] === (int) $log_type_id ) {
-                return true;
-            } elseif ( is_array( $log_type_id ) && in_array( (int) $last_changes_logs[0]['log_type_id'], $log_type_id, true ) ) {
-                return true;
-            }
+        if ( ( ! empty( $last_changes_logs ) && isset( $last_changes_logs[0]['log_type_id'] ) ) || ( ( ! is_array( $log_type_id ) && (int) $last_changes_logs[0]['log_type_id'] === (int) $log_type_id ) || ( is_array( $log_type_id ) && in_array( (int) $last_changes_logs[0]['log_type_id'], $log_type_id, true ) ) ) ) {
+            return true;
         }
 
         return false;

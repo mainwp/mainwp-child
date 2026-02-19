@@ -142,7 +142,7 @@ class Changes_Handle_WP_Comments {
      * @param int|string $comment_approved 1 if the comment is approved, 0 if not, 'spam' if spam.
      * @param array      $comment_data     Comment data.
      */
-    public static function callback_change_comment( $comment_id, $comment_approved, $comment_data ) {
+    public static function callback_change_comment( $comment_id, $comment_approved, $comment_data ) { //phpcs:ignore --NOSONAR -requires params.
 
         if ( isset( $comment_data['comment_parent'] ) && $comment_data['comment_parent'] ) {
             self::change_comment_action( $comment_id, 1530 );

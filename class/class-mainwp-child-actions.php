@@ -252,7 +252,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     /**
      * Method to get actions info to sync.
      */
-    public static function get_sync_actions_data() {
+    public static function get_sync_actions_data() { //phpcs:ignore --NOSONAR -complex.
         if ( null === static::$sync_actions_data ) {
             static::get_actions_data();
             $last_sync_created = isset( $_POST['child_actions_last_created'] ) ? (float) $_POST['child_actions_last_created'] : 0; //phpcs:ignore WordPress.Security.NonceVerification.Missing --ok.
@@ -684,9 +684,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     /**
      * Core updated successfully callback.
      *
-     * @param mixed $new_version New WordPress verison.
+     * @param mixed $new_ver New WordPress verison.
      */
-    public function callback__core_updated_successfully( $new_version = '' ) {
+    public function callback__core_updated_successfully( $new_ver = '' ) { //phpcs:ignore -- NOSONAR -requires input params.
 
         /**
          * Global variables.
@@ -1125,7 +1125,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6 ) ) {
             return $ip;
         }
-        $ip = parse_url( 'http://' . $ip, PHP_URL_HOST );
+        $ip = wp_parse_url( 'http://' . $ip, PHP_URL_HOST ); // NOSONAR --ok.
         $ip = str_replace( array( '[', ']' ), '', $ip );
         return $ip;
     }
@@ -1141,14 +1141,15 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $opts     = FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
         $valid_ip = filter_var( $ip, FILTER_VALIDATE_IP, $opts );
 
-        if ( ! $valid_ip || empty( $valid_ip ) ) {
-            // Regex IPV4.
-            if ( preg_match( '/^(([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip ) ) {
-                return $ip;
-            }
-            return false;
-        } else {
+        if ( $valid_ip ) {
             return $valid_ip;
         }
+
+        // Simple IPv4 fallback.
+        if ( preg_match( '/^(?:\d{1,3}\.){3}\d{1,3}$/', $ip ) ) {
+            return $ip;
+        }
+
+        return false;
     }
 }
