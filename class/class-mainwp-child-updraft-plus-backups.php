@@ -23,6 +23,12 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+
 /**
  * Class MainWP_Child_Updraft_Plus_Backups
  */

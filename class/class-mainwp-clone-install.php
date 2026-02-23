@@ -11,6 +11,11 @@ namespace MainWP\Child;
 
 use Stringable;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**

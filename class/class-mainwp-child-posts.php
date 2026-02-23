@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 //phpcs:disable Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**

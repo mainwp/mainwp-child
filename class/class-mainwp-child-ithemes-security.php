@@ -21,6 +21,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable -- third party credit code.
 
 /**

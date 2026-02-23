@@ -10,6 +10,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable Generic.Metrics.CyclomaticComplexity -- to custom read/write files, complex functions/features.
 
 /**

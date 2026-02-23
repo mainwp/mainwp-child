@@ -23,6 +23,11 @@ namespace MainWP\Child;
 
 use AAM_Service_SecurityAudit;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions -- Required to achieve desired results. Pull requests appreciated.
 
 /**
