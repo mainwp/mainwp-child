@@ -438,6 +438,10 @@ class Changes_Helper {
      * @return string
      */
     public static function get_role_names( $roles, $listing = true ) {
+        if ( ! is_array( $roles ) ) {
+            return $listing ? '' : array();
+        }
+
         $names = array_map(
             function ( $role ) {
                 global  $wp_roles;

@@ -288,7 +288,7 @@ class Changes_Handle_WP_Database {
                     $log_data['plugin'] = (object) array(
                         'name'      => $plugin['Name'],
                         'pluginuri' => $plugin['PluginURI'],
-                        'version'   => $plugin['version'],
+                        'version'   => $plugin['Version'],
                     );
                 } else {
                     $plugin_name = basename( $plugin_file, '.php' );
