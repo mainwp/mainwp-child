@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_DB_Base
  *
@@ -144,7 +149,7 @@ class MainWP_Child_DB_Base { // phpcs:ignore Generic.Classes.OpeningBraceSameLin
      * @return mixed
      */
     public function get_var_field( $sql ) {
-        return $this->wpdb->get_var( $sql );
+        return $this->wpdb->get_var( $sql ); //phpcs:ignore -- unprepared SQL ok, accessing the database directly to custom database functions.
     }
 
     /**
@@ -166,7 +171,7 @@ class MainWP_Child_DB_Base { // phpcs:ignore Generic.Classes.OpeningBraceSameLin
             $obj = OBJECT;
         }
 
-        return $this->wpdb->get_row( $sql, $obj );
+        return $this->wpdb->get_row( $sql, $obj ); //phpcs:ignore -- unprepared SQL ok, accessing the database directly to custom database functions.
     }
 
     /**
@@ -183,7 +188,7 @@ class MainWP_Child_DB_Base { // phpcs:ignore Generic.Classes.OpeningBraceSameLin
             return null;
         }
 
-        return $this->wpdb->get_results( $sql, OBJECT_K );
+        return $this->wpdb->get_results( $sql, OBJECT_K ); //phpcs:ignore -- unprepared SQL ok, accessing the database directly to custom database functions.
     }
 
     /**
