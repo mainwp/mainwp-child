@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.0-er.5
+Stable tag: 6.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -90,7 +90,7 @@ Yes, security is a top priority for MainWP. We adhere to WordPress security best
 Absolutely! MainWP is open-source, and we welcome community contributions. Visit our [GitHub repository](https://github.com/mainwp/) to get started.
 
 = How can I submit an idea for MainWP? =
-Please follow the steps outlined in the [MainWP Feature Requests](https://feedback.mainwp.com/) to submit your idea and allow the MainWP Community to vote on it.
+Please follow the steps outlined in the [MainWP Feature Requests](https://voice.mainwp.com/) to submit your idea and allow the MainWP Community to vote on it.
 
 = Where can I find more information about MainWP? =
 We have an extensive FAQ with more questions and answers [here](https://mainwp.com/preinstall-faq/).
@@ -111,9 +111,32 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
-= 6.0 =
+= 6.0 - 2-24-2026 =
 
-* Coming soon
+* Added: New maintenance options to selectively clean expired transients or remove all transients from the site.
+* Added: Password policy management to set and enforce password expiration rules.
+* Added: Extended post retrieval to support ID-based filtering for more targeted synchronization.
+* Added: Caching for recently updated custom posts with automatic invalidation on post changes, and included cached data in sync payloads to improve performance.
+* Added: Support for the upcoming Patchstack Integration for MainWP.
+* Added: Support for the feature update that allows users to delete plugins that are active while respecting sequence of deactivating first and deleting after in background.
+* Added: Helper method to detect MainWP-specific admin pages.
+* Added: Created a dedicated MainWP_Child_Assets class to handle asset loading.
+* Updated: Enhanced plugin update processing to include WordPress and PHP compatibility details for both standard and premium plugin updates when compatibility checks are available.
+* Updated: Improved error message handling for better compatibility with the PostHog (MainWP Dashboard Telemetry) integration.
+* Updated: Disabled cron event tracking as the default value for Sites Changes logging to reduce unnecessary log entries.
+* Updated: Stopped parsing the `readme.txt` file for version requirements and switched to reading from the main plugin file for improved reliability.
+* Updated: Restructuring the plugin initialization to only load necessary code based on the current request context.
+* Updated: Delaying the loading of admin-specific code until it's actually needed.
+* Updated: Implementing conditional loading of CSS and JavaScript files only on MainWP-specific pages.
+* Updated: Separated asset registration from enqueuing for better performance.
+* Updated: Optimized jQuery UI loading to only load when needed.
+* Fixed: Fixed saving of Solid Security plugin settings.
+* Fixed: Multiple PHP warnings and notices to ensure cleaner operation.
+* Fixed: Missing user information for certain objects and events in the Sites Changes feature.
+* Fixed: An issue with syncing Sites Changes that occurred on some server configurations.
+* Fixed: Corrected Child plugin's inability to load jQuery libraries on the "Clone/Restore" page due to incorrect conditional logic.
+* Fixed: Resolved Child plugin error when attempting to load non-existent assets.
+* Dev: Updated PHPSecLib package to their latest versions to maintain security and compatibility standards.
 
 [See Video Changelog](https://youtu.be/DF0vC1RiCVI)
 
