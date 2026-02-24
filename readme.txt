@@ -138,6 +138,6 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 * Fixed: Resolved Child plugin error when attempting to load non-existent assets.
 * Dev: Updated PHPSecLib package to their latest versions to maintain security and compatibility standards.
 
-[See Video Changelog](https://youtu.be/DF0vC1RiCVI)
+[See Video Changelog](https://www.youtube.com/watch?v=5b50tjskwSg)
 
 [See changelog for all versions.](https://mainwp.com/mainwp-child-changelog.txt)
