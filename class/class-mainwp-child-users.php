@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_Child_Users
  *
@@ -38,8 +43,12 @@ class MainWP_Child_Users {
      * MainWP_Child_Users constructor.
      *
      * Run any time class is called.
+     *
+     * @since 6.0 Password change tracking moved to MainWP_Child_Password_Tracker.
      */
     public function __construct() {
+        // Password change tracking is now handled by MainWP_Child_Password_Tracker.
+        // This class focuses on user management operations (AJAX handlers, user CRUD).
     }
 
     /**
@@ -188,6 +197,14 @@ class MainWP_Child_Users {
                 $user_role           = array_shift( $user_roles );
                 $usr['role']         = $user_role;
                 $usr['post_count']   = count_user_posts( $new_user->ID );
+
+                $last_change                        = get_user_meta( $new_user->ID, 'mainwp_last_password_change', true );
+                $usr['last_password_change']        = ! empty( $last_change ) ? intval( $last_change ) : null;
+                $status_data                        = MainWP_Child_Password_Policy::instance()->get_user_password_status( $new_user->ID );
+                $usr['password_status']             = $status_data['status'];
+                $usr['password_due_time']           = $status_data['due_time'];
+                $usr['password_has_recorded_change'] = $status_data['has_recorded_change'];
+
                 $allusers[]          = $usr;
             }
         }
@@ -224,6 +241,14 @@ class MainWP_Child_Users {
                     $usr['role']         = $role;
                     $usr['post_count']   = count_user_posts( $new_user->ID );
                     $usr['avatar']       = get_avatar( $new_user->ID, 32 );
+
+                    $last_change                        = get_user_meta( $new_user->ID, 'mainwp_last_password_change', true );
+                    $usr['last_password_change']        = ! empty( $last_change ) ? intval( $last_change ) : null;
+                    $status_data                        = MainWP_Child_Password_Policy::instance()->get_user_password_status( $new_user->ID );
+                    $usr['password_status']             = $status_data['status'];
+                    $usr['password_due_time']           = $status_data['due_time'];
+                    $usr['password_has_recorded_change'] = $status_data['has_recorded_change'];
+
                     $allusers[]          = $usr;
                 }
             }
@@ -292,6 +317,14 @@ class MainWP_Child_Users {
                     $usr['role']         = $user_role;
                     $usr['post_count']   = count_user_posts( $new_user->ID );
                     $usr['avatar']       = get_avatar( $new_user->ID, 32 );
+
+                    $last_change                        = get_user_meta( $new_user->ID, 'mainwp_last_password_change', true );
+                    $usr['last_password_change']        = ! empty( $last_change ) ? intval( $last_change ) : null;
+                    $status_data                        = MainWP_Child_Password_Policy::instance()->get_user_password_status( $new_user->ID );
+                    $usr['password_status']             = $status_data['status'];
+                    $usr['password_due_time']           = $status_data['due_time'];
+                    $usr['password_has_recorded_change'] = $status_data['has_recorded_change'];
+
                     $allusers[]          = $usr;
                 }
             }
@@ -500,6 +533,8 @@ class MainWP_Child_Users {
         }
         return $edit_data;
     }
+
+
 
     /**
      * Set a new administrator password.

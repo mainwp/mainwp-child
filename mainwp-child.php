@@ -12,10 +12,15 @@
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 5.4.1
+ * Version: 6.0
  * Requires at least: 5.4
  * Requires PHP: 7.4
  */
+
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 require_once ABSPATH . 'wp-includes' . DIRECTORY_SEPARATOR . 'version.php'; // NOSONAR - WP compatible. Version information from WordPress.
 
@@ -51,6 +56,16 @@ if ( ! defined( 'MAINWP_CHILD_PLUGIN_DIR' ) ) {
     define( 'MAINWP_CHILD_PLUGIN_DIR', plugin_dir_path( MAINWP_CHILD_FILE ) );
 }
 
+if ( ! defined( 'MAINWP_CHILD_MODULES_DIR' ) ) {
+
+    /**
+     * Define MainWP Child Modules Directory.
+     *
+     * @since 5.4.1
+     */
+    define( 'MAINWP_CHILD_MODULES_DIR', MAINWP_CHILD_PLUGIN_DIR . 'modules/' );
+}
+
 if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
 
     /**
@@ -71,16 +86,19 @@ if ( ! defined( 'MAINWP_CHILD_URL' ) ) {
  */
 function mainwp_child_autoload( $class_name ) {
 
-    if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
-        // strip the namespace prefix: MainWP\Child\ .
-        $class_name = substr( $class_name, 13 );
+    if ( \mainwp_child_modules_loader( $class_name ) ) {
+        return;
     }
 
-    $autoload_dir  = \trailingslashit( __DIR__ . '/class' );
-    $autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
+    $autoload_dir = \trailingslashit( __DIR__ . '/class' );
 
-    if ( file_exists( $autoload_path ) ) {
-        require_once $autoload_path; // NOSONAR - WP compatible.
+    if ( 0 === strpos( $class_name, 'MainWP\Child' ) ) {
+        // strip the namespace prefix: MainWP\Child\ .
+        $class_name    = substr( $class_name, 13 );
+        $autoload_path = sprintf( '%sclass-%s.php', $autoload_dir, strtolower( str_replace( '_', '-', $class_name ) ) );
+        if ( file_exists( $autoload_path ) ) {
+            require_once $autoload_path; // NOSONAR - WP compatible.
+        }
     }
 }
 
@@ -90,6 +108,52 @@ if ( function_exists( 'spl_autoload_register' ) ) {
 
 require_once MAINWP_CHILD_PLUGIN_DIR . 'includes' . DIRECTORY_SEPARATOR . 'functions.php'; // NOSONAR - WP compatible.
 
-$mainWPChild = new MainWP\Child\MainWP_Child( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ ) );
-register_activation_hook( __FILE__, array( $mainWPChild, 'activation' ) );
-register_deactivation_hook( __FILE__, array( $mainWPChild, 'deactivation' ) );
+// Delay the heavy constructor until we really need it.
+$mainWPChild = null;
+$get_child   = static function () use ( &$mainWPChild ) {
+    if ( null === $mainWPChild ) {
+        $mainWPChild = new MainWP\Child\MainWP_Child(
+            WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . plugin_basename( __FILE__ )
+        );
+    }
+    return $mainWPChild;
+};
+
+register_activation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->activation();
+    }
+);
+register_deactivation_hook(
+    __FILE__,
+    static function () use ( $get_child ) {
+        $get_child()->deactivation();
+    }
+);
+
+add_action(
+    'plugins_loaded',
+    function () use ( $get_child ) {
+        if (
+            ! is_admin()
+            && ! wp_doing_ajax()
+            && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+            && ! wp_doing_cron()
+            && ! defined( 'WP_CLI' )
+            && ! isset( $_REQUEST['mainwpsignature'] ) // phpcs:ignore WordPress.Security.NonceVerification
+
+        ) {
+            // For frontend requests, use lightweight initialization.
+            $get_child()->init_frontend_only();
+        } else {
+            // For admin, AJAX, REST, cron, CLI, or API requests, use full initialization.
+            $get_child()->init_full();
+        }
+    }
+);
+
+$changes_logs_mod_file = MAINWP_CHILD_PLUGIN_DIR . 'modules' . DIRECTORY_SEPARATOR . 'changes-logs' . DIRECTORY_SEPARATOR . 'changes-logs.php';
+if ( file_exists( $changes_logs_mod_file ) ) {
+    include_once $changes_logs_mod_file; // NOSONAR - ok.
+}

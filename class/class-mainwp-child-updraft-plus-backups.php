@@ -23,6 +23,12 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+
 /**
  * Class MainWP_Child_Updraft_Plus_Backups
  */
@@ -2245,11 +2251,6 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
          * @global object $updraftplus UpdraftPlus object.
          */
         global $updraftplus;
-
-        $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
-
-
-        include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
 
         $updraft_dir = $updraftplus->backups_dir_location();
 

@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
 /**
@@ -98,7 +103,9 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'jetpack_scan'          => 'jetpack_scan',
         'delete_actions'        => 'delete_actions',
         'verify_action'         => 'verify_action',
-        'api_backups_mysqldump' => 'api_backups_mysqldump',
+        'api_backups_mysqldump'  => 'api_backups_mysqldump',
+        'patchstack'             => 'patchstack',
+        'password_policy_settings' => 'password_policy_settings',
     );
 
     /**
@@ -179,7 +186,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Utility::fix_for_custom_themes();
             $this->call_function_no_auth( $call_func );
         } elseif ( isset( $_POST['function'] ) && isset( $_POST['mainwpsignature'] ) && ! $callable && ! $callable_no_auth ) {
-            MainWP_Helper::instance()->error( esc_html__( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ) );
+            MainWP_Helper::instance()->error( esc_html__( 'Required version has not been detected. Please, make sure that you are using the latest version of the MainWP Child plugin on your site.', 'mainwp-child' ), 'child_plugin_incompatible' );
         }
         // phpcs:enable
     }
@@ -1111,5 +1118,28 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function api_backups_mysqldump() {
         MainWP_Child_Api_Backups::instance()->api_backups_mysqldump();
+    }
+
+    /**
+     * Method patchstack()
+     *
+     * Fire off the action() function.
+     */
+    public function patchstack() {
+        MainWP_Child_Patchstack::instance()->action();
+    }
+
+    /**
+     * Method password_policy_settings()
+     *
+     * Fire off the action() function.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Password_Policy::action()
+     * @uses \MainWP\Child\MainWP_Helper::write()
+     */
+    public function password_policy_settings() {
+        $information = MainWP_Child_Password_Policy::instance()->action();
+        MainWP_Helper::write( $information );
+        exit();
     }
 }

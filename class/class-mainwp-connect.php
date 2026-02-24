@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_Connect
  *
@@ -713,6 +718,13 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         // phpcs:enable
+
+        /**
+         * Hook: Fire after login required authed.
+         *
+         * @since 5.5
+         */
+        do_action( 'mainwp_child_login_required_authed', $username );
         $this->check_redirects();
         return true;
     }

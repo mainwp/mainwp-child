@@ -7,6 +7,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Custom functions required to achieve desired results, pull request solutions appreciated.
 
 /**
@@ -624,8 +629,12 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function validate_mainwp_dir() {
         $done = false;
-        $dir  = MainWP_Helper::get_mainwp_dir();
-        $dir  = $dir[0];
+        try {
+            $dir = MainWP_Helper::get_mainwp_dir();
+        } catch ( MainWP_Exception $e ) {
+            return false;
+        }
+        $dir = $dir[0];
         if ( MainWP_Helper::get_wp_filesystem() ) {
 
             /**

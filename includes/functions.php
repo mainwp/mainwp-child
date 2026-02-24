@@ -5,6 +5,12 @@
  * @package MainWP/Child
  */
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+
  // phpcs:disable WordPress.Security.NonceVerification
 if ( isset( $_GET['bulk_settings_manageruse_nonce_key'] ) && isset( $_GET['bulk_settings_manageruse_nonce_hmac'] ) ) {
     $bulk_settings_manageruse_nonce_key  = ! empty( $_GET['bulk_settings_manageruse_nonce_key'] ) ? intval( $_GET['bulk_settings_manageruse_nonce_key'] ) : '';
@@ -187,6 +193,109 @@ if ( ! function_exists( 'apply_filters_deprecated' ) ) {
         }
         do_action( 'deprecated_hook_run', $hook_name, $replacement, $version, $message );
         return apply_filters_ref_array( $hook_name, $args );
+    }
+}
+
+
+if ( ! function_exists( '\mainwp_child_debug_log' ) ) {
+
+    /**
+     * Method mainwp_child_debug_log.
+     *
+     * @param  string $msg Message to log.
+     * @return void
+     *
+     * @since 5.4.1
+     */
+    function mainwp_child_debug_log( $msg = '' ) {
+        MainWP\Child\MainWP_Helper::log_debug( $msg );
+    }
+}
+
+
+if ( ! function_exists( '\mainwp_child_modules_loader' ) ) {
+
+    /**
+     * Method mainwp_child_modules_loader.
+     *
+     * @param  mixed $class_name
+     * @return bool Matched class name.
+     *
+     * @since 5.4.1
+     */
+    function mainwp_child_modules_loader( $class_name ) {
+
+        $namespaces_modules = array(
+            'MainWP\Child\Changes' => 'changes-logs',
+        );
+        $autoload_dir       = rtrim( MAINWP_CHILD_PLUGIN_DIR, DIRECTORY_SEPARATOR );
+        foreach ( $namespaces_modules as $base_ns => $mod_dir ) {
+            if ( 0 === strpos( $class_name, $base_ns ) ) {
+
+                $sub_ns = str_replace( $base_ns, '', $class_name );
+
+                $esc_position = strrchr( $sub_ns, '\\' );
+
+                if ( false !== $esc_position ) {
+                    $class_name_no_ns = substr( $esc_position, 1 );
+                    $sub_dir          = str_replace( $class_name_no_ns, '', $sub_ns );
+                    $sub_dir          = str_replace( '\\', '/', $sub_dir );
+
+                    if ( '/' !== $sub_dir ) {
+                        $sub_dir       = trim( $sub_dir, '/' );
+                        $autoload_path = sprintf( '%s/modules/%s/%s/class-%s.php', $autoload_dir, $mod_dir, strtolower( $sub_dir ), strtolower( str_replace( '_', '-', $class_name_no_ns ) ) );
+                    } else {
+                        $autoload_path = sprintf( '%s/modules/%s/classes/class-%s.php', $autoload_dir, $mod_dir, strtolower( str_replace( '_', '-', $class_name_no_ns ) ) );
+                    }
+                    if ( file_exists( $autoload_path ) ) {
+                        require_once $autoload_path; // NOSONAR - WP compatible.
+                    }
+                }
+                return true; // class name matched.
+            }
+        }
+        return false;
+    }
+}
+
+
+if ( ! function_exists( '\mainwp_child_is_dashboard_request' ) ) {
+    /**
+     * True if it is mainwp dashboard request
+     *
+     * @since 5.4.1
+     *
+     * @return bool
+     */
+    function mainwp_child_is_dashboard_request() {
+        return ( isset( $_POST['mainwpsignature'] ) && isset( $_POST['function'] ) ) ? true : false;
+    }
+}
+
+if ( ! function_exists( '\mainwp_is_rest_api' ) ) {
+    /**
+     * True if it is frontend
+     *
+     * @since 5.4.1
+     *
+     * @return bool
+     */
+    function mainwp_is_rest_api() {
+        if (
+            ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+            || ! empty( $_GET['rest_route'] ) // phpcs:ignore
+            ) {
+                return true;
+        }
+        if ( ! get_option( 'permalink_structure' ) ) {
+            return false;
+        }
+        if ( empty( $GLOBALS['wp_rewrite'] ) ) {
+            $GLOBALS['wp_rewrite'] = new \WP_Rewrite(); // phpcs:ignore
+        }
+        $current_path = trim( (string) parse_url( (string) add_query_arg( array() ), PHP_URL_PATH ), '/' ) . '/'; // phpcs:ignore
+        $rest_path    = trim( (string) parse_url( (string) get_rest_url(), PHP_URL_PATH ), '/' ) . '/'; // phpcs:ignore
+        return strpos( $current_path, $rest_path ) === 0;
     }
 }
 

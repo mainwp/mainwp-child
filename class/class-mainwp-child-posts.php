@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 //phpcs:disable Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
@@ -124,14 +129,20 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         );
 
         $tokens = array();
-        if ( is_array( $extra ) && isset( $extra['tokens'] ) ) {
-            $tokens = $extra['tokens'];
-            if ( 1 === (int) $extra['extract_post_type'] ) {
-                $args['post_type'] = 'post';
-            } elseif ( 2 === (int) $extra['extract_post_type'] ) {
-                $args['post_type'] = 'page';
-            } elseif ( 3 === (int) $extra['extract_post_type'] ) {
-                $args['post_type'] = array( 'post', 'page' );
+        if ( is_array( $extra ) ) {
+            if ( isset( $extra['tokens'] ) ) {
+                $tokens = $extra['tokens'];
+                if ( 1 === (int) $extra['extract_post_type'] ) {
+                    $args['post_type'] = 'post';
+                } elseif ( 2 === (int) $extra['extract_post_type'] ) {
+                    $args['post_type'] = 'page';
+                } elseif ( 3 === (int) $extra['extract_post_type'] ) {
+                    $args['post_type'] = array( 'post', 'page' );
+                }
+            }
+            if ( ! empty( $extra['ids'] ) && is_array( $extra['ids'] ) ) {
+                $args['post__in']       = $extra['ids'];
+                $args['posts_per_page'] = -1;
             }
         }
         $tokens = array_flip( $tokens );

@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 //phpcs:disable Generic.Metrics.CyclomaticComplexity -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
 /**
@@ -314,22 +319,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         $tmpPlugins = array();
         foreach ( $plugins as $plugin ) {
 
-            $readme_file = WP_PLUGIN_DIR . '/' . dirname( $plugin ) . '/readme.txt';
             $plugin_data = array(
                 'requires'     => '',
                 'requires_php' => '',
             );
-
-            if ( file_exists( $readme_file ) ) {
-                $plugin_data = get_file_data( // NOSONAR .
-                    $readme_file,
-                    array(
-                        'requires'     => 'Requires at least',
-                        'requires_php' => 'Requires PHP',
-                    ),
-                    'plugin'
-                );
-            }
 
             $plugin_data = array_merge( $plugin_data, get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ) );
 
@@ -382,21 +375,22 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
             $plugins_info = MainWP_Child_Actions::get_instance()->get_current_plugins_info();
 
-            $updated_plugins = array();
+            $updated_plugins     = array();
+            $updated_error_codes = array();
             foreach ( $result as $plugin => $info ) {
                 $success            = false;
                 $problematic_update = false;
                 $error              = '';
+                $up_errors_codes    = '';
                 if ( empty( $info ) ) {
-
+                    $up_errors_codes                    = 'undefined_error';
                     $information['upgrades'][ $plugin ] = false;
                     $api                                = apply_filters( 'plugins_api', false, 'plugin_information', array( 'slug' => $plugin ) );
-
                     if ( is_wp_error( $api ) ) {
                         $error                                    = $api->get_error_message();
                         $information['upgrades_error'][ $plugin ] = $error;
+                        $up_errors_codes                          = $api->get_error_codes();
                     }
-
                     if ( ! is_wp_error( $api ) && ! empty( $api ) && isset( $api->download_link ) ) {
                         $res = $upgrader->install( $api->download_link );
                         if ( ! is_wp_error( $res ) && ! ( is_null( $res ) ) ) {
@@ -406,12 +400,14 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                         if ( is_wp_error( $res ) ) {
                             $error                                    = $api->get_error_message();
                             $information['upgrades_error'][ $plugin ] = $error;
+                            $up_errors_codes                          = $api->get_error_codes();
                         }
                     }
                 } elseif ( is_wp_error( $info ) ) {
                     $error                                    = $info->get_error_message();
                     $information['upgrades_error'][ $plugin ] = $error;
                     $errors_codes                             = $info->get_error_codes();
+                    $up_errors_codes                          = $errors_codes;
                     if ( is_array( $errors_codes ) && in_array( 'mainwp_update_error_code', $errors_codes ) ) {
                         $problematic_update = true;
                     }
@@ -419,6 +415,11 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                     $information['upgrades'][ $plugin ] = true;
                     $success                            = true;
                 }
+
+                if ( ! empty( $up_errors_codes ) && is_array( $up_errors_codes ) ) {
+                    $up_errors_codes = implode( ',', $up_errors_codes );
+                }
+
                 $old_info = isset( $plugins_info[ $plugin ] ) ? $plugins_info[ $plugin ] : array();
                 if ( ! is_array( $old_info ) ) {
                     $old_info = array();
@@ -451,9 +452,16 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 $updated_plugins[ $plugin ] = $info;
+
+                if ( ! empty( $up_errors_codes ) ) {
+                    $updated_error_codes[ $plugin ] = $up_errors_codes;
+                }
             }
             $information['other_data']['updated_data'] = $updated_plugins;
-            $failed                                    = false;
+            if ( ! empty( $updated_error_codes ) ) {
+                $information['other_data']['upgrade_error_codes'] = $updated_error_codes;
+            }
+            $failed = false;
         }
 
         if ( $failed ) {
@@ -590,14 +598,17 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( ! empty( $result ) ) {
             wp_clean_themes_cache();
-            $themes_info    = MainWP_Child_Actions::get_instance()->get_current_themes_info();
-            $updated_themes = array();
+            $themes_info         = MainWP_Child_Actions::get_instance()->get_current_themes_info();
+            $updated_themes      = array();
+            $updated_error_codes = array();
             foreach ( $result as $theme => $value ) {
                 $success            = false;
                 $error              = '';
                 $problematic_update = false;
+                $up_error_codes     = '';
                 if ( empty( $value ) ) {
                     $information['upgrades'][ $theme ] = false;
+                    $up_error_codes                    = 'undefined_error';
                 } elseif ( is_wp_error( $value ) ) {
                     $error                             = $value->get_error_message();
                     $information['upgrades'][ $theme ] = false;
@@ -605,9 +616,14 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                     if ( is_array( $errors_codes ) && in_array( 'mainwp_update_error_code', $errors_codes ) ) {
                         $problematic_update = true;
                     }
+                    $up_error_codes = $errors_codes;
                 } else {
                     $information['upgrades'][ $theme ] = true;
                     $success                           = true;
+                }
+
+                if ( ! empty( $up_error_codes ) && is_array( $up_error_codes ) ) {
+                    $up_error_codes = implode( ',', $up_error_codes );
                 }
 
                 $old_info = isset( $themes_info[ $theme ] ) ? $themes_info[ $theme ] : array();
@@ -640,9 +656,16 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 $updated_themes[ $theme ] = $info;
+                if ( ! empty( $up_error_codes ) ) {
+                    $updated_error_codes[ $theme ] = $up_error_codes;
+                }
             }
             $information['other_data']['updated_data'] = $updated_themes;
-            $failed                                    = false;
+            if ( ! empty( $updated_error_codes ) ) {
+                $information['other_data']['upgrade_error_codes'] = $updated_error_codes;
+            }
+
+            $failed = false;
         }
 
         if ( $failed ) {
@@ -1215,7 +1238,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         // Check for new versions.
         MainWP_System::wp_mainwp_version_check();
 
-        $wp_ver       = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        // Get WordPress version via the shared helper method for consistency.
+        // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
+        $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
+
         $core_updates = get_core_updates();
         if ( is_array( $core_updates ) && count( $core_updates ) > 0 ) {
             foreach ( $core_updates as $core_update ) {
@@ -1266,6 +1292,13 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                             $information['version']     = $current_ver;
                         } else {
                             $information['upgrade'] = 'WPERROR';
+                            $up_error_codes         = 'undefined_error';
+                            if ( is_wp_error( $upgrade ) ) {
+                                $up_error_codes = implode( ',', $upgrade->get_error_codes() );
+                            }
+                            if ( ! empty( $up_error_codes ) ) {
+                                $information['other_data']['upgrade_error_codes'] = $up_error_codes;
+                            }
                         }
                         break;
                     }
@@ -1344,18 +1377,28 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-        $updated_trans = array();
+        $updated_trans       = array();
+        $updated_error_codes = array();
 
         $result = empty( $language_updates ) ? false : $upgrader->bulk_upgrade( $language_updates );
         if ( ! empty( $result ) ) {
             $count_result = count( $result );
             for ( $i = 0; $i < $count_result; $i++ ) {
-                $success = false;
+                $success        = false;
+                $up_error_codes = '';
                 if ( empty( $result[ $i ] ) || is_wp_error( $result[ $i ] ) ) {
+                    $up_error_codes = 'undefined_error';
+                    if ( is_wp_error( $result[ $i ] ) ) {
+                        $up_error_codes = implode( ',', $result[ $i ]->get_error_codes() );
+                    }
                     $information['upgrades'][ $language_updates[ $i ]->slug ] = false;
                 } else {
                     $information['upgrades'][ $language_updates[ $i ]->slug ] = true;
                     $success = true;
+                }
+
+                if ( ! empty( $up_error_codes ) ) {
+                    $updated_error_codes[ $language_updates[ $i ]->slug ] = $up_error_codes;
                 }
 
                 if ( isset( $language_updates[ $i ] ) ) {
@@ -1381,7 +1424,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             $information['upgrades'] = array(); // Fix error message when translations updated.
         }
         $information['other_data']['updated_data'] = $updated_trans;
-        $information['sync']                       = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
+        if ( ! empty( $updated_error_codes ) ) {
+            $information['other_data']['upgrade_error_codes'] = $updated_error_codes;
+        }
+        $information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
         MainWP_Helper::write( $information );
     }
 

@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 //phpcs:disable Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
@@ -154,6 +159,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Stats::check_premium_updates()
      * @uses \MainWP\Child\MainWP_Child_Branding::save_branding_options()
      * @uses \MainWP\Child\MainWP_Child_Plugins_Check::may_outdate_number_change()
+     * @uses \MainWP\Child\MainWP_Child_Password_Policy::sync_password_policy_settings()
      * @uses \MainWP\Child\MainWP_Child_Comments::get_recent_comments()
      * @uses \MainWP\Child\MainWP_Child_Posts::get_recent_posts()
      * @uses \MainWP\Child\MainWP_Child_DB::get_size()
@@ -198,6 +204,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Child_Plugins_Check::may_outdate_number_change();
+
+        MainWP_Child_Password_Policy::instance()->sync_password_policy_settings();
 
         if ( isset( $_POST['child_actions_saved_days_number'] ) ) {
             $days_number = intval( $_POST['child_actions_saved_days_number'] );
@@ -338,7 +346,39 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( $this->is_sync_data( 'child_site_actions_data' ) ) {
-            $information['child_site_actions_data'] = MainWP_Child_Actions::get_actions_data();
+
+             $logs_params = ! empty( $_POST['params_logs'] ) && is_array( $_POST['params_logs'] ) ?  $_POST['params_logs'] : array(); //phpcs:ignore -- ok.
+
+            if ( ! empty( $logs_params ) ) {
+
+                if ( isset( $logs_params['ignore_sync_changes_logs'] ) ) {
+                    if ( is_array( $logs_params['ignore_sync_changes_logs'] ) && ! empty( $logs_params['ignore_sync_changes_logs'] ) ) {
+                        $ignore_sync_logs = array_filter( array_map( 'absint', wp_unslash( $logs_params['ignore_sync_changes_logs'] ) ) );
+                        $ignore_sync_logs = wp_json_encode( $ignore_sync_logs );
+                        if ( get_option( 'mainwp_child_ignored_changes_logs' ) !== $ignore_sync_logs ) {
+                            MainWP_Helper::update_option( 'mainwp_child_ignored_changes_logs', $ignore_sync_logs );
+                        }
+                    } else {
+                        MainWP_Helper::update_option( 'mainwp_child_ignored_changes_logs', wp_json_encode( array() ) );
+                    }
+                }
+
+                if ( isset( $logs_params['ignore_sync_nonmainwp_actions'] ) ) {
+                    if ( is_array( $logs_params['ignore_sync_nonmainwp_actions'] ) && ! empty( $logs_params['ignore_sync_nonmainwp_actions'] ) ) {
+                        $ignore_sync_actions = array_filter( array_map( 'sanitize_text_field', wp_unslash( $logs_params['ignore_sync_nonmainwp_actions'] ) ) );
+
+                        $ignore_sync_actions = wp_json_encode( $ignore_sync_actions );
+                        if ( get_option( 'mainwp_child_ignored_nonmainwp_actions' ) !== $ignore_sync_actions ) {
+                            MainWP_Helper::update_option( 'mainwp_child_ignored_nonmainwp_actions', $ignore_sync_actions );
+                        }
+                    } else {
+                        MainWP_Helper::update_option( 'mainwp_child_ignored_nonmainwp_actions', wp_json_encode( array() ) );
+                    }
+                }
+            }
+
+            $information['child_site_actions_data'] = MainWP_Child_Actions::get_sync_actions_data();
+            $information['changes_logs_data']       = MainWP_Child_Changes_Logs::get_changes_data();
         }
 
         if ( isset( $_POST['user'] ) ) {
@@ -370,6 +410,10 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         // still generate if regverify the connect user disabled pw auth.
         if ( ! empty( $_POST['sync_regverify'] ) ) {
             $information['regverify_info'] = MainWP_Connect::instance()->validate_register( false, 'generate' );
+        }
+
+        if ( $this->is_sync_data( 'password_policy_options' ) ) {
+            $information['password_policy_options'] = MainWP_Child_Password_Policy::instance()->get_policy_options();
         }
 
         if ( $exit_done ) {
@@ -611,6 +655,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             'child_openssl_version' => MainWP_Child_Server_Information_Base::get_curl_ssl_version(),
             'site_lang'             => get_locale(),
             'site_public'           => (int) get_option( 'blog_public', 0 ),
+            'format_datetime'       => array(
+                'timezone_string' => get_option( 'timezone_string' ),
+                'gmt_offset'      => get_option( 'gmt_offset' ),
+                'date_format'     => get_option( 'date_format' ),
+                'time_format'     => get_option( 'time_format' ),
+            ),
         );
     }
 
@@ -755,6 +805,8 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         wp_update_plugins();
         include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
 
+        $get_compatible_info = function_exists( 'is_php_version_compatible' ) ? true : false;
+
         $plugin_updates = get_plugin_updates();
         if ( is_array( $plugin_updates ) ) {
 
@@ -768,7 +820,22 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                     continue;
                 }
                 $plugin_update->active = is_plugin_active( $slug ) ? 1 : 0;
-                $results[ $slug ]      = $plugin_update;
+
+                if ( $get_compatible_info && file_exists( WP_PLUGIN_DIR . '/' . $slug ) ) {
+                    $plugin_data = array(
+                        'requires'     => '',
+                        'requires_php' => '',
+                    );
+
+                    $plugin_data = array_merge( $plugin_data, get_plugin_data( WP_PLUGIN_DIR . '/' . $slug ) );
+
+                    $plugin_data['requires']       = ! empty( $plugin_data['RequiresWP'] ) ? $plugin_data['RequiresWP'] : $plugin_data['requires'];
+                    $plugin_data['requires_php']   = ! empty( $plugin_data['RequiresPHP'] ) ? $plugin_data['RequiresPHP'] : $plugin_data['requires_php'];
+                    $plugin_update->wp_compatible  = is_wp_version_compatible( $plugin_data['requires'] );
+                    $plugin_update->php_compatible = is_php_version_compatible( $plugin_data['requires_php'] );
+                }
+
+                $results[ $slug ] = $plugin_update;
             }
         }
 
@@ -937,7 +1004,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         if ( $forced_get_file_size || ( $get_file_size && isset( $_POST['cloneSites'] ) && ( '0' !== $_POST['cloneSites'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification
             $max_exe = ini_get( 'max_execution_time' );
             if ( $forced_get_file_size || $max_exe > 20 ) {
-                $total = $this->get_total_file_size();
+                $total = get_transient( 'mainwp_child_total_size' );
+                if ( false === $total ) {
+                    $total = $this->get_total_file_size();
+                    set_transient( 'mainwp_child_total_size', $total, 1 * HOUR_IN_SECONDS );
+                }
+                return $total;
             }
         }
 
@@ -1049,25 +1121,69 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                 }
             }
-            // to fix for window host, performance not good?
-            if ( class_exists( '\RecursiveIteratorIterator' ) ) {
-                $size = 0;
-                foreach ( new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $directory ) ) as $file ) {
-                    try {
-                        $size += $file->getSize();
-                    } catch ( \Exception $e ) {
-                        // prevent error some hosts.
-                    }
-                }
-                if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
-                    return $size / 1024 / 1024;
-                }
-            }
-            return 0;
+            return $this->get_total_file_size_recursive( $directory );
         } catch ( MainWP_Exception $e ) {
             return 0;
         }
     }
+
+    /**
+     * Get total directory size safely.
+     *
+     * @param string $directory
+     * @return float Size in MB
+     */
+    public function get_total_file_size_recursive( $directory ) {
+
+        if ( ! is_dir( $directory ) || ! is_readable( $directory ) ) {
+            return 0;
+        }
+
+        if ( ! class_exists( '\RecursiveIteratorIterator' ) ) {
+            return 0;
+        }
+
+        $size = 0;
+
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(
+                    $directory,
+                    \FilesystemIterator::SKIP_DOTS // ✅ skip . and ..
+                ),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ( $iterator as $file ) {
+
+                try {
+                    // 🚫 skip symlinks (VERY IMPORTANT)
+                    if ( $file->isLink() ) {
+                        continue;
+                    }
+
+                    // 🚫 skip unreadable files
+                    if ( ! $file->isReadable() ) {
+                        continue;
+                    }
+
+                    // ✅ only count regular files
+                    if ( $file->isFile() ) {
+                        $size += $file->getSize();
+                    }
+                } catch ( \Throwable $e ) {
+                    // Prevent crashes on permission issues (Windows / shared hosts)
+                    continue;
+                }
+            }
+        } catch ( \Throwable $e ) {
+            return 0;
+        }
+
+        // Convert bytes → MB
+        return $size > 0 ? round( $size / 1024 / 1024, 2 ) : 0;
+    }
+
 
     /**
      * Scan directory.

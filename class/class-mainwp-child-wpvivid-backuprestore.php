@@ -8,6 +8,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable PSR1.Classes.ClassDeclaration, WordPress.WP.AlternativeFunctions --  to use external code, third party credit.
 
 /**
@@ -104,7 +109,7 @@ class MainWP_Child_WPvivid_BackupRestore { //phpcs:ignore -- NOSONAR - multi met
 
             if ( isset( $data['syncWPvividData'] ) ) {
                 $information['syncWPvividData'] = 1;
-                $information                    = apply_filters( 'wpvivid_get_mainwp_sync_data', $information );
+                $information = apply_filters( 'wpvivid_get_mainwp_sync_data', $information );
             }
         } catch ( MainWP_Exception $e ) {
             // ok.
@@ -235,11 +240,11 @@ class MainWP_Child_WPvivid_BackupRestore { //phpcs:ignore -- NOSONAR - multi met
             return $wpvivid_plugin->wpvivid_handle_mainwp_action( $data );
         } elseif ( $this->is_pro_plugin_installed ) {
             $ret['result'] = 'failed';
-            $ret['error']  = 'Unknown function';
+            $ret['error'] = 'Unknown function';
             return apply_filters( 'wpvivid_handle_mainwp_action', $ret, $data );
         } else {
             $ret['result'] = 'failed';
-            $ret['error']  = 'WPvivid Plugin not installed';
+            $ret['error'] = 'WPvivid Plugin not installed';
             return $ret;
         }
     }

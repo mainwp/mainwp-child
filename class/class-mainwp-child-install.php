@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_Child_Install
  *
@@ -83,7 +88,8 @@ class MainWP_Child_Install {
         $action  = MainWP_System::instance()->validate_params( 'action' );
         $plugins = isset( $_POST['plugin'] ) ? explode( '||', sanitize_text_field( wp_unslash( $_POST['plugin'] ) ) ) : '';
 
-        $action_items = array();
+        $action_items            = array();
+        $action_deactivate_items = array();
 
         include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
         include_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -- WP compatible get_home_path().
@@ -127,6 +133,10 @@ class MainWP_Child_Install {
             $this->delete_plugins( $plugins, $output );
             if ( ! empty( $output ) ) {
                 $action_items = $output;
+                if ( is_array( $action_items ) && isset( $action_items['deactivate_info'] ) ) {
+                    $action_deactivate_items = $action_items['deactivate_info'];
+                    unset( $action_items['deactivate_info'] );
+                }
             }
         } elseif ( 'changelog_info' === $action ) {
             include_once ABSPATH . '/wp-admin/includes/plugin-install.php'; // NOSONAR -- WP compatible.
@@ -151,7 +161,12 @@ class MainWP_Child_Install {
         }
         $information['other_data'] = array(
             'plugin_action_data' => $action_items,
+            'duration_bulk'      => count( $action_items ),
         );
+        if ( ! empty( $action_deactivate_items ) ) {
+            $information['other_data']['plugin_deactivated_data'] = $action_deactivate_items;
+            $information['other_data']['duration_bulk']          += count( $action_deactivate_items );
+        }
         MainWP_Helper::write( $information );
     }
 
@@ -200,6 +215,8 @@ class MainWP_Child_Install {
 
         $pluginUpgrader = new \Plugin_Upgrader();
 
+        $action_items1 = array();
+
         $all_plugins = get_plugins();
         foreach ( $plugins as $plugin ) {
             if ( $plugin !== $mainWPChild->plugin_slug && isset( $all_plugins[ $plugin ] ) ) {
@@ -208,6 +225,12 @@ class MainWP_Child_Install {
                     $thePlugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
                     if ( null !== $thePlugin && '' !== $thePlugin ) {
                             deactivate_plugins( $plugin );
+                            $action_items1[ $plugin ] = array(
+                                'name'    => $thePlugin['Name'],
+                                'version' => $thePlugin['Version'],
+                                'slug'    => $plugin,
+                                'created' => time(),
+                            );
                     }
                 }
                 $tmp['plugin'] = $plugin;
@@ -221,9 +244,14 @@ class MainWP_Child_Install {
                         'name'    => $old_plugin['Name'],
                         'version' => $old_plugin['Version'],
                         'slug'    => $plugin,
+                        'created' => time(),
                     );
                 }
             }
+        }
+
+        if ( ! empty( $action_items1 ) ) {
+            $output['deactivate_info'] = $action_items1;
         }
     }
 
@@ -529,8 +557,13 @@ class MainWP_Child_Install {
                 if ( is_dir( $path . $srcFile ) ) {
                     continue;
                 }
+
+                if ( 'readme.txt' === $srcFile || 'README.md' === $srcFile ) {
+                    continue;
+                }
+
                 $thePlugin = get_plugin_data( $path . $srcFile );
-                if ( null !== $thePlugin && '' !== $thePlugin && '' !== $thePlugin['Name'] && 'readme.txt' !== $srcFile && 'README.md' !== $srcFile ) { // to fix: skip readme.txt.
+                if ( null !== $thePlugin && '' !== $thePlugin && '' !== $thePlugin['Name'] ) {
                     $args['type']    = 'plugin';
                     $args['Name']    = $thePlugin['Name'];
                     $args['Version'] = $thePlugin['Version'];

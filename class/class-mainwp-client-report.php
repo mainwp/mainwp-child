@@ -11,6 +11,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_Client_Report
  *
@@ -244,6 +249,10 @@ class MainWP_Client_Report extends MainWP_Client_Report_Base {
 
         $other_tokens_data = $this->get_stream_others_tokens( $records, $other_tokens, $skip_records );
         $sections_data     = $this->get_stream_sections_data( $records, $sections, $skip_records );
+
+        /**
+         * @since 5.4.0.7.
+         */
         return apply_filters(
             'mainwp_child_prepared_reports_data',
             array(

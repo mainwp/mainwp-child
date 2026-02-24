@@ -21,6 +21,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable -- third party credit code.
 
 /**
@@ -404,6 +409,7 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
             'multisite-tweaks',
             'notification-center',
             'two-factor',
+            'firewall'
         );
 
         $require_permalinks = false;
@@ -413,6 +419,19 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
 
         // phpcs:disable WordPress.Security.NonceVerification
         $update_settings = isset( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ) ), true ) : ''; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions  -- base64_encode function is used for http encode compatible..
+
+        $exclude = [
+            'use_individual_location',
+            'use_individual_exclude',
+        ];
+
+        if ( ! is_array( $update_settings ) ) {
+            $update_settings = array();
+        }
+
+        if ( $this->apply_default_solid_security_configuration( $_itsec_modules ) ) {
+            $updated = true;
+        }
 
         foreach ( $update_settings as $module => $settings ) {
             $do_not_save = false;
@@ -447,8 +466,8 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                     if ( ! isset( $settings['exclude'] ) ) {
                         $settings['exclude'] = \ITSEC_Modules::get_setting( $module, 'exclude' );
-
                     }
+
                 } elseif ( 'hide-backend' === $module ) {
                     if ( isset( $settings['enabled'] ) && ! empty( $settings['enabled'] ) ) {
                         $permalink_structure = get_option( 'permalink_structure', false );
@@ -480,9 +499,8 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                     $settings = $nbf_settings;
                 } elseif ( 'notification-center' === $module ) {
-                    $current_settings = \ITSEC_Modules::get_settings( $module );
                     if ( isset( $settings['notifications'] ) ) {
-                        $update_fields = array( 'schedule', 'enabled', 'subject' );
+                        $update_fields = array( 'schedule', 'enabled', 'subject', 'message' );
                         if ( isset( $_POST['is_individual'] ) && $_POST['is_individual'] ) {
                             $update_fields = array_merge( $update_fields, array( 'user_list', 'email_list' ) );
                         }
@@ -497,6 +515,15 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
                         \ITSEC_Modules::set_settings( $module, $current_settings );
                     }
                     continue;
+				} elseif ( 'file-change' === $module  && isset( $settings["show_warning"] ) ) {
+					unset( $settings["show_warning"] );
+				}
+
+                // Unset use_individual_location.
+                foreach ( $exclude as $key ) {
+                    if ( isset( $settings[ $key ] ) ) {
+                        unset( $settings[ $key ] );
+                    }
                 }
 
                 if ( ! $do_not_save ) {
@@ -561,7 +588,75 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
             $return['error'] = esc_html__( 'Not Updated', 'mainwp-child' );
         }
 
+        if ( class_exists( '\ITSEC_Modules' ) && ! \ITSEC_Modules::get_setting( 'global', 'onboard_complete' ) ) {
+            \ITSEC_Modules::set_setting( 'global', 'onboard_complete', true );
+            $return['result'] = 'success';
+            unset( $return['error'] );
+        }
+
         return $return;
+    }
+
+    /**
+     * Seed Solid Security defaults and mark onboarding as complete.
+     *
+     * @param string[] $modules Modules to initialize.
+     *
+     * @return bool True when changes were applied.
+     */
+    private function apply_default_solid_security_configuration( $modules ) {  // phpcs:ignore -- NOSONAR
+        if ( ! class_exists( '\ITSEC_Modules' ) ) {
+            return false;
+        }
+
+        $did_update      = false;
+        $defaults_applied = (bool) get_site_option( 'mainwp_child_itsec_defaults_applied', false );
+
+        if ( ! $defaults_applied ) {
+            foreach ( (array) $modules as $module ) {
+                $defaults = \ITSEC_Modules::get_defaults( $module );
+                if ( empty( $defaults ) ) {
+                    continue;
+                }
+
+                $result = \ITSEC_Modules::set_settings( $module, $defaults );
+                if ( is_wp_error( $result ) ) {
+                    continue;
+                }
+
+                $did_update = true;
+            }
+
+            $active_modules = \ITSEC_Modules::get_active_modules();
+            if ( ! empty( $active_modules ) ) {
+                $stored_active = get_site_option( 'itsec_active_modules', array() );
+                if ( ! is_array( $stored_active ) ) {
+                    $stored_active = array();
+                }
+
+                $changed = false;
+                foreach ( $active_modules as $module ) {
+                    if ( empty( $stored_active[ $module ] ) ) {
+                        $stored_active[ $module ] = true;
+                        $changed                  = true;
+                    }
+                }
+
+                if ( $changed ) {
+                    update_site_option( 'itsec_active_modules', $stored_active );
+                    $did_update = true;
+                }
+            }
+
+            update_site_option( 'mainwp_child_itsec_defaults_applied', time() );
+        }
+
+        if ( ! \ITSEC_Modules::get_setting( 'global', 'onboard_complete' ) ) {
+            \ITSEC_Modules::set_setting( 'global', 'onboard_complete', true );
+            $did_update = true;
+        }
+
+        return $did_update;
     }
 
     /**

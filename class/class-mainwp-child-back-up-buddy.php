@@ -20,6 +20,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable -- third party credit.
 
 
@@ -3044,7 +3049,8 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
             require_once \pb_backupbuddy::plugin_path() . '/destinations/stash2/init.php'; // NOSONAR - WP compatible.
             require_once \pb_backupbuddy::plugin_path() . '/destinations/live/init.php'; // NOSONAR - WP compatible.
 
-            $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
+            // Use MainWP_Child_Server_Information_Base to get WordPress version.
+            $wp_ver = \MainWP\Child\MainWP_Child_Server_Information_Base::get_wordpress_version();
 
             $itxapi_username = strtolower( $_POST['live_username'] );
             $password_hash   = \iThemes_Credentials::get_password_hash( $itxapi_username, $_POST['live_password'] );

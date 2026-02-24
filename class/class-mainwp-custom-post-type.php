@@ -10,6 +10,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_Custom_Post_Type
  *
@@ -58,6 +63,11 @@ class MainWP_Custom_Post_Type {
      */
     public function __construct() {
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'hook_sync_others_data' ), 10, 2 );
+        $call_inval = array( $this, 'invalidate_recent_custom_posts_cache_safe' );
+        add_action( 'save_post', $call_inval );
+        add_action( 'trashed_post', $call_inval );
+        add_action( 'deleted_post', $call_inval );
+        add_action( 'untrashed_post', $call_inval );
     }
 
     /**
@@ -71,11 +81,22 @@ class MainWP_Custom_Post_Type {
     public function hook_sync_others_data( $information, $data = array() ) {
         if ( isset( $data['sync_cpt_data'] ) && $data['sync_cpt_data'] ) {
             try {
+                $ids = $this->get_recent_custom_posts_cached();
+
                 $information['sync_cpt_data'] = array(
-                    'custom_taxonomies' => $this->get_custom_taxonomies(),
+                    'custom_taxonomies'   => $this->get_custom_taxonomies(),
+                    'recent_custom_posts' => $this->get_recent_custom_posts( $ids ),
                 );
+
             } catch ( MainWP_Exception $e ) {
                 // ok!
+            }
+
+            if ( isset( $data['sync_cpt_limit'] ) ) {
+                $current_limit = get_option( 'mainwp_child_recent_custom_cpt_ids_limit', 20 );
+                if ( (int) $current_limit !== (int) ( $data['sync_cpt_limit'] ) && ! empty( $data['sync_cpt_limit'] ) ) {
+                    update_option( 'mainwp_child_recent_custom_cpt_ids_limit', $data['sync_cpt_limit'] );
+                }
             }
         }
         return $information;
@@ -687,5 +708,114 @@ class MainWP_Custom_Post_Type {
         }
         $meta_value = implode( $product_image_gallery, ',' );
         return true;
+    }
+
+    /**
+     * Get recent custom posts.
+     *
+     * @param array $ids Post ids.
+     * @param  mixed $limit Limit number of posts.
+     * @return array $allPost Return array of recent posts.
+     */
+    public function get_recent_custom_posts( $ids, $limit = 0 ) {
+
+        if ( empty( $ids ) || ! is_array( $ids ) ) {
+            return array();
+        }
+
+        $allPosts = array();
+
+        $extra = array(
+            'ids' => $ids,
+        );
+
+        MainWP_Child_Posts::get_instance()->get_recent_posts_int( 'any', $limit, 'any', $allPosts, $extra );
+        return $allPosts;
+    }
+
+
+    /**
+     * Method get_recent_custom_posts_cached
+     *
+     * @return array Cached recent posts IDs.
+     */
+    public function get_recent_custom_posts_cached() {
+
+        $limit = get_option( 'mainwp_child_recent_custom_cpt_ids_limit', 20 );
+
+        $cache_key = sprintf( 'mainwp_child_recent_custom_cpt_ids_%d', $limit );
+        $group     = 'custom_posts';
+
+        $ids = wp_cache_get( $cache_key, $group );
+
+        if ( false !== $ids ) {
+            return $ids;
+        }
+
+        $ids = $this->get_custom_posts( $limit );
+
+        wp_cache_set( $cache_key, $ids, $group, 120 );
+
+        return $ids;
+    }
+
+    /**
+     * Method get_custom_posts
+     *
+     * @param  mixed $limit Limit get.
+     * @return array
+     */
+    public function get_custom_posts( $limit = 20 ) {
+
+        $post_types = get_post_types(
+            array(
+                '_builtin' => false,
+                'public'   => true,
+            )
+        );
+
+        if ( empty( $post_types ) ) {
+            return array();
+        }
+
+        return get_posts(
+            array(
+                'post_type'      => $post_types,
+                'post_status'    => array(
+                    'publish',
+                    'draft',
+                    'pending',
+                    'trash',
+                    'future',
+                ),
+                'posts_per_page' => $limit,
+                'fields'         => 'ids',
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+                'no_found_rows'  => true,
+            )
+        );
+    }
+
+    /**
+     * Method invalidate_recent_custom_posts_cache_safe.
+     *
+     * @param  mixed $post_id Post ID.
+     * @return void
+     */
+    public function invalidate_recent_custom_posts_cache_safe( $post_id ) {
+
+        if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+            return;
+        }
+
+        $limit = get_option( 'mainwp_child_recent_custom_cpt_ids_limit', 20 );
+
+        $cache_key = sprintf( 'mainwp_child_recent_custom_cpt_ids_%d', $limit );
+        $group     = 'custom_posts';
+
+        if ( get_post_type( $post_id ) && post_type_supports( get_post_type( $post_id ), 'editor' ) ) {
+            wp_cache_delete( $cache_key, $group );
+        }
     }
 }

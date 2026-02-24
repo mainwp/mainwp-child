@@ -17,6 +17,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_Child_Plugins_Check
  *
@@ -344,8 +349,7 @@ class MainWP_Child_Plugins_Check {
     private function try_get_response_body( $plugin, $second_pass ) { //phpcs:ignore -- NOSONAR - complex.
 
         // Get the WordPress current version to be polite in the API call.
-        include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
-
+        // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
         $wp_ver = MainWP_Child_Server_Information_Base::get_wordpress_version();
 
         // General options to be passed to wp_remote_get.

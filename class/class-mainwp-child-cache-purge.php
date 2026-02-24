@@ -9,6 +9,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class MainWP_Child_Cache_Purge
  *
@@ -31,6 +36,13 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      * @var mixed Default null
      */
     protected static $instance = null;
+
+    /**
+     * Public static variable to hold the Cloudflare API base URL.
+     *
+     * @var string Cloudflare API base URL.
+     */
+    public $api_base_url = 'https://api.cloudflare.com/client/v4';
 
     /**
      * Public static variable to hold the WP_Optimize class name.
@@ -85,7 +97,6 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         // ** Grab data synced from MainWP Dashboard & update options. **//
         if ( is_array( $data ) ) {
             try {
-
                 // Update mainwp_child_auto_purge_cache option value with either yes|no.
                 update_option( 'mainwp_child_auto_purge_cache', ( ! empty( $data['auto_purge_cache'] ) ? 1 : 0 ) );
 
@@ -108,6 +119,19 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                         delete_option( 'mainwp_cloudflair_key' );
                     }
                 }
+
+                // Update use cloudflare use token.
+                if ( isset( $data['mainwp_cloudflare_use_token'] ) ) {
+                    update_option( 'mainwp_child_cloudflare_use_token', ( $data['mainwp_cloudflare_use_token'] ? 1 : 0 ) );
+                }
+
+                // Update cloudflare bearer token.
+                $encrypted_token = '';
+                if ( isset( $data['mainwp_cloudflare_bearer_token'] ) && ! empty( $data['mainwp_cloudflare_bearer_token'] ) ) {
+                    $encrypted_token = MainWP_Child_Keys_Manager::instance()->encrypt_string( $data['mainwp_cloudflare_bearer_token'] );
+                }
+                update_option( 'mainwp_child_cloudflare_token', $encrypted_token );
+
             } catch ( MainWP_Exception $e ) {
                 error_log( $e->getMessage() ); // phpcs:ignore -- debug mode only.
             }
@@ -924,77 +948,83 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @noinspection PhpIdempotentOperationInspection
      *
-     * @return array Purge results array.
+     * @return mixed Purge results array.
      */
-    public function cloudflair_auto_purge_cache() {
+    public function cloudflair_auto_purge_cache() {  // phpcs:ignore -- NOSONAR - complex.
+        $use_token = (int) get_option( 'mainwp_child_cloudflare_use_token', 0 );
+        // Check if token is used or email & key.
+        if ( 0 === $use_token ) {
+            // Credentials for Cloudflare.
+            $cust_email = get_option( 'mainwp_cloudflair_email', '' );
+            $cust_xauth = get_option( 'mainwp_child_cloudflair_key', '' );
+            if ( ! empty( $cust_xauth ) ) {
+                $cust_xauth = MainWP_Child_Keys_Manager::instance()->decrypt_string( $cust_xauth );
+            }
 
-        // Credentials for Cloudflare.
-        $cust_email = get_option( 'mainwp_cloudflair_email', '' );
-        $cust_xauth = get_option( 'mainwp_child_cloudflair_key', '' );
-        if ( ! empty( $cust_xauth ) ) {
-            $cust_xauth = MainWP_Child_Keys_Manager::instance()->decrypt_string( $cust_xauth );
-        }
-        $cust_domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', get_option( 'siteurl' ) ), '/' );
+            // Check if we have all the required data.
+            if ( '' === $cust_email || '' === $cust_xauth ) {
+                return $this->purge_result( 'Cloudflare => No Email or Key Found.', 'ERROR' );
+            }
 
-        // Check if we have all the required data.
-        if ( '' === $cust_email || '' === $cust_xauth ) {
-            return array();
+            $header_auth = array(
+                'X-Auth-Email' => $cust_email,
+                'X-Auth-Key'   => $cust_xauth,
+            );
+        } else {
+            // Get bearer token.
+            $token = get_option( 'mainwp_child_cloudflare_token', '' );
+            if ( empty( $token ) ) {
+                return $this->purge_result( 'Cloudflare => No Token Found.', 'ERROR' );
+            }
+
+            $cust_token  = MainWP_Child_Keys_Manager::instance()->decrypt_string( $token );
+            $header_auth = array(
+                'Authorization' => 'Bearer ' . $cust_token,
+            );
         }
+
+        $headers = array_merge(
+            $header_auth,
+            array(
+                'Content-Type' => 'application/json',
+            )
+        );
 
         // Strip subdomains. Cloudflare doesn't like them.
-        $cust_domain = $this->strip_subdomains( $cust_domain );
+        $cust_domain = $this->get_clean_domain();
 
         // Get the Zone-ID from Cloudflare since they don't provide that in the Backend.
-        $ch_query = curl_init(); // phpcs:ignore -- use core function.
-        curl_setopt( $ch_query, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones?name=' . $cust_domain . '&status=active&page=1&per_page=5&order=status&direction=desc&match=all' ); // phpcs:ignore -- use core function.
-        curl_setopt( $ch_query, CURLOPT_RETURNTRANSFER, 1 ); // phpcs:ignore -- use core function.
-        $qheaders = array(
-            'X-Auth-Email: ' . $cust_email . '',
-            'X-Auth-Key: ' . $cust_xauth . '',
-            'Content-Type: application/json',
-        );
-        curl_setopt( $ch_query, CURLOPT_HTTPHEADER, $qheaders ); // phpcs:ignore -- use core function.
-        $qresult = json_decode( curl_exec( $ch_query ), true ); // phpcs:ignore -- use core function.
-        if ( 'resource' === gettype( $ch_query ) ) {
-            curl_close( $ch_query ); // phpcs:ignore -- use core function.
+        $cust_zone = $this->get_zone_id_by_domain( $cust_domain, $headers );
+        if ( is_wp_error( $cust_zone ) || empty( $cust_zone ) ) {
+            return $this->purge_result( 'Cloudflare => Get Zone ID failed.', 'ERROR' );
         }
-
-        $cust_zone = $qresult['result'][0]['id'];
 
         // Purge the entire cache via API.
-        $ch_purge = curl_init(); // phpcs:ignore -- use core function.
-        curl_setopt( $ch_purge, CURLOPT_URL, 'https://api.cloudflare.com/client/v4/zones/' . $cust_zone . '/purge_cache' ); // phpcs:ignore -- use core function.
-        curl_setopt( $ch_purge, CURLOPT_CUSTOMREQUEST, 'DELETE' ); // phpcs:ignore -- use core function.
-        curl_setopt( $ch_purge, CURLOPT_RETURNTRANSFER, 1 ); // phpcs:ignore -- use core function.
-        $headers = array(
-            'X-Auth-Email: ' . $cust_email,
-            'X-Auth-Key: ' . $cust_xauth,
-            'Content-Type: application/json',
+        $url      = $this->api_base_url . '/zones/' . $cust_zone . '/purge_cache';
+        $response = wp_remote_post(
+            $url,
+            array(
+                'method'  => 'POST',
+                'headers' => $headers,
+                'body'    => wp_json_encode( array( 'purge_everything' => true ) ),
+            )
         );
-        $data    = wp_json_encode( array( 'purge_everything' => true ) ); // phpcs:ignore -- ok.
-        curl_setopt( $ch_purge, CURLOPT_POST, true ); // phpcs:ignore -- use core function.
-        curl_setopt( $ch_purge, CURLOPT_POSTFIELDS, $data ); // phpcs:ignore -- use core function.
-        curl_setopt( $ch_purge, CURLOPT_HTTPHEADER, $headers ); // phpcs:ignore -- use core function.
 
-        $result = json_decode( curl_exec( $ch_purge ), true ); // phpcs:ignore -- use core function.
-        if ( 'resource' === gettype( $ch_purge ) ) {
-            curl_close( $ch_purge ); // phpcs:ignore -- use core function.
+        // Check for errors.
+        if ( is_wp_error( $response ) ) {
+            return $this->purge_result( 'Cloudflare => Purge Cache failed.', 'ERROR' );
         }
-        $success_message = 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-        $error_message   = 'Cloudflare => There was an issue purging the cache. ' . wp_json_encode( $qresult['errors'][0], JSON_UNESCAPED_SLASHES ) . "-" . wp_json_encode( $result['errors'][0], JSON_UNESCAPED_SLASHES ); // phpcs:ignore -- ok.
 
+        $body   = wp_remote_retrieve_body( $response );
+        $result = is_string( $body ) ? json_decode( $body, true ) : false;
+        // Check if success.
+        if ( ! is_array( $result ) || empty( $result['success'] ) ) {
+            $errors = isset( $result['errors'] ) ? wp_json_encode( $result['errors'], JSON_UNESCAPED_SLASHES ) : 'Unknown error';
+            return $this->purge_result( 'Cloudflare => There was an issue purging the cache. ' . $errors, 'ERROR' );
+        }
         // Save last purge time to database on success.
-        if ( 1 === (int) $result['success'] ) {
-
-            // record results.
-            update_option( 'mainwp_cache_control_last_purged', time() );
-
-            // Return success message.
-            return $this->purge_result( $success_message, 'SUCCESS' );
-        } elseif ( ( 1 !== (int) $qresult['success'] ) || ( 1 !== (int) $result['success'] ) ) {
-            // Return error message.
-            return $this->purge_result( $error_message, 'ERROR' );
-        }
+        update_option( 'mainwp_cache_control_last_purged', time() );
+        return $this->purge_result( 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')', 'SUCCESS' );
     }
 
     /**
@@ -1147,5 +1177,66 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function strip_subdomains( $url ) {
         return mainwp_get_main_domain( $url );
+    }
+
+    /**
+     * Get clean domain.
+     *
+     * @return string Clean domain
+     */
+    private function get_clean_domain() {
+        $site_url = get_option( 'siteurl', '' );
+
+        if ( empty( $site_url ) ) {
+            return '';
+        }
+
+        $domain = trim( str_replace( array( 'http://', 'https://', 'www.' ), '', $site_url ), '/' );
+
+        $domain = $this->strip_subdomains( $domain );
+
+        return $domain;
+    }
+
+    /**
+     * Get zone id by domain.
+     *
+     * @param string $cust_domain string The domain to get the zone id for.
+     * @param array  $headers     array   The headers to use for the request.
+     *
+     * @return string|\WP_Error The zone id or a WP_Error object.
+     */
+    private function get_zone_id_by_domain( $cust_domain, $headers ) {
+        $query_params = array(
+            'name'      => $cust_domain,
+            'status'    => 'active',
+            'page'      => 1,
+            'per_page'  => 5,
+            'order'     => 'status',
+            'direction' => 'desc',
+            'match'     => 'all',
+        );
+
+        $url      = $this->api_base_url . '/zones?' . http_build_query( $query_params );
+        $response = wp_remote_get(
+            $url,
+            array(
+                'headers'   => $headers,
+                'timeout'   => 60,
+                'sslverify' => true,
+            )
+        );
+
+        if ( is_wp_error( $response ) ) {
+            return new \WP_Error( 'cloudflare_get_zone_id_error', esc_html__( 'Failed to get zone id.', 'mainwp-child' ) );
+        }
+        $body      = wp_remote_retrieve_body( $response );
+        $zone_data = is_string( $body ) ? json_decode( $body, true ) : false;
+        $cust_zone = ! empty( $zone_data['result'][0]['id'] ) ? $zone_data['result'][0]['id'] : '';
+        if ( empty( $cust_zone ) ) {
+            return new \WP_Error( 'cloudflare_get_zone_id_error', esc_html__( 'Zone id not found.', 'mainwp-child' ) );
+        }
+
+        return $cust_zone;
     }
 }

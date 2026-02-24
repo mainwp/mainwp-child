@@ -10,6 +10,11 @@
 
 namespace MainWP\Child;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // phpcs:disable WordPress.WP.AlternativeFunctions -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
@@ -190,6 +195,14 @@ class MainWP_Child_Maintenance {
             $performed_what[] = 'optimize'; // 'Database optimized'.
         }
 
+        if ( in_array( 'transients_all', $maint_options ) ) {
+            $this->maintenance_delete_all_transients();
+            $performed_what[] = 'transients_all';
+        } elseif ( in_array( 'transients_expired', $maint_options ) ) {
+            $this->maintenance_delete_expired_transients();
+            $performed_what[] = 'transients_expired';
+        }
+
         if ( ! empty( $performed_what ) && has_action( 'mainwp_reports_maintenance' ) ) {
             $details  = implode( ',', $performed_what );
             $log_time = time();
@@ -318,6 +331,145 @@ class MainWP_Child_Maintenance {
                     MainWP_Child_DB::to_query( $sql, $wpdb->dbh );
                 }
             }
+        }
+    }
+
+    /**
+     * Method maintenance_delete_expired_transients()
+     *
+     * Delete expired transients and site transients.
+     *
+     * @used-by MainWP_Child_Maintenance::maintenance_db()
+     */
+    private function maintenance_delete_expired_transients() {
+
+        /**
+         * WordPress Database instance.
+         *
+         * @global object $wpdb
+         */
+        global $wpdb;
+
+        $now = time();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches transient keys for cleanup; not reused or cacheable.
+        $expired_transients = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT option_name FROM $wpdb->options WHERE option_name LIKE %s AND option_value < %d",
+                $wpdb->esc_like( '_transient_timeout_' ) . '%',
+                $now
+            )
+        );
+
+        if ( ! empty( $expired_transients ) ) {
+            foreach ( $expired_transients as $option_name ) {
+                $transient = str_replace( '_transient_timeout_', '', $option_name );
+                delete_transient( $transient );
+            }
+        }
+
+        if ( is_multisite() ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches site transient keys for cleanup; not reused or cacheable.
+            $expired_site_transients = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT meta_key FROM $wpdb->sitemeta WHERE meta_key LIKE %s AND meta_value < %d",
+                    $wpdb->esc_like( '_site_transient_timeout_' ) . '%',
+                    $now
+                )
+            );
+        } else {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches site transient keys for cleanup; not reused or cacheable.
+            $expired_site_transients = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT option_name FROM $wpdb->options WHERE option_name LIKE %s AND option_value < %d",
+                    $wpdb->esc_like( '_site_transient_timeout_' ) . '%',
+                    $now
+                )
+            );
+        }
+
+        if ( ! empty( $expired_site_transients ) ) {
+            foreach ( $expired_site_transients as $option_name ) {
+                $transient = str_replace( '_site_transient_timeout_', '', $option_name );
+                delete_site_transient( $transient );
+            }
+        }
+    }
+
+    /**
+     * Method maintenance_delete_all_transients()
+     *
+     * Delete all transients and site transients.
+     *
+     * @used-by MainWP_Child_Maintenance::maintenance_db()
+     */
+    private function maintenance_delete_all_transients() { //phpcs:ignore --NOSONAR -complex.
+
+        /**
+         * WordPress Database instance.
+         *
+         * @global object $wpdb
+         */
+        global $wpdb;
+
+        $transients = array();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches transient keys for cleanup; not reused or cacheable.
+        $transient_names = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT option_name FROM $wpdb->options WHERE option_name LIKE %s",
+                $wpdb->esc_like( '_transient_' ) . '%'
+            )
+        );
+
+        if ( ! empty( $transient_names ) ) {
+            foreach ( $transient_names as $option_name ) {
+                if ( strpos( $option_name, '_transient_timeout_' ) === 0 ) {
+                    $transients[] = str_replace( '_transient_timeout_', '', $option_name );
+                } else {
+                    $transients[] = str_replace( '_transient_', '', $option_name );
+                }
+            }
+        }
+
+        $transients = array_unique( array_filter( $transients ) );
+        foreach ( $transients as $transient ) {
+            delete_transient( $transient );
+        }
+
+        $site_transients = array();
+
+        if ( is_multisite() ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches site transient keys for cleanup; not reused or cacheable.
+            $site_names = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT meta_key FROM $wpdb->sitemeta WHERE meta_key LIKE %s",
+                    $wpdb->esc_like( '_site_transient_' ) . '%'
+                )
+            );
+        } else {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fetches site transient keys for cleanup; not reused or cacheable.
+            $site_names = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT option_name FROM $wpdb->options WHERE option_name LIKE %s",
+                    $wpdb->esc_like( '_site_transient_' ) . '%'
+                )
+            );
+        }
+
+        if ( ! empty( $site_names ) ) {
+            foreach ( $site_names as $option_name ) {
+                if ( strpos( $option_name, '_site_transient_timeout_' ) === 0 ) {
+                    $site_transients[] = str_replace( '_site_transient_timeout_', '', $option_name );
+                } else {
+                    $site_transients[] = str_replace( '_site_transient_', '', $option_name );
+                }
+            }
+        }
+
+        $site_transients = array_unique( array_filter( $site_transients ) );
+        foreach ( $site_transients as $transient ) {
+            delete_site_transient( $transient );
         }
     }
 
