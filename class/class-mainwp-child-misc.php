@@ -425,7 +425,7 @@ class MainWP_Child_Misc {
             $dir  = ABSPATH . $path;
         }
 
-        if ( ! file_exists( $dir ) && false === mkdir( $dir, 0777, true ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+        if ( ! file_exists( $dir ) && false === MainWP_Helper::mkdir( $dir, 0777, true ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions -- NOSONAR -- it works.
             $information['error'] = 'ERRORCREATEDIR';
             MainWP_Helper::write( $information );
             return;
