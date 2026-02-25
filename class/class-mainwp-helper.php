@@ -242,7 +242,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             global $wp_filesystem;
             return $wp_filesystem->mkdir( $file, $fs_mode );
         } else {
-            return mkdir( $file, $fs_mode, $recursive );// phpcs:ignore WordPress.WP.AlternativeFunctions
+            return mkdir( $file, $fs_mode, $recursive );// phpcs:ignore WordPress.WP.AlternativeFunctions -- NOSONAR -compatible fallback.
         }
     }
 
