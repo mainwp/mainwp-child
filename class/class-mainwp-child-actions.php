@@ -521,6 +521,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         }
 
         $this->save_actions(
+            // translators: 1: Plugin name, 2: Single site or network wide.
             _x(
                 '"%1$s" plugin activated %2$s',
                 '1: Plugin name, 2: Single site or network wide',
@@ -544,6 +545,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $network_wide = $network_wide ? esc_html__( 'network wide', 'mainwp-child' ) : null;
 
         $this->save_actions(
+            // translators: 1: Plugin name, 2: Single site or network wide.
             _x(
                 '"%1$s" plugin deactivated %2$s',
                 '1: Plugin name, 2: Single site or network wide',
@@ -564,6 +566,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     public function callback_switch_theme( $name, $theme ) {
         unset( $theme );
         $this->save_actions(
+            // translators: %s: Theme name.
             esc_html__( '"%s" theme activated', 'mainwp-child' ),
             compact( 'name' ),
             'themes',
@@ -595,6 +598,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         // @devtodo Can we get the name of the theme? Or has it already been eliminated
 
         $this->save_actions(
+            // translators: %s: Theme name.
             esc_html__( '"%s" theme deleted', 'mainwp-child' ),
             compact( 'name' ),
             'themes',
@@ -642,6 +646,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                     $slug         = $plugin;
 
                     $this->save_actions(
+                        // translators: %s: Plugin name.
                         esc_html__( '"%s" plugin deleted', 'mainwp-child' ),
                         compact( 'name', 'plugin', 'network_wide', 'slug' ),
                         'plugins',
@@ -676,6 +681,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         $new_version  = $info->item->version;
         $auto_updated = true;
 
+        // translators: %s: WordPress version number.
         $message = esc_html__( 'WordPress auto-updated to %s', 'mainwp-child' );
 
         $this->save_actions(

@@ -469,7 +469,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         </tr>
         <tr>
             <td></td>
-            <td><?php echo esc_html( stripslashes( $branding_title ) ) . ' ' . esc_html__( 'Version', 'mainwp-chil' ); ?></td>
+            <td><?php echo esc_html( stripslashes( $branding_title ) ) . ' ' . esc_html__( 'Version', 'mainwp-child' ); ?></td>
             <td><?php echo esc_html( static::get_mainwp_version() ); ?></td>
             <td><?php echo esc_html( static::get_current_version() ); ?></td>
             <td><?php static::render_mainwp_version_check(); ?></td>
@@ -568,7 +568,8 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
             <?php
 
             if ( ! static::curlssl_compare( $openssl_version, '>=' ) ) {
-                echo "<tr style=\"background:#fffaf3\"><td colspan='5'><span class=\"mainwp-warning\"><i class='fa fa-exclamation-circle'>" . sprintf( esc_html__( 'Your host needs to update OpenSSL to at least version 1.1.0 which is already over 4 years old and contains patches for over 60 vulnerabilities.%1$sThese range from Denial of Service to Remote Code Execution. %2$sClick here for more information.%3$s', 'mainwp' ), '<br/>', '<a href="https://community.letsencrypt.org/t/openssl-client-compatibility-changes-for-let-s-encrypt-certificates/143816" target="_blank">', '</a>' ) . '</span></td></tr>';
+                // translators: 1: Break tag, 2: Opening link tag, 3: Closing link tag.
+                echo "<tr style=\"background:#fffaf3\"><td colspan='5'><span class=\"mainwp-warning\"><i class='fa fa-exclamation-circle'>" . sprintf( esc_html__( 'Your host needs to update OpenSSL to at least version 1.1.0 which is already over 4 years old and contains patches for over 60 vulnerabilities.%1$sThese range from Denial of Service to Remote Code Execution. %2$sClick here for more information.%3$s', 'mainwp-child' ), '<br/>', '<a href="https://community.letsencrypt.org/t/openssl-client-compatibility-changes-for-let-s-encrypt-certificates/143816" target="_blank">', '</a>' ) . '</span></td></tr>';
             }
         }
         // phpcs:enable
@@ -1267,6 +1268,7 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
             'uniqueid'      => array(
                 'title' => esc_html__( 'Child unique security id', 'mainwp-child' ),
                 'value' => ! empty( $uniqueId ) ? $uniqueId : esc_html__( 'Leave the field blank', 'mainwp-child' ),
+                // translators: %s: Whitelabeled name.
                 'desc'  => sprintf( esc_html__( 'Child unique security id is not required, however, since you have enabled it, you need to add it to your %s dashboard.', 'mainwp-child' ), stripslashes( $branding_title ) ),
             ),
             'verify_ssl'    => array(
@@ -1285,7 +1287,13 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         ?>
         <div class="connection-detail-info" id="connection_detail">
             <h3><?php esc_html_e( 'Connection details', 'mainwp-child' ); ?></h3>
-            <p><?php printf( esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) ); ?></p>
+            <p>
+                <?php printf( 
+                // translators: %s: Whitelabeled name.
+                esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), 
+                esc_html( stripslashes( $branding_title ) ) ); 
+                ?>
+            </p>
             <table class="wp-list-table widefat" style="border: 0;border-spacing:0;">
                 <tbody>
                     <?php

@@ -892,6 +892,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function backup_wp() {
         if ( ! version_compare( phpversion(), '5.3', '>=' ) ) {
+            // translators: %s: PHP Version number.
             $error = sprintf( esc_html__( 'PHP Version %s is unsupported.', 'mainwp-child' ), phpversion() );
             MainWP_Helper::write( array( 'error' => $error ) );
         }

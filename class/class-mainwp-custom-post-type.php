@@ -73,7 +73,7 @@ class MainWP_Custom_Post_Type {
     /**
      * Sync other data from $data[] and merge with $information[]
      *
-     * @param array $information Returned response array for MainWP BackWPup Extension actions.
+     * @param array $information Returned response array for MainWP CPT Extension actions.
      * @param array $data Other data to sync to $information array.
      *
      * @return array $information Returned information array with both sets of data.
@@ -205,7 +205,7 @@ class MainWP_Custom_Post_Type {
 
         // phpcs:disable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         if ( ! isset( $_POST['data'] ) || ( is_string( $_POST['data'] ) && strlen( wp_unslash( $_POST['data'] ) ) < 2 ) ) {
-            return array( 'error' => esc_html__( 'Missing data', $this->plugin_translate ) );
+            return array( 'error' => esc_html__( 'Missing data', 'mainwp-child' ) );
         }
         $data = array();
         if ( is_string( $_POST['data'] ) ) { // to compatible.
@@ -216,7 +216,7 @@ class MainWP_Custom_Post_Type {
         }
 
         if ( empty( $data ) || ! is_array( $data ) || ! isset( $data['post'] ) ) {
-            return array( 'error' => esc_html__( 'Cannot decode data', $this->plugin_translate ) );
+            return array( 'error' => esc_html__( 'Cannot decode data', 'mainwp-child' ) );
         }
         $edit_id = ( isset( $_POST['post_id'] ) && ! empty( $_POST['post_id'] ) ) ? intval( wp_unslash( $_POST['post_id'] ) ) : 0;
         // phpcs:enable
@@ -329,7 +329,7 @@ class MainWP_Custom_Post_Type {
 
         foreach ( $data_keys as $key ) {
             if ( ! isset( $data_post[ $key ] ) ) {
-                return array( 'error' => _( 'Missing', $this->plugin_translate ) . ' ' . $key . ' ' . esc_html__( 'inside post data', $this->plugin_translate ) );
+                return array( 'error' => __( 'Missing', 'mainwp-child' ) . ' ' . $key . ' ' . esc_html__( 'inside post data', 'mainwp-child' ) );
             }
 
             if ( 'post_title' === $key ) {
@@ -342,7 +342,7 @@ class MainWP_Custom_Post_Type {
         }
 
         if ( ! in_array( $data_insert['post_type'], get_post_types( array( '_builtin' => false ) ) ) ) {
-            return array( 'error' => esc_html__( 'Please install', $this->plugin_translate ) . ' ' . $data_insert['post_type'] . ' ' . esc_html__( 'on child and try again', $this->plugin_translate ) );
+            return array( 'error' => esc_html__( 'Please install', 'mainwp-child' ) . ' ' . $data_insert['post_type'] . ' ' . esc_html__( 'on child and try again', 'mainwp-child' ) );
         }
 
         $is_woocomerce = false;
@@ -358,12 +358,12 @@ class MainWP_Custom_Post_Type {
             if ( is_null( $old_post ) ) {
                 return array(
                     'delete_connection' => 1,
-                    'error'             => esc_html__( 'Cannot get old post. Probably is deleted now. Please try again for create new post', $this->plugin_translate ),
+                    'error'             => esc_html__( 'Cannot get old post. Probably is deleted now. Please try again for create new post', 'mainwp-child' ),
                 );
             }
 
             if ( get_post_status( $old_post_id ) === 'trash' ) {
-                return array( 'error' => esc_html__( 'This post is inside trash on child website. Please try publish it manually and try again.', $this->plugin_translate ) );
+                return array( 'error' => esc_html__( 'This post is inside trash on child website. Please try publish it manually and try again.', 'mainwp-child' ) );
             }
             $check_image_existed = true;
             $data_insert['ID']   = $old_post_id;
@@ -372,7 +372,7 @@ class MainWP_Custom_Post_Type {
             // Get all unique meta_key.
             foreach ( get_post_meta( $old_post_id ) as $temp_meta_key => $temp_meta_val ) {
                 if ( ! delete_post_meta( $old_post_id, $temp_meta_key ) ) {
-                    return array( 'error' => esc_html__( 'Cannot delete old post meta values', $this->plugin_translate ) );
+                    return array( 'error' => esc_html__( 'Cannot delete old post meta values', 'mainwp-child' ) );
                 }
             }
 
@@ -393,7 +393,7 @@ class MainWP_Custom_Post_Type {
         }
 
         if ( is_wp_error( $post_id ) ) {
-            return array( 'error' => esc_html__( 'Error when insert new post:', $this->plugin_translate ) . ' ' . $post_id->get_error_message() );
+            return array( 'error' => esc_html__( 'Error when insert new post:', 'mainwp-child' ) . ' ' . $post_id->get_error_message() );
         }
 
         // Insert post meta.
@@ -538,7 +538,7 @@ class MainWP_Custom_Post_Type {
         if ( ! empty( $data['terms'] ) && is_array( $data['terms'] ) ) {
             foreach ( $data['terms'] as $key ) {
                 if ( ! taxonomy_exists( $key['taxonomy'] ) ) {
-                    return array( 'error' => esc_html__( 'Missing taxonomy', $this->plugin_translate ) . ' `' . esc_html( $key['taxonomy'] ) . '`' );
+                    return array( 'error' => esc_html__( 'Missing taxonomy', 'mainwp-child' ) . ' `' . esc_html( $key['taxonomy'] ) . '`' );
                 }
 
                 $term = wp_insert_term(
@@ -563,7 +563,7 @@ class MainWP_Custom_Post_Type {
                 if ( $term_taxonomy_id > 0 ) {
                     $term_taxonomy_ids = wp_set_object_terms( $post_id, $term_taxonomy_id, $key['taxonomy'], true );
                     if ( is_wp_error( $term_taxonomy_ids ) ) {
-                        return array( 'error' => esc_html__( 'Error when adding taxonomy to post', $this->plugin_translate ) );
+                        return array( 'error' => esc_html__( 'Error when adding taxonomy to post', 'mainwp-child' ) );
                     }
                 }
             }
@@ -637,7 +637,7 @@ class MainWP_Custom_Post_Type {
                 $meta_value = $key['meta_value'];
                 if ( $is_woocomerce ) {
                     if ( '_sku' === $key['meta_key'] && ! wc_product_has_unique_sku( $post_id, $meta_value ) ) {
-                        return array( 'error' => esc_html__( 'Product SKU must be unique', $this->plugin_translate ) );
+                        return array( 'error' => esc_html__( 'Product SKU must be unique', 'mainwp-child' ) );
                     }
                     if ( '_product_image_gallery' === $key['meta_key'] ) {
                         if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {
@@ -659,7 +659,7 @@ class MainWP_Custom_Post_Type {
                             if ( null !== $upload_featured_image ) {
                                 $meta_value = $upload_featured_image['id'];
                             } else {
-                                return array( 'error' => esc_html__( 'Cannot add featured image', $this->plugin_translate ) );
+                                return array( 'error' => esc_html__( 'Cannot add featured image', 'mainwp-child' ) );
                             }
                         } catch ( MainWP_Exception $e ) {
                             continue;
@@ -671,7 +671,7 @@ class MainWP_Custom_Post_Type {
 
                 $meta_value = maybe_unserialize( $meta_value ); // NOSONARR .
                 if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
-                    return array( 'error' => esc_html__( 'Error when adding post meta', $this->plugin_translate ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
+                    return array( 'error' => esc_html__( 'Error when adding post meta', 'mainwp-child' ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
                 }
             }
         }
@@ -700,7 +700,7 @@ class MainWP_Custom_Post_Type {
                 if ( null !== $upload_featured_image ) {
                     $product_image_gallery[] = $upload_featured_image['id'];
                 } else {
-                    return array( 'error' => esc_html__( 'Cannot add product image', $this->plugin_translate ) );
+                    return array( 'error' => esc_html__( 'Cannot add product image', 'mainwp-child' ) );
                 }
             } catch ( MainWP_Exception $e ) {
                 continue;

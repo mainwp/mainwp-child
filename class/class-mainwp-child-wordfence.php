@@ -551,7 +551,7 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
     public function action() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         $information = array();
         if ( ! $this->is_wordfence_installed ) {
-            MainWP_Helper::write( array( 'error' => esc_html__( 'Please install the Wordfence plugin on the child site.', $this->plugin_translate ) ) );
+            MainWP_Helper::write( array( 'error' => esc_html__( 'Please install the Wordfence plugin on the child site.', 'mainwp-child' ) ) );
             return;
         }
 

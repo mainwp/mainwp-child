@@ -415,7 +415,7 @@ class Changes_Helper {
      * Checks if we are currently on the login screen.
      */
     public static function is_login_screen() {
-        $login = parse_url( site_url( 'wp-login.php' ), PHP_URL_PATH ) === parse_url( \wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $login = wp_parse_url( site_url( 'wp-login.php' ), PHP_URL_PATH ) === wp_parse_url( \wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         return \apply_filters( 'mainwp_child_changes_logs_login_screen_url', $login );
     }
 
@@ -424,7 +424,7 @@ class Changes_Helper {
      */
     public static function is_login_page() {
 
-        $login = parse_url( site_url( 'wp-login.php' ), PHP_URL_PATH ) === parse_url( \wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $login = wp_parse_url( site_url( 'wp-login.php' ), PHP_URL_PATH ) === wp_parse_url( \wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
         return \apply_filters( 'mainwp_child_changes_logs_login_page', $login );
     }

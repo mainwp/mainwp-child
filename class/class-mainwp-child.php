@@ -82,6 +82,8 @@ class MainWP_Child {
      * Only registers the absolute minimum hooks needed for frontend functionality.
      */
     public function init_frontend_only() {
+        $this->localization();
+
         // Register only essential hooks for frontend.
         $this->register_essential_hooks();
 
@@ -101,6 +103,8 @@ class MainWP_Child {
      * Loads all required functionality for the MainWP Child plugin.
      */
     public function init_full() {
+        $this->localization();
+
         // Load options early so they're available to all components.
         $this->load_all_options();
 
@@ -243,7 +247,6 @@ class MainWP_Child {
         add_action( 'activated_plugin', array( $this, 'hook_activated_plugin' ) );
         add_action( 'init', array( $this, 'init_check_login' ), 1 );
         add_action( 'init', array( $this, 'parse_init' ), 9999 );
-        add_action( 'init', array( $this, 'localization' ), 33 );
         add_action( 'init', array( $this, 'init_hooks' ), 9 );
         add_action( 'admin_init', array( $this, 'admin_init' ) );
         add_action( 'plugin_action_links_mainwp-child/mainwp-child.php', array( $this, 'plugin_settings_link' ) );
@@ -396,6 +399,7 @@ class MainWP_Child {
      * Load the MainWP Child plugin textdomains.
      */
     public function localization() {
+        // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Required for locally bundled translations on WP < 6.5.
         load_plugin_textdomain( 'mainwp-child', false, dirname( dirname( plugin_basename( __FILE__ ) ) ) . '/languages/' );
     }
 

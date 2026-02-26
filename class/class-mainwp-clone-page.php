@@ -381,6 +381,7 @@ class MainWP_Clone_Page {
             $dirparts = '<a href="' . esc_url( $durl ) . '">' . $part . DIRECTORY_SEPARATOR . '</a>' . $dirparts;
         }
 
+        // translators: 1: Opening strong tag, 2: Closing strong tag, 3: Current directory path.
         echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . sprintf( esc_html__( '%1$sCurrent Directory:%2$s %3$s', 'mainwp-child' ), '<strong>', '</strong>', '<span>' . $dirparts . '</span>' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
         $quick_dirs   = array();
         $quick_dirs[] = array( esc_html__( 'Site Root', 'mainwp-child' ), ABSPATH );
@@ -589,10 +590,10 @@ class MainWP_Clone_Page {
             };
 
             var translations = [];
-            translations['large_site'] = "<?php esc_html_e( 'This is a large site (%dMB), the restore process will more than likely fail.', 'mainwp-child' ); ?>";
+            translations['large_site'] = "<?php /* translators: %d: Site size in MB. */ esc_html_e( 'This is a large site (%dMB), the restore process will more than likely fail.', 'mainwp-child' ); ?>";
             translations['continue_anyway'] = "<?php esc_html_e( 'Continue Anyway?', 'mainwp-child' ); ?>";
-            translations['creating_backup'] = "<?php esc_html_e( 'Creating backup on %1$s expected size: %2$dMB (estimated time: %3$d seconds)', 'mainwp-child' ); ?>";
-            translations['backup_created'] = "<?php esc_html_e( 'Backup created on %1$s total size to download: %2$dMB', 'mainwp-child' ); ?>";
+            translations['creating_backup'] = "<?php /* translators: 1: Site name, 2: Expected size in MB, 3: Estimated time in seconds. */ esc_html_e( 'Creating backup on %1$s expected size: %2$dMB (estimated time: %3$d seconds)', 'mainwp-child' ); ?>";
+            translations['backup_created'] = "<?php /* translators: 1: Site name, 2: Total size in MB. */ esc_html_e( 'Backup created on %1$s total size to download: %2$dMB', 'mainwp-child' ); ?>";
             translations['downloading_backup'] = "<?php esc_html_e( 'Downloading backup', 'mainwp-child' ); ?>";
             translations['backup_downloaded'] = "<?php esc_html_e( 'Backup downloaded', 'mainwp-child' ); ?>";
             translations['extracting_backup'] = "<?php esc_html_e( 'Extracting backup and updating your database, this might take a while. Please be patient.', 'mainwp-child' ); ?>";

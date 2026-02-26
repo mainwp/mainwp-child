@@ -649,7 +649,7 @@ class MainWP_Child_WP_Rocket {//phpcs:ignore -- NOSONAR - multi methods.
 
         // Check if the WP Rocket plugin is installed on the child website.
         if ( ! $this->is_plugin_installed ) {
-            MainWP_Helper::write( array( 'error' => esc_html__( 'Please install WP Rocket plugin on child website', $this->plugin_translate ) ) );
+            MainWP_Helper::write( array( 'error' => esc_html__( 'Please install WP Rocket plugin on child website', 'mainwp-child' ) ) );
             return;
         }
 

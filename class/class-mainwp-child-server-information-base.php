@@ -739,14 +739,17 @@ class MainWP_Child_Server_Information_Base { //phpcs:ignore -- NOSONAR - multi m
         $response    = wp_remote_post( $url, $args );
         $test_result = '';
         if ( is_wp_error( $response ) ) {
+            // translators: %s: error message.
             $test_result .= sprintf( esc_html__( 'The HTTP response test get an error "%s"', 'mainwp-child' ), $response->get_error_message() );
         }
         $response_code = wp_remote_retrieve_response_code( $response );
         if ( $response_code < 200 && $response_code > 204 ) {
+            // translators: %s: HTTP status code.
             $test_result .= sprintf( esc_html__( 'The HTTP response test get a false http status (%s)', 'mainwp-child' ), wp_remote_retrieve_response_code( $response ) );
         } else {
             $response_body = wp_remote_retrieve_body( $response );
             if ( false === strstr( $response_body, 'MainWP Test' ) ) {
+                // translators: %s: response body content.
                 $test_result .= sprintf( esc_html__( 'Not expected HTTP response body: %s', 'mainwp-child' ), esc_attr( wp_strip_all_tags( $response_body ) ) );
             }
         }

@@ -745,12 +745,12 @@ class Changes_Logs_DB_Log {
             $sql .= ' LIMIT ' . $order;
         }
 
-        $biggest_id = (int) $this->db->wpdb->get_var( $this->db->wpdb->prepare( $sql, reset( $condition ) ) );
+        $biggest_id = (int) $this->db->wpdb->get_var( $this->db->wpdb->prepare( $sql, reset( $condition ) ) ); //phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is dynamically built with conditional clauses; all user-supplied values are passed as separate arguments to prepare(), not interpolated into the query string.
 
         if ( $biggest_id > 0 ) {
             $delete_meta = 'DELETE FROM ' . static::table_name( 'changes_meta' ) . ' WHERE log_id <= %s';
 
-            $this->db->wpdb->query( $this->db->wpdb->prepare( $delete_meta, array( $biggest_id ) ) );
+            $this->db->wpdb->query( $this->db->wpdb->prepare( $delete_meta, array( $biggest_id ) ) ); //phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL string contains a %s placeholder; sniff cannot resolve the variable reference, but the query is fully prepared with a cast integer value.
 
             $delete_log = 'DELETE FROM ' . static::table_name( 'changes_logs' ) . ' WHERE 1 ';
 
@@ -765,7 +765,7 @@ class Changes_Logs_DB_Log {
             if ( ! empty( $limit ) ) {
                 $delete_log .= ' LIMIT ' . $order;
             }
-            return $this->db->wpdb->query( $this->db->wpdb->prepare( $delete_log, array( reset( $condition ) ) ) );
+            return $this->db->wpdb->query( $this->db->wpdb->prepare( $delete_log, array( reset( $condition ) ) ) ); //phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is dynamically built with conditional clauses; all user-supplied values are passed as separate arguments to prepare(), not interpolated into the query string.
         }
         return false;
     }
