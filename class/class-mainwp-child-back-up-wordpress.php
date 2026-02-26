@@ -848,7 +848,7 @@ class MainWP_Child_Back_Up_WordPress {
                         <?php elseif ( defined( 'HMBKP_EXCLUDE' ) && false !== strpos( HMBKP_EXCLUDE, $exclude ) ) : ?>
                             <?php esc_html_e( 'Defined in wp-config.php', 'mainwp-child' ); ?>
                         <?php else : ?>
-                            <a href="#" onclick="event.preventDefault(); mainwp_backupwp_remove_exclude_rule('<?php esc_attr( $exclude ); ?>', this);" class="delete-action"><?php esc_html_e( 'Stop excluding', 'mainwp-child' ); ?></a>
+                            <a href="#" onclick="event.preventDefault(); mainwp_backupwp_remove_exclude_rule('<?php esc_js( $exclude ); ?>', this);" class="delete-action"><?php esc_html_e( 'Stop excluding', 'mainwp-child' ); ?></a>
                         <?php endif; ?>
                     </td>
                 </tr>

@@ -692,17 +692,16 @@ class MainWP_Pages {
                 <h3><?php esc_html_e( 'Password Authentication - Initial Connection Security', 'mainwp-child' ); ?></h3>
                 <hr/>
             </header>
-            <?php
+            <p><?php
             // translators: 1: Branding title, 2: Branding title, 3: Branding title.
-            printf( esc_html__( '<p>%1$s requests that you connect using an admin account and password for the initial setup. Rest assured, your password is never stored by your Dashboard and never sent to %2$s.com. Once this initial connection is complete, your %3$s Dashboard generates a secure Public and Private key pair (2048 bits) using OpenSSL, allowing future connections without needing your password again. For added security, you can even change this admin password once connected just be sure not to delete the admin account, as this would disrupt the connection.</p>', 'mainwp-child' ), esc_html( $branding_title ), esc_html( $branding_title ), esc_html( $branding_title ) );
-            ?>
+            printf( esc_html__( '%1$s requests that you connect using an admin account and password for the initial setup. Rest assured, your password is never stored by your Dashboard and never sent to %2$s.com. Once this initial connection is complete, your %3$s Dashboard generates a secure Public and Private key pair (2048 bits) using OpenSSL, allowing future connections without needing your password again. For added security, you can even change this admin password once connected just be sure not to delete the admin account, as this would disrupt the connection.', 'mainwp-child' ), esc_html( $branding_title ), esc_html( $branding_title ), esc_html( $branding_title ) ); ?></p>
             <h4><strong><?php
             // translators: %s: Branding title.
             printf( esc_html__( 'Dedicated %s Admin Account', 'mainwp-child' ), esc_html( $branding_title ) );
             ?></strong></h4>
             <p><?php
             // translators: 1: Branding title, 2: Branding title, 3: Branding title.
-            printf( esc_html__( 'For further security, we recommend creating a dedicated admin account specifically for %1$s. This \'%1$s Admin\' account can be used exclusively by %1$s, allowing you to easily track any actions performed by the plugin. To set this up, go to Users to create the account, then return to your Dashboard to connect it.', 'mainwp-child' ), esc_html( $branding_title ) );
+            printf( esc_html__( 'For further security, we recommend creating a dedicated admin account specifically for %1$s. This \'%2$s Admin\' account can be used exclusively by %3$s, allowing you to easily track any actions performed by the plugin. To set this up, go to Users to create the account, then return to your Dashboard to connect it.', 'mainwp-child' ), esc_html( $branding_title ), esc_html( $branding_title ), esc_html( $branding_title ) );
             ?></p>
             <h4><strong><?php esc_html_e( 'Disabling Password Security', 'mainwp-child' ); ?></strong></h4>
             <p><?php esc_html_e( 'If you prefer not to use password security, you can disable it by unchecking the box below. Make sure this child site is ready to connect before turning off this feature.', 'mainwp-child' ); ?></p>
