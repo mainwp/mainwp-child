@@ -477,42 +477,6 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
 
         add_filter( 'map_meta_cap', array( $this, 'branding_map_meta_cap' ), 10, 5 );
 
-        if ( 'T' === $opts['disable_change'] && ! MainWP_Helper::is_dashboard_request() ) { // phpcs:ignore WordPress.Security.NonceVerification
-
-            // Disable the WordPress plugin update notifications.
-            remove_action( 'load-update-core.php', 'wp_update_plugins' );
-            add_filter( 'pre_site_transient_update_plugins', '__return_null' );
-
-            // Disable the WordPress theme update notifications.
-            remove_action( 'load-update-core.php', 'wp_update_themes' );
-            add_filter(
-                'pre_site_transient_update_themes',
-                function () {
-                    return null;
-                }
-            );
-
-            /**
-             * Disable the WordPress core update notifications.
-             *
-             * @uses MainWP_Child_Branding_Render::get_class_name()
-             */
-            function remove_core_updates() {
-                add_action(
-                    'init',
-                    function () {
-                        remove_action( 'wp_version_check', 'wp_version_check' );
-                    },
-                    2
-                );
-                add_filter( 'pre_option_update_core', '__return_null' );
-                add_filter( 'pre_site_transient_update_core', '__return_null' );
-            } add_action( 'after_setup_theme', 'remove_core_updates' );
-
-            add_action( 'admin_head', array( MainWP_Child_Branding_Render::get_class_name(), 'admin_head_hide_elements' ), 15 );
-            add_action( 'admin_menu', array( $this, 'branding_redirect' ), 9 );
-        }
-
         add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 
         if ( ! isset( $opts['disable_wp_branding'] ) || 'Y' !== $opts['disable_wp_branding'] ) {
