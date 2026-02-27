@@ -68,7 +68,7 @@ class Changes_Handle_WP_Widgets {
                 $sidebars[ $key ] = $sb;
             }
             $current_sidebars = $sidebars;
-            $db_sidebars      = get_option( 'sidebars_widgets' );
+            $db_sidebars      = get_option( 'sidebars_widgets', array() );
             $widget_name      = '';
             $current_sidebar  = '';
             $new_sidebar      = '';
@@ -134,7 +134,7 @@ class Changes_Handle_WP_Widgets {
             }
 
             if ( $request_sidebars ) {
-                $sidebar_widgets = \wp_get_sidebars_widgets();
+                $sidebar_widgets = get_option( 'sidebars_widgets', array() );
                 global $wp_registered_sidebars;
 
                 foreach ( $request_sidebars as $sidebar_name => $widgets ) {

@@ -557,7 +557,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      * @return string Post type label
      */
     public function get_post_type_name( $post_type_slug ) {
-        $name = esc_html__( 'Post', 'mainwp' ); // Default.
+        $name = esc_html__( 'Post', 'mainwp-child' ); // Default.
 
         if ( post_type_exists( $post_type_slug ) ) {
             $post_type = get_post_type_object( $post_type_slug );
@@ -808,6 +808,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             $user_id = wp_check_post_lock( $edit_post_id );
             if ( $user_id ) {
                 $user  = get_userdata( $user_id );
+                // translators: %s: User display name.
                 $error = sprintf( esc_html__( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
                 return array( 'error' => $error );
             }

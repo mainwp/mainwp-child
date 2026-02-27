@@ -721,7 +721,7 @@ class MainWP_Child_Back_Up_WordPress {
                 } elseif ( function_exists( '\HM\BackUpWordPress\is_path_accessible' ) ) {
                     if ( \HM\BackUpWordPress\is_path_accessible( \HM\BackUpWordPress\Path::get_path() ) ) {
                         ?>
-                        <a href="#" onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo esc_js( $encoded_file ); ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="download-action"><?php esc_html_e( 'Download', 'maiwnp-child' ); ?></a> |
+                        <a href="#" onclick="event.preventDefault(); mainwp_backupwp_download_backup('<?php echo esc_js( $encoded_file ); ?>', <?php echo esc_attr( $schedule->get_id() ); ?>, this);" class="download-action"><?php esc_html_e( 'Download', 'mainwp-child' ); ?></a> |
                         <?php
                     }
                 }
@@ -848,7 +848,7 @@ class MainWP_Child_Back_Up_WordPress {
                         <?php elseif ( defined( 'HMBKP_EXCLUDE' ) && false !== strpos( HMBKP_EXCLUDE, $exclude ) ) : ?>
                             <?php esc_html_e( 'Defined in wp-config.php', 'mainwp-child' ); ?>
                         <?php else : ?>
-                            <a href="#" onclick="event.preventDefault(); mainwp_backupwp_remove_exclude_rule('<?php esc_attr_e( $exclude ); ?>', this);" class="delete-action"><?php esc_html_e( 'Stop excluding', 'mainwp-child' ); ?></a>
+                            <a href="#" onclick="event.preventDefault(); mainwp_backupwp_remove_exclude_rule('<?php esc_js( $exclude ); ?>', this);" class="delete-action"><?php esc_html_e( 'Stop excluding', 'mainwp-child' ); ?></a>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -1052,7 +1052,7 @@ class MainWP_Child_Back_Up_WordPress {
                             <code>
                                 <?php echo esc_html( $size ); ?>
                                 <?php if ( $file->isDir() ) { ?>
-                                    <a title="<?php esc_attr_e( 'Recalculate the size of this directory', 'maiwnp-child' ); ?>" class="dashicons dashicons-update" href="<?php echo esc_attr( wp_nonce_url( add_query_arg( 'hmbkp_recalculate_directory_filesize', rawurlencode( wp_normalize_path( $file->getPathname() ) ) ), 'hmbkp-recalculate_directory_filesize' ) ); ?>"><span><?php esc_html_e( 'Refresh', 'mainwp-child' ); ?></span></a>
+                                    <a title="<?php esc_attr_e( 'Recalculate the size of this directory', 'mainwp-child' ); ?>" class="dashicons dashicons-update" href="<?php echo esc_attr( wp_nonce_url( add_query_arg( 'hmbkp_recalculate_directory_filesize', rawurlencode( wp_normalize_path( $file->getPathname() ) ) ), 'hmbkp-recalculate_directory_filesize' ) ); ?>"><span><?php esc_html_e( 'Refresh', 'mainwp-child' ); ?></span></a>
                                 <?php } ?>
                             </code>
                         <?php } else { ?>

@@ -98,7 +98,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function execute_snippet( $code ) {
         ob_start();
-        $result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval -- eval() used safely to achieve desired results, pull request solutions appreciated.
+        $result = eval( $code ); // phpcs:ignore Squiz.PHP.Eval, Generic.PHP.ForbiddenFunctions.Found -- Required: executes user-defined PHP snippets stored in WordPress options by the MainWP Code Snippets Extension. Code is sourced from the database, not raw HTTP input; caller guards against execution during snippet management actions; output is buffered and errors handled via error_get_last(). No PHP alternative exists for dynamic code execution.
         $output = ob_get_contents();
         ob_end_clean();
         $return = array();

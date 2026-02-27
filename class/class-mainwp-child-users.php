@@ -422,7 +422,7 @@ class MainWP_Child_Users {
 
         // checking that username has been typed.
         if ( '' === $user->user_login ) {
-            $errors->add( 'user_login', esc_html__( '<strong>ERROR</strong>: Please enter a username.' ) );
+            $errors->add( 'user_login', esc_html__( '<strong>ERROR</strong>: Please enter a username.', 'mainwp-child' ) );
         }
 
         do_action_ref_array( 'check_passwords', array( $user->user_login, &$pass1, &$pass2 ) );
@@ -430,15 +430,15 @@ class MainWP_Child_Users {
         if ( ! empty( $pass1 ) || ! empty( $pass2 ) ) {
             // Check for blank password when adding a user.
             if ( ! $update && empty( $pass1 ) ) {
-                $errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Please enter a password.' ), array( 'form-field' => 'pass1' ) );
+                $errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Please enter a password.', 'mainwp-child' ), array( 'form-field' => 'pass1' ) );
             }
             // Check for "\" in password.
             if ( false !== strpos( wp_unslash( $pass1 ), '\\' ) ) {
-                $errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Passwords may not contain the character "\\".' ), array( 'form-field' => 'pass1' ) );
+                $errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Passwords may not contain the character "\\".', 'mainwp-child' ), array( 'form-field' => 'pass1' ) );
             }
             // Checking the password has been typed twice the same.
             if ( ( $update || ! empty( $pass1 ) ) && $pass1 !== $pass2 ) {
-                $errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Please enter the same password in both password fields.' ), array( 'form-field' => 'pass1' ) );
+                $errors->add( 'pass', esc_html__( '<strong>ERROR</strong>: Please enter the same password in both password fields.', 'mainwp-child' ), array( 'form-field' => 'pass1' ) );
             }
 
             if ( ! empty( $pass1 ) ) {
@@ -451,17 +451,17 @@ class MainWP_Child_Users {
         $illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
 
         if ( in_array( strtolower( $user->user_login ), array_map( 'strtolower', $illegal_logins ) ) ) {
-            $errors->add( 'invalid_username', esc_html__( '<strong>ERROR</strong>: Sorry, that username is not allowed.' ) );
+            $errors->add( 'invalid_username', esc_html__( '<strong>ERROR</strong>: Sorry, that username is not allowed.', 'mainwp-child' ) );
         }
 
         $owner_id = email_exists( $user->user_email );
 
         if ( empty( $user->user_email ) ) {
-            $errors->add( 'empty_email', esc_html__( '<strong>ERROR</strong>: Please enter an email address.' ), array( 'form-field' => 'email' ) );
+            $errors->add( 'empty_email', esc_html__( '<strong>ERROR</strong>: Please enter an email address.', 'mainwp-child' ), array( 'form-field' => 'email' ) );
         } elseif ( ! is_email( $user->user_email ) ) {
-            $errors->add( 'invalid_email', esc_html__( '<strong>ERROR</strong>: The email address isn&#8217;t correct.' ), array( 'form-field' => 'email' ) );
+            $errors->add( 'invalid_email', esc_html__( '<strong>ERROR</strong>: The email address isn&#8217;t correct.', 'mainwp-child' ), array( 'form-field' => 'email' ) );
         } elseif ( ( $owner_id ) && ( ! $update || ( (int) $owner_id !== (int) $user->ID ) ) ) {
-            $errors->add( 'email_exists', esc_html__( '<strong>ERROR</strong>: This email is already registered, please choose another one.' ), array( 'form-field' => 'email' ) );
+            $errors->add( 'email_exists', esc_html__( '<strong>ERROR</strong>: This email is already registered, please choose another one.', 'mainwp-child' ), array( 'form-field' => 'email' ) );
         }
 
         do_action_ref_array( 'user_profile_update_errors', array( &$errors, $update, &$user ) );
@@ -630,11 +630,15 @@ class MainWP_Child_Users {
             // we want to reverse this for the plain text arena of emails.
             $blogname = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
 
-            $message  = sprintf( esc_html__( 'Username: %s' ), $user_login ) . "\r\n";
-            $message .= sprintf( esc_html__( 'Password: %s' ), $new_user['user_pass'] ) . "\r\n";
+            // translators: %s: User login.
+            $message  = sprintf( esc_html__( 'Username: %s', 'mainwp-child' ), $user_login ) . "\r\n";
+
+            // translators: %s: User password.
+            $message .= sprintf( esc_html__( 'Password: %s', 'mainwp-child' ), $new_user['user_pass'] ) . "\r\n";
             $message .= wp_login_url() . "\r\n";
 
-            MainWP_Utility::instance()->send_wp_mail( $user_email, sprintf( esc_html__( '[%s] Your username and password' ), $blogname ), $message );
+            // translators: %s: Blog name.
+            MainWP_Utility::instance()->send_wp_mail( $user_email, sprintf( esc_html__( '[%s] Your username and password', 'mainwp-child' ), $blogname ), $message );
         }
 
         $information['added'] = true;
