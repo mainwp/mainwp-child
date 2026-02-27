@@ -214,13 +214,13 @@ class Changes_Handle_WP_Database {
                 $table = trim( $table, '`' );
                 $table = trim( $table, "'" );
 
-                if ( 0 === \mb_strpos( $table, $current_db_prefix ) ) {
+                if ( 0 === strpos( $table, $current_db_prefix ) ) {
 
                     $table = substr_replace( $table, '', 0, strlen( $current_db_prefix ) );
 
                     if ( Changes_Helper::is_multisite() ) {
 
-                        $table_name_chunks = \mb_split( '_', $table );
+                        $table_name_chunks = explode( '_', $table );
                         $possible_index    = reset( $table_name_chunks );
 
                         if ( false !== filter_var( $possible_index, FILTER_VALIDATE_INT ) ) {
