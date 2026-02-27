@@ -93,7 +93,7 @@ class MainWP_Child_Assets {
         // Use version 1.10 stylesheet if detected.
         if ( $this->is_jquery_ui_version_110( $version ) ) {
             wp_register_style(
-                'jquery-ui-style',
+                'mainwp-child-jquery-ui-style',
                 plugins_url( 'css/1.10.4/jquery-ui.min.css', __DIR__ ),
                 array(),
                 '1.10',
@@ -104,7 +104,7 @@ class MainWP_Child_Assets {
 
         // Default to version 1.11 stylesheet.
         wp_register_style(
-            'jquery-ui-style',
+            'mainwp-child-jquery-ui-style',
             plugins_url( 'css/1.11.1/jquery-ui.min.css', __DIR__ ),
             array(),
             '1.11',
@@ -126,7 +126,7 @@ class MainWP_Child_Assets {
             wp_enqueue_script( 'jquery-ui-autocomplete' );
             wp_enqueue_script( 'jquery-ui-progressbar' );
             wp_enqueue_script( 'jquery-ui-dialog' );
-            wp_enqueue_style( 'jquery-ui-style' );
+            wp_enqueue_style( 'mainwp-child-jquery-ui-style' );
         }
     }
 
