@@ -403,7 +403,7 @@ class MainWP_Child_Password_Policy {
     /**
      * Get notice message based on status data.
      *
-     * @param array  $status_data Status data array.
+     * @param array $status_data Status data array.
      * @return string Notice message.
      */
     public function get_notice_message( $status_data ) {

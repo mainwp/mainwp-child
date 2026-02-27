@@ -234,14 +234,15 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * Method mkdir()
      *
      * @param string $file File path.
-     * @param int    $mode File mode.
+     * @param int    $fs_mode File mode.
+     * @param bool   $recursive Whether to create directories recursively.
      */
-    public static function mkdir( $file, $mode = FS_CHMOD_DIR ) {
+    public static function mkdir( $file, $fs_mode = FS_CHMOD_DIR, $recursive = false ) {
         if ( static::fs_is_connected() ) {
             global $wp_filesystem;
-            return $wp_filesystem->mkdir( $file, $mode );
+            return $wp_filesystem->mkdir( $file, $fs_mode );
         } else {
-            return mkdir( $file );// phpcs:ignore WordPress.WP.AlternativeFunctions
+            return mkdir( $file, $fs_mode, $recursive );// phpcs:ignore WordPress.WP.AlternativeFunctions -- NOSONAR -compatible fallback.
         }
     }
 
