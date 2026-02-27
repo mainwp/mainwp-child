@@ -97,7 +97,7 @@ class Changes_Handle_WP_MetaData {
                 'metavalue'  => $meta_value,
                 'metalink'   => $meta_key,
             );
-            Changes_Logs_Logger::log_change( 1275, $log_data );
+            Changes_Logs_Logger::log_change_save_delay( 1275, $log_data );
         }
     }
 
