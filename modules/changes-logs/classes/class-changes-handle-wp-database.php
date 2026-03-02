@@ -462,9 +462,18 @@ class Changes_Handle_WP_Database {
 
             $wpdb->suppress_errors( true );
 
-            ob_start();
+            $ob_start_clean = false;
+
+            if ( ! headers_sent() && ! ob_get_level() ) {
+                ob_start();
+                $ob_start_clean = true;
+            }
+
             $db_result = $wpdb->query( "SELECT COUNT(1) FROM {$table_name};" ); // phpcs:ignore
-            ob_clean();
+
+            if ( $ob_start_clean ) {
+                ob_clean();
+            }
 
             $wpdb->suppress_errors( false );
 
