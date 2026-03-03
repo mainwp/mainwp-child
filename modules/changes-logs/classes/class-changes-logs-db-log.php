@@ -110,10 +110,10 @@ class Changes_Logs_DB_Log {
 
         if ( empty( $currentVersion ) ) {
             $sql .= ',
-				PRIMARY KEY (`id`),
-				KEY `site_created` (`blog_id`,`created_on`),
-				KEY `created_on` (`created_on`),
-				KEY `changes_users` (`user_id`,`username`(191))';
+                PRIMARY KEY (`id`),
+                KEY `site_created` (`blog_id`,`created_on`),
+                KEY `created_on` (`created_on`),
+                KEY `changes_users` (`user_id`,`username`(191))';
         }
         $sql .= ')
         ' . $collate;

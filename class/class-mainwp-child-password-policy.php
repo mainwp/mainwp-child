@@ -94,7 +94,7 @@ class MainWP_Child_Password_Policy {
      *
      * @return void
      */
-	public function sync_password_policy_settings() { //phpcs:ignore --NOSONAR -complex.
+    public function sync_password_policy_settings() {  //phpcs:ignore --NOSONAR -complex.
         if ( ! isset( $_POST['passwordPolicySettings'] ) ) {
             return;
         }
