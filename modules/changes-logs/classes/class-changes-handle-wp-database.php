@@ -472,7 +472,7 @@ class Changes_Handle_WP_Database {
             $db_result = $wpdb->query( "SELECT COUNT(1) FROM {$table_name};" ); // phpcs:ignore
 
             if ( $ob_start_clean ) {
-                ob_clean();
+                ob_end_clean();
             }
 
             $wpdb->suppress_errors( false );
