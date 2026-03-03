@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.0
+Stable tag: 6.0.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,19 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.1 - 3-3-2026 =
+
+* Fixed: Updated internal asset handling to improve consistency across registration and enqueuing processes.
+* Fixed: Replaced multibyte-aware string functions (`mb_strpos`, `mb_split`) with standard equivalents (`strops`, `explode`) in WordPress database table prefix detection logic.
+* Fixed: Fixed a conflict with the SureFeedback plugin to improve compatibility.
+* Fixed: Prevented conflicting output handling during certain database operations to improve stability in environments where multiple components manage output streams.
+* Fixed: Improved escaping and translation-safe string handling to avoid edge-case issues in localized environments.
+* Updated: Normalized plugin internationalization by standardizing the `mainwp-child` text domain and adding translator context for clearer, more accurate translations.
+* Updated: Loaded the plugin text domain earlier by calling `localization()` from `init_frontend_only()` and `init_full()` to ensure translations are available sooner.
+* Dev: Added PHPCS ignores for bundled translations, converted a heredoc SQL statement to a concatenated string, and made minor logic/formatting tweaks.
+* Removed: Removed the White Label add-on feature that allowed hiding plugin and theme updates.
+* Removed: Removed a stray `.htaccess` file.
 
 = 6.0 - 2-24-2026 =
 
