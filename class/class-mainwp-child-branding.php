@@ -180,7 +180,6 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
     public function child_deactivation() {
         $brandingOptions_empty = array(
             'hide',
-            'disable_change',
             'disable_switching_theme',
             'show_support',
             'support_email',
@@ -272,7 +271,6 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         $current_settings['submit_button_title']      = $settings['child_submit_button_title'];
         $current_settings['hide']                     = $settings['child_plugin_hide'] ? 'T' : '';
         $current_settings['show_support']             = ( $settings['child_show_support_button'] && ! empty( $settings['child_support_email'] ) ) ? 'T' : '';
-        $current_settings['disable_change']           = $settings['child_disable_change'] ? 'T' : '';
         $current_settings['disable_switching_theme']  = $settings['child_disable_switching_theme'] ? 'T' : '';
         if ( isset( $settings['child_disable_wp_branding'] ) && ( 'Y' === $settings['child_disable_wp_branding'] || 'N' === $settings['child_disable_wp_branding'] ) ) {
             $current_settings['disable_wp_branding'] = $settings['child_disable_wp_branding'];
