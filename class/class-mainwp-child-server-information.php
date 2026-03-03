@@ -1288,10 +1288,12 @@ class MainWP_Child_Server_Information extends MainWP_Child_Server_Information_Ba
         <div class="connection-detail-info" id="connection_detail">
             <h3><?php esc_html_e( 'Connection details', 'mainwp-child' ); ?></h3>
             <p>
-                <?php printf( 
+                <?php
+                printf(
                 // translators: %s: Whitelabeled name.
-                esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ), 
-                esc_html( stripslashes( $branding_title ) ) ); 
+                    esc_html__( 'If you are trying to connect this child site to your %s Dashboard, you can use following details to do that. Please note that these are only suggested values.', 'mainwp-child' ),
+                    esc_html( stripslashes( $branding_title ) )
+                );
                 ?>
             </p>
             <table class="wp-list-table widefat" style="border: 0;border-spacing:0;">
