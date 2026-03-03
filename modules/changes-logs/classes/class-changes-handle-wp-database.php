@@ -214,13 +214,13 @@ class Changes_Handle_WP_Database {
                 $table = trim( $table, '`' );
                 $table = trim( $table, "'" );
 
-                if ( 0 === \mb_strpos( $table, $current_db_prefix ) ) {
+                if ( 0 === strpos( $table, $current_db_prefix ) ) {
 
                     $table = substr_replace( $table, '', 0, strlen( $current_db_prefix ) );
 
                     if ( Changes_Helper::is_multisite() ) {
 
-                        $table_name_chunks = \mb_split( '_', $table );
+                        $table_name_chunks = explode( '_', $table );
                         $possible_index    = reset( $table_name_chunks );
 
                         if ( false !== filter_var( $possible_index, FILTER_VALIDATE_INT ) ) {
@@ -462,9 +462,18 @@ class Changes_Handle_WP_Database {
 
             $wpdb->suppress_errors( true );
 
-            ob_start();
+            $ob_start_clean = false;
+
+            if ( ! headers_sent() && ! ob_get_level() ) {
+                ob_start();
+                $ob_start_clean = true;
+            }
+
             $db_result = $wpdb->query( "SELECT COUNT(1) FROM {$table_name};" ); // phpcs:ignore
-            ob_clean();
+
+            if ( $ob_start_clean ) {
+                ob_end_clean();
+            }
 
             $wpdb->suppress_errors( false );
 
