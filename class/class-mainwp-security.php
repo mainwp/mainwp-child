@@ -36,20 +36,12 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * Fire off functions to fix detected security issues.
      *
      * @uses MainWP_Security::remove_php_reporting() Disable the PHP error reporting.
-     * @uses MainWP_Security::remove_script_versions() Remove scripts and stylesheets versions.
-     * @uses MainWP_Security::remove_theme_versions() Remove themes scripts and stylesheets version.
      */
     public static function fix_all() {
         static::remove_php_reporting();
-
         if ( static::get_security_option( 'db_reporting' ) ) {
             static::remove_database_reporting();
         }
-
-        add_filter( 'style_loader_src', array( static::get_class_name(), 'remove_script_versions' ), PHP_INT_MAX );
-        add_filter( 'style_loader_src', array( static::get_class_name(), 'remove_theme_versions' ), PHP_INT_MAX );
-        add_filter( 'script_loader_src', array( static::get_class_name(), 'remove_script_versions' ), PHP_INT_MAX );
-        add_filter( 'script_loader_src', array( static::get_class_name(), 'remove_theme_versions' ), PHP_INT_MAX );
     }
 
     /**
@@ -297,10 +289,10 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Helper::update_option()
      */
     public static function get_security_option( $option ) {
-        $security = get_option( 'mainwp_security' );
+        $security = get_option( 'mainwp_security', array() );
         if ( false === $security ) {
             // to fix issue of cached loading variable.
-            MainWP_Helper::update_option( 'mainwp_security', '', 'yes' );
+            MainWP_Helper::update_option( 'mainwp_security', array(), 'yes' );
         }
         return is_array( $security ) && isset( $security[ $option ] ) && ( true === $security[ $option ] );
     }
@@ -315,7 +307,10 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @param string $value Security option value.
      */
     public static function update_security_option( $key, $value ) {
-        $security = get_option( 'mainwp_security' );
+        $security = get_option( 'mainwp_security', array() );
+        if ( ! is_array( $security ) ) {
+            $security = array();
+        }
         if ( ! empty( $key ) ) {
             $security[ $key ] = $value;
         }
