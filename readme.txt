@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9.1
 Requires PHP: 7.4
-Stable tag: 6.0.1
+Stable tag: 6.0.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.2 - 3-10-2026 =
+
+* Fixed: Resolved a conflict with a third-party plugin caused by a legacy feature that hid script version numbers.
+* Updated: Enhanced user role retrieval logic for Pro Reports related data.
 
 = 6.0.1 - 3-3-2026 =
 
