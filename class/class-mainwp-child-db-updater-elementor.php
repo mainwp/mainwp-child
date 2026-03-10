@@ -83,18 +83,24 @@ class MainWP_Child_DB_Updater_Elementor {
         }
 
         if ( $this->should_upgrade() ) {
-            $db_upgrades['elementor/elementor.php'] = array(
+            $_slug                 = 'elementor/elementor.php';
+            $plugin_data           = get_plugin_data( WP_PLUGIN_DIR . '/' . $_slug );
+            $db_upgrades[ $_slug ] = array(
                 'update'     => $this->get_needs_db_update(),
                 'Name'       => 'Elementor',
                 'db_version' => $this->get_current_version(),
+                'version'    => is_array( $plugin_data ) && isset( $plugin_data['Version'] ) ? $plugin_data['Version'] : '',
             );
         }
 
         if ( static::has_pro() && $this->should_upgrade( true ) ) {
-            $db_upgrades['elementor-pro/elementor-pro.php'] = array(
+            $_slug                 = 'elementor-pro/elementor-pro.php';
+            $plugin_data           = get_plugin_data( WP_PLUGIN_DIR . '/' . $_slug );
+            $db_upgrades[ $_slug ] = array(
                 'update'     => $this->get_needs_db_update( true ),
                 'Name'       => 'Elementor Pro',
                 'db_version' => $this->get_current_version( true ),
+                'version'    => is_array( $plugin_data ) && isset( $plugin_data['Version'] ) ? $plugin_data['Version'] : '',
             );
         }
         return $db_upgrades;

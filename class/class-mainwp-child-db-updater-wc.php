@@ -116,11 +116,14 @@ class MainWP_Child_DB_Updater_WC {
                 $next_scheduled_date = \WC()->queue()->get_next( 'woocommerce_run_update_callback', null, 'woocommerce-db-updates' );
                 if ( ! $next_scheduled_date ) {
                     $current_db_version = get_option( 'woocommerce_db_version', null );
+                    $_slug              = 'woocommerce/woocommerce.php';
+                    $plugin_data        = get_plugin_data( WP_PLUGIN_DIR . '/' . $_slug );
                     // need.
-                    $db_upgrades['woocommerce/woocommerce.php'] = array(
+                    $db_upgrades[ $_slug ] = array(
                         'update'     => $this->get_needs_db_update(),
                         'Name'       => 'WooCommerce',
                         'db_version' => $current_db_version ? $current_db_version : '',
+                        'version'    => is_array( $plugin_data ) && isset( $plugin_data['Version'] ) ? $plugin_data['Version'] : '',
                     );
                 }
             }
