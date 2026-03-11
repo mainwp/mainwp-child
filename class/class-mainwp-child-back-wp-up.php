@@ -256,7 +256,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! empty( $_POST['referer_name'] ) ) {
             $_REQUEST['_wpnonce'] = wp_create_nonce( sanitize_text_field( wp_unslash( $_POST['referer_name'] ) ) );
         }
-        // phpcs:disable WordPress.Security.NonceVerification.Missing
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
         if ( empty( $action ) ) {
             $information = array( 'error' => esc_html__( 'Missing action.', 'mainwp-child' ) );
         } else {
