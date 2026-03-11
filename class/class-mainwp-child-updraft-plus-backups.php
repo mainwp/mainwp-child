@@ -3887,7 +3887,7 @@ ENDHERE;
         $ret .= '- <a href="#" class="updraft-log-link" onclick="event.preventDefault(); mainwp_updraft_popuplog(\'' . $job_id . '\', this);">' . esc_html__( 'show log', 'updraftplus' ) . '</a>';
 
         if ( ! $is_oneshot ) {
-            $ret .= ' - <a title="' . esc_attr( esc_html__( 'Note: the progress bar below is based on stages, NOT time. Do not stop the backup simply because it seems to have remained in the same place for a while - that is normal.', 'updraftplus' ) ) . '" href="javascript:mainwp_updraft_activejobs_delete(\'' . $job_id . '\')">' . esc_html__( 'delete schedule', 'updraftplus' ) . '</a>';
+            $ret .= ' - <a title="' . esc_attr( esc_html__( 'Note: the progress bar below is based on stages, NOT time. Do not stop the backup simply because it seems to have remained in the same place for a while - that is normal.', 'updraftplus' ) ) . '" onclick="mainwp_updraft_activejobs_delete(\'' . $job_id . '\');return false;">' . esc_html__( 'delete schedule', 'updraftplus' ) . '</a>';
         }
 
         if ( ! empty( $jobdata['warnings'] ) && is_array( $jobdata['warnings'] ) ) {
