@@ -252,7 +252,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $information = array();
         $action      = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR
-
+        // phpcs:disable WordPress.Security.NonceVerification.Missing
+        if ( ! empty( $_POST['referer_name'] ) ) {
+            $_REQUEST['_wpnonce'] = wp_create_nonce( sanitize_text_field( wp_unslash( $_POST['referer_name'] ) ) );
+        }
+        // phpcs:disable WordPress.Security.NonceVerification.Missing
         if ( empty( $action ) ) {
             $information = array( 'error' => esc_html__( 'Missing action.', 'mainwp-child' ) );
         } else {
@@ -986,8 +990,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                             $items = $dest_class->file_get_list( $jobid . '_' . $dest );
                             if ( ! empty( $items ) ) {
                                 foreach ( $items as $item ) {
-                                    $temp_single_item              = $item;
-                                    $temp_single_item['dest']      = $jobid . '_' . $dest;
+                                    $temp_single_item         = $item;
+                                    $temp_single_item['dest'] = $jobid . '_' . $dest;
                                     // translators: 1: date, 2: time.
                                     $temp_single_item['timeloc']   = sprintf( esc_html__( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $temp_single_item['time'], true ), date_i18n( get_option( 'time_format' ), $temp_single_item['time'], true ) );
                                     $temp_single_item['timestamp'] = $item['time'];
@@ -1031,7 +1035,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                         $temp_array['nextrun'] = esc_html__( 'Inactive', 'mainwp-child' );
                     }
                     if ( \BackWPup_Option::get( $val, 'lastrun' ) ) {
-                        $lastrun               = \BackWPup_Option::get( $val, 'lastrun' );
+                        $lastrun = \BackWPup_Option::get( $val, 'lastrun' );
                         // translators: 1: date, 2: time.
                         $temp_array['lastrun'] = sprintf( esc_html__( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $lastrun, true ), date_i18n( get_option( 'time_format' ), $lastrun, true ) );
                         if ( \BackWPup_Option::get( $val, 'lastruntime' ) ) {
@@ -2401,7 +2405,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $results['nextrun'] = esc_html__( 'Inactive', 'mainwp-child' );
                 }
                 if ( \BackWPup_Option::get( $id, 'lastrun' ) ) {
-                    $lastrun            = \BackWPup_Option::get( $id, 'lastrun' );
+                    $lastrun = \BackWPup_Option::get( $id, 'lastrun' );
                     // translators: 1: date, 2: time.
                     $results['lastrun'] = sprintf( esc_html__( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $lastrun, true ), date_i18n( get_option( 'time_format' ), $lastrun, true ) );
                     if ( \BackWPup_Option::get( $id, 'lastruntime' ) ) {
