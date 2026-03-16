@@ -42,7 +42,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child update version.
      */
-    private $update_version = '1.6';
+    private $update_version = '1.6.3';
 
     /**
      * Public variable containing the MainWP Child plugin slug.
@@ -386,8 +386,13 @@ class MainWP_Child {
             return;
         }
 
-        if ( version_compare( $update_version, '1.6', '<' ) ) {
-            delete_option( 'mainwp_child_subpages ' );
+        if ( ! empty( $update_version ) && version_compare( $update_version, '1.6', '<' ) ) {
+            delete_option( 'mainwp_child_subpages' );
+        }
+
+        if ( ! empty( $update_version ) && version_compare( $update_version, '1.6.3', '<' ) ) {
+            // fix auto load for old option mainwp_child_actions_saved_data, set it to no to avoid performance issue.
+            MainWP_Child_DB::fix_autoload( 'mainwp_child_actions_saved_data' );
         }
 
         MainWP_Helper::update_option( 'mainwp_child_update_version', $this->update_version, 'yes' );
