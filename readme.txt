@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9.1
 Requires PHP: 7.4
-Stable tag: 6.0.2
+Stable tag: 6.0.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,15 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.3 - 3-17-2026 =
+
+* Fixed: Autoload settings for legacy data to optimize database performance.
+* Fixed: UpdraftPlus remote storage settings management to properly clear backed-up remote settings when explicitly disabled
+* Updated: Database upgrade tracking with automatic version detection and improved compatibility handling.
+* Updated: Automatically migrate legacy BackWPup scheduled backup arguments during startup so existing scheduled backups continue running after upgrade.
+* Updated: Adjusted the timing of cache purge verification to better coordinate with WordPress plugin initialization.
+* Updated: Improved the UpdraftPlus backup schedule deletion functionality for enhanced reliability.
 
 = 6.0.2 - 3-10-2026 =
 
