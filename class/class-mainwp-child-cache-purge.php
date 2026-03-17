@@ -79,7 +79,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function __construct() {
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
-        add_action( 'plugins_loaded', array( $this, 'check_cache_solution' ), 10, 2 );
+        add_action( 'plugins_loaded', array( $this, 'check_cache_solution' ), 99, 2 );
     }
 
     /**
