@@ -151,7 +151,7 @@ class MainWP_Child_DB {
      * Check if the specified option is set to autoload or not.
      *
      * @param  mixed $option_name Option name to check if it is autoload or not.
-     * @return void
+     * @return` bool True if the option is autoloaded, false otherwise.
      */
     public static function is_autoload_option( $option_name ) {
         global $wpdb;
