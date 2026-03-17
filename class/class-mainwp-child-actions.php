@@ -246,7 +246,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 static::$actions_data['connected_admin'] = $username;
             } elseif ( '' !== $username && $username !== static::$actions_data['connected_admin'] ) {
                 static::$actions_data = array( 'connected_admin' => $username ); // if it is not same the connected user then clear the actions data.
-                update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
+                MainWP_Helper::update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
             }
             static::check_actions_data();
 
@@ -293,7 +293,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         static::get_actions_data();
         $index                          = strval( $index );
         static::$actions_data[ $index ] = $data;
-        update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
+        MainWP_Helper::update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
         return true;
     }
 
@@ -306,7 +306,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         // NOSONAR - WP compatible.
         $checked = intval( get_option( 'mainwp_child_actions_data_checked', 0 ) );
         if ( empty( $checked ) ) {
-            update_option( 'mainwp_child_actions_data_checked', time() );
+            MainWP_Helper::update_option( 'mainwp_child_actions_data_checked', time() );
         } else {
             $checked = date( 'Y-m-d', $checked ); // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
             if ( $checked !== date( 'Y-m-d' ) ) { // phpcs:ignore -- Use local time to achieve desired results, pull request solutions appreciated.
@@ -329,9 +329,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 }
 
                 if ( $updated ) {
-                    update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
+                    MainWP_Helper::update_option( 'mainwp_child_actions_saved_data', static::$actions_data );
                 }
-                update_option( 'mainwp_child_actions_data_checked', time() );
+                MainWP_Helper::update_option( 'mainwp_child_actions_data_checked', time() );
                 /**
                  * To support clean changes logs records.
                  *

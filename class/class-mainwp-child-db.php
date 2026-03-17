@@ -131,6 +131,48 @@ class MainWP_Child_DB {
         }
     }
 
+
+    /**
+     * Fix the autoload flag for the specified option. If the option is currently autoloaded, update it so it is no longer autoloaded.
+     *
+     * @param  mixed $option_name Option name to fix autoload.
+     * @return void
+     */
+    public static function fix_autoload( $option_name ) {
+        if ( self::is_autoload_option( $option_name ) ) {
+            $value = get_option( $option_name );
+            delete_option( $option_name );
+            MainWP_Helper::update_option( $option_name, $value );
+        }
+    }
+
+
+    /**
+     * Check if the specified option is set to autoload or not.
+     *
+     * @param  mixed $option_name Option name to check if it is autoload or not.
+     * @return` bool True if the option is autoloaded, false otherwise.
+     */
+    public static function is_autoload_option( $option_name ) {
+        global $wpdb;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Need to query the database directly to check the autoload value of the option.
+        $autoload_value = $wpdb->get_var( // NOASONAR - WP compatible.
+            $wpdb->prepare(
+                "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s",
+                $option_name
+            )
+        );
+
+        // Use the core-provided list of truthy autoload values (introduced in 6.4+).
+        if ( function_exists( 'wp_autoload_values_to_autoload' ) ) {
+            return in_array( $autoload_value, wp_autoload_values_to_autoload(), true );
+        }
+
+        // Fallback for older WP versions.
+        return in_array( $autoload_value, array( 'yes', 'on', 'auto-on', 'auto' ), true );
+    }
+
     /**
      * Get any mysqli errors.
      *
