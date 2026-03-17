@@ -252,7 +252,11 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
 
         $information = array();
         $action      = ! empty( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';  // phpcs:ignore -- NOSONAR
-
+        // phpcs:disable WordPress.Security.NonceVerification.Missing
+        if ( ! empty( $_POST['referer_name'] ) ) {
+            $_REQUEST['_wpnonce'] = wp_create_nonce( sanitize_text_field( wp_unslash( $_POST['referer_name'] ) ) );
+        }
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
         if ( empty( $action ) ) {
             $information = array( 'error' => esc_html__( 'Missing action.', 'mainwp-child' ) );
         } else {
@@ -336,11 +340,69 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return;
         }
 
+        // Migrate legacy BackWPup cron.
+        self::migrate_backwpup_cron_args();
+
         add_action( 'mainwp_child_site_stats', array( $this, 'do_site_stats' ) );
 
         if ( get_option( 'mainwp_backwpup_hide_plugin' ) === 'hide' ) {
             add_filter( 'all_plugins', array( $this, 'all_plugins' ) );
             add_action( 'admin_menu', array( $this, 'remove_menu' ) );
+        }
+    }
+
+    /**
+     * Migrate legacy BackWPup cron args to positional arrays to avoid PHP 8 named parameter fatals.
+     */
+    public static function migrate_backwpup_cron_args(): void {  // phpcs:ignore -- NOSONAR
+        if ( ! function_exists( '_get_cron_array' ) ) {
+            return;
+        }
+
+        $crons = _get_cron_array();
+        if ( empty( $crons ) || ! is_array( $crons ) ) {
+            return;
+        }
+
+        foreach ( $crons as $timestamp => $hooks ) {
+            if ( empty( $hooks['backwpup_cron'] ) || ! is_array( $hooks['backwpup_cron'] ) ) {
+                continue;
+            }
+
+            foreach ( $hooks['backwpup_cron'] as $event ) {
+                $args = isset( $event['args'] ) ? $event['args'] : array();
+                if ( ! is_array( $args ) || count( $args ) !== 1 ) {
+                    continue;
+                }
+
+                $keys = array_keys( $args );
+                if ( empty( $keys ) || ! is_string( $keys[0] ) ) {
+                    continue;
+                }
+
+                $key = $keys[0];
+                if ( 'arg' !== $key && 'id' !== $key ) {
+                    continue;
+                }
+
+                $new_args = array( $args[ $key ] );
+
+                if ( function_exists( 'wp_get_scheduled_event' ) ) {
+                    $existing = wp_get_scheduled_event( 'backwpup_cron', $new_args, (int) $timestamp );
+                    if ( $existing ) {
+                        wp_unschedule_event( (int) $timestamp, 'backwpup_cron', $args );
+                        continue;
+                    }
+                }
+
+                wp_unschedule_event( (int) $timestamp, 'backwpup_cron', $args );
+                $schedule = isset( $event['schedule'] ) ? $event['schedule'] : false;
+                if ( $schedule ) {
+                    wp_schedule_event( (int) $timestamp, $schedule, 'backwpup_cron', $new_args );
+                } else {
+                    wp_schedule_single_event( (int) $timestamp, 'backwpup_cron', $new_args );
+                }
+            }
         }
     }
 
@@ -807,6 +869,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             return array( 'error' => esc_html__( 'Missing job_id.', 'mainwp-child' ) );
         }
 
+        wp_clear_scheduled_hook( 'backwpup_cron', array( $job_id ) );
+        wp_clear_scheduled_hook( 'backwpup_cron', array( 'arg' => $job_id ) );
         wp_clear_scheduled_hook( 'backwpup_cron', array( 'id' => $job_id ) );
         if ( ! \BackWPup_Option::delete_job( $job_id ) ) {
             return array( 'error' => esc_html__( 'Cannot delete job', 'mainwp-child' ) );
@@ -986,8 +1050,8 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                             $items = $dest_class->file_get_list( $jobid . '_' . $dest );
                             if ( ! empty( $items ) ) {
                                 foreach ( $items as $item ) {
-                                    $temp_single_item              = $item;
-                                    $temp_single_item['dest']      = $jobid . '_' . $dest;
+                                    $temp_single_item         = $item;
+                                    $temp_single_item['dest'] = $jobid . '_' . $dest;
                                     // translators: 1: date, 2: time.
                                     $temp_single_item['timeloc']   = sprintf( esc_html__( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $temp_single_item['time'], true ), date_i18n( get_option( 'time_format' ), $temp_single_item['time'], true ) );
                                     $temp_single_item['timestamp'] = $item['time'];
@@ -1020,7 +1084,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     }
 
                     if ( \BackWPup_Option::get( $val, 'activetype' ) === 'wpcron' ) {
-                        $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'id' => $val ) );
+                        $nextrun = wp_next_scheduled( 'backwpup_cron', array( $val ) );
                         if ( $nextrun + ( get_option( 'gmt_offset' ) * 3600 ) ) {
                             // translators: 1: date, 2: time.
                             $temp_array['nextrun'] = sprintf( esc_html__( '%1$s at %2$s by WP-Cron', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $nextrun, true ), date_i18n( get_option( 'time_format' ), $nextrun, true ) );
@@ -1031,7 +1095,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                         $temp_array['nextrun'] = esc_html__( 'Inactive', 'mainwp-child' );
                     }
                     if ( \BackWPup_Option::get( $val, 'lastrun' ) ) {
-                        $lastrun               = \BackWPup_Option::get( $val, 'lastrun' );
+                        $lastrun = \BackWPup_Option::get( $val, 'lastrun' );
                         // translators: 1: date, 2: time.
                         $temp_array['lastrun'] = sprintf( esc_html__( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $lastrun, true ), date_i18n( get_option( 'time_format' ), $lastrun, true ) );
                         if ( \BackWPup_Option::get( $val, 'lastruntime' ) ) {
@@ -2390,7 +2454,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
             case 'jobs':
                 $results = \BackWPup_Option::get_job( $id );
                 if ( \BackWPup_Option::get( $id, 'activetype' ) === 'wpcron' ) {
-                    $nextrun = wp_next_scheduled( 'backwpup_cron', array( 'arg' => $id ) );
+                    $nextrun = wp_next_scheduled( 'backwpup_cron', array( $id ) );
                     if ( $nextrun + ( get_option( 'gmt_offset' ) * 3600 ) ) {
                         // translators: 1: date, 2: time.
                         $results['nextrun'] = sprintf( esc_html__( '%1$s at %2$s by WP-Cron', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $nextrun, true ), date_i18n( get_option( 'time_format' ), $nextrun, true ) );
@@ -2401,7 +2465,7 @@ class MainWP_Child_Back_WP_Up { //phpcs:ignore -- NOSONAR - multi methods.
                     $results['nextrun'] = esc_html__( 'Inactive', 'mainwp-child' );
                 }
                 if ( \BackWPup_Option::get( $id, 'lastrun' ) ) {
-                    $lastrun            = \BackWPup_Option::get( $id, 'lastrun' );
+                    $lastrun = \BackWPup_Option::get( $id, 'lastrun' );
                     // translators: 1: date, 2: time.
                     $results['lastrun'] = sprintf( esc_html__( '%1$s at %2$s', 'mainwp-child' ), date_i18n( get_option( 'date_format' ), $lastrun, true ), date_i18n( get_option( 'time_format' ), $lastrun, true ) );
                     if ( \BackWPup_Option::get( $id, 'lastruntime' ) ) {

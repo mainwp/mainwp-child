@@ -230,6 +230,8 @@ class MainWP_Child {
     private function init_cron_support() {
         // Support for cron jobs.
         if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+            // Normalize BackWPup cron args early to avoid PHP 8 named-parameter fatals.
+            MainWP_Child_Back_WP_Up::migrate_backwpup_cron_args();
             $mainwp_child_run = filter_input( INPUT_GET, 'mainwp_child_run', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
             if ( ! empty( $mainwp_child_run ) ) {
                 add_action( 'init', array( MainWP_Utility::class, 'cron_active' ), PHP_INT_MAX );
