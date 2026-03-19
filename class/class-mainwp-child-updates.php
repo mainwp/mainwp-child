@@ -487,14 +487,15 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private function upgrade_theme( &$information, &$mwp_premium_updates_to_do, &$mwp_premium_updates_to_do_slugs, &$premiumUpgrader ) { //phpcs:ignore -- NOSONAR - complex.
 
-        $last_update = get_site_transient( 'update_themes' );
-
         include_once ABSPATH . '/wp-admin/includes/update.php'; // NOSONAR -- WP compatible.
         if ( null !== $this->filterFunction ) {
             add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
         }
 
         wp_update_themes();
+
+        $last_update = get_site_transient( 'update_themes' );
+
         include_once ABSPATH . '/wp-admin/includes/theme.php'; // NOSONAR -- WP compatible.
 
         // to support cached premium themes update info, hooking in the bulk_upgrade().
