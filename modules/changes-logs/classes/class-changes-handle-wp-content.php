@@ -125,7 +125,7 @@ class Changes_Handle_WP_Content { //phpcs:ignore --NOSONAR -complex class.
             self::$old_tmpl   = self::change_get_post_template( self::$old_post );
             self::$old_cats   = self::change_get_post_categories( self::$old_post );
             self::$old_tags   = self::change_get_post_tags( self::$old_post );
-            self::$old_sticky = in_array( $post_id, get_option( 'sticky_posts' ), true );
+            self::$old_sticky = in_array( $post_id, (array) get_option( 'sticky_posts' ), true );
             self::$old_status = $post->post_status;
             self::$old_meta   = get_post_meta( $post_id );
         }
