@@ -5,7 +5,7 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 6.9.1
+Tested up to: 6.9.4
 Requires PHP: 7.4
 Stable tag: 6.0.3
 License: GPLv3 or later
@@ -110,6 +110,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.4 - 3-20-2026 =
+
+* Security: Updated the `phpseclib` library to address a recently [disclosed vulnerability](https://nvd.nist.gov/vuln/detail/CVE-2026-32935). The issue does not affect MainWP in normal usage.
+* Fixed: Fatal error in when saving posts in Gutenberg if the sticky_posts option contains invalid data.
 
 = 6.0.3 - 3-17-2026 =
 
