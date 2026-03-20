@@ -2,7 +2,6 @@
 declare(strict_types=1);
 namespace ParagonIE\ConstantTime;
 
-use RangeException;
 use SensitiveParameter;
 use TypeError;
 
@@ -32,7 +31,6 @@ use TypeError;
 /**
  * Class Encoding
  * @package ParagonIE\ConstantTime
- * @api
  */
 abstract class Encoding
 {
@@ -198,7 +196,7 @@ abstract class Encoding
      *
      * @param string $str
      * @return string
-     * @throws RangeException
+     * @throws \RangeException
      * @throws TypeError
      */
     public static function base64DecodeDotSlash(
@@ -230,7 +228,7 @@ abstract class Encoding
      *
      * @param string $str
      * @return string
-     * @throws RangeException
+     * @throws \RangeException
      * @throws TypeError
      */
     public static function base64DecodeDotSlashOrdered(
@@ -261,7 +259,7 @@ abstract class Encoding
      *
      * @param string $hex_string
      * @return string (raw binary)
-     * @throws RangeException
+     * @throws \RangeException
      */
     public static function hexDecode(
         #[SensitiveParameter]

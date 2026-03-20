@@ -2,7 +2,6 @@
 declare(strict_types=1);
 namespace ParagonIE\ConstantTime;
 
-use Override;
 use function pack;
 
 /**
@@ -43,7 +42,6 @@ abstract class Base32Hex extends Base32
      * @param int $src
      * @return int
      */
-    #[Override]
     protected static function decode5Bits(int $src): int
     {
         $ret = -1;
@@ -64,7 +62,6 @@ abstract class Base32Hex extends Base32
      * @param int $src
      * @return int
      */
-    #[Override]
     protected static function decode5BitsUpper(int $src): int
     {
         $ret = -1;
@@ -85,7 +82,6 @@ abstract class Base32Hex extends Base32
      * @param int $src
      * @return string
      */
-    #[Override]
     protected static function encode5Bits(int $src): string
     {
         $src += 0x30;
@@ -105,7 +101,6 @@ abstract class Base32Hex extends Base32
      * @param int $src
      * @return string
      */
-    #[Override]
     protected static function encode5BitsUpper(int $src): string
     {
         $src += 0x30;
