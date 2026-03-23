@@ -71,7 +71,7 @@ class Changes_Handle_WP_MetaData {
 
         $post = get_post( $object_id );
 
-        if ( null === $post || 'revision' === $post->post_type ) {
+        if ( null === $post || 'revision' === $post->post_type || 'auto-draft' === $post->post_status ) {
             return;
         }
 
