@@ -92,7 +92,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         // Check if the user is valid & login.
         if ( ! isset( $_POST['user'] ) || ! isset( $_POST['pubkey'] ) ) {
             // translators: 1: Opening link tag, 2: Closing link tag.
-            MainWP_Helper::instance()->error( sprintf( esc_html__( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://kb.mainwp.com/docs/cant-connect-website-getting-the-invalid-request-error-message/" target="_blank">', '</a></strong>' ), 'REG_ERROR1' );
+            MainWP_Helper::instance()->error( sprintf( esc_html__( 'Public key could not be set. Please make sure that the OpenSSL library has been configured correctly on your MainWP Dashboard. For additional help, please check this %1$shelp document%2$s.', 'mainwp-child' ), '<strong><a href="https://docs.mainwp.com/troubleshooting/potential-issues" target="_blank">', '</a></strong>' ), 'REG_ERROR1' );
         }
 
         // Already added - can't readd. Deactivate plugin.

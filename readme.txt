@@ -111,6 +111,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 
 == Changelog ==
 
+= 6.0.5 - 3-24-2026 =
+
+* Fixed: Corrected the timing of theme update data collection to ensure the latest information is used during updates.
+* Fixed: Skipped logging meta creation events for auto-draft posts to prevent conflicts with the SureFeedback plugin.
+
 = 6.0.4 - 3-20-2026 =
 
 * Security: Updated the `phpseclib` library to address a recently [disclosed vulnerability](https://nvd.nist.gov/vuln/detail/CVE-2026-32935). The issue does not affect MainWP in normal usage.

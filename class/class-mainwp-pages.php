@@ -118,7 +118,7 @@ class MainWP_Pages {
             $msg .= '<div style="font-size:1.5em;font-weight:bolder;margin-bottom:16px;">' . esc_html( $child_name ) . esc_html__( ' Plugin is Activated', 'mainwp-child' ) . '</div>';
             $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html__( 'This site is now ready for connection. Please proceed with the connection process from your ', 'mainwp-child' ) . esc_html( $dashboard_name ) . ' ' . esc_html__( 'to start managing the site. ', 'mainwp-child' ) . '</div>';
             // translators: 1: Opening link tag, 2: Closing link tag.
-            $doc_link = sprintf( esc_html__( 'If you need assistance, refer to our %1$sdocumentation%2$s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/add-site-to-your-dashboard/" target="_blank">', '</a>' );
+            $doc_link = sprintf( esc_html__( 'If you need assistance, refer to our %1$sdocumentation%2$s.', 'mainwp-child' ), '<a href="https://docs.mainwp.com/getting-started/get-started-with-mainwp#add-a-site-to-your-dashboard" target="_blank">', '</a>' );
             $msg     .= '<div style="font-size:1.2em;margin-bottom:8px">' . $doc_link . '</div>';
             if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
                 // translators: 1: Opening link tag, 2: Closing link tag.
@@ -712,7 +712,7 @@ class MainWP_Pages {
                 printf( esc_html__( 'If you have additional questions, please refer to this Knowledge Base article or contact %s Support.', 'mainwp-child' ), esc_html( $branding_title ) );
             } else {
                 // translators: 1: Opening KB link tag, 2: Closing link tag, 3: Opening support link tag, 4: Closing link tag.
-                printf( esc_html__( 'If you have additional questions, please %1$srefer to this Knowledge Base article%2$s or %3$scontact MainWP Support%4$s.', 'mainwp-child' ), '<a href="https://kb.mainwp.com/docs/mainwp-connection-security/#password-authentication" target="_blank">', '</a>', '<a href="https://mainwp.com/mainwp-support/" target="_blank">', '</a>' );
+                printf( esc_html__( 'If you have additional questions, please %1$srefer to this Knowledge Base article%2$s or %3$scontact MainWP Support%4$s.', 'mainwp-child' ), '<a href="https://docs.mainwp.com/advanced/miscellaneous/mainwp-connection-security#password-authentication" target="_blank">', '</a>', '<a href="https://mainwp.com/mainwp-support/" target="_blank">', '</a>' );
             }
             ?>
             </p>
