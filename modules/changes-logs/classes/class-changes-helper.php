@@ -373,7 +373,7 @@ class Changes_Helper {
         }
 
         $tz_adj_timestamp = $timestamp + self::$gmt_offset_sec;
-        return date_i18n( $format, $tz_adj_timestamp ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
+        return date_i18n( $format, (int) $tz_adj_timestamp ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
     }
 
     /**
