@@ -786,8 +786,6 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
 
             if ( ! isset( $settings['do_not_save_remote_settings'] ) || empty( $settings['do_not_save_remote_settings'] ) ) {
                 \UpdraftPlus_Options::update_updraft_option( 'updraft_service', $settings['updraft_service'] );
-            } elseif( 1 === (int) $settings['do_not_save_remote_settings'] ){
-                \UpdraftPlus_Options::update_updraft_option( 'updraft_service', array() );
             }
 
             if ( isset( $settings['updraft_interval'] ) ) {
