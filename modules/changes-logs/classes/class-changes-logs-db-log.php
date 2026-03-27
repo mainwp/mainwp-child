@@ -705,6 +705,33 @@ class Changes_Logs_DB_Log {
     }
 
     /**
+     * Cleans up the changes log database.
+     *
+     * @return void
+     */
+    public function perfomr_clean_records() {
+
+        $days_number = get_option( 'mainwp_child_changes_logs_ttl', false );
+
+        if ( false === $days_number ) {
+            $days_number = 7; // days.
+        }
+        $days_number = int( $days_number );
+
+        if ( ! is_numeric( $days_number ) || $days_number <= 0 ) {
+                    $days_number = 7;
+        }
+
+        $now       = time();
+        $max_stamp = $now - ( strtotime( $days_number . ' days' ) - $now );
+
+        if ( empty( $max_stamp ) ) {
+            return;
+        }
+        $this->delete( array( 'created_on <= %s' => intval( $max_stamp ) ) );
+    }
+
+    /**
      * Cleans up the database.
      *
      * @param string $max_sdate Max datetime string to keep logs.

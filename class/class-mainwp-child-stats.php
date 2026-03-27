@@ -375,6 +375,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
                         MainWP_Helper::update_option( 'mainwp_child_ignored_nonmainwp_actions', wp_json_encode( array() ) );
                     }
                 }
+
+                // @since child > 6.0.5.
+                if ( isset( $logs_params['child_logs_ttl'] ) ) {
+                    MainWP_Helper::update_option( 'mainwp_child_changes_logs_ttl', absint( $logs_params['child_logs_ttl'] ) );
+                    MainWP_Helper::update_option( 'mainwp_child_changes_logs_enabled', ! empty( $logs_params['child_logs_enabled'] ) ? 1 : 0 );
+                }
             }
 
             $information['child_site_actions_data'] = MainWP_Child_Actions::get_sync_actions_data();
