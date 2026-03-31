@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 7.4
-Stable tag: 6.0.5
+Stable tag: 6.0.6
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,11 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.6 - 3-31-2026 =
+
+* Fixed: Improved timestamp strict typing compatibility on newer PHP versions.
+* Fixed: Corrected an issue where the UpdraftPlus add-on option "Do not overwrite Remote Storage settings" was not respected in individual site settings.
 
 = 6.0.5 - 3-24-2026 =
 
