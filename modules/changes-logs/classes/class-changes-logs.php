@@ -112,7 +112,7 @@ class Changes_Logs {
         $today_utc = strtotime( 'today UTC' );
 
         if ( $last_clean_time < $today_utc ) {
-            Changes_Logs_DB_Log::instance()->perfomr_clean_records();
+            Changes_Logs_DB_Log::instance()->perform_clean_records();
             $last_datetime = gmdate( 'Y-m-d H:i:s' );
         }
 

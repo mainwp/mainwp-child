@@ -36,76 +36,77 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @var array Callable functions.
      */
     private $callableFunctions = array(
-        'stats'                 => 'get_site_stats',
-        'upgrade'               => 'upgrade_wp',
-        'newpost'               => 'new_post',
-        'deactivate'            => 'deactivate',
-        'newuser'               => 'new_user',
-        'newadminpassword'      => 'new_admin_password',
-        'installplugintheme'    => 'install_plugin_theme',
-        'upgradeplugintheme'    => 'upgrade_plugin_theme',
-        'upgradetranslation'    => 'upgrade_translation',
-        'backup'                => 'backup',
-        'backup_checkpid'       => 'backup_checkpid',
-        'cloneinfo'             => 'cloneinfo',
-        'security'              => 'get_security_stats',
-        'securityFix'           => 'do_security_fix',
-        'securityUnFix'         => 'do_security_un_fix',
-        'post_action'           => 'post_action',
-        'get_all_posts'         => 'get_all_posts',
-        'comment_action'        => 'comment_action',
-        'comment_bulk_action'   => 'comment_bulk_action',
-        'get_all_comments'      => 'get_all_comments',
-        'get_all_themes'        => 'get_all_themes',
-        'theme_action'          => 'theme_action',
-        'get_all_plugins'       => 'get_all_plugins',
-        'plugin_action'         => 'plugin_action',
-        'get_all_pages'         => 'get_all_pages',
-        'get_all_users'         => 'get_all_users',
-        'user_action'           => 'user_action',
-        'search_users'          => 'search_users',
-        'maintenance_site'      => 'maintenance_site',
-        'branding_child_plugin' => 'branding_child_plugin',
-        'code_snippet'          => 'code_snippet',
-        'uploader_action'       => 'uploader_action',
-        'wordpress_seo'         => 'wordpress_seo',
-        'client_report'         => 'client_report',
-        'createBackupPoll'      => 'backup_poll',
-        'page_speed'            => 'page_speed',
-        'woo_com_status'        => 'woo_com_status',
-        'links_checker'         => 'links_checker',
-        'wordfence'             => 'wordfence',
-        'delete_backup'         => 'delete_backup',
-        'update_values'         => 'update_child_values',
-        'ithemes'               => 'ithemes',
-        'updraftplus'           => 'updraftplus',
-        'backup_wp'             => 'backup_wp',
-        'backwpup'              => 'backwpup',
-        'wp_rocket'             => 'wp_rocket',
-        'settings_tools'        => 'settings_tools',
-        'skeleton_key'          => 'bulk_settings_manager', // deprecated.
-        'bulk_settings_manager' => 'bulk_settings_manager',
-        'custom_post_type'      => 'custom_post_type',
-        'backup_buddy'          => 'backup_buddy',
-        'get_site_icon'         => 'get_site_icon',
-        'vulner_checker'        => 'vulner_checker',
-        'wp_staging'            => 'wp_staging',
-        'disconnect'            => 'disconnect',
-        'time_capsule'          => 'time_capsule',
-        'extra_excution'        => 'extra_execution', // deprecated!
-        'extra_execution'       => 'extra_execution',
-        'wpvivid_backuprestore' => 'wpvivid_backuprestore',
-        'check_abandoned'       => 'check_abandoned',
-        'wp_seopress'           => 'wp_seopress',
-        'db_updater'            => 'db_updater',
-        'cache_purge_action'    => 'cache_purge_action',
-        'jetpack_protect'       => 'jetpack_protect',
-        'jetpack_scan'          => 'jetpack_scan',
-        'delete_actions'        => 'delete_actions',
-        'verify_action'         => 'verify_action',
-        'api_backups_mysqldump'  => 'api_backups_mysqldump',
-        'patchstack'             => 'patchstack',
+        'stats'                    => 'get_site_stats',
+        'upgrade'                  => 'upgrade_wp',
+        'newpost'                  => 'new_post',
+        'deactivate'               => 'deactivate',
+        'newuser'                  => 'new_user',
+        'newadminpassword'         => 'new_admin_password',
+        'installplugintheme'       => 'install_plugin_theme',
+        'upgradeplugintheme'       => 'upgrade_plugin_theme',
+        'upgradetranslation'       => 'upgrade_translation',
+        'backup'                   => 'backup',
+        'backup_checkpid'          => 'backup_checkpid',
+        'cloneinfo'                => 'cloneinfo',
+        'security'                 => 'get_security_stats',
+        'securityFix'              => 'do_security_fix',
+        'securityUnFix'            => 'do_security_un_fix',
+        'post_action'              => 'post_action',
+        'get_all_posts'            => 'get_all_posts',
+        'comment_action'           => 'comment_action',
+        'comment_bulk_action'      => 'comment_bulk_action',
+        'get_all_comments'         => 'get_all_comments',
+        'get_all_themes'           => 'get_all_themes',
+        'theme_action'             => 'theme_action',
+        'get_all_plugins'          => 'get_all_plugins',
+        'plugin_action'            => 'plugin_action',
+        'get_all_pages'            => 'get_all_pages',
+        'get_all_users'            => 'get_all_users',
+        'user_action'              => 'user_action',
+        'search_users'             => 'search_users',
+        'maintenance_site'         => 'maintenance_site',
+        'branding_child_plugin'    => 'branding_child_plugin',
+        'code_snippet'             => 'code_snippet',
+        'uploader_action'          => 'uploader_action',
+        'wordpress_seo'            => 'wordpress_seo',
+        'client_report'            => 'client_report',
+        'createBackupPoll'         => 'backup_poll',
+        'page_speed'               => 'page_speed',
+        'woo_com_status'           => 'woo_com_status',
+        'links_checker'            => 'links_checker',
+        'wordfence'                => 'wordfence',
+        'delete_backup'            => 'delete_backup',
+        'update_values'            => 'update_child_values',
+        'ithemes'                  => 'ithemes',
+        'updraftplus'              => 'updraftplus',
+        'backup_wp'                => 'backup_wp',
+        'backwpup'                 => 'backwpup',
+        'wp_rocket'                => 'wp_rocket',
+        'settings_tools'           => 'settings_tools',
+        'skeleton_key'             => 'bulk_settings_manager', // deprecated.
+        'bulk_settings_manager'    => 'bulk_settings_manager',
+        'custom_post_type'         => 'custom_post_type',
+        'backup_buddy'             => 'backup_buddy',
+        'get_site_icon'            => 'get_site_icon',
+        'vulner_checker'           => 'vulner_checker',
+        'wp_staging'               => 'wp_staging',
+        'disconnect'               => 'disconnect',
+        'time_capsule'             => 'time_capsule',
+        'extra_excution'           => 'extra_execution', // deprecated!
+        'extra_execution'          => 'extra_execution',
+        'wpvivid_backuprestore'    => 'wpvivid_backuprestore',
+        'check_abandoned'          => 'check_abandoned',
+        'wp_seopress'              => 'wp_seopress',
+        'db_updater'               => 'db_updater',
+        'cache_purge_action'       => 'cache_purge_action',
+        'jetpack_protect'          => 'jetpack_protect',
+        'jetpack_scan'             => 'jetpack_scan',
+        'delete_actions'           => 'delete_actions',
+        'verify_action'            => 'verify_action',
+        'api_backups_mysqldump'    => 'api_backups_mysqldump',
+        'patchstack'               => 'patchstack',
         'password_policy_settings' => 'password_policy_settings',
+        'clean_up_child_logs'      => 'clean_up_child_logs',
     );
 
     /**
@@ -1142,5 +1143,26 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $information = MainWP_Child_Password_Policy::instance()->action();
         MainWP_Helper::write( $information );
         exit();
+    }
+
+    /**
+     * Method clean_up_child_logs()
+     *
+     * Clean up the child site logs.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Logs::clean_up_logs()
+     */
+    public function clean_up_child_logs() {
+        $information = array();
+        if ( class_exists( '\MainWP\Child\Changes\Changes_Logs_DB_Log' ) ) {
+            \MainWP\Child\Changes\Changes_Logs_DB_Log::instance()->bulk_clean_up();
+            $information['success']             = 1;
+            $information['dbsize_activitylogs'] = \MainWP\Child\Changes\Changes_Logs_DB_Log::instance()->get_logs_db_size();
+        } else {
+            $error    = __( 'Changes Logs DB Log class does not exist.', 'mainwp-child' );
+            $err_code = 'CHANGES_LOGS_ERROR_01';
+            MainWP_Helper::instance()->error( $error, $err_code );
+        }
+        MainWP_Helper::write( $information );
     }
 }
