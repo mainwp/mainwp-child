@@ -315,7 +315,8 @@ class MainWP_Child {
                 'mainwp_child_pingnonce',
                 'mainwp_child_ignored_changes_logs',
                 'mainwp_child_ignored_nonmainwp_actions',
-
+                'mainwp_child_changes_logs_ttl',
+                'mainwp_child_changes_logs_enabled',
             );
 
             // Execute individual queries for each option for maximum security.

@@ -163,6 +163,32 @@ class Changes_Logs_DB_Log {
         return $current_dbversion;
     }
 
+    /**
+     * Method get_logs_db_size()
+     *
+     * @return int Logs db size.
+     */
+    public function get_logs_db_size() {
+        global $wpdb;
+
+        $table_name      = self::table_name( 'changes_logs' );
+        $meta_table_name = self::table_name( 'changes_meta' );
+
+        $logs_size = $this->db->wpdb->get_var(
+            "SELECT SUM(data_length + index_length)
+         FROM information_schema.tables
+         WHERE table_schema = '{$wpdb->dbname}'
+         AND table_name = '{$table_name}'" //phpcs:ignore -- NOSONAR - escape ok.
+        );
+
+        $meta_size = $this->db->wpdb->get_var(
+            "SELECT SUM(data_length + index_length)
+         FROM information_schema.tables
+         WHERE table_schema = '{$wpdb->dbname}'
+         AND table_name = '{$meta_table_name}'" //phpcs:ignore -- NOSONAR - escapeok.
+        );
+        return (int) ( $logs_size + $meta_size );
+    }
 
     /**
      * Method is_installed_db().
@@ -702,6 +728,78 @@ class Changes_Logs_DB_Log {
         }
 
         return $results;
+    }
+
+    /**
+     * Bulk Cleans up the changes log database.
+     *
+     * @param int $batch_size Number of rows per batch.
+     *
+     * @return int Total archived rows.
+     */
+    public function bulk_clean_up( $batch_size = 1000 ) {
+        global $wpdb;
+
+        $table_logs = static::table_name( 'changes_logs' );
+        $table_meta = static::table_name( 'changes_meta' );
+
+        $total_delete = 0;
+
+        do {
+            // Get batch IDs.
+            // phpcs:ignore -- NOSONAR -use direct wpdb for custom queries.
+            $ids = $wpdb->get_col( "SELECT id FROM $table_logs
+                WHERE 1
+                LIMIT " . intval( $batch_size )
+            );
+
+            if ( empty( $ids ) ) {
+                break;
+            }
+
+            $ids_in = implode( ',', array_map( 'intval', $ids ) );
+
+            // Delete meta first.
+            // phpcs:ignore -- NOSONAR -use direct wpdb for custom queries.
+            $wpdb->query( "DELETE FROM {$table_meta} WHERE log_id IN ($ids_in)" );
+
+            // Delete logs.
+            // phpcs:ignore -- NOSONAR -use direct wpdb for custom queries.
+            $wpdb->query( "DELETE FROM {$table_logs}  WHERE id IN ($ids_in)" );
+
+            $count_deleted = count( $ids );
+            $total_delete += $count_deleted;
+
+        } while ( $count_deleted === $batch_size );
+
+        return $total_delete;
+    }
+
+    /**
+     * Cleans up the changes log database records.
+     *
+     * @return void
+     */
+    public function perform_clean_records() {
+
+        $days_number = get_option( 'mainwp_child_changes_logs_ttl', false );
+
+        if ( false === $days_number ) {
+            $days_number = 7; // days.
+        }
+        $days_number = intval( $days_number );
+
+        if ( ! is_numeric( $days_number ) || $days_number <= 0 ) {
+                    $days_number = 7;
+        }
+
+        $max_stamp = strtotime( '-' . intval( $days_number ) . ' days' );
+
+        if ( empty( $max_stamp ) ) {
+            return;
+        }
+
+        $this->delete( array( 'created_on <= %s' => intval( $max_stamp ) ) );
     }
 
     /**

@@ -52,9 +52,11 @@ class Changes_Logs {
      * Run any time class is called.
      */
     public function __construct() {
-        add_action( 'init', array( $this, 'init_hooks' ), 0 );
-        add_action( 'init', array( $this, 'init' ) );
-        Changes_Loggers_Loader::load_early_change_handle();
+        if ( get_option( 'mainwp_child_changes_logs_enabled', true ) ) {
+            add_action( 'init', array( $this, 'init_hooks' ), 0 );
+            add_action( 'init', array( $this, 'init' ) );
+            Changes_Loggers_Loader::load_early_change_handle();
+        }
     }
 
     /**
@@ -74,9 +76,53 @@ class Changes_Logs {
      */
     public function init() {
         Changes_Logs_DB_Log::instance()->install();
-        add_action( 'mainwp_child_actions_data_clean', array( Changes_Logs_DB_Log::instance(), 'hook_remove_records' ), 10, 2 );
+        $this->check_and_clean();
     }
 
+
+    /**
+     * Method check_and_clean.
+     */
+    public function check_and_clean() {
+
+        if ( get_transient( 'mainwp_child_changes_log_clean_check' ) ) {
+            return;
+        }
+        set_transient( 'mainwp_child_changes_log_clean_check', 1, 300 ); // 5 min lock.
+
+        $checked_clean = get_option( 'mainwp_child_changes_log_clean_lasttime' );
+
+        $last_datetime = false;
+        $end_datetime  = gmdate( 'Y-m-d 23:59:59' );
+
+        if ( empty( $checked_clean ) ) {
+            // Set to end of today → wait until tomorrow.
+            $last_datetime = $end_datetime;
+            $checked_clean = $last_datetime;
+        }
+
+        $last_clean_time = strtotime( $checked_clean );
+
+        if ( false === $last_clean_time ) {
+            // fallback: also wait until next day.
+            $last_datetime   = $end_datetime;
+            $last_clean_time = strtotime( $last_datetime );
+        }
+
+        $today_utc = strtotime( 'today UTC' );
+
+        if ( $last_clean_time < $today_utc ) {
+            Changes_Logs_DB_Log::instance()->perform_clean_records();
+            $last_datetime = gmdate( 'Y-m-d H:i:s' );
+        }
+
+        if ( ! empty( $last_datetime ) ) {
+            MainWP_Helper::update_option(
+                'mainwp_child_changes_log_clean_lasttime',
+                $last_datetime
+            );
+        }
+    }
 
     /**
      * Load built-in loggers
@@ -91,7 +137,7 @@ class Changes_Logs {
             if ( ! class_exists( $class_name ) ) {
                 continue;
             }
-            new $class_name(); //NOSONAR --instance class.
+            new $class_name(); // NOSONAR --instance class.
         }
 
         do_action( 'mainwp_child_changes_logs_after_load_loggers', $this );
