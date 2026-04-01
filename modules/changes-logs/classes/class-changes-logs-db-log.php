@@ -733,46 +733,16 @@ class Changes_Logs_DB_Log {
     /**
      * Bulk Cleans up the changes log database.
      *
-     * @param int $batch_size Number of rows per batch.
-     *
-     * @return int Total archived rows.
+     * @return void.
      */
-    public function bulk_clean_up( $batch_size = 1000 ) {
+    public function bulk_clean_up() {
+
         global $wpdb;
 
         $table_logs = static::table_name( 'changes_logs' );
         $table_meta = static::table_name( 'changes_meta' );
-
-        $total_delete = 0;
-
-        do {
-            // Get batch IDs.
-            // phpcs:ignore -- NOSONAR -use direct wpdb for custom queries.
-            $ids = $wpdb->get_col( "SELECT id FROM $table_logs
-                WHERE 1
-                LIMIT " . intval( $batch_size )
-            );
-
-            if ( empty( $ids ) ) {
-                break;
-            }
-
-            $ids_in = implode( ',', array_map( 'intval', $ids ) );
-
-            // Delete meta first.
-            // phpcs:ignore -- NOSONAR -use direct wpdb for custom queries.
-            $wpdb->query( "DELETE FROM {$table_meta} WHERE log_id IN ($ids_in)" );
-
-            // Delete logs.
-            // phpcs:ignore -- NOSONAR -use direct wpdb for custom queries.
-            $wpdb->query( "DELETE FROM {$table_logs}  WHERE id IN ($ids_in)" );
-
-            $count_deleted = count( $ids );
-            $total_delete += $count_deleted;
-
-        } while ( $count_deleted === $batch_size );
-
-        return $total_delete;
+        $wpdb->query( "TRUNCATE TABLE `$table_meta`" ); //phpcs:ignore -- escaped ok.
+        $wpdb->query( "TRUNCATE TABLE `$table_logs`" ); //phpcs:ignore -- escaped ok.
     }
 
     /**
