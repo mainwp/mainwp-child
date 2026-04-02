@@ -50,6 +50,14 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      */
     private static $logs_type_queue = array();
 
+
+    /**
+     * Contains an array of logs processed.
+     *
+     * @var int[]
+     */
+    private static $logs_type_handled = array();
+
     /**
      * A cached value if the checked logs which were recently fired.
      *
@@ -73,6 +81,26 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      */
     public static function init_hooks() {
         \add_action( 'shutdown', array( __CLASS__, 'change_process_delay_logs_items' ), 8 );
+    }
+
+    /**
+     * Check if a log type has been processed.
+     *
+     * @param int $type_id    - Log type.
+     */
+    public static function is_handled_logs_type( $type_id ) {
+        return is_array( self::$logs_type_handled ) && in_array( $type_id, self::$logs_type_handled, true );
+    }
+
+    /**
+     * Mark a log type as handled.
+     *
+     * @param int $type_id    - Log type.
+     */
+    public static function handled_log_type( $type_id ) {
+        if ( is_array( self::$logs_type_handled ) && ! in_array( $type_id, self::$logs_type_handled, true ) ) {
+            self::$logs_type_handled[] = $type_id;
+        }
     }
 
     /**

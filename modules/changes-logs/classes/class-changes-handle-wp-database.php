@@ -437,8 +437,9 @@ class Changes_Handle_WP_Database {
             foreach ( $latest_events as $latest_event ) {
                 if ( intval( $latest_event['log_type_id'] ) === $type_id ) {
                     $event_meta  = $latest_event ? $latest_event['meta_values'] : false;
-                    $plugin_name = $event_meta['PluginData']->Name;
-
+                    if( is_array( $event_meta ) && isset( $event_meta['PluginData'] ) && isset( $event_meta['PluginData']->Name ) ) {
+                        $plugin_name = $event_meta['plugindata']->name;
+                    }
                     break;
                 }
             }

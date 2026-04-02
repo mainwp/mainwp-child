@@ -992,4 +992,34 @@ return array(
         'context'     => 'cron-job',
         'action_name' => 'deleted',
     ),
+    1960 => array(
+        'type_id'     => 1960,
+        'desc'        => esc_html__( 'WordPress updated', 'mainwp-child' ),
+        'context'     => 'wordpress', //phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- No need for singular/plural here.
+        'action_name' => 'updated',
+    ),
+    1965 => array(
+        'type_id'     => 1965,
+        'desc'        => esc_html__( 'Plugin installed.', 'mainwp-child' ),
+        'context'     => 'plugin',
+        'action_name' => 'installed',
+    ),
+    1970 => array(
+        'type_id'     => 1970,
+        'desc'        => esc_html__( 'Plugin updated.', 'mainwp-child' ),
+        'context'     => 'plugin',
+        'action_name' => 'updated',
+    ),
+    1975 => array(
+        'type_id'     => 1975,
+        'desc'        => esc_html__( 'Theme installed.', 'mainwp-child' ),
+        'context'     => 'theme',
+        'action_name' => 'installed',
+    ),
+    1980 => array(
+        'type_id'     => 1980,
+        'desc'        => esc_html__( 'Theme updated.', 'mainwp-child' ),
+        'context'     => 'theme',
+        'action_name' => 'updated',
+    ),
 );

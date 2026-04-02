@@ -116,7 +116,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         static::$connected_admin = get_option( 'mainwp_child_connected_admin', '' );
         $this->init_actions      = array(
             'upgrader_pre_install',
-            'upgrader_process_complete',
+            //'upgrader_process_complete', // moved to changes logs.
             // 'activate_plugin', // moved to changes logs, log id ##1461.
             'deactivate_plugin',
             'switch_theme',
