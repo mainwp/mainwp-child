@@ -108,6 +108,29 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
     }
 
     /**
+     * Normalize a theme reference into a stylesheet slug.
+     *
+     * @param mixed $theme Theme slug or WP_Theme instance.
+     *
+     * @return string|null
+     */
+    private function normalize_theme_slug( $theme ) {
+        if ( $theme instanceof \WP_Theme ) {
+            $theme = $theme->get_stylesheet();
+        }
+
+        if ( is_scalar( $theme ) ) {
+            $theme = (string) $theme;
+        }
+
+        if ( ! is_string( $theme ) || '' === $theme ) {
+            return null;
+        }
+
+        return $theme;
+    }
+
+    /**
      * MainWP_Child_Callable constructor.
      *
      * Run any time class is called.
@@ -388,7 +411,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
                 $name    = $data['Name'];
                 $version = $data['Version'];
             } else { // theme.
-                $slug = $upgrader->theme_info();
+                $slug = $this->normalize_theme_slug( $upgrader->theme_info() );
 
                 if ( ! $slug ) {
                     return false;
