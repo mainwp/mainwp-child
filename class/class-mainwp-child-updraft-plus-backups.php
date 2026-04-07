@@ -3050,17 +3050,17 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
             $accept = array();
         }
 
-        $ret         = '<table class="ui stackable single line table">';
         $nonce_field = wp_nonce_field( 'updraftplus_download', '_wpnonce', true, false );
 
+        $ret  = '<table class="ui stackable single line table">';
         $ret .= '<thead>
-                            <tr>
-                                <th>' . esc_html__( 'Backup date', 'updraftplus' ) . '</th>
-                                <th>' . esc_html__( 'Backup data (click to download)', 'updraftplus' ) . '</th>
-                                <th>' . esc_html__( 'Actions', 'updraftplus' ) . '</th>
-                            </tr>
-                        </thead>
-                        <tbody>';
+                    <tr>
+                        <th class="six wide">' . esc_html__( 'Backup date', 'updraftplus' ) . '</th>
+                        <th class="five wide">' . esc_html__( 'Backup data (click to download)', 'updraftplus' ) . '</th>
+                        <th class="five wide right aligned">' . esc_html__( 'Actions', 'updraftplus' ) . '</th>
+                    </tr>
+                </thead>
+                <tbody>';
 
         krsort( $backup_history );
         foreach ( $backup_history as $key => $backup ) {
@@ -3095,12 +3095,9 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                 }
             }
 
-            $ret .= <<<ENDHERE
-                <tr id="updraft_existing_backups_row_$key">
-                <td class="updraft_existingbackup_date" data-rawbackup="$rawbackup">
-                    $date_label . $service_title
-                </td>
-ENDHERE;
+            $date_cell = $date_label . $service_title;
+            $ret .= '<tr id="updraft_existing_backups_row_' . esc_attr( $key ) . '">';
+            $ret .= '<td class="updraft_existingbackup_date" data-rawbackup="' . esc_attr( $rawbackup ) . '">' . $date_cell . '</td>';
 
             $ret .= '<td>';
             if ( empty( $backup['meta_foreign'] ) || ! empty( $accept[ $backup['meta_foreign'] ]['separatedb'] ) ) {
@@ -3141,12 +3138,12 @@ ENDHERE;
 
             $ret .= $download_buttons;
             $ret .= '</td>';
-            $ret .= '<td>';
+            $ret .= '<td class="right aligned">';
             $ret .= $this->restore_button( $key, $entities );
-            $ret .= $delete_button;
             if ( empty( $backup['meta_foreign'] ) ) {
                 $ret .= $this->log_button( $backup );
             }
+            $ret .= $delete_button;
             $ret .= '</td>';
             $ret .= '</tr>';
         }
@@ -3166,13 +3163,13 @@ ENDHERE;
     private function restore_button( $key, $entities ) {
 
         $ret = <<<ENDHERE
-        <div style="float:left; clear:none; margin-right: 6px;">
+        <div style="float:right; clear:none; margin-right: 6px;">
             <form method="post" action="">
                 <input type="hidden" name="backup_timestamp" value="$key">
                 <input type="hidden" name="action" value="mainwp_updraft_restore" />
 ENDHERE;
         if ( $entities ) {
-            $ret .= '<button title="' . esc_html__( 'Go to Restore', 'updraftplus' ) . '" type="button" class="ui green button mwp-updraftplus-restore-btn" >' . esc_html__( 'Restore', 'updraftplus' ) . '</button>';
+            $ret .= '<button title="' . esc_html__( 'Go to Restore', 'updraftplus' ) . '" type="button" class="ui green mini button mwp-updraftplus-restore-btn">' . esc_html__( 'Restore', 'updraftplus' ) . '</button>';
         }
         $ret .= "</form></div>\n";
 
@@ -3191,7 +3188,7 @@ ENDHERE;
     private function delete_button( $key, $nonce, $backup ) {
         $sval = ( isset( $backup['service'] ) && 'email' !== $backup['service'] && 'none' !== $backup['service'] ) ? '1' : '0';
 
-        return '<a style="float:left;margin-right:6px"  class="ui green basic button" href="#" onclick="event.preventDefault();' . "mainwp_updraft_delete( '$key', '$nonce', $sval, this );" . '" title="' . esc_attr( esc_html__( 'Delete this backup set', 'updraftplus' ) ) . '">' . esc_html__( 'Delete', 'updraftplus' ) . '</a>';
+        return '<a style="float:right;margin-right:6px" class="ui basic mini button" href="#" onclick="event.preventDefault();' . "mainwp_updraft_delete( '$key', '$nonce', $sval, this );" . '" title="' . esc_attr( esc_html__( 'Delete this backup set', 'updraftplus' ) ) . '">' . esc_html__( 'Delete', 'updraftplus' ) . '</a>';
     }
 
     /**
@@ -3249,7 +3246,7 @@ ENDHERE;
                                     <input type="hidden" name="action" value="mainwp_updraft_download_backup" />
                                     <input type="hidden" name="type" value="$bkey" />
                                     <input type="hidden" name="timestamp" value="$key" />
-                                    <input type="submit" class="mwp-updraft-backupentitybutton ui button" value="$dbt" />
+                                    <input type="submit" class="mwp-updraft-backupentitybutton ui mini button" value="$dbt" />
                                 </form>
                             </div>
 ENDHERE;
@@ -3393,7 +3390,7 @@ ENDHERE;
                 <input type="hidden" name="type" value="$type" />
                 <input type="hidden" name="timestamp" value="$key" />
                 <input type="hidden" name="findex" value="$findex" />
-                <input type="submit" class="mwp-updraft-backupentitybutton ui button" title="$ide" value="$pdescrip" />
+                <input type="submit" class="mwp-updraft-backupentitybutton ui mini button" title="$ide" value="$pdescrip" />
             </form>
         </div>
 ENDHERE;
@@ -3421,12 +3418,12 @@ ENDHERE;
             $lt   = esc_attr( esc_html__( 'View Log', 'updraftplus' ) );
             $url  = \UpdraftPlus_Options::admin_page();
             $ret .= <<<ENDHERE
-                            <div style="float:left; clear:none;" class="mwp-updraft-viewlogdiv">
+                            <div style="float:right; clear:none;" class="mwp-updraft-viewlogdiv">
                                 <form action="$url" method="get">
                                     <input type="hidden" name="action" value="downloadlog" />
                                     <input type="hidden" name="page" value="updraftplus" />
                                     <input type="hidden" name="updraftplus_backup_nonce" value="$nval" />
-                                    <input type="submit" value="$lt" class="updraft-log-link ui button" onclick="event.preventDefault(); mainwp_updraft_popuplog( '$nval', this );" />
+                                    <input type="submit" value="$lt" class="updraft-log-link ui mini button" onclick="event.preventDefault(); mainwp_updraft_popuplog( '$nval', this );" />
                                 </form>
                             </div>
 ENDHERE;
