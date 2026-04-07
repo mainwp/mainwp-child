@@ -46,7 +46,7 @@ class Changes_Handle_WP_Plugins_Themes {
             \add_action( 'shutdown', array( __CLASS__, 'callback_change_wp_shutdown' ) );
         }
 
-        self::init_before();
+        \add_action( 'upgrader_pre_install', array( __CLASS__, 'init_before' ) );
 
         // Fires after the upgrades done.
         \add_action( 'upgrader_process_complete', array( __CLASS__, 'callback_change_upgrader_complete' ), 10, 2 );
@@ -139,6 +139,11 @@ class Changes_Handle_WP_Plugins_Themes {
      * Triggered when a user accesses the admin area.
      */
     public static function init_before() {
+
+        if ( ! function_exists( '\get_plugins' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php'; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.FileIncludeFound -- NOSONAR - ok.
+        }
+
         self::get_current_themes();
         self::get_current_plugins();
     }
