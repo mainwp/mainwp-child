@@ -436,9 +436,14 @@ class Changes_Handle_WP_Database {
         if ( is_array( $latest_events ) ) {
             foreach ( $latest_events as $latest_event ) {
                 if ( intval( $latest_event['log_type_id'] ) === $type_id ) {
-                    $event_meta  = $latest_event ? $latest_event['meta_values'] : false;
-                    $plugin_name = $event_meta['PluginData']->Name;
-
+                    $event_meta = $latest_event ? $latest_event['meta_values'] : false;
+                    if ( is_array( $event_meta ) ) {
+                        if ( isset( $event_meta['PluginData'] ) && is_object( $event_meta['PluginData'] ) && isset( $event_meta['PluginData']->Name ) ) {
+                            $plugin_name = $event_meta['PluginData']->Name;
+                        } elseif ( isset( $event_meta['plugindata'] ) && is_object( $event_meta['plugindata'] ) && isset( $event_meta['plugindata']->name ) ) {
+                            $plugin_name = $event_meta['plugindata']->name;
+                        }
+                    }
                     break;
                 }
             }

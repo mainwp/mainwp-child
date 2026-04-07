@@ -139,7 +139,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
         static::$connected_admin = get_option( 'mainwp_child_connected_admin', '' );
         $this->init_actions      = array(
             'upgrader_pre_install',
-            'upgrader_process_complete',
+            // 'upgrader_process_complete', // moved to changes logs.
             // 'activate_plugin', // moved to changes logs, log id ##1461.
             'deactivate_plugin',
             'switch_theme',
@@ -731,9 +731,10 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version using the centralized method.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $new_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
-        $old_version  = $new_version; // Current version is now the old version after update.
-        $auto_updated = ( 'update-core.php' !== $pagenow );
+        $new_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $old_version = $new_version; // Current version is now the old version after update.
+
+        $auto_updated = empty( $pagenow ) || 'update-core.php' !== $pagenow;
 
         if ( $auto_updated ) {
             // translators: Placeholder refers to a version number (e.g. "4.2").

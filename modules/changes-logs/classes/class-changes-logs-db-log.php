@@ -355,6 +355,9 @@ class Changes_Logs_DB_Log {
             $record['duration'] = MainWP_Child_Actions::get_instance()->get_exec_time();
 
             $log_id = $this->save_log( $record );
+            if ( $log_id ) {
+                Changes_Logs_Logger::handled_log_type( $type_id );
+            }
 
             if ( 0 !== $log_id && ! empty( $data ) ) {
                 $sqls = '';

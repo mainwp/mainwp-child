@@ -43,6 +43,15 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
     private static $rescheduled_cron = false;
 
     /**
+     * Current WP version.
+     *
+     * @var string
+     *
+     * @since 6.0.7
+     */
+    private static $current_wp_version = '';
+
+    /**
      * Inits the main hooks
      *
      * @return void
@@ -56,6 +65,13 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
         \add_action( 'added_option', array( __CLASS__, 'callback_change_added_option' ), 10, 2 );
         \add_action( 'delete_option', array( __CLASS__, 'callback_change_delete_option' ) );
         \add_action( 'deleted_option', array( __CLASS__, 'callback_change_deleted_option' ) );
+        \add_action( '_core_updated_successfully', array( __CLASS__, 'callback_change_core_updated' ) );
+
+        if ( \function_exists( 'wp_get_wp_version' ) ) {
+            self::$current_wp_version = wp_get_wp_version();
+        } else {
+            self::$current_wp_version = \get_bloginfo( 'version' );
+        }
     }
 
     /**
@@ -159,7 +175,7 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
             $crons = \wp_get_ready_cron_jobs();
             foreach ( $crons  as $cronhooks ) {
                 foreach ( $cronhooks as $hook => $keys ) {
-                    foreach ( $keys as $v ) { //NOSONAR --unused var.
+                    foreach ( $keys as $v ) { // NOSONAR --unused var.
                         \add_action(
                             $hook,
                             function () use ( $hook ) {
@@ -335,7 +351,7 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
     public static function callback_change_unschedule_cron_job( $pre, $timestamp, $hook, $args, $wp_error = false ) { //phpcs:ignore -- NOSONAR -require params.
 
         if ( ! $pre && ! defined( 'DOING_CRON' ) ) {
-            $type_id = 1950; //NOSONAR -used for feature.
+            $type_id = 1950; // NOSONAR -used for feature.
 
             $data = array(
                 'task_name'     => $hook,
@@ -425,6 +441,34 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
                 Changes_Logs_Logger::log_change( 1920, $log_data );
             }
         }
+    }
+
+    /**
+     * Triggered when the core is updated.
+     *
+     * @param string $new_wp_version - The new WordPress version.
+     *
+     * @since 5.4.0
+     */
+    public static function callback_change_core_updated( $new_wp_version ) {
+
+        /**
+         * Global variables.
+         *
+         * @global string $pagenow Current page.
+         */
+        global $pagenow;
+
+        $auto_updated = ( 'update-core.php' !== $pagenow );
+
+        Changes_Logs_Logger::log_change(
+            1960,
+            array(
+                'old_version'  => self::$current_wp_version,
+                'new_version'  => $new_wp_version,
+                'auto_updated' => $auto_updated,
+            )
+        );
     }
 
     /**
