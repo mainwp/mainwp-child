@@ -431,14 +431,14 @@ class Changes_Handle_WP_Plugins_Themes {
 
         if ( ! \is_wp_error( \validate_plugin( $opt_data['plugin'] ) ) ) {
             $current_plugins = self::get_current_plugins();
-
+            $auto_updated    = wp_doing_cron() ? 1 : 0;
             $current_version = ( isset( $current_plugins[ $opt_data['plugin'] ] ) ) ? $current_plugins[ $opt_data['plugin'] ]['Version'] : false;
 
             if ( $current_version !== $context['plugin_version'] ) {
                 Changes_Logs_Logger::log_change(
                     1970,
                     array(
-                        'plugindata' => (object) array(
+                        'plugindata'   => (object) array(
                             'name'      => $context['plugin_name'],
                             'pluginuri' => $context['plugin_url'],
                             'version'   => $context['plugin_version'],
@@ -447,7 +447,8 @@ class Changes_Handle_WP_Plugins_Themes {
                             'slug'      => $context['plugin_slug'],
                             'title'     => $context['plugin_title'],
                         ),
-                        'oldversion' => $current_version,
+                        'oldversion'   => $current_version,
+                        'auto_updated' => $auto_updated,
                     )
                 );
             }
@@ -498,13 +499,15 @@ class Changes_Handle_WP_Plugins_Themes {
             if ( ! \is_wp_error( \validate_plugin( $opt_data['plugin'], ) ) ) {
                 $current_plugins = self::get_current_plugins();
 
+                $auto_updated = wp_doing_cron() ? 1 : 0;
+
                 $current_version = ( isset( $current_plugins[ $opt_data['plugin'] ] ) ) ? $current_plugins[ $opt_data['plugin'] ]['Version'] : false;
 
                 if ( $current_version !== $context['plugin_version'] ) {
                     Changes_Logs_Logger::log_change(
                         1970,
                         array(
-                            'plugindata' => (object) array(
+                            'plugindata'   => (object) array(
                                 'name'      => $context['plugin_name'],
                                 'pluginuri' => $context['plugin_url'],
                                 'version'   => $context['plugin_version'],
@@ -513,7 +516,8 @@ class Changes_Handle_WP_Plugins_Themes {
                                 'slug'      => $context['plugin_slug'],
                                 'title'     => $context['plugin_title'],
                             ),
-                            'oldversion' => $current_version,
+                            'oldversion'   => $current_version,
+                            'auto_updated' => $auto_updated,
                         )
                     );
                 }
