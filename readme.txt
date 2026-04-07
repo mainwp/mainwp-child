@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 7.4
-Stable tag: 6.0.7-er.1
+Stable tag: 6.0.7
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,13 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.7 - 4-7-2026 =
+
+* Fixed: Resolved an issue where the Network Activity feature continued logging events even when the feature was disabled.
+* Fixed: Conflict with the SureFeedback plugin.
+* Added: Added detailed sync monitoring with per-call timing and execution data to the Custom Event Monitor.
+* Added: Added an option to set a custom Network Activity data retention period in child site databases.
 
 = 6.0.6 - 3-31-2026 =
 
