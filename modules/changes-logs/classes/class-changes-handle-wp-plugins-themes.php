@@ -190,8 +190,9 @@ class Changes_Handle_WP_Plugins_Themes {
             return;
         }
 
-        // Ignore if changes events triggered before.
-        if ( Changes_Logs_Logger::is_handled_logs_type( 1965 ) || Changes_Logs_Logger::is_handled_logs_type( 1975 ) ) {
+        // Ignore if changes events triggered before (check all log types emitted by handlers).
+        if ( Changes_Logs_Logger::is_handled_logs_type( 1965 ) || Changes_Logs_Logger::is_handled_logs_type( 1970 ) ||
+            Changes_Logs_Logger::is_handled_logs_type( 1975 ) || Changes_Logs_Logger::is_handled_logs_type( 1980 ) ) {
             return;
         }
 
