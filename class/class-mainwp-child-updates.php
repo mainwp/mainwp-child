@@ -37,6 +37,13 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private $filterFunction = null;
 
+    /**
+     * Holds the active HTTP timeout guard closure so it can be removed reliably.
+     *
+     * @var \Closure|null
+     */
+    private $http_timeout_guard = null;
+
 
     /**
      * Method get_class_name()
@@ -1120,18 +1127,28 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             set_site_transient( 'update_plugins', $current );
 
             add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
-            $plugins = get_plugin_updates();
-            remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+            $this->add_http_timeout_guard();
 
-            set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS );
+            try {
+                $plugins = get_plugin_updates();
+                set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS );
+            } finally {
+                $this->remove_http_timeout_guard();
+                remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+            }
         }
 
         if ( isset( $_GET['_detect_themes_updates'] ) && 'yes' === $_GET['_detect_themes_updates'] ) {
             add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
-            $themes = get_theme_updates();
-            remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+            $this->add_http_timeout_guard();
 
-            set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS );
+            try {
+                $themes = get_theme_updates();
+                set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS );
+            } finally {
+                $this->remove_http_timeout_guard();
+                remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+            }
         }
 
         $type = isset( $_GET['_request_update_premiums_type'] ) ? sanitize_text_field( wp_unslash( $_GET['_request_update_premiums_type'] ) ) : '';
@@ -1150,6 +1167,66 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         // phpcs:enable WordPress.WP.AlternativeFunctions
+    }
+
+    /**
+     * Install short-lived HTTP timeout guards before triggering premium update detection.
+     *
+     * Premium update servers can be slow or unreachable, which would otherwise let a single
+     * synchronous detection request hang the entire PHP worker until the LSAPI/FCGI timeout
+     * kicks in (commonly 120s+). The guards cap each outbound HTTP request and its underlying
+     * cURL connect phase to a few seconds, so the detection step degrades gracefully instead
+     * of taking down the request.
+     *
+     * @return void
+     */
+    private function add_http_timeout_guard() {
+        if ( null !== $this->http_timeout_guard ) {
+            return;
+        }
+
+        $this->http_timeout_guard = static function ( $timeout ) {
+            $timeout = (int) $timeout;
+            return ( $timeout > 0 && $timeout < 5 ) ? $timeout : 5;
+        };
+
+        add_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
+
+        add_action( 'http_api_curl', array( $this, 'cap_curl_connect_timeout' ), PHP_INT_MAX );
+    }
+
+    /**
+     * Remove the HTTP timeout guards installed by add_http_timeout_guard().
+     *
+     * @return void
+     */
+    private function remove_http_timeout_guard() {
+        if ( null === $this->http_timeout_guard ) {
+            return;
+        }
+
+        remove_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
+        remove_action( 'http_api_curl', array( $this, 'cap_curl_connect_timeout' ), PHP_INT_MAX );
+
+        $this->http_timeout_guard = null;
+    }
+
+    /**
+     * Cap the cURL connect timeout while the HTTP guard is active.
+     *
+     * WordPress does not expose a filter for the cURL connect phase, but a slow or unreachable
+     * remote host can otherwise stall the request well beyond the wp_remote_get() timeout.
+     *
+     * @param resource|\CurlHandle $handle cURL handle, passed by reference by WordPress.
+     *
+     * @return void
+     */
+    public function cap_curl_connect_timeout( $handle ) {
+        if ( ! is_resource( $handle ) && ! ( $handle instanceof \CurlHandle ) ) {
+            return;
+        }
+        // 5 second TCP connect ceiling. Any premium update server slower than this is broken.
+        curl_setopt( $handle, CURLOPT_CONNECTTIMEOUT, 5 );
     }
 
     /**
