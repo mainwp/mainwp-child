@@ -1226,6 +1226,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             return;
         }
         // 5 second TCP connect ceiling. Any premium update server slower than this is broken.
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt -- http_api_curl is the WordPress-provided hook for modifying the cURL handle that WordPress itself uses; there is no wp_remote_* equivalent for CURLOPT_CONNECTTIMEOUT.
         curl_setopt( $handle, CURLOPT_CONNECTTIMEOUT, 5 );
     }
 
