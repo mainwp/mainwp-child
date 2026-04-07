@@ -1186,8 +1186,8 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $this->http_timeout_guard = static function ( $timeout ) {
-            $timeout = (int) $timeout;
-            return ( $timeout > 0 && $timeout < 5 ) ? $timeout : 5;
+            $timeout = is_numeric( $timeout ) ? (float) $timeout : 5.0;
+            return ( $timeout > 0 ) ? min( $timeout, 5.0 ) : 5.0;
         };
 
         add_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
