@@ -38,6 +38,14 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
     private $filterFunction = null;
 
     /**
+     * Timeout ceiling in seconds for premium update discovery HTTP calls.
+     *
+     * Applied to both the wp_remote_* request timeout and the underlying cURL connect phase
+     * while detect_premium_themesplugins_updates() is running.
+     */
+    private const PREMIUM_UPDATE_HTTP_TIMEOUT = 5.0;
+
+    /**
      * Holds the active HTTP timeout guard closure so it can be removed reliably.
      *
      * @var \Closure|null
@@ -1186,8 +1194,8 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $this->http_timeout_guard = static function ( $timeout ) {
-            $timeout = is_numeric( $timeout ) ? (float) $timeout : 5.0;
-            return ( $timeout > 0 ) ? min( $timeout, 5.0 ) : 5.0;
+            $timeout = is_numeric( $timeout ) ? (float) $timeout : self::PREMIUM_UPDATE_HTTP_TIMEOUT;
+            return ( $timeout > 0 ) ? min( $timeout, self::PREMIUM_UPDATE_HTTP_TIMEOUT ) : self::PREMIUM_UPDATE_HTTP_TIMEOUT;
         };
 
         add_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
@@ -1225,9 +1233,9 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! is_resource( $handle ) && ! ( $handle instanceof \CurlHandle ) ) {
             return;
         }
-        // 5 second TCP connect ceiling. Any premium update server slower than this is broken.
+        // TCP connect ceiling. Any premium update server slower than this is broken.
         // phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt -- http_api_curl is the WordPress-provided hook for modifying the cURL handle that WordPress itself uses; there is no wp_remote_* equivalent for CURLOPT_CONNECTTIMEOUT.
-        curl_setopt( $handle, CURLOPT_CONNECTTIMEOUT, 5 );
+        curl_setopt( $handle, CURLOPT_CONNECTTIMEOUT, (int) self::PREMIUM_UPDATE_HTTP_TIMEOUT );
     }
 
     /**
