@@ -40,8 +40,9 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Timeout ceiling in seconds for premium update discovery HTTP calls.
      *
-     * Applied to both the wp_remote_* request timeout and the underlying cURL connect phase
-     * while detect_premium_themesplugins_updates() is running.
+     * Applied to the http_request_timeout filter while detect_premium_themesplugins_updates()
+     * is running, so that a single slow or unreachable premium update server cannot stall the
+     * entire PHP worker.
      */
     private const PREMIUM_UPDATE_HTTP_TIMEOUT = 5.0;
 
@@ -1178,12 +1179,12 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Install short-lived HTTP timeout guards before triggering premium update detection.
+     * Install a short-lived HTTP timeout guard before triggering premium update detection.
      *
      * Premium update servers can be slow or unreachable, which would otherwise let a single
      * synchronous detection request hang the entire PHP worker until the LSAPI/FCGI timeout
-     * kicks in (commonly 120s+). The guards cap each outbound HTTP request and its underlying
-     * cURL connect phase to a few seconds, so the detection step degrades gracefully instead
+     * kicks in (commonly 120s+). The guard caps each outbound HTTP request to a few seconds
+     * via the http_request_timeout filter, so the detection step degrades gracefully instead
      * of taking down the request.
      *
      * @return void
@@ -1199,12 +1200,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         };
 
         add_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
-
-        add_action( 'http_api_curl', array( $this, 'cap_curl_connect_timeout' ), PHP_INT_MAX );
     }
 
     /**
-     * Remove the HTTP timeout guards installed by add_http_timeout_guard().
+     * Remove the HTTP timeout guard installed by add_http_timeout_guard().
      *
      * @return void
      */
@@ -1214,28 +1213,8 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         remove_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
-        remove_action( 'http_api_curl', array( $this, 'cap_curl_connect_timeout' ), PHP_INT_MAX );
 
         $this->http_timeout_guard = null;
-    }
-
-    /**
-     * Cap the cURL connect timeout while the HTTP guard is active.
-     *
-     * WordPress does not expose a filter for the cURL connect phase, but a slow or unreachable
-     * remote host can otherwise stall the request well beyond the wp_remote_get() timeout.
-     *
-     * @param resource|\CurlHandle $handle cURL handle, passed by reference by WordPress.
-     *
-     * @return void
-     */
-    public function cap_curl_connect_timeout( $handle ) {
-        if ( ! is_resource( $handle ) && ! ( $handle instanceof \CurlHandle ) ) {
-            return;
-        }
-        // TCP connect ceiling. Any premium update server slower than this is broken.
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt -- http_api_curl is the WordPress-provided hook for modifying the cURL handle that WordPress itself uses; there is no wp_remote_* equivalent for CURLOPT_CONNECTTIMEOUT.
-        curl_setopt( $handle, CURLOPT_CONNECTTIMEOUT, (int) self::PREMIUM_UPDATE_HTTP_TIMEOUT );
     }
 
     /**
