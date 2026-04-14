@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 7.4
-Stable tag: 6.0.8-er.1
+Stable tag: 6.0.8
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,10 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.8 - 4-14-2026 =
+* Fixed: Added the `normalize_theme_slug()` method to better handle theme references and prevent PHP warnings when installing themes by uploading a ZIP file.
+* Updated: Expanded Network Activity tracking to monitor core, plugin, and theme updates handled by WordPress auto-updates.
 
 = 6.0.7 - 4-7-2026 =
 
