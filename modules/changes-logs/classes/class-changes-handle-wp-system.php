@@ -243,7 +243,7 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
             $default_disabled_logs = array(
                 1940 => array( 'task_name' => array( 'do_pings' ) ),
             );
-            $default_disabled_logs = apply_filters( 'mainwp_child_changes_logs_disabled_system_logs', $default_disabled_logs );
+            $disabled_system_logs = apply_filters( 'mainwp_child_changes_logs_disabled_system_logs', $default_disabled_logs );
         }
 
         if ( ! is_array( $disabled_system_logs ) ) {

@@ -40,14 +40,8 @@ class Changes_Handle_WP_Plugins_Themes {
      * @return void
      */
     public static function init_hooks() {
-        $has_perm = ( current_user_can( 'install_plugins' ) || current_user_can( 'activate_plugins' ) ||
-            current_user_can( 'delete_plugins' ) || current_user_can( 'update_plugins' ) || current_user_can( 'install_themes' ) );
-        if ( $has_perm ) {
-            \add_action( 'shutdown', array( __CLASS__, 'callback_change_wp_shutdown' ) );
-        }
-
+        \add_action( 'shutdown', array( __CLASS__, 'callback_change_wp_shutdown' ) );
         \add_action( 'upgrader_pre_install', array( __CLASS__, 'init_before' ) );
-
         // Fires after the upgrades done.
         \add_action( 'upgrader_process_complete', array( __CLASS__, 'callback_change_upgrader_complete' ), 10, 2 );
     }
@@ -101,7 +95,6 @@ class Changes_Handle_WP_Plugins_Themes {
                         $plugin_file = WP_PLUGIN_DIR . '/' . $plugin;
                         $plugin_data = \get_plugin_data( $plugin_file, false, true );
                         $log_data    = array(
-                            'pluginfile' => $plugin_file,
                             'slug'       => $plugin,
                             'plugindata' => (object) array(
                                 'name'      => $plugin_data['Name'],
@@ -119,7 +112,6 @@ class Changes_Handle_WP_Plugins_Themes {
                         $plugin_file = WP_PLUGIN_DIR . '/' . $plugin;
                         $plugin_data = get_plugin_data( $plugin_file, false, true );
                         $log_data    = array(
-                            'pluginfile' => $plugin_file,
                             'slug'       => $plugin,
                             'plugindata' => (object) array(
                                 'name'      => $plugin_data['Name'],
@@ -190,9 +182,8 @@ class Changes_Handle_WP_Plugins_Themes {
             return;
         }
 
-        // Ignore if changes events triggered before (check all log types emitted by handlers).
-        if ( Changes_Logs_Logger::is_handled_logs_type( 1965 ) || Changes_Logs_Logger::is_handled_logs_type( 1970 ) ||
-            Changes_Logs_Logger::is_handled_logs_type( 1975 ) || Changes_Logs_Logger::is_handled_logs_type( 1980 ) ) {
+        // Ignore if changes installed events triggered before.
+        if ( Changes_Logs_Logger::is_handled_logs_type( 1965 ) || Changes_Logs_Logger::is_handled_logs_type( 1975 ) ) {
             return;
         }
 
@@ -283,6 +274,13 @@ class Changes_Handle_WP_Plugins_Themes {
             );
         }
 
+        $auto_updated = \is_object( $upgrader_instance ) && \property_exists( $upgrader_instance->skin, 'skin' ) && \is_a( $upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
+
+        $old_themes = self::get_current_themes();
+
+        if ( ! is_array( $old_themes ) ) {
+            $old_themes = array();
+        }
         foreach ( $arr_themes as $one_updated_theme ) {
             $theme = \wp_get_theme( $one_updated_theme );
 
@@ -290,23 +288,32 @@ class Changes_Handle_WP_Plugins_Themes {
                 continue;
             }
 
+            $old_theme = isset( $old_themes[ $one_updated_theme ] ) ? $old_themes[ $one_updated_theme ] : false;
+
+            $old_version = '';
+            if ( ! empty( $old_theme ) && $old_theme instanceof \WP_Theme ) {
+                $old_version = $old_theme->get( 'Version' );
+            }
+
             $theme_name    = $theme->get( 'Name' );
             $theme_version = $theme->get( 'Version' );
 
-            if ( ! $theme_name || ! $theme_version ) {
+            if ( ! $theme_name || ! $theme_version || $theme_version === $old_version ) {
                 continue;
             }
 
             Changes_Logs_Logger::log_change(
                 1980,
                 array(
-                    'theme' => (object) array(
+                    'theme'        => (object) array(
                         'name'        => $theme_name,
                         'themeuri'    => $theme->ThemeURI, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
                         'description' => $theme->Description, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
                         'author'      => $theme->Author, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
                         'version'     => $theme_version,
                     ),
+                    'auto_updated' => $auto_updated,
+                    'oldversion'   => $old_version,
                 )
             );
         }
@@ -344,7 +351,6 @@ class Changes_Handle_WP_Plugins_Themes {
             'plugin_requires_wp'  => $new_plugin_data['RequiresWP'] ?? '',
             'plugin_requires_php' => $new_plugin_data['RequiresPHP'] ?? '',
             'plugin_network'      => ( $new_plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp' ) : \esc_html__( 'False', 'mainwp' ),
-            'plugin_path'         => \WP_PLUGIN_DIR . \DIRECTORY_SEPARATOR . $plugin,
         );
 
         if ( isset( $new_plugin_data['UpdateURI'] ) ) {
@@ -422,7 +428,6 @@ class Changes_Handle_WP_Plugins_Themes {
             'plugin_version'     => $plugin_data['Version'] ?? '',
             'plugin_url'         => $plugin_data['PluginURI'] ?? '',
             'plugin_network'     => ( $plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp' ) : \esc_html__( 'False', 'mainwp' ),
-            'plugin_path'        => \WP_PLUGIN_DIR . \DIRECTORY_SEPARATOR . $opt_data['plugin'],
         );
 
         // If it is set.
@@ -432,7 +437,8 @@ class Changes_Handle_WP_Plugins_Themes {
 
         if ( ! \is_wp_error( \validate_plugin( $opt_data['plugin'] ) ) ) {
             $current_plugins = self::get_current_plugins();
-            $auto_updated    = wp_doing_cron() ? 1 : 0;
+            $auto_updated    = \is_object( $plugin_upgrader_instance ) && \property_exists( $plugin_upgrader_instance->skin, 'skin' ) && \is_a( $plugin_upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
+
             $current_version = ( isset( $current_plugins[ $opt_data['plugin'] ] ) ) ? $current_plugins[ $opt_data['plugin'] ]['Version'] : false;
 
             if ( $current_version !== $context['plugin_version'] ) {
@@ -500,7 +506,7 @@ class Changes_Handle_WP_Plugins_Themes {
             if ( ! \is_wp_error( \validate_plugin( $opt_data['plugin'], ) ) ) {
                 $current_plugins = self::get_current_plugins();
 
-                $auto_updated = wp_doing_cron() ? 1 : 0;
+                $auto_updated = \is_object( $plugin_upgrader_instance ) && \property_exists( $plugin_upgrader_instance->skin, 'skin' ) && \is_a( $plugin_upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
 
                 $current_version = ( isset( $current_plugins[ $opt_data['plugin'] ] ) ) ? $current_plugins[ $opt_data['plugin'] ]['Version'] : false;
 
