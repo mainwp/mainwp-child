@@ -274,9 +274,10 @@ class Changes_Handle_WP_Plugins_Themes {
             );
         }
 
-        $auto_updated = is_object( $upgrader_instance ) && property_exists( $upgrader_instance->skin ) && is_a( $upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
+        $auto_updated = \is_object( $upgrader_instance ) && \property_exists( $upgrader_instance->skin, 'skin' ) && \is_a( $upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
 
-        $old_themes = static::get_current_themes();
+        $old_themes = self::get_current_themes();
+
         if ( ! is_array( $old_themes ) ) {
             $old_themes = array();
         }
@@ -436,7 +437,7 @@ class Changes_Handle_WP_Plugins_Themes {
 
         if ( ! \is_wp_error( \validate_plugin( $opt_data['plugin'] ) ) ) {
             $current_plugins = self::get_current_plugins();
-            $auto_updated    = is_object( $plugin_upgrader_instance ) && property_exists( $plugin_upgrader_instance->skin ) && is_a( $plugin_upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
+            $auto_updated    = \is_object( $plugin_upgrader_instance ) && \property_exists( $plugin_upgrader_instance->skin, 'skin' ) && \is_a( $plugin_upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
 
             $current_version = ( isset( $current_plugins[ $opt_data['plugin'] ] ) ) ? $current_plugins[ $opt_data['plugin'] ]['Version'] : false;
 
@@ -505,7 +506,7 @@ class Changes_Handle_WP_Plugins_Themes {
             if ( ! \is_wp_error( \validate_plugin( $opt_data['plugin'], ) ) ) {
                 $current_plugins = self::get_current_plugins();
 
-                $auto_updated = is_object( $plugin_upgrader_instance ) && property_exists( $plugin_upgrader_instance->skin ) && is_a( $plugin_upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
+                $auto_updated = \is_object( $plugin_upgrader_instance ) && \property_exists( $plugin_upgrader_instance->skin, 'skin' ) && \is_a( $plugin_upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
 
                 $current_version = ( isset( $current_plugins[ $opt_data['plugin'] ] ) ) ? $current_plugins[ $opt_data['plugin'] ]['Version'] : false;
 
