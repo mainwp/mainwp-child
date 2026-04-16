@@ -276,6 +276,10 @@ class Changes_Handle_WP_Plugins_Themes {
 
         $auto_updated = is_object( $upgrader_instance ) && property_exists( $upgrader_instance->skin ) && is_a( $upgrader_instance->skin, 'Automatic_Upgrader_Skin' ) ? 1 : 0;
 
+        $old_themes = static::get_current_themes();
+        if ( ! is_array( $old_themes ) ) {
+            $old_themes = array();
+        }
         foreach ( $arr_themes as $one_updated_theme ) {
             $theme = \wp_get_theme( $one_updated_theme );
 
@@ -283,10 +287,17 @@ class Changes_Handle_WP_Plugins_Themes {
                 continue;
             }
 
+            $old_theme = isset( $old_themes[ $one_updated_theme ] ) ? $old_themes[ $one_updated_theme ] : false;
+
+            $old_version = '';
+            if ( ! empty( $old_theme ) && $old_theme instanceof \WP_Theme ) {
+                $old_version = $old_theme->get( 'Version' );
+            }
+
             $theme_name    = $theme->get( 'Name' );
             $theme_version = $theme->get( 'Version' );
 
-            if ( ! $theme_name || ! $theme_version ) {
+            if ( ! $theme_name || ! $theme_version || $theme_version === $old_version ) {
                 continue;
             }
 
@@ -301,6 +312,7 @@ class Changes_Handle_WP_Plugins_Themes {
                         'version'     => $theme_version,
                     ),
                     'auto_updated' => $auto_updated,
+                    'oldversion'   => $old_version,
                 )
             );
         }
