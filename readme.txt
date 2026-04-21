@@ -112,7 +112,7 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 == Changelog ==
 
 = 6.0.9 - 4-21-2026 =
-Updated: Improved Network Activity entries for WordPress auto-updates to avoid showing "Unknown User" and better reflect automated update actions.
+* Updated: Improved Network Activity entries for WordPress auto-updates to avoid showing "Unknown User" and better reflect automated update actions.
 
 = 6.0.8 - 4-14-2026 =
 * Fixed: Added the `normalize_theme_slug()` method to better handle theme references and prevent PHP warnings when installing themes by uploading a ZIP file.
