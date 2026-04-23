@@ -99,15 +99,12 @@ class MainWP_Child_Themes_Check {
      * Run any time class is called.
      */
     public function __construct() {
-
-        if ( get_option( 'mainwp_child_plugintheme_days_outdate' ) ) {
-            $this->schedule_watchdog();
-            add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
-            add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
-            add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
-            add_filter( 'themes_api_args', array( $this, 'modify_theme_api_search_query' ), 10, 2 );
-            add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
-        }
+        $this->schedule_watchdog();
+        add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
+        add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
+        add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
+        add_filter( 'themes_api_args', array( $this, 'modify_theme_api_search_query' ), 10, 2 );
+        add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
     }
 
     /**
@@ -166,18 +163,14 @@ class MainWP_Child_Themes_Check {
     public function perform_watchdog() {
         if ( ! wp_next_scheduled( $this->cron_name_batching ) ) {
             $last_run = get_option( $this->option_name_last_daily_run );
-            if ( false === $last_run || ! is_integer( $last_run ) ) {
+            if ( false === $last_run || ! is_numeric( $last_run ) ) {
                 $last_run = false;
-            } else {
-                $last_run = new \DateTime( '@' . $last_run );
             }
 
-            $now = new \DateTime();
-
-            if ( false === $last_run || (int) $now->diff( $last_run )->format( '%h' ) >= 24 ) {
+            if ( false === $last_run || ( time() - (int) $last_run ) >= DAY_IN_SECONDS ) {
                 $this->cleanup_basic();
                 wp_schedule_event( time(), 'daily', $this->cron_name_daily );
-                update_option( $this->option_name_last_daily_run, $now->getTimestamp() );
+                update_option( $this->option_name_last_daily_run, time() );
             }
         }
     }
@@ -217,6 +210,24 @@ class MainWP_Child_Themes_Check {
         }
 
         return $themes_outdate;
+    }
+
+    /**
+     * Refresh cached abandoned theme data when sync requests it and the cache is still missing or incomplete.
+     *
+     * @return array $themes_outdate Array of themes & how long they have been outdated.
+     *
+     * @throws MainWP_Exception Error message on failure.
+     */
+    public function maybe_refresh_outdate_info() {
+        $has_cached_results = false !== get_transient( $this->tran_name_theme_timestamps );
+        $has_pending_batch  = false !== get_transient( $this->tran_name_themes_to_batch );
+
+        if ( ! $has_cached_results || $has_pending_batch ) {
+            $this->run_check();
+        }
+
+        return $this->get_themes_outdate_info();
     }
 
     /**
