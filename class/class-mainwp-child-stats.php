@@ -334,11 +334,11 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $information['uniqueId']  = MainWP_Helper::get_site_unique_id();
 
         if ( $this->is_sync_data( 'plugins_outdate_info' ) ) {
-            $information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->maybe_refresh_outdate_info();
+            $information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
         }
 
         if ( $this->is_sync_data( 'themes_outdate_info' ) ) {
-            $information['themes_outdate_info'] = MainWP_Child_Themes_Check::instance()->maybe_refresh_outdate_info();
+            $information['themes_outdate_info'] = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
         }
 
         if ( $this->is_sync_data( 'health_site_status' ) ) {
@@ -443,7 +443,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function is_sync_data( $item ) {
 
-        if ( null === $this->sync_data_list ) {
+        if ( null !== $this->sync_data_list ) {
             $this->sync_data_list = $this->get_data_list_to_sync();
         }
 
