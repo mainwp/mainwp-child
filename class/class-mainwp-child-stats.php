@@ -207,6 +207,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         MainWP_Child_Password_Policy::instance()->sync_password_policy_settings();
 
+        $plugins_checker      = MainWP_Child_Plugins_Check::instance();
+        $themes_checker       = MainWP_Child_Themes_Check::instance();
+        $sync_plugins_outdate = $this->is_sync_data( 'plugins_outdate_info' );
+        $sync_themes_outdate  = $this->is_sync_data( 'themes_outdate_info' );
+
+        $plugins_checker->sync_background_state( $sync_plugins_outdate );
+        $themes_checker->sync_background_state( $sync_themes_outdate );
+
         if ( isset( $_POST['child_actions_saved_days_number'] ) ) {
             $days_number = intval( $_POST['child_actions_saved_days_number'] );
             MainWP_Helper::update_option( 'mainwp_child_actions_saved_number_of_days', $days_number );
@@ -333,12 +341,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $information['mainwpdir'] = ( MainWP_Utility::validate_mainwp_dir() ? 1 : - 1 );
         $information['uniqueId']  = MainWP_Helper::get_site_unique_id();
 
-        if ( $this->is_sync_data( 'plugins_outdate_info' ) ) {
-            $information['plugins_outdate_info'] = MainWP_Child_Plugins_Check::instance()->get_plugins_outdate_info();
+        if ( $sync_plugins_outdate ) {
+            $plugins_checker->maybe_queue_check();
+            $information['plugins_outdate_info'] = $plugins_checker->get_plugins_outdate_info();
         }
 
-        if ( $this->is_sync_data( 'themes_outdate_info' ) ) {
-            $information['themes_outdate_info'] = MainWP_Child_Themes_Check::instance()->get_themes_outdate_info();
+        if ( $sync_themes_outdate ) {
+            $themes_checker->maybe_queue_check();
+            $information['themes_outdate_info'] = $themes_checker->get_themes_outdate_info();
         }
 
         if ( $this->is_sync_data( 'health_site_status' ) ) {
@@ -443,7 +453,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function is_sync_data( $item ) {
 
-        if ( null !== $this->sync_data_list ) {
+        if ( null === $this->sync_data_list ) {
             $this->sync_data_list = $this->get_data_list_to_sync();
         }
 

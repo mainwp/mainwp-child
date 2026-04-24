@@ -99,15 +99,11 @@ class MainWP_Child_Plugins_Check {
      * Run any time class is called.
      */
     public function __construct() {
-        if ( get_option( 'mainwp_child_plugintheme_days_outdate' ) ) {
-            $this->schedule_watchdog();
-
-            add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
-            add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
-            add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
-            add_filter( 'plugins_api_args', array( $this, 'modify_plugin_api_search_query' ), 10, 2 );
-            add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
-        }
+        add_action( $this->cron_name_batching, array( $this, 'run_check' ) );
+        add_action( $this->cron_name_daily, array( $this, 'run_check' ) );
+        add_action( $this->cron_name_watcher, array( $this, 'perform_watchdog' ) );
+        add_filter( 'plugins_api_args', array( $this, 'modify_plugin_api_search_query' ), 10, 2 );
+        add_action( 'mainwp_child_deactivation', array( $this, 'cleanup_deactivation' ) );
     }
 
     /**
@@ -167,25 +163,27 @@ class MainWP_Child_Plugins_Check {
      * @throws MainWP_Exception Error message on failure.
      */
     public function perform_watchdog() {
-        if ( ! wp_next_scheduled( $this->cron_name_batching ) ) {
-            $last_run = get_option( $this->option_name_last_daily_run );
+        if ( wp_next_scheduled( $this->cron_name_batching ) ) {
+            return;
+        }
 
-            if ( false === $last_run || ! is_integer( $last_run ) ) {
-                $last_run = false;
-            } else {
-                $last_run = new \DateTime( '@' . $last_run );
-            }
+        if ( false !== get_transient( $this->tran_name_plugins_to_batch ) ) {
+            wp_schedule_single_event( time(), $this->cron_name_batching );
+            return;
+        }
 
-            $now = new \DateTime();
+        $last_run = get_option( $this->option_name_last_daily_run );
 
-            if ( false === $last_run || (int) $now->diff( $last_run )->format( '%h' ) >= 24 ) {
-                $this->cleanup_basic();
+        if ( false === $last_run || ! is_numeric( $last_run ) ) {
+            $last_run = false;
+        }
 
-                wp_schedule_event( time(), 'daily', $this->cron_name_daily );
+        if ( false === $last_run || ( time() - (int) $last_run ) >= DAY_IN_SECONDS ) {
+            $this->cleanup_basic();
 
-                update_option( $this->option_name_last_daily_run, $now->getTimestamp() );
+            wp_schedule_event( time(), 'daily', $this->cron_name_daily );
 
-            }
+            update_option( $this->option_name_last_daily_run, time() );
         }
     }
 
@@ -227,6 +225,38 @@ class MainWP_Child_Plugins_Check {
     }
 
     /**
+     * Enable or disable the background abandoned-plugin checks for sync.
+     *
+     * @param bool $enabled Whether sync currently requests abandoned plugin data.
+     */
+    public function sync_background_state( $enabled ) {
+        if ( $enabled ) {
+            $this->schedule_watchdog();
+            return;
+        }
+
+        $this->cleanup_deactivation( false );
+    }
+
+    /**
+     * Queue a background abandoned-plugin check when sync needs data and the cache is incomplete.
+     */
+    public function maybe_queue_check() {
+        $has_cached_results = false !== get_transient( $this->tran_name_plugin_timestamps );
+        $has_pending_batch  = false !== get_transient( $this->tran_name_plugins_to_batch );
+
+        if ( $has_cached_results && ! $has_pending_batch ) {
+            return;
+        }
+
+        if ( $has_pending_batch || wp_next_scheduled( $this->cron_name_batching ) ) {
+            return;
+        }
+
+        wp_schedule_single_event( time(), $this->cron_name_batching );
+    }
+
+    /**
      * Update Days out of date option.
      *
      * @uses \MainWP\Child\MainWP_Child_Themes_Check::cleanup_deactivation()
@@ -235,12 +265,12 @@ class MainWP_Child_Plugins_Check {
     public static function may_outdate_number_change() {
          // phpcs:disable WordPress.Security.NonceVerification
         if ( isset( $_POST['numberdaysOutdatePluginTheme'] ) ) {
-            $days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
-            if ( (int) $days_outdate !== (int) $_POST['numberdaysOutdatePluginTheme'] ) {
-                $days_outdate = intval( $_POST['numberdaysOutdatePluginTheme'] );
+            $saved_days_outdate = get_option( 'mainwp_child_plugintheme_days_outdate', false );
+            $days_outdate       = intval( $_POST['numberdaysOutdatePluginTheme'] );
+            if ( false === $saved_days_outdate || (int) $saved_days_outdate !== $days_outdate ) {
                 MainWP_Helper::update_option( 'mainwp_child_plugintheme_days_outdate', $days_outdate );
-                static::instance()->cleanup_deactivation( false );
-                MainWP_Child_Themes_Check::instance()->cleanup_deactivation( false );
+                static::instance()->cleanup_deactivation();
+                MainWP_Child_Themes_Check::instance()->cleanup_deactivation();
             }
         }
         // phpcs:enable
