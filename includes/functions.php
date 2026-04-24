@@ -232,7 +232,7 @@ if ( ! function_exists( '\mainwp_child_modules_loader' ) ) {
         foreach ( $namespaces_modules as $base_ns => $mod_dir ) {
             if ( 0 === strpos( $class_name, $base_ns ) ) {
 
-                $sub_ns = str_replace( $base_ns, '', $class_name );
+                $sub_ns = substr( $class_name, strlen( $base_ns ) );
 
                 $esc_position = strrchr( $sub_ns, '\\' );
 
