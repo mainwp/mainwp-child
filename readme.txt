@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 7.4
-Stable tag: 6.0.9
+Stable tag: 6.0.10
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -110,6 +110,10 @@ We have an extensive FAQ with more questions and answers [here](https://mainwp.c
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.0.10 - 4-28-2026 =
+* Fixed: Improved namespace prefix handling to ensure more accurate module loading.
+* Updated: Enhanced background synchronization for detecting and reporting outdated plugins and themes.
 
 = 6.0.9 - 4-21-2026 =
 * Updated: Improved Network Activity entries for WordPress auto-updates to avoid showing "Unknown User" and better reflect automated update actions.

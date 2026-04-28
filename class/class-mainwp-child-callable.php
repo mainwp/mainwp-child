@@ -617,14 +617,18 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $which = isset( $_POST['which'] ) ? sanitize_text_field( wp_unslash( $_POST['which'] ) ) : '';
          // phpcs:enable
         $infor = array();
+        $infor['sync'] = array();
         if ( 'plugin' === $which ) {
-            MainWP_Child_Plugins_Check::instance()->run_check();
+            $plugins_check                           = MainWP_Child_Plugins_Check::instance();
+            $plugins_check->run_check();
+            $infor['sync']['plugins_outdate_info'] = $plugins_check->get_plugins_outdate_info();
             $infor['success'] = 1;
         } else {
-            MainWP_Child_Themes_Check::instance()->run_check();
+            $themes_check                          = MainWP_Child_Themes_Check::instance();
+            $themes_check->run_check();
+            $infor['sync']['themes_outdate_info'] = $themes_check->get_themes_outdate_info();
             $infor['success'] = 1;
         }
-        $infor['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false );
         MainWP_Helper::write( $infor );
     }
 
