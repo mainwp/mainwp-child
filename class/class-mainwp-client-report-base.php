@@ -47,6 +47,13 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
     public static $date_to = null;
 
     /**
+     * Static variable to hold cached records.
+     *
+     * @var array $records_cached.
+     */
+    public static $records_cached = array();
+
+    /**
      * Method get_class_name()
      *
      * Get class name.
@@ -482,6 +489,41 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
 
         return $token_values;
     }
+
+    /**
+     * Get the spammed comments IDs.
+     *
+     * @return array Spammed comments IDs.
+     */
+    private function get_spammed_comments() {
+        global $wpdb;
+
+        if ( isset( static::$records_cached['comments']['spammed'] ) ) { // if the spammed records are not cached, cache them to skip when get other tokens count.
+            return static::$records_cached['comments']['spammed'];
+        }
+
+        $spam = $wpdb->get_col( //phpcs:ignore -- NOSONAR - required to achieve desired results, pull request solutions appreciated.
+            $wpdb->prepare(
+                "
+                SELECT comment_ID
+                FROM {$wpdb->comments}
+                WHERE comment_approved = 'spam'
+                AND comment_date BETWEEN %s AND %s
+                ",
+                static::$date_from ? date( 'Y-m-d H:i:s', static::$date_from ) : '0000-00-00 00:00:00', // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+                static::$date_to ? date( 'Y-m-d H:i:s', static::$date_to ) : '9999-12-31 23:59:59' // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+            )
+        );
+
+        if ( ! is_array( $spam ) ) {
+            $spam = array();
+        }
+
+        static::$records_cached['comments']['spammed'] = $spam; // cache spammed records to skip when get other tokens count.
+
+        return $spam;
+    }
+
     /**
      * Get the other tokens count.
      *
@@ -517,6 +559,14 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 if ( in_array( $record->context, $excluded_comment_contexts ) ) {
                     continue;
                 }
+
+                // If it's comment created action of other token comment.created.count.
+                // Skip entries whose current status on the child is spam from [comment.created.count].
+                // It corresponds to the same token but with different action [section.comments.created], which is designed to skip spammed comments.
+                if ( 'created' === $action && in_array( $record->object_id, $this->get_spammed_comments() ) ) {
+                    continue;
+                }
+
                 $valid_context = true;
             } elseif ( 'post' === $context && 'created' === $action ) {
                 if ( in_array( $record->ID, $skip_records ) ) {
@@ -679,6 +729,13 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
                 if ( in_array( $record->context, $excluded_comment_contexts ) ) {
                     continue;
                 }
+
+                // If it's comment created action of section token section.comments.created.
+                // Skip entries whose current status on the child is spam from [section.comments.created].
+                if ( 'created' === $action && in_array( $record->object_id, $this->get_spammed_comments() ) ) {
+                    continue;
+                }
+
                 $valid_context = true;
             } elseif ( 'menus' === $context ) {
                 $valid_context = true; // ok, pass, don't check context.
