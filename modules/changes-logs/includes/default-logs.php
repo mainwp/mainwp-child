@@ -507,7 +507,7 @@ return array(
         'type_id'     => 1570,
         'desc'        => esc_html__( 'Successfully logged in', 'mainwp-child' ),
         'context'     => 'user',
-        'action_name' => 'logined-in',
+        'action_name' => 'logged-in',
     ),
     1575 => array(
         'type_id'     => 1575,
@@ -519,7 +519,7 @@ return array(
         'type_id'     => 1580,
         'desc'        => esc_html__( 'Successful log in but other sessions exist for user', 'mainwp-child' ),
         'context'     => 'user',
-        'action_name' => 'logined-in',
+        'action_name' => 'logged-in',
     ),
     1585 => array(
         'type_id'     => 1585,
@@ -537,13 +537,13 @@ return array(
         'type_id'     => 1595,
         'desc'        => esc_html__( 'Switched to another user', 'mainwp-child' ),
         'context'     => 'user',
-        'action_name' => 'logined-in',
+        'action_name' => 'logged-in',
     ),
     1596 => array(
         'type_id'     => 1596,
         'desc'        => esc_html__( 'User login from dashboard', 'mainwp-child' ),
         'context'     => 'user',
-        'action_name' => 'logined-in',
+        'action_name' => 'logged-in',
     ),
     1600 => array(
         'type_id'     => 1600,
