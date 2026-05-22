@@ -160,24 +160,61 @@ class MainWP_Child_Themes_Check {
      * @throws MainWP_Exception Error message on failure.
      */
     public function perform_watchdog() {
+
+        // If batching is already scheduled, system is healthy.
         if ( wp_next_scheduled( $this->cron_name_batching ) ) {
             return;
         }
 
+        // If batching data exists but batching event is missing,
+        // restore only the missing single event.
         if ( false !== get_transient( $this->tran_name_themes_to_batch ) ) {
-            wp_schedule_single_event( time(), $this->cron_name_batching );
+
+            if ( ! wp_next_scheduled( $this->cron_name_batching ) ) {
+                wp_schedule_single_event(
+                    time() + MINUTE_IN_SECONDS,
+                    $this->cron_name_batching
+                );
+            }
+
             return;
         }
 
         $last_run = get_option( $this->option_name_last_daily_run );
-        if ( false === $last_run || ! is_numeric( $last_run ) ) {
-            $last_run = false;
+
+        if ( ! is_numeric( $last_run ) ) {
+            $last_run = 0;
         }
 
-        if ( false === $last_run || ( time() - (int) $last_run ) >= DAY_IN_SECONDS ) {
-            $this->cleanup_basic();
-            wp_schedule_event( time(), 'daily', $this->cron_name_daily );
-            update_option( $this->option_name_last_daily_run, time() );
+
+        /*
+        * Only restore the daily cron if:
+        * - it is missing
+        * - AND the last run is stale
+        */
+        if (
+            ( time() - (int) $last_run ) >= DAY_IN_SECONDS
+        ) {
+
+            // Reset stale batching state before restoring cron.
+            delete_transient( $this->tran_name_themes_to_batch );
+
+            $timestamp = time() + MINUTE_IN_SECONDS;
+
+            $daily_scheduled = wp_next_scheduled( $this->cron_name_daily );
+
+            if ( ! $daily_scheduled ) {
+                wp_schedule_event(
+                    $timestamp,
+                    'daily',
+                    $this->cron_name_daily
+                );
+            }
+
+            update_option(
+                $this->option_name_last_daily_run,
+                $timestamp
+            );
         }
     }
 
