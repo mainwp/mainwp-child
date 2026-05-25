@@ -156,7 +156,7 @@ class MainWP_Child_DB {
     public static function is_autoload_option( $option_name ) {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Need to query the database directly to check the autoload value of the option.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Need to query the database directly to check the autoload value of the option.
         $autoload_value = $wpdb->get_var( // NOASONAR - WP compatible.
             $wpdb->prepare(
                 "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s",
