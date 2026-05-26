@@ -37,6 +37,22 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private $filterFunction = null;
 
+    /**
+     * Timeout ceiling in seconds for premium update discovery HTTP calls.
+     *
+     * Applied to the http_request_timeout filter while detect_premium_themesplugins_updates()
+     * is running, so that a single slow or unreachable premium update server cannot stall the
+     * entire PHP worker.
+     */
+    private const PREMIUM_UPDATE_HTTP_TIMEOUT = 5.0;
+
+    /**
+     * Holds the active HTTP timeout guard closure so it can be removed reliably.
+     *
+     * @var \Closure|null
+     */
+    private $http_timeout_guard = null;
+
 
     /**
      * Method get_class_name()
@@ -1120,18 +1136,28 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             set_site_transient( 'update_plugins', $current );
 
             add_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
-            $plugins = get_plugin_updates();
-            remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+            $this->add_http_timeout_guard();
 
-            set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS );
+            try {
+                $plugins = get_plugin_updates();
+                set_site_transient( 'mainwp_update_plugins_cached', $plugins, DAY_IN_SECONDS );
+            } finally {
+                $this->remove_http_timeout_guard();
+                remove_filter( 'pre_site_transient_update_plugins', $this->filterFunction, 99 );
+            }
         }
 
         if ( isset( $_GET['_detect_themes_updates'] ) && 'yes' === $_GET['_detect_themes_updates'] ) {
             add_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
-            $themes = get_theme_updates();
-            remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+            $this->add_http_timeout_guard();
 
-            set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS );
+            try {
+                $themes = get_theme_updates();
+                set_site_transient( 'mainwp_update_themes_cached', $themes, DAY_IN_SECONDS );
+            } finally {
+                $this->remove_http_timeout_guard();
+                remove_filter( 'pre_site_transient_update_themes', $this->filterFunction, 99 );
+            }
         }
 
         $type = isset( $_GET['_request_update_premiums_type'] ) ? sanitize_text_field( wp_unslash( $_GET['_request_update_premiums_type'] ) ) : '';
@@ -1150,6 +1176,45 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         // phpcs:enable WordPress.WP.AlternativeFunctions
+    }
+
+    /**
+     * Install a short-lived HTTP timeout guard before triggering premium update detection.
+     *
+     * Premium update servers can be slow or unreachable, which would otherwise let a single
+     * synchronous detection request hang the entire PHP worker until the LSAPI/FCGI timeout
+     * kicks in (commonly 120s+). The guard caps each outbound HTTP request to a few seconds
+     * via the http_request_timeout filter, so the detection step degrades gracefully instead
+     * of taking down the request.
+     *
+     * @return void
+     */
+    private function add_http_timeout_guard() {
+        if ( null !== $this->http_timeout_guard ) {
+            return;
+        }
+
+        $this->http_timeout_guard = static function ( $timeout ) {
+            $timeout = is_numeric( $timeout ) ? (float) $timeout : self::PREMIUM_UPDATE_HTTP_TIMEOUT;
+            return ( $timeout > 0 ) ? min( $timeout, self::PREMIUM_UPDATE_HTTP_TIMEOUT ) : self::PREMIUM_UPDATE_HTTP_TIMEOUT;
+        };
+
+        add_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
+    }
+
+    /**
+     * Remove the HTTP timeout guard installed by add_http_timeout_guard().
+     *
+     * @return void
+     */
+    private function remove_http_timeout_guard() {
+        if ( null === $this->http_timeout_guard ) {
+            return;
+        }
+
+        remove_filter( 'http_request_timeout', $this->http_timeout_guard, PHP_INT_MAX );
+
+        $this->http_timeout_guard = null;
     }
 
     /**
