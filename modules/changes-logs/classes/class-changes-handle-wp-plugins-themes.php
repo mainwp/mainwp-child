@@ -350,7 +350,7 @@ class Changes_Handle_WP_Plugins_Themes {
             'plugin_author'       => $new_plugin_data['Author'] ?? '',
             'plugin_requires_wp'  => $new_plugin_data['RequiresWP'] ?? '',
             'plugin_requires_php' => $new_plugin_data['RequiresPHP'] ?? '',
-            'plugin_network'      => ( $new_plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp' ) : \esc_html__( 'False', 'mainwp' ),
+            'plugin_network'      => ( $new_plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp-child' ) : \esc_html__( 'False', 'mainwp-child' ),
         );
 
         if ( isset( $new_plugin_data['UpdateURI'] ) ) {
@@ -427,7 +427,7 @@ class Changes_Handle_WP_Plugins_Themes {
             'plugin_author'      => $plugin_data['Author'] ?? '',
             'plugin_version'     => $plugin_data['Version'] ?? '',
             'plugin_url'         => $plugin_data['PluginURI'] ?? '',
-            'plugin_network'     => ( $plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp' ) : \esc_html__( 'False', 'mainwp' ),
+            'plugin_network'     => ( $plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp-child' ) : \esc_html__( 'False', 'mainwp-child' ),
         );
 
         // If it is set.
@@ -496,7 +496,7 @@ class Changes_Handle_WP_Plugins_Themes {
                 'plugin_author'      => $plugin_data['Author'] ?? '',
                 'plugin_version'     => $plugin_data['Version'] ?? '',
                 'plugin_url'         => $plugin_data['PluginURI'] ?? '',
-                'plugin_network'     => ( $plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp' ) : \esc_html__( 'False', 'mainwp' ),
+                'plugin_network'     => ( $plugin_data['Network'] ?? false ) ? \esc_html__( 'True', 'mainwp-child' ) : \esc_html__( 'False', 'mainwp-child' ),
             );
 
             if ( isset( $plugin_data['UpdateURI'] ) ) {

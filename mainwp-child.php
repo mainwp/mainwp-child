@@ -7,12 +7,12 @@
 
 /**
  * Plugin Name: MainWP Child
- * Description: Provides a secure connection between your MainWP Dashboard and your WordPress sites. MainWP allows you to manage WP sites from one central location. Plugin documentation and options can be found here https://mainwp.com/kb.
+ * Description: Provides a secure connection between your MainWP Dashboard and your WordPress sites. MainWP allows you to manage WP sites from one central location. Plugin documentation and options can be found here https://docs.mainwp.com/.
  * Plugin URI: https://mainwp.com/
  * Author: MainWP
  * Author URI: https://mainwp.com
  * Text Domain: mainwp-child
- * Version: 6.1-er.3
+ * Version: 6.1
  * Requires at least: 6.2
  * Requires PHP: 7.4
  * License: GPLv3 or later
