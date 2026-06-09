@@ -1644,18 +1644,13 @@ class MainWP_Backup {
      *
      * @return array|string[] Action response.
      *
-     * @uses \MainWP\Child\MainWP_Helper::sanitize_filename() Sanitize filename.
+     * @throws MainWP_Exception On dump failure (partial files cleaned up).
+     *
      * @uses \MainWP\Child\MainWP_Helper::set_limit() Set PHP memory limit.
-     * @uses \MainWP\Child\MainWP_Child_DB::to_query() Run a mysqli query & get a result.
-     * @uses \MainWP\Child\MainWP_Child_DB::fetch_array()
-     * @uses \MainWP\Child\MainWP_Child_DB::real_escape_string()
+     * @uses \MainWP\Child\MainWP_Backup_Db_Dumper::check_dedicated_connection() Second-connection preflight.
+     * @uses \MainWP\Child\MainWP_Backup_Db_Dumper::dump_to_files() Consistent-snapshot dump.
+     * @uses \MainWP\Child\MainWP_Backup_Db_Dumper::dump_tier2_slice() Paginated fallback dump.
      * @uses \MainWP\Child\Tar_Archiver()
-     *
-     * @uses wpdb::get_results() Retrieve an entire SQL result set from the database (i.e., many rows).
-     * @see  https://developer.wordpress.org/reference/classes/wpdb/get_results/
-     *
-     * @uses wpdb::get_row() Retrieve one row from the database.
-     * @see  https://developer.wordpress.org/reference/classes/wpdb/get_row/
      */
     public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
 
@@ -1663,70 +1658,30 @@ class MainWP_Backup {
         $mem     = '512M';
         MainWP_Helper::set_limit( $timeout, $mem );
 
-        /**
-         * WordPress Database instance.
-         *
-         * @global object $wpdb
-         */
-        global $wpdb;
-
         //phpcs:disable WordPress.WP.AlternativeFunctions
-        $db_files  = array();
-        $tables_db = $wpdb->get_results( 'SHOW TABLES FROM `' . DB_NAME . '`', ARRAY_N );  // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
-        foreach ( $tables_db as $curr_table ) {
-            if ( null !== $archiver ) {
-                $archiver->update_pid_file();
-            }
+        $dumper = MainWP_Backup_Db_Dumper::instance();
 
-            $table = $curr_table[0];
-
-            $currentfile = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
-            $db_files[]  = $currentfile;
-            if ( file_exists( $currentfile ) ) {
-                continue;
-            }
-            $fh = fopen( $currentfile . '.tmp', 'w' ); // NOSONAR .
-
-            $protect_content_string = '<?php exit(); ?>';
-
-            fwrite( $fh, $protect_content_string );
-            fwrite( $fh, "\n\n" . 'DROP TABLE IF EXISTS ' . $table . ';' );
-            $table_create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $table, ARRAY_N ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
-            fwrite( $fh, "\n" . $table_create[1] . ";\n\n" );
-
-            $rows = MainWP_Child_DB::to_query( 'SELECT * FROM ' . $table, $wpdb->dbh ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
-
-            if ( $rows ) {
-                $i            = 0;
-                $table_insert = 'INSERT INTO `' . $table . '` VALUES (';
-
-                while ( $row = MainWP_Child_DB::fetch_array( $rows ) ) {
-                    $query = $table_insert;
-                    foreach ( $row as $value ) {
-                        if ( null === $value ) {
-                            $query .= 'NULL, ';
-                        } else {
-                            $query .= '"' . MainWP_Child_DB::real_escape_string( $value ) . '", ';
-                        }
-                    }
-                    $query = trim( $query, ', ' ) . ');';
-
-                    fwrite( $fh, "\n" . $query );
-                    ++$i;
-
-                    if ( $i >= 50 ) {
-                        fflush( $fh );
-                        $i = 0;
-                    }
-
-                    $query = null;
-                    $row   = null;
+        // Dump with a dedicated connection and a consistent snapshot when the
+        // host allows a second connection; otherwise fall back to the
+        // paginated dump on the shared handle (not point-in-time).
+        $preflight = $dumper->check_dedicated_connection();
+        if ( $preflight['ok'] ) {
+            $db_files = $dumper->dump_to_files( $filepath_prefix );
+            $db_files = $db_files['files'];
+        } else {
+            $cursor = null;
+            do {
+                if ( null !== $archiver ) {
+                    $archiver->update_pid_file();
                 }
-            }
-            $rows = null;
-            fflush( $fh );
-            fclose( $fh );
-            rename( $currentfile . '.tmp', $currentfile ); // NOSONAR .
+                $slice  = $dumper->dump_tier2_slice( $filepath_prefix, $cursor, 45 );
+                $cursor = $slice['cursor'];
+            } while ( ! $slice['done'] );
+            $db_files = $slice['files'];
+        }
+
+        if ( null !== $archiver ) {
+            $archiver->update_pid_file();
         }
 
         fclose( fopen( $filepath_prefix . '.sql', 'w' ) ); // NOSONAR .
