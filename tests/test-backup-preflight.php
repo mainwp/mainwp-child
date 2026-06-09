@@ -10,7 +10,7 @@ use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Helper;
 
 /**
- * Tests for the backup_preflight callable and check_backup_readiness() (1D.2/1D.6).
+ * Tests for the backup_preflight callable and check_backup_readiness().
  */
 class BackupPreflightTest extends WP_UnitTestCase {
 

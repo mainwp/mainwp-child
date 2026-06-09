@@ -9,7 +9,7 @@ use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Backup_Watchdog;
 
 /**
- * Tests for the minimal child backup task spine (Phase 1G).
+ * Tests for the minimal child backup task spine.
  *
  * The spine is what lets a large backup survive proxy-killed requests:
  * a persisted task row, an atomic DB-engine lease, and a watchdog that

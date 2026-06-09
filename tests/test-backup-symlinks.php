@@ -8,7 +8,7 @@
 use MainWP\Child\MainWP_Backup;
 
 /**
- * Tests for symlink skipping and realpath containment during backup traversal (1B.16).
+ * Tests for symlink skipping and realpath containment during backup traversal.
  */
 class BackupSymlinksTest extends WP_UnitTestCase {
 

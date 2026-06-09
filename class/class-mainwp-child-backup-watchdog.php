@@ -1,6 +1,6 @@
 <?php
 /**
- * MainWP Child Backup Watchdog (Phase 1G).
+ * MainWP Child Backup Watchdog.
  *
  * Child-cron fallback that resumes stalled backup tasks when the Dashboard
  * continuation goes away mid-run. Child WP-Cron only fires on traffic, so the
@@ -62,7 +62,7 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
      * Register the cron schedule and hook.
      */
     public function init() {
-        add_filter( 'cron_schedules', array( $this, 'register_schedule' ) ); // phpcs:ignore WordPress.WP.CronInterval -- ~120s re-arm is the 1G design; the watchdog is a fallback driver, not a poller.
+        add_filter( 'cron_schedules', array( $this, 'register_schedule' ) ); // phpcs:ignore WordPress.WP.CronInterval -- the ~120s re-arm is by design; the watchdog is a fallback driver, not a poller.
         add_action( self::CRON_HOOK, array( $this, 'run' ) );
     }
 

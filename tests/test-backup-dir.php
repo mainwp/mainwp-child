@@ -8,7 +8,7 @@
 use MainWP\Child\MainWP_Helper;
 
 /**
- * Tests for the randomized backup directory (1B.17).
+ * Tests for the randomized backup directory.
  *
  * The directory name carries a per-site secret so backup artifacts are not
  * enumerable at a predictable path, independent of .htaccess support.

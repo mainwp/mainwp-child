@@ -10,7 +10,7 @@ use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Exception;
 
 /**
- * Tests for archive write correctness (1B.2/1B.5, master 1B.19/1B.20).
+ * Tests for archive write correctness.
  *
  * Failed file adds must count toward an abort threshold instead of silently
  * producing an incomplete archive, and ZipArchive::close() failures must
@@ -122,7 +122,7 @@ class ArchiveCorrectnessTest extends WP_UnitTestCase {
 
 	/**
 	 * A failed ZipArchive close throws a coded error instead of returning
-	 * success over a corrupt archive (1B.2).
+	 * success over a corrupt archive.
 	 */
 	public function test_close_zip_archive_failure_throws() {
 		if ( ! class_exists( '\ZipArchive' ) ) {

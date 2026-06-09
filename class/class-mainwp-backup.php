@@ -48,7 +48,7 @@ class MainWP_Backup {
     /**
      * Directory the current backup archive is being written to.
      *
-     * Used by the during-backup disk space floor (1B.13).
+     * Used by the during-backup disk space floor.
      *
      * @var string Backup directory path.
      */
@@ -254,7 +254,7 @@ class MainWP_Backup {
             }
         } catch ( \Exception $e ) {
             // Never leave a partial archive behind - a half-written file
-            // looks like a backup and restores as corruption (1B.6).
+            // looks like a backup and restores as corruption.
             if ( file_exists( $filepath ) ) {
                 unlink( $filepath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- cleanup of partial archive.
             }
@@ -784,7 +784,7 @@ class MainWP_Backup {
     }
 
     /**
-     * Paths skipped during the current backup traversal (1B.16).
+     * Paths skipped during the current backup traversal.
      *
      * @var string[] Skipped paths.
      */
@@ -812,7 +812,7 @@ class MainWP_Backup {
     protected $allowed_backup_bases = null;
 
     /**
-     * Decide whether a path is safe to include in a backup (1B.16).
+     * Decide whether a path is safe to include in a backup.
      *
      * Symlinks are never followed - they can leak files outside the site root
      * (other site roots on shared hosting, /etc) and circular links recurse
@@ -886,7 +886,7 @@ class MainWP_Backup {
 
     /**
      * Record a file that could not be added to the archive; abort the backup
-     * once too many adds have failed (master 1B.19, phase-1e A2/A8).
+     * once too many adds have failed the archive would otherwise report success while incomplete.
      *
      * A handful of unreadable files is survivable and reported; past the
      * threshold the archive is too incomplete to pass off as a backup.
@@ -920,7 +920,7 @@ class MainWP_Backup {
     }
 
     /**
-     * Close the ZIP archive and verify the close succeeded (1B.2).
+     * Close the ZIP archive and verify the close succeeded.
      *
      * ZipArchive::close() is where the archive is actually written - ignoring
      * its result reports success over a corrupt or missing archive.
@@ -938,7 +938,7 @@ class MainWP_Backup {
     }
 
     /**
-     * Estimate the size of a backup in bytes (1B.13).
+     * Estimate the size of a backup in bytes.
      *
      * Database size comes from SHOW TABLE STATUS; site files from a recursive
      * directory walk of wp-content. Both are estimates - the result is used
@@ -992,7 +992,7 @@ class MainWP_Backup {
     }
 
     /**
-     * Require enough free disk space for an estimated backup before starting (1B.13).
+     * Require enough free disk space for an estimated backup before starting.
      *
      * Advisory hosts (disk_free_space disabled or failing) pass - the during-
      * backup floor in assert_disk_space_during_backup() still protects them.
@@ -1027,7 +1027,7 @@ class MainWP_Backup {
     }
 
     /**
-     * Hard low-disk floor checked during long archive writes (1B.13).
+     * Hard low-disk floor checked during long archive writes.
      *
      * @param string   $backup_dir Directory the archive is being written to.
      * @param int|null $min_free   Minimum free bytes, defaults to 100MB.
@@ -1051,7 +1051,7 @@ class MainWP_Backup {
     }
 
     /**
-     * Validate the child server environment before a backup starts (1D.2).
+     * Validate the child server environment before a backup starts.
      *
      * Returns an advisory readiness report for the Dashboard; throws only on
      * conditions that make any backup impossible (unwritable backup directory,
@@ -1471,7 +1471,7 @@ class MainWP_Backup {
      * Recursively add directory to default PHP zip library.
      *
      * Symlinks and paths resolving outside the allowed bases are skipped and
-     * recorded (1B.16).
+     * recorded.
      *
      * @param string     $path     Path to directory.
      * @param array      $excludes Files or directories to exclude.
@@ -1600,13 +1600,13 @@ class MainWP_Backup {
         ++$this->gcCnt;
 
         // Hard low-disk floor every 100 files - a full disk mid-archive
-        // corrupts the backup silently otherwise (1B.13).
+        // corrupts the backup silently otherwise.
         if ( 0 === $this->zipArchiveFileCount % 100 && ! empty( $this->backup_dir_in_use ) ) {
             static::assert_disk_space_during_backup( $this->backup_dir_in_use );
         }
 
         // Always stream files into the archive - the old loadFilesBeforeZip
-        // branch loaded files under 5MB fully into memory (1B.5/1B.12).
+        // branch loaded files under 5MB fully into memory.
         ++$this->zipArchiveFileCount;
         if ( $this->zip instanceof \ZipArchive ) {
             $added = $this->zip->addFile( $path, $zipEntryName );

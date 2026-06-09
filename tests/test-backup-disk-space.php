@@ -10,7 +10,7 @@ use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Exception;
 
 /**
- * Tests for pre-backup and during-backup disk space validation (1B.13).
+ * Tests for pre-backup and during-backup disk space validation.
  */
 class BackupDiskSpaceTest extends WP_UnitTestCase {
 

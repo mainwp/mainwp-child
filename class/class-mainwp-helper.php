@@ -174,7 +174,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         $url = $upload_dir['baseurl'] . '/mainwp/';
 
         if ( 'backup' === $subdir ) {
-            // The directory name carries a per-site secret (1B.17) so backup
+            // The directory name carries a per-site secret so backup
             // artifacts are not enumerable at a predictable path - .htaccess
             // protection below is Apache-only and treated as defense-in-depth.
             $dir_hash = static::get_backup_dir_hash();

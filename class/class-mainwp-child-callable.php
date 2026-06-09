@@ -571,7 +571,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method backup_preflight()
      *
-     * Run the pre-backup environment validation (1D.2/1D.6) and send the
+     * Run the pre-backup environment validation and send the
      * readiness report to the Dashboard. The report includes the backup
      * directory secret; this response only travels inside the authenticated
      * Dashboard connection.
@@ -591,7 +591,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method backup_task_status()
      *
-     * Status read-back for a spine task (Phase 1G). Applies the wall-clock
+     * Status read-back for a spine task. Applies the wall-clock
      * deadline on every poll, so a task stuck on a low-traffic child whose
      * cron never fires still goes terminal. The terminal phase observed here
      * is what the Dashboard turns into its completion hook.

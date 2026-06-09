@@ -279,7 +279,7 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 	/**
 	 * Partial-content headers carry Content-Range and the partial length.
 	 *
-	 * This is the 1B.0 corruption bug: the legacy code sent the full file size
+	 * This is the historical resume corruption bug: the legacy code sent the full file size
 	 * while streaming fewer bytes, so every resumed download corrupted.
 	 */
 	public function test_download_headers_partial_content() {

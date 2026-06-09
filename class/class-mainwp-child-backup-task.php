@@ -1,6 +1,6 @@
 <?php
 /**
- * MainWP Child Backup Task store (Phase 1G minimal task spine).
+ * MainWP Child Backup Task store - the minimal resumable task spine.
  *
  * A persisted task row with an atomic DB-engine lease lets large backups
  * resume across proxy-killed requests. The dashboard continuation is the
