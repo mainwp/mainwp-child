@@ -128,23 +128,177 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Content-Length for a fresh download is the full file size.
+	 * Resolve a range against the fixture size.
+	 *
+	 * @param string|null $range_header Raw Range header value or null.
+	 * @param int         $offset       Legacy foffset value.
+	 *
+	 * @return array Resolved range: status, start, end.
 	 */
-	public function test_download_headers_full_file() {
-		$headers = MainWP_Utility::instance()->get_download_headers( $this->fixture, basename( $this->fixture ), 0 );
-		$this->assertContains( 'Content-Length: ' . strlen( $this->content ), $headers );
+	private function resolve( $range_header, $offset = 0 ) {
+		return MainWP_Utility::instance()->resolve_download_range( strlen( $this->content ), $range_header, $offset );
 	}
 
 	/**
-	 * Content-Length for a resumed download accounts for the offset.
+	 * No Range header and no offset is a plain 200 full-file response.
+	 */
+	public function test_resolve_no_range_no_offset_is_200() {
+		$range = $this->resolve( null );
+		$this->assertSame( 200, $range['status'] );
+		$this->assertSame( 0, $range['start'] );
+		$this->assertSame( strlen( $this->content ) - 1, $range['end'] );
+	}
+
+	/**
+	 * A bounded Range request resolves to 206 with the requested bytes.
+	 */
+	public function test_resolve_bounded_range_is_206() {
+		$range = $this->resolve( 'bytes=100-999' );
+		$this->assertSame( 206, $range['status'] );
+		$this->assertSame( 100, $range['start'] );
+		$this->assertSame( 999, $range['end'] );
+	}
+
+	/**
+	 * An open-ended Range request runs to the last byte.
+	 */
+	public function test_resolve_open_ended_range_runs_to_eof() {
+		$range = $this->resolve( 'bytes=70001-' );
+		$this->assertSame( 206, $range['status'] );
+		$this->assertSame( 70001, $range['start'] );
+		$this->assertSame( strlen( $this->content ) - 1, $range['end'] );
+	}
+
+	/**
+	 * bytes=0-0 means exactly the first byte - a '0' end must not be treated as empty.
+	 */
+	public function test_resolve_first_byte_only_range() {
+		$range = $this->resolve( 'bytes=0-0' );
+		$this->assertSame( 206, $range['status'] );
+		$this->assertSame( 0, $range['start'] );
+		$this->assertSame( 0, $range['end'] );
+	}
+
+	/**
+	 * An end beyond EOF is clamped to the last byte (RFC 7233).
+	 */
+	public function test_resolve_end_beyond_eof_is_clamped() {
+		$range = $this->resolve( 'bytes=100-999999999' );
+		$this->assertSame( 206, $range['status'] );
+		$this->assertSame( strlen( $this->content ) - 1, $range['end'] );
+	}
+
+	/**
+	 * Multi-range and malformed Range headers are rejected with 416.
+	 */
+	public function test_resolve_rejects_multirange_and_malformed() {
+		$invalid = array(
+			'bytes=0-5,10-20',
+			'bytes=abc-',
+			'characters=0-5',
+			'bytes=-',
+			'bytes=-500',
+			'bytes=5-2',
+		);
+		foreach ( $invalid as $header ) {
+			$range = $this->resolve( $header );
+			$this->assertSame( 416, $range['status'], "Header '$header' must be rejected" );
+		}
+	}
+
+	/**
+	 * A start at or past EOF is unsatisfiable.
+	 */
+	public function test_resolve_start_past_eof_is_416() {
+		$range = $this->resolve( 'bytes=' . strlen( $this->content ) . '-' );
+		$this->assertSame( 416, $range['status'] );
+	}
+
+	/**
+	 * Values too large to represent as integers are rejected, not clamped.
+	 */
+	public function test_resolve_overflow_values_rejected() {
+		$range = $this->resolve( 'bytes=99999999999999999999-' );
+		$this->assertSame( 416, $range['status'] );
+		$range = $this->resolve( 'bytes=0-99999999999999999999' );
+		$this->assertSame( 416, $range['status'] );
+	}
+
+	/**
+	 * Legacy foffset translates into an equivalent 206 when no Range header is sent.
+	 */
+	public function test_resolve_foffset_fallback_is_206() {
+		$offset = 70001;
+		$range  = $this->resolve( null, $offset );
+		$this->assertSame( 206, $range['status'] );
+		$this->assertSame( $offset, $range['start'] );
+		$this->assertSame( strlen( $this->content ) - 1, $range['end'] );
+	}
+
+	/**
+	 * A foffset at or past EOF is unsatisfiable - no zero-byte 200/206.
+	 */
+	public function test_resolve_foffset_past_eof_is_416() {
+		$range = $this->resolve( null, strlen( $this->content ) );
+		$this->assertSame( 416, $range['status'] );
+	}
+
+	/**
+	 * When both Range and foffset are present, Range wins.
+	 */
+	public function test_resolve_range_header_wins_over_foffset() {
+		$range = $this->resolve( 'bytes=100-999', 70001 );
+		$this->assertSame( 100, $range['start'] );
+		$this->assertSame( 999, $range['end'] );
+	}
+
+	/**
+	 * A negative offset is treated as a fresh full download.
+	 */
+	public function test_resolve_negative_offset_is_200() {
+		$range = $this->resolve( null, -5 );
+		$this->assertSame( 200, $range['status'] );
+		$this->assertSame( 0, $range['start'] );
+	}
+
+	/**
+	 * Full-file headers carry the full size, Accept-Ranges, and no-store caching.
+	 */
+	public function test_download_headers_full_file() {
+		$size    = strlen( $this->content );
+		$range   = $this->resolve( null );
+		$headers = MainWP_Utility::instance()->get_download_headers( basename( $this->fixture ), $size, $range );
+		$this->assertContains( 'Content-Length: ' . $size, $headers );
+		$this->assertContains( 'Accept-Ranges: bytes', $headers );
+		$this->assertContains( 'Cache-Control: no-store, private, max-age=0', $headers );
+		$this->assertContains( 'X-Content-Type-Options: nosniff', $headers );
+		$this->assertNotContains( 'Pragma: public', $headers );
+		$this->assertNotContains( 'Cache-Control: must-revalidate', $headers );
+	}
+
+	/**
+	 * Partial-content headers carry Content-Range and the partial length.
 	 *
 	 * This is the 1B.0 corruption bug: the legacy code sent the full file size
 	 * while streaming fewer bytes, so every resumed download corrupted.
 	 */
-	public function test_download_headers_resumed_download_accounts_for_offset() {
+	public function test_download_headers_partial_content() {
+		$size    = strlen( $this->content );
 		$offset  = 70001;
-		$headers = MainWP_Utility::instance()->get_download_headers( $this->fixture, basename( $this->fixture ), $offset );
-		$this->assertContains( 'Content-Length: ' . ( strlen( $this->content ) - $offset ), $headers );
-		$this->assertNotContains( 'Content-Length: ' . strlen( $this->content ), $headers );
+		$range   = $this->resolve( null, $offset );
+		$headers = MainWP_Utility::instance()->get_download_headers( basename( $this->fixture ), $size, $range );
+		$this->assertContains( 'Content-Length: ' . ( $size - $offset ), $headers );
+		$this->assertContains( 'Content-Range: bytes ' . $offset . '-' . ( $size - 1 ) . '/' . $size, $headers );
+		$this->assertNotContains( 'Content-Length: ' . $size, $headers );
+	}
+
+	/**
+	 * Unsatisfiable-range headers carry the "bytes asterisk/size" Content-Range form.
+	 */
+	public function test_download_headers_unsatisfiable_range() {
+		$size    = strlen( $this->content );
+		$range   = $this->resolve( 'bytes=0-5,10-20' );
+		$headers = MainWP_Utility::instance()->get_download_headers( basename( $this->fixture ), $size, $range );
+		$this->assertContains( 'Content-Range: bytes */' . $size, $headers );
 	}
 }

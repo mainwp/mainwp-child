@@ -248,44 +248,145 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             return false;
         }
 
-        foreach ( $this->get_download_headers( $fullpath, basename( $file ), $offset ) as $header_line ) {
+        $file_size    = (int) filesize( $fullpath );
+        $range_header = isset( $_SERVER['HTTP_RANGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_RANGE'] ) ) : null;
+        $range        = $this->resolve_download_range( $file_size, $range_header, $offset );
+
+        if ( ! headers_sent() ) {
+            http_response_code( $range['status'] );
+        }
+        foreach ( $this->get_download_headers( basename( $file ), $file_size, $range ) as $header_line ) {
             header( $header_line );
+        }
+        if ( 416 === $range['status'] ) {
+            return false;
         }
         while ( ob_get_level() ) {
             ob_end_clean();
         }
-        $this->readfile_chunked( $fullpath, $offset );
+        $this->readfile_chunked( $fullpath, $range['start'], $range['end'] - $range['start'] + 1 );
         return true;
+    }
+
+    /**
+     * Method resolve_download_range()
+     *
+     * Resolve an HTTP Range header (primary) or a legacy foffset value
+     * (fallback for older Dashboards) into the byte window to stream.
+     *
+     * Only the single-range "bytes=START-END" form is accepted; multi-range
+     * and suffix forms are rejected with 416. Values longer than PHP_INT_MAX
+     * (19 digits on 64-bit builds) are rejected by string length before
+     * casting. NOTE this guard does not help 32-bit PHP: there PHP_INT_MAX is
+     * 10 digits, and filesize()/fseek() cannot handle files over 2GB anyway,
+     * so on 32-bit builds (PHP_INT_SIZE === 4) range requests whose values
+     * exceed the representable size are refused with 416.
+     *
+     * @param int         $file_size    Size of the file being served.
+     * @param string|null $range_header Raw HTTP Range header value, null when absent.
+     * @param int         $offset       Legacy foffset value, used only when no Range header is present.
+     *
+     * @return array{status:int,start:int,end:int} Resolved status (200/206/416) and byte window.
+     */
+    public function resolve_download_range( $file_size, $range_header, $offset = 0 ) {
+        $file_size = (int) $file_size;
+        $offset    = (int) $offset;
+
+        $unsatisfiable = array(
+            'status' => 416,
+            'start'  => 0,
+            'end'    => 0,
+        );
+
+        if ( null !== $range_header && '' !== $range_header ) {
+            // Single range only - multi-range, suffix and malformed forms are rejected.
+            if ( ! preg_match( '/^bytes=(\d+)-(\d*)$/', $range_header, $matches ) ) {
+                return $unsatisfiable;
+            }
+            // Reject values that cannot be represented as an integer on this build
+            // instead of letting the cast clamp them silently.
+            $int_max_digits = strlen( (string) PHP_INT_MAX );
+            foreach ( array( $matches[1], $matches[2] ) as $value ) {
+                if ( '' === $value ) {
+                    continue;
+                }
+                if ( strlen( $value ) > $int_max_digits || ( strlen( $value ) === $int_max_digits && strcmp( $value, (string) PHP_INT_MAX ) > 0 ) ) {
+                    return $unsatisfiable;
+                }
+            }
+            $range_start = (int) $matches[1];
+            $range_end   = ( '' !== $matches[2] ) ? (int) $matches[2] : $file_size - 1;
+            if ( $range_end > $file_size - 1 ) {
+                $range_end = $file_size - 1; // RFC 7233: clamp an end past EOF.
+            }
+            if ( $range_start >= $file_size || $range_end < $range_start ) {
+                return $unsatisfiable;
+            }
+            return array(
+                'status' => 206,
+                'start'  => $range_start,
+                'end'    => $range_end,
+            );
+        }
+
+        // Legacy fallback: old Dashboards send foffset instead of a Range header.
+        if ( $offset > 0 ) {
+            if ( $offset >= $file_size ) {
+                return $unsatisfiable; // No zero-byte responses for a seek past EOF.
+            }
+            return array(
+                'status' => 206,
+                'start'  => $offset,
+                'end'    => $file_size - 1,
+            );
+        }
+
+        return array(
+            'status' => 200,
+            'start'  => 0,
+            'end'    => $file_size - 1,
+        );
     }
 
     /**
      * Method get_download_headers()
      *
-     * Build the response headers for a (possibly resumed) file download.
-     * Content-Length accounts for the resume offset so it always matches the
-     * number of bytes actually streamed.
+     * Build the response headers for a download from a resolved range. The
+     * Content-Length always matches the number of bytes actually streamed -
+     * mismatches are what corrupted resumed downloads historically. Backup
+     * artifacts are sensitive, so caching is disabled at browsers, proxies
+     * and CDNs.
      *
-     * @param string $fullpath Full path of the file being served.
-     * @param string $basename File name for the Content-Disposition header.
-     * @param int    $offset   Resume offset in bytes.
+     * @param string $basename  File name for the Content-Disposition header.
+     * @param int    $file_size Size of the file being served.
+     * @param array  $range     Resolved range from resolve_download_range().
      *
      * @return string[] Header lines to emit.
      */
-    public function get_download_headers( $fullpath, $basename, $offset = 0 ) {
-        $file_size = (int) filesize( $fullpath );
-        $offset    = (int) $offset;
-        if ( $offset < 0 || $offset > $file_size ) {
-            $offset = 0;
-        }
-        return array(
+    public function get_download_headers( $basename, $file_size, $range ) {
+        $file_size = (int) $file_size;
+        $headers   = array(
             'Content-Description: File Transfer',
             'Content-Type: application/octet-stream',
             'Content-Disposition: attachment; filename="' . $basename . '"',
+            'Accept-Ranges: bytes',
+            'Cache-Control: no-store, private, max-age=0',
+            'Pragma: no-cache',
             'Expires: 0',
-            'Cache-Control: must-revalidate',
-            'Pragma: public',
-            'Content-Length: ' . ( $file_size - $offset ),
+            'X-Content-Type-Options: nosniff',
         );
+
+        if ( 416 === $range['status'] ) {
+            $headers[] = 'Content-Range: bytes */' . $file_size;
+            return $headers;
+        }
+
+        if ( 206 === $range['status'] ) {
+            $headers[] = 'Content-Range: bytes ' . $range['start'] . '-' . $range['end'] . '/' . $file_size;
+        }
+        $headers[] = 'Content-Length: ' . ( $range['end'] - $range['start'] + 1 );
+
+        return $headers;
     }
 
     /**
