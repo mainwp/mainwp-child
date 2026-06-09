@@ -248,13 +248,9 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             return false;
         }
 
-        header( 'Content-Description: File Transfer' );
-        header( 'Content-Type: application/octet-stream' );
-        header( 'Content-Disposition: attachment; filename="' . basename( $file ) . '"' );
-        header( 'Expires: 0' );
-        header( 'Cache-Control: must-revalidate' );
-        header( 'Pragma: public' );
-        header( 'Content-Length: ' . filesize( $fullpath ) );
+        foreach ( $this->get_download_headers( $fullpath, basename( $file ), $offset ) as $header_line ) {
+            header( $header_line );
+        }
         while ( ob_get_level() ) {
             ob_end_clean();
         }
@@ -263,25 +259,79 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
+     * Method get_download_headers()
+     *
+     * Build the response headers for a (possibly resumed) file download.
+     * Content-Length accounts for the resume offset so it always matches the
+     * number of bytes actually streamed.
+     *
+     * @param string $fullpath Full path of the file being served.
+     * @param string $basename File name for the Content-Disposition header.
+     * @param int    $offset   Resume offset in bytes.
+     *
+     * @return string[] Header lines to emit.
+     */
+    public function get_download_headers( $fullpath, $basename, $offset = 0 ) {
+        $file_size = (int) filesize( $fullpath );
+        $offset    = (int) $offset;
+        if ( $offset < 0 || $offset > $file_size ) {
+            $offset = 0;
+        }
+        return array(
+            'Content-Description: File Transfer',
+            'Content-Type: application/octet-stream',
+            'Content-Disposition: attachment; filename="' . $basename . '"',
+            'Expires: 0',
+            'Cache-Control: must-revalidate',
+            'Pragma: public',
+            'Content-Length: ' . ( $file_size - $offset ),
+        );
+    }
+
+    /**
      * Method readfile_chunked()
      *
-     * Read chunked backup file.
+     * Stream a file in chunks, starting at $offset, stopping after $length
+     * bytes (or at EOF when $length is null). Streaming exactly the declared
+     * byte count is what keeps resumed downloads from corrupting.
      *
-     * @param string $filename Backup file name.
-     * @param int    $offset Offset value.
+     * @param string   $filename Backup file name.
+     * @param int      $offset Offset value.
+     * @param int|null $length Number of bytes to stream, null to stream to EOF.
      *
-     * @return mixed Close file.
+     * @return bool True on success, false on open/seek failure.
      */
-    public function readfile_chunked( $filename, $offset ) {
+    public function readfile_chunked( $filename, $offset, $length = null ) {
         //phpcs:disable WordPress.WP.AlternativeFunctions
-        $chunksize = 1024;
-        $handle    = fopen( $filename, 'rb' );
+        $chunksize = 65536; // 64KB chunks - balances memory use and request overhead.
+        if ( ! is_readable( $filename ) ) {
+            return false;
+        }
+        $handle = fopen( $filename, 'rb' );
         if ( false === $handle ) {
             return false;
         }
-        fseek( $handle, $offset );
+        if ( $offset > 0 && 0 !== fseek( $handle, $offset ) ) {
+            fclose( $handle );
+            return false;
+        }
+        $remaining = null === $length ? null : (int) $length;
         while ( ! feof( $handle ) ) {
-            $buffer = fread( $handle, $chunksize );
+            if ( null !== $remaining ) {
+                if ( $remaining <= 0 ) {
+                    break;
+                }
+                $read_size = min( $chunksize, $remaining );
+            } else {
+                $read_size = $chunksize;
+            }
+            $buffer = fread( $handle, $read_size );
+            if ( false === $buffer || '' === $buffer ) {
+                break;
+            }
+            if ( null !== $remaining ) {
+                $remaining -= strlen( $buffer );
+            }
             echo $buffer; // phpcs:ignore WordPress.Security.EscapeOutput
             if ( ob_get_length() ) {
                 ob_flush();
