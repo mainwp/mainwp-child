@@ -249,8 +249,6 @@ class MainWP_Backup {
                 $success = $this->archiver->create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append );
             } elseif ( $this->check_zip_support() ) {
                 $success = $this->create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
-            } elseif ( $this->check_zip_console() ) {
-                $success = $this->create_zip_console_full_backup(); // NOSONAR .
             } else {
                 $success = $this->create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
             }
@@ -719,8 +717,6 @@ class MainWP_Backup {
             $success = $this->archiver->zip_file( $files, $archive );
         } elseif ( $this->check_zip_support() ) {
             $success = $this->m_zip_file( $files, $archive );
-        } elseif ( $this->check_zip_console() ) {
-            $success = $this->m_zip_file_console( $files, $archive );
         } else {
             $success = $this->m_zip_file_pcl( $files, $archive );
         }
@@ -751,15 +747,6 @@ class MainWP_Backup {
             return true;
         }
 
-        return false;
-    }
-
-    /**
-     * Method m_zip_file_console().
-     *
-     * @return bool Return false.
-     */
-    public function m_zip_file_console() {
         return false;
     }
 
@@ -1124,15 +1111,6 @@ class MainWP_Backup {
         }
 
         return $report;
-    }
-
-    /**
-     * Check if we could run zip on console
-     *
-     * @return bool Return false.
-     */
-    public function check_zip_console() {
-        return false;
     }
 
     /**
@@ -1671,15 +1649,6 @@ class MainWP_Backup {
         }
 
         return $added;
-    }
-
-    /**
-     * Create full backup via console.
-     *
-     * @return bool Return false.
-     */
-    public function create_zip_console_full_backup() {
-        return false;
     }
 
     /**
