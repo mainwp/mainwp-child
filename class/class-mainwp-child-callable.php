@@ -46,6 +46,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'upgradeplugintheme'       => 'upgrade_plugin_theme',
         'upgradetranslation'       => 'upgrade_translation',
         'backup'                   => 'backup',
+        'backup_preflight'         => 'backup_preflight',
         'backup_checkpid'          => 'backup_checkpid',
         'cloneinfo'                => 'cloneinfo',
         'security'                 => 'get_security_stats',
@@ -564,6 +565,26 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function backup( $write = true ) {
         return MainWP_Backup::get()->backup( $write );
+    }
+
+    /**
+     * Method backup_preflight()
+     *
+     * Run the pre-backup environment validation (1D.2/1D.6) and send the
+     * readiness report to the Dashboard. The report includes the backup
+     * directory secret; this response only travels inside the authenticated
+     * Dashboard connection.
+     *
+     * @uses \MainWP\Child\MainWP_Backup::check_backup_readiness()
+     */
+    public function backup_preflight() {
+        try {
+            $information = MainWP_Backup::get()->check_backup_readiness();
+        } catch ( MainWP_Exception $e ) {
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
+            return;
+        }
+        MainWP_Helper::write( $information );
     }
 
     /**

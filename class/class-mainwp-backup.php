@@ -401,6 +401,12 @@ class MainWP_Backup {
      */
     public function backup( $write = true ) {
 
+        try {
+            $this->check_backup_readiness();
+        } catch ( MainWP_Exception $e ) {
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
+        }
+
         $timeout = 20 * 60 * 60;
         MainWP_Helper::set_limit( $timeout );
 
@@ -552,9 +558,9 @@ class MainWP_Backup {
 
         $file = false;
         if ( isset( $_POST['f'] ) ) {
-            $file = ! empty( $_POST['f'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['f'] ) ) : false;
+            $file = ! empty( $_POST['f'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['f'] ) ) : false; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
         } elseif ( isset( $_POST['file'] ) ) {
-            $file = ! empty( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : false;
+            $file = ! empty( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : false; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
         }
 
         $ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
@@ -711,6 +717,69 @@ class MainWP_Backup {
      */
     public function check_zip_support() {
         return class_exists( '\ZipArchive' );
+    }
+
+    /**
+     * Validate the child server environment before a backup starts (1D.2).
+     *
+     * Returns an advisory readiness report for the Dashboard; throws only on
+     * conditions that make any backup impossible (unwritable backup directory,
+     * dead database connection). The report includes the backup directory
+     * secret so the Dashboard can track the randomized directory.
+     *
+     * @return array Readiness report sent to the Dashboard.
+     * @throws MainWP_Exception When critical requirements are missing.
+     */
+    public function check_backup_readiness() {
+        $report = array(
+            'disk_free'       => false,
+            'dir_writable'    => false,
+            'db_connected'    => false,
+            'memory_limit'    => ini_get( 'memory_limit' ),
+            'max_exec_time'   => ini_get( 'max_execution_time' ),
+            'zip_support'     => $this->check_zip_support(),
+            'gz_support'      => function_exists( 'gzopen' ),
+            'bz2_support'     => function_exists( 'bzopen' ),
+            'time_limit_ok'   => ! in_array( 'set_time_limit', array_map( 'trim', explode( ',', (string) ini_get( 'disable_functions' ) ) ), true ),
+            'backup_dir_hash' => MainWP_Helper::get_backup_dir_hash(),
+        );
+
+        // 1. Backup directory writable (randomized directory, created on demand).
+        $dirs       = MainWP_Helper::get_mainwp_dir( 'backup', false );
+        $backup_dir = $dirs[0];
+        if ( ! is_dir( $backup_dir ) || ! is_writable( $backup_dir ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        }
+        $report['dir_writable'] = true;
+
+        // 2. Disk space - advisory only; the Dashboard decides the threshold.
+        // disk_free_space() may be disabled or inaccurate on network mounts.
+        if ( function_exists( 'disk_free_space' ) ) {
+            $free = @disk_free_space( $backup_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- advisory probe, host may disable it.
+            if ( false !== $free ) {
+                $report['disk_free'] = $free;
+                if ( $free < 50 * 1024 * 1024 ) {
+                    $report['disk_warning'] = sprintf(
+                        /* translators: %s: available disk space */
+                        esc_html__( 'Low disk space: %s available.', 'mainwp-child' ),
+                        size_format( $free )
+                    );
+                }
+            }
+        }
+
+        // 3. Database connection alive.
+        global $wpdb;
+        if ( method_exists( $wpdb, 'check_connection' ) ) {
+            $report['db_connected'] = $wpdb->check_connection( false );
+        } else {
+            $report['db_connected'] = (bool) $wpdb->get_var( 'SELECT 1' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- connectivity probe, no caching applicable.
+        }
+        if ( ! $report['db_connected'] ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ) ), null, MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        }
+
+        return $report;
     }
 
     /**
