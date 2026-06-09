@@ -240,7 +240,7 @@ class MainWP_Backup {
             }
         }
 
-        $this->timeout = 20 * 60 * 60;
+        $this->timeout = $this->get_timeout_from_request();
         $mem           = '512M';
         MainWP_Helper::set_limit( $this->timeout, $mem );
 
@@ -385,6 +385,36 @@ class MainWP_Backup {
     }
 
     /**
+     * Get the timeout in seconds for a named preset.
+     *
+     * Unknown or missing presets fall back to the legacy 20-hour value so
+     * older Dashboards that never send a preset see unchanged behavior.
+     *
+     * @param string $preset Preset name: shared_hosting, standard, large_site, unlimited.
+     *
+     * @return int Timeout in seconds.
+     */
+    public static function get_timeout_for_preset( $preset ) {
+        $presets = array(
+            'shared_hosting' => 30 * 60,
+            'standard'       => 2 * 60 * 60,
+            'large_site'     => 8 * 60 * 60,
+            'unlimited'      => 20 * 60 * 60,
+        );
+        return isset( $presets[ $preset ] ) ? $presets[ $preset ] : $presets['unlimited'];
+    }
+
+    /**
+     * Resolve the backup timeout from the Dashboard request.
+     *
+     * @return int Timeout in seconds.
+     */
+    public function get_timeout_from_request() {
+        $preset = isset( $_POST['timeout_preset'] ) ? sanitize_text_field( wp_unslash( $_POST['timeout_preset'] ) ) : 'unlimited'; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+        return static::get_timeout_for_preset( $preset );
+    }
+
+    /**
      * Decide whether a running backup is busy or stalled from its last
      * progress timestamp.
      *
@@ -445,7 +475,7 @@ class MainWP_Backup {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
         }
 
-        $timeout = 20 * 60 * 60;
+        $timeout = $this->get_timeout_from_request();
         MainWP_Helper::set_limit( $timeout );
 
         MainWP_Helper::end_session();
@@ -677,7 +707,7 @@ class MainWP_Backup {
      * @uses \MainWP\Child\MainWP_Helper::set_limit() Set PHP memory limit.
      */
     public function zip_file( $files, $archive ) {
-        $this->timeout = 20 * 60 * 60;
+        $this->timeout = $this->get_timeout_from_request();
         $mem           = '512M';
         MainWP_Helper::set_limit( $this->timeout, $mem );
 
@@ -1671,7 +1701,7 @@ class MainWP_Backup {
      */
     public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
 
-        $timeout = 20 * 60 * 60;
+        $timeout = $this->get_timeout_from_request();
         $mem     = '512M';
         MainWP_Helper::set_limit( $timeout, $mem );
 
