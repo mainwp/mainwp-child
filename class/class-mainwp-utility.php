@@ -215,9 +215,13 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         if ( empty( $file ) || stristr( $file, '..' ) ) {
             return false;
         }
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $backupdir = $dirs[0];
-        $this->upload_file( $file, $backupdir, $offset );
+        // Randomized directory first, legacy backup/ fallback - pre-upgrade
+        // backups stay downloadable.
+        $fullpath = MainWP_Helper::locate_backup_file( basename( $file ) );
+        if ( false === $fullpath ) {
+            return false;
+        }
+        $this->upload_file( basename( $fullpath ), dirname( $fullpath ) . DIRECTORY_SEPARATOR, $offset );
     }
 
     /**
