@@ -244,14 +244,23 @@ class MainWP_Backup {
         $mem           = '512M';
         MainWP_Helper::set_limit( $this->timeout, $mem );
 
-        if ( null !== $this->archiver ) {
-            $success = $this->archiver->create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append );
-        } elseif ( $this->check_zip_support() ) {
-            $success = $this->create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
-        } elseif ( $this->check_zip_console() ) {
-            $success = $this->create_zip_console_full_backup(); // NOSONAR .
-        } else {
-            $success = $this->create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
+        try {
+            if ( null !== $this->archiver ) {
+                $success = $this->archiver->create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append );
+            } elseif ( $this->check_zip_support() ) {
+                $success = $this->create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
+            } elseif ( $this->check_zip_console() ) {
+                $success = $this->create_zip_console_full_backup(); // NOSONAR .
+            } else {
+                $success = $this->create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
+            }
+        } catch ( \Exception $e ) {
+            // Never leave a partial archive behind - a half-written file
+            // looks like a backup and restores as corruption (1B.6).
+            if ( file_exists( $filepath ) ) {
+                unlink( $filepath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- cleanup of partial archive.
+            }
+            throw $e;
         }
 
         return ( $success ) ? array(
@@ -691,7 +700,8 @@ class MainWP_Backup {
                 $this->add_file_to_zipp( $file, basename( $file ) );
             }
 
-            return $this->zip->close();
+            $this->close_zip_archive();
+            return true;
         }
 
         return false;
@@ -745,6 +755,19 @@ class MainWP_Backup {
      * @var string[] Skipped paths.
      */
     protected static $skipped_paths = array();
+
+    /**
+     * Number of files that failed to be added to the archive in this run.
+     *
+     * @var int Failed add count.
+     */
+    protected $failed_add_count = 0;
+
+    /**
+     * Abort threshold for failed file adds - past this the archive is
+     * considered too incomplete to be a trustworthy backup.
+     */
+    const MAX_FAILED_ADDS = 10;
 
     /**
      * Allowed containment bases for the current backup traversal, null for
@@ -825,6 +848,59 @@ class MainWP_Backup {
      */
     public static function reset_skipped_paths() {
         static::$skipped_paths = array();
+    }
+
+    /**
+     * Record a file that could not be added to the archive; abort the backup
+     * once too many adds have failed (master 1B.19, phase-1e A2/A8).
+     *
+     * A handful of unreadable files is survivable and reported; past the
+     * threshold the archive is too incomplete to pass off as a backup.
+     *
+     * @param string $path File that failed to be added.
+     *
+     * @throws MainWP_Exception When the failed-add threshold is exceeded.
+     */
+    public function record_failed_add( $path ) {
+        ++$this->failed_add_count;
+        static::record_skipped_path( $path );
+        if ( $this->failed_add_count > self::MAX_FAILED_ADDS ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ) ), null, MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        }
+    }
+
+    /**
+     * Get the number of failed file adds in the current run.
+     *
+     * @return int Failed add count.
+     */
+    public function get_failed_add_count() {
+        return $this->failed_add_count;
+    }
+
+    /**
+     * Reset the failed-add counter (start of a backup run).
+     */
+    public function reset_failed_adds() {
+        $this->failed_add_count = 0;
+    }
+
+    /**
+     * Close the ZIP archive and verify the close succeeded (1B.2).
+     *
+     * ZipArchive::close() is where the archive is actually written - ignoring
+     * its result reports success over a corrupt or missing archive.
+     *
+     * @throws MainWP_Exception When the archive could not be finalized.
+     */
+    public function close_zip_archive() {
+        $result = false;
+        if ( $this->zip instanceof \ZipArchive ) {
+            $result = @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure is converted to a coded exception below.
+        }
+        if ( true !== $result ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        }
     }
 
     /**
@@ -1084,7 +1160,7 @@ class MainWP_Backup {
                 $this->add_config();
             }
 
-            $return = $this->zip->close();
+            $this->close_zip_archive();
             foreach ( $db_files as $db_file ) {
                 wp_delete_file( $db_file ); // NOSONAR .
             }
@@ -1232,8 +1308,9 @@ class MainWP_Backup {
 
             if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
                 if ( is_dir( $node ) ) {
-                    if ( ! file_exists( str_replace( ABSPATH, $backupfolder, $node ) ) ) {
-                        mkdir( str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+                    $target_dir = str_replace( ABSPATH, $backupfolder, $node );
+                    if ( ! file_exists( $target_dir ) && ! @mkdir( $target_dir ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- failure converted to a coded exception below.
+                        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
                     }
 
                     $newnodes = glob( $node . DIRECTORY_SEPARATOR . '*' );
@@ -1244,7 +1321,9 @@ class MainWP_Backup {
                         continue;
                     }
 
-                    copy( $node, str_replace( ABSPATH, $backupfolder, $node ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated - // NOSONAR .
+                    if ( ! @copy( $node, str_replace( ABSPATH, $backupfolder, $node ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure recorded; backup aborts past the failed-add threshold.
+                        $this->record_failed_add( $node );
+                    }
                 }
             }
         }
@@ -1501,21 +1580,17 @@ class MainWP_Backup {
             static::assert_disk_space_during_backup( $this->backup_dir_in_use );
         }
 
-        if ( ! $this->loadFilesBeforeZip || ( filesize( $path ) > 5 * 1024 * 1024 ) ) { // NOSONAR .
-            ++$this->zipArchiveFileCount;
-            if ( $this->zip instanceof \ZipArchive ) {
-                $added = $this->zip->addFile( $path, $zipEntryName );
-            } else {
-                $added = $this->zip->add_file( $path, $zipEntryName );
-            }
+        // Always stream files into the archive - the old loadFilesBeforeZip
+        // branch loaded files under 5MB fully into memory (1B.5/1B.12).
+        ++$this->zipArchiveFileCount;
+        if ( $this->zip instanceof \ZipArchive ) {
+            $added = $this->zip->addFile( $path, $zipEntryName );
         } else {
-            ++$this->zipArchiveFileCount;
+            $added = $this->zip->add_file( $path, $zipEntryName );
+        }
 
-            $this->testContent = file_get_contents( $path ); //phpcs:ignore WordPress.WP.AlternativeFunctions -- // NOSONAR .
-            if ( false === $this->testContent ) {
-                return false;
-            }
-            $added = $this->zip->addFromString( $zipEntryName, $this->testContent );
+        if ( false === $added ) {
+            $this->record_failed_add( $path );
         }
 
         if ( $this->gcCnt > 20 ) {
@@ -1529,7 +1604,9 @@ class MainWP_Backup {
         }
 
         if ( ( ( $this->file_descriptors > 0 ) && ( $this->zipArchiveFileCount > $this->file_descriptors ) ) ) {
-            $this->zip->close();
+            // The periodic close/reopen flushes file descriptors; an
+            // unchecked failure here used to corrupt the archive silently.
+            $this->close_zip_archive();
             $this->zip = null;
             unset( $this->zip );
             if ( function_exists( 'gc_enable' ) ) {
@@ -1539,7 +1616,9 @@ class MainWP_Backup {
                 gc_collect_cycles();
             }
             $this->zip = new \ZipArchive();
-            $this->zip->open( $this->zipArchiveFileName );
+            if ( true !== $this->zip->open( $this->zipArchiveFileName ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+            }
             $this->zipArchiveFileCount = 0;
             $this->zipArchiveSizeCount = 0;
         }
