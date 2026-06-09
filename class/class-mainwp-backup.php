@@ -369,25 +369,9 @@ class MainWP_Backup {
         if ( $wp_filesystem->is_file( $pidFile ) ) {
             $time = $wp_filesystem->mtime( $pidFile );
 
-            $minutes = date( 'i', time() ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-            $seconds = date( 's', time() ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-
-            $file_minutes = date( 'i', $time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-            $file_seconds = date( 's', $time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
-
-            $minuteDiff = $minutes - $file_minutes;
-            if ( 59 === $minuteDiff ) {
-                $minuteDiff = 1;
-            }
-            $secondsdiff = ( $minuteDiff * 60 ) + $seconds - $file_seconds;
-
-            $file                = $wp_filesystem->get_contents( $pidFile );
-            $information['file'] = basename( $file );
-            if ( $secondsdiff < 80 ) {
-                $information['status'] = 'busy';
-            } else {
-                $information['status'] = 'stalled';
-            }
+            $file                  = $wp_filesystem->get_contents( $pidFile );
+            $information['file']   = basename( $file );
+            $information['status'] = $this->get_checkpid_status( $time, $backupdir );
         } elseif ( $wp_filesystem->is_file( $doneFile ) ) {
             $file                  = $wp_filesystem->get_contents( $doneFile );
             $information['status'] = 'done';
@@ -398,6 +382,39 @@ class MainWP_Backup {
         }
 
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Decide whether a running backup is busy or stalled from its last
+     * progress timestamp.
+     *
+     * Uses a plain time delta - the previous clock-face minute arithmetic
+     * produced wrong (often negative) elapsed times across hour boundaries.
+     * While a database dump is in progress (a .sql tmp file exists in the
+     * backup directory) the threshold is relaxed, because a single large
+     * table can legitimately take longer than the default between progress
+     * updates. Note: file_exists() does not expand globs - glob() is
+     * required or the relaxed threshold would never activate.
+     *
+     * @param int      $pid_mtime  Last modification time of the pid file.
+     * @param string   $backupdir  Backup directory to inspect for a DB phase.
+     * @param int|null $now        Current timestamp override (tests), null for time().
+     *
+     * @return string 'busy' or 'stalled'.
+     */
+    public function get_checkpid_status( $pid_mtime, $backupdir, $now = null ) {
+        if ( null === $now ) {
+            $now = time();
+        }
+        $seconds_since_progress = $now - (int) $pid_mtime;
+
+        $stall_threshold = 80;
+        $sql_tmp         = glob( trailingslashit( $backupdir ) . '*.sql*.tmp' );
+        if ( ! empty( $sql_tmp ) ) {
+            $stall_threshold = 300; // DB dump phase - allow longer between progress updates.
+        }
+
+        return ( $seconds_since_progress < $stall_threshold ) ? 'busy' : 'stalled';
     }
 
     /**
