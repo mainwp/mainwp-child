@@ -569,6 +569,17 @@ class Tar_Archiver {
     }
 
     /**
+     * Throw a coded backup error with its registry message.
+     *
+     * @param string $code One of the MainWP_Backup_Error::ERR_* codes.
+     *
+     * @throws MainWP_Exception Always - carries the registry message and error code.
+     */
+    private function throw_backup_error( $code ) {
+        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+    }
+
+    /**
      * Add data to the backup archive file.
      *
      * @param arary $data Data to add to the backup archive file.
@@ -578,6 +589,7 @@ class Tar_Archiver {
      *
      * @used-by Tar_Archiver::create_full_backup() Create full backup.
      *
+     * @throws MainWP_Exception Archive write failure.
      * @throws \Exception Error message.
      */
     private function add_data( $data ) {
@@ -593,15 +605,15 @@ class Tar_Archiver {
 
         if ( 'tar.gz' === $this->type ) {
             if ( false === gzwrite( $this->archive, $data, strlen( $data ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } elseif ( 'tar.bz2' === $this->type ) {
             if ( false === bzwrite( $this->archive, $data, strlen( $data ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } else {
             if ( false === fwrite( $this->archive, $data, strlen( $data ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
         }
@@ -610,6 +622,7 @@ class Tar_Archiver {
     /**
      * Write backup chunk.
      *
+     * @throws MainWP_Exception Archive write failure.
      * @throws \Exception Error message.
      */
     private function write_chunk() {
@@ -622,16 +635,16 @@ class Tar_Archiver {
             $this->log( 'writing & flushing ' . $len );
             $this->chunk = gzencode( $this->chunk );
             if ( false === fwrite( $this->archive, $this->chunk, strlen( $this->chunk ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
         } elseif ( 'tar.bz2' === $this->type ) {
             if ( false === bzwrite( $this->archive, $this->chunk, strlen( $len ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } else {
             if ( false === fwrite( $this->archive, $len, strlen( $len ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
         }
@@ -1104,6 +1117,7 @@ class Tar_Archiver {
      *
      * @param string $entryName Entry name.
      *
+     * @throws MainWP_Exception Corrupt or unexpected archive content.
      * @throws \Exception Error message.
      *
      * @return array|bool If true,skip file, if false or number, nothing to read, will continue with current file.
@@ -1119,7 +1133,7 @@ class Tar_Archiver {
             }
 
             if ( 512 !== strlen( $block ) ) {
-                throw new \Exception( 'Invalid block found' );
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
             }
 
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -1150,19 +1164,20 @@ class Tar_Archiver {
 
                     return true;
                 } else {
-                    throw new \Exception( 'Unexpected directory [' . $file['name'] . ']' );
+                    $this->log( 'Unexpected directory [' . $file['name'] . ']' );
+                    throw new MainWP_Exception( esc_html__( 'Unexpected content found while reading the backup archive. The archive file may be corrupted. Try creating a new backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
                 }
             } elseif ( 0 === (int) $file['type'] ) {
                 if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
                     return $this->read_next_bytes( $file );
                 } else {
                     $this->log( 'Unexpected file [' . $file['name'] . ']' );
-                    throw new \Exception( 'Unexpected file' );
+                    throw new MainWP_Exception( esc_html__( 'Unexpected content found while reading the backup archive. The archive file may be corrupted. Try creating a new backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
                 }
             }
 
             $this->log( 'ERROR' );
-            throw new \Exception( 'Should never get here?' );
+            throw new MainWP_Exception( esc_html__( 'An unexpected error occurred while processing the backup archive. Please try again and contact support if the issue persists.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
         } catch ( \Exception $e ) {
             $this->log( $e->getMessage() );
             throw $e;

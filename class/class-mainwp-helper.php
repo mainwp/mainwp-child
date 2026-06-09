@@ -115,6 +115,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @param mixed  $code Contains the error code.
      */
     public function error( $error, $code = null ) {
+        if ( is_string( $error ) ) {
+            // Keep absolute paths, SQL fragments and table names out of Dashboard-facing
+            // error responses; full context belongs in server-side logs only.
+            $error = MainWP_Backup_Error::sanitize_message( $error );
+        }
         $information['error'] = $error;
         if ( null !== $code ) {
             $information['error_code'] = $code;
@@ -127,8 +132,9 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Get the MainWP directory.
      *
-     * @param string $newdir Contains directory name.
+     * @param string $subdir Contains directory name.
      * @param bool   $die_on_error If true, process will die on error, if false, process will continue.
+     * @param bool   $direct_access If true, allow direct access to the directory.
      *
      * @return array Return directory and directory URL.
      * @throws MainWP_Exception Error Message.
