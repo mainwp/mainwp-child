@@ -48,6 +48,13 @@ class Tar_Archiver {
     protected $archivePath;
 
     /**
+     * Number of files added to the archive, for the periodic disk space floor (1B.13).
+     *
+     * @var int Added file count.
+     */
+    protected $addedFileCount = 0;
+
+    /**
      * Backup archive file size.
      *
      * @var float Backup file size.
@@ -843,6 +850,13 @@ class Tar_Archiver {
                 gc_collect_cycles();
             }
             $this->gcCnt = 0;
+        }
+
+        // Hard low-disk floor every 100 files - a full disk mid-archive
+        // corrupts the backup silently otherwise (1B.13).
+        ++$this->addedFileCount;
+        if ( 0 === $this->addedFileCount % 100 && ! empty( $this->archivePath ) ) {
+            MainWP_Backup::assert_disk_space_during_backup( dirname( $this->archivePath ) );
         }
 
         $stat = stat( $path ); // NOSONAR .

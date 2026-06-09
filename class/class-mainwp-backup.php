@@ -46,6 +46,15 @@ class MainWP_Backup {
     protected $zipArchiveFileCount;
 
     /**
+     * Directory the current backup archive is being written to.
+     *
+     * Used by the during-backup disk space floor (1B.13).
+     *
+     * @var string Backup directory path.
+     */
+    protected $backup_dir_in_use = '';
+
+    /**
      * Backup archive file size.
      *
      * @var float File size.
@@ -170,8 +179,9 @@ class MainWP_Backup {
         $this->file_descriptors   = $file_descriptors;
         $this->loadFilesBeforeZip = $loadFilesBeforeZip;
 
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $backupdir = $dirs[0];
+        $dirs                    = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $backupdir               = $dirs[0];
+        $this->backup_dir_in_use = $backupdir;
         if ( ! defined( 'PCLZIP_TEMPORARY_DIR' ) ) {
 
             /**
@@ -440,30 +450,38 @@ class MainWP_Backup {
         $fileName = isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
         $type     = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 
-        if ( 'full' === $type ) {
+        try {
+            if ( 'full' === $type || 'db' === $type ) {
+                $this->assert_disk_space_for_backup( $backupdir, 'full' === $type );
+            }
 
-            $res = $this->backup_full( $fileName );
+            if ( 'full' === $type ) {
 
-            if ( ! $res ) {
+                $res = $this->backup_full( $fileName );
+
+                if ( ! $res ) {
+                    $information['full'] = false;
+                } else {
+                    $information['full'] = $res['file'];
+                    $information['size'] = $res['filesize'];
+                }
+                $information['db'] = false;
+            } elseif ( 'db' === $type ) {
+                $ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
+                $res = $this->backup_db( $fileName, $ext );
+                if ( ! $res ) {
+                    $information['db'] = false;
+                } else {
+                    $information['db']   = $res['file'];
+                    $information['size'] = $res['filesize'];
+                }
                 $information['full'] = false;
             } else {
-                $information['full'] = $res['file'];
-                $information['size'] = $res['filesize'];
+                $information['full'] = false;
+                $information['db']   = false;
             }
-            $information['db'] = false;
-        } elseif ( 'db' === $type ) {
-            $ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
-            $res = $this->backup_db( $fileName, $ext );
-            if ( ! $res ) {
-                $information['db'] = false;
-            } else {
-                $information['db']   = $res['file'];
-                $information['size'] = $res['filesize'];
-            }
-            $information['full'] = false;
-        } else {
-            $information['full'] = false;
-            $information['db']   = false;
+        } catch ( MainWP_Exception $e ) {
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
         }
 
         if ( $write ) {
@@ -717,6 +735,119 @@ class MainWP_Backup {
      */
     public function check_zip_support() {
         return class_exists( '\ZipArchive' );
+    }
+
+    /**
+     * Estimate the size of a backup in bytes (1B.13).
+     *
+     * Database size comes from SHOW TABLE STATUS; site files from a recursive
+     * directory walk of wp-content. Both are estimates - the result is used
+     * with a safety margin, never as an exact requirement.
+     *
+     * @param bool $include_files Include the wp-content directory size (full backups).
+     *
+     * @return int Estimated backup size in bytes.
+     */
+    public function estimate_backup_size( $include_files = true ) {
+        global $wpdb;
+        $size   = 0;
+        $tables = $wpdb->get_results( 'SHOW TABLE STATUS', ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- size inventory, no caching applicable.
+        if ( is_array( $tables ) ) {
+            foreach ( $tables as $table ) {
+                $size += (int) ( isset( $table['Data_length'] ) ? $table['Data_length'] : 0 );
+                $size += (int) ( isset( $table['Index_length'] ) ? $table['Index_length'] : 0 );
+            }
+        }
+        if ( $include_files ) {
+            $size += static::get_directory_size( WP_CONTENT_DIR );
+        }
+        return $size;
+    }
+
+    /**
+     * Sum the size of all regular files under a directory, skipping symlinks.
+     *
+     * @param string $dir Directory to measure.
+     *
+     * @return int Total size in bytes.
+     */
+    private static function get_directory_size( $dir ) {
+        $size = 0;
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+                \RecursiveIteratorIterator::LEAVES_ONLY,
+                \RecursiveIteratorIterator::CATCH_GET_CHILD
+            );
+            foreach ( $iterator as $file ) {
+                if ( $file->isFile() && ! $file->isLink() ) {
+                    $size += (int) $file->getSize();
+                }
+            }
+        } catch ( \Exception $e ) {
+            // Unreadable subtree - the walk is best-effort for an estimate.
+            unset( $e );
+        }
+        return $size;
+    }
+
+    /**
+     * Require enough free disk space for an estimated backup before starting (1B.13).
+     *
+     * Advisory hosts (disk_free_space disabled or failing) pass - the during-
+     * backup floor in assert_disk_space_during_backup() still protects them.
+     *
+     * @param string $backup_dir        Directory the backup will be written to.
+     * @param bool   $include_files     Whether site files are part of the backup.
+     * @param float  $safety_multiplier Free-space margin over the estimate.
+     *
+     * @throws MainWP_Exception When free space is below the safety margin.
+     */
+    public function assert_disk_space_for_backup( $backup_dir, $include_files = true, $safety_multiplier = 1.5 ) {
+        if ( ! function_exists( 'disk_free_space' ) ) {
+            return;
+        }
+        $free = @disk_free_space( $backup_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- advisory probe, host may disable it.
+        if ( false === $free ) {
+            return;
+        }
+        $required = $this->estimate_backup_size( $include_files ) * $safety_multiplier;
+        if ( $free < $required ) {
+            throw new MainWP_Exception(
+                sprintf(
+                    /* translators: 1: required disk space, 2: available disk space */
+                    esc_html__( 'Insufficient disk space for the backup. Estimated need %1$s, available %2$s. Free up disk space on the child site and try again.', 'mainwp-child' ),
+                    esc_html( size_format( $required ) ),
+                    esc_html( size_format( $free ) )
+                ),
+                null,
+                MainWP_Backup_Error::ERR_DISK_FULL
+            ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message parts are escaped, code is a registry class constant.
+        }
+    }
+
+    /**
+     * Hard low-disk floor checked during long archive writes (1B.13).
+     *
+     * @param string   $backup_dir Directory the archive is being written to.
+     * @param int|null $min_free   Minimum free bytes, defaults to 100MB.
+     *
+     * @throws MainWP_Exception When free space drops below the floor.
+     */
+    public static function assert_disk_space_during_backup( $backup_dir, $min_free = null ) {
+        if ( null === $min_free ) {
+            $min_free = 100 * 1024 * 1024;
+        }
+        if ( ! function_exists( 'disk_free_space' ) ) {
+            return;
+        }
+        $free = @disk_free_space( $backup_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- advisory probe, host may disable it.
+        if ( false === $free ) {
+            return;
+        }
+        if ( $free < $min_free ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        }
     }
 
     /**
@@ -1240,6 +1371,12 @@ class MainWP_Backup {
 
         $this->zipArchiveSizeCount += filesize( $path );
         ++$this->gcCnt;
+
+        // Hard low-disk floor every 100 files - a full disk mid-archive
+        // corrupts the backup silently otherwise (1B.13).
+        if ( 0 === $this->zipArchiveFileCount % 100 && ! empty( $this->backup_dir_in_use ) ) {
+            static::assert_disk_space_during_backup( $this->backup_dir_in_use );
+        }
 
         if ( ! $this->loadFilesBeforeZip || ( filesize( $path ) > 5 * 1024 * 1024 ) ) { // NOSONAR .
             ++$this->zipArchiveFileCount;
