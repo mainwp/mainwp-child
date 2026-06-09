@@ -937,7 +937,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 return false;
             }
 
-            $foffset = isset( $_REQUEST['foffset'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['foffset'] ) ) : 0;
+            // Cast to a non-negative integer - the value reaches fseek(); bounds
+            // against the file size are enforced in resolve_download_range().
+            $foffset = isset( $_REQUEST['foffset'] ) ? absint( wp_unslash( $_REQUEST['foffset'] ) ) : 0;
 
             MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
             exit;
