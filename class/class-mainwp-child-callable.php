@@ -48,6 +48,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup'                   => 'backup',
         'backup_preflight'         => 'backup_preflight',
         'backup_checkpid'          => 'backup_checkpid',
+        'backup_task_status'       => 'backup_task_status',
         'cloneinfo'                => 'cloneinfo',
         'security'                 => 'get_security_stats',
         'securityFix'              => 'do_security_fix',
@@ -585,6 +586,48 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             return;
         }
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Method backup_task_status()
+     *
+     * Status read-back for a spine task (Phase 1G). Applies the wall-clock
+     * deadline on every poll, so a task stuck on a low-traffic child whose
+     * cron never fires still goes terminal. The terminal phase observed here
+     * is what the Dashboard turns into its completion hook.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Task
+     */
+    public function backup_task_status() {
+        $task_id = isset( $_POST['task_id'] ) ? sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+        if ( '' === $task_id ) {
+            MainWP_Helper::instance()->error( esc_html__( 'No backup task specified. The Dashboard did not send a task id with the status request.', 'mainwp-child' ) );
+            return;
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+        $spine->enforce_wall_clock_deadline( $task_id );
+
+        $task = $spine->get_task( $task_id );
+        if ( null === $task ) {
+            MainWP_Helper::instance()->error( esc_html__( 'Backup task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ) );
+            return;
+        }
+
+        MainWP_Helper::write(
+            array(
+                'task_id'           => $task->task_id,
+                'phase'             => $task->phase,
+                'type'              => $task->type,
+                'sub_state'         => json_decode( (string) $task->sub_state, true ),
+                'started_at'        => $task->started_at,
+                'last_progress_at'  => $task->last_progress_at,
+                'max_wall_clock_at' => $task->max_wall_clock_at,
+                'resume_count'      => (int) $task->resume_count,
+                'max_resumes'       => (int) $task->max_resumes,
+            )
+        );
     }
 
     /**
