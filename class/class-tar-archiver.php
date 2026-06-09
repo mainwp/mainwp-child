@@ -546,6 +546,12 @@ class Tar_Archiver {
             return;
         }
 
+        if ( ! MainWP_Backup::is_safe_backup_path( $path ) ) {
+            MainWP_Backup::record_skipped_path( $path );
+            $this->log( 'Skipping unsafe path ' . $path );
+            return;
+        }
+
         $this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
 
         if ( file_exists( rtrim( $path, '/' ) . '/.htaccess' ) ) {
@@ -557,6 +563,12 @@ class Tar_Archiver {
         foreach ( $iterator as $path ) {
             $name = $path->__toString();
             if ( ( '.' === basename( $name ) ) || ( '..' === basename( $name ) ) ) {
+                continue;
+            }
+
+            if ( $path->isLink() || ! MainWP_Backup::is_safe_backup_path( $name ) ) {
+                MainWP_Backup::record_skipped_path( $name );
+                $this->log( 'Skipping unsafe path ' . $name );
                 continue;
             }
 
@@ -821,6 +833,12 @@ class Tar_Archiver {
         if ( $this->excludeZip && MainWP_Helper::ends_with( $path, '.zip' ) ) {
             $this->log( 'Skipping ' . $path );
 
+            return false;
+        }
+
+        if ( ! MainWP_Backup::is_safe_backup_path( $path ) ) {
+            MainWP_Backup::record_skipped_path( $path );
+            $this->log( 'Skipping unsafe path ' . $path );
             return false;
         }
 

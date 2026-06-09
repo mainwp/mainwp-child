@@ -179,9 +179,11 @@ class MainWP_Backup {
         $this->file_descriptors   = $file_descriptors;
         $this->loadFilesBeforeZip = $loadFilesBeforeZip;
 
-        $dirs                    = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $backupdir               = $dirs[0];
-        $this->backup_dir_in_use = $backupdir;
+        $dirs                       = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $backupdir                  = $dirs[0];
+        $this->backup_dir_in_use    = $backupdir;
+        $this->allowed_backup_bases = null;
+        static::reset_skipped_paths();
         if ( ! defined( 'PCLZIP_TEMPORARY_DIR' ) ) {
 
             /**
@@ -738,6 +740,94 @@ class MainWP_Backup {
     }
 
     /**
+     * Paths skipped during the current backup traversal (1B.16).
+     *
+     * @var string[] Skipped paths.
+     */
+    protected static $skipped_paths = array();
+
+    /**
+     * Allowed containment bases for the current backup traversal, null for
+     * the defaults (ABSPATH and WP_CONTENT_DIR).
+     *
+     * @var array|null Base directories.
+     */
+    protected $allowed_backup_bases = null;
+
+    /**
+     * Decide whether a path is safe to include in a backup (1B.16).
+     *
+     * Symlinks are never followed - they can leak files outside the site root
+     * (other site roots on shared hosting, /etc) and circular links recurse
+     * forever. Every included path must also realpath-resolve inside an
+     * allowed base; the compare appends a trailing slash on both sides so a
+     * sibling directory sharing the base as a string prefix
+     * (/base-evil vs /base) cannot pass.
+     *
+     * @param string     $path  Path to validate.
+     * @param array|null $bases Allowed base directories, null for ABSPATH + WP_CONTENT_DIR.
+     *
+     * @return bool True when the path may be included.
+     */
+    public static function is_safe_backup_path( $path, $bases = null ) {
+        $path = (string) $path;
+        if ( '' === $path || is_link( rtrim( $path, '/' ) ) ) {
+            return false;
+        }
+        $real = realpath( $path );
+        if ( false === $real ) {
+            return false;
+        }
+        if ( null === $bases ) {
+            $bases = array( ABSPATH, WP_CONTENT_DIR );
+        }
+        foreach ( $bases as $base ) {
+            $real_base = realpath( $base );
+            if ( false === $real_base ) {
+                continue;
+            }
+            $real_base = rtrim( $real_base, '/' );
+            if ( 0 === strpos( $real . '/', $real_base . '/' ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Record a path skipped by the traversal guards, for the backup report.
+     *
+     * @param string $path Skipped path.
+     */
+    public static function record_skipped_path( $path ) {
+        if ( count( static::$skipped_paths ) < 100 ) {
+            static::$skipped_paths[] = (string) $path;
+        }
+        /**
+         * Fires when the backup traversal skips a symlink or unsafe path.
+         *
+         * @param string $path The skipped path.
+         */
+        do_action( 'mainwp_child_backup_skipped_path', $path );
+    }
+
+    /**
+     * Get the paths skipped during the current backup traversal.
+     *
+     * @return string[] Skipped paths.
+     */
+    public static function get_skipped_paths() {
+        return static::$skipped_paths;
+    }
+
+    /**
+     * Reset the skipped-paths record (start of a backup run).
+     */
+    public static function reset_skipped_paths() {
+        static::$skipped_paths = array();
+    }
+
+    /**
      * Estimate the size of a backup in bytes (1B.13).
      *
      * Database size comes from SHOW TABLE STATUS; site files from a recursive
@@ -970,6 +1060,11 @@ class MainWP_Backup {
             }
 
             foreach ( $nodes as $node ) {
+                if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases ) ) {
+                    static::record_skipped_path( $node );
+                    continue;
+                }
+
                 if ( $excludenonwp && is_dir( $node ) ) {
                     if ( ! MainWP_Helper::starts_with( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::starts_with( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
                         continue;
@@ -1124,6 +1219,11 @@ class MainWP_Backup {
         }
 
         foreach ( $nodes as $node ) {
+            if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases ) ) {
+                static::record_skipped_path( $node );
+                continue;
+            }
+
             if ( $excludenonwp && is_dir( $node ) ) {
                 if ( ! MainWP_Helper::starts_with( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::starts_with( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
                     continue;
@@ -1266,12 +1366,25 @@ class MainWP_Backup {
     /**
      * Recursively add directory to default PHP zip library.
      *
-     * @param string $path     Path to directory.
-     * @param array  $excludes Files or directories to exclude.
+     * Symlinks and paths resolving outside the allowed bases are skipped and
+     * recorded (1B.16).
+     *
+     * @param string     $path     Path to directory.
+     * @param array      $excludes Files or directories to exclude.
+     * @param array|null $bases    Allowed containment bases, null for the defaults.
      *
      * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
      */
-    public function zip_add_dir( $path, $excludes ) {
+    public function zip_add_dir( $path, $excludes, $bases = null ) {
+
+        if ( null !== $bases ) {
+            $this->allowed_backup_bases = $bases;
+        }
+
+        if ( ! static::is_safe_backup_path( $path, $this->allowed_backup_bases ) ) {
+            static::record_skipped_path( $path );
+            return;
+        }
 
         if ( $this->zip instanceof \ZipArchive ) {
             $this->zip->addEmptyDir( str_replace( ABSPATH, '', $path ) );
@@ -1288,6 +1401,11 @@ class MainWP_Backup {
         foreach ( $iterator as $path ) {
             $name = $path->__toString();
             if ( ( '.' === basename( $name ) ) || ( '..' === basename( $name ) ) ) {
+                continue;
+            }
+
+            if ( $path->isLink() || ! static::is_safe_backup_path( $name, $this->allowed_backup_bases ) ) {
+                static::record_skipped_path( $name );
                 continue;
             }
 
@@ -1366,6 +1484,11 @@ class MainWP_Backup {
         }
 
         if ( $this->excludeZip && MainWP_Helper::ends_with( $path, '.zip' ) ) {
+            return false;
+        }
+
+        if ( ! static::is_safe_backup_path( $path, $this->allowed_backup_bases ) ) {
+            static::record_skipped_path( $path );
             return false;
         }
 
