@@ -1183,6 +1183,7 @@ class MainWP_Backup {
             'time_limit_ok'   => ! in_array( 'set_time_limit', array_map( 'trim', explode( ',', (string) ini_get( 'disable_functions' ) ) ), true ),
             'backup_dir_hash' => MainWP_Helper::get_backup_dir_hash(),
             'task_spine'      => 1,
+            'download_token'  => 1,
         );
 
         // 1. Backup directory writable (randomized directory, created on demand).

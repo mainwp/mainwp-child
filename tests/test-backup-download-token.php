@@ -389,6 +389,15 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The preflight readiness report advertises download token support so
+	 * the Dashboard can detect it.
+	 */
+	public function test_preflight_advertises_download_token() {
+		$report = \MainWP\Child\MainWP_Backup::get()->check_backup_readiness();
+		$this->assertSame( 1, $report['download_token'] );
+	}
+
+	/**
 	 * Issuing fires the audit action with the token_issued event.
 	 */
 	public function test_issue_fires_audit_action() {
