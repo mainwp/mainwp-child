@@ -563,6 +563,51 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * register_hooks() subscribes the runner's resume handler - the wiring
+	 * the full plugin init performs for cron/MainWP request contexts (the
+	 * test bootstrap takes the frontend init path, where the watchdog never
+	 * fires).
+	 */
+	public function test_register_hooks_subscribes_resume_handler() {
+		$runner = MainWP_Child_Backup_Task_Runner::instance();
+		$runner->register_hooks();
+		try {
+			$this->assertSame( 10, has_action( 'mainwp_child_backup_task_resume', array( $runner, 'handle_watchdog_resume' ) ) );
+		} finally {
+			remove_action( 'mainwp_child_backup_task_resume', array( $runner, 'handle_watchdog_resume' ) );
+		}
+	}
+
+	/**
+	 * A watchdog firing on a stalled task advances it one slice through the
+	 * pre-held lease: resume bookkeeping recorded, work done, lease free
+	 * afterwards.
+	 */
+	public function test_watchdog_resume_advances_stalled_task() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET last_progress_at = DATE_SUB(NOW(), INTERVAL 600 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+		// Route the resume through the stubbed runner, not the booted singleton.
+		remove_all_actions( 'mainwp_child_backup_task_resume' );
+		$this->runner->register_hooks();
+
+		try {
+			\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+		} finally {
+			remove_all_actions( 'mainwp_child_backup_task_resume' );
+		}
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase, 'The watchdog resume must advance the slice' );
+		$this->assertSame( 1, (int) $task->resume_count );
+		$this->assertNull( $task->lease_owner );
+		$this->assertContains( 'dump_tier1', $this->runner->seam_names() );
+	}
+
+	/**
 	 * The full-backup engine consumes prepared dump files instead of
 	 * dumping again - the dump-once seam.
 	 */

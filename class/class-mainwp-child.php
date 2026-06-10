@@ -118,9 +118,11 @@ class MainWP_Child {
         MainWP_Pages::get_instance()->init();
         MainWP_Child_Assets::instance()->init();
 
-        // Backup task spine watchdog - registers the cron hook so
-        // stalled backup tasks resume when the Dashboard goes away mid-run.
+        // Backup task watchdog and runner - the watchdog cron re-enters
+        // stalled backup tasks when the Dashboard goes away mid-run, and the
+        // runner subscribes to its resume signal to advance the work.
         MainWP_Child_Backup_Watchdog::instance()->init();
+        MainWP_Child_Backup_Task_Runner::instance()->register_hooks();
 
         // Initialize admin-specific components.
         $this->init_admin_components();

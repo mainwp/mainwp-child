@@ -79,6 +79,36 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Subscribe to the watchdog's resume signal so stalled tasks get their
+     * slice advanced by this runner.
+     */
+    public function register_hooks() {
+        add_action( 'mainwp_child_backup_task_resume', array( $this, 'handle_watchdog_resume' ), 10, 2 );
+    }
+
+    /**
+     * Advance one slice for a stalled task the watchdog re-entered.
+     *
+     * The watchdog already holds the lease (and did the resume bookkeeping),
+     * so the runner skips acquisition. It still releases with the final
+     * version it owns, making the watchdog's own trailing release a harmless
+     * no-op.
+     *
+     * @param object $task    Stalled task row (pre-resume state).
+     * @param int    $version Row version after the watchdog's bookkeeping.
+     */
+    public function handle_watchdog_resume( $task, $version ) {
+        unset( $version ); // A fresh read below carries the current version.
+
+        $fresh = MainWP_Child_Backup_Task::instance()->get_task( $task->task_id );
+        if ( null === $fresh ) {
+            return;
+        }
+
+        $this->advance_one_slice( $fresh, self::LEASE_OWNER_WATCHDOG, true );
+    }
+
+    /**
      * Validate request params and create a new task on the machine.
      *
      * @param string $type   Backup type (full/db/files).
