@@ -139,6 +139,23 @@ class Tar_Archiver {
     protected $logHandle = false;
 
     /**
+     * Unix timestamp the traversal must stop at, or null for unbounded
+     * (legacy) behavior.
+     *
+     * @var int|null Slice deadline.
+     */
+    protected $budgetDeadline = null;
+
+    /**
+     * Whether any node was processed since the deadline was set. The budget
+     * never interrupts before at least one entry is added, so a slice always
+     * makes forward progress even when it starts past its deadline.
+     *
+     * @var bool Forward-progress marker.
+     */
+    protected $budgetProgress = false;
+
+    /**
      * Tar_Archiver constructor.
      *
      * Run any time class is called.
@@ -164,6 +181,35 @@ class Tar_Archiver {
             if ( ! function_exists( 'gzopen' ) ) {
                 $this->type = 'tar';
             }
+        }
+    }
+
+    /**
+     * Set or clear the traversal time budget.
+     *
+     * @param int|null $deadline Unix timestamp to stop at, null for unbounded.
+     */
+    public function set_budget_deadline( $deadline ) {
+        $this->budgetDeadline = $deadline;
+        $this->budgetProgress = false;
+    }
+
+    /**
+     * Interrupt the traversal when the slice deadline has passed.
+     *
+     * Only fires after at least one node was processed since the deadline
+     * was set, and closes the archive first so the file on disk ends at a
+     * complete entry that a later append run can extend.
+     *
+     * @throws MainWP_Backup_Budget_Exception When the slice budget is exhausted.
+     */
+    private function assert_within_budget() {
+        if ( null === $this->budgetDeadline || ! $this->budgetProgress ) {
+            return;
+        }
+        if ( time() >= $this->budgetDeadline ) {
+            $this->close();
+            throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
         }
     }
 
@@ -380,6 +426,8 @@ class Tar_Archiver {
             }
 
             foreach ( $nodes as $node ) {
+                $this->assert_within_budget();
+
                 if ( $excludenonwp && is_dir( $node ) ) {
                     if ( ! MainWP_Helper::starts_with( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::starts_with( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
                         continue;
@@ -392,6 +440,7 @@ class Tar_Archiver {
                     } elseif ( is_file( $node ) ) {
                         $this->add_file( $node, str_replace( ABSPATH, '', $node ) );
                     }
+                    $this->budgetProgress = true;
                 }
             }
 
@@ -561,6 +610,8 @@ class Tar_Archiver {
         $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
 
         foreach ( $iterator as $path ) {
+            $this->assert_within_budget();
+
             $name = $path->__toString();
             if ( ( '.' === basename( $name ) ) || ( '..' === basename( $name ) ) ) {
                 continue;
@@ -578,6 +629,7 @@ class Tar_Archiver {
                 } else {
                     $this->add_file( $name, str_replace( ABSPATH, '', $name ) );
                 }
+                $this->budgetProgress = true;
             }
             $name = null;
             unset( $name );
@@ -1408,15 +1460,13 @@ class Tar_Archiver {
             $this->type    = 'tar.bz2';
             $this->archive = bzopen( $filepath, 'r' );
         } else {
-            $currentPos = ftell( $this->archive );
-            fseek( $this->archive, 0, SEEK_END );
-            $lastPos = ftell( $this->archive );
-            fseek( $this->archive, $currentPos );
-
-            $this->archiveSize = $lastPos;
-
             $this->type    = 'tar';
             $this->archive = fopen( $filepath, 'rb' ); // NOSONAR .
+            if ( $this->archive ) {
+                fseek( $this->archive, 0, SEEK_END );
+                $this->archiveSize = ftell( $this->archive );
+                fseek( $this->archive, 0 );
+            }
         }
     }
 
