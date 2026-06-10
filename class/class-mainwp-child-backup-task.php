@@ -47,6 +47,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const SLICE_BUDGET_SECONDS = 90;
 
     /**
+     * Largest sub_state JSON stored inline in the column, in bytes. Bigger
+     * cursors spill to a sidecar file so writes stay far below
+     * max_allowed_packet.
+     */
+    const SUB_STATE_INLINE_MAX = 49152;
+
+    /**
      * Database schema version for the task table.
      */
     const DB_VERSION = '1.0.0';
@@ -302,7 +309,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
         if ( isset( $fields['sub_state'] ) ) {
             $sets[] = 'sub_state = %s';
-            $args[] = wp_json_encode( $fields['sub_state'] );
+            // A string is already serialized (possibly a sidecar pointer from
+            // write_sub_state); arrays are encoded here for existing callers.
+            $args[] = is_string( $fields['sub_state'] ) ? $fields['sub_state'] : wp_json_encode( $fields['sub_state'] );
         }
         if ( isset( $fields['resume_count'] ) ) {
             $sets[] = 'resume_count = %d';
@@ -320,6 +329,99 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         );
 
         return ( 1 === $result ) ? $version + 1 : false;
+    }
+
+    /**
+     * Serialize a sub_state cursor for the column, spilling oversized
+     * cursors to a sidecar file.
+     *
+     * The full cursor goes to <backup_dir>/task_substate-<task_id>.json via
+     * temp-file-then-rename (readers never see a half-written file) and the
+     * column gets only a small pointer.
+     *
+     * @param string $task_id    Task id.
+     * @param array  $sub_state  Resume cursor.
+     * @param string $backup_dir Scratch directory (the randomized backup dir).
+     *
+     * @return string|false Column value (inline JSON or pointer JSON), false on write failure.
+     */
+    public function write_sub_state( $task_id, $sub_state, $backup_dir ) {
+        $json = wp_json_encode( $sub_state );
+        if ( strlen( $json ) <= self::SUB_STATE_INLINE_MAX ) {
+            return $json;
+        }
+
+        $sidecar = $this->get_sidecar_path( $task_id, $backup_dir );
+        $temp    = $sidecar . '.tmp';
+
+        if ( false === file_put_contents( $temp, $json ) || ! rename( $temp, $sidecar ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename requires native file APIs.
+            if ( file_exists( $temp ) ) {
+                unlink( $temp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
+            }
+            return false;
+        }
+
+        return wp_json_encode(
+            array(
+                '_sidecar' => true,
+                'file'     => basename( $sidecar ),
+            )
+        );
+    }
+
+    /**
+     * Read a task row's sub_state, resolving a sidecar pointer transparently.
+     *
+     * @param object $task       Task row.
+     * @param string $backup_dir Scratch directory holding any sidecar.
+     *
+     * @return array|null Cursor array; null when it cannot be recovered (the
+     *                    caller restarts cleanly rather than resuming from a
+     *                    partial cursor).
+     */
+    public function read_sub_state( $task, $backup_dir ) {
+        $decoded = json_decode( (string) $task->sub_state, true );
+        if ( ! is_array( $decoded ) ) {
+            return null;
+        }
+
+        if ( empty( $decoded['_sidecar'] ) ) {
+            return $decoded;
+        }
+
+        $sidecar = $backup_dir . '/' . basename( isset( $decoded['file'] ) ? (string) $decoded['file'] : '' );
+        if ( ! is_file( $sidecar ) ) {
+            return null;
+        }
+
+        $full = json_decode( (string) file_get_contents( $sidecar ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local scratch file.
+        return is_array( $full ) ? $full : null;
+    }
+
+    /**
+     * Remove a task's sidecar file. Quiet no-op when none exists; terminal
+     * transitions call this so finished tasks leave no cursor litter.
+     *
+     * @param string $task_id    Task id.
+     * @param string $backup_dir Scratch directory.
+     */
+    public function delete_sidecar( $task_id, $backup_dir ) {
+        $sidecar = $this->get_sidecar_path( $task_id, $backup_dir );
+        if ( is_file( $sidecar ) ) {
+            unlink( $sidecar ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
+        }
+    }
+
+    /**
+     * The per-task sidecar path inside the scratch directory.
+     *
+     * @param string $task_id    Task id.
+     * @param string $backup_dir Scratch directory.
+     *
+     * @return string Sidecar file path.
+     */
+    protected function get_sidecar_path( $task_id, $backup_dir ) {
+        return rtrim( $backup_dir, '/' ) . '/task_substate-' . sanitize_file_name( $task_id ) . '.json';
     }
 
     /**

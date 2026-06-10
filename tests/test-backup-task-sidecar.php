@@ -1,0 +1,168 @@
+<?php
+/**
+ * Class BackupTaskSidecarTest
+ *
+ * @package Mainwp_Child
+ */
+
+use MainWP\Child\MainWP_Child_Backup_Task;
+
+/**
+ * Tests for the sub_state sidecar spill.
+ *
+ * A resume cursor that outgrows the safe inline size (staying well under
+ * max_allowed_packet) is written to a sidecar file in the backup directory
+ * via temp-file-then-rename, and the column stores only a pointer. Reads
+ * resolve the pointer transparently.
+ */
+class BackupTaskSidecarTest extends WP_UnitTestCase {
+
+	/**
+	 * Scratch dir standing in for the randomized backup dir.
+	 *
+	 * @var string
+	 */
+	protected $backup_dir;
+
+	/**
+	 * Install the task table and a scratch backup dir.
+	 */
+	public function set_up() {
+		parent::set_up();
+		MainWP_Child_Backup_Task::instance()->install();
+		$this->backup_dir = sys_get_temp_dir() . '/mainwp-sidecar-test-' . uniqid();
+		mkdir( $this->backup_dir );
+	}
+
+	/**
+	 * Drop spine rows and the scratch dir between tests.
+	 */
+	public function tear_down() {
+		global $wpdb;
+		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
+		foreach ( (array) glob( $this->backup_dir . '/*' ) as $file ) {
+			unlink( $file );
+		}
+		if ( is_dir( $this->backup_dir ) ) {
+			rmdir( $this->backup_dir );
+		}
+		parent::tear_down();
+	}
+
+	/**
+	 * Build a cursor bigger than the inline threshold.
+	 *
+	 * @return array Oversized sub_state.
+	 */
+	protected function oversized_sub_state() {
+		return array( 'files' => array_fill( 0, 4000, str_repeat( 'x', 20 ) ) );
+	}
+
+	/**
+	 * A small cursor stays inline in the column - no sidecar file.
+	 */
+	public function test_small_sub_state_stored_inline() {
+		$spine     = MainWP_Child_Backup_Task::instance();
+		$task_id   = $spine->create_task( 'full' );
+		$sub_state = array( 'cursor' => 42 );
+
+		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir );
+		$this->assertSame( wp_json_encode( $sub_state ), $serialized );
+		$this->assertCount( 0, (array) glob( $this->backup_dir . '/*' ), 'No sidecar file for a small cursor' );
+
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $serialized ) );
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( $sub_state, $spine->read_sub_state( $task, $this->backup_dir ) );
+	}
+
+	/**
+	 * An oversized cursor spills to a per-task sidecar file and the column
+	 * holds only the pointer.
+	 */
+	public function test_large_sub_state_spills_to_sidecar() {
+		$spine     = MainWP_Child_Backup_Task::instance();
+		$task_id   = $spine->create_task( 'full' );
+		$sub_state = $this->oversized_sub_state();
+
+		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir );
+
+		$pointer = json_decode( $serialized, true );
+		$this->assertTrue( $pointer['_sidecar'] );
+		$this->assertSame( 'task_substate-' . $task_id . '.json', $pointer['file'] );
+		$this->assertLessThan( 1024, strlen( $serialized ), 'Column value must be a small pointer' );
+
+		$sidecar = $this->backup_dir . '/' . $pointer['file'];
+		$this->assertFileExists( $sidecar );
+		$this->assertSame( $sub_state, json_decode( (string) file_get_contents( $sidecar ), true ) ); // phpcs:ignore -- test read.
+		$this->assertCount( 0, (array) glob( $this->backup_dir . '/*.tmp' ), 'Temp file must be renamed away' );
+	}
+
+	/**
+	 * Reading a row whose column holds a pointer returns the full cursor.
+	 */
+	public function test_sidecar_read_is_transparent() {
+		$spine     = MainWP_Child_Backup_Task::instance();
+		$task_id   = $spine->create_task( 'full' );
+		$sub_state = $this->oversized_sub_state();
+
+		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir );
+		$task       = $spine->get_task( $task_id );
+		$spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $serialized ) );
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( $sub_state, $spine->read_sub_state( $task, $this->backup_dir ) );
+	}
+
+	/**
+	 * A missing sidecar file reads as null so the caller restarts cleanly
+	 * instead of operating on a partial cursor.
+	 */
+	public function test_missing_sidecar_reads_as_null() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$serialized = $spine->write_sub_state( $task_id, $this->oversized_sub_state(), $this->backup_dir );
+		$task       = $spine->get_task( $task_id );
+		$spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $serialized ) );
+
+		unlink( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+
+		$task = $spine->get_task( $task_id );
+		$this->assertNull( $spine->read_sub_state( $task, $this->backup_dir ) );
+	}
+
+	/**
+	 * delete_sidecar removes the spill file; terminal transitions use it so
+	 * completed and failed tasks leave no cursor litter behind.
+	 */
+	public function test_delete_sidecar_removes_spill_file() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$spine->write_sub_state( $task_id, $this->oversized_sub_state(), $this->backup_dir );
+		$this->assertFileExists( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+
+		$spine->delete_sidecar( $task_id, $this->backup_dir );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+
+		// Deleting again is a quiet no-op.
+		$spine->delete_sidecar( $task_id, $this->backup_dir );
+	}
+
+	/**
+	 * checkpoint() still accepts an array sub_state - existing callers like
+	 * the watchdog do not pre-serialize.
+	 */
+	public function test_checkpoint_array_sub_state_back_compat() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => array( 'cursor' => 7 ) ) );
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( array( 'cursor' => 7 ), $spine->read_sub_state( $task, $this->backup_dir ) );
+	}
+}
