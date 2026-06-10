@@ -49,6 +49,8 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_preflight'         => 'backup_preflight',
         'backup_checkpid'          => 'backup_checkpid',
         'backup_task_status'       => 'backup_task_status',
+        'backup_task_create'       => 'backup_task_create',
+        'backup_task_run'          => 'backup_task_run',
         'cloneinfo'                => 'cloneinfo',
         'security'                 => 'get_security_stats',
         'securityFix'              => 'do_security_fix',
@@ -615,19 +617,91 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             return;
         }
 
+        MainWP_Helper::write( $spine->status_payload( $task ) );
+    }
+
+    /**
+     * Method backup_task_create()
+     *
+     * Start a new backup task on the resumable machine and hand the task id
+     * back to the Dashboard, which then drives the work one bounded slice
+     * per continuation call. The backup params travel into the task's resume
+     * cursor here, so later slices never read the request again.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Task_Runner::create_task_for_params()
+     */
+    public function backup_task_create() {
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated MainWP request.
+        $type    = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $exclude = isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in assemble_exclude_list().
+
+        $excludebackup = isset( $_POST['excludebackup'] ) && '1' === $_POST['excludebackup'];
+        $excludecache  = isset( $_POST['excludecache'] ) && '1' === $_POST['excludecache'];
+
+        $file = '';
+        if ( ! empty( $_POST['f'] ) ) {
+            $file = MainWP_Helper::sanitize_filename( wp_unslash( $_POST['f'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
+        }
+
+        $params = array(
+            'ext'                => isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip',
+            'file'               => $file,
+            'excludes'           => MainWP_Backup::get()->assemble_exclude_list( $exclude, $excludebackup, $excludecache ),
+            'excludezip'         => isset( $_POST['excludezip'] ) && '1' === $_POST['excludezip'],
+            'excludenonwp'       => isset( $_POST['excludenonwp'] ) && '1' === $_POST['excludenonwp'],
+            'file_descriptors'   => isset( $_POST['file_descriptors'] ) ? intval( wp_unslash( $_POST['file_descriptors'] ) ) : 0,
+            'loadFilesBeforeZip' => isset( $_POST['loadFilesBeforeZip'] ) ? sanitize_text_field( wp_unslash( $_POST['loadFilesBeforeZip'] ) ) : true,
+        );
+        // phpcs:enable WordPress.Security.NonceVerification
+
+        try {
+            MainWP_Backup::get()->check_backup_readiness();
+            $task_id = MainWP_Child_Backup_Task_Runner::instance()->create_task_for_params( $type, $params );
+        } catch ( MainWP_Exception $e ) {
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
+            return;
+        }
+
         MainWP_Helper::write(
             array(
-                'task_id'           => $task->task_id,
-                'phase'             => $task->phase,
-                'type'              => $task->type,
-                'sub_state'         => json_decode( (string) $task->sub_state, true ),
-                'started_at'        => $task->started_at,
-                'last_progress_at'  => $task->last_progress_at,
-                'max_wall_clock_at' => $task->max_wall_clock_at,
-                'resume_count'      => (int) $task->resume_count,
-                'max_resumes'       => (int) $task->max_resumes,
+                'task_id' => $task_id,
+                'phase'   => MainWP_Child_Backup_Task::PHASE_QUEUED,
             )
         );
+    }
+
+    /**
+     * Method backup_task_run()
+     *
+     * Advance a backup task one bounded slice and return its fresh status -
+     * one round-trip per Dashboard continuation call. The wall-clock
+     * deadline applies first, so a task stuck past its budget goes terminal
+     * even when its work never runs again.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Task_Runner::advance_one_slice()
+     */
+    public function backup_task_run() {
+        $task_id = isset( $_POST['task_id'] ) ? sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+        if ( '' === $task_id ) {
+            MainWP_Helper::instance()->error( esc_html__( 'No backup task specified. The Dashboard did not send a task id with the run request.', 'mainwp-child' ) );
+            return;
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+        $spine->enforce_wall_clock_deadline( $task_id );
+
+        $task = $spine->get_task( $task_id );
+        if ( null === $task ) {
+            MainWP_Helper::instance()->error( esc_html__( 'Backup task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ) );
+            return;
+        }
+
+        MainWP_Helper::set_limit( 2 * MainWP_Child_Backup_Task_Runner::SLICE_BUDGET_SECONDS, '512M' );
+
+        $task = MainWP_Child_Backup_Task_Runner::instance()->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+
+        MainWP_Helper::write( $spine->status_payload( $task ) );
     }
 
     /**

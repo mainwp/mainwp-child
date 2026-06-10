@@ -300,6 +300,183 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The task create and run actions are registered so the Dashboard can
+	 * start a task and drive it one slice per continuation call.
+	 */
+	public function test_task_create_and_run_actions_are_registered() {
+		$callable = \MainWP\Child\MainWP_Child_Callable::get_instance();
+		$prop     = new ReflectionProperty( \MainWP\Child\MainWP_Child_Callable::class, 'callableFunctions' );
+		$prop->setAccessible( true );
+		$map = $prop->getValue( $callable );
+
+		$this->assertArrayHasKey( 'backup_task_create', $map );
+		$this->assertTrue( method_exists( $callable, 'backup_task_create' ) );
+		$this->assertArrayHasKey( 'backup_task_run', $map );
+		$this->assertTrue( method_exists( $callable, 'backup_task_run' ) );
+	}
+
+	/**
+	 * Creating a task from request params persists them into the resume
+	 * cursor and starts the machine queued.
+	 */
+	public function test_create_task_for_params_persists_params() {
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params(
+			'db',
+			array(
+				'ext'      => 'tar.gz',
+				'file'     => 'mysite',
+				'excludes' => array( 'wp-content/cache' ),
+			)
+		);
+
+		$this->assertNotEmpty( $task_id );
+
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task  = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task->phase );
+		$this->assertSame( 'db', $task->type );
+
+		$sub_state = json_decode( $task->sub_state, true );
+		$this->assertSame( 'tar.gz', $sub_state['params']['ext'] );
+		$this->assertSame( 'mysite', $sub_state['params']['file'] );
+		$this->assertSame( array( 'wp-content/cache' ), $sub_state['params']['excludes'] );
+	}
+
+	/**
+	 * An unknown backup type is rejected.
+	 */
+	public function test_create_task_for_params_rejects_invalid_type() {
+		$this->expectException( \MainWP\Child\MainWP_Exception::class );
+		\MainWP\Child\MainWP_Child_Backup_Task_Runner::instance()->create_task_for_params( 'bogus', array() );
+	}
+
+	/**
+	 * A second task cannot start while one is active - the single-backup
+	 * invariant the legacy pid files enforced.
+	 */
+	public function test_create_task_for_params_rejects_active_task() {
+		$runner = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+
+		try {
+			$runner->create_task_for_params( 'full', array( 'ext' => 'tar' ) );
+			$this->fail( 'A second active task must be rejected' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * A terminal task can be created over - finished work never blocks the
+	 * next backup.
+	 */
+	public function test_create_task_for_params_allows_after_terminal() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) );
+
+		$this->assertNotEmpty( $runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) ) );
+	}
+
+	/**
+	 * The status payload surfaces the artifact top-level on completion and
+	 * the error on failure - what the Dashboard consumes.
+	 */
+	public function test_status_payload_shapes() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'db', array( 'params' => array( 'ext' => 'tar' ) ) );
+		$task    = $spine->get_task( $task_id );
+
+		$payload = $spine->status_payload( $task );
+		$this->assertSame( $task_id, $payload['task_id'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $payload['phase'] );
+		$this->assertArrayNotHasKey( 'file', $payload );
+
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_COMPLETED,
+				'sub_state' => array(
+					'artifact' => array(
+						'file' => 'backup-123.tar',
+						'size' => 4096,
+					),
+				),
+			)
+		);
+		$payload = $spine->status_payload( $spine->get_task( $task_id ) );
+		$this->assertSame( 'backup-123.tar', $payload['file'] );
+		$this->assertSame( 4096, $payload['size'] );
+
+		$task_id2 = $spine->create_task( 'db' );
+		$task2    = $spine->get_task( $task_id2 );
+		$spine->checkpoint(
+			$task_id2,
+			(int) $task2->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+				'sub_state' => array(
+					'error' => array(
+						'message' => 'dump exploded',
+						'code'    => 'mainwp_backup_db_query_failed',
+					),
+				),
+			)
+		);
+		$payload = $spine->status_payload( $spine->get_task( $task_id2 ) );
+		$this->assertSame( 'dump exploded', $payload['error'] );
+		$this->assertSame( 'mainwp_backup_db_query_failed', $payload['error_code'] );
+	}
+
+	/**
+	 * Advancing a terminal task is a no-op - no lease churn, no version bump.
+	 */
+	public function test_advance_terminal_task_is_noop() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'db' );
+		$task    = $spine->get_task( $task_id );
+		$spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) );
+
+		$before = $spine->get_task( $task_id );
+		$after  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance()->advance_one_slice( $before, 'dashboard' );
+
+		$this->assertSame( (int) $before->version, (int) $after->version );
+		$this->assertNull( $after->lease_owner );
+	}
+
+	/**
+	 * The preflight readiness report advertises the task machine so the
+	 * Dashboard can detect support.
+	 */
+	public function test_preflight_advertises_task_machine() {
+		$report = \MainWP\Child\MainWP_Backup::get()->check_backup_readiness();
+		$this->assertSame( 1, $report['task_spine'] );
+	}
+
+	/**
+	 * The exclude list assembly applies the standard MainWP exclusions and
+	 * the optional backup/cache expansions.
+	 */
+	public function test_assemble_exclude_list() {
+		$backup = \MainWP\Child\MainWP_Backup::get();
+
+		$plain = $backup->assemble_exclude_list( array( 'wp-content/uploads/big' ), false, false );
+		$this->assertContains( 'wp-content/uploads/big', $plain );
+		$this->assertContains( 'wp-content/uploads/mainwp', $plain );
+		$this->assertContains( 'wp-content/object-cache.php', $plain );
+		$this->assertNotContains( 'wp-content/uploads/backupbuddy_backups', $plain );
+
+		$expanded = $backup->assemble_exclude_list( array(), true, true );
+		$this->assertContains( 'wp-content/uploads/backupbuddy_backups', $expanded );
+		$this->assertContains( 'wp-content/cache/wp-rocket', $expanded );
+	}
+
+	/**
 	 * A task past its wall-clock deadline is marked failed regardless of
 	 * resume_count - the dashboard-checked deadline closes the stuck-forever
 	 * case on low-traffic children whose cron never fires.

@@ -79,6 +79,37 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Validate request params and create a new task on the machine.
+     *
+     * @param string $type   Backup type (full/db/files).
+     * @param array  $params Backup params persisted into the resume cursor.
+     *
+     * @throws MainWP_Exception On an unknown type, an already-active task
+     *                          (the single-backup invariant), or a failed insert.
+     *
+     * @return string Task id.
+     */
+    public function create_task_for_params( $type, $params ) {
+        if ( ! in_array( $type, array( 'full', 'db', 'files' ), true ) ) {
+            throw new MainWP_Exception( 'Unknown backup type requested for the backup task.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+
+        if ( ! empty( $spine->get_active_tasks() ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        $task_id = $spine->create_task( $type, array( 'params' => is_array( $params ) ? $params : array() ) );
+        if ( false === $task_id ) {
+            throw new MainWP_Exception( 'The backup task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+
+        return $task_id;
+    }
+
+    /**
      * Advance a task by one bounded slice.
      *
      * Acquires the lease (unless the caller already holds it), then loops
@@ -98,6 +129,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $spine   = MainWP_Child_Backup_Task::instance();
         $task_id = $task->task_id;
         $version = (int) $task->version;
+
+        if ( MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
+            return $task; // Finished work: no lease churn, no version bump.
+        }
 
         if ( ! $lease_pre_held ) {
             if ( ! $spine->acquire_lease( $task_id, $owner, $version, self::LEASE_TTL_SECONDS ) ) {

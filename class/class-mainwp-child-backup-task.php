@@ -501,6 +501,52 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * The status array a Dashboard poll or run call consumes.
+     *
+     * On completion the artifact file name and size surface top-level; on
+     * failure the recorded error message and code do. The resume cursor is
+     * resolved through any sidecar so the Dashboard always sees the full
+     * state.
+     *
+     * @param object      $task       Task row.
+     * @param string|null $backup_dir Scratch directory, null for the default.
+     *
+     * @return array Status payload.
+     */
+    public function status_payload( $task, $backup_dir = null ) {
+        if ( null === $backup_dir ) {
+            $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
+            $backup_dir = $dirs[0];
+        }
+
+        $sub_state = $this->read_sub_state( $task, $backup_dir );
+
+        $payload = array(
+            'task_id'           => $task->task_id,
+            'phase'             => $task->phase,
+            'type'              => $task->type,
+            'sub_state'         => $sub_state,
+            'started_at'        => $task->started_at,
+            'last_progress_at'  => $task->last_progress_at,
+            'max_wall_clock_at' => $task->max_wall_clock_at,
+            'resume_count'      => (int) $task->resume_count,
+            'max_resumes'       => (int) $task->max_resumes,
+        );
+
+        if ( self::PHASE_COMPLETED === $task->phase && isset( $sub_state['artifact']['file'] ) ) {
+            $payload['file'] = $sub_state['artifact']['file'];
+            $payload['size'] = (int) $sub_state['artifact']['size'];
+        }
+
+        if ( self::PHASE_FAILED === $task->phase && isset( $sub_state['error']['message'] ) ) {
+            $payload['error']      = $sub_state['error']['message'];
+            $payload['error_code'] = isset( $sub_state['error']['code'] ) ? $sub_state['error']['code'] : '';
+        }
+
+        return $payload;
+    }
+
+    /**
      * Get all non-terminal tasks.
      *
      * @return object[] Task rows.

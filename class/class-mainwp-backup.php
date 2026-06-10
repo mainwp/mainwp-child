@@ -360,6 +360,58 @@ class MainWP_Backup {
     }
 
     /**
+     * The final exclude list for a file backup: the requested paths plus the
+     * standard MainWP exclusions, optionally expanded with the known
+     * third-party backup and cache directories.
+     *
+     * @param array $excludes      Requested exclude paths (relative to ABSPATH).
+     * @param bool  $excludebackup Exclude known backup-plugin directories.
+     * @param bool  $excludecache  Exclude known cache directories.
+     *
+     * @return array Sanitized exclude paths.
+     */
+    public function assemble_exclude_list( $excludes, $excludebackup, $excludecache ) {
+        $excludes   = is_array( $excludes ) ? $excludes : array();
+        $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
+        $uploadDir  = MainWP_Helper::get_mainwp_dir();
+        $excludes[] = str_replace( ABSPATH, '', $uploadDir[0] );
+        $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
+
+        $newExcludes = array();
+        foreach ( $excludes as $exclude ) {
+            $newExcludes[] = sanitize_text_field( rtrim( $exclude, '/' ) );
+        }
+
+        if ( $excludebackup ) {
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_backups';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_temp';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/pb_backupbuddy';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/managewp';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/infinitewp';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backwpup*';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/plugins/wp-complete-backup/storage';
+            $newExcludes[] = '/administrator/backups';
+        }
+
+        if ( $excludecache ) {
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc-cache';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/config';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/minify';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/page_enhanced';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/tmp';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/supercache';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/quick-cache';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/hyper-cache/cache';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/all';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/wp-rocket';
+        }
+
+        return $newExcludes;
+    }
+
+    /**
      * Check whether the file is an archive or not & create a json_encoded, serialized, base64_encoded string.
      *
      * @uses \MainWP\Child\MainWP_Helper::write() Write response data to be sent to the MainWP Dashboard.
@@ -652,12 +704,7 @@ class MainWP_Backup {
      */
     public function backup_full( $fileName ) { //phpcs:ignore -- complex method.
         // phpcs:disable WordPress.Security.NonceVerification
-        $excludes   = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ok.
-        $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/mainwp';
-        $uploadDir  = MainWP_Helper::get_mainwp_dir();
-        $uploadDir  = $uploadDir[0];
-        $excludes[] = str_replace( ABSPATH, '', $uploadDir );
-        $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
+        $excludes = ( isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array() ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in assemble_exclude_list().
 
         if ( function_exists( 'posix_uname' ) ) {
             $uname = posix_uname();
@@ -685,43 +732,12 @@ class MainWP_Backup {
 
         $loadFilesBeforeZip = ( isset( $_POST['loadFilesBeforeZip'] ) ? sanitize_text_field( wp_unslash( $_POST['loadFilesBeforeZip'] ) ) : true );
 
-        $newExcludes = array();
-        foreach ( $excludes as $exclude ) {
-            $newExcludes[] = sanitize_text_field( rtrim( $exclude, '/' ) );
-        }
-
         $excludebackup = ( isset( $_POST['excludebackup'] ) && '1' === $_POST['excludebackup'] );
         $excludecache  = ( isset( $_POST['excludecache'] ) && '1' === $_POST['excludecache'] );
         $excludezip    = ( isset( $_POST['excludezip'] ) && '1' === $_POST['excludezip'] );
         $excludenonwp  = ( isset( $_POST['excludenonwp'] ) && '1' === $_POST['excludenonwp'] );
 
-        if ( $excludebackup ) {
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_backups';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_temp';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/pb_backupbuddy';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/managewp';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/infinitewp';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backwpup*';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/plugins/wp-complete-backup/storage';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/backups';
-            $newExcludes[] = '/administrator/backups';
-        }
-
-        if ( $excludecache ) {
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc-cache';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/w3tc';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/config';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/minify';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/page_enhanced';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/tmp';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/supercache';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/quick-cache';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/hyper-cache/cache';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/all';
-            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/cache/wp-rocket';
-        }
+        $newExcludes = $this->assemble_exclude_list( $excludes, $excludebackup, $excludecache );
 
         $file = false;
         if ( isset( $_POST['f'] ) ) {
@@ -1166,6 +1182,7 @@ class MainWP_Backup {
             'bz2_support'     => function_exists( 'bzopen' ),
             'time_limit_ok'   => ! in_array( 'set_time_limit', array_map( 'trim', explode( ',', (string) ini_get( 'disable_functions' ) ) ), true ),
             'backup_dir_hash' => MainWP_Helper::get_backup_dir_hash(),
+            'task_spine'      => 1,
         );
 
         // 1. Backup directory writable (randomized directory, created on demand).
@@ -1680,7 +1697,7 @@ class MainWP_Backup {
      */
     public function add_file_to_zipp( $path, $zipEntryName ) {
         if ( time() - $this->lastRun > 20 ) {
-            set_time_limit( $this->timeout ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
+            set_time_limit( (int) $this->timeout ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
             $this->lastRun = time();
         }
 
