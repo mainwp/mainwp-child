@@ -171,6 +171,47 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
     }
 
     /**
+     * Authorize a download request carrying a token.
+     *
+     * Wraps validate_and_consume() with the audit events and the HTTP status
+     * mapping so the download endpoint stays a thin dispatcher.
+     *
+     * @param mixed  $token              Token from the download request.
+     * @param string $requested_basename File name the request asked for.
+     *
+     * @return array array('ok' => true, 'full_path' => string) or array('ok' => false, 'status' => int).
+     */
+    public function authorize_download( $token, $requested_basename ) {
+        $result = $this->validate_and_consume( $token, $requested_basename );
+
+        if ( empty( $result['ok'] ) ) {
+            $this->audit( 'download_rejected', basename( (string) $requested_basename ), 0, $result['code'] );
+            MainWP_Helper::log_debug( 'backup_download_token: rejected (' . $result['code'] . ') for ' . basename( (string) $requested_basename ) );
+            return array(
+                'ok'     => false,
+                'status' => $this->rejection_status( $result['code'] ),
+            );
+        }
+
+        $size = (int) filesize( $result['full_path'] );
+        $this->audit( 'download_ok', basename( $result['full_path'] ), $size, '' );
+        MainWP_Helper::log_debug( 'backup_download_token: streaming ' . basename( $result['full_path'] ) );
+
+        return $result;
+    }
+
+    /**
+     * Map a rejection code to the HTTP status for the download response.
+     *
+     * @param string $code Error code from validate_and_consume().
+     *
+     * @return int 401 for token problems (invalid, expired, consumed, wrong file), 403 for file problems (missing, changed).
+     */
+    public function rejection_status( $code ) {
+        return MainWP_Backup_Error::ERR_DL_TOKEN_INVALID === $code ? 401 : 403;
+    }
+
+    /**
      * Fire the download audit action.
      *
      * @param string $event  Event name: token_issued, download_ok, or download_rejected.

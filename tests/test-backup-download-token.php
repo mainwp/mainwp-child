@@ -311,6 +311,84 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Rejection codes map to 401 for token problems and 403 for file problems.
+	 */
+	public function test_rejection_status_maps_codes() {
+		$instance = MainWP_Child_Backup_Download_Token::instance();
+
+		$this->assertSame( 401, $instance->rejection_status( MainWP_Backup_Error::ERR_DL_TOKEN_INVALID ) );
+		$this->assertSame( 403, $instance->rejection_status( MainWP_Backup_Error::ERR_DL_FILE_CHANGED ) );
+		$this->assertSame( 403, $instance->rejection_status( MainWP_Backup_Error::ERR_DL_FILE_NOT_FOUND ) );
+	}
+
+	/**
+	 * A successful authorization returns the file path and fires the
+	 * download_ok audit event with the file size.
+	 */
+	public function test_authorize_download_success_fires_audit() {
+		$path     = $this->create_artifact( 'backup-authz-ok.zip', 'authz-bytes' );
+		$instance = MainWP_Child_Backup_Download_Token::instance();
+		$issued   = $instance->issue( 'backup-authz-ok.zip' );
+
+		$captured = array();
+		add_action(
+			'mainwp_child_backup_download_audit',
+			function ( $entry ) use ( &$captured ) {
+				$captured[] = $entry;
+			}
+		);
+
+		$auth = $instance->authorize_download( $issued['token'], 'backup-authz-ok.zip' );
+
+		$this->assertTrue( $auth['ok'] );
+		$this->assertSame( $path, $auth['full_path'] );
+		$this->assertCount( 1, $captured );
+		$this->assertSame( 'download_ok', $captured[0]['event'] );
+		$this->assertSame( 'backup-authz-ok.zip', $captured[0]['file'] );
+		$this->assertSame( filesize( $path ), $captured[0]['size'] );
+	}
+
+	/**
+	 * A rejected authorization returns the HTTP status and fires the
+	 * download_rejected audit event with the reason code.
+	 */
+	public function test_authorize_download_rejection_fires_audit_with_status() {
+		$instance = MainWP_Child_Backup_Download_Token::instance();
+
+		$captured = array();
+		add_action(
+			'mainwp_child_backup_download_audit',
+			function ( $entry ) use ( &$captured ) {
+				$captured[] = $entry;
+			}
+		);
+
+		$auth = $instance->authorize_download( str_repeat( 'a', 32 ), 'backup-unknown.zip' );
+
+		$this->assertFalse( $auth['ok'] );
+		$this->assertSame( 401, $auth['status'] );
+		$this->assertCount( 1, $captured );
+		$this->assertSame( 'download_rejected', $captured[0]['event'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_DL_TOKEN_INVALID, $captured[0]['reason'] );
+	}
+
+	/**
+	 * A consumed token is rejected on authorization with a 401.
+	 */
+	public function test_authorize_download_consumed_token_rejected() {
+		$this->create_artifact( 'backup-authz-used.zip' );
+		$instance = MainWP_Child_Backup_Download_Token::instance();
+		$issued   = $instance->issue( 'backup-authz-used.zip' );
+
+		$first  = $instance->authorize_download( $issued['token'], 'backup-authz-used.zip' );
+		$second = $instance->authorize_download( $issued['token'], 'backup-authz-used.zip' );
+
+		$this->assertTrue( $first['ok'] );
+		$this->assertFalse( $second['ok'] );
+		$this->assertSame( 401, $second['status'] );
+	}
+
+	/**
 	 * Issuing fires the audit action with the token_issued event.
 	 */
 	public function test_issue_fires_audit_action() {

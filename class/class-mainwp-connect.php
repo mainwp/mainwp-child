@@ -941,6 +941,24 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             // against the file size are enforced in resolve_download_range().
             $foffset = isset( $_REQUEST['foffset'] ) ? absint( wp_unslash( $_REQUEST['foffset'] ) ) : 0;
 
+            $dltoken = isset( $_REQUEST['dltoken'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['dltoken'] ) ) : '';
+            if ( '' !== $dltoken ) {
+                // One-time download authorization: validate and consume the
+                // token, then stream the file it is bound to. A rejected
+                // token never falls back to the token-less path.
+                $auth = MainWP_Child_Backup_Download_Token::instance()->authorize_download( $dltoken, $fdl );
+                if ( empty( $auth['ok'] ) ) {
+                    if ( ! headers_sent() ) {
+                        http_response_code( (int) $auth['status'] );
+                    }
+                    exit;
+                }
+                MainWP_Utility::instance()->upload_file( basename( $auth['full_path'] ), dirname( $auth['full_path'] ) . DIRECTORY_SEPARATOR, $foffset );
+                exit;
+            }
+
+            // Token-less path - kept for Dashboards that predate download
+            // authorization tokens.
             MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
             exit;
         }
@@ -1363,6 +1381,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
     /**
      * Method destroy_user_session()
+     *
+     * Destroy the current user session and clear the auth cookie.
      */
     private function destroy_user_session() {
         wp_destroy_current_session();
