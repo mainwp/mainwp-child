@@ -659,4 +659,90 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
 	}
+
+	/**
+	 * A tier-2 yield records table counters in the progress snapshot so the
+	 * Dashboard can show how far the dump has come.
+	 */
+	public function test_tier2_yield_records_table_progress() {
+		$this->runner->stubs['tier1_available'] = false;
+		$this->runner->stubs['dump_tier2']      = array(
+			'done'   => false,
+			'cursor' => array(
+				'tables' => array( 'wp_posts', 'wp_options', 'wp_users' ),
+				'index'  => 1,
+			),
+		);
+
+		$task_id = $this->create_task( 'db' );
+		$task    = $this->advance( $task_id );
+
+		$sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+
+		$this->assertSame( 3, $sub_state['progress']['files_total'] );
+		$this->assertSame( 1, $sub_state['progress']['files_processed'] );
+		$this->assertSame( 'wp_options', $sub_state['progress']['current_file'] );
+	}
+
+	/**
+	 * An archiver budget bail surfaces the growing archive size on the next
+	 * slice's checkpoint.
+	 */
+	public function test_archiver_yield_records_archive_bytes() {
+		$backup_dir = $this->backup_dir;
+
+		$this->runner->stubs['run_file_archiver'] = function ( $params, $archive_file, $append, $deadline, $db_files ) use ( $backup_dir ) {
+			file_put_contents( $backup_dir . '/' . $archive_file, str_repeat( 'x', 512 ) ); // phpcs:ignore -- test fixture partial archive.
+			throw new MainWP_Backup_Budget_Exception( 'over budget', null, '' );
+		};
+
+		$task_id = $this->create_task( 'files' );
+		$this->advance( $task_id );
+		// The budget bail itself does not checkpoint; the next slice's
+		// pre-archiver checkpoint captures the partial size.
+		$task = $this->advance( $task_id );
+
+		$sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+
+		$this->assertSame( $sub_state['archive_file'], $sub_state['progress']['current_file'] );
+		$this->assertSame( 512, $sub_state['progress']['bytes_done'] );
+	}
+
+	/**
+	 * The status payload exposes the progress snapshot as an optional
+	 * top-level key for the Dashboard.
+	 */
+	public function test_status_payload_exposes_progress() {
+		$this->runner->stubs['tier1_available'] = false;
+		$this->runner->stubs['dump_tier2']      = array(
+			'done'   => false,
+			'cursor' => array(
+				'tables' => array( 'wp_posts', 'wp_options' ),
+				'index'  => 0,
+			),
+		);
+
+		$task_id = $this->create_task( 'db' );
+		$task    = $this->advance( $task_id );
+
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+
+		$this->assertArrayHasKey( 'progress', $payload );
+		$this->assertSame( 2, $payload['progress']['files_total'] );
+		$this->assertSame( 0, $payload['progress']['files_processed'] );
+	}
+
+	/**
+	 * A payload without recorded progress omits the key rather than sending
+	 * an empty structure.
+	 */
+	public function test_status_payload_omits_progress_when_absent() {
+		$task_id = $this->create_task( 'db' );
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task    = $spine->get_task( $task_id );
+
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+
+		$this->assertArrayNotHasKey( 'progress', $payload );
+	}
 }

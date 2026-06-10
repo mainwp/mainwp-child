@@ -458,6 +458,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $this->slice_result( $version, true );
         }
 
+        $sub_state = $this->stamp_progress( $task, $sub_state, $backup_dir );
+
         $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir );
         if ( false === $serialized ) {
             $serialized = wp_json_encode( $sub_state ); // Sidecar write failed - keep state inline as a best effort.
@@ -495,6 +497,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      */
     protected function checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield ) {
         $spine      = MainWP_Child_Backup_Task::instance();
+        $sub_state  = $this->stamp_progress( $task, $sub_state, $backup_dir );
         $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir );
         if ( false === $serialized ) {
             $serialized = wp_json_encode( $sub_state );
@@ -506,6 +509,70 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         return $this->slice_result( $new_version, $then_yield );
+    }
+
+    /**
+     * Stamp a progress snapshot onto the cursor before it is persisted.
+     *
+     * The snapshot rides the existing checkpoint writes, so it costs no
+     * extra database round trips. Counters appear only where the work
+     * exposes them cheaply: tier-2 dumps report table counters from the
+     * cursor, the file phase reports the growing archive size, and a
+     * finished artifact reports its final size.
+     *
+     * @param object $task       Task row.
+     * @param array  $sub_state  Cursor about to be persisted.
+     * @param string $backup_dir Scratch directory.
+     *
+     * @return array Cursor with the progress key refreshed.
+     */
+    protected function stamp_progress( $task, $sub_state, $backup_dir ) {
+        $progress = $this->progress_snapshot( $task, $sub_state, $backup_dir );
+        if ( ! empty( $progress ) ) {
+            $sub_state['progress'] = $progress;
+        }
+        return $sub_state;
+    }
+
+    /**
+     * Build the progress snapshot for the current phase.
+     *
+     * @param object $task       Task row.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch directory.
+     *
+     * @return array Progress counters; empty when nothing is known.
+     */
+    protected function progress_snapshot( $task, $sub_state, $backup_dir ) {
+        if ( isset( $sub_state['artifact']['file'], $sub_state['artifact']['size'] ) ) {
+            return array(
+                'current_file' => (string) $sub_state['artifact']['file'],
+                'bytes_done'   => (int) $sub_state['artifact']['size'],
+                'bytes_total'  => (int) $sub_state['artifact']['size'],
+            );
+        }
+
+        $progress = array();
+
+        if ( MainWP_Child_Backup_Task::PHASE_DUMPING_DB === $task->phase
+            && isset( $sub_state['db_cursor']['tables'] ) && is_array( $sub_state['db_cursor']['tables'] ) ) {
+            $done                        = isset( $sub_state['db_cursor']['index'] ) ? (int) $sub_state['db_cursor']['index'] : 0;
+            $progress['files_total']     = count( $sub_state['db_cursor']['tables'] );
+            $progress['files_processed'] = $done;
+            if ( isset( $sub_state['db_cursor']['tables'][ $done ] ) ) {
+                $progress['current_file'] = (string) $sub_state['db_cursor']['tables'][ $done ];
+            }
+        }
+
+        if ( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES === $task->phase && ! empty( $sub_state['archive_file'] ) ) {
+            $progress['current_file'] = (string) $sub_state['archive_file'];
+            $partial                  = rtrim( $backup_dir, '/' ) . '/' . $sub_state['archive_file'];
+            if ( file_exists( $partial ) ) {
+                $progress['bytes_done'] = (int) filesize( $partial );
+            }
+        }
+
+        return $progress;
     }
 
     /**

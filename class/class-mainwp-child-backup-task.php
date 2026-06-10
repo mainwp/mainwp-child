@@ -543,6 +543,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             $payload['error_code'] = isset( $sub_state['error']['code'] ) ? $sub_state['error']['code'] : '';
         }
 
+        // Optional on the wire: older runners never recorded a snapshot, and
+        // early phases may not have one yet.
+        if ( ! empty( $sub_state['progress'] ) && is_array( $sub_state['progress'] ) ) {
+            $payload['progress'] = $sub_state['progress'];
+        }
+
         return $payload;
     }
 
