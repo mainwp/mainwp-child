@@ -156,6 +156,13 @@ class Tar_Archiver {
     protected $budgetProgress = false;
 
     /**
+     * Liveness callback fired per added file, or null.
+     *
+     * @var callable|null Progress callback.
+     */
+    protected $progressCallback = null;
+
+    /**
      * Tar_Archiver constructor.
      *
      * Run any time class is called.
@@ -195,6 +202,15 @@ class Tar_Archiver {
     }
 
     /**
+     * Set or clear the per-file liveness callback.
+     *
+     * @param callable|null $callback Callback, or null to clear.
+     */
+    public function set_progress_callback( $callback ) {
+        $this->progressCallback = $callback;
+    }
+
+    /**
      * Interrupt the traversal when the slice deadline has passed.
      *
      * Only fires after at least one node was processed since the deadline
@@ -209,7 +225,7 @@ class Tar_Archiver {
         }
         if ( time() >= $this->budgetDeadline ) {
             $this->close();
-            throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+            throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_TAR_WRITE_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
         }
     }
 
@@ -415,7 +431,7 @@ class Tar_Archiver {
                 $this->include_core_files( $nodes );
             }
 
-            $db_files = $this->backup->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', false, $this );
+            $db_files = $this->backup->get_or_create_db_dump_files( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', $this );
 
             foreach ( $db_files as $db_file ) {
                 $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
@@ -897,6 +913,10 @@ class Tar_Archiver {
         $this->log( 'Adding ' . $path );
 
         $this->update_pid_file();
+
+        if ( null !== $this->progressCallback ) {
+            call_user_func( $this->progressCallback );
+        }
 
         $rslt = false;
         if ( self::APPEND === $this->mode ) {

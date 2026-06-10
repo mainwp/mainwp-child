@@ -447,6 +447,37 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Time of the last progress touch, for the write throttle.
+     *
+     * @var int Unix timestamp.
+     */
+    protected $last_touch = 0;
+
+    /**
+     * Refresh a task's liveness timestamp without bumping the version.
+     *
+     * Long engine slices call this between files/tables so stall detection
+     * sees a live task. Throttled to one write per ~5s; never a CAS, so the
+     * slice holder's version chain stays valid.
+     *
+     * @param string $task_id Task id.
+     */
+    public function touch_progress( $task_id ) {
+        if ( time() - $this->last_touch < 5 ) {
+            return;
+        }
+        $this->last_touch = time();
+
+        global $wpdb;
+        $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- liveness write on the spine table.
+            $wpdb->prepare(
+                'UPDATE ' . $this->get_table_name() . ' SET last_progress_at = NOW() WHERE task_id = %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                $task_id
+            )
+        );
+    }
+
+    /**
      * Mark a task failed when it is past its wall-clock deadline.
      *
      * Called by the Dashboard-driven status path on every poll - this closes

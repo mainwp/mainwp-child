@@ -118,6 +118,86 @@ class MainWP_Backup {
     protected $archiver = null;
 
     /**
+     * Dump files already produced by an earlier phase, so full-backup paths
+     * archive them instead of dumping the database a second time.
+     *
+     * @var array|null Prepared dump file paths, null when unset.
+     */
+    protected $prepared_db_files = null;
+
+    /**
+     * Slice deadline forwarded to the archiver for bounded continuation
+     * slices, null for legacy unbounded runs.
+     *
+     * @var int|null Unix timestamp.
+     */
+    protected $slice_deadline = null;
+
+    /**
+     * Progress callback forwarded to the archiver.
+     *
+     * @var callable|null Callback.
+     */
+    protected $progress_callback = null;
+
+    /**
+     * Provide dump files an earlier phase already produced.
+     *
+     * @param array|null $files Dump file paths, or null to clear.
+     */
+    public function set_prepared_db_files( $files ) {
+        $this->prepared_db_files = $files;
+    }
+
+    /**
+     * Set the slice deadline forwarded to the archiver.
+     *
+     * @param int|null $deadline Unix timestamp, or null for unbounded.
+     */
+    public function set_slice_deadline( $deadline ) {
+        $this->slice_deadline = $deadline;
+    }
+
+    /**
+     * Set the progress callback forwarded to the archiver.
+     *
+     * @param callable|null $callback Callback, or null to clear.
+     */
+    public function set_progress_callback( $callback ) {
+        $this->progress_callback = $callback;
+    }
+
+    /**
+     * The dump files for a full backup: the prepared set when an earlier
+     * phase already dumped, otherwise a fresh dump.
+     *
+     * @param string $filepath_prefix Dump file prefix.
+     * @param object $archiver        Optional archiver for pid-file keepalive.
+     *
+     * @return array Dump file paths.
+     */
+    public function get_or_create_db_dump_files( $filepath_prefix, &$archiver = null ) {
+        if ( is_array( $this->prepared_db_files ) ) {
+            return $this->prepared_db_files;
+        }
+        return $this->create_backup_db( $filepath_prefix, false, $archiver );
+    }
+
+    /**
+     * Whether a failed backup's partial archive should be removed.
+     *
+     * A budget interruption is not a failure - the partial archive is the
+     * resume point for the next slice and must survive.
+     *
+     * @param \Exception $e The failure.
+     *
+     * @return bool True to delete the partial archive.
+     */
+    protected function should_discard_partial_on( $e ) {
+        return ! ( $e instanceof MainWP_Backup_Budget_Exception );
+    }
+
+    /**
      * Protected static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -153,6 +233,9 @@ class MainWP_Backup {
      * @param bool   $append             Append to backup file name.
      *
      * @return array|bool Action results on success, false on failure.
+     *
+     * @throws \Exception Engine failures propagate; the partial archive is
+     *                    removed unless the failure is a budget interruption.
      *
      * @used-by MainWP_Backup::backup_full()
      *
@@ -222,6 +305,12 @@ class MainWP_Backup {
         } else {
             $this->archiver = new Tar_Archiver( $this, $ext, $pid );
             $ext            = $this->archiver->get_extension();
+            if ( null !== $this->slice_deadline ) {
+                $this->archiver->set_budget_deadline( $this->slice_deadline );
+            }
+            if ( null !== $this->progress_callback ) {
+                $this->archiver->set_progress_callback( $this->progress_callback );
+            }
         }
 
         if ( ( false !== $fileSuffix ) && ! empty( $fileSuffix ) ) {
@@ -254,8 +343,10 @@ class MainWP_Backup {
             }
         } catch ( \Exception $e ) {
             // Never leave a partial archive behind - a half-written file
-            // looks like a backup and restores as corruption.
-            if ( file_exists( $filepath ) ) {
+            // looks like a backup and restores as corruption. A budget
+            // interruption is the one exception: that partial archive is the
+            // resume point for the next slice.
+            if ( $this->should_discard_partial_on( $e ) && file_exists( $filepath ) ) {
                 unlink( $filepath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- cleanup of partial archive.
             }
             throw $e;
@@ -408,7 +499,9 @@ class MainWP_Backup {
      * @return int Timeout in seconds.
      */
     public function get_timeout_from_request() {
-        $preset = isset( $_POST['timeout_preset'] ) ? sanitize_text_field( wp_unslash( $_POST['timeout_preset'] ) ) : 'unlimited'; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated MainWP request.
+        $preset = isset( $_POST['timeout_preset'] ) ? sanitize_text_field( wp_unslash( $_POST['timeout_preset'] ) ) : 'unlimited';
+        // phpcs:enable WordPress.Security.NonceVerification
         return static::get_timeout_for_preset( $preset );
     }
 
@@ -1021,8 +1114,8 @@ class MainWP_Backup {
                     esc_html( size_format( $free ) )
                 ),
                 null,
-                MainWP_Backup_Error::ERR_DISK_FULL
-            ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message parts are escaped, code is a registry class constant.
+                MainWP_Backup_Error::ERR_DISK_FULL // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message parts are escaped, code is a registry class constant.
+            );
         }
     }
 
@@ -1151,7 +1244,7 @@ class MainWP_Backup {
                 $this->include_core_files( $nodes );
             }
 
-            $db_files = $this->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
+            $db_files = $this->get_or_create_db_dump_files( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
             foreach ( $db_files as $db_file ) {
                 $this->add_file_to_zipp( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
             }
@@ -1310,6 +1403,8 @@ class MainWP_Backup {
      * @param string $backupfolder Backup folder.
      * @param bool   $excludenonwp Whether or not to exclude any wp core files.
      *
+     * @throws MainWP_Exception When disk space runs out during the copy.
+     *
      * @uses \MainWP\Child\MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
      * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
      * @uses \MainWP\Child\MainWP_Helper::ends_with() Check if the String 1 ends with the String 2.
@@ -1384,7 +1479,7 @@ class MainWP_Backup {
         mkdir( $backupFolder ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 
         // Create DB backup.
-        $db_files = $this->create_backup_db( $backupFolder . 'dbBackup' );
+        $db_files = $this->get_or_create_db_dump_files( $backupFolder . 'dbBackup' );
 
         // Copy installation to backup folder.
         $nodes = glob( ABSPATH . '*' );
@@ -1579,6 +1674,8 @@ class MainWP_Backup {
      *
      * @return bool True|false.
      *
+     * @throws MainWP_Exception When the zip archive cannot be reopened mid-run.
+     *
      * @uses \MainWP\Child\MainWP_Helper::ends_with()
      */
     public function add_file_to_zipp( $path, $zipEntryName ) {
@@ -1702,25 +1799,41 @@ class MainWP_Backup {
 
         fclose( fopen( $filepath_prefix . '.sql', 'w' ) ); // NOSONAR .
         $db_files[] = $filepath_prefix . '.sql';
-
-        $archivefilePath = null;
-        if ( false !== $archiveExt ) {
-            $archivefilePath = $filepath_prefix . '.sql.' . $archiveExt;
-
-            if ( 'zip' === $archiveExt ) {
-                $this->archiver = null;
-            } else {
-                $this->archiver = new Tar_Archiver( $this, $archiveExt );
-            }
-
-            if ( $this->zip_file( $db_files, $archivefilePath ) && file_exists( $archivefilePath ) ) {
-                foreach ( $db_files as $db_file ) {
-                    wp_delete_file( $db_file );
-                }
-            }
-        }
         //phpcs:enable WordPress.WP.AlternativeFunctions
 
-        return false !== $archiveExt ? array( 'filepath' => $archivefilePath ) : $db_files;
+        if ( false !== $archiveExt ) {
+            return array( 'filepath' => $this->archive_db_files( $db_files, $filepath_prefix, $archiveExt ) );
+        }
+
+        return $db_files;
+    }
+
+    /**
+     * Archive a dump file set into the single db backup deliverable and
+     * clean up the source files on success.
+     *
+     * @param array  $db_files        Dump file paths (including the completion marker).
+     * @param string $filepath_prefix Dump file prefix.
+     * @param string $archiveExt      Archive extension.
+     *
+     * @return string The artifact path (verify with file_exists - on archive
+     *                failure the file is absent, matching legacy behavior).
+     */
+    public function archive_db_files( $db_files, $filepath_prefix, $archiveExt ) {
+        $archivefilePath = $filepath_prefix . '.sql.' . $archiveExt;
+
+        if ( 'zip' === $archiveExt ) {
+            $this->archiver = null;
+        } else {
+            $this->archiver = new Tar_Archiver( $this, $archiveExt );
+        }
+
+        if ( $this->zip_file( $db_files, $archivefilePath ) && file_exists( $archivefilePath ) ) {
+            foreach ( $db_files as $db_file ) {
+                wp_delete_file( $db_file );
+            }
+        }
+
+        return $archivefilePath;
     }
 }
