@@ -68,6 +68,19 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The report advertises the capabilities this child supports so the
+	 * Dashboard can gate features per site: the resumable task machine,
+	 * one-time download tokens, and incremental backups.
+	 */
+	public function test_check_backup_readiness_advertises_capabilities() {
+		$report = MainWP_Backup::get()->check_backup_readiness();
+
+		$this->assertSame( 1, $report['task_spine'] );
+		$this->assertSame( 1, $report['download_token'] );
+		$this->assertSame( 1, $report['incremental'] );
+	}
+
+	/**
 	 * disk_free is a byte count when the host exposes disk_free_space().
 	 */
 	public function test_check_backup_readiness_reports_disk_space() {

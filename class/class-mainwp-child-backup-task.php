@@ -113,6 +113,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             case 'files':
                 $order = array( self::PHASE_QUEUED, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
                 break;
+            case 'incremental':
+                // Every work phase a full backup runs: the database is
+                // dumped fresh on each incremental run, so every snapshot
+                // restores to its own point in time.
+                $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
+                break;
             default:
                 $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
                 break;
@@ -536,6 +542,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         if ( self::PHASE_COMPLETED === $task->phase && isset( $sub_state['artifact']['file'] ) ) {
             $payload['file'] = $sub_state['artifact']['file'];
             $payload['size'] = (int) $sub_state['artifact']['size'];
+        }
+
+        // Multi-artifact runs (incremental parts, chain-base manifests)
+        // list every downloadable file with its role. Optional on the
+        // wire: plain runs and older runners never record it.
+        if ( self::PHASE_COMPLETED === $task->phase && ! empty( $sub_state['artifacts'] ) && is_array( $sub_state['artifacts'] ) ) {
+            $payload['artifacts'] = $sub_state['artifacts'];
         }
 
         if ( self::PHASE_FAILED === $task->phase && isset( $sub_state['error']['message'] ) ) {

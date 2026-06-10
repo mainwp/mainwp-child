@@ -151,6 +151,29 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 	}
 
 	/**
+	 * Manifest sidecar emission stub.
+	 *
+	 * @param array  $params     Backup params.
+	 * @param string $backup_dir Scratch directory.
+	 *
+	 * @return array Emission result with file/size/count.
+	 */
+	protected function emit_manifest_sidecars( $params, $backup_dir ) {
+		return $this->stub( 'emit_manifest_sidecars', array( $params, $backup_dir ) );
+	}
+
+	/**
+	 * Manifest sidecar promotion stub.
+	 *
+	 * @param string $backup_dir Scratch directory.
+	 *
+	 * @return bool Promotion result.
+	 */
+	protected function promote_manifest_sidecars( $backup_dir ) {
+		return (bool) $this->stub( 'promote_manifest_sidecars', array( $backup_dir ) );
+	}
+
+	/**
 	 * Upload stub work.
 	 *
 	 * @param array $sub_state Cursor.

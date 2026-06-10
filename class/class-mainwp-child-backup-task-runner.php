@@ -120,7 +120,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return string Task id.
      */
     public function create_task_for_params( $type, $params ) {
-        if ( ! in_array( $type, array( 'full', 'db', 'files' ), true ) ) {
+        if ( ! in_array( $type, array( 'full', 'db', 'files', 'incremental' ), true ) ) {
             throw new MainWP_Exception( 'Unknown backup type requested for the backup task.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
 
@@ -415,6 +415,35 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         );
         unset( $sub_state['db_files'] );
 
+        if ( ! empty( $params['emit_manifest'] ) ) {
+            // A manifest emission failure never fails the backup itself -
+            // the archive is intact; the chain base just lacks a manifest,
+            // which the next incremental resolves by forcing a full.
+            try {
+                $manifest = $this->emit_manifest_sidecars( $params, $backup_dir );
+            } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest emission is best effort.
+                $manifest = null;
+            }
+            if ( is_array( $manifest ) && isset( $manifest['size'] ) ) {
+                $sub_state['manifest']  = array(
+                    'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                    'size' => (int) $manifest['size'],
+                );
+                $sub_state['artifacts'] = array(
+                    array(
+                        'file' => $res['file'],
+                        'size' => (int) $res['filesize'],
+                        'role' => 'full',
+                    ),
+                    array(
+                        'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                        'size' => (int) $manifest['size'],
+                        'role' => 'manifest',
+                    ),
+                );
+            }
+        }
+
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
     }
 
@@ -478,6 +507,13 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         if ( MainWP_Child_Backup_Task::is_terminal_phase( $next ) ) {
+            if ( MainWP_Child_Backup_Task::PHASE_COMPLETED === $next && ! empty( $sub_state['manifest'] ) ) {
+                // The run that emitted staged manifest sidecars finished -
+                // promote them as the snapshot the next incremental diffs
+                // against. A failed run never reaches this, so the previous
+                // snapshot's manifest stays usable.
+                $this->promote_manifest_sidecars( $backup_dir );
+            }
             $spine->delete_sidecar( $task->task_id, $backup_dir );
         }
 
@@ -792,6 +828,36 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         return $res;
+    }
+
+    /**
+     * Emit the manifest sidecars for the tree this backup covered.
+     *
+     * @param array  $params     Backup params.
+     * @param string $backup_dir Scratch directory.
+     *
+     * @return array Emission result with file/size/count.
+     */
+    protected function emit_manifest_sidecars( $params, $backup_dir ) {
+        $walker = new MainWP_Child_Backup_File_Walker(
+            null,
+            isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? $params['excludes'] : array(),
+            ! empty( $params['excludezip'] ),
+            ! empty( $params['excludenonwp'] ),
+            array( $backup_dir )
+        );
+        return $walker->emit_sidecars( $backup_dir );
+    }
+
+    /**
+     * Promote the staged manifest sidecars to their final names.
+     *
+     * @param string $backup_dir Scratch directory.
+     *
+     * @return bool Promotion result.
+     */
+    protected function promote_manifest_sidecars( $backup_dir ) {
+        return MainWP_Child_Backup_File_Walker::promote_sidecars( $backup_dir );
     }
 
     /**

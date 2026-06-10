@@ -1184,6 +1184,7 @@ class MainWP_Backup {
             'backup_dir_hash' => MainWP_Helper::get_backup_dir_hash(),
             'task_spine'      => 1,
             'download_token'  => 1,
+            'incremental'     => 1,
         );
 
         // 1. Backup directory writable (randomized directory, created on demand).

@@ -652,6 +652,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'excludenonwp'       => isset( $_POST['excludenonwp'] ) && '1' === $_POST['excludenonwp'],
             'file_descriptors'   => isset( $_POST['file_descriptors'] ) ? intval( wp_unslash( $_POST['file_descriptors'] ) ) : 0,
             'loadFilesBeforeZip' => isset( $_POST['loadFilesBeforeZip'] ) ? sanitize_text_field( wp_unslash( $_POST['loadFilesBeforeZip'] ) ) : true,
+            'emit_manifest'      => isset( $_POST['emit_manifest'] ) && '1' === $_POST['emit_manifest'],
         );
         // phpcs:enable WordPress.Security.NonceVerification
 
@@ -716,7 +717,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function backup_download_token() {
         $file = '';
-        if ( ! empty( $_POST['file'] ) ) {
+        if ( ! empty( $_POST['file'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
             $file = MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ); // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- authenticated MainWP request; sanitized via MainWP_Helper::sanitize_filename().
         }
         if ( '' === $file ) {
