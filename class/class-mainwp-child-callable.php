@@ -51,6 +51,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_task_status'       => 'backup_task_status',
         'backup_task_create'       => 'backup_task_create',
         'backup_task_run'          => 'backup_task_run',
+        'backup_download_token'    => 'backup_download_token',
         'cloneinfo'                => 'cloneinfo',
         'security'                 => 'get_security_stats',
         'securityFix'              => 'do_security_fix',
@@ -702,6 +703,34 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $task = MainWP_Child_Backup_Task_Runner::instance()->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
 
         MainWP_Helper::write( $spine->status_payload( $task ) );
+    }
+
+    /**
+     * Method backup_download_token()
+     *
+     * Issue a one-time download authorization for a backup artifact. The
+     * Dashboard calls this right before fetching the file and verifies the
+     * returned sha256 hash after the transfer.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Download_Token::issue()
+     */
+    public function backup_download_token() {
+        $file = '';
+        if ( ! empty( $_POST['file'] ) ) {
+            $file = MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ); // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- authenticated MainWP request; sanitized via MainWP_Helper::sanitize_filename().
+        }
+        if ( '' === $file ) {
+            MainWP_Helper::instance()->error( esc_html__( 'No backup file specified. The Dashboard did not send a file name with the download authorization request.', 'mainwp-child' ), MainWP_Backup_Error::ERR_DL_FILE_NOT_FOUND );
+            return;
+        }
+
+        $result = MainWP_Child_Backup_Download_Token::instance()->issue( $file );
+        if ( isset( $result['error'] ) ) {
+            MainWP_Helper::instance()->error( $result['error'], $result['error_code'] );
+            return;
+        }
+
+        MainWP_Helper::write( $result );
     }
 
     /**

@@ -297,6 +297,20 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The backup_download_token action is registered in the callable router
+	 * so the Dashboard can request a download authorization.
+	 */
+	public function test_backup_download_token_callable_is_registered() {
+		$callable = \MainWP\Child\MainWP_Child_Callable::get_instance();
+		$prop     = new ReflectionProperty( \MainWP\Child\MainWP_Child_Callable::class, 'callableFunctions' );
+		$prop->setAccessible( true );
+		$map = $prop->getValue( $callable );
+
+		$this->assertArrayHasKey( 'backup_download_token', $map );
+		$this->assertTrue( method_exists( $callable, 'backup_download_token' ) );
+	}
+
+	/**
 	 * Issuing fires the audit action with the token_issued event.
 	 */
 	public function test_issue_fires_audit_action() {
