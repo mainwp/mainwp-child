@@ -389,6 +389,27 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Requests without a token never consume an issued token: a malformed
+	 * or empty token is rejected before the transient store is touched, so
+	 * an old Dashboard downloading over the token-less path cannot burn a
+	 * token another Dashboard requested.
+	 */
+	public function test_tokenless_requests_leave_issued_tokens_intact() {
+		$this->create_artifact( 'backup-untouched.zip' );
+		$instance = MainWP_Child_Backup_Download_Token::instance();
+		$issued   = $instance->issue( 'backup-untouched.zip' );
+
+		$instance->validate_and_consume( '', 'backup-untouched.zip' );
+		$instance->validate_and_consume( 'not-a-real-token', 'backup-untouched.zip' );
+		$instance->authorize_download( str_repeat( 'x', 10 ), 'backup-untouched.zip' );
+
+		$this->assertIsArray( get_transient( 'mainwp_backup_download_' . $issued['token'] ), 'The issued token must survive unrelated rejected requests.' );
+
+		$result = $instance->validate_and_consume( $issued['token'], 'backup-untouched.zip' );
+		$this->assertTrue( $result['ok'] );
+	}
+
+	/**
 	 * The preflight readiness report advertises download token support so
 	 * the Dashboard can detect it.
 	 */
