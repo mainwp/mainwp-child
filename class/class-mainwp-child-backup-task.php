@@ -29,6 +29,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const PHASE_QUEUED          = 'queued';
     const PHASE_DUMPING_DB      = 'dumping_db';
     const PHASE_ARCHIVING_FILES = 'archiving_files';
+    const PHASE_UPLOADING       = 'uploading';
+    const PHASE_SUBMITTING      = 'submitting';
     const PHASE_COMPLETED       = 'completed';
     const PHASE_FAILED          = 'failed';
 
@@ -82,6 +84,39 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      */
     public static function is_terminal_phase( $phase ) {
         return in_array( $phase, array( self::PHASE_COMPLETED, self::PHASE_FAILED ), true );
+    }
+
+    /**
+     * The next phase in the machine for a given backup type.
+     *
+     * A db backup has no file-archive phase; a files backup has no database
+     * phase; a full backup runs every work phase. Upload and submit always
+     * follow the work phases. Terminal and unknown phases have no successor.
+     *
+     * @param string $current Current phase.
+     * @param string $type    Backup type (full/db/files).
+     *
+     * @return string|null Next phase, or null when there is none.
+     */
+    public static function next_phase( $current, $type ) {
+        switch ( $type ) {
+            case 'db':
+                $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
+                break;
+            case 'files':
+                $order = array( self::PHASE_QUEUED, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
+                break;
+            default:
+                $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
+                break;
+        }
+
+        $index = array_search( $current, $order, true );
+        if ( false === $index || ! isset( $order[ $index + 1 ] ) ) {
+            return null;
+        }
+
+        return $order[ $index + 1 ];
     }
 
     /**
@@ -278,8 +313,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $args[] = $version;
 
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- CAS write on the spine table.
-            $wpdb->prepare(
-                'UPDATE ' . $this->get_table_name() . ' SET ' . implode( ', ', $sets ) . ' WHERE task_id = %s AND version = %d', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- table name from trusted helper, sets are literal fragments, args passed as array match the placeholders.
+            $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- args passed as array match the placeholders.
+                'UPDATE ' . $this->get_table_name() . ' SET ' . implode( ', ', $sets ) . ' WHERE task_id = %s AND version = %d', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, sets are literal fragments.
                 $args
             )
         );

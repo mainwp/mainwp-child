@@ -177,6 +177,58 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The full machine has upload and submit phases; neither is terminal.
+	 */
+	public function test_upload_and_submit_phases_exist_and_are_not_terminal() {
+		$this->assertSame( 'uploading', MainWP_Child_Backup_Task::PHASE_UPLOADING );
+		$this->assertSame( 'submitting', MainWP_Child_Backup_Task::PHASE_SUBMITTING );
+		$this->assertFalse( MainWP_Child_Backup_Task::is_terminal_phase( MainWP_Child_Backup_Task::PHASE_UPLOADING ) );
+		$this->assertFalse( MainWP_Child_Backup_Task::is_terminal_phase( MainWP_Child_Backup_Task::PHASE_SUBMITTING ) );
+	}
+
+	/**
+	 * Phase routing for a full backup runs every work phase in order.
+	 */
+	public function test_next_phase_full_runs_all_phases() {
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_QUEUED, 'full' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, 'full' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, 'full' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_SUBMITTING, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_UPLOADING, 'full' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_SUBMITTING, 'full' ) );
+	}
+
+	/**
+	 * A db backup has no file-archive phase: the dump goes straight to upload.
+	 */
+	public function test_next_phase_db_skips_archiving() {
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_QUEUED, 'db' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, 'db' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_SUBMITTING, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_UPLOADING, 'db' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_SUBMITTING, 'db' ) );
+	}
+
+	/**
+	 * A files backup has no database phase: queued goes straight to archiving.
+	 */
+	public function test_next_phase_files_skips_dump() {
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_QUEUED, 'files' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, 'files' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_SUBMITTING, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_UPLOADING, 'files' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_SUBMITTING, 'files' ) );
+	}
+
+	/**
+	 * Terminal phases and unknown input have no next phase, and an unknown
+	 * type falls back to the full machine.
+	 */
+	public function test_next_phase_edge_cases() {
+		$this->assertNull( MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_COMPLETED, 'full' ) );
+		$this->assertNull( MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_FAILED, 'full' ) );
+		$this->assertNull( MainWP_Child_Backup_Task::next_phase( 'bogus_phase', 'full' ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_QUEUED, 'unknown-type' ) );
+	}
+
+	/**
 	 * Stalled tasks are found only past the threshold and only with a free lease.
 	 */
 	public function test_find_stalled_tasks() {
