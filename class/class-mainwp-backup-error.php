@@ -40,6 +40,9 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_TOO_MANY_SKIPPED   = 'mainwp_backup_too_many_skipped';
     const ERR_STALLED            = 'mainwp_backup_stalled';
     const ERR_ALREADY_RUNNING    = 'mainwp_backup_already_running';
+    const ERR_DL_FILE_NOT_FOUND  = 'mainwp_backup_dl_file_not_found';
+    const ERR_DL_FILE_CHANGED    = 'mainwp_backup_dl_file_changed';
+    const ERR_DL_TOKEN_INVALID   = 'mainwp_backup_dl_token_invalid';
 
     /**
      * Get all registered error codes.
@@ -184,6 +187,9 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_TOO_MANY_SKIPPED   => esc_html__( 'Too many files could not be added to the backup. Check disk space and file permissions on the child site, then try again.', 'mainwp-child' ),
             self::ERR_STALLED            => esc_html__( 'The backup stopped making progress. The process may have been killed by the host. Check the child site error log and try running the backup again.', 'mainwp-child' ),
             self::ERR_ALREADY_RUNNING    => esc_html__( 'Another backup process is already running on this site. Wait for it to finish or for the stale process to be detected, then try again.', 'mainwp-child' ),
+            self::ERR_DL_FILE_NOT_FOUND  => esc_html__( 'The requested backup file was not found on the child site. It may have been removed by a cleanup. Run a new backup and try the download again.', 'mainwp-child' ),
+            self::ERR_DL_FILE_CHANGED    => esc_html__( 'The backup file changed on the child site after the download was authorized. Request a new download to get a fresh authorization for the current file.', 'mainwp-child' ),
+            self::ERR_DL_TOKEN_INVALID   => esc_html__( 'The download authorization is invalid, expired, or was already used. Request a new download from the Dashboard to get a fresh authorization.', 'mainwp-child' ),
         );
     }
 }
