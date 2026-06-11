@@ -50,6 +50,14 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     const GUARD = '<?php exit(); ?>';
 
     /**
+     * Bare table stems excluded from the replay (set per slice from the
+     * config). The child's own task spine is the canonical member.
+     *
+     * @var string[]
+     */
+    protected $skip_stems = array();
+
+    /**
      * Read size per fread call.
      */
     const CHUNK_BYTES = 262144;
@@ -95,12 +103,13 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
             return $this->result( false, $cursor, $error, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
         }
 
-        $packet_budget = $this->read_packet_budget( $conn );
-        $replacement   = ! empty( $config['fk_path'] ) ? $config['target_prefix'] : $this->tmp_prefix( $config['restore_id'] );
-        $rewriter      = new MainWP_Backup_Sql_Prefix_Rewriter( $config['source_prefix'], $replacement );
-        $insert_split  = new MainWP_Backup_Insert_Splitter();
-        $did_work      = false;
-        $file_count    = count( $files );
+        $this->skip_stems = isset( $config['skip_stems'] ) ? (array) $config['skip_stems'] : array();
+        $packet_budget    = $this->read_packet_budget( $conn );
+        $replacement      = ! empty( $config['fk_path'] ) ? $config['target_prefix'] : $this->tmp_prefix( $config['restore_id'] );
+        $rewriter         = new MainWP_Backup_Sql_Prefix_Rewriter( $config['source_prefix'], $replacement );
+        $insert_split     = new MainWP_Backup_Insert_Splitter();
+        $did_work         = false;
+        $file_count       = count( $files );
 
         while ( $cursor['file_index'] < $file_count ) {
             $outcome = $this->replay_file( $conn, $cursor, $files, $rewriter, $insert_split, $replacement, $packet_budget, $deadline, $did_work );
@@ -213,6 +222,13 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         $stem = $this->statement_stem( $rewritten, $replacement );
+        if ( null !== $stem && in_array( $stem, $this->skip_stems, true ) ) {
+            // Operational tables the running restore itself depends on
+            // (the task spine) never replay - swapping them in would
+            // clobber the in-flight task state.
+            ++$cursor['dropped'];
+            return null;
+        }
         if ( null !== $stem && ! isset( $cursor['tables'][ $stem ] ) ) {
             $cursor['tables'][ $stem ] = array(
                 'status' => 'loading',

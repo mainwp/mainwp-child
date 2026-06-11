@@ -579,6 +579,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'target_prefix' => $this->target_prefix(),
             'files'         => $db['files'],
             'fk_path'       => $db['fk_path'],
+            // The running restore's own state lives in the task spine;
+            // replaying the dump's copy would clobber it mid-flight.
+            'skip_stems'    => array( 'mainwp_child_backup_task' ),
         );
 
         $outcome      = $engine->replay_slice( $db['cursor'], $config, $deadline, $unclean );

@@ -447,6 +447,28 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Stems on the skip list never replay - the running restore's own
+	 * spine table must survive the swap.
+	 */
+	public function test_skip_stems_excluded_from_replay() {
+		$files  = array(
+			$this->write_dump( 'dbBackup-wp_mainwp_child_backup_task.sql.php', "DROP TABLE IF EXISTS `wp_mainwp_child_backup_task`;\nCREATE TABLE `wp_mainwp_child_backup_task` (id INT);\n" ),
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+		);
+		$config = $this->config( $files );
+		$config['skip_stems'] = array( 'mainwp_child_backup_task' );
+
+		$result = $this->engine->replay_slice( array(), $config, $this->no_deadline() );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertArrayNotHasKey( 'mainwp_child_backup_task', $result['cursor']['tables'] );
+
+		$joined = implode( "\n", $this->engine->executed );
+		$this->assertStringNotContainsString( 'mainwp_child_backup_task', $joined );
+		$this->assertStringContainsString( 'CREATE TABLE `tmpabc123_a`', $joined );
+	}
+
+	/**
 	 * A dump file with bytes after the last terminator is truncated and
 	 * fails rather than silently losing the tail.
 	 */
