@@ -53,6 +53,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_task_run'          => 'backup_task_run',
         'backup_task_prune'        => 'backup_task_prune',
         'backup_download_token'    => 'backup_download_token',
+        'backup_manifest_chunk'    => 'backup_manifest_chunk',
         'restore_task_create'      => 'restore_task_create',
         'restore_task_run'         => 'restore_task_run',
         'restore_task_status'      => 'restore_task_status',
@@ -929,6 +930,47 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
 
         $outcome = MainWP_Child_Restore_Task_Runner::instance()->cancel_restore_task( $task->task_id );
 
+        if ( isset( $outcome['error'] ) ) {
+            MainWP_Helper::instance()->error( $outcome['error'], isset( $outcome['error_code'] ) ? $outcome['error_code'] : null );
+            return;
+        }
+
+        MainWP_Helper::write( $outcome );
+    }
+
+    /**
+     * Method backup_manifest_chunk()
+     *
+     * Receive one hash-verified piece of an oversized parent manifest
+     * into a staging session. The first chunk creates the session and
+     * returns a child-generated token; later chunks reference it. The
+     * final chunk verifies the whole manifest's sha256 and marks the
+     * session ready for a backup_task_create request to consume.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Manifest_Chunk_Receiver::receive_chunk()
+     */
+    public function backup_manifest_chunk() {
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated MainWP request.
+        $mtoken       = isset( $_POST['mtoken'] ) ? sanitize_text_field( wp_unslash( $_POST['mtoken'] ) ) : '';
+        $offset       = isset( $_POST['offset'] ) ? (int) $_POST['offset'] : -1;
+        $chunk_b64    = isset( $_POST['chunk_b64'] ) ? wp_unslash( $_POST['chunk_b64'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated as strict base64 below.
+        $chunk_sha256 = isset( $_POST['chunk_sha256'] ) ? sanitize_text_field( wp_unslash( $_POST['chunk_sha256'] ) ) : '';
+        $total_sha256 = isset( $_POST['total_sha256'] ) ? sanitize_text_field( wp_unslash( $_POST['total_sha256'] ) ) : '';
+        $final        = isset( $_POST['final'] ) && '1' === $_POST['final'];
+        // phpcs:enable WordPress.Security.NonceVerification
+
+        $raw = base64_decode( $chunk_b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- wire encoding of manifest bytes, not code.
+        if ( false === $raw ) {
+            MainWP_Helper::instance()->error( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CHUNK_HASH ) ), MainWP_Backup_Error::ERR_CHUNK_HASH );
+            return;
+        }
+
+        $outcome = MainWP_Child_Backup_Manifest_Chunk_Receiver::instance()->receive_chunk( $mtoken, $offset, $raw, $chunk_sha256, $total_sha256, $final );
+
+        if ( isset( $outcome['error_code'] ) && MainWP_Backup_Error::ERR_CHUNK_GAP === $outcome['error_code'] ) {
+            MainWP_Helper::write( $outcome ); // The gap response carries bytes_received so the Dashboard realigns.
+            return;
+        }
         if ( isset( $outcome['error'] ) ) {
             MainWP_Helper::instance()->error( $outcome['error'], isset( $outcome['error_code'] ) ? $outcome['error_code'] : null );
             return;
