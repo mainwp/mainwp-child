@@ -253,7 +253,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             return false;
         }
 
-        $dirs    = static::get_mainwp_dir( 'backup' );
+        $dirs     = static::get_mainwp_dir( 'backup' );
         $new_path = $dirs[0] . $filename;
         if ( file_exists( $new_path ) ) {
             return $new_path;
@@ -914,6 +914,53 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         return false;
+    }
+
+    /**
+     * Method is_dump_litter()
+     *
+     * Whether a site-relative path is a database-dump byproduct at the
+     * site root or directly under wp-content - the exact set the restore
+     * litter sweep deletes. Litter must never be archived: a stale dump
+     * riding inside a backup can win extraction on a later restore and
+     * silently roll the site back.
+     *
+     * @param string $value Site-relative path.
+     *
+     * @return bool true|false If dump litter, return true, if not, return false.
+     */
+    public static function is_dump_litter( $value ) {
+        $value = ltrim( (string) $value, '/' );
+        if ( '' === $value ) {
+            return false;
+        }
+
+        $dir = dirname( $value );
+        if ( '.' !== $dir && 'wp-content' !== $dir ) {
+            return false;
+        }
+
+        $base = basename( $value );
+        if ( 0 !== strpos( $base, 'dbBackup' ) ) {
+            return false;
+        }
+
+        return static::ends_with( $base, '.sql' ) || static::ends_with( $base, '.sql.php' );
+    }
+
+    /**
+     * Method excluded_from_backup()
+     *
+     * Whether a backup traversal must skip a site-relative path: either
+     * the exclude list covers it or it is dump litter.
+     *
+     * @param array  $excludes Array containing the list of excludes.
+     * @param string $value Site-relative path to check.
+     *
+     * @return bool true|false If excluded, return true, if not, return false.
+     */
+    public static function excluded_from_backup( $excludes, $value ) {
+        return static::in_excludes( $excludes, $value ) || static::is_dump_litter( $value );
     }
 
     /**

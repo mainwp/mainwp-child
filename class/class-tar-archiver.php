@@ -450,7 +450,7 @@ class Tar_Archiver {
                     }
                 }
 
-                if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+                if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
                     if ( is_dir( $node ) ) {
                         $this->add_dir( $node, $excludes );
                     } elseif ( is_file( $node ) ) {
@@ -639,7 +639,7 @@ class Tar_Archiver {
                 continue;
             }
 
-            if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
+            if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
                 if ( $path->isDir() ) {
                     $this->add_empty_dir( $name, str_replace( ABSPATH, '', $name ) );
                 } else {

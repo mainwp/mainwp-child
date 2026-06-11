@@ -219,7 +219,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
                 continue;
             }
 
-            if ( MainWP_Helper::in_excludes( $this->excludes, $relpath ) ) {
+            if ( MainWP_Helper::excluded_from_backup( $this->excludes, $relpath ) ) {
                 continue;
             }
 
@@ -263,7 +263,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             }
 
             $relpath = substr( $node, strlen( $this->root ) );
-            if ( MainWP_Helper::in_excludes( $this->excludes, $relpath ) ) {
+            if ( MainWP_Helper::excluded_from_backup( $this->excludes, $relpath ) ) {
                 continue;
             }
 

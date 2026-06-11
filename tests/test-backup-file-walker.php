@@ -277,6 +277,57 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Dump litter at the site root never enters the manifest - a stale
+	 * dbBackup dump described by the manifest would ride into the next
+	 * incremental pack.
+	 *
+	 * @return void
+	 */
+	public function test_dump_litter_excluded_at_site_root() {
+		file_put_contents( $this->root . '/dbBackup-wp_options.sql.php', 'stale dump' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/dbBackup.sql', '' ); // phpcs:ignore -- test fixture.
+
+		$this->walker()->emit_sidecars( $this->backup_dir );
+
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertNotContains( 'dbBackup-wp_options.sql.php', $relpaths );
+		$this->assertNotContains( 'dbBackup.sql', $relpaths );
+		$this->assertContains( 'index.php', $relpaths );
+	}
+
+	/**
+	 * Dump litter directly under wp-content never enters the manifest.
+	 *
+	 * @return void
+	 */
+	public function test_dump_litter_excluded_in_wp_content() {
+		file_put_contents( $this->root . '/wp-content/dbBackup-wp_posts.sql.php', 'stale dump' ); // phpcs:ignore -- test fixture.
+
+		$this->walker()->emit_sidecars( $this->backup_dir );
+
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertNotContains( 'wp-content/dbBackup-wp_posts.sql.php', $relpaths );
+	}
+
+	/**
+	 * The litter exclusion matches the restore sweep exactly: lookalike
+	 * names and dumps in deeper directories are site content and stay in
+	 * the manifest.
+	 *
+	 * @return void
+	 */
+	public function test_dump_litter_lookalikes_and_deeper_dumps_stay_included() {
+		file_put_contents( $this->root . '/dbBackupNotes.txt', 'user file' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/uploads/dbBackup-deep.sql.php', 'user file' ); // phpcs:ignore -- test fixture.
+
+		$this->walker()->emit_sidecars( $this->backup_dir );
+
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertContains( 'dbBackupNotes.txt', $relpaths );
+		$this->assertContains( 'wp-content/uploads/dbBackup-deep.sql.php', $relpaths );
+	}
+
+	/**
 	 * Promotion renames the staged sidecars over the final names; until then
 	 * a previous run's promoted sidecars stay untouched.
 	 *
