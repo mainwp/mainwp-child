@@ -49,6 +49,7 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
 
     const ERR_RESTORE_DB_REPLAY   = 'mainwp_restore_db_replay';
     const ERR_RESTORE_SWAP_FAILED = 'mainwp_restore_swap_failed';
+    const ERR_RESTORE_EXTRACT     = 'mainwp_restore_extract';
 
     /**
      * Get all registered error codes.
@@ -202,6 +203,7 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
 
             self::ERR_RESTORE_DB_REPLAY        => esc_html__( 'The database could not be replayed from the backup. The live database was not changed. Check the child site error log for the failing table and try the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_SWAP_FAILED      => esc_html__( 'The restored tables could not be promoted to live. The previous tables are still in place. Check the child site error log and try the restore again.', 'mainwp-child' ),
+            self::ERR_RESTORE_EXTRACT          => esc_html__( 'The backup archive could not be extracted safely. Extraction stopped before any unsafe path was written. Check the child site error log for the rejected entry.', 'mainwp-child' ),
         );
     }
 }
