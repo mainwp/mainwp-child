@@ -34,6 +34,16 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const PHASE_COMPLETED       = 'completed';
     const PHASE_FAILED          = 'failed';
 
+    // Restore task phases (types restore / restore_db). Names stay
+    // within the varchar(20) phase column.
+    const PHASE_RECEIVING_ARTIFACTS = 'receiving';
+    const PHASE_VERIFYING_ARTIFACTS = 'verifying';
+    const PHASE_RESTORING_FILES     = 'restoring_files';
+    const PHASE_REPLAYING_DB        = 'replaying_db';
+    const PHASE_SWAPPING_DB         = 'swapping_db';
+    const PHASE_REWRITING_URLS      = 'rewriting_urls';
+    const PHASE_POST_RESTORE_VERIFY = 'verify_site';
+
     /**
      * Default resume cap - a stalled task is re-entered at most this many
      * times before it goes terminal failed (never an infinite loop).
@@ -119,6 +129,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 // restores to its own point in time.
                 $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
                 break;
+            case 'restore':
+                $order = array( self::PHASE_QUEUED, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_RESTORING_FILES, self::PHASE_REPLAYING_DB, self::PHASE_SWAPPING_DB, self::PHASE_REWRITING_URLS, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
+                break;
+            case 'restore_db':
+                // No file payload: straight from artifact verification to
+                // the database replay.
+                $order = array( self::PHASE_QUEUED, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_REPLAYING_DB, self::PHASE_SWAPPING_DB, self::PHASE_REWRITING_URLS, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
+                break;
             default:
                 $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
                 break;
@@ -185,18 +203,23 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * sits in a non-terminal phase on a low-traffic child whose cron never
      * fires.
      *
-     * @param string $type      Backup type (full/db).
-     * @param array  $sub_state Initial resume cursor.
+     * @param string   $type             Task type (full/db/files/incremental/restore/restore_db).
+     * @param array    $sub_state        Initial resume cursor.
+     * @param int|null $max_resumes      Resume cap override (restore tasks
+     *                                   span more slices than a backup).
+     * @param int|null $deadline_seconds Wall-clock horizon override, for
+     *                                   work that scales with payload size.
      *
      * @return string|false Task id, or false on insert failure.
      */
-    public function create_task( $type = 'full', $sub_state = array() ) {
+    public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null ) {
         global $wpdb;
 
         $this->install();
 
-        $task_id  = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
-        $deadline = ( self::DEFAULT_MAX_RESUMES + 2 ) * self::SLICE_BUDGET_SECONDS * 4;
+        $max_resumes = null === $max_resumes ? self::DEFAULT_MAX_RESUMES : (int) $max_resumes;
+        $task_id     = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
+        $deadline    = null === $deadline_seconds ? ( self::DEFAULT_MAX_RESUMES + 2 ) * self::SLICE_BUDGET_SECONDS * 4 : (int) $deadline_seconds;
 
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
             $wpdb->prepare(
@@ -208,7 +231,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 $type,
                 wp_json_encode( $sub_state ),
                 $deadline,
-                self::DEFAULT_MAX_RESUMES
+                $max_resumes
             )
         );
 

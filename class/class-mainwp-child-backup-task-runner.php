@@ -100,6 +100,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     public function handle_watchdog_resume( $task, $version ) {
         unset( $version ); // A fresh read below carries the current version.
 
+        if ( MainWP_Child_Restore_Task_Runner::is_restore_type( $task->type ) && ! ( $this instanceof MainWP_Child_Restore_Task_Runner ) ) {
+            return; // Restore tasks resume through the restore runner's listener.
+        }
+
         $fresh = MainWP_Child_Backup_Task::instance()->get_task( $task->task_id );
         if ( null === $fresh ) {
             return;

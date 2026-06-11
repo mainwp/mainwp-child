@@ -123,6 +123,7 @@ class MainWP_Child {
         // runner subscribes to its resume signal to advance the work.
         MainWP_Child_Backup_Watchdog::instance()->init();
         MainWP_Child_Backup_Task_Runner::instance()->register_hooks();
+        MainWP_Child_Restore_Task_Runner::instance()->register_hooks();
 
         // Initialize admin-specific components.
         $this->init_admin_components();

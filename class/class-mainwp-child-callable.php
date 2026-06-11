@@ -53,6 +53,10 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_task_run'          => 'backup_task_run',
         'backup_task_prune'        => 'backup_task_prune',
         'backup_download_token'    => 'backup_download_token',
+        'restore_task_create'      => 'restore_task_create',
+        'restore_task_run'         => 'restore_task_run',
+        'restore_task_status'      => 'restore_task_status',
+        'restore_artifact_chunk'   => 'restore_artifact_chunk',
         'cloneinfo'                => 'cloneinfo',
         'security'                 => 'get_security_stats',
         'securityFix'              => 'do_security_fix',
@@ -805,6 +809,208 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Helper::write( $result );
+    }
+
+    /**
+     * Method restore_task_create()
+     *
+     * Create a restore task on the resumable machine. The Dashboard sends
+     * artifact metadata only (names, sizes, expected hashes) - bytes
+     * arrive later through restore_artifact_chunk. All write paths derive
+     * from the task id the child generates here; nothing on the wire ever
+     * becomes a path.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Restore_Task_Runner::create_restore_task()
+     */
+    public function restore_task_create() {
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated MainWP request.
+        $restore_id    = isset( $_POST['restore_id'] ) ? sanitize_text_field( wp_unslash( $_POST['restore_id'] ) ) : '';
+        $source_prefix = isset( $_POST['source_prefix'] ) ? sanitize_text_field( wp_unslash( $_POST['source_prefix'] ) ) : '';
+        $artifacts_raw = isset( $_POST['artifacts_json'] ) ? wp_unslash( $_POST['artifacts_json'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- decoded and per-field sanitized below.
+        $options_raw   = isset( $_POST['options_json'] ) ? wp_unslash( $_POST['options_json'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- decoded and per-field sanitized below.
+        // phpcs:enable WordPress.Security.NonceVerification
+
+        if ( ! preg_match( '/^[a-z0-9]{6,16}$/', $restore_id ) ) {
+            MainWP_Helper::instance()->error( esc_html__( 'The restore request did not carry a valid restore id.', 'mainwp-child' ) );
+            return;
+        }
+
+        $artifacts = $this->sanitize_restore_artifacts( json_decode( (string) $artifacts_raw, true ) );
+        if ( empty( $artifacts ) ) {
+            MainWP_Helper::instance()->error( esc_html__( 'The restore request did not name any artifacts to receive.', 'mainwp-child' ) );
+            return;
+        }
+
+        $options  = json_decode( (string) $options_raw, true );
+        $options  = is_array( $options ) ? $options : array();
+        $sub_type = isset( $options['sub_type'] ) && 'db' === $options['sub_type'] ? 'db' : 'full';
+
+        $params = array(
+            'restore_id'       => $restore_id,
+            'source_prefix'    => $source_prefix,
+            'artifacts'        => $artifacts,
+            'has_foreign_keys' => isset( $options['has_foreign_keys'] ) ? $options['has_foreign_keys'] : null,
+            'file_rollback'    => ! empty( $options['file_rollback'] ),
+        );
+
+        try {
+            $task_id = MainWP_Child_Restore_Task_Runner::instance()->create_restore_task( $sub_type, $params );
+        } catch ( MainWP_Exception $e ) {
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
+            return;
+        }
+
+        $disk_free = 0;
+        if ( function_exists( 'disk_free_space' ) ) {
+            $probe     = @disk_free_space( ABSPATH ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- advisory probe, host may disable it.
+            $disk_free = false === $probe ? 0 : (int) $probe;
+        }
+
+        MainWP_Helper::write(
+            array(
+                'task_id'         => $task_id,
+                'phase'           => MainWP_Child_Backup_Task::PHASE_QUEUED,
+                'disk_free_bytes' => $disk_free,
+            )
+        );
+    }
+
+    /**
+     * Method restore_task_run()
+     *
+     * Advance a restore task one bounded slice and return its status.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Restore_Task_Runner::advance_one_slice()
+     */
+    public function restore_task_run() {
+        $task = $this->load_restore_task_from_request( 'run' );
+        if ( null === $task ) {
+            return;
+        }
+
+        MainWP_Helper::set_limit( 2 * MainWP_Child_Backup_Task_Runner::SLICE_BUDGET_SECONDS, '512M' );
+
+        $task = MainWP_Child_Restore_Task_Runner::instance()->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+
+        MainWP_Helper::write( MainWP_Child_Backup_Task::instance()->status_payload( $task ) );
+    }
+
+    /**
+     * Method restore_task_status()
+     *
+     * Read-only status for a restore task; enforces the wall-clock
+     * deadline like the backup status callable.
+     */
+    public function restore_task_status() {
+        $task = $this->load_restore_task_from_request( 'status' );
+        if ( null === $task ) {
+            return;
+        }
+
+        MainWP_Helper::write( MainWP_Child_Backup_Task::instance()->status_payload( $task ) );
+    }
+
+    /**
+     * Method restore_artifact_chunk()
+     *
+     * Receive one hash-verified piece of a restore artifact. The write
+     * path derives from the task id (scratch dir) plus the artifact's
+     * basename, which must be in the list the task was created with. A
+     * re-sent chunk at an already-written offset is acknowledged without
+     * writing; a gap returns the current size so the Dashboard realigns;
+     * the final chunk verifies the whole artifact's sha256 and discards
+     * the file on mismatch.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Restore_Task_Runner::scratch_dir()
+     */
+    public function restore_artifact_chunk() {
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated MainWP request.
+        $task_id      = isset( $_POST['task_id'] ) ? sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) : '';
+        $file         = isset( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
+        $offset       = isset( $_POST['offset'] ) ? (int) $_POST['offset'] : -1;
+        $chunk_b64    = isset( $_POST['chunk_b64'] ) ? wp_unslash( $_POST['chunk_b64'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated as strict base64 below.
+        $chunk_sha256 = isset( $_POST['chunk_sha256'] ) ? sanitize_text_field( wp_unslash( $_POST['chunk_sha256'] ) ) : '';
+        $final        = isset( $_POST['final'] ) && '1' === $_POST['final'];
+        // phpcs:enable WordPress.Security.NonceVerification
+
+        $raw = base64_decode( $chunk_b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- wire encoding of binary artifact bytes, not code.
+        if ( false === $raw ) {
+            MainWP_Helper::instance()->error( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CHUNK_HASH ) ), MainWP_Backup_Error::ERR_CHUNK_HASH );
+            return;
+        }
+
+        $outcome = MainWP_Child_Restore_Task_Runner::instance()->receive_chunk( $task_id, $file, $offset, $raw, $chunk_sha256, $final );
+
+        if ( isset( $outcome['error_code'] ) && MainWP_Backup_Error::ERR_CHUNK_GAP === $outcome['error_code'] ) {
+            MainWP_Helper::write( $outcome ); // The gap response carries bytes_received so the Dashboard realigns.
+            return;
+        }
+        if ( isset( $outcome['error'] ) ) {
+            MainWP_Helper::instance()->error( $outcome['error'], isset( $outcome['error_code'] ) ? $outcome['error_code'] : null );
+            return;
+        }
+
+        MainWP_Helper::write( $outcome );
+    }
+
+    /**
+     * Sanitize the artifact metadata list from the wire.
+     *
+     * @param mixed $raw Decoded artifacts_json.
+     *
+     * @return array Clean artifact entries.
+     */
+    private function sanitize_restore_artifacts( $raw ) {
+        if ( ! is_array( $raw ) ) {
+            return array();
+        }
+        $clean = array();
+        foreach ( $raw as $entry ) {
+            if ( ! is_array( $entry ) || empty( $entry['file'] ) ) {
+                continue;
+            }
+            $file = MainWP_Helper::sanitize_filename( (string) $entry['file'] );
+            if ( '' === $file || $file !== (string) $entry['file'] ) {
+                continue; // A name that needed sanitizing is not a name we issued.
+            }
+            $sha256  = isset( $entry['sha256'] ) && is_string( $entry['sha256'] ) && preg_match( '/^[a-f0-9]{64}$/', $entry['sha256'] ) ? $entry['sha256'] : '';
+            $clean[] = array(
+                'role'       => isset( $entry['role'] ) ? sanitize_text_field( (string) $entry['role'] ) : '',
+                'file'       => $file,
+                'size'       => isset( $entry['size'] ) ? (int) $entry['size'] : 0,
+                'sha256'     => $sha256,
+                'adopt_only' => ! empty( $entry['adopt_only'] ),
+            );
+        }
+        return $clean;
+    }
+
+    /**
+     * Load and validate the restore task named in the request.
+     *
+     * @param string $verb Request verb for the error message.
+     *
+     * @return object|null Task row, or null after writing an error.
+     */
+    private function load_restore_task_from_request( $verb ) {
+        unset( $verb );
+        $task_id = isset( $_POST['task_id'] ) ? sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+        if ( '' === $task_id ) {
+            MainWP_Helper::instance()->error( esc_html__( 'No restore task specified. The Dashboard did not send a task id with the request.', 'mainwp-child' ) );
+            return null;
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+        $spine->enforce_wall_clock_deadline( $task_id );
+
+        $task = $spine->get_task( $task_id );
+        if ( null === $task || ! MainWP_Child_Restore_Task_Runner::is_restore_type( $task->type ) ) {
+            MainWP_Helper::instance()->error( esc_html__( 'Restore task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ) );
+            return null;
+        }
+
+        return $task;
     }
 
     /**
