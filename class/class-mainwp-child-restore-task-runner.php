@@ -356,6 +356,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param bool                     $done       Whether the artifact verified complete.
      */
     protected function record_chunk_progress( $spine, $task, $backup_dir, $file, $size, $done ) {
+        $path = $this->scratch_dir( $task->task_id, $backup_dir ) . $file;
+
         for ( $attempt = 0; $attempt < 3; $attempt++ ) {
             $fresh = $spine->get_task( $task->task_id );
             if ( null === $fresh ) {
@@ -370,8 +372,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     'hashes'        => array(),
                 );
             }
+
+            // Re-read the staging file so a write retried under CAS (or
+            // racing a concurrent append) records the bytes actually on
+            // disk instead of the size captured before the race.
+            clearstatcache( true, $path );
+            $bytes = file_exists( $path ) ? (int) filesize( $path ) : $size;
+
             $sub_state['receiving']['files'][ $file ] = array(
-                'bytes' => $size,
+                'bytes' => $bytes,
                 'done'  => $done,
             );
 

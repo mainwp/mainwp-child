@@ -29,6 +29,20 @@ class Chunk_Test_Restore_Runner extends MainWP_Child_Restore_Task_Runner {
 	protected function backup_dir() {
 		return $this->test_backup_dir;
 	}
+
+	/**
+	 * Expose the progress writer for direct tests.
+	 *
+	 * @param MainWP_Child_Backup_Task $spine      Spine instance.
+	 * @param object                   $task       Task row.
+	 * @param string                   $backup_dir Backup scratch root.
+	 * @param string                   $file       Artifact basename.
+	 * @param int                      $size       Bytes received so far.
+	 * @param bool                     $done       Whether the artifact verified complete.
+	 */
+	public function record_progress_public( $spine, $task, $backup_dir, $file, $size, $done ) {
+		$this->record_chunk_progress( $spine, $task, $backup_dir, $file, $size, $done );
+	}
 }
 
 /**
@@ -282,6 +296,26 @@ class BackupRestoreChunkReceiveTest extends WP_UnitTestCase {
 		$task      = $this->spine->get_task( $task_id );
 		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertTrue( $sub_state['receiving']['files']['db.zip']['done'] );
+		$this->assertSame( 80, $sub_state['receiving']['files']['db.zip']['bytes'] );
+	}
+
+	/**
+	 * A progress write retried under CAS records the bytes actually on
+	 * disk, not the value captured before a concurrent append landed.
+	 */
+	public function test_progress_records_on_disk_bytes_not_stale_value() {
+		$content = str_repeat( 'A', 80 );
+		$task_id = $this->make_task( $content );
+
+		$this->send( $task_id, substr( $content, 0, 40 ), 0 );
+		$this->send( $task_id, substr( $content, 40 ), 40 );
+
+		// A progress write carrying the pre-append size must surface the
+		// current on-disk bytes instead.
+		$task = $this->spine->get_task( $task_id );
+		$this->runner->record_progress_public( $this->spine, $task, $this->dir, 'db.zip', 40, false );
+
+		$sub_state = $this->spine->read_sub_state( $this->spine->get_task( $task_id ), $this->dir );
 		$this->assertSame( 80, $sub_state['receiving']['files']['db.zip']['bytes'] );
 	}
 
