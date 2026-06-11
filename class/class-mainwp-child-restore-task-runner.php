@@ -75,7 +75,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return bool True for restore types.
      */
     public static function is_restore_type( $type ) {
-        return 'restore' === $type || 'restore_db' === $type;
+        return in_array( $type, array( 'restore', 'restore_db', 'restore_files' ), true );
     }
 
     /**
@@ -95,7 +95,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     /**
      * Validate params and create a restore task.
      *
-     * @param string $sub_type 'full' or 'db'.
+     * @param string $sub_type 'full', 'db', or 'files'.
      * @param array  $params   Restore params persisted into the cursor:
      *                         { restore_id, source_prefix, artifacts,
      *                         has_foreign_keys, file_rollback }.
@@ -125,7 +125,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // all do): one hour base plus a second per half-megabyte.
         $deadline = self::RESTORE_MIN_DEADLINE_SECONDS + (int) ( $total_bytes / 524288 );
 
-        $type    = 'db' === $sub_type ? 'restore_db' : 'restore';
+        $type = 'restore';
+        if ( 'db' === $sub_type ) {
+            $type = 'restore_db';
+        } elseif ( 'files' === $sub_type ) {
+            $type = 'restore_files';
+        }
         $task_id = $spine->create_task( $type, array( 'params' => $params ), self::RESTORE_MAX_RESUMES, $deadline );
         if ( false === $task_id ) {
             throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.

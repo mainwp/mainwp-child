@@ -851,7 +851,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
 
         $options  = json_decode( (string) $options_raw, true );
         $options  = is_array( $options ) ? $options : array();
-        $sub_type = isset( $options['sub_type'] ) && 'db' === $options['sub_type'] ? 'db' : 'full';
+        $sub_type = isset( $options['sub_type'] ) && in_array( $options['sub_type'], array( 'db', 'files' ), true ) ? $options['sub_type'] : 'full';
 
         $params = array(
             'restore_id'       => $restore_id,

@@ -1186,6 +1186,7 @@ class MainWP_Backup {
             'download_token'  => 1,
             'incremental'     => 1,
             'manifest_chunk'  => 1,
+            'restore_files'   => 1,
         );
 
         // 1. Backup directory writable (randomized directory, created on demand).

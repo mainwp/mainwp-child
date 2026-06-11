@@ -81,6 +81,17 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The report advertises files-only restore support, so the Dashboard
+	 * only offers the Restore action on a files snapshot to children
+	 * that run the db-skipping pipeline.
+	 */
+	public function test_check_backup_readiness_advertises_restore_files_capability() {
+		$report = MainWP_Backup::get()->check_backup_readiness();
+
+		$this->assertSame( 1, $report['restore_files'] );
+	}
+
+	/**
 	 * disk_free is a byte count when the host exposes disk_free_space().
 	 */
 	public function test_check_backup_readiness_reports_disk_space() {

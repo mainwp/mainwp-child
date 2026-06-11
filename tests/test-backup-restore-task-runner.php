@@ -412,6 +412,29 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Build a files-only archive in the backup dir: site files, no
+	 * database dump of any kind. A files snapshot's archive rides the
+	 * full download slot, so its role is 'full'.
+	 *
+	 * @return array Artifact entry.
+	 */
+	protected function make_files_archive_artifact() {
+		$zip_path = $this->dir . '/files001.zip';
+		$zip      = new ZipArchive();
+		$zip->open( $zip_path, ZipArchive::CREATE );
+		$zip->addFromString( 'wp-content/uploads/restored.txt', 'restored-content' );
+		$zip->close();
+
+		return array(
+			'role'       => 'full',
+			'file'       => 'files001.zip',
+			'size'       => (int) filesize( $zip_path ),
+			'sha256'     => hash_file( 'sha256', $zip_path ),
+			'adopt_only' => false,
+		);
+	}
+
+	/**
 	 * Build a tombstones artifact in the backup dir.
 	 *
 	 * @return array Artifact entry.
@@ -756,5 +779,60 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		$this->expectException( \MainWP\Child\MainWP_Exception::class );
 		$this->make_task( 'db', array( $this->make_db_artifact() ) );
+	}
+
+	/**
+	 * The restore runner owns the files-only restore type, so the
+	 * watchdog routes its stalled tasks here.
+	 */
+	public function test_is_restore_type_includes_restore_files() {
+		$this->assertTrue( MainWP_Child_Restore_Task_Runner::is_restore_type( 'restore_files' ) );
+	}
+
+	/**
+	 * A files sub_type creates a restore_files task.
+	 */
+	public function test_create_restore_files_task_creates_restore_files_type() {
+		$task_id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		$task    = $this->spine->get_task( $task_id );
+
+		$this->assertSame( 'restore_files', $task->type );
+	}
+
+	/**
+	 * A files-only restore extracts the archive and applies tombstones,
+	 * completes through the verify phase, and never touches a database
+	 * phase: no replay, no swap, no tmp-table cleanup, no maintenance
+	 * mode.
+	 */
+	public function test_files_only_restore_pipeline_completes_without_db_phases() {
+		file_put_contents( $this->site . '/stale.txt', 'old' ); // phpcs:ignore -- fixture.
+
+		$task_id = $this->make_task(
+			'files',
+			array( $this->make_files_archive_artifact(), $this->make_tombstones_artifact() )
+		);
+
+		// Task creation runs the idempotency sweep for every restore
+		// type; the assertion below is about the pipeline phases.
+		$this->runner->fake_engine->calls = array();
+
+		$task = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'restored-content', file_get_contents( $this->site . '/wp-content/uploads/restored.txt' ) );
+		$this->assertFileDoesNotExist( $this->site . '/stale.txt' );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'verify_row_counts', $calls );
+		foreach ( $calls as $call ) {
+			$this->assertStringNotContainsString( 'replay_slice', $call );
+			$this->assertStringNotContainsString( 'swap_tables', $call );
+			$this->assertStringNotContainsString( 'cleanup_tmp_tables', $call );
+			$this->assertStringNotContainsString( 'exit_maintenance', $call );
+		}
+
+		// Scratch staging is gone after a verified restore.
+		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
 	}
 }

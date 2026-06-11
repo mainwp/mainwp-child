@@ -130,4 +130,27 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 		$this->spine->create_task( 'restore', array() );
 		$this->assertNotEmpty( $this->spine->get_active_tasks() );
 	}
+
+	/**
+	 * The files-only restore chain extracts files and verifies the site,
+	 * never entering a database phase.
+	 */
+	public function test_restore_files_type_phase_order() {
+		$this->assertSame(
+			array(
+				MainWP_Child_Backup_Task::PHASE_QUEUED,
+				MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS,
+				MainWP_Child_Backup_Task::PHASE_VERIFYING_ARTIFACTS,
+				MainWP_Child_Backup_Task::PHASE_RESTORING_FILES,
+				MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY,
+				MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			),
+			$this->walk_chain( 'restore_files' )
+		);
+
+		$chain = $this->walk_chain( 'restore_files' );
+		$this->assertNotContains( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $chain );
+		$this->assertNotContains( MainWP_Child_Backup_Task::PHASE_SWAPPING_DB, $chain );
+		$this->assertNotContains( MainWP_Child_Backup_Task::PHASE_REWRITING_URLS, $chain );
+	}
 }
