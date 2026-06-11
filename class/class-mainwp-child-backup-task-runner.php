@@ -409,7 +409,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $sub_state['archive_file'],
                 $append,
                 $deadline,
-                isset( $sub_state['db_files'] ) ? $sub_state['db_files'] : array()
+                isset( $sub_state['db_files'] ) ? $sub_state['db_files'] : array(),
+                'files' === $task->type
             );
         } catch ( MainWP_Backup_Budget_Exception $e ) {
             unset( $e );
@@ -1117,12 +1118,13 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param bool   $append       Whether a previous slice already started the archive.
      * @param int    $deadline     Slice deadline (unix time).
      * @param array  $db_files     Pre-produced dump files.
+     * @param bool   $skip_db      Whether the archive embeds no database dump (files-only backups).
      *
      * @throws MainWP_Exception When the archiver fails, or its budget subclass when the slice budget interrupts the traversal.
      *
      * @return array Result with file/filesize keys.
      */
-    protected function run_file_archiver( $params, $archive_file, $append, $deadline, $db_files ) { // phpcs:ignore -- NOSONAR - engine boundary.
+    protected function run_file_archiver( $params, $archive_file, $append, $deadline, $db_files, $skip_db = false ) { // phpcs:ignore -- NOSONAR - engine boundary.
         $backup = MainWP_Backup::get();
         $ext    = isset( $params['ext'] ) ? $params['ext'] : 'zip';
 
@@ -1135,7 +1137,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $append = false;
         }
 
-        if ( ! empty( $db_files ) ) {
+        if ( $skip_db ) {
+            // An empty prepared set makes the engine skip dumping
+            // entirely: a files-only archive embeds no database.
+            $backup->set_prepared_db_files( array() );
+        } elseif ( ! empty( $db_files ) ) {
             $backup->set_prepared_db_files( $db_files );
         }
         $backup->set_slice_deadline( $deadline );

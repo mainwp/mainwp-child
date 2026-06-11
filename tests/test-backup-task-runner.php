@@ -143,11 +143,12 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 	 * @param bool   $append       Resume an existing archive.
 	 * @param int    $deadline     Slice deadline.
 	 * @param array  $db_files     Pre-produced dump files.
+	 * @param bool   $skip_db      Whether the archive embeds no database dump.
 	 *
 	 * @return array Result with file/filesize.
 	 */
-	protected function run_file_archiver( $params, $archive_file, $append, $deadline, $db_files ) {
-		return $this->stub( 'run_file_archiver', array( $params, $archive_file, $append, $deadline, $db_files ) );
+	protected function run_file_archiver( $params, $archive_file, $append, $deadline, $db_files, $skip_db = false ) {
+		return $this->stub( 'run_file_archiver', array( $params, $archive_file, $append, $deadline, $db_files, $skip_db ) );
 	}
 
 	/**
@@ -360,7 +361,8 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A files backup never dumps the database.
+	 * A files backup never dumps the database - neither in its own dump
+	 * phase (it has none) nor through the archiver's embedded fallback.
 	 */
 	public function test_files_kind_skips_dump() {
 		$task_id = $this->create_task( 'files' );
@@ -370,6 +372,15 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertNotContains( 'tier1_available', $this->runner->seam_names() );
 		$this->assertNotContains( 'dump_tier1', $this->runner->seam_names() );
 		$this->assertContains( 'run_file_archiver', $this->runner->seam_names() );
+
+		$archiver_call = null;
+		foreach ( $this->runner->calls as $call ) {
+			if ( 'run_file_archiver' === $call[0] ) {
+				$archiver_call = $call;
+			}
+		}
+		$this->assertNotNull( $archiver_call );
+		$this->assertTrue( $archiver_call[6], 'A files backup must tell the archiver to embed no database dump.' );
 	}
 
 	/**
@@ -397,6 +408,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			$archiver_call[5],
 			'The archiver must receive the dump files produced by the dump phase'
 		);
+		$this->assertFalse( $archiver_call[6], 'A full backup embeds its dump set.' );
 
 		$dump_calls = array_filter(
 			$this->runner->seam_names(),
