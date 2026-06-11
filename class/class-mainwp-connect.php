@@ -958,7 +958,16 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             // Token-less path - kept for Dashboards that predate download
-            // authorization tokens.
+            // authorization tokens. Once the connected dashboard has
+            // completed a token-authorized download, the ratchet refuses
+            // this path for good; see
+            // MainWP_Child_Backup_Download_Token::is_token_required().
+            if ( MainWP_Child_Backup_Download_Token::instance()->is_token_required() ) {
+                if ( ! headers_sent() ) {
+                    http_response_code( 401 );
+                }
+                exit;
+            }
             MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
             exit;
         }

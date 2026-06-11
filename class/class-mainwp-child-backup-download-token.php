@@ -31,6 +31,14 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
     const TTL              = HOUR_IN_SECONDS;
 
     /**
+     * Option holding the token-required ratchet. Set to 1 after the
+     * first successful token-authorized download and never cleared by
+     * the plugin: the connected dashboard proved it sends tokens, so
+     * the tokenless legacy path has no caller left.
+     */
+    const OPTION_REQUIRE_TOKEN = 'mainwp_require_download_token';
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -197,7 +205,23 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
         $this->audit( 'download_ok', basename( $result['full_path'] ), $size, '' );
         MainWP_Helper::log_debug( 'backup_download_token: streaming ' . basename( $result['full_path'] ) );
 
+        // The ratchet: this download just proved the connected dashboard
+        // sends tokens, so tokenless backup downloads are refused from
+        // here on. A dashboard migrated to a new install obtains tokens
+        // the same way - the requirement binds to the token mechanism,
+        // never to a particular dashboard.
+        update_option( self::OPTION_REQUIRE_TOKEN, 1, false );
+
         return $result;
+    }
+
+    /**
+     * Whether tokenless backup downloads are refused on this site.
+     *
+     * @return bool True once the ratchet has clicked.
+     */
+    public function is_token_required() {
+        return 1 === (int) get_option( self::OPTION_REQUIRE_TOKEN, 0 );
     }
 
     /**
