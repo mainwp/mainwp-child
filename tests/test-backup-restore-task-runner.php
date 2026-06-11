@@ -44,6 +44,13 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public $calls = array();
 
 	/**
+	 * Last config handed to replay_slice.
+	 *
+	 * @var array|null
+	 */
+	public $last_replay_config = null;
+
+	/**
 	 * Scripted replay.
 	 *
 	 * @param array     $cursor   Cursor.
@@ -54,7 +61,8 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 * @return array Slice result.
 	 */
 	public function replay_slice( $cursor, $config, $deadline, $unclean = false ) {
-		$this->calls[] = 'replay_slice' . ( $unclean ? ':unclean' : '' ) . ( ! empty( $config['fk_path'] ) ? ':fk' : '' );
+		$this->calls[]            = 'replay_slice' . ( $unclean ? ':unclean' : '' ) . ( ! empty( $config['fk_path'] ) ? ':fk' : '' );
+		$this->last_replay_config = $config;
 		if ( null !== $this->replay_error ) {
 			return array(
 				'done'       => false,
@@ -370,6 +378,40 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Build a plain-full-style archive in the backup dir: site files plus
+	 * the embedded per-table dump and zero-byte marker a full backup
+	 * carries, with no separate db artifact.
+	 *
+	 * @param bool $bannerless Whether the embedded dump omits its banner.
+	 *
+	 * @return array Artifact entry.
+	 */
+	protected function make_full_archive_with_embedded_dump( $bannerless = false ) {
+		$sql = '<?php exit(); ?>' . "\n";
+		if ( ! $bannerless ) {
+			$sql .= '-- mainwp-backup-info: {"site_url":"' . site_url() . '","home_url":"' . home_url() . '","table_prefix":"bn_"}' . "\n"
+				. '-- mainwp-backup-meta: {"has_foreign_keys":false,"tier":1}' . "\n";
+		}
+		$sql .= "\nDROP TABLE IF EXISTS `bn_items`;\nCREATE TABLE `bn_items` (id INT);\nINSERT INTO `bn_items` (`id`) VALUES (1),(2);\n";
+
+		$zip_path = $this->dir . '/full001.zip';
+		$zip      = new ZipArchive();
+		$zip->open( $zip_path, ZipArchive::CREATE );
+		$zip->addFromString( 'wp-content/uploads/restored.txt', 'restored-content' );
+		$zip->addFromString( 'wp-content/dbBackup-bn_items.sql.php', $sql );
+		$zip->addFromString( 'wp-content/dbBackup.sql', '' );
+		$zip->close();
+
+		return array(
+			'role'       => 'part',
+			'file'       => 'full001.zip',
+			'size'       => (int) filesize( $zip_path ),
+			'sha256'     => hash_file( 'sha256', $zip_path ),
+			'adopt_only' => false,
+		);
+	}
+
+	/**
 	 * Build a tombstones artifact in the backup dir.
 	 *
 	 * @return array Artifact entry.
@@ -507,6 +549,88 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( $calls as $call ) {
 			$this->assertStringNotContainsString( 'swap_tables', $call );
 		}
+	}
+
+	/**
+	 * A plain full archive with no separate db artifact replays the
+	 * embedded dump the file phase extracted, honoring the dump banner's
+	 * prefix, and completes - then sweeps the dump files off the site.
+	 */
+	public function test_full_archive_restore_replays_embedded_dump() {
+		$task_id = $this->make_task(
+			'full',
+			array( $this->make_full_archive_with_embedded_dump() ),
+			array(
+				'source_prefix'    => '',
+				'has_foreign_keys' => false,
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'restored-content', file_get_contents( $this->site . '/wp-content/uploads/restored.txt' ) );
+
+		$config = $this->runner->fake_engine->last_replay_config;
+		$this->assertSame( 'bn_', $config['source_prefix'], 'The embedded dump banner declares the source prefix.' );
+		$this->assertSame( array( $this->site . '/wp-content/dbBackup-bn_items.sql.php' ), $config['files'] );
+
+		// The dump files are restore byproducts: replayed, then swept.
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/dbBackup-bn_items.sql.php' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/dbBackup.sql' );
+	}
+
+	/**
+	 * A bannerless embedded dump (older full backups) defaults its source
+	 * prefix to the live prefix - the only sane default for a same-site
+	 * restore.
+	 */
+	public function test_bannerless_embedded_dump_defaults_to_live_prefix() {
+		$task_id = $this->make_task(
+			'full',
+			array( $this->make_full_archive_with_embedded_dump( true ) ),
+			array(
+				'source_prefix'    => '',
+				'has_foreign_keys' => false,
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'rt_', $this->runner->fake_engine->last_replay_config['source_prefix'] );
+	}
+
+	/**
+	 * Stale dump litter a previous restore deposited is swept after the
+	 * replay even when this restore carries its own db artifact.
+	 */
+	public function test_dump_litter_is_swept_after_replay() {
+		mkdir( $this->site . '/wp-content', 0777, true );
+		file_put_contents( $this->site . '/dbBackup-old.sql.php', 'stale' ); // phpcs:ignore -- fixture.
+		file_put_contents( $this->site . '/dbBackup.sql', '' ); // phpcs:ignore -- fixture.
+		file_put_contents( $this->site . '/wp-content/dbBackup-options.sql.php', 'stale' ); // phpcs:ignore -- fixture.
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertFileDoesNotExist( $this->site . '/dbBackup-old.sql.php' );
+		$this->assertFileDoesNotExist( $this->site . '/dbBackup.sql' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/dbBackup-options.sql.php' );
+	}
+
+	/**
+	 * No db artifact and no embedded dumps is a terminal failure with a
+	 * clear message, not a silent files-only restore.
+	 */
+	public function test_no_db_artifact_and_no_embedded_dump_fails() {
+		$task_id = $this->make_task( 'full', array( $this->make_part_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $payload['error_code'] );
+		$this->assertStringContainsString( 'No database artifact', $payload['error'] );
 	}
 
 	/**
