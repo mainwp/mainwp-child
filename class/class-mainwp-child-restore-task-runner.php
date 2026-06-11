@@ -298,7 +298,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             );
         }
 
-        if ( '' === $chunk_sha256 || ! hash_equals( $chunk_sha256, hash( 'sha256', $raw ) ) ) {
+        if ( ! MainWP_Child_Chunk_Append_Helper::valid_chunk_hash( $raw, $chunk_sha256 ) ) {
             return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CHUNK_HASH ), MainWP_Backup_Error::ERR_CHUNK_HASH );
         }
 
@@ -307,29 +307,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return $this->chunk_ack( $spine, $task, $file, $size );
         }
 
-        if ( '' !== $raw ) {
-            $fh = fopen( $path, 'ab' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append to the staging file.
-            if ( false === $fh || strlen( $raw ) !== fwrite( $fh, $raw ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append.
-                if ( false !== $fh ) {
-                    fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-                }
-                return $this->chunk_error( esc_html__( 'The artifact data could not be written. The site may be out of disk space.', 'mainwp-child' ), MainWP_Backup_Error::ERR_DISK_FULL );
-            }
-            fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-            $size = (int) filesize( $path );
+        $write_error = MainWP_Child_Chunk_Append_Helper::append_chunk( $path, $raw, $offset );
+        if ( null !== $write_error ) {
+            return $this->chunk_error( esc_html__( 'The artifact data could not be written. The site may be out of disk space.', 'mainwp-child' ), $write_error );
         }
-
-        if ( ! file_exists( $path ) && 0 === $offset && '' === $raw ) {
-            // A zero-byte artifact (an empty tombstones list) still needs
-            // its file so the final hash check and the apply phase see it.
-            file_put_contents( $path, '' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- creating the empty staging file.
+        if ( '' !== $raw ) {
+            $size = (int) filesize( $path );
         }
 
         $done = false;
         if ( $is_final ) {
             $expected_hash = isset( $expected['sha256'] ) ? (string) $expected['sha256'] : '';
-            $actual        = hash_file( 'sha256', $path );
-            if ( '' === $expected_hash || ! is_string( $actual ) || ! hash_equals( $expected_hash, $actual ) ) {
+            if ( ! MainWP_Child_Chunk_Append_Helper::verify_final( $path, $expected_hash ) ) {
                 wp_delete_file( $path );
                 return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ARTIFACT_CORRUPT ), MainWP_Backup_Error::ERR_ARTIFACT_CORRUPT );
             }
