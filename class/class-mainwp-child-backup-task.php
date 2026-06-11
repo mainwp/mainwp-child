@@ -566,6 +566,91 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Prune a terminal task: delete its artifact files and sidecar from
+     * the backup directory, then its row. The dashboard calls this when
+     * retention removes the backups a run produced. Running tasks are
+     * refused, and a missing row counts as already pruned so the call is
+     * idempotent.
+     *
+     * @param string $task_id    Task id.
+     * @param string $backup_dir Backup directory holding the artifacts.
+     *
+     * @return string One of 'pruned', 'active', 'missing'.
+     */
+    public function prune_task( $task_id, $backup_dir ) {
+        $task = $this->get_task( $task_id );
+        if ( null === $task ) {
+            return 'missing';
+        }
+
+        if ( ! self::is_terminal_phase( $task->phase ) ) {
+            return 'active';
+        }
+
+        $sub_state = $this->read_sub_state( $task, $backup_dir );
+        $files     = array();
+
+        if ( is_array( $sub_state ) ) {
+            if ( isset( $sub_state['artifact']['file'] ) ) {
+                $files[] = (string) $sub_state['artifact']['file'];
+            }
+            if ( ! empty( $sub_state['artifacts'] ) && is_array( $sub_state['artifacts'] ) ) {
+                foreach ( $sub_state['artifacts'] as $entry ) {
+                    if ( ! empty( $entry['file'] ) ) {
+                        $files[] = (string) $entry['file'];
+                    }
+                }
+            }
+        }
+
+        foreach ( array_unique( $files ) as $file ) {
+            $path = rtrim( $backup_dir, '/' ) . '/' . basename( $file );
+            if ( is_file( $path ) ) {
+                wp_delete_file( $path );
+            }
+        }
+
+        $this->delete_sidecar( $task_id, $backup_dir );
+
+        global $wpdb;
+        $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
+            $wpdb->prepare(
+                'DELETE FROM ' . $this->get_table_name() . ' WHERE task_id = %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                $task_id
+            )
+        );
+
+        return 'pruned';
+    }
+
+    /**
+     * Sweep stale legacy run leftovers from the backup directory: .pid and
+     * .done markers and old db dump fragments past the age threshold. No
+     * task row tracks these, so age is the only signal. Archives are never
+     * touched, whatever their age - artifact deletion is prune_task's job
+     * and only ever by name.
+     *
+     * @param string $backup_dir  Backup directory.
+     * @param int    $age_seconds Minimum age before a leftover is stale.
+     */
+    public function sweep_stale_markers( $backup_dir, $age_seconds = 10800 ) {
+        $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*' );
+        $cutoff   = time() - $age_seconds;
+
+        foreach ( $patterns as $pattern ) {
+            $matches = glob( rtrim( $backup_dir, '/' ) . '/' . $pattern );
+            if ( ! is_array( $matches ) ) {
+                continue;
+            }
+            foreach ( $matches as $file ) {
+                if ( is_file( $file ) && filemtime( $file ) < $cutoff ) {
+                    wp_delete_file( $file );
+                }
+            }
+        }
+    }
+
+    /**
      * Get all non-terminal tasks.
      *
      * @return object[] Task rows.

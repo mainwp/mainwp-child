@@ -51,6 +51,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_task_status'       => 'backup_task_status',
         'backup_task_create'       => 'backup_task_create',
         'backup_task_run'          => 'backup_task_run',
+        'backup_task_prune'        => 'backup_task_prune',
         'backup_download_token'    => 'backup_download_token',
         'cloneinfo'                => 'cloneinfo',
         'security'                 => 'get_security_stats',
@@ -717,6 +718,65 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $task = MainWP_Child_Backup_Task_Runner::instance()->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
 
         MainWP_Helper::write( $spine->status_payload( $task ) );
+    }
+
+    /**
+     * Method backup_task_prune()
+     *
+     * Clean up after backups the Dashboard's retention removed: delete the
+     * named terminal task rows with their artifact files and sidecars, then
+     * sweep stale legacy markers and db dump fragments from the backup
+     * directory. Running tasks are refused and report as skipped.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Task::prune_task()
+     * @uses \MainWP\Child\MainWP_Child_Backup_Task::sweep_stale_markers()
+     */
+    public function backup_task_prune() {
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated MainWP request.
+        $raw_ids  = isset( $_POST['task_ids'] ) ? wp_unslash( $_POST['task_ids'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- decoded and per-item sanitized below.
+        $do_sweep = ! isset( $_POST['sweep'] ) || '1' === $_POST['sweep'];
+        // phpcs:enable WordPress.Security.NonceVerification
+
+        $task_ids = json_decode( (string) $raw_ids, true );
+        if ( ! is_array( $task_ids ) ) {
+            $task_ids = array();
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+
+        $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $backup_dir = $dirs[0];
+
+        $counts = array(
+            'pruned'  => 0,
+            'active'  => 0,
+            'missing' => 0,
+        );
+
+        foreach ( $task_ids as $task_id ) {
+            $task_id = sanitize_text_field( (string) $task_id );
+            if ( '' === $task_id ) {
+                continue;
+            }
+            $outcome = $spine->prune_task( $task_id, $backup_dir );
+            if ( isset( $counts[ $outcome ] ) ) {
+                ++$counts[ $outcome ];
+            }
+        }
+
+        if ( $do_sweep ) {
+            $spine->sweep_stale_markers( $backup_dir );
+        }
+
+        MainWP_Helper::write(
+            array(
+                'result'  => 'ok',
+                'pruned'  => $counts['pruned'],
+                'active'  => $counts['active'],
+                'missing' => $counts['missing'],
+            )
+        );
     }
 
     /**
