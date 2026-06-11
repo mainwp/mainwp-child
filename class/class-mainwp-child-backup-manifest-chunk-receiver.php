@@ -91,7 +91,7 @@ class MainWP_Child_Backup_Manifest_Chunk_Receiver { // phpcs:ignore Generic.Clas
      *               { error, error_code, bytes_received? }.
      */
     public function receive_chunk( $mtoken, $offset, $raw, $chunk_sha256, $total_sha256, $is_final ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- ordered integrity gates on the only write path from the wire.
-        if ( '' === $chunk_sha256 || ! hash_equals( $chunk_sha256, hash( 'sha256', $raw ) ) ) {
+        if ( ! MainWP_Child_Chunk_Append_Helper::valid_chunk_hash( $raw, $chunk_sha256 ) ) {
             return $this->chunk_error( MainWP_Backup_Error::ERR_CHUNK_HASH );
         }
 
@@ -135,27 +135,18 @@ class MainWP_Child_Backup_Manifest_Chunk_Receiver { // phpcs:ignore Generic.Clas
             return $this->chunk_error( MainWP_Backup_Error::ERR_MANIFEST_TOO_LARGE );
         }
 
+        $write_error = MainWP_Child_Chunk_Append_Helper::append_chunk( $path, $raw, $offset );
+        if ( null !== $write_error ) {
+            return $this->chunk_error( $write_error );
+        }
         if ( '' !== $raw ) {
-            $fh = fopen( $path, 'ab' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append to the staging file.
-            if ( false === $fh || strlen( $raw ) !== fwrite( $fh, $raw ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append.
-                if ( false !== $fh ) {
-                    fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-                }
-                return $this->chunk_error( MainWP_Backup_Error::ERR_DISK_FULL );
-            }
-            fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
             clearstatcache( true, $path );
             $size = (int) filesize( $path );
         }
 
-        if ( ! file_exists( $path ) && 0 === $offset && '' === $raw ) {
-            file_put_contents( $path, '' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- creating the empty staging file.
-        }
-
         if ( $is_final ) {
             $expected = isset( $session['total_sha256'] ) ? (string) $session['total_sha256'] : '';
-            $actual   = hash_file( 'sha256', $path );
-            if ( '' === $expected || ! is_string( $actual ) || ! hash_equals( $expected, $actual ) ) {
+            if ( ! MainWP_Child_Chunk_Append_Helper::verify_final( $path, $expected ) ) {
                 $this->discard_session( $mtoken, $path );
                 return $this->chunk_error( MainWP_Backup_Error::ERR_MANIFEST_CHUNK_CORRUPT );
             }
