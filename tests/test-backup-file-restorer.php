@@ -298,6 +298,26 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A tar.gz part extracts through the same guard and cursor (the
+	 * dashboard's default archive format is tar.gz).
+	 */
+	public function test_tar_gz_part_extracted() {
+		$tar = $this->dir . '/dump.tar';
+		$phar = new PharData( $tar );
+		$phar->addFromString( 'dbBackup-wp_a.sql.php', '<?php exit(); ?>' . "\nCREATE TABLE `wp_a` (id INT);\n" );
+		$phar->addFromString( 'sub/nested.txt', 'nested-bytes' );
+		$phar->compress( Phar::GZ );
+		unset( $phar );
+		Phar::unlinkArchive( $tar );
+
+		$result = $this->run_all( $this->config( array( $tar . '.gz' ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertStringContainsString( 'CREATE TABLE', file_get_contents( $this->extract_to . '/dbBackup-wp_a.sql.php' ) );
+		$this->assertSame( 'nested-bytes', file_get_contents( $this->extract_to . '/sub/nested.txt' ) );
+	}
+
+	/**
 	 * An unreadable archive is a coded failure.
 	 */
 	public function test_unopenable_archive_fails() {

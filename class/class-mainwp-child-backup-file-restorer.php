@@ -70,36 +70,246 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 }
             }
 
-            $zip = new \ZipArchive();
-            if ( true !== $zip->open( $part ) ) {
-                return $this->result( false, $cursor, 'Could not open archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            $outcome = $this->is_tar_archive( $part )
+                ? $this->extract_tar_part( $part, $extract_to, $cursor, $deadline, $did_work )
+                : $this->extract_zip_part( $part, $extract_to, $cursor, $deadline, $did_work );
+            if ( null !== $outcome ) {
+                return $outcome;
             }
 
-            $entry_count = (int) $zip->numFiles;
-            while ( $cursor['entry_index'] < $entry_count ) {
-                if ( $did_work && microtime( true ) >= $deadline ) {
-                    $zip->close();
-                    return $this->result( false, $cursor, null, null );
-                }
-
-                $name = $zip->getNameIndex( $cursor['entry_index'] );
-                try {
-                    $this->extract_entry( $zip, $name, $extract_to );
-                } catch ( \Exception $e ) {
-                    $zip->close();
-                    return $this->result( false, $cursor, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
-                }
-
-                ++$cursor['entry_index'];
-                $did_work = true;
-            }
-
-            $zip->close();
             ++$cursor['part_index'];
             $cursor['entry_index'] = 0;
         }
 
         return $this->result( true, $cursor, null, null );
+    }
+
+    /**
+     * Whether an archive is a tar variant (PharData-readable).
+     *
+     * @param string $part Archive path.
+     *
+     * @return bool True for .tar, .tar.gz, and .tar.bz2.
+     */
+    private function is_tar_archive( $part ) {
+        return (bool) preg_match( '/\.tar(\.gz|\.bz2)?$/i', $part );
+    }
+
+    /**
+     * Extract one zip part from the entry cursor.
+     *
+     * Returns null when the part finished; a slice result on yield or
+     * error.
+     *
+     * @param string $part       Archive path.
+     * @param string $extract_to Extraction root.
+     * @param array  $cursor     Cursor (by reference).
+     * @param mixed  $deadline   Slice deadline.
+     * @param bool   $did_work   Work flag (by reference).
+     *
+     * @return array|null Slice result to propagate, or null.
+     */
+    private function extract_zip_part( $part, $extract_to, &$cursor, $deadline, &$did_work ) {
+        $zip = new \ZipArchive();
+        if ( true !== $zip->open( $part ) ) {
+            return $this->result( false, $cursor, 'Could not open archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+        }
+
+        $entry_count = (int) $zip->numFiles;
+        while ( $cursor['entry_index'] < $entry_count ) {
+            if ( $did_work && microtime( true ) >= $deadline ) {
+                $zip->close();
+                return $this->result( false, $cursor, null, null );
+            }
+
+            $name = $zip->getNameIndex( $cursor['entry_index'] );
+            try {
+                $this->extract_entry( $zip, $name, $extract_to );
+            } catch ( \Exception $e ) {
+                $zip->close();
+                return $this->result( false, $cursor, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            }
+
+            ++$cursor['entry_index'];
+            $did_work = true;
+        }
+
+        $zip->close();
+        return null;
+    }
+
+    /**
+     * Extract one tar/tar.gz/tar.bz2 part from the entry cursor.
+     *
+     * PharData reads compressed tars without shelling out and stays
+     * PHP 7.4 compatible. Entries enumerate in a stable sorted order so
+     * the numeric cursor survives a yield.
+     *
+     * @param string $part       Archive path.
+     * @param string $extract_to Extraction root.
+     * @param array  $cursor     Cursor (by reference).
+     * @param mixed  $deadline   Slice deadline.
+     * @param bool   $did_work   Work flag (by reference).
+     *
+     * @throws \Exception When an entry cannot be read or written (caught
+     *                    and converted to a coded slice result).
+     *
+     * @return array|null Slice result to propagate, or null.
+     */
+    private function extract_tar_part( $part, $extract_to, &$cursor, $deadline, &$did_work ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- bounded extraction loop with integrity gates.
+        // Phar reads of compressed tars are unreliable across PHP builds
+        // (8.4 returns empty entry streams), so compressed parts gunzip
+        // to a plain .tar first; the plain-tar reader is solid everywhere.
+        $plain = $this->plain_tar_for( $part );
+        if ( null === $plain ) {
+            return $this->result( false, $cursor, 'Could not decompress archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+        }
+
+        try {
+            $phar    = new \PharData( $plain );
+            $entries = $this->tar_entry_names( $phar );
+        } catch ( \Throwable $e ) {
+            $this->discard_plain_tar( $part, $plain );
+            return $this->result( false, $cursor, 'Could not open archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+        }
+
+        $entry_count = count( $entries );
+        while ( $cursor['entry_index'] < $entry_count ) {
+            if ( $did_work && microtime( true ) >= $deadline ) {
+                return $this->result( false, $cursor, null, null );
+            }
+
+            $entry = $entries[ $cursor['entry_index'] ];
+            try {
+                if ( $entry['dir'] ) {
+                    $target = static::validate_extract_path( rtrim( $entry['name'], '/' ), $extract_to );
+                    if ( ! is_dir( $target ) ) {
+                        wp_mkdir_p( $target );
+                    }
+                } else {
+                    $target = static::validate_extract_path( $entry['name'], $extract_to );
+                    $stream = fopen( $entry['phar_url'], 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming extraction from the tar.
+                    if ( false === $stream ) {
+                        throw new \Exception( sprintf( 'Could not read archive entry: %s.', esc_html( $entry['name'] ) ) );
+                    }
+                    $out = fopen( $target, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming extraction to the validated path.
+                    if ( false === $out ) {
+                        fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                        throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry['name'] ) ) );
+                    }
+                    stream_copy_to_stream( $stream, $out );
+                    fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                    fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                }
+            } catch ( \Exception $e ) {
+                return $this->result( false, $cursor, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            }
+
+            ++$cursor['entry_index'];
+            $did_work = true;
+        }
+
+        $this->discard_plain_tar( $part, $plain );
+        return null;
+    }
+
+    /**
+     * Resolve a tar part to a plain (uncompressed) tar on disk.
+     *
+     * A .tar passes through; .tar.gz streams through zlib into a
+     * sibling temp file that persists across slice yields and is
+     * removed when the part finishes.
+     *
+     * @param string $part Archive path.
+     *
+     * @return string|null Plain tar path, or null on failure.
+     */
+    private function plain_tar_for( $part ) {
+        if ( ! preg_match( '/\.tar\.gz$/i', $part ) ) {
+            return $part;
+        }
+
+        $plain = $part . '.plain.tar';
+        if ( file_exists( $plain ) && filesize( $plain ) > 0 ) {
+            return $plain; // A prior slice already decompressed it.
+        }
+
+        $in = gzopen( $part, 'rb' );
+        if ( false === $in ) {
+            return null;
+        }
+        $out = fopen( $plain . '.tmp', 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming decompression.
+        if ( false === $out ) {
+            gzclose( $in );
+            return null;
+        }
+        while ( ! gzeof( $in ) ) {
+            $chunk = gzread( $in, 262144 );
+            if ( false === $chunk || strlen( $chunk ) !== fwrite( $out, $chunk ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming decompression.
+                gzclose( $in );
+                fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                wp_delete_file( $plain . '.tmp' );
+                return null;
+            }
+        }
+        gzclose( $in );
+        fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+
+        if ( ! rename( $plain . '.tmp', $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic promote.
+            return null;
+        }
+        return $plain;
+    }
+
+    /**
+     * Remove the decompressed sibling once a part finishes.
+     *
+     * @param string $part  Original archive path.
+     * @param string $plain Plain tar path in use.
+     */
+    private function discard_plain_tar( $part, $plain ) {
+        if ( $plain !== $part && file_exists( $plain ) ) {
+            wp_delete_file( $plain );
+        }
+    }
+
+    /**
+     * Enumerate a tar's entries in a stable order.
+     *
+     * The relative name (for the extraction path guard) derives from
+     * the iterator's own phar URL, which is also kept verbatim as the
+     * read source - PharData aliases compressed archives internally,
+     * so a URL reconstructed from the on-disk file name can miss.
+     *
+     * @param \PharData $phar Open archive.
+     *
+     * @return array<int,array{name:string,dir:bool,phar_url:string}> Sorted entries.
+     */
+    private function tar_entry_names( $phar ) {
+        $prefix  = 'phar://' . $phar->getPath() . '/';
+        $entries = array();
+
+        $iterator = new \RecursiveIteratorIterator( $phar, \RecursiveIteratorIterator::SELF_FIRST );
+        foreach ( $iterator as $item ) {
+            $phar_url = (string) $item->getPathname();
+            $name     = 0 === strpos( $phar_url, $prefix ) ? substr( $phar_url, strlen( $prefix ) ) : '';
+            if ( '' === $name ) {
+                continue;
+            }
+            $entries[] = array(
+                'name'     => str_replace( '\\', '/', $name ),
+                'dir'      => $item->isDir(),
+                'phar_url' => $phar_url,
+            );
+        }
+
+        usort(
+            $entries,
+            function ( $a, $b ) {
+                return strcmp( $a['name'], $b['name'] );
+            }
+        );
+        return $entries;
     }
 
     /**
