@@ -1185,6 +1185,7 @@ class MainWP_Backup {
             'task_spine'      => 1,
             'download_token'  => 1,
             'incremental'     => 1,
+            'manifest_chunk'  => 1,
         );
 
         // 1. Backup directory writable (randomized directory, created on demand).

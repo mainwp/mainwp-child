@@ -161,6 +161,27 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * An orphaned staged manifest (its task-create never arrived) is
+	 * swept once stale; a fresh one may belong to a transfer in flight.
+	 */
+	public function test_sweep_removes_stale_staged_manifests() {
+		$old = time() - 4 * 3600;
+
+		$stale_staged = $this->backup_dir . '/manifest-staged-aaaabbbbcccc0000.list';
+		$fresh_staged = $this->backup_dir . '/manifest-staged-dddd111122223333.list';
+
+		foreach ( array( $stale_staged, $fresh_staged ) as $file ) {
+			file_put_contents( $file, 'x' );
+		}
+		touch( $stale_staged, $old );
+
+		MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
+
+		$this->assertFileDoesNotExist( $stale_staged );
+		$this->assertFileExists( $fresh_staged );
+	}
+
+	/**
 	 * The prune action is dashboard-callable.
 	 */
 	public function test_prune_callable_registered() {

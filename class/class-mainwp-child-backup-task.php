@@ -657,7 +657,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param int    $age_seconds Minimum age before a leftover is stale.
      */
     public function sweep_stale_markers( $backup_dir, $age_seconds = 10800 ) {
-        $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*' );
+        $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
         $cutoff   = time() - $age_seconds;
 
         foreach ( $patterns as $pattern ) {
