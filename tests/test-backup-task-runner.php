@@ -163,6 +163,55 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 	}
 
 	/**
+	 * Site root override for the pack loop.
+	 *
+	 * @var string
+	 */
+	public $test_site_root = '';
+
+	/**
+	 * Pack-loop site root: the test fixture tree when set.
+	 *
+	 * @return string Root with a trailing slash.
+	 */
+	protected function site_root() {
+		return '' !== $this->test_site_root ? $this->test_site_root : parent::site_root();
+	}
+
+	/**
+	 * Incremental diff seam: stubbed when set, otherwise the real diff
+	 * runs against the fixture lists.
+	 *
+	 * @param string $parent_path     Parent files.list path.
+	 * @param string $current_path    Current staged files.list path.
+	 * @param string $changes_path    changes.list output path.
+	 * @param string $tombstones_path tombstones.list output path.
+	 *
+	 * @return array Diff result.
+	 */
+	protected function run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path ) {
+		if ( isset( $this->stubs['run_incremental_diff'] ) ) {
+			return $this->stub( 'run_incremental_diff', array( $parent_path, $current_path, $changes_path, $tombstones_path ) );
+		}
+		$this->calls[] = array( 'run_incremental_diff', $parent_path, $current_path, $changes_path, $tombstones_path );
+		return parent::run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path );
+	}
+
+	/**
+	 * Pack budget seam: stubbed when set, otherwise the real clock.
+	 *
+	 * @param int $deadline Slice deadline.
+	 *
+	 * @return bool Exhausted state.
+	 */
+	protected function pack_budget_exhausted( $deadline ) {
+		if ( isset( $this->stubs['pack_budget_exhausted'] ) ) {
+			return (bool) $this->stub( 'pack_budget_exhausted', array( $deadline ) );
+		}
+		return parent::pack_budget_exhausted( $deadline );
+	}
+
+	/**
 	 * Manifest sidecar promotion stub.
 	 *
 	 * @param string $backup_dir Scratch directory.

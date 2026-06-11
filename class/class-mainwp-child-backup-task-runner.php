@@ -375,6 +375,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $this->slice_result( $version, true );
         }
 
+        if ( 'incremental' === $task->type ) {
+            return $this->run_incremental_archiving( $task, $version, $sub_state, $deadline, $backup_dir );
+        }
+
         $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
 
         if ( empty( $sub_state['archive_file'] ) ) {
@@ -445,6 +449,345 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Archive only what changed since the parent snapshot, bounded.
+     *
+     * Step 1 (once): resolve the parent manifest, walk the current tree
+     * into staged sidecars, and diff - changes.list and tombstones.list
+     * land on disk and the slice yields so packing starts with a fresh
+     * budget. Step 2 (resumable): pack changes.list into rotating
+     * per-component ZIP parts, the cursor being the changes.list line
+     * number. Step 3: archive the fresh database dump and record the
+     * role-tagged artifact list.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param int    $deadline   Slice deadline.
+     * @param string $backup_dir Scratch directory.
+     *
+     * @throws MainWP_Exception When the parent manifest is unusable (the
+     *                          Dashboard reruns the site as a full backup)
+     *                          or an artifact cannot be created.
+     *
+     * @return array Slice result.
+     */
+    protected function run_incremental_archiving( $task, $version, $sub_state, $deadline, $backup_dir ) { // phpcs:ignore -- NOSONAR - staged diff/pack flow.
+        $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
+        $dir    = rtrim( $backup_dir, '/' ) . '/';
+
+        if ( empty( $sub_state['diff_done'] ) ) {
+            $parent_path = $this->resolve_parent_manifest( $sub_state, $backup_dir );
+
+            $manifest = $this->emit_manifest_sidecars( $params, $backup_dir );
+
+            $diff = $this->run_incremental_diff(
+                $parent_path,
+                $dir . MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
+                $dir . MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
+                $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST
+            );
+
+            if ( ! empty( $diff['force_full'] ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), null, MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            $sub_state['diff_done']        = true;
+            $sub_state['manifest']         = array(
+                'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                'size' => (int) $manifest['size'],
+            );
+            $sub_state['changes_count']    = (int) $diff['changes'];
+            $sub_state['tombstones_count'] = (int) $diff['tombstones'];
+            $sub_state['pack_cursor']      = array(
+                'line'             => 0,
+                'component'        => '',
+                'part_index'       => 0,
+                'part_entry_count' => 0,
+                'part_start_line'  => 0,
+                'next_index'       => array(),
+            );
+            $sub_state['completed_parts']  = array();
+
+            // Yield so the pack loop starts with a fresh slice budget.
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        $pack      = $this->pack_incremental_changes( $sub_state, $deadline, $backup_dir );
+        $sub_state = $pack['sub_state'];
+        if ( empty( $pack['done'] ) ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        $artifacts   = array();
+        $artifacts[] = array(
+            'file' => $sub_state['manifest']['file'],
+            'size' => (int) $sub_state['manifest']['size'],
+            'role' => 'manifest',
+        );
+
+        $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
+        $artifacts[]     = array(
+            'file' => MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
+            'size' => file_exists( $tombstones_path ) ? (int) filesize( $tombstones_path ) : 0,
+            'role' => 'tombstones',
+        );
+
+        if ( ! empty( $sub_state['db_files'] ) ) {
+            $db_artifact = $this->archive_db_artifact( $sub_state['db_files'], $sub_state['db_prefix'], 'zip' );
+            if ( empty( $db_artifact ) || ! file_exists( $db_artifact ) ) {
+                throw new MainWP_Exception( 'The database backup archive could not be created.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+            $artifacts[] = array(
+                'file' => basename( $db_artifact ),
+                'size' => (int) filesize( $db_artifact ),
+                'role' => 'db',
+            );
+            unset( $sub_state['db_files'] );
+        }
+
+        foreach ( $sub_state['completed_parts'] as $part ) {
+            $artifacts[] = array(
+                'file' => $part['file'],
+                'size' => (int) $part['size'],
+                'role' => 'part',
+            );
+        }
+
+        // The manifest is the top-level artifact: it is small, always
+        // present, and what the next run in the chain needs first.
+        $sub_state['artifact']  = array(
+            'file' => $sub_state['manifest']['file'],
+            'size' => (int) $sub_state['manifest']['size'],
+        );
+        $sub_state['artifacts'] = $artifacts;
+
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Pack changes.list into rotating per-component parts, resuming from
+     * the cursor. The cursor's open part is verified before any append: a
+     * part killed mid-write has no central directory, so a failed verify
+     * discards the part and rewinds the cursor to the part's first file.
+     *
+     * @param array  $sub_state  Cursor.
+     * @param int    $deadline   Slice deadline.
+     * @param string $backup_dir Scratch directory.
+     *
+     * @throws MainWP_Exception When changes.list cannot be read.
+     *
+     * @return array { done: bool, sub_state: array }
+     */
+    protected function pack_incremental_changes( $sub_state, $deadline, $backup_dir ) { // phpcs:ignore -- NOSONAR - resumable pack loop.
+        $cursor    = $sub_state['pack_cursor'];
+        $completed = isset( $sub_state['completed_parts'] ) && is_array( $sub_state['completed_parts'] ) ? $sub_state['completed_parts'] : array();
+        $dir       = rtrim( $backup_dir, '/' ) . '/';
+
+        $handle = fopen( $dir . MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
+        if ( false === $handle ) {
+            throw new MainWP_Exception( 'The change list for the incremental backup could not be read.', null, MainWP_Backup_Error::ERR_FILE_CORRUPT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+
+        $writer = null;
+        if ( '' !== $cursor['component'] && $cursor['part_index'] > 0 ) {
+            $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'] );
+            if ( $cursor['part_entry_count'] > 0 && ! $writer->open_for_append( $cursor['part_index'], $cursor['part_entry_count'] ) ) {
+                // Torn part - rebuild it from its first file.
+                $cursor['line']             = $cursor['part_start_line'];
+                $cursor['part_entry_count'] = 0;
+                $writer->open_new_part( $cursor['part_index'] );
+            } elseif ( 0 === (int) $cursor['part_entry_count'] ) {
+                $writer->open_new_part( $cursor['part_index'] );
+            }
+        }
+
+        $line_no = 0;
+        while ( $line_no < $cursor['line'] && false !== fgets( $handle ) ) {
+            ++$line_no;
+        }
+
+        $done = true;
+        while ( true ) {
+            if ( $this->pack_budget_exhausted( $deadline ) ) {
+                if ( null !== $writer && $writer->is_open() ) {
+                    // Close the part so the checkpointed entry count has a
+                    // central directory behind it; the next slice appends.
+                    $cursor['part_entry_count'] = $writer->current_entries();
+                    $writer->close_part();
+                }
+                $done = false;
+                break;
+            }
+
+            $line = fgets( $handle );
+            if ( false === $line ) {
+                break;
+            }
+            $line = rtrim( $line, "\r\n" );
+            if ( '' === $line ) {
+                ++$line_no;
+                $cursor['line'] = $line_no;
+                continue;
+            }
+
+            $fields  = explode( "\t", $line );
+            $relpath = $fields[0];
+
+            $component = MainWP_Child_Backup_File_Walker::classify_component( $relpath );
+            if ( null === $writer || ! $writer->is_open() || $component !== $cursor['component'] ) {
+                if ( null !== $writer && $writer->is_open() ) {
+                    $record = $writer->close_part();
+                    if ( null !== $record && $record['entries'] > 0 ) {
+                        $completed[]                                  = $record;
+                        $cursor['next_index'][ $cursor['component'] ] = $record['index'] + 1;
+                    }
+                }
+                $index  = isset( $cursor['next_index'][ $component ] ) ? (int) $cursor['next_index'][ $component ] : 1;
+                $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $component );
+                $writer->open_new_part( $index );
+                $cursor['component']        = $component;
+                $cursor['part_index']       = $index;
+                $cursor['part_start_line']  = $line_no;
+                $cursor['part_entry_count'] = 0;
+            }
+
+            $added = $writer->add_file( $this->site_root() . $relpath, $relpath );
+            if ( $added['rotated'] && null !== $added['closed'] ) {
+                $completed[]                                  = $added['closed'];
+                $cursor['next_index'][ $cursor['component'] ] = $added['closed']['index'] + 1;
+                $cursor['part_index']                         = $writer->current_index();
+                $cursor['part_start_line']                    = $line_no;
+                $cursor['part_entry_count']                   = 0;
+            }
+
+            ++$line_no;
+            $cursor['line'] = $line_no;
+        }
+
+        fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
+
+        if ( $done ) {
+            if ( null !== $writer && $writer->is_open() ) {
+                $record = $writer->close_part();
+                if ( null !== $record && $record['entries'] > 0 ) {
+                    $completed[] = $record;
+                }
+            }
+            $cursor['component']        = '';
+            $cursor['part_index']       = 0;
+            $cursor['part_entry_count'] = 0;
+        }
+
+        $sub_state['pack_cursor']     = $cursor;
+        $sub_state['completed_parts'] = $completed;
+
+        return array(
+            'done'      => $done,
+            'sub_state' => $sub_state,
+        );
+    }
+
+    /**
+     * Locate the parent manifest the diff runs against: an inline push
+     * from the Dashboard wins, then the child-local sidecar from the last
+     * completed run. The inline copy is cleared from the cursor as soon as
+     * it lands on disk - it can be megabytes.
+     *
+     * @param array  $sub_state  Cursor (modified: inline manifest cleared).
+     * @param string $backup_dir Scratch directory.
+     *
+     * @throws MainWP_Exception When no usable parent manifest exists - the
+     *                          Dashboard reruns the site as a full backup.
+     *
+     * @return string Parent manifest path.
+     */
+    protected function resolve_parent_manifest( &$sub_state, $backup_dir ) {
+        $dir = rtrim( $backup_dir, '/' ) . '/';
+
+        $b64 = isset( $sub_state['params']['parent_manifest_b64'] ) ? $sub_state['params']['parent_manifest_b64'] : '';
+        if ( '' !== $b64 ) {
+            unset( $sub_state['params']['parent_manifest_b64'] );
+            $decoded = base64_decode( $b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- wire transport encoding for the pushed manifest, not code.
+            if ( false !== $decoded && '' !== $decoded ) {
+                $parent = $dir . 'parent-files.list';
+                if ( false !== file_put_contents( $parent, $decoded ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- scratch-dir write.
+                    return $parent;
+                }
+            }
+        }
+
+        $local = $dir . MainWP_Child_Backup_File_Walker::FILES_LIST;
+        if ( file_exists( $local ) ) {
+            return $local;
+        }
+
+        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), null, MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+    }
+
+    /**
+     * Diff the current walk against the parent manifest, choosing the
+     * in-memory map or the bounded-memory sorted merge by parent size.
+     *
+     * @param string $parent_path     Parent files.list path.
+     * @param string $current_path    Current walk's staged files.list path.
+     * @param string $changes_path    changes.list output path.
+     * @param string $tombstones_path tombstones.list output path.
+     *
+     * @return array { changes: int, tombstones: int, force_full: bool }
+     */
+    protected function run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path ) {
+        $diff             = new MainWP_Child_Backup_Incremental_Diff();
+        $parent_had_files = file_exists( $parent_path ) && filesize( $parent_path ) > 0;
+
+        // Past ~100k parent entries (~4 MiB of list) the per-file map
+        // presses on shared-host memory limits - use the sorted merge.
+        if ( $parent_had_files && filesize( $parent_path ) > 4 * 1024 * 1024 ) {
+            $merged = $diff->sorted_merge_diff( $parent_path, $current_path, $changes_path, $tombstones_path );
+            return array(
+                'changes'    => (int) $merged['changes'],
+                'tombstones' => (int) $merged['tombstones'],
+                'force_full' => empty( $merged['valid'] ),
+            );
+        }
+
+        $loaded = $diff->load_parent_map( $parent_path );
+        if ( $diff->should_force_full( $loaded, $parent_had_files ) ) {
+            return array(
+                'changes'    => 0,
+                'tombstones' => 0,
+                'force_full' => true,
+            );
+        }
+
+        $counts = $diff->stream_diff( $current_path, $loaded['map'], $changes_path, $tombstones_path );
+        return array(
+            'changes'    => (int) $counts['changes'],
+            'tombstones' => (int) $counts['tombstones'],
+            'force_full' => false,
+        );
+    }
+
+    /**
+     * Root the pack loop resolves change relpaths against.
+     *
+     * @return string Site root with a trailing slash.
+     */
+    protected function site_root() {
+        return ABSPATH;
+    }
+
+    /**
+     * Whether the pack loop should checkpoint and yield.
+     *
+     * @param int $deadline Slice deadline (unix time).
+     *
+     * @return bool True when the budget is exhausted.
+     */
+    protected function pack_budget_exhausted( $deadline ) {
+        return time() >= $deadline - 2;
     }
 
     /**

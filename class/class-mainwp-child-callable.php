@@ -654,6 +654,19 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'loadFilesBeforeZip' => isset( $_POST['loadFilesBeforeZip'] ) ? sanitize_text_field( wp_unslash( $_POST['loadFilesBeforeZip'] ) ) : true,
             'emit_manifest'      => isset( $_POST['emit_manifest'] ) && '1' === $_POST['emit_manifest'],
         );
+
+        if ( 'incremental' === $type ) {
+            $raw_manifest = isset( $_POST['parent_manifest'] ) ? wp_unslash( $_POST['parent_manifest'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated as strict base64 below.
+            if ( strlen( $raw_manifest ) > 6 * 1024 * 1024 ) {
+                MainWP_Helper::instance()->error( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_TOO_LARGE ) ), MainWP_Backup_Error::ERR_MANIFEST_TOO_LARGE );
+                return;
+            }
+            if ( '' !== $raw_manifest && false === base64_decode( $raw_manifest, true ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- strict-mode validation of the pushed manifest's wire encoding, not code.
+                $raw_manifest = ''; // Not valid base64 - treat as absent; the child-local sidecar or the force-full fallback handles it.
+            }
+            $params['parent_manifest_b64'] = $raw_manifest;
+            $params['parent_snapshot_id']  = isset( $_POST['parent_snapshot_id'] ) ? sanitize_text_field( wp_unslash( $_POST['parent_snapshot_id'] ) ) : '';
+        }
         // phpcs:enable WordPress.Security.NonceVerification
 
         try {

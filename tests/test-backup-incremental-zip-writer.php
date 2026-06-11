@@ -1,0 +1,245 @@
+<?php
+/**
+ * Class BackupIncrementalZipWriterTest
+ *
+ * @package Mainwp_Child
+ */
+
+use MainWP\Child\MainWP_Child_Backup_Incremental_Zip_Writer;
+
+/**
+ * Tests for the rotating part writer.
+ *
+ * Incremental backups pack changed files into per-component ZIP parts
+ * that rotate at size and entry-count thresholds. A ZIP killed mid-write
+ * has no central directory (it is written only on close), so re-entry
+ * verifies the part before appending: the archive must open and its
+ * entry count must match the cursor's expectation, otherwise the part is
+ * discarded and rebuilt from the part's first file.
+ */
+class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
+
+	/**
+	 * Scratch dir for parts.
+	 *
+	 * @var string
+	 */
+	protected $dir;
+
+	/**
+	 * Source-file fixture dir.
+	 *
+	 * @var string
+	 */
+	protected $src;
+
+	/**
+	 * Build scratch dirs and source fixtures.
+	 */
+	public function set_up() {
+		parent::set_up();
+		$this->dir = sys_get_temp_dir() . '/mainwp-zipw-out-' . uniqid();
+		$this->src = sys_get_temp_dir() . '/mainwp-zipw-src-' . uniqid();
+		mkdir( $this->dir );
+		mkdir( $this->src );
+
+		foreach ( array( 'a.php', 'b.php', 'c.php', 'd.php' ) as $name ) {
+			file_put_contents( $this->src . '/' . $name, str_repeat( $name[0], 100 ) ); // phpcs:ignore -- test fixture.
+		}
+	}
+
+	/**
+	 * Remove the scratch dirs.
+	 */
+	public function tear_down() {
+		foreach ( array( $this->dir, $this->src ) as $dir ) {
+			foreach ( (array) glob( $dir . '/*' ) as $file ) {
+				unlink( $file );
+			}
+			if ( is_dir( $dir ) ) {
+				rmdir( $dir );
+			}
+		}
+		parent::tear_down();
+	}
+
+	/**
+	 * Entry names inside a part archive.
+	 *
+	 * @param string $basename Part file name.
+	 *
+	 * @return string[] Entry names.
+	 */
+	protected function part_entries( $basename ) {
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $this->dir . '/' . $basename ) );
+		$names = array();
+		for ( $i = 0; $i < $zip->numFiles; $i++ ) {
+			$names[] = $zip->getNameIndex( $i );
+		}
+		$zip->close();
+		return $names;
+	}
+
+	/**
+	 * Part names follow component.partNNN.zip.
+	 */
+	public function test_part_basename_format() {
+		$this->assertSame( 'plugins.part001.zip', MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( 'plugins', 1 ) );
+		$this->assertSame( 'uploads.part010.zip', MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( 'uploads', 10 ) );
+		$this->assertSame( 'core.part123.zip', MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( 'core', 123 ) );
+	}
+
+	/**
+	 * Files added to a fresh part land in a valid archive with the relpath
+	 * as the entry name.
+	 */
+	public function test_new_part_packs_files() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'plugins' );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/a.php', 'wp-content/plugins/x/a.php' );
+		$writer->add_file( $this->src . '/b.php', 'wp-content/plugins/x/b.php' );
+		$record = $writer->close_part();
+
+		$this->assertSame( 'plugins.part001.zip', $record['file'] );
+		$this->assertSame( 2, $record['entries'] );
+		$this->assertGreaterThan( 0, $record['size'] );
+		$this->assertSame( (int) filesize( $this->dir . '/plugins.part001.zip' ), $record['size'] );
+
+		$this->assertSame(
+			array( 'wp-content/plugins/x/a.php', 'wp-content/plugins/x/b.php' ),
+			$this->part_entries( 'plugins.part001.zip' )
+		);
+	}
+
+	/**
+	 * The writer rotates to a new part when the entry threshold is reached;
+	 * the closed part is reported by add_file so the caller can checkpoint.
+	 */
+	public function test_rotation_on_entry_threshold() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core', 2 );
+		$writer->open_new_part( 1 );
+
+		$this->assertNull( $writer->add_file( $this->src . '/a.php', 'a.php' )['closed'] );
+		$this->assertNull( $writer->add_file( $this->src . '/b.php', 'b.php' )['closed'] );
+
+		$third = $writer->add_file( $this->src . '/c.php', 'c.php' );
+		$this->assertTrue( $third['rotated'] );
+		$this->assertSame( 'core.part001.zip', $third['closed']['file'] );
+		$this->assertSame( 2, $third['closed']['entries'] );
+
+		$last = $writer->close_part();
+		$this->assertSame( 'core.part002.zip', $last['file'] );
+		$this->assertSame( 1, $last['entries'] );
+
+		$this->assertSame( array( 'a.php', 'b.php' ), $this->part_entries( 'core.part001.zip' ) );
+		$this->assertSame( array( 'c.php' ), $this->part_entries( 'core.part002.zip' ) );
+	}
+
+	/**
+	 * The writer also rotates when accumulated source bytes pass the byte
+	 * threshold.
+	 */
+	public function test_rotation_on_byte_threshold() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'uploads', 1000, 150 );
+		$writer->open_new_part( 1 );
+
+		$writer->add_file( $this->src . '/a.php', 'a.php' );   // 100 bytes.
+		$second = $writer->add_file( $this->src . '/b.php', 'b.php' ); // Crosses 150.
+
+		$this->assertTrue( $second['rotated'] );
+		$this->assertSame( 'uploads.part001.zip', $second['closed']['file'] );
+		$this->assertSame( array( 'a.php' ), $this->part_entries( 'uploads.part001.zip' ) );
+
+		$writer->close_part();
+		$this->assertSame( array( 'b.php' ), $this->part_entries( 'uploads.part002.zip' ) );
+	}
+
+	/**
+	 * An intact closed part with the expected entry count reopens for
+	 * appending; new entries land alongside the old ones.
+	 */
+	public function test_verify_intact_part_allows_append() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
+		$writer->close_part();
+
+		$resumed = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$this->assertTrue( $resumed->open_for_append( 1, 1 ) );
+		$resumed->add_file( $this->src . '/b.php', 'b.php' );
+		$record = $resumed->close_part();
+
+		$this->assertSame( 2, $record['entries'] );
+		$this->assertSame( array( 'a.php', 'b.php' ), $this->part_entries( 'core.part001.zip' ) );
+	}
+
+	/**
+	 * A part whose entry count does not match the cursor's expectation is
+	 * rejected - entries past the checkpoint would otherwise duplicate or
+	 * go missing.
+	 */
+	public function test_verify_count_mismatch_rejects_append() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
+		$writer->add_file( $this->src . '/b.php', 'b.php' );
+		$writer->close_part();
+
+		$resumed = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$this->assertFalse( $resumed->open_for_append( 1, 1 ) );
+	}
+
+	/**
+	 * A truncated part - killed mid-write, no central directory - is
+	 * rejected on re-entry.
+	 */
+	public function test_verify_truncated_part_rejects_append() {
+		file_put_contents( $this->dir . '/core.part001.zip', 'PK not actually a zip' ); // phpcs:ignore -- test fixture: torn write.
+
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$this->assertFalse( $writer->open_for_append( 1, 1 ) );
+	}
+
+	/**
+	 * A missing part is rejected on re-entry when entries were expected.
+	 */
+	public function test_verify_missing_part_rejects_append() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$this->assertFalse( $writer->open_for_append( 1, 3 ) );
+	}
+
+	/**
+	 * Opening a new part over a discarded corrupt file rebuilds it from
+	 * scratch.
+	 */
+	public function test_open_new_part_replaces_corrupt_file() {
+		file_put_contents( $this->dir . '/core.part001.zip', 'garbage' ); // phpcs:ignore -- test fixture: torn write.
+
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
+		$record = $writer->close_part();
+
+		$this->assertSame( 1, $record['entries'] );
+		$this->assertSame( array( 'a.php' ), $this->part_entries( 'core.part001.zip' ) );
+	}
+
+	/**
+	 * A source file that vanished between the walk and the pack is skipped
+	 * without aborting the part.
+	 */
+	public function test_missing_source_file_skipped() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+
+		$result = $writer->add_file( $this->src . '/gone.php', 'gone.php' );
+		$this->assertTrue( $result['skipped'] );
+
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
+		$record = $writer->close_part();
+
+		$this->assertSame( 1, $record['entries'] );
+		$this->assertSame( array( 'a.php' ), $this->part_entries( 'core.part001.zip' ) );
+	}
+}
