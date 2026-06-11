@@ -652,13 +652,25 @@ class MainWP_Backup {
         $type     = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
 
         try {
-            if ( 'full' === $type || 'db' === $type ) {
-                $this->assert_disk_space_for_backup( $backupdir, 'full' === $type );
+            if ( 'full' === $type || 'db' === $type || 'files' === $type ) {
+                $this->assert_disk_space_for_backup( $backupdir, 'db' !== $type );
             }
 
-            if ( 'full' === $type ) {
+            if ( 'full' === $type || 'files' === $type ) {
+
+                if ( 'files' === $type ) {
+                    // A files-only backup embeds no database dump: an
+                    // empty prepared set short-circuits the fresh dump
+                    // the archiver would otherwise run. The artifact
+                    // rides the full slot like every file archive.
+                    $this->set_prepared_db_files( array() );
+                }
 
                 $res = $this->backup_full( $fileName );
+
+                if ( 'files' === $type ) {
+                    $this->set_prepared_db_files( null );
+                }
 
                 if ( ! $res ) {
                     $information['full'] = false;
