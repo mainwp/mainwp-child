@@ -227,6 +227,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $size = (int) filesize( $path );
         }
 
+        if ( ! file_exists( $path ) && 0 === $offset && '' === $raw ) {
+            // A zero-byte artifact (an empty tombstones list) still needs
+            // its file so the final hash check and the apply phase see it.
+            file_put_contents( $path, '' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- creating the empty staging file.
+        }
+
         $done = false;
         if ( $is_final ) {
             $expected_hash = isset( $expected['sha256'] ) ? (string) $expected['sha256'] : '';
@@ -597,6 +603,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
         }
 
+        // Dump files are restore byproducts, never site content: the
+        // embedded set just replayed, and any older litter a previous
+        // full-archive restore deposited must not ride into the next
+        // backup (a stale options dump archived beside the fresh one
+        // can win extraction and silently roll the site back).
+        $this->cleanup_dump_litter();
+
         if ( $db['fk_path'] ) {
             // In-place replay finished: leave maintenance mode and skip
             // the swap phase entirely (the live tables already hold the
@@ -858,7 +871,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
         if ( null === $db_artifact ) {
-            throw new MainWP_Exception( 'No database artifact was provided for this restore.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            // A plain full backup embeds its dump inside the site archive;
+            // the file phase already extracted those .sql.php files. Replay
+            // them in place and remove them once the replay is done.
+            $embedded = $this->find_embedded_dump_files();
+            if ( empty( $embedded ) ) {
+                throw new MainWP_Exception( 'No database artifact was provided for this restore.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+            $sub_state['db_replay'] = $this->build_db_replay_state( $task, $embedded, $params, true );
+            return null;
         }
 
         $hashes = $this->expected_hashes( $sub_state );
@@ -889,6 +910,26 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( empty( $files ) ) {
             throw new MainWP_Exception( 'The database archive contained no table dump files.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
+
+        $sub_state['db_replay'] = $this->build_db_replay_state( $task, $files, $params, false );
+
+        return null;
+    }
+
+    /**
+     * Build the replay route state for a set of dump files.
+     *
+     * @param object   $task     Task row.
+     * @param string[] $files    Per-table .sql.php files.
+     * @param array    $params   Restore params.
+     * @param bool     $embedded Whether the files were embedded in the
+     *                           site archive (removed after replay).
+     *
+     * @throws MainWP_Exception When no table prefix can be determined.
+     *
+     * @return array db_replay state.
+     */
+    protected function build_db_replay_state( $task, $files, $params, $embedded ) {
         sort( $files );
 
         $engine = $this->restore_engine();
@@ -899,6 +940,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $source_prefix = (string) $params['source_prefix'];
         } elseif ( isset( $banner['info']['table_prefix'] ) ) {
             $source_prefix = (string) $banner['info']['table_prefix'];
+        }
+        if ( '' === $source_prefix ) {
+            // Older embedded dumps carry no banner; the live prefix is the
+            // only sane default for a same-site restore.
+            $source_prefix = $embedded ? $this->target_prefix() : '';
         }
         if ( '' === $source_prefix ) {
             throw new MainWP_Exception( 'The dump does not record its table prefix and none was provided.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
@@ -914,16 +960,48 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $fk = $engine->probe_fk( $files );
         }
 
-        $sub_state['db_replay'] = array(
+        return array(
             'files'         => $files,
             'source_prefix' => $source_prefix,
             'fk_path'       => $fk,
             'banner_info'   => isset( $banner['info'] ) ? $banner['info'] : null,
+            'embedded'      => $embedded,
             'cursor'        => array(),
             'seen_resumes'  => (int) $task->resume_count,
         );
+    }
 
-        return null;
+    /**
+     * Remove database dump litter from the live site.
+     */
+    protected function cleanup_dump_litter() {
+        $roots = array(
+            rtrim( $this->site_root(), '/' ),
+            rtrim( $this->site_root(), '/' ) . '/wp-content',
+        );
+        foreach ( $roots as $root ) {
+            foreach ( array_merge( (array) glob( $root . '/dbBackup*.sql.php' ), (array) glob( $root . '/dbBackup*.sql' ) ) as $litter ) {
+                if ( is_file( $litter ) ) {
+                    wp_delete_file( $litter );
+                }
+            }
+        }
+    }
+
+    /**
+     * Locate dump files a full archive extracted over the site.
+     *
+     * The full backup places its per-table dumps under wp-content, and
+     * some generations used the site root.
+     *
+     * @return string[] Dump file paths.
+     */
+    protected function find_embedded_dump_files() {
+        $candidates = array_merge(
+            (array) glob( rtrim( $this->site_root(), '/' ) . '/dbBackup*.sql.php' ),
+            (array) glob( rtrim( $this->site_root(), '/' ) . '/wp-content/dbBackup*.sql.php' )
+        );
+        return array_values( array_filter( $candidates, 'is_file' ) );
     }
 
     /**
