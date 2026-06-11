@@ -206,12 +206,28 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 ),
             )
         );
-        if ( false !== $new_version ) {
-            $version = $new_version;
-            $spine->delete_sidecar( $task_id, $backup_dir );
+        if ( false === $new_version ) {
+            // Something else wrote the row between the acquire and the
+            // checkpoint (the wall-clock enforcer is the only writer that
+            // ignores leases). Report what the row actually holds instead
+            // of claiming a cancel that never landed.
+            $spine->release_lease( $task_id, 'cancel', $version );
+            $fresh = $spine->get_task( $task_id );
+            $phase = null !== $fresh ? $fresh->phase : '';
+            if ( MainWP_Child_Backup_Task::is_terminal_phase( $phase ) ) {
+                return array(
+                    'result' => 'already_terminal',
+                    'phase'  => $phase,
+                );
+            }
+            return array(
+                'result' => 'busy',
+                'phase'  => $phase,
+            );
         }
 
-        $spine->release_lease( $task_id, 'cancel', $version );
+        $spine->delete_sidecar( $task_id, $backup_dir );
+        $spine->release_lease( $task_id, 'cancel', $new_version );
 
         return array(
             'result' => 'ok',
