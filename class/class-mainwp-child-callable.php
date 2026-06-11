@@ -56,6 +56,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'restore_task_create'      => 'restore_task_create',
         'restore_task_run'         => 'restore_task_run',
         'restore_task_status'      => 'restore_task_status',
+        'restore_task_cancel'      => 'restore_task_cancel',
         'restore_artifact_chunk'   => 'restore_artifact_chunk',
         'cloneinfo'                => 'cloneinfo',
         'security'                 => 'get_security_stats',
@@ -908,6 +909,32 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Helper::write( MainWP_Child_Backup_Task::instance()->status_payload( $task ) );
+    }
+
+    /**
+     * Method restore_task_cancel()
+     *
+     * Cancel a restore task. While another runner holds the task lease
+     * the response reports busy and the Dashboard retries; otherwise
+     * the task lands terminal failed with the cancelled code after the
+     * same cleanup a phase failure runs (old aside tables kept).
+     *
+     * @uses \MainWP\Child\MainWP_Child_Restore_Task_Runner::cancel_restore_task()
+     */
+    public function restore_task_cancel() {
+        $task = $this->load_restore_task_from_request( 'cancel' );
+        if ( null === $task ) {
+            return;
+        }
+
+        $outcome = MainWP_Child_Restore_Task_Runner::instance()->cancel_restore_task( $task->task_id );
+
+        if ( isset( $outcome['error'] ) ) {
+            MainWP_Helper::instance()->error( $outcome['error'], isset( $outcome['error_code'] ) ? $outcome['error_code'] : null );
+            return;
+        }
+
+        MainWP_Helper::write( $outcome );
     }
 
     /**

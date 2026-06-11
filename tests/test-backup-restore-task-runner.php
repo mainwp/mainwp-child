@@ -653,6 +653,73 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Cancelling an idle restore task lands it terminal failed with the
+	 * cancel code and runs the same cleanup as a failure: tmp tables
+	 * dropped, maintenance lifted, scratch removed, old tables kept.
+	 */
+	public function test_cancel_idle_restore_task_lands_failed_with_cancel_code() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+
+		$outcome = $this->runner->cancel_restore_task( $task_id );
+
+		$this->assertSame( 'ok', $outcome['result'] );
+
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED, $payload['error_code'] );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'cleanup_tmp_tables', $calls );
+		$this->assertContains( 'exit_maintenance', $calls );
+		$this->assertNotContains( 'drop_old_tables', $calls );
+		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
+	}
+
+	/**
+	 * Cancel never breaks a live lease: while another runner owns the
+	 * task the cancel reports busy and changes nothing.
+	 */
+	public function test_cancel_while_lease_held_returns_busy() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->spine->get_task( $task_id );
+		$this->assertTrue( $this->spine->acquire_lease( $task_id, 'other-runner', (int) $task->version ) );
+
+		$outcome = $this->runner->cancel_restore_task( $task_id );
+
+		$this->assertSame( 'busy', $outcome['result'] );
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task->phase );
+	}
+
+	/**
+	 * Cancelling a finished task is a no-op that reports the terminal
+	 * phase instead of failing a completed restore.
+	 */
+	public function test_cancel_terminal_task_reports_already_terminal() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$this->drive( $task_id );
+
+		$outcome = $this->runner->cancel_restore_task( $task_id );
+
+		$this->assertSame( 'already_terminal', $outcome['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $outcome['phase'] );
+
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+	}
+
+	/**
+	 * Cancelling an unknown or non-restore task reports an error.
+	 */
+	public function test_cancel_unknown_task_reports_error() {
+		$outcome = $this->runner->cancel_restore_task( 'no-such-task' );
+
+		$this->assertArrayHasKey( 'error', $outcome );
+	}
+
+	/**
 	 * The backup runner's watchdog listener leaves restore tasks alone.
 	 */
 	public function test_backup_runner_ignores_restore_tasks_on_resume() {

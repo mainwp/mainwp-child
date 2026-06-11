@@ -144,6 +144,82 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
+     * Cancel a restore task cleanly.
+     *
+     * The cancel respects the lease: while another runner is mid-slice
+     * the task state is theirs, so the cancel reports busy and the
+     * caller retries after the slice (or the lease TTL) ends. Once the
+     * lease is held, the task gets the same treatment as a phase
+     * failure - tmp tables dropped, maintenance lifted, scratch removed,
+     * old aside tables kept as the rollback - and lands terminal failed
+     * with the cancelled error code.
+     *
+     * @param string $task_id Task id.
+     *
+     * @return array { result: ok|busy|already_terminal, phase } or
+     *               { error, error_code } when the task is unknown.
+     */
+    public function cancel_restore_task( $task_id ) {
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+
+        $task = $spine->get_task( $task_id );
+        if ( null === $task || ! static::is_restore_type( $task->type ) ) {
+            return array(
+                'error'      => esc_html__( 'Restore task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ),
+                'error_code' => '',
+            );
+        }
+
+        if ( MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
+            return array(
+                'result' => 'already_terminal',
+                'phase'  => $task->phase,
+            );
+        }
+
+        $version = (int) $task->version;
+        if ( ! $spine->acquire_lease( $task_id, 'cancel', $version ) ) {
+            return array(
+                'result' => 'busy',
+                'phase'  => $task->phase,
+            );
+        }
+        ++$version;
+
+        $backup_dir = $this->backup_dir();
+        $sub_state  = $spine->read_sub_state( $task, $backup_dir );
+        $sub_state  = is_array( $sub_state ) ? $sub_state : array();
+
+        $this->terminal_cleanup( $task, $sub_state, $backup_dir );
+
+        $new_version = $spine->checkpoint(
+            $task_id,
+            $version,
+            array(
+                'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+                'sub_state' => array(
+                    'error' => array(
+                        'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED ),
+                        'code'    => MainWP_Backup_Error::ERR_RESTORE_CANCELLED,
+                    ),
+                ),
+            )
+        );
+        if ( false !== $new_version ) {
+            $version = $new_version;
+            $spine->delete_sidecar( $task_id, $backup_dir );
+        }
+
+        $spine->release_lease( $task_id, 'cancel', $version );
+
+        return array(
+            'result' => 'ok',
+            'phase'  => MainWP_Child_Backup_Task::PHASE_FAILED,
+        );
+    }
+
+    /**
      * Receive one hash-verified piece of a restore artifact.
      *
      * The write path derives from the task id (scratch dir) plus the
